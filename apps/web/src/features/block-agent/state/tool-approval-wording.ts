@@ -165,6 +165,7 @@ const MACRO_TOOLS: Record<MacroToolName, Wording | null> = {
   SetSenderPolicy: (whose) => `change ${whose} email sender rules`,
   ShareWithChannel: (whose) =>
     `share an item from ${whose} account with a channel`,
+  StartAgentSession: (whose) => `start an agent session with ${whose} access`,
   Subagent: (whose) => `start a helper agent with ${whose} access`,
   TextEditorCodeExecution: (whose) => `edit files with ${whose} access`,
   UpdateBookingSettings: (whose) => `change ${whose} booking settings`,

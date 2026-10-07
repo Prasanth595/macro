@@ -473,6 +473,10 @@ type ToolParserMap = {
     call: types.ShareWithChannel;
     response: types.ShareWithChannelResponse;
   };
+  StartAgentSession: {
+    call: types.StartAgentSession;
+    response: types.DispatchedCodingAgent;
+  };
   Subagent: { call: types.Subagent; response: types.SubagentResponse };
   TextEditorCodeExecution: {
     call: types.TextEditorCodeExecution;
@@ -1039,6 +1043,10 @@ const toolParserMap = {
     call: schemas.ShareWithChannel,
     response: schemas.ShareWithChannelResponse,
   },
+  StartAgentSession: {
+    call: schemas.StartAgentSession,
+    response: schemas.DispatchedCodingAgent,
+  },
   Subagent: { call: schemas.Subagent, response: schemas.SubagentResponse },
   TextEditorCodeExecution: {
     call: schemas.TextEditorCodeExecution,
@@ -1561,6 +1569,10 @@ type ToolDataMap = {
   ShareWithChannel: {
     call: types.ShareWithChannel;
     response: types.ShareWithChannelResponse;
+  };
+  StartAgentSession: {
+    call: types.StartAgentSession;
+    response: types.DispatchedCodingAgent;
   };
   Subagent: { call: types.Subagent; response: types.SubagentResponse };
   TextEditorCodeExecution: {

@@ -175,6 +175,7 @@ import {
   editSpreadsheetHandler,
   readSpreadsheetHandler,
 } from './Spreadsheet';
+import { startAgentSessionHandler } from './StartAgentSession';
 import { subagentHandler } from './Subagent';
 import { getTeamAvailabilityHandler } from './TeamAvailability';
 import { textEditorCodeExecutionHandler } from './TextEditorCodeExecution';
@@ -198,6 +199,7 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   ...initiativeToolHandlers,
   ExecuteCode: executeCodeHandler,
   DescribeCodeTools: describeCodeToolsHandler,
+  StartAgentSession: startAgentSessionHandler,
   DispatchCodingAgent: dispatchCodingAgentHandler,
   ListCodingAgents: listCodingAgentsHandler,
   ReadSpreadsheet: readSpreadsheetHandler,
