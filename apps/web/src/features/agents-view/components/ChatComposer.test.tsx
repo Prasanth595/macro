@@ -33,10 +33,6 @@ vi.mock('@core/agent-fold/client', () => ({
   preloadAgentFold: vi.fn(async () => {}),
 }));
 
-vi.mock('@solid-primitives/media', () => ({
-  createMediaQuery: () => () => false,
-}));
-
 vi.mock('@core/mobile/isTouchDevice', () => ({
   isTouchDevice: vi.fn(() => false),
 }));
