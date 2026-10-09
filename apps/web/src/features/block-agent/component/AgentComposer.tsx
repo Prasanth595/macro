@@ -48,6 +48,7 @@ import {
 } from '../ui';
 import type { AgentModelSelectorProps } from '../ui/AgentModelSelector';
 import { AgentModelMenuItem } from './AgentModelMenuItem';
+import { EffortDial } from './EffortDial';
 import { PermissionRequest } from './PermissionRequest';
 import { promptActionOf } from './prompt-action';
 import { ToolApprovalRequest } from './ToolApprovalRequest';
@@ -376,7 +377,7 @@ export function AgentComposer(props: {
         }}
         registerQuoteInsert={registerQuoteInsert}
         modelControl={
-          <div class="flex min-w-0 items-center gap-1">
+          <div class="flex min-w-0 items-center gap-0.5">
             <ModelSelector
               model={metadata()?.model ?? null}
               changingTo={changingModel(messages(), metadata()?.model ?? null)}
@@ -420,6 +421,23 @@ export function AgentComposer(props: {
             >
               <SpeedToggle model={metadata()?.model ?? ''} />
             </Show>
+            <EffortDial
+              config={effort()}
+              value={changingEffort()}
+              disabled={
+                loadFailed() ||
+                readOnly() ||
+                pending() ||
+                configuring() ||
+                changingEffort() !== undefined ||
+                changingModel(messages(), metadata()?.model ?? null) !==
+                  undefined
+              }
+              onChange={(choice) => {
+                const model = metadata()?.model;
+                if (model) void chooseModel(model, choice);
+              }}
+            />
           </div>
         }
       />
