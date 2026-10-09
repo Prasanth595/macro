@@ -307,6 +307,24 @@ export function ChatComposer(props: {
             setFocused(false);
         }}
       >
+        <Show when={props.drawer}>
+          <div
+            class="composer-drawer"
+            data-open={drawerOpen() ? '' : undefined}
+            aria-hidden={!drawerOpen()}
+            inert={!drawerOpen()}
+          >
+            <div class="composer-drawer-inner">
+              <div
+                class="composer-drawer-content"
+                role="group"
+                aria-label="Repository settings"
+              >
+                {props.drawer}
+              </div>
+            </div>
+          </div>
+        </Show>
         <ComposerSurface
           as="div"
           data-agent-composer="chat"
@@ -459,24 +477,6 @@ export function ChatComposer(props: {
           </p>
         </Show>
         <DictationFeedback dictation={dictation} />
-        <Show when={props.drawer}>
-          <div
-            class="composer-drawer"
-            data-open={drawerOpen() ? '' : undefined}
-            aria-hidden={!drawerOpen()}
-            inert={!drawerOpen()}
-          >
-            <div class="composer-drawer-inner">
-              <div
-                class="composer-drawer-content"
-                role="group"
-                aria-label="Repository settings"
-              >
-                {props.drawer}
-              </div>
-            </div>
-          </div>
-        </Show>
       </div>
     </InputProvider>
   );
