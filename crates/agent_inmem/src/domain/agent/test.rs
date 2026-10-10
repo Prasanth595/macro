@@ -21,6 +21,13 @@ use macro_user_id::user_id::MacroUserIdStr;
 
 struct Harness {
     notifications: std::sync::Mutex<Vec<SessionNotification>>,
+    summaries: std::sync::Mutex<Vec<compaction::ContextSummaryNotification>>,
+}
+
+/// What a scripted client saw while it ran a scenario.
+struct Recorded<Out> {
+    summaries: Vec<compaction::ContextSummaryNotification>,
+    out: Out,
 }
 
 struct CancelledEngine;
@@ -85,6 +92,39 @@ async fn with_model_access<Engine: TurnEngine, Out>(
     model_access: Arc<dyn InMemModelAccess>,
     scenario: impl AsyncFnOnce(ConnectionTo<Agent>, SessionId, Arc<AgentState>) -> Out,
 ) -> (Vec<SessionNotification>, Vec<SessionConfigOption>, Out) {
+    let (notifications, recorded) = record(engine, admission, model_access, scenario).await;
+    let (config_options, out) = recorded.out;
+    (notifications, config_options, out)
+}
+
+/// Like [`with_admission`] with admission off, keeping every summary the
+/// client was told of.
+async fn with_summaries<Engine: TurnEngine, Out>(
+    engine: Arc<Engine>,
+    scenario: impl AsyncFnOnce(ConnectionTo<Agent>, SessionId, Arc<AgentState>) -> Out,
+) -> Recorded<Out> {
+    let (_, recorded) = record(
+        engine,
+        Arc::new(DisabledAiAdmissionService),
+        Arc::new(crate::testing::TestModelAccess::paid()),
+        scenario,
+    )
+    .await;
+    Recorded {
+        summaries: recorded.summaries,
+        out: recorded.out.1,
+    }
+}
+
+async fn record<Engine: TurnEngine, Out>(
+    engine: Arc<Engine>,
+    admission: Arc<dyn AiAdmissionService>,
+    model_access: Arc<dyn InMemModelAccess>,
+    scenario: impl AsyncFnOnce(ConnectionTo<Agent>, SessionId, Arc<AgentState>) -> Out,
+) -> (
+    Vec<SessionNotification>,
+    Recorded<(Vec<SessionConfigOption>, Out)>,
+) {
     let store = Arc::new(SessionStore::new());
     let session_id = AgentSessionId::new();
     store.insert(
@@ -115,8 +155,10 @@ async fn with_model_access<Engine: TurnEngine, Out>(
 
     let harness = Arc::new(Harness {
         notifications: std::sync::Mutex::new(Vec::new()),
+        summaries: std::sync::Mutex::new(Vec::new()),
     });
     let observed = Arc::clone(&harness);
+    let summarized = Arc::clone(&harness);
     let out = Client
         .builder()
         .on_receive_notification(
@@ -126,6 +168,17 @@ async fn with_model_access<Engine: TurnEngine, Out>(
                     .lock()
                     .expect("notifications lock")
                     .push(notification);
+                Ok(())
+            },
+            agent_client_protocol::on_receive_notification!(),
+        )
+        .on_receive_notification(
+            async move |summary: compaction::ContextSummaryNotification, _connection| {
+                summarized
+                    .summaries
+                    .lock()
+                    .expect("summaries lock")
+                    .push(summary);
                 Ok(())
             },
             agent_client_protocol::on_receive_notification!(),
@@ -170,7 +223,14 @@ async fn with_model_access<Engine: TurnEngine, Out>(
         .lock()
         .expect("notifications lock")
         .clone();
-    (notifications, out.0.unwrap_or_default(), out.1)
+    let summaries = harness.summaries.lock().expect("summaries lock").clone();
+    (
+        notifications,
+        Recorded {
+            summaries,
+            out: (out.0.unwrap_or_default(), out.1),
+        },
+    )
 }
 
 fn text_prompt(session: &SessionId, text: &str) -> PromptRequest {
@@ -273,8 +333,8 @@ async fn deterministic_commands_skip_admission_but_provider_commands_do_not() {
                 .await
                 .unwrap();
             assert!(admission.calls.lock().unwrap().is_empty());
-            // Compaction now summarizes through the provider and needs admission,
-            // as does unknown/development command text sent to the provider.
+            // Any other command text, `/compact` included, is a message for
+            // the provider, and is gated like one.
             for command in ["/compact", "/develop something"] {
                 connection
                     .send_request(text_prompt(&session, command))
@@ -502,10 +562,10 @@ async fn new_session_advertises_its_slash_commands() {
             // A round trip so the advertisement, sent right after the
             // session/new response, has landed before the client is torn down.
             connection
-                .send_request(text_prompt(&session, "/compact"))
+                .send_request(text_prompt(&session, "hello"))
                 .block_task()
                 .await
-                .expect("compaction should complete");
+                .expect("the prompt should complete");
         },
     )
     .await;
@@ -719,42 +779,193 @@ async fn attached_files_reach_the_model_and_stay_in_history() {
     );
 }
 
-#[tokio::test]
-async fn compact_summarizes_history_and_carries_the_summary_into_the_next_turn() {
-    let engine = Arc::new(ScriptedEngine::new(vec![StreamPart::Content("ok".into())]));
+/// Answers turns from `turns`, and the calls that condense the conversation
+/// from `summaries` (a summary) or `reads` (an image read for one), each
+/// summary `delay` late.
+struct CondensingEngine {
+    turns: ScriptedEngine,
+    summaries: ScriptedEngine,
+    reads: ScriptedEngine,
+    delay: std::time::Duration,
+}
 
-    with_agent(Arc::clone(&engine), async |connection, session| {
-        connection
-            .send_request(text_prompt(&session, "remember this"))
-            .block_task()
-            .await
-            .expect("the prompt should complete");
-        let response = connection
-            .send_request(text_prompt(&session, "/compact"))
-            .block_task()
-            .await
-            .expect("compaction should complete");
-        assert_eq!(response.stop_reason, StopReason::EndTurn);
-        connection
-            .send_request(text_prompt(&session, "after"))
-            .block_task()
-            .await
-            .expect("the prompt should complete");
+impl CondensingEngine {
+    fn new() -> Self {
+        Self {
+            turns: ScriptedEngine::new(vec![StreamPart::Content("ok".into())]),
+            summaries: ScriptedEngine::new(vec![StreamPart::Content("SUMMARY".into())]),
+            reads: ScriptedEngine::new(vec![StreamPart::Content("a red square".into())]),
+            delay: std::time::Duration::ZERO,
+        }
+    }
+}
+
+impl TurnEngine for CondensingEngine {
+    fn supported_models(&self) -> &[&str] {
+        crate::testing::TEST_MODELS
+    }
+
+    fn run_turn(
+        &self,
+        request: TurnRequest,
+    ) -> tokio::sync::mpsc::Receiver<Result<StreamPart, agent::AgentError>> {
+        if request.purpose == TurnPurpose::Conversation {
+            return self.turns.run_turn(request);
+        }
+        if request
+            .messages
+            .iter()
+            .any(|message| message.attachments.is_some())
+        {
+            return self.reads.run_turn(request);
+        }
+        let delay = self.delay;
+        let mut summary = self.summaries.run_turn(request);
+        let (parts, receiver) = tokio::sync::mpsc::channel(8);
+        tokio::spawn(async move {
+            tokio::time::sleep(delay).await;
+            while let Some(part) = summary.recv().await {
+                if parts.send(part).await.is_err() {
+                    break;
+                }
+            }
+        });
+        receiver
+    }
+}
+
+/// Text of `bytes` bytes, a third as many tokens by the estimate.
+fn big(bytes: usize) -> String {
+    "x".repeat(bytes)
+}
+
+/// Run the session on `model` from here on. `other-model` is one the
+/// catalog has no window for, so it gets the 128k-token fallback: a summary
+/// starts at 51,200 tokens, a turn waits from 96,000, and one message may
+/// take 32,000.
+fn use_model(state: &AgentState, model: &str) {
+    state
+        .store
+        .get_mut(&state.session_id)
+        .expect("the session exists")
+        .model = model.to_owned();
+}
+
+/// Wait for the summary being written, if any, to land or fail.
+async fn summary_settled(state: &AgentState) {
+    let settled = state.store.get(&state.session_id).and_then(|session| {
+        session
+            .summarizing
+            .as_ref()
+            .map(|summary| summary.settled.clone())
+    });
+    if let Some(mut settled) = settled {
+        let _ = settled.changed().await;
+    }
+}
+
+async fn prompt(connection: &ConnectionTo<Agent>, session: &SessionId, text: &str) {
+    connection
+        .send_request(text_prompt(session, text))
+        .block_task()
+        .await
+        .expect("the prompt should complete");
+}
+
+#[tokio::test]
+async fn a_long_conversation_is_summarized_in_the_background_while_its_message_runs_on_all_of_it() {
+    let engine = Arc::new(CondensingEngine::new());
+    let recorded = with_summaries(Arc::clone(&engine), async |connection, session, state| {
+        use_model(&state, "other-model");
+        prompt(&connection, &session, &big(90_000)).await;
+        // 60,000 tokens with this one: the summary starts, and the message
+        // does not wait for it.
+        prompt(&connection, &session, &big(90_000)).await;
+        summary_settled(&state).await;
+        prompt(&connection, &session, "continue").await;
+        let session = state.store.get(&state.session_id).expect("the session");
+        (session.archive.len(), session.summarizing.is_none())
     })
     .await;
 
-    let requests = engine.requests();
-    assert_eq!(requests.len(), 3);
-    assert_eq!(requests[1].purpose, TurnPurpose::Summary);
-    assert!(requests[1].messages[0].contains("remember this"));
+    let turns = engine.turns.requests();
     assert_eq!(
-        &requests[2].messages[1..],
-        ["ok".to_owned(), "after".to_owned()],
-        "the next prompt keeps the summary"
+        turns[1].messages,
+        [big(90_000), "ok".to_owned(), big(90_000)],
+        "the message that started the summary ran on the whole history"
+    );
+    let summaries = engine.summaries.requests();
+    assert_eq!(summaries.len(), 1);
+    assert_eq!(summaries[0].model, compaction::SUMMARY_MODEL);
+    assert_eq!(summaries[0].purpose, TurnPurpose::Summary);
+    assert!(summaries[0].messages[0].contains(&big(90_000)));
+    assert!(
+        summaries[0].messages[0].len() < 100_000,
+        "the latest message is not in its own summary"
+    );
+    assert_eq!(
+        turns[2].messages,
+        [
+            crate::domain::session::SUMMARY_PREAMBLE.to_owned(),
+            "SUMMARY".to_owned(),
+            big(90_000),
+            "ok".to_owned(),
+            "continue".to_owned()
+        ],
+        "the next message reads the summary in place of the first turn"
+    );
+    assert_eq!(recorded.summaries.len(), 1, "the log records the summary");
+    assert_eq!(recorded.summaries[0].text, "SUMMARY");
+    assert_eq!(recorded.summaries[0].replaces, 2);
+    assert_eq!(
+        recorded.out,
+        (2, true),
+        "the first turn is archived, and the slot is free"
     );
 }
 
-struct FailedSummaryEngine(ScriptedEngine);
+#[tokio::test]
+async fn a_turn_waits_for_its_summary_when_the_conversation_would_not_fit_its_model() {
+    let mut engine = CondensingEngine::new();
+    // Long enough that a turn not waiting would run first.
+    engine.delay = std::time::Duration::from_millis(200);
+    let engine = Arc::new(engine);
+    with_agent(Arc::clone(&engine), async |connection, session| {
+        // 120,000 tokens: far from a summary on a million-token model.
+        for _ in 0..4 {
+            prompt(&connection, &session, &big(90_000)).await;
+        }
+        connection
+            .send_request(SetSessionConfigOptionRequest::new(
+                session.clone(),
+                MODEL_CONFIG_ID,
+                "other-model",
+            ))
+            .block_task()
+            .await
+            .expect("the model changes");
+        prompt(&connection, &session, "continue").await;
+    })
+    .await;
+
+    assert_eq!(engine.summaries.requests().len(), 1);
+    let turns = engine.turns.requests();
+    assert_eq!(
+        turns.last().expect("the last turn").messages,
+        [
+            crate::domain::session::SUMMARY_PREAMBLE.to_owned(),
+            "SUMMARY".to_owned(),
+            "continue".to_owned()
+        ],
+        "the turn ran on the summary, not on more than its model holds"
+    );
+}
+
+/// An engine whose summaries fail, counting how often one was tried.
+struct FailedSummaryEngine {
+    turns: ScriptedEngine,
+    attempts: std::sync::atomic::AtomicUsize,
+}
 
 impl TurnEngine for FailedSummaryEngine {
     fn supported_models(&self) -> &[&str] {
@@ -766,6 +977,7 @@ impl TurnEngine for FailedSummaryEngine {
         request: TurnRequest,
     ) -> tokio::sync::mpsc::Receiver<Result<StreamPart, agent::AgentError>> {
         if request.purpose == TurnPurpose::Summary {
+            self.attempts.fetch_add(1, Ordering::Relaxed);
             let (parts, receiver) = tokio::sync::mpsc::channel(1);
             parts
                 .try_send(Err(agent::AgentError::Other(anyhow::anyhow!(
@@ -774,72 +986,41 @@ impl TurnEngine for FailedSummaryEngine {
                 .unwrap();
             receiver
         } else {
-            self.0.run_turn(request)
+            self.turns.run_turn(request)
         }
     }
 }
 
 #[tokio::test]
-async fn a_failed_summary_preserves_context_and_reports_failure() {
-    let engine = Arc::new(FailedSummaryEngine(ScriptedEngine::new(vec![
-        StreamPart::Content("noted".into()),
-    ])));
-    let (notifications, _, ()) = with_agent(engine.clone(), async |connection, session| {
-        connection
-            .send_request(text_prompt(&session, "remember this"))
-            .block_task()
-            .await
-            .unwrap();
-        assert!(
-            connection
-                .send_request(text_prompt(&session, "/compact"))
-                .block_task()
-                .await
-                .is_err()
-        );
-        connection
-            .send_request(text_prompt(&session, "after"))
-            .block_task()
-            .await
-            .unwrap();
+async fn a_failed_summary_leaves_the_history_and_the_next_message_tries_again() {
+    let engine = Arc::new(FailedSummaryEngine {
+        turns: ScriptedEngine::new(vec![StreamPart::Content("noted".into())]),
+        attempts: std::sync::atomic::AtomicUsize::new(0),
+    });
+    let recorded = with_summaries(Arc::clone(&engine), async |connection, session, state| {
+        use_model(&state, "other-model");
+        prompt(&connection, &session, &big(90_000)).await;
+        prompt(&connection, &session, &big(90_000)).await;
+        summary_settled(&state).await;
+        prompt(&connection, &session, "continue").await;
+        summary_settled(&state).await;
     })
     .await;
-    assert_eq!(
-        engine.0.requests()[1].messages,
-        ["remember this", "noted", "after"]
-    );
-    assert!(notifications.iter().all(|notification| {
-        notification
-            .meta
-            .as_ref()
-            .is_none_or(|meta| !meta.contains_key(META_NAMESPACE))
-    }));
-}
 
-#[tokio::test]
-async fn a_failed_automatic_summary_runs_the_message_on_the_whole_history() {
-    let engine = Arc::new(FailedSummaryEngine(ScriptedEngine::new(vec![
-        StreamPart::Content("noted".into()),
-    ])));
-    with_agent(engine.clone(), async |connection, session| {
-        connection
-            .send_request(text_prompt(&session, &"x".repeat(110_000)))
-            .block_task()
-            .await
-            .unwrap();
-        let response = connection
-            .send_request(text_prompt(&session, "continue"))
-            .block_task()
-            .await
-            .expect("the message runs although its summary failed");
-        assert_eq!(response.stop_reason, StopReason::EndTurn);
-    })
-    .await;
-    let requests = engine.0.requests();
-    let last = requests.last().unwrap();
-    assert_eq!(last.purpose, TurnPurpose::Conversation);
-    assert_eq!(last.messages.last().unwrap(), "continue");
-    assert_eq!(last.messages[0].len(), 110_000, "on the whole history");
+    assert_eq!(engine.attempts.load(Ordering::Relaxed), 2);
+    assert!(recorded.summaries.is_empty(), "nothing landed to record");
+    let turns = engine.turns.requests();
+    assert_eq!(
+        turns.last().expect("the last turn").messages,
+        [
+            big(90_000),
+            "noted".to_owned(),
+            big(90_000),
+            "noted".to_owned(),
+            "continue".to_owned()
+        ],
+        "the message ran on the whole history"
+    );
 }
 
 /// An engine whose summaries wait until they are cancelled, saying when one
@@ -868,18 +1049,25 @@ impl TurnEngine for HangingSummaryEngine {
 }
 
 #[tokio::test]
-async fn a_stop_while_summarizing_stops_the_turn() {
+async fn a_stop_while_a_turn_waits_for_its_summary_stops_the_turn() {
     let summarizing = Arc::new(tokio::sync::Notify::new());
     let engine = Arc::new(HangingSummaryEngine {
         turns: ScriptedEngine::new(vec![StreamPart::Content("noted".into())]),
         summarizing: Arc::clone(&summarizing),
     });
     let (_, _, response) = with_agent(engine, async |connection, session| {
+        for _ in 0..4 {
+            prompt(&connection, &session, &big(90_000)).await;
+        }
         connection
-            .send_request(text_prompt(&session, &"x".repeat(110_000)))
+            .send_request(SetSessionConfigOptionRequest::new(
+                session.clone(),
+                MODEL_CONFIG_ID,
+                "other-model",
+            ))
             .block_task()
             .await
-            .unwrap();
+            .expect("the model changes");
         let pending = connection.send_request(text_prompt(&session, "continue"));
         summarizing.notified().await;
         connection
@@ -897,118 +1085,103 @@ async fn a_stop_while_summarizing_stops_the_turn() {
 }
 
 #[tokio::test]
-async fn a_long_conversation_is_summarized_in_bounded_calls_before_the_next_turn() {
-    let engine = Arc::new(ScriptedEngine::new(vec![StreamPart::Content(
-        "preserved facts".into(),
-    )]));
-    with_agent(engine.clone(), async |connection, session| {
-        connection
-            .send_request(text_prompt(&session, &"x".repeat(110_000)))
-            .block_task()
-            .await
-            .unwrap();
-        connection
-            .send_request(text_prompt(&session, "continue"))
-            .block_task()
-            .await
-            .unwrap();
-    })
-    .await;
-    let requests = engine.requests();
-    assert!(
-        requests
-            .iter()
-            .filter(|request| request.purpose == TurnPurpose::Summary)
-            .count()
-            >= 3
-    );
-    assert!(
-        requests
-            .iter()
-            .filter(|request| request.purpose == TurnPurpose::Summary)
-            .all(|request| request.messages[0].len() < 65_000)
-    );
-    let last = requests.last().unwrap();
-    assert_eq!(last.purpose, TurnPurpose::Conversation);
-    assert!(last.messages.join("\n").len() < 1000);
-    assert_eq!(last.messages.last().unwrap(), "continue");
-}
-
-#[tokio::test]
-async fn images_count_toward_the_context_a_summary_bounds() {
-    let engine = Arc::new(ScriptedEngine::new(vec![StreamPart::Content("ok".into())]));
-    with_agent(Arc::clone(&engine), async |connection, session| {
-        let mut blocks = vec![ContentBlock::Text(TextContent::new("compare these"))];
-        blocks.extend((0..16).map(|index| {
-            ContentBlock::ResourceLink(
-                ResourceLink::new(
-                    format!("photo-{index}.png"),
-                    format!("https://static.example/file/photo-{index}"),
+async fn images_count_toward_the_context_and_are_each_read_for_the_summary() {
+    let engine = Arc::new(CondensingEngine::new());
+    with_summaries(Arc::clone(&engine), async |connection, session, state| {
+        use_model(&state, "other-model");
+        // Twelve images are 19,200 tokens, however short their message.
+        for batch in 0..3 {
+            let mut blocks = vec![ContentBlock::Text(TextContent::new("compare these"))];
+            blocks.extend((0..12).map(|index| {
+                let index = batch * 12 + index;
+                ContentBlock::ResourceLink(
+                    ResourceLink::new(
+                        format!("photo-{index}.png"),
+                        format!("https://static.example/file/photo-{index}"),
+                    )
+                    .mime_type("image/png".to_owned()),
                 )
-                .mime_type("image/png".to_owned()),
-            )
-        }));
-        connection
-            .send_request(PromptRequest::new(session.clone(), blocks))
-            .block_task()
-            .await
-            .expect("the prompt should complete");
-        connection
-            .send_request(text_prompt(&session, "continue"))
-            .block_task()
-            .await
-            .expect("the prompt should complete");
+            }));
+            connection
+                .send_request(PromptRequest::new(session.clone(), blocks))
+                .block_task()
+                .await
+                .expect("the prompt should complete");
+        }
+        summary_settled(&state).await;
     })
     .await;
+
+    let reads = engine.reads.requests();
+    assert_eq!(reads.len(), 24, "one read per image the summary covers");
+    assert!(reads.iter().all(|read| read.images.len() == 1
+        && read.model == compaction::SUMMARY_MODEL
+        && read.purpose == TurnPurpose::Summary));
+    let summaries = engine.summaries.requests();
+    assert_eq!(summaries.len(), 1);
+    assert!(summaries[0].messages[0].contains("IMAGE photo-0.png: a red square"));
+    assert!(summaries[0].messages[0].contains("IMAGE photo-23.png: a red square"));
     assert!(
-        engine
-            .requests()
-            .iter()
-            .any(|request| request.purpose == TurnPurpose::Summary),
-        "sixteen images fill the context though their prompt is short"
+        summaries[0].images.is_empty(),
+        "the summary reads the descriptions, not the images"
     );
 }
 
 #[tokio::test]
-async fn compact_with_a_file_attached_is_a_prompt_about_the_file() {
-    // The command word alone is the control. With a file alongside, the user
-    // is asking about that file, and compacting would drop it unseen.
-    let engine = Arc::new(ScriptedEngine::new(vec![StreamPart::Content("ok".into())]));
-    let notes = "https://static.example/file/33333333-3333-4333-8333-333333333333";
+async fn a_conversation_longer_than_one_summary_call_reads_is_summarized_in_parts() {
+    let engine = Arc::new(CondensingEngine::new());
+    with_summaries(Arc::clone(&engine), async |connection, session, state| {
+        // Gemini's window: a summary starts at 419,430 tokens, past the
+        // 400,000 one summary call reads.
+        use_model(&state, chat::domain::models::FREE_MODEL);
+        for _ in 0..3 {
+            prompt(&connection, &session, &big(610_000)).await;
+        }
+        summary_settled(&state).await;
+    })
+    .await;
 
+    let summaries = engine.summaries.requests();
+    assert_eq!(summaries.len(), 2);
+    assert!(summaries[1].messages[0].starts_with("Earlier summary:\nSUMMARY"));
+}
+
+#[tokio::test]
+async fn a_message_is_too_long_by_its_model_s_window() {
+    let engine = Arc::new(ScriptedEngine::new(vec![StreamPart::Content("ok".into())]));
+    with_admission(
+        Arc::clone(&engine),
+        Arc::new(DisabledAiAdmissionService),
+        async |connection, session, state| {
+            // 33,334 tokens: past a quarter of a 128k window.
+            use_model(&state, "other-model");
+            let error = connection
+                .send_request(text_prompt(&session, &big(100_000)))
+                .block_task()
+                .await
+                .expect_err("too long for this model");
+            assert!(format!("{error:?}").contains("This message is too long"));
+            use_model(&state, "anthropic/claude-sonnet-5-5");
+            prompt(&connection, &session, &big(100_000)).await;
+        },
+    )
+    .await;
+    assert_eq!(engine.requests().len(), 1, "only the message that fit ran");
+}
+
+#[tokio::test]
+async fn compact_is_a_message_like_any_other() {
+    let engine = Arc::new(ScriptedEngine::new(vec![StreamPart::Content("ok".into())]));
     with_agent(Arc::clone(&engine), async |connection, session| {
-        connection
-            .send_request(text_prompt(&session, "remember this"))
-            .block_task()
-            .await
-            .expect("the prompt should complete");
-        connection
-            .send_request(PromptRequest::new(
-                session.clone(),
-                vec![
-                    ContentBlock::Text(TextContent::new("/compact")),
-                    ContentBlock::ResourceLink(
-                        ResourceLink::new("notes.txt", notes).mime_type("text/plain".to_owned()),
-                    ),
-                ],
-            ))
-            .block_task()
-            .await
-            .expect("the prompt should complete");
+        prompt(&connection, &session, "remember this").await;
+        prompt(&connection, &session, "/compact").await;
     })
     .await;
 
     let requests = engine.requests();
-    assert_eq!(requests.len(), 2, "the attached prompt runs a turn");
-    assert_eq!(
-        requests[1].messages,
-        vec![
-            "remember this".to_owned(),
-            "ok".to_owned(),
-            "/compact".to_owned()
-        ],
-        "the conversation is kept, not compacted"
-    );
+    assert_eq!(requests.len(), 2);
+    assert_eq!(requests[1].purpose, TurnPurpose::Conversation);
+    assert_eq!(requests[1].messages, ["remember this", "ok", "/compact"]);
 }
 
 #[tokio::test]

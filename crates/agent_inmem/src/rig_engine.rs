@@ -347,7 +347,7 @@ async fn drive_turn(
     // them in the turn through `reviewer`.
     let (system_prompt, toolset, deferred) = if summarizing {
         (
-            SystemPrompt::from(crate::domain::agent::compaction::SUMMARY_INSTRUCTIONS),
+            SystemPrompt::from(instructions.unwrap_or_default()),
             Arc::new(AsyncToolCollection::<InMemToolContext>::new()),
             Arc::from(Vec::new()),
         )

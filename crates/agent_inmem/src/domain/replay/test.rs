@@ -30,10 +30,6 @@ fn prompt_frame(text: &str) -> Message {
 /// A logged `session/update` notification, the shape the agent streams.
 fn update_frame(update: SessionUpdate) -> Message {
     let notification = SessionNotification::new(acp_session(), update);
-    notification_frame(notification)
-}
-
-fn notification_frame(notification: SessionNotification) -> Message {
     let raw: RawJsonRpcMessage = serde_json::from_value(serde_json::json!({
         "jsonrpc": "2.0",
         "method": "session/update",
@@ -41,61 +37,6 @@ fn notification_frame(notification: SessionNotification) -> Message {
     }))
     .expect("a notification frame should deserialize");
     Message::ToServer(ToServerMessage::Acp(AcpMessage(raw)))
-}
-
-/// The notification the live agent sends once it has summarized: the
-/// summary, and the recent entries it kept whole.
-fn checkpoint_frame(text: &str, retained: Vec<HistoryEntry>) -> Message {
-    let mut meta = agent_client_protocol::schema::v1::Meta::new();
-    meta.insert(
-        "macro".to_owned(),
-        serde_json::json!({
-            "contextSummary": {"text": text, "retained": retained}
-        }),
-    );
-    notification_frame(SessionNotification::new(acp_session(), message_chunk("")).meta(meta))
-}
-
-fn kept_turn(prompt: &str, answer: &str) -> Vec<HistoryEntry> {
-    vec![
-        HistoryEntry::User(UserPrompt::text(prompt)),
-        HistoryEntry::Assistant(vec![AssistantMessagePart::Text {
-            text: answer.to_owned(),
-        }]),
-    ]
-}
-
-#[test]
-fn a_saved_summary_restores_recent_turns_and_the_prompt_that_triggered_compaction() {
-    let history = replay_history(vec![
-        prompt_frame("Email the report"),
-        update_frame(message_chunk("Sent")),
-        prompt_frame("Use concise replies"),
-        update_frame(message_chunk("Understood")),
-        prompt_frame("What next?"),
-        checkpoint_frame(
-            "The report was already emailed.",
-            kept_turn("Use concise replies", "Understood"),
-        ),
-        update_frame(message_chunk("Review the result")),
-    ]);
-    let messages =
-        crate::domain::session::messages_for_turn(&history, &UserPrompt::text("continue"));
-    let texts: Vec<_> = messages
-        .iter()
-        .map(|message| message.content.message_text())
-        .collect();
-    assert_eq!(
-        &texts[1..],
-        [
-            "The report was already emailed.",
-            "Use concise replies",
-            "Understood",
-            "What next?",
-            "Review the result",
-            "continue"
-        ]
-    );
 }
 
 /// A logged `session/prompt` whose text is followed by one file link.
@@ -139,9 +80,61 @@ fn message_chunk(text: &str) -> SessionUpdate {
     ))))
 }
 
+/// The agent's answer to the prompt the helpers log, which all carry id 1.
+fn prompt_response() -> Message {
+    Message::ToServer(ToServerMessage::Acp(AcpMessage(
+        serde_json::from_value(serde_json::json!({
+            "jsonrpc": "2.0", "id": 1, "result": {"stopReason": "end_turn"}
+        }))
+        .expect("a response frame should deserialize"),
+    )))
+}
+
+/// The agent refusing that prompt before running it.
+fn prompt_refusal() -> Message {
+    Message::ToServer(ToServerMessage::Acp(AcpMessage(
+        serde_json::from_value(serde_json::json!({
+            "jsonrpc": "2.0", "id": 1, "error": {"code": -32602, "message": "too long"}
+        }))
+        .expect("an error frame should deserialize"),
+    )))
+}
+
+/// The record the live agent logs when a summary lands.
+fn summary_frame(text: &str, replaces: usize) -> Message {
+    let raw: RawJsonRpcMessage = serde_json::from_value(serde_json::json!({
+        "jsonrpc": "2.0",
+        "method": "_macro/context_summary",
+        "params": {"sessionId": "acp-1", "text": text, "replaces": replaces},
+    }))
+    .expect("a notification frame should deserialize");
+    Message::ToServer(ToServerMessage::Acp(AcpMessage(raw)))
+}
+
+/// One answered turn: its prompt, the reply, and the response closing it.
+fn turn(prompt: &str, reply: &str) -> Vec<Message> {
+    vec![
+        prompt_frame(prompt),
+        update_frame(message_chunk(reply)),
+        prompt_response(),
+    ]
+}
+
+/// The prompts of `entries`, a summary as `[summary]`.
+fn said(entries: &[HistoryEntry]) -> Vec<String> {
+    entries
+        .iter()
+        .filter_map(|entry| match entry {
+            HistoryEntry::User(prompt) => Some(prompt.text.clone()),
+            HistoryEntry::Summary(text) => Some(format!("[{text}]")),
+            HistoryEntry::Assistant(_) => None,
+        })
+        .collect()
+}
+
 #[test]
 fn a_logged_turn_replays_as_the_history_the_live_agent_recorded() {
-    let history = replay_history(vec![
+    let ReplayedHistory { history, .. } = replay_history(vec![
         prompt_frame("find the roadmap"),
         update_frame(SessionUpdate::AgentThoughtChunk(ContentChunk::new(
             ContentBlock::Text(TextContent::new("hmm")),
@@ -207,28 +200,23 @@ fn a_logged_turn_replays_as_the_history_the_live_agent_recorded() {
 }
 
 #[test]
-fn a_compact_request_without_a_saved_summary_preserves_history() {
-    let history = replay_history(vec![
+fn a_compact_that_cleared_the_context_before_summaries_still_clears_it() {
+    let ReplayedHistory { history, .. } = replay_history(vec![
         prompt_frame("remember this"),
         update_frame(message_chunk("noted")),
+        prompt_response(),
         prompt_frame("/compact"),
-        // The live agent acknowledges compaction outside any turn; the
-        // acknowledgement must not replay as conversation.
-        update_frame(message_chunk("Compacted.")),
+        update_frame(message_chunk(
+            "Compacted: the earlier conversation is no longer in the model's context.",
+        )),
+        prompt_response(),
         prompt_frame("after"),
         update_frame(message_chunk("fresh")),
     ]);
 
-    let [
-        HistoryEntry::User(before),
-        _,
-        HistoryEntry::User(prompt),
-        HistoryEntry::Assistant(parts),
-    ] = history.as_slice()
-    else {
-        panic!("the full conversation should replay, got {history:#?}");
+    let [HistoryEntry::User(prompt), HistoryEntry::Assistant(parts)] = history.as_slice() else {
+        panic!("only the turn after the clear should replay, got {history:#?}");
     };
-    assert_eq!(before.text, "remember this");
     assert_eq!(prompt.text, "after");
     assert_eq!(
         parts.as_slice(),
@@ -239,11 +227,22 @@ fn a_compact_request_without_a_saved_summary_preserves_history() {
 }
 
 #[test]
+fn a_compact_sent_since_is_a_message_like_any_other() {
+    let frames = [
+        turn("remember this", "noted"),
+        turn("/compact", "There is no /compact here; what should I do?"),
+    ]
+    .concat();
+
+    let ReplayedHistory { history, .. } = replay_history(frames);
+    assert_eq!(said(&history), ["remember this", "/compact"]);
+}
+
+#[test]
 fn a_compact_prompt_carrying_a_file_replays_as_an_ordinary_turn() {
-    // Serving the turn kept the conversation (the files make it a real
-    // prompt), so a cold attach must rebuild it the same way - replaying it
-    // as compaction would drop context the live session still had.
-    let history = replay_history(vec![
+    // Even before summaries, a `/compact` with files was a prompt about
+    // them, and the live agent kept the conversation.
+    let ReplayedHistory { history, .. } = replay_history(vec![
         prompt_frame("remember this"),
         update_frame(message_chunk("noted")),
         prompt_frame_with_file("/compact", "notes.txt", "https://static.example/file/9"),
@@ -266,7 +265,7 @@ fn a_compact_prompt_carrying_a_file_replays_as_an_ordinary_turn() {
 
 #[test]
 fn a_call_the_log_never_answered_is_closed_rather_than_left_dangling() {
-    let history = replay_history(vec![
+    let ReplayedHistory { history, .. } = replay_history(vec![
         prompt_frame("run something"),
         update_frame(SessionUpdate::ToolCall(
             AcpToolCall::new("call-9", "BashCodeExecution").status(ToolCallStatus::InProgress),
@@ -288,7 +287,84 @@ fn a_call_the_log_never_answered_is_closed_rather_than_left_dangling() {
 
 #[test]
 fn an_empty_log_replays_to_an_empty_conversation() {
-    assert!(replay_history(Vec::new()).is_empty());
+    let ReplayedHistory { history, archive } = replay_history(Vec::new());
+    assert!(history.is_empty() && archive.is_empty());
+}
+
+#[test]
+fn a_logged_summary_replaces_what_it_covered_and_archives_it() {
+    let frames = [
+        turn("plan the launch", "drafted"),
+        turn("add pricing", "added"),
+        vec![
+            prompt_frame("and the FAQ?"),
+            // The summary started before this turn and landed during it,
+            // covering the first turn.
+            summary_frame("Planned the launch.", 2),
+            update_frame(message_chunk("FAQ added")),
+            prompt_response(),
+        ],
+    ]
+    .concat();
+
+    let ReplayedHistory { history, archive } = replay_history(frames);
+    assert_eq!(
+        said(&history),
+        ["[Planned the launch.]", "add pricing", "and the FAQ?"]
+    );
+    assert_eq!(said(&archive), ["plan the launch"]);
+    assert_eq!(archive.len(), 2, "the archive keeps the reply too");
+}
+
+#[test]
+fn a_summary_landing_between_turns_keeps_the_turns_after_what_it_covered() {
+    let frames = [
+        turn("one", "1"),
+        turn("two", "2"),
+        turn("three", "3"),
+        vec![summary_frame("One and two happened.", 4)],
+        turn("four", "4"),
+    ]
+    .concat();
+
+    let ReplayedHistory { history, archive } = replay_history(frames);
+    assert_eq!(said(&history), ["[One and two happened.]", "three", "four"]);
+    assert_eq!(said(&archive), ["one", "two"]);
+}
+
+#[test]
+fn a_later_summary_takes_in_the_earlier_one() {
+    let frames = [
+        turn("one", "1"),
+        turn("two", "2"),
+        vec![summary_frame("One happened.", 2)],
+        turn("three", "3"),
+        // The earlier summary and turn two: the first three entries.
+        vec![summary_frame("One and two happened.", 3)],
+        turn("four", "4"),
+    ]
+    .concat();
+
+    let ReplayedHistory { history, archive } = replay_history(frames);
+    assert_eq!(said(&history), ["[One and two happened.]", "three", "four"]);
+    assert_eq!(
+        said(&archive),
+        ["one", "two"],
+        "an earlier summary is not conversation, and is not archived"
+    );
+}
+
+#[test]
+fn a_prompt_the_agent_refused_never_entered_the_conversation() {
+    let frames = [
+        turn("first", "ok"),
+        vec![prompt_frame("far too long"), prompt_refusal()],
+        turn("second", "ok"),
+    ]
+    .concat();
+
+    let ReplayedHistory { history, .. } = replay_history(frames);
+    assert_eq!(said(&history), ["first", "second"]);
 }
 
 fn config_response(result: serde_json::Value) -> Message {
@@ -344,64 +420,4 @@ fn speed_replays_only_from_confirmed_configuration() {
     frames.push(config_frame("model", "other-model"));
     frames.push(config_response(serde_json::json!({"configOptions":[]})));
     assert_eq!(replay_speed(&frames), ModelSpeed::Standard);
-}
-
-/// A prompt that failed before it ran is in the log but was never part of
-/// the live conversation; the summary keeps what the live agent kept.
-#[test]
-fn a_saved_summary_keeps_the_live_window_around_a_prompt_that_never_ran() {
-    let history = replay_history(vec![
-        prompt_frame("Email the report"),
-        update_frame(message_chunk("Sent")),
-        prompt_frame("Use concise replies"),
-        update_frame(message_chunk("Understood")),
-        prompt_frame("A message far too long to run"),
-        prompt_frame("What next?"),
-        checkpoint_frame(
-            "The report was already emailed.",
-            kept_turn("Use concise replies", "Understood"),
-        ),
-        update_frame(message_chunk("Review the result")),
-    ]);
-    let messages =
-        crate::domain::session::messages_for_turn(&history, &UserPrompt::text("continue"));
-    let texts: Vec<_> = messages
-        .iter()
-        .map(|message| message.content.message_text())
-        .collect();
-    assert_eq!(
-        &texts[1..],
-        [
-            "The report was already emailed.",
-            "Use concise replies",
-            "Understood",
-            "What next?",
-            "Review the result",
-            "continue"
-        ]
-    );
-}
-
-/// A `/compact` from before compaction summarized cleared the model's
-/// context; its log still replays that way.
-#[test]
-fn a_compact_that_cleared_the_context_still_clears_it_on_replay() {
-    let history = replay_history(vec![
-        prompt_frame("remember this"),
-        update_frame(message_chunk("noted")),
-        prompt_frame("/compact"),
-        update_frame(message_chunk(
-            "Compacted: the earlier conversation is no longer in the model's context.",
-        )),
-        prompt_frame("after"),
-        update_frame(message_chunk("fresh")),
-    ]);
-    let messages =
-        crate::domain::session::messages_for_turn(&history, &UserPrompt::text("continue"));
-    let texts: Vec<_> = messages
-        .iter()
-        .map(|message| message.content.message_text())
-        .collect();
-    assert_eq!(&texts[texts.len() - 3..], ["after", "fresh", "continue"]);
-    assert!(!texts.iter().any(|text| text == "remember this"));
 }

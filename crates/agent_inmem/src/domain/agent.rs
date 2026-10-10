@@ -236,7 +236,7 @@ impl AgentState {
     fn bind_acp_session(&self, acp_id: SessionId, keep_history: bool) {
         if let Some(mut state) = self.store.get_mut(&self.session_id) {
             if !keep_history || state.acp_session_id.as_ref() != Some(&acp_id) {
-                state.history.clear();
+                state.clear_history();
             }
             state.acp_session_id = Some(acp_id);
         }
@@ -819,7 +819,7 @@ fn model_access_error(error: ModelAccessError) -> AcpError {
 
 /// Run one turn to completion, streaming updates as they arrive.
 async fn run_turn(
-    state: &AgentState,
+    state: &Arc<AgentState>,
     connection: &ConnectionTo<Client>,
     acp_session_id: SessionId,
     prompt: UserPrompt,
@@ -853,43 +853,21 @@ async fn run_turn(
         "agent.turn.admission_wait_ms",
         elapsed_ms(admission_started),
     );
-    if prompt.text.len() > 128_000 {
+    let session_model = state
+        .store
+        .get(&state.session_id)
+        .map(|session| session.model.clone())
+        .unwrap_or_default();
+    if compaction::too_long(&prompt, &session_model) {
         return Err(AcpError::invalid_params().data(
             "This message is too long. Split it into smaller messages or attach it as a file.",
         ));
     }
-    let access = tokio::select! {
-        biased;
-        _ = cancel.cancelled() => return Ok(StopReason::Cancelled),
-        result = state.model_access.access(&state.owner) => result.map_err(model_access_error)?,
-    };
-    let explicit_compact = prompt.is_compact_command();
-    if let Err(error) = compaction::compact_if_needed(
-        state,
-        connection,
-        &acp_session_id,
-        explicit_compact,
-        access,
-        &cancel,
-    )
-    .await
+    if compaction::before_turn(state, connection, &acp_session_id, &prompt, &cancel)
+        .await
+        .is_err()
     {
-        if cancel.is_cancelled() {
-            return Ok(StopReason::Cancelled);
-        }
-        if explicit_compact {
-            return Err(error);
-        }
-        // The whole history still fits the model; only the bound summaries
-        // keep was missed, so the user's message runs on it as it is.
-        tracing::warn!(
-            session_id = %state.session_id,
-            ?error,
-            "could not summarize the conversation; the turn runs on its whole history"
-        );
-    }
-    if explicit_compact {
-        return Ok(StopReason::EndTurn);
+        return Ok(StopReason::Cancelled);
     }
     let mcp_tools = tokio::select! {
         biased;
@@ -904,6 +882,11 @@ async fn run_turn(
         identity,
         instructions,
     } = state.turn_input(&prompt);
+    let access = tokio::select! {
+        biased;
+        _ = cancel.cancelled() => return Ok(StopReason::Cancelled),
+        result = state.model_access.access(&state.owner) => result.map_err(model_access_error)?,
+    };
     if !access.allows(&model) {
         return Err(model_access_error(ModelAccessError::Forbidden));
     }
@@ -1094,9 +1077,8 @@ async fn run_ask(
 }
 
 /// The slash commands this agent advertises over ACP: bare names, no
-/// leading slash. Context is summarized automatically, and `/compact` asks
-/// for a summary now. `/ask` only while the host enables development commands, since
-/// the prompt handler ignores it otherwise.
+/// leading slash. `/ask` only while the host enables development commands,
+/// since the prompt handler ignores it otherwise.
 fn available_commands(state: &AgentState) -> Vec<AvailableCommand> {
     let name = |command: &str| command.trim_start_matches('/').to_owned();
     let mut commands = Vec::new();

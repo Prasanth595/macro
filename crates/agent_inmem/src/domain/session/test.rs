@@ -180,7 +180,8 @@ fn image_names_and_source_uris_reach_the_model_after_history_replay() {
         .expect("logged request");
         let history = crate::domain::replay::replay_history([Message::ToRuntime(
             ToRuntimeMessage::Acp(AcpMessage(raw)),
-        )]);
+        )])
+        .history;
         let messages = messages_for_turn(&history, &UserPrompt::text("use that reference"));
         let serialized = serde_json::to_string(&agent::to_rig_messages(&messages))
             .expect("model messages serialize");
@@ -188,4 +189,64 @@ fn image_names_and_source_uris_reach_the_model_after_history_replay() {
         assert!(serialized.contains(&format!("image_source_uri: {uri}")));
         assert!(!serialized.contains("static_file_id"));
     }
+}
+
+#[test]
+fn a_summary_reaches_the_model_as_history_it_already_acted_on() {
+    let history = [
+        HistoryEntry::Summary("The user picked blue.".to_owned()),
+        HistoryEntry::User(UserPrompt::text("now red")),
+    ];
+
+    let messages = messages_for_turn(&history, &UserPrompt::text("why?"));
+
+    let texts: Vec<_> = messages
+        .iter()
+        .map(|message| (message.role, message.content.message_text_with_tools()))
+        .collect();
+    assert_eq!(
+        texts,
+        [
+            (Role::User, SUMMARY_PREAMBLE.to_owned()),
+            (Role::Assistant, "The user picked blue.".to_owned()),
+            (Role::User, "now red".to_owned()),
+            (Role::User, "why?".to_owned()),
+        ]
+    );
+}
+
+#[test]
+fn a_summary_replaces_its_entries_and_archives_the_conversation_they_held() {
+    let user = |text: &str| HistoryEntry::User(UserPrompt::text(text));
+    let mut history = vec![
+        HistoryEntry::Summary("Before.".to_owned()),
+        user("one"),
+        user("two"),
+        user("three"),
+    ];
+    let mut archive = vec![user("zero")];
+
+    splice_summary(&mut history, &mut archive, "Up to two.".to_owned(), 3);
+
+    let text = |entries: &[HistoryEntry]| -> Vec<String> {
+        entries
+            .iter()
+            .map(|entry| match entry {
+                HistoryEntry::User(prompt) => prompt.text.clone(),
+                HistoryEntry::Summary(summary) => format!("[{summary}]"),
+                HistoryEntry::Assistant(_) => "assistant".to_owned(),
+            })
+            .collect()
+    };
+    assert_eq!(text(&history), ["[Up to two.]", "three"]);
+    assert_eq!(
+        text(&archive),
+        ["zero", "one", "two"],
+        "the earlier summary is not archived"
+    );
+
+    // A log shorter than the live history it was written from replaces
+    // what it has.
+    splice_summary(&mut history, &mut archive, "All.".to_owned(), 9);
+    assert_eq!(text(&history), ["[All.]"]);
 }

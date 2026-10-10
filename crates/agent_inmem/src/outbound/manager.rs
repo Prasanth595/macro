@@ -20,7 +20,9 @@ use model_owner::Owner;
 use crate::domain::agent::{AgentState, serve};
 use crate::domain::engine::{AgentIdentity, TurnEngine};
 use crate::domain::mcp::DynMcpToolConnector;
-use crate::domain::replay::{FrameSource, replay_history, replay_reasoning_effort, replay_speed};
+use crate::domain::replay::{
+    FrameSource, ReplayedHistory, replay_history, replay_reasoning_effort, replay_speed,
+};
 use crate::domain::session::{SessionState, SessionStore};
 
 #[cfg(test)]
@@ -167,7 +169,7 @@ impl InMemAgentManager {
             } else {
                 agent::ModelSpeed::Standard
             };
-            let history = replay_history(frames);
+            let ReplayedHistory { history, archive } = replay_history(frames);
             self.store.entry(facts.id).or_insert_with(|| SessionState {
                 acp_session_id: facts.acp_session_id.clone(),
                 model: facts.model.clone(),
@@ -176,6 +178,8 @@ impl InMemAgentManager {
                 identity: facts.identity.clone(),
                 instructions: facts.instructions.clone(),
                 history,
+                archive,
+                summarizing: None,
             });
         }
 

@@ -20,7 +20,9 @@ use agent::types::AssistantMessagePart;
 use agent_client_protocol::schema::v1::{
     ContentBlock, PromptRequest, SessionNotification, SessionUpdate, ToolCallStatus,
 };
-use agent_client_protocol::schema::v1::{Response, SessionConfigKind, SessionConfigOption};
+use agent_client_protocol::schema::v1::{
+    RequestId, Response, SessionConfigKind, SessionConfigOption,
+};
 use agent_client_protocol::{JsonRpcMessage, RawJsonRpcMessage, RawJsonRpcParams};
 use agent_runtime_protocol::domain::schema::v0::{ToRuntimeMessage, ToServerMessage};
 use agent_session::domain::model::Message;
@@ -28,8 +30,9 @@ use futures::future::BoxFuture;
 use std::collections::HashSet;
 
 use crate::domain::agent::close_dangling_tool_calls;
+use crate::domain::agent::compaction::ContextSummaryNotification;
 use crate::domain::model_options::REASONING_EFFORT_CONFIG_ID;
-use crate::domain::session::{HistoryEntry, UserPrompt};
+use crate::domain::session::{HistoryEntry, UserPrompt, splice_summary};
 
 #[cfg(test)]
 mod test;
@@ -48,16 +51,36 @@ pub trait FrameSource: Send + Sync + 'static {
     ) -> BoxFuture<'_, Vec<Message>>;
 }
 
+/// A session's conversation, as its log recorded it.
+#[derive(Debug, Default)]
+pub struct ReplayedHistory {
+    /// What the model reads: the latest summary, if one landed, then
+    /// everything since.
+    pub history: Vec<HistoryEntry>,
+    /// What summaries stand in for, oldest first.
+    pub archive: Vec<HistoryEntry>,
+}
+
+/// A turn replay has opened and not yet closed.
+struct OpenTurn {
+    /// The `session/prompt` request the agent's response to closes it.
+    id: RequestId,
+    prompt: UserPrompt,
+    parts: Vec<AssistantMessagePart>,
+}
+
 /// Rebuild the conversation the log's frames recorded, oldest first.
 ///
-/// User prompts open turns and `session/update` notifications fill them in,
-/// mirroring what the live agent pushed into its history as the turn ran. A
-/// Successful summary checkpoints replace earlier model context. A compact
-/// request alone never discards history; failed or interrupted summaries keep it.
+/// User prompts open turns, `session/update` notifications fill them in, and
+/// the agent's response closes them, mirroring what the live agent pushed
+/// into its history as each turn ran. A prompt the agent refused never
+/// entered it. A summary lands where the live one did: the log records it
+/// ([`ContextSummaryNotification`]) at the point the live agent spliced it
+/// in, so it replaces the same entries.
 #[must_use]
-pub fn replay_history(frames: impl IntoIterator<Item = Message>) -> Vec<HistoryEntry> {
-    let mut history = Vec::new();
-    let mut open: Option<(UserPrompt, Vec<AssistantMessagePart>)> = None;
+pub fn replay_history(frames: impl IntoIterator<Item = Message>) -> ReplayedHistory {
+    let mut replayed = ReplayedHistory::default();
+    let mut open: Option<OpenTurn> = None;
 
     for frame in frames {
         match frame {
@@ -72,16 +95,45 @@ pub fn replay_history(frames: impl IntoIterator<Item = Message>) -> Vec<HistoryE
                 else {
                     continue;
                 };
-                let prompt = UserPrompt::from_blocks(&prompt.prompt);
-                close_turn(&mut history, &mut open);
-                if !prompt.is_compact_command() {
-                    open = Some((prompt, Vec::new()));
-                }
+                close_turn(&mut replayed, &mut open);
+                open = Some(OpenTurn {
+                    id: request.id.clone(),
+                    prompt: UserPrompt::from_blocks(&prompt.prompt),
+                    parts: Vec::new(),
+                });
             }
             Message::ToServer(ToServerMessage::Acp(acp)) => {
+                if let Some(id) = acp.0.response_id()
+                    && open.as_ref().is_some_and(|turn| &turn.id == id)
+                {
+                    // The live agent answers a prompt it will not run - over
+                    // its owner's budget, too long - before keeping it.
+                    let refused =
+                        matches!(acp.0, RawJsonRpcMessage::Response(Response::Error { .. }))
+                            && open.as_ref().is_some_and(|turn| turn.parts.is_empty());
+                    if refused {
+                        open = None;
+                    } else {
+                        close_turn(&mut replayed, &mut open);
+                    }
+                    continue;
+                }
                 let RawJsonRpcMessage::Notification(notification) = &acp.0 else {
                     continue;
                 };
+                if ContextSummaryNotification::matches_method(&notification.method) {
+                    if let Some(summary) = deserialize_params::<ContextSummaryNotification>(
+                        notification.params.as_ref(),
+                    ) {
+                        splice_summary(
+                            &mut replayed.history,
+                            &mut replayed.archive,
+                            summary.text,
+                            summary.replaces,
+                        );
+                    }
+                    continue;
+                }
                 if !SessionNotification::matches_method(&notification.method) {
                     continue;
                 }
@@ -90,33 +142,17 @@ pub fn replay_history(frames: impl IntoIterator<Item = Message>) -> Vec<HistoryE
                 else {
                     continue;
                 };
-                if let Some(value) = notification
-                    .meta
-                    .as_ref()
-                    .and_then(|meta| meta.get(crate::domain::agent::META_NAMESPACE))
-                    .and_then(|meta| meta.get(crate::domain::agent::compaction::SUMMARY_META_KEY))
-                    && let Ok(checkpoint) = serde_json::from_value::<
-                        crate::domain::agent::compaction::SummaryCheckpoint,
-                    >(value.clone())
-                {
-                    checkpoint.apply(&mut history);
-                    continue;
-                }
-                // An update outside any turn (the compact acknowledgement,
-                // status chatter) is presentation, not conversation - except
-                // the acknowledgement of a `/compact` from before compaction
-                // summarized, which had cleared the model's context there.
-                match open.as_mut() {
-                    Some((_, parts)) => apply_update(parts, notification.update),
-                    None if cleared_context(&notification.update) => history.clear(),
-                    None => {}
+                // An update outside any turn (status chatter) is
+                // presentation, not conversation.
+                if let Some(turn) = open.as_mut() {
+                    apply_update(&mut turn.parts, notification.update);
                 }
             }
             _ => {}
         }
     }
-    close_turn(&mut history, &mut open);
-    history
+    close_turn(&mut replayed, &mut open);
+    replayed
 }
 
 /// Rebuild the last valid reasoning-effort selection from durable frames.
@@ -277,31 +313,36 @@ fn unanswered_call_name(parts: &[AssistantMessagePart], id: &str) -> Option<Stri
     })
 }
 
-/// What a `/compact` answered when it cleared the model's context instead of
-/// summarizing it. Logs from then still carry it.
+/// The command that cleared the model's context before summaries kept it
+/// bounded, and what the agent answered it with. Logs from then still carry
+/// both; a `/compact` sent since is a message like any other.
+const OLD_COMPACT_COMMAND: &str = "/compact";
 const CLEARED_CONTEXT: &str =
     "Compacted: the earlier conversation is no longer in the model's context.";
 
-fn cleared_context(update: &SessionUpdate) -> bool {
-    matches!(
-        update,
-        SessionUpdate::AgentMessageChunk(chunk)
-            if matches!(&chunk.content, ContentBlock::Text(text) if text.text == CLEARED_CONTEXT)
-    )
-}
-
 /// Push the open turn into the history, closing whatever it left dangling.
-fn close_turn(
-    history: &mut Vec<HistoryEntry>,
-    open: &mut Option<(UserPrompt, Vec<AssistantMessagePart>)>,
-) {
-    let Some((prompt, mut parts)) = open.take() else {
+fn close_turn(replayed: &mut ReplayedHistory, open: &mut Option<OpenTurn>) {
+    let Some(OpenTurn {
+        prompt, mut parts, ..
+    }) = open.take()
+    else {
         return;
     };
+    let cleared = prompt.text.trim() == OLD_COMPACT_COMMAND
+        && prompt.attachments.is_empty()
+        && matches!(
+            parts.as_slice(),
+            [AssistantMessagePart::Text { text }] if text == CLEARED_CONTEXT
+        );
+    if cleared {
+        // What the live agent cleared then stays cleared.
+        replayed.history.clear();
+        return;
+    }
     let _ = close_dangling_tool_calls(&mut parts);
-    history.push(HistoryEntry::User(prompt));
+    replayed.history.push(HistoryEntry::User(prompt));
     if !parts.is_empty() {
-        history.push(HistoryEntry::Assistant(parts));
+        replayed.history.push(HistoryEntry::Assistant(parts));
     }
 }
 

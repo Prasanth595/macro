@@ -8,13 +8,14 @@
 use agent::ReasoningEffort;
 use agent::types::{AssistantMessagePart, ChatMessage, ChatMessageContent, Role};
 use agent_client_protocol::schema::v1::{ContentBlock, PromptRequest, SessionId};
-use agent_runtime_protocol::domain::action::{COMPACT_COMMAND, PromptAttachment};
+use agent_runtime_protocol::domain::action::PromptAttachment;
 use agent_session::domain::model::AgentSessionId;
 use attachment::image::ImageData;
 use attachment::{AttachmentContent, AttachmentPart, Attachments};
 use dashmap::DashMap;
 use model_entity::EntityType;
 use non_empty::NonEmpty;
+use tokio_util::sync::CancellationToken;
 
 #[cfg(test)]
 mod test;
@@ -26,7 +27,7 @@ mod test;
 /// anything else is described to the model by name and URL, since there is
 /// no way to show it the bytes and the URL is still something its tools can
 /// fetch.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UserPrompt {
     /// The prompt's text blocks, joined.
     pub text: String,
@@ -69,26 +70,12 @@ impl UserPrompt {
         Self::from_blocks(&request.prompt)
     }
 
-    /// Whether this is the compaction control rather than a message.
-    ///
-    /// The command word and nothing else. A `/compact` that also carries
-    /// files is a real prompt about those files, and compacting would throw
-    /// them away unseen - so serving a turn and replaying one must agree on
-    /// this, or a cold attach would drop a conversation the live session
-    /// kept. The harness applies the same rule where it reads a control off
-    /// the wire (`AgentAction::control_from_runtime`).
-    #[must_use]
-    pub fn is_compact_command(&self) -> bool {
-        self.text.trim() == COMPACT_COMMAND && self.attachments.is_empty()
-    }
-
-    /// How many of the attached files reach the model as images.
-    #[must_use]
-    pub fn image_count(&self) -> usize {
+    /// The attached files that reach the model as images: HTTPS images,
+    /// which the provider fetches. Any other file is named in text.
+    pub fn images(&self) -> impl Iterator<Item = &PromptAttachment> {
         self.attachments
             .iter()
-            .filter(|attachment| is_image(attachment))
-            .count()
+            .filter(|attachment| is_image(attachment) && attachment.uri.starts_with("https://"))
     }
 
     /// The model-facing form of the attached files, `None` without any.
@@ -204,13 +191,41 @@ use super::engine::AgentIdentity;
 
 /// One entry of the conversation, in the shape
 /// [`agent::to_rig_messages`] round-trips.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone)]
 pub enum HistoryEntry {
     /// A prompt from a user.
     User(UserPrompt),
     /// One assistant turn: text, tool calls, and tool results, flattened.
     Assistant(Vec<AssistantMessagePart>),
+    /// What a summary says of the conversation before it, which it stands
+    /// in for. The model reads it as history it has already acted on.
+    Summary(String),
+}
+
+/// What the model reads ahead of a summary, so it takes the summary as what
+/// already happened rather than as work to do, and knows where the exact
+/// words went.
+pub const SUMMARY_PREAMBLE: &str = "The earlier conversation was summarized to keep it within \
+your context. The summary below is history: the actions it records already happened, so do \
+not repeat them.";
+
+/// A summary being written in the background. A session has at most one.
+#[derive(Debug)]
+pub struct PendingSummary {
+    /// Stops it. A summary whose history was reset under it is cancelled,
+    /// so it never lands on a conversation it was not written from.
+    pub cancel: CancellationToken,
+    /// Closes once the summary has landed or been abandoned.
+    pub settled: tokio::sync::watch::Receiver<()>,
+}
+
+impl PendingSummary {
+    /// Whether it is still being written. One whose task is gone - its
+    /// agent was replaced mid-summary - is not.
+    #[must_use]
+    pub fn is_running(&self) -> bool {
+        self.settled.has_changed().is_ok()
+    }
 }
 
 /// The in-memory state of one agent session.
@@ -231,8 +246,14 @@ pub struct SessionState {
     /// and a conversation whose system prompt changed halfway is one the
     /// agent never agreed to.
     pub instructions: Option<String>,
-    /// The conversation so far, oldest first.
+    /// The conversation the model reads, oldest first: a summary of what
+    /// came before, if there was one, then everything since.
     pub history: Vec<HistoryEntry>,
+    /// What summaries stand in for, oldest first. With `history` it is the
+    /// whole conversation.
+    pub archive: Vec<HistoryEntry>,
+    /// The summary being written in the background, if any.
+    pub summarizing: Option<PendingSummary>,
 }
 
 impl SessionState {
@@ -247,8 +268,38 @@ impl SessionState {
             identity: None,
             instructions: None,
             history: Vec::new(),
+            archive: Vec::new(),
+            summarizing: None,
         }
     }
+
+    /// Start the conversation over: what the model reads and what it no
+    /// longer does, and any summary of it still being written.
+    pub fn clear_history(&mut self) {
+        self.history.clear();
+        self.archive.clear();
+        if let Some(summary) = self.summarizing.take() {
+            summary.cancel.cancel();
+        }
+    }
+}
+
+/// Put a summary in place of the first `replaces` entries of `history`,
+/// moving the conversation they held to `archive`. An earlier summary among
+/// them is not conversation and is dropped: the new one covers it.
+pub fn splice_summary(
+    history: &mut Vec<HistoryEntry>,
+    archive: &mut Vec<HistoryEntry>,
+    text: String,
+    replaces: usize,
+) {
+    let replaces = replaces.min(history.len());
+    archive.extend(
+        history
+            .drain(..replaces)
+            .filter(|entry| !matches!(entry, HistoryEntry::Summary(_))),
+    );
+    history.insert(0, HistoryEntry::Summary(text));
 }
 
 /// Session state by Macro session id, shared between the manager (which
@@ -263,16 +314,26 @@ pub type SessionStore = DashMap<AgentSessionId, SessionState>;
 pub fn messages_for_turn(history: &[HistoryEntry], prompt: &UserPrompt) -> Vec<ChatMessage> {
     history
         .iter()
-        .map(|entry| match entry {
-            HistoryEntry::User(prompt) => prompt.to_chat_message(),
-            HistoryEntry::Assistant(parts) => ChatMessage {
-                content: ChatMessageContent::AssistantMessageParts(parts.clone()),
-                role: Role::Assistant,
-                attachments: None,
-            },
+        .flat_map(|entry| match entry {
+            HistoryEntry::User(prompt) => vec![prompt.to_chat_message()],
+            HistoryEntry::Assistant(parts) => vec![assistant_message(parts.clone())],
+            HistoryEntry::Summary(summary) => vec![
+                UserPrompt::text(SUMMARY_PREAMBLE).to_chat_message(),
+                assistant_message(vec![AssistantMessagePart::Text {
+                    text: summary.clone(),
+                }]),
+            ],
         })
         .chain(std::iter::once(prompt.to_chat_message()))
         .collect()
+}
+
+fn assistant_message(parts: Vec<AssistantMessagePart>) -> ChatMessage {
+    ChatMessage {
+        content: ChatMessageContent::AssistantMessageParts(parts),
+        role: Role::Assistant,
+        attachments: None,
+    }
 }
 
 /// Whether resolved attachments contain images, including nested attachments.
