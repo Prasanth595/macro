@@ -41,6 +41,7 @@ use tracing::Instrument as _;
 use crate::domain::engine::{AgentIdentity, TurnEngine, TurnRequest};
 use crate::domain::tool_gate::{NativeToolGate, NativeToolVerdict, UngatedNativeTools};
 use crate::inbound::ask_user::{AskUser, AskUserContext};
+use crate::inbound::search_history::{SearchHistory, SearchHistoryContext};
 
 #[path = "outbound/rig_engine/opener.rs"]
 mod opener;
@@ -91,9 +92,10 @@ impl RigTurnEngine {
     }
 }
 
-/// Native tools never gated: asking the user something, and finding or
-/// loading a connected app's tools, spend nobody's access.
-const UNGATED_NATIVE_TOOLS: [&str; 3] = ["AskUser", "SearchTools", "LoadTools"];
+/// Native tools never gated: asking the user something, searching the
+/// session's own conversation, and finding or loading a connected app's
+/// tools spend nobody's access.
+const UNGATED_NATIVE_TOOLS: [&str; 4] = ["AskUser", "SearchHistory", "SearchTools", "LoadTools"];
 
 /// A turn's tools, each call to one of Macro's own asked of the gate first.
 /// Remote MCP tools are left to the egress proxy, which gates them already.
@@ -157,6 +159,7 @@ where
 struct InMemToolContext {
     base: ToolServiceContext,
     ask_user: AskUserContext,
+    search_history: SearchHistoryContext,
 }
 
 impl FromRef<InMemToolContext> for ToolServiceContext {
@@ -171,11 +174,19 @@ impl FromRef<InMemToolContext> for AskUserContext {
     }
 }
 
+impl FromRef<InMemToolContext> for SearchHistoryContext {
+    fn from_ref(context: &InMemToolContext) -> Self {
+        context.search_history.clone()
+    }
+}
+
 fn tools_for_turn(
     base_tools: ai_tools::AiToolSet,
     supports_user_input: bool,
 ) -> AsyncToolCollection<InMemToolContext> {
-    let tools = AsyncToolCollection::<InMemToolContext>::new().add_subtoolset(base_tools);
+    let tools = AsyncToolCollection::<InMemToolContext>::new()
+        .add_subtoolset(base_tools)
+        .add_tool::<SearchHistory, SearchHistoryContext>();
     if supports_user_input {
         tools.add_tool::<AskUser, AskUserContext>()
     } else {
@@ -278,6 +289,7 @@ async fn drive_turn(
         cancel,
         user_input,
         reviewer,
+        history,
     } = request;
     let started = tokio::time::Instant::now();
 
@@ -380,6 +392,7 @@ async fn drive_turn(
         ask_user: AskUserContext {
             requester: user_input,
         },
+        search_history: SearchHistoryContext { history },
     };
 
     // GenAI telemetry stays off here: this runtime's turns and tool calls

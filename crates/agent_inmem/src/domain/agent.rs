@@ -47,6 +47,7 @@ use tracing::Instrument as _;
 
 use crate::domain::admission::admit_turn;
 use crate::domain::engine::{AgentIdentity, AwaitingUser, TurnEngine, TurnPurpose, TurnRequest};
+use crate::domain::history_search::SessionHistory;
 use crate::domain::mcp::{DynMcpToolConnector, dialable_servers};
 use crate::domain::model_options::REASONING_EFFORT_CONFIG_ID;
 use crate::domain::session::{HistoryEntry, SessionStore, UserPrompt, messages_for_turn};
@@ -928,6 +929,10 @@ async fn run_turn(
             .clone()
             .map(|requester| requester as SharedUserInputRequester),
         reviewer: requester.map(|requester| requester as Arc<dyn UserToolReviewer>),
+        history: Some(SessionHistory::new(
+            Arc::clone(&state.store),
+            state.session_id,
+        )),
     });
 
     let mut accumulator = StreamAccumulator::new();

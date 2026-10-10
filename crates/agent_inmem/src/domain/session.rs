@@ -207,7 +207,7 @@ pub enum HistoryEntry {
 /// words went.
 pub const SUMMARY_PREAMBLE: &str = "The earlier conversation was summarized to keep it within \
 your context. The summary below is history: the actions it records already happened, so do \
-not repeat them.";
+not repeat them. SearchHistory finds the exact words of anything it covers.";
 
 /// A summary being written in the background. A session has at most one.
 #[derive(Debug)]
@@ -250,7 +250,7 @@ pub struct SessionState {
     /// came before, if there was one, then everything since.
     pub history: Vec<HistoryEntry>,
     /// What summaries stand in for, oldest first. With `history` it is the
-    /// whole conversation.
+    /// whole conversation, which `SearchHistory` reads.
     pub archive: Vec<HistoryEntry>,
     /// The summary being written in the background, if any.
     pub summarizing: Option<PendingSummary>,

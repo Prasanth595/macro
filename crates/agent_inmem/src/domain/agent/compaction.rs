@@ -539,6 +539,7 @@ async fn complete(
         cancel: call,
         user_input: None,
         reviewer: None,
+        history: None,
     });
     let mut text = String::new();
     loop {

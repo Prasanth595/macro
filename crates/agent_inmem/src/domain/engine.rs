@@ -13,6 +13,7 @@ use model_owner::Owner;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
+use super::history_search::SessionHistory;
 use super::user_input::SharedUserInputRequester;
 
 /// Who the agent is: the bot a session belongs to, by id and by name.
@@ -77,6 +78,9 @@ pub struct TurnRequest {
     /// rejected - before the model reads its result. Absent for the same
     /// reason as `user_input`; a pending call then stays pending.
     pub reviewer: Option<Arc<dyn UserToolReviewer>>,
+    /// The session's whole conversation, summarized parts included, for
+    /// `SearchHistory`. `None` offers the tool nothing to search.
+    pub history: Option<SessionHistory>,
 }
 
 /// Whether a model call answers the user or condenses their conversation.
