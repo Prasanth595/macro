@@ -1,8 +1,11 @@
-import { SettingsCard } from '@app/features/settings/primitives';
+import { Popover } from '@kobalte/core/popover';
 import Clock from '@phosphor/clock.svg';
+import Copy from '@phosphor/copy.svg';
 import Globe from '@phosphor/globe.svg';
+import Info from '@phosphor/info.svg';
 import { Button } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
+import { unwrap } from 'solid-js/store';
 import type {
   AvailabilitySchedule,
   SchedulingProfile,
@@ -26,11 +29,11 @@ export function AvailabilityPanel(props: {
   const usedBy = (id: string) =>
     props.profile.eventTypes.filter((e) => e.scheduleId === id);
   return (
-    <SettingsCard>
+    <div class="grid min-w-0 gap-4 sm:grid-cols-2">
       <For
         each={props.profile.schedules}
         fallback={
-          <div class="flex flex-col items-center gap-3 px-6 py-8 text-center">
+          <div class="col-span-full flex flex-col items-center gap-3 rounded-xl border border-dashed border-edge px-6 py-12 text-center">
             <Clock class="size-7 text-ink-muted" />
             <Show when={props.owner}>
               {(owner) => <OwnerBadge scope={owner()} />}
@@ -43,12 +46,12 @@ export function AvailabilityPanel(props: {
         }
       >
         {(schedule) => (
-          <article class="px-6 py-4">
-            <div class="flex flex-wrap items-start justify-between gap-5">
+          <article class="min-w-0 rounded-xl border border-edge-muted bg-surface-1 p-5">
+            <div class="flex min-w-0 flex-col gap-4">
               <button
                 type="button"
-                class="min-w-0 flex-1 text-left"
-                disabled={!props.canEdit}
+                class="min-w-0 text-left"
+                disabled={!props.canEdit || props.saving}
                 onClick={() => props.onEdit(schedule)}
               >
                 <div class="flex flex-wrap items-center gap-3">
@@ -66,8 +69,8 @@ export function AvailabilityPanel(props: {
                   <span class="inline-flex items-center gap-1.5">
                     <Clock class="size-4" />
                     {schedule.weekly
-                      .filter((d) => d.windows.length)
-                      .map((d) => WEEKDAYS[d.day].slice(0, 3))
+                      .filter((day) => day.windows.length)
+                      .map((day) => WEEKDAYS[day.day].slice(0, 3))
                       .join(', ') || 'No available days'}
                   </span>
                   <span class="inline-flex items-center gap-1.5">
@@ -76,21 +79,30 @@ export function AvailabilityPanel(props: {
                   </span>
                 </div>
                 <p class="mt-2 text-xs text-ink-muted">
-                  {usedBy(schedule.id).length} event types ·{' '}
+                  {usedBy(schedule.id).length} booking links ·{' '}
                   {schedule.overrides.length} date overrides
                 </p>
               </button>
-              <Show when={props.canEdit}>
-                <div class="flex gap-2">
+              <div class="flex flex-wrap items-center gap-1 border-t border-edge-muted pt-3">
+                <ScheduleDetails
+                  schedule={schedule}
+                  canEdit={props.canEdit}
+                  saving={props.saving}
+                  onCopy={props.onEdit}
+                />
+                <Show when={props.canEdit}>
                   <Button
                     variant="outline"
                     onClick={() => props.onEdit(schedule)}
+                    size="sm"
+                    disabled={props.saving}
                   >
                     Edit
                   </Button>
                   <Show when={defaultId() !== schedule.id}>
                     <Button
                       variant="ghost"
+                      size="sm"
                       disabled={props.saving}
                       onClick={() => props.onDefault(schedule)}
                     >
@@ -99,12 +111,14 @@ export function AvailabilityPanel(props: {
                   </Show>
                   <Button
                     variant="ghost"
+                    size="sm"
+                    disabled={props.saving}
                     onClick={() => setRemove(schedule.id)}
                   >
                     Delete
                   </Button>
-                </div>
-              </Show>
+                </Show>
+              </div>
             </div>
             <Show when={props.canEdit && remove() === schedule.id}>
               <div class="mt-4 flex flex-wrap items-center gap-3 border-t border-edge-muted pt-4">
@@ -134,6 +148,106 @@ export function AvailabilityPanel(props: {
           </article>
         )}
       </For>
-    </SettingsCard>
+    </div>
+  );
+}
+
+function ScheduleDetails(props: {
+  schedule: AvailabilitySchedule;
+  canEdit: boolean;
+  saving: boolean;
+  onCopy: (schedule: AvailabilitySchedule) => void;
+}) {
+  const [open, setOpen] = createSignal(false);
+  const [trigger, setTrigger] = createSignal<HTMLButtonElement>();
+  return (
+    <Popover
+      open={open()}
+      onOpenChange={setOpen}
+      placement="bottom-start"
+      gutter={8}
+      modal={false}
+    >
+      <Popover.Trigger
+        as={Button}
+        ref={setTrigger}
+        variant="ghost"
+        size="sm"
+        label={`Details for ${props.schedule.name}`}
+      >
+        <Info class="size-3.5" />
+        Details
+      </Popover.Trigger>
+      <Popover.Portal
+        mount={trigger()?.closest<HTMLElement>('.portal-scope') ?? undefined}
+      >
+        <Popover.Content class="menu-surface z-action-menu w-80 max-w-[min(20rem,var(--kb-popper-content-available-width),calc(100vw-2rem))] p-4 text-xs outline-none">
+          <Popover.Title class="text-sm font-semibold">
+            {props.schedule.name}
+          </Popover.Title>
+          <Popover.Description class="mt-1 text-ink-muted">
+            {props.schedule.timeZone.replaceAll('_', ' ')}
+          </Popover.Description>
+          <dl class="mt-4 flex flex-col gap-2">
+            <For
+              each={[...props.schedule.weekly].sort(
+                (a, b) => ((a.day + 6) % 7) - ((b.day + 6) % 7)
+              )}
+            >
+              {(day) => (
+                <div class="flex justify-between gap-4">
+                  <dt>{WEEKDAYS[day.day]}</dt>
+                  <dd class="text-right">
+                    {day.windows
+                      .map((window) => `${window.start}–${window.end}`)
+                      .join(', ') || 'Unavailable'}
+                  </dd>
+                </div>
+              )}
+            </For>
+          </dl>
+          <Show when={props.schedule.overrides.length}>
+            <div class="mt-3 max-h-40 overflow-y-auto border-t border-edge-muted pt-3">
+              <p class="mb-2 font-medium">Date overrides</p>
+              <For
+                each={[...props.schedule.overrides].sort((a, b) =>
+                  a.date.localeCompare(b.date)
+                )}
+              >
+                {(override) => (
+                  <p class="mb-1 flex justify-between gap-3">
+                    <span>{override.date}</span>
+                    <span class="text-right text-ink-muted">
+                      {override.windows
+                        .map((window) => `${window.start}–${window.end}`)
+                        .join(', ') || 'Unavailable all day'}
+                    </span>
+                  </p>
+                )}
+              </For>
+            </div>
+          </Show>
+          <Show when={props.canEdit}>
+            <Button
+              class="mt-4 w-full"
+              variant="outline"
+              size="sm"
+              disabled={props.saving}
+              onClick={() => {
+                setOpen(false);
+                props.onCopy({
+                  ...structuredClone(unwrap(props.schedule)),
+                  id: crypto.randomUUID(),
+                  name: `${props.schedule.name.slice(0, 93)} (copy)`,
+                });
+              }}
+            >
+              <Copy class="size-3.5" />
+              Copy schedule
+            </Button>
+          </Show>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover>
   );
 }

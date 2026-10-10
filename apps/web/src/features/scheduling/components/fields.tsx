@@ -104,12 +104,15 @@ export function CheckField(props: {
   checked: boolean;
   onChange: (checked: boolean) => void;
   label: string;
+  disabled?: boolean;
+  class?: string;
 }) {
   return (
     <Checkbox
       checked={props.checked}
       onChange={props.onChange}
-      class="gap-3 text-sm"
+      disabled={props.disabled}
+      class={cn('gap-3 text-sm', props.class)}
     >
       <Checkbox.Control class="data-checked:bg-ink data-checked:border-ink text-panel" />
       <Checkbox.Label>{props.label}</Checkbox.Label>

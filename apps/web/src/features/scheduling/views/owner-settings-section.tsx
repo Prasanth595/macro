@@ -7,10 +7,10 @@ import { EventEditor } from '../components/event-editor';
 import { EventTypesPanel } from '../components/event-types-panel';
 import { Field, TextArea, TextInput } from '../components/fields';
 import { OwnerBadge } from '../components/owner-badge';
-import { ScheduleEditor } from '../components/schedule-editor';
 import { useScheduling } from '../context/scheduling-context';
 import type { SchedulingOwner } from '../primitives/create-scheduling-owner';
 import { InsightsView } from './insights-view';
+import { ScheduleEditor } from './schedule-editor-view';
 
 export function OwnerSettingsSection(props: {
   kind: 'links' | 'availability' | 'page' | 'bookings' | 'insights';
@@ -119,15 +119,10 @@ export function OwnerSettingsSection(props: {
           </Match>
           <Match when={props.kind === 'availability'}>
             <div
-              class="min-w-0"
+              class="flex min-h-0 min-w-0 flex-1 flex-col"
               role="group"
               aria-label={`${scope().name} ${props.kind === 'page' ? 'booking page' : props.kind}`}
             >
-              <Show when={schedule()}>
-                <div class="mb-4">
-                  <OwnerBadge scope={scope()} />
-                </div>
-              </Show>
               <Show
                 when={!schedule()}
                 fallback={
