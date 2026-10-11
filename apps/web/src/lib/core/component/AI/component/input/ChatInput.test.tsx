@@ -1,3 +1,15 @@
+vi.mock('@queries/model-providers', () => ({
+  useWorkspaceModels: () => ({
+    get isPending() {
+      return mocks.modelsPending;
+    },
+    get data() {
+      if (mocks.modelsPending) throw new Error('pending catalog data suspends');
+      return { models: [], default_model: null };
+    },
+  }),
+}));
+
 import type { EditorConfigBuilder } from '@core/component/LexicalMarkdown/builder/MarkdownConfigBuilder';
 import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
 import { createSignal, type JSX, onCleanup, onMount } from 'solid-js';
@@ -6,6 +18,7 @@ import { ChatInput } from './ChatInput';
 
 const mocks = vi.hoisted(() => ({
   touch: true,
+  modelsPending: false,
   emitChange: undefined as ((value: string) => void) | undefined,
   enter: undefined as ((event?: KeyboardEvent) => boolean) | undefined,
   root: undefined as HTMLDivElement | undefined,
@@ -132,6 +145,7 @@ vi.mock('@core/component/LexicalMarkdown/builder/MarkdownShell', () => ({
 }));
 
 afterEach(() => {
+  mocks.modelsPending = false;
   cleanup();
   mocks.touch = true;
   mocks.root = undefined;
@@ -307,3 +321,10 @@ it.each([true, false])(
     expect(input.textContent).toBe(draft);
   }
 );
+
+it('keeps the composer mounted while the provider catalog is pending', () => {
+  mocks.modelsPending = true;
+  const { input, draft } = setup();
+  expect(input.textContent).toBe(draft);
+  expect(mocks.unmount).not.toHaveBeenCalled();
+});

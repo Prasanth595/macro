@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO workspace_ai_providers (workspace_id, user_id, team_id, revision, configuration)\n               SELECT $1, $2, $3, 1, $4 WHERE $5::BIGINT = 0\n               ON CONFLICT (workspace_id) DO NOTHING RETURNING revision",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "revision",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Uuid",
+        "Bytea",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "90cacaccba14b2fddc1169d3fc564ab05f2630d8292c285ce775354a01edd98b"
+}

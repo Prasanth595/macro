@@ -44,10 +44,21 @@ impl InMemoryModelProbe for InMemoryModels {
             .access(&Owner::User(caller.clone()))
             .await
             .map_err(|error| ModelProbeError::Failed(error.to_string()))?;
+        let models = engine
+            .owner_catalog(&Owner::User(caller.clone()))
+            .await
+            .map_err(|error| ModelProbeError::Failed(error.to_string()))?;
+        let allowed: Vec<_> = models
+            .models
+            .into_iter()
+            .filter(|model| access.allows(&model.id))
+            .collect();
         Ok(RawModelProbe::Options(
-            agent_inmem::domain::model_options::model_config_options(
-                access.default_model(&self.current),
-                &access.models(engine.supported_models()),
+            agent_inmem::domain::model_options::catalog_config_options(
+                access.default_model(models.default_model.as_deref().unwrap_or(&self.current)),
+                &allowed,
+                Default::default(),
+                Default::default(),
             ),
         ))
     }
@@ -68,14 +79,27 @@ impl agent_harness::domain::capability_discovery::CapabilityProbe for InMemoryMo
             .access(&Owner::User(caller.clone()))
             .await
             .map_err(|error| CapabilityProbeError::Failed(error.to_string()))?;
-        let current = access.default_model(model.unwrap_or(&self.current));
-        if !engine.supported_models().contains(&current) {
+        let models = engine
+            .owner_catalog(&Owner::User(caller.clone()))
+            .await
+            .map_err(|error| CapabilityProbeError::Failed(error.to_string()))?;
+        let allowed: Vec<_> = models
+            .models
+            .into_iter()
+            .filter(|model| access.allows(&model.id))
+            .collect();
+        let current = access.default_model(
+            model.unwrap_or(models.default_model.as_deref().unwrap_or(&self.current)),
+        );
+        if !allowed.iter().any(|entry| entry.id == current) {
             return Err(CapabilityProbeError::Failed("unsupported model".to_owned()));
         }
         Ok(RawCapabilityProbe::Options(
-            agent_inmem::domain::model_options::model_config_options(
+            agent_inmem::domain::model_options::catalog_config_options(
                 current,
-                &access.models(engine.supported_models()),
+                &allowed,
+                Default::default(),
+                Default::default(),
             ),
         ))
     }

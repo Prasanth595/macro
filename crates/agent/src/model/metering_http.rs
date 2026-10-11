@@ -54,6 +54,16 @@ impl<H> MeteredHttpClient<H> {
         }
     }
 
+    fn redact_error(&self, error: http_client::Error) -> http_client::Error {
+        if self.provider.starts_with("workspace-") {
+            http_client::Error::Instance(Box::new(std::io::Error::other(
+                "Workspace model endpoint request failed",
+            )))
+        } else {
+            error
+        }
+    }
+
     async fn prepare(
         &self,
         mut request: Request<Bytes>,
@@ -162,7 +172,11 @@ impl<H: HttpClientExt + Clone + 'static> HttpClientExt for MeteredHttpClient<H> 
             MeteringContext::carry(context, async move {
                 let (request, attempt) = client.prepare(request).await?;
                 let Some(attempt) = attempt else {
-                    return client.inner.send(request).await;
+                    return client
+                        .inner
+                        .send(request)
+                        .await
+                        .map_err(|error| client.redact_error(error));
                 };
                 // Complete the provider/evidence exchange independently of caller
                 // cancellation, before Rig can reject tool arguments or JSON.
@@ -170,7 +184,11 @@ impl<H: HttpClientExt + Clone + 'static> HttpClientExt for MeteredHttpClient<H> 
                 let result = tokio::spawn(async move {
                     let result = drain_after_cancellation(
                         async {
-                            let response = client.inner.send::<_, Bytes>(request).await?;
+                            let response = client
+                                .inner
+                                .send::<_, Bytes>(request)
+                                .await
+                                .map_err(|error| client.redact_error(error))?;
                             let (parts, body) = response.into_parts();
                             Ok::<_, http_client::Error>((parts, body.await?))
                         },
@@ -242,9 +260,14 @@ impl<H: HttpClientExt + Clone + 'static> HttpClientExt for MeteredHttpClient<H> 
     {
         let (request, attempt) = self.prepare(request.map(Into::into)).await?;
         let Some(attempt) = attempt else {
-            return self.inner.send_streaming(request).await;
+            return self
+                .inner
+                .send_streaming(request)
+                .await
+                .map_err(|error| self.redact_error(error));
         };
         let inner = self.inner.clone();
+        let client = self.clone();
         // Keep connection establishment alive too: a timeout after provider
         // execution is unresolved evidence, not permission to release the hold.
         let (caller_alive, cancelled) = tokio::sync::oneshot::channel::<()>();
@@ -259,7 +282,7 @@ impl<H: HttpClientExt + Clone + 'static> HttpClientExt for MeteredHttpClient<H> 
                 Ok(Ok(response)) => response,
                 other => {
                     let error = match other {
-                        Ok(Err(error)) => error,
+                        Ok(Err(error)) => client.redact_error(error),
                         _ => http_error(MeteringError::Stopped),
                     };
                     finish_failure(attempt, &error).await?;

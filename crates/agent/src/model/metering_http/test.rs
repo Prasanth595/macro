@@ -933,3 +933,40 @@ async fn a_reshaped_anthropic_request_is_metered_with_its_cache_usage() {
 }
 
 mod speed;
+
+#[tokio::test]
+async fn workspace_endpoint_failures_are_redacted_before_completion_parsing() {
+    let client = MeteredHttpClient::new(
+        Transport {
+            fail: true,
+            ..Transport::new("unused")
+        },
+        "workspace-example",
+        WireProtocol::ChatCompletions,
+    );
+    let error = client.send::<_, Bytes>(request()).await.err().unwrap();
+    assert_eq!(
+        error.to_string(),
+        "Http client error: Workspace model endpoint request failed"
+    );
+    let secret = "echoed-team-api-key";
+    let redacted = client.redact_error(http_client::Error::InvalidStatusCodeWithMessage(
+        reqwest::StatusCode::UNAUTHORIZED,
+        secret.to_owned(),
+    ));
+    assert!(!format!("{redacted:?}").contains(secret));
+    let native = MeteredHttpClient::new(
+        Transport::default(),
+        "openai",
+        WireProtocol::ChatCompletions,
+    );
+    assert!(
+        native
+            .redact_error(http_client::Error::InvalidStatusCodeWithMessage(
+                reqwest::StatusCode::UNAUTHORIZED,
+                secret.to_owned()
+            ))
+            .to_string()
+            .contains(secret)
+    );
+}

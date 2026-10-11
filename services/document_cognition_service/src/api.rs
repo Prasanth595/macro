@@ -151,6 +151,12 @@ fn api_router(api_context: ApiContext) -> Router {
                 authorization_state,
             },
         ))
+        .merge(model_provider::inbound::axum_router::provider_router(
+            model_provider::inbound::axum_router::ProviderRouterState {
+                service: api_context.provider_service.clone(),
+                authorization_state: api_context.authorization_state.clone(),
+            },
+        ))
         .merge(mcp_client::inbound::mcp_router(mcp_state.clone()))
         .merge(pipedream_mcp::inbound::pipedream_mcp_router(
             api_context.pipedream_state.clone(),

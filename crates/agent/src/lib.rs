@@ -32,3 +32,6 @@ pub use tool_adapter::{DynToolSetAdapter, ToolsetToolAdapter, normalize_request_
 
 pub use rig_core::completion::CompletionError;
 pub use rig_core::message::Message;
+
+pub use model::metering_http::MeteredHttpClient;
+pub use model::router::ModelRouter;

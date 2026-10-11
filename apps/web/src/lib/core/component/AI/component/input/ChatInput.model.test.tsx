@@ -1,3 +1,12 @@
+vi.mock('@queries/model-providers', () => ({
+  useWorkspaceModels: () => ({
+    isPending: false,
+    get data() {
+      return mocks.catalog;
+    },
+  }),
+}));
+
 import { SoupChatInput } from '@app/features/chat/SoupChatInput';
 import { Chat } from '@block-chat/component/Chat';
 import type { ChatData } from '@block-chat/definition';
@@ -26,6 +35,12 @@ import { ChatInput } from './ChatInput';
 
 const mocks = vi.hoisted(() => ({
   mobile: true,
+  catalog: {
+    models: [] as import('@service-cognition/model-providers').WorkspaceModel[],
+    default_model: null as
+      | import('@service-cognition/model-providers').WorkspaceModel['id']
+      | null,
+  },
   change: undefined as ((text: string) => void) | undefined,
   createChat: vi.fn(),
   replace: vi.fn(),
@@ -271,6 +286,7 @@ vi.mock('@core/component/LexicalMarkdown/builder/MarkdownShell', () => ({
 
 let motionStyles: HTMLStyleElement;
 beforeEach(() => {
+  mocks.catalog = { models: [], default_model: null };
   motionStyles = document.createElement('style');
   motionStyles.textContent =
     '* { transition-duration: 0s; animation-name: none; }';
@@ -349,3 +365,37 @@ it.each([true, false])(
     expect(screen.getByTestId('model').textContent).toBe(Model.gpt56);
   }
 );
+
+it('preserves an unavailable workspace selection and prevents sending', () => {
+  const id = 'workspace-00000000-0000-0000-0000-000000000001/llama' as const;
+  const onSend = vi.fn();
+  const editor = {
+    buildHandle: () => ({ lexical: {} }),
+    withFilePaste: () => editor,
+    onEnter: () => editor,
+    onEscape: () => editor,
+    onChange: (callback: (text: string) => void) => {
+      mocks.change = callback;
+      return editor;
+    },
+    controls: { clear: () => mocks.change?.('') },
+  } as unknown as EditorConfigBuilder;
+  render(() => (
+    <ChatInputProvider model={id}>
+      <CurrentModel />
+      <ChatInput editor={editor} onSend={onSend} />
+    </ChatInputProvider>
+  ));
+  mocks.change?.('Keep this local');
+  expect(screen.getByTestId('model').textContent).toBe(id);
+  expect(
+    screen.getByRole<HTMLButtonElement>('button', { name: 'Send' }).disabled
+  ).toBe(true);
+  expect(
+    screen.getByText(
+      'This workspace model is unavailable. Choose an available model to send.'
+    )
+  ).toBeDefined();
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+  expect(onSend).not.toHaveBeenCalled();
+});

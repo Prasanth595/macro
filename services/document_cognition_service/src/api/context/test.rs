@@ -662,6 +662,19 @@ pub async fn test_api_context(pool: sqlx::Pool<sqlx::Postgres>) -> std::sync::Ar
     );
 
     let api_context = ApiContext {
+        provider_service: Arc::new(model_provider::domain::service::ProviderService::new(
+            Arc::new(model_provider::outbound::postgres::PgProviderStore::new(
+                pool.clone(),
+                &[0; 32],
+            )),
+            teams::domain::workspace_membership::WorkspaceMembershipServiceImpl(
+                teams::outbound::team_repo::TeamRepositoryImpl::new(pool.clone()),
+            ),
+            Arc::new(model_provider::outbound::endpoint::OpenAiEndpoint::new(
+                true,
+            )),
+            true,
+        )),
         db: pool.clone(),
         sqs_client: Arc::new(sqs_client),
         document_storage_client,

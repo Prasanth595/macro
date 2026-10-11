@@ -117,7 +117,51 @@ pub trait TurnEngine: Send + Sync + 'static {
     /// ACP. The order is the picker order.
     fn supported_models(&self) -> &[&str];
 
+    /// Models and their metadata available to this owner, from one snapshot.
+    fn owner_catalog<'a>(
+        &'a self,
+        _owner: &'a Owner,
+    ) -> std::pin::Pin<Box<dyn Future<Output = Result<EngineModelCatalog, AgentError>> + Send + 'a>>
+    {
+        Box::pin(async move { Ok(EngineModelCatalog::builtin(self.supported_models())) })
+    }
+
     /// Start the turn. Parts arrive on the returned receiver; the stream
     /// ending is the turn ending, and an `Err` item is a turn-fatal failure.
     fn run_turn(&self, request: TurnRequest) -> mpsc::Receiver<Result<StreamPart, AgentError>>;
+}
+
+/// A model's selection and input metadata.
+#[derive(Clone)]
+pub struct EngineModel {
+    /// Qualified model identifier.
+    pub id: String,
+    /// User-visible label.
+    pub name: String,
+    /// Known image-input capability.
+    pub supports_images: Option<bool>,
+}
+
+/// One owner-scoped catalog snapshot.
+pub struct EngineModelCatalog {
+    /// Advertised models in picker order.
+    pub models: Vec<EngineModel>,
+    /// Workspace preference for new conversations.
+    pub default_model: Option<String>,
+}
+impl EngineModelCatalog {
+    /// Construct the native deployment catalog.
+    pub fn builtin(models: &[&str]) -> Self {
+        Self {
+            models: models
+                .iter()
+                .map(|id| EngineModel {
+                    id: (*id).to_owned(),
+                    name: super::models::display_name(id).to_owned(),
+                    supports_images: super::models::supports_images(id),
+                })
+                .collect(),
+            default_model: None,
+        }
+    }
 }

@@ -25,15 +25,14 @@ export const Model = {
 } as const;
 
 // `Model` is both a value (the const above) and a type (the union of api ids).
-export type Model = (typeof Model)[keyof typeof Model];
+export type BuiltinModel = (typeof Model)[keyof typeof Model];
+export type Model = BuiltinModel | `workspace-${string}/${string}`;
 /** Alias kept for existing call sites. */
 export type TModel = Model;
 
-type ExhaustiveMap = {
-  [K in TModel]: any;
-};
+type ExhaustiveMap<T> = Record<Model, T>;
 
-export const MODEL_PRETTYNAME: ExhaustiveMap = {
+export const MODEL_PRETTYNAME: ExhaustiveMap<string> = {
   'anthropic/claude-sonnet-5-5': 'Sonnet 5.5',
   'anthropic/claude-opus-5-5': 'Opus 5.5',
   'anthropic/claude-haiku-4-5': 'Haiku 4.5',
@@ -44,7 +43,7 @@ export const MODEL_PRETTYNAME: ExhaustiveMap = {
   'google/gemini-3.8-flash': 'Gemini 3.8 Flash',
 } as const;
 
-export const MODEL_PROVIDER_ICON: ExhaustiveMap = {
+export const MODEL_PROVIDER_ICON: ExhaustiveMap<typeof OpenAiIcon> = {
   'anthropic/claude-sonnet-5-5': ClaudeIcon,
   'anthropic/claude-opus-5-5': ClaudeIcon,
   'anthropic/claude-haiku-4-5': ClaudeIcon,
@@ -99,7 +98,7 @@ export function databaseModelForPlan(hasPaidAccess: boolean): TModel {
 }
 
 /** Provider serving each model — mirrors the backend `provider` field. */
-export const MODEL_PROVIDER: ExhaustiveMap = {
+export const MODEL_PROVIDER: ExhaustiveMap<string> = {
   'anthropic/claude-sonnet-5-5': 'anthropic',
   'anthropic/claude-opus-5-5': 'anthropic',
   'anthropic/claude-haiku-4-5': 'anthropic',
@@ -139,9 +138,11 @@ export function alternateProviderModel(
   // Exclude the current provider (always switch *away* from it) plus every
   // provider that has already failed this session.
   const excluded = new Set<string>(options?.failedProviders ?? []);
-  excluded.add(MODEL_PROVIDER[current]);
+  excluded.add(MODEL_PROVIDER[current] ?? current.split('/')[0]);
 
   const candidates = options?.candidates;
   const pool = candidates && candidates.length > 0 ? candidates : PAID_MODELS;
-  return pool.find((id) => !excluded.has(MODEL_PROVIDER[id]));
+  return pool.find(
+    (id) => !excluded.has(MODEL_PROVIDER[id] ?? id.split('/')[0])
+  );
 }

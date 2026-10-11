@@ -1603,3 +1603,38 @@ a rejected configuration must retain the unsent draft and attachments.
 Usage records follow the provider's delivered speed for each call, including tool
 loops. OpenAI prompts exceeding 272,000 tokens use the long-context rate for that
 call. Standard and accelerated rates have separate pricing keys.
+
+## Workspace AI providers
+
+Open Settings → Workspace → AI providers. Choose the personal workspace or a
+team from the workspace selector. Team members can view and use enabled models;
+team admins manage provider configuration.
+
+Click Add provider and enter a name and OpenAI-compatible API base URL (including
+`/v1` where needed). Enter an API key for endpoints that require one. Test &
+discover models queries the endpoint; servers without model discovery can be
+configured with Add model and the exact wire model ID. Set a display name and
+check Accepts images only for models that accept vision input, then Save provider.
+Multiple providers and models can be enabled together. Saved keys are never shown;
+an empty key field preserves a saved key, and Clear saved API key removes it.
+Changing the endpoint clears its old credential unless a replacement is entered.
+
+Choose the default model for new conversations in settings, or select a model in
+the chat/agent model picker. Existing conversations keep their selection. If a
+provider is disabled, removed, inaccessible, or cannot be loaded, its selected
+model remains selected and sending requires choosing an available model. There
+is no automatic cloud fallback. Text-only models reject images, including images
+in earlier messages. Existing plan access requirements still apply.
+
+Local development deployments can connect to loopback/private HTTP endpoints
+such as Ollama or LM Studio. Hosted deployments require a public HTTPS endpoint;
+`localhost` refers to the backend server, not the browser's computer. Custom turns
+skip cloud-generated titles, opening lines, memory generation and native tools
+that implicitly invoke cloud inference. Explicitly connected external tools still
+use their configured services.
+
+Verify adding two providers, discovering and manually adding models, selecting
+a default, switching models in a new conversation, preserving an existing model,
+and disabling the selected provider. Verify member read-only settings, stale-save
+conflicts, credential preservation/clearing, text-only image rejection, and mobile
+layout. Discovery responses must preserve edits and never update another draft.

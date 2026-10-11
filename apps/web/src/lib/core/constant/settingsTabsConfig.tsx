@@ -162,6 +162,20 @@ export const SETTINGS_TAB_GROUPS: SettingsTabGroup[] = [
     label: 'Workspace',
     items: [
       {
+        tab: 'AI providers',
+        label: 'AI providers',
+        icon: CpuIcon,
+        keywords: [
+          'models',
+          'ollama',
+          'lm studio',
+          'vllm',
+          'openai',
+          'api key',
+          'local',
+        ],
+      },
+      {
         tab: 'Team',
         label: 'Team',
         icon: UsersThreeIcon,
@@ -248,6 +262,7 @@ const SETTINGS_TAB_SLUGS: Record<SettingsTab, string> = {
   Harness: 'runtimes',
   Bots: 'bots',
   Team: 'team',
+  'AI providers': 'ai-providers',
   Calendar: 'calendar',
   'Booking links': 'booking-links',
   Tags: 'tags',
@@ -296,6 +311,7 @@ export const useSettingsTabAvailable = () => {
 
   return (tab: SettingsTab): boolean => {
     switch (tab) {
+      case 'AI providers':
       case 'Appearance':
       case 'Account':
       case 'Usage':

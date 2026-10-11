@@ -483,6 +483,43 @@ impl<H: HttpClientExt + Clone + 'static> ModelRouter<H> {
 }
 
 impl ModelRouter<MeteredHttpClient> {
+    /// Create an isolated OpenAI-compatible router with a host-validated transport.
+    /// No environment credentials are read; the unused native clients cannot
+    /// claim workspace-qualified ids.
+    pub fn openai_compatible(
+        provider: &str,
+        base_url: &str,
+        api_key: &str,
+        http: ReqwestClient,
+    ) -> Result<Self, AgentError> {
+        let anthropic = anthropic::Client::builder()
+            .api_key("unused")
+            .http_client(AnthropicPromptLayout::new(MeteredHttpClient::new(
+                http.clone(),
+                "anthropic",
+                WireProtocol::Anthropic,
+            )))
+            .build()?;
+        let openai = openai::Client::builder()
+            .api_key("unused")
+            .http_client(MeteredHttpClient::new(
+                http.clone(),
+                "openai",
+                WireProtocol::Responses,
+            ))
+            .build()?;
+        let compatible = openai::CompletionsClient::builder()
+            .api_key(api_key)
+            .base_url(base_url)
+            .http_client(MeteredHttpClient::new(
+                http,
+                provider,
+                WireProtocol::ChatCompletions,
+            ))
+            .build()?;
+        Ok(Self::new(anthropic, openai).with_openai_client(provider, compatible))
+    }
+
     /// Register an OpenAI-compatible Chat Completions provider from a base URL
     /// and key.
     ///
@@ -803,6 +840,9 @@ where
                             Err(e) => {
                                 finish_run.concluded = true;
                                 let error = AgentError::Streaming(e);
+                                let error = if model.starts_with("workspace-") && !error.was_cancelled() {
+                                    AgentError::Other(anyhow::anyhow!("Workspace model request failed. Check the endpoint configuration or contact your workspace administrator."))
+                                } else { error };
                                 if error.was_cancelled() {
                                     // The caller stopped the run through its
                                     // cancellation token: a stop, not a fault.

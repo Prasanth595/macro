@@ -59,6 +59,7 @@ const PART_BUFFER: usize = 256;
 /// [`TurnEngine`] backed by [`agent::AgentLoop`] and
 /// [`ai_tools::tools_for`].
 pub struct RigTurnEngine {
+    providers: Option<Arc<dyn model_provider::domain::ports::WorkspaceModelService>>,
     memory: Arc<MemoryServiceImpl<PgMemoryRepo>>,
     native_tools: Arc<NativeTools>,
     tool_context: ToolServiceContext,
@@ -72,6 +73,7 @@ impl RigTurnEngine {
     #[must_use]
     pub fn new(db: PgPool, tool_context: ToolServiceContext) -> Self {
         Self {
+            providers: None,
             memory: Arc::new(MemoryServiceImpl::new(
                 PgMemoryRepo::new(db),
                 tool_context.clone(),
@@ -81,6 +83,15 @@ impl RigTurnEngine {
             tool_context,
             gate: Arc::new(UngatedNativeTools),
         }
+    }
+
+    /// Resolve workspace models for discovery and each turn.
+    pub fn with_providers(
+        mut self,
+        providers: Arc<dyn model_provider::domain::ports::WorkspaceModelService>,
+    ) -> Self {
+        self.providers = Some(providers);
+        self
     }
 
     /// Ask `gate` before each of Macro's own tools runs.
@@ -234,6 +245,38 @@ impl TurnEngine for RigTurnEngine {
         crate::domain::models::advertised_models()
     }
 
+    fn owner_catalog<'a>(
+        &'a self,
+        owner: &'a Owner,
+    ) -> std::pin::Pin<
+        Box<
+            dyn Future<Output = Result<crate::domain::engine::EngineModelCatalog, AgentError>>
+                + Send
+                + 'a,
+        >,
+    > {
+        Box::pin(async move {
+            let mut catalog =
+                crate::domain::engine::EngineModelCatalog::builtin(self.supported_models());
+            if let (Some(providers), Some(user)) = (&self.providers, owner.as_user()) {
+                let workspace = providers
+                    .catalog(user)
+                    .await
+                    .map_err(|error| AgentError::Other(anyhow::Error::new(error)))?;
+                catalog.default_model = workspace.default_model;
+                catalog
+                    .models
+                    .extend(workspace.models.into_iter().map(|model| {
+                        crate::domain::engine::EngineModel {
+                            id: model.id,
+                            name: format!("{} · {}", model.name, model.provider),
+                            supports_images: Some(model.supports_images),
+                        }
+                    }));
+            }
+            Ok(catalog)
+        })
+    }
     fn run_turn(&self, request: TurnRequest) -> mpsc::Receiver<Result<StreamPart, AgentError>> {
         let (parts, receiver) = mpsc::channel(PART_BUFFER);
         let memory = Arc::clone(&self.memory);
@@ -241,10 +284,19 @@ impl TurnEngine for RigTurnEngine {
         let tool_context = self.tool_context.clone();
         let gate = Arc::clone(&self.gate);
         let metering = agent::MeteringContext::current();
+        let providers = self.providers.clone();
         tokio::spawn(
             agent::MeteringContext::carry(metering, async move {
-                if let Err(error) =
-                    drive_turn(&memory, &native_tools, tool_context, gate, request, &parts).await
+                if let Err(error) = drive_turn(
+                    &memory,
+                    &native_tools,
+                    tool_context,
+                    gate,
+                    providers,
+                    request,
+                    &parts,
+                )
+                .await
                 {
                     let _ = parts.send(Err(error)).await;
                 }
@@ -260,6 +312,7 @@ async fn drive_turn(
     native_tools: &NativeTools,
     base_context: ToolServiceContext,
     gate: Arc<dyn NativeToolGate>,
+    providers: Option<Arc<dyn model_provider::domain::ports::WorkspaceModelService>>,
     request: TurnRequest,
     parts: &mpsc::Sender<Result<StreamPart, AgentError>>,
 ) -> Result<(), AgentError> {
@@ -295,6 +348,19 @@ async fn drive_turn(
         }
     };
 
+    let workspace_router = match providers {
+        Some(providers) => providers
+            .resolve(&owner, &model)
+            .await
+            .map_err(|error| AgentError::Other(anyhow::Error::new(error)))?,
+        None if model.starts_with("workspace-") => {
+            return Err(AgentError::Other(anyhow::anyhow!(
+                "workspace model configuration is unavailable"
+            )));
+        }
+        None => None,
+    };
+
     // Started before anything else so its line is out before the turn's
     // model has a first token.
     let usage_ctx = ai_usage::UsageContext::new(ai_usage::AiFeature::AgentSession, owner.clone());
@@ -315,22 +381,30 @@ async fn drive_turn(
         agent.opener.line_chars = tracing::field::Empty,
         agent.opener.turn_first_part_ms = tracing::field::Empty,
     );
-    let mut opening_line = opener_span.in_scope(|| {
-        opener::spawn(
-            base_context.recorder.clone(),
-            usage_ctx.clone(),
-            &opener::Speaker {
-                agent: &agent,
-                model: crate::domain::models::display_name(&model),
-            },
-            &native_tools.tool_names,
-            &messages,
-        )
-    });
+    let mut opening_line = if workspace_router.is_some() {
+        mpsc::channel(1).1
+    } else {
+        opener_span.in_scope(|| {
+            opener::spawn(
+                base_context.recorder.clone(),
+                usage_ctx.clone(),
+                &opener::Speaker {
+                    agent: &agent,
+                    model: crate::domain::models::display_name(&model),
+                },
+                &native_tools.tool_names,
+                &messages,
+            )
+        })
+    };
     // Chat's tools with the session's prompt: the user tools (`SendEmail`,
     // `CreateCalendarEvent`) defer to the user, and this runtime finishes
     // them in the turn through `reviewer`.
-    let user_memory = fetch_user_memory(memory, &owner).await;
+    let user_memory = if workspace_router.is_some() {
+        None
+    } else {
+        fetch_user_memory(memory, &owner).await
+    };
     let system_prompt = system_prompt(
         &native_tools.prompt,
         identity.as_ref(),
@@ -338,7 +412,21 @@ async fn drive_turn(
         user_memory.as_deref(),
     );
 
-    let toolset = native_tools.for_turn(user_input.is_some());
+    let custom_provider = workspace_router.is_some();
+    let deferred = if custom_provider {
+        ai_tools::tools_for_workspace(AiHost::AgentSession).deferred
+    } else {
+        Arc::clone(&native_tools.deferred)
+    };
+    let toolset = if custom_provider {
+        let tools = ai_tools::tools_for_workspace(AiHost::AgentSession);
+        Arc::new(tools_for_turn(
+            Arc::into_inner(tools.toolset).expect("fresh workspace toolset"),
+            user_input.is_some(),
+        ))
+    } else {
+        native_tools.for_turn(user_input.is_some())
+    };
     // Carry the feature on the context so tool-spawned subagents attribute to it.
     let mut tool_context = base_context.clone();
     tool_context.usage_context = usage_ctx.clone();
@@ -361,6 +449,7 @@ async fn drive_turn(
     // `invoke_agent` / `execute_tool` spans for every harness alike. Enriching
     // rig's spans too would report each turn twice.
     let mut agent_loop = AgentLoop::new(base_context.recorder.clone())
+        .with_router(workspace_router)
         .with_model(&model)
         .with_reasoning_effort(reasoning_effort)
         .with_speed(speed)?
@@ -385,10 +474,8 @@ async fn drive_turn(
         None => toolset,
     };
     // Most of Macro's tools go out by name only; the model loads the rest.
-    let toolset: Arc<dyn AiToolSet<_> + Send + Sync> = Arc::new(DeferredToolSet::new(
-        toolset,
-        Arc::clone(&native_tools.deferred),
-    ));
+    let toolset: Arc<dyn AiToolSet<_> + Send + Sync> =
+        Arc::new(DeferredToolSet::new(toolset, deferred));
     let toolset: Arc<dyn AiToolSet<_> + Send + Sync> = Arc::new(GatedToolSet {
         tools: toolset,
         gate,
