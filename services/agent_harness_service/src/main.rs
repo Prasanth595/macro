@@ -417,6 +417,19 @@ async fn run() -> anyhow::Result<()> {
     // the proxy can refresh a stored grant and persist what comes back.
     let mcp_credentials_key = AesKey::try_from(config.mcp_credentials_key_secret_name.as_ref())
         .context("invalid MCP credentials encryption key")?;
+    let provider_service = Arc::new(model_provider::domain::service::ProviderService::new(
+        Arc::new(model_provider::outbound::postgres::PgProviderStore::new(
+            pool.clone(),
+            mcp_credentials_key.as_bytes(),
+        )),
+        teams::domain::workspace_membership::WorkspaceMembershipServiceImpl(
+            teams::outbound::team_repo::TeamRepositoryImpl::new(pool.clone()),
+        ),
+        Arc::new(model_provider::outbound::endpoint::OpenAiEndpoint::new(
+            matches!(config.environment, Environment::Local),
+        )),
+        matches!(config.environment, Environment::Local),
+    ));
     let mcp_servers = Arc::new(PgServerRepo::new(pool.clone(), mcp_credentials_key));
 
     // The client that addresses Pipedream's remote MCP server, built from the
@@ -547,12 +560,14 @@ async fn run() -> anyhow::Result<()> {
     // Macro's own tools run in-process here rather than through the egress
     // proxy, so they are held for the owner by the same approvals.
     let inmem_model_engine: Arc<dyn TurnEngine> = Arc::new(
-        RigTurnEngine::new(pool.clone(), tool_context).with_gate(Arc::new(
-            agent_inmem::outbound::approval_gate::OwnerApprovalGate::new(
-                session_repo.clone(),
-                Arc::clone(&tool_approvals),
-            ),
-        )),
+        RigTurnEngine::new(pool.clone(), tool_context)
+            .with_providers(provider_service)
+            .with_gate(Arc::new(
+                agent_inmem::outbound::approval_gate::OwnerApprovalGate::new(
+                    session_repo.clone(),
+                    Arc::clone(&tool_approvals),
+                ),
+            )),
     );
     // Normalize uploaded images before any provider sees them. In addition to
     // making local URLs reachable, this supplies the MIME type Gemini requires

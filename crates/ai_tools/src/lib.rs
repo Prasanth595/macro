@@ -232,6 +232,15 @@ pub const EAGER_TOOLS: &[&str] = &[
 /// Assemble the toolset and tool-use prompt for a host. These are actually
 /// sent to the AI provider.
 pub fn tools_for(host: AiHost) -> ToolSetWithPrompt {
+    assemble_tools(host, true)
+}
+
+/// Native workspace-provider tools, excluding operations with implicit cloud inference.
+pub fn tools_for_workspace(host: AiHost) -> ToolSetWithPrompt {
+    assemble_tools(host, false)
+}
+
+fn assemble_tools(host: AiHost, allow_cloud_inference: bool) -> ToolSetWithPrompt {
     let toolset = subagent_toolset()
         .add_subtoolset::<ToolNotificationToolContext>(notification_toolset())
         .add_subtoolset::<ToolTeamCalendarToolContext>(team_calendar_toolset())
@@ -273,6 +282,20 @@ pub fn tools_for(host: AiHost) -> ToolSetWithPrompt {
         >(),
         AiHost::Chat | AiHost::ChannelBot | AiHost::Mcp => toolset,
     };
+    let mut toolset = toolset;
+    if !allow_cloud_inference {
+        for name in [
+            "Subagent",
+            "GenerateImage",
+            "WebSearch",
+            "WebFetch",
+            "TextEditorCodeExecution",
+            "BashCodeExecution",
+        ] {
+            toolset.tools.remove(name);
+            toolset.user_tools.remove(name);
+        }
+    }
     // External MCP clients have no `LoadTools`, so they get every schema.
     let deferred = match host {
         AiHost::Chat | AiHost::AgentSession | AiHost::ChannelBot => {

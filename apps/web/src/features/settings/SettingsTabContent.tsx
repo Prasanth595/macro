@@ -1,6 +1,6 @@
 import type { SettingsTab } from '@core/constant/SettingsState';
 import { useSettingsTabAvailable } from '@core/constant/settingsTabsConfig';
-import { Show, Suspense } from 'solid-js';
+import { lazy, Show, Suspense } from 'solid-js';
 import { CalendarSettings } from '../calendar/calendar-settings';
 import { CrmSettings as Crm } from '../crm/crm-settings';
 import { SchedulingSettings } from '../scheduling/scheduling';
@@ -22,6 +22,10 @@ import { Notifications } from './Notifications';
 import { Shortcuts } from './Shortcuts';
 import { Tags } from './Tags';
 import { Team } from './Team';
+
+const AiProviders = lazy(async () => ({
+  default: (await import('./ai-providers/views/AiProviders')).AiProviders,
+}));
 
 /** Shared forms for desktop panels and mobile sheet detail pages. */
 export function SettingsTabContent(props: { tab: SettingsTab }) {
@@ -65,6 +69,9 @@ export function SettingsTabContent(props: { tab: SettingsTab }) {
       </Show>
       <Show when={isCurrentTab('Shortcuts')}>
         <Shortcuts />
+      </Show>
+      <Show when={isCurrentTab('AI providers')}>
+        <AiProviders />
       </Show>
       <Show when={isCurrentTab('Team')}>
         <Team />

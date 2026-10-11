@@ -179,6 +179,27 @@ async fn send_chat_message_inner(
 
     let user_id = Arc::new(user_id);
 
+    // Resolve workspace providers before admitting or persisting a message.
+    let workspace_router = ctx
+        .provider_service
+        .resolve(&user_id, &request.model)
+        .await
+        .map_err(|error| {
+            use model_provider::domain::models::ProviderError;
+            let status = match &error {
+                ProviderError::ModelUnavailable => StatusCode::BAD_REQUEST,
+                ProviderError::Forbidden => StatusCode::FORBIDDEN,
+                ProviderError::Endpoint => StatusCode::BAD_GATEWAY,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            };
+            ChatMessageError {
+                error: error.to_string(),
+                stream_id: Some(stream_id.clone()),
+                status: Some(status),
+                code: None,
+            }
+        })?;
+
     // Determine chat_id - use provided or we'll create a new chat
     let requested_chat_id = request.chat_id.clone().unwrap_or_default();
 
@@ -247,6 +268,66 @@ async fn send_chat_message_inner(
         }
     };
 
+    if workspace_router.is_some() {
+        let catalog = ctx
+            .provider_service
+            .catalog(&user_id)
+            .await
+            .map_err(|error| ChatMessageError {
+                error: error.to_string(),
+                stream_id: Some(stream_id.clone()),
+                status: Some(StatusCode::BAD_REQUEST),
+                code: None,
+            })?;
+        let selected = catalog
+            .models
+            .iter()
+            .find(|entry| entry.id == model)
+            .ok_or_else(|| ChatMessageError {
+                error: "This workspace model is no longer available".to_owned(),
+                stream_id: Some(stream_id.clone()),
+                status: Some(StatusCode::BAD_REQUEST),
+                code: None,
+            })?;
+        if !selected.supports_images {
+            let mut parts = ctx
+                .message_service
+                .resolve_attachments(&user_id, request.attachments.as_deref().unwrap_or_default())
+                .await
+                .map_err(|_| ChatMessageError {
+                    error: "Could not validate attachments".to_owned(),
+                    stream_id: Some(stream_id.clone()),
+                    status: Some(StatusCode::BAD_REQUEST),
+                    code: None,
+                })?
+                .into_iter()
+                .collect::<Vec<_>>();
+            if existing_chat.is_some() {
+                parts.extend(
+                    ctx.message_service
+                        .get_resolved_message_chain(&requested_chat_id)
+                        .await
+                        .map_err(|_| ChatMessageError {
+                            error: "Could not validate conversation attachments".to_owned(),
+                            stream_id: Some(stream_id.clone()),
+                            status: Some(StatusCode::BAD_REQUEST),
+                            code: None,
+                        })?
+                        .into_iter()
+                        .filter_map(|message| message.parts),
+                );
+            }
+            if parts.into_iter().any(|parts| {
+                parts
+                    .into_parts()
+                    .iter()
+                    .any(|part| matches!(part, attachment::TextOrImage::Image(_)))
+            }) {
+                return Err(ChatMessageError { error: "This model does not support images. Choose a vision model or start a conversation without images.".to_owned(), stream_id: Some(stream_id.clone()), status: Some(StatusCode::BAD_REQUEST), code: None });
+            }
+        }
+    }
+
     ctx.ai_admission
         .admit(&user_id, ai_usage::AiFeature::Chat)
         .await
@@ -294,7 +375,7 @@ async fn send_chat_message_inner(
         })?;
     let user_message_id = resolved.message_id;
 
-    if should_auto_rename_chat {
+    if should_auto_rename_chat && workspace_router.is_none() {
         spawn_initial_chat_rename(
             ctx.clone(),
             (*user_id).clone(),
@@ -316,13 +397,16 @@ async fn send_chat_message_inner(
         .collect();
 
     // Fetch user memory (triggers background generation if stale/missing)
-    let user_memory = ctx
-        .memory_service
-        .get_or_generate_memory((*user_id).clone())
-        .await
-        .inspect_err(|e| tracing::error!(error = ?e, "failed to fetch user memory"))
-        .ok()
-        .flatten();
+    let user_memory = if workspace_router.is_some() {
+        None
+    } else {
+        ctx.memory_service
+            .get_or_generate_memory((*user_id).clone())
+            .await
+            .inspect_err(|e| tracing::error!(error = ?e, "failed to fetch user memory"))
+            .ok()
+            .flatten()
+    };
 
     // Build the chat messages
     let tools_prompt = choose_tools_prompt(&payload.toolset, &*ctx.all_tools_prompt);
@@ -378,6 +462,7 @@ async fn send_chat_message_inner(
         stream_id.clone(),
         model,
         request.speed,
+        workspace_router,
         now,
         request.content.clone(),
         user_message_id,
@@ -522,7 +607,13 @@ fn resolve_pending_tool_calls(parts: Vec<AssistantMessagePart>) -> Vec<Assistant
 /// Creates a payload stream, publishes it via `from_async_stream`, and stores
 /// the conversation messages after the stream finishes.
 #[expect(clippy::too_many_arguments, reason = "matches WS handler signature")]
-#[tracing::instrument(skip(ctx, request, user_message_content, cancellation_sub))]
+#[tracing::instrument(skip(
+    ctx,
+    request,
+    user_message_content,
+    cancellation_sub,
+    workspace_router
+))]
 fn stream_and_save_message(
     ctx: Arc<ApiContext>,
     request: Vec<ChatMessage>,
@@ -535,6 +626,7 @@ fn stream_and_save_message(
     stream_id: String,
     model: String,
     speed: ModelSpeed,
+    workspace_router: Option<Arc<agent::ModelRouter<agent::MeteredHttpClient>>>,
     now: std::time::Instant,
     user_message_content: String,
     user_message_id: String,
@@ -572,6 +664,9 @@ fn stream_and_save_message(
             yield json;
         }
 
+        let static_tools = if workspace_router.is_some() {
+            ai_tools::tools_for_workspace(ai_tools::AiHost::Chat).toolset
+        } else { static_tools };
         let toolset = crate::api::tool_selection::service_tools(
             &tool_selection,
             static_tools,
@@ -582,7 +677,10 @@ fn stream_and_save_message(
         // The chat is the conversation every span of this turn belongs to
         // (`gen_ai.conversation.id`), so the turns of one chat form one session
         // in the observability backend.
+        let custom_provider = workspace_router.is_some();
         let agent_loop = AgentLoop::new(tool_context.recorder.clone())
+            .with_genai_telemetry(!custom_provider)
+            .with_router(workspace_router)
             .with_model(&model)
             .with_conversation_id(&chat_id)
             .with_speed(speed)

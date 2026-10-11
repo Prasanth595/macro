@@ -536,6 +536,19 @@ pub async fn run() -> anyhow::Result<()> {
         config.mcp_credentials_key_secret_name.as_ref(),
     )
     .context("invalid MCP credentials encryption key")?;
+    let provider_service = Arc::new(model_provider::domain::service::ProviderService::new(
+        Arc::new(model_provider::outbound::postgres::PgProviderStore::new(
+            db.clone(),
+            mcp_encryption_key.as_bytes(),
+        )),
+        teams::domain::workspace_membership::WorkspaceMembershipServiceImpl(
+            teams::outbound::team_repo::TeamRepositoryImpl::new(db.clone()),
+        ),
+        Arc::new(model_provider::outbound::endpoint::OpenAiEndpoint::new(
+            cfg!(feature = "local_auth"),
+        )),
+        cfg!(feature = "local_auth"),
+    ));
     let mcp_server_repo =
         mcp_client::outbound::pg_server_repo::PgServerRepo::new(db.clone(), mcp_encryption_key);
 
@@ -925,6 +938,7 @@ pub async fn run() -> anyhow::Result<()> {
     .with_auth_completed_hook(pipedream_auth_hook);
 
     let api_result = api::setup_and_serve(ApiContext {
+        provider_service,
         db: db.clone(),
         email_service_client_external,
         sqs_client: Arc::new(sqs_client),

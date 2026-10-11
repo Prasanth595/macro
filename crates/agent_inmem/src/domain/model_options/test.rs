@@ -74,3 +74,22 @@ fn speed_is_advertised_only_for_supported_models_with_current_value() {
         super::speed_config_option("anthropic/claude-sonnet-5-5", ModelSpeed::Standard).is_none()
     );
 }
+
+#[test]
+fn workspace_labels_and_image_capabilities_survive_acp_projection() {
+    let model = super::super::engine::EngineModel {
+        id: "workspace-00000000-0000-0000-0000-000000000001/llama".to_owned(),
+        name: "Local Llama · Ollama".to_owned(),
+        supports_images: Some(false),
+    };
+    let options = super::catalog_config_options(
+        &model.id,
+        std::slice::from_ref(&model),
+        agent::ReasoningEffort::Default,
+        agent::ModelSpeed::Standard,
+    );
+    let selected = model_selection(&options).unwrap();
+    assert_eq!(selected.current, model.id);
+    assert_eq!(selected.options[0].name, model.name);
+    assert_eq!(selected.options[0].supports_images, Some(false));
+}

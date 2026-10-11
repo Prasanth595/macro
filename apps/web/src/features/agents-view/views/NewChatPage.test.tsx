@@ -384,17 +384,11 @@ describe('agent-led new conversation', () => {
       modelOverride: 'chat-default',
     });
   });
-  it('flags a send before the model catalog loads as a model fallback', () => {
+  it('waits for the model catalog before sending', () => {
     mocks.modelsPending = true;
     const send = page();
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
-    expect(send).toHaveBeenCalledWith({
-      onFailure: expect.any(Function),
-      prompt: 'Prompt',
-      botId: undefined,
-      repoUrl: undefined,
-      modelFallback: true,
-    });
+    expect(send).not.toHaveBeenCalled();
   });
   it('selects a coding agent, keeps the draft, and only sends the repository to coding agents', async () => {
     const send = page();
@@ -1064,4 +1058,12 @@ it('clears delivered attachments after switching away and back to the submitting
   expect(screen.getByTestId('attachments').textContent).toBe('sent.txt');
   start.mock.calls[0][0].onDelivered();
   expect(screen.getByTestId('attachments').textContent).toBe('');
+});
+
+it('does not send an unavailable persisted workspace model through the cloud default', () => {
+  mocks.preferredInmemModel =
+    'workspace-00000000-0000-0000-0000-000000000001/llama';
+  const send = page();
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+  expect(send).not.toHaveBeenCalled();
 });

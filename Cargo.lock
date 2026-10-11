@@ -469,6 +469,7 @@ dependencies = [
  "mcp_client",
  "messages",
  "model_owner",
+ "model_provider",
  "notification",
  "pipedream_mcp",
  "prompt",
@@ -531,6 +532,7 @@ dependencies = [
  "memory",
  "model-entity",
  "model_owner",
+ "model_provider",
  "non_empty",
  "opentelemetry",
  "opentelemetry_sdk",
@@ -6165,6 +6167,7 @@ dependencies = [
  "model-error-response",
  "model_notifications",
  "model_owner",
+ "model_provider",
  "models_dcs",
  "models_opensearch",
  "models_permissions",
@@ -12536,6 +12539,30 @@ dependencies = [
  "sqlx",
  "thiserror 2.0.18",
  "uuid",
+]
+
+[[package]]
+name = "model_provider"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm 0.10.3",
+ "agent",
+ "async-trait",
+ "axum",
+ "macro_authorization",
+ "macro_user_id",
+ "reqwest 0.13.4",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "teams",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "url",
+ "uuid",
+ "wiremock",
+ "workspace-hack",
 ]
 
 [[package]]

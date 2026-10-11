@@ -131,6 +131,7 @@ export function NewChatPage(props: {
       (agent.id === MACRO_PERSONA_ID
         ? preferredInmem.model()
         : agent.defaultModel);
+    if (preferred?.startsWith('workspace-')) return preferred;
     return selectedCatalog.models().some((option) => option.id === preferred)
       ? preferred
       : selectedCatalog.currentModel();
@@ -178,7 +179,16 @@ export function NewChatPage(props: {
     selected()?.harness === 'cursor' || localRuntime();
   const blocked = () => {
     const agent = selected();
-    return agent ? agent.unavailableReason : 'Choose an agent to start';
+    if (!agent) return 'Choose an agent to start';
+    if (agent.unavailableReason) return agent.unavailableReason;
+    if (agent.harness === 'macro-inmem' || agent.harness === 'in-memory') {
+      if (selectedCatalog.pending()) return 'Loading models…';
+      const model = composerModelOverride();
+      if (!model) return selectedCatalog.message();
+      if (!selectedCatalog.models().some((entry) => entry.id === model))
+        return 'This workspace model is unavailable. Choose an available model to send.';
+    }
+    return undefined;
   };
   // Listed only while the drawer can show them: chat agents never ask.
   const reachable = createReachableRepositories(coding);
@@ -261,9 +271,6 @@ export function NewChatPage(props: {
       repoUrl: repo,
       ...(repo ? { repoBranch: repoBranch() } : {}),
       ...(model ? { modelOverride: model } : {}),
-      ...(inMemory && !model && selectedCatalog.pending()
-        ? { modelFallback: true }
-        : {}),
       effortOverride: effortOverride(),
       ...(model && inMemory && acceleratedSpeed(model)
         ? {

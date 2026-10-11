@@ -32,6 +32,7 @@ export type SettingsTab =
   | 'Agents'
   | 'Harness'
   | 'Bots'
+  | 'AI providers'
   | 'Team'
   | 'Tags'
   | 'CRM'

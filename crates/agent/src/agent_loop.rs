@@ -101,6 +101,7 @@ impl From<&str> for SystemPrompt {
 /// Tools and system prompt are provided per-session since they vary by request
 /// (MCP tools are per-user, system prompt depends on toolset selection).
 pub struct AgentLoop {
+    router: Option<Arc<ModelRouter<crate::MeteredHttpClient>>>,
     model: String,
     reasoning_effort: Option<ReasoningEffort>,
     speed: ModelSpeed,
@@ -128,6 +129,7 @@ impl AgentLoop {
     /// `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` are required.
     pub fn new(recorder: Arc<dyn UsageRecorder>) -> Self {
         Self {
+            router: None,
             model: PredefinedModel::default().to_string(),
             reasoning_effort: None,
             speed: ModelSpeed::Standard,
@@ -139,6 +141,15 @@ impl AgentLoop {
             agent_name: None,
             genai_telemetry: true,
         }
+    }
+
+    /// Use a workspace-scoped router for this loop's sessions.
+    pub fn with_router(
+        mut self,
+        router: Option<Arc<ModelRouter<crate::MeteredHttpClient>>>,
+    ) -> Self {
+        self.router = router;
+        self
     }
 
     /// Select a supported inference speed without changing the model or effort.
@@ -255,9 +266,17 @@ impl AgentLoop {
             system_prompt,
             usage_ctx,
             |handle, prompt, tool_search, max_turns, max_tokens, telemetry| {
-                let routed = ModelRouter::shared()
-                    .expect("failed to initialize model router")
-                    .route_or_default(&self.model);
+                let router = self.router.as_deref().unwrap_or_else(|| {
+                    ModelRouter::shared().expect("failed to initialize model router")
+                });
+                let routed = if self.router.is_some() {
+                    match router.route(&self.model) {
+                        Ok(routed) => routed,
+                        Err(error) => return ProviderAgent::RoutingFailure(error.to_string()),
+                    }
+                } else {
+                    router.route_or_default(&self.model)
+                };
                 telemetry.set_model(routed.provider(), routed.model_name());
                 routed.into_agent(
                     self.reasoning_effort,

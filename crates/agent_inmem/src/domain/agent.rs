@@ -266,16 +266,29 @@ impl AgentState {
 
     /// ACP model configuration backed by the engine's supported-model source
     /// and this session's current selection.
-    fn session_config_options(&self, access: ModelAccess) -> Vec<SessionConfigOption> {
+    async fn session_config_options(
+        &self,
+        access: ModelAccess,
+    ) -> Result<Vec<SessionConfigOption>, AcpError> {
+        let models = self
+            .engine
+            .owner_catalog(&self.owner)
+            .await
+            .map_err(|error| AcpError::new(-32603, error.to_string()))?;
+        let models: Vec<_> = models
+            .models
+            .into_iter()
+            .filter(|model| access.allows(&model.id))
+            .collect();
         let Some(session) = self.store.get(&self.session_id) else {
-            return Vec::new();
+            return Ok(Vec::new());
         };
-        crate::domain::model_options::session_config_options(
+        Ok(crate::domain::model_options::catalog_config_options(
             &session.model,
-            &access.models(self.engine.supported_models()),
+            &models,
             session.reasoning_effort,
             session.speed,
-        )
+        ))
     }
 
     /// Everything from the session's state that a turn answering `prompt`
@@ -590,15 +603,19 @@ pub async fn serve(state: Arc<AgentState>, acp: AcpChannel) -> Result<(), AcpErr
                         .get(&state.session_id)
                         .map(|session| session.model.clone())
                     {
-                        state.set_model(access.default_model(&model).to_owned());
+                        if !model.starts_with("workspace-") {
+                            state.set_model(access.default_model(&model).to_owned());
+                        }
                     }
                     let acp_id = SessionId::new(macro_uuid::generate_uuid_v7().to_string());
                     state.bind_acp_session(acp_id.clone(), false);
                     state.start_connect_mcp(request.mcp_servers);
-                    let responded = responder.respond(
-                        NewSessionResponse::new(acp_id.clone())
-                            .config_options(state.session_config_options(access)),
-                    );
+                    let options = match state.session_config_options(access).await {
+                        Ok(options) => options,
+                        Err(error) => return responder.respond_with_error(error),
+                    };
+                    let responded = responder
+                        .respond(NewSessionResponse::new(acp_id.clone()).config_options(options));
                     advertise_commands(&state, &connection, acp_id);
                     responded
                 }
@@ -621,7 +638,9 @@ pub async fn serve(state: Arc<AgentState>, acp: AcpChannel) -> Result<(), AcpErr
                         .get(&state.session_id)
                         .map(|session| session.model.clone())
                     {
-                        state.set_model(access.default_model(&model).to_owned());
+                        if !model.starts_with("workspace-") {
+                            state.set_model(access.default_model(&model).to_owned());
+                        }
                     }
                     // Kept when the state already belongs to this ACP id -
                     // either this process served the session, or a cold
@@ -629,10 +648,12 @@ pub async fn serve(state: Arc<AgentState>, acp: AcpChannel) -> Result<(), AcpErr
                     // `domain::replay`).
                     state.bind_acp_session(request.session_id.clone(), true);
                     state.start_connect_mcp(request.mcp_servers);
-                    let responded = responder.respond(
-                        ResumeSessionResponse::new()
-                            .config_options(state.session_config_options(access)),
-                    );
+                    let options = match state.session_config_options(access).await {
+                        Ok(options) => options,
+                        Err(error) => return responder.respond_with_error(error),
+                    };
+                    let responded =
+                        responder.respond(ResumeSessionResponse::new().config_options(options));
                     advertise_commands(&state, &connection, request.session_id);
                     responded
                 }
@@ -739,11 +760,18 @@ pub async fn serve(state: Arc<AgentState>, acp: AcpChannel) -> Result<(), AcpErr
                     };
                     match request.config_id.to_string().as_str() {
                         MODEL_CONFIG_ID => {
-                            if !state
-                                .engine
-                                .supported_models()
-                                .contains(&value.to_string().as_str())
-                            {
+                            if !match state.engine.owner_catalog(&state.owner).await {
+                                Ok(catalog) => catalog
+                                    .models
+                                    .iter()
+                                    .any(|model| model.id == value.to_string()),
+                                Err(error) => {
+                                    return responder.respond_with_error(AcpError::new(
+                                        -32603,
+                                        error.to_string(),
+                                    ));
+                                }
+                            } {
                                 return responder.respond_with_error(
                                     AcpError::invalid_params().data("unsupported model"),
                                 );
@@ -800,9 +828,11 @@ pub async fn serve(state: Arc<AgentState>, acp: AcpChannel) -> Result<(), AcpErr
                             );
                         }
                     }
-                    responder.respond(SetSessionConfigOptionResponse::new(
-                        state.session_config_options(access),
-                    ))
+                    let options = match state.session_config_options(access).await {
+                        Ok(options) => options,
+                        Err(error) => return responder.respond_with_error(error),
+                    };
+                    responder.respond(SetSessionConfigOptionResponse::new(options))
                 }
             },
             agent_client_protocol::on_receive_request!(),
@@ -892,7 +922,17 @@ async fn run_turn(
     }
     // Check the full history as well: changing models must not send earlier
     // images to a text-only provider or silently discard what the user attached.
-    if super::models::supports_images(&model) == Some(false)
+    if state
+        .engine
+        .owner_catalog(&state.owner)
+        .await
+        .map_err(|error| AcpError::new(-32603, error.to_string()))?
+        .models
+        .iter()
+        .find(|entry| entry.id == model)
+        .and_then(|entry| entry.supports_images)
+        .or_else(|| super::models::supports_images(&model))
+        == Some(false)
         && messages.iter().any(|message| {
             message
                 .attachments

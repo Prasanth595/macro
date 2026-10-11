@@ -1,0 +1,28 @@
+[package]
+name = "model_provider"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+aes-gcm = "0.10"
+agent = { path = "../agent" }
+async-trait.workspace = true
+axum.workspace = true
+macro_authorization = { path = "../macro_authorization", default-features = false, features = ["axum"] }
+macro_user_id = { path = "../macro_user_id" }
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
+teams = { path = "../teams", default-features = false, features = ["ports"] }
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+url.workspace = true
+uuid.workspace = true
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
+
+[dev-dependencies]
+wiremock.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

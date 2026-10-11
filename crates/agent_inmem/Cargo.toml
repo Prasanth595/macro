@@ -5,6 +5,7 @@ publish = false
 version = "0.1.0"
 
 [dependencies]
+model_provider = { path = "../model_provider" }
 ai_billing = { path = "../ai_billing" }
 agent = { path = "../agent" }
 # The egress proxy's domain service, driven in-process: the same verification,

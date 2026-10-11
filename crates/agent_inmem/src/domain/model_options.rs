@@ -15,21 +15,37 @@ pub fn session_config_options(
     current_effort: ReasoningEffort,
     current_speed: ModelSpeed,
 ) -> Vec<SessionConfigOption> {
+    let catalog = super::engine::EngineModelCatalog::builtin(models);
+    catalog_config_options(
+        current_model,
+        &catalog.models,
+        current_effort,
+        current_speed,
+    )
+}
+
+/// Build options retaining owner-scoped names and image capabilities.
+pub fn catalog_config_options(
+    current_model: &str,
+    models: &[super::engine::EngineModel],
+    current_effort: ReasoningEffort,
+    current_speed: ModelSpeed,
+) -> Vec<SessionConfigOption> {
     let options: Vec<_> = models
         .iter()
         .map(|model| {
             SessionConfigSelectOption::new(
-                SessionConfigValueId::new((*model).to_owned()),
-                super::models::display_name(model),
+                SessionConfigValueId::new(model.id.clone()),
+                model.name.clone(),
             )
-            .meta(super::models::supports_images(model).map(|supported| {
+            .meta(model.supports_images.map(|supported| {
                 serde_json::Map::from_iter([(
                     "macro.supportsImages".to_owned(),
                     serde_json::Value::Bool(supported),
                 )])
             }))
             .description(
-                (super::models::supports_images(model) == Some(false))
+                (model.supports_images == Some(false))
                     .then(|| "Text only — image attachments are not supported".to_owned()),
             )
         })

@@ -2817,3 +2817,9 @@ A confirmed save archives the thread and advances within the invoking list.
 Cancel and failed saves keep the current email. H on a pending snooze edits it;
 **Remove reminder** returns it to the inbox. Bare H in a reply or search field
 remains ordinary typing.
+
+### AI provider settings
+
+Settings → Workspace → AI providers manages personal/team OpenAI-compatible
+endpoints and models. See [workspace AI providers](ai-chat.md#workspace-ai-providers)
+for permissions, credentials, discovery, model defaults and verification steps.

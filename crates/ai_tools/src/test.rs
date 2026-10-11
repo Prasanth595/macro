@@ -499,3 +499,28 @@ fn booking_link_mutations_execute_without_a_review_on_every_host() {
 }
 
 mod booking_links;
+
+#[test]
+fn workspace_tools_exclude_implicit_cloud_inference_from_dispatch_and_discovery() {
+    for host in [AiHost::Chat, AiHost::AgentSession] {
+        let tools = tools_for_workspace(host);
+        for name in [
+            "Subagent",
+            "GenerateImage",
+            "WebSearch",
+            "WebFetch",
+            "BashCodeExecution",
+            "TextEditorCodeExecution",
+        ] {
+            assert!(
+                !tools.toolset.tools.contains_key(name),
+                "{name} must not be callable"
+            );
+            assert!(
+                !tools.deferred.iter().any(|tool| tool.name == name),
+                "{name} must not be discoverable"
+            );
+        }
+        assert!(tools.toolset.tools.contains_key("QueryDatabase"));
+    }
+}

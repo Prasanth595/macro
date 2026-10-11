@@ -56,7 +56,8 @@ impl<R: MessageRepo, A: AttachmentService, B: MacroEventBroker> MessageServiceIm
         }));
     }
 
-    async fn resolve_attachments(
+    /// Resolve attachment content without storing a message.
+    pub async fn resolve_attachments(
         &self,
         user_id: &MacroUserIdStr<'_>,
         attachments: &[Entity<'_>],

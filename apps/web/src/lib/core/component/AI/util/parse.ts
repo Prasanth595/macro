@@ -4,6 +4,12 @@ export const parseModel = (
   value: string | null | undefined
 ): TModel | undefined => {
   if (!value) return undefined;
+  if (
+    /^workspace-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[^\s]+$/.test(
+      value
+    )
+  )
+    return value as TModel;
   const values = Object.values(Model) as string[];
   if (values.includes(value)) return value as TModel;
   return undefined;

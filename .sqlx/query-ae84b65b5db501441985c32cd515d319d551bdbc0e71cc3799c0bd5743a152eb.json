@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workspace_ai_providers SET configuration = $2, revision = revision + 1, updated_at = NOW()\n               WHERE workspace_id = $1 AND revision = $3 RETURNING revision",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "revision",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Bytea",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ae84b65b5db501441985c32cd515d319d551bdbc0e71cc3799c0bd5743a152eb"
+}

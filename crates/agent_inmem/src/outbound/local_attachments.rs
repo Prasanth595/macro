@@ -72,6 +72,19 @@ impl<S: AttachmentService> TurnEngine for StaticFileAttachmentTurnEngine<S> {
         self.inner.supported_models()
     }
 
+    fn owner_catalog<'a>(
+        &'a self,
+        owner: &'a model_owner::Owner,
+    ) -> std::pin::Pin<
+        Box<
+            dyn Future<
+                    Output = Result<crate::domain::engine::EngineModelCatalog, agent::AgentError>,
+                > + Send
+                + 'a,
+        >,
+    > {
+        self.inner.owner_catalog(owner)
+    }
     fn run_turn(&self, mut request: TurnRequest) -> mpsc::Receiver<Result<StreamPart, AgentError>> {
         let (parts, receiver) = mpsc::channel(256);
         let resolver = Arc::clone(&self.resolver);

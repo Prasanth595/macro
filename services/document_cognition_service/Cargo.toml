@@ -24,6 +24,7 @@ local_queue = []
 
 
 [dependencies]
+model_provider = { path = "../../crates/model_provider" }
 agent = { path = "../../crates/agent", features = ["debug-messages"] }
 ai_projections = { path = "../../crates/ai_projections", features = ["agent"] }
 ai_billing = { path = "../../crates/ai_billing" }

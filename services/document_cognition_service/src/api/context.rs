@@ -138,8 +138,15 @@ pub type DcsPipedreamRouterState = pipedream_mcp::inbound::PipedreamRouterState<
     DcsAuthorizationService,
 >;
 
+pub type DcsProviderService = model_provider::domain::service::ProviderService<
+    teams::domain::workspace_membership::WorkspaceMembershipServiceImpl<
+        teams::outbound::team_repo::TeamRepositoryImpl,
+    >,
+>;
+
 #[derive(Clone, FromRef)]
 pub struct ApiContext {
+    pub provider_service: Arc<DcsProviderService>,
     pub db: PgPool,
     pub sqs_client: Arc<sqs_client::SQS>,
     pub document_storage_client: Arc<DocumentStorageServiceClient>,

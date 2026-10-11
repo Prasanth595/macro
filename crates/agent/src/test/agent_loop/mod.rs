@@ -13,3 +13,5 @@ mod test_thinking;
 mod test_tool;
 mod test_tool_search;
 mod test_user_tools;
+
+mod test_workspace_provider;

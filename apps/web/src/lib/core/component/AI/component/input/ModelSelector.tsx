@@ -2,7 +2,6 @@ import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import {
   DEFAULT_MODEL,
   MODEL_PRETTYNAME,
-  MODEL_PROVIDER_ICON,
   Model,
   PAID_MODELS,
 } from '@core/component/AI/constant';
@@ -15,10 +14,15 @@ import CaretDown from '@phosphor-icons/core/regular/caret-down.svg?component-sol
 import LockIcon from '@phosphor-icons/core/regular/lock-simple.svg?component-solid';
 import { Button, cn, Dropdown } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
-import { Dynamic } from 'solid-js/web';
+import { ModelIcon } from '../ProviderIcon';
 
 /** A model and whether the current user may select it. */
-export type ModelOption = { id: TModel; available: boolean };
+export type ModelOption = {
+  id: TModel;
+  available: boolean;
+  name?: string;
+  provider?: string;
+};
 
 type ModelSelectorProps = {
   selectedModel?: TModel;
@@ -36,7 +40,7 @@ const ALL_AVAILABLE: ModelOption[] = PAID_MODELS.map((id) => ({
   available: true,
 }));
 
-const MODEL_DESCRIPTION: Record<TModel, string> = {
+const MODEL_DESCRIPTION: Partial<Record<TModel, string>> = {
   [Model.sonnet55]: 'Everyday writing, coding, and questions',
   [Model.opus55]: 'Complex tasks and deeper analysis',
   [Model.haiku45]: 'Quick answers and lighter tasks',
@@ -52,6 +56,11 @@ export function ModelSelector(props: ModelSelectorProps) {
   const model = () => props.selectedModel ?? DEFAULT_MODEL;
   const options = () =>
     props.models && props.models.length > 0 ? props.models : ALL_AVAILABLE;
+
+  const label = (id: TModel) =>
+    options().find((option) => option.id === id)?.name ??
+    MODEL_PRETTYNAME[id] ??
+    id.split('/').slice(1).join('/');
 
   const handleSelect = (option: ModelOption) => {
     if (option.available) {
@@ -75,11 +84,11 @@ export function ModelSelector(props: ModelSelectorProps) {
               'not-touch:h-[33.75px] not-touch:text-base not-touch:gap-[5.625px] not-touch:px-[7.5px] not-touch:[&_svg]:size-[15px] not-touch:light-mode:text-composer-placeholder not-touch:light-mode:font-normal',
               props.compact && 'not-touch:p-[3.75px]'
             )}
-            label={props.compact ? MODEL_PRETTYNAME[model()] : undefined}
+            label={props.compact ? label(model()) : undefined}
           >
-            <Dynamic component={MODEL_PROVIDER_ICON[model()]} />
+            <ModelIcon model={model()} />
             <Show when={!props.compact}>
-              {MODEL_PRETTYNAME[model()]}
+              {label(model())}
               <CaretDown />
             </Show>
           </Dropdown.Trigger>
@@ -93,13 +102,8 @@ export function ModelSelector(props: ModelSelectorProps) {
                     class={cn('gap-2', !option.available && 'opacity-50')}
                     onSelect={() => handleSelect(option)}
                   >
-                    <Dynamic
-                      component={MODEL_PROVIDER_ICON[option.id]}
-                      class="size-4 shrink-0"
-                    />
-                    <span class="flex-1 truncate">
-                      {MODEL_PRETTYNAME[option.id]}
-                    </span>
+                    <ModelIcon model={option.id} class="size-4 shrink-0" />
+                    <span class="flex-1 truncate">{label(option.id)}</span>
                     <Show when={!option.available}>
                       <LockIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
                     </Show>
@@ -128,13 +132,13 @@ export function ModelSelector(props: ModelSelectorProps) {
           onMouseDown={(event) => {
             if (event.button === 0) event.preventDefault();
           }}
-          aria-label={`Choose model, ${MODEL_PRETTYNAME[model()]}`}
+          aria-label={`Choose model, ${label(model())}`}
           class={cn(
             'touch:min-h-11 touch:min-w-11 rounded-full text-sm text-ink-subtle',
             !virtualKeyboardVisible() && 'hidden'
           )}
         >
-          <Dynamic component={MODEL_PROVIDER_ICON[model()]} />
+          <ModelIcon model={model()} />
         </MobileDrawer.Trigger>
         <MobileDrawer.Portal>
           <MobileDrawer.Overlay />
@@ -160,7 +164,7 @@ export function ModelSelector(props: ModelSelectorProps) {
                 <For each={options()}>
                   {(option) => (
                     <MobileDrawer.Item
-                      aria-label={`${MODEL_PRETTYNAME[option.id]}${option.available ? '' : ', upgrade required'}`}
+                      aria-label={`${label(option.id)}${option.available ? '' : ', upgrade required'}`}
                       aria-pressed={model() === option.id}
                       class={cn(
                         'min-h-19 gap-3 px-4 py-4',
@@ -171,16 +175,16 @@ export function ModelSelector(props: ModelSelectorProps) {
                         handleSelect(option);
                       }}
                     >
-                      <Dynamic
-                        component={MODEL_PROVIDER_ICON[option.id]}
+                      <ModelIcon
+                        model={option.id}
                         class="size-6 shrink-0 text-ink-muted"
                       />
                       <span class="flex min-w-0 flex-1 flex-col gap-1">
                         <span class="text-base font-medium leading-5">
-                          {MODEL_PRETTYNAME[option.id]}
+                          {label(option.id)}
                         </span>
                         <span class="text-[13px] leading-[18px] text-ink-muted">
-                          {MODEL_DESCRIPTION[option.id]}
+                          {option.provider ?? MODEL_DESCRIPTION[option.id]}
                         </span>
                       </span>
                       <span class="flex size-5 shrink-0 items-center justify-center">

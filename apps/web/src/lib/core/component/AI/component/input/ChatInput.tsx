@@ -32,12 +32,15 @@ import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { useTouchOutsideToDismissKeyboard } from '@core/mobile/useTouchOutsideToDismissKeyboard';
 import { handleFileFolderDrop } from '@core/util/upload';
 import PaperclipIcon from '@phosphor/paperclip.svg';
+import { queryReadyGate } from '@queries/gate';
+import { useWorkspaceModels } from '@queries/model-providers';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import { createCallback } from '@solid-primitives/rootless';
 import { Button, ComposerSurface, cn, SendButton as UiSendButton } from '@ui';
 import { createEffect, createMemo, createSignal, Show } from 'solid-js';
 import { speedForModel } from '../../constant/speed';
 import { fastModeEnabled } from '../../signal/speed';
+import { getSoupInputStoredModel } from '../../util/storage';
 import { AttachmentList } from './Attachment';
 import { SpeedToggle } from './SpeedToggle';
 import { useAiDataConsentGate } from './useAiDataConsent';
@@ -79,6 +82,15 @@ export function ChatInput(props: ChatInputComponentProps) {
   const generating = input.isGenerating;
   const { showPaywall } = usePaywallState();
   const hasPaidAccess = useHasPaidAccess();
+  const workspaceModels = useWorkspaceModels();
+  const initialModel = model();
+  const hasStoredDraftModel = !!getSoupInputStoredModel();
+  const selectedModelAvailable = () =>
+    modelOptions().some((option) => option.id === model() && option.available);
+  const selectedWorkspaceModel = () =>
+    model().startsWith('workspace-') && queryReadyGate(workspaceModels)
+      ? workspaceModels.data.models.find((entry) => entry.id === model())
+      : undefined;
 
   // Every model is shown to every user; availability is per-plan. Free users
   // see the premium models locked (dimmed + lock icon), and clicking one opens
@@ -87,20 +99,45 @@ export function ChatInput(props: ChatInputComponentProps) {
   // upsell at all.
   const modelOptions = createMemo(() => {
     const allowed = modelsForPlan(hasPaidAccess());
-    return PAID_MODELS.map((id) => ({
-      id,
-      available: allowed.includes(id),
-    }));
+    return [
+      ...PAID_MODELS.map((id) => ({ id, available: allowed.includes(id) })),
+      ...(queryReadyGate(workspaceModels)
+        ? workspaceModels.data.models.map((model) => ({
+            id: model.id,
+            name: model.name,
+            provider: model.provider,
+            available: hasPaidAccess(),
+          }))
+        : []),
+    ];
   });
 
-  // Keep the selected model valid for the current plan: if it isn't a known id
-  // (e.g. a stale persisted value) or isn't available to this user (e.g. a free
-  // user defaulted to Opus), fall back to the plan default so we never send
-  // something unroutable or something the backend rejects.
+  // A missing workspace model requires an explicit choice; never switch its
+  // conversation to a cloud provider after a catalog error or revocation.
   createEffect(() => {
-    const options = modelOptions();
-    if (options.some((o) => o.id === model() && o.available)) return;
+    if (model().startsWith('workspace-')) return;
+    if (selectedModelAvailable()) return;
     input.setModel(defaultModelForPlan(hasPaidAccess()));
+  });
+
+  let workspaceDefaultApplied = false;
+  createEffect(() => {
+    if (
+      workspaceDefaultApplied ||
+      !hasPaidAccess() ||
+      !queryReadyGate(workspaceModels)
+    )
+      return;
+    workspaceDefaultApplied = true;
+    const selected = workspaceModels.data.default_model;
+    if (
+      !props.chatId &&
+      !hasStoredDraftModel &&
+      selected &&
+      initialModel === defaultModelForPlan(true) &&
+      [defaultModelForPlan(true), defaultModelForPlan(false)].includes(model())
+    )
+      input.setModel(selected);
   });
 
   let containerRef!: HTMLDivElement;
@@ -171,6 +208,11 @@ export function ChatInput(props: ChatInputComponentProps) {
   const hasAttachedFiles = () => attachments.attached().length > 0;
   const hasUploadingAttachments = () => uploadQueue.uploading().length > 0;
   const canSendMessage = () =>
+    selectedModelAvailable() &&
+    !(
+      selectedWorkspaceModel()?.supports_images === false &&
+      attachments.attached().some(isImageAttachment)
+    ) &&
     !dictation.active() &&
     (!isEmptyInput() || hasAttachedFiles()) &&
     !generating() &&
@@ -350,6 +392,24 @@ export function ChatInput(props: ChatInputComponentProps) {
 
   return (
     <div class="relative">
+      <Show
+        when={model().startsWith('workspace-') && !selectedModelAvailable()}
+      >
+        <p role="status" class="mb-2 text-sm text-ink-muted">
+          This workspace model is unavailable. Choose an available model to
+          send.
+        </p>
+      </Show>
+      <Show
+        when={
+          selectedWorkspaceModel()?.supports_images === false &&
+          attachments.attached().some(isImageAttachment)
+        }
+      >
+        <p role="status" class="mb-2 text-sm text-ink-muted">
+          This model accepts text only. Remove images or choose a vision model.
+        </p>
+      </Show>
       <input
         ref={fileInputRef}
         type="file"
