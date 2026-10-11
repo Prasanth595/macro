@@ -1,9 +1,10 @@
-import { onCleanup } from 'solid-js';
+import { createEffect, onCleanup } from 'solid-js';
 import { isServer } from 'solid-js/web';
 import { handleDemoClick } from '../../../app/utils/utilCta';
 import { setPageSeo } from '../../../app/utils/utilSeo';
 import { FeatureConstellation } from '../../setup/components/FeatureOverview';
 import { WelcomeStep } from '../../setup/components/WelcomeSteps';
+import { applyPalette, createSitePalette } from '../../setup/sitePalette';
 import { FeaturePage } from '../components/FeaturePage';
 import { HomepageTrustBadges } from '../components/HomepageTrustBadges';
 import { DemoBookingEmbed } from '../components/sales/DemoBookingEmbed';
@@ -57,25 +58,23 @@ export function RouteTour() {
     path: '/tour',
     noindex: true,
   });
-  // `?theme=cream` previews the page in the cream palette (cream-preview.css).
-  const cream =
-    !isServer &&
-    new URLSearchParams(window.location.search).get('theme') === 'cream';
-  if (cream) {
+  // Light-mode visitors get the cream palette (cream-preview.css). It is
+  // scoped to this page; other site pages have no cream styles yet.
+  const palette = createSitePalette();
+  const cream = () => palette() === 'cream';
+  if (!isServer) {
     const root = document.documentElement;
     const previousLight = root.dataset.themeLight;
-    root.dataset.palette = 'cream';
-    // Light glass (white rims, softer shadows) is keyed off <html>.
-    root.dataset.themeLight = 'true';
+    createEffect(() => applyPalette(palette()));
     onCleanup(() => {
-      delete root.dataset.palette;
+      applyPalette('dark');
       if (previousLight === undefined) delete root.dataset.themeLight;
       else root.dataset.themeLight = previousLight;
     });
   }
 
   return (
-    <FeaturePage light={cream}>
+    <FeaturePage light={cream()}>
       <div class="homepage-sections tour-page">
         <div class="homepage-sections-inner">
           {/* The homepage hero inside `OnboardingShell`'s palette and card. */}
@@ -168,7 +167,7 @@ export function RouteTour() {
               title="See how to grow your business faster."
               description="A 30-minute call with our CEO or a member of our team. Pick a time below."
             />
-            <DemoBookingEmbed id="tour-booking" cream={cream} />
+            <DemoBookingEmbed id="tour-booking" cream={cream()} />
           </section>
 
           <footer class="tour-footer">

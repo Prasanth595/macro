@@ -1,4 +1,5 @@
-/* Cream homepage preview, enabled with `?theme=cream` (see preview.tsx).
+/* Cream palette for the homepage, /start, /tour, and the sample workspace.
+   Applied when the OS or browser prefers light mode (see sitePalette.ts).
    Palette sampled from the cream ad set: page #f5f1e8, rail #efebe3, panels
    #e8e5dc, tiles #dfdbd3, body #54524f, labels #72706c, near-black ink.
    Everything is scoped to html[data-palette=cream]; the dark site is unchanged. */
@@ -107,7 +108,7 @@ html[data-palette='cream'] .homepage-embedded-window { background: #faf8f3; bord
 html[data-palette='cream'] .homepage-embedded-stage::after { background: linear-gradient(to bottom, transparent, #f5f1e855 35%, #f5f1e8bb 65%, #f5f1e8 96%); }
 html[data-palette='cream'] .homepage-demo-slide-copy h2 { color: #1d1c1a; }
 
-/* ---- Sample workspace (/demo?theme=cream, embedded on the homepage) ----
+/* ---- Sample workspace (/demo, embedded on the homepage) ----------------
    RouteDemo injects the dark palette on .dummy-route via @scope; outrank it. */
 .dummy-route[data-palette='cream'] {
   --color-surface-0: #f5f1e8;
@@ -159,7 +160,7 @@ html[data-palette='cream'] [data-user-message-bubble]::after {
   background-color: #1d1c1a12;
 }
 
-/* ---- Public feature pages (/tour?theme=cream) ---------------------------
+/* ---- Public feature pages (/tour) ----------------------------------------
    FeaturePage scopes the dark palette onto .feature-page with @scope; this
    selector outranks it. Pages also set OnboardingShell's palette inline on
    hero and heading wrappers, so those need !important. */
