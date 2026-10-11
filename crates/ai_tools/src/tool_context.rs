@@ -13,13 +13,14 @@ use call::inbound::toolset::CallToolContext;
 use call::outbound::pg_call_repo::PgCallRepo;
 use call::outbound::s3_recording_storage::S3RecordingStorage;
 use channels::domain::ports::ChannelEventDispatcher;
-use channels::domain::service::{NoopChannelEventDispatcher, NoopChannelReferenceSharePermissions};
+use channels::domain::service::NoopChannelEventDispatcher;
 use channels::domain::side_effects::{ChannelSideEffectService, SpawnedChannelEventDispatcher};
 use channels::domain::{list_service::ChannelListServiceImpl, service::ChannelServiceImpl};
 use channels::inbound::toolset::ChannelToolContext;
 use channels::outbound::{
     connection_gateway_realtime::ConnectionGatewayChannelRealtimePublisher,
     contacts_dispatcher::ContactsChannelDispatcher, notification_sender::NotificationChannelSender,
+    pg_channel_reference_share_permissions::PgChannelReferenceSharePermissions,
     pg_channels_repo::PgChannelsRepo, pg_side_effect_context::PgChannelSideEffectContext,
 };
 use chat::domain::service::ChatServiceImpl;
@@ -206,12 +207,12 @@ pub type ToolCommsService = ChannelListServiceImpl<
 /// hosts without the side-effect clients.
 pub type ToolChannelEventDispatcher = std::sync::Arc<dyn ChannelEventDispatcher>;
 
+/// Channel reference-sharing adapter used by AI tools, including `ShareWithChannel`.
+pub type ToolChannelSharePermissions = PgChannelReferenceSharePermissions<ToolEntityAccessService>;
+
 /// Type alias for the channel messages service implementation used by AI tools.
-pub type ToolChannelMessagesService = ChannelServiceImpl<
-    PgChannelsRepo,
-    ToolChannelEventDispatcher,
-    NoopChannelReferenceSharePermissions,
->;
+pub type ToolChannelMessagesService =
+    ChannelServiceImpl<PgChannelsRepo, ToolChannelEventDispatcher, ToolChannelSharePermissions>;
 
 /// Type alias for the channel AI tool context.
 pub type ToolChannelToolContext =
@@ -420,16 +421,17 @@ pub fn build_channel_tool_context_with_dispatcher(
     dispatcher: ToolChannelEventDispatcher,
     messages: Arc<dyn messages::domain::api::MessageServiceApi>,
 ) -> ToolChannelToolContext {
+    let access = entity_access::domain::service::EntityAccessServiceImpl::new(
+        entity_access::outbound::PgAccessRepository::new(pool.clone()),
+    );
     ChannelToolContext::new(
         messages,
         ChannelServiceImpl::with_dependencies(
             PgChannelsRepo::new(pool.clone()),
             dispatcher,
-            NoopChannelReferenceSharePermissions,
+            PgChannelReferenceSharePermissions::new(pool, Arc::new(access.clone())),
         ),
-        entity_access::domain::service::EntityAccessServiceImpl::new(
-            entity_access::outbound::PgAccessRepository::new(pool),
-        ),
+        access,
     )
 }
 
@@ -1602,6 +1604,8 @@ pub fn no_op_schedule_context() -> RoutineToolContext {
 /// Individual tools should extract only the clients they need via `FromRef`.
 #[derive(Clone, FromRef)]
 pub struct ToolServiceContext {
+    /// Read-only discovery of connectors the caller has not yet authorized.
+    pub connector_tool_context: ToolConnectorToolContext,
     pub search_service_client: Arc<search_service_client::SearchServiceClient>,
     pub email_service_client: Arc<email_service_client::EmailServiceClientExternal>,
     pub soup_service: Arc<ToolSoupService>,
@@ -1649,6 +1653,27 @@ pub struct ToolServiceContext {
     /// this context. Set per-session by the caller so AI calls made by tools
     /// (e.g. subagents) are attributed to the feature that spawned them.
     pub usage_context: ai_usage::UsageContext,
+}
+
+/// Pipedream discovery dependencies shared by chat tools.
+pub type ToolConnectorToolContext = pipedream_mcp::inbound::toolset::ConnectorToolContext<
+    pipedream_mcp::outbound::api::PipedreamClient,
+    pipedream_mcp::outbound::pg_connection_repo::PgConnectionRepo,
+>;
+
+/// Wire connector discovery at the composition boundary.
+pub fn build_connector_tool_context(
+    pool: sqlx::PgPool,
+    client: Option<Arc<pipedream_mcp::outbound::api::PipedreamClient>>,
+) -> ToolConnectorToolContext {
+    pipedream_mcp::inbound::toolset::ConnectorToolContext {
+        service: Arc::new(
+            pipedream_mcp::domain::service::discovery::ConnectorDiscovery::new(
+                client,
+                Arc::new(pipedream_mcp::outbound::pg_connection_repo::PgConnectionRepo::new(pool)),
+            ),
+        ),
+    }
 }
 
 impl FromRef<ToolServiceContext> for AnthropicToolContext {

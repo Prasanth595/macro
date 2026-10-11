@@ -113,6 +113,7 @@ const MACRO_TOOLS: Record<MacroToolName, Wording | null> = {
   SaveDatabaseView: (whose) => `save a view in ${whose} databases`,
   SearchSkills: (whose) => `search ${whose} skills`,
   SearchTools: null,
+  DiscoverConnectors: null,
   SelfKnowledge: null,
   SendChannelMessage: (whose) => `post a message from ${whose} account`,
   SendConfirmedEmail: (whose) => `send email from ${whose} account`,
@@ -120,6 +121,8 @@ const MACRO_TOOLS: Record<MacroToolName, Wording | null> = {
   SetEntityProperty: (whose) => `set properties in ${whose} workspace`,
   SetFormAccess: (whose) => `change who can respond to ${whose} forms`,
   SetSenderPolicy: (whose) => `change ${whose} email sender rules`,
+  ShareWithChannel: (whose) =>
+    `share an item from ${whose} account with a channel`,
   Subagent: (whose) => `start a helper agent with ${whose} access`,
   TextEditorCodeExecution: (whose) => `edit files with ${whose} access`,
   UpdateCalendarEvent: (whose) => `change an event on ${whose} calendar`,

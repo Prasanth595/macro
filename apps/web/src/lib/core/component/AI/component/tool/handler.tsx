@@ -39,6 +39,7 @@ import {
   createChannelHandler,
   manageChannelParticipantsHandler,
   renameChannelHandler,
+  shareWithChannelHandler,
 } from './ChannelMutations';
 import {
   dispatchCodingAgentHandler,
@@ -58,6 +59,7 @@ import {
   readIllustratorDocumentHandler,
   readPhotoshopDocumentHandler,
 } from './DesignDocument';
+import { discoverConnectorsHandler } from './DiscoverConnectors';
 import { displayResultsHandler } from './DisplayResults';
 import {
   commentOnDocumentHandler,
@@ -210,6 +212,7 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   MoveToProject: moveToProjectHandler,
   BashCodeExecution: bashCodeExecutionHandler,
   DisplayResults: displayResultsHandler,
+  DiscoverConnectors: discoverConnectorsHandler,
   ContentSearch: contentSearchHandler,
   CreateDocument: createDocumentHandler,
   UploadFile: uploadFileHandler,
@@ -240,6 +243,7 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   SearchTools: searchToolsHandler,
   SelfKnowledge: selfKnowledgeHandler,
   SendChannelMessage: sendChannelMessageHandler,
+  ShareWithChannel: shareWithChannelHandler,
   SendConfirmedEmail: sendConfirmedEmailHandler,
   SendEmail: sendEmailHandler,
   SetSenderPolicy: setSenderPolicyHandler,

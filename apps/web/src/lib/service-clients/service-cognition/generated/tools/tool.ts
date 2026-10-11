@@ -95,6 +95,10 @@ type ToolParserMap = {
     call: types.DescribeDatabase;
     response: types.ToolDatabaseSchema;
   };
+  DiscoverConnectors: {
+    call: types.DiscoverConnectors;
+    response: types.DiscoverConnectorsResponse;
+  };
   DispatchCodingAgent: {
     call: types.DispatchCodingAgent;
     response: types.DispatchedCodingAgent;
@@ -339,6 +343,10 @@ type ToolParserMap = {
     call: types.SetSenderPolicy;
     response: types.SetSenderPolicyResponse;
   };
+  ShareWithChannel: {
+    call: types.ShareWithChannel;
+    response: types.ShareWithChannelResponse;
+  };
   Subagent: { call: types.Subagent; response: types.SubagentResponse };
   TextEditorCodeExecution: {
     call: types.TextEditorCodeExecution;
@@ -452,6 +460,10 @@ const toolParserMap = {
   DescribeDatabase: {
     call: schemas.DescribeDatabase,
     response: schemas.ToolDatabaseSchema,
+  },
+  DiscoverConnectors: {
+    call: schemas.DiscoverConnectors,
+    response: schemas.DiscoverConnectorsResponse,
   },
   DispatchCodingAgent: {
     call: schemas.DispatchCodingAgent,
@@ -730,6 +742,10 @@ const toolParserMap = {
     call: schemas.SetSenderPolicy,
     response: schemas.SetSenderPolicyResponse,
   },
+  ShareWithChannel: {
+    call: schemas.ShareWithChannel,
+    response: schemas.ShareWithChannelResponse,
+  },
   Subagent: { call: schemas.Subagent, response: schemas.SubagentResponse },
   TextEditorCodeExecution: {
     call: schemas.TextEditorCodeExecution,
@@ -854,6 +870,10 @@ type ToolDataMap = {
   DescribeDatabase: {
     call: types.DescribeDatabase;
     response: types.ToolDatabaseSchema;
+  };
+  DiscoverConnectors: {
+    call: types.DiscoverConnectors;
+    response: types.DiscoverConnectorsResponse;
   };
   DispatchCodingAgent: {
     call: types.DispatchCodingAgent;
@@ -1098,6 +1118,10 @@ type ToolDataMap = {
   SetSenderPolicy: {
     call: types.SetSenderPolicy;
     response: types.SetSenderPolicyResponse;
+  };
+  ShareWithChannel: {
+    call: types.ShareWithChannel;
+    response: types.ShareWithChannelResponse;
   };
   Subagent: { call: types.Subagent; response: types.SubagentResponse };
   TextEditorCodeExecution: {
