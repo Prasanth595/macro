@@ -126,3 +126,28 @@ async fn an_endpoint_error_never_returns_the_saved_credential_to_the_session() {
     assert!(error.to_string().contains("Workspace model request failed"));
     request.await.unwrap();
 }
+
+#[tokio::test]
+async fn a_mismatched_workspace_router_returns_an_error_without_fallback() {
+    let router = ModelRouter::openai_compatible(
+        "workspace-test",
+        "http://127.0.0.1:1/v1",
+        "",
+        reqwest::Client::new(),
+    )
+    .unwrap();
+    let mut session = util::test_loop()
+        .with_router(Some(Arc::new(router)))
+        .with_model("workspace-other/local")
+        .with_genai_telemetry(false)
+        .session(
+            util::tool_set(AsyncToolCollection::<()>::new()),
+            Arc::new(()),
+            "Answer locally",
+            util::usage_ctx(),
+        )
+        .await;
+    let collected = util::drive(&mut session, "hello").await;
+    assert!(collected.error.is_some());
+    assert!(collected.parts.is_empty());
+}

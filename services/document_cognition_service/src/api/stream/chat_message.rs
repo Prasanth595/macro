@@ -184,11 +184,20 @@ async fn send_chat_message_inner(
         .provider_service
         .resolve(&user_id, &request.model)
         .await
-        .map_err(|error| ChatMessageError {
-            error: error.to_string(),
-            stream_id: Some(stream_id.clone()),
-            status: Some(StatusCode::BAD_REQUEST),
-            code: None,
+        .map_err(|error| {
+            use model_provider::domain::models::ProviderError;
+            let status = match &error {
+                ProviderError::ModelUnavailable => StatusCode::BAD_REQUEST,
+                ProviderError::Forbidden => StatusCode::FORBIDDEN,
+                ProviderError::Endpoint => StatusCode::BAD_GATEWAY,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            };
+            ChatMessageError {
+                error: error.to_string(),
+                stream_id: Some(stream_id.clone()),
+                status: Some(status),
+                code: None,
+            }
         })?;
 
     // Determine chat_id - use provided or we'll create a new chat

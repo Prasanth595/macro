@@ -119,7 +119,8 @@ function ChatWithController(props: {
     const alternate = nextModel();
     if (!alternate) return;
     // Record the provider that just failed before moving off it.
-    failedProviders.add(MODEL_PROVIDER[input.model()]);
+    const model = input.model();
+    failedProviders.add(MODEL_PROVIDER[model] ?? model.split('/')[0]);
     input.setModel(alternate);
   };
 

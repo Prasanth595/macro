@@ -229,6 +229,8 @@ impl<'a, H: HttpClientExt + Clone + Default + std::fmt::Debug + 'static> RoutedM
 pub(crate) enum ProviderAgent<
     H: HttpClientExt + Clone + Default + std::fmt::Debug + 'static = MeteredHttpClient,
 > {
+    /// A session whose explicit model could not be routed. Never falls back.
+    RoutingFailure(String),
     /// An agent over Anthropic's native completion model.
     Anthropic(AnthropicAgent<H>),
     /// An agent over Gemini's native GenerateContent model.
@@ -260,6 +262,9 @@ impl<H: HttpClientExt + Clone + Default + std::fmt::Debug + 'static> ProviderAge
         telemetry: GenAiContext,
     ) -> ChatCompletionStream<'static> {
         match self {
+            ProviderAgent::RoutingFailure(error) => Box::pin(futures::stream::iter([Err(
+                AgentError::Other(anyhow::anyhow!(error.clone())),
+            )])),
             ProviderAgent::Anthropic(anthropic) => {
                 // After the agent's preamble, before the conversation: the
                 // second system block.

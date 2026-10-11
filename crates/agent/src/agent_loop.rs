@@ -270,9 +270,10 @@ impl AgentLoop {
                     ModelRouter::shared().expect("failed to initialize model router")
                 });
                 let routed = if self.router.is_some() {
-                    router
-                        .route(&self.model)
-                        .expect("workspace model was resolved before constructing the loop")
+                    match router.route(&self.model) {
+                        Ok(routed) => routed,
+                        Err(error) => return ProviderAgent::RoutingFailure(error.to_string()),
+                    }
                 } else {
                     router.route_or_default(&self.model)
                 };

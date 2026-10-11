@@ -3,7 +3,7 @@ use crate::domain::{models::*, ports::ProviderEndpoint, service::validate_url};
 use async_trait::async_trait;
 use serde::Deserialize;
 use std::{
-    net::{IpAddr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::Arc,
     time::Duration,
 };
@@ -65,15 +65,34 @@ pub(crate) fn approved_ip(ip: IpAddr, allow_local: bool) -> bool {
                 && !(ip.octets()[0] == 100 && (64..128).contains(&ip.octets()[1]))
                 && (allow_local || (!ip.is_private() && !ip.is_loopback()))
         }
-        IpAddr::V6(ip) => match ip.to_ipv4_mapped() {
-            Some(ip) => approved_ip(IpAddr::V4(ip), allow_local),
-            None => {
-                !ip.is_unspecified()
-                    && !ip.is_unicast_link_local()
-                    && !ip.is_multicast()
-                    && (allow_local || (!ip.is_loopback() && !ip.is_unique_local()))
+        IpAddr::V6(ip) => {
+            let segments = ip.segments();
+            // NAT64 and 6to4 can route to IPv4 destinations; apply the same
+            // boundary to those destinations as to mapped/compatible addresses.
+            let embedded = if segments[..6] == [0x64, 0xff9b, 0, 0, 0, 0] {
+                Some(Ipv4Addr::from(
+                    (u32::from(segments[6]) << 16) | u32::from(segments[7]),
+                ))
+            } else if segments[0] == 0x2002 {
+                Some(Ipv4Addr::from(
+                    (u32::from(segments[1]) << 16) | u32::from(segments[2]),
+                ))
+            } else if !ip.is_loopback() {
+                ip.to_ipv4()
+            } else {
+                None
+            };
+            match embedded {
+                Some(ip) => approved_ip(IpAddr::V4(ip), allow_local),
+                None => {
+                    !ip.is_unspecified()
+                        && !ip.is_unicast_link_local()
+                        && (segments[0] & 0xffc0) != 0xfec0
+                        && !ip.is_multicast()
+                        && (allow_local || (!ip.is_loopback() && !ip.is_unique_local()))
+                }
             }
-        },
+        }
     }
 }
 #[async_trait]

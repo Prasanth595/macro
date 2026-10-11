@@ -15,7 +15,7 @@ import {
   type TModel,
 } from './model';
 
-const PROVIDER_OF = (m: TModel) => MODEL_PROVIDER[m];
+const PROVIDER_OF = (m: TModel) => MODEL_PROVIDER[m] ?? m.split('/')[0];
 
 describe('modelsForPlan / defaultModelForPlan', () => {
   it('gives paid users every picker model and an Anthropic-smart default', () => {
@@ -161,5 +161,18 @@ describe('alternateProviderModel', () => {
       failedProviders: new Set(),
     });
     expect(PROVIDER_OF(alt!)).toBe('openai');
+  });
+});
+
+describe('workspace model metadata', () => {
+  it('leaves custom labels and providers to the workspace catalog', () => {
+    const model: TModel = 'workspace-test/local';
+    expect(MODEL_PRETTYNAME[model]).toBeUndefined();
+    expect(MODEL_PROVIDER[model]).toBeUndefined();
+    expect(
+      alternateProviderModel(model, {
+        candidates: [model, 'workspace-other/local'],
+      })
+    ).toBe('workspace-other/local');
   });
 });

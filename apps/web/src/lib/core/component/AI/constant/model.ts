@@ -30,7 +30,7 @@ export type Model = BuiltinModel | `workspace-${string}/${string}`;
 /** Alias kept for existing call sites. */
 export type TModel = Model;
 
-type ExhaustiveMap<T> = Record<Model, T>;
+type ExhaustiveMap<T> = Record<BuiltinModel, T> & Partial<Record<Model, T>>;
 
 export const MODEL_PRETTYNAME: ExhaustiveMap<string> = {
   'anthropic/claude-sonnet-5-5': 'Sonnet 5.5',

@@ -21,6 +21,43 @@ fn network_boundary_rejects_metadata_and_private_cloud_addresses() {
     assert!(approved_ip("8.8.8.8".parse().unwrap(), false));
 }
 
+#[test]
+fn embedded_ipv4_addresses_follow_the_ipv4_network_boundary() {
+    for ip in [
+        "64:ff9b::a9fe:a9fe",
+        "2002:a9fe:a9fe::1",
+        "::169.254.169.254",
+        "64:ff9b::",
+        "2002::1",
+        "::224.0.0.1",
+        "fec0::1",
+        "feff::1",
+    ] {
+        for allow_local in [false, true] {
+            assert!(!approved_ip(ip.parse().unwrap(), allow_local), "{ip}");
+        }
+    }
+    for ip in [
+        "64:ff9b::a00:1",
+        "2002:a00:1::1",
+        "::10.0.0.1",
+        "64:ff9b::7f00:1",
+        "2002:7f00:1::1",
+        "::127.0.0.1",
+    ] {
+        assert!(!approved_ip(ip.parse().unwrap(), false), "{ip}");
+        assert!(approved_ip(ip.parse().unwrap(), true), "{ip}");
+    }
+    for ip in [
+        "64:ff9b::808:808",
+        "2002:808:808::1",
+        "::8.8.8.8",
+        "2001:4860:4860::8888",
+    ] {
+        assert!(approved_ip(ip.parse().unwrap(), false), "{ip}");
+    }
+}
+
 #[tokio::test]
 async fn discovers_models_from_a_local_compatible_endpoint() {
     use wiremock::{
