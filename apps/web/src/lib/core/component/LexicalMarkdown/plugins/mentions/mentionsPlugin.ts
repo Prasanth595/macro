@@ -4,7 +4,6 @@ import { $wrapNodeInElement, mergeRegister } from '@lexical/utils';
 import type { PeerIdValidator } from '@macro-inc/lexical-core';
 import {
   $collapseInlineSearch,
-  $convertMentionToCard,
   $createAgentSessionMentionNode,
   $createContactMentionNode,
   $createDateMentionNode,
@@ -219,6 +218,9 @@ function $mentionItemFromNode(node: MentionNode): ItemMention {
       // A form reference: posting it grants the channel View on the form.
       fileType = 'form';
       itemType = 'form';
+    } else if (blockName === 'database') {
+      fileType = 'database';
+      itemType = 'database';
     } else if (blockName === 'initiative') {
       // A task project, never a document id.
       fileType = 'initiative';
@@ -358,8 +360,6 @@ type MentionsPluginProps = {
   peerIdValidator?: PeerIdValidator;
   sourceDocumentId?: string;
   disableMentionTracking?: boolean;
-  /** Document bodies show newly inserted databases as editors. Composers keep mentions. */
-  expandDatabaseMentions?: boolean;
 };
 
 /**
@@ -502,18 +502,6 @@ function registerMentionsPlugin(
             $insertNodes([$createTextNode(' '), mentionNode]);
           } else {
             $insertNodes([mentionNode]);
-          }
-          if (
-            props.expandDatabaseMentions &&
-            payload.blockName === 'database' &&
-            $isDocumentMentionNode(mentionNode) &&
-            editor.hasNodes([DocumentCardNode])
-          ) {
-            const card = $convertMentionToCard(mentionNode);
-            if (!card.getNextSibling())
-              card.insertAfter($createParagraphNode()).selectStart();
-            else card.selectNext();
-            return;
           }
           if ($isRootOrShadowRoot(mentionNode.getParentOrThrow())) {
             $wrapNodeInElement(mentionNode, $createParagraphNode);

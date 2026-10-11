@@ -137,4 +137,43 @@ describe('creating a database in a document', () => {
     await insertNewDatabase(editor);
     expect(mocks.create).not.toHaveBeenCalled();
   });
+
+  it.each(['create', 'track'] as const)(
+    'removes the placeholder when %s rejects and lets the action report the failure',
+    async (boundary) => {
+      const editor = documentEditor();
+      const failure = new Error('Service unavailable');
+      mocks[boundary].mockRejectedValueOnce(failure);
+      await expect(
+        insertNewDatabase(editor, { sourceDocumentId: 'doc-1' })
+      ).rejects.toBe(failure);
+      expect(editor.read(() => $getRoot().getTextContent())).toBe(
+        'Before. After.'
+      );
+      expect(editor.getEditorState().toJSON().root.children).not.toEqual(
+        expect.arrayContaining([expect.objectContaining({ type: 'await' })])
+      );
+    }
+  );
+
+  it.each(['create', 'track'] as const)(
+    'cleans up when the document becomes read-only during %s',
+    async (boundary) => {
+      const editor = documentEditor();
+      mocks[boundary].mockImplementationOnce(async () => {
+        editor.setEditable(false);
+        return boundary === 'create' ? ok('db-1') : 'mention-1';
+      });
+      await insertNewDatabase(editor, { sourceDocumentId: 'doc-1' });
+      expect(editor.read(() => $getRoot().getTextContent())).toBe(
+        'Before. After.'
+      );
+      expect(editor.isEditable()).toBe(false);
+      if (boundary === 'track')
+        expect(mocks.untrack).toHaveBeenCalledExactlyOnceWith(
+          'doc-1',
+          'mention-1'
+        );
+    }
+  );
 });

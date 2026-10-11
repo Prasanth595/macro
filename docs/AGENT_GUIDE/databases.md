@@ -564,8 +564,8 @@ A slow or failed refresh is not a reason to resend a successful mutation.
 ### Embedded database editors
 
 In a document, `/database` creates a database and inserts its expanded editor.
-Selecting an existing database from `@` expands it by default too. **Collapse**
-returns it to a small mention; **Expand** restores the editor. Cell and schema
+Selecting an existing database from `@` inserts a compact chip. Its expand icon
+opens the editor. **Collapse** returns it to a small mention. Cell and schema
 edits use the same database grid and authorization as the standalone app. The
 document stores only the database reference and selected table/view, never a
 copy of its rows. See [Databases in documents](documents.md#databases-in-documents).

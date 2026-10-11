@@ -38,6 +38,7 @@ import {
   DocumentCardNode,
   type DocumentMentionDecoratorProps,
 } from '@macro-inc/lexical-core';
+import ArrowsOut from '@phosphor/arrows-out-simple.svg';
 import EyeSlashDuo from '@phosphor/eye-slash.svg';
 import TrashSimple from '@phosphor/trash-simple.svg';
 import {
@@ -52,6 +53,7 @@ import { useFormDetailQuery } from '@queries/storage/forms';
 import { useSystemSkillsQuery } from '@queries/storage/system-skills';
 import { blockNameToItemType } from '@service-storage/client';
 import { createCallback } from '@solid-primitives/rootless';
+import { Button } from '@ui';
 import {
   $getNodeByKey,
   COMMAND_PRIORITY_NORMAL,
@@ -483,16 +485,15 @@ function DatabaseMention(props: DocumentMentionDecoratorProps) {
           !detail.isError
         }
       >
-        <button
-          type="button"
-          aria-label="Expand database"
-          title="Expand database"
-          class="rounded px-1 text-xs text-ink-muted hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent"
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          label="Expand database"
           on:mousedown={(event) => event.preventDefault()}
           on:click={expand}
         >
-          Expand
-        </button>
+          <ArrowsOut class="size-3.5" />
+        </Button>
       </Show>
     </span>
   );

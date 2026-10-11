@@ -105,8 +105,14 @@ column, then inserts its live editor at the command's position. Rename the
 database in the embedded header. A failed create clears its pending placeholder;
 removing the placeholder while creation runs does not insert elsewhere.
 
-Selecting a database from `@` also inserts its expanded editor by default.
-Edit cells, add rows or columns, select a table, filter, and sort in the document.
+Selecting a database from `@` inserts a compact mention. Use its **Expand database**
+icon to open the inline editor. Databases created with `/database` start expanded.
+Edit cells, add rows or columns, select a table with the **Database table** picker,
+choose a saved view with **Database view** when the table has views, filter, and
+sort in the document. The pickers support keyboard navigation and
+marks the selected table. Rows added or edited elsewhere, including by AI,
+appear through the database's gateway subscription. The editor catches up after
+reconnecting or returning to the tab after a long absence.
 Edits write to the original database. **Open** opens the full database.
 **Collapse** converts the editor to a small mention; **Expand** brings it back.
 Removing either reference leaves the database and its rows intact.
@@ -116,8 +122,8 @@ editing its rows, columns and name, independently of document permission. An
 expanded editor in a read-only document can still edit a writable database;
 its collapse/expand is local to that reader. A database viewer sees read-only
 records. Sharing the document does not itself grant database access. Filters,
-sort order and widths are local to this visit; selecting a table is saved with
-the reference when the document is editable.
+sort order and widths are local to this visit; the selected table and view are
+saved in the Lexical node when the document is editable and sync to other readers.
 
 ## Live database answers
 

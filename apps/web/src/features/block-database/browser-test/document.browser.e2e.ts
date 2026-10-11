@@ -1,4 +1,5 @@
-import { expect, type Page, test } from '@playwright/test';
+import { expect, type Page, test, type WebSocketRoute } from '@playwright/test';
+import { allRecordsView } from '../../database/core/views';
 import {
   columnId,
   databaseId,
@@ -8,17 +9,51 @@ import {
   tableId,
 } from './document-data';
 
-async function fixture(page: Page) {
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
+
+async function fixture(page: Page, multipleTables = false) {
   let storedName = 'Finish onboarding';
   let writes = 0;
   let creates = 0;
   const detail = documentDatabaseDetail();
+  if (multipleTables) {
+    const next = structuredClone(detail.tables[0]);
+    next.table.id = tableId.replace(/1$/, '2');
+    next.table.name = 'Contacts and customer research';
+    next.views = [
+      {
+        ...allRecordsView(next.table),
+        id: '01990000-0000-7000-8000-00000000b001',
+        name: 'Research',
+      },
+    ];
+    for (const column of next.columns) {
+      column.column.id = column.column.id.replace(/1$/, '2');
+      column.column.table_id = next.table.id;
+    }
+    detail.tables.push(next);
+  }
+  const externalRows: string[] = [];
+  let gateway: WebSocketRoute | undefined;
+  const tracking: { action: string; entity_id: string }[] = [];
   const errors: string[] = [];
   page.on('pageerror', (error) => {
     errors.push(error.message);
     console.error(error);
   });
-  await page.routeWebSocket('**', (socket) => socket.close());
+  await page.routeWebSocket('**', (socket) => {
+    if (!socket.url().includes('connection-gateway')) {
+      socket.close();
+      return;
+    }
+    gateway = socket;
+    socket.onMessage((message) => {
+      if (message === 'ping') socket.send('pong');
+      else tracking.push(JSON.parse(message.toString()));
+    });
+  });
   await page.route('https://**', (route) => route.abort());
   // Serve the fixture's module graph through Playwright's request context.
   // Chromium otherwise cancels local module loads when host interfaces change.
@@ -35,29 +70,29 @@ async function fixture(page: Page) {
             user: {
               soup: {
                 nextCursor: null,
-                items: [
-                  {
-                    __typename: 'GraphqlSoupDatabaseRow',
-                    id: rowId,
-                    tableId,
-                    position: '80',
-                    ownerId: detail.database.owner_id,
-                    createdAt: detail.database.created_at,
-                    updatedAt: detail.database.created_at,
-                    cacheProjection: null,
-                    notifications: [],
-                    properties: [
-                      {
-                        id: definitionId,
-                        propertyDefinitionId: definitionId,
-                        value: {
-                          __typename: 'GraphqlStringPropertyValue',
-                          stringValue: storedName,
-                        },
+                items: [storedName, ...externalRows].map((name, index) => ({
+                  __typename: 'GraphqlSoupDatabaseRow',
+                  id: index
+                    ? `${rowId.slice(0, -4)}${String(index + 1).padStart(4, '0')}`
+                    : rowId,
+                  tableId,
+                  position: '80',
+                  ownerId: detail.database.owner_id,
+                  createdAt: detail.database.created_at,
+                  updatedAt: detail.database.created_at,
+                  cacheProjection: null,
+                  notifications: [],
+                  properties: [
+                    {
+                      id: definitionId,
+                      propertyDefinitionId: definitionId,
+                      value: {
+                        __typename: 'GraphqlStringPropertyValue',
+                        stringValue: name,
                       },
-                    ],
-                  },
-                ],
+                    },
+                  ],
+                })),
               },
             },
           },
@@ -111,6 +146,21 @@ async function fixture(page: Page) {
   });
   await page.goto('/src/features/block-database/browser-test/document.html');
   return {
+    tracking,
+    addExternalRows: (names: string[]) => {
+      externalRows.push(...names);
+      detail.tables[0].table.version++;
+      gateway?.send(
+        JSON.stringify({
+          type: 'database_table_changed',
+          data: {
+            databaseId,
+            tableId,
+            version: detail.tables[0].table.version,
+          },
+        })
+      );
+    },
     storedName: () => storedName,
     writes: () => writes,
     creates: () => creates,
@@ -118,11 +168,12 @@ async function fixture(page: Page) {
   };
 }
 
-test('a database mention expands to the live editor, saves cells and collapses without losing the reference', async ({
+test('a compact database mention expands to the live editor, saves cells and collapses without losing the reference', async ({
   page,
 }) => {
   const saved = await fixture(page);
   await page.getByRole('button', { name: 'Mention existing database' }).click();
+  await page.getByRole('button', { name: 'Expand database' }).click();
   const grid = page.getByRole('grid', { name: 'Tasks' });
   await expect(grid).toBeVisible();
   await page
@@ -148,6 +199,68 @@ test('a database mention expands to the live editor, saves cells and collapses w
   ).toBeVisible();
   await expect(page.getByLabel('Document state')).toContainText('Launch plan');
   expect(saved.creates()).toBe(0);
+  expect(saved.errors).toEqual([]);
+});
+
+test('embedded tables subscribe to the gateway and display externally added rows without reloading', async ({
+  page,
+}) => {
+  const saved = await fixture(page);
+  await page.getByRole('button', { name: 'Mention existing database' }).click();
+  await page.getByRole('button', { name: 'Expand database' }).click();
+  await expect(page.getByRole('grid', { name: 'Tasks' })).toBeVisible();
+  await expect
+    .poll(() => saved.tracking.filter((event) => event.action === 'open'))
+    .toContainEqual(expect.objectContaining({ entity_id: databaseId }));
+  saved.addExternalRows(['Alpha widget', 'Juliet flux capacitor']);
+  await expect(
+    page.getByRole('button', { name: /^Name: Alpha widget\./ })
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: /^Name: Juliet flux capacitor\./ })
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Collapse', exact: true }).click();
+  await expect
+    .poll(() => saved.tracking.filter((event) => event.action === 'close'))
+    .toContainEqual(expect.objectContaining({ entity_id: databaseId }));
+  expect(saved.errors).toEqual([]);
+});
+
+test('the app table picker switches tables with the keyboard and restores focus when dismissed', async ({
+  page,
+}) => {
+  const saved = await fixture(page, true);
+  await page.getByRole('button', { name: 'Mention existing database' }).click();
+  await page.getByRole('button', { name: 'Expand database' }).click();
+  await expect(page.getByRole('grid', { name: 'Tasks' })).toBeVisible();
+  const picker = page.getByRole('button', { name: /^Database table/ });
+  await picker.click();
+  await expect(page.getByRole('listbox')).toBeVisible();
+  await picker.press('Escape');
+  await expect(picker).toBeFocused();
+  await picker.press('ArrowDown');
+  await page
+    .getByRole('option', { name: 'Tasks', exact: true })
+    .press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(
+    page.getByRole('grid', { name: 'Contacts and customer research' })
+  ).toBeVisible();
+  await expect(page.getByLabel('Document state')).toContainText(
+    tableId.replace(/1$/, '2')
+  );
+  await expect(picker).toBeFocused();
+  const views = page.getByRole('button', { name: /^Database view / });
+  await views.click();
+  await page.getByRole('option', { name: 'Research', exact: true }).click();
+  await expect(views).toBeFocused();
+  await expect(page.getByLabel('Document state')).toContainText(
+    '01990000-0000-7000-8000-00000000b001'
+  );
+  await page.getByRole('button', { name: 'Collapse', exact: true }).click();
+  await page.getByRole('button', { name: 'Expand database' }).click();
+  await expect(picker).toContainText('Contacts and customer research');
+  await expect(views).toContainText('Research');
   expect(saved.errors).toEqual([]);
 });
 
@@ -177,6 +290,7 @@ test('database permissions control edits independently of the document', async (
 }) => {
   const saved = await fixture(page);
   await page.getByRole('button', { name: 'Mention existing database' }).click();
+  await page.getByRole('button', { name: 'Expand database' }).click();
   await expect(page.getByRole('grid', { name: 'Tasks' })).toBeVisible();
   await page.getByRole('button', { name: 'Toggle document editing' }).click();
   await page

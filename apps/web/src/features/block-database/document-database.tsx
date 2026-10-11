@@ -3,6 +3,7 @@ import { toast } from '@core/component/Toast/Toast';
 import ArrowSquareOut from '@phosphor/arrow-square-out.svg';
 import DatabaseIcon from '@phosphor/database.svg';
 import FunnelIcon from '@phosphor/funnel.svg';
+import PlusIcon from '@phosphor/plus.svg';
 import SortIcon from '@phosphor/sort-ascending.svg';
 import {
   onDatabaseBatchCommitted,
@@ -12,8 +13,8 @@ import {
 import { useDatabaseTableChangedSync } from '@queries/storage/databases-sync';
 import type { DatabaseView } from '@service-storage/generated/schemas/databaseView';
 import { getEntityGraphqlClient } from '@service-storage/graphql-soup';
-import { Button } from '@ui';
-import { createMemo, createSignal, For, onCleanup, Show } from 'solid-js';
+import { Button, Tooltip } from '@ui';
+import { createMemo, createSignal, onCleanup, Show } from 'solid-js';
 import { DatabaseTitle } from '../database/components/database-title';
 import {
   FilterPanel,
@@ -21,11 +22,13 @@ import {
 } from '../database/components/database-view-filters';
 import { SortPanel } from '../database/components/sort-panel';
 import { ToolbarPopover } from '../database/components/view-control-popover';
+import { ViewSelect } from '../database/components/view-select';
 import type { DatabaseRelatedDestination } from '../database/core/database-relations';
 import type { ViewChange } from '../database/core/view-state';
 import { allRecordsView } from '../database/core/views';
 import { databaseEntityMessage } from '../database/core/write-failure';
 import { createDatabaseUndo } from '../database/primitives/undo-controller';
+import type { DatabaseRecordsActions } from '../database/views/database-records-view';
 import { DatabaseGrid } from './component/DatabaseGrid';
 import { renameDatabase } from './queries/rename-database';
 import { toViewColumn } from './queries/table-rows';
@@ -40,9 +43,11 @@ export function DocumentDatabase(props: {
   onLocationChange?: (params: Record<string, string>) => void;
 }) {
   const databaseId = props.databaseId;
+  const [recordActions, setRecordActions] =
+    createSignal<DatabaseRecordsActions>();
   useDatabaseTableChangedSync(() => databaseId);
   const detail = useDatabaseDetailQuery(() => databaseId);
-  const [location, setLocation] = createSignal(props.params ?? {});
+  const location = () => props.params ?? {};
   const [changedViews, setChangedViews] = createSignal<
     Record<string, DatabaseView>
   >({});
@@ -80,7 +85,6 @@ export function DocumentDatabase(props: {
       }));
   };
   const selectLocation = (next: Record<string, string>) => {
-    setLocation(next);
     props.onLocationChange?.(next);
   };
   const open = (
@@ -200,7 +204,96 @@ export function DocumentDatabase(props: {
               <Show when={view()}>
                 {(currentView) => (
                   <div class="flex h-96 min-h-0 flex-col border-t border-edge-muted">
+                    <div class="flex flex-wrap items-center gap-1 border-b border-edge-muted px-3 py-1.5">
+                      <Tooltip
+                        label={shown().table.name}
+                        class="min-w-0 max-w-40"
+                      >
+                        <ViewSelect
+                          label="Database table"
+                          class="min-w-0 max-w-40"
+                          value={shown().table.id}
+                          options={tables().map(({ table }) => ({
+                            value: table.id,
+                            label: table.name,
+                          }))}
+                          onChange={(tableId) =>
+                            selectLocation({
+                              ...location(),
+                              tableId,
+                              viewId: '',
+                            })
+                          }
+                        />
+                      </Tooltip>
+                      <Show when={shown().views.length}>
+                        <Tooltip
+                          label={currentView().name}
+                          class="min-w-0 max-w-40"
+                        >
+                          <ViewSelect
+                            label="Database view"
+                            class="min-w-0 max-w-40"
+                            value={currentView().id}
+                            options={[
+                              allRecordsView(shown().table),
+                              ...shown().views,
+                            ].map((view) => ({
+                              value: view.id,
+                              label: view.name,
+                            }))}
+                            onChange={(viewId) =>
+                              selectLocation({
+                                ...location(),
+                                tableId: shown().table.id,
+                                viewId,
+                              })
+                            }
+                          />
+                        </Tooltip>
+                      </Show>
+                      <div class="flex-1" />
+                      <ToolbarPopover
+                        label="Filter"
+                        count={filterConditionCount(currentView().query.filter)}
+                        icon={<FunnelIcon class="size-3.5" />}
+                      >
+                        <FilterPanel
+                          columns={shown().columns.map(toViewColumn)}
+                          filter={currentView().query.filter}
+                          onChange={(filter) =>
+                            changeView({
+                              query: { ...currentView().query, filter },
+                            })
+                          }
+                        />
+                      </ToolbarPopover>
+                      <ToolbarPopover
+                        label="Sort"
+                        count={currentView().query.sort?.length}
+                        icon={<SortIcon class="size-3.5" />}
+                      >
+                        <SortPanel
+                          columns={shown().columns.map(toViewColumn)}
+                          view={currentView()}
+                          onChange={changeView}
+                        />
+                      </ToolbarPopover>
+                      <Show when={canEdit()}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={
+                            !recordActions() || recordActions()?.pending()
+                          }
+                          onClick={() => void recordActions()?.createRecord()}
+                        >
+                          <PlusIcon class="size-3.5" /> New row
+                        </Button>
+                      </Show>
+                    </div>
                     <DatabaseGrid
+                      contentClass="m-3 rounded-lg border border-edge-muted"
                       databaseId={databaseId}
                       table={shown()}
                       canEdit={canEdit()}
@@ -213,69 +306,7 @@ export function DocumentDatabase(props: {
                         })
                       }
                       onOpenRelated={openRelated}
-                      renderToolbar={(actions) => (
-                        <div class="flex flex-wrap items-center gap-1 border-b border-edge-muted px-3 py-1.5">
-                          <select
-                            aria-label="Database table"
-                            class="min-w-0 max-w-40 bg-transparent text-xs outline-none focus-visible:ring-2 focus-visible:ring-edge-focus"
-                            value={shown().table.id}
-                            onChange={(event) =>
-                              selectLocation({
-                                ...location(),
-                                tableId: event.currentTarget.value,
-                                viewId: '',
-                              })
-                            }
-                          >
-                            <For each={tables()}>
-                              {(entry) => (
-                                <option value={entry.table.id}>
-                                  {entry.table.name}
-                                </option>
-                              )}
-                            </For>
-                          </select>
-                          <div class="flex-1" />
-                          <ToolbarPopover
-                            label="Filter"
-                            count={filterConditionCount(
-                              currentView().query.filter
-                            )}
-                            icon={<FunnelIcon class="size-3.5" />}
-                          >
-                            <FilterPanel
-                              columns={shown().columns.map(toViewColumn)}
-                              filter={currentView().query.filter}
-                              onChange={(filter) =>
-                                changeView({
-                                  query: { ...currentView().query, filter },
-                                })
-                              }
-                            />
-                          </ToolbarPopover>
-                          <ToolbarPopover
-                            label="Sort"
-                            count={currentView().query.sort?.length}
-                            icon={<SortIcon class="size-3.5" />}
-                          >
-                            <SortPanel
-                              columns={shown().columns.map(toViewColumn)}
-                              view={currentView()}
-                              onChange={changeView}
-                            />
-                          </ToolbarPopover>
-                          <Show when={canEdit()}>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={actions.pending()}
-                              onClick={() => void actions.createRecord()}
-                            >
-                              New row
-                            </Button>
-                          </Show>
-                        </div>
-                      )}
+                      actionsRef={setRecordActions}
                     />
                   </div>
                 )}

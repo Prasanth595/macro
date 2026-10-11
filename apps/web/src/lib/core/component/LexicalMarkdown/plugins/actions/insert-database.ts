@@ -35,57 +35,63 @@ export async function insertNewDatabase(
     placeholderKey = placeholder.getKey();
   });
 
-  const name = 'Untitled database';
-  const created = await createDatabase({ name, source: 'slash-menu' });
-  if (created.isErr()) {
-    editor.update(() => {
-      if (placeholderKey) $getNodeByKey(placeholderKey)?.remove();
-    });
-    toast.failure('Your database could not be created. Try again.');
-    return;
-  }
-
-  // A successful create remains a database even when its placeholder was removed.
-  const present = editor.read(() =>
-    placeholderKey ? $isAwaitNode($getNodeByKey(placeholderKey)) : false
-  );
-  if (!present || !editor.isEditable()) return;
-  const mentionUuid =
-    context?.sourceDocumentId &&
-    !context.disableMentionTracking &&
-    context.sourceBlockName !== 'channel' &&
-    context.sourceBlockName !== 'chat'
-      ? await trackMention(context.sourceDocumentId, 'database', created.value)
-      : undefined;
-
-  const stillPresent = editor.read(() =>
-    placeholderKey ? $isAwaitNode($getNodeByKey(placeholderKey)) : false
-  );
-  if (!stillPresent || !editor.isEditable()) {
-    if (mentionUuid && context?.sourceDocumentId)
-      await untrackMention(context.sourceDocumentId, mentionUuid);
-    return;
-  }
-
-  editor.update(() => {
-    const placeholder = placeholderKey ? $getNodeByKey(placeholderKey) : null;
-    if (!$isAwaitNode(placeholder) || !editor.isEditable()) return;
-    const selection = $getSelection();
-    const focused =
-      $isRangeSelection(selection) &&
-      selection.getNodes().some((node) => node.getKey() === placeholderKey);
-    const mention = $createDocumentMentionNode({
-      documentId: created.value,
-      documentName: name,
-      blockName: 'database',
-      mentionUuid,
-    });
-    placeholder.replace(mention);
-    const card = $convertMentionToCard(mention);
-    if (!card.getNextSibling()) {
-      const paragraph = $createParagraphNode();
-      card.insertAfter(paragraph);
-      if (focused) paragraph.selectStart();
+  let mentionUuid: string | undefined;
+  let inserted = false;
+  try {
+    const name = 'Untitled database';
+    const created = await createDatabase({ name, source: 'slash-menu' });
+    if (created.isErr()) {
+      toast.failure('Your database could not be created. Try again.');
+      return;
     }
-  });
+
+    // A successful create remains a database even when its placeholder was removed.
+    const present = editor.read(() =>
+      placeholderKey ? $isAwaitNode($getNodeByKey(placeholderKey)) : false
+    );
+    if (!present || !editor.isEditable()) return;
+    mentionUuid =
+      context?.sourceDocumentId &&
+      !context.disableMentionTracking &&
+      context.sourceBlockName !== 'channel' &&
+      context.sourceBlockName !== 'chat'
+        ? await trackMention(
+            context.sourceDocumentId,
+            'database',
+            created.value
+          )
+        : undefined;
+
+    editor.update(() => {
+      const placeholder = placeholderKey ? $getNodeByKey(placeholderKey) : null;
+      if (!$isAwaitNode(placeholder) || !editor.isEditable()) return;
+      const selection = $getSelection();
+      const focused =
+        $isRangeSelection(selection) &&
+        selection.getNodes().some((node) => node.getKey() === placeholderKey);
+      const mention = $createDocumentMentionNode({
+        documentId: created.value,
+        documentName: name,
+        blockName: 'database',
+        mentionUuid,
+      });
+      placeholder.replace(mention);
+      const card = $convertMentionToCard(mention);
+      inserted = true;
+      if (!card.getNextSibling()) {
+        const paragraph = $createParagraphNode();
+        card.insertAfter(paragraph);
+        if (focused) paragraph.selectStart();
+      }
+    });
+  } finally {
+    // Programmatic cleanup also runs when editability changes during either await.
+    if (!inserted) {
+      editor.update(() => {
+        if (placeholderKey) $getNodeByKey(placeholderKey)?.remove();
+      });
+      if (mentionUuid && context?.sourceDocumentId)
+        await untrackMention(context.sourceDocumentId, mentionUuid);
+    }
+  }
 }

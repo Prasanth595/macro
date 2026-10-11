@@ -65,7 +65,7 @@ function DocumentFixture() {
   const [readOnly, setReadOnly] = createSignal(false);
   let root!: HTMLDivElement;
   wrapper.plugins.use(selectionDataPlugin(wrapper));
-  wrapper.plugins.use(mentionsPlugin({ expandDatabaseMentions: true }));
+  wrapper.plugins.use(mentionsPlugin({}));
   wrapper.plugins.use(actionsPlugin({ menu }));
   wrapper.plugins.use(blockDecoratorNavigationPlugin());
   const stopRichText = registerRichText(editor);

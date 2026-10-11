@@ -44,7 +44,7 @@ vi.mock('@core/signal/mention', () => ({
   untrackMention: vi.fn(),
 }));
 
-function composer(expandDatabaseMentions = false) {
+function composer() {
   const editor = createEditor({
     nodes: SupportedNodeTypes,
     onError: (error) => {
@@ -55,7 +55,6 @@ function composer(expandDatabaseMentions = false) {
   const created: ItemMention[] = [];
   const removed: ItemMention[] = [];
   mentionsPlugin({
-    expandDatabaseMentions,
     sourceDocumentId: 'doc-1',
     onCreateMention: (mention) => created.push(mention),
     onRemoveMention: (mention) => removed.push(mention),
@@ -68,8 +67,8 @@ function discrete(editor: LexicalEditor, change: () => void) {
 }
 
 describe('mentionsPlugin', () => {
-  it('expands a newly mentioned database in document bodies and preserves surrounding text', () => {
-    const { editor, created } = composer(true);
+  it('inserts a compact database mention and preserves surrounding text', () => {
+    const { editor, created } = composer();
     discrete(editor, () => {
       const text = $createTextNode('Before. After.');
       $getRoot().append($createParagraphNode().append(text));
@@ -82,19 +81,21 @@ describe('mentionsPlugin', () => {
     });
     editor.read(() => {
       const children = $getRoot().getChildren();
-      expect(children.map((child) => child.getType())).toEqual([
-        'paragraph',
-        'document-card',
-        'paragraph',
-      ]);
-      expect(children[0].getTextContent()).toBe('Before. ');
-      expect(children[2].getTextContent()).toBe('After.');
+      expect(children.map((child) => child.getType())).toEqual(['paragraph']);
+      expect(children[0].getTextContent()).toBe('Before. TasksAfter.');
+      const paragraph = children[0];
+      if (!$isElementNode(paragraph)) throw new Error('Missing paragraph');
+      expect(paragraph.getChildren().map((child) => child.getType())).toContain(
+        'document-mention'
+      );
     });
-    expect(created).toContainEqual({
-      itemType: 'database',
-      itemId: 'db-1',
-      documentName: 'Tasks',
-    });
+    expect(created).toContainEqual(
+      expect.objectContaining({
+        itemType: 'database',
+        itemId: 'db-1',
+        documentName: 'Tasks',
+      })
+    );
   });
 
   it('keeps database mentions compact in composers', () => {
@@ -116,7 +117,7 @@ describe('mentionsPlugin', () => {
 
   it('keeps the tracked database reference through collapse/expand and untracks only its removal', () => {
     vi.mocked(untrackMention).mockClear();
-    const { editor, created, removed } = composer(true);
+    const { editor, created, removed } = composer();
     discrete(editor, () => {
       $getRoot().append(
         $createDocumentCardNode({

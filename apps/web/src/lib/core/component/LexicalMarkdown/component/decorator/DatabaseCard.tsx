@@ -5,8 +5,19 @@ import {
   $isDocumentCardNode,
   type DocumentCardDecoratorProps,
 } from '@macro-inc/lexical-core';
-import { $getNodeByKey, stopLexicalPropagation } from 'lexical';
-import { createSignal, lazy, Show, Suspense, useContext } from 'solid-js';
+import {
+  $getNodeByKey,
+  SKIP_DOM_SELECTION_TAG,
+  stopLexicalPropagation,
+} from 'lexical';
+import {
+  createSignal,
+  lazy,
+  onCleanup,
+  Show,
+  Suspense,
+  useContext,
+} from 'solid-js';
 import { LexicalWrapperContext } from '../../context/LexicalWrapperContext';
 
 const DocumentDatabase = lazy(async () => ({
@@ -19,12 +30,32 @@ export function DatabaseCard(props: DocumentCardDecoratorProps) {
   const enabled = useFeatureFlag(enableDatabases);
   const wrapper = useContext(LexicalWrapperContext);
   const [collapsed, setCollapsed] = createSignal(false);
+  const [params, setParams] = createSignal(props.blockParams ?? {});
+  let savedParams = props.blockParams;
+  if (wrapper)
+    onCleanup(
+      wrapper.editor.registerUpdateListener(({ editorState }) => {
+        editorState.read(() => {
+          const node = $getNodeByKey(props.key);
+          if (!$isDocumentCardNode(node)) return;
+          const next = node.getBlockParams();
+          if (next !== savedParams) {
+            savedParams = next;
+            setParams(next);
+          }
+        });
+      })
+    );
   const changeLocation = (params: Record<string, string>) => {
+    setParams(params);
     if (!wrapper?.editor.isEditable() || !wrapper.isInteractable()) return;
-    wrapper.editor.update(() => {
-      const node = $getNodeByKey(props.key);
-      if ($isDocumentCardNode(node)) node.setBlockParams(params);
-    });
+    wrapper.editor.update(
+      () => {
+        const node = $getNodeByKey(props.key);
+        if ($isDocumentCardNode(node)) node.setBlockParams(params);
+      },
+      { tag: SKIP_DOM_SELECTION_TAG }
+    );
   };
   const toggle = () => {
     if (!wrapper?.editor.isEditable() || !wrapper.isInteractable()) {
@@ -65,7 +96,7 @@ export function DatabaseCard(props: DocumentCardDecoratorProps) {
           <DocumentDatabase
             databaseId={props.documentId}
             name={props.documentName}
-            params={props.blockParams}
+            params={params()}
             collapsed={collapsed()}
             onToggle={toggle}
             onLocationChange={changeLocation}
