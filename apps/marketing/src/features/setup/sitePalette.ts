@@ -4,7 +4,8 @@ import { isServer } from 'solid-js/web';
 /**
  * The homepage, `/start`, and `/tour` render in the cream palette
  * (cream-preview.css) when the visitor's OS or browser prefers a light color
- * scheme, and in the dark palette otherwise. `?theme=cream` or `?theme=dark` pins either one.
+ * scheme, and in the dark palette otherwise. `?theme=cream` or `?theme=dark`
+ * pins either one.
  *
  * start.html and index.html apply the same choice in an inline <head> script
  * so prerendered pages paint in the right palette; keep them in sync.
