@@ -6,6 +6,12 @@ import { rowPillClasses } from './row-pill';
 
 const GITHUB_HEX_COLOR = /^#?([0-9a-f]{6})$/i;
 
+/** A GitHub label's color as CSS, or the default tag color when it has none. */
+export function githubLabelColor(color: string | null | undefined): string {
+  const hex = color && GITHUB_HEX_COLOR.exec(color)?.[1];
+  return hex ? `#${hex}` : DEFAULT_TAG_COLOR;
+}
+
 /**
  * A GitHub label drawn like Macro's tag pills: a neutral outline pill with
  * the label's color as a dot, so labels read the same as email and task tags.
@@ -16,17 +22,12 @@ export function GithubLabelPill(props: {
   color?: string | null;
   class?: string;
 }) {
-  const color = () => {
-    const hex = props.color && GITHUB_HEX_COLOR.exec(props.color)?.[1];
-    return hex ? `#${hex}` : DEFAULT_TAG_COLOR;
-  };
-
   return (
     <span
       title={props.name}
       class={rowPillClasses(cn('max-w-full', props.class))}
     >
-      <TagDot fill={color()} size="sm" />
+      <TagDot fill={githubLabelColor(props.color)} size="sm" />
       <span data-pill-text class="min-w-0 truncate">
         {props.name}
       </span>

@@ -234,9 +234,12 @@ Priority orders the loaded rows most urgent first and keeps recency within a
 priority. Date sorts group rows under the same headings as email (Today,
 Yesterday, Last 7 days, Earlier this month, Last month, Older) by the sorted
 date; Priority sorts and searches list rows flat. When visible PRs
-have GitHub labels, a Labels section below Favorites lists them with their
-colors; choosing a label shows only PRs with it, and choosing it again clears
-it. PR rows use the shared entity layout with selection checkboxes,
+have GitHub labels, a Labels section below Favorites lists them like email's
+Tags section (a colored dot and the name); choosing a label shows only PRs with
+it, and choosing it again clears it. Above it, an **Agents** section lists the
+tools the loaded PRs were started from (Claude, Codex, Cursor, and so on, with
+their marks); choosing one shows only PRs started from it, using the same
+**Started from** filter as the filter menu. PR rows use the shared entity layout with selection checkboxes,
 author avatars and names, and a context menu. The current user's Macro display
 name appears when their linked GitHub identity matches the PR author; other
 authors fall back to GitHub names. The virtualized list fetches more pages as

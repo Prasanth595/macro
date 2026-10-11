@@ -11,6 +11,7 @@ import {
   useParams,
 } from '@app/lib/split-router';
 import { reviewsPrRoute, reviewsSplitRoute } from '@app/routes/routes';
+import { PR_ORIGIN_TOOLS } from '@block-pr/data/pr-origin';
 import {
   prLinksTarget,
   usePrLinksQuery,
@@ -301,6 +302,17 @@ function ReviewsRoot() {
       // The query owns the page error; the board keeps its Load more button.
     }
   };
+  // Tools the loaded pull requests were started from, in the filter menu's order.
+  const agents = createMemo(() => {
+    const found = new Set(
+      source.reviews().flatMap((review) => linksFor(review)?.origin?.tool ?? [])
+    );
+    return PR_ORIGIN_TOOLS.filter((tool) => found.has(tool));
+  });
+  const selectAgents = (tools: string[]) => {
+    setFilters((current) => ({ ...current, origin: tools }));
+    if (!listVisible()) openList();
+  };
   const selectLabels = (labels: string[]) => {
     setFilters((current) => ({ ...current, label: labels }));
     if (!listVisible()) openList();
@@ -502,6 +514,9 @@ function ReviewsRoot() {
                 labels={facets.labels()}
                 activeLabels={filters().label}
                 onActiveLabelsChange={selectLabels}
+                agents={agents()}
+                activeAgents={filters().origin}
+                onActiveAgentsChange={selectAgents}
                 onOpenReview={openReview}
                 activeForeignEntityId={params.foreignEntityId}
               />
