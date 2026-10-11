@@ -368,17 +368,20 @@ mod conversion_table {
 }
 
 mod job_cleanup {
+    //! Tests `remove_job_folder` directly: CI builds with `--all-features`,
+    //! where `disable_cleanup` turns `cleanup_folder` into a no-op.
+
     use std::path::Path;
 
-    use crate::utils::cleanup_folder;
+    use crate::utils::remove_job_folder;
 
-    /// Cleans up a job folder prepared by `setup` and checks the outcome.
+    /// Removes a job folder prepared by `setup` and checks the outcome.
     fn check(setup: fn(&Path), expect_ok: bool) {
         let root = tempfile::tempdir().unwrap();
         let job = root.path().join("job");
         setup(&job);
 
-        let result = cleanup_folder(job.to_str().unwrap());
+        let result = remove_job_folder(job.to_str().unwrap());
 
         assert_eq!(result.is_ok(), expect_ok, "{result:?}");
         if expect_ok {
