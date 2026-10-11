@@ -23,7 +23,13 @@ vi.mock('@queries/user-api-keys/user-api-keys', () => ({
   }),
 }));
 
+let motionStyles: HTMLStyleElement;
 beforeEach(() => {
+  motionStyles = document.createElement('style');
+  // jsdom never fires animation events, so presence would keep closed dialogs mounted.
+  motionStyles.textContent =
+    '* { transition-duration: 0s; animation-name: none; }';
+  document.head.append(motionStyles);
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -36,11 +42,12 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  motionStyles.remove();
   vi.unstubAllGlobals();
 });
 
 describe('ApiKeys', () => {
-  it('focuses the name field when the create dialog opens', async () => {
+  it('focuses the name field each time the create dialog opens', async () => {
     render(() => <ApiKeys />);
 
     const [createButton] = screen.getAllByRole('button', {
@@ -51,5 +58,14 @@ describe('ApiKeys', () => {
 
     const name = await screen.findByPlaceholderText('e.g. CI, local scripts');
     await vi.waitFor(() => expect(document.activeElement).toBe(name));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await vi.waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    fireEvent.click(createButton);
+
+    const reopenedName = await screen.findByPlaceholderText(
+      'e.g. CI, local scripts'
+    );
+    await vi.waitFor(() => expect(document.activeElement).toBe(reopenedName));
   });
 });
