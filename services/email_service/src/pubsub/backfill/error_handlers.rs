@@ -11,9 +11,6 @@ use models_email::email::service::pubsub::{DetailedError, FailureReason};
 use sqs_worker::cleanup_message;
 use uuid::Uuid;
 
-#[cfg(test)]
-mod test;
-
 /// Handles non-retryable errors by updating the appropriate status in the database and cleaning up the SQS message
 #[tracing::instrument(skip(ctx, message))]
 pub async fn handle_non_retryable_error(

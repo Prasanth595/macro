@@ -108,27 +108,18 @@ impl ProviderRateLimiter for FakeRateLimiter {
 #[derive(Clone)]
 pub(super) struct FakeRepository {
     calls: CallLog,
-    error: EmailApiError,
 }
 
 impl FakeRepository {
     pub(super) fn new(calls: CallLog) -> Self {
-        Self::failing_with(
-            calls,
-            EmailApiError::Permanent {
-                message: "fake repository response is not configured".to_string(),
-            },
-        )
-    }
-
-    /// Creates a repository whose every provider call fails with `error`.
-    pub(super) fn failing_with(calls: CallLog, error: EmailApiError) -> Self {
-        Self { calls, error }
+        Self { calls }
     }
 
     fn unavailable<T>(&self, method: &'static str) -> Result<T, EmailApiError> {
         self.calls.lock().unwrap().push(Call::Repository(method));
-        Err(self.error.clone())
+        Err(EmailApiError::Permanent {
+            message: "fake repository response is not configured".to_string(),
+        })
     }
 }
 
