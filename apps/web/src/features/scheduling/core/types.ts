@@ -31,6 +31,41 @@ export type EventType = {
   requiresConfirmation: boolean;
   questions: BookingQuestion[];
 };
+
+export type EventValidationIssue = {
+  field:
+    | 'title'
+    | 'slug'
+    | 'durationMinutes'
+    | 'hosts'
+    | 'scheduleId'
+    | 'intervalMinutes'
+    | 'horizonDays'
+    | 'beforeMinutes'
+    | 'afterMinutes'
+    | 'noticeMinutes'
+    | 'dailyLimit'
+    | 'questions';
+  message: string;
+  questionId?: string;
+};
+
+export const DEFAULT_BOOKING_RULES = {
+  beforeMinutes: 0,
+  afterMinutes: 0,
+  noticeMinutes: 120,
+  horizonDays: 60,
+  intervalMinutes: 30,
+  dailyLimit: null,
+} satisfies Pick<
+  EventType,
+  | 'beforeMinutes'
+  | 'afterMinutes'
+  | 'noticeMinutes'
+  | 'horizonDays'
+  | 'intervalMinutes'
+  | 'dailyLimit'
+>;
 export type SchedulingProfile = {
   id: string;
   name: string;
@@ -142,12 +177,7 @@ export function newEventType(
     scheduleId,
     mode: team ? 'collective' : 'individual',
     hosts,
-    beforeMinutes: 0,
-    afterMinutes: 0,
-    noticeMinutes: 120,
-    horizonDays: 60,
-    intervalMinutes: 30,
-    dailyLimit: null,
+    ...DEFAULT_BOOKING_RULES,
     requiresConfirmation: false,
     questions: [],
   };
@@ -194,47 +224,144 @@ export function validateSchedule(
     return 'Use only one override per date.';
 }
 
-export function validateEvent(
+/** Structured validation is the source of truth for both editor and legacy messages. */
+export function eventIdentityIssues(
   event: EventType,
   others: EventType[]
-): string | undefined {
-  if (!event.title.trim()) return 'Give this event a title.';
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(event.slug))
-    return 'Use lowercase letters, numbers, and hyphens for the link.';
-  if (others.some((e) => e.id !== event.id && e.slug === event.slug))
-    return 'Another event uses this link.';
-  if (!event.hosts.length) return 'Choose at least one host.';
-  if (
-    !Number.isInteger(event.durationMinutes) ||
+): EventValidationIssue[] {
+  const issues: EventValidationIssue[] = [];
+  if (!event.title.trim())
+    issues.push({ field: 'title', message: 'Give this event a title.' });
+  if (event.slug.trim()) {
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(event.slug))
+      issues.push({
+        field: 'slug',
+        message: 'Use lowercase letters, numbers, and hyphens for the link.',
+      });
+    else if (others.some((e) => e.id !== event.id && e.slug === event.slug))
+      issues.push({ field: 'slug', message: 'Another event uses this link.' });
+  }
+  return issues;
+}
+
+export function eventHostIssues(event: EventType): EventValidationIssue[] {
+  return event.hosts.length
+    ? []
+    : [{ field: 'hosts', message: 'Choose at least one host.' }];
+}
+
+export function eventDurationIssues(event: EventType): EventValidationIssue[] {
+  return !Number.isInteger(event.durationMinutes) ||
     event.durationMinutes < 5 ||
     event.durationMinutes > 480
-  )
-    return 'Duration must be 5–480 minutes.';
+    ? [{ field: 'durationMinutes', message: 'Duration must be 5–480 minutes.' }]
+    : [];
+}
+
+export function eventRuleIssues(event: EventType): EventValidationIssue[] {
+  const issues: EventValidationIssue[] = [];
   if (
     !Number.isInteger(event.intervalMinutes) ||
     event.intervalMinutes < 5 ||
     event.intervalMinutes > 480
   )
-    return 'Time-slot interval must be 5–480 minutes.';
+    issues.push({
+      field: 'intervalMinutes',
+      message: 'Time-slot interval must be 5–480 minutes.',
+    });
   if (
     event.horizonDays < 1 ||
     event.horizonDays > 365 ||
     !Number.isInteger(event.horizonDays)
   )
-    return 'Booking window must be 1–365 days.';
+    issues.push({
+      field: 'horizonDays',
+      message: 'Booking window must be 1–365 days.',
+    });
+  for (const field of [
+    'beforeMinutes',
+    'afterMinutes',
+    'noticeMinutes',
+  ] as const) {
+    const value = event[field];
+    if (!Number.isInteger(value) || value < 0 || value > 10080)
+      issues.push({
+        field,
+        message: 'Buffers and notice must be between 0 and 10,080 minutes.',
+      });
+  }
   if (
-    [event.beforeMinutes, event.afterMinutes, event.noticeMinutes].some(
-      (v) => !Number.isInteger(v) || v < 0 || v > 10080
-    )
+    !issues.some(
+      ({ field }) => field === 'horizonDays' || field === 'noticeMinutes'
+    ) &&
+    event.noticeMinutes >= event.horizonDays * 1440
   )
-    return 'Buffers and notice must be between 0 and 10,080 minutes.';
+    issues.push({
+      field: 'horizonDays',
+      message: 'The booking window must extend beyond the notice period.',
+    });
   if (
     event.dailyLimit !== null &&
     (!Number.isInteger(event.dailyLimit) ||
       event.dailyLimit < 1 ||
       event.dailyLimit > 100)
   )
-    return 'Daily limit must be 1–100 bookings.';
-  if (event.questions.some((q) => !q.label.trim()))
-    return 'Every booking question needs a label.';
+    issues.push({
+      field: 'dailyLimit',
+      message: 'Daily limit must be 1–100 bookings.',
+    });
+  return issues;
+}
+
+export function eventQuestionIssues(event: EventType): EventValidationIssue[] {
+  return event.questions
+    .filter((question) => !question.label.trim())
+    .map((question) => ({
+      field: 'questions',
+      questionId: question.id,
+      message: 'Every booking question needs a label.',
+    }));
+}
+
+export function eventValidationIssues(
+  event: EventType,
+  others: EventType[]
+): EventValidationIssue[] {
+  return [
+    ...eventIdentityIssues(event, others),
+    ...eventHostIssues(event),
+    ...eventDurationIssues(event),
+    ...eventRuleIssues(event),
+    ...eventQuestionIssues(event),
+  ];
+}
+
+export function validateEventIdentity(
+  event: EventType,
+  others: EventType[]
+): string | undefined {
+  return eventIdentityIssues(event, others)[0]?.message;
+}
+
+export function validateEventHosts(event: EventType): string | undefined {
+  return eventHostIssues(event)[0]?.message;
+}
+
+export function validateEventDuration(event: EventType): string | undefined {
+  return eventDurationIssues(event)[0]?.message;
+}
+
+export function validateEventRules(event: EventType): string | undefined {
+  return eventRuleIssues(event)[0]?.message;
+}
+
+export function validateEventQuestions(event: EventType): string | undefined {
+  return eventQuestionIssues(event)[0]?.message;
+}
+
+export function validateEvent(
+  event: EventType,
+  others: EventType[]
+): string | undefined {
+  return eventValidationIssues(event, others)[0]?.message;
 }
