@@ -9,6 +9,10 @@ import * as schemas from './schemas';
 import type * as types from './types';
 
 type ToolParserMap = {
+  AddToPipeline: {
+    call: types.AddToPipeline;
+    response: types.AddToPipelineResponse;
+  };
   BashCodeExecution: {
     call: types.BashCodeExecution;
     response: types.BashCodeExecutionResponse;
@@ -68,6 +72,10 @@ type ToolParserMap = {
     call: types.CreateInitiative;
     response: types.ProjectDetails;
   };
+  CreatePipeline: {
+    call: types.CreatePipeline;
+    response: types.CreatePipelineResponse;
+  };
   CreateProject: {
     call: types.CreateProject;
     response: types.CreateProjectResponse;
@@ -117,6 +125,10 @@ type ToolParserMap = {
     response: types.EditDocumentResponse;
   };
   EditForm: { call: types.EditForm; response: types.MutationResult };
+  EditPipeline: {
+    call: types.EditPipeline;
+    response: types.EditPipelineResponse;
+  };
   EditPresentation: {
     call: types.EditPresentation;
     response: types.PresentationEditOutcome;
@@ -129,6 +141,10 @@ type ToolParserMap = {
   EditWordDocument: {
     call: types.EditWordDocument;
     response: types.WordDocumentResponse;
+  };
+  FindPipelineEntries: {
+    call: types.FindPipelineEntries;
+    response: types.FindPipelineEntriesResponse;
   };
   GenerateImage: {
     call: types.GenerateImage;
@@ -209,6 +225,10 @@ type ToolParserMap = {
   ListNotifications: {
     call: types.ListNotifications;
     response: types.ListNotificationsResponse;
+  };
+  ListPipelines: {
+    call: types.ListPipelines;
+    response: types.ListPipelinesResponse;
   };
   ListRoutines: { call: types.ListRoutines; response: types.RoutineList };
   ListSkills: { call: types.ListSkills; response: types.ListSkillsResponse };
@@ -307,6 +327,10 @@ type ToolParserMap = {
     call: types.ReadWordDocument;
     response: types.WordDocumentResponse;
   };
+  RemoveFromPipeline: {
+    call: types.RemoveFromPipeline;
+    response: types.RemoveFromPipelineResponse;
+  };
   RenameChannel: {
     call: types.RenameChannel;
     response: types.RenameChannelResponse;
@@ -382,6 +406,10 @@ type ToolParserMap = {
     call: types.UpdateInitiativeSharing;
     response: types.ProjectDetails;
   };
+  UpdatePipelineEntries: {
+    call: types.UpdatePipelineEntries;
+    response: types.UpdatePipelineEntriesResponse;
+  };
   UpdateRoutine: { call: types.UpdateRoutine; response: types.RoutineInfo };
   UpdateThreadLabels: {
     call: types.UpdateThreadLabels;
@@ -393,6 +421,10 @@ type ToolParserMap = {
 };
 
 const toolParserMap = {
+  AddToPipeline: {
+    call: schemas.AddToPipeline,
+    response: schemas.AddToPipelineResponse,
+  },
   BashCodeExecution: {
     call: schemas.BashCodeExecution,
     response: schemas.BashCodeExecutionResponse,
@@ -452,6 +484,10 @@ const toolParserMap = {
     call: schemas.CreateInitiative,
     response: schemas.ProjectDetails,
   },
+  CreatePipeline: {
+    call: schemas.CreatePipeline,
+    response: schemas.CreatePipelineResponse,
+  },
   CreateProject: {
     call: schemas.CreateProject,
     response: schemas.CreateProjectResponse,
@@ -501,6 +537,10 @@ const toolParserMap = {
     response: schemas.EditDocumentResponse,
   },
   EditForm: { call: schemas.EditForm, response: schemas.MutationResult },
+  EditPipeline: {
+    call: schemas.EditPipeline,
+    response: schemas.EditPipelineResponse,
+  },
   EditPresentation: {
     call: schemas.EditPresentation,
     response: schemas.PresentationEditOutcome,
@@ -513,6 +553,10 @@ const toolParserMap = {
   EditWordDocument: {
     call: schemas.EditWordDocument,
     response: schemas.WordDocumentResponse,
+  },
+  FindPipelineEntries: {
+    call: schemas.FindPipelineEntries,
+    response: schemas.FindPipelineEntriesResponse,
   },
   GenerateImage: {
     call: schemas.GenerateImage,
@@ -608,6 +652,10 @@ const toolParserMap = {
   ListNotifications: {
     call: schemas.ListNotifications,
     response: schemas.ListNotificationsResponse,
+  },
+  ListPipelines: {
+    call: schemas.ListPipelines,
+    response: schemas.ListPipelinesResponse,
   },
   ListRoutines: { call: schemas.ListRoutines, response: schemas.RoutineList },
   ListSkills: {
@@ -721,6 +769,10 @@ const toolParserMap = {
     call: schemas.ReadWordDocument,
     response: schemas.WordDocumentResponse,
   },
+  RemoveFromPipeline: {
+    call: schemas.RemoveFromPipeline,
+    response: schemas.RemoveFromPipelineResponse,
+  },
   RenameChannel: {
     call: schemas.RenameChannel,
     response: schemas.RenameChannelResponse,
@@ -802,6 +854,10 @@ const toolParserMap = {
     call: schemas.UpdateInitiativeSharing,
     response: schemas.ProjectDetails,
   },
+  UpdatePipelineEntries: {
+    call: schemas.UpdatePipelineEntries,
+    response: schemas.UpdatePipelineEntriesResponse,
+  },
   UpdateRoutine: { call: schemas.UpdateRoutine, response: schemas.RoutineInfo },
   UpdateThreadLabels: {
     call: schemas.UpdateThreadLabels,
@@ -824,6 +880,10 @@ type NamedRawTool = {
 };
 
 type ToolDataMap = {
+  AddToPipeline: {
+    call: types.AddToPipeline;
+    response: types.AddToPipelineResponse;
+  };
   BashCodeExecution: {
     call: types.BashCodeExecution;
     response: types.BashCodeExecutionResponse;
@@ -883,6 +943,10 @@ type ToolDataMap = {
     call: types.CreateInitiative;
     response: types.ProjectDetails;
   };
+  CreatePipeline: {
+    call: types.CreatePipeline;
+    response: types.CreatePipelineResponse;
+  };
   CreateProject: {
     call: types.CreateProject;
     response: types.CreateProjectResponse;
@@ -932,6 +996,10 @@ type ToolDataMap = {
     response: types.EditDocumentResponse;
   };
   EditForm: { call: types.EditForm; response: types.MutationResult };
+  EditPipeline: {
+    call: types.EditPipeline;
+    response: types.EditPipelineResponse;
+  };
   EditPresentation: {
     call: types.EditPresentation;
     response: types.PresentationEditOutcome;
@@ -944,6 +1012,10 @@ type ToolDataMap = {
   EditWordDocument: {
     call: types.EditWordDocument;
     response: types.WordDocumentResponse;
+  };
+  FindPipelineEntries: {
+    call: types.FindPipelineEntries;
+    response: types.FindPipelineEntriesResponse;
   };
   GenerateImage: {
     call: types.GenerateImage;
@@ -1024,6 +1096,10 @@ type ToolDataMap = {
   ListNotifications: {
     call: types.ListNotifications;
     response: types.ListNotificationsResponse;
+  };
+  ListPipelines: {
+    call: types.ListPipelines;
+    response: types.ListPipelinesResponse;
   };
   ListRoutines: { call: types.ListRoutines; response: types.RoutineList };
   ListSkills: { call: types.ListSkills; response: types.ListSkillsResponse };
@@ -1122,6 +1198,10 @@ type ToolDataMap = {
     call: types.ReadWordDocument;
     response: types.WordDocumentResponse;
   };
+  RemoveFromPipeline: {
+    call: types.RemoveFromPipeline;
+    response: types.RemoveFromPipelineResponse;
+  };
   RenameChannel: {
     call: types.RenameChannel;
     response: types.RenameChannelResponse;
@@ -1196,6 +1276,10 @@ type ToolDataMap = {
   UpdateInitiativeSharing: {
     call: types.UpdateInitiativeSharing;
     response: types.ProjectDetails;
+  };
+  UpdatePipelineEntries: {
+    call: types.UpdatePipelineEntries;
+    response: types.UpdatePipelineEntriesResponse;
   };
   UpdateRoutine: { call: types.UpdateRoutine; response: types.RoutineInfo };
   UpdateThreadLabels: {
