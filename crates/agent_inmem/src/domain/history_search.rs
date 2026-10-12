@@ -101,7 +101,7 @@ pub fn search<'a>(
             // A summary is not what was said; what it stands for is in the
             // archive, word for word.
             HistoryEntry::Summary(_) => continue,
-            HistoryEntry::User(prompt) => {
+            HistoryEntry::User { prompt, .. } => {
                 turns += 1;
                 let mut text = prompt.text.clone();
                 for attachment in &prompt.attachments {

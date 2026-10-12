@@ -21,7 +21,7 @@ use futures::StreamExt as _;
 use serde::{Deserialize, Serialize};
 
 use super::*;
-use crate::domain::session::{PendingSummary, SUMMARY_PREAMBLE, splice_summary};
+use crate::domain::session::{PendingSummary, SUMMARY_PREAMBLE, end_of_turn, splice_summary};
 
 /// The model summaries run on: fast, cheap, reads images, and has a
 /// million-token window. It is the free plan's model, so every owner may
@@ -74,7 +74,7 @@ const IMAGE_INSTRUCTIONS: &str = "You describe an image someone shared in a conv
     message it came with asks. Plain prose, at most 150 words. Do not address anyone.";
 
 /// The log's record of a summary landing: from here on, the model reads
-/// `text` in place of the first `replaces` entries of its history.
+/// `text` in place of the turn `through` names and everything before it.
 ///
 /// An extension notification, not a `session/update`: a summary is about the
 /// agent's own context, not the conversation, and can land between turns,
@@ -88,7 +88,15 @@ pub(crate) struct ContextSummaryNotification {
     pub session_id: SessionId,
     /// The summary.
     pub text: String,
-    /// How many entries, from the start of the history, it stands in for.
+    /// The `session/prompt` request whose turn is the last it covers. A
+    /// replay of the log knows each turn by the same id the live agent
+    /// does, while their entries can differ: a prompt stopped before it ran
+    /// is in the log but never entered the live history. `None` in logs
+    /// written before summaries named it.
+    #[serde(default)]
+    pub through: Option<RequestId>,
+    /// How many entries, from the start of the live history, it stands in
+    /// for: all a log written before `through` says.
     pub replaces: usize,
 }
 
@@ -138,7 +146,7 @@ fn tokens(entries: &[HistoryEntry]) -> u64 {
     entries
         .iter()
         .map(|entry| match entry {
-            HistoryEntry::User(prompt) => prompt_tokens(prompt),
+            HistoryEntry::User { prompt, .. } => prompt_tokens(prompt),
             HistoryEntry::Assistant(parts) => {
                 bytes_to_tokens(serde_json::to_string(parts).map_or(0, |json| json.len()))
             }
@@ -161,7 +169,7 @@ fn covered_until(history: &[HistoryEntry], retain: u64) -> usize {
     for _ in 0..2 {
         let Some(start) = history[..end]
             .iter()
-            .rposition(|entry| matches!(entry, HistoryEntry::User(_)))
+            .rposition(|entry| matches!(entry, HistoryEntry::User { .. }))
         else {
             break;
         };
@@ -172,6 +180,15 @@ fn covered_until(history: &[HistoryEntry], retain: u64) -> usize {
         end = start;
     }
     end
+}
+
+/// The request id of the last prompt in `entries`, which names the turn a
+/// summary of them covers last.
+fn last_prompt(entries: &[HistoryEntry]) -> Option<RequestId> {
+    entries.iter().rev().find_map(|entry| match entry {
+        HistoryEntry::User { request_id, .. } => Some(request_id.clone()),
+        HistoryEntry::Assistant(_) | HistoryEntry::Summary(_) => None,
+    })
 }
 
 /// A Stop that ended a turn while it waited for its summary.
@@ -233,12 +250,9 @@ fn start_summary(
             .is_some_and(PendingSummary::is_running);
         if !running {
             let end = covered_until(&session.history, share(window, RETAIN_UP_TO));
-            // A conversation that is all summary and latest turns has
-            // nothing a new summary would take in.
-            if session.history[..end]
-                .iter()
-                .any(|entry| !matches!(entry, HistoryEntry::Summary(_)))
-            {
+            // A conversation that is all summary and latest turns has no
+            // turn a new summary would take in.
+            if let Some(through) = last_prompt(&session.history[..end]) {
                 let covered = session.history[..end].to_vec();
                 let (settle, settled) = tokio::sync::watch::channel(());
                 let summary_cancel = CancellationToken::new();
@@ -246,7 +260,7 @@ fn start_summary(
                     cancel: summary_cancel.clone(),
                     settled,
                 });
-                start = Some((covered, summary_cancel, settle));
+                start = Some((covered, through, summary_cancel, settle));
             }
         }
         (total >= share(window, WAIT_AT))
@@ -259,7 +273,7 @@ fn start_summary(
             })
             .flatten()
     };
-    if let Some((covered, summary_cancel, settle)) = start {
+    if let Some((covered, through, summary_cancel, settle)) = start {
         let settle = Settle {
             store: Arc::clone(&state.store),
             session_id: state.session_id,
@@ -271,6 +285,7 @@ fn start_summary(
             connection.clone(),
             acp_session_id.clone(),
             covered,
+            through,
             summary_cancel,
             settle,
         );
@@ -304,12 +319,14 @@ impl Drop for Settle {
     }
 }
 
-/// Write a summary of `covered` and put it in place of those entries.
+/// Write a summary of `covered`, whose last turn is the one `through`
+/// names, and put it in place of those entries.
 async fn summarize(
     state: Arc<AgentState>,
     connection: ConnectionTo<Client>,
     acp_session_id: SessionId,
     covered: Vec<HistoryEntry>,
+    through: RequestId,
     cancel: CancellationToken,
     _settle: Settle,
 ) {
@@ -338,10 +355,20 @@ async fn summarize(
     if cancel.is_cancelled() {
         return;
     }
+    // Cut by the same rule a replay of the log does: right after the last
+    // turn the summary covers.
+    let Some(end) = end_of_turn(&session.history, &through) else {
+        tracing::warn!(
+            session_id = %state.session_id,
+            "the summary's last turn is no longer in the history; it is dropped"
+        );
+        return;
+    };
     let notification = ContextSummaryNotification {
         session_id: acp_session_id,
         text: summary.clone(),
-        replaces: covered.len(),
+        through: Some(through),
+        replaces: end,
     };
     // A summary the log never got must not change what the model reads,
     // or a restart would undo it.
@@ -349,15 +376,10 @@ async fn summarize(
         return;
     }
     let session = &mut *session;
-    splice_summary(
-        &mut session.history,
-        &mut session.archive,
-        summary,
-        covered.len(),
-    );
+    splice_summary(&mut session.history, &mut session.archive, summary, end);
     tracing::info!(
         session_id = %state.session_id,
-        replaced = covered.len(),
+        replaced = end,
         elapsed_ms = elapsed_ms(started),
         "the conversation's summary landed"
     );
@@ -412,7 +434,7 @@ async fn describe_images(
 ) -> Result<HashMap<String, String>, SummaryError> {
     let mut images: Vec<(PromptAttachment, String)> = Vec::new();
     for entry in covered {
-        if let HistoryEntry::User(prompt) = entry {
+        if let HistoryEntry::User { prompt, .. } = entry {
             for image in prompt.images() {
                 if !images.iter().any(|(seen, _)| seen.uri == image.uri) {
                     let mut end = prompt.text.len().min(IMAGE_CONTEXT_BYTES);
@@ -481,7 +503,7 @@ fn transcript(covered: &[HistoryEntry], descriptions: &HashMap<String, String>) 
                 result.push_str("\nSUMMARY OF WHAT CAME BEFORE:\n");
                 result.push_str(summary);
             }
-            HistoryEntry::User(prompt) => {
+            HistoryEntry::User { prompt, .. } => {
                 result.push_str("\nUSER:\n");
                 result.push_str(&prompt.text);
                 for attachment in &prompt.attachments {

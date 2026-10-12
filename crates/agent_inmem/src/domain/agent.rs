@@ -23,7 +23,7 @@ use agent_client_protocol::schema::v1::{
     CreateElicitationRequest, ElicitationAction, ElicitationFormMode, ElicitationPropertySchema,
     ElicitationSchema, ElicitationSessionScope, EnumOption, Implementation, InitializeRequest,
     InitializeResponse, IntegerPropertySchema, Meta, NewSessionRequest, NewSessionResponse,
-    NumberPropertySchema, OtherElicitationPropertySchema, PromptRequest, PromptResponse,
+    NumberPropertySchema, OtherElicitationPropertySchema, PromptRequest, PromptResponse, RequestId,
     ResumeSessionRequest, ResumeSessionResponse, SessionCapabilities, SessionConfigOption,
     SessionId, SessionNotification, SessionResumeCapabilities, SessionUpdate,
     SetSessionConfigOptionRequest, SetSessionConfigOptionResponse, StopReason, StringFormat,
@@ -298,9 +298,18 @@ impl AgentState {
         )
     }
 
-    fn push_turn(&self, prompt: UserPrompt, parts: Vec<AssistantMessagePart>) {
+    /// Record a turn that ran: the prompt, under the id of the request that
+    /// carried it, and what the agent made of it.
+    fn push_turn(
+        &self,
+        request_id: RequestId,
+        prompt: UserPrompt,
+        parts: Vec<AssistantMessagePart>,
+    ) {
         if let Some(mut state) = self.store.get_mut(&self.session_id) {
-            state.history.push(HistoryEntry::User(prompt));
+            state
+                .history
+                .push(HistoryEntry::User { prompt, request_id });
             if !parts.is_empty() {
                 state.history.push(HistoryEntry::Assistant(parts));
             }
@@ -656,6 +665,9 @@ pub async fn serve(state: Arc<AgentState>, acp: AcpChannel) -> Result<(), AcpErr
                     );
                     genai_telemetry::propagation::set_parent(&span, request.meta.as_ref());
                     let prompt = UserPrompt::from_request(&request);
+                    // The id the log keeps the request under, which the turn
+                    // is known by from here on.
+                    let request_id = responder.id().clone();
                     if state.enable_dev_commands
                         && let Some(question) = prompt.text.trim().strip_prefix(ASK_COMMAND)
                     {
@@ -668,6 +680,7 @@ pub async fn serve(state: Arc<AgentState>, acp: AcpChannel) -> Result<(), AcpErr
                                     &state,
                                     &connection,
                                     request.session_id,
+                                    request_id,
                                     prompt,
                                     question,
                                     cancel,
@@ -685,9 +698,15 @@ pub async fn serve(state: Arc<AgentState>, acp: AcpChannel) -> Result<(), AcpErr
                     connection.spawn({
                         let connection = connection.clone();
                         async move {
-                            let result =
-                                run_turn(&state, &connection, request.session_id, prompt, cancel)
-                                    .await;
+                            let result = run_turn(
+                                &state,
+                                &connection,
+                                request.session_id,
+                                request_id,
+                                prompt,
+                                cancel,
+                            )
+                            .await;
                             // A closed connection is the only way responding fails.
                             // Admission failure must not tear down resumable state.
                             let _ = match result {
@@ -823,6 +842,7 @@ async fn run_turn(
     state: &Arc<AgentState>,
     connection: &ConnectionTo<Client>,
     acp_session_id: SessionId,
+    request_id: RequestId,
     prompt: UserPrompt,
     cancel: CancellationToken,
 ) -> Result<StopReason, AcpError> {
@@ -1015,7 +1035,7 @@ async fn run_turn(
             )),
         ));
     }
-    state.push_turn(prompt, turn_parts);
+    state.push_turn(request_id, prompt, turn_parts);
 
     if was_cancelled || cancel.is_cancelled() {
         Ok(StopReason::Cancelled)
@@ -1035,6 +1055,7 @@ async fn run_ask(
     state: &AgentState,
     connection: &ConnectionTo<Client>,
     acp_session_id: SessionId,
+    request_id: RequestId,
     prompt: UserPrompt,
     question: String,
     cancel: CancellationToken,
@@ -1053,7 +1074,11 @@ async fn run_ask(
         let text = say(
             "This client did not advertise form elicitation, so there is no way to ask.".to_owned(),
         );
-        state.push_turn(prompt, vec![AssistantMessagePart::Text { text }]);
+        state.push_turn(
+            request_id,
+            prompt,
+            vec![AssistantMessagePart::Text { text }],
+        );
         return StopReason::EndTurn;
     }
 
@@ -1072,7 +1097,11 @@ async fn run_ask(
         Err(error) => error.to_string(),
     };
     let text = say(text);
-    state.push_turn(prompt, vec![AssistantMessagePart::Text { text }]);
+    state.push_turn(
+        request_id,
+        prompt,
+        vec![AssistantMessagePart::Text { text }],
+    );
 
     if cancel.is_cancelled() {
         StopReason::Cancelled

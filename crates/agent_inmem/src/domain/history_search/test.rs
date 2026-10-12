@@ -1,14 +1,23 @@
 use std::sync::Arc;
 
 use agent::types::AssistantMessagePart;
+use agent_client_protocol::schema::v1::RequestId;
 use agent_runtime_protocol::domain::action::PromptAttachment;
 use agent_session::domain::model::AgentSessionId;
 
 use super::*;
 use crate::domain::session::{SessionState, UserPrompt};
 
+/// A prompt, under its text as the id of the request that carried it.
+fn prompted(prompt: UserPrompt) -> HistoryEntry {
+    HistoryEntry::User {
+        request_id: RequestId::Str(prompt.text.clone()),
+        prompt,
+    }
+}
+
 fn user(text: &str) -> HistoryEntry {
-    HistoryEntry::User(UserPrompt::text(text))
+    prompted(UserPrompt::text(text))
 }
 
 fn agent(text: &str) -> HistoryEntry {
@@ -113,7 +122,7 @@ fn attached_files_are_found_by_name() {
         "contract.pdf",
     ));
 
-    let search = search(&[HistoryEntry::User(prompt)], "contract", 5);
+    let search = search(&[prompted(prompt)], "contract", 5);
     assert_eq!(
         found(&search),
         [(1, &Source::User, "here it is\n[file: contract.pdf]")]

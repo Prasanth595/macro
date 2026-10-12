@@ -32,7 +32,7 @@ use std::collections::HashSet;
 use crate::domain::agent::close_dangling_tool_calls;
 use crate::domain::agent::compaction::ContextSummaryNotification;
 use crate::domain::model_options::REASONING_EFFORT_CONFIG_ID;
-use crate::domain::session::{HistoryEntry, UserPrompt, splice_summary};
+use crate::domain::session::{HistoryEntry, UserPrompt, end_of_turn, splice_summary};
 
 #[cfg(test)]
 mod test;
@@ -63,7 +63,8 @@ pub struct ReplayedHistory {
 
 /// A turn replay has opened and not yet closed.
 struct OpenTurn {
-    /// The `session/prompt` request the agent's response to closes it.
+    /// The `session/prompt` request that opened it. The agent's response to
+    /// it closes the turn, and the turn is known by its id.
     id: RequestId,
     prompt: UserPrompt,
     parts: Vec<AssistantMessagePart>,
@@ -76,7 +77,12 @@ struct OpenTurn {
 /// into its history as each turn ran. A prompt the agent refused never
 /// entered it. A summary lands where the live one did: the log records it
 /// ([`ContextSummaryNotification`]) at the point the live agent spliced it
-/// in, so it replaces the same entries.
+/// in, naming the last turn it covers, so it replaces the same turns.
+///
+/// The rebuilt entries are not always the live ones, which is why a summary
+/// goes by turn rather than by count. A prompt stopped before it ran is in
+/// the log but never entered the live history; a turn that failed before
+/// any output carries the error the agent said; reasoning is not replayed.
 #[must_use]
 pub fn replay_history(frames: impl IntoIterator<Item = Message>) -> ReplayedHistory {
     let mut replayed = ReplayedHistory::default();
@@ -125,12 +131,23 @@ pub fn replay_history(frames: impl IntoIterator<Item = Message>) -> ReplayedHist
                     if let Some(summary) = deserialize_params::<ContextSummaryNotification>(
                         notification.params.as_ref(),
                     ) {
-                        splice_summary(
-                            &mut replayed.history,
-                            &mut replayed.archive,
-                            summary.text,
-                            summary.replaces,
-                        );
+                        // A log from before summaries named their last turn
+                        // says only how many live entries one replaced. One
+                        // whose last turn the log does not hold is left out:
+                        // the conversation stays whole rather than losing
+                        // turns it never covered.
+                        let end = match &summary.through {
+                            Some(through) => end_of_turn(&replayed.history, through),
+                            None => Some(summary.replaces),
+                        };
+                        if let Some(end) = end {
+                            splice_summary(
+                                &mut replayed.history,
+                                &mut replayed.archive,
+                                summary.text,
+                                end,
+                            );
+                        }
                     }
                     continue;
                 }
@@ -323,7 +340,9 @@ const CLEARED_CONTEXT: &str =
 /// Push the open turn into the history, closing whatever it left dangling.
 fn close_turn(replayed: &mut ReplayedHistory, open: &mut Option<OpenTurn>) {
     let Some(OpenTurn {
-        prompt, mut parts, ..
+        id,
+        prompt,
+        mut parts,
     }) = open.take()
     else {
         return;
@@ -340,7 +359,10 @@ fn close_turn(replayed: &mut ReplayedHistory, open: &mut Option<OpenTurn>) {
         return;
     }
     let _ = close_dangling_tool_calls(&mut parts);
-    replayed.history.push(HistoryEntry::User(prompt));
+    replayed.history.push(HistoryEntry::User {
+        prompt,
+        request_id: id,
+    });
     if !parts.is_empty() {
         replayed.history.push(HistoryEntry::Assistant(parts));
     }

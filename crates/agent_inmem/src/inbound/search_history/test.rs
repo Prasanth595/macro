@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use agent_client_protocol::schema::v1::RequestId;
 use agent_session::domain::model::AgentSessionId;
 use ai_toolset::{AsyncTool as _, RequestContext, ServiceContext};
 use macro_user_id::user_id::MacroUserIdStr;
@@ -20,7 +21,10 @@ fn summarized_session() -> SearchHistoryContext {
     let session = AgentSessionId::new();
     let mut state = SessionState::new("anthropic/claude-sonnet-5-5".to_owned());
     state.archive = (1..=8)
-        .map(|turn| HistoryEntry::User(UserPrompt::text(format!("invoice {turn} is paid"))))
+        .map(|turn| HistoryEntry::User {
+            prompt: UserPrompt::text(format!("invoice {turn} is paid")),
+            request_id: RequestId::Number(turn),
+        })
         .collect();
     state.history = vec![HistoryEntry::Summary(
         "Eight invoices were paid.".to_owned(),

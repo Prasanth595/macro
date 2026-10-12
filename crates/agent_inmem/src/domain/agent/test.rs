@@ -884,7 +884,15 @@ async fn a_long_conversation_is_summarized_in_the_background_while_its_message_r
         summary_settled(&state).await;
         prompt(&connection, &session, "continue").await;
         let session = state.store.get(&state.session_id).expect("the session");
-        (session.archive.len(), session.summarizing.is_none())
+        let archived_prompt = match session.archive.first() {
+            Some(HistoryEntry::User { request_id, .. }) => Some(request_id.clone()),
+            _ => None,
+        };
+        (
+            session.archive.len(),
+            session.summarizing.is_none(),
+            archived_prompt,
+        )
     })
     .await;
 
@@ -917,10 +925,16 @@ async fn a_long_conversation_is_summarized_in_the_background_while_its_message_r
     assert_eq!(recorded.summaries.len(), 1, "the log records the summary");
     assert_eq!(recorded.summaries[0].text, "SUMMARY");
     assert_eq!(recorded.summaries[0].replaces, 2);
+    let (archived, free, archived_prompt) = recorded.out;
     assert_eq!(
-        recorded.out,
+        (archived, free),
         (2, true),
         "the first turn is archived, and the slot is free"
+    );
+    assert!(archived_prompt.is_some());
+    assert_eq!(
+        recorded.summaries[0].through, archived_prompt,
+        "the log names the summary's last turn by its prompt's request"
     );
 }
 

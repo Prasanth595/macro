@@ -7,7 +7,7 @@
 
 use agent::ReasoningEffort;
 use agent::types::{AssistantMessagePart, ChatMessage, ChatMessageContent, Role};
-use agent_client_protocol::schema::v1::{ContentBlock, PromptRequest, SessionId};
+use agent_client_protocol::schema::v1::{ContentBlock, PromptRequest, RequestId, SessionId};
 use agent_runtime_protocol::domain::action::PromptAttachment;
 use agent_session::domain::model::AgentSessionId;
 use attachment::image::ImageData;
@@ -194,7 +194,15 @@ use super::engine::AgentIdentity;
 #[derive(Debug, Clone)]
 pub enum HistoryEntry {
     /// A prompt from a user.
-    User(UserPrompt),
+    User {
+        /// What they said.
+        prompt: UserPrompt,
+        /// The JSON-RPC id of the `session/prompt` request it came in. The
+        /// log keeps the request whole, so the live agent and a replay of
+        /// its log know the turn by the same id even where their entries
+        /// differ, and a summary names the last turn it covers by it.
+        request_id: RequestId,
+    },
     /// One assistant turn: text, tool calls, and tool results, flattened.
     Assistant(Vec<AssistantMessagePart>),
     /// What a summary says of the conversation before it, which it stands
@@ -302,6 +310,23 @@ pub fn splice_summary(
     history.insert(0, HistoryEntry::Summary(text));
 }
 
+/// Where the turn of the prompt that request `id` carried ends in
+/// `history`: right after its last entry, where the next prompt starts.
+/// `None` when `history` holds no such prompt.
+#[must_use]
+pub fn end_of_turn(history: &[HistoryEntry], id: &RequestId) -> Option<usize> {
+    let start = history.iter().position(
+        |entry| matches!(entry, HistoryEntry::User { request_id, .. } if request_id == id),
+    )?;
+    let after = start + 1;
+    Some(
+        history[after..]
+            .iter()
+            .position(|entry| matches!(entry, HistoryEntry::User { .. }))
+            .map_or(history.len(), |next| after + next),
+    )
+}
+
 /// Session state by Macro session id, shared between the manager (which
 /// creates and tears down entries) and the agent tasks (which read and extend
 /// them). Entries outlive individual agent tasks so a reattach keeps its
@@ -315,7 +340,7 @@ pub fn messages_for_turn(history: &[HistoryEntry], prompt: &UserPrompt) -> Vec<C
     history
         .iter()
         .flat_map(|entry| match entry {
-            HistoryEntry::User(prompt) => vec![prompt.to_chat_message()],
+            HistoryEntry::User { prompt, .. } => vec![prompt.to_chat_message()],
             HistoryEntry::Assistant(parts) => vec![assistant_message(parts.clone())],
             HistoryEntry::Summary(summary) => vec![
                 UserPrompt::text(SUMMARY_PREAMBLE).to_chat_message(),
