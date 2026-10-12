@@ -150,3 +150,24 @@ async fn reopening_restores_membership_and_deletion_removes_the_pair(pool: PgPoo
     assert!(recreated.created);
     assert_ne!(recreated.dm.channel_id, first.dm.channel_id);
 }
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn only_a_persona_dm_is_a_direct_agent_conversation(pool: PgPool) {
+    let repo = PgChannelsRepo::new(pool);
+    let dm = repo
+        .ensure(user(), bot_id::MACRO_NEW_BOT_ID)
+        .await
+        .unwrap()
+        .dm;
+    assert!(
+        repo.is_direct_agent_conversation(dm.channel_id)
+            .await
+            .unwrap()
+    );
+    assert!(
+        !repo
+            .is_direct_agent_conversation(macro_uuid::generate_uuid_v7())
+            .await
+            .unwrap()
+    );
+}

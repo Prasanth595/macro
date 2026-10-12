@@ -1936,6 +1936,23 @@ impl ChannelRepo for PgChannelsRepo {
         })
     }
 
+    async fn is_direct_agent_conversation(&self, channel_id: Uuid) -> Result<bool, Self::Err> {
+        let direct = sqlx::query_scalar!(
+            r#"
+            SELECT EXISTS (
+                SELECT 1
+                FROM comms_channel_agents
+                WHERE channel_id = $1
+                  AND kind = 'direct'
+            ) AS "direct!"
+            "#,
+            channel_id,
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(direct)
+    }
+
     async fn get_or_create_channel_join_code(&self, channel_id: Uuid) -> Result<Uuid, Self::Err> {
         let candidate_join_code = macro_uuid::generate_uuid_v7();
         let join_code = sqlx::query_scalar!(

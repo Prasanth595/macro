@@ -394,6 +394,19 @@ where
 
         let converting_to_team =
             req.convert_to_team_channel == Some(true) && info.channel_type != ChannelType::Team;
+        // An agent DM is its owner's alone. A team channel is open to their
+        // team, and to the team scope of the personas their team owns.
+        if converting_to_team
+            && self
+                .repo
+                .is_direct_agent_conversation(channel_id)
+                .await
+                .map_err(|e| ChannelMutationErr::Repo(e.into()))?
+        {
+            return Err(ChannelMutationErr::BadRequest(
+                "an agent DM cannot become a team channel".to_string(),
+            ));
+        }
         let converting_to_private =
             req.convert_to_team_channel == Some(false) && info.channel_type == ChannelType::Team;
         let team_id = if converting_to_team {
