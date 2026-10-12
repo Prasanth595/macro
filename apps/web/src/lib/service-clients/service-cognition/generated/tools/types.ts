@@ -8755,11 +8755,11 @@ export interface WordDocumentResponse {
   content: string;
 }
 /**
- * Find deals (entries) in a CRM pipeline: which companies or contacts are in which stage, who owns them, their revenue and other fields. Filter by field values (e.g. Stage is Demo or Trial, Owner is me), by company or contact name/domain/email with `search`, or by record id; sort by any field (Stage sorts in pipeline order). Returns each entry's entryId, the record it tracks (id and name) and its filled-in fields, plus, over every match, the count per stage (and per option of each single-select field) and the total of each number field such as Revenue: use these for questions like "how many deals are in Negotiation" or "what is the pipeline worth". To find where a company or contact is across all pipelines ("what stage is Acme in?"), leave out pipelineId and pass its recordIds (company ids come from ListCompanies). Get pipeline ids and field names from ListPipelines.
+ * Find deals (entries) in a CRM pipeline: which companies or contacts are in which stage, who owns them, their revenue and other fields. Filter by field values (e.g. Stage is Demo or Trial, Owner is me), by company or contact name/domain/email with `search`, or by record id; sort by any field (Stage sorts in pipeline order). Returns each entry's entryId, the record it tracks (id and name) and its filled-in fields, plus, over every match, the count per stage (and per option of each single-select field) and the total of each number field such as Revenue: use these for questions like "how many deals are in Negotiation" or "what is the pipeline worth". To find where a company or contact is across all pipelines ("what stage is Acme in?"), leave out pipelineId and pass its name as `search` (or its recordIds). Get pipeline ids and field names from ListPipelines.
  */
 export interface FindPipelineEntries {
   /**
-   * The pipeline's id from ListPipelines. Leave it out, with recordIds, to find those records' entries in every pipeline.
+   * The pipeline's id from ListPipelines. Leave it out to look in every pipeline by `search` or `recordIds`; filters and sorting need a pipelineId.
    */
   pipelineId?: string | null;
   /**
@@ -9137,7 +9137,7 @@ export interface GetBotWebhooksResponse {
   summary: string;
 }
 /**
- * Fetch one of the team's CRM companies by id, with its domains, contacts, pipeline Stage / Owner / Revenue, and all attached property values (including custom properties and the valid stage options). Use ListCompanies to find company ids. To change one of the company's own properties (its Stage, Owner, Revenue or a custom property) call SetEntityProperty with entity_type=company, the company id, and a property_definition_id / option id from this response. Deals in a pipeline have their own stage and fields: find them with FindPipelineEntries (recordIds = this company's id) and change them with UpdatePipelineEntries.
+ * Fetch one of the team's CRM companies by id, with its domains, contacts, its own Stage / Owner / Revenue properties (not a pipeline deal's), and all attached property values (including custom properties and the valid stage options). Use ListCompanies to find company ids. To change one of the company's own properties (its Stage, Owner, Revenue or a custom property) call SetEntityProperty with entity_type=company, the company id, and a property_definition_id / option id from this response. Deals in a pipeline have their own stage and fields: find them with FindPipelineEntries (recordIds = this company's id) and change them with UpdatePipelineEntries.
  */
 export interface GetCompany {
   /**
@@ -9182,7 +9182,8 @@ export interface GetCompanyResponse {
    */
   lastInteraction: string;
   /**
-   * The company's pipeline stage, if set.
+   * The company's own Stage property, if set; separate from any
+   * pipeline entry's stage.
    */
   stage?: ToolCompanyStage | null;
   /**
@@ -9208,7 +9209,7 @@ export interface GetCompanyResponse {
   summary: string;
 }
 /**
- * A company's pipeline stage: the select option id currently set plus its
+ * A company's own Stage property: the select option id currently set plus its
  * human-readable label.
  */
 export interface ToolCompanyStage {
@@ -9974,7 +9975,7 @@ export interface CodingAgent {
   model?: string | null;
 }
 /**
- * List the CRM companies tracked by the authenticated user's team, sorted by most recent interaction. Each row includes the company id, name, domains, last interaction time, and its pipeline Stage / Owner / Revenue properties when set. Use the filters to narrow results: `search` for name/domain text, `stage` for pipeline stage, `owner_user_id` for companies owned by a user. Use GetCompany for one company's full details (contacts + all properties), and SetEntityProperty with entity_type=company to change the company's own Stage / Owner / Revenue or custom properties. Deals in a pipeline have their own stage and fields, separate from these: use FindPipelineEntries and UpdatePipelineEntries for them.
+ * List the CRM companies tracked by the authenticated user's team, sorted by most recent interaction. Each row includes the company id, name, domains, last interaction time, and the company's own Stage / Owner / Revenue properties when set (not a pipeline deal's). Use the filters to narrow results: `search` for name/domain text, `stage` for the company's own Stage property, `owner_user_id` for companies owned by a user. Use GetCompany for one company's full details (contacts + all properties), and SetEntityProperty with entity_type=company to change the company's own Stage / Owner / Revenue or custom properties. Deals in a pipeline have their own stage and fields, separate from these: use FindPipelineEntries and UpdatePipelineEntries for them.
  */
 export interface ListCompanies {
   /**
@@ -9982,7 +9983,7 @@ export interface ListCompanies {
    */
   search?: string | null;
   /**
-   * Filter to companies in this pipeline stage. Accepts a stage label matched case-insensitively (e.g. "lead", "Customer" — teams may have custom stage names) or a stage option UUID.
+   * Filter to companies whose own Stage property (not a pipeline deal's stage) is this. Accepts a stage label matched case-insensitively (e.g. "lead", "Customer" — teams may have custom stage names) or a stage option UUID.
    */
   stage?: string | null;
   /**
@@ -10037,7 +10038,8 @@ export interface CompanyListItem {
    */
   lastInteraction: string;
   /**
-   * The company's pipeline stage, if set.
+   * The company's own Stage property, if set; separate from any
+   * pipeline entry's stage.
    */
   stage?: ToolCompanyStage | null;
   /**

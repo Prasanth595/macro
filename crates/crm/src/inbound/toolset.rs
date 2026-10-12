@@ -101,7 +101,7 @@ where
         .add_tool::<GetCompany, CrmToolContext<CSvc, ESvc, PSvc>>()
 }
 
-/// A company's pipeline stage: the select option id currently set plus its
+/// A company's own Stage property: the select option id currently set plus its
 /// human-readable label.
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]

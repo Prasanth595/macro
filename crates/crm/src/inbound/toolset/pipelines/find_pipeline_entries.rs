@@ -23,12 +23,12 @@ const MAX_LIMIT: u16 = 200;
 #[serde(rename_all = "camelCase")]
 #[schemars(
     title = "FindPipelineEntries",
-    description = "Find deals (entries) in a CRM pipeline: which companies or contacts are in which stage, who owns them, their revenue and other fields. Filter by field values (e.g. Stage is Demo or Trial, Owner is me), by company or contact name/domain/email with `search`, or by record id; sort by any field (Stage sorts in pipeline order). Returns each entry's entryId, the record it tracks (id and name) and its filled-in fields, plus, over every match, the count per stage (and per option of each single-select field) and the total of each number field such as Revenue: use these for questions like \"how many deals are in Negotiation\" or \"what is the pipeline worth\". To find where a company or contact is across all pipelines (\"what stage is Acme in?\"), leave out pipelineId and pass its recordIds (company ids come from ListCompanies). Get pipeline ids and field names from ListPipelines."
+    description = "Find deals (entries) in a CRM pipeline: which companies or contacts are in which stage, who owns them, their revenue and other fields. Filter by field values (e.g. Stage is Demo or Trial, Owner is me), by company or contact name/domain/email with `search`, or by record id; sort by any field (Stage sorts in pipeline order). Returns each entry's entryId, the record it tracks (id and name) and its filled-in fields, plus, over every match, the count per stage (and per option of each single-select field) and the total of each number field such as Revenue: use these for questions like \"how many deals are in Negotiation\" or \"what is the pipeline worth\". To find where a company or contact is across all pipelines (\"what stage is Acme in?\"), leave out pipelineId and pass its name as `search` (or its recordIds). Get pipeline ids and field names from ListPipelines."
 )]
 pub struct FindPipelineEntries {
     /// The pipeline to read.
     #[schemars(
-        description = "The pipeline's id from ListPipelines. Leave it out, with recordIds, to find those records' entries in every pipeline."
+        description = "The pipeline's id from ListPipelines. Leave it out to look in every pipeline by `search` or `recordIds`; filters and sorting need a pipelineId."
     )]
     #[serde(default)]
     pub pipeline_id: Option<Uuid>,
@@ -153,22 +153,52 @@ impl<Workflows: PipelineWorkflowService> AsyncTool<PipelineToolContext<Workflows
         let viewer = context.viewer(request_context.user_id);
         let limit = usize::from(self.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT));
         let Some(pipeline_id) = self.pipeline_id else {
-            if self.record_ids.is_empty() {
+            let search = self
+                .search
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty());
+            if !self.filters.is_empty() || self.sort_by.is_some() {
                 return Err(ToolCallError {
-                    description: "Pass a pipelineId from ListPipelines, or recordIds to find \
-                                  those records' entries in every pipeline."
+                    description: "Filters and sorting apply to one pipeline: pass its pipelineId \
+                                  from ListPipelines."
                         .to_owned(),
-                    internal_error: anyhow::anyhow!("neither a pipeline nor records"),
+                    internal_error: anyhow::anyhow!("filters without a pipeline"),
                 });
             }
-            let found = context
-                .service
-                .record_entries(&viewer, &self.record_ids)
-                .await
-                .map_err(workflow_error)?;
+            let found = match (search, self.record_ids.is_empty()) {
+                (Some(search), _) => context.service.search_entries(&viewer, search, limit).await,
+                (None, false) => {
+                    context
+                        .service
+                        .record_entries(&viewer, &self.record_ids)
+                        .await
+                }
+                (None, true) => {
+                    return Err(ToolCallError {
+                        description: "Pass a pipelineId from ListPipelines, or a `search` or \
+                                      recordIds to look in every pipeline."
+                            .to_owned(),
+                        internal_error: anyhow::anyhow!("nothing to look for"),
+                    });
+                }
+            }
+            .map_err(workflow_error)?;
+            let found: Vec<_> = found
+                .into_iter()
+                .map(|mut group| {
+                    if !self.record_ids.is_empty() {
+                        group
+                            .entries
+                            .retain(|entry| self.record_ids.contains(&entry.record.id));
+                    }
+                    group
+                })
+                .filter(|group| !group.entries.is_empty())
+                .collect();
             let matched = found.iter().map(|group| group.entries.len()).sum();
             let summary = match matched {
-                0 => "Those records are in none of the user's pipelines.".to_owned(),
+                0 => "No entry in any of the user's pipelines matches.".to_owned(),
                 count => format!("Found {count} entries in {} pipelines.", found.len()),
             };
             return Ok(FindPipelineEntriesResponse {

@@ -66,6 +66,16 @@ pub trait PipelineWorkflowService: Send + Sync + 'static {
         query: EntryQuery,
     ) -> impl Future<Output = Result<FoundEntries, WorkflowError>> + Send;
 
+    /// Entries of every pipeline the viewer can see whose company or contact
+    /// matches `search`, at most `limit` per pipeline; pipelines without a
+    /// match are left out.
+    fn search_entries(
+        &self,
+        viewer: &Viewer,
+        search: &str,
+        limit: usize,
+    ) -> impl Future<Output = Result<Vec<RecordEntries>, WorkflowError>> + Send;
+
     /// Every entry tracking one of `records`, across the viewer's pipelines.
     fn record_entries(
         &self,
@@ -407,6 +417,33 @@ where
             counts,
             totals,
         })
+    }
+
+    #[tracing::instrument(skip_all, err)]
+    async fn search_entries(
+        &self,
+        viewer: &Viewer,
+        search: &str,
+        limit: usize,
+    ) -> Result<Vec<RecordEntries>, WorkflowError> {
+        let mut found = Vec::new();
+        for overview in self.pipelines(viewer).await? {
+            let query = EntryQuery {
+                search: Some(search.to_owned()),
+                limit,
+                ..Default::default()
+            };
+            let matches = self
+                .find(viewer, overview.pipeline.pipeline.id, query)
+                .await?;
+            if !matches.entries.is_empty() {
+                found.push(RecordEntries {
+                    pipeline: matches.pipeline.pipeline,
+                    entries: matches.entries,
+                });
+            }
+        }
+        Ok(found)
     }
 
     #[tracing::instrument(skip_all, err)]

@@ -427,12 +427,22 @@ async fn deals_are_added_found_moved_and_removed_by_name(pool: PgPool) {
         Err(WorkflowError::Invalid(_))
     ));
 
-    // The record's entries across pipelines.
+    // The record's entries across pipelines, by id or by name.
     let everywhere = workflows.record_entries(&owner, &[acme]).await.unwrap();
     assert_eq!(everywhere.len(), 1);
     assert_eq!(
         field(&everywhere[0].entries[0], "Stage"),
         labels("Won").as_ref()
+    );
+    let by_name = workflows.search_entries(&owner, "acme", 50).await.unwrap();
+    assert_eq!(by_name.len(), 1);
+    assert_eq!(by_name[0].entries[0].record.id, acme);
+    assert!(
+        workflows
+            .search_entries(&owner, "nobody", 50)
+            .await
+            .unwrap()
+            .is_empty()
     );
 
     let removed = workflows
