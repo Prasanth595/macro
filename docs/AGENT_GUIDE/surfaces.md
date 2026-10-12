@@ -1327,10 +1327,11 @@ so invitees can open those links.
 
 Calendar connections live in **Settings → Calendar** (`/app/settings/calendar`).
 Scheduling lives in the separate **Settings → Booking links** item
-(`/app/settings/booking-links`). Choose **Personal** or **Team · team name** first,
+(`/app/settings/booking-links`). Use the owner menu at the top right to choose
+**Personal** or **Team · team name**,
 then use **Links**, **Availability**, **Booking page**, **Bookings**, or **Insights**.
 Every section and creation action applies to that selected owner. The default is
-Personal. **Manage teams** opens team settings. The calendar toolbar’s booking
+Personal. **Manage teams** in that menu opens team settings. The calendar toolbar’s booking
 actions open Booking links; connection shortcuts continue to open Calendar.
 **New booking link** and **New schedule** create for the selected owner and open
 inline editors. Save changes or Cancel returns to that owner's list.
@@ -1349,7 +1350,8 @@ Booking status filters use the same segmented control as the CRM sidebar.
 In Availability, each weekday has an enable switch, time ranges, an add button,
 and a copy-hours menu; select target days and Apply before saving the schedule.
 Date overrides and the searchable timezone picker sit below the weekly hours.
-Ownership badges identify Personal or Team · team name on links and availability.
+The header shows the selected owner; team owners have an explicit **Team** label.
+Links and availability use flat rows, with actions beside each item.
 Booking pages, bookings, and insights show only the selected owner. Search filters
 that owner’s links and clears when switching owners. Team owners/admins can edit
 team links; ordinary members can view them. `Links` creates, edits, pauses,

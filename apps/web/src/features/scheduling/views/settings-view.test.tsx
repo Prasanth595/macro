@@ -114,13 +114,25 @@ function fixture(teamEditable = true) {
   return { sources, saves };
 }
 
+async function selectOwner(name: string) {
+  const trigger = screen.getByRole('button', { name: 'Booking link owner' });
+  trigger.focus();
+  fireEvent.keyDown(trigger, { key: 'Enter' });
+  const item = await screen.findByRole('menuitem', { name });
+  item.focus();
+  fireEvent.keyDown(item, { key: 'Enter' });
+  await waitFor(() =>
+    expect(trigger.getAttribute('aria-expanded')).toBe('false')
+  );
+}
+
 it('scopes actions and creation to the selected owner', async () => {
   const { sources, saves } = fixture();
   expect(
     screen.getByRole('button', { name: 'Personal catch-up' })
   ).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Team planning' })).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: 'Team · Design' }));
+  await selectOwner('Team · Design');
   const team = screen
     .getByRole('button', { name: 'Team planning' })
     .closest('article')!;
@@ -142,13 +154,13 @@ it('scopes actions and creation to the selected owner', async () => {
   expect(sources.get('personal')!.profile()!.eventTypes).toHaveLength(1);
 });
 
-it('keeps page drafts across navigation and scopes each section', () => {
+it('keeps page drafts across navigation and scopes each section', async () => {
   fixture();
   fireEvent.click(screen.getByRole('tab', { name: 'Booking page' }));
   fireEvent.input(screen.getByRole('textbox', { name: 'Display name' }), {
     target: { value: 'Keep my draft' },
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Team · Design' }));
+  await selectOwner('Team · Design');
   expect(
     (screen.getByRole('textbox', { name: 'Display name' }) as HTMLInputElement)
       .value
@@ -160,7 +172,7 @@ it('keeps page drafts across navigation and scopes each section', () => {
   expect(
     screen.queryByRole('group', { name: 'Personal availability' })
   ).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: 'Personal' }));
+  await selectOwner('Personal');
   fireEvent.click(screen.getByRole('tab', { name: 'Booking page' }));
   expect(
     (screen.getByRole('textbox', { name: 'Display name' }) as HTMLInputElement)
@@ -168,14 +180,14 @@ it('keeps page drafts across navigation and scopes each section', () => {
   ).toBe('Keep my draft');
 });
 
-it('preserves read-only access and clears search when switching owners', () => {
+it('preserves read-only access and clears search when switching owners', async () => {
   fixture(false);
   fireEvent.input(
     screen.getByRole('searchbox', { name: 'Search booking links' }),
     { target: { value: 'no match' } }
   );
   expect(screen.getByText('No matching booking links.')).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: 'Team · Design' }));
+  await selectOwner('Team · Design');
   const team = screen
     .getByRole('button', { name: 'Team planning' })
     .closest('article')!;
