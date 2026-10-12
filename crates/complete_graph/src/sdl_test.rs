@@ -513,7 +513,7 @@ fn database_rows_are_an_opt_in_soup_entity_named_by_table() {
 }
 
 #[test]
-fn crm_records_load_from_the_user_with_their_pipeline_entries() {
+fn crm_records_carry_their_pipeline_entries() {
     let sdl = crate::build_schema().sdl();
     let block = |declaration: &str| {
         sdl.split_once(declaration)
@@ -524,9 +524,6 @@ fn crm_records_load_from_the_user_with_their_pipeline_entries() {
             .0
             .to_owned()
     };
-    let user = block("type GraphqlUser {");
-    assert_sdl_line(&user, "crmCompany(companyId: ID!): GraphqlSoupCrmCompany");
-    assert_sdl_line(&user, "crmContact(contactId: ID!): GraphqlSoupCrmContact");
     for record in [
         "type GraphqlSoupCrmCompany implements GraphqlSoupEntity {",
         "type GraphqlSoupCrmContact implements GraphqlSoupEntity {",

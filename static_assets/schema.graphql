@@ -8368,16 +8368,6 @@ type GraphqlUser {
 	"""
 	emailThread(input: EmailThreadInput!): GraphqlSoupEmailThread
 	"""
-	Fetch one CRM company the viewer can see, with the pipeline rows
-	that reference it reachable through `pipelineEntries`.
-	"""
-	crmCompany(companyId: ID!): GraphqlSoupCrmCompany
-	"""
-	Fetch one CRM contact the viewer can see, with the pipeline rows
-	that reference it reachable through `pipelineEntries`.
-	"""
-	crmContact(contactId: ID!): GraphqlSoupCrmContact
-	"""
 	Fetch one accessible agent session by id, with its protocol log
 	reachable through `log`.
 	"""

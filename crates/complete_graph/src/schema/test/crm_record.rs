@@ -115,7 +115,7 @@ fn soup_crm_company(id: Uuid) -> SoupItem<()> {
 }
 
 #[tokio::test]
-async fn a_crm_company_loads_from_the_user_with_its_pipeline_entries() {
+async fn a_soup_crm_company_resolves_its_pipeline_entries() {
     let harness = harness();
     let id = Uuid::from_u128(42);
     harness
@@ -129,9 +129,11 @@ async fn a_crm_company_loads_from_the_user_with_its_pipeline_entries() {
             harness
                 .request(
                     &format!(
-                        r#"{{ user {{ crmCompany(companyId: "{id}") {{
-                            __typename id name description
-                            pipelineEntries {{ id cells {{ column {{ name }} }} }}
+                        r#"{{ user {{ soup(input: {{ initial: {{ filters: {{ crmCompanyFilter: {{ literal: {{ id: "{id}" }} }} }} }} }}) {{
+                            items {{ ... on GraphqlSoupCrmCompany {{
+                                __typename id name description
+                                pipelineEntries {{ id cells {{ column {{ name }} }} }}
+                            }} }}
                         }} }} }}"#
                     ),
                     authenticated_parts(),
@@ -144,7 +146,7 @@ async fn a_crm_company_loads_from_the_user_with_its_pipeline_entries() {
         .await;
     assert!(response.errors.is_empty(), "{:?}", response.errors);
     let data = response.data.into_json().unwrap();
-    let company = &data["user"]["crmCompany"];
+    let company = &data["user"]["soup"]["items"][0];
     assert_eq!(company["__typename"], "GraphqlSoupCrmCompany");
     assert_eq!(company["id"], id.to_string());
     assert_eq!(company["description"], "Builds anvils.");
