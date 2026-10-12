@@ -37,3 +37,71 @@ query CrmContacts($input: SoupInput!) {
     }
   }
 }
+
+fragment CrmPipelineEntryFields on GraphqlCrmPipelineEntry {
+  __typename
+  id
+  pipeline {
+    __typename
+    id
+    name
+    sharing
+    tableId
+    canEdit
+  }
+  cells {
+    __typename
+    column {
+      __typename
+      id
+      name
+      dataType
+      isMultiSelect
+      specificEntityType
+      writable
+      options {
+        __typename
+        id
+        color
+        value {
+          __typename
+          ... on GraphqlStringPropertyOptionValue {
+            stringValue: value
+          }
+          ... on GraphqlNumberPropertyOptionValue {
+            numberValue: value
+          }
+        }
+      }
+    }
+    value {
+      ...SoupPropertyValueFields
+    }
+  }
+}
+
+query CrmCompanyPipelineEntries($companyId: ID!) {
+  user {
+    id
+    crmCompany(companyId: $companyId) {
+      __typename
+      id
+      pipelineEntries {
+        ...CrmPipelineEntryFields
+      }
+    }
+  }
+}
+
+query CrmContactPipelineEntries($contactId: ID!) {
+  user {
+    id
+    crmContact(contactId: $contactId) {
+      __typename
+      id
+      pipelineEntries {
+        ...CrmPipelineEntryFields
+      }
+    }
+  }
+}
