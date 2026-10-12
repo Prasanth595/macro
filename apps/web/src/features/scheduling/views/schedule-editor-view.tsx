@@ -8,6 +8,8 @@ import { ScheduleFields } from './schedule-fields-view';
 export function ScheduleEditor(props: {
   schedule: AvailabilitySchedule;
   saving: boolean;
+  topBarOwned?: boolean;
+  creating?: boolean;
   onSave: (schedule: AvailabilitySchedule) => Promise<void>;
   onCancel: () => void;
 }) {
@@ -40,6 +42,8 @@ export function ScheduleEditor(props: {
     <ScheduleEditorForm
       schedule={draft()}
       saving={props.saving}
+      topBarOwned={props.topBarOwned}
+      creating={props.creating}
       editingRange={editingRange()}
       error={error()}
       onNameChange={(name) => update((schedule) => ({ ...schedule, name }))}

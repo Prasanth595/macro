@@ -3,10 +3,8 @@ import CalendarBlank from '@phosphor/calendar-blank.svg';
 import { Button, Calendar as MiniCalendar } from '@ui';
 import { format, parseISO } from 'date-fns';
 import { createSignal } from 'solid-js';
-import { availabilityWeek } from '../core/availability';
-import { shiftReportDate } from '../core/insights';
 
-export function AvailabilityWeekPicker(props: {
+export function AvailabilityMonthPicker(props: {
   date: string;
   disabled?: boolean;
   onChange: (date: string) => void;
@@ -15,9 +13,7 @@ export function AvailabilityWeekPicker(props: {
   const [trigger, setTrigger] = createSignal<HTMLButtonElement>();
   const [month, setMonth] = createSignal(parseISO(props.date));
   const [focusedDay, setFocusedDay] = createSignal(parseISO(props.date));
-  const dates = () => availabilityWeek(props.date);
-  const label = () =>
-    `${format(parseISO(dates()[0]), 'MMM d')} – ${format(parseISO(dates()[6]), 'MMM d, yyyy')}`;
+  const label = () => format(parseISO(props.date), 'MMMM yyyy');
   const changeOpen = (value: boolean) => {
     if (value) {
       const date = parseISO(props.date);
@@ -40,7 +36,7 @@ export function AvailabilityWeekPicker(props: {
         ref={setTrigger}
         variant="ghost"
         size="sm"
-        aria-label="Choose availability week"
+        aria-label="Choose availability month"
         disabled={props.disabled}
       >
         <CalendarBlank class="size-3.5" />
@@ -51,7 +47,7 @@ export function AvailabilityWeekPicker(props: {
       >
         <Popover.Content class="portal-scope menu-surface z-action-menu w-72 max-w-[calc(100vw-1rem)] p-4 outline-none">
           <Popover.Title class="sr-only">
-            Choose availability week
+            Choose availability month
           </Popover.Title>
           <MiniCalendar
             required
@@ -60,10 +56,6 @@ export function AvailabilityWeekPicker(props: {
             value={parseISO(props.date)}
             month={month()}
             focusedDay={focusedDay()}
-            highlightedRange={{
-              start: parseISO(dates()[0]),
-              end: parseISO(shiftReportDate(dates()[6], 1)),
-            }}
             onMonthChange={(value) => {
               setMonth(value);
               setFocusedDay(value);

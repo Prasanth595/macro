@@ -9,17 +9,18 @@ import Repeat from '@phosphor/repeat.svg';
 import Trash from '@phosphor/trash.svg';
 import X from '@phosphor/x.svg';
 import { Button, Layer } from '@ui';
-import { createSignal, For, Show } from 'solid-js';
+import { Show } from 'solid-js';
 import type {
   AvailabilityChange,
   AvailabilityIssue,
-  AvailabilityResult,
-  AvailabilityTarget,
 } from '../core/availability';
 import { dateWeekday } from '../core/availability';
+import {
+  type AvailabilityTimeFormat,
+  availabilityTimeLabel,
+} from '../core/availability-month';
 import { WEEKDAYS } from '../core/types';
 import { AvailabilityRangeEditor } from './availability-range-editor';
-import { CheckField, TextInput } from './fields';
 
 export function AvailabilityRangePopover(props: {
   anchor: HTMLElement;
@@ -30,7 +31,9 @@ export function AvailabilityRangePopover(props: {
     | undefined;
   change: AvailabilityChange;
   timeZone: string;
+  timeFormat: AvailabilityTimeFormat;
   date: string;
+  dates?: string[];
   inherited: boolean;
   overridden: boolean;
   inactive?: boolean;
@@ -46,15 +49,8 @@ export function AvailabilityRangePopover(props: {
     update: (current: AvailabilityChange) => AvailabilityChange
   ) => void;
   onApply: (replaceConflicts?: boolean) => void;
-  onCopy: (
-    targets: AvailabilityTarget[],
-    replaceConflicts: boolean
-  ) => AvailabilityResult;
+  onStamp: () => void;
 }) {
-  const [copying, setCopying] = createSignal(false);
-  const [days, setDays] = createSignal<number[]>([]);
-  const [date, setDate] = createSignal('');
-  const [copyIssue, setCopyIssue] = createSignal<AvailabilityIssue>();
   let content!: HTMLDivElement;
   const focusFallback = props.anchor.closest<HTMLElement>(
     '[data-availability-day]'
@@ -88,16 +84,7 @@ export function AvailabilityRangePopover(props: {
   const timeLabel = () =>
     props.change.allDay
       ? 'All day'
-      : `${props.change.window.start}–${props.change.window.end}`;
-  const copy = (merge: boolean) => {
-    const targets: AvailabilityTarget[] =
-      props.change.target.kind === 'weekly'
-        ? days().map((day) => ({ kind: 'weekly', day }))
-        : [{ kind: 'date', date: date() }];
-    const result = props.onCopy(targets, merge);
-    if (!result.ok) setCopyIssue(result.issue);
-    else props.onClose();
-  };
+      : availabilityTimeLabel(props.change.window, props.timeFormat);
   const closeThen = (callback: () => void) => {
     props.onClose();
     callback();
@@ -162,19 +149,18 @@ export function AvailabilityRangePopover(props: {
               </Popover.Title>
               <div class="flex shrink-0 items-center justify-end gap-2 px-3 pt-3 pb-2">
                 <Show when={!props.draft && !props.disabled}>
-                  <Button
-                    label="Copy availability"
-                    variant="ghost"
-                    size="icon-sm"
-                    depth={3}
-                    class="text-ink-muted [&_svg]:size-4"
-                    onClick={() => {
-                      setCopying(!copying());
-                      setCopyIssue(undefined);
-                    }}
-                  >
-                    <Copy />
-                  </Button>
+                  <Show when={!props.inactive}>
+                    <Button
+                      label="Apply to other days"
+                      variant="ghost"
+                      size="icon-sm"
+                      depth={3}
+                      class="text-ink-muted [&_svg]:size-4"
+                      onClick={props.onStamp}
+                    >
+                      <Copy />
+                    </Button>
+                  </Show>
                   <Show when={!props.inactive}>
                     <Button
                       label={
@@ -189,8 +175,6 @@ export function AvailabilityRangePopover(props: {
                       depth={3}
                       class="text-ink-muted [&_svg]:size-4"
                       onClick={() => {
-                        setCopying(false);
-                        setCopyIssue(undefined);
                         props.onEdit();
                         focusEditor();
                       }}
@@ -283,106 +267,6 @@ export function AvailabilityRangePopover(props: {
                           Turn this weekday on to edit its recurring hours.
                         </p>
                       </Show>
-                      <Show when={copying()}>
-                        <div class="mt-3 border-t border-edge-muted pt-3">
-                          <p class="mb-3 text-xs font-semibold">
-                            Copy {unavailable() ? 'time off' : 'this range'} to
-                          </p>
-                          <Show
-                            when={props.change.target.kind === 'weekly'}
-                            fallback={
-                              <TextInput
-                                type="date"
-                                aria-label="Copy to date"
-                                class="h-8 text-xs"
-                                value={date()}
-                                onInput={(event) => {
-                                  setDate(event.currentTarget.value);
-                                  setCopyIssue(undefined);
-                                }}
-                              />
-                            }
-                          >
-                            <div class="grid grid-cols-2 gap-2">
-                              <For
-                                each={WEEKDAYS.map((label, day) => ({
-                                  label,
-                                  day,
-                                })).filter(
-                                  (item) =>
-                                    props.change.target.kind !== 'weekly' ||
-                                    item.day !== props.change.target.day
-                                )}
-                              >
-                                {(item) => (
-                                  <CheckField
-                                    label={item.label}
-                                    class="text-xs"
-                                    checked={days().includes(item.day)}
-                                    onChange={(checked) => {
-                                      setDays((current) =>
-                                        checked
-                                          ? [...current, item.day]
-                                          : current.filter(
-                                              (day) => day !== item.day
-                                            )
-                                      );
-                                      setCopyIssue(undefined);
-                                    }}
-                                  />
-                                )}
-                              </For>
-                            </div>
-                          </Show>
-                          <p class="mt-2 text-xs text-ink-muted">
-                            {unavailable()
-                              ? 'Time off removes these hours from the selected date only. Conflicting available hours need your approval.'
-                              : 'Existing hours are kept, including inherited weekly hours. Matching available ranges merge automatically.'}
-                          </p>
-                          <Show when={copyIssue()}>
-                            {(error) => (
-                              <p role="alert" class="mt-2 text-xs text-failure">
-                                {error().message}
-                              </p>
-                            )}
-                          </Show>
-                          <Show when={copyIssue()?.overlaps?.length}>
-                            <Button
-                              class="mt-3 h-auto min-h-7 w-full whitespace-normal py-1.5"
-                              variant="cta"
-                              size="sm"
-                              tooltip="Replace conflicting hours and copy the range"
-                              onClick={() => copy(true)}
-                            >
-                              {unavailable()
-                                ? 'Mark overlapping hours unavailable and copy'
-                                : 'Make overlapping hours available and copy'}
-                            </Button>
-                          </Show>
-                          <Button
-                            class="mt-3 w-full"
-                            variant="strong"
-                            size="sm"
-                            disabled={
-                              props.change.target.kind === 'weekly'
-                                ? !days().length
-                                : !date() ||
-                                  (props.change.target.kind === 'date' &&
-                                    date() === props.change.target.date)
-                            }
-                            tooltip="Copy hours or leave conflicting hours unchanged"
-                            onClick={() =>
-                              copyIssue()?.overlaps?.length
-                                ? props.onClose()
-                                : copy(false)
-                            }
-                          >
-                            {copyIssue()?.overlaps?.length
-                              ? 'Keep existing hours'
-                              : 'Copy hours'}
-                          </Button>
-                        </div>
-                      </Show>
                     </>
                   }
                 >
@@ -390,6 +274,7 @@ export function AvailabilityRangePopover(props: {
                     <AvailabilityRangeEditor
                       change={draft()}
                       date={props.date}
+                      dates={props.dates}
                       issue={props.issue}
                       disabled={props.disabled}
                       onChange={props.onChange}

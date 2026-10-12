@@ -5,23 +5,21 @@ import {
   type AvailabilityChange,
   type AvailabilityTarget,
   dateWeekday,
-  drawnWindow,
-  timeMinutes,
   windowsIssue,
 } from '../core/availability';
+import { availabilityBars } from '../core/availability-bars';
 import {
-  availabilityBars,
-  movedAvailabilityWindow,
-} from '../core/availability-bars';
-import type { TimeWindow } from '../core/types';
-import {
-  type AvailabilityBlob,
-  AvailabilityBlobLayer,
-} from './availability-blob-layer';
-import { AvailabilityRangeCard } from './availability-range-card';
+  type AvailabilityMonthRun,
+  type AvailabilityTimeFormat,
+  availabilityDateRange,
+  availabilityMonthRuns,
+  availabilityTimeLabel,
+} from '../core/availability-month';
+import { type TimeWindow, WEEKDAYS } from '../core/types';
+import { AvailabilitySelectionBar } from './availability-selection-bar';
 
 export type AvailabilityColumn = {
-  target: AvailabilityTarget;
+  target: { kind: 'date'; date: string };
   label: string;
   dateLabel?: string;
   inherited: boolean;
@@ -30,115 +28,107 @@ export type AvailabilityColumn = {
   weeklyWindows: TimeWindow[];
   weeklyEnabled: boolean;
   unavailable: TimeWindow[];
+  draft?: AvailabilityChange;
 };
 
 export function AvailabilityCalendar(props: {
   columns: AvailabilityColumn[];
+  month: string;
   disabled: boolean;
-  mode: 'available' | 'unavailable';
+  timeFormat: AvailabilityTimeFormat;
   popoverOpen?: boolean;
+  stamping: boolean;
+  selectedDates: string[];
+  selectionPreview: Pick<AvailabilityChange, 'mode' | 'window' | 'allDay'>;
   onDismissPopover: () => void;
-  selected?: AvailabilityChange;
-  draft?: AvailabilityChange;
-  onDraw: (change: AvailabilityChange, anchor: HTMLElement) => void;
-  onSelect: (change: AvailabilityChange, anchor: HTMLElement) => void;
-  onToggle: (target: AvailabilityTarget, checked: boolean) => void;
-}) {
-  const [drawing, setDrawing] = createSignal<{
-    column: number;
-    pointerId: number;
-    anchor: number;
-    position: number;
-    capture: HTMLElement;
-  }>();
-  const [moving, setMoving] = createSignal<{
-    column: number;
-    pointerId: number;
-    anchorMinute: number;
-    position: number;
-    clientY: number;
-    moved: boolean;
-    anchor: HTMLElement;
-    capture: HTMLElement;
-    change: AvailabilityChange;
-  }>();
-  let pointer: { x: number; y: number } | undefined;
-  let suppressedClick: HTMLElement | undefined;
-  const beginMove = (
-    change: AvailabilityChange,
-    column: number,
-    event: PointerEvent
-  ) => {
-    if (event.defaultPrevented || props.popoverOpen) {
-      suppressedClick = event.currentTarget as HTMLElement;
-      return;
-    }
-    if (
-      props.disabled ||
-      drawing() ||
-      moving() ||
-      event.button !== 0 ||
-      change.allDay
-    )
-      return;
-    const anchor = event.currentTarget as HTMLElement;
-    const day = anchor.closest<HTMLElement>('[data-availability-day]');
-    if (!day) return;
-    event.stopPropagation();
-    event.preventDefault();
-    suppressedClick = undefined;
-    day.focus({ preventScroll: true });
-    day.setPointerCapture(event.pointerId);
-    const rect = day.getBoundingClientRect();
-    const minute = ((event.clientY - rect.top) / rect.height) * 1440;
-    pointer = { x: event.clientX, y: event.clientY };
-    setMoving({
-      column,
-      pointerId: event.pointerId,
-      anchorMinute: minute,
-      position: minute,
-      clientY: event.clientY,
-      moved: false,
-      anchor,
-      capture: day,
-      change: {
-        ...change,
-        window: { ...change.window },
-        origin: { mode: change.mode, window: { ...change.window } },
-      },
-    });
-  };
-  const select = (
+  onCancelSelection: () => void;
+  onCancelReady: (cancel: () => void) => void;
+  onDates: (dates: string[], anchor: HTMLElement, toggle: boolean) => void;
+  onSelect: (
     change: AvailabilityChange,
     anchor: HTMLElement,
-    event: MouseEvent
-  ) => {
-    if (drawing() || moving()) return;
-    if (
-      event.detail > 0 &&
-      (suppressedClick === anchor ||
-        suppressedClick === anchor.closest('[data-availability-day]'))
-    )
-      return;
-    if (props.popoverOpen) return;
-    props.onSelect(change, anchor);
+    date: string
+  ) => void;
+  onToggle: (target: AvailabilityTarget, checked: boolean) => void;
+}) {
+  const [drag, setDrag] = createSignal<{
+    pointerId: number;
+    first: string;
+    last: string;
+    capture: HTMLElement;
+  }>();
+  const selected = createMemo(() => {
+    const current = drag();
+    if (!current) return props.selectedDates;
+    const dates = availabilityDateRange(current.first, current.last);
+    return props.stamping
+      ? [...new Set([...props.selectedDates, ...dates])]
+      : dates;
+  });
+  const preview = () => {
+    const change = props.selectionPreview;
+    if (!drag() && !props.stamping && selected().length < 2) return;
+    if (!change.allDay && windowsIssue([change.window])) return;
+    return change;
   };
+  const previewHours = () =>
+    preview()?.allDay
+      ? 'All day'
+      : availabilityTimeLabel(props.selectionPreview.window, props.timeFormat);
+  const runs = createMemo(() =>
+    preview()
+      ? availabilityMonthRuns(
+          props.columns.map((column) => column.target.date),
+          selected()
+        )
+      : []
+  );
+  const conflicting = (run: AvailabilityMonthRun) =>
+    props.columns
+      .slice(run.startIndex, run.startIndex + run.dates.length)
+      .some((column) => {
+        const change = props.selectionPreview;
+        const bars = availabilityBars(
+          column.windows,
+          column.unavailable,
+          {
+            ...change,
+            target: column.target,
+            window: change.allDay
+              ? { start: '00:00', end: '23:59' }
+              : change.window,
+          },
+          column.overridden || column.weeklyEnabled
+        );
+        return bars[change.mode].some(
+          (bar) => bar.draft && bar.overlaps.length
+        );
+      });
   let scroll!: HTMLDivElement;
   let header!: HTMLDivElement;
-  const updateDragPosition = () => {
-    if (!pointer) return;
-    const current = drawing();
-    const move = moving();
-    const capture = current?.capture ?? move?.capture;
-    if (!capture) return;
-    const rect = capture.getBoundingClientRect();
-    const minute = ((pointer.y - rect.top) / rect.height) * 1440;
-    if (current) setDrawing({ ...current, position: minute });
-    else if (move) setMoving({ ...move, position: minute });
+  let pointer: { x: number; y: number } | undefined;
+  let suppressedClick = false;
+  const updateDate = () => {
+    const current = drag();
+    if (!current || !pointer) return;
+    const bounds = scroll.getBoundingClientRect();
+    const top = Math.max(header.getBoundingClientRect().bottom, 0);
+    const bottom = Math.min(bounds.bottom, window.innerHeight);
+    const left = Math.max(bounds.left, 0);
+    const right = Math.min(bounds.right, window.innerWidth);
+    if (bottom <= top || right <= left) return;
+    const hit = document.elementFromPoint(
+      Math.max(left + 1, Math.min(right - 1, pointer.x)),
+      Math.max(top + 1, Math.min(bottom - 1, pointer.y))
+    );
+    const cell = hit?.closest<HTMLElement>('[data-availability-date]');
+    const date = cell?.dataset.availabilityDate;
+    if (date && scroll.contains(cell) && date !== current.last)
+      setDrag({ ...current, last: date });
   };
   const autoScroll = createPointerAutoScroll({
     getViewport: () => scroll,
-    getPointer: () => (drawing() || moving()?.moved ? pointer : undefined),
+    getPointer: () => (drag() ? pointer : undefined),
     getBounds: (viewport) => {
       const bounds = viewport.getBoundingClientRect();
       return {
@@ -148,481 +138,319 @@ export function AvailabilityCalendar(props: {
         bottom: bounds.bottom,
       };
     },
-    axis: 'y',
+    axis: 'both',
     allowOutside: true,
-    onScroll: updateDragPosition,
+    onScroll: updateDate,
   });
-  onMount(() => {
-    scroll.scrollTop = 7 * 64;
-  });
-  const position = (event: PointerEvent) => {
-    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    return ((event.clientY - rect.top) / rect.height) * 1440;
+  const cancel = () => {
+    autoScroll.stop();
+    pointer = undefined;
+    const current = drag();
+    setDrag(undefined);
+    if (current?.capture.hasPointerCapture(current.pointerId))
+      current.capture.releasePointerCapture(current.pointerId);
   };
-  const preview = () => {
-    const current = drawing();
-    return current ? drawnWindow(current.anchor, current.position) : undefined;
-  };
-  const windowStyle = (window: TimeWindow) => ({
-    top: `${(timeMinutes(window.start) / 1440) * 100}%`,
-    height: `${((timeMinutes(window.end) - timeMinutes(window.start)) / 1440) * 100}%`,
-  });
-  const isSelected = (change: AvailabilityChange) => {
-    const selected = props.selected;
-    return (
-      selected?.mode === change.mode &&
-      selected.window.start === change.window.start &&
-      selected.window.end === change.window.end &&
-      (selected.target.kind === 'weekly' && change.target.kind === 'weekly'
-        ? selected.target.day === change.target.day
-        : selected.target.kind === 'date' &&
-          change.target.kind === 'date' &&
-          selected.target.date === change.target.date)
-    );
-  };
-  const draftWindow = (column: AvailabilityColumn, index: number) => {
-    const move = moving();
-    if (move?.column === index && move.moved)
-      return movedAvailabilityWindow(
-        move.change.window,
-        move.position - move.anchorMinute
-      );
-    if (drawing()?.column === index) return preview();
-    const draft = props.draft;
-    if (!draft) return;
-    if (draft.target.kind === 'weekly' && column.overridden) return;
-    const sameTarget =
-      draft.target.kind === 'weekly'
-        ? draft.target.day ===
-          (column.target.kind === 'weekly'
-            ? column.target.day
-            : dateWeekday(column.target.date))
-        : draft.target.kind === 'date' &&
-          column.target.kind === 'date' &&
-          draft.target.date === column.target.date;
-    if (!sameTarget) return;
-    if (draft.allDay) return { start: '00:00', end: '23:59' };
-    return windowsIssue([draft.window]) ? undefined : draft.window;
-  };
+  onMount(() => props.onCancelReady(cancel));
+  const dateLabel = (date: string) =>
+    new Intl.DateTimeFormat('en', {
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+      timeZone: 'UTC',
+    }).format(new Date(`${date}T00:00:00Z`));
   return (
     <div
       ref={scroll}
-      class="min-h-0 flex-1 overflow-auto overscroll-contain bg-panel"
       aria-label="Availability calendar"
-      onScroll={updateDragPosition}
+      class="min-h-0 w-full max-w-[42rem] flex-1 overflow-auto overscroll-contain bg-panel"
+      onScroll={updateDate}
       onPointerDown={() => {
         if (!props.popoverOpen) return;
-        // Touch outside events wait for click; a drag or disabled bar can omit it.
+        suppressedClick = true;
         props.onDismissPopover();
       }}
+      onKeyDown={(event) => {
+        if (event.key !== 'Escape') return;
+        suppressedClick = true;
+        cancel();
+        props.onCancelSelection();
+      }}
     >
-      <div class="min-w-[640px]">
+      <div class="flex min-w-[560px] flex-col">
         <div
           ref={header}
-          class="sticky top-0 z-20 grid h-32 grid-cols-[56px_repeat(7,minmax(0,1fr))] border-b border-edge-muted bg-panel"
+          class="sticky top-0 z-20 grid h-14 shrink-0 grid-cols-7 border-b border-edge-muted bg-panel"
         >
-          <div class="flex items-end justify-end pr-2 pb-3 text-[11px] text-ink-extra-muted">
-            Time
-          </div>
-          <Index each={props.columns}>
-            {(column) => (
-              <div class="flex min-h-20 flex-col items-center gap-2 px-1 pt-2 pb-3 text-center">
-                <span class="text-sm font-normal text-ink-extra-muted">
-                  {column().label.slice(0, 3)}
-                </span>
-                <Show when={column().dateLabel}>
-                  <span class="flex size-8 items-center justify-center text-2xl font-normal text-ink">
-                    {column().dateLabel?.split(' ').at(-1)}
-                  </span>
-                </Show>
+          <For each={WEEKDAYS}>
+            {(label, day) => (
+              <div class="flex items-center justify-center gap-2 px-2 text-xs text-ink-muted">
+                <span>{label.slice(0, 3)}</span>
                 <ToggleSwitch
                   size="xs"
-                  label={
-                    <span class="sr-only">{column().label} availability</span>
+                  label={<span class="sr-only">{label} availability</span>}
+                  checked={
+                    props.columns.find(
+                      (column) => dateWeekday(column.target.date) === day()
+                    )?.weeklyEnabled ?? false
                   }
-                  checked={column().weeklyEnabled}
-                  disabled={props.disabled}
-                  onChange={(checked) => {
-                    const target = column().target;
-                    props.onToggle(
-                      target.kind === 'weekly'
-                        ? target
-                        : { kind: 'weekly', day: dateWeekday(target.date) },
-                      checked
-                    );
-                  }}
+                  disabled={
+                    props.disabled || props.popoverOpen || props.stamping
+                  }
+                  onChange={(checked) =>
+                    props.onToggle({ kind: 'weekly', day: day() }, checked)
+                  }
                 />
-                <Show when={column().overridden}>
-                  <span class="text-[10px] text-ink-muted">Override</span>
-                </Show>
               </div>
             )}
-          </Index>
+          </For>
         </div>
-        <div class="relative grid grid-cols-[56px_repeat(7,minmax(0,1fr))]">
-          <div class="relative h-[1536px] select-none text-[11px] text-ink-extra-muted">
-            <For each={Array.from({ length: 24 }, (_, hour) => hour)}>
-              {(hour) => (
-                <span
-                  class="absolute right-2 -translate-y-1/2 tabular-nums"
-                  style={{ top: `${(hour / 24) * 100}%` }}
-                >
-                  {hour === 0
-                    ? ''
-                    : `${hour % 12 || 12}${hour < 12 ? 'am' : 'pm'}`}
-                </span>
-              )}
-            </For>
-          </div>
+        <div class="grid grid-cols-7">
           <Index each={props.columns}>
             {(column, index) => {
-              const current = () => {
-                const window = draftWindow(column(), index);
-                if (!window) return;
-                const move = moving();
-                const change =
-                  move?.column === index && move.moved
-                    ? move.change
-                    : props.draft;
-                return {
-                  ...(change ?? {
-                    target: column().target,
-                    mode: props.mode,
-                  }),
-                  window,
-                };
-              };
+              const date = () => column().target.date;
+              const run = () =>
+                runs().find((run) => run.dates.includes(date()));
+              const tallPreview = () =>
+                run()?.dates.length === 1 &&
+                props.timeFormat === '12h' &&
+                previewHours() !== 'All day';
+              const active = () =>
+                column().overridden || column().weeklyEnabled;
               const bars = createMemo(() =>
                 availabilityBars(
                   column().windows,
                   column().unavailable,
-                  current(),
-                  column().overridden || column().weeklyEnabled
+                  run() ? undefined : column().draft,
+                  active()
                 )
               );
-              const blobs = (
-                mode: AvailabilityChange['mode']
-              ): AvailabilityBlob[] => {
-                const change = current();
-                const source =
-                  mode === 'available'
-                    ? change?.mode === 'unavailable'
-                      ? bars().available.map((bar) => bar.window)
-                      : column().windows
-                    : change?.mode === 'available' &&
-                        change.origin?.mode === 'unavailable'
-                      ? bars().unavailable.map((bar) => bar.window)
-                      : column().unavailable;
-                const windows = source.filter(
-                  (window, windowIndex) =>
-                    change?.origin?.mode !== mode ||
-                    change.mode !== mode ||
-                    (mode === 'available'
-                      ? windowIndex !== change.index
-                      : window.start !== change.origin.window.start ||
-                        window.end !== change.origin.window.end)
+              const coveredByPreview = (
+                mode: AvailabilityChange['mode'],
+                window: TimeWindow
+              ) => {
+                const selection = preview();
+                return (
+                  !!run() &&
+                  !!selection &&
+                  mode === selection.mode &&
+                  (selection.allDay ||
+                    (window.start >= selection.window.start &&
+                      window.end <= selection.window.end))
                 );
-                return [
-                  ...windows.map((window) => ({
-                    window,
-                    gray:
-                      mode === 'unavailable' ||
-                      (!column().overridden && !column().weeklyEnabled),
-                  })),
-                  ...(change?.mode === mode
-                    ? [
-                        {
-                          window: change.window,
-                          gray: mode === 'unavailable',
-                        },
-                      ]
-                    : []),
-                ];
               };
-              const joining = () => {
-                const change = current();
-                if (!change) return;
-                const peers = blobs(change.mode).slice(0, -1);
-                return peers.some(
-                  ({ window }) =>
-                    window.start <= change.window.end &&
-                    window.end >= change.window.start
-                )
-                  ? change.mode
-                  : undefined;
-              };
-              const label = () =>
-                column().label +
-                (column().dateLabel ? ` ${column().dateLabel}` : '');
-              const availableTarget = (): AvailabilityTarget => {
-                const target = column().target;
-                return column().inherited && target.kind === 'date'
-                  ? { kind: 'weekly', day: dateWeekday(target.date) }
-                  : target;
-              };
+              const change = (
+                mode: AvailabilityChange['mode'],
+                window: TimeWindow,
+                index?: number
+              ): AvailabilityChange => ({
+                target:
+                  mode === 'available' && column().inherited
+                    ? { kind: 'weekly', day: dateWeekday(date()) }
+                    : column().target,
+                mode,
+                window,
+                index,
+                allDay: window.start === '00:00' && window.end === '23:59',
+              });
               return (
                 <div
-                  class="relative h-[1536px] touch-none select-none border-l border-edge-muted outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
                   role="group"
+                  aria-label={`${dateLabel(date())}. Click to add availability or drag across days.`}
                   data-availability-day
+                  data-availability-date={date()}
+                  data-selected={
+                    selected().includes(date()) ? 'true' : undefined
+                  }
                   tabIndex={props.disabled ? undefined : 0}
-                  aria-label={`${column().label}, ${column().dateLabel ?? 'recurring availability'}. Drag to select hours, or press Enter to add a range.`}
+                  style={{
+                    'grid-row': Math.floor(index / 7) + 1,
+                    'grid-column': (index % 7) + 1,
+                  }}
+                  class="flex aspect-square min-h-0 touch-none select-none flex-col gap-1 border-r border-b border-edge-muted p-2 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+                  classList={{
+                    'bg-surface-1': !date().startsWith(props.month),
+                    'bg-accent/10 ring-2 ring-inset ring-accent':
+                      selected().includes(date()),
+                  }}
                   onKeyDown={(event) => {
-                    if (event.key === 'Escape') {
-                      autoScroll.stop();
-                      pointer = undefined;
-                      if (moving()?.moved) suppressedClick = moving()?.anchor;
-                      setDrawing(undefined);
-                      setMoving(undefined);
-                    }
                     if (
-                      (event.key === 'Enter' || event.key === ' ') &&
-                      event.target === event.currentTarget &&
-                      !props.disabled &&
-                      !props.popoverOpen &&
-                      !drawing() &&
-                      !moving()
-                    ) {
+                      event.target !== event.currentTarget ||
+                      props.disabled ||
+                      props.popoverOpen
+                    )
+                      return;
+                    if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault();
-                      props.onDraw(
-                        {
-                          target: column().target,
-                          mode: props.mode,
-                          window: { start: '09:00', end: '10:00' },
-                        },
-                        event.currentTarget
-                      );
+                      props.onDates([date()], event.currentTarget, true);
                     }
                   }}
                   onPointerDown={(event) => {
                     if (event.defaultPrevented || props.popoverOpen) {
-                      suppressedClick = event.currentTarget;
+                      suppressedClick = true;
                       return;
                     }
+                    if (props.disabled || drag() || event.button !== 0) return;
                     if (
-                      props.disabled ||
-                      drawing() ||
-                      moving() ||
-                      event.button !== 0 ||
-                      event.target !== event.currentTarget
+                      !props.stamping &&
+                      (event.target as Element).closest(
+                        '[data-availability-item]'
+                      )
                     )
                       return;
-                    suppressedClick = undefined;
+                    suppressedClick = false;
                     event.preventDefault();
                     event.currentTarget.focus({ preventScroll: true });
                     event.currentTarget.setPointerCapture(event.pointerId);
-                    const minute = position(event);
                     pointer = { x: event.clientX, y: event.clientY };
-                    setDrawing({
-                      column: index,
+                    setDrag({
                       pointerId: event.pointerId,
-                      anchor: minute,
-                      position: minute,
+                      first: date(),
+                      last: date(),
                       capture: event.currentTarget,
                     });
                   }}
                   onPointerMove={(event) => {
-                    const move = moving();
-                    if (
-                      move?.column === index &&
-                      move.pointerId === event.pointerId
-                    ) {
-                      pointer = { x: event.clientX, y: event.clientY };
-                      setMoving({
-                        ...move,
-                        position: position(event),
-                        moved:
-                          move.moved ||
-                          Math.abs(event.clientY - move.clientY) >= 4,
-                      });
-                      if (moving()?.moved) autoScroll.start();
-                      return;
-                    }
-                    const current = drawing();
-                    if (
-                      current?.column === index &&
-                      current.pointerId === event.pointerId
-                    ) {
-                      pointer = { x: event.clientX, y: event.clientY };
-                      setDrawing({ ...current, position: position(event) });
-                      autoScroll.start();
-                    }
+                    if (drag()?.pointerId !== event.pointerId) return;
+                    pointer = { x: event.clientX, y: event.clientY };
+                    updateDate();
+                    autoScroll.start();
                   }}
                   onPointerUp={(event) => {
-                    const move = moving();
-                    if (
-                      move?.column === index &&
-                      move.pointerId === event.pointerId
-                    ) {
-                      autoScroll.stop();
-                      pointer = undefined;
-                      const window = movedAvailabilityWindow(
-                        move.change.window,
-                        position(event) - move.anchorMinute
-                      );
-                      setMoving(undefined);
-                      move.capture.releasePointerCapture(event.pointerId);
-                      event.preventDefault();
-                      suppressedClick = move.anchor;
-                      if (move.moved)
-                        props.onDraw({ ...move.change, window }, move.capture);
-                      else props.onSelect(move.change, move.anchor);
+                    const current = drag();
+                    if (!current || current.pointerId !== event.pointerId)
                       return;
-                    }
-                    const current = drawing();
-                    if (
-                      current?.column !== index ||
-                      current.pointerId !== event.pointerId
-                    )
-                      return;
-                    autoScroll.stop();
-                    pointer = undefined;
-                    const window = drawnWindow(current.anchor, position(event));
-                    setDrawing(undefined);
-                    event.currentTarget.releasePointerCapture(event.pointerId);
-                    props.onDraw(
-                      {
-                        target: column().target,
-                        mode: props.mode,
-                        window,
-                      },
-                      event.currentTarget
+                    pointer = { x: event.clientX, y: event.clientY };
+                    updateDate();
+                    const dates = availabilityDateRange(
+                      current.first,
+                      drag()?.last ?? current.last
                     );
+                    suppressedClick = true;
+                    cancel();
+                    event.preventDefault();
+                    if (dates.length)
+                      props.onDates(
+                        dates,
+                        event.currentTarget,
+                        dates.length === 1
+                      );
                   }}
                   onPointerCancel={(event) => {
-                    if (
-                      drawing()?.pointerId !== event.pointerId &&
-                      moving()?.pointerId !== event.pointerId
-                    )
-                      return;
-                    autoScroll.stop();
-                    pointer = undefined;
-                    if (drawing()?.pointerId === event.pointerId)
-                      setDrawing(undefined);
-                    if (moving()?.pointerId === event.pointerId)
-                      setMoving(undefined);
+                    if (drag()?.pointerId === event.pointerId) cancel();
                   }}
                   onLostPointerCapture={(event) => {
-                    if (
-                      drawing()?.pointerId !== event.pointerId &&
-                      moving()?.pointerId !== event.pointerId
-                    )
-                      return;
-                    autoScroll.stop();
-                    pointer = undefined;
-                    if (drawing()?.pointerId === event.pointerId)
-                      setDrawing(undefined);
-                    if (moving()?.pointerId === event.pointerId)
-                      setMoving(undefined);
+                    if (drag()?.pointerId === event.pointerId) cancel();
                   }}
                 >
-                  <For
-                    each={Array.from({ length: 48 }, (_, halfHour) => halfHour)}
+                  <div class="flex shrink-0 items-center justify-between gap-1 text-xs">
+                    <span
+                      class="tabular-nums"
+                      classList={{
+                        'text-ink-extra-muted': !date().startsWith(props.month),
+                      }}
+                    >
+                      {Number(date().slice(-2))}
+                    </span>
+                    <Show when={column().overridden}>
+                      <span class="text-[9px] text-ink-extra-muted">
+                        Override
+                      </span>
+                    </Show>
+                  </div>
+                  <div
+                    class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto"
+                    classList={{
+                      'pt-7': !!run() && !tallPreview(),
+                      'pt-9': tallPreview(),
+                    }}
                   >
-                    {(halfHour) => (
-                      <div
-                        class="pointer-events-none absolute inset-x-0 border-t"
-                        classList={{
-                          'border-edge-muted': halfHour % 2 === 0,
-                          'border-transparent': halfHour % 2 !== 0,
-                        }}
-                        style={{ top: `${(halfHour / 48) * 100}%` }}
-                      />
-                    )}
-                  </For>
-                  <AvailabilityBlobLayer
-                    available={blobs('available')}
-                    unavailable={blobs('unavailable')}
-                    joining={joining()}
-                    preview={current()?.mode}
-                  />
-                  <Index each={bars().available}>
-                    {(bar) => {
-                      const change = (): AvailabilityChange => ({
-                        target: bar().draft
-                          ? (current()?.target ?? availableTarget())
-                          : availableTarget(),
-                        window: bar().window,
-                        mode: 'available',
-                        index: bar().index,
-                        allDay:
-                          bar().window.start === '00:00' &&
-                          bar().window.end === '23:59',
-                      });
-                      return (
-                        <AvailabilityRangeCard
-                          change={change()}
-                          label={label()}
-                          transparent
-                          entryStart={
-                            bar().draft &&
-                            bar().window.start !== current()?.window.start
-                              ? current()?.window.start
-                              : undefined
-                          }
-                          onMoveStart={(event) => {
-                            if (column().overridden || column().weeklyEnabled)
-                              beginMove(change(), index, event);
+                    <For each={['available', 'unavailable'] as const}>
+                      {(mode) => (
+                        <For
+                          each={bars()[mode].filter(
+                            (bar) => !coveredByPreview(mode, bar.window)
+                          )}
+                        >
+                          {(bar) => {
+                            const hours = () =>
+                              availabilityTimeLabel(
+                                bar.window,
+                                props.timeFormat
+                              );
+                            return (
+                              <button
+                                type="button"
+                                data-availability-item
+                                data-mode={mode}
+                                data-availability-preview={
+                                  bar.draft ? 'true' : undefined
+                                }
+                                aria-label={`${dateLabel(date())}, ${mode}, ${hours()}`}
+                                disabled={props.disabled || bar.draft}
+                                class="min-w-0 shrink-0 rounded px-1.5 py-1 text-left text-[10px] leading-tight outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-100"
+                                classList={{
+                                  'bg-accent text-panel':
+                                    mode === 'available' &&
+                                    (active() || bar.draft),
+                                  'bg-edge text-ink':
+                                    mode === 'unavailable' ||
+                                    (!active() && !bar.draft),
+                                  'ring-1 ring-failure': !!bar.overlaps.length,
+                                }}
+                                onPointerDown={(event) => {
+                                  suppressedClick =
+                                    event.defaultPrevented ||
+                                    !!props.popoverOpen;
+                                }}
+                                onClick={(event) => {
+                                  if (
+                                    (event.detail && suppressedClick) ||
+                                    props.popoverOpen
+                                  )
+                                    return;
+                                  if (props.stamping)
+                                    props.onDates(
+                                      [date()],
+                                      event.currentTarget,
+                                      true
+                                    );
+                                  else
+                                    props.onSelect(
+                                      change(mode, bar.window, bar.index),
+                                      event.currentTarget,
+                                      date()
+                                    );
+                                }}
+                              >
+                                <span class="block tabular-nums">
+                                  {hours()}
+                                </span>
+                                <Show when={bar.overlaps.length}>
+                                  <span class="block text-[9px]">
+                                    Conflicting hours
+                                  </span>
+                                </Show>
+                              </button>
+                            );
                           }}
-                          overridden={change().target.kind === 'date'}
-                          inactive={
-                            !column().overridden &&
-                            !column().weeklyEnabled &&
-                            !bar().draft
-                          }
-                          draft={bar().draft}
-                          disabled={props.disabled}
-                          selected={isSelected(change())}
-                          overlaps={bar().overlaps}
-                          style={windowStyle(bar().window)}
-                          onSelect={(anchor, event) =>
-                            select(change(), anchor, event)
-                          }
-                        />
-                      );
-                    }}
-                  </Index>
-                  <Index each={bars().unavailable}>
-                    {(bar) => {
-                      const change = (): AvailabilityChange => ({
-                        target: column().target,
-                        window: bar().window,
-                        mode: 'unavailable',
-                        allDay:
-                          bar().window.start === '00:00' &&
-                          bar().window.end === '23:59',
-                      });
-                      return (
-                        <AvailabilityRangeCard
-                          change={change()}
-                          label={label()}
-                          draft={bar().draft}
-                          transparent
-                          entryStart={
-                            bar().draft &&
-                            bar().window.start !== current()?.window.start
-                              ? current()?.window.start
-                              : undefined
-                          }
-                          onMoveStart={(event) =>
-                            beginMove(change(), index, event)
-                          }
-                          disabled={props.disabled}
-                          overridden
-                          selected={isSelected(change())}
-                          overlaps={bar().overlaps}
-                          style={windowStyle(bar().window)}
-                          onSelect={(anchor, event) =>
-                            select(change(), anchor, event)
-                          }
-                        />
-                      );
-                    }}
-                  </Index>
+                        </For>
+                      )}
+                    </For>
+                  </div>
                 </div>
               );
             }}
           </Index>
+          <For each={runs()}>
+            {(run) => (
+              <AvailabilitySelectionBar
+                run={run}
+                preview={props.selectionPreview}
+                timeFormat={props.timeFormat}
+                conflicting={conflicting(run)}
+              />
+            )}
+          </For>
         </div>
       </div>
     </div>

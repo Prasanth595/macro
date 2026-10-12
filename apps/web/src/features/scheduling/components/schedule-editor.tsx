@@ -9,6 +9,8 @@ export function ScheduleEditorForm(props: {
   saving: boolean;
   editingRange: boolean;
   error: string;
+  topBarOwned?: boolean;
+  creating?: boolean;
   children: JSX.Element;
   onNameChange: (name: string) => void;
   onSubmit: (event: SubmitEvent) => void;
@@ -16,17 +18,21 @@ export function ScheduleEditorForm(props: {
 }) {
   return (
     <form class="flex min-h-0 flex-1 flex-col gap-4" onSubmit={props.onSubmit}>
-      <header class="flex shrink-0 flex-wrap items-center gap-3 border-b border-edge-muted bg-panel py-3">
-        <Button
-          variant="ghost"
-          size="icon-md"
-          label="Back to availability"
-          disabled={props.saving}
-          onClick={props.onCancel}
-        >
-          <ArrowLeft class="size-5" />
-        </Button>
-        <h1 class="text-lg font-semibold">Edit schedule</h1>
+      <header class="flex w-full max-w-[42rem] shrink-0 flex-wrap items-center gap-3 py-3">
+        <Show when={!props.topBarOwned}>
+          <Button
+            variant="ghost"
+            size="icon-md"
+            label="Back to availability"
+            disabled={props.saving}
+            onClick={props.onCancel}
+          >
+            <ArrowLeft class="size-5" />
+          </Button>
+          <h1 class="text-lg font-semibold">
+            {props.creating ? 'Create schedule' : 'Edit schedule'}
+          </h1>
+        </Show>
         <TextInput
           aria-label="Schedule name"
           required

@@ -2,29 +2,34 @@ import ArrowLeft from '@phosphor/caret-left.svg';
 import ArrowRight from '@phosphor/caret-right.svg';
 import Plus from '@phosphor/plus.svg';
 import X from '@phosphor/x.svg';
-import { Button } from '@ui';
+import { Button, Tabs } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
 import {
   AvailabilityCalendar,
   type AvailabilityColumn,
 } from '../components/availability-calendar';
-import { OverlapHatch } from '../components/availability-overlap-pattern';
+import { AvailabilityMonthPicker } from '../components/availability-month-picker';
+import { AvailabilityMonthReview } from '../components/availability-month-review';
 import { AvailabilityRangePopover } from '../components/availability-range-popover';
 import { AvailabilityTypePicker } from '../components/availability-type-picker';
-import { AvailabilityWeekPicker } from '../components/availability-week-picker';
 import { Field, TimeZoneInput } from '../components/fields';
 import {
   type AvailabilityChange,
-  availabilityWeek,
+  type AvailabilityIssue,
   dateWeekday,
   targetWindows,
-  timeMinutes,
   validAvailabilityDate,
   windowsIssue,
 } from '../core/availability';
-import { reportDate, shiftReportDate } from '../core/insights';
+import {
+  type AvailabilityTimeFormat,
+  availabilityMonth,
+  shiftAvailabilityMonth,
+} from '../core/availability-month';
+import { reportDate } from '../core/insights';
 import { type AvailabilitySchedule, WEEKDAYS } from '../core/types';
 import { createAvailabilityEditor } from '../primitives/create-availability-editor';
+import { createAvailabilityMonthEditor } from '../primitives/create-availability-month-editor';
 
 /** Shared availability controls used by settings and AI review. */
 export function ScheduleFields(props: {
@@ -35,36 +40,64 @@ export function ScheduleFields(props: {
     update: (current: AvailabilitySchedule) => AvailabilitySchedule
   ) => void;
 }) {
-  const [weekDate, setWeekDate] = createSignal(
+  const [monthDate, setMonthDate] = createSignal(
     reportDate(new Date(), props.schedule.timeZone)
   );
+  const [timeFormat, setTimeFormat] =
+    createSignal<AvailabilityTimeFormat>('24h');
+  const [batchDates, setBatchDates] = createSignal<string[]>([]);
+  const [batchIssue, setBatchIssue] = createSignal<AvailabilityIssue>();
+  let stamp!: ReturnType<typeof createAvailabilityMonthEditor>;
   const editor = createAvailabilityEditor({
     schedule: () => props.schedule,
     disabled: () => !!props.disabled,
-    onEditingChange: props.onEditingChange,
+    onEditingChange: (editing) =>
+      props.onEditingChange?.(editing || !!stamp?.template()),
     onChange: props.onChange,
   });
+  stamp = createAvailabilityMonthEditor({
+    schedule: () => props.schedule,
+    disabled: () => !!props.disabled,
+    unavailable: editor.displayUnavailableWindows,
+    copy: editor.copy,
+    onEditingChange: (editing) =>
+      props.onEditingChange?.(editing || !!editor.selection()),
+  });
   let boundary!: HTMLDivElement;
+  let cancelCalendarDrag = () => {};
   let addTrigger!: HTMLButtonElement;
   const [drawingMode, setDrawingMode] =
     createSignal<AvailabilityChange['mode']>('available');
+  const drawingPreview = () => ({
+    mode: drawingMode(),
+    window: { start: '09:00', end: '17:00' },
+  });
   const [popover, setPopover] = createSignal<{
     change: AvailabilityChange;
     anchor: HTMLElement;
     drawn: boolean;
+    date: string;
   }>();
   const closePopover = () => {
     editor.close();
     setPopover(undefined);
+    setBatchDates([]);
+    setBatchIssue(undefined);
   };
   const openPopover = (
     change: AvailabilityChange,
     anchor: HTMLElement,
-    drawn = false
+    drawn = false,
+    date = change.target.kind === 'date' ? change.target.date : monthDate()
   ) => {
     setDrawingMode(change.mode);
     closePopover();
-    setPopover({ change, anchor, drawn });
+    setPopover({
+      change,
+      anchor: anchor.closest<HTMLElement>('[data-availability-date]') ?? anchor,
+      drawn,
+      date,
+    });
     if (drawn) editor.open(change);
   };
   const editPopover = () => {
@@ -83,6 +116,16 @@ export function ScheduleFields(props: {
   const apply = (replaceConflicts = false) => {
     const draft = editor.selection();
     if (!draft) return;
+    if (batchDates().length > 1) {
+      const result = editor.copy(
+        draft,
+        batchDates().map((date) => ({ kind: 'date', date })),
+        replaceConflicts
+      );
+      if (!result.ok) setBatchIssue(result.issue);
+      else closePopover();
+      return;
+    }
     editor.apply(replaceConflicts);
     if (editor.selection()) return;
     const windows = targetWindows(props.schedule, draft.target);
@@ -119,24 +162,7 @@ export function ScheduleFields(props: {
         }
     );
   };
-  const anchorRect = () => {
-    const current = popover();
-    if (!current) return;
-    const day = current.anchor.closest<HTMLElement>('[data-availability-day]');
-    if (!day) return current.anchor.getBoundingClientRect();
-    const rect = day.getBoundingClientRect();
-    const window = current.change.allDay
-      ? { start: '00:00', end: '24:00' }
-      : current.change.window;
-    return {
-      x: rect.x,
-      y: rect.y + (timeMinutes(window.start) / 1440) * rect.height,
-      width: rect.width,
-      height:
-        ((timeMinutes(window.end) - timeMinutes(window.start)) / 1440) *
-        rect.height,
-    };
-  };
+  const anchorRect = () => popover()?.anchor.getBoundingClientRect();
   // Capture the range before the popover closes and disposes its selection.
   const removeAction = (change: AvailabilityChange) => () => {
     if (change.index !== undefined) editor.remove(change.target, change.index);
@@ -145,23 +171,74 @@ export function ScheduleFields(props: {
     if (change.target.kind === 'date') editor.restoreDate(change.target.date);
   };
   const selectedColumn = () =>
-    columns().find((column) => {
-      const target = popover()?.change.target;
-      return (
-        column.target.kind === 'date' &&
-        (target?.kind === 'weekly'
-          ? target.day === dateWeekday(column.target.date)
-          : target?.date === column.target.date)
-      );
-    });
+    columns().find((column) => column.target.date === selectedDate());
   const selectedDate = () => {
-    const target = editor.selection()?.target ?? popover()?.change.target;
+    const target = editor.selection()?.target;
     return target?.kind === 'date'
       ? target.date
-      : (dates().find((date) => dateWeekday(date) === target?.day) ??
-          weekDate());
+      : (popover()?.date ?? monthDate());
   };
-  const dates = () => availabilityWeek(weekDate());
+  const dates = () => availabilityMonth(monthDate());
+  const batchConflicts = () =>
+    batchDates().length > 1 && editor.selection()
+      ? stamp.conflicts(editor.selection(), batchDates())
+      : [];
+  const rangeIssue = () => {
+    if (batchIssue()) return batchIssue();
+    const conflicts = batchConflicts();
+    if (!conflicts.length) return editor.issue();
+    return {
+      message: conflicts
+        .map(({ date, issue }) => `${date}: ${issue.message}`)
+        .join(' '),
+      mergeable: true,
+      overlaps: conflicts.flatMap(({ issue }) => issue.overlaps ?? []),
+    };
+  };
+  const previewForDate = (date: string, overridden: boolean) => {
+    const stamped = stamp.dates().includes(date) ? stamp.template() : undefined;
+    const change = stamped ?? editor.selection();
+    if (!change || (!change.allDay && windowsIssue([change.window]))) return;
+    const bulk = !!stamped || batchDates().length > 1;
+    if (
+      bulk
+        ? !(stamped || batchDates().includes(date))
+        : change.target.kind === 'date'
+          ? change.target.date !== date
+          : overridden || dateWeekday(date) !== change.target.day
+    )
+      return;
+    return {
+      ...change,
+      ...(bulk
+        ? {
+            target: { kind: 'date' as const, date },
+            origin: undefined,
+            index: undefined,
+          }
+        : {}),
+      window: change.allDay ? { start: '00:00', end: '23:59' } : change.window,
+    };
+  };
+  const selectDates = (
+    dates: string[],
+    anchor: HTMLElement,
+    toggle: boolean
+  ) => {
+    if (stamp.template()) {
+      stamp.select(dates, toggle);
+      return;
+    }
+    openPopover(
+      {
+        target: { kind: 'date', date: dates[0] },
+        ...drawingPreview(),
+      },
+      anchor,
+      true
+    );
+    setBatchDates(dates);
+  };
   const dateLabel = (date: string) =>
     new Intl.DateTimeFormat('en', {
       month: 'short',
@@ -188,6 +265,7 @@ export function ScheduleFields(props: {
         weeklyEnabled: !!targetWindows(props.schedule, { kind: 'weekly', day })
           .length,
         unavailable: editor.displayUnavailableWindows(date),
+        draft: previewForDate(date, overridden),
       };
     });
   const invalidDays = () =>
@@ -200,46 +278,70 @@ export function ScheduleFields(props: {
     <div
       ref={boundary}
       class="portal-scope @container relative flex min-h-0 min-w-0 flex-1 flex-col gap-3"
+      onKeyDown={(event) => {
+        if (
+          event.key !== 'Escape' ||
+          event.defaultPrevented ||
+          !stamp.template()
+        )
+          return;
+        cancelCalendarDrag();
+        stamp.exit();
+        event.preventDefault();
+      }}
     >
-      <section class="flex min-h-0 min-w-0 flex-1 flex-col">
+      <section class="flex min-h-0 min-w-0 w-full max-w-[42rem] flex-1 flex-col">
         <div class="flex shrink-0 flex-wrap items-center justify-between gap-3 pb-3">
           <div class="flex items-center gap-1.5">
             <Button
               variant="ghost"
               size="icon-sm"
-              label="Previous availability week"
+              label="Previous month"
               disabled={props.disabled}
               onClick={() => {
                 closePopover();
-                setWeekDate(shiftReportDate(weekDate(), -7));
+                setMonthDate(shiftAvailabilityMonth(monthDate(), -1));
               }}
             >
               <ArrowLeft class="size-4" />
             </Button>
-            <AvailabilityWeekPicker
-              date={weekDate()}
+            <AvailabilityMonthPicker
+              date={monthDate()}
               disabled={props.disabled}
               onChange={(date) => {
                 closePopover();
-                setWeekDate(date);
+                setMonthDate(date);
               }}
             />
             <Button
               variant="ghost"
               size="icon-sm"
-              label="Next availability week"
+              label="Next month"
               disabled={props.disabled}
               onClick={() => {
                 closePopover();
-                setWeekDate(shiftReportDate(weekDate(), 7));
+                setMonthDate(shiftAvailabilityMonth(monthDate(), 1));
               }}
             >
               <ArrowRight class="size-4" />
             </Button>
           </div>
-          <Field label="Time zone" class="w-56 max-w-full gap-1 text-xs">
+          <Tabs
+            aria-label="Time format"
+            list={[
+              { value: '12h', label: '12h' },
+              { value: '24h', label: '24h' },
+            ]}
+            value={timeFormat()}
+            onChange={(value) => {
+              if (value === '12h' || value === '24h') setTimeFormat(value);
+            }}
+          />
+          <Field label="Time zone" class="w-48 max-w-full gap-1 text-xs">
             <TimeZoneInput
-              disabled={props.disabled || !!editor.selection()}
+              disabled={
+                props.disabled || !!editor.selection() || !!stamp.template()
+              }
               value={props.schedule.timeZone}
               onChange={(timeZone) =>
                 props.onChange((schedule) => ({ ...schedule, timeZone }))
@@ -249,19 +351,19 @@ export function ScheduleFields(props: {
           <AvailabilityTypePicker
             label="Availability drawing type"
             mode={drawingMode()}
-            disabled={props.disabled || !!popover()}
+            disabled={props.disabled || !!popover() || !!stamp.template()}
             onChange={setDrawingMode}
           />
           <Button
             ref={addTrigger}
             variant="ghost"
             size="sm"
-            disabled={props.disabled}
+            disabled={props.disabled || !!stamp.template()}
             onClick={(event) => {
               if (popover()) return;
               openPopover(
                 {
-                  target: { kind: 'date', date: weekDate() },
+                  target: { kind: 'date', date: monthDate() },
                   mode: drawingMode(),
                   window: { start: '09:00', end: '17:00' },
                 },
@@ -299,22 +401,55 @@ export function ScheduleFields(props: {
             </Show>
           </div>
         </Show>
+        <Show when={stamp.template()}>
+          {(template) => (
+            <div class="my-3">
+              <AvailabilityMonthReview
+                template={template()}
+                timeFormat={timeFormat()}
+                dates={stamp.dates()}
+                conflicts={stamp.conflicts()}
+                error={stamp.error()}
+                disabled={!!props.disabled}
+                onClear={stamp.clear}
+                onExit={stamp.exit}
+                onApply={stamp.apply}
+              />
+            </div>
+          )}
+        </Show>
         <Show when={editor.actionError()}>
           <p role="alert" class="mt-3 text-xs text-failure">
             {editor.actionError()}
           </p>
         </Show>
-        <div class="flex min-h-0 flex-1 flex-col border-y border-edge-muted">
+        <div
+          class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-edge-muted bg-panel"
+          data-availability-calendar-frame
+        >
           <AvailabilityCalendar
             columns={columns()}
+            timeFormat={timeFormat()}
+            month={monthDate().slice(0, 7)}
             disabled={!!props.disabled || !!editor.selection()}
             popoverOpen={!!popover()}
+            stamping={!!stamp.template()}
+            selectedDates={stamp.template() ? stamp.dates() : batchDates()}
+            selectionPreview={
+              stamp.template() ?? editor.selection() ?? drawingPreview()
+            }
             onDismissPopover={closePopover}
-            draft={editor.selection()}
-            selected={popover()?.change}
-            mode={drawingMode()}
-            onDraw={(change, anchor) => openPopover(change, anchor, true)}
-            onSelect={openPopover}
+            onCancelReady={(cancel) => {
+              cancelCalendarDrag = cancel;
+            }}
+            onCancelSelection={() => {
+              if (stamp.template()) stamp.exit();
+              else closePopover();
+            }}
+            onDates={selectDates}
+            onSelect={(change, anchor, date) =>
+              openPopover(change, anchor, false, date)
+            }
             onToggle={editor.toggle}
           />
         </div>
@@ -327,12 +462,9 @@ export function ScheduleFields(props: {
             <span class="size-2 rounded-sm bg-edge" />
             Unavailable
           </span>
-          <span class="flex items-center gap-1.5 text-failure">
-            <OverlapHatch class="size-3 rounded-sm border border-failure bg-panel" />
-            Overlapping hours
-          </span>
           <span class="ml-auto">
-            Drag empty space to add · drag bars to move · click to edit
+            Click a day to add · drag across days · select an item to apply
+            elsewhere
           </span>
         </div>
         <Show when={editor.notice()}>
@@ -365,7 +497,7 @@ export function ScheduleFields(props: {
                     }
                     onClick={() => {
                       closePopover();
-                      setWeekDate(override.date);
+                      setMonthDate(override.date);
                     }}
                   >
                     {override.date || 'Choose a date'} ·{' '}
@@ -400,7 +532,9 @@ export function ScheduleFields(props: {
               boundary={boundary}
               change={change()}
               timeZone={props.schedule.timeZone}
+              timeFormat={timeFormat()}
               date={selectedDate()}
+              dates={batchDates()}
               inherited={selectedColumn()?.inherited ?? false}
               overridden={selectedColumn()?.overridden ?? false}
               inactive={
@@ -409,11 +543,17 @@ export function ScheduleFields(props: {
               }
               disabled={!!props.disabled}
               draft={editor.selection()}
-              issue={editor.issue()}
+              issue={rangeIssue()}
               onEdit={editPopover}
               onChange={(update) => {
                 editor.updateSelection(update);
                 const selection = editor.selection();
+                setBatchIssue(undefined);
+                if (
+                  batchDates().length === 1 &&
+                  selection?.target.kind === 'date'
+                )
+                  setBatchDates([selection.target.date]);
                 if (selection) setDrawingMode(selection.mode);
               }}
               onApply={apply}
@@ -424,7 +564,11 @@ export function ScheduleFields(props: {
               }}
               onRemove={removeAction(change())}
               onRestore={restoreAction(change())}
-              onCopy={(targets, merge) => editor.copy(change(), targets, merge)}
+              onStamp={() => {
+                const template = change();
+                closePopover();
+                stamp.begin(template);
+              }}
             />
           );
         }}

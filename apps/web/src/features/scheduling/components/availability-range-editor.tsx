@@ -1,6 +1,7 @@
 import { Button } from '@ui';
 import { createSignal, Show } from 'solid-js';
 import {
+  AVAILABILITY_STEP_MINUTES,
   type AvailabilityChange,
   type AvailabilityIssue,
   dateWeekday,
@@ -11,6 +12,7 @@ import { CheckField, Field, TextInput } from './fields';
 export function AvailabilityRangeEditor(props: {
   change: AvailabilityChange;
   date: string;
+  dates?: string[];
   issue?: AvailabilityIssue;
   disabled: boolean;
   onChange: (
@@ -22,6 +24,7 @@ export function AvailabilityRangeEditor(props: {
   const [weeklyDate, setWeeklyDate] = createSignal(props.date);
   const editing = () =>
     props.change.index !== undefined || props.change.origin !== undefined;
+  const bulk = () => (props.dates?.length ?? 0) > 1;
   const conflicting = () => !!props.issue?.overlaps?.length;
   const fixedDate = props.change.target.kind === 'date' && editing();
   const date = () =>
@@ -44,6 +47,12 @@ export function AvailabilityRangeEditor(props: {
             }))
           }
         />
+        <Show when={bulk()}>
+          <p class="text-xs text-ink-muted">
+            Apply to {props.dates?.length} dates: {props.dates?.join(', ')}.
+            This changes only these dates.
+          </p>
+        </Show>
         <div class="flex items-end gap-4">
           <Field label="Date" class="flex-1 gap-2 text-xs [&_label]:gap-2">
             <TextInput
@@ -51,7 +60,7 @@ export function AvailabilityRangeEditor(props: {
               aria-label="Availability date"
               class="h-9 w-full text-xs"
               value={date()}
-              disabled={editing()}
+              disabled={editing() || bulk()}
               onInput={(event) => {
                 const value = event.currentTarget.value;
                 setWeeklyDate(value);
@@ -81,6 +90,7 @@ export function AvailabilityRangeEditor(props: {
             <Field label="Start time" class="gap-2 text-xs [&_label]:gap-2">
               <TextInput
                 type="time"
+                step={AVAILABILITY_STEP_MINUTES * 60}
                 aria-label="Availability start time"
                 class="h-9 w-full text-xs"
                 value={props.change.window.start}
@@ -99,6 +109,7 @@ export function AvailabilityRangeEditor(props: {
             <Field label="End time" class="gap-2 text-xs [&_label]:gap-2">
               <TextInput
                 type="time"
+                step={AVAILABILITY_STEP_MINUTES * 60}
                 aria-label="Availability end time"
                 class="h-9 w-full text-xs"
                 value={props.change.window.end}
@@ -116,7 +127,7 @@ export function AvailabilityRangeEditor(props: {
             </Field>
           </div>
         </Show>
-        <Show when={props.change.mode === 'available'}>
+        <Show when={props.change.mode === 'available' && !bulk()}>
           <CheckField
             label="Repeat every week"
             class="text-xs"
@@ -178,9 +189,11 @@ export function AvailabilityRangeEditor(props: {
               ? props.change.mode === 'available'
                 ? 'Make overlapping hours available'
                 : 'Mark overlapping hours unavailable'
-              : editing()
-                ? 'Update hours'
-                : 'Add to schedule'}
+              : bulk()
+                ? `Apply to ${props.dates?.length} days`
+                : editing()
+                  ? 'Update hours'
+                  : 'Add to schedule'}
           </Button>
         </div>
       </fieldset>

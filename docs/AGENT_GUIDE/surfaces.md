@@ -1236,92 +1236,73 @@ color field (Shift makes larger steps). **Reset to default** clears the override
 Visibility and colors share the calendar sidebar's browser-local preferences,
 survive reload, and do not change the Google calendar or booking conflict checks.
 Booking status filters use the same segmented control as the CRM sidebar.
-In Availability, selecting or creating a schedule replaces the overview with the
-full-page **Edit schedule** view and a **Back to availability** button. The editable
-schedule name sits in its header. The Sunday–Saturday calendar fills the remaining
-height; **Save schedule** and **Cancel** stay in a separate fixed footer. Calendar
-scrolling does not move the footer. Back and Cancel discard the schedule draft.
-The dated week uses Calendar styling: quiet day headers, hourly grid lines, and
-selectable time cards.
-The top week selector opens the shared UI mini-calendar, with the current week
-highlighted. Previous/next arrows move by one week. The toolbar also holds the
-schedule-wide time zone.
-Active Available bars use solid accent color, including date overrides and the
-live drawing/editing preview. Unavailable bars use solid gray. The toolbar's
-**Available / Unavailable** pills choose the drawing type before a drag; the inline
-editor's type selection also updates that choice.
-The grid shows effective hours, without a duplicate recurring layer underneath
-an override. Touching or overlapping bars of the same type merge into one connected
-bar, including during drawing and editing. Same-type shapes join with a gooey
-contour; labels glide toward the merged top only during a same-type merge. Separate
-ranges and opposite-type conflicts do not animate the name area. Only
-Available/Unavailable conflicts use failure-colored, single-direction stripes at
-full width, and the striped overlap area transitions as the conflict changes.
-The original bar's title and hours move directly below the conflicting section,
-instead of animating or floating over it. Reduced-motion settings skip transitions;
-text stays outside the shape filter.
-When an overlap reaches a bar's end, its label continues below the bar in the same
-column, without changing the represented hours.
-Day toggles control recurring weekday hours only and remember ranges while the
-editor is open. Turning a weekday off keeps its bars visible in gray, leaves date
-overrides and column styling unchanged, and does not create an all-day override.
-Turn the weekday back on before editing its gray recurring bars. Disabled remembered
-hours never cause conflicts; date overrides retain their own effective availability.
-Select a range to open an anchored event-style glass popover with its day, hours,
-repeat pattern, and time zone. Its icon actions offer Edit, Remove, or Copy hours,
-with tooltips.
-Edit and Copy stay inside that same popover; there is no separate form above the grid.
-Applying an edit returns to the updated details without closing the popover.
-Drag empty space to select a 5-minute-snapped range and confirm its exact times in
-that popover. Drag an active bar to move its start while preserving duration.
-Moves snap to 5 minutes, stay in the original day column, and clamp to that day.
-Drawing and moving auto-scroll near the top and bottom of the visible time grid,
-including below its sticky day headers. Holding the pointer at an edge or beyond
-the window keeps scrolling and updates the preview without changing its day.
-Release, Escape, pointer cancellation, and leaving the editor stop auto-scrolling.
-All-day bars retain full-day placement. Dragging time off replaces the original gap.
-**Add availability** opens the same inline editor without dragging. If any range
-popover is already open, Add leaves that popover and its draft unchanged. Clicking
-outside a view/edit/create range popover dismisses it; the same pointer gesture
-never draws a new range, moves a bar, or opens another bar's details. Touch gestures
-on the calendar dismiss immediately on pointer-down, including drags and touches on
-disabled bars that never generate Kobalte's deferred click event.
-Focus a day and press Enter for the keyboard alternative. The roomier editor starts
-with accent **Available** and gray **Unavailable** selection pills matching booking-link creation,
-followed by a Date field with **All day** to its right. Start and end times appear
-below only when All day is unchecked. **Add to schedule** uses an accent button.
-Available supports **Repeat every week** below the times. Weekly cards edit recurring
-hours by default; clear Repeat every week to change only the selected date.
-Date-only edits preserve sibling ranges. Available additions extend existing hours,
-including inherited recurring hours. Matching ranges merge automatically, including
-when copying. Opposite-type changes show an immediate warning with the intersecting
-hours. Choose **Keep existing hours**, **Make overlapping hours available**, or
-**Mark overlapping hours unavailable**. Copy offers the corresponding explicit
-replacement choice and validates every destination before changing any destination.
-Partial time-off edits replace the selected gap instead of adding a second gap.
-Converting selected partial time off to Available excludes that range from conflicts.
-Unconverted portions remain unavailable; other unavailable ranges still require approval.
-All-day restoration still requires explicit confirmation.
-All-day time off offers **Make available** or **Use weekly hours** rather than guessing
-historical working hours. Schedule-card Details also offers **Copy schedule**, which
-opens a new draft and preserves the original schedule.
+In Availability, the main topbar reads **Availability**; its info tooltip explains
+schedule hours instead of repeating a description below the heading. **New schedule**
+opens **Create schedule**. Selecting a schedule opens **Edit schedule**. Both views
+put **Back to availability** in the topbar and the editable schedule name above the
+calendar. **Save schedule** and **Cancel** stay in a separate footer. Back and Cancel
+discard the schedule draft; scrolling never moves the footer.
+The calendar is month-only, with six Sunday–Saturday rows and square date cells.
+Its rounded frame clips the scrolling grid at the corners. It is capped at 42rem
+wide and scrolls inside its available height; narrow screens also scroll horizontally
+instead of stretching the page. Previous/next arrows move one month. The month
+picker jumps directly to another month or **Today**.
+The toolbar holds the schedule-wide time zone and a **12h / 24h** display toggle.
+The display toggle changes calendar, details, and template times without changing
+stored hours. Bars show only their time range or **All day**: the key and solid
+accent/gray colors distinguish Available and Unavailable. Inactive remembered
+recurring ranges remain visible in gray. Date overrides keep their own availability.
 
-Choose a week to set Available or Unavailable hours through the same drawing and
-form flow. All-day availability stores a full-day range; all-day time off stores an
-empty date override. Saved date overrides still take priority over recurring hours;
-available additions extend that date's effective hours, while partial time off
-subtracts from them. The calendar shows removed recurring or remembered available
-hours as Unavailable, without inventing unavailable events in gaps between separate
-custom available additions or ordinary off-hours. All-day time off shows one
-all-day bar. The time zone belongs to the schedule, not each
-bar; choose another schedule for a booking link that needs another time zone.
-**Use weekly hours** removes the override. Saved override chips jump to their week
-and allow removal. Invalid or overnight ranges, more than eight normalized ranges
-per day, invalid dates, excess overrides, and stale edit origins are rejected
-before saving.
-All changes remain drafts until **Save schedule**. Apply or cancel any range edit
-before saving; the disabled Save button does not dismiss an unfinished range edit.
-Leave the editor to discard a verification draft instead of modifying hosted data.
+Click an empty date, or focus it and press Enter, to open the anchored form editor.
+Drag across dates, including across rows, to select an inclusive date range and
+review one time template before applying it to those dates. A live time bar spans
+adjacent selected dates, wrapping at week boundaries and stopping at unselected
+gaps. Available previews use accent; Unavailable previews use gray. Conflicting
+preview segments retain a failure-colored outline. Pending time edits update the
+spanning bar; stamp dragging keeps previously selected dates visible. Escape and
+Cancel remove the preview without changing hours. The toolbar's
+**Available / Unavailable** pills choose the creation mode for date selection and
+**Add availability**, not separate calendar views. Available adds
+bookable hours; Unavailable blocks time. The editor repeats those selection pills
+to change the selected item's type, followed by a Date field with **All day** to
+its right. Exact start and end times appear only when All day is unchecked. **Add to schedule** uses accent.
+Single-date Available changes can **Repeat every week**; multi-date changes are
+date-only. Select a saved bar for details, then Edit, Remove, or stamp its hours.
+Icon actions have tooltips, and Edit stays inside the same popover.
+**Apply to other days** starts stamp mode: click or drag dates to build the selection,
+review its highlighted preview, then Apply explicitly. Preview never changes the
+schedule. **Clear selection**, **Exit stamp mode**, and Escape clear pending stamp
+selection without applying it. Template edits and selection changes invalidate
+previous conflict approval. Apply validates every selected destination before
+changing any destination, including mixed selections containing already-off days.
+Date drawing auto-scrolls at viewport edges and continues while the pointer remains
+outside the window. Release, Escape, pointer cancellation, and leaving the editor
+stop auto-scrolling. Enter or Space toggles a focused date in stamp mode.
+
+**Add availability** opens the same form without selecting dates. If a range popover
+is already open, Add preserves that popover and its draft. Clicking outside a
+view/edit/create popover dismisses it; the same pointer gesture never selects new
+dates or opens another bar. Touch on the calendar dismisses immediately on
+pointer-down, including touches that never produce a deferred click.
+Weekday toggles control recurring hours and remember disabled ranges while editing.
+They do not create date overrides; turn a weekday back on to edit its gray ranges.
+Available additions extend effective hours and preserve sibling ranges. Matching
+ranges merge automatically. Opposite-type changes warn with intersecting hours:
+choose **Keep existing hours**, **Make overlapping hours available**, or
+**Mark overlapping hours unavailable**. Partial time-off edits replace the selected range;
+converting time off to Available excludes that range from its own conflict checks.
+All-day time off stores an empty date override; restoring it requires explicit
+confirmation. Its details offer **Make available** or **Use weekly hours** rather
+than guessing historical hours. Custom available gaps do not invent time-off bars.
+**Use weekly hours** removes the override. Saved override chips jump to their month
+and allow removal. Schedule-card Details also offers **Copy schedule**, which opens
+a new draft without changing the original. The time zone belongs to the schedule,
+not each bar; use another schedule for booking links in another time zone.
+Invalid or overnight ranges, excessive ranges or overrides, invalid dates, and stale
+edit origins are rejected. All changes remain drafts until **Save schedule**.
+Apply or cancel a range edit or stamp selection before saving; disabled Save never
+dismisses pending work. Leave the editor to discard verification drafts instead of
+modifying hosted data.
 Ownership badges identify Personal or Team · team name on links and availability.
 Public booking pages, bookings, and insights are grouped by owner and remain visible
 together; editing one owner does not switch the rest of the page. Search booking
