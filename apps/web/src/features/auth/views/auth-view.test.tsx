@@ -162,6 +162,29 @@ describe('email sign-in', () => {
     await screen.findByTestId('signed-in');
   });
 
+  // Every check counts against the auth service's per-address attempt limit.
+  it('checks each entered code once, even when Verify is tapped after a miss', async () => {
+    const { fake } = setup();
+    click('Continue with email');
+    await typeEmail('returning@acme.com');
+    click('Continue');
+    await screen.findByText('returning@acme.com');
+    for (const wrong of ['000000', '111111', '222222']) {
+      await typeCode(wrong);
+      await screen.findByText('Invalid code.');
+      expect(screen.getByLabelText(/code/i)).toHaveProperty('value', '');
+      click(/^Verify/);
+    }
+    await typeCode('424242');
+    await screen.findByTestId('signed-in');
+    expect(fake.calls().filter((call) => call.startsWith('verify:'))).toEqual([
+      'verify:returning@acme.com:000000',
+      'verify:returning@acme.com:111111',
+      'verify:returning@acme.com:222222',
+      'verify:returning@acme.com:424242',
+    ]);
+  });
+
   it('says to wait when code checks are rate-limited, and keeps the code to retry', async () => {
     const { fake } = setup({
       world: { codeAttempts: { 'returning@acme.com': 5 } },

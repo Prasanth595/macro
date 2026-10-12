@@ -17,11 +17,19 @@ test('a returning user signs in with an emailed code', async ({ page }) => {
 test('a wrong code can be corrected without starting over', async ({
   page,
 }) => {
-  await openFixture(page, '/?page=login');
+  await openFixture(page, '/?page=login&verifyLatency=300');
   await page.getByRole('button', { name: 'Continue with email' }).click();
   await signInWithCode(page, 'returning@acme.com', '111111');
   await expect(page.getByRole('alert')).toHaveText('Invalid code.');
-  await page.getByLabel('One-time code').fill('424242');
+  const code = page.getByLabel('One-time code');
+  await expect(code).toHaveValue('');
+  await expect(code).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Verify' })).toBeDisabled();
+  await page.keyboard.press('Enter');
+  expect(
+    (await fakeCalls(page)).filter((call) => call.startsWith('verify:'))
+  ).toEqual(['verify:returning@acme.com:111111']);
+  await page.keyboard.type('424242');
   await expectLanded(page, '/');
 });
 

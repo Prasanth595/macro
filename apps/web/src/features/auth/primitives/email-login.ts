@@ -87,6 +87,9 @@ export function createEmailLogin(
       return;
     }
     setVerifying(false);
+    // The auth service allows only a few attempts a minute per address, and
+    // a rejected code left in the boxes would spend another on Verify.
+    if (result.t === 'invalid-code') setCode('');
     setVerifyError(VERIFY_ERRORS[result.t]);
   };
 

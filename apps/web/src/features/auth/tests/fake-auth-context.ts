@@ -82,6 +82,8 @@ export function createFakeAuth(
     ) => Promise<void>;
     /** Report the session as loading this long, like a cold page load. */
     sessionLatencyMs?: number;
+    /** Answer code checks this late, like a round trip to the auth service. */
+    verifyLatencyMs?: number;
   } = {}
 ) {
   const [world, setWorld] = createStore<FakeAuthWorld>({
@@ -150,6 +152,10 @@ export function createFakeAuth(
     },
     verifyEmailCode: async ({ email, code }) => {
       call(`verify:${email}:${code}`);
+      if (options.verifyLatencyMs)
+        await new Promise((resolve) =>
+          setTimeout(resolve, options.verifyLatencyMs)
+        );
       if (world.failures.verify !== undefined) return { t: 'failed' };
       const attempts = world.codeAttempts[email] ?? 0;
       if (attempts >= world.codeAttemptLimit) return { t: 'rate-limited' };
