@@ -1,11 +1,12 @@
 import { ShowFeatureFlag } from '@app/lib/analytics/posthog';
+import { useNavigate } from '@app/lib/split-router';
+import { bookingLinksRoute } from '@app/routes/routes';
 import { toast } from '@core/component/Toast/Toast';
 import { enableCalendarScheduling } from '@core/constant/featureFlags';
-import { useSettingsState } from '@core/constant/SettingsState';
 import { useUserId } from '@core/context/user';
 import { writeClipboardData } from '@core/util/dataTransfer';
 import { getWebOrigin } from '@core/util/webOrigin';
-import GearIcon from '@phosphor/gear.svg';
+import ArrowSquareOutIcon from '@phosphor/arrow-square-out.svg';
 import LinkIcon from '@phosphor/link.svg';
 import { Button } from '@ui';
 import { Suspense } from 'solid-js';
@@ -13,7 +14,7 @@ import { useSchedulingProfileQuery } from './queries/source';
 
 function Actions() {
   const user = useUserId();
-  const settings = useSettingsState();
+  const navigate = useNavigate();
   const source = useSchedulingProfileQuery(() => ({
     id: user() ?? 'me',
     name: 'Personal',
@@ -22,7 +23,7 @@ function Actions() {
   const copy = async () => {
     const profile = source.isSuccess ? source.data : undefined;
     if (!profile?.revision || !profile.eventTypes.some((e) => e.enabled)) {
-      settings.openSettings('Booking links');
+      navigate({ route: bookingLinksRoute });
       return;
     }
     if (
@@ -48,10 +49,10 @@ function Actions() {
       <Button
         variant="ghost"
         size="icon-sm"
-        label="Open booking link settings"
-        onClick={() => settings.openSettings('Booking links')}
+        label="Manage booking links"
+        onClick={() => navigate({ route: bookingLinksRoute })}
       >
-        <GearIcon class="size-3.5" />
+        <ArrowSquareOutIcon class="size-3.5" />
       </Button>
     </div>
   );

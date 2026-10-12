@@ -17,6 +17,7 @@ const defaultPrefs = (overrides: Partial<SidebarPrefs> = {}): SidebarPrefs => ({
 
 const defaultGates = (overrides: Partial<NavItemGates> = {}): NavItemGates => ({
   showCalendar: true,
+  showScheduling: true,
   showCustomers: true,
   showCalls: true,
   showReviews: true,
@@ -43,7 +44,29 @@ describe('sidebar visibility preferences', () => {
   it('puts default-hidden items in the more menu', () => {
     const items = moreMenuItems(defaultGates());
 
-    expect(items.map((item) => item.id)).toEqual(['calls', 'reviews']);
+    expect(items.map((item) => item.id)).toEqual([
+      'calls',
+      'reviews',
+      'booking-links',
+    ]);
+  });
+
+  it('keeps Scheduling under More independently of rail preferences and Calendar', () => {
+    const gates = defaultGates({
+      showCalendar: false,
+      prefs: defaultPrefs({ hidden: new Set() }),
+    });
+    expect(moreMenuItems(gates)).toEqual([
+      expect.objectContaining({
+        id: 'booking-links',
+        label: 'Scheduling',
+        href: '/scheduling',
+      }),
+    ]);
+    expect(
+      visibleNavItems(gates).some((item) => item.id === 'booking-links')
+    ).toBe(false);
+    expect(moreMenuItems({ ...gates, showScheduling: false })).toEqual([]);
   });
 
   it('shows an item on the rail when it is not hidden', () => {

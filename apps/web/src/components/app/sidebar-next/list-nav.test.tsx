@@ -8,6 +8,7 @@ import { SidebarPrefsProvider } from './use-sidebar-prefs';
 const mocks = vi.hoisted(() => ({
   setActiveView: (_view: string) => {},
   activeView: (): string => 'settings',
+  pathname: '/app',
   navigate: vi.fn(),
 }));
 
@@ -16,9 +17,10 @@ vi.mock('@app/lib/analytics/analytics-context', () => ({
 }));
 vi.mock('@app/signal/splitLayout', () => ({
   globalSplitManager: () => ({
-    activeSplit: () => ({
-      content: () => ({ type: 'component', id: mocks.activeView() }),
-    }),
+    activeSplit: () =>
+      mocks.activeView()
+        ? { content: () => ({ type: 'component', id: mocks.activeView() }) }
+        : undefined,
     returnFocus: vi.fn(),
   }),
 }));
@@ -31,7 +33,11 @@ vi.mock('@components/app/split-layout/layout', () => ({
   useSplitLayout: () => ({ openWithSplit: vi.fn() }),
 }));
 vi.mock('@solidjs/router', () => ({
-  useLocation: () => ({ pathname: '/app' }),
+  useLocation: () => ({
+    get pathname() {
+      return mocks.pathname;
+    },
+  }),
 }));
 vi.mock('@ui', async () => ({
   ...(await import('@ui/utils/classname')),
@@ -60,6 +66,7 @@ beforeEach(() => {
   const [activeView, setActiveView] = createSignal('settings');
   mocks.activeView = activeView;
   mocks.setActiveView = setActiveView;
+  mocks.pathname = '/app';
   mocks.navigate.mockReset();
   mocks.navigate.mockImplementation(({ viewId }: { viewId: string }) =>
     setActiveView(viewId)
@@ -96,5 +103,36 @@ describe('ListNav', () => {
     expect(
       screen.getByRole('button', { name: 'Home' }).hasAttribute('data-active')
     ).toBe(false);
+  });
+  it('does not highlight Calendar in the separate Scheduling workspace', () => {
+    mocks.setActiveView('booking-links');
+    render(() => (
+      <SidebarPrefsProvider>
+        <ListNav item={item('calendar', 'Calendar')} />
+      </SidebarPrefsProvider>
+    ));
+    expect(
+      screen
+        .getByRole('button', { name: 'Calendar' })
+        .hasAttribute('data-active')
+    ).toBe(false);
+  });
+
+  it.each([
+    ['/app/calendar/timeGridWeek', true],
+    ['/app/scheduling', false],
+  ])('matches Calendar before the split mounts at %s', (pathname, active) => {
+    mocks.setActiveView('');
+    mocks.pathname = pathname;
+    render(() => (
+      <SidebarPrefsProvider>
+        <ListNav item={item('calendar', 'Calendar')} />
+      </SidebarPrefsProvider>
+    ));
+    expect(
+      screen
+        .getByRole('button', { name: 'Calendar' })
+        .hasAttribute('data-active')
+    ).toBe(active);
   });
 });

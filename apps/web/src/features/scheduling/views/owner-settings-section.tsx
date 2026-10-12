@@ -16,6 +16,7 @@ export function OwnerSettingsSection(props: {
   kind: 'links' | 'availability' | 'page' | 'bookings' | 'insights';
   owner: SchedulingOwner;
   search?: string;
+  scheduleTopBarOwned?: boolean;
 }) {
   const capabilities = useScheduling();
   const owner = props.owner;
@@ -130,6 +131,12 @@ export function OwnerSettingsSection(props: {
                     {(value) => (
                       <ScheduleEditor
                         schedule={value}
+                        topBarOwned={props.scheduleTopBarOwned}
+                        creating={
+                          !p().schedules.some(
+                            (schedule) => schedule.id === value.id
+                          )
+                        }
                         saving={source.saving()}
                         onCancel={closeScheduleEditor}
                         onSave={async (next) => {

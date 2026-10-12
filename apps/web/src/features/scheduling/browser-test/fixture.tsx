@@ -18,6 +18,7 @@ import {
   searchSettings,
 } from '../../settings/core/settings-search';
 import { SettingsPage } from '../../settings/primitives';
+import type { BookingLinksState } from '../booking-links-search';
 import {
   type SchedulingCapabilities,
   SchedulingProvider,
@@ -30,6 +31,7 @@ import {
   type PublicProfile,
   type SchedulingProfile,
 } from '../core/types';
+import { BookingWorkspaceView } from '../views/booking-workspace-view';
 import { PublicBookingView } from '../views/public-booking-view';
 import { SchedulingSettingsView } from '../views/settings-view';
 
@@ -75,9 +77,13 @@ function Fixture() {
     document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
   };
   onMount(() => applyTheme(false));
-  const [screen, setScreen] = createSignal<'settings' | 'public' | 'receipt'>(
-    'settings'
-  );
+  const [screen, setScreen] = createSignal<
+    'workspace' | 'settings' | 'public' | 'receipt'
+  >('workspace');
+  const [workspaceSearch, setWorkspaceSearch] = createStore<BookingLinksState>({
+    tab: 'links',
+    owner: 'me',
+  });
   const [slug, setSlug] = createSignal<string>();
   const schedule = newSchedule('America/New_York');
   const event = {
@@ -112,6 +118,24 @@ function Fixture() {
           id: crypto.randomUUID(),
           title: 'Team introduction',
           slug: 'team-introduction',
+          mode: 'collective',
+          hosts: ['macro|alex@example.com', 'macro|sam@example.com'],
+        },
+      ],
+      revision: 1,
+    },
+    operations: {
+      id: '00000000-0000-4000-8000-000000000003',
+      name: 'Operations team',
+      description: 'Meet the operations team.',
+      schedules: [schedule],
+      defaultScheduleId: schedule.id,
+      eventTypes: [
+        {
+          ...event,
+          id: crypto.randomUUID(),
+          title: 'Operations introduction',
+          slug: 'operations-introduction',
           mode: 'collective',
           hosts: ['macro|alex@example.com', 'macro|sam@example.com'],
         },
@@ -212,6 +236,12 @@ function Fixture() {
         name: 'Design team',
         canEdit: !readOnlyTeam(),
       },
+      {
+        id: 'operations',
+        teamId: 'operations',
+        name: 'Operations team',
+        canEdit: true,
+      },
     ],
     members: () => [
       {
@@ -311,6 +341,9 @@ function Fixture() {
         <span class="text-ink-muted">
           Sample data only · no invitations sent
         </span>
+        <button type="button" onClick={() => setScreen('workspace')}>
+          Booking workspace
+        </button>
         <button type="button" onClick={() => setScreen('settings')}>
           Settings
         </button>
@@ -343,6 +376,21 @@ function Fixture() {
         class="min-h-0 flex-1 mx-auto w-full"
         style={{ 'max-width': narrow() ? '390px' : undefined }}
       >
+        <Show when={screen() === 'workspace'}>
+          <SchedulingProvider value={capabilities}>
+            <BookingWorkspaceView
+              search={workspaceSearch}
+              onSearchChange={(patch) => {
+                setWorkspaceSearch(patch);
+                if (patch.owner) setActive(patch.owner);
+              }}
+              onSettings={() => {
+                setSettingsTab('Booking links');
+                setScreen('settings');
+              }}
+            />
+          </SchedulingProvider>
+        </Show>
         <Show when={screen() === 'settings'}>
           <SchedulingProvider value={capabilities}>
             <ViewShell.Root asidePreferenceKey="scheduling-preview" resizable>
@@ -370,7 +418,11 @@ function Fixture() {
                 <SettingsSearchTarget result={selectedResult()}>
                   <Show
                     when={settingsTab() === 'Calendar'}
-                    fallback={<SchedulingSettingsView />}
+                    fallback={
+                      <SchedulingSettingsView
+                        onOpenWorkspace={() => setScreen('workspace')}
+                      />
+                    }
                   >
                     <SettingsPage
                       title="Calendar"

@@ -72,10 +72,8 @@ export const ListNav = (props: ListNavProps) => {
     const activeContent = globalSplitManager()?.activeSplit()?.content();
     // With no active split to match on, fall back to the URL path.
     if (!activeContent) {
-      return location.pathname
-        .split('/')
-        .filter(Boolean)
-        .includes(props.item.id);
+      const segments = location.pathname.split('/').filter(Boolean);
+      return segments.includes(props.item.id);
     }
     const expected = content();
     if (

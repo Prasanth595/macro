@@ -6,7 +6,6 @@
  * redirect (`routes/focused-shell.ts`). The form itself is the shared
  * `RespondView`.
  */
-import { settingsTabToSlug } from '@core/constant/settingsTabsConfig';
 import { useEmail, useUserId } from '@core/context/user';
 import ArrowSquareOut from '@phosphor/arrow-square-out.svg';
 import ClipboardText from '@phosphor/clipboard-text.svg';
@@ -91,8 +90,7 @@ function FormRespondContent(props: { formId: string }) {
     openRelated: (destination) =>
       navigate(`/database/${destination.databaseId}`),
     openChannel: (channelId) => navigate(`/channel/${channelId}`),
-    openCalendarSettings: () =>
-      navigate(`/settings/${settingsTabToSlug('Booking links')}`),
+    openCalendarSettings: () => navigate('/scheduling'),
   });
   const source = context.createFormSource(() => props.formId);
   return (

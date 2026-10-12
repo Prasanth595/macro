@@ -15,10 +15,16 @@ import {
   useUpcomingTeamOoo,
 } from '@app/features/calendar/hooks/use-team-ooo';
 import { ShowFeatureFlag } from '@app/lib/analytics/posthog';
+import { useNavigate } from '@app/lib/split-router';
+import { bookingLinksRoute } from '@app/routes/routes';
 import { UserIcon } from '@core/component/UserIcon';
-import { enableCalendarTeamOoo } from '@core/constant/featureFlags';
+import {
+  enableCalendarScheduling,
+  enableCalendarTeamOoo,
+} from '@core/constant/featureFlags';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import CaretDownIcon from '@phosphor/caret-down.svg';
+import LinkIcon from '@phosphor/link.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import CloseIcon from '@phosphor/x.svg';
 import { cn, Calendar as MiniCalendar, ToggleSwitch } from '@ui';
@@ -281,6 +287,7 @@ function CalendarSidebarOverlayClose() {
 
 export function CalendarSidebar() {
   const shell = useViewShell();
+  const navigate = useNavigate();
   const closeOverlay = () => {
     if (shell.aside.isOverlay()) shell.aside.collapse();
   };
@@ -323,6 +330,16 @@ export function CalendarSidebar() {
       </ViewSidebar.Content>
       <ViewSidebar.Footer class="border-0">
         <ViewSidebar.Nav aria-label="Calendar tools">
+          <ShowFeatureFlag flag={enableCalendarScheduling}>
+            <ViewSidebar.Item
+              onClick={() => navigate({ route: bookingLinksRoute })}
+            >
+              <ViewSidebar.Icon>
+                <LinkIcon />
+              </ViewSidebar.Icon>
+              Booking links
+            </ViewSidebar.Item>
+          </ShowFeatureFlag>
           <CalendarSettingsDropdown sidebar />
         </ViewSidebar.Nav>
       </ViewSidebar.Footer>

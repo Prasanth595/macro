@@ -13,9 +13,10 @@ import {
 export function createSchedulingOwner(
   capabilities: Pick<SchedulingCapabilities, 'createSource' | 'userId'>,
   scope: Accessor<SchedulingScope>,
-  range: Accessor<{ from: string; to: string }>
+  range: Accessor<{ from: string; to: string }>,
+  loadBookings?: Accessor<boolean>
 ) {
-  const source = capabilities.createSource(scope, range);
+  const source = capabilities.createSource(scope, range, loadBookings);
   const [event, setEvent] = createSignal<EventType>();
   const [schedule, setSchedule] = createSignal<AvailabilitySchedule>();
   const [error, setError] = createSignal('');
@@ -50,6 +51,13 @@ export function createSchedulingOwner(
   const closeScheduleEditor = () => {
     setSchedule(undefined);
     restoreFocus(scheduleOpener);
+  };
+  // Navigation discards drafts without restoring focus to an obsolete opener.
+  const discardEditors = () => {
+    setEvent(undefined);
+    setSchedule(undefined);
+    eventOpener = undefined;
+    scheduleOpener = undefined;
   };
   const save = async (next: SchedulingProfile) => {
     if (!scope().canEdit)
@@ -139,6 +147,7 @@ export function createSchedulingOwner(
     editSchedule,
     closeEventEditor,
     closeScheduleEditor,
+    discardEditors,
     createEvent,
     createSchedule,
     duplicate,

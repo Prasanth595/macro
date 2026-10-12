@@ -1,4 +1,9 @@
+import { useFeatureFlag } from '@app/lib/analytics/posthog';
+import { createSearchParams } from '@app/lib/split-router';
+import { useSplitDisplayName } from '@components/app/split-layout/layoutUtils';
+import { SplitPanel } from '@components/app/split-panel';
 import { toast } from '@core/component/Toast/Toast';
+import { enableCalendarScheduling } from '@core/constant/featureFlags';
 import { useSettingsState } from '@core/constant/SettingsState';
 import { useUserContext } from '@core/context/user';
 import { getDisplayName, macroIdToEmail, tryMacroId } from '@core/user';
@@ -6,13 +11,15 @@ import { writeClipboardData } from '@core/util/dataTransfer';
 import { getWebOrigin } from '@core/util/webOrigin';
 import { useCurrentTeamQuery } from '@queries/team/teams';
 import { useNavigate } from '@solidjs/router';
-import { Suspense } from 'solid-js';
+import { type ParentProps, Show, Suspense } from 'solid-js';
+import { bookingLinksSearch } from './booking-links-search';
 import { SchedulingProvider } from './context/scheduling-context';
 import type { SchedulingProfile, SchedulingScope } from './core/types';
 import {
   createSchedulingSource,
   useManageBookingMutation,
 } from './queries/source';
+import { BookingWorkspaceView } from './views/booking-workspace-view';
 import { SchedulingSettingsView } from './views/settings-view';
 
 export function schedulingLink(
@@ -22,7 +29,7 @@ export function schedulingLink(
   return `${getWebOrigin()}/app/book/${encodeURIComponent(profile.id)}${slug ? `/${encodeURIComponent(slug)}` : ''}`;
 }
 
-function SchedulingSettingsContent() {
+function SchedulingHost(props: ParentProps) {
   const navigate = useNavigate();
   const manageBooking = useManageBookingMutation();
   const user = useUserContext();
@@ -79,16 +86,62 @@ function SchedulingSettingsContent() {
         },
       }}
     >
-      <SchedulingSettingsView />
+      {props.children}
     </SchedulingProvider>
   );
 }
 export function SchedulingSettings() {
+  const navigate = useNavigate();
+  const settings = useSettingsState();
   return (
     <Suspense
       fallback={<p class="p-8 text-ink-muted">Loading booking links…</p>}
     >
-      <SchedulingSettingsContent />
+      <SchedulingHost>
+        <SchedulingSettingsView
+          onOpenWorkspace={() => {
+            settings.closeSettings();
+            navigate('/scheduling');
+          }}
+        />
+      </SchedulingHost>
     </Suspense>
+  );
+}
+
+export function BookingLinksWorkspace() {
+  const flag = useFeatureFlag(enableCalendarScheduling);
+  const [search, setSearch] = createSearchParams(bookingLinksSearch);
+  const settings = useSettingsState();
+  useSplitDisplayName(() => 'Scheduling');
+  return (
+    <Show
+      when={flag().enabled}
+      fallback={
+        <p class="p-8 text-sm text-ink-muted">
+          {flag().loading
+            ? 'Loading booking links…'
+            : 'Booking links are not available.'}
+        </p>
+      }
+    >
+      <SplitPanel.Root>
+        <SplitPanel.Body>
+          <Suspense
+            fallback={
+              <p class="p-8 text-sm text-ink-muted">Loading booking links…</p>
+            }
+          >
+            <SchedulingHost>
+              <BookingWorkspaceView
+                search={search}
+                onSearchChange={(patch) => setSearch(patch)}
+                onSettings={() => settings.openSettings('Booking links')}
+              />
+            </SchedulingHost>
+          </Suspense>
+        </SplitPanel.Body>
+      </SplitPanel.Root>
+    </Show>
   );
 }

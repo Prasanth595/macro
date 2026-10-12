@@ -4,6 +4,7 @@ import type { SidebarItem } from '@components/app/app-sidebar/sidebar';
 import { TOKENS } from '@core/hotkey/tokens';
 import BuildingsIcon from '@phosphor/buildings.svg';
 import CalendarBlankIcon from '@phosphor/calendar-blank.svg';
+import CalendarCheckIcon from '@phosphor/calendar-check.svg';
 import ChatsCircleIcon from '@phosphor/chats-circle.svg';
 import EnvelopeIcon from '@phosphor/envelope.svg';
 import FolderSimpleIcon from '@phosphor/folder-simple.svg';
@@ -35,6 +36,12 @@ export type SidebarNextNavItem = SidebarItem & {
   /** Phosphor `fill` weight of `icon`, shown while the view is active. */
   iconActive: NavIcon;
 };
+
+/** More-menu destinations do not require an active icon or keyboard shortcut. */
+export type SidebarNextMenuItem = Omit<
+  SidebarNextNavItem,
+  'iconActive' | 'hotkeyToken'
+>;
 
 /**
  * SidebarRail's nav buttons, in default render order.
@@ -140,9 +147,10 @@ export const SIDEBAR_NEXT_NAV_ITEMS = [
   },
 ] satisfies SidebarNextNavItem[];
 
-/** Feature flag gates for feature-gated nav buttons. */
+/** Feature flag gates for sidebar destinations. */
 export type NavItemGates = {
   showCalendar: boolean;
+  showScheduling: boolean;
   showCustomers: boolean;
   showCalls: boolean;
   showReviews: boolean;
@@ -211,12 +219,23 @@ export const customizableNavItems = (
   );
 
 /**
- * Items hidden from the rail but available for quick open in the More menu.
+ * Hidden rail items and Scheduling, available for quick open in the More menu.
  */
-export const moreMenuItems = (gates: NavItemGates): SidebarNextNavItem[] =>
-  customizableNavItems(gates).filter(
+export const moreMenuItems = (gates: NavItemGates): SidebarNextMenuItem[] => [
+  ...customizableNavItems(gates).filter(
     (item) => item.id !== 'home' && gates.prefs.hidden.has(item.id)
-  );
+  ),
+  ...(gates.showScheduling
+    ? [
+        {
+          id: 'booking-links',
+          label: 'Scheduling',
+          href: '/scheduling',
+          icon: CalendarCheckIcon,
+        },
+      ]
+    : []),
+];
 
 /**
  * The nav buttons currently on the outer rail.

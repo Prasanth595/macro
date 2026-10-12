@@ -105,8 +105,8 @@ and Booking choices open dialogs that fit within the screen.
   creates no response rows, file uploads or bookings.
   On touch devices, Preview, Publish (or Open form), and Share are in the
   floating header above the editor.
-- **Booking** in the right panel selects an existing booking link from **Booking links**
-  settings. It is always the last step. **Change** selects another link;
+- **Booking** in the right panel selects an existing booking link from the
+  **Calendar → Booking links** workspace. It is always the last step. **Change** selects another link;
   **Remove booking step** leaves the link itself intact. A form's screeners
   control when its respondents see the link; the native link still works directly.
 - New standalone forms share their name with the database they create. Rename

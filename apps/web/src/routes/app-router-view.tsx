@@ -32,6 +32,7 @@ import {
   agentsViewRoute,
   appRoute,
   baseRoute,
+  bookingLinksRoute,
   bookingReceiptRoute,
   calendarSplitRoute,
   callDetailRoute,
@@ -120,6 +121,10 @@ const PrDetailRouteView = lazyNamed(
 const CalendarRouteView = lazyNamed(
   () => import('@app/features/calendar-view/route-views'),
   'CalendarRouteView'
+);
+const BookingLinksRouteView = lazyNamed(
+  () => import('@app/features/scheduling/route-views'),
+  'BookingLinksRouteView'
 );
 const ChannelInviteAcceptance = lazyNamed(
   () => import('@app/features/channel-invitations/ChannelInviteAcceptance'),
@@ -449,6 +454,10 @@ export function AppRouterView() {
             component={ReviewsPrDetailRouteView}
           />
         </Route>
+        <Route
+          definition={bookingLinksRoute}
+          component={BookingLinksRouteView}
+        />
         <Route definition={calendarSplitRoute} component={CalendarRouteView} />
         <Route definition={channelsSplitRoute} component={ChannelsRouteView}>
           <Route

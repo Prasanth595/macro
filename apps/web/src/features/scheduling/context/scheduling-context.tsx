@@ -31,7 +31,8 @@ export type SchedulingCapabilities = {
   userId: Accessor<string>;
   createSource: (
     scope: Accessor<SchedulingScope>,
-    range: Accessor<{ from: string; to: string }>
+    range: Accessor<{ from: string; to: string }>,
+    loadBookings?: Accessor<boolean>
   ) => SchedulingSource;
   copyLink: (profile: SchedulingProfile, slug?: string) => Promise<void>;
   link: (profile: SchedulingProfile, slug?: string) => string;

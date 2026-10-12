@@ -1215,15 +1215,25 @@ scheduling data. When enabling a production rollout, include anonymous visitors
 so invitees can open those links.
 
 Calendar connections live in **Settings → Calendar** (`/app/settings/calendar`).
-Scheduling lives in the separate **Settings → Booking links** item
-(`/app/settings/booking-links`), with Booking links, Availability, Booking pages,
-Teams, Bookings, and Insights in one scrolling page. The calendar toolbar’s
-booking actions open Booking links; email and integration connection shortcuts
-continue to open Calendar.
-There is no second sidebar or global owner switch. Personal and team booking links
-appear together with ownership badges. New booking link and New schedule ask which
-owner to create for when multiple editable owners are available, then open inline editors;
-event options are stacked sections. Save changes or Cancel returns to the list.
+Booking management has a dedicated **More → Scheduling** workspace at
+`/app/scheduling`. Its sidebar is titled **Scheduling** and separates
+Booking links, Availability, Bookings, and Insights without a Calendar/Booking
+links switcher. The sidebar lists **Personal** first, then each team by
+name as vertical, single-selection rows matching Email's inbox list. The active
+row has a checkmark; the list scrolls when more calendars are present. Selecting
+a row switches the owner for the entire workspace; ownership badges identify
+the selected scope. Owner changes discard drafts and stay disabled during saves.
+Each tab's heading appears in the main topbar, with its description available
+through an info tooltip rather than a separate large header. **New booking link** also lives in the
+topbar; link search and booking date filters remain below it. The selected tab and
+owner survive reload through route search state (`tab` and `owner` in the
+`booking-links` namespace). On collapsed or overlay navigation, tab controls remain
+above the content; expand the sidebar to switch the owner. Calendar's booking
+actions open this workspace.
+**Settings → Booking links** (`/app/settings/booking-links`) now contains only
+booking-page display name, introduction, preview, and page-sharing configuration,
+with an Open booking links action back to the workspace. Calendar connections
+and integration shortcuts continue to open Settings → Calendar.
 Connected calendars offers Connect account (the existing Google consent flow),
 Connect calendar for accounts missing calendar permission, and Disconnect with
 confirmation. Disconnect removes calendar access/data, not the Gmail connection.
