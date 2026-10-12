@@ -51,7 +51,11 @@ function BookingPageContent(params: BookingPageParams) {
   );
 }
 export function PublicBookingPage(props: BookingPageParams) {
-  const scheduling = useFeatureFlag(enableCalendarScheduling);
+  // A guest whose browser blocks the flag request must still be able to book;
+  // only an answer that the rollout is off hides the page.
+  const scheduling = useFeatureFlag(enableCalendarScheduling, {
+    enabledWhenUnreachable: true,
+  });
   return (
     <Show
       when={scheduling().enabled}
