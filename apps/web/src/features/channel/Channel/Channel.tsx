@@ -1006,69 +1006,71 @@ export function Channel(props: ChannelProps) {
                           composerTarget(el);
                         }}
                       >
-                        <AgentDmComposer
-                          channelId={props.channelId}
-                          botId={channel()?.agent_dm?.bot_id}
-                        >
-                          <Switch>
-                            <Match
-                              when={
-                                isUnifiedInputMode() &&
-                                messageEditor.state()?.messageId
-                              }
-                              keyed
+                        <Switch>
+                          <Match
+                            when={
+                              isUnifiedInputMode() &&
+                              messageEditor.state()?.messageId
+                            }
+                            keyed
+                          >
+                            {(_messageId) => (
+                              <UnifiedEditInput
+                                channelId={props.channelId}
+                                messageEditor={messageEditor}
+                                onNavigateToMessage={(message) =>
+                                  goToMessage(
+                                    message.thread_id ?? message.id,
+                                    message.thread_id ? message.id : undefined
+                                  )
+                                }
+                              />
+                            )}
+                          </Match>
+                          <Match
+                            when={
+                              isUnifiedInputMode() &&
+                              unifiedInput.replyTarget()?.threadId
+                            }
+                            keyed
+                          >
+                            {(threadId) => (
+                              <UnifiedReplyInput
+                                channelId={props.channelId}
+                                threadId={threadId}
+                                state={threadManager.getOrCreateThreadState(
+                                  threadId
+                                )}
+                                getTargetMessage={() => {
+                                  const target = unifiedInput.replyTarget();
+                                  if (target?.message) return target.message;
+                                  // A restored referenced reply has no resolvable
+                                  // message (messageById only indexes thread
+                                  // roots) — don't misattribute it to the root.
+                                  if (target?.replyId) return undefined;
+                                  return messageById().get(threadId);
+                                }}
+                                threadHasReplies={() =>
+                                  (messageById().get(threadId)?.thread
+                                    .reply_count ?? 0) > 0
+                                }
+                                onNavigateToTarget={() =>
+                                  goToMessage(
+                                    threadId,
+                                    unifiedInput.replyTarget()?.replyId
+                                  )
+                                }
+                                onExit={unifiedInput.closeReply}
+                              />
+                            )}
+                          </Match>
+                          <Match when={true}>
+                            {/* An agent DM gates only a new message on its
+                                agent: editing and thread replies stay open. */}
+                            <AgentDmComposer
+                              channelId={props.channelId}
+                              botId={channel()?.agent_dm?.bot_id}
                             >
-                              {(_messageId) => (
-                                <UnifiedEditInput
-                                  channelId={props.channelId}
-                                  messageEditor={messageEditor}
-                                  onNavigateToMessage={(message) =>
-                                    goToMessage(
-                                      message.thread_id ?? message.id,
-                                      message.thread_id ? message.id : undefined
-                                    )
-                                  }
-                                />
-                              )}
-                            </Match>
-                            <Match
-                              when={
-                                isUnifiedInputMode() &&
-                                unifiedInput.replyTarget()?.threadId
-                              }
-                              keyed
-                            >
-                              {(threadId) => (
-                                <UnifiedReplyInput
-                                  channelId={props.channelId}
-                                  threadId={threadId}
-                                  state={threadManager.getOrCreateThreadState(
-                                    threadId
-                                  )}
-                                  getTargetMessage={() => {
-                                    const target = unifiedInput.replyTarget();
-                                    if (target?.message) return target.message;
-                                    // A restored referenced reply has no resolvable
-                                    // message (messageById only indexes thread
-                                    // roots) — don't misattribute it to the root.
-                                    if (target?.replyId) return undefined;
-                                    return messageById().get(threadId);
-                                  }}
-                                  threadHasReplies={() =>
-                                    (messageById().get(threadId)?.thread
-                                      .reply_count ?? 0) > 0
-                                  }
-                                  onNavigateToTarget={() =>
-                                    goToMessage(
-                                      threadId,
-                                      unifiedInput.replyTarget()?.replyId
-                                    )
-                                  }
-                                  onExit={unifiedInput.closeReply}
-                                />
-                              )}
-                            </Match>
-                            <Match when={true}>
                               <ChannelInput
                                 autofocus={props.autofocus}
                                 collapsible
@@ -1121,9 +1123,9 @@ export function Channel(props: ChannelProps) {
                                   })
                                 }
                               />
-                            </Match>
-                          </Switch>
-                        </AgentDmComposer>
+                            </AgentDmComposer>
+                          </Match>
+                        </Switch>
                       </ChannelInputContainer>
                     </FloatRegionOrInline>
                   </DebugSuspense>

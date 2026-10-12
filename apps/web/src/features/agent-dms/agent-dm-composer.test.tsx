@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render } from '@solidjs/testing-library';
-import type { JSX } from 'solid-js';
+import { type Accessor, createSignal, type JSX } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -28,13 +28,25 @@ afterEach(() => {
 
 describe('agent DM composer availability', () => {
   it('keeps normal channel composers independent of the agent metadata service', () => {
+    mocks.query.mockReturnValue({
+      isPending: true,
+      isError: false,
+      get data() {
+        throw new Error('Disabled data must not be read');
+      },
+      refetch: vi.fn(),
+    });
     const view = render(() => (
       <AgentDmComposer channelId="ordinary" botId={undefined}>
         <textarea aria-label="Message" />
       </AgentDmComposer>
     ));
     expect(view.getByRole('textbox')).toBeTruthy();
-    expect(mocks.query).not.toHaveBeenCalled();
+    const [, enabled] = mocks.query.mock.calls[0] as [
+      unknown,
+      Accessor<boolean>,
+    ];
+    expect(enabled()).toBe(false);
   });
 
   it('waits for access and preserves readable history when a persona is revoked', () => {
@@ -124,5 +136,54 @@ describe('agent DM composer availability', () => {
     expect(view.getByRole('textbox')).toBeTruthy();
     expect(view.queryByText('Could not load this conversation.')).toBeNull();
     expect(mounts).toBe(1);
+  });
+
+  it('keeps the input it already showed when the channel names its agent late', () => {
+    const [botId, setBotId] = createSignal<string>();
+    const [state, setState] = createStore({
+      status: 'pending',
+      available: true,
+    });
+    mocks.query.mockImplementation(
+      (_channelId: Accessor<string>, enabled: Accessor<boolean>) => ({
+        get isPending() {
+          return !enabled() || state.status === 'pending';
+        },
+        get isError() {
+          return enabled() && state.status === 'error';
+        },
+        get data() {
+          if (!enabled() || state.status !== 'success')
+            throw new Error('Pending data must not be read');
+          return [{ botId: 'persona', available: state.available }];
+        },
+        refetch: vi.fn(),
+      })
+    );
+    let mounts = 0;
+    const Input = () => {
+      mounts += 1;
+      return <textarea aria-label="Message" />;
+    };
+    const view = render(() => (
+      <AgentDmComposer channelId="dm" botId={botId()}>
+        <Input />
+      </AgentDmComposer>
+    ));
+    const input = view.getByRole('textbox');
+    input.focus();
+
+    // The channel's metadata names its agent after the input rendered.
+    setBotId('persona');
+    expect(view.queryByText('Loading conversation…')).toBeNull();
+    setState('status', 'success');
+    expect(view.getByRole('textbox')).toBe(input);
+    expect(document.activeElement).toBe(input);
+    expect(mounts).toBe(1);
+
+    // The input goes only once the conversation says the agent is gone.
+    setState('available', false);
+    expect(view.queryByRole('textbox')).toBeNull();
+    expect(view.getByText(/no longer available/)).toBeTruthy();
   });
 });
