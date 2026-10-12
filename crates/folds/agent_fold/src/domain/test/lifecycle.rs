@@ -305,7 +305,11 @@ fn an_unprompted_turn_ends_on_turn_complete_with_no_action_id() {
     );
 }
 
-fn progress(signals: &[TurnSignal]) -> Vec<(Option<TurnPhase>, Vec<(SegmentKind, bool)>)> {
+/// A progress report as these tests read it: the phase, and each segment's
+/// kind and whether it is sealed.
+type Progress = (Option<TurnPhase>, Vec<(SegmentKind, bool)>);
+
+fn progress(signals: &[TurnSignal]) -> Vec<Progress> {
     signals
         .iter()
         .filter_map(|signal| match signal {
