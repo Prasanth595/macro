@@ -91,24 +91,37 @@ export function PipelinesToolResponse(props: { pipelines: Pipeline[] }) {
 export function PipelineEntriesToolResponse(props: {
   entries: Entry[];
   empty: string;
+  /** Entries listed after `entries`, each subtitled with this note. */
+  noted?: { entries: Entry[]; note: string };
 }) {
+  const noted = () => props.noted?.entries ?? [];
   return (
     <Tool.List>
-      <Show
-        when={props.entries.length > 0}
-        fallback={<Tool.ListItem>{props.empty}</Tool.ListItem>}
-      >
-        <For each={props.entries}>
-          {(entry) => (
-            <Tool.ListItem icon={<RecordIcon record={entry.record} />}>
-              <Line
-                title={recordName(entry.record)}
-                subtitle={entrySummary(entry)}
-              />
-            </Tool.ListItem>
-          )}
-        </For>
+      <Show when={props.entries.length === 0 && noted().length === 0}>
+        <Tool.ListItem>{props.empty}</Tool.ListItem>
       </Show>
+      <For each={props.entries}>
+        {(entry) => (
+          <Tool.ListItem icon={<RecordIcon record={entry.record} />}>
+            <Line
+              title={recordName(entry.record)}
+              subtitle={entrySummary(entry)}
+            />
+          </Tool.ListItem>
+        )}
+      </For>
+      <For each={noted()}>
+        {(entry) => (
+          <Tool.ListItem icon={<RecordIcon record={entry.record} />}>
+            <Line
+              title={recordName(entry.record)}
+              subtitle={[props.noted?.note, entrySummary(entry)]
+                .filter(Boolean)
+                .join(' · ')}
+            />
+          </Tool.ListItem>
+        )}
+      </For>
     </Tool.List>
   );
 }

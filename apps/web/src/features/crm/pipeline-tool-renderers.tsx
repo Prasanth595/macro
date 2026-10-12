@@ -112,11 +112,12 @@ const addToPipelineHandler = createToolRenderer({
         response={
           ctx.response ? (
             <PipelineEntriesToolResponse
-              entries={[
-                ...added(),
-                ...(ctx.response.data.alreadyPresent ?? []),
-              ]}
+              entries={added()}
               empty="Nothing added."
+              noted={{
+                entries: ctx.response.data.alreadyPresent ?? [],
+                note: 'Already in pipeline',
+              }}
             />
           ) : undefined
         }
@@ -190,7 +191,7 @@ const removeFromPipelineHandler = createToolRenderer({
             : undefined
         }
       >
-        Remove from pipeline
+        {ctx.response ? 'Removed from pipeline' : 'Remove from pipeline'}
       </Label>
     </BaseTool>
   ),
