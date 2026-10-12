@@ -6,9 +6,11 @@ import { adopted } from '../adopted';
 
 // DSS logs every expired-JWT rejection at ERROR. These are routine client token
 // refreshes and make up about 60% of its prod error lines, so the DSS error
-// monitors drop them. Log search wildcards are case-sensitive, so the match needs both
-// `jwt is expired` and `JwtExpired` casings.
-const DSS_EXPIRED_JWT_EXCLUSION = '-@error:(*expired* OR *Expired*)';
+// monitors drop them. Log search wildcards are case-sensitive, so each spelling
+// (`JwtExpired`, `jwt is expired`, `jwt expired`) is listed; `?` stands in for
+// the space.
+const DSS_EXPIRED_JWT_EXCLUSION =
+  '-@error:(*JwtExpired* OR *jwt?is?expired* OR *jwt?expired*)';
 
 // https://us5.datadoghq.com/monitors/440085
 adopted('macroai-error-logs', {
