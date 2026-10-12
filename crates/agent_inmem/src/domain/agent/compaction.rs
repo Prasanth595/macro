@@ -101,6 +101,10 @@ pub(crate) struct ContextSummaryNotification {
 }
 
 /// Why a summary was not written.
+///
+/// Logged by its Display, which leaves out the conversation: what
+/// `TooLong` holds is the summary so far, and logs never carry prompts or
+/// what tools returned.
 #[derive(Debug, thiserror::Error)]
 enum SummaryError {
     #[error("stopped")]
@@ -341,7 +345,7 @@ async fn summarize(
         Err(error) => {
             tracing::warn!(
                 session_id = %state.session_id,
-                ?error,
+                error = %error,
                 "could not summarize the conversation; its history is unchanged"
             );
             return;
@@ -486,7 +490,7 @@ async fn describe_images(
             Ok(_) => {}
             Err(SummaryError::Stopped) => return Err(SummaryError::Stopped),
             Err(error) => {
-                tracing::warn!(?error, %uri, "could not read an image for the summary");
+                tracing::warn!(error = %error, %uri, "could not read an image for the summary");
             }
         }
     }
