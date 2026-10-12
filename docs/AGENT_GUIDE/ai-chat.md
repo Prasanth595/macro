@@ -963,7 +963,8 @@ not fit its model, as after switching to a model with a smaller window. To recov
 an exact detail from the summarized part, the agent runs a **SearchHistory** step.
 A message that alone takes more than a quarter of the model's window is refused with
 "This message is too long. Split it into smaller messages or attach it as a file."
-`/compact` is an ordinary message to the in-memory agent.
+`/compact` is an ordinary message to the in-memory agent: the transcript shows it as
+sent, followed by the agent's reply, with no "Context compacted" line.
 
 Cursor walkthrough files the run re-hosts appear in the transcript after the
 answer: screenshots as images, recordings as video players, and `.txt` / `.log`

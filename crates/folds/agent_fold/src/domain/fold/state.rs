@@ -218,7 +218,12 @@ impl FoldState {
                 // set-model request whose response this correlates.
                 self.note_config_request(&acp.0);
                 self.note_initialize_request(&acp.0);
-                if let Some(action) = AgentAction::control_from_runtime(message) {
+                // A `/compact` to a harness that does not compact on it is
+                // a prompt like any other, folded below.
+                let control = AgentAction::control_from_runtime(message).filter(|action| {
+                    !matches!(action, AgentAction::Compact) || self.reader().compacts_on_command()
+                });
+                if let Some(action) = control {
                     return StepChange::message(match action {
                         AgentAction::SetModel(action) => {
                             let request_id = match &acp.0 {

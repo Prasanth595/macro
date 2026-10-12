@@ -229,6 +229,49 @@ fn folds_session_controls_as_typed_parts() {
     assert_eq!(messages[2].id, TurnId(2));
 }
 
+/// `/compact` is a control only to a harness that compacts on it. Macro's
+/// in-process agent summarizes long conversations by itself and answers the
+/// command as a message, so its transcript shows the message and the reply,
+/// not a "Context compacted" line.
+#[test]
+fn compact_folds_to_a_control_only_for_a_harness_that_compacts_on_it() {
+    let log = |agent: &str| {
+        parse_log(&format!(
+            r#"{{"direction":"to_runtime","content":{{"type":"acp","jsonrpc":"2.0","id":"i","method":"initialize","params":{{"protocolVersion":1,"clientCapabilities":{{}}}}}}}}
+{{"direction":"to_server","content":{{"type":"acp","jsonrpc":"2.0","id":"i","result":{{"protocolVersion":1,"agentCapabilities":{{}},"agentInfo":{{"name":"{agent}","version":"0"}}}}}}}}
+{{"direction":"to_runtime","user_id":"macro|user@example.com","content":{{"type":"acp","jsonrpc":"2.0","id":"c","method":"session/prompt","params":{{"sessionId":"s","prompt":[{{"type":"text","text":"/compact"}}]}}}}}}
+{{"direction":"to_server","content":{{"type":"acp","jsonrpc":"2.0","method":"session/update","params":{{"sessionId":"s","update":{{"sessionUpdate":"agent_message_chunk","content":{{"type":"text","text":"What should I compact?"}}}}}}}}}}
+{{"direction":"to_server","content":{{"type":"acp","jsonrpc":"2.0","id":"c","result":{{"stopReason":"end_turn"}}}}}}"#
+        ))
+    };
+
+    let claude = fold(log("@agentclientprotocol/claude-agent-acp"));
+    assert_eq!(
+        claude[0].parts.as_slice(),
+        &[MessagePart::Control {
+            control: Control::Compact,
+            outcome: ControlOutcome::Accepted,
+        }]
+    );
+
+    let inmem = fold(log("macro-inmem"));
+    assert_eq!(inmem.len(), 2, "the message and its reply");
+    assert_eq!(
+        inmem[0].parts.as_slice(),
+        &[MessagePart::Text {
+            text: "/compact".to_owned()
+        }]
+    );
+    assert!(matches!(inmem[0].author, Author::User { .. }));
+    assert_eq!(
+        inmem[1].parts.as_slice(),
+        &[MessagePart::Text {
+            text: "What should I compact?".to_owned()
+        }]
+    );
+    assert_eq!(inmem[1].stop, Some(StopReason::EndTurn));
+}
+
 /// A stop pressed before the agent's first chunk - a window over ten seconds
 /// wide, since a session's first prompt spends that creating the Cursor agent.
 ///
