@@ -47,6 +47,12 @@ pub trait ConversationPolicy: Send + Sync + 'static {
 #[cfg(test)]
 mod test;
 
+/// How many of its latest turns a conversation reports beside the ones still
+/// waiting or running and the first of each session. The transcript is read
+/// from its end, and a poll that reported every turn would grow with the
+/// conversation's history.
+const RECENT_TURNS: u16 = 100;
+
 /// A conversation as the person it is with sees it.
 pub struct ConversationOverview {
     /// Channel containing the visible transcript.
@@ -59,7 +65,9 @@ pub struct ConversationOverview {
     pub settings_changed: bool,
     /// The sessions the conversation has run on, oldest first.
     pub sessions: Vec<ConversationSession>,
-    /// Durable execution status of the messages the persona answered.
+    /// Durable execution status of the messages the persona answered that
+    /// the conversation shows: what still waits or runs, each session's
+    /// first message, and the latest ones.
     pub turns: Vec<super::conversation_turns::ConversationTurnStatus>,
 }
 
@@ -316,7 +324,7 @@ impl<C: ChannelAgentRepo, P: AgentDmEligibility, B: BotRepo, S: AgentConversatio
             sessions,
             turns: match &self.turns {
                 Some(turns) => turns
-                    .for_conversation(agent.channel_id, agent.bot_id)
+                    .for_conversation(agent.channel_id, agent.bot_id, RECENT_TURNS)
                     .await
                     .map_err(|error| ConversationError::Unavailable(error.into()))?,
                 None => Vec::new(),
@@ -358,7 +366,7 @@ impl<C: ChannelAgentRepo, P: AgentDmEligibility, B: BotRepo, S: AgentConversatio
             return Err(ConversationError::ContextBusy);
         }
         let turns = store
-            .for_conversation(conversation.channel_id, conversation.bot_id)
+            .for_conversation(conversation.channel_id, conversation.bot_id, RECENT_TURNS)
             .await
             .map_err(|error| ConversationError::Unavailable(error.into()))?;
         if turns.iter().any(|turn| {
@@ -394,24 +402,34 @@ impl<C: ChannelAgentRepo, P: AgentDmEligibility, B: BotRepo, S: AgentConversatio
         expected: agent_runtime_protocol::domain::action::AgentActionId,
     ) -> Result<(), ConversationError> {
         let agent = self.joined(&caller, conversation).await?;
-        let overview = self.overview(caller, agent).await?;
-        if !overview.available {
-            return Err(ConversationError::NotRetryable);
+        match self
+            .eligibility
+            .authorize_agent_dm(caller, agent.bot_id)
+            .await
+        {
+            Ok(()) => {}
+            Err(BotError::Unauthorized | BotError::NotFound(_)) => {
+                return Err(ConversationError::NotRetryable);
+            }
+            Err(error) => return Err(ConversationError::Unavailable(error.into())),
         }
-        let current = overview
-            .sessions
-            .iter()
-            .find(|session| session.is_current)
-            .map(|session| session.session_id);
-        let record = overview
-            .turns
-            .iter()
-            .find(|turn| turn.source_message_id == source)
+        let store = self.turns.as_ref().ok_or(ConversationError::NotRetryable)?;
+        // Read on its own rather than from the overview, which reports only
+        // the turns the conversation shows: an older failure still retries.
+        let record = store
+            .get(source, conversation.bot_id)
+            .await
+            .map_err(|error| ConversationError::Unavailable(error.into()))?
+            .filter(|record| record.channel_id == conversation.channel_id)
             .ok_or(ConversationError::NotFound)?;
+        let current = self
+            .sessions
+            .current(conversation)
+            .await
+            .map_err(|error| ConversationError::Unavailable(error.into()))?;
         if Some(record.session_id) != current || record.action_id != expected {
             return Err(ConversationError::NotRetryable);
         }
-        let store = self.turns.as_ref().ok_or(ConversationError::NotRetryable)?;
         let _lease = store
             .claim_context(record.session_id)
             .await

@@ -815,10 +815,11 @@ impl crate::domain::conversation_turns::ConversationTurnStore for FlakyJournal {
         &self,
         channel: macro_uuid::Uuid,
         bot: BotId,
+        recent: u16,
     ) -> agent_session::domain::error::Result<
         Vec<crate::domain::conversation_turns::ConversationTurnStatus>,
     > {
-        self.inner.for_conversation(channel, bot).await
+        self.inner.for_conversation(channel, bot, recent).await
     }
     async fn pending_replies(
         &self,

@@ -176,12 +176,15 @@ pub trait ConversationTurnStore: Send + Sync + 'static {
     async fn pending(&self, limit: u16) -> Result<Vec<ConversationTurn>>;
     /// Claims whose session manager must still be alive; used only for recovery checks.
     async fn running(&self, limit: u16) -> Result<Vec<ConversationTurn>>;
-    /// Read the statuses of one persona's turns in a channel, after the
-    /// caller's access to the conversation was checked.
+    /// Read the statuses of the turns one persona's conversation in a channel
+    /// shows, oldest first, after the caller's access to it was checked:
+    /// every turn still queued or running, each session's first turn, and
+    /// the latest `recent` turns.
     async fn for_conversation(
         &self,
         channel: Uuid,
         bot: BotId,
+        recent: u16,
     ) -> Result<Vec<ConversationTurnStatus>>;
     /// Completed outcomes whose reply patch must be retried, without running a model.
     async fn pending_replies(&self, limit: u16) -> Result<Vec<ConversationTurn>>;

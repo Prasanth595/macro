@@ -160,7 +160,7 @@ async fn concurrent_replicas_admit_one_record_and_only_one_claim_can_run(pool: P
     assert_eq!(a.action_id, b.action_id);
     assert_eq!(
         store
-            .for_conversation(channel, bot_id::MACRO_NEW_BOT_ID)
+            .for_conversation(channel, bot_id::MACRO_NEW_BOT_ID, 100)
             .await
             .unwrap()
             .len(),
@@ -239,7 +239,7 @@ async fn an_explicit_retry_waits_for_reply_reconciliation_and_mints_only_one_new
     assert!(store.pending(10).await.unwrap().is_empty());
     let retryable = async || {
         store
-            .for_conversation(channel, bot_id::MACRO_NEW_BOT_ID)
+            .for_conversation(channel, bot_id::MACRO_NEW_BOT_ID, 100)
             .await
             .unwrap()[0]
             .retryable
@@ -520,7 +520,7 @@ async fn two_personas_keep_separate_turns_for_one_message(pool: PgPool) {
     assert_ne!(first.action_id, second.action_id);
     assert_eq!(second.session_id, coder_session);
     for bot in [bot_id::MACRO_NEW_BOT_ID, coder.bot_id] {
-        let turns = store.for_conversation(channel, bot).await.unwrap();
+        let turns = store.for_conversation(channel, bot, 100).await.unwrap();
         assert_eq!(turns.len(), 1);
         assert_eq!(turns[0].bot_id, bot);
     }
@@ -678,4 +678,116 @@ async fn a_failed_delivery_attempt_never_fails_a_turn_another_replica_claimed(po
     let after = store.by_action(record.action_id).await.unwrap().unwrap();
     assert_eq!(after.state, ConversationTurnState::Running);
     assert!(after.outcome.is_none());
+}
+
+/// Post another message to `session` and leave its turn `state`.
+async fn turn_in(
+    store: &PgConversationTurnStore,
+    session: AgentSessionId,
+    channel: Uuid,
+    command: &mut OpenSession,
+    state: ConversationTurnState,
+) -> ConversationTurn {
+    mention_origin_mut(command).message_id = macro_uuid::generate_uuid_v7();
+    let record = store
+        .admit(session, channel, command.clone())
+        .await
+        .unwrap();
+    match state {
+        ConversationTurnState::Queued => {}
+        ConversationTurnState::Running => {
+            assert!(
+                store
+                    .claim(record.action_id, &flight(&record))
+                    .await
+                    .unwrap()
+            );
+        }
+        ConversationTurnState::Succeeded => store
+            .finish(
+                record.action_id,
+                state,
+                ReplyOutcome::Answered("Done".into()),
+            )
+            .await
+            .unwrap(),
+        state => store
+            .finish(record.action_id, state, ReplyOutcome::Failed)
+            .await
+            .unwrap(),
+    }
+    record
+}
+
+/// What a conversation reports stays bounded as it grows: what still waits or
+/// runs, where each session's context starts, and its latest turns.
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_conversation_reports_what_it_shows_however_long_it_grows(pool: PgPool) {
+    use ConversationTurnState::{Failed, Queued, Running, Succeeded};
+    let (store, session, channel, mut command) = setup(pool.clone()).await;
+    let first = turn_in(&store, session, channel, &mut command, Succeeded).await;
+    let running = turn_in(&store, session, channel, &mut command, Running).await;
+    // Older than the latest two, and neither waiting nor where a context starts.
+    turn_in(&store, session, channel, &mut command, Failed).await;
+    turn_in(&store, session, channel, &mut command, Succeeded).await;
+    let fresh = crate::testing::postgres_sessions(pool)
+        .start_fresh(conversation(channel))
+        .await
+        .unwrap();
+    let fresh_first = turn_in(&store, fresh, channel, &mut command, Succeeded).await;
+    let latest_failure = turn_in(&store, fresh, channel, &mut command, Failed).await;
+    let latest = turn_in(&store, fresh, channel, &mut command, Queued).await;
+
+    let reported: Vec<Uuid> = store
+        .for_conversation(channel, bot_id::MACRO_NEW_BOT_ID, 2)
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|turn| turn.source_message_id)
+        .collect();
+    assert_eq!(
+        reported,
+        [first, running, fresh_first, latest_failure, latest].map(|turn| turn.source_message_id)
+    );
+}
+
+/// The conversation reports only its latest turns, but a failure older than
+/// them can still be retried.
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_failure_older_than_the_reported_turns_still_retries(pool: PgPool) {
+    use ConversationTurnState::{Failed, Succeeded};
+    let (store, session, channel, mut command) = setup(pool.clone()).await;
+    let owner = mention_origin(&command).sender.clone();
+    turn_in(&store, session, channel, &mut command, Succeeded).await;
+    let failed = turn_in(&store, session, channel, &mut command, Failed).await;
+    for _ in 0..100 {
+        turn_in(&store, session, channel, &mut command, Succeeded).await;
+    }
+    assert!(
+        !store
+            .for_conversation(channel, bot_id::MACRO_NEW_BOT_ID, 100)
+            .await
+            .unwrap()
+            .iter()
+            .any(|turn| turn.source_message_id == failed.source_message_id)
+    );
+
+    conversations(pool, store.clone(), true)
+        .retry(
+            owner,
+            conversation(channel),
+            failed.source_message_id,
+            failed.action_id,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        store
+            .get(failed.source_message_id, bot_id::MACRO_NEW_BOT_ID)
+            .await
+            .unwrap()
+            .unwrap()
+            .state,
+        ConversationTurnState::Queued
+    );
 }
