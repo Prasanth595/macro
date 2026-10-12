@@ -10,6 +10,7 @@ import {
   calendarUnavailableWindows,
   copyAvailability,
   mergeWindows,
+  rangeOverlaps,
   setTargetWindows,
   targetWindows,
   windowsIssue,
@@ -158,7 +159,12 @@ export function createAvailabilityEditor(props: {
     if (result.ok) {
       for (const target of targets) {
         if (target.kind === 'weekly') remembered.delete(targetKey(target));
-        else if (change.mode === 'unavailable')
+        else if (
+          change.mode === 'unavailable' &&
+          (change.allDay ||
+            rangeOverlaps(change.window, targetWindows(schedule, target))
+              .length)
+        )
           rememberDate(schedule, target.date, [
             change.allDay ? { start: '00:00', end: '23:59' } : change.window,
           ]);

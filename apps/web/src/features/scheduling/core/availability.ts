@@ -439,6 +439,21 @@ export function copyAvailability(
     const key = target.kind === 'weekly' ? `day:${target.day}` : target.date;
     if (visited.has(key)) continue;
     visited.add(key);
+    // Applying time off across dates leaves already-off hours unchanged.
+    if (
+      change.mode === 'unavailable' &&
+      !change.allDay &&
+      target.kind === 'date' &&
+      validAvailabilityDate(target.date) &&
+      !windowsIssue([change.window])
+    ) {
+      const current = targetWindows(next, target);
+      if (
+        !current.some((window) => windowsIssue([window])) &&
+        !rangeOverlaps(change.window, current).length
+      )
+        continue;
+    }
     const result = applyAvailabilityChange(
       next,
       { ...change, target, index: undefined, origin: undefined },
