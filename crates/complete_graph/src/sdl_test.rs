@@ -551,6 +551,7 @@ fn crm_records_load_from_the_user_with_their_pipeline_entries() {
     assert_sdl_line(&cell, "value: GraphqlPropertyValue");
     let column = block("type GraphqlCrmPipelineColumn {");
     assert_sdl_line(&column, "id: ID!");
+    assert_sdl_line(&column, "writable: Boolean!");
     assert_sdl_line(&column, "options: [GraphqlPropertyOption!]!");
     let pipeline = block("type GraphqlCrmPipeline {");
     assert_sdl_line(&pipeline, "id: ID!");

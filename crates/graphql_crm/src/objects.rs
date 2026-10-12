@@ -180,9 +180,14 @@ impl GraphqlCrmPipelineColumn {
         GraphqlPropertyDataType::new(self.detail().definition.definition.data_type)
     }
 
-    /// Whether a cell can hold more than one value.
+    /// Whether a cell can hold more than one value; a relation always can.
     async fn is_multi_select(&self) -> bool {
-        self.detail().definition.definition.is_multi_select
+        self.detail().is_multi_valued()
+    }
+
+    /// Whether the column's cells take writes; derived columns are computed.
+    async fn writable(&self) -> bool {
+        self.detail().writable && self.detail().column.formula().is_none()
     }
 
     /// The required entity type for a reference column, when constrained.

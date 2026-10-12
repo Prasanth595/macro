@@ -2902,9 +2902,13 @@ type GraphqlCrmPipelineColumn {
 	"""
 	dataType: GraphqlPropertyDataType!
 	"""
-	Whether a cell can hold more than one value.
+	Whether a cell can hold more than one value; a relation always can.
 	"""
 	isMultiSelect: Boolean!
+	"""
+	Whether the column's cells take writes; derived columns are computed.
+	"""
+	writable: Boolean!
 	"""
 	The required entity type for a reference column, when constrained.
 	"""
