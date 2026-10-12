@@ -3,7 +3,8 @@ import CheckIcon from '@phosphor/check.svg';
 import SpinnerIcon from '@phosphor/spinner-gap.svg';
 import WarningIcon from '@phosphor/warning-circle.svg';
 import XIcon from '@phosphor/x.svg';
-import { createSignal, For, Match, Show, Switch } from 'solid-js';
+import { Key } from '@solid-primitives/keyed';
+import { createSignal, Match, Show, Switch } from 'solid-js';
 
 /** One step of an agent's work, as the session's fold worded it. */
 export type ActivityRowView = {
@@ -38,17 +39,22 @@ export function ActivityRows(props: { rows: readonly ActivityRowView[] }) {
           </button>
         </li>
       </Show>
-      <For each={props.rows.slice(hidden())}>
+      {/* A live run's rows arrive as new objects with every paint. Keyed by
+          step, a row updates in place and its spinner and shimmer run on. */}
+      <Key each={props.rows.slice(hidden())} by="id">
         {(row) => (
           <li
             class="flex min-h-5 min-w-0 items-center gap-2"
-            data-status={row.status}
+            data-status={row().status}
           >
-            <StatusIcon status={row.status} />
+            <StatusIcon status={row().status} />
             <span class="shrink-0 text-ink-muted">
-              <TextShimmer text={row.label} active={row.status === 'running'} />
+              <TextShimmer
+                text={row().label}
+                active={row().status === 'running'}
+              />
             </span>
-            <Show when={row.detail}>
+            <Show when={row().detail}>
               {(detail) => (
                 <span class="min-w-0 truncate font-mono text-ink-extra-muted">
                   {detail()}
@@ -57,7 +63,7 @@ export function ActivityRows(props: { rows: readonly ActivityRowView[] }) {
             </Show>
           </li>
         )}
-      </For>
+      </Key>
     </ul>
   );
 }

@@ -112,3 +112,37 @@ it('folds a long run behind a count of its earlier steps', () => {
   view.getByRole('button', { name: '2 earlier steps' }).click();
   expect(view.getByText('Step 1')).toBeTruthy();
 });
+
+it('updates a live row in place as the run paints, rather than redrawing it', () => {
+  const view = render(() => (
+    <AgentActivity
+      agentSessionId="session"
+      turn={2}
+      segment={1}
+      rows={snapshot}
+      sealed={false}
+    />
+  ));
+  setMessages([
+    reply([{ id: 't1', label: 'Running', detail: 'cargo', status: 'running' }]),
+  ]);
+  const row = view.getByRole('listitem');
+
+  // Every paint carries the run as new objects.
+  setMessages([
+    reply([{ id: 't1', label: 'Running', detail: 'cargo', status: 'running' }]),
+  ]);
+  expect(view.getByRole('listitem')).toBe(row);
+
+  setMessages([
+    reply([
+      { id: 't1', label: 'Ran', detail: 'cargo', status: 'completed' },
+      { id: 't2', label: 'Reading', detail: 'lib.rs', status: 'running' },
+    ]),
+  ]);
+  expect(view.getAllByRole('listitem')[0]).toBe(row);
+  expect(steps(view)).toEqual([
+    ['Rancargo', 'completed'],
+    ['Readinglib.rs', 'running'],
+  ]);
+});
