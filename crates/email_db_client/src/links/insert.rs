@@ -69,7 +69,9 @@ pub async fn upsert_link(
         .await?;
 
     let Some(result) = result else {
-        anyhow::bail!("email link for {fusionauth_user_id} is being deleted; retry once it is gone");
+        anyhow::bail!(
+            "email link for {fusionauth_user_id} is being deleted; retry once it is gone"
+        );
     };
 
     let service_link = service::link::Link {
