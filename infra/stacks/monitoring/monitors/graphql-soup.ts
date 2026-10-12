@@ -8,13 +8,19 @@
 // side (exceptions, browser cache and draft-queue logs, usage) on
 // https://us.posthog.com/project/299018/dashboard/2198651.
 //
-// GraphQL resolver errors still return HTTP 200 on a single path with no
-// operation name, so the error monitors here are proxies until the server
-// emits per-operation error telemetry.
+// GraphQL resolver errors return HTTP 200 on a single path, so the endpoint
+// monitors can't see them. The per-operation monitors read the `graphql.execute`
+// span, whose APM resource is `graphql.<type>.<operationName>` (lowercased in
+// metric tags) once https://github.com/macro-inc/macro/pull/7911 deploys; until
+// then they have no data.
 import * as datadog from '@pulumi/datadog';
 
 const GRAPHQL =
   'service:cloud-storage-service,env:prod,resource_name:post_/dss/items/soup/graphql';
+// Excludes the pre-#7911 resource, which only covers the few spans that happen
+// to be top-level and has a different latency profile.
+const GRAPHQL_OPERATIONS =
+  'service:cloud-storage-service,env:prod,resource_name:graphql.*,!resource_name:graphql.execute';
 const GRAPHQL_WS =
   'service:cloud-storage-service,env:prod,resource_name:get_/dss/items/soup/graphql/ws';
 const DSS =
@@ -101,15 +107,69 @@ rolloutMonitor('graphql-soup-error-spans', {
   service: 'cloud-storage-service',
 });
 
-rolloutMonitor('graphql-soup-execute-errors', {
-  name: '[PROD] GraphQL soup: graphql.execute error spans high',
-  type: 'trace-analytics alert',
-  query:
-    'trace-analytics("service:cloud-storage-service env:prod operation_name:graphql.execute status:error").rollup("count").last("15m") > 30',
+// Per operation. Only resolver failures for signed-in callers mark the span
+// errored; coded domain errors and unauthenticated requests do not. These
+// series don't exist before #7911, so the thresholds below are starting points
+// rather than back-tested.
+rolloutMonitor('graphql-soup-operation-errors', {
+  name: '[PROD] GraphQL soup: {{resource_name.name}} resolver errors high',
+  type: 'query alert',
+  query: `sum(last_15m):sum:trace.Internal.errors{${GRAPHQL_OPERATIONS}} by {resource_name}.as_count() > 20`,
   description:
-    '`graphql.execute` error spans are above {{threshold}} in 15 minutes (normal is about 1 per 15 minutes, mostly 30s idle spans).',
-  critical: '30',
-  warning: '15',
+    'GraphQL operation `{{resource_name.name}}` had {{value}} failed executions in 15 minutes. Find the failing resolver path with the "graphql resolver error" logs grouped by `@graphql.error.path`.',
+  critical: '20',
+  warning: '10',
+  service: 'cloud-storage-service',
+});
+
+// The +200 keeps quiet operations from alerting on a couple of errors: it
+// fires once errors exceed 5% of requests plus 10.
+rolloutMonitor('graphql-soup-operation-error-rate', {
+  name: '[PROD] GraphQL soup: {{resource_name.name}} error rate high',
+  type: 'query alert',
+  query: `sum(last_15m):sum:trace.Internal.errors{${GRAPHQL_OPERATIONS}} by {resource_name}.as_count() / (sum:trace.Internal.hits{${GRAPHQL_OPERATIONS}} by {resource_name}.as_count() + 200) > 0.05`,
+  description:
+    'More than 5% of `{{resource_name.name}}` executions failed in 15 minutes (beyond a 10-error floor).',
+  critical: '0.05',
+  warning: '0.02',
+  service: 'cloud-storage-service',
+});
+
+rolloutMonitor('graphql-soup-operation-latency-p95', {
+  name: '[PROD] GraphQL soup: {{resource_name.name}} p95 latency high',
+  type: 'query alert',
+  query: `percentile(last_30m):p95:trace.Internal{${GRAPHQL_OPERATIONS}} by {resource_name} > 3`,
+  description:
+    'p95 execution time of GraphQL operation `{{resource_name.name}}` is above {{threshold}}s over 30 minutes. The endpoint p95 mixes every operation, so one slow resolver shows up here first.',
+  critical: '3',
+  warning: '2',
+  service: 'cloud-storage-service',
+});
+
+rolloutMonitor('graphql-soup-resolver-error-logs', {
+  name: '[PROD] GraphQL soup: {{[@graphql.resource].name}} resolver error logs high',
+  type: 'log alert',
+  query:
+    'logs("service:cloud-storage-service env:prod status:error \\"graphql resolver error\\"").index("*").rollup("count").by("@graphql.resource").last("15m") > 50',
+  description:
+    'cloud-storage-service logged {{value}} "graphql resolver error" lines for `{{[@graphql.resource].name}}` in 15 minutes. Each response logs at most 10 errors; group by `@graphql.error.path` to find the resolver.',
+  critical: '50',
+  warning: '20',
+  service: 'cloud-storage-service',
+});
+
+// Anonymous callers are collapsed into one resource per operation type, so a
+// surge here is likely probing (S5). There is no baseline before #7911; retune
+// after its first day.
+rolloutMonitor('graphql-soup-unauthenticated-mutations', {
+  name: '[PROD] GraphQL soup: unauthenticated mutations',
+  type: 'query alert',
+  query:
+    'sum(last_15m):sum:trace.Internal.hits{service:cloud-storage-service,env:prod,resource_name:graphql.mutation.unauthenticated}.as_count() > 50',
+  description:
+    'cloud-storage-service received {{value}} GraphQL mutations without a signed-in user in 15 minutes. Check the caller IPs on the `graphql.mutation.unauthenticated` spans.',
+  critical: '50',
+  warning: '20',
   service: 'cloud-storage-service',
 });
 
