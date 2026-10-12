@@ -6432,7 +6432,7 @@ export interface CreateChannelResponse {
   summary: string;
 }
 /**
- * Create a calendar event immediately, with no review card or composer. Only for a prompt that came from a channel or document thread (the context block says so), where there is nothing to review a draft in. The event is always shown before it is created, even when the user's request already spelled the whole thing out: in one turn write it into the thread - title, date and time with its time zone, duration, guests, location, Google Meet, recurrence - ask whether to create it, and stop there. Call this tool only in a later turn, once the user has replied approving that specific event, quoting that reply verbatim in userConfirmation. Being asked to schedule something is a request to draft the event, never approval to create it, so a userConfirmation quoting the request that asked you to set it up - rather than the reply approving the event you wrote out - is wrong. Never call it in the agent session view or in chat: use CreateCalendarEvent there, whose review card or composer is the confirmation. Takes the same fields as CreateCalendarEvent; the event is written to Google Calendar at once and any attendees receive invitations.
+ * Create a calendar event immediately, with no review card or composer. Only for a prompt that came from a channel or document thread (the context block says so), where there is nothing to review a draft in. The event is always shown before it is created, even when the user's request already spelled the whole thing out: in one turn write it into the thread - title, date and time with its time zone, duration, guests, location, Google Meet or Macro call, recurrence - ask whether to create it, and stop there. Call this tool only in a later turn, once the user has replied approving that specific event, quoting that reply verbatim in userConfirmation. Being asked to schedule something is a request to draft the event, never approval to create it, so a userConfirmation quoting the request that asked you to set it up - rather than the reply approving the event you wrote out - is wrong. Never call it in the agent session view or in chat: use CreateCalendarEvent there, whose review card or composer is the confirmation. Takes the same fields as CreateCalendarEvent; the event is written to Google Calendar at once and any attendees receive invitations.
  */
 export interface CreateConfirmedCalendarEvent {
   /**
@@ -6465,7 +6465,11 @@ export interface CreateConfirmedCalendarEvent {
    */
   reminders?: EventRemindersInput | null;
   /**
-   * Attach a freshly generated Google Meet video conference to the event.
+   * Attach a freshly created Macro call to the event: a Macro meeting link scheduled to the event's times, written into the event's location and description. Mutually exclusive with `addGoogleMeet`.
+   */
+  addMacroCall?: boolean;
+  /**
+   * Attach a freshly generated Google Meet video conference to the event. Mutually exclusive with `addMacroCall`.
    */
   addGoogleMeet?: boolean;
   eventType?: CalendarEventTypeInput;
