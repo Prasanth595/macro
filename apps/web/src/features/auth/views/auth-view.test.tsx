@@ -162,6 +162,28 @@ describe('email sign-in', () => {
     await screen.findByTestId('signed-in');
   });
 
+  it('says to wait when code checks are rate-limited, and keeps the code to retry', async () => {
+    const { fake } = setup({
+      world: { codeAttempts: { 'returning@acme.com': 5 } },
+    });
+    click('Continue with email');
+    await typeEmail('returning@acme.com');
+    click('Continue');
+    await screen.findByText('returning@acme.com');
+    await typeCode('424242');
+    await screen.findByText(
+      'Too many attempts. Wait a minute, then try again.'
+    );
+    expect(screen.queryByText('Invalid code.')).toBeNull();
+    expect(screen.getByLabelText(/code/i)).toHaveProperty('value', '424242');
+
+    fake.update((draft) => {
+      draft.codeAttempts = {};
+    });
+    click(/^Verify/);
+    await screen.findByTestId('signed-in');
+  });
+
   it('asks for a password only for password accounts', async () => {
     setup({ world: { passwordAccounts: { 'demo@acme.com': 'hunter2' } } });
     click('Continue with email');

@@ -25,6 +25,21 @@ test('a wrong code can be corrected without starting over', async ({
   await expectLanded(page, '/');
 });
 
+test('a rate-limited code check says to wait instead of calling the code invalid', async ({
+  page,
+}) => {
+  await openFixture(page, '/?page=login', {
+    codeAttempts: { 'returning@acme.com': 5 },
+  });
+  await page.getByRole('button', { name: 'Continue with email' }).click();
+  await signInWithCode(page, 'returning@acme.com', '424242');
+  await expect(page.getByRole('alert')).toHaveText(
+    'Too many attempts. Wait a minute, then try again.'
+  );
+  await expect(page.getByLabel('One-time code')).toHaveValue('424242');
+  await expect(page.getByRole('button', { name: 'Verify' })).toBeEnabled();
+});
+
 test('Google sign-in comes back with a session code the page redeems', async ({
   page,
 }) => {
