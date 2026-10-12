@@ -5,8 +5,8 @@
 import { adopted } from '../adopted';
 
 // DSS logs every expired-JWT rejection at ERROR. These are routine client token
-// refreshes and make up about 60% of its error lines, so the DSS error monitors
-// drop them. Log search wildcards are case-sensitive, so the match needs both
+// refreshes and make up about 60% of its prod error lines, so the DSS error
+// monitors drop them. Log search wildcards are case-sensitive, so the match needs both
 // `jwt is expired` and `JwtExpired` casings.
 const DSS_EXPIRED_JWT_EXCLUSION = '-@error:(*expired* OR *Expired*)';
 
@@ -54,8 +54,7 @@ adopted('macroapi-error-logs', {
 adopted('dss-errors-dev', {
   name: '[DEV] Increased number of errors for DSS',
   type: 'log alert',
-  query:
-    'logs("service:cloud-storage-service-dev ERROR*").index("*").rollup("count").last("5m") > 200',
+  query: `logs("service:cloud-storage-service env:dev status:error ${DSS_EXPIRED_JWT_EXCLUSION}").index("*").rollup("count").last("5m") > 200`,
   message: '@slack-monitoring',
   monitorThresholds: {
     critical: '200',
