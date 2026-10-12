@@ -340,3 +340,89 @@ test.describe('on a phone-sized screen', () => {
     await expect(heading(page, /Connect your work/)).toBeVisible();
   });
 });
+
+for (const width of [1440, 390]) {
+  for (const theme of ['cream', 'dark'] as const) {
+    test(`${theme} onboarding stays readable across all steps at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await openFixture(page, `/?view=flow&theme=${theme}`);
+      const background =
+        theme === 'cream' ? 'rgb(245, 241, 232)' : 'rgb(0, 0, 0)';
+      const ink = theme === 'cream' ? 'rgb(0, 0, 0)' : 'rgb(255, 255, 255)';
+      for (const step of [
+        'welcome',
+        'vision',
+        'security',
+        'work',
+        'personal',
+        'tools',
+        'team',
+        'plan',
+      ]) {
+        await page.evaluate((step) => {
+          sessionStorage.setItem(
+            'onboarding-flow-step',
+            JSON.stringify({ user: 'macro|ada@acme.com', step })
+          );
+        }, step);
+        await page.reload();
+        await expect(page.locator('.onboarding-flow')).toHaveCSS(
+          'background-color',
+          background
+        );
+        await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+        await expect(page.getByRole('heading', { level: 1 })).toHaveCSS(
+          'color',
+          ink
+        );
+        expect(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth
+          )
+        ).toBe(true);
+      }
+      // The explicit palette also survives a simulated Google redirect that drops query params.
+      await page.evaluate(() =>
+        sessionStorage.setItem(
+          'onboarding-flow-step',
+          JSON.stringify({ user: 'macro|ada@acme.com', step: 'work' })
+        )
+      );
+      await page.reload();
+      await page.getByRole('button', { name: 'Connect work email' }).click();
+      await expect(page.getByText('ada@acme.com')).toBeVisible();
+      await expect(page.locator('.onboarding-flow')).toHaveCSS(
+        'background-color',
+        background
+      );
+    });
+  }
+}
+
+test('system theme changes keep the current onboarding step and selected accent', async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await openFixture(page, '/?view=flow');
+  await accentSwatch(page, 'Coral').click();
+  await page.getByRole('button', { name: 'Get started' }).click();
+  await page.emulateMedia({ colorScheme: 'light' });
+  await expect(
+    heading(page, 'Which features do you want to try first?')
+  ).toBeVisible();
+  await expect(page.locator('.onboarding-flow')).toHaveCSS(
+    'background-color',
+    'rgb(245, 241, 232)'
+  );
+  expect((await fakeWorld(page)).accent).toBe('#f77d67');
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(
+    heading(page, 'Which features do you want to try first?')
+  ).toBeVisible();
+  await expect(page.locator('.onboarding-flow')).toHaveCSS(
+    'background-color',
+    'rgb(0, 0, 0)'
+  );
+});

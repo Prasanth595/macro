@@ -107,9 +107,9 @@ export function WorkspaceIntro(props: {
           style={{
             color: 'var(--intro-accent)',
             background:
-              'linear-gradient(145deg, color-mix(in srgb, var(--intro-accent) 7%, #171717), #090909 65%)',
+              'var(--onboarding-intro-background, linear-gradient(145deg, color-mix(in srgb, var(--intro-accent) 7%, #171717), #090909 65%))',
             'box-shadow':
-              'inset .5px .5px 1px #ffffff1c, inset -.5px -.5px 1px #0008, 0 1px 1px #131313, 0 4px 10px #0005',
+              'var(--onboarding-intro-shadow, inset .5px .5px 1px #ffffff1c, inset -.5px -.5px 1px #0008, 0 1px 1px #131313, 0 4px 10px #0005)',
           }}
         >
           <MacroMarkIcon class="h-7 w-10 overflow-visible" />

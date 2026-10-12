@@ -20,28 +20,7 @@ export function OnboardingShell(props: {
   const heroFooter = children(() => props.heroFooter);
   let details!: HTMLDivElement;
   return (
-    <div
-      class="onboarding-flow relative size-full overflow-hidden bg-surface font-sans text-ink"
-      style={{
-        '--color-surface': '#000',
-        '--color-ink': '#fff',
-        '--color-ink-muted': '#a8a8a8',
-        '--color-ink-extra-muted': '#737373',
-        '--color-edge': '#292929',
-        '--color-edge-muted': '#1c1c1c',
-        '--color-accent': 'var(--color-ink)',
-        '--color-accent-contrast': '#000',
-        '--color-accent-contrast-muted': '#292929',
-        '--color-input': '#171717',
-        '--color-ink-placeholder': '#737373',
-        '--glass-tint': '#fff',
-        '--glass-shade-color': '#000',
-        '--glass-highlight-base': '6%',
-        '--glass-rim-strong-base': '13.5%',
-        '--glass-rim-soft-base': '9%',
-        '--glass-rim-shade-base': '0%',
-      }}
-    >
+    <div class="onboarding-flow relative size-full overflow-hidden bg-surface font-sans text-ink">
       <style>{
         /*css*/ `
         @keyframes obf-card-in {

@@ -114,6 +114,14 @@ button. The chosen accent and work step survive the OAuth
 redirect; after authentication the accent is saved to the user's theme and setup
 resumes at work email. Regular `/app/login` retains the direct sign-in screen.
 
+Onboarding follows the app's light/dark setting. Light mode uses the marketing
+cream background, black headings, muted warm text, and brighter ivory inputs and
+integration tiles. Dark mode retains its black palette. Verify both modes at
+desktop and mobile widths, including the below-fold security and pricing details.
+For a safe local walkthrough with simulated connections and billing, use the real
+view fixture documented in `apps/web/src/features/onboarding/browser-test/README.md`;
+`/?view=flow&theme=cream` forces its cream preview without changing account settings.
+
 The steps are workspace color, feature interests, security, work Google account,
 personal Google account, tools, team, and plan selection. Color selection forks
 the default Macro Light or Macro Dark theme for the current mode and pins the
