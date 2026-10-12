@@ -125,7 +125,10 @@ view fixture documented in `apps/web/src/features/onboarding/browser-test/README
 The steps are workspace color, feature interests, security, work Google account,
 personal Google account, tools, team, and plan selection. Color selection forks
 the default Macro Light or Macro Dark theme for the current mode and pins the
-custom accent palette; it does not modify a built-in theme. Interests are visual
+custom accent palette; it does not modify a built-in theme. Cream mode hides
+Pearl and centers the remaining five swatches. A selected Pearl falls back to Mint
+when entering cream mode; Pearl stays available in dark mode. Cream slab headings use weight 330
+(15 above dark mode) with the same sizing and line breaks. Interests are visual
 preferences only. Security and Google steps have a Read more section below the fold.
 
 Work and personal account buttons use the existing Gmail linking flow. Skipping
@@ -153,7 +156,7 @@ finish must not show "Couldn't finish setup — please try again", including whe
 a background session refresh overlaps it.
 
 The final screen keeps the “Free Claude & GPT for 30 days” headline and trial
-button above the fold. The “Continue with Free” scroll cue opens the pricing grid
+button above the fold. The “See more” scroll cue opens the pricing grid
 below, comparing Free, Pro, and Max. The grid loads monthly subscription prices
 from the billing catalog and describes Max as 10× Pro usage, without displaying
 dollar-denominated included AI allowances. Monthly prices use the compact

@@ -30,7 +30,7 @@
   margin: 0 0 24px;
   font-family: 'Roboto Slab Variable', display, serif;
   font-size: clamp(44px, 5vw, 72px);
-  font-weight: 315;
+  font-weight: calc(315 + var(--cream-slab-weight-increase, 0));
   line-height: 1.06;
   letter-spacing: -.04em;
 }

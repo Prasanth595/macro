@@ -596,3 +596,29 @@ html[data-palette='cream'] .feature-flow-core {
 html[data-palette='cream'] .feature-flow {
   overflow: visible;
 }
+
+/* Add weight to the existing slab styles without changing their type scale. */
+html[data-palette='cream'] { --cream-slab-weight-increase: 15; }
+html[data-palette='cream'] [class*='font-[Roboto_Slab'] { font-weight: 330; }
+html[data-palette='cream'] .tasks-founder-card h2 { font-weight: 415; }
+
+/* Product walkthroughs sit above the cream canvas, like the homepage composer. */
+html[data-palette='cream'] :is(.product-page, .feature-page) :is(
+  .product-demo,
+  .email-desktop-window,
+  .mail-app,
+  .crm-pipeline-frame
+) {
+  --color-panel: #faf8f3;
+  --theme-panel: #faf8f3;
+  background-color: #faf8f3;
+  outline: 1px solid #1d1c1a1a;
+  outline-offset: -1px;
+  box-shadow: 0 10px 40px -12px #1d1c1a26;
+}
+
+/* Replace the glass rim with one even outline; leave the existing bottom fade. */
+html[data-palette='cream'] .product-page .product-demo::before {
+  background: none;
+  border: 0;
+}

@@ -67,3 +67,18 @@ html[data-theme-light='true'] .onboarding-flow .onboarding-tool-icon {
 html[data-theme-light='true'] .onboarding-flow :is(.feature-flow-icon, .feature-flow-core) {
   background: linear-gradient(145deg, #fffdf5a6, #f5f1e833);
 }
+
+html[data-theme-light='true'] [data-workspace-intro] {
+  --workspace-grain-opacity: 0.42;
+  --workspace-accent-ring-width: 2.667px;
+  --workspace-accent-ring-color: #8c8478;
+}
+
+html[data-theme-light='true'] [data-workspace-intro] [data-accent-option='Pearl'] {
+  display: none;
+}
+
+/* Slightly stronger cream display type; keep the existing font metrics/layout. */
+html[data-theme-light='true'] .onboarding-flow [class*='font-[Roboto_Slab'] {
+  font-weight: 330;
+}

@@ -109,10 +109,7 @@ test('Free, Pro, and Max appear below the unchanged trial offer', async ({
     name: 'Compare Free, Pro, and Max plans',
   });
   await expect(comparison).not.toBeInViewport();
-  await page
-    .getByRole('button', { name: 'Continue with Free' })
-    .first()
-    .click();
+  await page.getByRole('button', { name: 'See more' }).click();
   await expect(comparison).toBeInViewport();
   for (const name of ['Free', 'Pro', 'Max']) {
     await expect(
@@ -126,10 +123,7 @@ test('Free, Pro, and Max appear below the unchanged trial offer', async ({
     page.getByRole('button', { name: 'Start 30 day trial' })
   ).toBeInViewport();
   await page.setViewportSize({ width: 390, height: 844 });
-  await page
-    .getByRole('button', { name: 'Continue with Free' })
-    .first()
-    .click();
+  await page.getByRole('button', { name: 'See more' }).click();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth

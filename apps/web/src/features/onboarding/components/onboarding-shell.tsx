@@ -2,7 +2,6 @@ import ArrowDownIcon from '@phosphor/arrow-down.svg';
 import ArrowLeftIcon from '@phosphor/arrow-left.svg';
 import { cn } from '@ui/utils/classname';
 import { children, createMemo, createUniqueId, type JSX, Show } from 'solid-js';
-import { NoiseBackground } from './controls';
 import './onboarding.css';
 
 export function OnboardingShell(props: {
@@ -47,7 +46,6 @@ export function OnboardingShell(props: {
       `
       }</style>
 
-      <NoiseBackground />
       <header class="absolute left-6 top-5 z-50 sm:left-10">
         <Show when={props.onBack}>
           <button
