@@ -1178,6 +1178,40 @@ impl BotRepo for PgBotsRepo {
         Ok(is_active)
     }
 
+    async fn bot_may_post_in_channel(
+        &self,
+        channel_id: Uuid,
+        bot_id: BotId,
+    ) -> Result<bool, Self::Err> {
+        let may_post = sqlx::query_scalar!(
+            r#"
+            SELECT EXISTS (
+                SELECT 1
+                FROM comms_channel_participants
+                WHERE channel_id = $1
+                  AND user_id = $2
+                  AND left_at IS NULL
+                  -- Its owner or any member of its team holds a persona's
+                  -- tokens, not just the person a direct conversation is
+                  -- with, so the persona posts into one only as their agent.
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM comms_channel_agents ca
+                      WHERE ca.channel_id = $1
+                        AND ca.kind = 'direct'
+                  )
+            ) AS "may_post!"
+            "#,
+            channel_id,
+            principal_id(bot_id),
+        )
+        .fetch_one(&self.pool)
+        .await
+        .context("failed to check whether a bot may post in a channel")?;
+
+        Ok(may_post)
+    }
+
     async fn user_shares_channel_with_bot(
         &self,
         caller: MacroUserIdStr<'static>,

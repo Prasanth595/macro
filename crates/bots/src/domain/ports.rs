@@ -119,8 +119,20 @@ pub trait BotRepo: Send + Sync + 'static {
         harness_id: HarnessId,
     ) -> impl Future<Output = Result<Option<HarnessFacts>, Self::Err>> + Send;
 
-    /// Check whether a bot is an active channel participant.
+    /// Check whether a bot is an active channel participant. A direct agent
+    /// conversation counts: a mention in one of its threads still reaches
+    /// the persona.
     fn bot_active_in_channel(
+        &self,
+        channel_id: Uuid,
+        bot_id: BotId,
+    ) -> impl Future<Output = Result<bool, Self::Err>> + Send;
+
+    /// Check whether a bot may post in a channel on its own: it is an active
+    /// participant, and the channel is not a direct agent conversation. Its
+    /// owner or any member of its team holds the bot's tokens, not just the
+    /// person a direct conversation is with.
+    fn bot_may_post_in_channel(
         &self,
         channel_id: Uuid,
         bot_id: BotId,
@@ -375,7 +387,8 @@ pub trait BotService: Send + Sync + 'static {
         token_id: Uuid,
     ) -> impl Future<Output = Result<(), BotError>> + Send;
 
-    /// Ensure that a bot is an active participant in a channel.
+    /// Ensure that a bot may post in a channel on its own: it is an active
+    /// participant, and the channel is not a direct agent conversation.
     fn ensure_bot_in_channel(
         &self,
         bot_id: BotId,
@@ -384,6 +397,8 @@ pub trait BotService: Send + Sync + 'static {
 
     /// Authorize an autonomous bot's channel messages using its active channel
     /// membership alone. The receipt names no acting user and reaches no other entity.
+    /// A direct agent conversation authorizes none, and is refused as a
+    /// channel the bot is not in.
     fn channel_message_access(
         &self,
         bot_id: BotId,

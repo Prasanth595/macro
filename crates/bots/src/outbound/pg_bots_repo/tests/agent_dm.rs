@@ -177,6 +177,61 @@ async fn persona_tokens_cannot_post_into_a_direct_conversation(pool: PgPool) -> 
     Ok(())
 }
 
+/// The current webhook header authenticates a persona by a token of its own
+/// and leaves the channel to the persona's membership, which a direct
+/// conversation does not lend it: the webhook refuses the conversation as it
+/// refuses a channel the persona is not in.
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn persona_bot_tokens_cannot_post_into_a_direct_conversation(
+    pool: PgPool,
+) -> anyhow::Result<()> {
+    let team_id = macro_uuid::generate_uuid_v7();
+    insert_team_user(&pool, team_id, TEAM_ADMIN, "admin").await?;
+    insert_team_user(&pool, team_id, TEAM_MEMBER, "member").await?;
+    let service = service(&pool);
+    let mut request = create_agent_req("dm-bot-token", AgentChannelScope::All);
+    request.team_id = Some(team_id);
+    let agent = service.create_agent(user_id(TEAM_ADMIN), request).await?;
+    let shared_channel_id = Uuid::new_v4();
+    insert_channel(&pool, shared_channel_id).await?;
+    service
+        .add_bot_to_channel(
+            channel_member_receipt(TEAM_MEMBER, shared_channel_id),
+            agent.bot.id,
+        )
+        .await?;
+    let conversation_id = Uuid::new_v4();
+    insert_direct_conversation(&pool, conversation_id, TEAM_ADMIN, agent.bot.id).await?;
+    let token = service
+        .create_token(
+            user_id(TEAM_MEMBER),
+            agent.bot.id,
+            CreateBotTokenRequest {
+                label: None,
+                expires_at: None,
+            },
+        )
+        .await?;
+    let bot = service.authenticate_token(&token.bearer_token).await?;
+
+    service
+        .channel_message_access(bot.bot_id, shared_channel_id)
+        .await?;
+    assert!(matches!(
+        service
+            .channel_message_access(bot.bot_id, conversation_id)
+            .await,
+        Err(BotError::Unauthorized)
+    ));
+    // A mention in one of the conversation's threads still finds the persona.
+    assert!(
+        PgBotsRepo::new(pool.clone())
+            .bot_active_in_channel(conversation_id, agent.bot.id)
+            .await?
+    );
+    Ok(())
+}
+
 /// A persona's channels are the ones it was put in. The conversations people
 /// have with it are theirs: editing the persona neither lists them, checks
 /// them against the editor's memberships, nor takes the persona out of them.
