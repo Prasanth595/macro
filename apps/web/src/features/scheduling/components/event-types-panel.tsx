@@ -1,11 +1,12 @@
 import { SettingsCard } from '@app/features/settings/primitives';
-import { DropdownMenu } from '@kobalte/core/dropdown-menu';
 import External from '@phosphor/arrow-square-out.svg';
 import Clock from '@phosphor/clock.svg';
 import Copy from '@phosphor/copy.svg';
 import Dots from '@phosphor/dots-three.svg';
 import Link from '@phosphor/link.svg';
-import { Button, ToggleSwitch } from '@ui';
+import Pencil from '@phosphor/pencil-simple.svg';
+import Trash from '@phosphor/trash.svg';
+import { Button, buttonClasses, Dropdown, ToggleSwitch } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
 import type { EventType, SchedulingScope } from '../core/types';
 import { TextInput } from './fields';
@@ -121,12 +122,15 @@ export function EventTypesPanel(props: {
                         Accept bookings for {event.title}
                       </span>
                     }
-                    controlClass="data-checked:bg-ink"
+                    size="md"
                     onChange={(v) => props.onToggle(event, v)}
                   />
                   <a
                     aria-label={`Preview ${event.title}`}
-                    class="rounded-lg border border-edge-muted p-2 text-ink-muted hover:bg-hover"
+                    class={buttonClasses({
+                      variant: 'outline',
+                      size: 'icon-md',
+                    })}
                     href={props.link(event)}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -143,38 +147,44 @@ export function EventTypesPanel(props: {
                     <Copy class="size-4" />
                   </Button>
                   <Show when={props.canEdit}>
-                    <DropdownMenu>
-                      <DropdownMenu.Trigger
-                        as={Button}
+                    <Dropdown>
+                      <Dropdown.Trigger
                         variant="outline"
                         size="icon-md"
                         label={`Options for ${event.title}`}
+                        disabled={props.saving}
                       >
                         <Dots class="size-5" />
-                      </DropdownMenu.Trigger>
-                      <DropdownMenu.Portal>
-                        <DropdownMenu.Content class="z-action-menu min-w-40 rounded-lg border border-edge-muted bg-menu p-1 text-sm shadow-lg">
-                          <DropdownMenu.Item
-                            class="rounded px-3 py-2 outline-none data-highlighted:bg-hover"
+                      </Dropdown.Trigger>
+                      <Dropdown.Content class="min-w-40">
+                        <Dropdown.Group>
+                          <Dropdown.Item
+                            disabled={props.saving}
                             onSelect={() => props.onEdit(event)}
                           >
+                            <Pencil class="size-4" />
                             Edit
-                          </DropdownMenu.Item>
-                          <DropdownMenu.Item
-                            class="rounded px-3 py-2 outline-none data-highlighted:bg-hover"
+                          </Dropdown.Item>
+                          <Dropdown.Item
+                            disabled={props.saving}
                             onSelect={() => props.onDuplicate(event)}
                           >
+                            <Copy class="size-4" />
                             Duplicate
-                          </DropdownMenu.Item>
-                          <DropdownMenu.Item
-                            class="rounded px-3 py-2 text-failure outline-none data-highlighted:bg-hover"
+                          </Dropdown.Item>
+                        </Dropdown.Group>
+                        <Dropdown.Group>
+                          <Dropdown.Item
+                            disabled={props.saving}
+                            class="text-failure"
                             onSelect={() => setRemoving(event.id)}
                           >
+                            <Trash class="size-4" />
                             Delete
-                          </DropdownMenu.Item>
-                        </DropdownMenu.Content>
-                      </DropdownMenu.Portal>
-                    </DropdownMenu>
+                          </Dropdown.Item>
+                        </Dropdown.Group>
+                      </Dropdown.Content>
+                    </Dropdown>
                   </Show>
                 </div>
               </div>

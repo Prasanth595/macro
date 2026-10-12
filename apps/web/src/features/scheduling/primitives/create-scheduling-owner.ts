@@ -18,7 +18,17 @@ export function createSchedulingOwner(
 ) {
   const source = capabilities.createSource(scope, range, loadBookings);
   const [event, setEvent] = createSignal<EventType>();
+  const [createActive, setCreateActive] = createSignal(false);
   const [schedule, setSchedule] = createSignal<AvailabilitySchedule>();
+  const [pendingSchedule, setPendingSchedule] =
+    createSignal<AvailabilitySchedule>();
+  const eventSchedules = () => {
+    const schedules = source.profile()?.schedules ?? [];
+    const pending = pendingSchedule();
+    return pending && !schedules.some((item) => item.id === pending.id)
+      ? [...schedules, pending]
+      : schedules;
+  };
   const [error, setError] = createSignal('');
   const [creating, setCreating] = createSignal(false);
   const [busyBooking, setBusyBooking] = createSignal('');
@@ -38,6 +48,7 @@ export function createSchedulingOwner(
     });
   const editEvent = (next: EventType) => {
     eventOpener = focusedElement();
+    setCreateActive(false);
     setEvent(next);
   };
   const editSchedule = (next: AvailabilitySchedule) => {
@@ -46,6 +57,8 @@ export function createSchedulingOwner(
   };
   const closeEventEditor = () => {
     setEvent(undefined);
+    setCreateActive(false);
+    setPendingSchedule(undefined);
     restoreFocus(eventOpener);
   };
   const closeScheduleEditor = () => {
@@ -55,6 +68,8 @@ export function createSchedulingOwner(
   // Navigation discards drafts without restoring focus to an obsolete opener.
   const discardEditors = () => {
     setEvent(undefined);
+    setCreateActive(false);
+    setPendingSchedule(undefined);
     setSchedule(undefined);
     eventOpener = undefined;
     scheduleOpener = undefined;
@@ -80,29 +95,24 @@ export function createSchedulingOwner(
   };
   const createEvent = async (opener?: HTMLElement) => {
     if (!scope().canEdit || creating() || source.saving()) return;
-    let profile = source.profile();
+    const profile = source.profile();
     if (!profile) return;
     eventOpener = opener ?? focusedElement();
     setCreating(true);
     try {
-      if (!profile.schedules.length) {
-        const next = newSchedule(
-          Intl.DateTimeFormat().resolvedOptions().timeZone
+      const pending = profile.schedules.length
+        ? undefined
+        : newSchedule(Intl.DateTimeFormat().resolvedOptions().timeZone);
+      setPendingSchedule(pending);
+      const scheduleId =
+        profile.defaultScheduleId ?? profile.schedules[0]?.id ?? pending?.id;
+      if (!scheduleId)
+        throw new Error(
+          'Choose an availability schedule before creating a link.'
         );
-        await save({
-          ...profile,
-          schedules: [next],
-          defaultScheduleId: next.id,
-        });
-        profile = source.profile();
-        if (!profile) return;
-      }
+      setCreateActive(true);
       setEvent(
-        newEventType(
-          profile.defaultScheduleId ?? profile.schedules[0].id,
-          [capabilities.userId()],
-          !!scope().teamId
-        )
+        newEventType(scheduleId, [capabilities.userId()], !!scope().teamId)
       );
     } finally {
       setCreating(false);
@@ -130,11 +140,30 @@ export function createSchedulingOwner(
       enabled: false,
     });
   };
+  const saveEvent = async (next: EventType) => {
+    const profile = source.profile();
+    if (!profile) throw new Error('Booking settings are not available yet.');
+    const pending = pendingSchedule();
+    const schedules = eventSchedules();
+    await save({
+      ...profile,
+      schedules,
+      defaultScheduleId:
+        profile.defaultScheduleId ?? profile.schedules[0]?.id ?? pending?.id,
+      eventTypes: profile.eventTypes.some((item) => item.id === next.id)
+        ? profile.eventTypes.map((item) => (item.id === next.id ? next : item))
+        : [...profile.eventTypes, next],
+    });
+    if (event()?.id === next.id) closeEventEditor();
+  };
   return {
     scope,
     source,
     event,
+    createActive,
     schedule,
+    eventSchedules,
+    saveEvent,
     error,
     creating,
     busyBooking,

@@ -15,6 +15,12 @@ beforeEach(() => {
   mobile.value = true;
   vi.useFakeTimers();
   vi.stubGlobal('scrollTo', vi.fn());
+  const getComputedStyle = window.getComputedStyle;
+  vi.spyOn(window, 'getComputedStyle').mockImplementation((element) => {
+    const style = getComputedStyle(element);
+    if (!style.animationName) style.animationName = 'none';
+    return style;
+  });
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -28,6 +34,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -51,6 +58,41 @@ describe('controlled confirmation', () => {
       expect(
         screen.getByRole('button', { name: 'Confirm' }).dataset.variant
       ).toBe('strong');
+    }
+  );
+
+  it.each([false, true])(
+    'restores caller-owned focus with mobile=%s',
+    async (isMobile) => {
+      mobile.value = isMobile;
+      const [open, setOpen] = createSignal(false);
+      let target!: HTMLButtonElement;
+      const restoreFocus = vi.fn((event: Event) => {
+        event.preventDefault();
+        target.focus();
+      });
+      render(() => (
+        <>
+          <button ref={target}>Return target</button>
+          <ConfirmDialog
+            title="Discard changes?"
+            open={open()}
+            onOpenChange={setOpen}
+            onCloseAutoFocus={restoreFocus}
+            onConfirm={() => setOpen(false)}
+          />
+        </>
+      ));
+      target.focus();
+      setOpen(true);
+      await vi.advanceTimersByTimeAsync(300);
+      const content = screen.getByRole('dialog', { name: 'Discard changes?' });
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      // jsdom does not emit the drawer's CSS closing transition event.
+      if (isMobile) fireEvent.transitionEnd(content);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(restoreFocus).toHaveBeenCalledOnce();
+      expect(document.activeElement).toBe(target);
     }
   );
 

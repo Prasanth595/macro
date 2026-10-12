@@ -1,14 +1,14 @@
-import { SettingsButton as Button } from '@app/features/settings/primitives';
 import Copy from '@phosphor/copy.svg';
+import { Button } from '@ui';
 import { Match, Show, Switch } from 'solid-js';
 import { AvailabilityPanel } from '../components/availability-panel';
 import { BookingsPanel } from '../components/bookings-panel';
-import { EventEditor } from '../components/event-editor';
 import { EventTypesPanel } from '../components/event-types-panel';
 import { Field, TextArea, TextInput } from '../components/fields';
 import { OwnerBadge } from '../components/owner-badge';
 import { useScheduling } from '../context/scheduling-context';
 import type { SchedulingOwner } from '../primitives/create-scheduling-owner';
+import { EventEditor } from './event-editor-view';
 import { InsightsView } from './insights-view';
 import { ScheduleEditor } from './schedule-editor-view';
 
@@ -45,77 +45,62 @@ export function OwnerSettingsSection(props: {
               role="group"
               aria-label={`${scope().name} ${props.kind === 'page' ? 'booking page' : props.kind}`}
             >
-              <Show when={event()}>
-                <div class="mb-4">
-                  <OwnerBadge scope={scope()} />
-                </div>
+              <Show when={event()} keyed>
+                {(value) => (
+                  <EventEditor
+                    event={value}
+                    events={p().eventTypes}
+                    schedules={owner.eventSchedules()}
+                    members={capabilities.members()}
+                    team={!!scope().teamId}
+                    defaultHosts={[capabilities.userId()]}
+                    saving={source.saving()}
+                    createActive={owner.createActive()}
+                    dialogTitle={
+                      p().eventTypes.some((item) => item.id === value.id)
+                        ? 'Edit booking link'
+                        : `New ${scope().teamId ? 'team' : 'personal'} booking link`
+                    }
+                    link={(slug) => capabilities.link(p(), slug)}
+                    onCopyLink={(slug) => capabilities.copyLink(p(), slug)}
+                    onCancel={closeEventEditor}
+                    onSave={owner.saveEvent}
+                  />
+                )}
               </Show>
-              <Show
-                when={!event()}
-                fallback={
-                  <Show when={event()} keyed>
-                    {(value) => (
-                      <EventEditor
-                        event={value}
-                        events={p().eventTypes}
-                        schedules={p().schedules}
-                        members={capabilities.members()}
-                        team={!!scope().teamId}
-                        saving={source.saving()}
-                        onCancel={closeEventEditor}
-                        onSave={async (next) => {
-                          const exists = p().eventTypes.some(
-                            (e) => e.id === next.id
-                          );
-                          await save({
-                            ...p(),
-                            eventTypes: exists
-                              ? p().eventTypes.map((e) =>
-                                  e.id === next.id ? next : e
-                                )
-                              : [...p().eventTypes, next],
-                          });
-                          if (event()?.id === next.id) closeEventEditor();
-                        }}
-                      />
-                    )}
-                  </Show>
+              <EventTypesPanel
+                owner={scope()}
+                search={props.search ?? ''}
+                events={p().eventTypes}
+                canEdit={scope().canEdit}
+                saving={source.saving()}
+                onEdit={owner.editEvent}
+                onDuplicate={duplicate}
+                link={(item) => capabilities.link(p(), item.slug)}
+                onCopy={(item) =>
+                  void action(() => capabilities.copyLink(p(), item.slug))
                 }
-              >
-                <EventTypesPanel
-                  owner={scope()}
-                  search={props.search ?? ''}
-                  events={p().eventTypes}
-                  canEdit={scope().canEdit}
-                  saving={source.saving()}
-                  onEdit={owner.editEvent}
-                  onDuplicate={duplicate}
-                  link={(item) => capabilities.link(p(), item.slug)}
-                  onCopy={(item) =>
-                    void action(() => capabilities.copyLink(p(), item.slug))
-                  }
-                  onToggle={(item, enabled) =>
-                    void action(() =>
-                      save({
-                        ...p(),
-                        eventTypes: p().eventTypes.map((e) =>
-                          e.id === item.id ? { ...e, enabled } : e
-                        ),
-                      })
-                    )
-                  }
-                  onDelete={(item) =>
-                    void action(() =>
-                      save({
-                        ...p(),
-                        eventTypes: p().eventTypes.filter(
-                          (e) => e.id !== item.id
-                        ),
-                      })
-                    )
-                  }
-                />
-              </Show>
+                onToggle={(item, enabled) =>
+                  void action(() =>
+                    save({
+                      ...p(),
+                      eventTypes: p().eventTypes.map((e) =>
+                        e.id === item.id ? { ...e, enabled } : e
+                      ),
+                    })
+                  )
+                }
+                onDelete={(item) =>
+                  void action(() =>
+                    save({
+                      ...p(),
+                      eventTypes: p().eventTypes.filter(
+                        (e) => e.id !== item.id
+                      ),
+                    })
+                  )
+                }
+              />
             </div>
           </Match>
           <Match when={props.kind === 'availability'}>
