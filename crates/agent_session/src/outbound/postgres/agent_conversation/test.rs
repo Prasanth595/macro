@@ -82,3 +82,20 @@ async fn two_agents_in_one_channel_run_on_separate_sessions(pool: PgPool) {
     assert_eq!(repo.current(second).await.unwrap(), Some(second_session));
     assert_eq!(repo.current(first).await.unwrap(), Some(fresh));
 }
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn only_the_current_session_answers_its_conversation(pool: PgPool) {
+    let conversation = with(channel(&pool).await, bot_id::MACRO_NEW_BOT_ID);
+    let repo = super::super::test::test_repo(&pool);
+    let first = repo.current_or_create(conversation).await.unwrap();
+    assert!(repo.is_current_conversation_session(first).await.unwrap());
+    let fresh = repo.start_fresh(conversation).await.unwrap();
+    assert!(!repo.is_current_conversation_session(first).await.unwrap());
+    assert!(repo.is_current_conversation_session(fresh).await.unwrap());
+    assert!(
+        !repo
+            .is_current_conversation_session(AgentSessionId::new())
+            .await
+            .unwrap()
+    );
+}

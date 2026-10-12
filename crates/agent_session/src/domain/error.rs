@@ -69,6 +69,13 @@ pub enum AgentSessionError {
     InvalidName(&'static str),
     #[error("agent session {0} is archived")]
     Archived(AgentSessionId),
+    /// The session answers an agent conversation's channel, which archiving
+    /// it would leave unanswered. Starting fresh in the conversation retires
+    /// it instead.
+    #[error(
+        "agent session {0} answers an agent conversation; start fresh there instead of archiving it"
+    )]
+    AnswersConversation(AgentSessionId),
     #[error("a preview request may name at most {0} sessions")]
     TooManyPreviewIds(usize),
     #[error("a pull request lookup may name at most {0} pull requests")]

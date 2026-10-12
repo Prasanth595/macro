@@ -965,6 +965,23 @@ impl<B: BotFacts + 'static> AgentSessionRepo for PgAgentSessionRepo<B> {
         Ok(())
     }
 
+    async fn is_current_conversation_session(&self, id: AgentSessionId) -> Result<bool> {
+        Ok(sqlx::query_scalar!(
+            r#"
+            SELECT EXISTS (
+                SELECT 1
+                FROM agent_conversation_sessions
+                WHERE session_id = $1
+                  AND is_current
+            ) AS "current!"
+            "#,
+            id.as_uuid(),
+        )
+        .fetch_one(&self.pool)
+        .await
+        .context("failed to read whether the session answers a conversation")?)
+    }
+
     async fn set_name_if_default(&self, id: AgentSessionId, name: &str) -> Result<bool> {
         let mut transaction = self
             .pool
