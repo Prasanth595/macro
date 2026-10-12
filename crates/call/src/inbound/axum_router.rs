@@ -713,6 +713,12 @@ pub async fn leave_or_end_call_handler<
     Ok(Json(response))
 }
 
+/// Permission `POST /call/record/{call_id}/decline` requires: whoever can see
+/// the call may turn down its ring for themselves. Call access resolves to an
+/// access level, never a channel role, so a participant-role marker here would
+/// reject every user.
+pub(crate) type DeclineCallPermission = ViewAccessLevel;
+
 /// Handler for `POST /call/record/{call_id}/decline`.
 ///
 /// Declines the identified active call for the caller without joining it.
@@ -740,7 +746,7 @@ pub async fn decline_call_handler<
     Auth: MacroAuthorizationService,
 >(
     State(state): State<CallRouterState<S, Svc, Auth>>,
-    access: CallAccessLevelExtractor<MemberParticipantRole, Svc, Auth>,
+    access: CallAccessLevelExtractor<DeclineCallPermission, Svc, Auth>,
     user: MacroAuthorizationExtractor<Auth, UserOrInternal>,
 ) -> Result<StatusCode, CallError> {
     let call_id = Uuid::parse_str(&access.entity_access_receipt.entity().entity_id)
