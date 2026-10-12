@@ -10,6 +10,11 @@
 //! waits for its summary only when the conversation would leave it too
 //! little room otherwise ([`WAIT_AT`]).
 //!
+//! A summary that fails leaves the history as it was, and the next is not
+//! tried until the conversation has grown by another [`RETRY_AFTER`] percent
+//! of the window: one that keeps failing would otherwise be paid for, and
+//! waited on, with every message.
+//!
 //! Nothing is deleted. What a summary covers moves to the session's archive,
 //! which `SearchHistory` reads, and the log keeps every frame.
 
@@ -37,6 +42,9 @@ const WAIT_AT: u64 = 75;
 /// The share the latest turns may take and still stay word for word, two
 /// turns at most.
 const RETAIN_UP_TO: u64 = 10;
+/// The share the conversation grows by, after a summary failed, before
+/// another is tried.
+const RETRY_AFTER: u64 = 10;
 /// The share one message may take.
 const MESSAGE_UP_TO: u64 = 25;
 /// The window of a model the catalog has none for.
@@ -49,8 +57,8 @@ const IMAGE_TOKENS: u64 = 1_600;
 /// How much conversation one summary call reads, in bytes: well within the
 /// summary model's window, with room for what it writes.
 const CHUNK_BYTES: usize = 1_200_000;
-/// The longest summary, in bytes.
-const SUMMARY_BYTES: usize = 16_000;
+/// The longest summary, in bytes; a longer one is cut.
+pub(super) const SUMMARY_BYTES: usize = 16_000;
 /// The longest image description, in bytes; a longer one is cut.
 const DESCRIPTION_BYTES: usize = 2_000;
 /// How much of the message an image came with its reader sees, in bytes.
@@ -102,9 +110,8 @@ pub(crate) struct ContextSummaryNotification {
 
 /// Why a summary was not written.
 ///
-/// Logged by its Display, which leaves out the conversation: what
-/// `TooLong` holds is the summary so far, and logs never carry prompts or
-/// what tools returned.
+/// Logged by its Display, which never holds the conversation: logs carry no
+/// prompts and nothing tools returned.
 #[derive(Debug, thiserror::Error)]
 enum SummaryError {
     #[error("stopped")]
@@ -115,8 +122,6 @@ enum SummaryError {
     TimedOut,
     #[error("the summary came back empty")]
     Empty,
-    #[error("the summary ran past {limit} bytes", limit = SUMMARY_BYTES)]
-    TooLong(String),
 }
 
 /// How many tokens of context `model` has.
@@ -204,7 +209,9 @@ pub(super) struct Stopped;
 ///
 /// A summary already running covers only what was said before it started,
 /// so once it lands the conversation can still be too long: then one more
-/// is written and waited for. Past that the turn runs on what there is.
+/// is written and waited for. After one that failed, the next waits for the
+/// conversation to grow ([`RETRY_AFTER`]). Past that the turn runs on what
+/// there is.
 pub(super) async fn before_turn(
     state: &Arc<AgentState>,
     connection: &ConnectionTo<Client>,
@@ -231,9 +238,9 @@ pub(super) async fn before_turn(
     Ok(())
 }
 
-/// Start a summary if the conversation with `prompt` has grown to need one
-/// and none is being written. The summary to wait for when the turn would
-/// not fit without it.
+/// Start a summary if the conversation with `prompt` has grown to need one,
+/// none is being written, and the last did not fail at nearly this size.
+/// The summary to wait for when the turn would not fit without it.
 fn start_summary(
     state: &Arc<AgentState>,
     connection: &ConnectionTo<Client>,
@@ -250,9 +257,14 @@ fn start_summary(
         }
         let running = session
             .summarizing
+            .pending
             .as_ref()
             .is_some_and(PendingSummary::is_running);
-        if !running {
+        let retry = session
+            .summarizing
+            .failed_at
+            .is_none_or(|failed| total >= failed + share(window, RETRY_AFTER));
+        if !running && retry {
             let end = covered_until(&session.history, share(window, RETAIN_UP_TO));
             // A conversation that is all summary and latest turns has no
             // turn a new summary would take in.
@@ -260,28 +272,30 @@ fn start_summary(
                 let covered = session.history[..end].to_vec();
                 let (settle, settled) = tokio::sync::watch::channel(());
                 let summary_cancel = CancellationToken::new();
-                session.summarizing = Some(PendingSummary {
+                session.summarizing.pending = Some(PendingSummary {
                     cancel: summary_cancel.clone(),
                     settled,
                 });
-                start = Some((covered, through, summary_cancel, settle));
+                start = Some((covered, through, total, summary_cancel, settle));
             }
         }
         (total >= share(window, WAIT_AT))
             .then(|| {
                 session
                     .summarizing
+                    .pending
                     .as_ref()
                     .filter(|summary| summary.is_running())
                     .map(|summary| summary.settled.clone())
             })
             .flatten()
     };
-    if let Some((covered, through, summary_cancel, settle)) = start {
+    if let Some((covered, through, tokens, summary_cancel, settle)) = start {
         let settle = Settle {
             store: Arc::clone(&state.store),
             session_id: state.session_id,
             cancel: summary_cancel.clone(),
+            tokens,
             _settled: settle,
         };
         let task = summarize(
@@ -309,8 +323,22 @@ struct Settle {
     store: Arc<SessionStore>,
     session_id: AgentSessionId,
     cancel: CancellationToken,
+    /// How many tokens the conversation took when the summary started.
+    tokens: u64,
     /// Dropped after the slot is freed, waking whoever waits on it.
     _settled: tokio::sync::watch::Sender<()>,
+}
+
+impl Settle {
+    /// Record that the summary failed, so that another waits for the
+    /// conversation to grow.
+    fn failed(&self) {
+        if !self.cancel.is_cancelled()
+            && let Some(mut session) = self.store.get_mut(&self.session_id)
+        {
+            session.summarizing.failed_at = Some(self.tokens);
+        }
+    }
 }
 
 impl Drop for Settle {
@@ -318,7 +346,7 @@ impl Drop for Settle {
         if !self.cancel.is_cancelled()
             && let Some(mut session) = self.store.get_mut(&self.session_id)
         {
-            session.summarizing = None;
+            session.summarizing.pending = None;
         }
     }
 }
@@ -332,7 +360,7 @@ async fn summarize(
     covered: Vec<HistoryEntry>,
     through: RequestId,
     cancel: CancellationToken,
-    _settle: Settle,
+    settle: Settle,
 ) {
     let started = Instant::now();
     tracing::info!(
@@ -348,6 +376,7 @@ async fn summarize(
                 error = %error,
                 "could not summarize the conversation; its history is unchanged"
             );
+            settle.failed();
             return;
         }
     };
@@ -381,6 +410,10 @@ async fn summarize(
     }
     let session = &mut *session;
     splice_summary(&mut session.history, &mut session.archive, summary, end);
+    // What it covered is archived, images and all, so nothing an attempt
+    // before it left is wanted any more.
+    session.summarizing.failed_at = None;
+    session.summarizing.descriptions.clear();
     tracing::info!(
         session_id = %state.session_id,
         replaced = end,
@@ -429,18 +462,26 @@ async fn write_summary(
 }
 
 /// What each image `covered` shows, by its URI, each read in a call of its
-/// own with the message it came with. An image that cannot be read is
-/// named in the transcript instead.
+/// own with the message it came with. An image an attempt that failed
+/// already read is not read again, and one that cannot be read is named in
+/// the transcript instead.
 async fn describe_images(
     state: &Arc<AgentState>,
     covered: &[HistoryEntry],
     cancel: &CancellationToken,
 ) -> Result<HashMap<String, String>, SummaryError> {
+    let mut descriptions = state
+        .store
+        .get(&state.session_id)
+        .map(|session| session.summarizing.descriptions.clone())
+        .unwrap_or_default();
     let mut images: Vec<(PromptAttachment, String)> = Vec::new();
     for entry in covered {
         if let HistoryEntry::User { prompt, .. } = entry {
             for image in prompt.images() {
-                if !images.iter().any(|(seen, _)| seen.uri == image.uri) {
+                if !descriptions.contains_key(&image.uri)
+                    && !images.iter().any(|(seen, _)| seen.uri == image.uri)
+                {
                     let mut end = prompt.text.len().min(IMAGE_CONTEXT_BYTES);
                     while !prompt.text.is_char_boundary(end) {
                         end -= 1;
@@ -461,18 +502,14 @@ async fn describe_images(
                     text: format!("The message it came with:\n{message}"),
                     attachments: vec![image],
                 };
-                let described = match complete(
+                let described = complete(
                     &state,
                     IMAGE_INSTRUCTIONS,
                     prompt,
                     DESCRIPTION_BYTES,
                     &cancel,
                 )
-                .await
-                {
-                    Err(SummaryError::TooLong(cut)) => Ok(cut),
-                    described => described,
-                };
+                .await;
                 (uri, described)
             }
         })
@@ -481,11 +518,11 @@ async fn describe_images(
         .buffer_unordered(IMAGES_AT_ONCE)
         .collect()
         .await;
-    let mut descriptions = HashMap::new();
+    let mut read = HashMap::new();
     for (uri, described) in described {
         match described {
             Ok(description) if !description.trim().is_empty() => {
-                descriptions.insert(uri, description);
+                read.insert(uri, description);
             }
             Ok(_) => {}
             Err(SummaryError::Stopped) => return Err(SummaryError::Stopped),
@@ -494,6 +531,15 @@ async fn describe_images(
             }
         }
     }
+    // Kept until a summary lands, in case this one does not. A conversation
+    // reset since has no use for them.
+    if !read.is_empty()
+        && let Some(mut session) = state.store.get_mut(&state.session_id)
+        && !cancel.is_cancelled()
+    {
+        session.summarizing.descriptions.extend(read.clone());
+    }
+    descriptions.extend(read);
     Ok(descriptions)
 }
 
@@ -538,8 +584,10 @@ fn transcript(covered: &[HistoryEntry], descriptions: &HashMap<String, String>) 
     result
 }
 
-/// What the summary model writes for `prompt` under `instructions`: at most
-/// `limit` bytes, or [`SummaryError::TooLong`] with what came before it.
+/// What the summary model writes for `prompt` under `instructions`, cut at
+/// `limit` bytes. A call that runs past it is stopped there and keeps what
+/// it wrote: a summary that runs long still says most of what it would
+/// have, which beats having none.
 async fn complete(
     state: &AgentState,
     instructions: &str,
@@ -583,7 +631,12 @@ async fn complete(
                         end -= 1;
                     }
                     text.truncate(end);
-                    return Err(SummaryError::TooLong(text));
+                    tracing::info!(
+                        session_id = %state.session_id,
+                        limit,
+                        "the summary model ran past its limit; what it wrote before is kept"
+                    );
+                    return Ok(text);
                 }
             }
             Ok(Some(Ok(_))) => {}

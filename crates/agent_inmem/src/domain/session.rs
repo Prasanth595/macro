@@ -5,6 +5,8 @@
 //! reattach within one process lifetime, and a cold attach after a restart
 //! rebuilds it from the frame log (see [`crate::domain::replay`]).
 
+use std::collections::HashMap;
+
 use agent::ReasoningEffort;
 use agent::types::{AssistantMessagePart, ChatMessage, ChatMessageContent, Role};
 use agent_client_protocol::schema::v1::{ContentBlock, PromptRequest, RequestId, SessionId};
@@ -236,6 +238,22 @@ impl PendingSummary {
     }
 }
 
+/// Where a session's summaries stand: the one being written, and what an
+/// attempt that failed leaves the next.
+#[derive(Debug, Default)]
+pub struct Summarizing {
+    /// The summary being written in the background, if any.
+    pub pending: Option<PendingSummary>,
+    /// How many tokens the conversation took when the last summary to
+    /// settle failed; `None` once one lands. Another is not tried until the
+    /// conversation has grown well past it, so a summary that keeps failing
+    /// is not paid for on every message.
+    pub failed_at: Option<u64>,
+    /// What each image a summary read shows, by the image's URI, kept until
+    /// a summary lands so that trying again does not read them again.
+    pub descriptions: HashMap<String, String>,
+}
+
 /// The in-memory state of one agent session.
 #[derive(Debug)]
 pub struct SessionState {
@@ -260,8 +278,9 @@ pub struct SessionState {
     /// What summaries stand in for, oldest first. With `history` it is the
     /// whole conversation, which `SearchHistory` reads.
     pub archive: Vec<HistoryEntry>,
-    /// The summary being written in the background, if any.
-    pub summarizing: Option<PendingSummary>,
+    /// The summary being written in the background, if any, and what the
+    /// last attempt left for the next.
+    pub summarizing: Summarizing,
 }
 
 impl SessionState {
@@ -277,16 +296,16 @@ impl SessionState {
             instructions: None,
             history: Vec::new(),
             archive: Vec::new(),
-            summarizing: None,
+            summarizing: Summarizing::default(),
         }
     }
 
     /// Start the conversation over: what the model reads and what it no
-    /// longer does, and any summary of it still being written.
+    /// longer does, and any summary of it still being written or tried.
     pub fn clear_history(&mut self) {
         self.history.clear();
         self.archive.clear();
-        if let Some(summary) = self.summarizing.take() {
+        if let Some(summary) = std::mem::take(&mut self.summarizing).pending {
             summary.cancel.cancel();
         }
     }

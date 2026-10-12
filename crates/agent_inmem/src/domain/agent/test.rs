@@ -781,12 +781,13 @@ async fn attached_files_reach_the_model_and_stay_in_history() {
 
 /// Answers turns from `turns`, and the calls that condense the conversation
 /// from `summaries` (a summary) or `reads` (an image read for one), each
-/// summary `delay` late.
+/// summary `delay` late. The first `failures` summaries fail instead.
 struct CondensingEngine {
     turns: ScriptedEngine,
     summaries: ScriptedEngine,
     reads: ScriptedEngine,
     delay: std::time::Duration,
+    failures: std::sync::atomic::AtomicUsize,
 }
 
 impl CondensingEngine {
@@ -796,8 +797,20 @@ impl CondensingEngine {
             summaries: ScriptedEngine::new(vec![StreamPart::Content("SUMMARY".into())]),
             reads: ScriptedEngine::new(vec![StreamPart::Content("a red square".into())]),
             delay: std::time::Duration::ZERO,
+            failures: std::sync::atomic::AtomicUsize::new(0),
         }
     }
+}
+
+/// A model call that fails at once.
+fn failed_call() -> tokio::sync::mpsc::Receiver<Result<StreamPart, agent::AgentError>> {
+    let (parts, receiver) = tokio::sync::mpsc::channel(1);
+    parts
+        .try_send(Err(agent::AgentError::Other(anyhow::anyhow!(
+            "summary unavailable"
+        ))))
+        .unwrap();
+    receiver
 }
 
 impl TurnEngine for CondensingEngine {
@@ -818,6 +831,15 @@ impl TurnEngine for CondensingEngine {
             .any(|message| message.attachments.is_some())
         {
             return self.reads.run_turn(request);
+        }
+        if self
+            .failures
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |left| {
+                left.checked_sub(1)
+            })
+            .is_ok()
+        {
+            return failed_call();
         }
         let delay = self.delay;
         let mut summary = self.summaries.run_turn(request);
@@ -856,6 +878,7 @@ async fn summary_settled(state: &AgentState) {
     let settled = state.store.get(&state.session_id).and_then(|session| {
         session
             .summarizing
+            .pending
             .as_ref()
             .map(|summary| summary.settled.clone())
     });
@@ -867,6 +890,31 @@ async fn summary_settled(state: &AgentState) {
 async fn prompt(connection: &ConnectionTo<Agent>, session: &SessionId, text: &str) {
     connection
         .send_request(text_prompt(session, text))
+        .block_task()
+        .await
+        .expect("the prompt should complete");
+}
+
+/// Send a message showing `count` images, `photo-<first>.png` on. Twelve
+/// are 19,200 tokens, however short their message.
+async fn show_images(
+    connection: &ConnectionTo<Agent>,
+    session: &SessionId,
+    first: usize,
+    count: usize,
+) {
+    let mut blocks = vec![ContentBlock::Text(TextContent::new("compare these"))];
+    blocks.extend((first..first + count).map(|index| {
+        ContentBlock::ResourceLink(
+            ResourceLink::new(
+                format!("photo-{index}.png"),
+                format!("https://static.example/file/photo-{index}"),
+            )
+            .mime_type("image/png".to_owned()),
+        )
+    }));
+    connection
+        .send_request(PromptRequest::new(session.clone(), blocks))
         .block_task()
         .await
         .expect("the prompt should complete");
@@ -890,7 +938,7 @@ async fn a_long_conversation_is_summarized_in_the_background_while_its_message_r
         };
         (
             session.archive.len(),
-            session.summarizing.is_none(),
+            session.summarizing.pending.is_none(),
             archived_prompt,
         )
     })
@@ -992,40 +1040,57 @@ impl TurnEngine for FailedSummaryEngine {
     ) -> tokio::sync::mpsc::Receiver<Result<StreamPart, agent::AgentError>> {
         if request.purpose == TurnPurpose::Summary {
             self.attempts.fetch_add(1, Ordering::Relaxed);
-            let (parts, receiver) = tokio::sync::mpsc::channel(1);
-            parts
-                .try_send(Err(agent::AgentError::Other(anyhow::anyhow!(
-                    "summary unavailable"
-                ))))
-                .unwrap();
-            receiver
+            failed_call()
         } else {
             self.turns.run_turn(request)
         }
     }
 }
 
+impl FailedSummaryEngine {
+    fn new() -> Self {
+        Self {
+            turns: ScriptedEngine::new(vec![StreamPart::Content("noted".into())]),
+            attempts: std::sync::atomic::AtomicUsize::new(0),
+        }
+    }
+
+    fn attempts(&self) -> usize {
+        self.attempts.load(Ordering::Relaxed)
+    }
+}
+
 #[tokio::test]
-async fn a_failed_summary_leaves_the_history_and_the_next_message_tries_again() {
-    let engine = Arc::new(FailedSummaryEngine {
-        turns: ScriptedEngine::new(vec![StreamPart::Content("noted".into())]),
-        attempts: std::sync::atomic::AtomicUsize::new(0),
-    });
+async fn a_failed_summary_is_tried_again_only_once_the_conversation_has_grown() {
+    let engine = Arc::new(FailedSummaryEngine::new());
     let recorded = with_summaries(Arc::clone(&engine), async |connection, session, state| {
         use_model(&state, "other-model");
         prompt(&connection, &session, &big(90_000)).await;
+        // 60,000 tokens: a summary starts, and fails.
         prompt(&connection, &session, &big(90_000)).await;
         summary_settled(&state).await;
         prompt(&connection, &session, "continue").await;
         summary_settled(&state).await;
+        let after_a_short_message = engine.attempts();
+        // 13,334 tokens more, past a tenth of the window since the failure.
+        prompt(&connection, &session, &big(40_000)).await;
+        summary_settled(&state).await;
+        after_a_short_message
     })
     .await;
 
-    assert_eq!(engine.attempts.load(Ordering::Relaxed), 2);
-    assert!(recorded.summaries.is_empty(), "nothing landed to record");
-    let turns = engine.turns.requests();
     assert_eq!(
-        turns.last().expect("the last turn").messages,
+        recorded.out, 1,
+        "a message that barely grew the conversation does not try again"
+    );
+    assert_eq!(
+        engine.attempts(),
+        2,
+        "one that grew it by a tenth of the window does"
+    );
+    assert!(recorded.summaries.is_empty(), "nothing landed to record");
+    assert_eq!(
+        engine.turns.requests()[2].messages,
         [
             big(90_000),
             "noted".to_owned(),
@@ -1034,6 +1099,57 @@ async fn a_failed_summary_leaves_the_history_and_the_next_message_tries_again() 
             "continue".to_owned()
         ],
         "the message ran on the whole history"
+    );
+}
+
+#[tokio::test]
+async fn a_turn_that_would_not_fit_waits_out_one_failed_summary_and_the_next_none() {
+    let engine = Arc::new(FailedSummaryEngine::new());
+    with_agent(Arc::clone(&engine), async |connection, session| {
+        // 120,000 tokens: far from a summary on a million-token model.
+        for _ in 0..4 {
+            prompt(&connection, &session, &big(90_000)).await;
+        }
+        connection
+            .send_request(SetSessionConfigOptionRequest::new(
+                session.clone(),
+                MODEL_CONFIG_ID,
+                "other-model",
+            ))
+            .block_task()
+            .await
+            .expect("the model changes");
+        // Past three quarters of the window: this turn waits for a summary,
+        // which fails, and runs on the whole history.
+        prompt(&connection, &session, "continue").await;
+        // Grown too little since to try again, so nothing is waited for.
+        prompt(&connection, &session, "and again").await;
+    })
+    .await;
+
+    assert_eq!(engine.attempts(), 1);
+    assert_eq!(engine.turns.requests().len(), 6, "both turns ran");
+}
+
+#[tokio::test]
+async fn a_summary_that_runs_long_lands_cut_at_its_limit() {
+    let mut engine = CondensingEngine::new();
+    engine.summaries = ScriptedEngine::new(vec![StreamPart::Content(
+        "y".repeat(compaction::SUMMARY_BYTES + 4_000),
+    )]);
+    let engine = Arc::new(engine);
+    let recorded = with_summaries(Arc::clone(&engine), async |connection, session, state| {
+        use_model(&state, "other-model");
+        prompt(&connection, &session, &big(90_000)).await;
+        prompt(&connection, &session, &big(90_000)).await;
+        summary_settled(&state).await;
+    })
+    .await;
+
+    assert_eq!(recorded.summaries.len(), 1, "it lands rather than failing");
+    assert_eq!(
+        recorded.summaries[0].text,
+        "y".repeat(compaction::SUMMARY_BYTES)
     );
 }
 
@@ -1103,24 +1219,8 @@ async fn images_count_toward_the_context_and_are_each_read_for_the_summary() {
     let engine = Arc::new(CondensingEngine::new());
     with_summaries(Arc::clone(&engine), async |connection, session, state| {
         use_model(&state, "other-model");
-        // Twelve images are 19,200 tokens, however short their message.
         for batch in 0..3 {
-            let mut blocks = vec![ContentBlock::Text(TextContent::new("compare these"))];
-            blocks.extend((0..12).map(|index| {
-                let index = batch * 12 + index;
-                ContentBlock::ResourceLink(
-                    ResourceLink::new(
-                        format!("photo-{index}.png"),
-                        format!("https://static.example/file/photo-{index}"),
-                    )
-                    .mime_type("image/png".to_owned()),
-                )
-            }));
-            connection
-                .send_request(PromptRequest::new(session.clone(), blocks))
-                .block_task()
-                .await
-                .expect("the prompt should complete");
+            show_images(&connection, &session, batch * 12, 12).await;
         }
         summary_settled(&state).await;
     })
@@ -1139,6 +1239,37 @@ async fn images_count_toward_the_context_and_are_each_read_for_the_summary() {
         summaries[0].images.is_empty(),
         "the summary reads the descriptions, not the images"
     );
+}
+
+#[tokio::test]
+async fn images_a_failed_summary_read_are_not_read_again() {
+    let engine = Arc::new(CondensingEngine {
+        failures: std::sync::atomic::AtomicUsize::new(1),
+        ..CondensingEngine::new()
+    });
+    with_summaries(Arc::clone(&engine), async |connection, session, state| {
+        use_model(&state, "other-model");
+        // A summary of the first 24 images reads them all, then fails.
+        for batch in 0..3 {
+            show_images(&connection, &session, batch * 12, 12).await;
+        }
+        summary_settled(&state).await;
+        // Nine more grow the conversation past a tenth of the window, and
+        // the next summary covers 36.
+        show_images(&connection, &session, 36, 9).await;
+        summary_settled(&state).await;
+    })
+    .await;
+
+    assert_eq!(
+        engine.reads.requests().len(),
+        36,
+        "the 24, then only the 12 the failed summary had not read"
+    );
+    let summaries = engine.summaries.requests();
+    assert_eq!(summaries.len(), 1, "the second summary landed");
+    assert!(summaries[0].messages[0].contains("IMAGE photo-0.png: a red square"));
+    assert!(summaries[0].messages[0].contains("IMAGE photo-35.png: a red square"));
 }
 
 #[tokio::test]

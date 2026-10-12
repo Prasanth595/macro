@@ -23,7 +23,7 @@ use crate::domain::mcp::DynMcpToolConnector;
 use crate::domain::replay::{
     FrameSource, ReplayedHistory, replay_history, replay_reasoning_effort, replay_speed,
 };
-use crate::domain::session::{SessionState, SessionStore};
+use crate::domain::session::{SessionState, SessionStore, Summarizing};
 
 #[cfg(test)]
 mod test;
@@ -179,7 +179,7 @@ impl InMemAgentManager {
                 instructions: facts.instructions.clone(),
                 history,
                 archive,
-                summarizing: None,
+                summarizing: Summarizing::default(),
             });
         }
 
