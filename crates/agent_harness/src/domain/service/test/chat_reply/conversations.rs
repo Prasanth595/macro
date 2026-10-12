@@ -1072,3 +1072,57 @@ async fn an_open_conversation_answers_while_another_one_bootstraps(pool: sqlx::P
     .expect("the message is prompted");
     assert!(prompt_text(&container.agent(), 1).contains("Asked during the bootstrap"));
 }
+
+/// A replica that dies mid-turn leaves the messages it posted showing their
+/// steps running. Recovery shows each of them closed, the last one with how
+/// the turn ended.
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn recovery_closes_the_messages_a_lost_replica_posted(pool: sqlx::PgPool) {
+    use crate::domain::conversation_turns::{ConversationTurnState, ConversationTurnStore};
+    use agent_fold::domain::model::ActivityStatus;
+    let journal = pg_journal(&pool);
+    let (service, announcer, _signals, container, command) =
+        journaled_conversation(pool, journal.clone()).await;
+    let agent = container.agent();
+    says(&agent, "Checking the tests first.");
+    runs(&agent, "t1", "in_progress", "cargo test");
+    eventually("the narration is posted with its step running", || {
+        !announcer.presented().is_empty()
+    })
+    .await;
+    let narration = announcer.presented()[0].message_id;
+    let turn = journal
+        .get(mention_origin(&command).message_id, command.bot_id)
+        .await
+        .unwrap()
+        .unwrap();
+
+    // The replica is gone, and with it what it remembered of the turn;
+    // recovery finds the turn running and interrupts it.
+    service.inner.busy.take(turn.session_id);
+    service.inner.projections.clear();
+    journal
+        .finish(
+            turn.action_id,
+            ConversationTurnState::Interrupted,
+            ReplyOutcome::Failed,
+        )
+        .await
+        .unwrap();
+    service.recover_conversations().await.unwrap();
+
+    let presented = announcer.presented();
+    let closed = presented.last().unwrap();
+    assert_eq!(closed.message_id, narration, "{presented:#?}");
+    assert_eq!(closed.outcome, Some(ReplyOutcome::Failed));
+    assert!(closed.notify);
+    assert!(closed.segments.iter().all(|segment| segment.segment.sealed));
+    assert!(
+        closed
+            .segments
+            .iter()
+            .flat_map(|segment| &segment.segment.rows)
+            .all(|row| row.status != ActivityStatus::Running),
+        "{closed:#?}"
+    );
+}

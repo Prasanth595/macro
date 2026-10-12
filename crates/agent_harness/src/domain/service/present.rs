@@ -197,10 +197,25 @@ where
                     tracing::error!(?error, %session_id, "could not keep a reply's message ids; not showing it yet");
                     return;
                 }
-                for (message, message_id) in planned.into_iter().zip(flight.presented.clone()) {
-                    if !message.ready || !self.shows_differently(message_id, &message.segments) {
-                        continue;
-                    }
+                let changed: Vec<_> = planned
+                    .into_iter()
+                    .zip(flight.presented.clone())
+                    .filter(|(message, message_id)| {
+                        message.ready && self.shows_differently(*message_id, &message.segments)
+                    })
+                    .collect();
+                if changed.is_empty() {
+                    return;
+                }
+                // Saved with the turn before it shows, so that a replica
+                // recovering the turn after this one is gone can close every
+                // message posted so far rather than leave its steps running.
+                if let Some(store) = &self.conversation_turns
+                    && let Err(error) = store.save_reply(flight.action_id, &segments).await
+                {
+                    tracing::error!(?error, %session_id, "could not keep a reply's progress for recovery");
+                }
+                for (message, message_id) in changed {
                     let presentation =
                         voice.presentation(session_id, turn, message_id, message.segments);
                     self.present_reply(presentation).await;
@@ -232,10 +247,10 @@ where
         let planned = plan_messages(&closed(segments));
         if planned.is_empty() {
             // Nothing the reply said or did can be shown, so say how the
-            // turn ended. A replica that watches a turn end saves its
-            // segments before posting the last message, so without them the
-            // answer was never posted: it is posted on its own, after any
-            // passages shown while the turn ran.
+            // turn ended. A replica saves a reply's segments before it shows
+            // any of them, and again before its last message, so without
+            // them nothing of the reply was posted: how the turn ended is
+            // posted on its own.
             let mut presentation = voice.presentation(
                 session_id,
                 flight.turn,

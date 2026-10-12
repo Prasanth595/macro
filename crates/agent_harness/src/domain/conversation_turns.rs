@@ -54,8 +54,9 @@ pub struct ConversationTurn {
     pub outcome: Option<ReplyOutcome>,
     /// Whether the channel reply has been reconciled with the saved outcome.
     pub reply_finalized: bool,
-    /// What the finished reply shows, saved before its outcome by the replica
-    /// that watched the turn.
+    /// What the reply shows, saved by the replica that watched the turn
+    /// before it showed any of it, and once more, finished, before its
+    /// outcome.
     #[serde(default)]
     pub reply_segments: Option<Vec<agent_fold::domain::model::ProjectedSegment>>,
     /// Stable admission order within the transcript.
@@ -144,8 +145,9 @@ pub trait ConversationTurnStore: Send + Sync + 'static {
     async fn claim(&self, action: AgentActionId, turn: &InFlightTurn) -> Result<bool>;
     /// Save the posted reply before the model can begin producing output.
     async fn record_flight(&self, action: AgentActionId, turn: &InFlightTurn) -> Result<()>;
-    /// Save what a finished turn's reply shows, before its outcome, so that
-    /// whichever replica reconciles the reply posts the same messages.
+    /// Save what a turn's reply shows: as its messages are posted, and
+    /// finished, before its outcome. Whichever replica reconciles the reply
+    /// then posts the same messages, and closes the ones already posted.
     async fn save_reply(
         &self,
         action: AgentActionId,
