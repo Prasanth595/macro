@@ -50,9 +50,17 @@ type ToolParserMap = {
     call: types.CreateChannel;
     response: types.CreateChannelResponse;
   };
+  CreateCompany: {
+    call: types.CreateCompany;
+    response: types.CreateCompanyResponse;
+  };
   CreateConfirmedCalendarEvent: {
     call: types.CreateConfirmedCalendarEvent;
     response: types.ToolCalendarEvent;
+  };
+  CreateContact: {
+    call: types.CreateContact;
+    response: types.CreateContactResponse;
   };
   CreateDocument: {
     call: types.CreateDocument;
@@ -72,15 +80,28 @@ type ToolParserMap = {
     response: types.CreateProjectResponse;
   };
   CreateRoutine: { call: types.CreateRoutine; response: types.RoutineInfo };
+  CreateSkill: { call: types.CreateSkill; response: types.CreateSkillResponse };
   CreateTag: { call: types.CreateTag; response: types.CreateTagResponse };
   DeleteBot: { call: types.DeleteBot; response: types.DeleteBotResponse };
   DeleteCalendarEvent: {
     call: types.DeleteCalendarEvent;
     response: types.DeleteCalendarEventResponse;
   };
+  DeleteCallRecord: {
+    call: types.DeleteCallRecord;
+    response: types.DeleteCallRecordResponse;
+  };
+  DeleteChannelMessage: {
+    call: types.DeleteChannelMessage;
+    response: types.DeleteChannelMessageResponse;
+  };
   DeleteDatabaseView: {
     call: types.DeleteDatabaseView;
     response: types.DeletedDatabaseView;
+  };
+  DeleteDocumentComment: {
+    call: types.DeleteDocumentComment;
+    response: types.DeleteDocumentCommentResponse;
   };
   DeleteImportEntity: {
     call: types.DeleteImportEntity;
@@ -90,6 +111,7 @@ type ToolParserMap = {
     call: types.DeleteInitiative;
     response: types.ProjectOperationComplete;
   };
+  DeleteRoutine: { call: types.DeleteRoutine; response: types.DeletedRoutine };
   DeleteTag: { call: types.DeleteTag; response: types.DeleteTagResponse };
   DescribeDatabase: {
     call: types.DescribeDatabase;
@@ -107,13 +129,25 @@ type ToolParserMap = {
     call: types.DisplayResults;
     response: types.DisplayResultsResponse;
   };
+  DuplicateItem: {
+    call: types.DuplicateItem;
+    response: types.DuplicateItemResponse;
+  };
   EditBookingLink: {
     call: types.EditBookingLink;
     response: types.BookingLinkResult;
   };
+  EditChannelMessage: {
+    call: types.EditChannelMessage;
+    response: types.EditChannelMessageResponse;
+  };
   EditDocument: {
     call: types.EditDocument;
     response: types.EditDocumentResponse;
+  };
+  EditDocumentComment: {
+    call: types.EditDocumentComment;
+    response: types.EditDocumentCommentResponse;
   };
   EditForm: { call: types.EditForm; response: types.MutationResult };
   EditPresentation: {
@@ -228,10 +262,23 @@ type ToolParserMap = {
     call: types.MoveToProject;
     response: types.MoveToProjectResponse;
   };
+  MoveToTrash: { call: types.MoveToTrash; response: types.MoveToTrashResponse };
+  MuteNotifications: {
+    call: types.MuteNotifications;
+    response: types.MuteNotificationsResponse;
+  };
   NameSearch: { call: types.NameSearch; response: types.SearchToolResponse };
+  OpenDirectMessage: {
+    call: types.OpenDirectMessage;
+    response: types.OpenDirectMessageResponse;
+  };
   QueryDatabase: {
     call: types.QueryDatabase;
     response: types.QueryDatabaseResponse;
+  };
+  ReactToChannelMessage: {
+    call: types.ReactToChannelMessage;
+    response: types.ReactToChannelMessageResponse;
   };
   ReadActivity: {
     call: types.ReadActivity;
@@ -301,10 +348,12 @@ type ToolParserMap = {
     call: types.RenameDocument;
     response: types.RenameDocumentResponse;
   };
+  RenameItem: { call: types.RenameItem; response: types.RenameItemResponse };
   ResolveDocumentComment: {
     call: types.ResolveDocumentComment;
     response: types.ResolveDocumentCommentResponse;
   };
+  RunRoutine: { call: types.RunRoutine; response: types.RoutineRunStarted };
   SaveDatabaseQuery: {
     call: types.SaveDatabaseQuery;
     response: types.SaveDatabaseQueryResponse;
@@ -338,6 +387,7 @@ type ToolParserMap = {
     call: types.SetEntityProperty;
     response: types.SetEntityPropertyResponse;
   };
+  SetFavorite: { call: types.SetFavorite; response: types.SetFavoriteResponse };
   SetFormAccess: { call: types.SetFormAccess; response: types.MutationResult };
   SetSenderPolicy: {
     call: types.SetSenderPolicy;
@@ -356,6 +406,10 @@ type ToolParserMap = {
     call: types.UpdateCalendarEvent;
     response: types.ToolCalendarEvent;
   };
+  UpdateCallRecord: {
+    call: types.UpdateCallRecord;
+    response: types.UpdateCallRecordResponse;
+  };
   UpdateInitiative: {
     call: types.UpdateInitiative;
     response: types.ProjectDetails;
@@ -365,6 +419,10 @@ type ToolParserMap = {
     response: types.ProjectDetails;
   };
   UpdateRoutine: { call: types.UpdateRoutine; response: types.RoutineInfo };
+  UpdateSharing: {
+    call: types.UpdateSharing;
+    response: types.UpdateSharingResponse;
+  };
   UpdateThreadLabels: {
     call: types.UpdateThreadLabels;
     response: types.UpdateThreadLabelsResponse;
@@ -416,9 +474,17 @@ const toolParserMap = {
     call: schemas.CreateChannel,
     response: schemas.CreateChannelResponse,
   },
+  CreateCompany: {
+    call: schemas.CreateCompany,
+    response: schemas.CreateCompanyResponse,
+  },
   CreateConfirmedCalendarEvent: {
     call: schemas.CreateConfirmedCalendarEvent,
     response: schemas.ToolCalendarEvent,
+  },
+  CreateContact: {
+    call: schemas.CreateContact,
+    response: schemas.CreateContactResponse,
   },
   CreateDocument: {
     call: schemas.CreateDocument,
@@ -438,15 +504,31 @@ const toolParserMap = {
     response: schemas.CreateProjectResponse,
   },
   CreateRoutine: { call: schemas.CreateRoutine, response: schemas.RoutineInfo },
+  CreateSkill: {
+    call: schemas.CreateSkill,
+    response: schemas.CreateSkillResponse,
+  },
   CreateTag: { call: schemas.CreateTag, response: schemas.CreateTagResponse },
   DeleteBot: { call: schemas.DeleteBot, response: schemas.DeleteBotResponse },
   DeleteCalendarEvent: {
     call: schemas.DeleteCalendarEvent,
     response: schemas.DeleteCalendarEventResponse,
   },
+  DeleteCallRecord: {
+    call: schemas.DeleteCallRecord,
+    response: schemas.DeleteCallRecordResponse,
+  },
+  DeleteChannelMessage: {
+    call: schemas.DeleteChannelMessage,
+    response: schemas.DeleteChannelMessageResponse,
+  },
   DeleteDatabaseView: {
     call: schemas.DeleteDatabaseView,
     response: schemas.DeletedDatabaseView,
+  },
+  DeleteDocumentComment: {
+    call: schemas.DeleteDocumentComment,
+    response: schemas.DeleteDocumentCommentResponse,
   },
   DeleteImportEntity: {
     call: schemas.DeleteImportEntity,
@@ -455,6 +537,10 @@ const toolParserMap = {
   DeleteInitiative: {
     call: schemas.DeleteInitiative,
     response: schemas.ProjectOperationComplete,
+  },
+  DeleteRoutine: {
+    call: schemas.DeleteRoutine,
+    response: schemas.DeletedRoutine,
   },
   DeleteTag: { call: schemas.DeleteTag, response: schemas.DeleteTagResponse },
   DescribeDatabase: {
@@ -473,13 +559,25 @@ const toolParserMap = {
     call: schemas.DisplayResults,
     response: schemas.DisplayResultsResponse,
   },
+  DuplicateItem: {
+    call: schemas.DuplicateItem,
+    response: schemas.DuplicateItemResponse,
+  },
   EditBookingLink: {
     call: schemas.EditBookingLink,
     response: schemas.BookingLinkResult,
   },
+  EditChannelMessage: {
+    call: schemas.EditChannelMessage,
+    response: schemas.EditChannelMessageResponse,
+  },
   EditDocument: {
     call: schemas.EditDocument,
     response: schemas.EditDocumentResponse,
+  },
+  EditDocumentComment: {
+    call: schemas.EditDocumentComment,
+    response: schemas.EditDocumentCommentResponse,
   },
   EditForm: { call: schemas.EditForm, response: schemas.MutationResult },
   EditPresentation: {
@@ -609,13 +707,29 @@ const toolParserMap = {
     call: schemas.MoveToProject,
     response: schemas.MoveToProjectResponse,
   },
+  MoveToTrash: {
+    call: schemas.MoveToTrash,
+    response: schemas.MoveToTrashResponse,
+  },
+  MuteNotifications: {
+    call: schemas.MuteNotifications,
+    response: schemas.MuteNotificationsResponse,
+  },
   NameSearch: {
     call: schemas.NameSearch,
     response: schemas.SearchToolResponse,
   },
+  OpenDirectMessage: {
+    call: schemas.OpenDirectMessage,
+    response: schemas.OpenDirectMessageResponse,
+  },
   QueryDatabase: {
     call: schemas.QueryDatabase,
     response: schemas.QueryDatabaseResponse,
+  },
+  ReactToChannelMessage: {
+    call: schemas.ReactToChannelMessage,
+    response: schemas.ReactToChannelMessageResponse,
   },
   ReadActivity: {
     call: schemas.ReadActivity,
@@ -694,10 +808,15 @@ const toolParserMap = {
     call: schemas.RenameDocument,
     response: schemas.RenameDocumentResponse,
   },
+  RenameItem: {
+    call: schemas.RenameItem,
+    response: schemas.RenameItemResponse,
+  },
   ResolveDocumentComment: {
     call: schemas.ResolveDocumentComment,
     response: schemas.ResolveDocumentCommentResponse,
   },
+  RunRoutine: { call: schemas.RunRoutine, response: schemas.RoutineRunStarted },
   SaveDatabaseQuery: {
     call: schemas.SaveDatabaseQuery,
     response: schemas.SaveDatabaseQueryResponse,
@@ -734,6 +853,10 @@ const toolParserMap = {
     call: schemas.SetEntityProperty,
     response: schemas.SetEntityPropertyResponse,
   },
+  SetFavorite: {
+    call: schemas.SetFavorite,
+    response: schemas.SetFavoriteResponse,
+  },
   SetFormAccess: {
     call: schemas.SetFormAccess,
     response: schemas.MutationResult,
@@ -755,6 +878,10 @@ const toolParserMap = {
     call: schemas.UpdateCalendarEvent,
     response: schemas.ToolCalendarEvent,
   },
+  UpdateCallRecord: {
+    call: schemas.UpdateCallRecord,
+    response: schemas.UpdateCallRecordResponse,
+  },
   UpdateInitiative: {
     call: schemas.UpdateInitiative,
     response: schemas.ProjectDetails,
@@ -764,6 +891,10 @@ const toolParserMap = {
     response: schemas.ProjectDetails,
   },
   UpdateRoutine: { call: schemas.UpdateRoutine, response: schemas.RoutineInfo },
+  UpdateSharing: {
+    call: schemas.UpdateSharing,
+    response: schemas.UpdateSharingResponse,
+  },
   UpdateThreadLabels: {
     call: schemas.UpdateThreadLabels,
     response: schemas.UpdateThreadLabelsResponse,
@@ -826,9 +957,17 @@ type ToolDataMap = {
     call: types.CreateChannel;
     response: types.CreateChannelResponse;
   };
+  CreateCompany: {
+    call: types.CreateCompany;
+    response: types.CreateCompanyResponse;
+  };
   CreateConfirmedCalendarEvent: {
     call: types.CreateConfirmedCalendarEvent;
     response: types.ToolCalendarEvent;
+  };
+  CreateContact: {
+    call: types.CreateContact;
+    response: types.CreateContactResponse;
   };
   CreateDocument: {
     call: types.CreateDocument;
@@ -848,15 +987,28 @@ type ToolDataMap = {
     response: types.CreateProjectResponse;
   };
   CreateRoutine: { call: types.CreateRoutine; response: types.RoutineInfo };
+  CreateSkill: { call: types.CreateSkill; response: types.CreateSkillResponse };
   CreateTag: { call: types.CreateTag; response: types.CreateTagResponse };
   DeleteBot: { call: types.DeleteBot; response: types.DeleteBotResponse };
   DeleteCalendarEvent: {
     call: types.DeleteCalendarEvent;
     response: types.DeleteCalendarEventResponse;
   };
+  DeleteCallRecord: {
+    call: types.DeleteCallRecord;
+    response: types.DeleteCallRecordResponse;
+  };
+  DeleteChannelMessage: {
+    call: types.DeleteChannelMessage;
+    response: types.DeleteChannelMessageResponse;
+  };
   DeleteDatabaseView: {
     call: types.DeleteDatabaseView;
     response: types.DeletedDatabaseView;
+  };
+  DeleteDocumentComment: {
+    call: types.DeleteDocumentComment;
+    response: types.DeleteDocumentCommentResponse;
   };
   DeleteImportEntity: {
     call: types.DeleteImportEntity;
@@ -866,6 +1018,7 @@ type ToolDataMap = {
     call: types.DeleteInitiative;
     response: types.ProjectOperationComplete;
   };
+  DeleteRoutine: { call: types.DeleteRoutine; response: types.DeletedRoutine };
   DeleteTag: { call: types.DeleteTag; response: types.DeleteTagResponse };
   DescribeDatabase: {
     call: types.DescribeDatabase;
@@ -883,13 +1036,25 @@ type ToolDataMap = {
     call: types.DisplayResults;
     response: types.DisplayResultsResponse;
   };
+  DuplicateItem: {
+    call: types.DuplicateItem;
+    response: types.DuplicateItemResponse;
+  };
   EditBookingLink: {
     call: types.EditBookingLink;
     response: types.BookingLinkResult;
   };
+  EditChannelMessage: {
+    call: types.EditChannelMessage;
+    response: types.EditChannelMessageResponse;
+  };
   EditDocument: {
     call: types.EditDocument;
     response: types.EditDocumentResponse;
+  };
+  EditDocumentComment: {
+    call: types.EditDocumentComment;
+    response: types.EditDocumentCommentResponse;
   };
   EditForm: { call: types.EditForm; response: types.MutationResult };
   EditPresentation: {
@@ -1004,10 +1169,23 @@ type ToolDataMap = {
     call: types.MoveToProject;
     response: types.MoveToProjectResponse;
   };
+  MoveToTrash: { call: types.MoveToTrash; response: types.MoveToTrashResponse };
+  MuteNotifications: {
+    call: types.MuteNotifications;
+    response: types.MuteNotificationsResponse;
+  };
   NameSearch: { call: types.NameSearch; response: types.SearchToolResponse };
+  OpenDirectMessage: {
+    call: types.OpenDirectMessage;
+    response: types.OpenDirectMessageResponse;
+  };
   QueryDatabase: {
     call: types.QueryDatabase;
     response: types.QueryDatabaseResponse;
+  };
+  ReactToChannelMessage: {
+    call: types.ReactToChannelMessage;
+    response: types.ReactToChannelMessageResponse;
   };
   ReadActivity: {
     call: types.ReadActivity;
@@ -1077,10 +1255,12 @@ type ToolDataMap = {
     call: types.RenameDocument;
     response: types.RenameDocumentResponse;
   };
+  RenameItem: { call: types.RenameItem; response: types.RenameItemResponse };
   ResolveDocumentComment: {
     call: types.ResolveDocumentComment;
     response: types.ResolveDocumentCommentResponse;
   };
+  RunRoutine: { call: types.RunRoutine; response: types.RoutineRunStarted };
   SaveDatabaseQuery: {
     call: types.SaveDatabaseQuery;
     response: types.SaveDatabaseQueryResponse;
@@ -1114,6 +1294,7 @@ type ToolDataMap = {
     call: types.SetEntityProperty;
     response: types.SetEntityPropertyResponse;
   };
+  SetFavorite: { call: types.SetFavorite; response: types.SetFavoriteResponse };
   SetFormAccess: { call: types.SetFormAccess; response: types.MutationResult };
   SetSenderPolicy: {
     call: types.SetSenderPolicy;
@@ -1132,6 +1313,10 @@ type ToolDataMap = {
     call: types.UpdateCalendarEvent;
     response: types.ToolCalendarEvent;
   };
+  UpdateCallRecord: {
+    call: types.UpdateCallRecord;
+    response: types.UpdateCallRecordResponse;
+  };
   UpdateInitiative: {
     call: types.UpdateInitiative;
     response: types.ProjectDetails;
@@ -1141,6 +1326,10 @@ type ToolDataMap = {
     response: types.ProjectDetails;
   };
   UpdateRoutine: { call: types.UpdateRoutine; response: types.RoutineInfo };
+  UpdateSharing: {
+    call: types.UpdateSharing;
+    response: types.UpdateSharingResponse;
+  };
   UpdateThreadLabels: {
     call: types.UpdateThreadLabels;
     response: types.UpdateThreadLabelsResponse;

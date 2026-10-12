@@ -41,9 +41,10 @@ use databases_sql::toolset::{QueryDatabase, databases_sql_toolset};
 use display_results::DisplayResults;
 use documents::inbound::toolset::document_toolset;
 use email::inbound::toolset::{email_toolset, mcp_toolset as email_mcp_toolset};
+use favorites::inbound::toolset::favorites_toolset;
 use import::inbound::toolset::import_toolset;
 use initiative::inbound::toolset::initiative_toolset;
-use notification::inbound::ai_tool::notification_toolset;
+use notification::inbound::ai_tool::{item_notification_preference_toolset, notification_toolset};
 use projects::inbound::toolset::project_toolset;
 use properties::inbound::toolset::properties_toolset;
 use schemas::read;
@@ -77,9 +78,10 @@ pub use tool_context::{
     ToolDatabasesSqlToolContext, ToolDatabasesToolContext, ToolDocumentService,
     ToolDocumentToolContext, ToolEmailService, ToolEmailToolContext,
     ToolEntityAccessManagementService, ToolEntityAccessService, ToolEntityCreator,
-    ToolForeignEntityService, ToolFormsToolContext, ToolFrecencyService,
-    ToolGithubPullRequestService, ToolImageGenerationToolContext, ToolImportService,
-    ToolImportToolContext, ToolInitiativeToolContext, ToolMcpSelector, ToolNotificationQueue,
+    ToolFavoritesService, ToolFavoritesToolContext, ToolForeignEntityService, ToolFormsToolContext,
+    ToolFrecencyService, ToolGithubPullRequestService, ToolImageGenerationToolContext,
+    ToolImportService, ToolImportToolContext, ToolInitiativeToolContext,
+    ToolItemNotificationPreferenceToolContext, ToolMcpSelector, ToolNotificationQueue,
     ToolNotificationService, ToolNotificationToolContext, ToolPipedreamConnection,
     ToolProjectService, ToolProjectToolContext, ToolPropertiesService, ToolPropertiesToolContext,
     ToolServiceContext, ToolSkillService, ToolSkillToolContext, ToolSoupService,
@@ -90,12 +92,13 @@ pub use tool_context::{
     build_channel_tool_context_with_dispatcher, build_channel_tool_context_with_side_effects,
     build_channel_tool_context_without_side_effects, build_coding_agent_tool_context,
     build_crm_tool_context, build_databases_sql_tool_context, build_databases_tool_context,
-    build_forms_tool_context, build_image_generation_tool_context, build_initiative_tool_context,
-    build_message_service_with_side_effects, build_message_service_without_side_effects,
-    build_project_tool_context, build_properties_service, build_properties_service_with_broker,
-    build_properties_tool_context, build_routine_tool_context, build_skill_tool_context,
-    build_task_properties_adapter, build_team_calendar_tool_context, build_team_repository,
-    build_team_tool_context,
+    build_favorites_service, build_favorites_tool_context, build_forms_tool_context,
+    build_image_generation_tool_context, build_initiative_tool_context,
+    build_item_notification_preference_tool_context, build_message_service_with_side_effects,
+    build_message_service_without_side_effects, build_project_tool_context,
+    build_properties_service, build_properties_service_with_broker, build_properties_tool_context,
+    build_routine_tool_context, build_skill_tool_context, build_task_properties_adapter,
+    build_team_calendar_tool_context, build_team_repository, build_team_tool_context,
 };
 pub use tool_context::{ToolConnectorToolContext, build_connector_tool_context};
 #[cfg(any(test, feature = "test-support"))]
@@ -149,6 +152,7 @@ pub(crate) fn subagent_toolset() -> AiToolSet {
             image_generation::inbound::toolset::image_generation_toolset(),
         )
         .add_subtoolset::<ToolProjectToolContext>(project_toolset())
+        .add_subtoolset::<ToolFavoritesToolContext>(favorites_toolset())
         .add_subtoolset::<ToolInitiativeToolContext>(initiative_toolset())
         .add_subtoolset::<ToolPropertiesToolContext>(properties_toolset())
         .add_subtoolset::<ToolCallToolContext>(call_toolset())
@@ -235,6 +239,9 @@ pub const EAGER_TOOLS: &[&str] = &[
 pub fn tools_for(host: AiHost) -> ToolSetWithPrompt {
     let toolset = subagent_toolset()
         .add_subtoolset::<ToolNotificationToolContext>(notification_toolset())
+        .add_subtoolset::<ToolItemNotificationPreferenceToolContext>(
+            item_notification_preference_toolset(),
+        )
         .add_subtoolset::<ToolTeamCalendarToolContext>(team_calendar_toolset())
         .add_subtoolset::<RoutineToolContext>(routines::inbound::routine_toolset());
     let toolset = match host {
