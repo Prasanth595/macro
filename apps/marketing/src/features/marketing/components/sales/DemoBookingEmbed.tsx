@@ -1,6 +1,5 @@
 import { onCleanup, onMount } from 'solid-js';
 import { buildCalSlugWithAttribution } from '../../../../app/utils/utilAnalytic';
-import { DEMO_BOOKING_URL } from '../../../../app/utils/utilCta';
 
 type CalApi = ((...args: unknown[]) => void) & {
   loaded?: boolean;
@@ -10,6 +9,9 @@ type CalApi = ((...args: unknown[]) => void) & {
 
 const NAMESPACE = 'macro-demo';
 const CAL_SCRIPT = 'https://app.cal.com/embed/embed.js';
+// Still the cal.com event: Macro booking pages send `X-Frame-Options: DENY`,
+// so they cannot be inlined here yet.
+const CAL_DEMO_LINK = 'team/macro/macro-demo-call';
 // The homepage's white primary button.
 const BRAND = '#fafafa';
 
@@ -112,9 +114,7 @@ export function DemoBookingEmbed(props: { id: string; cream?: boolean }) {
           theme,
           useSlotsViewOnSmallScreen: 'true',
         },
-        calLink: buildCalSlugWithAttribution(
-          new URL(DEMO_BOOKING_URL).pathname.slice(1)
-        ),
+        calLink: buildCalSlugWithAttribution(CAL_DEMO_LINK),
       });
       api?.('ui', {
         theme,
