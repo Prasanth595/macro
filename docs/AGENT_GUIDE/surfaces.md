@@ -1314,20 +1314,166 @@ Apply or cancel a range edit or stamp selection before saving; disabled Save nev
 dismisses pending work. Leave the editor to discard verification drafts instead of
 modifying hosted data.
 Ownership badges identify Personal or Team · team name on links and availability.
-Public booking pages, bookings, and insights are grouped by owner and remain visible
-together; editing one owner does not switch the rest of the page. Search booking
-links by title, slug, or owner. Team owners/admins can edit team links; ordinary members can view them. `Event types` creates, edits,
-pauses, duplicates, previews, and copies booking links. Event settings include
-weekly availability, collective/all-host or round-robin/one-host assignment,
-notice, buffers, booking horizon, daily limits, and custom questions. New event
-types stay paused until `Accept bookings` is selected and changes are saved.
+Search booking links by title or slug within the selected owner. Team owners and
+admins can edit team links; ordinary members retain read-only access. New booking
+link opens a dialog without saving anything, including when no schedule exists.
+The dialog grows to 42rem wide and retains an 8px gutter on narrow screens.
+Editing steps stay at 36rem when space permits. Review can grow with its content.
+Both are capped for the viewport, safe areas, and virtual keyboard. The header
+and footer stay fixed; content scrolls when it reaches the height limit.
+Header, content, and footer use matching 24px horizontal padding on wider screens.
+The fixed header contains only a continuous progress bar for the five editor steps.
+The active step heading appears below the bar at the top of scrollable content.
+The footer keeps Cancel at the far left; Back sits beside Next and is absent on
+the first step. The form has no tabs or step menus. Inputs use consistent styling
+and rounded pill presets whose selected accent or unselected muted text stays
+unchanged on hover.
+The screen-reader-only title identifies New personal booking link, New team booking
+link, or Edit booking link. It has five steps:
+Details, Location & availability, Questions, Booking rules, and Review.
+Details contains title, description, and duration.
+Next validates required values without saving; Back preserves the draft and
+control state and returns to the preceding step even if external schedule changes
+invalidate earlier values. Next and Back move between steps and focus the active
+content. Step content uses compact top padding below the header.
+Review sections share a fixed left icon column; headings and all section content
+align in an indented content column. A larger booking title introduces combined
+Details and Location & availability, without a separate Meeting details heading.
+There are no Review Edit actions; use Back to change values. Icons appear beside
+section headings, not individual values. Values sit closely below their plain
+labels. For saved links, a copy-link icon beside the title copies the persisted
+booking URL without saving pending edits. New and duplicated links have no copy
+action until saved. Meeting buffers combines nonzero before/after values and shows
+No buffers when both are zero.
+On Review, the warning-triangle action beside Questions opens a bounded help popover
+explaining that name and email are always collected. The note stays hidden until opened.
+Existing links show an Accept bookings checkbox under Status on Review. Pausing or
+reactivating changes only the draft until Save changes. The control disables while
+saving. New links retain their active default; duplicates retain their paused default.
+Use automatic confirmation updates a legacy link's draft without saving or leaving
+Review. Reset team hosts changes only the host draft and stays on Location.
+The footer primary action is Next until Review, then Create link (Save changes
+for existing links), with a plus icon for Create link. Save draft is not available.
+Cancel, Escape, and clicking outside request closing. If saved values differ from
+the initial draft, a Discard changes? confirmation offers Keep editing or Discard
+changes. Keeping the draft restores focus. Discard waits for confirmation teardown
+before closing the editor and returning focus to its booking-list opener, without
+saving. Unchanged or reverted drafts, step navigation, and empty question
+placeholders do not prompt.
+Validation errors return to the relevant step, outline affected controls, and appear
+immediately beneath those controls. Correcting a field clears its error without
+another Next click.
+Submitting with Enter or Next focuses the first invalid control and scrolls its
+message into view. Live edits clear errors without moving focus to another control.
+Save failures appear beneath the action that attempted the write, not in a banner.
+The progress bar exposes Step X of 5 and the active heading to assistive technology.
+It updates on each step. Stepper animates the body while retaining controls. Back
+and Next remain text-only. Saving disables navigation and editor actions.
+Description sits below the title/link area. Neither description nor duration has
+an info icon. Custom duration opens its slider and exact-value input below the
+compact presets, without another heading. The slider uses a 15-minute grid with
+a 5-minute lower limit. Hold Ctrl for one-minute pointer or keyboard adjustments.
+A current-value tooltip follows below the thumb on hover, focus, and drag.
+Saved whole-minute durations, including 5–14 minutes, remain visible without
+rounding; exact input accepts other whole-minute durations.
+The pencil icon beside the URL opens an optional custom-link popover. A blank
+custom link uses a unique automatic URL based on the meeting title. New title-based
+links receive a suffix when another link already uses that URL. Renaming a saved
+link preserves its URL; only explicit custom-link edits or Reset to title change it.
+Only entered custom links validate their format; Reset to title generates a unique
+URL for the current title.
+Escape closes the popover without closing the editor and returns focus to the pencil
+icon.
+Location uses Google Meet/Custom presets, with a camera icon beside Google Meet.
+The custom address or URL input appears
+below the presets only when Custom is selected. Google Meet shows joining
+instructions in an inline input below the presets. Switching between Google Meet
+and Custom preserves the entered location/instructions. Availability keeps its
+schedule picker without an extra Availability schedule heading. The selected schedule's
+weekly hours and timezone appear directly beneath the picker. This summary does not show
+live calendar free/busy or date overrides. First-time links use the default draft schedule
+until saved. Calendar busy-time exclusions appear in the help popover beside
+Availability. Team-host settings remain in the location step.
+New links show two optional question fields immediately; existing questions keep
+their values and Required options. Blank or whitespace-only rows never block
+navigation and are omitted from Review and saved configuration. The name/email
+explanation appears with a warning triangle above the fixed footer on Questions;
+Review puts it in its help
+popover. Each question has no inset card or padding, and shows Required and an
+icon-only Remove control beside its label, above the input. There is no bulk
+Remove questions action. Removing an
+individual question focuses the next question, the previous question after removing
+the last one, or Add a question if none remain. Booking rules has no outer
+disclosure or Remove action.
+Booking rules shows **Meeting times guests can choose** with **From** and **To**
+inputs in one outlined Booking range frame. Both offsets are measured from the
+visitor's current time, not from one another. Guests can reserve a meeting
+immediately; these rules restrict the meeting's start time, not when the link is
+active. Each endpoint has an always-visible number input and inline unit selector.
+A live **For a guest visiting now** preview shows concrete dates and times in the
+browser's time zone, with a highlighted range and muted time outside its endpoints.
+Only available meeting starts inside that range can appear; the preview does not
+fetch free/busy data or promise that every time is available. The preview refreshes
+as time passes and after returning to the tab, without changing the draft.
+From supports 0–10,080 minutes; To supports 1–365 days. To must extend beyond From.
+Equal or reversed ranges keep their entered values, show an inline error on To,
+and block Next/save. Invalid ranges do not show a misleading date preview.
+There are no separate notice/window sliders or preset rows.
+Meeting spacing places before-buffer and after-buffer sliders around a fixed-width,
+read-only meeting segment. The connected strip has no visible scale labels; both
+exact buffer inputs stay visible underneath. Arrow keys adjust one minute. In
+left-to-right layouts, ArrowLeft on the before-buffer slider increases that buffer.
+Locale direction controls arrow keys and thumb alignment. Slider thumbs expose
+actual booking values. Interval and daily maximum use shared selects below the strip.
+Enter in any exact input never advances the step or saves the link.
+Validation, field bounds, unit conversion, and daily-limit memory stay unchanged.
+Custom values and unit preferences survive Back/Next navigation. Validation errors
+stay below the affected controls; Next focuses the invalid manual input.
+Invalid stored fractions remain visible until corrected. Choosing No limit corrects
+a stored zero daily limit to the supported no-limit value. The five-step editor,
+save behavior, and discard confirmation remain unchanged.
+Duration offers minutes/hours, From offers minutes/hours/days, and To uses
+days/weeks. Number and unit use the reusable NumberUnitInput, built on Kobalte
+NumberField. Booking range uses two bare endpoint controls inside its shared frame;
+other controls retain their own frames. The buffer row stretches its frames to equal
+column widths. Optional outlined minus/plus buttons sit outside other frames, one
+on each side; compact booking-rule inputs omit them.
+Hours and days use readable unit names, not single-letter abbreviations.
+Click the displayed unit inside the frame to change it; there is no separate unit
+selector. Auto remains available in its menu, but the frame never displays a
+“· Auto” suffix. Hours allow up to two decimal places; other units and booking counts
+stay whole. Auto uses smaller units when necessary to preserve precision.
+Blank or out-of-range input stays local; blur restores the last valid draft.
+Explicit unit choices replace the previous preference. Saved values remain whole
+minutes or days. Time-slot interval offers minute presets and Custom in one select.
+Daily booking limit offers No limit, booking-count presets, and Custom in one select,
+without an enabling checkbox or slider. Choosing Custom reveals an exact-value
+input; validation errors also reveal the affected input. Selecting a preset hides it.
+Choosing Custom focuses and selects its input. Switching to No limit and back to
+Custom restores the previous limit. Entering zero also removes the limit. No limit
+and zero save as null, preserving the backend contract.
+Questions are booking-specific text answers with labels and Required checkboxes,
+not forms. Only Create link or Save changes persists the draft.
+Configured options remain visible when editing. **Create link** uses shared primary
+action styling and activates a fresh link. Closing an edited link requests discard
+confirmation. The first link and any default
+working-hours schedule are saved together. Existing links can still be edited,
+toggled, duplicated, deleted, previewed, and copied. Editing an inactive link does
+not activate it. Duplicated links stay paused on Create link; only fresh New
+booking link drafts activate by default.
+Booking-link card options use the shared Dropdown menu with padded Groups and
+standard icon/text items; Delete sits in its own separated group. Immediate activation
+switches use the shared accent-colored ToggleSwitch without custom color overrides.
+Changing workspace sections or owners, including browser history, dismisses and
+clears unsaved link/availability editors instead of reopening stale drafts. UI
+navigation stays disabled during saving; hidden owners cannot retain open dialogs.
 `Availability` manages named weekly schedules and date overrides in an IANA time
 zone. Set a default schedule for new event types; a schedule cannot be deleted
 until its event types use another one. Collective and round-robin team meetings
 respect each host’s personal default hours when configured, plus busy calendars.
-`Teams` summarizes connected teams and links to team settings; the member roster
-lives in team settings. Choose hosts for a team booking link inside its editor.
-`Booking page` edits the public name and description. `Bookings` shows
+Team membership remains in team settings. Team-host selection and collective
+or round-robin assignment live in the link dialog. Booking-page identity is
+configured in Settings → Booking links. `Bookings` shows
 upcoming, unconfirmed, past, and cancelled meetings; admins can confirm requests,
 reschedule, or cancel them. Choose From/Through dates to load bookings (initially 30 days before and after today), then search by guest/title/email and filter by event type. Dates use your browser time zone; shorten the range if more than 5,000 bookings match.
 Cancellation asks for confirmation. After a confirmed meeting ends, an assigned
@@ -1345,9 +1491,16 @@ bookings excluding recorded no-shows. Rescheduled counts bookings with recorded
 reschedule history. Ratings/CSAT are not shown because no survey data is collected.
 Oversized result sets return an error instead of silently truncating insights.
 
-The calendar header includes `Copy booking link` and `Open calendar scheduling
-settings`. Copy opens settings when no active personal link exists. Public
-`/app/book/:profile/:slug?` pages accept bookings without Macro sign-in. Uncertain
+The calendar header includes `Copy booking link` and `Manage booking links`.
+Copy opens the booking workspace when no active personal link exists. Public
+`/app/book/:profile/:slug?` pages accept bookings without Macro sign-in. Guests
+choose an event on the profile landing page, then choose their timezone, date,
+and time before entering attendee details. Date & time and Your details steps
+show progress; the event summary and selected time stay visible. Choose another
+time preserves attendee input. All meetings returns to the profile chooser when
+multiple events exist, but is disabled while a booking response is unresolved.
+The private confirmation shows the meeting, date, timezone, location, and guest.
+Public URLs and booking behavior remain unchanged. Uncertain
 calendar writes retain the booking and show its private receipt while automatic recovery runs.
 After a network response cannot be verified, `Check booking status` retries the original request;
 do not create a replacement booking. Receipt pages poll while the calendar update is pending. Visitors
