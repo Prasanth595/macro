@@ -1,8 +1,9 @@
 import { createLiveQuery } from '@graphql-cache/solid/create-live-query';
+import { buildGraphqlEntitySoupInput } from '@queries/soup/graphql/entity-input';
 import {
-  CrmCompanyPipelineEntriesDocument,
-  CrmContactPipelineEntriesDocument,
   type CrmPipelineEntryFieldsFragment,
+  CrmRecordPipelineEntriesDocument,
+  type SoupInput,
 } from '@service-storage/graphql/generated/graphql';
 import type { Client } from '@urql/core';
 import { type Accessor, createMemo } from 'solid-js';
@@ -113,51 +114,57 @@ export function toPipelineEntry(
   };
 }
 
+const NIL_ENTITY_ID = '00000000-0000-0000-0000-000000000000';
+
+/** A one-record soup query for a company or a contact. */
+export function pipelineEntriesInput(
+  record: PipelineEntryRecord
+): SoupInput | undefined {
+  if (record.type === 'company')
+    return buildGraphqlEntitySoupInput('COMPANY', record.id);
+  // Contacts join soup only through their opt-in filter, so start from a query that excludes every other item.
+  const input = buildGraphqlEntitySoupInput('COMPANY', NIL_ENTITY_ID);
+  if (!input?.initial) return undefined;
+  return {
+    initial: {
+      ...input.initial,
+      filters: {
+        ...input.initial.filters,
+        crmContactFilter: { literal: { id: record.id } },
+      },
+    },
+  };
+}
+
 /** The viewer's pipeline rows that reference one company or contact. */
 export function createPipelineEntriesQuery(
   graphql: PipelineEntriesDependencies['graphql'],
   record: Accessor<PipelineEntryRecord | undefined>
 ) {
   const client = createMemo(graphql);
-  const company = createLiveQuery(
-    CrmCompanyPipelineEntriesDocument,
+  const query = createLiveQuery(
+    CrmRecordPipelineEntriesDocument,
     () => {
       const current = record();
-      return current?.type === 'company'
-        ? { companyId: current.id }
-        : undefined;
+      const input = current && pipelineEntriesInput(current);
+      return input ? { input } : undefined;
     },
     () => ({
       client: client(),
       requestPolicy: 'cache-and-network',
       keepPreviousData: false,
       select: (data) =>
-        data.user.crmCompany?.pipelineEntries.map(toPipelineEntry) ?? [],
+        data.user.soup.items.flatMap((item) =>
+          item.__typename === 'GraphqlSoupCrmCompany' ||
+          item.__typename === 'GraphqlSoupCrmContact'
+            ? item.pipelineEntries.map(toPipelineEntry)
+            : []
+        ),
     })
   );
-  const contact = createLiveQuery(
-    CrmContactPipelineEntriesDocument,
-    () => {
-      const current = record();
-      return current?.type === 'contact'
-        ? { contactId: current.id }
-        : undefined;
-    },
-    () => ({
-      client: client(),
-      requestPolicy: 'cache-and-network',
-      keepPreviousData: false,
-      select: (data) =>
-        data.user.crmContact?.pipelineEntries.map(toPipelineEntry) ?? [],
-    })
-  );
-  const active = () => (record()?.type === 'contact' ? contact : company);
   return {
-    entries: (): PipelineEntry[] => {
-      const query = active();
-      return query.isSuccess ? (query.data ?? []) : [];
-    },
-    refetch: () => active().refetch({ requestPolicy: 'network-only' }),
+    entries: (): PipelineEntry[] => (query.isSuccess ? (query.data ?? []) : []),
+    refetch: () => query.refetch({ requestPolicy: 'network-only' }),
   };
 }
 

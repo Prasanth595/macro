@@ -80,27 +80,24 @@ fragment CrmPipelineEntryFields on GraphqlCrmPipelineEntry {
   }
 }
 
-query CrmCompanyPipelineEntries($companyId: ID!) {
+query CrmRecordPipelineEntries($input: SoupInput!) {
   user {
     id
-    crmCompany(companyId: $companyId) {
-      __typename
-      id
-      pipelineEntries {
-        ...CrmPipelineEntryFields
-      }
-    }
-  }
-}
-
-query CrmContactPipelineEntries($contactId: ID!) {
-  user {
-    id
-    crmContact(contactId: $contactId) {
-      __typename
-      id
-      pipelineEntries {
-        ...CrmPipelineEntryFields
+    soup(input: $input) {
+      items {
+        __typename
+        ... on GraphqlSoupCrmCompany {
+          id
+          pipelineEntries {
+            ...CrmPipelineEntryFields
+          }
+        }
+        ... on GraphqlSoupCrmContact {
+          id
+          pipelineEntries {
+            ...CrmPipelineEntryFields
+          }
+        }
       }
     }
   }

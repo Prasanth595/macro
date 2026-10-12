@@ -1,7 +1,7 @@
 import type { CrmPipelineEntryFieldsFragment } from '@service-storage/graphql/generated/graphql';
 import { expect, it, vi } from 'vitest';
 import { UNAVAILABLE_OPTION } from '../../database/core/grid-cells';
-import { toPipelineEntry } from './pipeline-entries';
+import { pipelineEntriesInput, toPipelineEntry } from './pipeline-entries';
 
 vi.mock('@service-storage/graphql-soup', () => ({
   getGraphqlSoupClient: vi.fn(),
@@ -134,4 +134,24 @@ it('reads stored values the way the pipeline table does', () => {
     { id: 'lead', label: 'Lead', color: 'blue' },
     { id: 'tier', label: '2', color: null },
   ]);
+});
+
+it('reads one company or one contact through soup', () => {
+  const company = pipelineEntriesInput({ type: 'company', id: 'acme' });
+  expect(company?.initial?.filters?.crmCompanyFilter).toEqual({
+    literal: { id: 'acme' },
+  });
+  expect(company?.initial?.filters?.crmContactFilter).toBeUndefined();
+
+  const contact = pipelineEntriesInput({ type: 'contact', id: 'maya' });
+  const filters = contact?.initial?.filters;
+  expect(filters?.crmContactFilter).toEqual({ literal: { id: 'maya' } });
+  // Every other branch matches nothing, so the contact is the only item.
+  expect(filters?.crmCompanyFilter).toEqual({
+    literal: { id: '00000000-0000-0000-0000-000000000000' },
+  });
+  expect(filters?.documentFilter).toEqual(
+    company?.initial?.filters?.documentFilter
+  );
+  expect(contact?.initial?.limit).toBe(1);
 });
