@@ -46,6 +46,7 @@ import { botAssignableChannelOptions } from '../channel/Bots/botChannelOptions';
 import { canDeleteBot, canManageAgent } from '../channel/Bots/botPermissions';
 import { ChannelMultiSelect } from '../channel/Bots/ChannelMultiSelect';
 import { AgentSettingsDescription } from './components/agent-settings-description';
+import { CodingPreferencesSetting } from './components/coding-preferences-setting';
 import { AgentInstructionsEditor } from './components/instructions-editor';
 import { SettingsSelect } from './components/settings-select';
 import { PipedreamAppPicker } from './PipedreamAppPicker';
@@ -331,6 +332,8 @@ export function Agents(props: { navigation?: JSX.Element } = {}) {
               </Show>
             </SettingsCard>
           </SettingsSection>
+
+          <CodingPreferencesSetting />
         </SettingsPage>
       </Show>
 
@@ -1220,15 +1223,9 @@ function AgentFormSection(props: {
   children: import('solid-js').JSX.Element;
 }) {
   return (
-    <section>
-      <div class="mb-2 px-1">
-        <h2 class="text-sm font-semibold text-ink">{props.title}</h2>
-        <p class="mt-0.5 text-xs text-ink-muted">{props.description}</p>
-      </div>
-      <div class="rounded-xl border border-ink/[0.06] bg-surface-2 p-4">
-        {props.children}
-      </div>
-    </section>
+    <SettingsSection title={props.title} description={props.description}>
+      <div class="pt-2">{props.children}</div>
+    </SettingsSection>
   );
 }
 
