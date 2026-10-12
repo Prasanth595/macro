@@ -34,6 +34,7 @@ import {
 import { soupOptimisticResolvers } from '../../queries/optimistic-resolvers';
 import { createUrqlQuery } from '../../urql-solid/create-urql-query';
 import { CacheNavigationError } from '../host/navigation-error';
+import { createRetirableCacheHost } from '../host/retirable-host';
 import type {
   AffectedOperationsListener,
   CacheGenerationChange,
@@ -3073,6 +3074,65 @@ describe('normalizedCacheExchange', () => {
         }
       }
     );
+
+    it('warns once per recovery failure while the queue keeps polling', async () => {
+      vi.useFakeTimers();
+      const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        const prepareMutationQueue = vi.fn(async () => {
+          throw new Error('Queue inspection is unavailable');
+        });
+        harness(host, undefined, { prepareMutationQueue });
+        await vi.advanceTimersByTimeAsync(90_010);
+        expect(prepareMutationQueue).toHaveBeenCalledTimes(4);
+        expect(warning).toHaveBeenCalledOnce();
+      } finally {
+        warning.mockRestore();
+        vi.useRealTimers();
+      }
+    });
+
+    it('retries deferred recovery quietly until it can run', async () => {
+      vi.useFakeTimers();
+      const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        let signedIn = false;
+        const prepareMutationQueue = vi.fn(async () =>
+          signedIn ? undefined : false
+        );
+        harness(host, undefined, { prepareMutationQueue });
+        await vi.advanceTimersByTimeAsync(10);
+        expect(prepareMutationQueue).toHaveBeenCalledOnce();
+        signedIn = true;
+        await vi.advanceTimersByTimeAsync(30_000);
+        expect(prepareMutationQueue).toHaveBeenCalledTimes(2);
+        await vi.advanceTimersByTimeAsync(60_000);
+        expect(prepareMutationQueue).toHaveBeenCalledTimes(2);
+        expect(warning).not.toHaveBeenCalled();
+      } finally {
+        warning.mockRestore();
+        vi.useRealTimers();
+      }
+    });
+
+    it('stops polling once its host is retired', async () => {
+      vi.useFakeTimers();
+      try {
+        const retirable = createRetirableCacheHost(host);
+        const drained = vi.spyOn(retirable, 'currentRevision');
+        harness(retirable);
+        await vi.advanceTimersByTimeAsync(10);
+        expect(drained).toHaveBeenCalledOnce();
+
+        retirable.dispose();
+        await vi.advanceTimersByTimeAsync(120_000);
+        dispatchEvent(new Event('online'));
+        await vi.advanceTimersByTimeAsync(10);
+        expect(drained).toHaveBeenCalledOnce();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
 
     it.each([
       { failure: 'rejects', legacy: false },

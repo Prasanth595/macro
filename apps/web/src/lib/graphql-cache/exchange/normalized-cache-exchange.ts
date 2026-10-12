@@ -372,8 +372,11 @@ function uncertainEnqueueResult(op: Operation, error: Error): OperationResult {
 }
 
 export interface NormalizedCacheExchangeOptions {
-  /** Best-effort startup recovery before per-mutation admission. */
-  prepareMutationQueue?: () => Promise<void>;
+  /**
+   * Best-effort startup recovery before per-mutation admission. Resolve
+   * `false` when it cannot run yet; the next drain asks again.
+   */
+  prepareMutationQueue?: () => Promise<boolean | void>;
   /** False discards obsolete client intent without sending it to the server. */
   beforeMutationAttempt?: (mutation: ClaimedMutation) => Promise<boolean>;
   /** Persist domain recovery state for a replayed result, including when its UI is closed. */

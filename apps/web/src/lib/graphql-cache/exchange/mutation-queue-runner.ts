@@ -341,6 +341,7 @@ export function createMutationQueueRunner(
   let head: HeadState = IDLE;
   // Pump state: wakeups and the retry hint are independent of the head.
   let queuePreparation: Promise<void> | undefined;
+  const reportedRecoveryFailures = new Set<string>();
   let drainRunning = false;
   let drainRequested = false;
   let deferredUntil: number | undefined;
@@ -590,6 +591,12 @@ export function createMutationQueueRunner(
   }
 
   async function drainQueue(): Promise<void> {
+    // A retired host stays disabled for good: stop polling instead of failing
+    // every 30 seconds against the no-op host.
+    if (host.disabled) {
+      resolveLiveOperationsAsQueued();
+      return;
+    }
     if (isActive(head)) {
       // Every newly enqueued operation is behind the claimed head. Its
       // caller can stop waiting; durable replay now owns the mutation.
@@ -646,12 +653,19 @@ export function createMutationQueueRunner(
 
   async function prepareQueueRecovery(): Promise<void> {
     try {
-      queuePreparation ??= boundedMutationLifecycle(() =>
-        options.prepareMutationQueue!()
-      );
+      queuePreparation ??= (async () => {
+        const prepared = await boundedMutationLifecycle(() =>
+          options.prepareMutationQueue!()
+        );
+        if (prepared === false) queuePreparation = undefined;
+      })();
       await queuePreparation;
     } catch (error) {
       queuePreparation = undefined;
+      // A stuck tab retries every poll; one warning per cause is enough.
+      const cause = error instanceof Error ? error.message : String(error);
+      if (reportedRecoveryFailures.has(cause)) return;
+      reportedRecoveryFailures.add(cause);
       console.warn(
         '[graphql-cache] Unable to prepare mutation recovery',
         error

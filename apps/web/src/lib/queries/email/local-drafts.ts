@@ -706,6 +706,12 @@ export function localDraftQueueLifecycle(
   }
   return {
     async prepareMutationQueue() {
+      // Signed-out tabs have no drafts, and a signed-in tab's first drain
+      // can run before user info loads. Retry later instead of failing.
+      const user = queryClient.getQueryData<UserInfoData>(
+        authKeys.userInfo.queryKey
+      );
+      if (!user?.authenticated || !user.id) return false;
       try {
         initialized ??= prepare();
         await initialized;
