@@ -12,6 +12,10 @@ import { PublicBookingView } from './views/public-booking-view';
 
 type BookingPageParams = { profile: string; slug?: string };
 
+// The website opens these pages in its booking dialog. No other site can frame
+// them: the booking paths allow same-origin framing only.
+const embedded = window.self !== window.top;
+
 function BookingPageContent(params: BookingPageParams) {
   const navigate = useNavigate();
   const profile = usePublicProfileQuery(() => params.profile);
@@ -42,6 +46,7 @@ function BookingPageContent(params: BookingPageParams) {
             profile={p()}
             event={p().eventTypes.find((e) => e.slug === params.slug)}
             source={source}
+            embedded={embedded}
             onEvent={(slug) => navigate(`/book/${params.profile}/${slug}`)}
             onReceipt={(r) => navigate(`/booking/${r.booking.id}#${r.token}`)}
           />
@@ -85,6 +90,7 @@ function ReceiptContent(params: { id: string }) {
       cancel={source.cancel}
       loadSlots={source.replacementSlots}
       reschedule={source.reschedule}
+      embedded={embedded}
     />
   );
 }
