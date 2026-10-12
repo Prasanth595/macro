@@ -128,6 +128,12 @@ describe('BookingPicker', () => {
     ));
 
     expect(screen.getByText('Intro call')).toBeTruthy();
+    expect(screen.queryByLabelText('Name')).toBeNull();
+    expect(
+      screen
+        .getByRole('list', { name: 'Booking progress' })
+        .querySelector('[aria-current="step"]')?.textContent
+    ).toContain('Date & time');
     expect(
       (
         screen.getByRole('button', {
@@ -190,6 +196,44 @@ describe('BookingPicker', () => {
     await waitFor(() => expect(source.book).toHaveBeenCalledTimes(1));
   });
 
+  it('keeps attendee input when returning to choose another time', async () => {
+    const user = userEvent.setup();
+    const source: BookingSource = {
+      slots: vi.fn().mockResolvedValue([nineAm]),
+      book: vi.fn(),
+    };
+    render(() => (
+      <BookingPicker
+        profile={profile}
+        event={intro}
+        source={source}
+        onReceipt={vi.fn()}
+      />
+    ));
+    await chooseNineAm(user);
+    await fillDetails(user);
+    expect(
+      screen
+        .getByRole('list', { name: 'Booking progress' })
+        .querySelector('[aria-current="step"]')?.textContent
+    ).toContain('Your details');
+    await user.click(
+      screen.getByRole('button', { name: '← Choose another time' })
+    );
+    expect(screen.queryByLabelText('Name')).toBeNull();
+    await user.click(screen.getByRole('button', { name: nineAmLabel }));
+    expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe(
+      'Grace Hopper'
+    );
+    expect(
+      (screen.getByLabelText('Email address') as HTMLInputElement).value
+    ).toBe('grace@example.com');
+    expect(
+      (screen.getByLabelText('What should we cover? *') as HTMLTextAreaElement)
+        .value
+    ).toBe('Compilers');
+    expect(source.book).not.toHaveBeenCalled();
+  });
   it('shows availability loading, and retries after it fails', async () => {
     const user = userEvent.setup();
     const pending = deferred<{ startsAt: string; endsAt: string }[]>();
@@ -270,12 +314,14 @@ describe('BookingPicker', () => {
         .mockResolvedValueOnce(receipt),
     };
     const onReceipt = vi.fn();
+    const onChooseEvent = vi.fn();
     render(() => (
       <BookingPicker
         profile={profile}
         event={intro}
         source={source}
         onReceipt={onReceipt}
+        onChooseEvent={onChooseEvent}
       />
     ));
     await chooseNineAm(user);
@@ -295,6 +341,10 @@ describe('BookingPicker', () => {
         }) as HTMLButtonElement
       ).disabled
     ).toBe(true);
+    const allMeetings = screen.getByRole('button', { name: '← All meetings' });
+    expect((allMeetings as HTMLButtonElement).disabled).toBe(true);
+    await user.click(allMeetings);
+    expect(onChooseEvent).not.toHaveBeenCalled();
     await user.click(check);
 
     await waitFor(() => expect(onReceipt).toHaveBeenCalledWith(receipt));
