@@ -41,6 +41,7 @@ call = { path = "../call", default-features = false, features = [
   "ports",
 ], optional = true }
 chrono = { workspace = true }
+chrono-tz = { workspace = true }
 futures = { workspace = true }
 macro_authorization = { path = "../macro_authorization", default-features = false, features = [
   "axum",

@@ -25,11 +25,16 @@ pub use index::{PullRequestIndexOutcome, PullRequestIndexRecord, PullRequestInde
 pub use key::GithubKey;
 pub use pull_request::{
     EnrichGithubPullRequestsProxyRequest, EnrichGithubPullRequestsResponse,
-    EnrichedGithubPullRequest, GITHUB_PULL_REQUEST_FOREIGN_ENTITY_SOURCE,
-    GithubPullRequestCheckRun, GithubPullRequestComment, GithubPullRequestDetails,
-    GithubPullRequestLabel, GithubPullRequestRef, GithubPullRequestReview,
+    EnrichedGithubPullRequest, GITHUB_PULL_REQUEST_FOREIGN_ENTITY_SOURCE, GithubDraftOutcome,
+    GithubMergeMethod, GithubMergeOutcome, GithubMergeRejection, GithubPullRequestCheckRun,
+    GithubPullRequestComment, GithubPullRequestDetails, GithubPullRequestLabel,
+    GithubPullRequestMerge, GithubPullRequestMergeability, GithubPullRequestMergeabilityEntry,
+    GithubPullRequestMergeabilityRequest, GithubPullRequestMergeabilityResponse,
+    GithubPullRequestNumber, GithubPullRequestRef, GithubPullRequestReview,
     GithubPullRequestReviewDecision, GithubPullRequestReviewState, GithubPullRequestStatus,
-    GithubPullRequestUser, latest_reviews,
+    GithubPullRequestUpdateRejection, GithubPullRequestUser, GithubRepositoryMergeSettings,
+    MergeGithubPullRequestRequest, MergeGithubPullRequestResponse,
+    SetGithubPullRequestDraftRequest, SetGithubPullRequestDraftResponse, latest_reviews,
 };
 
 /// A pull request's latest data, for the record stored for one source.

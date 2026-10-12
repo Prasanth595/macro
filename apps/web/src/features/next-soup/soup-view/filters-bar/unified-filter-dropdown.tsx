@@ -32,7 +32,7 @@ import { PropertyValueIcon } from '@property/component/propertyValue/PropertyVal
 import { PROPERTY_OPTION_IDS, SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { useGithubLinkStatusQuery } from '@queries/auth';
 import { useContacts } from '@queries/contacts/contacts';
-import { cn, Dropdown, Tooltip } from '@ui';
+import { type ButtonVariant, cn, Dropdown, Tooltip } from '@ui';
 import {
   type Accessor,
   batch,
@@ -53,7 +53,6 @@ import {
   FilterSubmenu,
   SearchableFilterSubmenu,
 } from './filter-menu';
-import { toggleReminderCompletionFilter } from './reminder-completion-filter';
 import type { SearchableOption } from './searchable-multi-select';
 
 import { useTagFilter } from './tag-filter';
@@ -369,17 +368,6 @@ export const VIEW_FILTER_CATEGORIES: Record<ListView, FilterCategory[]> = {
   channels: [],
   calls: [],
   folders: [],
-  reminders: [
-    {
-      id: 'completion',
-      label: 'Completion',
-      multiple: false,
-      options: [
-        { id: 'reminders-not-done', label: 'Not done' },
-        { id: 'reminders-done', label: 'Done' },
-      ],
-    },
-  ],
   search: [],
 };
 
@@ -395,6 +383,7 @@ interface UnifiedFilterDropdownProps {
   hideTrigger?: boolean;
   /** Hide the default trigger's text label while retaining its tooltip. */
   hideLabel?: boolean;
+  variant?: ButtonVariant;
 }
 
 const READ_FILTER_OPTIONS: { id: ReadFilter; label: string }[] = [
@@ -477,11 +466,6 @@ export const UnifiedFilterDropdown = (
   };
 
   const toggleFilter = (optionId: string) => {
-    if (
-      currentView() === 'reminders' &&
-      toggleReminderCompletionFilter(optionId, soup.predicates, queryFilters)
-    )
-      return;
     const wasActive = soup.predicates.isActive(optionId);
     const previousDocumentTypeIds =
       currentView() === 'documents' && isDocumentTypeFilterId(optionId)
@@ -731,8 +715,9 @@ export const UnifiedFilterDropdown = (
             <Match when={true}>
               <Tooltip label="Filter" hotkey={TOKENS.soup.filter}>
                 <Dropdown.Trigger
+                  variant={props.variant ?? 'outline'}
                   depth={2}
-                  class="bg-surface"
+                  class={props.variant === 'ghost' ? undefined : 'bg-surface'}
                   aria-label={props.hideLabel ? 'Filter' : undefined}
                 >
                   <FilterIcon />
@@ -765,6 +750,7 @@ export const UnifiedFilterDropdown = (
                 <>
                   <Show when={isDocumentsView() && showTagsFilter()}>
                     <SearchableFilterSubmenu
+                      onSelectionComplete={() => setOpen(false)}
                       label="Tags"
                       options={tagFilter.options}
                       activeIds={tagFilter.activeIds}
@@ -780,7 +766,9 @@ export const UnifiedFilterDropdown = (
                         options={category.options}
                         isSelected={isOptionActive}
                         onSelect={toggleFilter}
-                        closeOnSelect={!category.multiple}
+                        closeOnSelect={
+                          category.multiple ? 'unless-shift' : true
+                        }
                       />
                     )}
                   </For>
@@ -788,6 +776,7 @@ export const UnifiedFilterDropdown = (
                   {/* Assignee filter for tasks view */}
                   <Show when={isTasksView()}>
                     <SearchableFilterSubmenu
+                      onSelectionComplete={() => setOpen(false)}
                       label="Assignee"
                       options={assigneeOptions}
                       activeIds={assigneeFilter}
@@ -798,6 +787,7 @@ export const UnifiedFilterDropdown = (
 
                   <Show when={showCreatedByFilter()}>
                     <SearchableFilterSubmenu
+                      onSelectionComplete={() => setOpen(false)}
                       label="Created by"
                       options={createdByOptions}
                       activeIds={createdByIds}
@@ -809,6 +799,7 @@ export const UnifiedFilterDropdown = (
                   <For each={selectFilters}>
                     {(filter) => (
                       <SearchableFilterSubmenu
+                        onSelectionComplete={() => setOpen(false)}
                         label={filter.label}
                         active={filter.active?.()}
                         options={filter.options}
@@ -832,7 +823,9 @@ export const UnifiedFilterDropdown = (
                       icon={option.icon}
                       active={active()}
                       onSelect={() => toggleFilter(option.id)}
-                      closeOnSelect={!categories()[0]!.multiple}
+                      closeOnSelect={
+                        categories()[0]!.multiple ? 'unless-shift' : true
+                      }
                     />
                   );
                 }}
@@ -841,6 +834,7 @@ export const UnifiedFilterDropdown = (
 
             <Show when={!isDocumentsView() && showTagsFilter()}>
               <SearchableFilterSubmenu
+                onSelectionComplete={() => setOpen(false)}
                 label="Tags"
                 options={tagFilter.options}
                 activeIds={tagFilter.activeIds}

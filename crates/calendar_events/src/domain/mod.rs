@@ -4,6 +4,8 @@ pub mod invitations;
 
 /// The clicker's owned inboxes.
 pub mod acting;
+/// The per-email-link calendar change log.
+pub mod changes;
 /// Kafka event models for the calendar topic.
 pub mod events;
 /// Macro meeting links carried by calendar events.
@@ -18,3 +20,7 @@ pub mod ports;
 pub mod reminder_dispatch;
 /// Calendar business policy.
 pub mod service;
+/// Source-aware, read-only team calendar sharing.
+pub mod team;
+/// Coverage-aware personal availability from authorized team sources.
+pub mod team_availability;

@@ -7,6 +7,7 @@ import {
   sidebarContent,
 } from '@components/app/app-sidebar/sidebar';
 import { useSplitLayout } from '@components/app/split-layout/layout';
+import { MenuItem, MenuSeparator } from '@core/component/ContextMenu';
 import { TOKENS } from '@core/hotkey/tokens';
 import PhoneCallIcon from '@phosphor-fill/phone-call-fill.svg';
 import { useLocation } from '@solidjs/router';
@@ -15,11 +16,14 @@ import { createSignal, onCleanup, Show } from 'solid-js';
 import { NavGlyph } from './nav-glyph';
 import type { SidebarNextNavItem } from './nav-items';
 import { SidebarUnreadDot } from './unread-dot';
+import { useSidebarPrefs } from './use-sidebar-prefs';
 
 export type ListNavProps = {
   item: SidebarNextNavItem;
   unread?: boolean;
   activeCall?: boolean;
+  /** A short status pill under the glyph, e.g. `Now` or `12m`. */
+  badge?: string;
   onContextMenuOpenChange?: (open: boolean) => void;
 };
 
@@ -55,11 +59,13 @@ const activeContentKey = () => {
  * for that is deliberately absent until there is a data source to fill it.
  */
 export const ListNav = (props: ListNavProps) => {
+  const { hideSidebarItem } = useSidebarPrefs();
   const analytics = useAnalytics();
   const layout = useSplitLayout();
   const location = useLocation();
 
   const content = () => sidebarContent(props.item.id, props.item.params);
+  const preload = () => layout.preloadContent(content());
 
   // Read the manager signal live: it is undefined until the split layout
   // mounts, which happens after the sidebar.
@@ -182,6 +188,15 @@ export const ListNav = (props: ListNavProps) => {
       onOpenChange={props.onContextMenuOpenChange}
       // The trigger defaults to `w-full h-7`, which clips the round button.
       triggerClass="size-10"
+      additionalActions={
+        <Show when={props.item.id !== 'home'}>
+          <MenuSeparator />
+          <MenuItem
+            text="Hide from sidebar"
+            onClick={() => hideSidebarItem(props.item.id)}
+          />
+        </Show>
+      }
     >
       <Button
         variant="ghost"
@@ -192,7 +207,11 @@ export const ListNav = (props: ListNavProps) => {
         )}
         label={props.item.label}
         aria-description={
-          [props.unread && 'Unread items', props.activeCall && 'Active call']
+          [
+            props.unread && 'Unread items',
+            props.activeCall && 'Active call',
+            props.badge && `Next meeting: ${props.badge}`,
+          ]
             .filter(Boolean)
             .join('. ') || undefined
         }
@@ -207,6 +226,9 @@ export const ListNav = (props: ListNavProps) => {
         data-sidebar-next-item={props.item.id}
         data-unread={props.unread ? '' : undefined}
         data-active-call={props.activeCall ? '' : undefined}
+        data-badge={props.badge}
+        onMouseEnter={preload}
+        onFocus={preload}
         onMouseDown={onMouseDown}
         onClick={onClick}
       >
@@ -229,6 +251,17 @@ export const ListNav = (props: ListNavProps) => {
           >
             <PhoneCallIcon class="size-full" />
           </span>
+        </Show>
+        <Show when={props.badge}>
+          {(badge) => (
+            <span
+              aria-hidden="true"
+              data-sidebar-badge
+              class="pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full bg-accent px-1 text-[9px] font-semibold leading-3 text-surface ring-2 ring-panel"
+            >
+              {badge()}
+            </span>
+          )}
         </Show>
       </Button>
     </SidebarOpenInSplitMenu>
