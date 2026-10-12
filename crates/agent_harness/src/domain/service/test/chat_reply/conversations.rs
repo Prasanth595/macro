@@ -1020,3 +1020,55 @@ async fn a_waiting_message_whose_turn_already_ended_is_dropped(pool: sqlx::PgPoo
         "a message whose turn ended is never composed"
     );
 }
+
+/// The delivery lease serializes bootstraps only. A message to a session that
+/// is already open is answered while another conversation's bootstrap holds
+/// the replica's only lease, instead of waiting for it and then for recovery.
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn an_open_conversation_answers_while_another_one_bootstraps(pool: sqlx::PgPool) {
+    use crate::domain::conversation_turns::ConversationTurnStore;
+    // The harness service's pool, where each kind of lease has one slot.
+    let small = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(5)
+        .connect_with((*pool.connect_options()).clone())
+        .await
+        .unwrap();
+    let journal =
+        Arc::new(crate::outbound::conversation_turns::PgConversationTurnStore::new(small));
+    let (service, _announcer, signals, container, command) =
+        journaled_conversation(pool, journal.clone()).await;
+    let session = journal
+        .get(mention_origin(&command).message_id, command.bot_id)
+        .await
+        .unwrap()
+        .unwrap()
+        .session_id;
+    says(&container.agent(), "First answer.");
+    container.agent().completes_prompt().await;
+    signals.lifecycle_published(4).await;
+
+    let _bootstrap = journal
+        .claim_delivery(AgentSessionId::new())
+        .await
+        .unwrap()
+        .expect("an idle replica leases a bootstrap");
+    let mut next = command.clone();
+    let message_id = macro_uuid::generate_uuid_v7();
+    mention_origin_mut(&mut next).message_id = message_id;
+    mention_origin_mut(&mut next).thread_id = message_id;
+    mention_origin_mut(&mut next).content = "Asked during the bootstrap".to_owned();
+    tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        service.execute(session, HarnessCommand::ConversationMessage(next)),
+    )
+    .await
+    .expect("an open session's message does not wait for the bootstrap's lease")
+    .unwrap();
+    tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        container.agent().wait_for_requests(4),
+    )
+    .await
+    .expect("the message is prompted");
+    assert!(prompt_text(&container.agent(), 1).contains("Asked during the bootstrap"));
+}

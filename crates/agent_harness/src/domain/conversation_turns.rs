@@ -101,7 +101,7 @@ pub struct ConversationSettings {
 /// Persistence mechanics only; authorization and execution decisions stay in the harness.
 #[async_trait::async_trait]
 pub trait ConversationTurnStore: Send + Sync + 'static {
-    /// Serialize bootstrap and local queue admission before a session manager exists.
+    /// Serialize a session's bootstrap, before it has a manager to route to.
     /// Waits briefly for capacity; `None` means another holder has the session,
     /// or this replica had no connection to spare.
     async fn claim_delivery(

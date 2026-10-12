@@ -352,14 +352,25 @@ where
                     open = record.command;
                     origin = open.origin.announcement();
                     action_id = record.action_id;
+                }
+                // Only a bootstrap takes the delivery lease: until the session
+                // opens it has no manager to route to, while an open session's
+                // turns are already serialized by its queue and its journal
+                // claims. Holding the lease, look again: another replica may
+                // have opened the session meanwhile.
+                let mut session = self.sessions.get_session(session_id).await;
+                if matches!(session, Err(AgentSessionError::NotFound(_)))
+                    && let Some(store) = &self.conversation_turns
+                {
                     _delivery_lease = store.claim_delivery(session_id).await?;
                     if _delivery_lease.is_none() {
                         // Already durable; recovery routes it to the manager
                         // after the other replica finishes bootstrapping.
                         return Ok(CommandOutcome::Queued);
                     }
+                    session = self.sessions.get_session(session_id).await;
                 }
-                match self.sessions.get_session(session_id).await {
+                match session {
                     Ok(session) => {
                         if session.bot_id != open.bot_id
                             || !session.owner_id.is_user(open.origin.actor())
