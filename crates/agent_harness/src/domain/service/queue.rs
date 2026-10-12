@@ -1196,7 +1196,10 @@ where
     /// A failed dispatch puts the entry back at the front: it stays next in
     /// line for the next turn end or the next prompt, and stays visible in
     /// the queue meanwhile. The error still propagates, so a caller whose
-    /// own action triggered this dispatch hears about it.
+    /// own action triggered this dispatch hears about it. A conversation
+    /// message that can never run is not put back: one its journal no longer
+    /// holds as waiting is dropped, one whose origin is gone fails, and the
+    /// next entry dispatches in its place.
     #[tracing::instrument(name = "dispatch_next", err, skip(self), fields(%session_id))]
     async fn dispatch_unboxed(&self, session_id: AgentSessionId) -> Result<Dispatch> {
         let session = self.sessions.get_session(session_id).await?;
@@ -1222,6 +1225,28 @@ where
             if let Err(error) = self.write_queue(session_id).await {
                 self.queues.requeue_front(session_id, entry);
                 return Err(error);
+            }
+
+            let conversation_store = self.conversation_turns.as_ref().filter(|_| {
+                entry.announce.as_ref().is_some_and(|origin| {
+                    origin.reply_placement == crate::domain::model::ReplyPlacement::Timeline
+                })
+            });
+            // A conversation message's journal says whether it still waits.
+            // One whose turn already ended - failed, stopped when its owner
+            // started fresh, or retried under a new id - is dropped, not run.
+            if let Some(store) = conversation_store {
+                match store.by_action(entry.action_id).await {
+                    Ok(Some(record))
+                        if record.state
+                            == crate::domain::conversation_turns::ConversationTurnState::Queued => {
+                    }
+                    Ok(_) => continue,
+                    Err(error) => {
+                        self.requeue_claimed(session_id, entry).await?;
+                        return Err(error.into());
+                    }
+                }
             }
 
             // The turn this action opens, read before delivery appends the
@@ -1250,6 +1275,24 @@ where
                 )
                 .await
             {
+                // A conversation message whose origin is gone - deleted,
+                // moved, or no longer its sender's to answer - can never be
+                // composed, and put back it would hold every message behind
+                // it. Its turn fails instead, and the next message dispatches.
+                if let (HarnessError::InvalidOrigin(_), Some(store)) = (&error, conversation_store)
+                {
+                    tracing::warn!(
+                        ?error,
+                        %session_id,
+                        action_id = %entry.action_id,
+                        "dropping a conversation message whose origin is gone"
+                    );
+                    store.fail_queued(entry.action_id).await?;
+                    store
+                        .finalize_reply(entry.action_id, &ReplyOutcome::Failed)
+                        .await?;
+                    continue;
+                }
                 self.requeue_claimed(session_id, entry).await?;
                 return Err(error);
             }
@@ -1260,11 +1303,6 @@ where
                 return Err(error);
             }
 
-            let conversation_store = self.conversation_turns.as_ref().filter(|_| {
-                entry.announce.as_ref().is_some_and(|origin| {
-                    origin.reply_placement == crate::domain::model::ReplyPlacement::Timeline
-                })
-            });
             // A reply shown in segments posts nothing until the agent has
             // something to say or do: the bot types meanwhile.
             let in_segments = entry.announce.as_ref().is_some_and(|origin| {

@@ -175,6 +175,8 @@ fn forward_message(content: &str) -> DeliverAction {
 struct PromptContextMock {
     unauthorized: Arc<Mutex<Option<String>>>,
     authorized: Arc<Mutex<Vec<(MacroUserIdStr<'static>, AnnounceOrigin)>>>,
+    /// Messages deleted since they were posted.
+    deleted: Arc<Mutex<Vec<macro_uuid::Uuid>>>,
 }
 
 impl PromptContextMock {
@@ -188,6 +190,11 @@ impl PromptContextMock {
     fn authorized(&self) -> Vec<(MacroUserIdStr<'static>, AnnounceOrigin)> {
         self.authorized.lock().unwrap().clone()
     }
+
+    /// Delete a posted message: an origin naming it is no longer valid.
+    fn delete(&self, message_id: macro_uuid::Uuid) {
+        self.deleted.lock().unwrap().push(message_id);
+    }
 }
 
 impl MessagePromptContext for PromptContextMock {
@@ -198,6 +205,11 @@ impl MessagePromptContext for PromptContextMock {
     ) -> crate::domain::error::Result<()> {
         if let Some(message) = self.unauthorized.lock().unwrap().clone() {
             return Err(HarnessError::PromptContext(rootcause::report!("{message}")));
+        }
+        if self.deleted.lock().unwrap().contains(&origin.message_id) {
+            return Err(HarnessError::InvalidOrigin(rootcause::report!(
+                "the message was deleted"
+            )));
         }
         self.authorized
             .lock()

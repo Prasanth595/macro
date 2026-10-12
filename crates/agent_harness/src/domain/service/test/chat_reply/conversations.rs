@@ -889,3 +889,134 @@ async fn a_turn_whose_runtime_dies_fails_once_and_frees_the_conversation(pool: s
         "the failure is told once, not again by recovery: {notices:#?}"
     );
 }
+
+/// A direct conversation over `journal` whose first message is running, with
+/// two more messages queued behind it.
+async fn two_queued_behind_a_running_turn(
+    pool: sqlx::PgPool,
+    journal: Arc<crate::outbound::conversation_turns::PgConversationTurnStore>,
+    prompt_context: PromptContextMock,
+    prompt_composer: PromptComposerMock,
+) -> (TestHarness, ContainerMock, OpenSession, OpenSession) {
+    use agent_session::domain::agent_conversation::AgentConversationRepo;
+    use channels::domain::agent_dm::AgentDmRepo;
+    let ((service, _, containers, _, _), _) = harness_with_ports_and_journal(
+        prompt_context,
+        prompt_composer,
+        KindDefaultPolicies,
+        HarnessDefaultCodingAgents,
+        PromptMentionsMock::new(),
+        Some(journal),
+    );
+    let mut command = direct_command();
+    let channel = channels::outbound::pg_channels_repo::PgChannelsRepo::new(pool.clone())
+        .ensure(mention_origin(&command).sender.clone(), command.bot_id)
+        .await
+        .unwrap()
+        .dm
+        .channel_id;
+    let session = crate::testing::postgres_sessions(pool)
+        .current_or_create(conversation(channel, &command))
+        .await
+        .unwrap();
+    mention_origin_mut(&mut command).parent = MessageParent::Channel(channel);
+    let container = open_direct(&service, &containers, session, command.clone()).await;
+    let queue = |content: &str| {
+        let mut queued = command.clone();
+        let message_id = macro_uuid::generate_uuid_v7();
+        mention_origin_mut(&mut queued).message_id = message_id;
+        mention_origin_mut(&mut queued).thread_id = message_id;
+        mention_origin_mut(&mut queued).content = content.to_owned();
+        queued
+    };
+    let (first, second) = (queue("The second message"), queue("The third message"));
+    for queued in [&first, &second] {
+        assert_eq!(
+            service
+                .execute(session, HarnessCommand::ConversationMessage(queued.clone()))
+                .await
+                .unwrap(),
+            CommandOutcome::Queued
+        );
+    }
+    (service, container, first, second)
+}
+
+/// A message deleted while it waited can never run. It fails instead of
+/// blocking the conversation, and the message behind it runs.
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_message_deleted_while_it_waited_fails_and_the_next_one_runs(pool: sqlx::PgPool) {
+    use crate::domain::conversation_turns::{ConversationTurnState, ConversationTurnStore};
+    let journal = pg_journal(&pool);
+    let prompt_context = PromptContextMock::default();
+    let (service, container, deleted, next) = two_queued_behind_a_running_turn(
+        pool,
+        journal.clone(),
+        prompt_context.clone(),
+        PromptComposerMock::default(),
+    )
+    .await;
+    prompt_context.delete(mention_origin(&deleted).message_id);
+
+    container.agent().completes_prompt().await;
+    tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        container.agent().wait_for_requests(4),
+    )
+    .await
+    .expect("the message behind the deleted one is prompted");
+    assert!(prompt_text(&container.agent(), 1).contains("The third message"));
+    let dropped = journal
+        .get(mention_origin(&deleted).message_id, deleted.bot_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(dropped.state, ConversationTurnState::Failed);
+    assert!(dropped.reply_finalized);
+    let running = journal
+        .get(mention_origin(&next).message_id, next.bot_id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(running.state, ConversationTurnState::Running);
+    assert!(service.inner.queues.snapshot(running.session_id).is_empty());
+}
+
+/// A waiting message whose turn the journal already ended - failed by an
+/// attempt that could not run it, or stopped when its owner started fresh -
+/// is dropped without being composed, and the message behind it runs.
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_waiting_message_whose_turn_already_ended_is_dropped(pool: sqlx::PgPool) {
+    use crate::domain::conversation_turns::ConversationTurnStore;
+    let journal = pg_journal(&pool);
+    let prompt_composer = PromptComposerMock::default();
+    let (_service, container, ended, _next) = two_queued_behind_a_running_turn(
+        pool,
+        journal.clone(),
+        PromptContextMock::default(),
+        prompt_composer.clone(),
+    )
+    .await;
+    let ended = journal
+        .get(mention_origin(&ended).message_id, ended.bot_id)
+        .await
+        .unwrap()
+        .unwrap();
+    journal.fail_queued(ended.action_id).await.unwrap();
+
+    container.agent().completes_prompt().await;
+    tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        container.agent().wait_for_requests(4),
+    )
+    .await
+    .expect("the message behind the ended one is prompted");
+    assert!(prompt_text(&container.agent(), 1).contains("The third message"));
+    assert!(
+        !prompt_composer
+            .calls()
+            .iter()
+            .any(|(prompt, ..)| prompt.contains("The second message")),
+        "a message whose turn ended is never composed"
+    );
+}
