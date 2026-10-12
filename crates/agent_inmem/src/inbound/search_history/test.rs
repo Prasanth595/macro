@@ -92,6 +92,15 @@ async fn a_query_without_words_or_a_turn_without_history_is_refused() {
 }
 
 #[test]
+fn the_tool_is_named_as_the_search_knows_its_own_calls() {
+    let schema = schemars::schema_for!(SearchHistory);
+    assert_eq!(
+        schema.get("title").and_then(serde_json::Value::as_str),
+        Some(crate::domain::history_search::SEARCH_HISTORY_TOOL)
+    );
+}
+
+#[test]
 fn a_tool_passage_names_its_tool() {
     let passage = HistoryPassage::from(crate::domain::history_search::HistoryMatch {
         turn: 2,

@@ -16,6 +16,9 @@ use super::session::{HistoryEntry, SessionStore};
 #[cfg(test)]
 mod test;
 
+/// The name `SearchHistory` goes by in the conversation it searches.
+pub const SEARCH_HISTORY_TOOL: &str = "SearchHistory";
+
 /// How much of a passage comes back before its match, in bytes.
 const EXCERPT_BEFORE: usize = 300;
 /// And after it, where what was found usually goes on.
@@ -139,9 +142,19 @@ pub fn search<'a>(
 }
 
 /// What one assistant part says, and who said it. Reasoning is the agent
-/// thinking, not the conversation, and is left out.
+/// thinking, not the conversation, and is left out. So is every earlier
+/// search: its query and the excerpts it returned repeat what it found, and
+/// being newer they would rank above the passages themselves.
 fn passage(part: &AssistantMessagePart) -> Option<(Source, String)> {
     Some(match part {
+        AssistantMessagePart::Thinking { .. } => return None,
+        AssistantMessagePart::ToolCall { name, .. }
+        | AssistantMessagePart::ToolCallResponseJson { name, .. }
+        | AssistantMessagePart::ToolCallErr { name, .. }
+            if name == SEARCH_HISTORY_TOOL =>
+        {
+            return None;
+        }
         AssistantMessagePart::Text { text } => (Source::Agent, text.clone()),
         AssistantMessagePart::ToolCall { name, json, .. }
         | AssistantMessagePart::McpToolCall { name, json, .. } => {
@@ -153,7 +166,6 @@ fn passage(part: &AssistantMessagePart) -> Option<(Source, String)> {
         AssistantMessagePart::ToolCallErr {
             name, description, ..
         } => (Source::ToolResult(name.clone()), description.clone()),
-        AssistantMessagePart::Thinking { .. } => return None,
     })
 }
 

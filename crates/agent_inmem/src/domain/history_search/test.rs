@@ -102,6 +102,42 @@ fn tool_calls_and_results_are_searched_by_what_they_carried() {
 }
 
 #[test]
+fn an_earlier_search_is_not_what_was_said() {
+    let entries = [
+        user("the vendor is Acme"),
+        agent("noted"),
+        user("who was the vendor?"),
+        HistoryEntry::Assistant(vec![
+            AssistantMessagePart::ToolCall {
+                name: SEARCH_HISTORY_TOOL.to_owned(),
+                json: serde_json::json!({"query": "the vendor"}),
+                id: "call-1".to_owned(),
+            },
+            AssistantMessagePart::ToolCallResponseJson {
+                name: SEARCH_HISTORY_TOOL.to_owned(),
+                json: serde_json::json!({
+                    "matches": [{"turn": 1, "from": "user", "excerpt": "the vendor is Acme"}],
+                    "turns": 2
+                }),
+                id: "call-1".to_owned(),
+            },
+            AssistantMessagePart::Text {
+                text: "Acme.".to_owned(),
+            },
+        ]),
+    ];
+
+    assert_eq!(
+        found(&search(&entries, "the vendor", 5)),
+        [
+            (2, &Source::User, "who was the vendor?"),
+            (1, &Source::User, "the vendor is Acme"),
+        ],
+        "the search's query and its excerpts are not found again"
+    );
+}
+
+#[test]
 fn a_summary_is_not_what_was_said() {
     let entries = [
         HistoryEntry::Summary("The user chose blue.".to_owned()),
