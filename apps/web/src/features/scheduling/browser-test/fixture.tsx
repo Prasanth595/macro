@@ -33,19 +33,15 @@ import {
 } from '../core/types';
 import { BookingWorkspaceView } from '../views/booking-workspace-view';
 import { PublicBookingView } from '../views/public-booking-view';
-import { SchedulingSettingsView } from '../views/settings-view';
 
 function Fixture() {
-  const [settingsTab, setSettingsTab] =
-    createSignal<SettingsTab>('Booking links');
+  const [settingsTab, setSettingsTab] = createSignal<SettingsTab>('Calendar');
   const [settingsSearch, setSettingsSearch] = createSignal('');
   const [selectedResult, setSelectedResult] =
     createSignal<SettingsSearchResult>();
   const settingsGroups = SETTINGS_TAB_GROUPS.map((group) => ({
     ...group,
-    items: group.items.filter(
-      (item) => item.tab === 'Calendar' || item.tab === 'Booking links'
-    ),
+    items: group.items.filter((item) => item.tab === 'Calendar'),
   })).filter((group) => group.items.length > 0);
   const settingsResults = createMemo(() =>
     searchSettings(settingsGroups, settingsSearch())
@@ -384,10 +380,6 @@ function Fixture() {
                 setWorkspaceSearch(patch);
                 if (patch.owner) setActive(patch.owner);
               }}
-              onSettings={() => {
-                setSettingsTab('Booking links');
-                setScreen('settings');
-              }}
             />
           </SchedulingProvider>
         </Show>
@@ -416,21 +408,12 @@ function Fixture() {
               <ViewShell.Main>
                 <ViewShell.TopBar />
                 <SettingsSearchTarget result={selectedResult()}>
-                  <Show
-                    when={settingsTab() === 'Calendar'}
-                    fallback={
-                      <SchedulingSettingsView
-                        onOpenWorkspace={() => setScreen('workspace')}
-                      />
-                    }
+                  <SettingsPage
+                    title="Calendar"
+                    description="Manage your connected accounts, calendar visibility, and colors."
                   >
-                    <SettingsPage
-                      title="Calendar"
-                      description="Manage your connected accounts, calendar visibility, and colors."
-                    >
-                      <FixtureCalendars notify={setNotice} />
-                    </SettingsPage>
-                  </Show>
+                    <FixtureCalendars notify={setNotice} />
+                  </SettingsPage>
                 </SettingsSearchTarget>
               </ViewShell.Main>
             </ViewShell.Root>

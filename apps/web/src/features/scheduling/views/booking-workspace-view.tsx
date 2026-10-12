@@ -3,11 +3,11 @@ import {
   ViewShell,
   ViewSidebar,
 } from '@app/components/view-shell';
+import PageIcon from '@phosphor/browser.svg';
 import CalendarIcon from '@phosphor/calendar-blank.svg';
 import ChartIcon from '@phosphor/chart-bar.svg';
 import CheckIcon from '@phosphor/check.svg';
 import ClockIcon from '@phosphor/clock.svg';
-import GearIcon from '@phosphor/gear.svg';
 import InfoIcon from '@phosphor/info.svg';
 import LinkIcon from '@phosphor/link.svg';
 import PlusIcon from '@phosphor/plus.svg';
@@ -59,6 +59,13 @@ const TABS = [
     icon: ChartIcon,
     description: 'Understand how your booking links are being used.',
   },
+  {
+    value: 'page' as const,
+    label: 'Booking page',
+    icon: PageIcon,
+    description:
+      'Customize your public booking page, preview it, and share its link.',
+  },
 ];
 
 function BookingWorkspaceTabs(props: {
@@ -85,7 +92,6 @@ function BookingWorkspaceTabs(props: {
 export function BookingWorkspaceView(props: {
   search: BookingLinksState;
   onSearchChange: (patch: Partial<BookingLinksState>) => void;
-  onSettings: () => void;
 }) {
   const capabilities = useScheduling();
   const search = props.search;
@@ -241,14 +247,6 @@ export function BookingWorkspaceView(props: {
               </For>
             </ViewSidebar.Nav>
           </ViewSidebar.Content>
-          <ViewSidebar.Footer>
-            <ViewSidebar.Item disabled={isSaving()} onClick={props.onSettings}>
-              <ViewSidebar.Icon>
-                <GearIcon />
-              </ViewSidebar.Icon>
-              Booking settings
-            </ViewSidebar.Item>
-          </ViewSidebar.Footer>
         </ViewSidebar.Root>
       </ViewShell.Aside>
       <ViewShell.Main>
@@ -403,7 +401,8 @@ export function BookingWorkspaceView(props: {
                 </Show>
                 <Show when={!current.scope().canEdit}>
                   <p class="mb-4 rounded-lg bg-surface-2 p-3 text-sm text-ink-muted">
-                    Only team owners and admins can edit these booking links.
+                    Only team owners and admins can edit {current.scope().name}{' '}
+                    scheduling.
                   </p>
                 </Show>
                 <Show when={search.tab === 'links' && owner() === current}>
@@ -425,6 +424,9 @@ export function BookingWorkspaceView(props: {
                 </Show>
                 <Show when={search.tab === 'insights' && owner() === current}>
                   <OwnerSettingsSection kind="insights" owner={current} />
+                </Show>
+                <Show when={search.tab === 'page' && owner() === current}>
+                  <OwnerSettingsSection kind="page" owner={current} />
                 </Show>
               </div>
             )}

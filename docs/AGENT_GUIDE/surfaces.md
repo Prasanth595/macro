@@ -1217,12 +1217,12 @@ so invitees can open those links.
 Calendar connections live in **Settings → Calendar** (`/app/settings/calendar`).
 Booking management has a dedicated **More → Scheduling** workspace at
 `/app/scheduling`. Its sidebar is titled **Scheduling** and separates
-Booking links, Availability, Bookings, and Insights without a Calendar/Booking
-links switcher. The sidebar lists **Personal** first, then each team by
+Booking links, Availability, Bookings, Insights, and Booking page without a
+Calendar/Booking links switcher. The sidebar lists **Personal** first, then each team by
 name as vertical, single-selection rows matching Email's inbox list. The active
 row has a checkmark; the list scrolls when more calendars are present. Selecting
 a row switches the owner for the entire workspace; ownership badges identify
-the selected scope. Owner changes discard drafts and stay disabled during saves.
+the selected scope. Owner changes discard link/schedule drafts and stay disabled during saves.
 Each tab's heading appears in the main topbar, with its description available
 through an info tooltip rather than a separate large header. **New booking link** also lives in the
 topbar; link search and booking date filters remain below it. The selected tab and
@@ -1230,10 +1230,13 @@ owner survive reload through route search state (`tab` and `owner` in the
 `booking-links` namespace). On collapsed or overlay navigation, tab controls remain
 above the content; expand the sidebar to switch the owner. Calendar's booking
 actions open this workspace.
-**Settings → Booking links** (`/app/settings/booking-links`) now contains only
-booking-page display name, introduction, preview, and page-sharing configuration,
-with an Open booking links action back to the workspace. Calendar connections
-and integration shortcuts continue to open Settings → Calendar.
+**Booking page** contains the selected owner's public display name, introduction,
+live preview, and preview/copy links. Select Personal or a named team to configure
+its page; only team owners and admins can edit a team's page. Page drafts remain
+separate for each owner, and saving updates only the selected owner. There is no
+separate Booking settings shortcut or Settings → Booking links page. Public
+booking URLs remain unchanged. Calendar connections and integration shortcuts
+continue to open Settings → Calendar.
 Connected calendars offers Connect account (the existing Google consent flow),
 Connect calendar for accounts missing calendar permission, and Disconnect with
 confirmation. Disconnect removes calendar access/data, not the Gmail connection.
@@ -1473,7 +1476,7 @@ until its event types use another one. Collective and round-robin team meetings
 respect each host’s personal default hours when configured, plus busy calendars.
 Team membership remains in team settings. Team-host selection and collective
 or round-robin assignment live in the link dialog. Booking-page identity is
-configured in Settings → Booking links. `Bookings` shows
+configured in the Scheduling workspace's Booking page tab. `Bookings` shows
 upcoming, unconfirmed, past, and cancelled meetings; admins can confirm requests,
 reschedule, or cancel them. Choose From/Through dates to load bookings (initially 30 days before and after today), then search by guest/title/email and filter by event type. Dates use your browser time zone; shorten the range if more than 5,000 bookings match.
 Cancellation asks for confirmation. After a confirmed meeting ends, an assigned

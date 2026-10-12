@@ -24,7 +24,6 @@ import { EventTypesPanel } from '../components/event-types-panel';
 import {
   type SchedulingCapabilities,
   SchedulingProvider,
-  type SchedulingSource,
 } from '../context/scheduling-context';
 import { BUFFER_TIMELINE } from '../core/booking-rule-timeline';
 import {
@@ -48,7 +47,6 @@ import {
 import { createEventEditor } from '../primitives/create-event-editor';
 import { BookingWorkspaceView } from './booking-workspace-view';
 import { EventEditor } from './event-editor-view';
-import { SchedulingSettingsView } from './settings-view';
 
 const device = vi.hoisted(() => ({ mobile: false }));
 vi.mock('@core/mobile/isMobile', async (importOriginal) => ({
@@ -182,66 +180,6 @@ async function focusBookingRule(
   return screen
     .getAllByRole('group', { name: label })
     .find((group) => group.contains(input))!;
-}
-
-function fixture(teamEditable = true) {
-  const sources = new Map<string, SchedulingSource>();
-  const saves = vi.fn();
-  const loadsBookings = vi.fn();
-  const openWorkspace = vi.fn();
-  const createSource: SchedulingCapabilities['createSource'] = (
-    scope,
-    _range,
-    loadBookings
-  ) => {
-    loadsBookings(scope().id, loadBookings?.());
-    const [profile, setProfile] = createSignal<SchedulingProfile>({
-      id: scope().id,
-      name: scope().name,
-      description: '',
-      schedules: [newSchedule('UTC')],
-      eventTypes: [],
-      revision: 1,
-    });
-    const source: SchedulingSource = {
-      profile,
-      bookings: () => [],
-      loading: () => false,
-      error: () => undefined,
-      saving: () => false,
-      save: async (next) => {
-        saves(scope().id, next);
-        setProfile(next);
-      },
-      approve: async () => {},
-      cancel: async () => {},
-      loadInsights: async () => [],
-      setAttendance: async () => {},
-      reload: () => {},
-    };
-    sources.set(scope().id, source);
-    return source;
-  };
-  render(() => (
-    <SchedulingProvider
-      value={{
-        scopes: () => [
-          { id: 'personal', name: 'Personal', canEdit: true },
-          { id: 'team', name: 'Design', teamId: 'team', canEdit: teamEditable },
-        ],
-        members: () => [],
-        userId: () => 'user',
-        createSource,
-        copyLink: async () => {},
-        link: (profile, slug) => `/book/${profile.id}/${slug ?? ''}`,
-        openTeamSettings: () => {},
-        manageBooking: async () => {},
-      }}
-    >
-      <SchedulingSettingsView onOpenWorkspace={openWorkspace} />
-    </SchedulingProvider>
-  ));
-  return { sources, saves, loadsBookings, openWorkspace };
 }
 
 it('uses an automatic unique link when custom link text is cleared', async () => {
@@ -551,61 +489,90 @@ it('advances without saving and routes invalid saves to the relevant step', asyn
     dispose();
   }
 });
-it('keeps settings focused on booking-page configuration and opens the workspace', () => {
-  const { openWorkspace, loadsBookings } = fixture();
+it('edits booking-page configuration in the workspace without loading bookings', () => {
+  const { loadsBookings } = workspaceFixture('page');
+  expect(screen.getByRole('heading', { name: 'Booking page' })).toBeTruthy();
   expect(screen.getAllByRole('textbox', { name: 'Display name' })).toHaveLength(
-    2
+    1
   );
+  expect(screen.queryByRole('button', { name: 'Booking settings' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'New booking link' })).toBeNull();
-  expect(screen.queryByRole('heading', { name: 'Availability' })).toBeNull();
-  expect(screen.queryByRole('heading', { name: 'Bookings' })).toBeNull();
-  expect(screen.queryByRole('heading', { name: 'Insights' })).toBeNull();
   expect(loadsBookings.mock.calls).toEqual([
     ['personal', false],
     ['team', false],
   ]);
-  fireEvent.click(screen.getByRole('button', { name: 'Open booking links' }));
-  expect(openWorkspace).toHaveBeenCalledOnce();
 });
 
-it('saves page configuration for the selected owner without erasing another owner draft', async () => {
-  const { sources, saves } = fixture();
-  const personal = screen.getByRole('group', { name: 'Personal booking page' });
-  const team = screen.getByRole('group', { name: 'Design booking page' });
-  const personalName = within(personal).getByRole('textbox', {
-    name: 'Display name',
+it('saves the selected booking page without changing another owner or losing its draft', async () => {
+  const { saves, setSearch } = workspaceFixture('page');
+  fireEvent.input(screen.getByRole('textbox', { name: 'Display name' }), {
+    target: { value: 'Personal draft' },
   });
-  fireEvent.input(personalName, { target: { value: 'Personal draft' } });
-  fireEvent.input(within(team).getByRole('textbox', { name: 'Display name' }), {
+  setSearch('owner', 'team');
+  fireEvent.input(screen.getByRole('textbox', { name: 'Display name' }), {
     target: { value: 'Design meetings' },
   });
-  fireEvent.click(
-    within(team).getByRole('button', { name: 'Save booking page' })
-  );
+  fireEvent.input(screen.getByRole('textbox', { name: 'Introduction' }), {
+    target: { value: 'Meet the design team' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Save booking page' }));
   await waitFor(() => expect(saves).toHaveBeenCalledOnce());
-  expect(sources.get('team')?.profile()?.name).toBe('Design meetings');
-  expect(sources.get('personal')?.profile()?.name).toBe('Personal');
-  expect((personalName as HTMLInputElement).value).toBe('Personal draft');
+  expect(saves.mock.calls[0]).toEqual([
+    'team',
+    expect.objectContaining({
+      id: 'team',
+      name: 'Design meetings',
+      description: 'Meet the design team',
+    }),
+  ]);
+  setSearch('owner', 'personal');
+  expect(
+    (screen.getByRole('textbox', { name: 'Display name' }) as HTMLInputElement)
+      .value
+  ).toBe('Personal draft');
+  fireEvent.click(screen.getByRole('button', { name: 'Save booking page' }));
+  await waitFor(() => expect(saves).toHaveBeenCalledTimes(2));
+  expect(saves.mock.calls[1]).toEqual([
+    'personal',
+    expect.objectContaining({
+      id: 'personal',
+      name: 'Personal draft',
+      description: '',
+    }),
+  ]);
 });
 
-it('keeps team page configuration read-only for members', () => {
-  fixture(false);
-  const team = screen.getByRole('group', { name: 'Design booking page' });
+it('keeps team booking pages read-only while allowing page sharing', async () => {
+  const { copies, saves, setSearch } = workspaceFixture('page', undefined, [
+    { id: 'personal', name: 'Personal', canEdit: true },
+    { id: 'team', name: 'Design', teamId: 'team', canEdit: false },
+  ]);
+  setSearch('owner', 'team');
   expect(
-    within(team)
+    screen
       .getByRole('textbox', { name: 'Display name' })
       .hasAttribute('disabled')
   ).toBe(true);
   expect(
-    within(team)
+    screen
+      .getByRole('textbox', { name: 'Introduction' })
+      .hasAttribute('disabled')
+  ).toBe(true);
+  expect(
+    screen
       .getByRole('button', { name: 'Save booking page' })
       .hasAttribute('disabled')
   ).toBe(true);
   expect(
-    screen.getByText(
-      'Only team owners and admins can edit Design booking settings.'
-    )
+    screen.getByText('Only team owners and admins can edit Design scheduling.')
   ).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Copy page link' }));
+  await waitFor(() => expect(copies).toHaveBeenCalledOnce());
+  expect(copies.mock.calls[0][0].id).toBe('team');
+  expect(
+    screen.getByRole('link', { name: 'Preview page' }).getAttribute('href')
+  ).toBe('/book/team/');
+  expect(saves).not.toHaveBeenCalled();
 });
 
 function workspaceFixture(
@@ -622,10 +589,16 @@ function workspaceFixture(
   });
   const [saving, setSaving] = createSignal(false);
   const saves = vi.fn();
+  const loadsBookings = vi.fn();
   const copies = vi
     .fn<SchedulingCapabilities['copyLink']>()
     .mockResolvedValue(undefined);
-  const createSource: SchedulingCapabilities['createSource'] = (scope) => {
+  const createSource: SchedulingCapabilities['createSource'] = (
+    scope,
+    _range,
+    loadBookings
+  ) => {
+    loadsBookings(scope().id, loadBookings?.());
     const schedule = newSchedule('UTC');
     const event = initialEvent
       ? {
@@ -674,14 +647,10 @@ function workspaceFixture(
         manageBooking: async () => {},
       }}
     >
-      <BookingWorkspaceView
-        search={search}
-        onSearchChange={setSearch}
-        onSettings={() => {}}
-      />
+      <BookingWorkspaceView search={search} onSearchChange={setSearch} />
     </SchedulingProvider>
   ));
-  return { search, setSearch, setSaving, saves, copies };
+  return { search, setSearch, setSaving, saves, copies, loadsBookings };
 }
 
 async function advanceEditor(

@@ -20,7 +20,6 @@ import {
   useManageBookingMutation,
 } from './queries/source';
 import { BookingWorkspaceView } from './views/booking-workspace-view';
-import { SchedulingSettingsView } from './views/settings-view';
 
 export function schedulingLink(
   profile: Pick<SchedulingProfile, 'id'>,
@@ -90,29 +89,10 @@ function SchedulingHost(props: ParentProps) {
     </SchedulingProvider>
   );
 }
-export function SchedulingSettings() {
-  const navigate = useNavigate();
-  const settings = useSettingsState();
-  return (
-    <Suspense
-      fallback={<p class="p-8 text-ink-muted">Loading booking links…</p>}
-    >
-      <SchedulingHost>
-        <SchedulingSettingsView
-          onOpenWorkspace={() => {
-            settings.closeSettings();
-            navigate('/scheduling');
-          }}
-        />
-      </SchedulingHost>
-    </Suspense>
-  );
-}
 
 export function BookingLinksWorkspace() {
   const flag = useFeatureFlag(enableCalendarScheduling);
   const [search, setSearch] = createSearchParams(bookingLinksSearch);
-  const settings = useSettingsState();
   useSplitDisplayName(() => 'Scheduling');
   return (
     <Show
@@ -136,7 +116,6 @@ export function BookingLinksWorkspace() {
               <BookingWorkspaceView
                 search={search}
                 onSearchChange={(patch) => setSearch(patch)}
-                onSettings={() => settings.openSettings('Booking links')}
               />
             </SchedulingHost>
           </Suspense>
