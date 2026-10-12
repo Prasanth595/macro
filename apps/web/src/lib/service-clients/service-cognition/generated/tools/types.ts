@@ -950,6 +950,23 @@ export type RoutineSchedule =
       type: 'cron';
     };
 /**
+ * Activity the scheduler can subscribe to. Names match the routine allowlist.
+ */
+export type RoutineEventName =
+  | 'document.created'
+  | 'document.updated'
+  | 'document.deleted'
+  | 'task.created'
+  | 'task.status_changed'
+  | 'task.priority_changed'
+  | 'task.property_changed'
+  | 'email.message_received'
+  | 'channel.created'
+  | 'channel.message_posted'
+  | 'channel.mentioned'
+  | 'channel.message_patched'
+  | 'channel.message_attachment_created';
+/**
  * A tag color from the fixed palette.
  */
 export type TagColor =
@@ -7154,7 +7171,7 @@ export interface CreateProjectResponse {
   projectName: string;
 }
 /**
- * Schedule recurring or one-off work for a model or agent. To schedule yourself, use your persona/bot ID as the agent target; to delegate, select an accessible agent from ListAgents using its bot.botId. Routines run as the authenticated user after this session ends, using the selected agent’s tools and configuration. Use Once with a future RFC3339 timestamp for a single run; use Cron for repetition. Returns the saved routine ID and next firing. Do not use reminders for work that should execute. Do not automatically create a new routine on every run of an existing routine.
+ * Run a model or agent on a schedule or when something happens in Macro. To run as yourself, use your persona/bot ID as the agent target; to delegate, select an accessible agent from ListAgents using its bot.botId. The routine runs as the authenticated user after this session ends, using the selected agent’s tools and configuration. For a schedule, set schedule to Once with a future RFC3339 timestamp, or Cron with a six-field expression and an IANA timezone. To run when a message is sent, omit schedule and set events to [{"events":["channel.message_posted"],"ids":["<channel uuid>"],"condition":"Is this a bug report?"}]. ids are required for messages, mentions, edits, attachments, deletions, and task changes. Omit ids only for document.created, task.created, channel.created, and email.message_received. condition is optional; when set, the run starts only if the triggering content answers yes. A routine can set both a schedule and events. Returns the saved routine ID and the next scheduled firing when it has a schedule. Do not use reminders for work that should execute. Do not automatically create a new routine on every run of an existing routine.
  */
 export interface CreateRoutine {
   configuration: RoutineConfiguration;
@@ -7172,7 +7189,39 @@ export interface RoutineConfiguration {
    */
   instructions: string;
   target: RoutineTarget;
-  schedule: RoutineSchedule;
+  /**
+   * Recurring or one-off schedule. Omit when the routine runs only on activity events.
+   */
+  schedule?: RoutineSchedule | null;
+  /**
+   * Activity that starts a run immediately. Omit for a schedule-only routine.
+   * Each filter matches on its own. A message in a channel uses
+   * `channel.message_posted` with that channel's UUID in `ids`. `ids` are
+   * required except for `document.created`, `task.created`, `channel.created`,
+   * and `email.message_received`. `condition` is an optional yes/no question;
+   * the run starts only when the triggering content answers yes.
+   */
+  events?: RoutineEventFilter[] | null;
+}
+/**
+ * One activity selector. The routine runs when any filter matches.
+ */
+export interface RoutineEventFilter {
+  /**
+   * Activity names that match this filter.
+   */
+  events: RoutineEventName[];
+  /**
+   * Channel, document, or task UUIDs. Required unless every event is
+   * `document.created`, `task.created`, `channel.created`, or
+   * `email.message_received`, which match every accessible item when omitted.
+   */
+  ids?: string[] | null;
+  /**
+   * Yes/no question about the triggering content, such as "Is this a bug report?".
+   * The routine runs only when the answer is yes. Omit to run on every match.
+   */
+  condition?: string | null;
 }
 /**
  * Compact routine details returned to the caller.
@@ -12852,7 +12901,7 @@ export interface ProjectChannelSharing {
   access: ProjectShareAccess;
 }
 /**
- * Pause/resume or replace the configuration of a routine owned by the authenticated user. ReadRoutine first before replacing configuration. Select an agent to delegate the routine or a model to run as Macro. Does not change ownership. A running routine can be paused but cannot be reconfigured until it finishes.
+ * Pause/resume or replace the configuration of a routine owned by the authenticated user. ReadRoutine first before replacing configuration. A replacement can set a schedule, activity events such as channel.message_posted, or both. Select an agent to delegate the routine or a model to run as Macro. Does not change ownership. A running routine can be paused but cannot be reconfigured until it finishes.
  */
 export interface UpdateRoutine {
   /**
