@@ -138,8 +138,13 @@ export function SchedulingSettingsView() {
           'pt-2 pb-[max(24px,var(--mobile-sheet-safe-padding))]': inSheet,
         }}
       >
-        <header class="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <h1 class="text-xl font-medium tracking-tight">Booking links</h1>
+        <header
+          class="mb-5 flex flex-wrap items-center justify-between gap-3"
+          classList={{ 'justify-end': inSheet }}
+        >
+          <Show when={!inSheet}>
+            <h1 class="text-xl font-medium tracking-tight">Booking links</h1>
+          </Show>
           <DropdownMenu>
             <DropdownMenu.Trigger
               class="flex max-w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-ink"
