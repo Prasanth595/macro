@@ -7,6 +7,7 @@
 //! container is asked for - decides which runtime a session's transport comes
 //! from.
 
+use agent_egress::domain::model::SessionToken;
 use agent_harness::domain::error::{HarnessError, Result};
 use agent_harness::domain::model::{AgentKind, SpawnContainer};
 use agent_harness::domain::ports::ContainerManager;
@@ -200,14 +201,32 @@ where
         }
     }
 
+    /// An in-process session's raw token lives only in the process that was
+    /// handed it, and the row keeps only its hash. A process that does not
+    /// hold it, such as a replica that replaced the spawning one, rotates the
+    /// credential so the session keeps its MCP servers.
     async fn resume(
         &self,
         session: AgentSessionId,
     ) -> Result<agent_session::domain::connection::RuntimeAttachment<Self::Transport>> {
         match self.route(session).await? {
-            Route::InMem(facts) => Ok(agent_session::domain::connection::RuntimeAttachment::solo(
-                RoutedTransport::InMem(self.inmem().manager.attach(*facts, None).await),
-            )),
+            Route::InMem(facts) => {
+                let manager = &self.inmem().manager;
+                let token = match manager.session_token(session) {
+                    Some(_) => None,
+                    None => {
+                        let token = SessionToken::mint();
+                        self.sessions
+                            .set_egress_token_hash(session, &token.hash())
+                            .await
+                            .map_err(HarnessError::Session)?;
+                        Some(token.as_str().to_owned())
+                    }
+                };
+                Ok(agent_session::domain::connection::RuntimeAttachment::solo(
+                    RoutedTransport::InMem(manager.attach(*facts, token).await),
+                ))
+            }
             Route::Sandbox => self
                 .sandbox
                 .resume(session)
@@ -217,9 +236,8 @@ where
     }
 
     /// An in-process session has no container environment to read a token
-    /// back from, so the manager remembers the one spawn handed it; a
-    /// session this process never spawned yields none. Sandboxes delegate to
-    /// their provider.
+    /// back from, so the manager remembers the one spawn or [`Self::resume`]
+    /// handed it. Sandboxes delegate to their provider.
     async fn session_token(&self, session: AgentSessionId) -> Result<Option<String>> {
         match self.route(session).await? {
             Route::InMem(_) => Ok(self.inmem().manager.session_token(session)),

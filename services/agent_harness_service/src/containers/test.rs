@@ -1,9 +1,15 @@
 use super::*;
 use agent_fold::domain::service::FoldedMessageService;
+use agent_harness::domain::model::SandboxEgress;
 use agent_harness::outbound::daytona::AnthropicApiKey;
 use agent_harness::outbound::local::{LocalContainerManager, LocalSettings};
+use agent_harness::testing::helpers::egress::test_egress;
+use agent_inmem::domain::engine::{TurnEngine, TurnRequest};
+use agent_inmem::domain::mcp::NoMcpServers;
+use agent_inmem::domain::model_access::{InMemModelAccess, ModelAccess, ModelAccessError};
+use agent_inmem::outbound::log_frames::LogFrameSource;
 use agent_session::domain::model::ReplicaId;
-use agent_session::domain::ports::NoOpRealtime;
+use agent_session::domain::ports::{AgentSessionRepo, NoOpRealtime};
 use agent_session::domain::ports::{
     NoOpAgentSessionNameGenerator, NoOpTurnObserver, NoopLifecyclePublisher,
 };
@@ -31,13 +37,22 @@ fn sessions_with_harness(
     bot: BotId,
     harness: &str,
 ) -> (AgentSessionId, impl AgentSessionService + use<>) {
+    let (id, repo) = repo_with_session(bot, harness);
+    (id, service_over(repo))
+}
+
+fn repo_with_session(bot: BotId, harness: &str) -> (AgentSessionId, InMemoryAgentSessionRepo) {
     let repo = InMemoryAgentSessionRepo::new();
     let id = AgentSessionId::new();
     let mut session = test_agent_session(id);
     session.bot_id = bot;
     session.harness = harness.to_owned();
     repo.insert_session(session);
-    let service = AgentSessionServiceImpl::new(
+    (id, repo)
+}
+
+fn service_over(repo: InMemoryAgentSessionRepo) -> impl AgentSessionService + use<> {
+    AgentSessionServiceImpl::new(
         repo.clone(),
         FoldedMessageService::new(repo),
         NoOpRealtime,
@@ -45,8 +60,63 @@ fn sessions_with_harness(
         Arc::new(NoOpTurnObserver),
         Arc::new(NoopLifecyclePublisher),
         ReplicaId::mint(),
-    );
-    (id, service)
+    )
+}
+
+/// Never asked to run a turn: these tests only attach sessions.
+struct IdleEngine;
+
+impl TurnEngine for IdleEngine {
+    fn supported_models(&self) -> &[&str] {
+        &[]
+    }
+
+    fn run_turn(
+        &self,
+        _request: TurnRequest,
+    ) -> tokio::sync::mpsc::Receiver<Result<agent::StreamPart, agent::AgentError>> {
+        tokio::sync::mpsc::channel(1).1
+    }
+}
+
+struct FreeModels;
+
+#[async_trait::async_trait]
+impl InMemModelAccess for FreeModels {
+    async fn access(&self, _owner: &model_owner::Owner) -> Result<ModelAccess, ModelAccessError> {
+        Ok(ModelAccess::Free)
+    }
+}
+
+fn in_process_runtime(repo: InMemoryAgentSessionRepo) -> InMemRuntime {
+    InMemRuntime {
+        manager: InMemAgentManager::new(
+            Arc::new(IdleEngine),
+            Arc::new(LogFrameSource::new(repo)),
+            Arc::new(NoMcpServers),
+            Arc::new(FreeModels),
+        ),
+    }
+}
+
+fn in_process_containers(
+    repo: &InMemoryAgentSessionRepo,
+) -> RoutedContainers<impl AgentSessionService + use<>> {
+    RoutedContainers::new(
+        unreachable_sandbox(),
+        Some(in_process_runtime(repo.clone())),
+        service_over(repo.clone()),
+    )
+}
+
+async fn session_for_token(
+    repo: &InMemoryAgentSessionRepo,
+    token: &SessionToken,
+) -> Option<AgentSessionId> {
+    repo.find_by_egress_token_hash(&token.hash())
+        .await
+        .expect("token lookup")
+        .map(|session| session.id)
 }
 
 #[tokio::test]
@@ -107,6 +177,69 @@ async fn routes_an_owned_bot_to_the_sandbox() {
         containers.route(id).await.expect("owned bot routes"),
         Route::Sandbox
     ));
+}
+
+/// A replica that replaced the one which spawned an in-process session has
+/// no way to read its token back, so resuming there rotates the credential:
+/// the session's MCP servers are advertised under a token the proxy accepts,
+/// and the token that died with the old process no longer is.
+#[tokio::test]
+async fn resuming_an_in_process_session_held_elsewhere_rotates_its_credential() {
+    let (id, repo) = repo_with_session(bot_id::MACRO_NEW_BOT_ID, "opencode");
+    let lost = SessionToken::new("held by the replaced replica");
+    repo.set_egress_token_hash(id, &lost.hash())
+        .await
+        .expect("spawn's hash");
+    let containers = in_process_containers(&repo);
+
+    let _attachment = containers.resume(id).await.expect("resumes");
+
+    let token = containers
+        .session_token(id)
+        .await
+        .expect("token lookup")
+        .expect("a resumed in-process session holds a credential");
+    assert_eq!(
+        session_for_token(&repo, &SessionToken::new(token)).await,
+        Some(id)
+    );
+    assert_eq!(session_for_token(&repo, &lost).await, None);
+}
+
+/// The process that spawned the session still holds its token, so a resume
+/// there keeps the credential rather than rotating it.
+#[tokio::test]
+async fn resuming_an_in_process_session_held_here_keeps_its_credential() {
+    let (id, repo) = repo_with_session(bot_id::MACRO_NEW_BOT_ID, "opencode");
+    let spawned = SessionToken::new("held by this replica");
+    repo.set_egress_token_hash(id, &spawned.hash())
+        .await
+        .expect("spawn's hash");
+    let containers = in_process_containers(&repo);
+    let _spawned = containers
+        .spawn(SpawnContainer {
+            session_id: id,
+            kind: AgentKind::InMemory,
+            size: SandboxSize::Default,
+            egress: SandboxEgress {
+                session_token: spawned.as_str().to_owned(),
+                ..test_egress()
+            },
+        })
+        .await
+        .expect("spawns");
+
+    let _resumed = containers.resume(id).await.expect("resumes");
+
+    assert_eq!(
+        containers
+            .session_token(id)
+            .await
+            .expect("token lookup")
+            .as_deref(),
+        Some(spawned.as_str())
+    );
+    assert_eq!(session_for_token(&repo, &spawned).await, Some(id));
 }
 
 /// The in-process runtime skips Macro's own server by the name the harness

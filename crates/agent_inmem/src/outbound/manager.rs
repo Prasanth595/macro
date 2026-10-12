@@ -77,9 +77,8 @@ pub struct InMemAgentManager {
     live: DashMap<AgentSessionId, LiveAgent>,
     /// Each live session's egress token. An in-process session has no
     /// container environment to read it back from, so the manager is the
-    /// one place it survives spawn; a resume after a restart finds nothing
-    /// here and advertises no servers, exactly like a sandbox whose
-    /// container is gone.
+    /// one place it survives spawn. A process that never held it finds
+    /// nothing here; the host mints a replacement for that resume.
     tokens: DashMap<AgentSessionId, String>,
 }
 
@@ -137,8 +136,8 @@ impl InMemAgentManager {
     /// resume after a restart) gets its conversation rebuilt from the durable
     /// frame log first.
     ///
-    /// `session_token` is the egress token minted at spawn; a resume passes
-    /// `None` and keeps whatever spawn stored.
+    /// `session_token` is the egress token minted at spawn, or at a resume in
+    /// a process that holds none; `None` keeps the stored one.
     #[must_use]
     pub async fn attach(
         &self,
