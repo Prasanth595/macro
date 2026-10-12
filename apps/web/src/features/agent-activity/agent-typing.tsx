@@ -2,35 +2,120 @@ import { PersonaAvatar } from '@app/features/agent-dms/components/persona-avatar
 import { InteractionCard } from '@app/features/agent-interactions/components/InteractionCard';
 import type { AgentInteraction } from '@app/features/agent-interactions/context/interaction';
 import { createInteractionController } from '@app/features/agent-interactions/primitives/create-interaction-controller';
+import {
+  isWorkingTurn,
+  sessionTurn,
+  subscribeSessionTurns,
+} from '@core/agent-session/session-turn';
 import { toast } from '@core/component/Toast/Toast';
 import { useAgentSessionQuery } from '@queries/agent-session/session';
 import { firstPartyBotName } from '@queries/bots/first-party-bot-name';
 import { useBotProfile } from '@queries/bots/profiles';
 import { queryReadyGate } from '@queries/gate';
-import { getTypingAgents } from '@queries/messages/typing';
+import { parentKey } from '@queries/messages/keys';
+import { getTypingAgents, type TypingAgent } from '@queries/messages/typing';
 import type { MessagePart } from '@service-agent-fold/generated/types';
 import type { MessageParent } from '@service-storage/messages';
-import { createSignal, For, Show } from 'solid-js';
+import { Key } from '@solid-primitives/keyed';
+import {
+  createContext,
+  createMemo,
+  createSignal,
+  For,
+  type JSX,
+  onCleanup,
+  type ParentProps,
+  Show,
+  Suspense,
+  useContext,
+} from 'solid-js';
 import { LiveTail } from './components/live-tail';
 import { TypingRow } from './components/typing-row';
 import { openReply, streamingProse, typingLabel } from './core/live-reply';
 import { createLiveSession } from './queries/live-session';
+
+/** One place of a conversation: the timeline, or one thread. */
+type TypingPlace = { parent: MessageParent; threadId: string | null };
+
+const KeptRowsContext = createContext<{
+  shows: (place: TypingPlace) => boolean;
+  rows: JSX.Element;
+}>();
 
 /**
  * Agents typing in one place of a conversation - the timeline, or one
  * thread - each as a typing row. A viewer who can read the session also sees
  * the turn as it runs beneath it: the passage being written, what it is
  * waiting on, and Stop.
+ *
+ * Under an {@link AgentTypingProvider} for the same place, these are the
+ * provider's rows, moved here.
  */
-export function AgentTyping(props: {
-  parent: MessageParent;
-  threadId: string | null;
-}) {
-  const typing = () => getTypingAgents(props.parent, props.threadId);
+export function AgentTyping(props: TypingPlace) {
+  const kept = useContext(KeptRowsContext);
   return (
-    <For each={[...typing().keys()]}>
+    <Show
+      when={kept?.shows(props)}
+      fallback={
+        <AgentTypingRows parent={props.parent} threadId={props.threadId} />
+      }
+    >
+      {kept?.rows}
+    </Show>
+  );
+}
+
+/**
+ * Makes one place's typing rows once, for a list that shows them under
+ * whichever of its rows is newest: a row that changes when a message
+ * arrives, and that a virtualized list unmounts once the reader scrolls
+ * away. Rows made inside it would go with it - the turn's live view would
+ * load again, and every card beneath it would start over, dropping an
+ * answer or a draft the viewer had half written. Made here, the rows outlive
+ * the list's rows and only move between them.
+ */
+export function AgentTypingProvider(props: ParentProps<TypingPlace>) {
+  // A boundary of their own: rows that suspend must not blank the list.
+  const rows = (
+    <Suspense>
+      <AgentTypingRows parent={props.parent} threadId={props.threadId} />
+    </Suspense>
+  );
+  return (
+    <KeptRowsContext.Provider
+      value={{
+        shows: (place) =>
+          place.threadId === props.threadId &&
+          parentKey(place.parent) === parentKey(props.parent),
+        rows,
+      }}
+    >
+      {props.children}
+    </KeptRowsContext.Provider>
+  );
+}
+
+function AgentTypingRows(props: TypingPlace) {
+  const [turns, setTurns] = createSignal(0);
+  onCleanup(subscribeSessionTurns(() => setTurns((count) => count + 1)));
+  // Typing lapses whenever its heartbeat does, as when a phone sleeps with
+  // the app open. An agent whose turn the fold still has open - working, or
+  // waiting on the viewer - keeps its row until the turn ends, and with it
+  // whatever the viewer was answering beneath it.
+  const agents = createMemo<ReadonlyMap<string, TypingAgent>>((shown) => {
+    turns();
+    const next = new Map(getTypingAgents(props.parent, props.threadId));
+    for (const [botUserId, agent] of shown) {
+      const turn = sessionTurn(agent.sessionId);
+      if (!next.has(botUserId) && (isWorkingTurn(turn) || turn === 'blocked'))
+        next.set(botUserId, agent);
+    }
+    return next;
+  }, new Map());
+  return (
+    <For each={[...agents().keys()]}>
       {(botUserId) => (
-        <Show when={typing().get(botUserId)}>
+        <Show when={agents().get(botUserId)}>
           {(info) => (
             <AgentTypingEntry
               botUserId={botUserId}
@@ -121,15 +206,22 @@ function AgentTypingEntry(props: {
           onStop={canEdit() && reply() ? () => void stop() : undefined}
           stopping={stopping()}
         >
-          <For each={pending()}>
+          {/* Each metadata event carries every request anew. Keyed by what
+              it asks, a card keeps whatever was typed into it. */}
+          <Key
+            each={pending()}
+            by={(request) =>
+              JSON.stringify([request.turn, request.kind, request.requestId])
+            }
+          >
             {(request) => (
               <InteractionCard
-                request={request}
+                request={request()}
                 controller={interactions}
-                tool={toolFor(request.toolCall)}
+                tool={toolFor(request().toolCall)}
               />
             )}
-          </For>
+          </Key>
         </LiveTail>
       </Show>
     </TypingRow>
