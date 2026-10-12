@@ -153,11 +153,14 @@ where
                 .await;
         }
 
+        // Check the running total after each download, so an oversized set
+        // fails as soon as it crosses the limit rather than after every file
+        // is held in memory.
         let mut sourced = Vec::with_capacity(attachments.len());
         for receipt in attachments {
             sourced.push(self.source.fetch_attachment(receipt).await?);
+            total_attachment_bytes(&sourced)?;
         }
-        total_attachment_bytes(&sourced)?;
 
         let mut draft_input = input.clone();
         draft_input.send_time = None;

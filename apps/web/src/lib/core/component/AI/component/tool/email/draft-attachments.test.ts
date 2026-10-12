@@ -138,6 +138,19 @@ describe('createDraftAttachments', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it('drops a file whose upload throws', async () => {
+    const { attachments, onChange } = setup({
+      upload: async () => {
+        throw new Error('network down');
+      },
+    });
+    attachments.add([{ type: 'local', file: new File(['x'], 'bad.bin') }]);
+    await flush();
+    expect(attachments.list()).toEqual([]);
+    expect(attachments.uploading()).toBe(false);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it('forgets a file the user removed before its upload finished', async () => {
     const { promise, resolve } = Promise.withResolvers<{
       documentId: string;

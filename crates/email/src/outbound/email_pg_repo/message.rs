@@ -545,13 +545,15 @@ pub(super) async fn upsert_recipients(
 
 /// Record a staged attachment on a draft. The insert selects through the
 /// draft row under `link_id`, so a draft that belongs to another inbox (or
-/// does not exist) records nothing instead of leaking a cross-inbox row.
+/// does not exist) records nothing instead of leaking a cross-inbox row,
+/// and that is reported as [`sqlx::Error::RowNotFound`]: a send that went
+/// ahead would otherwise go out without the attachment.
 pub(super) async fn insert_draft_attachment(
     pool: &PgPool,
     link_id: Uuid,
     attachment: &AttachmentDraft,
 ) -> Result<(), sqlx::Error> {
-    sqlx::query!(
+    let result = sqlx::query!(
         r#"
         INSERT INTO email_attachments_drafts (
             id, draft_id, file_name, content_type, sha, size, s3_key
@@ -571,5 +573,8 @@ pub(super) async fn insert_draft_attachment(
     )
     .execute(pool)
     .await?;
+    if result.rows_affected() == 0 {
+        return Err(sqlx::Error::RowNotFound);
+    }
     Ok(())
 }

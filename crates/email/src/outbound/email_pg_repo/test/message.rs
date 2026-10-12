@@ -834,7 +834,7 @@ async fn insert_draft_attachment_records_the_attachment_on_the_inboxs_draft(
     migrator = "MACRO_DB_MIGRATIONS",
     fixtures(path = "../../../../fixtures", scripts("email_message"))
 )]
-async fn insert_draft_attachment_records_nothing_for_another_inboxs_draft(
+async fn insert_draft_attachment_refuses_another_inboxs_draft(
     pool: Pool<Postgres>,
 ) -> anyhow::Result<()> {
     use crate::domain::ports::DraftAttachmentRepo;
@@ -843,8 +843,13 @@ async fn insert_draft_attachment_records_nothing_for_another_inboxs_draft(
     let draft = Uuid::parse_str("ee000003-0000-0000-0000-000000000003")?;
     let id = Uuid::parse_str("dd000009-0000-0000-0000-000000000009")?;
 
-    repo.insert_draft_attachment(other_link, &staged_attachment(draft, id))
-        .await?;
+    let result = repo
+        .insert_draft_attachment(other_link, &staged_attachment(draft, id))
+        .await;
+    assert!(
+        matches!(result, Err(sqlx::Error::RowNotFound)),
+        "recording on another inbox's draft is an error, got {result:?}"
+    );
 
     let drafts = repo.draft_attachments_by_message_ids(&[draft]).await?;
     assert!(

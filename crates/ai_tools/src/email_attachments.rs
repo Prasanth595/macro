@@ -6,6 +6,7 @@
 //! in the composition root rather than in either domain crate.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use documents::domain::{
     models::LocationQueryParams, ports::DocumentService, response::LocationResponseV3,
@@ -28,6 +29,10 @@ maybe_env_var! {
     /// with the email service, whose scheduled sender reads it.
     struct AttachmentBucket;
 }
+
+/// How long one attachment download may take, body included. A stalled
+/// fetch fails the send instead of holding the tool call open.
+const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// [`DraftAttachmentSource`] that resolves a document through the documents
 /// domain and downloads the file it points at.
@@ -124,10 +129,13 @@ impl<D: DocumentService> DraftAttachmentSource for DocumentAttachmentSource<D> {
             other => (other, other.as_ref().map(FileType::as_str)),
         };
 
-        let mut response =
-            self.http.get(&presigned_url).send().await.map_err(|e| {
-                unavailable(&name, format!("its file could not be downloaded ({e})"))
-            })?;
+        let mut response = self
+            .http
+            .get(&presigned_url)
+            .timeout(DOWNLOAD_TIMEOUT)
+            .send()
+            .await
+            .map_err(|e| unavailable(&name, format!("its file could not be downloaded ({e})")))?;
         if !response.status().is_success() {
             return Err(unavailable(
                 &name,

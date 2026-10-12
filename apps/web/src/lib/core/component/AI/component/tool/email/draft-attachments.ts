@@ -97,7 +97,14 @@ export function createDraftAttachments(options: DraftAttachmentsOptions) {
   const upload = async (entry: UploadingAttachment) => {
     setUploadingCount((count) => count + 1);
     try {
-      const uploaded = await options.upload(entry.file);
+      let uploaded: { documentId: string } | undefined;
+      try {
+        uploaded = await options.upload(entry.file);
+      } catch {
+        // A throw is a failed upload too: the pill must not linger as a file
+        // the send would silently leave out.
+        uploaded = undefined;
+      }
       // The user may have removed the file while it uploaded.
       const stillListed = list().some(
         (attachment) =>

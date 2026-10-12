@@ -281,13 +281,14 @@ async fn oversized_attachments_are_refused_before_any_draft_exists() {
     let fake = fake_with(vec![
         ("a", vec![0; MAX_DRAFT_ATTACHMENTS_BYTES / 2 + 1]),
         ("b", vec![0; MAX_DRAFT_ATTACHMENTS_BYTES / 2 + 1]),
+        ("c", vec![1]),
     ]);
     let error = sender(fake.clone())
         .send_message_with_attachments(
             &link(),
             &[link()],
             input(),
-            vec![receipt("a"), receipt("b")],
+            vec![receipt("a"), receipt("b"), receipt("c")],
         )
         .await
         .unwrap_err();
@@ -300,6 +301,7 @@ async fn oversized_attachments_are_refused_before_any_draft_exists() {
         ),
         "got {error:?}"
     );
+    // The set is refused as soon as it crosses the limit: "c" is never fetched.
     assert_eq!(fake.calls.take(), ["fetch:a", "fetch:b"]);
 }
 
