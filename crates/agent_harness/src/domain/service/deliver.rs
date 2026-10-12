@@ -372,7 +372,10 @@ where
     }
 
     /// Resolve an announcement even when its queued command never opened a turn.
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "each argument is a separate fact about the reply; bundling them only moves the list"
+    )]
     pub(super) async fn resolve_announced_reply(
         &self,
         session_id: AgentSessionId,
