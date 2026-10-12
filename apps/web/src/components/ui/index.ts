@@ -132,6 +132,14 @@ export { Layer } from './components/Layer';
 export { LogoProgress } from './components/LogoProgress';
 export type { NavRowProps } from './components/NavRow';
 export { NavRow } from './components/NavRow';
+export type {
+  NumberUnitInputDecrementProps,
+  NumberUnitInputIncrementProps,
+  NumberUnitInputInputProps,
+  NumberUnitInputProps,
+  NumberUnitInputUnitProps,
+} from './components/NumberUnitInput';
+export { NumberUnitInput } from './components/NumberUnitInput';
 export { Panel } from './components/Panel';
 export type { PillButtonProps, PillButtonTone } from './components/PillButton';
 export { PillButton } from './components/PillButton';
@@ -154,6 +162,13 @@ export { Select } from './components/Select';
 export type { SendButtonProps } from './components/SendButton';
 export { SendButton } from './components/SendButton';
 export { SideNav } from './components/SideNav';
+export type {
+  SliderFillProps,
+  SliderRootProps,
+  SliderThumbProps,
+  SliderTrackProps,
+} from './components/Slider';
+export { Slider } from './components/Slider';
 export { Surface } from './components/Surface';
 export { TabbedControl } from './components/TabbedControl';
 export type { TabItem, TabsProps } from './components/Tabs';

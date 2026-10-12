@@ -6,6 +6,16 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   root: fileURLToPath(new URL('../../..', import.meta.url)),
+  resolve: {
+    alias: {
+      'solid-transition-group': fileURLToPath(
+        new URL(
+          '../../../../../node_modules/solid-transition-group/dist/index.js',
+          import.meta.url
+        )
+      ),
+    },
+  },
   plugins: [
     tsconfigPaths(),
     solidPlugin(),
@@ -15,6 +25,17 @@ export default defineConfig({
   test: {
     name: 'scheduling',
     environment: 'jsdom',
+    // Keep Stepper transitions on the same browser Solid runtime as the editor.
+    deps: { optimizer: { client: { enabled: false } } },
+    server: {
+      deps: {
+        inline: [
+          'solid-transition-group',
+          '@solid-primitives/refs',
+          '@solid-primitives/transition-group',
+        ],
+      },
+    },
     include: [
       'src/features/scheduling/**/*.{test,spec}.{ts,tsx}',
       'src/lib/core/component/AI/component/tool/BookingLinks.test.tsx',
