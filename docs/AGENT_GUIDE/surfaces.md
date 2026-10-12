@@ -2586,6 +2586,8 @@ Verify a Notion import returns a document and a repeated import returns the
 existing document; Linear imports recorded with `CreateImportEntity` should
 appear in `ListImportEntities`. These calls must not report that import tracking
 is unavailable.
+On hosts without Pipedream credentials, saved Pipedream accounts must not hide
+native Notion, Linear, or Slack connections when selecting import tools.
 
 Provider and custom-server More menus contain Disable, Reconnect, and Disconnect;
 custom servers also offer Rename. Disabled grants show Enable. Unauthenticated
