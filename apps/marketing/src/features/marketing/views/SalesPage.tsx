@@ -1,10 +1,8 @@
-import { createEffect, onCleanup } from 'solid-js';
-import { isServer } from 'solid-js/web';
 import { handleDemoClick } from '../../../app/utils/utilCta';
 import { setPageSeo } from '../../../app/utils/utilSeo';
 import { FeatureConstellation } from '../../setup/components/FeatureOverview';
 import { WelcomeStep } from '../../setup/components/WelcomeSteps';
-import { applyPalette, createSitePalette } from '../../setup/sitePalette';
+import { createSitePalette } from '../../setup/sitePalette';
 import { FeaturePage } from '../components/FeaturePage';
 import { HomepageTrustBadges } from '../components/HomepageTrustBadges';
 import { DemoBookingEmbed } from '../components/sales/DemoBookingEmbed';
@@ -58,23 +56,11 @@ export function RouteTour() {
     path: '/tour',
     noindex: true,
   });
-  // Light-mode visitors get the cream palette (cream-preview.css). It is
-  // scoped to this page; other site pages have no cream styles yet.
   const palette = createSitePalette();
   const cream = () => palette() === 'cream';
-  if (!isServer) {
-    const root = document.documentElement;
-    const previousLight = root.dataset.themeLight;
-    createEffect(() => applyPalette(palette()));
-    onCleanup(() => {
-      applyPalette('dark');
-      if (previousLight === undefined) delete root.dataset.themeLight;
-      else root.dataset.themeLight = previousLight;
-    });
-  }
 
   return (
-    <FeaturePage light={cream()}>
+    <FeaturePage>
       <div class="homepage-sections tour-page">
         <div class="homepage-sections-inner">
           {/* The homepage hero inside `OnboardingShell`'s palette and card. */}

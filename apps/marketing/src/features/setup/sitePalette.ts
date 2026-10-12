@@ -2,7 +2,7 @@ import { createSignal, onCleanup } from 'solid-js';
 import { isServer } from 'solid-js/web';
 
 /**
- * The homepage, `/start`, and `/tour` render in the cream palette
+ * The public website and `/start` render in the cream palette
  * (cream-preview.css) when the visitor's OS or browser prefers a light color
  * scheme, and in the dark palette otherwise. `?theme=cream` or `?theme=dark`
  * pins either one.

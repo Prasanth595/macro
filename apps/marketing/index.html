@@ -5,10 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
     <script>
-      // First-paint palette for /tour, the only page here with cream styles.
+      // First-paint palette for every public website route.
       // Mirrors src/features/setup/sitePalette.ts.
       (function () {
-        if (!/^\/tour\/?$/.test(location.pathname)) return;
         var theme = new URLSearchParams(location.search).get('theme');
         var cream = theme === 'cream' || (theme !== 'dark' && matchMedia('(prefers-color-scheme: light)').matches);
         if (!cream) return;
