@@ -850,11 +850,12 @@ async fn a_turn_end_the_journal_cannot_record_still_frees_the_session(pool: sqlx
         service.inner.busy.turn(session).is_none() && !service.inner.busy.is_pending(session)
     })
     .await;
-    assert_eq!(
-        answers(&announcer),
-        ["First answer."],
-        "the reply still shows how the turn ended"
-    );
+    // The turn's mark is released before its reply is resolved, so the reply
+    // may land a moment after the session is free.
+    eventually("the reply still shows how the turn ended", || {
+        answers(&announcer) == ["First answer."]
+    })
+    .await;
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
