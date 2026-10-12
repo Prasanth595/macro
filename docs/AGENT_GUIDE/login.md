@@ -156,7 +156,9 @@ The final screen keeps the “Free Claude & GPT for 30 days” headline and tria
 button above the fold. The “Continue with Free” scroll cue opens the pricing grid
 below, comparing Free, Pro, and Max. The grid loads monthly subscription prices
 from the billing catalog and describes Max as 10× Pro usage, without displaying
-dollar-denominated included AI allowances. Free completes onboarding without a
+dollar-denominated included AI allowances. Monthly prices use the compact
+`/usr/mo` unit on one line; Free email branding reads “Sent with Macro”.
+Free completes onboarding without a
 card. Pro returns to the trial offer; Max starts standard paid checkout.
 The trial button requests 30 days free through Stripe Checkout, with no coupon
 required. Stripe collects the payment method for billing after the trial. Only a

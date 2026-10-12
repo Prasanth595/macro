@@ -69,11 +69,11 @@ export function PlanComparison(props: {
                           <Show when={plan.tier === 'premium'}>
                             30 days free, then{' '}
                           </Show>
-                          <span class="block">
+                          <span class="block whitespace-nowrap max-[375px]:text-[10px]">
                             {formatPlanPrice(entry()?.monthly_price_cents) ??
                               '—'}
+                            <span title="per user per month">/usr/mo</span>
                           </span>
-                          <span class="block">per user / month</span>
                         </>
                       )}
                     </span>
