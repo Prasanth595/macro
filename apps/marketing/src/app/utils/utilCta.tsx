@@ -35,9 +35,9 @@ export const ctaLabel = (_webLabel: string): string => 'Get started';
 export const demoHref = (): string => DEMO_BOOKING_URL;
 
 /**
- * Shared "Book Demo" click handler. Tracks the click and lets the anchor's own
- * `target="_blank"` navigation proceed — no preventDefault, so the booking page
- * opens in a new tab and the site stays put. Same event name the app uses for
+ * Shared "Book Demo" click handler. Tracks the click and leaves the link to
+ * `DemoBookingDialog`, which opens the booking page over the site on a plain
+ * click; a new-tab click follows the link. Same event name the app uses for
  * its pricing-page demo CTA (`demo_booking_open`), so both show up together.
  */
 export const handleDemoClick = (buttonName: string): void => {

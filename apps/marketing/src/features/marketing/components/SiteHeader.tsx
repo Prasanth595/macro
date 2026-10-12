@@ -11,6 +11,7 @@ import {
   FEATURE_PAGES,
   RESOURCE_PAGES,
 } from '../core/navigation';
+import { DemoBookingDialog } from './DemoBookingDialog';
 import './site-navigation.css';
 
 const EXPLORE_PAGES = [
@@ -210,6 +211,7 @@ export function SiteHeader(props: { hideOpenApp?: boolean }) {
           </a>
         </Show>
       </div>
+      <DemoBookingDialog />
     </header>
   );
 }
