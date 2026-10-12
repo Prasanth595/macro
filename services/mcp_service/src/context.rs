@@ -36,8 +36,8 @@ use github_pull_requests::{
 };
 use macro_auth::middleware::decode_jwt::JwtValidationArgs;
 use macro_service_urls::{
-    AiEditingWorkerUrl, CalendarServiceUrl, ConnectionGatewayUrl, DocumentStorageServiceUrl,
-    EmailServiceUrl, LexicalServiceUrl, SyncServiceUrl,
+    AiEditingWorkerUrl, AppServiceUrl, CalendarServiceUrl, ConnectionGatewayUrl,
+    DocumentStorageServiceUrl, EmailServiceUrl, LexicalServiceUrl, SyncServiceUrl,
 };
 use mcp_auth_proxy::{
     domain::{
@@ -343,6 +343,14 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
             db.clone(),
         ))),
         lexical_client.clone(),
+    )
+    .with_attachment_sender(
+        ai_tools::email_attachments::build_email_attachment_sender(
+            user_email_service.clone(),
+            EmailPgRepo::new(db.clone()),
+            document_tool_context.service.clone(),
+        )
+        .await,
     );
 
     let call_service = call::domain::service::CallServiceImpl::new(
@@ -434,6 +442,8 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
         db.clone(),
         CalendarServiceUrl::new()?,
         config.internal_api_key.to_string(),
+        call_tool_context.service.clone(),
+        AppServiceUrl::new()?,
     );
     let forms_tool_context = ai_tools::build_forms_tool_context(
         db.clone(),
@@ -443,7 +453,7 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
         Some(side_effect_clients.connection_gateway.as_ref().clone()),
         ai_tools::MaybeToolEventBroker::Real(macro_event_broker.clone()),
         ai_tools::FormsToolConfig {
-            app_origin: macro_service_urls::AppServiceUrl::new()?.to_string(),
+            app_origin: AppServiceUrl::new()?.to_string(),
             editing_worker_url: ai_editing_worker_url,
         },
     );

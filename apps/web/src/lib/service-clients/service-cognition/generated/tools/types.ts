@@ -6193,7 +6193,9 @@ export interface BotWebhook {
  *
  * The event lands on the user's primary calendar unless `calendarId` (from ListCalendars) targets another one. For recurring events pass RFC 5545 lines in `recurrenceLines`, e.g. ["RRULE:FREQ=WEEKLY;BYDAY=MO"]. Returns the created event with its `eventId` for later updates or deletion. Fails if the user has no writable calendar connected.
  *
- * Set `eventType` to "out_of_office" to mark the user as out of office (e.g. "mark me out of office Thursday"). Out-of-office events must land on the user's primary calendar (omit `calendarId`), must be timed rather than all-day, and take no attendees or Google Meet (leave `addGoogleMeet` false); use `outOfOffice` to control whether conflicting meetings are auto-declined. The type cannot be changed afterward.
+ * For video conferencing pick at most one of `addMacroCall` (a Macro meeting link, the default choice for a Macro user's meeting) or `addGoogleMeet` (a Google Meet conference). A Macro call is created for the user, scheduled to the event's times, and its join link is appended to the event's description so every attendee's invitation carries it; it also becomes the event's `location` unless a physical `location` was supplied. The returned event's `macroCallUrl` holds the link.
+ *
+ * Set `eventType` to "out_of_office" to mark the user as out of office (e.g. "mark me out of office Thursday"). Out-of-office events must land on the user's primary calendar (omit `calendarId`), must be timed rather than all-day, and take no attendees or video conferencing (leave `addMacroCall` and `addGoogleMeet` false); use `outOfOffice` to control whether conflicting meetings are auto-declined. The type cannot be changed afterward.
  */
 export interface CreateCalendarEvent {
   /**
@@ -6226,7 +6228,11 @@ export interface CreateCalendarEvent {
    */
   reminders?: EventRemindersInput | null;
   /**
-   * Attach a freshly generated Google Meet video conference to the event.
+   * Attach a freshly created Macro call to the event: a Macro meeting link scheduled to the event's times, written into the event's location and description. Mutually exclusive with `addGoogleMeet`.
+   */
+  addMacroCall?: boolean;
+  /**
+   * Attach a freshly generated Google Meet video conference to the event. Mutually exclusive with `addMacroCall`.
    */
   addGoogleMeet?: boolean;
   eventType?: CalendarEventTypeInput;
@@ -6355,6 +6361,11 @@ export interface ToolCalendarEvent {
    */
   conferenceUrl?: string | null;
   /**
+   * Join URL of the Macro call created with the event, when
+   * CreateCalendarEvent was asked for one.
+   */
+  macroCallUrl?: string | null;
+  /**
    * Whether the user's calendar prohibits modifying this event.
    */
   isReadOnly: boolean;
@@ -6421,7 +6432,7 @@ export interface CreateChannelResponse {
   summary: string;
 }
 /**
- * Create a calendar event immediately, with no review card or composer. Only for a prompt that came from a channel or document thread (the context block says so), where there is nothing to review a draft in. The event is always shown before it is created, even when the user's request already spelled the whole thing out: in one turn write it into the thread - title, date and time with its time zone, duration, guests, location, Google Meet, recurrence - ask whether to create it, and stop there. Call this tool only in a later turn, once the user has replied approving that specific event, quoting that reply verbatim in userConfirmation. Being asked to schedule something is a request to draft the event, never approval to create it, so a userConfirmation quoting the request that asked you to set it up - rather than the reply approving the event you wrote out - is wrong. Never call it in the agent session view or in chat: use CreateCalendarEvent there, whose review card or composer is the confirmation. Takes the same fields as CreateCalendarEvent; the event is written to Google Calendar at once and any attendees receive invitations.
+ * Create a calendar event immediately, with no review card or composer. Only for a prompt that came from a channel or document thread (the context block says so), where there is nothing to review a draft in. The event is always shown before it is created, even when the user's request already spelled the whole thing out: in one turn write it into the thread - title, date and time with its time zone, duration, guests, location, Google Meet or Macro call, recurrence - ask whether to create it, and stop there. Call this tool only in a later turn, once the user has replied approving that specific event, quoting that reply verbatim in userConfirmation. Being asked to schedule something is a request to draft the event, never approval to create it, so a userConfirmation quoting the request that asked you to set it up - rather than the reply approving the event you wrote out - is wrong. Never call it in the agent session view or in chat: use CreateCalendarEvent there, whose review card or composer is the confirmation. Takes the same fields as CreateCalendarEvent; the event is written to Google Calendar at once and any attendees receive invitations.
  */
 export interface CreateConfirmedCalendarEvent {
   /**
@@ -6454,7 +6465,11 @@ export interface CreateConfirmedCalendarEvent {
    */
   reminders?: EventRemindersInput | null;
   /**
-   * Attach a freshly generated Google Meet video conference to the event.
+   * Attach a freshly created Macro call to the event: a Macro meeting link scheduled to the event's times, written into the event's location and description. Mutually exclusive with `addGoogleMeet`.
+   */
+  addMacroCall?: boolean;
+  /**
+   * Attach a freshly generated Google Meet video conference to the event. Mutually exclusive with `addMacroCall`.
    */
   addGoogleMeet?: boolean;
   eventType?: CalendarEventTypeInput;
@@ -11915,6 +11930,11 @@ export interface SendConfirmedEmail {
    */
   includeSignature?: boolean | null;
   /**
+   * Macro documents to attach as files (optional). Each must be an
+   * uploaded file the user can view; together they may total 18 MB.
+   */
+  attachments?: EmailAttachment[];
+  /**
    * The user's own message approving this specific email, quoted verbatim - for example their "yes, send it" in reply to the email you wrote out for them. It is a reply to your draft, never the earlier request that asked you to write one: if the user has not yet seen this email, there is nothing to quote here and the tool must not be called. Required: do not paraphrase it, and never supply it yourself.
    */
   userConfirmation: string;
@@ -11933,7 +11953,19 @@ export interface EmailRecipient {
   name?: string | null;
 }
 /**
- * Draft, compose, and send an email the user confirms in a review card or composer. Use this tool whenever the user asks you to draft, write, compose, or send an email (or reply to one) from the agent session view or from chat — never write the email as plain text there. It opens the draft for the user to review, edit, and confirm before it is sent, so it is the correct tool even when the user only wants a draft. Do NOT use it for a prompt that came from a channel or document thread — the context block names a conversation parent when it did, and there is no surface to review a draft in: write the email out in your reply, ask whether to send it, and use SendConfirmedEmail once the user approves. To reply to an existing message, provide the replying_to_id. Write the body in Markdown — use **bold**, *italics*, lists, links, and other standard Markdown formatting. The draft composer renders the Markdown for the user to review and edit; the composer produces HTML that is sent as the actual email body.
+ * A Macro document attached to an outgoing email as a file.
+ */
+export interface EmailAttachment {
+  /**
+   * The id of the Macro document to attach. It must be a stored file -
+   * an uploaded PDF, image, spreadsheet, Word document, or other upload -
+   * that the user can view. A Macro-native document (one written in the
+   * editor) has no file to attach; link to it in the body instead.
+   */
+  documentId: string;
+}
+/**
+ * Draft, compose, and send an email the user confirms in a review card or composer. Use this tool whenever the user asks you to draft, write, compose, or send an email (or reply to one) from the agent session view or from chat — never write the email as plain text there. It opens the draft for the user to review, edit, and confirm before it is sent, so it is the correct tool even when the user only wants a draft. Do NOT use it for a prompt that came from a channel or document thread — the context block names a conversation parent when it did, and there is no surface to review a draft in: write the email out in your reply, ask whether to send it, and use SendConfirmedEmail once the user approves. To reply to an existing message, provide the replying_to_id. To attach files, list the Macro documents in attachments — uploaded files such as PDFs, images, spreadsheets, or Word documents the user can view; the user can add or remove attachments in the composer before sending. Write the body in Markdown — use **bold**, *italics*, lists, links, and other standard Markdown formatting. The draft composer renders the Markdown for the user to review and edit; the composer produces HTML that is sent as the actual email body.
  */
 export interface SendEmail {
   /**
@@ -11971,6 +12003,11 @@ export interface SendEmail {
    * excludes the signature for this one email.
    */
   includeSignature?: boolean | null;
+  /**
+   * Macro documents to attach as files (optional). Each must be an
+   * uploaded file the user can view; together they may total 18 MB.
+   */
+  attachments?: EmailAttachment[];
 }
 /**
  * Set or update a property value on an entity. Tasks are targeted as entity_type='document'. Projects in the Tasks UI are entity_type='initiative'; entity_type='project' still means a folder. Initiatives share the Assignees, Status, Priority and Due Date definitions below and their clearing behavior. Project Status accepts only Not Started (00000001-0000-0000-0002-000000000001), In Progress (...0002), and Completed (...0004); In Review and Canceled are task-only options. Provide the property_definition_id and exactly one value field matching the property's data type.
