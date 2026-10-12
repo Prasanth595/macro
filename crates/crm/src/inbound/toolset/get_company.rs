@@ -128,7 +128,7 @@ pub struct GetCompanyResponse {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[schemars(
     title = "GetCompany",
-    description = "Fetch one of the team's CRM companies by id, with its domains, contacts, pipeline Stage / Owner / Revenue, and all attached property values (including custom properties and the valid stage options). Use ListCompanies to find company ids. To change a property (move stage, set owner/revenue, or edit a custom property) call SetEntityProperty with entity_type=company, the company id, and a property_definition_id / option id from this response."
+    description = "Fetch one of the team's CRM companies by id, with its domains, contacts, pipeline Stage / Owner / Revenue, and all attached property values (including custom properties and the valid stage options). Use ListCompanies to find company ids. To change one of the company's own properties (its Stage, Owner, Revenue or a custom property) call SetEntityProperty with entity_type=company, the company id, and a property_definition_id / option id from this response. Deals in a pipeline have their own stage and fields: find them with FindPipelineEntries (recordIds = this company's id) and change them with UpdatePipelineEntries."
 )]
 pub struct GetCompany {
     /// The CRM company id to fetch.

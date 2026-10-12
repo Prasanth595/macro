@@ -35,7 +35,7 @@ use calendar_scheduling::inbound::toolset::{
 use call::inbound::toolset::call_toolset;
 use channels::inbound::toolset::channel_toolset;
 use chat::inbound::toolset::chat_toolset;
-use crm::inbound::toolset::crm_toolset;
+use crm::inbound::toolset::{crm_toolset, pipelines::pipeline_toolset};
 use databases::inbound::toolset::{databases_read_only_toolset, databases_toolset};
 use databases_sql::toolset::{QueryDatabase, databases_sql_toolset};
 use display_results::DisplayResults;
@@ -81,19 +81,20 @@ pub use tool_context::{
     ToolGithubPullRequestService, ToolImageGenerationToolContext, ToolImportService,
     ToolImportToolContext, ToolInitiativeToolContext, ToolMcpSelector, ToolNotificationQueue,
     ToolNotificationService, ToolNotificationToolContext, ToolPipedreamConnection,
-    ToolProjectService, ToolProjectToolContext, ToolPropertiesService, ToolPropertiesToolContext,
-    ToolServiceContext, ToolSkillService, ToolSkillToolContext, ToolSoupService,
-    ToolSystemPropertiesService, ToolTableEventPublisher, ToolTeamCalendarService,
-    ToolTeamCalendarToolContext, ToolTeamService, ToolTeamToolContext, ToolUserEmailService,
-    ToolViewOnlyDatabasesSqlToolContext, build_activity_tool_context,
-    build_booking_link_tool_context, build_booking_management_tool_context, build_bot_tool_context,
-    build_calendar_tool_context, build_channel_tool_context_with_dispatcher,
-    build_channel_tool_context_with_side_effects, build_channel_tool_context_without_side_effects,
-    build_coding_agent_tool_context, build_crm_tool_context, build_databases_sql_tool_context,
-    build_databases_tool_context, build_forms_tool_context, build_image_generation_tool_context,
-    build_initiative_tool_context, build_message_service_with_side_effects,
-    build_message_service_without_side_effects, build_project_tool_context,
-    build_properties_service, build_properties_service_with_broker, build_properties_tool_context,
+    ToolPipelineService, ToolPipelineToolContext, ToolPipelineWorkflows, ToolProjectService,
+    ToolProjectToolContext, ToolPropertiesService, ToolPropertiesToolContext, ToolServiceContext,
+    ToolSkillService, ToolSkillToolContext, ToolSoupService, ToolSystemPropertiesService,
+    ToolTableEventPublisher, ToolTeamCalendarService, ToolTeamCalendarToolContext, ToolTeamService,
+    ToolTeamToolContext, ToolUserEmailService, ToolViewOnlyDatabasesSqlToolContext,
+    build_activity_tool_context, build_booking_link_tool_context,
+    build_booking_management_tool_context, build_bot_tool_context, build_calendar_tool_context,
+    build_channel_tool_context_with_dispatcher, build_channel_tool_context_with_side_effects,
+    build_channel_tool_context_without_side_effects, build_coding_agent_tool_context,
+    build_crm_tool_context, build_databases_sql_tool_context, build_databases_tool_context,
+    build_forms_tool_context, build_image_generation_tool_context, build_initiative_tool_context,
+    build_message_service_with_side_effects, build_message_service_without_side_effects,
+    build_pipeline_tool_context, build_project_tool_context, build_properties_service,
+    build_properties_service_with_broker, build_properties_tool_context,
     build_routine_tool_context, build_skill_tool_context, build_task_properties_adapter,
     build_team_calendar_tool_context, build_team_repository, build_team_tool_context,
 };
@@ -157,6 +158,7 @@ pub(crate) fn subagent_toolset() -> AiToolSet {
         .add_subtoolset::<ToolBotToolContext>(bot_toolset())
         .add_subtoolset::<ToolTeamToolContext>(team_toolset())
         .add_subtoolset::<ToolCrmToolContext>(crm_toolset())
+        .add_subtoolset::<ToolPipelineToolContext>(pipeline_toolset())
         .add_subtoolset::<ToolDatabasesToolContext>(databases_toolset())
         .add_subtoolset::<ToolFormsToolContext>(forms::inbound::toolset::authoring_toolset())
         .add_subtoolset::<ToolDatabasesSqlToolContext>(databases_sql_toolset())
