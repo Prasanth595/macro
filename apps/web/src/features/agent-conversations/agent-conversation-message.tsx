@@ -3,8 +3,9 @@ import type {
   AgentConversation,
   AgentConversationTurn,
 } from '@service-agent-harness/agent-conversations';
+import { Key } from '@solid-primitives/keyed';
 import { Button } from '@ui';
-import { For, Show } from 'solid-js';
+import { Show } from 'solid-js';
 import { useOptionalAgentConversations } from './context';
 import { useAgentConversationControl } from './queries/controls';
 
@@ -54,16 +55,18 @@ export function AgentConversationMessageStatus(props: { messageId: string }) {
         ? [{ conversation, turn }]
         : [];
     });
+  // Every poll brings each entry anew. Keyed by the agent answering, a
+  // status stays put, and a Retry it has in flight stays disabled.
   return (
-    <For each={answering()}>
+    <Key each={answering()} by={(entry) => entry.conversation.botId}>
       {(entry) => (
         <TurnStatus
-          conversation={entry.conversation}
-          turn={entry.turn}
+          conversation={entry().conversation}
+          turn={entry().turn}
           onChanged={context.refresh}
         />
       )}
-    </For>
+    </Key>
   );
 }
 
