@@ -1282,6 +1282,11 @@ export type setAgentSessionArchivedResponse403 = {
   status: 403;
 };
 
+export type setAgentSessionArchivedResponse409 = {
+  data: string;
+  status: 409;
+};
+
 export type setAgentSessionArchivedResponse500 = {
   data: string;
   status: 500;
@@ -1294,6 +1299,7 @@ export type setAgentSessionArchivedResponseSuccess =
 export type setAgentSessionArchivedResponseError = (
   | setAgentSessionArchivedResponse401
   | setAgentSessionArchivedResponse403
+  | setAgentSessionArchivedResponse409
   | setAgentSessionArchivedResponse500
 ) & {
   headers: Headers;

@@ -2185,6 +2185,10 @@ export type SetAgentSessionArchivedData = {
 export type SetAgentSessionArchivedErrors = {
     401: string;
     403: string;
+    /**
+     * The session answers an agent conversation
+     */
+    409: string;
     500: string;
 };
 

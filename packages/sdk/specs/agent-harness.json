@@ -1007,6 +1007,16 @@
               }
             }
           },
+          "409": {
+            "description": "The session answers an agent conversation",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "500": {
             "description": "",
             "content": {
