@@ -2,22 +2,23 @@ import { Tool } from '@core/component/AI/component/tool/Tool';
 import Buildings from '@phosphor-icons/core/regular/buildings.svg';
 import Kanban from '@phosphor-icons/core/regular/kanban.svg';
 import User from '@phosphor-icons/core/regular/user.svg';
-import type { NamedTool } from '@service-cognition/generated/tools/tool';
 import { For, Show } from 'solid-js';
 
-type Pipeline = NamedTool<
-  'ListPipelines',
-  'response'
->['data']['pipelines'][number];
-type Entry = NamedTool<
-  'FindPipelineEntries',
-  'response'
->['data']['pipelines'][number]['entries'][number];
-type UpdatedEntry = NamedTool<
-  'UpdatePipelineEntries',
-  'response'
->['data']['updated'][number];
-type Record = Entry['record'];
+type Pipeline = {
+  name: string;
+  tracks: string;
+  fields: { name: string; options?: string[] | null }[];
+};
+type TrackedRecord = {
+  id: string;
+  name?: string | null;
+  detail?: string | null;
+};
+type Entry = { record: TrackedRecord; fields: { [field: string]: unknown } };
+type UpdatedEntry = {
+  record: TrackedRecord;
+  changes: { field: string; before: unknown; after: unknown }[];
+};
 
 /** A field value as one line: people by email, lists joined. */
 export function formatFieldValue(value: unknown): string {
@@ -28,7 +29,7 @@ export function formatFieldValue(value: unknown): string {
   return String(value);
 }
 
-export function recordName(record: Record) {
+export function recordName(record: TrackedRecord) {
   return record.name ?? record.detail ?? record.id;
 }
 
@@ -39,7 +40,7 @@ function entrySummary(entry: Entry) {
     .join(' · ');
 }
 
-function RecordIcon(props: { record: Record }) {
+function RecordIcon(props: { record: TrackedRecord }) {
   const isContact = () => props.record.detail?.includes('@') === true;
   return (
     <Show when={isContact()} fallback={<Buildings class="size-4" />}>
