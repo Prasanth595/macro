@@ -4,6 +4,12 @@
 // monitor here and in the UI at the same time — this file wins on deploy.
 import { adopted } from '../adopted';
 
+// DSS logs every expired-JWT rejection at ERROR. These are routine client token
+// refreshes and make up about 60% of its error lines, so the DSS error monitors
+// drop them. Log search wildcards are case-sensitive, so the match needs both
+// `jwt is expired` and `JwtExpired` casings.
+const DSS_EXPIRED_JWT_EXCLUSION = '-@error:(*expired* OR *Expired*)';
+
 // https://us5.datadoghq.com/monitors/440085
 adopted('macroai-error-logs', {
   name: '[MACROAI] Increase in Error logs',
@@ -64,15 +70,15 @@ adopted('dss-errors-dev', {
 });
 
 // https://us5.datadoghq.com/monitors/1062128
+// No warning threshold: prod error lines exceed 50 per 5 minutes in roughly
+// one window in eight, so a warning would notify Slack all day.
 adopted('dss-errors-prod', {
   name: '[PROD] Increased number of errors for DSS',
   type: 'log alert',
-  query:
-    'logs("service:cloud-storage-service-prod ERROR*").index("*").rollup("count").last("5m") > 150',
+  query: `logs("service:cloud-storage-service env:prod status:error ${DSS_EXPIRED_JWT_EXCLUSION}").index("*").rollup("count").last("5m") > 150`,
   message: '@slack-monitoring',
   monitorThresholds: {
     critical: '150',
-    warning: '50',
   },
   onMissingData: 'default',
   notifyAudit: true,
