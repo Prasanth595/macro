@@ -19,6 +19,9 @@ export const RESOURCE_PAGES = [
   { href: '/posts', label: 'Blog' },
 ] as const;
 
+/** cal.com event for a live Macro demo with the team. */
+export const DEMO_BOOKING_URL = 'https://cal.com/team/macro/macro-demo-call';
+
 /** Full document navigation keeps the app and marketing CSS independent. */
 export function journeyHref() {
   if (typeof window === 'undefined') return '/app/signup';

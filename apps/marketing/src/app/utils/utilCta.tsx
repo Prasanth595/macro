@@ -1,6 +1,9 @@
 import type { JSX } from 'solid-js';
 import { isServer } from 'solid-js/web';
-import { journeyHref } from '../../features/marketing/core/navigation';
+import {
+  DEMO_BOOKING_URL,
+  journeyHref,
+} from '../../features/marketing/core/navigation';
 import { analytics, buildCalLinkWithAttribution } from './utilAnalytic';
 
 // Mobile/touch browsers (phones, touch tablets). Signing up + onboarding on a
@@ -27,9 +30,6 @@ export const isMobileWebDevice = (): boolean => mobileWebDevice;
 /** Public CTAs resume the journey on every device. */
 export const ctaHref = (): string => journeyHref();
 export const ctaLabel = (_webLabel: string): string => 'Get started';
-
-/** cal.com event for a live Macro demo with the team. */
-export const DEMO_BOOKING_URL = 'https://cal.com/team/macro/macro-demo-call';
 
 /** Demo booking link with Meta attribution signals attached (see utilAnalytic). */
 export const demoHref = (): string =>
