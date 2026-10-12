@@ -4,7 +4,7 @@ import {
   DEMO_BOOKING_URL,
   journeyHref,
 } from '../../features/marketing/core/navigation';
-import { analytics, buildCalLinkWithAttribution } from './utilAnalytic';
+import { analytics } from './utilAnalytic';
 
 // Mobile/touch browsers (phones, touch tablets). Signing up + onboarding on a
 // phone is a poor experience, so these visitors get the site's own email
@@ -31,15 +31,14 @@ export const isMobileWebDevice = (): boolean => mobileWebDevice;
 export const ctaHref = (): string => journeyHref();
 export const ctaLabel = (_webLabel: string): string => 'Get started';
 
-/** Demo booking link with Meta attribution signals attached (see utilAnalytic). */
-export const demoHref = (): string =>
-  buildCalLinkWithAttribution(DEMO_BOOKING_URL);
+/** Booking page for a live Macro demo with the team. */
+export const demoHref = (): string => DEMO_BOOKING_URL;
 
 /**
  * Shared "Book Demo" click handler. Tracks the click and lets the anchor's own
- * `target="_blank"` navigation proceed — no preventDefault, so cal.com opens in
- * a new tab and the site stays put. Same event name the app uses for its
- * pricing-page demo CTA (`demo_booking_open`), so both show up together.
+ * `target="_blank"` navigation proceed — no preventDefault, so the booking page
+ * opens in a new tab and the site stays put. Same event name the app uses for
+ * its pricing-page demo CTA (`demo_booking_open`), so both show up together.
  */
 export const handleDemoClick = (buttonName: string): void => {
   analytics.track('demo_booking_open', {
