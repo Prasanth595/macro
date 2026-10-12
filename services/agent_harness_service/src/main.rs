@@ -14,6 +14,7 @@ mod coding_agent;
 mod coding_agents;
 mod config;
 mod containers;
+mod conversation_admission;
 mod external_session_requests;
 mod harness_bindings;
 mod internal_mcp;
@@ -1571,7 +1572,28 @@ async fn run() -> anyhow::Result<()> {
                     let pending = match routed {
                         RoutedTrigger::Command(session_id, command) => {
                             let (session_id, command) = if let HarnessCommand::ConversationMessage(open) = command {
-                                let Some((session_id, open)) = harness.admit_conversation_message(session_id, open).await? else {
+                                let admitted = {
+                                    let (harness, open) = (&harness, &open);
+                                    conversation_admission::journal(
+                                        conversation_admission::ADMISSION_RETRIES,
+                                        move || harness.admit_conversation_message(session_id, open.clone()),
+                                    )
+                                    .await
+                                };
+                                let admitted = match admitted {
+                                    Ok(admitted) => admitted,
+                                    Err(error) => {
+                                        // Not returned: ending the consumer would stop every
+                                        // session this replica runs, and holding the event
+                                        // would hold every event behind it. A message the
+                                        // journal did record is still run by recovery.
+                                        record_span_error(&tracing::Span::current(), &error);
+                                        tracing::error!(error = ?error, %session_id, "acknowledging a conversation message the journal could not take");
+                                        commit_message(&consumer, kafka_message)?;
+                                        return Ok(None);
+                                    }
+                                };
+                                let Some((session_id, open)) = admitted else {
                                     // Its conversation is gone, or its sender may not
                                     // prompt it: every redelivery would be refused too.
                                     tracing::warn!(%session_id, "dropping a conversation message that can no longer be admitted");

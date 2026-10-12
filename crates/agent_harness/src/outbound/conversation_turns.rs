@@ -24,9 +24,14 @@ pub struct PgConversationTurnStore {
     pool: PgPool,
     /// Pooled connections a session bootstrap may hold for its whole open.
     delivery_slots: std::sync::Arc<tokio::sync::Semaphore>,
-    /// Pooled connections held by admission and reply reconciliation, which
-    /// last a few queries. Kept apart so a slow bootstrap never starves them.
-    lease_slots: std::sync::Arc<tokio::sync::Semaphore>,
+    /// Pooled connections held by admission and the context changes it
+    /// serializes with, which last a few queries. A message waiting here
+    /// holds up every broker event behind it, so it never waits on a slow
+    /// bootstrap or on a reply being posted.
+    context_slots: std::sync::Arc<tokio::sync::Semaphore>,
+    /// Pooled connections held by reply reconciliation while it posts a
+    /// turn's reply.
+    reply_slots: std::sync::Arc<tokio::sync::Semaphore>,
 }
 
 /// How long a lease waits for a pooled connection before reporting itself
@@ -57,7 +62,8 @@ impl PgConversationTurnStore {
         Self {
             pool,
             delivery_slots: std::sync::Arc::new(tokio::sync::Semaphore::new(slots)),
-            lease_slots: std::sync::Arc::new(tokio::sync::Semaphore::new(slots)),
+            context_slots: std::sync::Arc::new(tokio::sync::Semaphore::new(slots)),
+            reply_slots: std::sync::Arc::new(tokio::sync::Semaphore::new(slots)),
         }
     }
 }
@@ -96,7 +102,7 @@ impl ConversationTurnStore for PgConversationTurnStore {
         &self,
         session: AgentSessionId,
     ) -> Result<Option<Box<dyn ConversationLease>>> {
-        let Some(slot) = take_slot(&self.lease_slots).await else {
+        let Some(slot) = take_slot(&self.context_slots).await else {
             return Ok(None);
         };
         let mut tx = self.pool.begin().await.map_err(anyhow::Error::from)?;
@@ -276,7 +282,7 @@ impl ConversationTurnStore for PgConversationTurnStore {
         action: AgentActionId,
     ) -> Result<Option<Box<dyn ConversationLease>>> {
         // Leave pool capacity for the message service while a reply lock is held.
-        let Some(slot) = take_slot(&self.lease_slots).await else {
+        let Some(slot) = take_slot(&self.reply_slots).await else {
             return Ok(None);
         };
         let mut tx = self.pool.begin().await.map_err(anyhow::Error::from)?;

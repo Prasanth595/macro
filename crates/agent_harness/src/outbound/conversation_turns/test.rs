@@ -596,7 +596,7 @@ async fn a_lease_waits_for_a_busy_slot_instead_of_refusing(pool: PgPool) {
         .expect("an idle replica leases a reply");
     let waiting = tokio::spawn({
         let store = store.clone();
-        async move { store.claim_context(AgentSessionId::new()).await }
+        async move { store.claim_reply(AgentActionId::mint()).await }
     });
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     assert!(
@@ -612,6 +612,30 @@ async fn a_lease_waits_for_a_busy_slot_instead_of_refusing(pool: PgPool) {
             .unwrap()
             .is_some(),
         "the lease is granted once the slot frees"
+    );
+}
+
+/// Admitting a message holds up every broker event behind it, so it never
+/// waits for the slot a reply being posted holds.
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn admission_never_waits_behind_a_reply(pool: PgPool) {
+    let (_, session, channel, command) = setup(pool.clone()).await;
+    let store = production_sized(&pool).await;
+    let record = store.admit(session, channel, command).await.unwrap();
+    let _reply = store
+        .claim_reply(record.action_id)
+        .await
+        .unwrap()
+        .expect("an idle replica leases a reply");
+    assert!(
+        tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            store.claim_context(AgentSessionId::new())
+        )
+        .await
+        .expect("admission does not wait for the reply's slot")
+        .unwrap()
+        .is_some()
     );
 }
 
