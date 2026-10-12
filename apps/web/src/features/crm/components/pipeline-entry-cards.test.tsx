@@ -59,7 +59,7 @@ it('shows each pipeline row as a card that collapses past four fields', () => {
   ).not.toContain('more');
 });
 
-it('opens a card’s pipeline from its name when the host can show it', () => {
+it('opens a card’s pipeline when the host can show it', () => {
   const onOpenPipeline = vi.fn();
   render(() => (
     <PipelineEntryCards
@@ -68,6 +68,6 @@ it('opens a card’s pipeline from its name when the host can show it', () => {
       onOpenPipeline={onOpenPipeline}
     />
   ));
-  fireEvent.click(screen.getByRole('button', { name: 'Sales' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Open Sales' }));
   expect(onOpenPipeline).toHaveBeenCalledWith('Sales');
 });
