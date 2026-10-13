@@ -455,8 +455,7 @@ export function createEmailComposeContext(
           if (result.threadId) {
             markThreadDraftSaved(result.threadId);
             refreshThread(result.threadId);
-            if (!completingThread)
-              void refreshSentSoup(result.threadId);
+            if (!completingThread) void refreshSentSoup(result.threadId);
           }
           analytics.track('email_message_sent');
         } catch (error) {

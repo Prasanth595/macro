@@ -11,20 +11,40 @@ it('waits for sender discovery even when the thread inbox ID is already known', 
   const [loaded, setLoaded] = createSignal(false);
   const context = createComposeContext();
   context.accounts.loading = () => !loaded();
-  context.accounts.inboxes = () => loaded() ? [{
-    id: 'inbox', email_address: 'me@example.com', settings: {},
-    sendAs: [{ email_address: 'resident@example.com' }],
-  }] : [];
-  const parent = message('parent', { link_id: 'inbox', from: { email: 'customer@example.com' }, to: [{ email: 'resident@example.com' }] });
+  context.accounts.inboxes = () =>
+    loaded()
+      ? [
+          {
+            id: 'inbox',
+            email_address: 'me@example.com',
+            settings: {},
+            sendAs: [{ email_address: 'resident@example.com' }],
+          },
+        ]
+      : [];
+  const parent = message('parent', {
+    link_id: 'inbox',
+    from: { email: 'customer@example.com' },
+    to: [{ email: 'resident@example.com' }],
+  });
   const composer = mountReplyComposer(context, () => parent);
   try {
     await composer.sendEmail();
     expect(context.delivery.sendMessage).not.toHaveBeenCalled();
-    expect(context.notices.feedback.alert).toHaveBeenCalledWith('Loading email sender addresses...');
+    expect(context.notices.feedback.alert).toHaveBeenCalledWith(
+      'Loading email sender addresses...'
+    );
     setLoaded(true);
     await composer.sendEmail();
-    expect(context.delivery.sendMessage).toHaveBeenCalledWith(expect.objectContaining({
-      inboxId: 'inbox', message: expect.objectContaining({ sender_email: 'resident@example.com' }),
-    }));
-  } finally { composer.dispose(); }
+    expect(context.delivery.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inboxId: 'inbox',
+        message: expect.objectContaining({
+          sender_email: 'resident@example.com',
+        }),
+      })
+    );
+  } finally {
+    composer.dispose();
+  }
 });
