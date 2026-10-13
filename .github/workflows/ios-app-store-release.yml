@@ -1,0 +1,173 @@
+# DO NOT EDIT — regenerate with `cargo x workflows` (from the repository root).
+# Source: tooling/xtask/crates/xtask_workflows/src/workflows/ios_app_store_release.rs
+name: iOS App Store Release
+'on':
+  pull_request:
+    types:
+    - labeled
+jobs:
+  release:
+    if: github.event.label.name == 'ios-update' && github.event.pull_request.head.repo.full_name == github.repository
+    name: iOS App Store Release
+    runs-on: nscloud-macos-sequoia-arm64-6x14
+    permissions:
+      contents: read
+      pull-requests: write
+    timeout-minutes: 90
+    steps:
+    - name: Checkout PR head
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+        fetch-depth: '0'
+        persist-credentials: 'false'
+    - name: Install Nix
+      run: |
+        set -euo pipefail
+        if ! command -v nix >/dev/null 2>&1; then
+          curl --http1.1 --retry 5 --retry-delay 5 --retry-all-errors \
+            --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | \
+            sh -s -- install macos --no-confirm \
+            --extra-conf "experimental-features = nix-command flakes" \
+            --extra-conf "sandbox = false" \
+            --extra-conf "trusted-users = root runner"
+        fi
+        echo "/nix/var/nix/profiles/default/bin" >> "$GITHUB_PATH"
+        echo "NIX_REMOTE=daemon" >> "$GITHUB_ENV"
+        export PATH="/nix/var/nix/profiles/default/bin:$PATH"
+        export NIX_REMOTE=daemon
+        nix --version
+      shell: bash
+    - name: Verify iOS release numbers were bumped
+      run: |-
+        nix develop --command bash -euo pipefail -c '
+          cd apps/web
+          bun scripts/ios-verify-native-bump.mjs
+        '
+      shell: bash
+      env:
+        BASE_REF: origin/${{ github.event.pull_request.base.ref }}
+    - name: Write App Store Connect API key
+      run: |
+        set -euo pipefail
+        if [ -z "${APPLE_API_KEY:-}" ] || [ -z "${APPLE_API_ISSUER:-}" ] || [ -z "${APPLE_API_KEY_P8:-}" ]; then
+          echo "The APPLE_API_KEY / APPLE_API_ISSUER / APPLE_API_KEY_P8 secrets are not configured." >&2
+          echo "Generate a team key with the App Manager role in App Store Connect → Users and" >&2
+          echo "Access → Integrations, then store the key id, issuer id, and the .p8 file" >&2
+          echo "contents as those repository secrets." >&2
+          exit 1
+        fi
+
+        # altool and the App Store Connect scripts read the key from the canonical
+        # private_keys directory (see apps/web/scripts/ios-release.sh).
+        key_dir="$HOME/.appstoreconnect/private_keys"
+        mkdir -p "$key_dir"
+        key_path="$key_dir/AuthKey_${APPLE_API_KEY}.p8"
+        printf '%s\n' "$APPLE_API_KEY_P8" > "$key_path"
+        chmod 600 "$key_path"
+        echo "Wrote App Store Connect API key to $key_path"
+      shell: bash
+      env:
+        APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+        APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+    - name: Configure signing identity
+      run: |
+        set -euo pipefail
+        if [ -z "${APPLE_DISTRIBUTION_CERTIFICATE_BASE64:-}" ]; then
+          echo "No Apple Distribution certificate secret; relying on Xcode cloud signing" \
+            "via the App Store Connect API key (-allowProvisioningUpdates)."
+          exit 0
+        fi
+
+        certificate_path="$RUNNER_TEMP/apple-distribution.p12"
+        printf '%s' "$APPLE_DISTRIBUTION_CERTIFICATE_BASE64" | base64 --decode > "$certificate_path" 2>/dev/null \
+          || printf '%s' "$APPLE_DISTRIBUTION_CERTIFICATE_BASE64" | base64 -D > "$certificate_path"
+
+        # Mirror configure_signing_identity.sh (DMG builds): the System keychain keeps
+        # the identity visible to xcodebuild without per-user keychain unlocking.
+        sudo security import "$certificate_path" \
+          -k /Library/Keychains/System.keychain \
+          -P "${APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD:-}" \
+          -A \
+          -T /usr/bin/codesign \
+          -T /usr/bin/security
+        sudo security set-key-partition-list \
+          -S apple-tool:,apple:,codesign: \
+          -s \
+          -k "" \
+          /Library/Keychains/System.keychain || true
+
+        identity=$(security find-identity -v -p codesigning /Library/Keychains/System.keychain \
+          | awk -F '"' '/Apple Distribution/ { print $2; exit }')
+        if [ -z "$identity" ]; then
+          echo "No Apple Distribution identity found in System.keychain after import" >&2
+          security find-identity -v -p codesigning /Library/Keychains/System.keychain >&2 || true
+          exit 1
+        fi
+        echo "Using signing identity: $identity"
+      shell: bash
+      env:
+        APPLE_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_BASE64 }}
+        APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+    - name: Build and upload to App Store Connect
+      run: |-
+        nix develop --command bash -euo pipefail -c '
+          bun install --frozen-lockfile
+          cd apps/web
+          just ios-release --no-bump
+        '
+      shell: bash
+      env:
+        VITE_POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+        APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+        APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+    - name: Submit for App Review
+      run: |-
+        nix develop --command bash -euo pipefail -c '
+          cd apps/web
+          bun scripts/ios-app-store.mjs submit
+        '
+      shell: bash
+      env:
+        APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+        APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+    - name: Comment on the PR
+      if: always()
+      uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const fs = require('fs');
+          const conf = JSON.parse(
+            fs.readFileSync('apps/web/tauri/src-tauri/tauri.ios.conf.json', 'utf8')
+          );
+          const version = conf.version;
+          const build = conf.bundle.iOS.bundleVersion;
+          const runUrl =
+            `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}` +
+            `/actions/runs/${context.runId}`;
+          const success = '${{ job.status }}' === 'success';
+          const body = success
+            ? [
+                `📱 iOS ${version} (build ${build}) was uploaded to TestFlight and submitted for App Review.`,
+                '',
+                'When Apple approves it, the version releases to the App Store automatically;',
+                're-run the **iOS Native Check** on this PR then to unblock merging.',
+                `After merge, the next prod deploy raises the iOS native build floor (\`MIN_NATIVE_BUILD_IOS\`) to ${build}, prompting older installs to update.`,
+                '',
+                `[Workflow run](${runUrl})`,
+              ].join('\n')
+            : [
+                `📱 iOS App Store release for ${version} (build ${build}) **failed** — see the [workflow run](${runUrl}).`,
+                '',
+                'Fix the problem, then remove and re-add the `ios-update` label to retry.',
+              ].join('\n');
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            body,
+          });
+concurrency:
+  group: ios-app-store-release-${{ github.event.pull_request.number }}

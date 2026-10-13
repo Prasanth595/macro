@@ -36,6 +36,8 @@ mod deploy_sync_service;
 mod deploy_web_app;
 mod deploy_website;
 mod ensure_daytona_snapshot;
+mod ios_app_store_release;
+mod ios_native_check;
 mod ios_preview;
 mod path_validation;
 mod publish_sdk;
@@ -279,6 +281,16 @@ const WORKFLOWS: &[WorkflowFile] = &[
         slug: "release_sdk",
         file_name: "release-sdk.yml",
         render_yaml: || render_gh_workflow(release_sdk::release_sdk)(),
+    },
+    WorkflowFile {
+        slug: "ios_app_store_release",
+        file_name: "ios-app-store-release.yml",
+        render_yaml: || render_gh_workflow(ios_app_store_release::ios_app_store_release)(),
+    },
+    WorkflowFile {
+        slug: "ios_native_check",
+        file_name: "ios-native-check.yml",
+        render_yaml: || render_gh_workflow(ios_native_check::ios_native_check)(),
     },
     WorkflowFile {
         slug: "pulumi_preview_pr",
