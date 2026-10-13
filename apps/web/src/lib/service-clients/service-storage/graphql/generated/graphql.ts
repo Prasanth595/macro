@@ -1766,6 +1766,8 @@ export type SaveEmailDraftInput = {
   replyingToId?: string | number | null | undefined;
   /** Scheduled send time (RFC 3339), when the draft is scheduled. */
   sendTime?: string | null | undefined;
+  /** Verified sender address for the selected inbox. Absent selects its primary address. */
+  senderEmail?: string | null | undefined;
   /** Draft subject line. */
   subject: string;
   /**
