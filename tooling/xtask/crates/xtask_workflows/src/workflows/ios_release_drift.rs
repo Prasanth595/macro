@@ -127,10 +127,17 @@ fn withdraw() -> Step<Run> {
         .working_directory(xtask_paths::repo_dir!("apps/web"))
 }
 
+/// `always()`: even if the withdrawal call failed (App Store Connect or
+/// Doppler hiccup), the label must come off and someone must be told —
+/// otherwise the stale build stays in review unnoticed.
+fn after_withdraw() -> Expression {
+    Expression::new(format!("always() && {CHANGED}"))
+}
+
 fn remove_label() -> Step<Run> {
     Step::new("Remove the ios-update label")
         .run("gh pr edit \"$PR_NUMBER\" --repo \"$GH_REPO\" --remove-label ios-update")
-        .if_condition(changed())
+        .if_condition(after_withdraw())
         .shell("bash")
 }
 
@@ -139,14 +146,21 @@ fn comment() -> Step<Run> {
         .run(indoc::indoc! {r#"
             set -euo pipefail
             bump='cd apps/web && doppler run --project ios-release --config prd -- just ios-bump'
-            if [[ -n "$LIVE" ]]; then
+            if [[ "$WITHDRAW_OUTCOME" != "success" ]]; then
+              body="🚨 Native changes were pushed to this PR after its App Store release started, but withdrawing the App Review submission **failed** (see the [workflow run](${RUN_URL})). If a submission is pending, remove it from review in App Store Connect by hand so the stale build cannot go live. The \`ios-update\` label was removed; when the PR is ready again, bump (\`${bump}\`), commit, push, and re-add \`ios-update\`."
+            elif [[ -n "$LIVE" ]]; then
               body="🚨 Native changes were pushed to this PR after iOS ${LIVE} had already been released to the App Store, so that build is live with native code this PR no longer matches. Bump (\`${bump}\`), commit, re-add the \`ios-update\` label, and ship the follow-up as soon as possible. The label was removed."
             else
               body="📱 Native code changed after this PR's App Store release started, so the release was stopped: any in-progress build was cancelled and any pending App Review submission withdrawn (nothing stale can go live), and the \`ios-update\` label was removed. When the PR is ready again, bump (\`${bump}\`; the marketing version stays, the build number moves), commit, push, and re-add \`ios-update\`."
             fi
             gh pr comment "$PR_NUMBER" --repo "$GH_REPO" --body "$body"
         "#})
-        .if_condition(changed())
+        .if_condition(after_withdraw())
         .shell("bash")
         .add_env(("LIVE", "${{ steps.withdraw.outputs.live }}"))
+        .add_env(("WITHDRAW_OUTCOME", "${{ steps.withdraw.outcome }}"))
+        .add_env((
+            "RUN_URL",
+            "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+        ))
 }

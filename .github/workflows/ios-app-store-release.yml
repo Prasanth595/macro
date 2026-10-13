@@ -13,6 +13,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      checks: read
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
@@ -41,15 +42,28 @@ jobs:
         fi
         head_sha=$(jq -r '.headRefOid' <<<"$pr_json")
         if [[ "$head_sha" != "$HEAD_SHA" ]]; then
-          echo "PR #${PR_NUMBER} moved to ${head_sha:0:10} since this run started (${HEAD_SHA:0:10});" \
-            "re-add ios-update on the current head." >&2
-          exit 1
+          # Pushed since the label event. Web-only commits are fine (they ship over
+          # the air after the merge); native ones would make this build stale.
+          tree_hash() {
+            local sha=$1 part
+            for part in ${NATIVE_TREE_PATH//\// }; do
+              sha=$(gh api "repos/${GH_REPO}/git/trees/${sha}" --jq ".tree[] | select(.path == \"${part}\") | .sha")
+              [[ -n "$sha" ]] || return 1
+            done
+            echo "$sha"
+          }
+          if [[ "$(tree_hash "$head_sha")" != "$(git rev-parse "HEAD:${NATIVE_TREE_PATH}")" ]]; then
+            echo "PR #${PR_NUMBER} got native changes since this run started (${HEAD_SHA:0:10} → ${head_sha:0:10});" \
+              "re-add ios-update on the current head." >&2
+            exit 1
+          fi
+          echo "PR #${PR_NUMBER} moved to ${head_sha:0:10} since this run started, but its native code is unchanged; continuing."
         fi
 
         ours='^(iOS Native Check|iOS App Store Release|Enable auto-merge|iOS Release Drift)'
         deadline=$(( $(date +%s) + WAIT_MINUTES * 60 ))
         while true; do
-          checks=$(gh pr checks "$PR_NUMBER" --repo "$GH_REPO" --json name,bucket 2>/dev/null \
+          checks=$(gh pr checks "$PR_NUMBER" --repo "$GH_REPO" --json name,bucket \
             | jq -c --arg ours "$ours" '[.[] | select(.name | test($ours) | not)]')
           failing=$(jq -r '[.[] | select(.bucket == "fail" or .bucket == "cancel") | .name] | join(", ")' <<<"$checks")
           pending=$(jq -r '[.[] | select(.bucket == "pending") | .name] | join(", ")' <<<"$checks")
@@ -58,7 +72,7 @@ jobs:
             exit 1
           fi
           if [[ -z "$pending" ]]; then
-            echo "All other checks on ${head_sha:0:10} pass."
+            echo "All other checks on ${head_sha:0:10} pass ($(jq 'length' <<<"$checks") checks)."
             exit 0
           fi
           if (( $(date +%s) > deadline )); then
@@ -71,6 +85,7 @@ jobs:
       shell: bash
       env:
         HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        NATIVE_TREE_PATH: apps/web/tauri
         WAIT_MINUTES: '20'
     - name: Install Nix
       run: |
@@ -229,6 +244,7 @@ jobs:
         # this checkout is the head the run started from) with the tree that was
         # built.
         built_tree=$(git rev-parse "HEAD:${NATIVE_TREE_PATH}")
+        built=$(jq -r '.bundle.iOS.bundleVersion' apps/web/tauri/src-tauri/tauri.ios.conf.json)
         head_sha=$(gh pr view "$PR_NUMBER" --repo "$GH_REPO" --json headRefOid --jq '.headRefOid')
         if [[ "$head_sha" == "$(git rev-parse HEAD)" ]]; then
           echo "PR head unchanged (${head_sha:0:10}); native tree ${built_tree:0:10} is current."
@@ -244,7 +260,7 @@ jobs:
           exit 0
         fi
         echo "Native code changed on PR #${PR_NUMBER} while this release was building" \
-          "(tree ${built_tree:0:10} → ${sha:0:10}). Not submitting the stale build ${BUILD:-}." >&2
+          "(tree ${built_tree:0:10} → ${sha:0:10}). Not submitting the stale build ${built}." >&2
         echo "Bump (doppler run --project ios-release --config prd -- just ios-bump), commit," \
           "and re-add the ios-update label to release the current head." >&2
         exit 1
@@ -261,15 +277,16 @@ jobs:
       env:
         IOS_RELEASE_PR: ${{ github.event.pull_request.number }}
     - name: Comment on the PR
-      if: always()
+      if: success() || failure()
       uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
           const fs = require('fs');
-          const conf = JSON.parse(
-            fs.readFileSync('apps/web/tauri/src-tauri/tauri.ios.conf.json', 'utf8')
-          );
+          const confPath = 'apps/web/tauri/src-tauri/tauri.ios.conf.json';
+          const conf = fs.existsSync(confPath)
+            ? JSON.parse(fs.readFileSync(confPath, 'utf8'))
+            : { version: '?', bundle: { iOS: { bundleVersion: '?' } } };
           const version = conf.version;
           const build = conf.bundle.iOS.bundleVersion;
           const runUrl =
@@ -282,7 +299,7 @@ jobs:
                 '',
                 'When Apple approves it, the version releases to the App Store automatically,',
                 'the **iOS Release Watch** workflow re-runs the **iOS Native Check** on this PR',
-                'within half an hour of that, and **auto-merge** (enabled by this workflow) then',
+                'within half an hour of that, and **auto-merge** (see the next job\'s comment) then',
                 'squash-merges the PR. Disable auto-merge on the PR if you want to hold it.',
                 `After merge, the next prod deploy raises the iOS native build floor (\`MIN_NATIVE_BUILD_IOS\`) to ${build}, prompting older installs to update.`,
                 '',
@@ -306,19 +323,41 @@ jobs:
     name: Enable auto-merge
     runs-on: namespace-profile-linux-tiny-no-cache
     permissions:
-      contents: write
       pull-requests: write
     timeout-minutes: 5
     steps:
     - name: Enable auto-merge (squash) on the PR
       run: |
         set -euo pipefail
-        gh pr merge "$PR_NUMBER" --repo "$GH_REPO" --auto --squash
+        # Enable GitHub auto-merge on the PR, guarded twice (see ios_app_store_release.rs).
+        comment() { gh pr comment "$PR_NUMBER" --repo "$GH_REPO" --body "$1"; }
+
+        # 1. The merge gate must be a required check, or auto-merge fires right now,
+        #    before Apple has approved anything.
+        required=$(gh api "repos/${GH_REPO}/rules/branches/${BASE_REF}" \
+          --jq '[.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context]')
+        if ! jq -e 'index("iOS Native Check")' <<<"$required" >/dev/null; then
+          echo "::error::'iOS Native Check' is not a required status check on ${BASE_REF} (required: ${required}); not enabling auto-merge."
+          comment "⚠️ Auto-merge was **not** enabled: \`iOS Native Check\` is not a required status check on \`${BASE_REF}\`, so auto-merge would merge this PR before Apple approves the release. Add it to the branch ruleset (see apps/web/docs/ios-releases.md), then merge by hand once the check passes."
+          exit 1
+        fi
+
+        # 2. A merge set up with the Actions token does not trigger on-push workflows
+        #    (no deploy of main), so a real user/app token is required.
+        if [[ -z "${AUTO_MERGE_TOKEN:-}" ]]; then
+          echo "IOS_RELEASE_GITHUB_TOKEN is not configured; asking the author to enable auto-merge."
+          comment "ℹ️ Enable **auto-merge** on this PR yourself (the button next to \"Merge\"): it was not enabled automatically because the \`IOS_RELEASE_GITHUB_TOKEN\` secret is not configured, and auto-merge set up by the Actions token would merge without triggering the deploy of \`${BASE_REF}\`. GitHub then merges as soon as \`iOS Native Check\` passes."
+          exit 0
+        fi
+
+        GH_TOKEN="$AUTO_MERGE_TOKEN" gh pr merge "$PR_NUMBER" --repo "$GH_REPO" --auto --squash
         echo "Auto-merge enabled: GitHub merges PR #${PR_NUMBER} once every required check passes."
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
+        AUTO_MERGE_TOKEN: ${{ secrets.IOS_RELEASE_GITHUB_TOKEN }}
         GH_REPO: ${{ github.repository }}
+        BASE_REF: ${{ github.event.pull_request.base.ref }}
         PR_NUMBER: ${{ github.event.pull_request.number }}
 concurrency:
   group: ios-app-store-release-${{ github.event.pull_request.number }}

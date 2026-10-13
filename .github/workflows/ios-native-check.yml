@@ -108,9 +108,7 @@ jobs:
         DOPPLER_TOKEN: ${{ secrets.IOS_RELEASE_DOPPLER_TOKEN }}
     - name: Require the App Store release to be live
       if: steps.filter.outputs.ios_native == 'true' && !contains(github.event.pull_request.labels.*.name, 'skip-ios-update')
-      run: |-
-        bun scripts/ios-app-store.mjs status --require-live \
-          --native-tree "$(git rev-parse "${{ github.event.pull_request.head.sha }}:apps/web/tauri")"
+      run: bun scripts/ios-app-store.mjs status --require-live
       working-directory: apps/web
     - name: Skipped via label
       if: steps.filter.outputs.ios_native == 'true' && contains(github.event.pull_request.labels.*.name, 'skip-ios-update')

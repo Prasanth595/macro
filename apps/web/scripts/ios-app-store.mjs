@@ -1,4 +1,4 @@
-// App Store Connect automation for the iOS app — one executable, three
+// App Store Connect automation for the iOS app — one executable, several
 // commands sharing auth, config defaults, and app lookup:
 //
 //   wait-build   Poll until an uploaded build finishes processing and its
@@ -61,8 +61,10 @@
 // --require-live or --require-unused-build) fails when a build at or above
 // ours exists with a different stamp — another PR or a hand release — and
 // reports `uploaded=true` (GITHUB_OUTPUT) when it is our own upload, so a
-// release retry skips the build. The live check requires the live build's
-// stamp to match this checkout's native tree.
+// release retry skips the build. The live check (--require-live) requires the
+// live build's stamp to match this checkout's native tree — in the merge gate
+// that checkout is the PR's merge result, so native code that landed on main
+// after the release also fails it (the shipped build lacks it).
 
 import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";
@@ -156,8 +158,8 @@ function readJson(relative) {
 const bundleId =
   args["bundle-id"] ?? readJson("tauri/src-tauri/tauri.conf.json").identifier;
 
-/// Hash of this checkout's native tree (--native-tree overrides, e.g. when
-/// the checkout isn't the commit in question), or null outside a git checkout.
+/// Hash of this checkout's native tree (--native-tree overrides, e.g. the
+/// watcher, whose checkout is main), or null outside a git checkout.
 function nativeTreeHash() {
   if (args["native-tree"]) {
     return args["native-tree"];
@@ -513,7 +515,22 @@ async function cancelOpenSubmission() {
   console.log(
     `Withdrew review submission ${submission.id} (was ${submission.attributes.state}).`,
   );
-  return true;
+  // Cancellation is asynchronous (CANCELING → COMPLETE); creating a new
+  // submission while it is still in progress is rejected.
+  const deadline = Date.now() + 5 * 60_000;
+  while (true) {
+    const current = await api(`/v1/reviewSubmissions/${submission.id}`);
+    const state = current.data.attributes.state;
+    if (!WITHDRAWABLE_SUBMISSION_STATES.has(state) && state !== "CANCELING") {
+      console.log(`Review submission ${submission.id} is now ${state}.`);
+      return true;
+    }
+    if (Date.now() > deadline) {
+      console.error(`Review submission ${submission.id} is still ${state} after 5 minutes; try again later.`);
+      exit(1);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10_000));
+  }
 }
 
 /// The in-flight App Store version whose attached build is stamped with the
@@ -681,19 +698,31 @@ async function submit() {
     // Submitted with another build. Ours (same PR, i.e. a stale submission
     // the drift workflow didn't get to) is withdrawn and replaced below;
     // anyone else's is left alone.
+    const state = versionState(versionRecord);
     const stamp = attached.data ? await buildStamp(attached.data.id) : null;
-    if (!LIVE_STATES.has(versionState(versionRecord)) && releasePr && stamp?.pr === releasePr) {
+    if (!LIVE_STATES.has(state) && releasePr && stamp?.pr === releasePr) {
       console.log(
-        `App Store version ${version} is in review with this PR's stale build ` +
+        `App Store version ${version} is ${state} with this PR's stale build ` +
           `${attachedNumber}; withdrawing it to resubmit with build ${build}.`,
       );
-      await cancelOpenSubmission();
+      if (!(await cancelOpenSubmission())) {
+        console.error(
+          `App Store version ${version} (build ${attachedNumber}) is ${state}: past the point ` +
+            "where a submission can be withdrawn, so that build will ship. Bump " +
+            "(`just ios-bump`), commit, and re-add the ios-update label to release " +
+            `build ${build} as the follow-up.\n${distributionUrl}`,
+        );
+        exit(1);
+      }
     } else {
       console.error(
-        `App Store version ${version} is ${versionState(versionRecord)} with build ` +
-          `${attachedNumber ?? "none"}, not this PR's build ${build}` +
+        `App Store version ${version} is ${state} with build ${attachedNumber ?? "none"}, ` +
+          `not this PR's build ${build}` +
           (stamp?.pr ? ` (uploaded for PR #${stamp.pr})` : " (uploaded outside the release flow)") +
-          `. Bump past it (\`just ios-bump\`) and re-add the ios-update label.\n${distributionUrl}`,
+          ". App Store Connect allows one version in flight at a time: wait for it to " +
+          "ship (then `just ios-bump` moves the version) or remove it from review in App " +
+          `Store Connect, then remove and re-add the ios-update label — the uploaded build ${build} ` +
+          `is reused.\n${distributionUrl}`,
       );
       exit(1);
     }
@@ -859,7 +888,10 @@ async function submit() {
 
 async function status() {
   const requireLive = args["require-live"] === true;
-  if (requireLive || args["require-unused-build"] === true) {
+  // The collision check is a pre-build check: once our version is live it is
+  // the latest release, and later TestFlight uploads (another PR's) are
+  // irrelevant — the live version + build + stamp below is the proof.
+  if (args["require-unused-build"] === true) {
     await requireUnusedBuild();
   }
   const versionRecord = await findAppStoreVersion();
@@ -913,11 +945,12 @@ ${distributionUrl}`);
   const ours = nativeTreeHash();
   if (!ours || stamp !== ours) {
     console.error(`App Store version ${version} (${build}) is live, but that build was not built from
-this PR's current native code: its stamp is ${stamp ?? "missing (uploaded outside the release flow)"},
-this PR's native tree (${NATIVE_TREE_PATH}) is ${ours ?? "unknown"}.
-Either native commits were pushed after the release, or another PR / a hand
-release shipped the same version + build number. Bump again, commit, and
-re-add the ios-update label so what this PR actually contains gets released:
+the native code this merge would produce: its stamp is ${stamp ?? "missing (uploaded outside the release flow)"},
+the merge result's native tree (${NATIVE_TREE_PATH}) is ${ours ?? "unknown"}.
+Either native commits were pushed to this PR after the release, native code landed
+on main since (merge main into the PR), or another PR / a hand release shipped the
+same version + build number. Bump again, commit, and re-add the ios-update label so
+what will actually be merged gets released:
   cd apps/web && doppler run --project ios-release --config prd -- just ios-bump
 ${distributionUrl}`);
     exit(1);

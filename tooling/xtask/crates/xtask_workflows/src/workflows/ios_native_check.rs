@@ -7,8 +7,10 @@
 //! 2. Verifies the PR bumped the iOS release numbers (`just ios-bump`):
 //!    marketing version, build number, and `min-native-build.json`.
 //! 3. Asks the App Store Connect API whether exactly that version + build is
-//!    live on the App Store (and that no build at or above it was uploaded
-//!    under another version), and fails with instructions otherwise — add the
+//!    live on the App Store, built from the native tree this PR's merge
+//!    result has (the checkout is the PR's merge ref, so native code that
+//!    landed on main after the release also fails it: the shipped build
+//!    lacks it), and fails with instructions otherwise — add the
 //!    `ios-update` label to run the [`super::ios_app_store_release`] workflow
 //!    and wait for Apple's approval; [`super::ios_release_watch`] re-runs this
 //!    check once the release is live.
@@ -110,15 +112,12 @@ fn fetch_credentials() -> Step<Run> {
         .add_env(("DOPPLER_TOKEN", vars::IOS_RELEASE_DOPPLER_TOKEN))
 }
 
-/// The checkout is the PR's merge ref, so the native tree to compare the live
-/// build's stamp against is taken from the PR head commit explicitly (the
-/// merge commit's tree would also change whenever main's native code moves).
+/// The checkout is the PR's merge ref, so `status` compares the live build's
+/// stamp against the native tree the merge would produce — exactly what the
+/// floor derived from this build claims ships.
 fn require_live_version() -> Step<Run> {
     Step::new("Require the App Store release to be live")
-        .run(
-            "bun scripts/ios-app-store.mjs status --require-live \\\n  \
-             --native-tree \"$(git rev-parse \"${{ github.event.pull_request.head.sha }}:apps/web/tauri\")\"",
-        )
+        .run("bun scripts/ios-app-store.mjs status --require-live")
         .if_condition(gated())
         .working_directory(xtask_paths::repo_dir!("apps/web"))
 }

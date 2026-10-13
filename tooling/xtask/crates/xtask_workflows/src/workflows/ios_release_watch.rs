@@ -4,8 +4,9 @@
 //! and nothing on GitHub's side notices when Apple releases it. This
 //! workflow looks at every open PR labeled `ios-update` (the label that
 //! started the [`super::ios_app_store_release`] run), asks App Store Connect
-//! whether the version + build committed at the PR head is live, and when it
-//! is, re-runs the PR's failed `iOS Native Check` run so the gate turns green
+//! whether the version + build committed at the PR head is live (built from
+//! the native tree of the PR's merge result, like the gate checks), and when
+//! it is, re-runs the PR's failed `iOS Native Check` run so the gate turns green
 //! on its own. Re-running an existing run is how this stays within GitHub's
 //! rule that events created with the workflow token never start workflows.
 //!
@@ -60,7 +61,8 @@ fn find_prs() -> Step<Run> {
         .run(indoc::indoc! {r#"
             set -euo pipefail
             prs=$(gh pr list --repo "$GH_REPO" --label ios-update --state open \
-              --json number,headRefOid --jq 'map({number, sha: .headRefOid})' | jq -c .)
+              --json number,headRefOid,potentialMergeCommit \
+              --jq 'map({number, sha: .headRefOid, merge: .potentialMergeCommit.oid})' | jq -c .)
             count=$(jq 'length' <<<"$prs")
             echo "Open PRs labeled ios-update: ${count}"
             echo "prs=${prs}" >> "$GITHUB_OUTPUT"

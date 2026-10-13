@@ -6,6 +6,7 @@ set -euo pipefail
 # this checkout is the head the run started from) with the tree that was
 # built.
 built_tree=$(git rev-parse "HEAD:${NATIVE_TREE_PATH}")
+built=$(jq -r '.bundle.iOS.bundleVersion' apps/web/tauri/src-tauri/tauri.ios.conf.json)
 head_sha=$(gh pr view "$PR_NUMBER" --repo "$GH_REPO" --json headRefOid --jq '.headRefOid')
 if [[ "$head_sha" == "$(git rev-parse HEAD)" ]]; then
   echo "PR head unchanged (${head_sha:0:10}); native tree ${built_tree:0:10} is current."
@@ -21,7 +22,7 @@ if [[ "$sha" == "$built_tree" ]]; then
   exit 0
 fi
 echo "Native code changed on PR #${PR_NUMBER} while this release was building" \
-  "(tree ${built_tree:0:10} → ${sha:0:10}). Not submitting the stale build ${BUILD:-}." >&2
+  "(tree ${built_tree:0:10} → ${sha:0:10}). Not submitting the stale build ${built}." >&2
 echo "Bump (doppler run --project ios-release --config prd -- just ios-bump), commit," \
   "and re-add the ios-update label to release the current head." >&2
 exit 1

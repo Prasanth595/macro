@@ -48,8 +48,13 @@ pub fn ios_app_store_release() -> Workflow {
 /// Enable GitHub's native auto-merge once the release is submitted: GitHub
 /// then merges the PR itself the moment every required check is green, i.e.
 /// when [`super::ios_release_watch`] re-runs the gate after Apple's release.
-/// A separate job so `contents: write` never reaches the job that builds the
-/// PR's code.
+///
+/// Two guards. The gate must actually be a required check on the base
+/// branch, or auto-merge would merge right away, before Apple approves. And
+/// the merge must be performed with `IOS_RELEASE_GITHUB_TOKEN` (a PAT or
+/// GitHub App token), not the Actions token: a merge that the Actions token
+/// set up does not trigger `on: push` workflows, so main would not deploy.
+/// Without that secret the author is asked to click "Enable auto-merge".
 fn auto_merge_job() -> Job {
     Job::default()
         .name("Enable auto-merge")
@@ -57,21 +62,15 @@ fn auto_merge_job() -> Job {
         .cond(Expression::new("needs.release.result == 'success'"))
         .runs_on(runners::Runner::TinyNoCache.to_string())
         .timeout_minutes(5u32)
-        .permissions(
-            Permissions::default()
-                .contents(Level::Write)
-                .pull_requests(Level::Write),
-        )
+        .permissions(Permissions::default().pull_requests(Level::Write))
         .add_step(
             Step::new("Enable auto-merge (squash) on the PR")
-                .run(indoc::indoc! {r#"
-                    set -euo pipefail
-                    gh pr merge "$PR_NUMBER" --repo "$GH_REPO" --auto --squash
-                    echo "Auto-merge enabled: GitHub merges PR #${PR_NUMBER} once every required check passes."
-                "#})
+                .run(include_str!("scripts/ios_release_auto_merge.sh"))
                 .shell("bash")
                 .add_env(("GH_TOKEN", "${{ github.token }}"))
+                .add_env(("AUTO_MERGE_TOKEN", vars::IOS_RELEASE_GITHUB_TOKEN))
                 .add_env(("GH_REPO", "${{ github.repository }}"))
+                .add_env(("BASE_REF", "${{ github.event.pull_request.base.ref }}"))
                 .add_env(("PR_NUMBER", "${{ github.event.pull_request.number }}")),
         )
 }
@@ -91,6 +90,7 @@ fn release_job() -> Job {
         .timeout_minutes(90u32)
         .permissions(
             Permissions::default()
+                .checks(Level::Read)
                 .contents(Level::Read)
                 .pull_requests(Level::Write),
         )
@@ -118,6 +118,7 @@ fn preconditions() -> Step<Run> {
         .run(include_str!("scripts/ios_release_preconditions.sh"))
         .shell("bash")
         .add_env(("HEAD_SHA", "${{ github.event.pull_request.head.sha }}"))
+        .add_env(("NATIVE_TREE_PATH", "apps/web/tauri"))
         .add_env(("WAIT_MINUTES", "20"))
 }
 
@@ -229,15 +230,18 @@ fn pr_comment() -> Step<Use> {
             "github-script",
             "f28e40c7f34bde8b3046d885e986cb6290c5673b",
         )
-        .if_condition(Expression::new("always()"))
+        // Not `always()`: a run the drift workflow cancelled must not post
+        // "failed, re-add the label" next to drift's own comment.
+        .if_condition(Expression::new("success() || failure()"))
         .add_with(("github-token", "${{ secrets.GITHUB_TOKEN }}"))
         .add_with((
             "script",
             indoc::indoc! {r#"
                 const fs = require('fs');
-                const conf = JSON.parse(
-                  fs.readFileSync('apps/web/tauri/src-tauri/tauri.ios.conf.json', 'utf8')
-                );
+                const confPath = 'apps/web/tauri/src-tauri/tauri.ios.conf.json';
+                const conf = fs.existsSync(confPath)
+                  ? JSON.parse(fs.readFileSync(confPath, 'utf8'))
+                  : { version: '?', bundle: { iOS: { bundleVersion: '?' } } };
                 const version = conf.version;
                 const build = conf.bundle.iOS.bundleVersion;
                 const runUrl =
@@ -250,7 +254,7 @@ fn pr_comment() -> Step<Use> {
                       '',
                       'When Apple approves it, the version releases to the App Store automatically,',
                       'the **iOS Release Watch** workflow re-runs the **iOS Native Check** on this PR',
-                      'within half an hour of that, and **auto-merge** (enabled by this workflow) then',
+                      'within half an hour of that, and **auto-merge** (see the next job\'s comment) then',
                       'squash-merges the PR. Disable auto-merge on the PR if you want to hold it.',
                       `After merge, the next prod deploy raises the iOS native build floor (\`MIN_NATIVE_BUILD_IOS\`) to ${build}, prompting older installs to update.`,
                       '',

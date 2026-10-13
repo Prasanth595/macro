@@ -48,8 +48,14 @@ this end to end.
    (release type: automatic after approval). It comments the outcome
    on the PR and, on success, **enables GitHub auto-merge** (squash) on it:
    `ios-update` means "release this and merge it as soon as Apple approves".
-   Disable auto-merge on the PR to hold it. To retry after a failure,
-   remove and re-add the label.
+   Disable auto-merge on the PR to hold it. Auto-merge is enabled with the
+   `IOS_RELEASE_GITHUB_TOKEN` secret (a PAT or GitHub App token with
+   contents + pull-requests write): a merge set up by the Actions token does
+   not trigger the on-push deploy of `main`. Without the secret the workflow
+   asks the author to click "Enable auto-merge" instead. It also refuses to
+   enable auto-merge while `iOS Native Check` is not a required check (the PR
+   would merge before Apple approves). To retry after a failure, remove and
+   re-add the label.
 4. Wait for Apple to approve. The version releases automatically, and the
    **`iOS Release Watch`** workflow (`.github/workflows/ios-release-watch.yml`,
    every 30 minutes) notices: for each open PR labeled `ios-update` it asks
@@ -93,10 +99,13 @@ uploaded build with the git tree hash of `apps/web/tauri` it was built from
   a hand release — fails with "re-bump". The PR's own earlier upload (same
   version, same stamp) is a retry: the release skips the build and goes
   straight to submit.
-- **Live check** (the gate): the live build's stamp must equal the PR head's
-  native tree. Native commits pushed after the release, or another PR's
-  build that shares the numbers, fail with "bump and re-release". Web-only
-  commits don't change the tree and stay green.
+- **Live check** (the gate): the live build's stamp must equal the native
+  tree of the PR's **merge result** (the gate checks out the merge ref).
+  Native commits pushed after the release, native code that landed on main
+  since (merge main into the PR), or another PR's build that shares the
+  numbers, all fail with "bump and re-release": the floor the merge would
+  set must describe a build that really contains main's native code.
+  Web-only commits don't change the tree and stay green.
 - **One version in flight**: App Store Connect allows one iOS version in
   review at a time, so the second PR's `submit` fails naming the version
   that blocks it. Once that one ships (or is removed from review in App
@@ -162,6 +171,10 @@ ios-release --config prd -- just ios-release` covers them), and
     cloud signing through the API key.
 - **GitHub secrets**:
   - `IOS_RELEASE_DOPPLER_TOKEN` — a Doppler service token with read access to
-    `ios-release/prd`, used by both workflows above
+    `ios-release/prd`, used by the iOS workflows
+  - `IOS_RELEASE_GITHUB_TOKEN` — a fine-grained PAT (or GitHub App token)
+    with contents + pull-requests write on this repo, used only to enable
+    auto-merge so the resulting merge triggers the on-push deploy; optional,
+    without it the author enables auto-merge by hand
   - `POSTHOG_API_KEY` (already present) — embedded as `VITE_POSTHOG_API_KEY`
     in the release build
