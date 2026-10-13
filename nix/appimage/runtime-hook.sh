@@ -6,6 +6,16 @@ export WEBKIT_INJECTED_BUNDLE_PATH="$APPDIR/usr/lib"
 export XKB_CONFIG_ROOT="$APPDIR/usr/share/X11/xkb"
 # The patched AppRun leaves this single-directory value intact (no ':' suffix).
 export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas"
+# Use the host's managed TLS trust, not a build-time Nix path. Preserve explicit
+# overrides (including invalid ones): the TLS backend must fail closed on those.
+if [ -z "${SSL_CERT_FILE:-}" ]; then
+  for ca_file in /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt /etc/ssl/ca-bundle.pem /etc/ssl/cert.pem; do
+    if [ -r "$ca_file" ] && [ -s "$ca_file" ]; then
+      export SSL_CERT_FILE="$ca_file"
+      break
+    fi
+  done
+fi
 gio_modules="$APPDIR/usr/lib/gio/modules"
 if [ -d "$gio_modules" ]; then
   case ":${GIO_EXTRA_MODULES:-}:" in

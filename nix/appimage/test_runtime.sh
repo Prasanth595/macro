@@ -2,18 +2,22 @@
 set -euo pipefail
 source_dir=$(cd "$(dirname "$0")" && pwd)
 hook="$source_dir/runtime-hook.sh"
-data=${1:?usage: test_runtime.sh <xkb-data> <schemas> <gio-modules> <AppRun> <libproxy>}
+data=${1:?usage: test_runtime.sh <xkb-data> <schemas> <gio-modules> <AppRun> <libproxy> <ca-bundle>}
 schemas=${2:?missing bundled schemas}
 modules=${3:?missing GIO modules}
 apprun=${4:?missing real AppRun executable}
 libproxy=${5:?missing portable libproxy}
+ca_bundle=${6:?missing test CA bundle}
 xkb_smoke="$PWD/xkb-smoke"
 settings_smoke="$PWD/settings-smoke"
+tls_smoke="$PWD/tls-smoke"
 
 # shellcheck disable=SC2046
 cc -Wall -Wextra -Werror "$source_dir/test_xkb.c" $(pkg-config --cflags --libs xkbcommon) -o "$xkb_smoke"
 # shellcheck disable=SC2046
 cc -Wall -Wextra -Werror "$source_dir/test_settings.c" $(pkg-config --cflags --libs gio-2.0) -ldl -o "$settings_smoke"
+# shellcheck disable=SC2046
+cc -Wall -Wextra -Werror "$source_dir/test_tls.c" $(pkg-config --cflags --libs gio-2.0) -o "$tls_smoke"
 
 # Prove that neither fixture silently falls back to the build host's data.
 if env XKB_CONFIG_ROOT="$PWD/missing-xkb-data" "$xkb_smoke"; then
@@ -60,6 +64,8 @@ run_smokes() {
   for resolver in gnome libproxy; do
     env "$@" GIO_USE_PROXY_RESOLVER="$resolver" bash "$appdir/AppRun" "$settings_smoke"
   done
+  env "$@" SSL_CERT_FILE="$ca_bundle" bash "$appdir/AppRun" "$tls_smoke"
+  env "$@" SSL_CERT_FILE="$PWD/nonexistent-ca.pem" bash "$appdir/AppRun" "$tls_smoke" reject
 }
 
 # Normal AppImage startup supplies APPDIR; no caller workaround is necessary.

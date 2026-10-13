@@ -15,6 +15,6 @@
     # nixpkgs' explicit schema source in /nix/store. Keep all other patches.
     patches =
       assert lib.assertMsg (builtins.length removed == 1) "Review glib-networking's Nix schema patch";
-      lib.filter (patch: !(nixSchemaPatch patch)) old.patches;
+      (lib.filter (patch: !(nixSchemaPatch patch)) old.patches) ++ [ ./appimage-ssl-cert-file.patch ];
   }
 )

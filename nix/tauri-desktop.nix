@@ -880,7 +880,8 @@
             export PYTHONDONTWRITEBYTECODE=1
             python3 -m unittest discover -s ${./appimage} -v
             bash ${./appimage}/test_runtime.sh \
-              ${tauriXkbData} ${tauriGsettingsSchemas} ${appimageGioModulePath} ${tauriAppRun} ${tauriPortableLibproxy}
+              ${tauriXkbData} ${tauriGsettingsSchemas} ${appimageGioModulePath} ${tauriAppRun} \
+              ${tauriPortableLibproxy} ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
             bash ${./appimage}/test_xdg.sh ${tauriXdgUtils}
             # GStreamer's default Nix output is bin; its scanner and core plugins
             # live in the library output. Do not silently ship an empty helper dir.
