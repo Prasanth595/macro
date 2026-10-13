@@ -115,7 +115,8 @@ pub async fn handler(
 
     // The "continue on desktop" link the phone confirmation screen promises.
     let url = desktop_signup_url(&default_redirect_url());
-    ctx.ses_client
+    if let Err(e) = ctx
+        .ses_client
         .send_email(
             "auth@macro.com",
             req.email.trim(),
@@ -123,10 +124,20 @@ pub async fn handler(
             &desktop_email_html(&url),
         )
         .await
-        .map_err(|e| {
-            tracing::error!(error=?e, "failed to send mobile desktop-link email");
-            SendMobileWelcomeEmailError::InternalError(e)
-        })?;
+    {
+        tracing::error!(error=?e, "failed to send mobile desktop-link email");
+        // Release the claim so a retry sends the email instead of no-oping.
+        if let Err(release_err) =
+            mobile_welcome_email_db_client::mobile_welcome_email::delete_mobile_welcome_email(
+                &ctx.db,
+                &lowercase_email,
+            )
+            .await
+        {
+            tracing::error!(error=?release_err, "failed to release mobile welcome email claim");
+        }
+        return Err(SendMobileWelcomeEmailError::InternalError(e));
+    }
 
     // Enrolls the lead in the Loops welcome drip. Awaited rather than
     // fire-and-forget: `sent: true` tells the caller mail is on the way, so it
