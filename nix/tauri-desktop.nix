@@ -374,17 +374,7 @@
             }
 
             int failed = 0;
-            if (fputs("#! /usr/bin/env bash\n"
-                      "export APPDIR=\"''${APPDIR:-\"$(dirname \"$(realpath \"$0\")\")\"}\"\n"
-                      "export WEBKIT_INJECTED_BUNDLE_PATH=\"$APPDIR/usr/lib\"\n"
-                      "gio_modules=\"$APPDIR/usr/lib/gio/modules\"\n"
-                      "if [ -d \"$gio_modules\" ]; then\n"
-                      "  case \":''${GIO_EXTRA_MODULES:-}:\" in\n"
-                      "    *:\"$gio_modules\":*) ;;\n"
-                      "    *) export GIO_EXTRA_MODULES=\"$gio_modules''${GIO_EXTRA_MODULES:+:$GIO_EXTRA_MODULES}\" ;;\n"
-                      "  esac\n"
-                      "fi\n",
-                      hook) == EOF) {
+            if (fputs(${builtins.toJSON (builtins.readFile ./appimage/runtime-hook.sh)}, hook) == EOF) {
               perror("write TLS hook");
               failed = 1;
             }
@@ -555,6 +545,11 @@
           ]
         );
       };
+      # xkeyboard-config's compatibility path is a symlink. Tauri preserves
+      # symlinks when copying directories, so stage a self-contained data tree.
+      tauriXkbData = pkgs.runCommand "tauri-appimage-xkb-data" { } ''
+        cp -rL ${pkgs.xkeyboard-config}/share/X11/xkb "$out"
+      '';
       tauriAppImageConfig = builtins.toJSON {
         version = appVersion;
         plugins = desktopPlugins;
@@ -570,6 +565,7 @@
           linux.appimage.files = {
             "/usr/bin/xdg-mime" = "${pkgs.xdg-utils}/bin/xdg-mime";
             "/usr/bin/xdg-open" = "${pkgs.xdg-utils}/bin/xdg-open";
+            "/usr/share/X11/xkb" = "${tauriXkbData}";
             "/usr/lib/gio/modules/giomodule.cache" = "${pkgs.glib-networking}/lib/gio/modules/giomodule.cache";
             "/usr/lib/gio/modules/libgiognomeproxy.so" = "${pkgs.glib-networking}/lib/gio/modules/libgiognomeproxy.so";
             "/usr/lib/gio/modules/libgiognutls.so" = "${pkgs.glib-networking}/lib/gio/modules/libgiognutls.so";
@@ -832,11 +828,14 @@
               pkgs.python3
               pkgs.patchelf
               pkgs.stdenv.cc
+              pkgs.pkg-config
             ];
+            buildInputs = [ pkgs.libxkbcommon ];
           }
           ''
             export PYTHONDONTWRITEBYTECODE=1
             python3 -m unittest discover -s ${./appimage} -v
+            bash ${./appimage}/test_runtime.sh ${tauriXkbData}
             # GStreamer's default Nix output is bin; its scanner and core plugins
             # live in the library output. Do not silently ship an empty helper dir.
             test -x ${lib.getLib pkgs.gst_all_1.gstreamer}/libexec/gstreamer-1.0/gst-plugin-scanner
