@@ -21,12 +21,13 @@ use macro_user_id::user_id::MacroUserIdStr;
 
 struct Harness {
     notifications: std::sync::Mutex<Vec<SessionNotification>>,
-    summaries: std::sync::Mutex<Vec<compaction::ContextSummaryNotification>>,
+    summaries:
+        std::sync::Mutex<Vec<agent_runtime_protocol::domain::context::ContextSummaryNotification>>,
 }
 
 /// What a scripted client saw while it ran a scenario.
 struct Recorded<Out> {
-    summaries: Vec<compaction::ContextSummaryNotification>,
+    summaries: Vec<agent_runtime_protocol::domain::context::ContextSummaryNotification>,
     out: Out,
 }
 
@@ -173,7 +174,7 @@ async fn record<Engine: TurnEngine, Out>(
             agent_client_protocol::on_receive_notification!(),
         )
         .on_receive_notification(
-            async move |summary: compaction::ContextSummaryNotification, _connection| {
+            async move |summary: agent_runtime_protocol::domain::context::ContextSummaryNotification, _connection| {
                 summarized
                     .summaries
                     .lock()
@@ -926,21 +927,23 @@ async fn a_long_conversation_is_summarized_in_the_background_while_its_message_r
     let recorded = with_summaries(Arc::clone(&engine), async |connection, session, state| {
         use_model(&state, "other-model");
         prompt(&connection, &session, &big(90_000)).await;
+        let first_prompt = match state
+            .store
+            .get(&state.session_id)
+            .expect("the session")
+            .history
+            .first()
+        {
+            Some(HistoryEntry::User { request_id, .. }) => Some(request_id.clone()),
+            _ => None,
+        };
         // 60,000 tokens with this one: the summary starts, and the message
         // does not wait for it.
         prompt(&connection, &session, &big(90_000)).await;
         summary_settled(&state).await;
         prompt(&connection, &session, "continue").await;
         let session = state.store.get(&state.session_id).expect("the session");
-        let archived_prompt = match session.archive.first() {
-            Some(HistoryEntry::User { request_id, .. }) => Some(request_id.clone()),
-            _ => None,
-        };
-        (
-            session.archive.len(),
-            session.summarizing.pending.is_none(),
-            archived_prompt,
-        )
+        (session.summarizing.pending.is_none(), first_prompt)
     })
     .await;
 
@@ -973,15 +976,11 @@ async fn a_long_conversation_is_summarized_in_the_background_while_its_message_r
     assert_eq!(recorded.summaries.len(), 1, "the log records the summary");
     assert_eq!(recorded.summaries[0].text, "SUMMARY");
     assert_eq!(recorded.summaries[0].replaces, 2);
-    let (archived, free, archived_prompt) = recorded.out;
+    let (free, first_prompt) = recorded.out;
+    assert!(free, "the slot is free once the summary lands");
+    assert!(first_prompt.is_some());
     assert_eq!(
-        (archived, free),
-        (2, true),
-        "the first turn is archived, and the slot is free"
-    );
-    assert!(archived_prompt.is_some());
-    assert_eq!(
-        recorded.summaries[0].through, archived_prompt,
+        recorded.summaries[0].through, first_prompt,
         "the log names the summary's last turn by its prompt's request"
     );
 }

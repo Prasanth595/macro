@@ -30,9 +30,9 @@ use futures::future::BoxFuture;
 use std::collections::HashSet;
 
 use crate::domain::agent::close_dangling_tool_calls;
-use crate::domain::agent::compaction::ContextSummaryNotification;
 use crate::domain::model_options::REASONING_EFFORT_CONFIG_ID;
 use crate::domain::session::{HistoryEntry, UserPrompt, end_of_turn, splice_summary};
+use agent_runtime_protocol::domain::context::ContextSummaryNotification;
 
 #[cfg(test)]
 mod test;
@@ -49,16 +49,6 @@ pub trait FrameSource: Send + Sync + 'static {
         &self,
         session: agent_session::domain::model::AgentSessionId,
     ) -> BoxFuture<'_, Vec<Message>>;
-}
-
-/// A session's conversation, as its log recorded it.
-#[derive(Debug, Default)]
-pub struct ReplayedHistory {
-    /// What the model reads: the latest summary, if one landed, then
-    /// everything since.
-    pub history: Vec<HistoryEntry>,
-    /// What summaries stand in for, oldest first.
-    pub archive: Vec<HistoryEntry>,
 }
 
 /// A turn replay has opened and not yet closed.
@@ -84,8 +74,8 @@ struct OpenTurn {
 /// the log but never entered the live history; a turn that failed before
 /// any output carries the error the agent said; reasoning is not replayed.
 #[must_use]
-pub fn replay_history(frames: impl IntoIterator<Item = Message>) -> ReplayedHistory {
-    let mut replayed = ReplayedHistory::default();
+pub fn replay_history(frames: impl IntoIterator<Item = Message>) -> Vec<HistoryEntry> {
+    let mut history = Vec::new();
     let mut open: Option<OpenTurn> = None;
 
     for frame in frames {
@@ -101,7 +91,7 @@ pub fn replay_history(frames: impl IntoIterator<Item = Message>) -> ReplayedHist
                 else {
                     continue;
                 };
-                close_turn(&mut replayed, &mut open);
+                close_turn(&mut history, &mut open);
                 open = Some(OpenTurn {
                     id: request.id.clone(),
                     prompt: UserPrompt::from_blocks(&prompt.prompt),
@@ -120,7 +110,7 @@ pub fn replay_history(frames: impl IntoIterator<Item = Message>) -> ReplayedHist
                     if refused {
                         open = None;
                     } else {
-                        close_turn(&mut replayed, &mut open);
+                        close_turn(&mut history, &mut open);
                     }
                     continue;
                 }
@@ -137,16 +127,11 @@ pub fn replay_history(frames: impl IntoIterator<Item = Message>) -> ReplayedHist
                         // the conversation stays whole rather than losing
                         // turns it never covered.
                         let end = match &summary.through {
-                            Some(through) => end_of_turn(&replayed.history, through),
+                            Some(through) => end_of_turn(&history, through),
                             None => Some(summary.replaces),
                         };
                         if let Some(end) = end {
-                            splice_summary(
-                                &mut replayed.history,
-                                &mut replayed.archive,
-                                summary.text,
-                                end,
-                            );
+                            splice_summary(&mut history, summary.text, end);
                         }
                     }
                     continue;
@@ -168,8 +153,8 @@ pub fn replay_history(frames: impl IntoIterator<Item = Message>) -> ReplayedHist
             _ => {}
         }
     }
-    close_turn(&mut replayed, &mut open);
-    replayed
+    close_turn(&mut history, &mut open);
+    history
 }
 
 /// Rebuild the last valid reasoning-effort selection from durable frames.
@@ -338,7 +323,7 @@ const CLEARED_CONTEXT: &str =
     "Compacted: the earlier conversation is no longer in the model's context.";
 
 /// Push the open turn into the history, closing whatever it left dangling.
-fn close_turn(replayed: &mut ReplayedHistory, open: &mut Option<OpenTurn>) {
+fn close_turn(history: &mut Vec<HistoryEntry>, open: &mut Option<OpenTurn>) {
     let Some(OpenTurn {
         id,
         prompt,
@@ -355,16 +340,16 @@ fn close_turn(replayed: &mut ReplayedHistory, open: &mut Option<OpenTurn>) {
         );
     if cleared {
         // What the live agent cleared then stays cleared.
-        replayed.history.clear();
+        history.clear();
         return;
     }
     let _ = close_dangling_tool_calls(&mut parts);
-    replayed.history.push(HistoryEntry::User {
+    history.push(HistoryEntry::User {
         prompt,
         request_id: id,
     });
     if !parts.is_empty() {
-        replayed.history.push(HistoryEntry::Assistant(parts));
+        history.push(HistoryEntry::Assistant(parts));
     }
 }
 

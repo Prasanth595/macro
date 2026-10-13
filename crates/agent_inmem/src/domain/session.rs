@@ -217,7 +217,8 @@ pub enum HistoryEntry {
 /// words went.
 pub const SUMMARY_PREAMBLE: &str = "The earlier conversation was summarized to keep it within \
 your context. The summary below is history: the actions it records already happened, so do \
-not repeat them. SearchHistory finds the exact words of anything it covers.";
+not repeat them. ContentSearch over this agent session finds the exact words of anything it \
+covers.";
 
 /// A summary being written in the background. A session has at most one.
 #[derive(Debug)]
@@ -275,9 +276,6 @@ pub struct SessionState {
     /// The conversation the model reads, oldest first: a summary of what
     /// came before, if there was one, then everything since.
     pub history: Vec<HistoryEntry>,
-    /// What summaries stand in for, oldest first. With `history` it is the
-    /// whole conversation, which `SearchHistory` reads.
-    pub archive: Vec<HistoryEntry>,
     /// The summary being written in the background, if any, and what the
     /// last attempt left for the next.
     pub summarizing: Summarizing,
@@ -295,7 +293,6 @@ impl SessionState {
             identity: None,
             instructions: None,
             history: Vec::new(),
-            archive: Vec::new(),
             summarizing: Summarizing::default(),
         }
     }
@@ -304,28 +301,18 @@ impl SessionState {
     /// longer does, and any summary of it still being written or tried.
     pub fn clear_history(&mut self) {
         self.history.clear();
-        self.archive.clear();
         if let Some(summary) = std::mem::take(&mut self.summarizing).pending {
             summary.cancel.cancel();
         }
     }
 }
 
-/// Put a summary in place of the first `replaces` entries of `history`,
-/// moving the conversation they held to `archive`. An earlier summary among
-/// them is not conversation and is dropped: the new one covers it.
-pub fn splice_summary(
-    history: &mut Vec<HistoryEntry>,
-    archive: &mut Vec<HistoryEntry>,
-    text: String,
-    replaces: usize,
-) {
+/// Put a summary in place of the first `replaces` entries of `history`. The
+/// log keeps what they said, and an earlier summary among them is covered
+/// by the new one.
+pub fn splice_summary(history: &mut Vec<HistoryEntry>, text: String, replaces: usize) {
     let replaces = replaces.min(history.len());
-    archive.extend(
-        history
-            .drain(..replaces)
-            .filter(|entry| !matches!(entry, HistoryEntry::Summary(_))),
-    );
+    history.drain(..replaces);
     history.insert(0, HistoryEntry::Summary(text));
 }
 

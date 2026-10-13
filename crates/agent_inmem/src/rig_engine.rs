@@ -41,7 +41,6 @@ use tracing::Instrument as _;
 use crate::domain::engine::{AgentIdentity, TurnEngine, TurnRequest};
 use crate::domain::tool_gate::{NativeToolGate, NativeToolVerdict, UngatedNativeTools};
 use crate::inbound::ask_user::{AskUser, AskUserContext};
-use crate::inbound::search_history::{SearchHistory, SearchHistoryContext};
 
 #[path = "outbound/rig_engine/opener.rs"]
 mod opener;
@@ -92,10 +91,9 @@ impl RigTurnEngine {
     }
 }
 
-/// Native tools never gated: asking the user something, searching the
-/// session's own conversation, and finding or loading a connected app's
-/// tools spend nobody's access.
-const UNGATED_NATIVE_TOOLS: [&str; 4] = ["AskUser", "SearchHistory", "SearchTools", "LoadTools"];
+/// Native tools never gated: asking the user something, and finding or
+/// loading a connected app's tools, spend nobody's access.
+const UNGATED_NATIVE_TOOLS: [&str; 3] = ["AskUser", "SearchTools", "LoadTools"];
 
 /// A turn's tools, each call to one of Macro's own asked of the gate first.
 /// Remote MCP tools are left to the egress proxy, which gates them already.
@@ -159,7 +157,6 @@ where
 struct InMemToolContext {
     base: ToolServiceContext,
     ask_user: AskUserContext,
-    search_history: SearchHistoryContext,
 }
 
 impl FromRef<InMemToolContext> for ToolServiceContext {
@@ -174,19 +171,11 @@ impl FromRef<InMemToolContext> for AskUserContext {
     }
 }
 
-impl FromRef<InMemToolContext> for SearchHistoryContext {
-    fn from_ref(context: &InMemToolContext) -> Self {
-        context.search_history.clone()
-    }
-}
-
 fn tools_for_turn(
     base_tools: ai_tools::AiToolSet,
     supports_user_input: bool,
 ) -> AsyncToolCollection<InMemToolContext> {
-    let tools = AsyncToolCollection::<InMemToolContext>::new()
-        .add_subtoolset(base_tools)
-        .add_tool::<SearchHistory, SearchHistoryContext>();
+    let tools = AsyncToolCollection::<InMemToolContext>::new().add_subtoolset(base_tools);
     if supports_user_input {
         tools.add_tool::<AskUser, AskUserContext>()
     } else {
@@ -289,7 +278,6 @@ async fn drive_turn(
         cancel,
         user_input,
         reviewer,
-        history,
     } = request;
     let started = tokio::time::Instant::now();
 
@@ -367,6 +355,7 @@ async fn drive_turn(
         let user_memory = fetch_user_memory(memory, &owner).await;
         let prompt = system_prompt(
             &native_tools.prompt,
+            session_id,
             identity.as_ref(),
             instructions.as_deref(),
             user_memory.as_deref(),
@@ -392,7 +381,6 @@ async fn drive_turn(
         ask_user: AskUserContext {
             requester: user_input,
         },
-        search_history: SearchHistoryContext { history },
     };
 
     // GenAI telemetry stays off here: this runtime's turns and tool calls
@@ -583,8 +571,8 @@ fn elapsed_ms(since: tokio::time::Instant) -> u64 {
 /// The turn's system prompt: the agent's identity, the agent-session
 /// preamble, the note that an opening line is already out (see [`opener`]),
 /// the static Macro prompt (how to use the product: mentions,
-/// tools, terminology), then the session's own instructions and the owner's
-/// memory when there are any.
+/// tools, terminology), then the session's own instructions when there are
+/// any, which session this is, and the owner's memory when there is any.
 ///
 /// Identity comes first so a named agent (even one with no instructions)
 /// knows who it is before reading anything else. The static Macro prompt
@@ -598,6 +586,7 @@ fn elapsed_ms(since: tokio::time::Instant) -> u64 {
 /// session whose instructions name its own task still reads it back.
 fn system_prompt(
     tools_prompt: &impl std::fmt::Display,
+    session_id: agent_session::domain::model::AgentSessionId,
     identity: Option<&AgentIdentity>,
     instructions: Option<&str>,
     user_memory: Option<&str>,
@@ -624,6 +613,12 @@ fn system_prompt(
         rest.push_str(instructions);
         rest.push_str("\n</session_instructions>");
     }
+    rest.push_str(&format!(
+        "\n<agent_session>\nThis conversation is agent session {session_id}. Once it grows \
+         long, its earlier part is summarized to keep it within your context. To find the exact \
+         words of anything said earlier, summarized or not, run ContentSearch with \
+         agentSessionIds [\"{session_id}\"].\n</agent_session>"
+    ));
     if let Some(memory) = user_memory {
         rest.push_str("\n<user_memory>\n");
         rest.push_str(memory);

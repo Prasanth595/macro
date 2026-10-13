@@ -324,15 +324,6 @@ pub trait HarnessReader: Sync {
         let _ = frame;
         None
     }
-
-    /// Whether a prompt of `/compact` alone asks this harness to compact its
-    /// context, and so folds to a
-    /// [`Control::Compact`](crate::domain::model::Control::Compact) rather
-    /// than a message. The neutral reading is yes: coding agents compact on
-    /// it.
-    fn compacts_on_command(&self) -> bool {
-        true
-    }
 }
 
 /// What a subagent was asked, as one frame reports it. Every field is

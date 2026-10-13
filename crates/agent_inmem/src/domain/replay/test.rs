@@ -177,7 +177,7 @@ fn shown(entries: &[HistoryEntry]) -> Vec<String> {
 
 #[test]
 fn a_logged_turn_replays_as_the_history_the_live_agent_recorded() {
-    let ReplayedHistory { history, .. } = replay_history(vec![
+    let history = replay_history(vec![
         prompt_frame("find the roadmap"),
         update_frame(SessionUpdate::AgentThoughtChunk(ContentChunk::new(
             ContentBlock::Text(TextContent::new("hmm")),
@@ -252,7 +252,7 @@ fn a_logged_turn_replays_as_the_history_the_live_agent_recorded() {
 
 #[test]
 fn a_compact_that_cleared_the_context_before_summaries_still_clears_it() {
-    let ReplayedHistory { history, .. } = replay_history(vec![
+    let history = replay_history(vec![
         prompt_frame("remember this"),
         update_frame(message_chunk("noted")),
         answer("remember this", "end_turn"),
@@ -289,7 +289,7 @@ fn a_compact_sent_since_is_a_message_like_any_other() {
     ]
     .concat();
 
-    let ReplayedHistory { history, .. } = replay_history(frames);
+    let history = replay_history(frames);
     assert_eq!(said(&history), ["remember this", "/compact"]);
 }
 
@@ -297,7 +297,7 @@ fn a_compact_sent_since_is_a_message_like_any_other() {
 fn a_compact_prompt_carrying_a_file_replays_as_an_ordinary_turn() {
     // Even before summaries, a `/compact` with files was a prompt about
     // them, and the live agent kept the conversation.
-    let ReplayedHistory { history, .. } = replay_history(vec![
+    let history = replay_history(vec![
         prompt_frame("remember this"),
         update_frame(message_chunk("noted")),
         prompt_frame_with_file("/compact", "notes.txt", "https://static.example/file/9"),
@@ -320,7 +320,7 @@ fn a_compact_prompt_carrying_a_file_replays_as_an_ordinary_turn() {
 
 #[test]
 fn a_call_the_log_never_answered_is_closed_rather_than_left_dangling() {
-    let ReplayedHistory { history, .. } = replay_history(vec![
+    let history = replay_history(vec![
         prompt_frame("run something"),
         update_frame(SessionUpdate::ToolCall(
             AcpToolCall::new("call-9", "BashCodeExecution").status(ToolCallStatus::InProgress),
@@ -342,12 +342,12 @@ fn a_call_the_log_never_answered_is_closed_rather_than_left_dangling() {
 
 #[test]
 fn an_empty_log_replays_to_an_empty_conversation() {
-    let ReplayedHistory { history, archive } = replay_history(Vec::new());
-    assert!(history.is_empty() && archive.is_empty());
+    let history = replay_history(Vec::new());
+    assert!(history.is_empty());
 }
 
 #[test]
-fn a_logged_summary_replaces_what_it_covered_and_archives_it() {
+fn a_logged_summary_replaces_what_it_covered() {
     let frames = [
         turn("plan the launch", "drafted"),
         turn("add pricing", "added"),
@@ -362,13 +362,11 @@ fn a_logged_summary_replaces_what_it_covered_and_archives_it() {
     ]
     .concat();
 
-    let ReplayedHistory { history, archive } = replay_history(frames);
+    let history = replay_history(frames);
     assert_eq!(
         said(&history),
         ["[Planned the launch.]", "add pricing", "and the FAQ?"]
     );
-    assert_eq!(said(&archive), ["plan the launch"]);
-    assert_eq!(archive.len(), 2, "the archive keeps the reply too");
 }
 
 #[test]
@@ -382,9 +380,8 @@ fn a_summary_landing_between_turns_keeps_the_turns_after_what_it_covered() {
     ]
     .concat();
 
-    let ReplayedHistory { history, archive } = replay_history(frames);
+    let history = replay_history(frames);
     assert_eq!(said(&history), ["[One and two happened.]", "three", "four"]);
-    assert_eq!(said(&archive), ["one", "two"]);
 }
 
 #[test]
@@ -400,13 +397,8 @@ fn a_later_summary_takes_in_the_earlier_one() {
     ]
     .concat();
 
-    let ReplayedHistory { history, archive } = replay_history(frames);
+    let history = replay_history(frames);
     assert_eq!(said(&history), ["[One and two happened.]", "three", "four"]);
-    assert_eq!(
-        said(&archive),
-        ["one", "two"],
-        "an earlier summary is not conversation, and is not archived"
-    );
 }
 
 #[test]
@@ -418,7 +410,7 @@ fn a_prompt_the_agent_refused_never_entered_the_conversation() {
     ]
     .concat();
 
-    let ReplayedHistory { history, .. } = replay_history(frames);
+    let history = replay_history(frames);
     assert_eq!(said(&history), ["first", "second"]);
 }
 
@@ -445,12 +437,8 @@ fn a_prompt_stopped_before_it_ran_does_not_move_where_a_summary_ends() {
     ]
     .concat();
 
-    let ReplayedHistory { history, archive } = replay_history(frames);
+    let history = replay_history(frames);
     assert_eq!(shown(&history), ["[Up to three.]", "four", "> 4"]);
-    assert_eq!(
-        shown(&archive),
-        ["one", "> 1", "two", "> 2", "waited", "three", "> 3"]
-    );
 }
 
 #[test]
@@ -473,19 +461,8 @@ fn a_turn_that_failed_before_any_output_does_not_move_where_a_summary_ends() {
     ]
     .concat();
 
-    let ReplayedHistory { history, archive } = replay_history(frames);
+    let history = replay_history(frames);
     assert_eq!(shown(&history), ["[Up to three.]", "four"]);
-    assert_eq!(
-        shown(&archive),
-        [
-            "one",
-            "> 1",
-            "two",
-            "> The agent stopped on an error: overloaded",
-            "three",
-            "> 3"
-        ]
-    );
 }
 
 #[test]
@@ -507,9 +484,8 @@ fn a_turn_that_only_reasoned_does_not_move_where_a_summary_ends() {
     ]
     .concat();
 
-    let ReplayedHistory { history, archive } = replay_history(frames);
+    let history = replay_history(frames);
     assert_eq!(shown(&history), ["[Up to two.]", "three", "> 3"]);
-    assert_eq!(shown(&archive), ["one", "> 1", "two"]);
 }
 
 #[test]
@@ -522,9 +498,8 @@ fn a_summary_logged_before_summaries_named_their_last_turn_replaces_what_it_coun
     ]
     .concat();
 
-    let ReplayedHistory { history, archive } = replay_history(frames);
+    let history = replay_history(frames);
     assert_eq!(said(&history), ["[One happened.]", "two", "three"]);
-    assert_eq!(said(&archive), ["one"]);
 }
 
 #[test]
@@ -536,9 +511,8 @@ fn a_summary_naming_a_turn_the_log_does_not_hold_is_left_out() {
     ]
     .concat();
 
-    let ReplayedHistory { history, archive } = replay_history(frames);
+    let history = replay_history(frames);
     assert_eq!(said(&history), ["one", "two"]);
-    assert!(archive.is_empty());
 }
 
 fn config_response(result: serde_json::Value) -> Message {

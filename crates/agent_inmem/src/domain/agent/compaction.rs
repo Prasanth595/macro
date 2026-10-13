@@ -15,13 +15,14 @@
 //! of the window: one that keeps failing would otherwise be paid for, and
 //! waited on, with every message.
 //!
-//! Nothing is deleted. What a summary covers moves to the session's archive,
-//! which `SearchHistory` reads, and the log keeps every frame.
+//! Nothing is deleted: the log keeps every frame, and the agent finds the
+//! exact words of what a summary covers by searching its own session.
 
 use std::collections::HashMap;
 
 use agent_client_protocol::JsonRpcNotification;
 use agent_runtime_protocol::domain::action::PromptAttachment;
+use agent_runtime_protocol::domain::context::ContextSummaryNotification;
 use futures::StreamExt as _;
 use serde::{Deserialize, Serialize};
 
@@ -80,33 +81,6 @@ const IMAGE_INSTRUCTIONS: &str = "You describe an image someone shared in a conv
     Transcribe any text, numbers and code in it exactly. Say what it shows - a screen, a \
     document, a chart, a photo - and the details someone would ask about, above all what the \
     message it came with asks. Plain prose, at most 150 words. Do not address anyone.";
-
-/// The log's record of a summary landing: from here on, the model reads
-/// `text` in place of the turn `through` names and everything before it.
-///
-/// An extension notification, not a `session/update`: a summary is about the
-/// agent's own context, not the conversation, and can land between turns,
-/// where an update would read as the agent speaking. Every reader of the log
-/// ignores methods it does not know; replay reads this one back.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonRpcNotification)]
-#[notification(method = "_macro/context_summary")]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct ContextSummaryNotification {
-    /// The ACP session whose context it summarizes.
-    pub session_id: SessionId,
-    /// The summary.
-    pub text: String,
-    /// The `session/prompt` request whose turn is the last it covers. A
-    /// replay of the log knows each turn by the same id the live agent
-    /// does, while their entries can differ: a prompt stopped before it ran
-    /// is in the log but never entered the live history. `None` in logs
-    /// written before summaries named it.
-    #[serde(default)]
-    pub through: Option<RequestId>,
-    /// How many entries, from the start of the live history, it stands in
-    /// for: all a log written before `through` says.
-    pub replaces: usize,
-}
 
 /// Why a summary was not written.
 ///
@@ -409,8 +383,8 @@ async fn summarize(
         return;
     }
     let session = &mut *session;
-    splice_summary(&mut session.history, &mut session.archive, summary, end);
-    // What it covered is archived, images and all, so nothing an attempt
+    splice_summary(&mut session.history, summary, end);
+    // What it covered is summarized, images and all, so nothing an attempt
     // before it left is wanted any more.
     session.summarizing.failed_at = None;
     session.summarizing.descriptions.clear();
@@ -613,7 +587,6 @@ async fn complete(
         cancel: call,
         user_input: None,
         reviewer: None,
-        history: None,
     });
     let mut text = String::new();
     loop {

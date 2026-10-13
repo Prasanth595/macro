@@ -231,16 +231,15 @@ fn a_summary_reaches_the_model_as_history_it_already_acted_on() {
 }
 
 #[test]
-fn a_summary_replaces_its_entries_and_archives_the_conversation_they_held() {
+fn a_summary_replaces_its_entries_and_the_earlier_summary_among_them() {
     let mut history = vec![
         HistoryEntry::Summary("Before.".to_owned()),
         user("one"),
         user("two"),
         user("three"),
     ];
-    let mut archive = vec![user("zero")];
 
-    splice_summary(&mut history, &mut archive, "Up to two.".to_owned(), 3);
+    splice_summary(&mut history, "Up to two.".to_owned(), 3);
 
     let text = |entries: &[HistoryEntry]| -> Vec<String> {
         entries
@@ -253,15 +252,10 @@ fn a_summary_replaces_its_entries_and_archives_the_conversation_they_held() {
             .collect()
     };
     assert_eq!(text(&history), ["[Up to two.]", "three"]);
-    assert_eq!(
-        text(&archive),
-        ["zero", "one", "two"],
-        "the earlier summary is not archived"
-    );
 
     // A log shorter than the live history it was written from replaces
     // what it has.
-    splice_summary(&mut history, &mut archive, "All.".to_owned(), 9);
+    splice_summary(&mut history, "All.".to_owned(), 9);
     assert_eq!(text(&history), ["[All.]"]);
 }
 

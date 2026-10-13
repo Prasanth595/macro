@@ -4,7 +4,6 @@
 pub mod admission;
 pub mod agent;
 pub mod engine;
-pub mod history_search;
 pub mod mcp;
 pub mod model_access;
 /// ACP session configuration generated from the turn engine catalog.

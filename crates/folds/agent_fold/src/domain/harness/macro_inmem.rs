@@ -83,10 +83,4 @@ impl HarnessReader for MacroInmem {
     fn is_subagent(&self, name: &ToolName, frame: &ToolFrame<'_>) -> bool {
         meta_of(frame.meta).subagent || generic::is_subagent(name, frame)
     }
-
-    /// The agent keeps its context bounded by summarizing long
-    /// conversations itself, and answers `/compact` like any message.
-    fn compacts_on_command(&self) -> bool {
-        false
-    }
 }
