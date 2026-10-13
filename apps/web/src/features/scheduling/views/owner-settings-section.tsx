@@ -12,6 +12,7 @@ import type { SchedulingOwner } from '../primitives/create-scheduling-owner';
 import { EventEditor } from './event-editor-view';
 import { InsightsView } from './insights-view';
 import { ScheduleEditor } from './schedule-editor-view';
+import { SinglePageEventEditorView } from './single-page-event-editor-view';
 
 export function OwnerSettingsSection(props: {
   kind: 'links' | 'availability' | 'page' | 'bookings' | 'insights';
@@ -25,6 +26,7 @@ export function OwnerSettingsSection(props: {
     scope,
     source,
     event,
+    eventEditorVariant,
     schedule,
     profileDraft,
     setProfileDraft,
@@ -34,6 +36,8 @@ export function OwnerSettingsSection(props: {
     bookingAction,
     closeEventEditor,
     closeScheduleEditor,
+    createEventSinglePage,
+    editEventSinglePage,
     duplicate,
   } = owner;
   async function copyPageLink() {
@@ -58,25 +62,50 @@ export function OwnerSettingsSection(props: {
             >
               <Show when={event()} keyed>
                 {(value) => (
-                  <EventEditor
-                    event={value}
-                    events={p().eventTypes}
-                    schedules={owner.eventSchedules()}
-                    members={capabilities.members()}
-                    team={!!scope().teamId}
-                    defaultHosts={[capabilities.userId()]}
-                    saving={source.saving()}
-                    createActive={owner.createActive()}
-                    dialogTitle={
-                      p().eventTypes.some((item) => item.id === value.id)
-                        ? 'Edit booking link'
-                        : `New ${scope().teamId ? 'team' : 'personal'} booking link`
+                  <Show
+                    when={eventEditorVariant() === 'single'}
+                    fallback={
+                      <EventEditor
+                        event={value}
+                        events={p().eventTypes}
+                        schedules={owner.eventSchedules()}
+                        members={capabilities.members()}
+                        team={!!scope().teamId}
+                        defaultHosts={[capabilities.userId()]}
+                        saving={source.saving()}
+                        createActive={owner.createActive()}
+                        dialogTitle={
+                          p().eventTypes.some((item) => item.id === value.id)
+                            ? 'Edit booking link'
+                            : `New ${scope().teamId ? 'team' : 'personal'} booking link`
+                        }
+                        link={(slug) => capabilities.link(p(), slug)}
+                        onCopyLink={(slug) => capabilities.copyLink(p(), slug)}
+                        onCancel={closeEventEditor}
+                        onSave={owner.saveEvent}
+                      />
                     }
-                    link={(slug) => capabilities.link(p(), slug)}
-                    onCopyLink={(slug) => capabilities.copyLink(p(), slug)}
-                    onCancel={closeEventEditor}
-                    onSave={owner.saveEvent}
-                  />
+                  >
+                    <SinglePageEventEditorView
+                      event={value}
+                      events={p().eventTypes}
+                      schedules={owner.eventSchedules()}
+                      members={capabilities.members()}
+                      team={!!scope().teamId}
+                      defaultHosts={[capabilities.userId()]}
+                      saving={source.saving()}
+                      createActive={owner.createActive()}
+                      dialogTitle={
+                        p().eventTypes.some((item) => item.id === value.id)
+                          ? 'Edit booking link'
+                          : `New ${scope().teamId ? 'team' : 'personal'} booking link`
+                      }
+                      link={(slug) => capabilities.link(p(), slug)}
+                      onCopyLink={(slug) => capabilities.copyLink(p(), slug)}
+                      onCancel={closeEventEditor}
+                      onSave={owner.saveEvent}
+                    />
+                  </Show>
                 )}
               </Show>
               <EventTypesPanel
@@ -86,6 +115,8 @@ export function OwnerSettingsSection(props: {
                 canEdit={scope().canEdit}
                 saving={source.saving()}
                 onEdit={owner.editEvent}
+                onEditSinglePage={editEventSinglePage}
+                onCreateSinglePage={() => void createEventSinglePage()}
                 onDuplicate={duplicate}
                 link={(item) => capabilities.link(p(), item.slug)}
                 onCopy={(item) =>

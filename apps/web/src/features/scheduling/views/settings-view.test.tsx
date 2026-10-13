@@ -995,6 +995,352 @@ async function advanceEditor(
     await user.click(screen.getByRole('button', { name: 'Next' }));
 }
 
+it('keeps single-page sections ordered with consistent spacing and required markers', async () => {
+  const user = userEvent.setup();
+  workspaceFixture('links');
+  await user.click(
+    screen.getByRole('button', { name: 'Try single-page editor' })
+  );
+  const dialog = within(
+    screen.getByRole('dialog', { name: 'New personal booking link' })
+  );
+  const sections = Array.from(
+    dialog
+      .getByRole('heading', { name: 'Title' })
+      .closest('form')
+      ?.querySelectorAll<HTMLElement>('[data-booking-editor-section]') ?? []
+  );
+  expect(
+    sections.map((section) => section.querySelector('h3')?.textContent?.trim())
+  ).toEqual([
+    'Title*',
+    'Custom link',
+    'Description (optional)',
+    'Duration*',
+    'Availability*',
+    'Meeting link',
+    'Booking questions',
+    'Booking rules',
+  ]);
+  for (const section of sections) {
+    expect(section.className).toBe(sections[0].className);
+    expect(section.className).toContain('gap-1.5');
+    expect(section.className).toContain('py-3');
+    expect(section.className).toContain('px-5');
+    expect(
+      section.querySelector('[data-booking-section-heading]')
+    ).toBeTruthy();
+    const heading = section.querySelector('h3');
+    expect(heading?.className).toContain('text-sm');
+    expect(heading?.className).toContain('font-normal');
+    expect(heading?.className).toContain('text-ink-muted');
+  }
+  for (const title of ['Title', 'Duration', 'Availability']) {
+    const marker = dialog
+      .getByRole('heading', { name: title })
+      .querySelector('span[aria-hidden="true"]');
+    expect(marker?.textContent).toBe('*');
+    expect(marker?.className).toContain('text-failure');
+  }
+  for (const title of ['Custom link', 'Booking questions', 'Booking rules']) {
+    const section = dialog
+      .getByRole('heading', { name: title })
+      .closest('section');
+    expect(section?.getAttribute('data-optional-setting')).toBeTruthy();
+    expect(section?.querySelector('span[aria-hidden="true"]')).toBeNull();
+  }
+  expect(dialog.queryByRole('button', { name: 'Next' })).toBeNull();
+  expect(
+    dialog.getByRole('button', { name: /^Availability schedule/ })
+  ).toBeTruthy();
+  expect(dialog.queryByRole('region', { name: 'Weekly hours' })).toBeNull();
+  for (const name of [
+    /^Duration/,
+    /^Availability schedule/,
+    /^Meeting link type/,
+  ]) {
+    expect(dialog.getByRole('button', { name }).className).toContain('h-9');
+  }
+  expect(dialog.getByRole('textbox', { name: 'Title' }).className).toContain(
+    'h-9'
+  );
+  const infoButton = dialog.getByRole('button', {
+    name: 'View schedule hours',
+  });
+  expect(infoButton.className).toContain('size-9');
+  await user.click(infoButton);
+  const weeklyHours = await dialog.findByRole('region', {
+    name: 'Weekly hours',
+  });
+  expect(within(weeklyHours).getByText('Monday')).toBeTruthy();
+  expect(within(weeklyHours).getAllByText('09:00–17:00')).toHaveLength(5);
+  await user.keyboard('{Escape}');
+  expect(dialog.queryByRole('region', { name: 'Weekly hours' })).toBeNull();
+});
+
+it('keeps a live booking link preview below Title when custom editing is collapsed or expanded', async () => {
+  const user = userEvent.setup();
+  const { saves } = workspaceFixture('links');
+  await user.click(
+    screen.getByRole('button', { name: 'Try single-page editor' })
+  );
+  const dialog = within(
+    screen.getByRole('dialog', { name: 'New personal booking link' })
+  );
+  const preview = dialog.getByRole('status', { name: 'Booking link preview' });
+  expect(preview.textContent).toContain('/book/personal/');
+  expect(dialog.queryByRole('textbox', { name: 'Custom link' })).toBeNull();
+  const title = dialog.getByRole('textbox', { name: 'Title' });
+  await user.type(title, 'Coffee chat');
+  expect(preview.textContent).toBe('/book/personal/coffee-chat');
+  await user.click(dialog.getByRole('button', { name: 'Add custom link' }));
+  const customLink = dialog.getByRole('textbox', { name: 'Custom link' });
+  await user.clear(customLink);
+  await user.type(customLink, 'intro-call');
+  expect(preview.textContent).toBe('/book/personal/intro-call');
+  await user.clear(title);
+  await user.type(title, 'Coffee conversation');
+  expect(preview.textContent).toBe('/book/personal/intro-call');
+  await user.click(dialog.getByRole('button', { name: 'Remove custom link' }));
+  expect(dialog.queryByRole('textbox', { name: 'Custom link' })).toBeNull();
+  expect(dialog.getByRole('status', { name: 'Booking link preview' })).toBe(
+    preview
+  );
+  expect(preview.textContent).toBe('/book/personal/coffee-conversation');
+  await user.click(dialog.getByRole('button', { name: 'Create link' }));
+  await waitFor(() => expect(saves).toHaveBeenCalledOnce());
+  expect(saves.mock.calls[0][1].eventTypes[0]).toMatchObject({
+    title: 'Coffee conversation',
+    slug: 'coffee-conversation',
+  });
+});
+
+it('previews the saved booking link without changing it when an existing title changes', async () => {
+  const user = userEvent.setup();
+  workspaceFixture('links', {});
+  await user.click(
+    screen.getByRole('button', { name: 'Options for Existing link' })
+  );
+  await user.click(
+    screen.getByRole('menuitem', { name: 'Edit in single-page editor' })
+  );
+  const dialog = within(
+    screen.getByRole('dialog', { name: 'Edit booking link' })
+  );
+  const preview = dialog.getByRole('status', { name: 'Booking link preview' });
+  expect(preview.textContent).toBe('/book/personal/existing-link');
+  expect(dialog.queryByRole('textbox', { name: 'Custom link' })).toBeNull();
+  const title = dialog.getByRole('textbox', { name: 'Title' });
+  await user.clear(title);
+  await user.type(title, 'Renamed meeting');
+  expect(preview.textContent).toBe('/book/personal/existing-link');
+});
+
+it('expands optional settings in their original sections and restores focus on removal', async () => {
+  const user = userEvent.setup();
+  workspaceFixture('links');
+  await user.click(
+    screen.getByRole('button', { name: 'Try single-page editor' })
+  );
+  const dialog = within(
+    screen.getByRole('dialog', { name: 'New personal booking link' })
+  );
+  for (const [detail, title] of [
+    ['link', 'Custom link'],
+    ['questions', 'Booking questions'],
+    ['rules', 'Booking rules'],
+  ] as const) {
+    const section = dialog
+      .getByRole('heading', { name: title })
+      .closest<HTMLElement>(`[data-optional-setting="${detail}"]`);
+    expect(section).toBeTruthy();
+    if (!section) throw new Error(`Missing ${detail} section`);
+    const add = within(section).getByRole('button', {
+      name: `Add ${title.toLowerCase()}`,
+    });
+    expect(add.getAttribute('data-size')).toBe('md');
+    expect(add.className).toContain('h-8');
+    expect(add.className).not.toContain('h-10');
+    expect(add.className).not.toContain('w-full');
+    await user.click(add);
+    expect(
+      dialog.getByRole('heading', { name: title }).closest('section')
+    ).toBe(section);
+    expect(
+      within(section).queryByRole('button', {
+        name: `Add ${title.toLowerCase()}`,
+      })
+    ).toBeNull();
+    if (detail === 'link')
+      expect(
+        within(section).getByRole('textbox', { name: 'Custom link' })
+      ).toBeTruthy();
+    if (detail === 'rules')
+      expect(
+        within(section).getByRole('heading', { name: 'Booking rules' })
+      ).toBeTruthy();
+    if (detail === 'questions') {
+      const addQuestion = within(section).getByRole('button', {
+        name: 'Add a question',
+      });
+      expect(addQuestion.getAttribute('data-size')).toBe('md');
+      expect(addQuestion.className).toContain('h-8');
+      const question = within(section).getByRole('textbox', {
+        name: 'Question 1',
+      });
+      const marker = section.querySelector(
+        `label[for="${question.id}"] span[aria-hidden="true"]`
+      );
+      expect(marker?.textContent).toBe('*');
+      expect(marker?.className).toContain('text-failure');
+    }
+    await user.click(
+      within(section).getByRole('button', {
+        name: `Remove ${title.toLowerCase()}`,
+      })
+    );
+    const restored = within(section).getByRole('button', {
+      name: `Add ${title.toLowerCase()}`,
+    });
+    await waitFor(() => expect(document.activeElement).toBe(restored));
+    expect(
+      dialog.getByRole('heading', { name: title }).closest('section')
+    ).toBe(section);
+  }
+});
+
+it('saves single-page duration presets, meeting link choice, and booking questions', async () => {
+  const user = userEvent.setup();
+  const { saves } = workspaceFixture('links');
+  await user.click(
+    screen.getByRole('button', { name: 'Try single-page editor' })
+  );
+  const dialog = within(
+    screen.getByRole('dialog', { name: 'New personal booking link' })
+  );
+  await user.click(dialog.getByRole('button', { name: /^Duration / }));
+  await user.click(dialog.getByRole('option', { name: '45 minutes' }));
+  expect(
+    dialog.getByRole('button', { name: /^Duration / }).textContent
+  ).toContain('45 minutes');
+  expect(
+    dialog.queryByRole('spinbutton', { name: 'Duration exact value' })
+  ).toBeNull();
+  await user.click(dialog.getByRole('button', { name: /^Meeting link type / }));
+  expect(dialog.getByRole('option', { name: 'Google Meet' })).toBeTruthy();
+  await user.click(dialog.getByRole('option', { name: 'Custom' }));
+  await user.type(
+    dialog.getByRole('textbox', { name: 'Location or meeting URL' }),
+    'https://meet.example/test'
+  );
+  await user.click(
+    dialog.getByRole('button', { name: 'Add booking questions' })
+  );
+  await user.type(
+    dialog.getByRole('textbox', { name: 'Question 1' }),
+    'What should we discuss?'
+  );
+  await user.click(dialog.getByRole('button', { name: 'Create link' }));
+  expect(await dialog.findByText('Give this event a title.')).toBeTruthy();
+  expect(saves).not.toHaveBeenCalled();
+  await user.type(
+    dialog.getByRole('textbox', { name: 'Title' }),
+    'Coffee chat'
+  );
+  await user.click(dialog.getByRole('button', { name: 'Create link' }));
+  await waitFor(() => expect(saves).toHaveBeenCalledOnce());
+  expect(saves.mock.calls[0][1].eventTypes[0]).toMatchObject({
+    title: 'Coffee chat',
+    durationMinutes: 45,
+    googleMeet: false,
+    location: 'https://meet.example/test',
+    questions: [{ label: 'What should we discuss?' }],
+    enabled: true,
+  });
+});
+
+it('preserves exact custom duration values when editing and saving a single-page link', async () => {
+  const user = userEvent.setup();
+  const { saves } = workspaceFixture('links', { durationMinutes: 37 });
+  await user.click(
+    screen.getByRole('button', { name: 'Options for Existing link' })
+  );
+  await user.click(
+    screen.getByRole('menuitem', { name: 'Edit in single-page editor' })
+  );
+  const dialog = within(
+    screen.getByRole('dialog', { name: 'Edit booking link' })
+  );
+  expect(
+    dialog.getByRole('button', { name: /^Duration / }).textContent
+  ).toContain('Custom duration');
+  expect(
+    dialog.getByRole('spinbutton', { name: 'Duration exact value' })
+  ).toHaveProperty('value', '37');
+  await user.click(dialog.getByRole('button', { name: 'Save changes' }));
+  await waitFor(() => expect(saves).toHaveBeenCalledOnce());
+  expect(saves.mock.calls[0][1].eventTypes[0].durationMinutes).toBe(37);
+});
+
+it('keeps a newly entered custom duration exact when saving', async () => {
+  const user = userEvent.setup();
+  const { saves } = workspaceFixture('links');
+  await user.click(
+    screen.getByRole('button', { name: 'Try single-page editor' })
+  );
+  const dialog = within(
+    screen.getByRole('dialog', { name: 'New personal booking link' })
+  );
+  await user.click(dialog.getByRole('button', { name: /^Duration / }));
+  await user.click(dialog.getByRole('option', { name: 'Custom duration' }));
+  const exact = dialog.getByRole('spinbutton', {
+    name: 'Duration exact value',
+  });
+  await user.clear(exact);
+  await user.type(exact, '37');
+  await user.type(
+    dialog.getByRole('textbox', { name: 'Title' }),
+    'Custom meeting'
+  );
+  await user.click(dialog.getByRole('button', { name: 'Create link' }));
+  await waitFor(() => expect(saves).toHaveBeenCalledOnce());
+  expect(saves.mock.calls[0][1].eventTypes[0].durationMinutes).toBe(37);
+});
+
+it('opens configured links in a distinct single-page edit dialog', async () => {
+  const user = userEvent.setup();
+  workspaceFixture('links', {
+    questions: [{ id: 'q1', label: 'What should we cover?', required: true }],
+    horizonDays: 30,
+  });
+  await user.click(
+    screen.getByRole('button', { name: 'Options for Existing link' })
+  );
+  await user.click(
+    screen.getByRole('menuitem', { name: 'Edit in single-page editor' })
+  );
+
+  const dialog = within(
+    screen.getByRole('dialog', { name: 'Edit booking link' })
+  );
+  expect(dialog.getByRole('textbox', { name: 'Title' })).toHaveProperty(
+    'value',
+    'Existing link'
+  );
+  expect(dialog.getByRole('textbox', { name: 'Question 1' })).toHaveProperty(
+    'value',
+    'What should we cover?'
+  );
+  expect(dialog.getByRole('heading', { name: 'Booking rules' })).toBeTruthy();
+  expect(dialog.queryByText('Name and email are always collected.')).toBeNull();
+  expect(
+    dialog.queryByText(
+      'Control notice, booking range, buffers, and daily limits.'
+    )
+  ).toBeNull();
+  expect(dialog.queryByRole('button', { name: 'Next' })).toBeNull();
+});
+
 it('clears an availability editor when switching sections instead of reopening a lost draft', async () => {
   const user = userEvent.setup();
   const { saves } = workspaceFixture();

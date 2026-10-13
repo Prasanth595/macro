@@ -8,7 +8,7 @@ import type {
 } from '../core/types';
 import { createEventEditor } from '../primitives/create-event-editor';
 
-export function EventEditor(props: {
+export type EventEditorViewProps = {
   event: EventType;
   events: EventType[];
   schedules: AvailabilitySchedule[];
@@ -25,7 +25,9 @@ export function EventEditor(props: {
   onChange?: (event: EventType) => void;
   onSave: (event: EventType) => Promise<void>;
   onCancel: () => void;
-}) {
+};
+
+export function EventEditor(props: EventEditorViewProps) {
   const editor = createEventEditor({
     event: props.event,
     events: () => props.events,

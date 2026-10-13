@@ -103,7 +103,9 @@ export function SelectInput(props: {
   onChange: (value: string) => void;
   disabled?: boolean;
   error?: string;
+  required?: boolean;
   class?: string;
+  contentClass?: string;
 }) {
   const field = useContext(FieldErrorContext);
   const errorId = createUniqueId();
@@ -119,6 +121,7 @@ export function SelectInput(props: {
         value={props.options.find((o) => o.value === props.value)}
         onChange={(option) => option && props.onChange(option.value)}
         disabled={props.disabled}
+        required={props.required}
         modal={false}
       >
         <Select.Trigger
@@ -135,7 +138,7 @@ export function SelectInput(props: {
           </Select.Value>
           <Select.Icon />
         </Select.Trigger>
-        <Select.Content portalScope="local">
+        <Select.Content portalScope="local" class={props.contentClass}>
           <Select.Listbox />
         </Select.Content>
       </Select>
