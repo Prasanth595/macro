@@ -68,6 +68,18 @@ run_smokes() {
   env "$@" SSL_CERT_FILE="$PWD/nonexistent-ca.pem" bash "$appdir/AppRun" "$tls_smoke" reject
 }
 
+# Fedora 44 dropped the old /etc/pki/tls/certs/ca-bundle.crt symlink.
+# Exercise discovery against an isolated root with only its current location.
+(
+  export APPDIR="$appdir"
+  # shellcheck disable=SC1090
+  source "$hook"
+  trust_root="$PWD/fedora-trust-root"
+  mkdir -p "$trust_root/etc/pki/ca-trust/extracted/pem"
+  cp "$ca_bundle" "$trust_root/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"
+  test "$(macro_find_ca_bundle "$trust_root")" = "$trust_root/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem"
+)
+
 # Normal AppImage startup supplies APPDIR; no caller workaround is necessary.
 run_smokes -u XKB_CONFIG_ROOT -u GSETTINGS_SCHEMA_DIR APPDIR="$appdir"
 

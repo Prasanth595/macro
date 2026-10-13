@@ -8,13 +8,25 @@ export XKB_CONFIG_ROOT="$APPDIR/usr/share/X11/xkb"
 export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas"
 # Use the host's managed TLS trust, not a build-time Nix path. Preserve explicit
 # overrides (including invalid ones): the TLS backend must fail closed on those.
-if [ -z "${SSL_CERT_FILE:-}" ]; then
-  for ca_file in /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt /etc/ssl/ca-bundle.pem /etc/ssl/cert.pem; do
-    if [ -r "$ca_file" ] && [ -s "$ca_file" ]; then
-      export SSL_CERT_FILE="$ca_file"
-      break
+macro_find_ca_bundle() {
+  local root="${1:-}" candidate
+  for candidate in \
+    etc/ssl/certs/ca-certificates.crt \
+    etc/pki/tls/certs/ca-bundle.crt \
+    etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem \
+    etc/ssl/ca-bundle.pem \
+    etc/ssl/cert.pem; do
+    if [ -r "$root/$candidate" ] && [ -s "$root/$candidate" ]; then
+      printf '%s\n' "$root/$candidate"
+      return 0
     fi
   done
+  return 1
+}
+if [ -z "${SSL_CERT_FILE:-}" ]; then
+  if ca_file=$(macro_find_ca_bundle); then
+    export SSL_CERT_FILE="$ca_file"
+  fi
 fi
 gio_modules="$APPDIR/usr/lib/gio/modules"
 if [ -d "$gio_modules" ]; then
