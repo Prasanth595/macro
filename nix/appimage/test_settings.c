@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+#include <dlfcn.h>
 #include <gio/gio.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,10 +42,11 @@ int main(void) {
         }
     }
 
-    // Exercise the same glib-networking module that crashed in Fedora, rather
-    // than passing with GIO's dummy proxy resolver or only inspecting XML files.
+    // Test both resolver routes, not just GIO's dummy resolver or XML presence.
+    gboolean use_libproxy = g_strcmp0(g_getenv("GIO_USE_PROXY_RESOLVER"), "libproxy") == 0;
+    const char *expected = use_libproxy ? "GLibproxyResolver" : "GProxyResolverGnome";
     GProxyResolver *resolver = g_proxy_resolver_get_default();
-    if (strcmp(G_OBJECT_TYPE_NAME(resolver), "GProxyResolverGnome") != 0) {
+    if (strcmp(G_OBJECT_TYPE_NAME(resolver), expected) != 0) {
         fprintf(stderr, "Unexpected proxy resolver: %s\n", G_OBJECT_TYPE_NAME(resolver));
         return EXIT_FAILURE;
     }
@@ -57,6 +60,22 @@ int main(void) {
         fprintf(stderr, "Unexpected default proxy configuration\n");
         return EXIT_FAILURE;
     }
-    printf("Bundled GTK/GNOME schemas and GNOME proxy lookup succeeded: %s\n", root);
+    if (use_libproxy) {
+        // A store-backed libproxy would pass on NixOS while crashing in Fedora.
+        // Check the actual loaded backend, not just the file we meant to copy.
+        void *backend = dlopen("libpxbackend-1.0.so", RTLD_LAZY | RTLD_NOLOAD);
+        Dl_info info = {0};
+        g_autofree char *prefix = g_build_filename(g_getenv("APPDIR"), "usr/lib/", NULL);
+        if (backend == NULL ||
+            dladdr(dlsym(backend, "px_manager_get_type"), &info) == 0 ||
+            !g_str_has_prefix(info.dli_fname, prefix)) {
+            fprintf(stderr, "libproxy backend was not loaded from the AppDir\n");
+            if (backend != NULL)
+                dlclose(backend);
+            return EXIT_FAILURE;
+        }
+        dlclose(backend);
+    }
+    printf("Bundled GTK/GNOME schemas and %s lookup succeeded: %s\n", expected, root);
     return EXIT_SUCCESS;
 }

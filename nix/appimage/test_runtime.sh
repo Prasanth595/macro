@@ -2,17 +2,18 @@
 set -euo pipefail
 source_dir=$(cd "$(dirname "$0")" && pwd)
 hook="$source_dir/runtime-hook.sh"
-data=${1:?usage: test_runtime.sh <bundled-xkb-data> <bundled-schemas> <gio-modules> <AppRun>}
+data=${1:?usage: test_runtime.sh <xkb-data> <schemas> <gio-modules> <AppRun> <libproxy>}
 schemas=${2:?missing bundled schemas}
 modules=${3:?missing GIO modules}
 apprun=${4:?missing real AppRun executable}
+libproxy=${5:?missing portable libproxy}
 xkb_smoke="$PWD/xkb-smoke"
 settings_smoke="$PWD/settings-smoke"
 
 # shellcheck disable=SC2046
 cc -Wall -Wextra -Werror "$source_dir/test_xkb.c" $(pkg-config --cflags --libs xkbcommon) -o "$xkb_smoke"
 # shellcheck disable=SC2046
-cc -Wall -Wextra -Werror "$source_dir/test_settings.c" $(pkg-config --cflags --libs gio-2.0) -o "$settings_smoke"
+cc -Wall -Wextra -Werror "$source_dir/test_settings.c" $(pkg-config --cflags --libs gio-2.0) -ldl -o "$settings_smoke"
 
 # Prove that neither fixture silently falls back to the build host's data.
 if env XKB_CONFIG_ROOT="$PWD/missing-xkb-data" "$xkb_smoke"; then
@@ -29,6 +30,8 @@ mkdir -p "$appdir/usr/share/X11" "$appdir/usr/share/glib-2.0" "$appdir/usr/lib/g
 cp -r "$data" "$appdir/usr/share/X11/xkb"
 cp -r "$schemas" "$appdir/usr/share/glib-2.0/schemas"
 cp -rL "$modules" "$appdir/usr/lib/gio/modules"
+install -m0755 "$libproxy/lib/libproxy.so.1" "$appdir/usr/lib/libproxy.so.1"
+install -m0755 "$libproxy/lib/libproxy/libpxbackend-1.0.so" "$appdir/usr/lib/libpxbackend-1.0.so"
 # Use the same patched native launcher as the artifact, not a shell stand-in.
 # The unpatched executable corrupts GSETTINGS_SCHEMA_DIR after the hook runs.
 install -m0755 "$apprun" "$appdir/AppRun.wrapped"
@@ -42,20 +45,22 @@ chmod +x "$appdir/usr/bin/app"
 printf '#!/usr/bin/env bash\nsource %q\nexec "$APPDIR/AppRun.wrapped" "$@"\n' "$hook" > "$appdir/AppRun"
 
 # No user settings or session bus should be needed by these headless checks.
-export GSETTINGS_BACKEND=memory GIO_USE_PROXY_RESOLVER=gnome XDG_CURRENT_DESKTOP=GNOME
+export GSETTINGS_BACKEND=memory XDG_CURRENT_DESKTOP=GNOME
 export XDG_DATA_DIRS="$PWD/missing-system-data"
 
+run_smokes() {
+  env "$@" bash "$appdir/AppRun" "$xkb_smoke"
+  for resolver in gnome libproxy; do
+    env "$@" GIO_USE_PROXY_RESOLVER="$resolver" bash "$appdir/AppRun" "$settings_smoke"
+  done
+}
+
 # Normal AppImage startup supplies APPDIR; no caller workaround is necessary.
-for smoke in "$xkb_smoke" "$settings_smoke"; do
-  env -u XKB_CONFIG_ROOT -u GSETTINGS_SCHEMA_DIR APPDIR="$appdir" bash "$appdir/AppRun" "$smoke"
-done
+run_smokes -u XKB_CONFIG_ROOT -u GSETTINGS_SCHEMA_DIR APPDIR="$appdir"
 
 # Relocating the bundle (including spaces) must override stale inherited paths.
 mv "$appdir" "$PWD/Relocated Macro.AppDir"
 appdir="$PWD/Relocated Macro.AppDir"
-for smoke in "$xkb_smoke" "$settings_smoke"; do
-  env XKB_CONFIG_ROOT="$PWD/missing-xkb-data" GSETTINGS_SCHEMA_DIR="$PWD/missing-schemas" \
-    APPDIR="$appdir" bash "$appdir/AppRun" "$smoke"
-  # linuxdeploy's standalone AppRun also works without the runtime environment.
-  env -u APPDIR -u XKB_CONFIG_ROOT -u GSETTINGS_SCHEMA_DIR bash "$appdir/AppRun" "$smoke"
-done
+run_smokes XKB_CONFIG_ROOT="$PWD/missing-xkb-data" GSETTINGS_SCHEMA_DIR="$PWD/missing-schemas" APPDIR="$appdir"
+# linuxdeploy's standalone AppRun also works without the runtime environment.
+run_smokes -u APPDIR -u XKB_CONFIG_ROOT -u GSETTINGS_SCHEMA_DIR

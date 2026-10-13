@@ -48,6 +48,7 @@
           # WASM sources. Avoid recompiling both for AppImage-only changes.
           rel != "nix"
           && !(lib.hasPrefix "nix/" rel)
+          && rel != "nix-support/appimage-libproxy.nix"
           && !(lib.hasPrefix "node_modules/" rel)
           && !(lib.hasPrefix "apps/web/node_modules/" rel)
           && !(lib.hasPrefix "apps/web/dist/" rel)
@@ -479,6 +480,7 @@
         version = "1-alpha-20250213-1";
         src = tauriLinuxdeployAppimagePluginSource;
       };
+      tauriPortableLibproxy = pkgs.callPackage ../nix-support/appimage-libproxy.nix { };
       tauriLinuxdeployAppimagePlugin = pkgs.stdenvNoCC.mkDerivation {
         pname = "linuxdeploy-plugin-appimage-patched";
         version = "1-alpha-20250213-1";
@@ -501,6 +503,9 @@
             shift
           done
           if [ -n "$appdir" ]; then
+            # Same libproxy version/ABI and dependencies, but without nixpkgs'
+            # hardcoded schema lookup. Replace the backend before ELF relocation.
+            install -m0755 ${tauriPortableLibproxy}/lib/libproxy/libpxbackend-1.0.so "$appdir/usr/lib/libpxbackend-1.0.so"
             export PATH="${lib.makeBinPath [ pkgs.patchelf ]}:$PATH"
             ${pkgs.python3}/bin/python3 ${./appimage/relocate.py} "$appdir"
           fi
@@ -871,7 +876,7 @@
             export PYTHONDONTWRITEBYTECODE=1
             python3 -m unittest discover -s ${./appimage} -v
             bash ${./appimage}/test_runtime.sh \
-              ${tauriXkbData} ${tauriGsettingsSchemas} ${gioTlsModulePath} ${tauriAppRun}
+              ${tauriXkbData} ${tauriGsettingsSchemas} ${gioTlsModulePath} ${tauriAppRun} ${tauriPortableLibproxy}
             bash ${./appimage}/test_xdg.sh ${tauriXdgUtils}
             # GStreamer's default Nix output is bin; its scanner and core plugins
             # live in the library output. Do not silently ship an empty helper dir.
