@@ -90,7 +90,7 @@ describe('channel list query selection', () => {
       dispose();
     }
   });
-  it('bounds every list but keeps the selected conversation notification edge complete', () => {
+  it('bounds every list and the selected conversation notification edge', () => {
     useSoupAstItemsQuery.mockClear();
     const dispose = createRoot((dispose) => {
       useChannelsSources(
@@ -114,6 +114,9 @@ describe('channel list query selection', () => {
       for (const [, options] of useSoupAstItemsQuery.mock.calls.slice(4, 6)) {
         expect(options?.().staleTime).toBe(30_000);
       }
+      // The Threads rail's channels, fetched by id, are rail rows too.
+      const [, channelsByIdOptions] = useSoupAstItemsQuery.mock.calls[5];
+      expect(channelsByIdOptions?.().graphqlProjection).toBe('channel-list');
       const [selectionArgs, selectionOptions] =
         useSoupAstItemsQuery.mock.calls[6];
       expect(selectionArgs().transport).toBe('rest');
