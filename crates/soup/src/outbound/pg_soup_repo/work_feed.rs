@@ -18,8 +18,10 @@
 //!
 //! Done notifications never place an item, so the query reads only the
 //! viewer's pending ones, once, and both streams look attention up there.
-//! Reading every notification instead made a viewer with a long history pay
-//! for all of it on each page.
+//! It also reads them only back to a floor: a full page of own work holds
+//! `limit` items placed at or after its oldest touch, so nothing placed
+//! earlier can reach the page. Reading every notification instead made a
+//! viewer with a long history pay for all of it on each page.
 //!
 //! Like the notified-at feed, channel, channel-thread, email and
 //! foreign-entity filter trees fold in their own domains, so the service

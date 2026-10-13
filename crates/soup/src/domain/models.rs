@@ -966,7 +966,8 @@ pub struct WorkFeedCandidate {
     /// thread root as a `channel_message`, like the notified-at feed.
     pub entity: Entity<'static>,
     /// The newest pending (unseen or seen) notification keyed to the
-    /// candidate.
+    /// candidate. An own-work candidate omits attention older than the page's
+    /// oldest own work, which the query does not read and which cannot move it.
     pub attention_at: Option<chrono::DateTime<chrono::Utc>>,
     /// The viewer's latest own (non-view) activity on the candidate. Always
     /// `None` in attention mode.

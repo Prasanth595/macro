@@ -11,6 +11,59 @@ only_keys AS MATERIALIZED (
     SELECT k.entity_type, k.entity_id
     FROM unnest($10::text[], $11::text[]) AS k(entity_type, entity_id)
 ),
+-- The viewer's own work: their latest work on each item they may see,
+-- newest first.
+own_work AS NOT MATERIALIZED (
+    SELECT nc.entity_type, nc.entity_id, nc.touched_at
+    FROM (
+        SELECT ae.entity_type, ae.entity_id, ae.occurred_at AS touched_at
+        FROM activity_events ae
+        WHERE $9
+        AND ae.subject_id = $1
+        AND {own_work_ae}
+        AND ae.entity_type = ANY($2)
+        AND ae.entity_type <> 'channel_message'
+        AND ($3::timestamptz IS NULL OR (ae.occurred_at, ae.entity_id) < ($3, $4))
+        AND ($10::text[] IS NULL OR (ae.entity_type, ae.entity_id) IN (
+            SELECT entity_type, entity_id FROM only_keys
+        ))
+        AND NOT EXISTS (
+            SELECT 1 FROM activity_events newer
+            WHERE newer.subject_id = $1
+            AND newer.entity_type = ae.entity_type
+            AND newer.entity_id = ae.entity_id
+            AND {own_work_newer}
+            AND (newer.occurred_at, newer.id) > (ae.occurred_at, ae.id)
+        )
+        ORDER BY ae.occurred_at DESC, ae.entity_id DESC
+        OFFSET 0
+    ) nc
+    WHERE CASE nc.entity_type
+        WHEN 'document' THEN {document_gate}
+        WHEN 'chat' THEN {chat_gate}
+        WHEN 'project' THEN {project_gate}
+        WHEN 'initiative' THEN {initiative_gate}
+        WHEN 'channel' THEN {channel_gate}
+        WHEN 'email_thread' THEN {email_gate}
+        WHEN 'calendar_event' THEN {calendar_event_gate}
+        WHEN 'foreign_entity' THEN {foreign_entity_gate}
+        WHEN 'agent_session' THEN {agent_session_gate}
+        ELSE FALSE
+    END
+),
+-- A full page of own work, before attention claims any of it, holds $6
+-- distinct items placed at or after its oldest touch, so no item placed
+-- earlier can reach the page. Attention older than that floor is never read.
+-- Without a full page (attention mode, or little own work) there is no floor.
+attention_floor AS MATERIALIZED (
+    SELECT CASE WHEN count(*) = $6 THEN min(touched_at) END AS floor_at
+    FROM (
+        SELECT touched_at
+        FROM own_work
+        ORDER BY touched_at DESC, entity_id DESC
+        LIMIT $6
+    ) page_of_own_work
+),
 -- The viewer's attention: the newest pending (unseen or seen) notification
 -- keyed to each item. Only pending rows can place an item, so done ones are
 -- never read. Both streams look items up here, so it is built once.
@@ -39,6 +92,10 @@ pending AS MATERIALIZED (
     WHERE un.user_id = $1
     AND un.deleted_at IS NULL
     AND un.state <> 'done'
+    AND un.created_at >= COALESCE(
+        (SELECT floor_at AT TIME ZONE 'UTC' FROM attention_floor),
+        '-infinity'
+    )
     AND notified.entity_type = ANY($2)
     GROUP BY notified.entity_type, notified.entity_id
 ),
@@ -92,29 +149,7 @@ attention_page AS (
 ),
 own_page AS (
     SELECT nc.entity_type, nc.entity_id, own_attention.attention_at, nc.touched_at
-    FROM (
-        SELECT ae.entity_type, ae.entity_id, ae.occurred_at AS touched_at
-        FROM activity_events ae
-        WHERE $9
-        AND ae.subject_id = $1
-        AND {own_work_ae}
-        AND ae.entity_type = ANY($2)
-        AND ae.entity_type <> 'channel_message'
-        AND ($3::timestamptz IS NULL OR (ae.occurred_at, ae.entity_id) < ($3, $4))
-        AND ($10::text[] IS NULL OR (ae.entity_type, ae.entity_id) IN (
-            SELECT entity_type, entity_id FROM only_keys
-        ))
-        AND NOT EXISTS (
-            SELECT 1 FROM activity_events newer
-            WHERE newer.subject_id = $1
-            AND newer.entity_type = ae.entity_type
-            AND newer.entity_id = ae.entity_id
-            AND {own_work_newer}
-            AND (newer.occurred_at, newer.id) > (ae.occurred_at, ae.id)
-        )
-        ORDER BY ae.occurred_at DESC, ae.entity_id DESC
-        OFFSET 0
-    ) nc
+    FROM own_work nc
     -- A per-row lookup keeps the touch order, so the stream stops at the
     -- limit; flattened into a hash join it would sort the whole history.
     LEFT JOIN LATERAL (
@@ -127,20 +162,8 @@ own_page AS (
     ) own_attention ON TRUE
     -- The attention stream owns a candidate whose attention is at least as
     -- new as this touch; skipping it here emits every candidate once.
-    WHERE (own_attention.attention_at IS NULL
-        OR own_attention.attention_at < nc.touched_at)
-    AND CASE nc.entity_type
-        WHEN 'document' THEN {document_gate}
-        WHEN 'chat' THEN {chat_gate}
-        WHEN 'project' THEN {project_gate}
-        WHEN 'initiative' THEN {initiative_gate}
-        WHEN 'channel' THEN {channel_gate}
-        WHEN 'email_thread' THEN {email_gate}
-        WHEN 'calendar_event' THEN {calendar_event_gate}
-        WHEN 'foreign_entity' THEN {foreign_entity_gate}
-        WHEN 'agent_session' THEN {agent_session_gate}
-        ELSE FALSE
-    END
+    WHERE own_attention.attention_at IS NULL
+        OR own_attention.attention_at < nc.touched_at
     ORDER BY nc.touched_at DESC, nc.entity_id DESC
     LIMIT $6
 )

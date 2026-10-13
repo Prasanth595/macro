@@ -84,6 +84,23 @@ fn sources() -> Vec<SourceId> {
     vec![SourceId::user(USER_1)]
 }
 
+/// The fixture's whole work-mode feed, newest first.
+fn work_feed_order() -> Vec<(EntityType, String)> {
+    vec![
+        (EntityType::EmailThread, THREAD_S.to_string()),
+        (EntityType::EmailThread, THREAD_Z.to_string()),
+        (EntityType::Channel, CHANNEL_X.to_string()),
+        (EntityType::Document, DOC_H.to_string()),
+        (EntityType::Document, DOC_A.to_string()),
+        (EntityType::Document, DOC_B.to_string()),
+        (EntityType::Document, DOC_G.to_string()),
+        (EntityType::Document, DOC_C.to_string()),
+        (EntityType::Chat, CHAT_A.to_string()),
+        (EntityType::Document, DOC_E.to_string()),
+        (EntityType::ChannelMessage, THREAD_M.to_string()),
+    ]
+}
+
 #[sqlx::test(
     fixtures(path = "../../../../fixtures", scripts("work_feed")),
     migrator = "MACRO_DB_MIGRATIONS"
@@ -93,22 +110,7 @@ async fn work_mode_merges_attention_and_own_work(pool: Pool<Postgres>) -> anyhow
     let sources = sources();
     let page = work_feed_soup_page(&pool, req(WorkFeedSoupMode::Work, &link_ids, &sources)).await?;
 
-    assert_eq!(
-        keys(&page),
-        vec![
-            (EntityType::EmailThread, THREAD_S.to_string()),
-            (EntityType::EmailThread, THREAD_Z.to_string()),
-            (EntityType::Channel, CHANNEL_X.to_string()),
-            (EntityType::Document, DOC_H.to_string()),
-            (EntityType::Document, DOC_A.to_string()),
-            (EntityType::Document, DOC_B.to_string()),
-            (EntityType::Document, DOC_G.to_string()),
-            (EntityType::Document, DOC_C.to_string()),
-            (EntityType::Chat, CHAT_A.to_string()),
-            (EntityType::Document, DOC_E.to_string()),
-            (EntityType::ChannelMessage, THREAD_M.to_string()),
-        ]
-    );
+    assert_eq!(keys(&page), work_feed_order());
     assert_eq!(
         minutes(&page),
         vec![
@@ -202,6 +204,27 @@ async fn keyset_paginates_across_both_streams(pool: Pool<Postgres>) -> anyhow::R
         work_feed_soup_page(&pool, req(WorkFeedSoupMode::Work, &link_ids, &sources)).await?;
     assert_eq!(keys(&all), keys(&one_page));
     assert_eq!(all.len(), 11);
+
+    Ok(())
+}
+
+#[sqlx::test(
+    fixtures(path = "../../../../fixtures", scripts("work_feed")),
+    migrator = "MACRO_DB_MIGRATIONS"
+)]
+async fn every_page_size_matches_the_whole_feed(pool: Pool<Postgres>) -> anyhow::Result<()> {
+    let link_ids = [Uuid::parse_str(LINK_1)?];
+    let sources = sources();
+    let whole = work_feed_order();
+
+    // A full page of own work bounds how far back attention is read; each
+    // smaller page must still be the head of the whole feed.
+    for limit in 1..=whole.len() {
+        let mut request = req(WorkFeedSoupMode::Work, &link_ids, &sources);
+        request.limit = u16::try_from(limit)?;
+        let page = work_feed_soup_page(&pool, request).await?;
+        assert_eq!(keys(&page), whole[..limit], "limit {limit}");
+    }
 
     Ok(())
 }
