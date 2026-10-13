@@ -51,7 +51,8 @@ Real files live in `.agents/`; tool-specific directories only symlink to it.
 | Working inside Cursor Cloud | [Cursor Cloud](docs/development/cursor-cloud.md) |
 | Driving the app through a browser | [App agent guide](docs/agent-guide/README.md) |
 | SDK version bumps and npm publishing | [SDK release guide](packages/sdk/RELEASING.md), [release-sdk skill](.agents/skills/release-sdk/SKILL.md) |
-| Deployment | [Infrastructure guide](infra/README.md) |
+| Adding a service, worker, or Pulumi stack | [New service guide](docs/development/new-service.md) |
+| Infrastructure, Pulumi, or deploys | [Infrastructure guide](docs/development/infrastructure.md) |
 
 ## Essential guardrails
 
@@ -65,9 +66,8 @@ Real files live in `.agents/`; tool-specific directories only symlink to it.
 - On a local machine, frontend-only work uses `apps/web` against the dev backend;
   it does not need a local Rust stack. `.cursor/*.sh` scripts are **Cursor Cloud
   only**, not local-machine setup commands. Treat hosted dev data as real data.
-- Load Rust configuration through `macro_env_var` / `macro_config`, never
-  `std::env::var` or hand-rolled wrappers. Register new env vars in Doppler; never
-  paste secrets into chat or commit them.
+- Never deploy (`pulumi up`, `wrangler deploy`, deploy workflow dispatch) unless the
+  user explicitly asks for that deploy. Never paste secrets into chat or commit them.
 - Across domain crates, depend on the owning domain service or port; only a
   composition root may construct that crate's outbound adapters. Never import
   another crate's `outbound` module from an outbound adapter.

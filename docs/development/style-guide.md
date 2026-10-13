@@ -57,20 +57,8 @@ TypeScript · `[ui]` UI / UX conventions
   convention to express absence. (#4296)
 - **CS-13** `[types]` Model tri-state data (not-loaded / missing / present) as one flat
   enum, not nested `Option`s or ad-hoc flags. (#4527)
-- **CS-14** `[cfg]` All env access goes through `macro_env_var` / `macro_config` — never
-  `std::env::var`, never hand-rolled wrappers; use `MaybeEnvVar` for optional vars. The
-  same goes for AWS config instantiation (`macro_aws_config`) and tracing subscriber
-  setup (`macro_entrypoint`): use the shared crates.
-  (#4306, #4334, #4380 · enforced: clippy `disallowed-methods`)
-- **CS-15** `[cfg]` Fail fast: validate config at service instantiation, not deep inside
-  request handling — a missing env var should kill startup, not a request. (#4077, #4156)
-- **CS-16** `[cfg]` Don't add `.context()` to env-var macro errors — the macro error
-  already statically names the missing variable. (#4156)
-- **CS-17** `[cfg]` Doppler secret key names must exactly match the env var name
-  referenced in code. (#4525)
-- **CS-18** `[cfg]` Register new environment variables in Doppler. They are plain
-  env vars, not `LocalOrRemote`/doppler-wrapped; non-secret config goes in Doppler as
-  raw values, not AWS Secrets Manager secrets. (#4305, #4525)
+- **CS-14–CS-18** `[cfg]` Config, env vars, secrets, and service URLs: see the
+  [config rule](../../.agents/rules/config-and-service-urls.md), which owns these IDs.
 - **CS-19** `[err]` Give third-party errors their own variant — don't collapse e.g. a
   `jsonwebtoken` failure into a generic internal error. (#4020)
 - **CS-20** `[err]` Depending on a rate-limited external provider requires a fallback
