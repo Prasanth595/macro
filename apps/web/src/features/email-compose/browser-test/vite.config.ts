@@ -19,8 +19,13 @@ export default defineConfig({
       name: 'sender-fixture-context',
       enforce: 'pre',
       resolveId(source, importer) {
-        if (importer?.endsWith('/email-view/components/EmailInboxSelector.tsx') && source === '../email-view-context')
-          return fileURLToPath(new URL('./sender-adapters.tsx', import.meta.url));
+        if (
+          importer?.endsWith('/email-view/components/EmailInboxSelector.tsx') &&
+          source === '../email-view-context'
+        )
+          return fileURLToPath(
+            new URL('./sender-adapters.tsx', import.meta.url)
+          );
       },
     },
     solidPlugin(),
@@ -32,11 +37,19 @@ export default defineConfig({
     dedupe: ['solid-js'],
     alias: {
       '@ui': fileURLToPath(new URL('./ui-shim.ts', import.meta.url)),
-      ...Object.fromEntries([
-        '@core/component/UserIcon', '@core/component/inboxIcon',
-        '@queries/email/mail-accounts', '@app/lib/analytics/posthog',
-        '@core/email-link', '@app/components/view-shell',
-      ].map((name) => [name, fileURLToPath(new URL('./sender-adapters.tsx', import.meta.url))])),
+      ...Object.fromEntries(
+        [
+          '@core/component/UserIcon',
+          '@core/component/inboxIcon',
+          '@queries/email/mail-accounts',
+          '@app/lib/analytics/posthog',
+          '@core/email-link',
+          '@app/components/view-shell',
+        ].map((name) => [
+          name,
+          fileURLToPath(new URL('./sender-adapters.tsx', import.meta.url)),
+        ])
+      ),
       'loro-crdt': 'loro-crdt/base64',
     },
   },
