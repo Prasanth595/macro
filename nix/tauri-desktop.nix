@@ -544,13 +544,16 @@
       };
       tauriGstreamerPlugins = pkgs.symlinkJoin {
         name = "tauri-gstreamer-plugins";
-        paths = with pkgs.gst_all_1; [
-          gstreamer
-          gst-plugins-base
-          gst-plugins-good
-          gst-plugins-bad
-          gst-libav
-        ];
+        paths = map lib.getLib (
+          with pkgs.gst_all_1;
+          [
+            gstreamer
+            gst-plugins-base
+            gst-plugins-good
+            gst-plugins-bad
+            gst-libav
+          ]
+        );
       };
       tauriAppImageConfig = builtins.toJSON {
         version = appVersion;
@@ -834,6 +837,11 @@
           ''
             export PYTHONDONTWRITEBYTECODE=1
             python3 -m unittest discover -s ${./appimage} -v
+            # GStreamer's default Nix output is bin; its scanner and core plugins
+            # live in the library output. Do not silently ship an empty helper dir.
+            test -x ${lib.getLib pkgs.gst_all_1.gstreamer}/libexec/gstreamer-1.0/gst-plugin-scanner
+            test -f ${tauriGstreamerPlugins}/lib/gstreamer-1.0/libgstcoreelements.so
+            test -f ${tauriGstreamerPlugins}/lib/gstreamer-1.0/libgstapp.so
             touch "$out"
           '';
 
@@ -860,7 +868,7 @@
           LD_LIBRARY_PATH = tauriRuntimeLibraryPath;
           LDAI_RUNTIME_FILE = tauriAppImageRuntime;
           GSTREAMER_PLUGINS_DIR = "${tauriGstreamerPlugins}/lib/gstreamer-1.0";
-          GSTREAMER_HELPERS_DIR = "${pkgs.gst_all_1.gstreamer}/libexec/gstreamer-1.0";
+          GSTREAMER_HELPERS_DIR = "${lib.getLib pkgs.gst_all_1.gstreamer}/libexec/gstreamer-1.0";
           preBuild = ''
             test -e ${tauriAppImagePackagingTests}
             ${tauriDesktopPreBuild}
