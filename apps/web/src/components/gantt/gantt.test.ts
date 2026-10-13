@@ -238,7 +238,11 @@ it('keeps the year on pinned months and January while zooming across year bounda
   expect(decemberLabel.classList.contains('sticky')).toBe(true);
   expect(decemberLabel.classList.contains('items-baseline')).toBe(true);
   const monthCell = decemberLabel.parentElement!;
-  expect(monthCell.style.left).toBe('0px');
+  const monthCenter = (label: HTMLElement) =>
+    Number.parseFloat(label.parentElement!.parentElement!.style.left) +
+    4 +
+    Number.parseFloat(label.style.width) / 2;
+  expect(monthCenter(december)).toBe(0);
   expect(monthCell.classList.contains('overflow-clip')).toBe(true);
   expect(Number(decemberLabel.style.opacity)).toBe(0);
   const marks = view.container.querySelectorAll<HTMLElement>(
@@ -257,10 +261,7 @@ it('keeps the year on pinned months and January while zooming across year bounda
   viewport.scrollLeft =
     (toGanttDay('2027-01-01')! - start) * gantt.pixelsPerDay();
   gantt.updateViewport();
-  expect(
-    view.getByText('January').closest<HTMLElement>('[data-gantt-month]')?.style
-      .left
-  ).toBe('620px');
+  expect(monthCenter(view.getByText('January'))).toBe(620);
   expect(view.queryByText('December')).toBeNull();
   const january = view.getByText('January');
   const year = january.parentElement!.querySelector('[data-gantt-year]')!;
@@ -278,6 +279,15 @@ it('keeps the year on pinned months and January while zooming across year bounda
   expect(
     view.getByText('March').parentElement!.querySelector('[data-gantt-year]')
   ).toBeNull();
+  const assertCenteredMark = (label: HTMLElement) => {
+    const center = monthCenter(label);
+    const mark = view.container.querySelector<HTMLElement>(
+      `[data-gantt-date-tick][style="left: ${center}px;"]`
+    );
+    expect(label.classList.contains('text-center')).toBe(true);
+    expect(mark?.querySelector('[data-gantt-date-mark]')).toBeTruthy();
+  };
+  assertCenteredMark(view.getByText('March'));
   viewport.scrollLeft += 20;
   gantt.updateViewport();
   expect(view.getByText('February').parentElement).toBe(februaryLabel);
@@ -287,6 +297,7 @@ it('keeps the year on pinned months and January while zooming across year bounda
   expect(view.getByText('Feb').parentElement).toBe(februaryLabel);
   expect(view.queryByText('February')).toBeNull();
   expect(view.getByText('Feb').nextElementSibling).toBe(februaryYear);
+  assertCenteredMark(view.getByText('Mar'));
   expect(februaryLabel.querySelector('[data-gantt-date-mark]')).toBeNull();
   expect(view.container.querySelector('[data-gantt-year]')?.textContent).toBe(
     '2027'

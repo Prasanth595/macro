@@ -606,17 +606,21 @@ export function GanttHeader(props: ParentProps<{ class?: string }>) {
     gantt.labelWidth() > 0 ? gantt.labelWidth() + 8 : 64;
   const pinnedMonthLeft = () =>
     left(gantt.visibleRange().start) + textInset() - gantt.labelWidth();
+  const monthTextWidth = (tick: GanttTick) => tick.label.length * 7;
+  // Center the month text on its date; a trailing year does not shift that anchor.
+  const monthNaturalLeft = (tick: GanttTick) =>
+    left(tick.start) - monthTextWidth(tick) / 2 - 4;
   const monthYear = (tick: GanttTick) => {
     const date = ganttDateFromDay(tick.start);
-    return date.getMonth() === 0 || left(tick.start) + 4 <= pinnedMonthLeft()
+    return date.getMonth() === 0 || monthNaturalLeft(tick) <= pinnedMonthLeft()
       ? date.getFullYear()
       : undefined;
   };
   const monthLabelWidth = (tick: GanttTick) =>
-    tick.label.length * 7 + (monthYear(tick) === undefined ? 8 : 44);
+    monthTextWidth(tick) + (monthYear(tick) === undefined ? 8 : 44);
   const monthLeft = (tick: GanttTick) =>
     Math.min(
-      Math.max(left(tick.start) + 4, pinnedMonthLeft()),
+      Math.max(monthNaturalLeft(tick), pinnedMonthLeft()),
       left(tick.end) - monthLabelWidth(tick)
     );
   const monthOpacity = (tick: GanttTick) =>
@@ -679,18 +683,23 @@ export function GanttHeader(props: ParentProps<{ class?: string }>) {
               data-gantt-month=""
               class="pointer-events-none absolute inset-y-0 flex items-center overflow-clip text-ink whitespace-nowrap"
               style={{
-                left: `${left(tick().start)}px`,
-                width: `${(tick().end - tick().start) * gantt.pixelsPerDay()}px`,
+                left: `${monthNaturalLeft(tick())}px`,
+                width: `${left(tick().end) - monthNaturalLeft(tick())}px`,
               }}
             >
               <span
-                class="sticky z-20 ml-1 flex shrink-0 items-baseline gap-2 bg-panel px-1 text-xs leading-4"
+                class="sticky z-20 flex shrink-0 items-baseline gap-2 bg-panel px-1 text-xs leading-4"
                 style={{
                   left: `${textInset()}px`,
                   opacity: monthOpacity(tick()),
                 }}
               >
-                <span class="font-semibold">{tick().label}</span>
+                <span
+                  class="shrink-0 text-center font-semibold"
+                  style={{ width: `${monthTextWidth(tick())}px` }}
+                >
+                  {tick().label}
+                </span>
                 <Show when={monthYear(tick()) !== undefined}>
                   <span
                     data-gantt-year=""

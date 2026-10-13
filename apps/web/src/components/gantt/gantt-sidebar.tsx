@@ -1,5 +1,4 @@
-import CaretLeftIcon from '@phosphor/caret-left.svg';
-import ListIcon from '@phosphor/list-bullets.svg';
+import SidebarIcon from '@phosphor/sidebar-simple.svg';
 import { Button, cn, Layer, Surface } from '@ui';
 import {
   type Accessor,
@@ -32,12 +31,7 @@ export function GanttSidebarToggle() {
         disabled={gantt.editing()}
         onClick={() => gantt.sidebar.setOpen(!gantt.sidebar.open())}
       >
-        <Show
-          when={gantt.sidebar.open()}
-          fallback={<ListIcon class="size-4" />}
-        >
-          <CaretLeftIcon class="size-4" />
-        </Show>
+        <SidebarIcon class="size-4" />
       </Button>
     </div>
   );
