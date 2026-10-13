@@ -75,14 +75,17 @@ impl<Workflows: PipelineWorkflowService> AsyncTool<PipelineToolContext<Workflows
             .await
             .map_err(workflow_error)?;
         let entries: Vec<ToolEntry> = removed.removed.iter().map(ToolEntry::from).collect();
-        let summary = format!(
-            "Removed {} from the pipeline; the records stay in the CRM.",
-            entries
-                .iter()
-                .map(|entry| record_name(&entry.record))
-                .collect::<Vec<_>>()
-                .join(", ")
-        );
+        let summary = match entries.as_slice() {
+            [] => "Removed nothing.".to_owned(),
+            entries => format!(
+                "Removed {} from the pipeline; the records stay in the CRM.",
+                entries
+                    .iter()
+                    .map(|entry| record_name(&entry.record))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+        };
         Ok(RemoveFromPipelineResponse {
             removed: entries,
             version: removed.version.map(|version| version.0),

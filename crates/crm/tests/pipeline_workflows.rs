@@ -649,6 +649,8 @@ async fn pipelines_are_created_with_stages_and_edited_by_name(pool: PgPool) {
                 &member,
                 id,
                 PipelineEdit {
+                    name: Some("Renamed by a member".into()),
+                    add_options: vec![("Stage".into(), vec!["Rejected".into()])],
                     sharing: Some(PipelineSharing::Private),
                     ..Default::default()
                 },
@@ -656,6 +658,10 @@ async fn pipelines_are_created_with_stages_and_edited_by_name(pool: PgPool) {
             .await,
         Err(WorkflowError::Invalid(message)) if message.contains("owner")
     ));
+    // The refusal comes before any write: nothing of that edit landed.
+    let unchanged = &workflows.pipelines(&member).await.unwrap()[0];
+    assert_eq!(unchanged.pipeline.pipeline.name, "Hiring 2026");
+    assert_eq!(options(unchanged, "Stage"), ["Sourced", "Joined", "Offer"]);
     workflows
         .edit(
             &owner,

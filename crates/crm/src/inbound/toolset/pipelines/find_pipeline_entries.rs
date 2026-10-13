@@ -197,6 +197,13 @@ impl<Workflows: PipelineWorkflowService> AsyncTool<PipelineToolContext<Workflows
                 .filter(|group| !group.entries.is_empty())
                 .collect();
             let matched = found.iter().map(|group| group.entries.len()).sum();
+            let found: Vec<_> = found
+                .into_iter()
+                .map(|mut group| {
+                    group.entries.truncate(limit);
+                    group
+                })
+                .collect();
             let summary = match matched {
                 0 => "No entry in any of the user's pipelines matches.".to_owned(),
                 count => format!("Found {count} entries in {} pipelines.", found.len()),

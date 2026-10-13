@@ -912,6 +912,23 @@ where
                 "Nothing to change: give a new name, sharing, or field changes.".into(),
             ));
         }
+        // Refuse a sharing change before writing anything else, so a refusal
+        // never leaves the rest of the edit half-applied.
+        let share = match edit.sharing {
+            Some(sharing) => Some((
+                self.receipt::<OwnerAccessLevel>(viewer, pipeline)
+                    .await
+                    .map_err(|_| {
+                        WorkflowError::Invalid(
+                            "Only the pipeline's owner can change who it is shared with; \
+                             nothing was changed."
+                                .into(),
+                        )
+                    })?,
+                sharing,
+            )),
+            None => None,
+        };
         if !ops.is_empty() {
             self.apply(receipt.clone(), viewer, OpBatch::from(ops))
                 .await?;
@@ -919,15 +936,7 @@ where
         if let Some(name) = edit.name {
             self.pipelines.rename(receipt, name).await?;
         }
-        if let Some(sharing) = edit.sharing {
-            let owner = self
-                .receipt::<OwnerAccessLevel>(viewer, pipeline)
-                .await
-                .map_err(|_| {
-                    WorkflowError::Invalid(
-                        "Only the pipeline's owner can change who it is shared with.".into(),
-                    )
-                })?;
+        if let Some((owner, sharing)) = share {
             self.pipelines.share(owner, sharing).await?;
         }
         self.overview(&view).await
