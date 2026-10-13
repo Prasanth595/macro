@@ -9,8 +9,9 @@
 //! 3. Asks the App Store Connect API whether exactly that version + build is
 //!    live on the App Store (and that no build at or above it was uploaded
 //!    under another version), and fails with instructions otherwise — add the
-//!    `ios-update` label to run the [`super::ios_app_store_release`] workflow,
-//!    wait for Apple's approval, then re-run this check.
+//!    `ios-update` label to run the [`super::ios_app_store_release`] workflow
+//!    and wait for Apple's approval; [`super::ios_release_watch`] re-runs this
+//!    check once the release is live.
 //!
 //! The App Store Connect key comes from Doppler (`ios-release/prd` via the
 //! `IOS_RELEASE_DOPPLER_TOKEN` secret), shared with the release workflow.

@@ -1,0 +1,172 @@
+# DO NOT EDIT — regenerate with `cargo x workflows` (from the repository root).
+# Source: tooling/xtask/crates/xtask_workflows/src/workflows/ios_release_watch.rs
+name: iOS Release Watch
+'on':
+  schedule:
+  - cron: '*/30 * * * *'
+  workflow_dispatch: {}
+permissions:
+  actions: write
+  contents: read
+  pull-requests: write
+jobs:
+  watch:
+    name: Re-run the iOS Native Check once the App Store release is live
+    runs-on: namespace-profile-linux-tiny-no-cache
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    timeout-minutes: 15
+    steps:
+    - id: prs
+      name: Find PRs waiting on an App Store release
+      run: |
+        set -euo pipefail
+        prs=$(gh pr list --repo "$GH_REPO" --label ios-update --state open \
+          --json number,headRefOid --jq 'map({number, sha: .headRefOid})' | jq -c .)
+        count=$(jq 'length' <<<"$prs")
+        echo "Open PRs labeled ios-update: ${count}"
+        echo "prs=${prs}" >> "$GITHUB_OUTPUT"
+        echo "count=${count}" >> "$GITHUB_OUTPUT"
+      shell: bash
+    - name: Checkout
+      if: steps.prs.outputs.count != '0'
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      with:
+        clean: 'false'
+        persist-credentials: 'false'
+    - name: Setup Bun
+      if: steps.prs.outputs.count != '0'
+      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+      with:
+        bun-version: '1.3.13'
+    - name: Fetch App Store Connect credentials from Doppler
+      if: steps.prs.outputs.count != '0'
+      run: |
+        set -euo pipefail
+        # Fetch the App Store Connect credentials from Doppler (ios-release/prd) —
+        # the same shape as the DMG workflow's notarization step — and hand them to
+        # later steps the way the iOS scripts expect them:
+        #   APPLE_API_KEY / APPLE_API_ISSUER            exported via GITHUB_ENV
+        #   ~/.appstoreconnect/private_keys/AuthKey_<ID>.p8   the private key, where
+        #     altool, tauri (APPLE_API_KEY_PATH default) and ios-app-store.mjs look
+        # With IOS_DISTRIBUTION_CERTIFICATE=1 the optional Apple Distribution .p12 is
+        # decoded to $RUNNER_TEMP and exported as APPLE_DISTRIBUTION_CERTIFICATE_PATH
+        # / _PASSWORD for the signing step.
+        if [ -z "${DOPPLER_TOKEN:-}" ]; then
+          echo "IOS_RELEASE_DOPPLER_TOKEN must grant read access to ios-release/prd" >&2
+          exit 1
+        fi
+
+        umask 077
+        secrets=$(mktemp)
+        trap 'rm -f "$secrets"' EXIT
+        curl --fail --silent --show-error --retry 3 \
+          --header "Authorization: Bearer $DOPPLER_TOKEN" \
+          'https://api.doppler.com/v3/configs/config/secrets/download?project=ios-release&config=prd&format=json' \
+          > "$secrets"
+
+        required() {
+          jq -er --arg name "$1" '.[$name] | strings | select(length > 0)' "$secrets" \
+            || { echo "ios-release/prd is missing $1" >&2; exit 1; }
+        }
+        key_id=$(required APPLE_API_KEY_ID)
+        issuer=$(required APPLE_API_ISSUER)
+
+        key_dir="$HOME/.appstoreconnect/private_keys"
+        mkdir -p "$key_dir"
+        key_path="$key_dir/AuthKey_${key_id}.p8"
+        required APPLE_API_PRIVATE_KEY > "$key_path"
+        echo "::add-mask::$issuer"
+        {
+          echo "APPLE_API_KEY=$key_id"
+          echo "APPLE_API_ISSUER=$issuer"
+        } >> "$GITHUB_ENV"
+        echo "Wrote App Store Connect API key $key_id to $key_path"
+
+        if [ "${IOS_DISTRIBUTION_CERTIFICATE:-}" = "1" ]; then
+          certificate=$(jq -r '.APPLE_DISTRIBUTION_CERTIFICATE_BASE64 // empty' "$secrets")
+          if [ -z "$certificate" ]; then
+            echo "No APPLE_DISTRIBUTION_CERTIFICATE_BASE64 in ios-release/prd; the build will" \
+              "rely on Xcode cloud signing via the API key."
+            exit 0
+          fi
+          certificate_path="$RUNNER_TEMP/apple-distribution.p12"
+          printf '%s' "$certificate" | base64 --decode > "$certificate_path" 2>/dev/null \
+            || printf '%s' "$certificate" | base64 -D > "$certificate_path"
+          password=$(jq -r '.APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD // empty' "$secrets")
+          [ -z "$password" ] || echo "::add-mask::$password"
+          {
+            echo "APPLE_DISTRIBUTION_CERTIFICATE_PATH=$certificate_path"
+            echo "APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD=$password"
+          } >> "$GITHUB_ENV"
+          echo "Wrote Apple Distribution certificate to $certificate_path"
+        fi
+      shell: bash
+      env:
+        DOPPLER_TOKEN: ${{ secrets.IOS_RELEASE_DOPPLER_TOKEN }}
+    - name: Re-run the check on PRs whose release is live
+      if: steps.prs.outputs.count != '0'
+      run: |
+        set -euo pipefail
+        # For each open PR labeled `ios-update` (PRS: [{number, sha}]), ask App Store
+        # Connect whether the iOS version + build committed at the PR head is live.
+        # When it is, and the PR's latest `iOS Native Check` run failed (it fails
+        # until the release is live), re-run that run so the gate goes green without
+        # anyone clicking "Re-run". GH_TOKEN needs actions:write + pull-requests:write.
+        cd apps/web
+        conf_path="apps/web/tauri/src-tauri/tauri.ios.conf.json"
+
+        jq -c '.[]' <<<"$PRS" | while read -r pr; do
+          number=$(jq -r '.number' <<<"$pr")
+          sha=$(jq -r '.sha' <<<"$pr")
+          conf=$(gh api "repos/${GH_REPO}/contents/${conf_path}?ref=${sha}" --jq '.content' | base64 --decode)
+          version=$(jq -r '.version' <<<"$conf")
+          build=$(jq -r '.bundle.iOS.bundleVersion' <<<"$conf")
+          echo "PR #${number}: iOS ${version} (build ${build}) at ${sha:0:10}"
+
+          if ! bun scripts/ios-app-store.mjs status --require-live \
+              --version "$version" --build "$build" >"$RUNNER_TEMP/status-${number}.log" 2>&1; then
+            echo "  not live yet:"
+            sed 's/^/    /' "$RUNNER_TEMP/status-${number}.log"
+            continue
+          fi
+          echo "  live on the App Store"
+
+          run=$(gh run list --workflow ios-native-check.yml --commit "$sha" \
+            --json databaseId,status,conclusion,attempt,url --limit 1 --jq '.[0] // empty')
+          if [[ -z "$run" ]]; then
+            echo "  no iOS Native Check run for this commit; skipping"
+            continue
+          fi
+          run_id=$(jq -r '.databaseId' <<<"$run")
+          status=$(jq -r '.status' <<<"$run")
+          conclusion=$(jq -r '.conclusion' <<<"$run")
+          attempt=$(jq -r '.attempt' <<<"$run")
+          run_url=$(jq -r '.url' <<<"$run")
+          if [[ "$status" != "completed" ]]; then
+            echo "  iOS Native Check run ${run_id} is ${status}; skipping"
+            continue
+          fi
+          if [[ "$conclusion" == "success" ]]; then
+            echo "  iOS Native Check already passed"
+            continue
+          fi
+          if [[ "$conclusion" != "failure" ]]; then
+            echo "  iOS Native Check run ${run_id} concluded ${conclusion}; leaving it alone"
+            continue
+          fi
+          # Attempt 1 is the original run that failed while waiting on Apple. If our
+          # re-run also fails something else is wrong (the run's log says what), so
+          # stop re-running rather than retrying every half hour forever.
+          if (( attempt >= 3 )); then
+            echo "  iOS Native Check still failing after ${attempt} attempts; not re-running again — see ${run_url}"
+            continue
+          fi
+          echo "  re-running iOS Native Check run ${run_id} (attempt ${attempt} failed)"
+          gh run rerun "$run_id"
+          gh pr comment "$number" --body "📱 iOS ${version} (build ${build}) is live on the App Store. Re-ran the **iOS Native Check** ([run](${run_url})); this PR can merge once it passes."
+        done
+      shell: bash
+      env:
+        PRS: ${{ steps.prs.outputs.prs }}

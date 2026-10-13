@@ -192,8 +192,9 @@ jobs:
             ? [
                 `📱 iOS ${version} (build ${build}) was uploaded to TestFlight and submitted for App Review.`,
                 '',
-                'When Apple approves it, the version releases to the App Store automatically;',
-                're-run the **iOS Native Check** on this PR then to unblock merging.',
+                'When Apple approves it, the version releases to the App Store automatically,',
+                'and the **iOS Release Watch** workflow re-runs the **iOS Native Check** on this PR',
+                'within half an hour of that (or re-run it yourself), which unblocks merging.',
                 `After merge, the next prod deploy raises the iOS native build floor (\`MIN_NATIVE_BUILD_IOS\`) to ${build}, prompting older installs to update.`,
                 '',
                 `[Workflow run](${runUrl})`,

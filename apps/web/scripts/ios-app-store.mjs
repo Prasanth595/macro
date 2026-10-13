@@ -508,8 +508,9 @@ live on the App Store before merging (the next prod deploy will raise the
 iOS native build floor to ${build} and prompt older installs to update):
   - Not started yet? Add the \`ios-update\` label to the PR to build, upload,
     and submit it for review.
-  - Submitted? Wait for Apple to approve and release it, then re-run this
-    check.
+  - Submitted? Wait for Apple to approve and release it. The \`iOS Release
+    Watch\` workflow re-runs this check within half an hour of the release
+    (or re-run it yourself).
   - If these tauri changes don't break the native/web contract, add the
     \`skip-ios-update\` label instead.
 ${distributionUrl}`);

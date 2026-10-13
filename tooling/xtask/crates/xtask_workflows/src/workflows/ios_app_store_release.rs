@@ -1,7 +1,8 @@
 //! `iOS App Store Release` — add the `ios-update` label to a PR with breaking
 //! native (Tauri) changes and this workflow builds the iOS app from the PR
 //! head, uploads it to TestFlight, and submits it for App Review — the release
-//! the [`super::ios_native_check`] merge gate then waits on.
+//! the [`super::ios_native_check`] merge gate then waits on
+//! ([`super::ios_release_watch`] re-runs the gate once Apple releases it).
 //!
 //! The PR must already contain the version bump (`just ios-bump` in
 //! `apps/web`, committed): the workflow verifies it and fails fast otherwise.
@@ -174,8 +175,9 @@ fn pr_comment() -> Step<Use> {
                   ? [
                       `📱 iOS ${version} (build ${build}) was uploaded to TestFlight and submitted for App Review.`,
                       '',
-                      'When Apple approves it, the version releases to the App Store automatically;',
-                      're-run the **iOS Native Check** on this PR then to unblock merging.',
+                      'When Apple approves it, the version releases to the App Store automatically,',
+                      'and the **iOS Release Watch** workflow re-runs the **iOS Native Check** on this PR',
+                      'within half an hour of that (or re-run it yourself), which unblocks merging.',
                       `After merge, the next prod deploy raises the iOS native build floor (\`MIN_NATIVE_BUILD_IOS\`) to ${build}, prompting older installs to update.`,
                       '',
                       `[Workflow run](${runUrl})`,
