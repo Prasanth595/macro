@@ -8,8 +8,8 @@ use agent_inmem::domain::engine::{TurnEngine, TurnRequest};
 use agent_inmem::domain::mcp::NoMcpServers;
 use agent_inmem::domain::model_access::{InMemModelAccess, ModelAccess, ModelAccessError};
 use agent_inmem::outbound::log_frames::LogFrameSource;
-use agent_session::domain::model::ReplicaId;
-use agent_session::domain::ports::{AgentSessionRepo, NoOpRealtime};
+use agent_session::domain::model::{ClaimOutcome, ReplicaId};
+use agent_session::domain::ports::{AgentSessionRepo, NoOpRealtime, SessionOwnership};
 use agent_session::domain::ports::{
     NoOpAgentSessionNameGenerator, NoOpTurnObserver, NoopLifecyclePublisher,
 };
@@ -206,17 +206,19 @@ async fn resuming_an_in_process_session_held_elsewhere_rotates_its_credential() 
     assert_eq!(session_for_token(&repo, &lost).await, None);
 }
 
-/// The process that spawned the session still holds its token, so a resume
-/// there keeps the credential rather than rotating it.
+/// A session can move to another replica and back while the first stays up.
+/// The token the first still holds was revoked when the second rotated, so
+/// resuming on the first again must not reuse it.
 #[tokio::test]
-async fn resuming_an_in_process_session_held_here_keeps_its_credential() {
+async fn resuming_where_a_revoked_token_is_still_held_does_not_reuse_it() {
     let (id, repo) = repo_with_session(bot_id::MACRO_NEW_BOT_ID, "opencode");
-    let spawned = SessionToken::new("held by this replica");
+    let spawned = SessionToken::new("held by the first replica");
     repo.set_egress_token_hash(id, &spawned.hash())
         .await
         .expect("spawn's hash");
-    let containers = in_process_containers(&repo);
-    let _spawned = containers
+    let first = in_process_containers(&repo);
+    let second = in_process_containers(&repo);
+    let _spawned = first
         .spawn(SpawnContainer {
             session_id: id,
             kind: AgentKind::InMemory,
@@ -228,18 +230,51 @@ async fn resuming_an_in_process_session_held_here_keeps_its_credential() {
         })
         .await
         .expect("spawns");
+    let _moved = second.resume(id).await.expect("resumes on the second");
 
-    let _resumed = containers.resume(id).await.expect("resumes");
+    let _returned = first.resume(id).await.expect("resumes on the first again");
 
+    let token = first
+        .session_token(id)
+        .await
+        .expect("token lookup")
+        .expect("a resumed in-process session holds a credential");
+    assert_ne!(token, spawned.as_str());
     assert_eq!(
-        containers
-            .session_token(id)
-            .await
-            .expect("token lookup")
-            .as_deref(),
-        Some(spawned.as_str())
+        session_for_token(&repo, &SessionToken::new(token)).await,
+        Some(id)
     );
-    assert_eq!(session_for_token(&repo, &spawned).await, Some(id));
+}
+
+/// Another live replica's claim would refuse this attach, and rotating first
+/// would revoke the credential that replica's agent is using.
+#[tokio::test]
+async fn resuming_a_session_a_live_peer_manages_is_refused_without_rotating() {
+    let (id, repo) = repo_with_session(bot_id::MACRO_NEW_BOT_ID, "opencode");
+    let current = SessionToken::new("held by the managing replica");
+    repo.set_egress_token_hash(id, &current.hash())
+        .await
+        .expect("spawn's hash");
+    let claimed = repo
+        .claim(id, ReplicaId::mint())
+        .await
+        .expect("peer claims");
+    assert!(matches!(claimed, ClaimOutcome::Claimed(_)));
+    let containers = in_process_containers(&repo);
+
+    let Err(error) = containers.resume(id).await else {
+        panic!("a session a live peer manages must not resume here");
+    };
+
+    assert!(matches!(
+        error,
+        HarnessError::Session(AgentSessionError::ManagedElsewhere(session)) if session == id
+    ));
+    assert_eq!(session_for_token(&repo, &current).await, Some(id));
+    assert_eq!(
+        containers.session_token(id).await.expect("token lookup"),
+        None
+    );
 }
 
 /// The in-process runtime skips Macro's own server by the name the harness

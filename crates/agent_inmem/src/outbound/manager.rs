@@ -77,8 +77,7 @@ pub struct InMemAgentManager {
     live: DashMap<AgentSessionId, LiveAgent>,
     /// Each live session's egress token. An in-process session has no
     /// container environment to read it back from, so the manager is the
-    /// one place it survives spawn. A process that never held it finds
-    /// nothing here; the host mints a replacement for that resume.
+    /// one place it survives spawn or resume.
     tokens: DashMap<AgentSessionId, String>,
 }
 
@@ -136,8 +135,9 @@ impl InMemAgentManager {
     /// resume after a restart) gets its conversation rebuilt from the durable
     /// frame log first.
     ///
-    /// `session_token` is the egress token minted at spawn, or at a resume in
-    /// a process that holds none; `None` keeps the stored one.
+    /// `session_token` is the egress token minted for this attach; `None`
+    /// keeps the stored one. A token it replaces is no longer accepted, so
+    /// the MCP sessions opened with it are released.
     #[must_use]
     pub async fn attach(
         &self,
@@ -146,8 +146,11 @@ impl InMemAgentManager {
     ) -> ServerChannel {
         // A replaced agent must die before its successor serves the session.
         self.live.remove(&facts.id);
-        if let Some(token) = session_token {
-            self.tokens.insert(facts.id, token);
+        if let Some(token) = session_token
+            && let Some(replaced) = self.tokens.insert(facts.id, token.clone())
+            && replaced != token
+        {
+            self.mcp.release_dyn(&replaced);
         }
         if !self.store.contains_key(&facts.id) {
             // Loaded before taking the entry so the read never blocks the

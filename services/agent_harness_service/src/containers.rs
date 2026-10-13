@@ -19,7 +19,8 @@ use agent_inmem::outbound::manager::{InMemAgentManager, SessionFacts};
 use agent_runtime_protocol::domain::connection::ServerChannel;
 use agent_runtime_protocol::domain::ports::{Transport, TransportError, TransportSender};
 use agent_runtime_protocol::domain::schema::v0::{ToRuntimeMessage, ToServerMessage};
-use agent_session::domain::model::{AgentSessionId, SandboxSize};
+use agent_session::domain::error::AgentSessionError;
+use agent_session::domain::model::{AgentSessionId, SandboxSize, SessionManagement};
 use agent_session::domain::service::AgentSessionService;
 
 #[cfg(test)]
@@ -202,29 +203,45 @@ where
     }
 
     /// An in-process session's raw token lives only in the process that was
-    /// handed it, and the row keeps only its hash. A process that does not
-    /// hold it, such as a replica that replaced the spawning one, rotates the
-    /// credential so the session keeps its MCP servers.
+    /// handed it, and the row keeps only its hash. Another replica may have
+    /// resumed the session since, rotating the hash past any token this
+    /// process still holds, so every resume rotates the credential. A session
+    /// another live replica manages is refused before rotating: its claim
+    /// would refuse this attach anyway, and the rotation would revoke the
+    /// credential its live agent holds.
     async fn resume(
         &self,
         session: AgentSessionId,
     ) -> Result<agent_session::domain::connection::RuntimeAttachment<Self::Transport>> {
         match self.route(session).await? {
             Route::InMem(facts) => {
-                let manager = &self.inmem().manager;
-                let token = match manager.session_token(session) {
-                    Some(_) => None,
-                    None => {
-                        let token = SessionToken::mint();
-                        self.sessions
-                            .set_egress_token_hash(session, &token.hash())
-                            .await
-                            .map_err(HarnessError::Session)?;
-                        Some(token.as_str().to_owned())
-                    }
-                };
+                let management = self
+                    .sessions
+                    .management(session)
+                    .await
+                    .map_err(HarnessError::Session)?;
+                if let SessionManagement::Peer(manager) = management {
+                    tracing::info!(
+                        %session,
+                        peer = %manager.replica,
+                        "not rotating the credential of a session another replica manages"
+                    );
+                    return Err(HarnessError::Session(AgentSessionError::ManagedElsewhere(
+                        session,
+                    )));
+                }
+                let token = SessionToken::mint();
+                self.sessions
+                    .set_egress_token_hash(session, &token.hash())
+                    .await
+                    .map_err(HarnessError::Session)?;
                 Ok(agent_session::domain::connection::RuntimeAttachment::solo(
-                    RoutedTransport::InMem(manager.attach(*facts, token).await),
+                    RoutedTransport::InMem(
+                        self.inmem()
+                            .manager
+                            .attach(*facts, Some(token.as_str().to_owned()))
+                            .await,
+                    ),
                 ))
             }
             Route::Sandbox => self
