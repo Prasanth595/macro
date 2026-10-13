@@ -154,13 +154,17 @@ const instance = new aws.ec2.Instance(
     dependsOn: databaseRules.apply((rules) => [ssm, secrets, https, ...rules]),
   }
 );
-new aws.ec2.VolumeAttachment('database-collector-data', {
-  deviceName: '/dev/sdf',
-  volumeId: volume.id,
-  instanceId: instance.id,
-  stopInstanceBeforeDetaching: true,
-  forceDetach: false,
-});
+new aws.ec2.VolumeAttachment(
+  'database-collector-data',
+  {
+    deviceName: '/dev/sdf',
+    volumeId: volume.id,
+    instanceId: instance.id,
+    stopInstanceBeforeDetaching: true,
+    forceDetach: false,
+  },
+  { deleteBeforeReplace: true }
+);
 export const instanceId = instance.id;
 export const dataVolumeId = volume.id;
 export const securityGroupId = group.id;

@@ -45,7 +45,9 @@ must be verified before expanding the dev-only stack to production.
    The subnet must be private, in the database VPC, with outbound NAT/HTTPS
    access to AWS APIs and Ohio. The AMI must be the reviewed collector image
    owned by our account. The stack discovers dev writer/replica endpoints and
-   adds collector-only port 5432 rules to their existing security groups.
+   adds port 5432 rules allowing traffic from the collector security group to
+   their existing security groups. These rules cover every resource attached
+   to those destination groups; verify their membership during preview.
    Run `pulumi preview --stack dev`, review only additive collector resources,
    then deploy. No database resource belongs to this stack.
 
@@ -60,8 +62,10 @@ Check SSM connectivity and `database-collector-bootstrap` / `alloy` units. Each
 endpoint must report `pg_up=1`, `pg_exporter_last_scrape_error=0`, and scrape
 `up=1` with distinct `db_instance` and `db_role` labels. Inspect the dashboard's
 transaction, connection, lock and vacuum metrics during representative dev
-traffic. Missing metrics are not replaced with reassuring zeros. Verify no
-passwords, connection-string labels, SQL statements or parameter values appear
+traffic. Missing metrics are not replaced with reassuring zeros. The freshness
+panel measures the latest sample's age within Prometheus's five-minute lookback;
+after that it shows no data, not an increasing outage timer. Verify no passwords,
+connection-string labels, SQL statements or parameter values appear
 in ingested data or logs. The exporter runs once per minute with five-second
 SQL timeouts; a failing collector does not imply the database is down.
 
