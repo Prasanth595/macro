@@ -46,8 +46,8 @@ export function createSchedulingOwner(
     queueMicrotask(() => {
       if (opener?.isConnected) opener.focus({ preventScroll: true });
     });
-  const editEvent = (next: EventType) => {
-    eventOpener = focusedElement();
+  const editEvent = (next: EventType, opener = focusedElement()) => {
+    eventOpener = opener;
     setCreateActive(false);
     setEvent(next);
   };
@@ -126,19 +126,22 @@ export function createSchedulingOwner(
       scheduleOpener = opener ?? scheduleOpener;
     }
   };
-  const duplicate = (item: EventType) => {
+  const duplicate = (item: EventType, opener?: HTMLElement) => {
     const existing = source.profile()?.eventTypes ?? [];
     let slug = `${item.slug}-copy`;
     let suffix = 2;
     while (existing.some((e) => e.slug === slug))
       slug = `${item.slug}-copy-${suffix++}`;
-    editEvent({
-      ...structuredClone(unwrap(item)),
-      id: crypto.randomUUID(),
-      title: `${item.title} (copy)`,
-      slug,
-      enabled: false,
-    });
+    editEvent(
+      {
+        ...structuredClone(unwrap(item)),
+        id: crypto.randomUUID(),
+        title: `${item.title} (copy)`,
+        slug,
+        enabled: false,
+      },
+      opener
+    );
   };
   const saveEvent = async (next: EventType) => {
     const profile = source.profile();

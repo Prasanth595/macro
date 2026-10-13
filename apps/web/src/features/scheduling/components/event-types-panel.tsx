@@ -1,15 +1,23 @@
-import { SettingsCard } from '@app/features/settings/primitives';
+import { SearchBar } from '@app/components/view-shell';
+import {
+  ContextMenuContent,
+  ContextMenuTrigger,
+  MENU_ITEM_CLASS,
+  MenuGroup,
+} from '@core/component/ContextMenu';
+import { ContextMenu } from '@kobalte/core/context-menu';
 import External from '@phosphor/arrow-square-out.svg';
-import Clock from '@phosphor/clock.svg';
 import Copy from '@phosphor/copy.svg';
 import Dots from '@phosphor/dots-three.svg';
+import Globe from '@phosphor/globe-simple.svg';
 import Link from '@phosphor/link.svg';
 import Pencil from '@phosphor/pencil-simple.svg';
+import Timer from '@phosphor/timer.svg';
 import Trash from '@phosphor/trash.svg';
-import { Button, buttonClasses, Dropdown, ToggleSwitch } from '@ui';
+import { propertyPillClasses } from '@property/extractors/property-pill-classes';
+import { Badge, Button, cn, Dropdown, ToggleSwitch } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
 import type { EventType, SchedulingScope } from '../core/types';
-import { TextInput } from './fields';
 
 export function EventTypesPanel(props: {
   events: EventType[];
@@ -17,9 +25,10 @@ export function EventTypesPanel(props: {
   search?: string;
   canEdit: boolean;
   saving: boolean;
-  onEdit: (event: EventType) => void;
+  onView: (event: EventType, opener?: HTMLElement) => void;
+  onEdit: (event: EventType, opener?: HTMLElement) => void;
   onToggle: (event: EventType, enabled: boolean) => void;
-  onDuplicate: (event: EventType) => void;
+  onDuplicate: (event: EventType, opener?: HTMLElement) => void;
   onDelete: (event: EventType) => void;
   onCopy: (event: EventType) => void;
   link: (event: EventType) => string;
@@ -29,24 +38,87 @@ export function EventTypesPanel(props: {
   const [removing, setRemoving] = createSignal<string>();
   const filtered = () =>
     props.events.filter((e) =>
-      `${e.title} ${e.slug} ${props.owner?.name ?? ''} ${props.owner?.teamId ? 'team' : 'personal'}`
+      `${e.title} ${e.description} ${e.slug} ${props.owner?.name ?? ''} ${props.owner?.teamId ? 'team' : 'personal'}`
         .toLowerCase()
         .includes(search().toLowerCase())
     );
+  function MenuItems(menu: {
+    event: EventType;
+    opener?: HTMLElement;
+    context?: boolean;
+  }) {
+    const Item = menu.context ? ContextMenu.Item : Dropdown.Item;
+    const Group = menu.context ? MenuGroup : Dropdown.Group;
+    return (
+      <>
+        <Group>
+          <Item
+            class={menu.context ? MENU_ITEM_CLASS : undefined}
+            disabled={!menu.event.enabled}
+            onSelect={() => props.onCopy(menu.event)}
+          >
+            <Copy class="size-4" />
+            Copy link
+          </Item>
+          <Item
+            class={menu.context ? MENU_ITEM_CLASS : undefined}
+            onSelect={() => {
+              window.open(
+                props.link(menu.event),
+                '_blank',
+                'noopener,noreferrer'
+              );
+            }}
+          >
+            <External class="size-4" />
+            Preview
+          </Item>
+        </Group>
+        <Show when={props.canEdit}>
+          <Group>
+            <Item
+              class={menu.context ? MENU_ITEM_CLASS : undefined}
+              disabled={props.saving}
+              onSelect={() => props.onEdit(menu.event, menu.opener)}
+            >
+              <Pencil class="size-4" />
+              Edit
+            </Item>
+            <Item
+              class={menu.context ? MENU_ITEM_CLASS : undefined}
+              disabled={props.saving}
+              onSelect={() => props.onDuplicate(menu.event, menu.opener)}
+            >
+              <Copy class="size-4" />
+              Duplicate
+            </Item>
+          </Group>
+          <Group>
+            <Item
+              class={cn(menu.context && MENU_ITEM_CLASS, 'text-failure')}
+              disabled={props.saving}
+              onSelect={() => setRemoving(menu.event.id)}
+            >
+              <Trash class="size-4" />
+              Delete
+            </Item>
+          </Group>
+        </Show>
+      </>
+    );
+  }
   return (
-    <div class="flex flex-col gap-5">
+    <div class="@container/booking-links flex min-w-0 flex-col gap-1">
       <Show when={props.search === undefined}>
-        <div class="max-w-sm">
-          <TextInput
-            type="search"
-            aria-label="Search event types"
-            placeholder="Search event types…"
-            value={search()}
-            onInput={(e) => setSearch(e.currentTarget.value)}
-          />
-        </div>
+        <SearchBar
+          label="Search booking links"
+          placeholder="Search booking links…"
+          value={localSearch()}
+          onValueChange={setSearch}
+          class="mb-3 max-w-md"
+        />
       </Show>
-      <SettingsCard>
+      <div>
         <For
           each={filtered()}
           fallback={
@@ -65,149 +137,151 @@ export function EventTypesPanel(props: {
             </div>
           }
         >
-          {(event) => (
-            <article class="px-6 py-4">
-              <div class="flex flex-wrap items-center gap-x-6 gap-y-4">
-                <div class="min-w-48 flex-1">
-                  <div class="flex flex-wrap items-center gap-2">
+          {(event) => {
+            let rowButton: HTMLButtonElement | undefined;
+            return (
+              <ContextMenu>
+                <ContextMenuTrigger
+                  as="article"
+                  disabled={props.saving}
+                  class="min-h-10 min-w-0 rounded-xl px-2 py-1 transition-opacity hover:bg-list-hover focus-within:bg-list-hover"
+                  classList={{ 'opacity-50': !event.enabled }}
+                >
+                  <div class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 @min-[36rem]/booking-links:grid-cols-[auto_minmax(0,1fr)_auto]">
+                    <ToggleSwitch
+                      checked={event.enabled}
+                      disabled={!props.canEdit || props.saving}
+                      label={
+                        <span class="sr-only">
+                          Accept bookings for {event.title}
+                        </span>
+                      }
+                      class="shrink-0"
+                      size="sm"
+                      onChange={(v) => props.onToggle(event, v)}
+                    />
                     <button
+                      ref={rowButton}
                       type="button"
-                      disabled={!props.canEdit}
-                      onClick={() => props.onEdit(event)}
-                      class="max-w-full text-left"
+                      aria-label={event.title}
+                      onClick={(click) =>
+                        props.onView(event, click.currentTarget)
+                      }
+                      class="flex min-w-0 items-center gap-2 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     >
-                      <h2 class="truncate text-sm font-medium">
+                      <Link
+                        aria-hidden="true"
+                        class="size-4 shrink-0 text-ink-muted"
+                      />
+                      <h2 class="min-w-0 max-w-[min(16rem,60%)] shrink-0 truncate text-sm font-medium">
                         {event.title}
                       </h2>
+                      <Show when={event.description}>
+                        <p class="min-w-0 flex-1 truncate text-sm text-ink-muted">
+                          {event.description}
+                        </p>
+                      </Show>
                     </button>
-                  </div>
-                  <p class="mt-1 truncate text-xs text-ink-muted">
-                    /{event.slug}
-                  </p>
-                  <Show when={event.description}>
-                    <p class="mt-2 line-clamp-1 text-sm text-ink-muted">
-                      {event.description}
-                    </p>
-                  </Show>
-                  <div class="mt-3 flex flex-wrap items-center gap-2 text-xs text-ink-muted">
-                    <span class="inline-flex items-center gap-1 rounded-md border border-edge-muted px-2 py-1">
-                      <Clock class="size-3" />
-                      {event.durationMinutes}m
-                    </span>
-                    <span class="rounded-md border border-edge-muted px-2 py-1">
-                      {event.mode === 'roundRobin'
-                        ? 'Round robin'
-                        : event.mode === 'collective'
-                          ? 'Collective'
-                          : 'One-on-one'}
-                    </span>
-                    <Show when={!event.enabled}>
-                      <span>Paused</span>
-                    </Show>
-                    <Show when={event.requiresConfirmation}>
-                      <span>Requires confirmation</span>
-                    </Show>
-                  </div>
-                </div>
-                <div class="flex items-center gap-2">
-                  <ToggleSwitch
-                    checked={event.enabled}
-                    disabled={!props.canEdit || props.saving}
-                    label={
-                      <span class="sr-only">
-                        Accept bookings for {event.title}
-                      </span>
-                    }
-                    size="md"
-                    onChange={(v) => props.onToggle(event, v)}
-                  />
-                  <a
-                    aria-label={`Preview ${event.title}`}
-                    class={buttonClasses({
-                      variant: 'outline',
-                      size: 'icon-md',
-                    })}
-                    href={props.link(event)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <External class="size-4" />
-                  </a>
-                  <Button
-                    variant="outline"
-                    size="icon-md"
-                    label={`Copy link for ${event.title}`}
-                    onClick={() => props.onCopy(event)}
-                    disabled={!event.enabled}
-                  >
-                    <Copy class="size-4" />
-                  </Button>
-                  <Show when={props.canEdit}>
-                    <Dropdown>
-                      <Dropdown.Trigger
+                    <div class="col-start-2 flex min-w-0 items-center justify-end gap-2 @min-[36rem]/booking-links:col-start-auto">
+                      <Dropdown>
+                        <Dropdown.Trigger
+                          as="button"
+                          type="button"
+                          aria-label={`Link actions for ${event.title}`}
+                          class={propertyPillClasses({
+                            variant: 'outline',
+                            size: 'md',
+                            readOnly: true,
+                            class: 'min-w-0 max-w-56 shrink',
+                          })}
+                        >
+                          <Globe aria-hidden="true" class="size-3" />
+                          <span class="truncate">/{event.slug}</span>
+                        </Dropdown.Trigger>
+                        <Dropdown.Content class="min-w-40">
+                          <Dropdown.Group>
+                            <Dropdown.Item
+                              disabled={!event.enabled}
+                              onSelect={() => props.onCopy(event)}
+                            >
+                              <Copy class="size-4" />
+                              Copy link
+                            </Dropdown.Item>
+                            <Dropdown.Item
+                              onSelect={() => {
+                                window.open(
+                                  props.link(event),
+                                  '_blank',
+                                  'noopener,noreferrer'
+                                );
+                              }}
+                            >
+                              <External class="size-4" />
+                              Open in new tab
+                            </Dropdown.Item>
+                          </Dropdown.Group>
+                        </Dropdown.Content>
+                      </Dropdown>
+                      <Badge
                         variant="outline"
-                        size="icon-md"
-                        label={`Options for ${event.title}`}
-                        disabled={props.saving}
+                        size="md"
+                        class={propertyPillClasses({
+                          variant: 'outline',
+                          size: 'md',
+                          readOnly: true,
+                        })}
                       >
-                        <Dots class="size-5" />
-                      </Dropdown.Trigger>
-                      <Dropdown.Content class="min-w-40">
-                        <Dropdown.Group>
-                          <Dropdown.Item
-                            disabled={props.saving}
-                            onSelect={() => props.onEdit(event)}
-                          >
-                            <Pencil class="size-4" />
-                            Edit
-                          </Dropdown.Item>
-                          <Dropdown.Item
-                            disabled={props.saving}
-                            onSelect={() => props.onDuplicate(event)}
-                          >
-                            <Copy class="size-4" />
-                            Duplicate
-                          </Dropdown.Item>
-                        </Dropdown.Group>
-                        <Dropdown.Group>
-                          <Dropdown.Item
-                            disabled={props.saving}
-                            class="text-failure"
-                            onSelect={() => setRemoving(event.id)}
-                          >
-                            <Trash class="size-4" />
-                            Delete
-                          </Dropdown.Item>
-                        </Dropdown.Group>
-                      </Dropdown.Content>
-                    </Dropdown>
+                        <Timer aria-hidden="true" class="size-3" />
+                        {event.durationMinutes}m
+                      </Badge>
+                      <Dropdown>
+                        <Dropdown.Trigger
+                          variant="ghost"
+                          size="icon-sm"
+                          label={`Options for ${event.title}`}
+                          class="shrink-0"
+                          disabled={props.saving}
+                          tooltipDisabled
+                        >
+                          <Dots class="size-4" />
+                        </Dropdown.Trigger>
+                        <Dropdown.Content class="min-w-40">
+                          <MenuItems event={event} opener={rowButton} />
+                        </Dropdown.Content>
+                      </Dropdown>
+                    </div>
+                  </div>
+                  <Show when={props.canEdit && removing() === event.id}>
+                    <div class="mt-4 flex flex-wrap items-center gap-3 border-t border-edge-muted pt-4">
+                      <p class="flex-1 text-sm">
+                        Delete this event type? Existing bookings are kept.
+                      </p>
+                      <Button
+                        variant="ghost"
+                        onClick={() => setRemoving(undefined)}
+                      >
+                        Keep
+                      </Button>
+                      <Button
+                        variant="outline"
+                        disabled={props.saving}
+                        onClick={() => props.onDelete(event)}
+                      >
+                        Delete event type
+                      </Button>
+                    </div>
                   </Show>
-                </div>
-              </div>
-              <Show when={props.canEdit && removing() === event.id}>
-                <div class="mt-4 flex flex-wrap items-center gap-3 border-t border-edge-muted pt-4">
-                  <p class="flex-1 text-sm">
-                    Delete this event type? Existing bookings are kept.
-                  </p>
-                  <Button
-                    variant="ghost"
-                    onClick={() => setRemoving(undefined)}
-                  >
-                    Keep
-                  </Button>
-                  <Button
-                    variant="outline"
-                    disabled={props.saving}
-                    onClick={() => props.onDelete(event)}
-                  >
-                    Delete event type
-                  </Button>
-                </div>
-              </Show>
-            </article>
-          )}
+                </ContextMenuTrigger>
+                <ContextMenu.Portal>
+                  <ContextMenuContent class="min-w-40">
+                    <MenuItems event={event} opener={rowButton} context />
+                  </ContextMenuContent>
+                </ContextMenu.Portal>
+              </ContextMenu>
+            );
+          }}
         </For>
-      </SettingsCard>
+      </div>
     </div>
   );
 }

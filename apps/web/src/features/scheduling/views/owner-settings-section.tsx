@@ -1,13 +1,14 @@
 import ArrowSquareOut from '@phosphor/arrow-square-out.svg';
 import Copy from '@phosphor/copy.svg';
 import { ButtonGroup, CopyButton, Tooltip } from '@ui';
-import { Match, Show, Switch } from 'solid-js';
+import { createSignal, Match, onCleanup, Show, Switch } from 'solid-js';
 import { AvailabilityPanel } from '../components/availability-panel';
 import { BookingPageEditor } from '../components/booking-page-editor';
 import { BookingsPanel } from '../components/bookings-panel';
 import { EventTypesPanel } from '../components/event-types-panel';
 import { useScheduling } from '../context/scheduling-context';
 import type { SchedulingOwner } from '../primitives/create-scheduling-owner';
+import { EventDetailsDialog } from './event-details-view';
 import { EventEditor } from './event-editor-view';
 import { InsightsView } from './insights-view';
 import { ScheduleEditor } from './schedule-editor-view';
@@ -35,6 +36,14 @@ export function OwnerSettingsSection(props: {
     closeScheduleEditor,
     duplicate,
   } = owner;
+  const [details, setDetails] = createSignal<{
+    id: string;
+    opener?: HTMLElement;
+  }>();
+  let disposed = false;
+  onCleanup(() => {
+    disposed = true;
+  });
   async function copyPageLink() {
     const profile = source.profile();
     if (!profile?.revision) return false;
@@ -78,12 +87,58 @@ export function OwnerSettingsSection(props: {
                   />
                 )}
               </Show>
+              <Show when={details()} keyed>
+                {(selection) => (
+                  <Show
+                    when={p().eventTypes.find(
+                      (item) => item.id === selection.id
+                    )}
+                  >
+                    {(value) => (
+                      <EventDetailsDialog
+                        event={value()}
+                        link={capabilities.link(p(), value().slug)}
+                        schedule={p().schedules.find(
+                          (item) => item.id === value().scheduleId
+                        )}
+                        members={capabilities.members()}
+                        team={!!scope().teamId}
+                        saving={source.saving()}
+                        opener={selection.opener}
+                        onCopyLink={() =>
+                          capabilities.copyLink(p(), value().slug)
+                        }
+                        onClose={() => setDetails(undefined)}
+                        onEdit={
+                          scope().canEdit
+                            ? (next, opener) => {
+                                if (
+                                  disposed ||
+                                  !scope().canEdit ||
+                                  source.saving()
+                                )
+                                  return;
+                                const saved = source
+                                  .profile()
+                                  ?.eventTypes.find(
+                                    (item) => item.id === next.id
+                                  );
+                                if (saved) owner.editEvent(saved, opener);
+                              }
+                            : undefined
+                        }
+                      />
+                    )}
+                  </Show>
+                )}
+              </Show>
               <EventTypesPanel
                 owner={scope()}
                 search={props.search ?? ''}
                 events={p().eventTypes}
                 canEdit={scope().canEdit}
                 saving={source.saving()}
+                onView={(item, opener) => setDetails({ id: item.id, opener })}
                 onEdit={owner.editEvent}
                 onDuplicate={duplicate}
                 link={(item) => capabilities.link(p(), item.slug)}

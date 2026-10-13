@@ -45,7 +45,8 @@ vi.mock('./event-editor-view', () => ({
   ),
 }));
 
-vi.mock('@app/components/view-shell', () => {
+vi.mock('@app/components/view-shell', async () => {
+  const { SearchBar } = await import('@app/components/view-shell/SearchBar');
   const Slot = (props: ParentProps) => <div>{props.children}</div>;
   const Item = (props: JSX.ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button disabled={props.disabled} onClick={props.onClick}>
@@ -56,6 +57,7 @@ vi.mock('@app/components/view-shell', () => {
     <nav aria-label={props['aria-label']}>{props.children}</nav>
   );
   return {
+    SearchBar,
     ViewShell: {
       Root: Slot,
       Aside: Slot,
@@ -80,10 +82,19 @@ vi.mock('@app/components/view-shell', () => {
 
 beforeEach(() => {
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+  );
 });
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 function fixture(teamEditable = true) {
@@ -161,8 +172,21 @@ it('switches owners and keeps link actions and editing within their owner', asyn
   const personal = screen
     .getByRole('button', { name: 'Personal catch-up' })
     .closest('article')!;
-  expect(within(personal).getByRole('link').getAttribute('href')).toBe(
-    '/book/personal/meeting'
+  const open = vi.spyOn(window, 'open').mockReturnValue(null);
+  fireEvent.keyDown(
+    within(personal).getByRole('button', {
+      name: 'Link actions for Personal catch-up',
+    }),
+    { key: 'ArrowDown' }
+  );
+  fireEvent.keyDown(
+    await screen.findByRole('menuitem', { name: 'Open in new tab' }),
+    { key: 'Enter' }
+  );
+  expect(open).toHaveBeenLastCalledWith(
+    '/book/personal/meeting',
+    '_blank',
+    'noopener,noreferrer'
   );
 
   fireEvent.click(within(owners).getByRole('button', { name: 'Design' }));
@@ -170,8 +194,20 @@ it('switches owners and keeps link actions and editing within their owner', asyn
     .getByRole('button', { name: 'Team planning' })
     .closest('article')!;
   expect(screen.getByText('Team · Design')).toBeTruthy();
-  expect(within(team).getByRole('link').getAttribute('href')).toBe(
-    '/book/team/meeting'
+  fireEvent.keyDown(
+    within(team).getByRole('button', {
+      name: 'Link actions for Team planning',
+    }),
+    { key: 'ArrowDown' }
+  );
+  fireEvent.keyDown(
+    await screen.findByRole('menuitem', { name: 'Open in new tab' }),
+    { key: 'Enter' }
+  );
+  expect(open).toHaveBeenLastCalledWith(
+    '/book/team/meeting',
+    '_blank',
+    'noopener,noreferrer'
   );
   fireEvent.click(within(team).getByRole('switch'));
   await waitFor(() => expect(saves).toHaveBeenCalledOnce());
@@ -179,6 +215,19 @@ it('switches owners and keeps link actions and editing within their owner', asyn
   expect(sources.get('personal')!.profile()!.eventTypes[0].enabled).toBe(true);
 
   fireEvent.click(screen.getByRole('button', { name: 'Team planning' }));
+  const details = await screen.findByRole('dialog', {
+    name: 'Booking link details',
+  });
+  expect(within(details).getByText('Paused')).toBeTruthy();
+  expect(within(details).queryByRole('button', { name: 'Next' })).toBeNull();
+  expect(
+    within(details).queryByRole('button', { name: 'Save test event' })
+  ).toBeNull();
+  expect(saves).toHaveBeenCalledOnce();
+  fireEvent.click(
+    within(details).getByRole('button', { name: 'Edit booking link' })
+  );
+  await screen.findByRole('button', { name: 'Save test event' });
   fireEvent.click(screen.getByRole('button', { name: 'Save test event' }));
   await screen.findByRole('button', { name: 'Team planning edited' });
   expect(sources.get('personal')!.profile()!.eventTypes[0].title).toBe(
@@ -190,8 +239,8 @@ it('switches owners and keeps link actions and editing within their owner', asyn
   ).toBeTruthy();
 });
 
-it('searches the selected owner and preserves read-only team access', () => {
-  fixture(false);
+it('searches the selected owner and preserves read-only team access', async () => {
+  const { saves } = fixture(false);
   const owners = screen.getByRole('navigation', {
     name: 'Booking calendar owner',
   });
@@ -202,8 +251,42 @@ it('searches the selected owner and preserves read-only team access', () => {
   expect(within(team).getByRole('switch').hasAttribute('disabled')).toBe(true);
   expect(
     within(team).queryByRole('button', { name: 'Options for Team planning' })
-  ).toBeNull();
+  ).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'New booking link' })).toBeNull();
+  fireEvent.click(within(team).getByRole('button', { name: 'Team planning' }));
+  const details = await screen.findByRole('dialog', {
+    name: 'Booking link details',
+  });
+  expect(within(details).getByText('Team planning')).toBeTruthy();
+  expect(within(details).getByText('Title', { exact: true }).tagName).toBe(
+    'DT'
+  );
+  expect(
+    within(details).getByText('Description', { exact: true }).tagName
+  ).toBe('DT');
+  const linkField = within(details).getByText('Link', { exact: true })
+    .parentElement!;
+  expect(within(linkField).getByText('/book/team/meeting')).toBeTruthy();
+  expect(
+    within(linkField).getByRole('button', { name: 'Copy booking link' })
+  ).toBeTruthy();
+  expect(
+    within(details).queryByRole('button', { name: 'Edit booking link' })
+  ).toBeNull();
+  expect(within(details).queryByRole('switch')).toBeNull();
+  expect(saves).not.toHaveBeenCalled();
+  expect(within(details).queryByRole('button', { name: 'Close' })).toBeNull();
+  fireEvent.click(
+    within(details).getByRole('button', { name: 'Close booking link details' })
+  );
+  await waitFor(() => {
+    expect(
+      screen.queryByRole('dialog', { name: 'Booking link details' })
+    ).toBeNull();
+    expect(document.activeElement).toBe(
+      within(team).getByRole('button', { name: 'Team planning' })
+    );
+  });
   const search = screen.getByRole('searchbox', {
     name: 'Search booking links',
   });

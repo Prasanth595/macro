@@ -1,4 +1,4 @@
-import { ViewShell, ViewSidebar } from '@app/components/view-shell';
+import { SearchBar, ViewShell, ViewSidebar } from '@app/components/view-shell';
 import PageIcon from '@phosphor/browser.svg';
 import CalendarIcon from '@phosphor/calendar-blank.svg';
 import ChartIcon from '@phosphor/chart-bar.svg';
@@ -250,22 +250,6 @@ export function BookingWorkspaceView(props: {
                     </div>
                   )}
                 </Show>
-                <Show when={owner()?.scope().canEdit && search.tab === 'links'}>
-                  <Button
-                    class="ml-auto shrink-0"
-                    label="New booking link"
-                    tooltip="New booking link"
-                    variant="strong"
-                    size="sm"
-                    disabled={
-                      !owner()?.source.profile() || owner()?.source.saving()
-                    }
-                    onClick={(event) => create(event.currentTarget)}
-                  >
-                    <PlusIcon class="size-4" />
-                    <span class="hidden sm:inline">New booking link</span>
-                  </Button>
-                </Show>
               </div>
             }
           >
@@ -287,17 +271,37 @@ export function BookingWorkspaceView(props: {
         </ViewShell.TopBar>
         <Show when={search.tab === 'links' || search.tab === 'bookings'}>
           <ViewShell.Header>
-            <div class="flex flex-wrap items-end gap-3">
+            <div
+              class={cn('flex min-w-0 gap-3', {
+                'items-center': search.tab === 'links',
+                'flex-wrap items-end': search.tab === 'bookings',
+              })}
+            >
               <Show when={search.tab === 'links'}>
-                <div class="min-w-48 max-w-md flex-1">
-                  <TextInput
-                    type="search"
-                    aria-label="Search booking links"
-                    placeholder="Search booking links…"
-                    value={query()}
-                    onInput={(event) => setQuery(event.currentTarget.value)}
-                  />
-                </div>
+                <SearchBar
+                  label="Search booking links"
+                  placeholder="Search booking links…"
+                  value={query()}
+                  onValueChange={setQuery}
+                  class="max-w-md flex-1"
+                />
+                <Show when={owner()?.scope().canEdit}>
+                  <div class="ml-auto shrink-0">
+                    <Button
+                      label="New booking link"
+                      tooltip="New booking link"
+                      variant="strong"
+                      size="md"
+                      disabled={
+                        !owner()?.source.profile() || owner()?.source.saving()
+                      }
+                      onClick={(event) => create(event.currentTarget)}
+                    >
+                      <PlusIcon class="size-4" />
+                      <span>New</span>
+                    </Button>
+                  </div>
+                </Show>
               </Show>
               <Show when={search.tab === 'bookings'}>
                 <Field label="From">
