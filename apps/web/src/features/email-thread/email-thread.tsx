@@ -35,6 +35,7 @@ import type {
 import type { EmailThreadOrganizationStatus } from './context/email-thread-view-context';
 import { EmailThreadOperations } from './email-thread-operations';
 import { createOptimisticThreadSend } from './primitives/optimistic-send';
+import { createPreparedBodiesQuery } from './queries/prepared-bodies';
 import { createThreadActionAdapter } from './thread-action-adapter';
 import {
   EmailThreadSurface,
@@ -134,7 +135,12 @@ export function EmailThread(props: EmailThreadProps) {
       ),
     },
   };
-  const rendering = createEmailRenderingContext();
+  const rendering = createEmailRenderingContext({
+    preparedBody: createPreparedBodiesQuery(
+      source.id,
+      () => props.threadTransport() === 'graphql'
+    ),
+  });
   createEffectOnEntityTypeNotification(
     useGlobalNotificationSource(),
     'email',
