@@ -2,9 +2,6 @@ import { openDocument } from '@core/component/LexicalMarkdown/component/core/Blo
 import { toast } from '@core/component/Toast/Toast';
 import ArrowSquareOut from '@phosphor/arrow-square-out.svg';
 import DatabaseIcon from '@phosphor/database.svg';
-import FunnelIcon from '@phosphor/funnel.svg';
-import PlusIcon from '@phosphor/plus.svg';
-import SortIcon from '@phosphor/sort-ascending.svg';
 import {
   onDatabaseBatchCommitted,
   undoDatabaseChange,
@@ -15,13 +12,8 @@ import type { DatabaseView } from '@service-storage/generated/schemas/databaseVi
 import { getEntityGraphqlClient } from '@service-storage/graphql-soup';
 import { Button, Tooltip } from '@ui';
 import { createMemo, createSignal, onCleanup, Show } from 'solid-js';
+import { DatabaseEditorToolbar } from '../database/components/database-editor-toolbar';
 import { DatabaseTitle } from '../database/components/database-title';
-import {
-  FilterPanel,
-  filterConditionCount,
-} from '../database/components/database-view-filters';
-import { SortPanel } from '../database/components/sort-panel';
-import { ToolbarPopover } from '../database/components/view-control-popover';
 import { ViewSelect } from '../database/components/view-select';
 import type { DatabaseRelatedDestination } from '../database/core/database-relations';
 import type { ViewChange } from '../database/core/view-state';
@@ -204,93 +196,71 @@ export function DocumentDatabase(props: {
               <Show when={view()}>
                 {(currentView) => (
                   <div class="flex h-96 min-h-0 flex-col border-t border-edge-muted">
-                    <div class="flex flex-wrap items-center gap-1 border-b border-edge-muted px-3 py-1.5">
-                      <Tooltip
-                        label={shown().table.name}
-                        class="min-w-0 max-w-40"
-                      >
-                        <ViewSelect
-                          label="Database table"
-                          class="min-w-0 max-w-40"
-                          value={shown().table.id}
-                          options={tables().map(({ table }) => ({
-                            value: table.id,
-                            label: table.name,
-                          }))}
-                          onChange={(tableId) =>
-                            selectLocation({
-                              ...location(),
-                              tableId,
-                              viewId: '',
-                            })
-                          }
-                        />
-                      </Tooltip>
-                      <Show when={shown().views.length}>
-                        <Tooltip
-                          label={currentView().name}
-                          class="min-w-0 max-w-40"
-                        >
-                          <ViewSelect
-                            label="Database view"
-                            class="min-w-0 max-w-40"
-                            value={currentView().id}
-                            options={[
-                              allRecordsView(shown().table),
-                              ...shown().views,
-                            ].map((view) => ({
-                              value: view.id,
-                              label: view.name,
-                            }))}
-                            onChange={(viewId) =>
-                              selectLocation({
-                                ...location(),
-                                tableId: shown().table.id,
-                                viewId,
-                              })
-                            }
-                          />
-                        </Tooltip>
-                      </Show>
-                      <div class="flex-1" />
-                      <ToolbarPopover
-                        label="Filter"
-                        count={filterConditionCount(currentView().query.filter)}
-                        icon={<FunnelIcon class="size-3.5" />}
-                      >
-                        <FilterPanel
-                          columns={shown().columns.map(toViewColumn)}
-                          filter={currentView().query.filter}
-                          onChange={(filter) =>
-                            changeView({
-                              query: { ...currentView().query, filter },
-                            })
-                          }
-                        />
-                      </ToolbarPopover>
-                      <ToolbarPopover
-                        label="Sort"
-                        count={currentView().query.sort?.length}
-                        icon={<SortIcon class="size-3.5" />}
-                      >
-                        <SortPanel
-                          columns={shown().columns.map(toViewColumn)}
-                          view={currentView()}
-                          onChange={changeView}
-                        />
-                      </ToolbarPopover>
-                      <Show when={canEdit()}>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={
-                            !recordActions() || recordActions()?.pending()
-                          }
-                          onClick={() => void recordActions()?.createRecord()}
-                        >
-                          <PlusIcon class="size-3.5" /> New row
-                        </Button>
-                      </Show>
+                    <div class="shrink-0 border-b border-edge-muted">
+                      <DatabaseEditorToolbar
+                        columns={shown().columns.map(toViewColumn)}
+                        view={currentView()}
+                        onChangeView={changeView}
+                        onCreateRecord={
+                          canEdit()
+                            ? () => void recordActions()?.createRecord()
+                            : undefined
+                        }
+                        canCreateRecord={!!recordActions()}
+                        creating={recordActions()?.pending()}
+                        createRecordLabel="New row"
+                        selection={
+                          <>
+                            <Tooltip
+                              label={shown().table.name}
+                              class="min-w-0 max-w-40"
+                            >
+                              <ViewSelect
+                                label="Database table"
+                                class="min-w-0 max-w-40"
+                                value={shown().table.id}
+                                options={tables().map(({ table }) => ({
+                                  value: table.id,
+                                  label: table.name,
+                                }))}
+                                onChange={(tableId) =>
+                                  selectLocation({
+                                    ...location(),
+                                    tableId,
+                                    viewId: '',
+                                  })
+                                }
+                              />
+                            </Tooltip>
+                            <Show when={shown().views.length}>
+                              <Tooltip
+                                label={currentView().name}
+                                class="min-w-0 max-w-40"
+                              >
+                                <ViewSelect
+                                  label="Database view"
+                                  class="min-w-0 max-w-40"
+                                  value={currentView().id}
+                                  options={[
+                                    allRecordsView(shown().table),
+                                    ...shown().views,
+                                  ].map((view) => ({
+                                    value: view.id,
+                                    label: view.name,
+                                  }))}
+                                  onChange={(viewId) =>
+                                    selectLocation({
+                                      ...location(),
+                                      tableId: shown().table.id,
+                                      viewId,
+                                    })
+                                  }
+                                />
+                              </Tooltip>
+                            </Show>
+                          </>
+                        }
+                      />
                     </div>
                     <DatabaseGrid
                       contentClass="m-3 rounded-lg border border-edge-muted"

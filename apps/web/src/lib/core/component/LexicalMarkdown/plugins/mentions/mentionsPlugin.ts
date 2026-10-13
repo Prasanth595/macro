@@ -418,6 +418,8 @@ function registerMentionsPlugin(
     props.setMentions(mentions);
   }
 
+  // Expansion/collapse replaces the node but preserves its tracked reference UUID.
+  // Untrack only when neither representation remains in the committed editor state.
   function databaseReferenceRemains(mentionUuid: string) {
     return editor.read(() => {
       let remains = false;

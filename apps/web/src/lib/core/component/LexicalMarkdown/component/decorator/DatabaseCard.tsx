@@ -5,11 +5,7 @@ import {
   $isDocumentCardNode,
   type DocumentCardDecoratorProps,
 } from '@macro-inc/lexical-core';
-import {
-  $getNodeByKey,
-  SKIP_DOM_SELECTION_TAG,
-  stopLexicalPropagation,
-} from 'lexical';
+import { $getNodeByKey, SKIP_DOM_SELECTION_TAG } from 'lexical';
 import {
   createSignal,
   lazy,
@@ -19,6 +15,7 @@ import {
   useContext,
 } from 'solid-js';
 import { LexicalWrapperContext } from '../../context/LexicalWrapperContext';
+import { LexicalInteractiveBoundary } from '../core/LexicalInteractiveBoundary';
 
 const DocumentDatabase = lazy(async () => ({
   default: (await import('@app/features/block-database/document-database'))
@@ -78,21 +75,7 @@ export function DatabaseCard(props: DocumentCardDecoratorProps) {
       fallback={placeholder()}
     >
       <Suspense fallback={placeholder()}>
-        <div
-          // Keep grid events out of outer Lexical while allowing Solid's
-          // delegated handlers and native browser editing to receive them.
-          on:keydown={stopLexicalPropagation}
-          on:beforeinput={stopLexicalPropagation}
-          on:input={stopLexicalPropagation}
-          on:compositionstart={stopLexicalPropagation}
-          on:compositionend={stopLexicalPropagation}
-          on:paste={stopLexicalPropagation}
-          on:copy={stopLexicalPropagation}
-          on:cut={stopLexicalPropagation}
-          on:drop={stopLexicalPropagation}
-          on:dragstart={stopLexicalPropagation}
-          on:click={stopLexicalPropagation}
-        >
+        <LexicalInteractiveBoundary>
           <DocumentDatabase
             databaseId={props.documentId}
             name={props.documentName}
@@ -101,7 +84,7 @@ export function DatabaseCard(props: DocumentCardDecoratorProps) {
             onToggle={toggle}
             onLocationChange={changeLocation}
           />
-        </div>
+        </LexicalInteractiveBoundary>
       </Suspense>
     </Show>
   );

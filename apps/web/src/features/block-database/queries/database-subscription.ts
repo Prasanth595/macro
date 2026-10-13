@@ -1,7 +1,10 @@
 import { invalidateDatabase } from '@queries/storage/databases';
 import { useEntitySubscription } from '@service-connection/client';
 
-/** Share database tracking and catch up on subscription, reconnect and refocus. */
+/**
+ * Share gateway tracking and catch up on subscription, reconnect and refocus.
+ * Live write notifications reach the source through useDatabaseTableChanges.
+ */
 export function useDatabaseSubscription(
   databaseId: string,
   refreshRows: () => void

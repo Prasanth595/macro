@@ -109,9 +109,10 @@ Selecting a database from `@` inserts a compact mention. Use its **Expand databa
 icon to open the inline editor. Databases created with `/database` start expanded.
 Edit cells, add rows or columns, select a table with the **Database table** picker,
 choose a saved view with **Database view** when the table has views, filter, and
-sort in the document. The pickers support keyboard navigation and
-marks the selected table. Rows added or edited elsewhere, including by AI,
-appear through the database's gateway subscription. The editor catches up after
+sort in the document using the same toolbar controls as the full database app.
+The **Filter** and **Sort** icons open their panels. The pickers support keyboard
+navigation and mark the selected table. Rows added or edited elsewhere, including
+by AI, appear through the database's gateway subscription. The editor catches up after
 reconnecting or returning to the tab after a long absence.
 Edits write to the original database. **Open** opens the full database.
 **Collapse** converts the editor to a small mention; **Expand** brings it back.

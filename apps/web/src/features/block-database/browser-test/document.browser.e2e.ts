@@ -58,7 +58,7 @@ async function fixture(page: Page, multipleTables = false) {
   // Serve the fixture's module graph through Playwright's request context.
   // Chromium otherwise cancels local module loads when host interfaces change.
   await page.route(/^http:\/\/localhost:\d+\//, async (route) => {
-    await route.fulfill({ response: await route.fetch() });
+    await route.fulfill({ response: await route.fetch({ maxRetries: 2 }) });
   });
   await page.route('**/__macro_dev/**', async (route) => {
     const request = route.request();
@@ -223,6 +223,38 @@ test('embedded tables subscribe to the gateway and display externally added rows
   await expect
     .poll(() => saved.tracking.filter((event) => event.action === 'close'))
     .toContainEqual(expect.objectContaining({ entity_id: databaseId }));
+  expect(saved.errors).toEqual([]);
+});
+
+test('the shared toolbar changes inline filters and sorting without writing the saved view', async ({
+  page,
+}) => {
+  const saved = await fixture(page);
+  await page.getByRole('button', { name: 'Mention existing database' }).click();
+  await page.getByRole('button', { name: 'Expand database' }).click();
+  await expect(page.getByRole('grid', { name: 'Tasks' })).toBeVisible();
+  await page.getByRole('button', { name: 'Sort', exact: true }).click();
+  await page.getByRole('button', { name: 'Add sort', exact: true }).click();
+  await page.getByRole('button', { name: /^Sort direction/ }).click();
+  await page.getByRole('option', { name: 'Descending', exact: true }).click();
+  await page.getByRole('button', { name: 'Close sort' }).click();
+  await expect(page.getByRole('button', { name: 'Sort 1' })).toBeFocused();
+  await page.getByRole('button', { name: 'Filter', exact: true }).click();
+  await page.getByRole('button', { name: 'Add condition' }).click();
+  await page.getByRole('textbox', { name: 'Filter value' }).fill('Finish');
+  await page.getByRole('button', { name: 'Close filter' }).click();
+  await expect(page.getByRole('button', { name: 'Filter 1' })).toBeFocused();
+  await page.getByRole('button', { name: 'Sort 1' }).click();
+  await expect(
+    page.getByRole('button', { name: /^Sort direction/ })
+  ).toContainText('Descending');
+  await page.getByRole('button', { name: 'Close sort' }).click();
+  await page.setViewportSize({ width: 375, height: 800 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+    375
+  );
+  await page.screenshot({ path: '/tmp/database-shared-toolbar-mobile.png' });
+  expect(saved.writes()).toBe(0);
   expect(saved.errors).toEqual([]);
 });
 
