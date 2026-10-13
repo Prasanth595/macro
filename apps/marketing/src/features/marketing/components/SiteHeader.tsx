@@ -7,19 +7,17 @@ import {
   Show,
 } from 'solid-js';
 import {
-  DEMO_BOOKING_URL,
   FEATURE_PAGES,
   RESOURCE_PAGES,
   routePhoneToMobileSignup,
 } from '../core/navigation';
-import { DemoBookingDialog } from './DemoBookingDialog';
 import './site-navigation.css';
 
 const EXPLORE_PAGES = [
   { href: '/', label: 'Home' },
   { href: '/pricing', label: 'Pricing' },
   { href: '/partners', label: 'Partners' },
-  { href: DEMO_BOOKING_URL, label: 'Talk to us' },
+  { href: 'https://cal.com/team/macro/macro-demo-call', label: 'Talk to us' },
 ];
 
 function NavigationGroup(props: {
@@ -176,7 +174,7 @@ export function SiteHeader(props: { hideOpenApp?: boolean }) {
           onPointerLeave={stopGlow}
           onPointerCancel={stopGlow}
           onFocus={centerGlow}
-          href={DEMO_BOOKING_URL}
+          href="https://cal.com/team/macro/macro-demo-call"
           target="_blank"
           rel="noreferrer"
         >
@@ -213,7 +211,6 @@ export function SiteHeader(props: { hideOpenApp?: boolean }) {
           </a>
         </Show>
       </div>
-      <DemoBookingDialog />
     </header>
   );
 }

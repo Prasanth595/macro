@@ -2,7 +2,6 @@ import CheckIcon from '@phosphor/check.svg';
 import MinusIcon from '@phosphor/minus.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import { createSignal, For, Show } from 'solid-js';
-import { demoHref } from '../../../../app/utils/utilCta';
 import {
   formatWholeUsd,
   SALES_DEFAULT_SEATS,
@@ -157,13 +156,13 @@ export function SalesCalculator(props: { onBook: () => void }) {
               <span>every year</span>
             </p>
           </Show>
-          <a
-            class="site-nav-start homepage-hero-cta tour-cta"
-            href={demoHref()}
+          <button
+            type="button"
+            class="site-nav-start homepage-hero-cta"
             onClick={() => props.onBook()}
           >
             Book a demo
-          </a>
+          </button>
         </div>
       </div>
       <p class="sales-calc-note">

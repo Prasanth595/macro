@@ -1,6 +1,5 @@
 import { cleanup, fireEvent, render } from '@solidjs/testing-library';
 import { afterEach, expect, it } from 'vitest';
-import { DEMO_BOOKING_URL } from '../../../features/marketing/core/navigation';
 import { setViewportWidth } from '../../utils/utilBreakpoint';
 import { MigrationPaths } from './MigrationPaths';
 
@@ -8,7 +7,9 @@ afterEach(cleanup);
 
 function setup() {
   setViewportWidth(1440);
-  const view = render(() => <MigrationPaths helpHref={DEMO_BOOKING_URL} />);
+  const view = render(() => (
+    <MigrationPaths helpHref="https://cal.com/team/macro/macro-demo-call" />
+  ));
   return view;
 }
 
@@ -25,7 +26,7 @@ it('lets a visitor find CSV imports and contextual help', () => {
   ).toBeTruthy();
   expect(
     view.getByRole('link', { name: 'Talk to our team →' }).getAttribute('href')
-  ).toBe(DEMO_BOOKING_URL);
+  ).toBe('https://cal.com/team/macro/macro-demo-call');
 });
 
 it('explains agent-assisted imports without embedding product comparisons', () => {
@@ -54,7 +55,7 @@ it('preserves the other-tools route when the viewport becomes compact', async ()
   ).toBeTruthy();
   expect(
     view.getByRole('link', { name: 'Talk to our team →' }).getAttribute('href')
-  ).toBe(DEMO_BOOKING_URL);
+  ).toBe('https://cal.com/team/macro/macro-demo-call');
   fireEvent.keyDown(trigger, { key: 'ArrowUp' });
   await Promise.resolve();
   fireEvent.keyDown(document.activeElement!, { key: 'Escape' });

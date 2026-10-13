@@ -1,4 +1,3 @@
-import { cn } from '@ui';
 import { For, Show } from 'solid-js';
 import { BookingPicker } from '../components/booking-picker';
 import {
@@ -15,28 +14,19 @@ export function PublicBookingView(props: {
   source: BookingSource;
   onEvent: (slug: string) => void;
   onReceipt: (r: BookingReceipt) => void;
-  /** Shown inside another Macro page, which already carries the Macro name. */
-  embedded?: boolean;
 }) {
   return (
-    <main
-      class={cn(
-        'min-h-screen overflow-y-auto bg-panel px-4 text-ink',
-        props.embedded ? 'py-4' : 'py-12 sm:py-20'
-      )}
-    >
+    <main class="min-h-screen overflow-y-auto bg-panel px-4 py-12 text-ink sm:py-20">
       <div class="mx-auto max-w-4xl">
-        <Show when={!props.embedded}>
-          <a
-            href="https://macro.com"
-            class="mb-8 inline-block text-lg font-semibold tracking-tight"
-          >
-            Macro
-            <span class="ml-2 text-sm font-normal text-ink-muted">
-              Scheduling
-            </span>
-          </a>
-        </Show>
+        <a
+          href="https://macro.com"
+          class="mb-8 inline-block text-lg font-semibold tracking-tight"
+        >
+          Macro
+          <span class="ml-2 text-sm font-normal text-ink-muted">
+            Scheduling
+          </span>
+        </a>
         <Show
           when={props.event}
           fallback={
@@ -86,11 +76,9 @@ export function PublicBookingView(props: {
             />
           )}
         </Show>
-        <Show when={!props.embedded}>
-          <p class="mt-8 text-center text-xs text-ink-muted">
-            Scheduling by Macro
-          </p>
-        </Show>
+        <p class="mt-8 text-center text-xs text-ink-muted">
+          Scheduling by Macro
+        </p>
       </div>
     </main>
   );

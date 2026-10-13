@@ -2,7 +2,6 @@ import { Dialog } from '@kobalte/core/dialog';
 import X from '@phosphor/x.svg';
 import Play from '@phosphor-fill/play-fill.svg';
 import { createSignal, onCleanup, onMount, Show } from 'solid-js';
-import { createFrameEscape } from '../primitives/createFrameEscape';
 import './homepage-interactive-demo.css';
 
 /** Opens the real standalone sample route, keeping its styles and state isolated. */
@@ -12,12 +11,30 @@ export function HomepageInteractiveDemo() {
   let host!: HTMLDivElement;
   let path!: SVGPathElement;
   let trigger!: HTMLButtonElement;
-  const frameEscape = createFrameEscape(() => changeOpen(false));
+  let frameDocument: Document | undefined;
+  const onFrameKey = (event: KeyboardEvent) => {
+    if (event.key !== 'Escape') return;
+    // Capture the layer before its own Escape handler removes it from the DOM.
+    const innerLayer = frameDocument?.querySelector(
+      '[role="dialog"]:not([data-closed]), [role="alertdialog"]:not([data-closed]), [role="menu"]:not([data-closed]), [role="listbox"]:not([data-closed])'
+    );
+    if (innerLayer) return;
+    const currentDocument = frameDocument;
+    queueMicrotask(() => {
+      if (!event.defaultPrevented && frameDocument === currentDocument)
+        changeOpen(false);
+    });
+  };
+  const releaseFrame = () => {
+    frameDocument?.removeEventListener('keydown', onFrameKey, true);
+    frameDocument = undefined;
+  };
   const changeOpen = (value: boolean) => {
-    if (!value) frameEscape.release();
+    if (!value) releaseFrame();
     setLoaded(false);
     setOpen(value);
   };
+  onCleanup(releaseFrame);
 
   onMount(() => {
     const anchor = host
@@ -126,7 +143,14 @@ export function HomepageInteractiveDemo() {
                   title="Macro interactive sample workspace"
                   class="homepage-demo-frame"
                   onLoad={(event) => {
-                    frameEscape.watch(event.currentTarget);
+                    releaseFrame();
+                    frameDocument =
+                      event.currentTarget.contentDocument ?? undefined;
+                    frameDocument?.addEventListener(
+                      'keydown',
+                      onFrameKey,
+                      true
+                    );
                     setLoaded(true);
                   }}
                 />
