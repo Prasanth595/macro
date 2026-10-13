@@ -66,7 +66,7 @@ function Actions() {
           <Button
             variant="ghost"
             size="lg"
-            class="px-2 text-sm lg:px-3"
+            class="w-9 px-0 text-sm lg:w-auto lg:px-3"
             label="Copy booking link"
             disabled={source.isPending}
             onClick={() => void handleClick()}
