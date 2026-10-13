@@ -9,7 +9,6 @@ import { SoupEntityContextMenu } from '@app/features/soup';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { toast } from '@core/component/Toast/Toast';
-import { useUserId } from '@core/context/user';
 import { getTaskStatusOptionId, type TaskEntityWithProperties } from '@entity';
 import { PropertyValueIcon } from '@property/component/propertyValue';
 import { usePropertyUserDisplay } from '@property/hooks/usePropertyUserDisplay';
@@ -38,7 +37,6 @@ export function TasksGantt(props: { ref?: (element: HTMLDivElement) => void }) {
   const queries = createTaskGanttQueries({
     rows: source.boardRows ?? source.items,
     grouping: () => state.groupBy,
-    userId: useUserId(),
     projectsEnabled: context.projectsEnabled,
   });
   const viewContext = () =>

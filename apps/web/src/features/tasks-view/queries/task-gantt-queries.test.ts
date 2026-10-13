@@ -7,14 +7,12 @@ import { createTaskGanttQueries } from './task-gantt-queries';
 
 const fixture = vi.hoisted(() => ({
   definitions: {} as Record<string, unknown>,
-  permissions: [
-    { isSuccess: true, data: { documentId: 'one', accessLevel: 'edit' } },
-  ],
-  projects: [] as Record<string, unknown>[],
   save: vi.fn(async (_input: unknown) => {}),
 }));
 vi.mock('@queries/storage/document-metadata', () => ({
-  useDocumentAccessLevelsQuery: () => fixture.permissions,
+  useDocumentAccessLevelsQuery: () => {
+    throw new Error('Task edits must not prefetch permissions');
+  },
 }));
 vi.mock('@queries/properties/definitions', () => ({
   useListPropertiesQuery: () => fixture.definitions,
@@ -22,13 +20,10 @@ vi.mock('@queries/properties/definitions', () => ({
 vi.mock('@queries/properties/entity', () => ({
   useBulkSaveEntityPropertiesMutation: () => ({ mutateAsync: fixture.save }),
 }));
-vi.mock('@tanstack/solid-query', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@tanstack/solid-query')>()),
-  useQueries: () => fixture.projects,
-}));
-vi.mock('@service-storage/initiative', () => ({ initiativeClient: {} }));
 vi.mock('@app/features/projects/queries/project-identity', () => ({
-  projectDetailQueryOptions: () => ({}),
+  projectDetailQueryOptions: () => {
+    throw new Error('Task moves must not prefetch project permissions');
+  },
 }));
 vi.mock('@core/component/Toast/Toast', () => ({ toast: { failure: vi.fn() } }));
 
@@ -53,21 +48,16 @@ function setup(
         { kind: 'group-header', id: 'bob', groupId: 'bob', label: 'Bob' },
       ],
       grouping: () => 'assignee',
-      userId: () => 'viewer',
       projectsEnabled: () => true,
       ...overrides,
     });
   });
 }
 beforeEach(() => {
-  fixture.permissions = [
-    { isSuccess: true, data: { documentId: 'one', accessLevel: 'edit' } },
-  ];
   fixture.definitions = {
     isSuccess: true,
     data: [boardProperty(SYSTEM_PROPERTY_IDS.ASSIGNEES, null).definition],
   };
-  fixture.projects = [];
   fixture.save.mockReset();
   fixture.save.mockResolvedValue(undefined);
 });
@@ -75,11 +65,23 @@ afterEach(() => {
   disposers.splice(0).forEach((dispose) => dispose());
 });
 
-it('rechecks permission and source membership on release instead of trusting the initial gate', async () => {
-  const source = setup();
+it('rechecks task presence and source membership on release', async () => {
+  const task = boardEntity('one', [
+    boardProperty(SYSTEM_PROPERTY_IDS.ASSIGNEES, {
+      type: 'EntityReference',
+      value: [{ entity_id: 'alice', entity_type: 'USER' }],
+    }),
+  ]);
+  const [present, setPresent] = createSignal(true);
+  const source = setup({
+    rows: () => [
+      ...(present() ? [createSoupEntityRow(task, { groupId: 'alice' })] : []),
+      { kind: 'group-header', id: 'bob', groupId: 'bob', label: 'Bob' },
+    ],
+  });
   expect(source.canMove(move)).toBe(true);
   expect(source.canMove({ ...move, fromGroup: 'stale' })).toBe(false);
-  fixture.permissions[0].data.accessLevel = 'view';
+  setPresent(false);
   await expect(source.moveGroup(move)).rejects.toThrow('no longer editable');
   expect(fixture.save).not.toHaveBeenCalled();
 });
@@ -167,18 +169,12 @@ it.each(['none', 'date'] as const)(
   }
 );
 
-it('requires destination project edit access and never reads pending project data', async () => {
+it('lets the mutation reject a project move and releases the task lock', async () => {
   fixture.definitions = {
     isSuccess: true,
     data: [boardProperty(SYSTEM_PROPERTY_IDS.PROJECT, null).definition],
   };
-  const project = {
-    isSuccess: false,
-    get data() {
-      throw new Error('pending data');
-    },
-  };
-  fixture.projects = [project];
+  fixture.save.mockRejectedValueOnce(new Error('Forbidden'));
   const source = setup({
     grouping: () => 'project',
     rows: () => [
@@ -194,16 +190,8 @@ it('requires destination project edit access and never reads pending project dat
       { kind: 'group-header', id: 'bob', groupId: 'bob', label: 'Bob' },
     ],
   });
-  expect(source.canMove(move)).toBe(false);
-  fixture.projects.splice(0, 1, {
-    isSuccess: true,
-    data: { project: { id: 'bob', access: 'view' } },
-  });
-  await expect(source.moveGroup(move)).rejects.toThrow('no longer editable');
-  fixture.projects.splice(0, 1, {
-    isSuccess: true,
-    data: { project: { id: 'bob', access: 'edit' } },
-  });
-  await source.moveGroup(move);
+  expect(source.canMove(move)).toBe(true);
+  await expect(source.moveGroup(move)).rejects.toThrow('Forbidden');
   expect(fixture.save).toHaveBeenCalledOnce();
+  expect(source.canDrag(move.id)).toBe(true);
 });

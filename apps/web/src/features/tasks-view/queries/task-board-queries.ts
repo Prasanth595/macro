@@ -1,4 +1,3 @@
-import { canEditProject } from '@app/features/projects/core/project';
 import { projectDetailQueryOptions } from '@app/features/projects/queries/project-identity';
 import type { FacetSelection, SortSelection } from '@app/features/soup';
 import { sortItems } from '@app/features/soup/collection/transforms';
@@ -9,9 +8,8 @@ import type { Property, PropertyApiValues } from '@property/types';
 import { toPropertyDefinitionDomain } from '@property/utils/transforms';
 import { useListPropertiesQuery } from '@queries/properties/definitions';
 import { useBulkSaveEntityPropertiesMutation } from '@queries/properties/entity';
-import { useDocumentAccessLevelsQuery } from '@queries/storage/document-metadata';
 import { initiativeClient } from '@service-storage/initiative';
-import { useQueries, useQueryClient } from '@tanstack/solid-query';
+import { useQueries } from '@tanstack/solid-query';
 import { type Accessor, createMemo, createSignal } from 'solid-js';
 import { TASK_SORT_DEFINITIONS } from '../constants';
 import type { TaskBoardActions } from '../context/task-board';
@@ -36,7 +34,6 @@ export function createTaskBoardQueries(options: {
   facets?: Accessor<FacetSelection>;
   sort?: Accessor<SortSelection<TaskSortId>[]>;
 }) {
-  const queryClient = useQueryClient();
   const [propertySaving, setPropertySaving] = createSignal<ReadonlySet<string>>(
     new Set()
   );
@@ -66,23 +63,6 @@ export function createTaskBoardQueries(options: {
         );
 
     return new Map(ordered.map((entity, index) => [entity.id, index]));
-  });
-
-  const ids = createMemo(() => [...entities().keys()]);
-  const permissions = useDocumentAccessLevelsQuery(ids);
-  const editableTasks = createMemo(() => {
-    const editableIds = permissions.flatMap((query) => {
-      if (!query.isSuccess) {
-        return [];
-      }
-
-      const { documentId, accessLevel } = query.data;
-      const canEdit = accessLevel === 'edit' || accessLevel === 'owner';
-
-      return canEdit ? [documentId] : [];
-    });
-
-    return new Set(editableIds);
   });
 
   const definitions = useListPropertiesQuery(() => ({
@@ -170,11 +150,7 @@ export function createTaskBoardQueries(options: {
 
   const actions: TaskBoardActions = {
     canEditTask(id) {
-      if (!entities().has(id) || !editableTasks().has(id)) {
-        return false;
-      }
-
-      return !propertySaving().has(id);
+      return entities().has(id) && !propertySaving().has(id);
     },
     canMoveTo(grouping, id) {
       const property = properties().get(taskBoardPropertyId(grouping));
@@ -191,21 +167,7 @@ export function createTaskBoardQueries(options: {
         return !id || !!property.options?.some((option) => option.id === id);
       }
 
-      if (grouping !== 'project') {
-        return true;
-      }
-
-      if (!options.projectsEnabled()) {
-        return false;
-      }
-
-      if (!id) {
-        return true;
-      }
-
-      const project = projectMap().get(id);
-
-      return !!project && canEditProject(project);
+      return grouping !== 'project' || options.projectsEnabled();
     },
     async save(move, grouping) {
       const entity = entities().get(move.id);
@@ -293,23 +255,9 @@ export function createTaskBoardQueries(options: {
         if (!options.projectsEnabled() || apiValues.valueType !== 'ENTITY') {
           throw new Error('Project editing is unavailable');
         }
-
-        for (const ref of apiValues.refs ?? []) {
-          const detail = await queryClient.ensureQueryData(
-            projectDetailQueryOptions(
-              initiativeClient,
-              options.userId(),
-              ref.entity_id
-            )
-          );
-
-          if (!canEditProject(detail.project)) {
-            throw new Error('Project is not editable');
-          }
-        }
       }
 
-      if (!entities().has(id) || !editableTasks().has(id)) {
+      if (!entities().has(id)) {
         throw new Error('Task is no longer editable');
       }
 

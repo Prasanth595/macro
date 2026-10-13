@@ -179,9 +179,12 @@ becomes the ghost instead of creating a duplicate. Drop on a group's header
 not supported. Assignee moves replace only the source assignee and preserve other
 assignments. Unassigned accepts only a sole-assignee item; mixed-assignee drops
 are rejected so they cannot clear other assignments. Creation-date grouping
-and ungrouped views do not accept group moves. Permission and destination checks
+and ungrouped views do not accept group moves. Membership and destination checks
 run again on release. Escape cancels, failed saves show an error, and neither
 Created at nor Due date changes during a group move. Active filters still apply.
+Task group moves follow the task list's editing policy: no task or destination
+permission prefetch is required before attempting a save. The backend authorizes
+property writes; rejected saves roll back, show an error, and release the task lock.
 Project Gantt also shows empty Status/Priority destinations from property options,
 Unassigned when allowed, and assignees already seen in the current collection
 scope. An emptied assignee group remains available for another drop. The ordinary
@@ -268,15 +271,15 @@ An icon-only status pill appears before the task title, and an icon-only assigne
 pill appears to its right in every grouping. The lower row omits status, assignee,
 and the grouping property. The remaining properties use standard pill controls
 and icons. Priority uses a compact icon-only pill; due date and project appear
-when set. Read-only tasks keep passive property pills.
+when set. Metadata properties stay read-only, and pending writes disable editing.
 A task assigned to multiple people appears in each person's column. Moving it
 from Alice to Bob replaces Alice while keeping the other assignees. Moving to
 **Unassigned** clears all assignees. Project moves change the task's Project
 property (an initiative), never its legacy folder.
 
-Only editable tasks can move. Access checks and property definitions can keep
-moves unavailable while loading. A destination project also requires edit
-access. A pending move disables further moves of the same task in every column;
+Task moves and property pills follow the list's editing policy without permission
+prefetches. Property definitions and valid destinations must still be available.
+A pending move disables further moves of the same task in every column;
 failed writes use the shared property mutation's rollback and show an error.
 A valid destination highlights and shows the sort overlay only while dragging
 inside that column, not in gaps or outside the board. Drops move the card
