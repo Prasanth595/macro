@@ -10,7 +10,7 @@ mod test;
 enum TokenCacheConnection {
     Connected(MultiplexedConnection),
     Lazy {
-        client: redis::Client,
+        client: Box<redis::Client>,
         connection: OnceCell<MultiplexedConnection>,
     },
 }
@@ -43,7 +43,7 @@ impl GmailTokenProviderImpl {
     pub fn lazy(client: redis::Client, auth_service_client: Arc<AuthServiceClient>) -> Self {
         Self {
             redis_conn: TokenCacheConnection::Lazy {
-                client,
+                client: Box::new(client),
                 connection: OnceCell::new(),
             },
             auth_service_client,
