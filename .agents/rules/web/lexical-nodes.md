@@ -1,13 +1,22 @@
 ---
-description: Lexical decorators must render at their final height on first paint, or channels jump.
+description: "Lexical nodes bump the version counter on breaking changes and render at their final height on first paint."
 paths:
   - "packages/lexical-core/nodes/**"
   - "apps/web/src/lib/core/component/LexicalMarkdown/component/decorator/**"
-globs: packages/lexical-core/nodes/**,apps/web/src/lib/core/component/LexicalMarkdown/component/decorator/**
+  - "apps/web/src/lib/core/component/LexicalMarkdown/version.ts"
+globs: "packages/lexical-core/nodes/**,apps/web/src/lib/core/component/LexicalMarkdown/component/decorator/**,apps/web/src/lib/core/component/LexicalMarkdown/version.ts"
 alwaysApply: false
 ---
 
-# Lexical decorators keep a stable height
+# Lexical nodes
+
+## Bump the version counter
+
+When you create a Lexical node or make a breaking change to one, increment the
+counter in `apps/web/src/lib/core/component/LexicalMarkdown/version.ts` with a short
+note on what changed.
+
+## Keep decorators at a stable height
 
 Any decorator node can appear in a channel message. Channels are a virtualized
 list anchored to the bottom, so a message that grows after it mounts pushes

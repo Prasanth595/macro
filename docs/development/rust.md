@@ -5,8 +5,9 @@ Return to the [repository guide](../../AGENTS.md) for other task guides.
 
 ## Before editing
 
-- Read the Rust section of the [style guide](style-guide.md). It owns the coding
-  rules, including configuration, errors, tracing, public docs, and test layout.
+- The Rust rules in [`.agents/rules/rust/`](../../.agents/rules/rust/) own the coding
+  conventions, including errors, tracing, public docs, and test layout; the
+  [config rule](../../.agents/rules/config-and-service-urls.md) owns configuration.
 - Follow the [hexagonal architecture skill](../../.agents/skills/cloud-storage-hexagonal-architecture/SKILL.md)
   before changing backend Rust. Keep domain policy and authorization in domain
   services; inbound adapters call services and outbound adapters implement ports.

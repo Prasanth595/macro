@@ -1,10 +1,13 @@
 ---
-description: <One sentence: the rule, stated as the outcome.>
+description: "<One sentence: the rule, stated as the outcome.>"
 paths:
   - "<glob where an agent editing these files needs this rule>"
-globs: <same globs, comma-separated (Cursor)>
+globs: "<same globs, comma-separated, for Cursor>"
 alwaysApply: false
 ---
+
+<!-- Quote description and globs: a leading `*` or a `: ` breaks YAML.
+     Omit paths and set alwaysApply: true only for rules every session needs. -->
 
 # <Rule as an imperative title>
 

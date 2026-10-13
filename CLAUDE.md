@@ -9,8 +9,8 @@ This file is the shared entry point: `AGENTS.md` symlinks to `CLAUDE.md`. Edit
 1. Identify the affected app, service, or crate using the map below.
 2. Read any applicable directory-level `AGENTS.md` / `CLAUDE.md` before editing.
 3. Read the task-relevant guides below, not every linked document.
-4. Follow [the style guide](docs/development/style-guide.md) for the language you change.
-   Prefer its current rules over patterns in older code.
+4. Rules in `.agents/rules/` load when you touch matching files. Prefer them over
+   patterns in older code.
 
 ## Repository map
 
@@ -54,13 +54,8 @@ Real files live in `.agents/`; tool-specific directories only symlink to it.
 | Adding a service, worker, or Pulumi stack | [New service guide](docs/development/new-service.md) |
 | Infrastructure, Pulumi, or deploys | [Infrastructure guide](docs/development/infrastructure.md) |
 
-## Essential guardrails
+## Guardrails
 
-- Run Rust tests from the repository root with `cargo test -p <package>` and
-  **leave `SQLX_OFFLINE` unset**. Offline mode is for checks/builds/lints, not tests.
-- Generate migrations with `sqlx migrate add`; never invent timestamped filenames.
-  Never hand-edit `.sqlx/query-*.json`. Prepare the workspace cache from the root
-  inside Nix; see the database guide for the workflow and test-query flags.
 - Do not reset databases or wipe stack volumes to troubleshoot without explicit
   approval. Database and Cloud guides distinguish rebuilds from destructive resets.
 - On a local machine, frontend-only work uses `apps/web` against the dev backend;
@@ -68,9 +63,6 @@ Real files live in `.agents/`; tool-specific directories only symlink to it.
   only**, not local-machine setup commands. Treat hosted dev data as real data.
 - Never deploy (`pulumi up`, `wrangler deploy`, deploy workflow dispatch) unless the
   user explicitly asks for that deploy. Never paste secrets into chat or commit them.
-- Across domain crates, depend on the owning domain service or port; only a
-  composition root may construct that crate's outbound adapters. Never import
-  another crate's `outbound` module from an outbound adapter.
 - Use `\cd` instead of `cd` to bypass repository shell aliases.
 
 ## Before handing off
@@ -90,8 +82,8 @@ Real files live in `.agents/`; tool-specific directories only symlink to it.
 ## Keeping these instructions useful
 
 Keep this file short: shared guardrails and links with explicit reading triggers.
-Put workflows in the relevant guide, coding rules in `docs/development/style-guide.md`, and
-subtree-specific instructions near their code. Do not append implementation
+Put workflows in skills or guides, conventions in `.agents/rules/`, and
+subtree-specific navigation in that directory's `AGENTS.md`. Do not append implementation
 journals, duplicate command lists, or environment-specific runbooks here.
 
 When the user corrects something that would apply beyond the current change, add
