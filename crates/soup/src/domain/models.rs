@@ -965,8 +965,8 @@ pub struct WorkFeedCandidate {
     /// The candidate's entity; channel-thread candidates are keyed on their
     /// thread root as a `channel_message`, like the notified-at feed.
     pub entity: Entity<'static>,
-    /// The latest live notification keyed to the candidate, when at least
-    /// one of them is not done.
+    /// The newest pending (unseen or seen) notification keyed to the
+    /// candidate.
     pub attention_at: Option<chrono::DateTime<chrono::Utc>>,
     /// The viewer's latest own (non-view) activity on the candidate. Always
     /// `None` in attention mode.

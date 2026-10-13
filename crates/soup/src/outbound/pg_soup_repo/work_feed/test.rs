@@ -15,6 +15,7 @@ const DOC_C: &str = "11111111-cccc-cccc-cccc-cccccccccccc";
 const DOC_E: &str = "11111111-eeee-eeee-eeee-eeeeeeeeeeee";
 const DOC_F: &str = "11111111-ffff-ffff-ffff-ffffffffffff";
 const DOC_G: &str = "11111111-0000-0000-0000-000000000000";
+const DOC_H: &str = "11111111-9999-9999-9999-999999999999";
 const CHAT_A: &str = "22222222-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const CHANNEL_X: &str = "33333333-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const THREAD_M: &str = "99999999-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
@@ -98,6 +99,7 @@ async fn work_mode_merges_attention_and_own_work(pool: Pool<Postgres>) -> anyhow
             (EntityType::EmailThread, THREAD_S.to_string()),
             (EntityType::EmailThread, THREAD_Z.to_string()),
             (EntityType::Channel, CHANNEL_X.to_string()),
+            (EntityType::Document, DOC_H.to_string()),
             (EntityType::Document, DOC_A.to_string()),
             (EntityType::Document, DOC_B.to_string()),
             (EntityType::Document, DOC_G.to_string()),
@@ -117,6 +119,9 @@ async fn work_mode_merges_attention_and_own_work(pool: Pool<Postgres>) -> anyhow
             (12, Some(12), None),
             // channel-X: the thread mention belongs to thread-M.
             (11, None, Some(11)),
+            // doc-H: attention is its newest pending notification; the newer
+            // done one neither places it nor outranks the edit.
+            (10, Some(6), Some(10)),
             // doc-A: the later opened row does not count as own work.
             (9, Some(5), Some(9)),
             // doc-B: user-2's later edit is not user-1's own work.
@@ -150,13 +155,16 @@ async fn attention_mode_ignores_own_work(pool: Pool<Postgres>) -> anyhow::Result
             (EntityType::EmailThread, THREAD_Z.to_string()),
             (EntityType::Document, DOC_B.to_string()),
             (EntityType::Document, DOC_G.to_string()),
+            (EntityType::Document, DOC_H.to_string()),
             (EntityType::Document, DOC_A.to_string()),
             (EntityType::Chat, CHAT_A.to_string()),
             (EntityType::ChannelMessage, THREAD_M.to_string()),
         ]
     );
     assert!(page.iter().all(|c| c.touched_at.is_none()));
-    assert_eq!(page[3].sort_at.minute(), 5);
+    // doc-H sits at its pending notification, not its newer done one.
+    assert_eq!(page[3].sort_at.minute(), 6);
+    assert_eq!(page[4].sort_at.minute(), 5);
 
     Ok(())
 }
@@ -193,7 +201,7 @@ async fn keyset_paginates_across_both_streams(pool: Pool<Postgres>) -> anyhow::R
     let one_page =
         work_feed_soup_page(&pool, req(WorkFeedSoupMode::Work, &link_ids, &sources)).await?;
     assert_eq!(keys(&all), keys(&one_page));
-    assert_eq!(all.len(), 10);
+    assert_eq!(all.len(), 11);
 
     Ok(())
 }
