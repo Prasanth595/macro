@@ -12,7 +12,7 @@ use utoipa::ToSchema;
 
 use crate::api::{context::ApiContext, middleware, utils::default_redirect_url};
 
-const DESKTOP_EMAIL_SUBJECT: &str = "Continue onboarding on your computer";
+const DESKTOP_EMAIL_SUBJECT: &str = "Continue onboarding on desktop";
 
 #[derive(Debug, Error)]
 pub enum SendMobileWelcomeEmailError {
@@ -177,7 +177,7 @@ fn desktop_email_html(url: &str) -> String {
   </head>
   <body style="margin:0;padding:0;width:100%;background-color:#f5f5f4;">
     <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">
-      Open this link on your computer to finish signing up for Macro.
+      Open this link on desktop to finish signing up for Macro.
     </div>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#f5f5f4" style="font-family:Arial,Helvetica,sans-serif;color:#222222;">
       <tr>
@@ -189,7 +189,7 @@ fn desktop_email_html(url: &str) -> String {
                   <img src="https://macro.com/app/macro-email-logo.png" width="36" height="36" alt="Macro" style="display:block;border:0;background-color:#ffffff;" />
                 </a>
                 <h1 style="margin:36px 0 16px;font-size:28px;line-height:36px;font-weight:600;letter-spacing:-0.5px;color:#222222;">{DESKTOP_EMAIL_SUBJECT}</h1>
-                <p style="margin:0 0 20px;font-size:16px;line-height:26px;color:#525252;">Macro sets up on your computer. Open this link there to finish signing up — it takes about a minute.</p>
+                <p style="margin:0 0 20px;font-size:16px;line-height:26px;color:#525252;">Macro is a better experience on desktop. Open this link to finish signing up — it only takes a minute.</p>
                 <table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0 8px;">
                   <tr>
                     <td bgcolor="#222222" style="border-radius:6px;text-align:center;">
