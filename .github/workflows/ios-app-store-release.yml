@@ -193,8 +193,9 @@ jobs:
                 `📱 iOS ${version} (build ${build}) was uploaded to TestFlight and submitted for App Review.`,
                 '',
                 'When Apple approves it, the version releases to the App Store automatically,',
-                'and the **iOS Release Watch** workflow re-runs the **iOS Native Check** on this PR',
-                'within half an hour of that (or re-run it yourself), which unblocks merging.',
+                'the **iOS Release Watch** workflow re-runs the **iOS Native Check** on this PR',
+                'within half an hour of that, and **auto-merge** (enabled by this workflow) then',
+                'squash-merges the PR. Disable auto-merge on the PR if you want to hold it.',
                 `After merge, the next prod deploy raises the iOS native build floor (\`MIN_NATIVE_BUILD_IOS\`) to ${build}, prompting older installs to update.`,
                 '',
                 `[Workflow run](${runUrl})`,
@@ -210,5 +211,26 @@ jobs:
             issue_number: context.issue.number,
             body,
           });
+  auto-merge:
+    needs:
+    - release
+    if: needs.release.result == 'success'
+    name: Enable auto-merge
+    runs-on: namespace-profile-linux-tiny-no-cache
+    permissions:
+      contents: write
+      pull-requests: write
+    timeout-minutes: 5
+    steps:
+    - name: Enable auto-merge (squash) on the PR
+      run: |
+        set -euo pipefail
+        gh pr merge "$PR_NUMBER" --repo "$GH_REPO" --auto --squash
+        echo "Auto-merge enabled: GitHub merges PR #${PR_NUMBER} once every required check passes."
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
 concurrency:
   group: ios-app-store-release-${{ github.event.pull_request.number }}

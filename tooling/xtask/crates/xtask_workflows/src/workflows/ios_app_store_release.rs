@@ -3,6 +3,9 @@
 //! head, uploads it to TestFlight, and submits it for App Review — the release
 //! the [`super::ios_native_check`] merge gate then waits on
 //! ([`super::ios_release_watch`] re-runs the gate once Apple releases it).
+//! On success it also enables GitHub auto-merge on the PR, so `ios-update`
+//! means "release this and merge it as soon as Apple approves"; disable
+//! auto-merge on the PR to hold it.
 //!
 //! The PR must already contain the version bump (`just ios-bump` in
 //! `apps/web`, committed): the workflow verifies it and fails fast otherwise.
@@ -39,6 +42,38 @@ pub fn ios_app_store_release() -> Workflow {
             "ios-app-store-release-${{ github.event.pull_request.number }}",
         )))
         .add_job("release", release_job())
+        .add_job("auto-merge", auto_merge_job())
+}
+
+/// Enable GitHub's native auto-merge once the release is submitted: GitHub
+/// then merges the PR itself the moment every required check is green, i.e.
+/// when [`super::ios_release_watch`] re-runs the gate after Apple's release.
+/// A separate job so `contents: write` never reaches the job that builds the
+/// PR's code.
+fn auto_merge_job() -> Job {
+    Job::default()
+        .name("Enable auto-merge")
+        .add_needs("release")
+        .cond(Expression::new("needs.release.result == 'success'"))
+        .runs_on(runners::Runner::TinyNoCache.to_string())
+        .timeout_minutes(5u32)
+        .permissions(
+            Permissions::default()
+                .contents(Level::Write)
+                .pull_requests(Level::Write),
+        )
+        .add_step(
+            Step::new("Enable auto-merge (squash) on the PR")
+                .run(indoc::indoc! {r#"
+                    set -euo pipefail
+                    gh pr merge "$PR_NUMBER" --repo "$GH_REPO" --auto --squash
+                    echo "Auto-merge enabled: GitHub merges PR #${PR_NUMBER} once every required check passes."
+                "#})
+                .shell("bash")
+                .add_env(("GH_TOKEN", "${{ github.token }}"))
+                .add_env(("GH_REPO", "${{ github.repository }}"))
+                .add_env(("PR_NUMBER", "${{ github.event.pull_request.number }}")),
+        )
 }
 
 fn release_job() -> Job {
@@ -176,8 +211,9 @@ fn pr_comment() -> Step<Use> {
                       `📱 iOS ${version} (build ${build}) was uploaded to TestFlight and submitted for App Review.`,
                       '',
                       'When Apple approves it, the version releases to the App Store automatically,',
-                      'and the **iOS Release Watch** workflow re-runs the **iOS Native Check** on this PR',
-                      'within half an hour of that (or re-run it yourself), which unblocks merging.',
+                      'the **iOS Release Watch** workflow re-runs the **iOS Native Check** on this PR',
+                      'within half an hour of that, and **auto-merge** (enabled by this workflow) then',
+                      'squash-merges the PR. Disable auto-merge on the PR if you want to hold it.',
                       `After merge, the next prod deploy raises the iOS native build floor (\`MIN_NATIVE_BUILD_IOS\`) to ${build}, prompting older installs to update.`,
                       '',
                       `[Workflow run](${runUrl})`,

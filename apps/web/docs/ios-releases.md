@@ -42,15 +42,19 @@ this end to end.
    the `ios-preview` label), uploads it to TestFlight, waits for App Store
    Connect processing + export compliance, and submits it for App Review
    (release type: automatic after approval). It comments the outcome
-   on the PR. To retry after a failure, remove and re-add the label.
+   on the PR and, on success, **enables GitHub auto-merge** (squash) on it:
+   `ios-update` means "release this and merge it as soon as Apple approves".
+   Disable auto-merge on the PR to hold it. To retry after a failure,
+   remove and re-add the label.
 4. Wait for Apple to approve. The version releases automatically, and the
    **`iOS Release Watch`** workflow (`.github/workflows/ios-release-watch.yml`,
    every 30 minutes) notices: for each open PR labeled `ios-update` it asks
    App Store Connect whether the version + build at the PR head is live and,
    when it is, re-runs the PR's failed `iOS Native Check` and comments. The
-   gate turns green on its own; merge. (Re-running the check by hand works
-   too. The watcher stops after two automatic re-runs so a check failing for
-   another reason doesn't retry forever.)
+   gate turns green on its own and auto-merge squash-merges the PR.
+   (Re-running the check by hand works too. The watcher stops after two
+   automatic re-runs so a check failing for another reason doesn't retry
+   forever.)
 5. The next prod web deploy (`just build-prod`) reads both platform floors
    from `min-native-build.json` into `MIN_NATIVE_BUILD_ANDROID` /
    `MIN_NATIVE_BUILD_IOS`, so `dist/bundle-manifest.json` carries
