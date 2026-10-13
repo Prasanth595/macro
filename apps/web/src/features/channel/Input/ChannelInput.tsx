@@ -1,11 +1,15 @@
 import { useMacroMentionLinkResolver } from '@components/app/split-layout/split-router/mention-links';
+import { EntityIcon } from '@core/component/EntityIcon';
 import { ComposerEditor } from '@core/component/LexicalMarkdown/component/ComposerEditor';
 import { StaticMarkdown } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { DragInsertIndicator } from '@core/component/LexicalMarkdown/component/misc/DragInsertIndicator';
 import {
   createDragInsertStore,
   INSERT_DOCUMENT_MENTION_COMMAND,
+  TYPE_AT_SYMBOL_COMMAND,
 } from '@core/component/LexicalMarkdown/plugins';
+import { ACTIONS } from '@core/component/LexicalMarkdown/plugins/actions/actions';
+import type { ActionContext } from '@core/component/LexicalMarkdown/plugins/actions/types';
 import { singleLineMarkdownTheme } from '@core/component/LexicalMarkdown/theme';
 import { createComposerLayout } from '@core/component/LexicalMarkdown/utils/create-composer-layout';
 import {
@@ -13,6 +17,9 @@ import {
   insertDocumentMentionAtDragCoordinates,
   updateDragInsertPreviewFromCoordinates,
 } from '@core/component/LexicalMarkdown/utils/dragInsertUtils';
+import { handleUserMention } from '@core/component/LexicalMarkdown/utils/mentionsUtils';
+import { isMacroAgentId } from '@core/constant/macroAgent';
+import { isMacroNewId } from '@core/constant/macroNew';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { createMessageComposer } from '@core/messages/create-message-composer';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
@@ -24,9 +31,19 @@ import {
   uploadFile,
 } from '@core/util/upload';
 import type { EntityData } from '@entity';
+import AtIcon from '@phosphor/at.svg';
+import ChartBarIcon from '@phosphor/chart-bar-horizontal.svg';
+import PaperclipIcon from '@phosphor/paperclip.svg';
+import PhoneIcon from '@phosphor/phone.svg';
 import type { MessageParent } from '@service-storage/messages';
 import { CollapsedInput, ComposerSurface, cn } from '@ui';
-import { $getRoot } from 'lexical';
+import {
+  $getRoot,
+  $getSelection,
+  $isRangeSelection,
+  $isTextNode,
+  type LexicalEditor,
+} from 'lexical';
 import {
   type Accessor,
   createSignal,
@@ -47,7 +64,11 @@ import { useAgentMentionUsers } from '../use-agent-mention-users';
 import { useMessageBotMentionUsers } from '../use-channel-bot-mention-users';
 import { useMessageParticipants } from '../use-message-participants';
 import { CHANNEL_FILE_PICKER_ACCEPT } from './accepted-file-types';
-import { createConfiguredChannelMarkdownEditor } from './configured-markdown-editor';
+import { ComposerAddMenu, type ComposerAddMenuGroup } from './ComposerAddMenu';
+import {
+  channelComposerActions,
+  createConfiguredChannelMarkdownEditor,
+} from './configured-markdown-editor';
 import { createCollapsedInputState } from './create-collapsed-input-state';
 import { FormatButtons } from './FormatButtons';
 import { Input } from './Input';
@@ -88,6 +109,8 @@ export type ChannelInputProps = InputCallbacks & {
   /** Dismiss the host after Escape has closed inline menus or dictation. */
   onEscape?: () => void;
   onReady?: (handle: InputHandle) => void;
+  /** Offers "Start a call" in the add menu; omitted where a call can't start. */
+  onStartCall?: () => void;
   children?: JSX.Element;
   /** Whether to auto-focus the input on mount. Defaults to `!isTouchDevice()`. */
   autofocus?: boolean;
@@ -108,11 +131,12 @@ export type ChannelInputProps = InputCallbacks & {
 function WebDefaultActions(props: {
   input: InputData;
   dictation: DictationController;
+  addMenu: JSX.Element;
 }) {
   return (
     <>
       <Input.Layout.ActionsLeft>
-        <Input.AttachFilesAction />
+        {props.addMenu}
         <Show when={isReplyInput(props.input)}>
           <Input.CloseReplyAction />
         </Show>
@@ -128,11 +152,12 @@ function WebDefaultActions(props: {
 function IosDefaultActions(props: {
   input: InputData;
   dictation: DictationController;
+  addMenu: JSX.Element;
 }) {
   return (
     <>
       <Input.Layout.ActionsLeft>
-        <Input.AttachNativeMediaAction />
+        {props.addMenu}
         <Show when={isReplyInput(props.input)}>
           <Input.CloseReplyAction />
         </Show>
@@ -148,15 +173,24 @@ function IosDefaultActions(props: {
 function DefaultActions(props: {
   input: InputData;
   dictation: DictationController;
+  addMenu: JSX.Element;
 }) {
   return (
     <Show
       when={isPlatform('ios')}
       fallback={
-        <WebDefaultActions input={props.input} dictation={props.dictation} />
+        <WebDefaultActions
+          input={props.input}
+          dictation={props.dictation}
+          addMenu={props.addMenu}
+        />
       }
     >
-      <IosDefaultActions input={props.input} dictation={props.dictation} />
+      <IosDefaultActions
+        input={props.input}
+        dictation={props.dictation}
+        addMenu={props.addMenu}
+      />
     </Show>
   );
 }
@@ -273,8 +307,9 @@ export function ChannelInput(props: ChannelInputProps) {
     ...(props.bots?.() ?? parentBots()),
   ]);
 
+  const groupMentions = !props.parent || props.parent.type === 'channel';
   const markdownEditor = createConfiguredChannelMarkdownEditor({
-    groupMentions: !props.parent || props.parent.type === 'channel',
+    groupMentions,
     namespace: props.markdownNamespace ?? 'channel-input-markdown',
     resolveAppLink: useMacroMentionLinkResolver(),
     enableMentions: true,
@@ -316,6 +351,154 @@ export function ChannelInput(props: ChannelInputProps) {
     // Keyboard, toolbar, and external handles all share this guard.
     send: async () => (dictation.active() ? false : inputState.commands.send()),
   };
+  // The add menu's actions are the slash menu's, run from the + instead.
+  const actionContext: ActionContext = {
+    sourceBlockName: groupMentions ? 'channel' : undefined,
+  };
+  const sendFromAction = () => void commands.send();
+  const slashAction = (id: string) =>
+    [...ACTIONS, ...channelComposerActions(sendFromAction)].find(
+      (action) => action.id === id
+    );
+  const runInEditor = (run: (editor: LexicalEditor) => void) => {
+    collapsedInput.expand();
+    focusEditor();
+    queueMicrotask(() => run(lexicalEditor()));
+  };
+  const openMentionTypeahead = (editor: LexicalEditor) => {
+    // The typeahead opens at a word start; step past a preceding word.
+    editor.update(
+      () => {
+        if (!$isRangeSelection($getSelection())) $getRoot().selectEnd();
+        const selection = $getSelection();
+        if (!$isRangeSelection(selection)) return;
+        const { anchor } = selection;
+        const node = anchor.getNode();
+        const previous = $isTextNode(node)
+          ? node.getTextContent().slice(anchor.offset - 1, anchor.offset)
+          : '';
+        if (previous && !/\s/.test(previous)) selection.insertText(' ');
+      },
+      { discrete: true }
+    );
+    editor.dispatchCommand(TYPE_AT_SYMBOL_COMMAND, undefined);
+  };
+  // Whichever Macro the `@macro` typeahead offers: the classic chat reply or
+  // the agent-session bot, depending on rollout.
+  const macroUser = () =>
+    mentionUsers().find(
+      (user) => isMacroAgentId(user.id) || isMacroNewId(user.id)
+    );
+  const addMenuGroups = (): ComposerAddMenuGroup[] => {
+    const create = (
+      id: string,
+      label: string,
+      icon: JSX.Element
+    ): ComposerAddMenuGroup['items'] => {
+      const action = slashAction(id);
+      if (!action) return [];
+      return [
+        {
+          id,
+          label,
+          icon,
+          onSelect: () =>
+            runInEditor((editor) => action.action(editor, actionContext)),
+        },
+      ];
+    };
+    const macro = macroUser();
+    const startCall = props.onStartCall;
+    return [
+      {
+        items: [
+          {
+            id: 'mention',
+            label: 'Mention',
+            icon: <AtIcon class="size-3.5" />,
+            hint: '@',
+            onSelect: () => runInEditor(openMentionTypeahead),
+          },
+          {
+            id: 'attach',
+            label: 'Attach files',
+            icon: <PaperclipIcon class="size-3.5" />,
+            onSelect: () => collapsedInput.attach(),
+            inGesture: true,
+          },
+        ],
+      },
+      {
+        label: 'Create',
+        items: [
+          ...create(
+            'task',
+            'New task',
+            <EntityIcon targetType="task" size="xs" />
+          ),
+          ...create(
+            'poll',
+            'New poll',
+            <ChartBarIcon class="size-3.5 text-violet" />
+          ),
+          ...create(
+            'form',
+            'New form',
+            <EntityIcon targetType="form" size="xs" />
+          ),
+          ...create(
+            'document',
+            'New document',
+            <EntityIcon targetType="md" size="xs" />
+          ),
+        ],
+      },
+      {
+        items: [
+          ...(macro
+            ? [
+                {
+                  id: 'ask-macro',
+                  label: 'Ask Macro',
+                  icon: <EntityIcon targetType="agent" size="xs" />,
+                  hint: '@macro',
+                  onSelect: () =>
+                    runInEditor((editor) => {
+                      void handleUserMention(macro, {
+                        editor,
+                        blockName: groupMentions ? 'channel' : undefined,
+                      }).then(() =>
+                        editor.update(() => {
+                          const selection = $getSelection();
+                          if ($isRangeSelection(selection))
+                            selection.insertText(' ');
+                        })
+                      );
+                    }),
+                },
+              ]
+            : []),
+          ...(startCall
+            ? [
+                {
+                  id: 'call',
+                  label: 'Start a call',
+                  icon: <PhoneIcon class="size-3.5" />,
+                  onSelect: startCall,
+                },
+              ]
+            : []),
+        ],
+      },
+    ];
+  };
+  const addMenu = (pill?: boolean) => (
+    <ComposerAddMenu
+      groups={addMenuGroups()}
+      class={pill ? 'not-touch:light-mode:text-composer-ink' : undefined}
+    />
+  );
+
   const { isCompact: oneLineInput } = createComposerLayout(lexicalEditor(), {
     container: layout,
     mode: () =>
@@ -504,7 +687,11 @@ export function ChannelInput(props: ChannelInputProps) {
           <Switch>
             <Match when={props.children}>{props.children}</Match>
             <Match when>
-              <DefaultActions input={inputState.view()} dictation={dictation} />
+              <DefaultActions
+                input={inputState.view()}
+                dictation={dictation}
+                addMenu={addMenu()}
+              />
             </Match>
           </Switch>
         </Input.Layout>
@@ -520,17 +707,17 @@ export function ChannelInput(props: ChannelInputProps) {
       // flat composer's host card already pads it.
       class={cn(props.flat && 'mb-0')}
     >
+      {/* File picker opened from the add menu, collapsed or not. */}
+      <input
+        ref={collapsedInput.setFilePickerRef}
+        type="file"
+        class="hidden"
+        multiple
+        accept={CHANNEL_FILE_PICKER_ACCEPT}
+        onChange={collapsedInput.onFilePickerChange}
+        data-collapsed-input-file-picker
+      />
       <Show when={isCollapsed()}>
-        {/* File picker opened from the CollapsedInput attach button. */}
-        <input
-          ref={collapsedInput.setFilePickerRef}
-          type="file"
-          class="hidden"
-          multiple
-          accept={CHANNEL_FILE_PICKER_ACCEPT}
-          onChange={collapsedInput.onFilePickerChange}
-          data-collapsed-input-file-picker
-        />
         <CollapsedInput
           class="touch:rounded-full touch:island"
           draft={inputState.view().value}
@@ -548,7 +735,7 @@ export function ChannelInput(props: ChannelInputProps) {
           pending={inputState.view().hasPendingAttachments}
           disabled={!hasSendableInputContent(inputState.view())}
           getFocusTarget={() => lexicalEditor().getRootElement()}
-          onAttach={collapsedInput.attach}
+          leadingAction={addMenu(true)}
           onOpen={collapsedInput.expand}
           trailingAction={<DictationButton dictation={dictation} />}
           onSend={() => void commands.send()}
