@@ -44,7 +44,11 @@
           let
             rel = lib.removePrefix ((toString jsRoot) + "/") (toString path);
           in
-          !(lib.hasPrefix "node_modules/" rel)
+          # Packaging helpers are separate derivation inputs, not frontend or
+          # WASM sources. Avoid recompiling both for AppImage-only changes.
+          rel != "nix"
+          && !(lib.hasPrefix "nix/" rel)
+          && !(lib.hasPrefix "node_modules/" rel)
           && !(lib.hasPrefix "apps/web/node_modules/" rel)
           && !(lib.hasPrefix "apps/web/dist/" rel)
           && !(lib.hasPrefix "apps/web/tauri/target/" rel)
@@ -874,6 +878,11 @@
             install -m 0755 ${tauriLinuxdeployAppimagePlugin}/bin/linuxdeploy-plugin-appimage.AppImage target/.tauri/linuxdeploy-plugin-appimage.AppImage
             install -m 0755 ${tauriBundlerSource}/crates/tauri-bundler/src/bundle/linux/appimage/linuxdeploy-plugin-gtk.sh target/.tauri/linuxdeploy-plugin-gtk.sh
             install -m 0755 ${tauriBundlerSource}/crates/tauri-bundler/src/bundle/linux/appimage/linuxdeploy-plugin-gstreamer.sh target/.tauri/linuxdeploy-plugin-gstreamer.sh
+            # The upstream plugin copies Nix's read-only modes, then immediately
+            # calls patchelf on those copies. Make both libraries and helpers writable.
+            substituteInPlace target/.tauri/linuxdeploy-plugin-gstreamer.sh \
+              --replace-fail 'cp "$i" "$plugins_target_dir"' 'install -m0755 "$i" "$plugins_target_dir"' \
+              --replace-fail 'cp "$i" "$helpers_target_dir"' 'install -m0755 "$i" "$helpers_target_dir"'
             install -m 0755 ${./appimage/ldd.py} target/.tauri/ldd
             patchShebangs target/.tauri/*.sh target/.tauri/ldd target/.tauri/linuxdeploy-plugin-appimage.AppImage
           '';
