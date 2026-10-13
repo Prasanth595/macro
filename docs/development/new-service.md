@@ -39,7 +39,8 @@ cautionary example.
 
 ### `main.rs`, in order
 
-Follow `services/calendar_service/src/main.rs`:
+Follow `services/calendar_service/src/main.rs`, except that `main` returns
+`Result<(), rootcause::Report>` (CS-56; calendar still returns `anyhow::Result`):
 
 1. `MacroEntrypoint::default().init()` first. Keep the returned handle and call
    `.shutdown()` before exit so telemetry flushes.

@@ -26,10 +26,12 @@ ID; deletions leave gaps and new rules take the next free number. A rule line re
 | [`rust/db.md`](../../.agents/rules/rust/db.md) | CS `[db]` | Migrations, SQL, DB clients, outbound adapters |
 | [`rust/architecture.md`](../../.agents/rules/rust/architecture.md) | CS `[arch]` `[api]` | Rust |
 | [`rust/code.md`](../../.agents/rules/rust/code.md) | CS `[types]` `[rust]` `[err]` `[perf]` `[test]` | Rust |
+| [`rust/libraries.md`](../../.agents/rules/rust/libraries.md) | CS 56–67 | Rust and `Cargo.toml` |
 | [`rust/security.md`](../../.agents/rules/rust/security.md) | CS `[sec]` | Rust |
 | [`web/data.md`](../../.agents/rules/web/data.md) | FE `[data]` | `apps/web`, `packages` |
 | [`web/solid.md`](../../.agents/rules/web/solid.md) | FE `[solid]` `[async]` | `apps/web`, `packages` |
 | [`web/architecture.md`](../../.agents/rules/web/architecture.md) | FE `[arch]` `[ts]` | `apps/web`, `packages` |
+| [`web/libraries.md`](../../.agents/rules/web/libraries.md) | FE 35–46 | `apps/web`, `packages` |
 | [`web/ui.md`](../../.agents/rules/web/ui.md) | FE `[ui]` | `.tsx` |
 | [`web/ui-primitives.md`](../../.agents/rules/web/ui-primitives.md) | | `apps/web/src/components/ui` |
 | [`web/startup-bundle.md`](../../.agents/rules/web/startup-bundle.md) | | `apps/web/src` |

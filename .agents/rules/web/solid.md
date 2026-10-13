@@ -23,14 +23,14 @@ State ownership, reactivity, and async error handling. IDs are stable; cite them
   clear related UI, blur a control, or scroll. (#3750, #3898, #6038 · also: AGENTS.md)
 - **FE-11** `[solid]` Check `solid-primitives` before writing a custom reactive utility.
   (also: AGENTS.md)
-- **FE-12** `[async]` `async`/`await` with `try`/`catch`, not `.then()`/`.catch()`
-  chains. (#3716, #3781 · enforced: oxlint `promise/prefer-await-to-then` —
+- **FE-12** `[async]` `async`/`await`, not `.then()`/`.catch()` chains; fallible calls
+  return `Result` (FE-36) rather than being wrapped in `try`/`catch`. (#3716, #3781 · enforced: oxlint `promise/prefer-await-to-then` —
   `bun run lint:oxlint` from the repository root)
 - **FE-13** `[async]` Extract multi-step async coordination into named helper functions,
   and make intentionally-unawaited promises explicit — no bare floating promises.
   (#3781)
 - **FE-14** `[async]` Keep neverthrow `Result`/`ResultAsync` intact end-to-end — use the
-  existing helpers (`ResultAsync`, `throwOnError` in `queryOptions`, `catchToResult`)
+  existing helpers (`ResultAsync`, `throwOnErr` in `queryFn`, `catchToResult`)
   instead of ad hoc `Promise <-> Result` conversions. (#3781, #4373)
 - **FE-15** `[async]` Guard once, at the top — missing/invalid state gets an early
   return at the start of the function or hook, not a repeated check in every branch or
