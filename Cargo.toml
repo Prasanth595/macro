@@ -256,6 +256,8 @@ http = "1"
 http-body = "1.0.1"
 http-body-util = "0.1.2"
 httpdate = "1"
+hyper = "1"
+hyper-util = { version = "0.1", features = ["tokio"] }
 image = "0.25"
 image-webp = "0.2"
 indexmap = "2"

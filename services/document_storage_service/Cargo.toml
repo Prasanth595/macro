@@ -151,8 +151,8 @@ graphql_scheduled_action = { path = "../../crates/graphql_scheduled_action" }
 harnesses = { path = "../../crates/harnesses" }
 hex = { workspace = true }
 http-body-util = { workspace = true }
-hyper = "1"
-hyper-util = { version = "0.1", features = ["tokio"] }
+hyper = { workspace = true }
+hyper-util = { workspace = true }
 import = { path = "../../crates/import" }
 initiative = { path = "../../crates/initiative", features = ["inbound", "postgres", "resources"] }
 jsonwebtoken = { workspace = true }
