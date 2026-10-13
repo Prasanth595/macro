@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const bookingLinksSearch = {
-  namespace: 'booking-links',
+  namespace: 'scheduling',
   schema: z.object({
     tab: z.enum(['links', 'availability', 'bookings', 'insights', 'page']),
     owner: z.string(),

@@ -290,7 +290,7 @@ export function ScheduleFields(props: {
         event.preventDefault();
       }}
     >
-      <section class="flex min-h-0 min-w-0 w-full max-w-[42rem] flex-1 flex-col">
+      <section class="flex min-h-0 min-w-0 w-full flex-1 flex-col">
         <div class="flex shrink-0 flex-wrap items-center justify-between gap-3 pb-3">
           <div class="flex items-center gap-1.5">
             <Button

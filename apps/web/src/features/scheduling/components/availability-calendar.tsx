@@ -162,7 +162,7 @@ export function AvailabilityCalendar(props: {
     <div
       ref={scroll}
       aria-label="Availability calendar"
-      class="min-h-0 w-full max-w-[42rem] flex-1 overflow-auto overscroll-contain bg-panel"
+      class="min-h-0 w-full flex-1 overflow-auto overscroll-contain bg-panel"
       onScroll={updateDate}
       onPointerDown={() => {
         if (!props.popoverOpen) return;

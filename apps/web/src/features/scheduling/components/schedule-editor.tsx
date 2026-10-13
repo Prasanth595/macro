@@ -18,7 +18,7 @@ export function ScheduleEditorForm(props: {
 }) {
   return (
     <form class="flex min-h-0 flex-1 flex-col gap-4" onSubmit={props.onSubmit}>
-      <header class="flex w-full max-w-[42rem] shrink-0 flex-wrap items-center gap-3 py-3">
+      <header class="flex w-full shrink-0 flex-wrap items-center gap-3 py-3">
         <Show when={!props.topBarOwned}>
           <Button
             variant="ghost"

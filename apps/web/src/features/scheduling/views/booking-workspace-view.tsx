@@ -341,8 +341,7 @@ export function BookingWorkspaceView(props: {
               <div
                 class="min-w-0"
                 classList={{
-                  'max-w-5xl':
-                    search.tab !== 'availability' && search.tab !== 'page',
+                  'max-w-5xl': search.tab === 'bookings',
                   'flex min-h-0 flex-1 flex-col':
                     editingSchedule() || search.tab === 'page',
                 }}
