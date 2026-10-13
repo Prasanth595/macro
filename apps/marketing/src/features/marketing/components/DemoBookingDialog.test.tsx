@@ -44,10 +44,6 @@ function followsLink(element: HTMLElement, init?: MouseEventInit) {
 async function openDialog() {
   const followed = followsLink(screen.getByText('Talk to us'));
   const frame = (await screen.findByTitle('Book a demo')) as HTMLIFrameElement;
-  // JSDOM frames start without a body, which the dialog's focus trap walks.
-  const page = frame.contentDocument!;
-  page.append(page.createElement('html'));
-  page.documentElement.append(page.createElement('body'));
   return { frame, followed };
 }
 
@@ -86,6 +82,13 @@ it('books in a dialog on the page and returns focus to the link when closed', as
   expect(followed).toBe(false);
   expect(screen.getByRole('dialog', { name: 'Talk to us' })).toBeTruthy();
   expect(frame.getAttribute('src')).toBe(BOOKING_PATH);
+  // The frame has no body yet, as while a real one loads; focus still lands.
+  expect(frame.contentDocument?.body).toBeNull();
+  await waitFor(() =>
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Close' })
+    )
+  );
   finishLoading(frame, () => ({ pathname: BOOKING_PATH }));
   expect(window.open).not.toHaveBeenCalled();
 

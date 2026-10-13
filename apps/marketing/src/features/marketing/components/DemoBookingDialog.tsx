@@ -35,6 +35,7 @@ export function DemoBookingDialog() {
   const [open, setOpen] = createSignal(false);
   const [loaded, setLoaded] = createSignal(false);
   let opener: HTMLAnchorElement | undefined;
+  let closeButton: HTMLButtonElement | undefined;
   let frame: HTMLIFrameElement | undefined;
   const frameEscape = createFrameEscape(() => changeOpen(false));
   const changeOpen = (value: boolean) => {
@@ -74,6 +75,12 @@ export function DemoBookingDialog() {
         <Dialog.Overlay class="demo-booking-overlay" />
         <Dialog.Content
           class="demo-booking-dialog"
+          onOpenAutoFocus={(event) => {
+            // The library's search for the first focusable element looks
+            // inside the frame, whose document has no body while it loads.
+            event.preventDefault();
+            closeButton?.focus({ preventScroll: true });
+          }}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
             opener?.focus({ preventScroll: true });
@@ -81,7 +88,11 @@ export function DemoBookingDialog() {
         >
           <header class="demo-booking-titlebar">
             <Dialog.Title>Talk to us</Dialog.Title>
-            <Dialog.CloseButton class="demo-booking-close" aria-label="Close">
+            <Dialog.CloseButton
+              ref={closeButton}
+              class="demo-booking-close"
+              aria-label="Close"
+            >
               <X />
             </Dialog.CloseButton>
           </header>
