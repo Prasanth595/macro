@@ -48,7 +48,7 @@
           # WASM sources. Avoid recompiling both for AppImage-only changes.
           rel != "nix"
           && !(lib.hasPrefix "nix/" rel)
-          && rel != "nix-support/appimage-libproxy.nix"
+          && !(lib.hasPrefix "nix-support/appimage-" rel)
           && !(lib.hasPrefix "node_modules/" rel)
           && !(lib.hasPrefix "apps/web/node_modules/" rel)
           && !(lib.hasPrefix "apps/web/dist/" rel)
@@ -429,9 +429,9 @@
               "--executable", "${pkgs.webkitgtk_4_1}/libexec/webkit2gtk-4.1/WebKitNetworkProcess",
               "--executable", "${pkgs.webkitgtk_4_1}/libexec/webkit2gtk-4.1/WebKitGPUProcess",
               "--library", "${pkgs.webkitgtk_4_1}/lib/webkit2gtk-4.1/injected-bundle/libwebkit2gtkinjectedbundle.so",
-              "--library", "${gioTlsModulePath}/libgiognutls.so",
-              "--library", "${gioTlsModulePath}/libgiognomeproxy.so",
-              "--library", "${gioTlsModulePath}/libgiolibproxy.so",
+              "--library", "${appimageGioModulePath}/libgiognutls.so",
+              "--library", "${appimageGioModulePath}/libgiognomeproxy.so",
+              "--library", "${appimageGioModulePath}/libgiolibproxy.so",
             };
             size_t runtime_argc = sizeof(runtime_args) / sizeof(runtime_args[0]);
             char **args = calloc((size_t)argc + runtime_argc + 1, sizeof(char *));
@@ -481,6 +481,10 @@
         src = tauriLinuxdeployAppimagePluginSource;
       };
       tauriPortableLibproxy = pkgs.callPackage ../nix-support/appimage-libproxy.nix { };
+      tauriPortableGlibNetworking = pkgs.callPackage ../nix-support/appimage-glib-networking.nix {
+        libproxy = tauriPortableLibproxy;
+      };
+      appimageGioModulePath = "${tauriPortableGlibNetworking}/lib/gio/modules";
       tauriLinuxdeployAppimagePlugin = pkgs.stdenvNoCC.mkDerivation {
         pname = "linuxdeploy-plugin-appimage-patched";
         version = "1-alpha-20250213-1";
@@ -534,7 +538,7 @@
         pkgs.gst_all_1.gst-plugins-bad
         pkgs.gst_all_1.gst-libav
         pkgs.openssl
-        pkgs.glib-networking
+        tauriPortableGlibNetworking
       ];
       tauriRuntimeLibraryPath = lib.makeLibraryPath tauriRuntimeLibraries;
       tauriRuntimeClosure = pkgs.closureInfo {
@@ -603,10 +607,10 @@
             "/usr/bin/xdg-open" = "${tauriXdgUtils}/bin/xdg-open";
             "/usr/share/X11/xkb" = "${tauriXkbData}";
             "/usr/share/glib-2.0/schemas" = "${tauriGsettingsSchemas}";
-            "/usr/lib/gio/modules/giomodule.cache" = "${pkgs.glib-networking}/lib/gio/modules/giomodule.cache";
-            "/usr/lib/gio/modules/libgiognomeproxy.so" = "${pkgs.glib-networking}/lib/gio/modules/libgiognomeproxy.so";
-            "/usr/lib/gio/modules/libgiognutls.so" = "${pkgs.glib-networking}/lib/gio/modules/libgiognutls.so";
-            "/usr/lib/gio/modules/libgiolibproxy.so" = "${pkgs.glib-networking}/lib/gio/modules/libgiolibproxy.so";
+            "/usr/lib/gio/modules/giomodule.cache" = "${appimageGioModulePath}/giomodule.cache";
+            "/usr/lib/gio/modules/libgiognomeproxy.so" = "${appimageGioModulePath}/libgiognomeproxy.so";
+            "/usr/lib/gio/modules/libgiognutls.so" = "${appimageGioModulePath}/libgiognutls.so";
+            "/usr/lib/gio/modules/libgiolibproxy.so" = "${appimageGioModulePath}/libgiolibproxy.so";
           };
         };
       };
@@ -876,7 +880,7 @@
             export PYTHONDONTWRITEBYTECODE=1
             python3 -m unittest discover -s ${./appimage} -v
             bash ${./appimage}/test_runtime.sh \
-              ${tauriXkbData} ${tauriGsettingsSchemas} ${gioTlsModulePath} ${tauriAppRun} ${tauriPortableLibproxy}
+              ${tauriXkbData} ${tauriGsettingsSchemas} ${appimageGioModulePath} ${tauriAppRun} ${tauriPortableLibproxy}
             bash ${./appimage}/test_xdg.sh ${tauriXdgUtils}
             # GStreamer's default Nix output is bin; its scanner and core plugins
             # live in the library output. Do not silently ship an empty helper dir.

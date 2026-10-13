@@ -32,6 +32,13 @@ cp -r "$schemas" "$appdir/usr/share/glib-2.0/schemas"
 cp -rL "$modules" "$appdir/usr/lib/gio/modules"
 install -m0755 "$libproxy/lib/libproxy.so.1" "$appdir/usr/lib/libproxy.so.1"
 install -m0755 "$libproxy/lib/libproxy/libpxbackend-1.0.so" "$appdir/usr/lib/libpxbackend-1.0.so"
+# Nix's schema directory exists in this sandbox: reject baked-in lookups before
+# running the fixtures so the host cannot mask a broken proxy module.
+PYTHONPATH="$source_dir" python3 - "$appdir" <<'PY'
+import sys
+from relocate import check_schema_paths
+check_schema_paths(sys.argv[1])
+PY
 # Use the same patched native launcher as the artifact, not a shell stand-in.
 # The unpatched executable corrupts GSETTINGS_SCHEMA_DIR after the hook runs.
 install -m0755 "$apprun" "$appdir/AppRun.wrapped"
