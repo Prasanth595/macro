@@ -2,7 +2,7 @@
 
 <One sentence: what this owns.>
 
-Status: active | legacy — do not extend; use `<replacement>` | migrating to `<target>`
+Status: legacy — do not extend; use `<replacement>` | migrating to `<target>`
 
 ## Start here
 
@@ -37,11 +37,14 @@ Status: active | legacy — do not extend; use `<replacement>` | migrating to `<
 
 <!--
 Writing rules:
-- Under ~50 lines. Every line is something an agent would otherwise get wrong or
+- Under ~50 lines; up to ~70 only for very large crates. Every line is something an agent would otherwise get wrong or
   spend time rediscovering.
 - Nothing a file listing, the code, or a crate-level doc comment already says.
-- Delete empty sections instead of filling them. Boundaries is for backend crates.
-- Status is required; most crates are `active`.
+- Delete empty sections instead of filling them.
+- Status: omit the line for active crates; include it only for legacy or migrating ones.
+- Boundaries is for shared libraries and domain crates. For a leaf service, put its
+  callers in Scope and drop the section. "Used by" names the callers that matter,
+  not every dependent.
 - Don't restate rules from .agents/rules; link them.
 - A sibling CLAUDE.md is a symlink to this file: `ln -s AGENTS.md CLAUDE.md`.
 -->
