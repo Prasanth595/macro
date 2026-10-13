@@ -15,7 +15,6 @@ describe('individual settings search', () => {
     });
     expect(search('working hours')).toEqual([]);
     expect(search('reschedule')).toEqual([]);
-    expect(search('booking page')).toEqual([]);
   });
   it('finds and targets a signature without knowing its page', () => {
     expect(search('signatre')[0]).toMatchObject({

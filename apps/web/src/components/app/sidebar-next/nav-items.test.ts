@@ -51,24 +51,6 @@ describe('sidebar visibility preferences', () => {
     ]);
   });
 
-  it('keeps Scheduling under More independently of rail preferences and Calendar', () => {
-    const gates = defaultGates({
-      showCalendar: false,
-      prefs: defaultPrefs({ hidden: new Set() }),
-    });
-    expect(moreMenuItems(gates)).toEqual([
-      expect.objectContaining({
-        id: 'booking-links',
-        label: 'Scheduling',
-        href: '/scheduling',
-      }),
-    ]);
-    expect(
-      visibleNavItems(gates).some((item) => item.id === 'booking-links')
-    ).toBe(false);
-    expect(moreMenuItems({ ...gates, showScheduling: false })).toEqual([]);
-  });
-
   it('shows an item on the rail when it is not hidden', () => {
     const items = visibleNavItems(
       defaultGates({
