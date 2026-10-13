@@ -29,11 +29,15 @@ import type {
   EventValidationIssue,
   SchedulingMember,
 } from '../core/types';
+import { BookingDurationInput } from './booking-duration-input';
 import { BookingEditorSection } from './booking-editor-section';
 import { BookingFieldInfo } from './booking-field-info';
 import { BookingRules as BookingRuleSliders } from './booking-rules';
 import { BookingValueSlider } from './booking-value-slider';
-import { EventEditorProgress } from './event-editor-progress';
+import {
+  EventEditorProgress,
+  EventEditorStepMenu,
+} from './event-editor-progress';
 import { EventReview } from './event-review';
 import {
   CheckField,
@@ -55,18 +59,22 @@ export type EventEditorProps = {
   createActive: boolean;
   details: EventDetail[];
   step: EventEditorStep;
+  stepMenuOpen: boolean;
+  onStepMenuOpenChange: (open: boolean) => void;
   issues: EventValidationIssue[];
   validationAttempt: number;
   submitError: string;
   availability?: JSX.Element;
   submitLabel?: string;
   link?: string;
+  savedLink?: string;
   onTitle: (title: string) => void;
   onUpdate: <K extends keyof EventType>(key: K, value: EventType[K]) => void;
   onAddDetail: (detail: EventDetail) => void;
   onRemoveDetail: (detail: EventDetail) => void;
   onBuffers: (before: number, after: number) => void;
   onDailyLimitEnabled: (enabled: boolean) => void;
+  onStep: (step: EventEditorStep) => void;
   onNext: () => void;
   onBack: () => void;
   onSave: () => Promise<void>;
@@ -395,7 +403,19 @@ export function EventEditor(props: EventEditorProps) {
                 disabled={props.saving}
                 error={error('durationMinutes')}
                 onChange={(value) => props.onUpdate('durationMinutes', value)}
-              />
+              >
+                {(errorId) => (
+                  <BookingDurationInput
+                    value={props.draft.durationMinutes}
+                    disabled={props.saving}
+                    error={error('durationMinutes')}
+                    errorId={errorId}
+                    onChange={(value) =>
+                      props.onUpdate('durationMinutes', value)
+                    }
+                  />
+                )}
+              </BookingValueSlider>
             </fieldset>
           </Stepper.Step>
           <Stepper.Step>
@@ -715,6 +735,7 @@ export function EventEditor(props: EventEditorProps) {
               <Show when={props.step === 'review'}>
                 <EventReview
                   draft={props.draft}
+                  link={props.savedLink ?? props.link ?? `/${props.draft.slug}`}
                   schedule={schedule()}
                   members={props.members}
                   team={props.team}
@@ -729,7 +750,8 @@ export function EventEditor(props: EventEditorProps) {
                     !props.isNew ? (
                       <ToggleSwitch
                         size="md"
-                        label="Accept bookings"
+                        label="Enabled"
+                        class="self-start"
                         labelClass="sr-only"
                         checked={props.draft.enabled}
                         disabled={props.saving}
@@ -765,12 +787,21 @@ export function EventEditor(props: EventEditorProps) {
         </Stepper>
       </div>
       <header class="order-first flex shrink-0 items-center justify-between gap-4 px-5 pt-6 pb-4 sm:px-6">
-        <h3
-          id={progressId}
-          class="min-w-0 text-xl font-medium leading-snug tracking-wide"
-        >
-          {EVENT_EDITOR_STEPS[stepIndex()].heading}
-        </h3>
+        <div class="flex min-w-0 items-center gap-2">
+          <EventEditorStepMenu
+            step={stepIndex()}
+            open={props.stepMenuOpen}
+            onOpenChange={props.onStepMenuOpenChange}
+            disabled={props.saving}
+            onStep={props.onStep}
+          />
+          <h3
+            id={progressId}
+            class="min-w-0 text-xl font-medium leading-snug tracking-wide"
+          >
+            {EVENT_EDITOR_STEPS[stepIndex()].heading}
+          </h3>
+        </div>
         <EventEditorProgress step={stepIndex()} />
       </header>
       <Show when={props.step === 'questions'}>

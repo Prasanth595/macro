@@ -162,11 +162,15 @@ export function createEventEditor(options: {
   const canGoToStep = (target: EventEditorStep) => {
     if (target === step()) return true;
     const index = EVENT_EDITOR_STEPS.findIndex((entry) => entry.id === target);
+    const current = EVENT_EDITOR_STEPS.findIndex(
+      (entry) => entry.id === step()
+    );
     return (
       index >= 0 &&
-      EVENT_EDITOR_STEPS.slice(0, index).every(
-        (entry) => stepIssues(entry.id, draft()).length === 0
-      )
+      (index <= current ||
+        EVENT_EDITOR_STEPS.slice(0, index).every(
+          (entry) => stepIssues(entry.id, draft()).length === 0
+        ))
     );
   };
   const selectStep = (next: EventEditorStep) => {
@@ -177,24 +181,31 @@ export function createEventEditor(options: {
       setStep(next);
     });
   };
-  const goToStep = (next: EventEditorStep) => {
-    if (next === step() || !canGoToStep(next)) return;
-    selectStep(next);
+  const goToStep = (target: EventEditorStep) => {
+    if (target === step()) return;
+    const index = EVENT_EDITOR_STEPS.findIndex((entry) => entry.id === target);
+    if (index < 0) return;
+    const current = EVENT_EDITOR_STEPS.findIndex(
+      (entry) => entry.id === step()
+    );
+    if (index > current) {
+      for (const entry of EVENT_EDITOR_STEPS.slice(0, index)) {
+        const found = stepIssues(entry.id, draft());
+        if (!found.length) continue;
+        batch(() => {
+          setStep(entry.id);
+          setValidatedStep(entry.id);
+          setIssues(found);
+          setSubmitError('');
+          setValidationAttempt((attempt) => attempt + 1);
+        });
+        return;
+      }
+    }
+    selectStep(target);
   };
   const next = () => {
     const index = EVENT_EDITOR_STEPS.findIndex((entry) => entry.id === step());
-    for (const entry of EVENT_EDITOR_STEPS.slice(0, index + 1)) {
-      const found = stepIssues(entry.id, draft());
-      if (!found.length) continue;
-      batch(() => {
-        setStep(entry.id);
-        setValidatedStep(entry.id);
-        setIssues(found);
-        setSubmitError('');
-        setValidationAttempt((attempt) => attempt + 1);
-      });
-      return;
-    }
     const target = EVENT_EDITOR_STEPS[index + 1];
     if (target) goToStep(target.id);
   };

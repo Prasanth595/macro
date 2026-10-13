@@ -45,6 +45,7 @@ export function EventEditor(props: EventEditorViewProps) {
     onSave: props.onSave,
   });
   const [confirmingDiscard, setConfirmingDiscard] = createSignal(false);
+  const [stepMenuOpen, setStepMenuOpen] = createSignal(false);
   let returnFocus: HTMLElement | undefined;
   let discarding = false;
   let disposed = false;
@@ -68,6 +69,10 @@ export function EventEditor(props: EventEditorViewProps) {
   };
   const savedEvent = () =>
     props.events.find((event) => event.id === props.event.id);
+  const savedLink = () => {
+    const slug = savedEvent()?.slug;
+    return slug ? (props.link?.(slug) ?? `/${slug}`) : undefined;
+  };
   const copySavedLink = async () => {
     const event = savedEvent();
     if (!event?.slug || !props.onCopyLink || props.saving) return;
@@ -84,12 +89,15 @@ export function EventEditor(props: EventEditorViewProps) {
       createActive={props.createActive ?? false}
       details={editor.details()}
       step={editor.step()}
+      stepMenuOpen={stepMenuOpen()}
+      onStepMenuOpenChange={setStepMenuOpen}
       issues={editor.issues()}
       validationAttempt={editor.validationAttempt()}
       submitError={editor.submitError()}
       availability={props.availability}
       submitLabel={props.submitLabel}
       link={props.link?.(editor.slug()) ?? `/${editor.slug()}`}
+      savedLink={savedLink()}
       onCopyLink={
         props.onCopyLink && savedEvent()?.slug ? copySavedLink : undefined
       }
@@ -99,6 +107,7 @@ export function EventEditor(props: EventEditorViewProps) {
       onDailyLimitEnabled={editor.setDailyLimitEnabled}
       onAddDetail={editor.addDetail}
       onRemoveDetail={editor.removeDetail}
+      onStep={editor.goToStep}
       onNext={editor.next}
       onBack={editor.back}
       onSave={() => editor.save()}
@@ -112,6 +121,10 @@ export function EventEditor(props: EventEditorViewProps) {
           open
           onOpenChange={(open) => !open && requestClose()}
           position="center"
+          onEscapeKeyDown={(event) => {
+            // The drawer and dropdown use separate dismissable-layer stacks.
+            if (stepMenuOpen()) event.preventDefault();
+          }}
           animate
           class="w-full max-w-[min(42rem,calc(100vw-16px))] overflow-hidden"
         >

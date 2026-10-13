@@ -1,6 +1,7 @@
 import CalendarBlank from '@phosphor/calendar-blank.svg';
 import CalendarCheck from '@phosphor/calendar-check.svg';
 import Copy from '@phosphor/copy.svg';
+import Power from '@phosphor/power.svg';
 import Question from '@phosphor/question.svg';
 import Warning from '@phosphor/warning.svg';
 import { Button } from '@ui';
@@ -37,14 +38,14 @@ function ReviewSection(props: {
   children: JSX.Element;
 }) {
   return (
-    <section class="grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-x-3 border-t border-edge-frame pt-4">
+    <section class="grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-x-3">
       <Dynamic
         component={props.icon}
         class="mt-0.5 size-5 shrink-0 text-ink-muted"
         aria-hidden="true"
       />
       <div class="flex min-w-0 flex-col gap-3">
-        <div class="flex min-w-0 items-center gap-2">
+        <div class="flex min-w-0 items-center gap-0.5">
           <h4 class="min-w-0 text-sm font-normal tracking-wide text-ink-muted">
             {props.label}
           </h4>
@@ -71,6 +72,7 @@ function ReviewValue(props: { label: string; children: JSX.Element }) {
 
 export function EventReview(props: {
   draft: EventType;
+  link: string;
   schedule?: AvailabilitySchedule;
   members: SchedulingMember[];
   team: boolean;
@@ -114,44 +116,50 @@ export function EventReview(props: {
           aria-hidden="true"
         />
         <div class="flex min-w-0 flex-col gap-4">
-          <div data-booking-review-title class="flex min-w-0 items-start gap-2">
-            <p class="min-w-0 break-words text-xl font-medium leading-tight tracking-normal">
-              {props.draft.title}
-            </p>
-            <Show when={props.onCopyLink}>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                label="Copy booking link"
-                disabled={props.saving || copying() || !props.onCopyLink}
-                aria-invalid={copyError() ? true : undefined}
-                aria-describedby={copyError() ? copyErrorId : undefined}
-                class="shrink-0 aria-invalid:ring-2 aria-invalid:ring-failure/40"
-                onClick={() => void copyLink()}
+          <dl class="grid gap-3">
+            <ReviewValue label="Title">
+              <p data-booking-review-title>{props.draft.title}</p>
+            </ReviewValue>
+            <ReviewValue label="Description">
+              <Show
+                when={props.draft.description}
+                fallback={<p class="text-ink-muted">No description</p>}
               >
-                <Copy class="size-4" aria-hidden="true" />
-              </Button>
-            </Show>
-          </div>
-          <FieldError id={copyErrorId} message={copyError()} />
-          <Show
-            when={props.draft.description}
-            fallback={<p class="text-ink-muted">No description</p>}
-          >
-            <p class="whitespace-pre-wrap break-words text-sm text-ink-muted">
-              {props.draft.description}
-            </p>
-          </Show>
+                <p class="whitespace-pre-wrap">{props.draft.description}</p>
+              </Show>
+            </ReviewValue>
+            <ReviewValue label="Link">
+              <div class="flex min-w-0 items-start gap-2">
+                <span class="min-w-0 break-words [overflow-wrap:anywhere]">
+                  {props.link}
+                </span>
+                <Show when={props.onCopyLink}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    label="Copy booking link"
+                    disabled={props.saving || copying() || !props.onCopyLink}
+                    aria-invalid={copyError() ? true : undefined}
+                    aria-describedby={copyError() ? copyErrorId : undefined}
+                    class="shrink-0 aria-invalid:ring-2 aria-invalid:ring-failure/40"
+                    onClick={() => void copyLink()}
+                  >
+                    <Copy class="size-4" aria-hidden="true" />
+                  </Button>
+                </Show>
+              </div>
+              <FieldError id={copyErrorId} message={copyError()} />
+            </ReviewValue>
+          </dl>
           <dl class="mt-1 grid gap-x-8 gap-y-3 sm:grid-cols-2">
             <ReviewValue label="Duration">
               {describeBookingValue(props.draft.durationMinutes, MINUTE_UNITS)}
             </ReviewValue>
             <ReviewValue label="Status">
-              <div class="flex items-center gap-3">
-                <span>{props.active ? 'Active' : 'Paused'}</span>
-                {props.statusControl}
-              </div>
+              {props.active && !props.draft.requiresConfirmation
+                ? 'Active'
+                : 'Paused'}
             </ReviewValue>
             <ReviewValue label="Meeting location">
               {props.draft.googleMeet
@@ -241,6 +249,13 @@ export function EventReview(props: {
           </ReviewValue>
         </dl>
       </ReviewSection>
+      <Show when={props.statusControl}>
+        {(control) => (
+          <ReviewSection label="Enabled" icon={Power}>
+            {control()}
+          </ReviewSection>
+        )}
+      </Show>
     </div>
   );
 }
