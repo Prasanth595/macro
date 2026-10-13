@@ -79,9 +79,12 @@ function SchedulingHost(props: ParentProps) {
             await writeClipboardData({
               'text/plain': schedulingLink(profile, slug),
             })
-          )
+          ) {
             toast.success('Booking link copied');
-          else toast.failure('Could not copy booking link');
+          } else {
+            toast.failure('Could not copy booking link');
+            throw new Error('Could not copy booking link');
+          }
         },
       }}
     >

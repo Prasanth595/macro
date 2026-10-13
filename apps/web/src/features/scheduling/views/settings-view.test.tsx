@@ -489,12 +489,50 @@ it('advances without saving and routes invalid saves to the relevant step', asyn
     dispose();
   }
 });
-it('edits booking-page configuration in the workspace without loading bookings', () => {
-  const { loadsBookings } = workspaceFixture('page');
+it('previews the public booking page and live drafts without loading bookings', () => {
+  const { loadsBookings } = workspaceFixture('page', {
+    title: 'Intro meeting',
+    durationMinutes: 45,
+    description: 'A short introduction.',
+  });
   expect(screen.getByRole('heading', { name: 'Booking page' })).toBeTruthy();
-  expect(screen.getAllByRole('textbox', { name: 'Display name' })).toHaveLength(
-    1
-  );
+  const preview = screen.getByRole('region', { name: 'Booking page preview' });
+  expect(
+    (
+      within(preview).getByRole('textbox', {
+        name: 'Display name',
+      }) as HTMLInputElement
+    ).value
+  ).toBe('Personal');
+  expect(
+    within(preview).getByRole('heading', { name: 'Choose a meeting' })
+  ).toBeTruthy();
+  expect(
+    within(preview).getByRole('heading', { name: 'Intro meeting' })
+  ).toBeTruthy();
+  expect(within(preview).getByText('45 minutes · Google Meet')).toBeTruthy();
+  expect(within(preview).getByText('A short introduction.')).toBeTruthy();
+  expect(within(preview).queryByRole('button')).toBeNull();
+  fireEvent.input(screen.getByRole('textbox', { name: 'Display name' }), {
+    target: { value: 'Personal draft' },
+  });
+  fireEvent.input(screen.getByRole('textbox', { name: 'Introduction' }), {
+    target: { value: 'Welcome to my booking page.' },
+  });
+  expect(
+    (
+      within(preview).getByRole('textbox', {
+        name: 'Display name',
+      }) as HTMLInputElement
+    ).value
+  ).toBe('Personal draft');
+  expect(
+    (
+      within(preview).getByRole('textbox', {
+        name: 'Introduction',
+      }) as HTMLTextAreaElement
+    ).value
+  ).toBe('Welcome to my booking page.');
   expect(screen.queryByRole('button', { name: 'Booking settings' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'New booking link' })).toBeNull();
   expect(loadsBookings.mock.calls).toEqual([
@@ -503,11 +541,141 @@ it('edits booking-page configuration in the workspace without loading bookings',
   ]);
 });
 
+it('switches page modes without discarding drafts and only saves from edit mode', async () => {
+  const { saves } = workspaceFixture('page');
+  fireEvent.input(screen.getByRole('textbox', { name: 'Display name' }), {
+    target: { value: 'Personal draft' },
+  });
+  fireEvent.input(screen.getByRole('textbox', { name: 'Introduction' }), {
+    target: { value: 'Welcome to my booking page.' },
+  });
+  const modes = screen.getByRole('radiogroup', { name: 'Booking page mode' });
+  fireEvent.click(within(modes).getByText('Preview', { exact: true }));
+  const preview = screen.getByRole('region', { name: 'Booking page preview' });
+  expect(within(preview).queryByRole('textbox')).toBeNull();
+  expect(
+    within(preview).getByRole('heading', { name: 'Personal draft' })
+  ).toBeTruthy();
+  expect(within(preview).getByText('Welcome to my booking page.')).toBeTruthy();
+  expect(saves).not.toHaveBeenCalled();
+  expect(
+    screen.queryByRole('button', { name: 'Save booking page' })
+  ).toBeNull();
+  fireEvent.submit(screen.getByRole('form', { name: 'Booking page details' }));
+  expect(saves).not.toHaveBeenCalled();
+  fireEvent.click(within(modes).getByText('Edit', { exact: true }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save booking page' }));
+  await waitFor(() => expect(saves).toHaveBeenCalledOnce());
+  expect(saves.mock.calls[0][1]).toMatchObject({
+    name: 'Personal draft',
+    description: 'Welcome to my booking page.',
+  });
+  expect(
+    (
+      within(preview).getByRole('textbox', {
+        name: 'Display name',
+      }) as HTMLInputElement
+    ).value
+  ).toBe('Personal draft');
+  expect(
+    (
+      within(preview).getByRole('textbox', {
+        name: 'Introduction',
+      }) as HTMLTextAreaElement
+    ).value
+  ).toBe('Welcome to my booking page.');
+});
+
+it('excludes unpublished booking links from the public page preview', () => {
+  workspaceFixture('page', { title: 'Private draft meeting', enabled: false });
+  const preview = screen.getByRole('region', { name: 'Booking page preview' });
+  expect(within(preview).queryByText('Private draft meeting')).toBeNull();
+  expect(
+    within(preview).getByText('There are no bookable events right now.')
+  ).toBeTruthy();
+});
+
+it('guards page submission and locks fields while saving', async () => {
+  const { saves, setSaving } = workspaceFixture('page');
+  const form = screen.getByRole('form', { name: 'Booking page details' });
+  fireEvent.submit(form);
+  expect(saves).not.toHaveBeenCalled();
+  fireEvent.input(screen.getByRole('textbox', { name: 'Display name' }), {
+    target: { value: 'Personal draft' },
+  });
+  setSaving(true);
+  for (const name of ['Display name', 'Introduction']) {
+    expect(screen.getByRole('textbox', { name }).hasAttribute('disabled')).toBe(
+      true
+    );
+  }
+  expect(
+    within(form)
+      .getByRole('button', { name: 'Saving booking page' })
+      .hasAttribute('disabled')
+  ).toBe(true);
+  expect(form.getAttribute('aria-busy')).toBe('true');
+  fireEvent.submit(form);
+  expect(saves).not.toHaveBeenCalled();
+  setSaving(false);
+  fireEvent.submit(form);
+  await waitFor(() => expect(saves).toHaveBeenCalledOnce());
+});
+
+it('preserves the live page draft after a failed save and allows retry', async () => {
+  const { saves } = workspaceFixture('page');
+  saves.mockImplementationOnce(() => {
+    throw new Error('Could not save booking page.');
+  });
+  fireEvent.input(screen.getByRole('textbox', { name: 'Display name' }), {
+    target: { value: 'Personal draft' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Save booking page' }));
+  await waitFor(() =>
+    expect(screen.getByRole('alert').textContent).toContain(
+      'Could not save booking page.'
+    )
+  );
+  const preview = screen.getByRole('region', { name: 'Booking page preview' });
+  expect(
+    (
+      within(preview).getByRole('textbox', {
+        name: 'Display name',
+      }) as HTMLInputElement
+    ).value
+  ).toBe('Personal draft');
+  expect(
+    (screen.getByRole('textbox', { name: 'Display name' }) as HTMLInputElement)
+      .value
+  ).toBe('Personal draft');
+  expect(
+    screen
+      .getByRole('button', { name: 'Save booking page' })
+      .hasAttribute('disabled')
+  ).toBe(false);
+  fireEvent.click(screen.getByRole('button', { name: 'Save booking page' }));
+  await waitFor(() => expect(saves).toHaveBeenCalledTimes(2));
+  await waitFor(() =>
+    expect(
+      screen
+        .getByRole('button', { name: 'Save booking page' })
+        .hasAttribute('disabled')
+    ).toBe(true)
+  );
+});
+
 it('saves the selected booking page without changing another owner or losing its draft', async () => {
   const { saves, setSearch } = workspaceFixture('page');
   fireEvent.input(screen.getByRole('textbox', { name: 'Display name' }), {
     target: { value: 'Personal draft' },
   });
+  expect(
+    (
+      within(
+        screen.getByRole('region', { name: 'Booking page preview' })
+      ).getByRole('textbox', { name: 'Display name' }) as HTMLInputElement
+    ).value
+  ).toBe('Personal draft');
   setSearch('owner', 'team');
   fireEvent.input(screen.getByRole('textbox', { name: 'Display name' }), {
     target: { value: 'Design meetings' },
@@ -515,6 +683,13 @@ it('saves the selected booking page without changing another owner or losing its
   fireEvent.input(screen.getByRole('textbox', { name: 'Introduction' }), {
     target: { value: 'Meet the design team' },
   });
+  expect(
+    (
+      within(
+        screen.getByRole('region', { name: 'Booking page preview' })
+      ).getByRole('textbox', { name: 'Display name' }) as HTMLInputElement
+    ).value
+  ).toBe('Design meetings');
   fireEvent.click(screen.getByRole('button', { name: 'Save booking page' }));
   await waitFor(() => expect(saves).toHaveBeenCalledOnce());
   expect(saves.mock.calls[0]).toEqual([
@@ -529,6 +704,13 @@ it('saves the selected booking page without changing another owner or losing its
   expect(
     (screen.getByRole('textbox', { name: 'Display name' }) as HTMLInputElement)
       .value
+  ).toBe('Personal draft');
+  expect(
+    (
+      within(
+        screen.getByRole('region', { name: 'Booking page preview' })
+      ).getByRole('textbox', { name: 'Display name' }) as HTMLInputElement
+    ).value
   ).toBe('Personal draft');
   fireEvent.click(screen.getByRole('button', { name: 'Save booking page' }));
   await waitFor(() => expect(saves).toHaveBeenCalledTimes(2));
@@ -569,10 +751,37 @@ it('keeps team booking pages read-only while allowing page sharing', async () =>
   fireEvent.click(screen.getByRole('button', { name: 'Copy page link' }));
   await waitFor(() => expect(copies).toHaveBeenCalledOnce());
   expect(copies.mock.calls[0][0].id).toBe('team');
+  const pageLink = screen.getByRole('link', { name: 'Preview page' });
+  const shareControl = pageLink.closest('[data-slot="button-group"]');
+  expect(pageLink.getAttribute('href')).toBe('/book/team/');
+  expect(pageLink.textContent).toBe('/book/team/');
+  expect(shareControl).not.toBeNull();
   expect(
-    screen.getByRole('link', { name: 'Preview page' }).getAttribute('href')
-  ).toBe('/book/team/');
+    screen
+      .getByRole('button', { name: 'Copy page link' })
+      .closest('[data-slot="button-group"]')
+  ).toBe(shareControl);
+  expect(shareControl?.querySelector('[role="separator"]')).toBeTruthy();
   expect(saves).not.toHaveBeenCalled();
+});
+
+it('does not show success feedback when copying a booking page link fails', async () => {
+  const { copies } = workspaceFixture('page');
+  copies.mockRejectedValueOnce(new Error('Could not copy booking link'));
+  const button = screen.getByRole('button', { name: 'Copy page link' });
+  const animate = vi.fn().mockReturnValue({ cancel: vi.fn() });
+  Object.defineProperty(button.querySelector('svg')!, 'animate', {
+    value: animate,
+  });
+  fireEvent.click(button);
+  await waitFor(() =>
+    expect(screen.getByRole('alert').textContent).toContain(
+      'Could not copy booking link'
+    )
+  );
+  expect(copies).toHaveBeenCalledOnce();
+  expect(animate).not.toHaveBeenCalled();
+  expect(button.querySelector('[data-copy-feedback]')).toBeNull();
 });
 
 function workspaceFixture(

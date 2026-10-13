@@ -1,10 +1,11 @@
+import ArrowSquareOut from '@phosphor/arrow-square-out.svg';
 import Copy from '@phosphor/copy.svg';
-import { Button } from '@ui';
+import { ButtonGroup, CopyButton, Tooltip } from '@ui';
 import { Match, Show, Switch } from 'solid-js';
 import { AvailabilityPanel } from '../components/availability-panel';
+import { BookingPageEditor } from '../components/booking-page-editor';
 import { BookingsPanel } from '../components/bookings-panel';
 import { EventTypesPanel } from '../components/event-types-panel';
-import { Field, TextArea, TextInput } from '../components/fields';
 import { OwnerBadge } from '../components/owner-badge';
 import { useScheduling } from '../context/scheduling-context';
 import type { SchedulingOwner } from '../primitives/create-scheduling-owner';
@@ -35,6 +36,16 @@ export function OwnerSettingsSection(props: {
     closeScheduleEditor,
     duplicate,
   } = owner;
+  async function copyPageLink() {
+    const profile = source.profile();
+    if (!profile?.revision) return false;
+    let copied = false;
+    await action(async () => {
+      await capabilities.copyLink(profile);
+      copied = true;
+    });
+    return copied;
+  }
   return (
     <Show when={source.profile()}>
       {(p) => (
@@ -181,104 +192,77 @@ export function OwnerSettingsSection(props: {
           </Match>
           <Match when={props.kind === 'page'}>
             <div
-              class="min-w-0"
+              class="flex min-h-0 min-w-0 flex-1 flex-col"
               role="group"
               aria-label={`${scope().name} ${props.kind === 'page' ? 'booking page' : props.kind}`}
             >
-              <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <OwnerBadge scope={scope()} />
-                <div class="flex items-center gap-3">
-                  <Show when={p().revision > 0}>
+              <div class="mb-4 flex shrink-0 flex-wrap items-center justify-end gap-3">
+                <ButtonGroup class="min-w-0 max-w-full">
+                  <Tooltip
+                    label={
+                      p().revision
+                        ? capabilities.link(p())
+                        : 'Save your booking page before sharing'
+                    }
+                    class="min-w-0 flex-1 self-stretch"
+                  >
                     <a
-                      class="text-sm text-ink-muted underline underline-offset-4"
-                      href={capabilities.link(p())}
+                      aria-label="Preview page"
+                      aria-disabled={!p().revision}
+                      tabindex={p().revision ? undefined : -1}
+                      class="flex min-w-0 flex-1 items-center gap-2 self-stretch px-3 text-sm text-ink-muted hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent aria-disabled:opacity-50"
+                      href={p().revision ? capabilities.link(p()) : undefined}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      Preview page
+                      <span class="truncate">{capabilities.link(p())}</span>
+                      <ArrowSquareOut
+                        aria-hidden="true"
+                        class="size-3.5 shrink-0"
+                      />
                     </a>
-                  </Show>
-                  <Button
-                    variant="outline"
-                    size="sm"
+                  </Tooltip>
+                  <ButtonGroup.Divider />
+                  <CopyButton
+                    variant="ghost"
+                    size="icon-md"
+                    label="Copy page link"
                     disabled={!p().revision}
-                    onClick={() =>
-                      void action(() => capabilities.copyLink(p()))
-                    }
+                    onClick={copyPageLink}
                   >
-                    <Copy class="size-4" />
-                    Copy page link
-                  </Button>
-                </div>
+                    <Copy aria-hidden="true" class="size-4" />
+                  </CopyButton>
+                </ButtonGroup>
               </div>
-              <div class="flex flex-col gap-4">
-                <div class="flex flex-col gap-6 rounded-xl border border-edge-muted p-6">
-                  <Field label="Display name">
-                    <TextInput
-                      disabled={!scope().canEdit}
-                      value={profileDraft()?.name ?? p().name}
-                      onInput={(e) =>
-                        setProfileDraft({
-                          name: e.currentTarget.value,
-                          description:
-                            profileDraft()?.description ?? p().description,
-                        })
-                      }
-                    />
-                  </Field>
-                  <Field label="Introduction">
-                    <TextArea
-                      disabled={!scope().canEdit}
-                      value={profileDraft()?.description ?? p().description}
-                      onInput={(e) =>
-                        setProfileDraft({
-                          name: profileDraft()?.name ?? p().name,
-                          description: e.currentTarget.value,
-                        })
-                      }
-                    />
-                  </Field>
-                  <Button
-                    class="self-start"
-                    variant="strong"
-                    disabled={
-                      !scope().canEdit || !profileDraft() || source.saving()
-                    }
-                    onClick={() =>
-                      void action(async () => {
-                        await save({ ...p(), ...profileDraft() });
-                        setProfileDraft(undefined);
-                      })
-                    }
-                  >
-                    Save booking page
-                  </Button>
-                </div>
-                <aside class="rounded-xl border border-edge-muted p-6">
-                  <p class="text-xs font-medium uppercase tracking-wide text-ink-muted">
-                    Preview
-                  </p>
-                  <span class="mt-6 flex size-12 items-center justify-center rounded-full bg-active text-lg font-semibold">
-                    {(profileDraft()?.name ?? p().name).slice(0, 1)}
-                  </span>
-                  <h2 class="mt-4 font-semibold">
-                    {profileDraft()?.name ?? p().name}
-                  </h2>
-                  <p class="mt-2 whitespace-pre-wrap text-sm text-ink-muted">
-                    {profileDraft()?.description ?? p().description}
-                  </p>
-                  <Show when={p().revision > 0}>
-                    <a
-                      class="mt-6 inline-block text-sm underline underline-offset-4"
-                      href={capabilities.link(p())}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      View public page ↗
-                    </a>
-                  </Show>
-                </aside>
-              </div>
+              <BookingPageEditor
+                profile={{
+                  id: p().id,
+                  name: profileDraft()?.name ?? p().name,
+                  description: profileDraft()?.description ?? p().description,
+                  eventTypes: p().eventTypes.filter((event) => event.enabled),
+                }}
+                canEdit={scope().canEdit}
+                saving={source.saving()}
+                hasChanges={!!profileDraft()}
+                onName={(name) =>
+                  setProfileDraft({
+                    name,
+                    description: profileDraft()?.description ?? p().description,
+                  })
+                }
+                onDescription={(description) =>
+                  setProfileDraft({
+                    name: profileDraft()?.name ?? p().name,
+                    description,
+                  })
+                }
+                onSave={() =>
+                  void action(async () => {
+                    await save({ ...p(), ...profileDraft() });
+                    setProfileDraft(undefined);
+                  })
+                }
+              />
             </div>
           </Match>
           <Match when={props.kind === 'bookings'}>

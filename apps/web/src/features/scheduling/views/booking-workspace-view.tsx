@@ -13,7 +13,7 @@ import LinkIcon from '@phosphor/link.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import UserIcon from '@phosphor/user.svg';
 import UsersIcon from '@phosphor/users.svg';
-import { Button, pressHandlers, Tabs } from '@ui';
+import { Button, cn, pressHandlers, Tabs } from '@ui';
 import {
   createEffect,
   createMemo,
@@ -354,11 +354,12 @@ export function BookingWorkspaceView(props: {
           </ViewShell.Header>
         </Show>
         <ViewShell.Content
-          class="px-4"
-          classList={{
-            'flex min-h-0 flex-col overflow-hidden': editingSchedule(),
-            'overflow-auto pb-8': !editingSchedule(),
-          }}
+          class={cn('px-4', {
+            'flex min-h-0 flex-col overflow-hidden':
+              editingSchedule() || search.tab === 'page',
+            'overflow-auto pb-8': !editingSchedule() && search.tab !== 'page',
+            'pb-4': search.tab === 'page',
+          })}
         >
           <Show when={!editingSchedule()}>
             <BookingWorkspaceTabs
@@ -372,8 +373,10 @@ export function BookingWorkspaceView(props: {
               <div
                 class="min-w-0"
                 classList={{
-                  'mx-auto max-w-5xl': search.tab !== 'availability',
-                  'flex min-h-0 flex-1 flex-col': editingSchedule(),
+                  'mx-auto max-w-5xl':
+                    search.tab !== 'availability' && search.tab !== 'page',
+                  'flex min-h-0 flex-1 flex-col':
+                    editingSchedule() || search.tab === 'page',
                 }}
                 hidden={owner() !== current}
               >

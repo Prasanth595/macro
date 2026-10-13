@@ -1230,13 +1230,32 @@ owner survive reload through route search state (`tab` and `owner` in the
 `booking-links` namespace). On collapsed or overlay navigation, tab controls remain
 above the content; expand the sidebar to switch the owner. Calendar's booking
 actions open this workspace.
-**Booking page** contains the selected owner's public display name, introduction,
-live preview, and preview/copy links. Select Personal or a named team to configure
-its page; only team owners and admins can edit a team's page. Page drafts remain
-separate for each owner, and saving updates only the selected owner. There is no
-separate Booking settings shortcut or Settings → Booking links page. Public
-booking URLs remain unchanged. Calendar connections and integration shortcuts
-continue to open Settings → Calendar.
+**Booking page** is a full-width, height-filling public-page canvas, with no
+centered workspace width cap or separate details panel. **Edit** and **Preview**
+mode tabs sit on the left of its header; the accent **Save** action sits on the
+right in Edit mode only, with a divider below the header. Edit mode places outlined Display name
+and Introduction inputs where guests see the heading and description. The
+outlines overlay the content without adding padding or moving the meeting
+cards. Introduction grows with its text and uses the preview's typography.
+Preview mode removes the inputs, outlines, and Save action, showing the draft with
+the real public-page layout. Switching modes keeps edits; return to Edit to save.
+The canvas scrolls below the header. Its branding, published meeting cards,
+and empty state reuse the public page's components. Meeting cards are
+display-only, so editing cannot start a real booking. Above the canvas, a single
+split control shows the saved page URL on the left and **Copy page link** on the
+right, separated by a full-height divider. Clicking the URL opens the guest page
+in a new tab; hovering reveals the complete URL when truncated. After copying,
+the copy icon briefly fades to a green check without shifting the control, then
+returns. Failed copies keep the copy icon and report the error. Feedback respects
+reduced motion. Sharing remains disabled until the page is saved.
+There is no extra owner badge above the canvas,
+but the workspace topbar still identifies Personal or the selected team.
+Fields stay disabled while saving or for read-only teams. Only team owners and
+admins can edit a team's page. Drafts remain separate for each owner, saving
+updates only the selected owner, and failed saves retain edits for retry. There
+is no separate Booking settings shortcut or Settings → Booking links page.
+Public booking URLs remain unchanged. Calendar connections and integration
+shortcuts continue to open Settings → Calendar.
 Connected calendars offers Connect account (the existing Google consent flow),
 Connect calendar for accounts missing calendar permission, and Disconnect with
 confirmation. Disconnect removes calendar access/data, not the Gmail connection.

@@ -41,6 +41,7 @@ export function Field(props: {
   error?: string;
   children: JSX.Element;
   class?: string;
+  labelClass?: string;
 }) {
   const errorId = createUniqueId();
   return (
@@ -56,7 +57,7 @@ export function Field(props: {
         class={cn('flex min-w-0 flex-col gap-2 text-sm text-ink', props.class)}
       >
         <label class="flex min-w-0 flex-col gap-2">
-          <span class="font-medium">{props.label}</span>
+          <span class={cn('font-medium', props.labelClass)}>{props.label}</span>
           {props.children}
         </label>
         <FieldError id={errorId} message={props.error} />
