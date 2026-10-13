@@ -2038,6 +2038,8 @@ strip names the pipeline (a lock marks a private one); below it, the row's first
 four fields sit side by side, label over value, and the rest wait behind
 `Show N more`. Cells edit like the pipeline table's when you can edit that
 pipeline. Inside Customers, the header's `Open <pipeline>` button opens it. The
+`Pipelines` caret header collapses and expands the cards, like the Discussion
+header; both start expanded on each visit. The
 section is absent when the record is in no pipeline.
 Team lists the contacts with `Add contact`. Emails keeps the
 `Signal`/`All` and `Team`/`Me` toggles; `Team` shows teammates' threads even to
@@ -2415,10 +2417,12 @@ split view: the rail's gear button (or `Ctrl ;`) opens it in the active split
 like any other rail item, and Shift-click opens it in a new split.
 `/app/settings/<tab>` opens it as the only split with the app rail still
 visible, and `/app/home/~/settings/<tab>` places it beside Home. Its inner
-sidebar matches Email and Tasks: a **Settings** title bar with the
-**Hide navigation** toggle (`Cmd .`), a rounded **Search settings** field, the
-grouped section pills, and **Log out** pinned to the bottom. Below 720px the
-sidebar becomes an overlay opened from **Show navigation**. Escape closes a
+sidebar matches Email and Tasks: a **Settings** title bar, a rounded
+**Search settings** field, the grouped section pills, and **Log out** pinned to
+the bottom. Unlike other views, it cannot be hidden at desktop widths: there is
+no **Hide navigation** toggle and `Cmd .` does nothing, even if it was hidden
+before. Below 720px the sidebar becomes an overlay opened from **Show
+navigation** (or `Cmd .`), which starts closed. Escape closes a
 settings split that shares the layout, or steps back to the previous view when
 it is the only split (Home when there is none). Leave settings by picking any
 other rail item; there is no separate back or fullscreen control.
@@ -2449,6 +2453,10 @@ local persistence; active calls, uploads, and imports must finish first. A ready
 update also installs on normal app quit. Closing a window only triggers
 installation if it exits the app. Browser, mobile, and development builds do not
 show this native updater row.
+
+Below Profile, **Account** shows a card naming the current plan (**Free plan**,
+**Pro plan**, or **Max plan**; **Loading plan…** until the billing summary
+arrives). Clicking it opens **Billing** settings.
 
 Left nav (feature and platform gates still apply):
 
