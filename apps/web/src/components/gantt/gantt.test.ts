@@ -516,6 +516,110 @@ function chartFixture(initialWidth = 1000, drawer = false) {
   };
 }
 
+it('pans both axes from sidebar items and bars without activating their mouse handlers', async () => {
+  const { gantt, viewport, container } = chartFixture(1000, true);
+  await waitFor(() => expect(gantt.viewport()).toBe(viewport));
+  await Promise.resolve();
+  const initialLeft = viewport.scrollLeft;
+  viewport.scrollTop = 200;
+  const targets = [
+    screen.getByText('Item list entry'),
+    container.querySelector<HTMLElement>('[data-gantt-bar-body]')!,
+  ];
+  const activate = vi.fn();
+  for (const target of targets) {
+    target.addEventListener('mousedown', activate);
+    const down = new MouseEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+      button: 1,
+      buttons: 4,
+      clientX: 500,
+      clientY: 300,
+    });
+    fireEvent(target, down);
+    expect(down.defaultPrevented).toBe(true);
+    expect(gantt.editing()).toBe(true);
+    expect(gantt.guide()).toBeUndefined();
+    expect(viewport.classList.contains('cursor-grabbing')).toBe(true);
+    fireEvent.mouseMove(window, { buttons: 4, clientX: 450, clientY: 260 });
+    fireEvent.mouseUp(window, { button: 0, buttons: 4 });
+    expect(gantt.editing()).toBe(true);
+    fireEvent.mouseUp(window, { button: 1 });
+    expect(gantt.editing()).toBe(false);
+    const stoppedLeft = viewport.scrollLeft;
+    fireEvent.mouseMove(window, { buttons: 4, clientX: 400, clientY: 220 });
+    expect(viewport.scrollLeft).toBe(stoppedLeft);
+    expect(viewport.classList.contains('cursor-grabbing')).toBe(false);
+  }
+  expect(activate).not.toHaveBeenCalled();
+  expect(viewport.scrollLeft).toBe(initialLeft + 100);
+  expect(viewport.scrollTop).toBe(280);
+  expect(gantt.sidebar.open()).toBe(true);
+  const click = new MouseEvent('auxclick', {
+    button: 1,
+    bubbles: true,
+    cancelable: true,
+  });
+  fireEvent(targets[0], click);
+  expect(click.defaultPrevented).toBe(true);
+});
+
+it.each(['escape', 'blur', 'release', 'unmount'])(
+  'cleans up middle-mouse panning on %s',
+  async (reason) => {
+    const { gantt, viewport, unmount } = chartFixture(1000, true);
+    await waitFor(() => expect(gantt.viewport()).toBe(viewport));
+    await Promise.resolve();
+    fireEvent.mouseDown(viewport, {
+      button: 1,
+      buttons: 4,
+      clientX: 500,
+      clientY: 300,
+    });
+    expect(gantt.editing()).toBe(true);
+    if (reason === 'escape') fireEvent.keyDown(viewport, { key: 'Escape' });
+    if (reason === 'blur') fireEvent.blur(window);
+    if (reason === 'release')
+      fireEvent.mouseMove(window, { buttons: 0, clientX: 400, clientY: 200 });
+    if (reason === 'unmount') unmount();
+    expect(gantt.editing()).toBe(false);
+    expect(gantt.sidebar.open()).toBe(true);
+    const left = viewport.scrollLeft;
+    fireEvent.mouseMove(window, { buttons: 4, clientX: 400, clientY: 200 });
+    expect(viewport.scrollLeft).toBe(left);
+  }
+);
+
+it('preserves the calendar date during middle-drag range rebasing and ignores other buttons or active edits', async () => {
+  const { gantt, viewport } = chartFixture();
+  await waitFor(() => expect(gantt.viewport()).toBe(viewport));
+  await Promise.resolve();
+  for (const button of [0, 2]) {
+    fireEvent.mouseDown(viewport, { button });
+    expect(gantt.editing()).toBe(false);
+  }
+  gantt.setEditing(true);
+  fireEvent.mouseDown(viewport, { button: 1, buttons: 4 });
+  expect(viewport.classList.contains('cursor-grabbing')).toBe(false);
+  gantt.setEditing(false);
+  viewport.scrollLeft = 10;
+  fireEvent.scroll(viewport);
+  const start = gantt.visibleRange().start;
+  const pixels = gantt.pixelsPerDay();
+  fireEvent.mouseDown(viewport, {
+    button: 1,
+    buttons: 4,
+    clientX: 500,
+    clientY: 300,
+  });
+  fireEvent.mouseMove(window, { buttons: 4, clientX: 550, clientY: 300 });
+  expect(gantt.visibleRange().start).toBeCloseTo(start - 50 / pixels);
+  fireEvent.mouseMove(window, { buttons: 4, clientX: 600, clientY: 300 });
+  expect(gantt.visibleRange().start).toBeCloseTo(start - 100 / pixels);
+  fireEvent.mouseUp(window, { button: 1 });
+});
+
 it('defaults the drawer open and preserves explicit choices across responsive resizing', async () => {
   const view = chartFixture(1000, true);
   const { gantt, viewport, resize } = view;

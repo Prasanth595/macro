@@ -125,8 +125,11 @@ item. Closed drawer items are not focusable.
 Task and project context menus remain available on drawer items. **Today** and
 timeline settings are separate floating buttons at the top right.
 Hold **Ctrl** or **Cmd** and scroll to zoom between 4 and 80 pixels per day, keeping the date
-under the pointer in place. Ordinary scrolling is unchanged. Period presets in
-the settings menu also set zoom; calendar labels adapt to the zoom level.
+under the pointer in place. Hold the middle mouse button and drag to pan both axes,
+including from bars or item panels, without changing dates or grouping properties.
+Release the button, press Escape, or move focus away from the window to stop panning.
+Ordinary scrolling is unchanged. Period presets in the settings menu also set zoom;
+calendar labels adapt to the zoom level.
 Floating controls at the chart's bottom right zoom out/in around the visible
 calendar's center. The percentage/reset button stays visible; adjacent minus/plus
 buttons sit to its left and appear on hover, keyboard focus, or during Ctrl/Cmd scroll zoom.

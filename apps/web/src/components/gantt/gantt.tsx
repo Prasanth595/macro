@@ -469,6 +469,66 @@ export function GanttChart(
   let element: HTMLDivElement | undefined;
   let pointerX: number | undefined;
   let centered = false;
+  const [panning, setPanning] = createSignal(false);
+  let disposePan: (() => void) | undefined;
+  const pan = (event: MouseEvent) => {
+    if (event.button !== 1 || gantt.editing() || !element) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const viewport = element;
+    let x = event.clientX;
+    let y = event.clientY;
+    pointerX = undefined;
+    gantt.setGuide(undefined);
+    gantt.setEditing(true);
+    setPanning(true);
+
+    const finish = () => {
+      window.removeEventListener('mousemove', move, true);
+      window.removeEventListener('mouseup', release, true);
+      window.removeEventListener('keydown', cancelOnEscape, true);
+      window.removeEventListener('blur', finish);
+      setPanning(false);
+      gantt.setEditing(false);
+      disposePan = undefined;
+    };
+    const move = (next: MouseEvent) => {
+      if (!(next.buttons & 4)) {
+        finish();
+        return;
+      }
+      next.preventDefault();
+      next.stopPropagation();
+      // Use deltas so calendar rebasing and clamped edges do not stale the origin.
+      viewport.scrollLeft -= next.clientX - x;
+      viewport.scrollTop -= next.clientY - y;
+      x = next.clientX;
+      y = next.clientY;
+      gantt.updateViewport();
+    };
+    const release = (next: MouseEvent) => {
+      if (next.button !== 1) return;
+      next.preventDefault();
+      next.stopPropagation();
+      finish();
+    };
+    const cancelOnEscape = (next: KeyboardEvent) => {
+      if (next.key !== 'Escape') return;
+      next.preventDefault();
+      next.stopPropagation();
+      finish();
+    };
+    disposePan = finish;
+    window.addEventListener('mousemove', move, true);
+    window.addEventListener('mouseup', release, true);
+    window.addEventListener('keydown', cancelOnEscape, true);
+    window.addEventListener('blur', finish);
+  };
+  const preventMiddleClick = (event: MouseEvent) => {
+    if (event.button !== 1) return;
+    event.preventDefault();
+    event.stopPropagation();
+  };
   const measure = () => {
     gantt.updateViewport();
     if (centered || !element?.clientWidth) return;
@@ -520,6 +580,8 @@ export function GanttChart(
       gantt.setViewport(element);
       resize.observe(element);
       element.addEventListener('wheel', zoom, { passive: false });
+      element.addEventListener('mousedown', pan, true);
+      element.addEventListener('auxclick', preventMiddleClick, true);
       measure();
     }
     attachment.observe(document, { childList: true, subtree: true });
@@ -528,6 +590,9 @@ export function GanttChart(
       resize.disconnect();
       attachment.disconnect();
       element?.removeEventListener('wheel', zoom);
+      element?.removeEventListener('mousedown', pan, true);
+      element?.removeEventListener('auxclick', preventMiddleClick, true);
+      disposePan?.();
       if (gantt.viewport() === element) gantt.setViewport(undefined);
     });
   });
@@ -543,6 +608,9 @@ export function GanttChart(
       }}
       viewportProps={{
         'aria-label': props.label ?? 'Gantt timeline',
+        class: panning()
+          ? 'cursor-grabbing select-none [&_*]:cursor-grabbing'
+          : undefined,
         tabIndex: 0,
         style: { 'overscroll-behavior': 'none', 'overflow-anchor': 'none' },
         onScroll: () => {
