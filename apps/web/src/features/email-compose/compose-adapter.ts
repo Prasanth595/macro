@@ -100,6 +100,14 @@ export type EmailComposeContextOptions = {
   threadTransport?: Accessor<ThreadQueryTransport | undefined>;
 };
 
+async function refreshSentSoup(threadId: string): Promise<void> {
+  try {
+    await refetchSoupEntity(threadId, 'emailThread');
+  } catch (error) {
+    Telemetry.error(error);
+  }
+}
+
 /** Construct under the composing surface's Solid owner to scope request progress. */
 export function createEmailComposeContext(
   options: EmailComposeContextOptions = {}
@@ -448,9 +456,7 @@ export function createEmailComposeContext(
             markThreadDraftSaved(result.threadId);
             refreshThread(result.threadId);
             if (!completingThread)
-              void refetchSoupEntity(result.threadId, 'emailThread').catch(
-                reportError
-              );
+              void refreshSentSoup(result.threadId);
           }
           analytics.track('email_message_sent');
         } catch (error) {

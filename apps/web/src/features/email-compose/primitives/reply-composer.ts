@@ -802,6 +802,12 @@ export function createReplyComposer(
   const sendEmail = async (markDone = false) => {
     if (scheduling() || movingInbox() || terminalState()) return;
     if (submitting() || pendingDeletion()) return;
+    // Thread identity can be available before its account/alias catalog. Wait
+    // rather than sending a new reply from the temporary primary fallback.
+    if (props.accounts.loading() && !form.draft) {
+      props.notices.feedback.alert('Loading email sender addresses...');
+      return;
+    }
 
     const to = form.recipients().to.map(convertEmailRecipientToContactInfo);
     const cc = form.recipients().cc.map(convertEmailRecipientToContactInfo);
