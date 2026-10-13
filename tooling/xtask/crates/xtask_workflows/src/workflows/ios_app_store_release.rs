@@ -62,6 +62,7 @@ fn release_job() -> Job {
         .add_step(steps::install_nix_macos())
         .add_step(verify_bump())
         .add_step(fetch_credentials())
+        .add_step(require_unused_build())
         .add_step(configure_signing())
         .add_step(build_and_upload())
         .add_step(submit_for_review())
@@ -110,6 +111,17 @@ fn fetch_credentials() -> Step<Run> {
         .shell("bash")
         .add_env(("DOPPLER_TOKEN", vars::IOS_RELEASE_DOPPLER_TOKEN))
         .add_env(("IOS_DISTRIBUTION_CERTIFICATE", "1"))
+}
+
+/// Fail before the (long) build if App Store Connect already holds a build at
+/// or above this PR's number under another version — e.g. a hand-made release
+/// whose bump was never committed. The floor derived from the number would
+/// otherwise be wrong.
+fn require_unused_build() -> Step<Run> {
+    in_dev_shell(
+        "Check the build number is unused in App Store Connect",
+        "  cd apps/web\n  bun scripts/ios-app-store.mjs status --require-unused-build\n",
+    )
 }
 
 fn configure_signing() -> Step<Run> {

@@ -7,7 +7,8 @@
 //! 2. Verifies the PR bumped the iOS release numbers (`just ios-bump`):
 //!    marketing version, build number, and `min-native-build.json`.
 //! 3. Asks the App Store Connect API whether exactly that version + build is
-//!    live on the App Store, and fails with instructions otherwise — add the
+//!    live on the App Store (and that no build at or above it was uploaded
+//!    under another version), and fails with instructions otherwise — add the
 //!    `ios-update` label to run the [`super::ios_app_store_release`] workflow,
 //!    wait for Apple's approval, then re-run this check.
 //!

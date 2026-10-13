@@ -62,10 +62,11 @@ ios-release *ARGS:
 
 # iOS: bump the release numbers for an App Store release (marketing version,
 # build number, and the iOS floor in min-native-build.json) and sync gen/apple
-# metadata. Run
-# this and commit the result before adding the `ios-update` label to a PR
-# with breaking native changes. Flags: --no-min (non-breaking App Store
-# release) --build-only (TestFlight iteration)
+# metadata. Run it through Doppler so the build number also clears everything
+# App Store Connect has seen (`doppler run --project ios-release --config prd
+# -- just ios-bump`), then commit the result before adding the `ios-update`
+# label to a PR with breaking native changes. Flags: --no-min (non-breaking
+# App Store release) --build-only (TestFlight iteration)
 ios-bump *ARGS:
     bun scripts/ios-bump-version.mjs {{ARGS}}
 

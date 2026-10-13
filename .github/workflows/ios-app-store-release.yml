@@ -112,6 +112,13 @@ jobs:
       env:
         DOPPLER_TOKEN: ${{ secrets.IOS_RELEASE_DOPPLER_TOKEN }}
         IOS_DISTRIBUTION_CERTIFICATE: '1'
+    - name: Check the build number is unused in App Store Connect
+      run: |-
+        nix develop --command bash -euo pipefail -c '
+          cd apps/web
+          bun scripts/ios-app-store.mjs status --require-unused-build
+        '
+      shell: bash
     - name: Configure signing identity
       run: |
         set -euo pipefail

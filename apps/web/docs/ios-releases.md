@@ -21,13 +21,20 @@ this end to end.
 2. You bump the numbers locally and commit the result:
 
    ```bash
-   cd apps/web && just ios-bump
+   cd apps/web && doppler run --project ios-release --config prd -- just ios-bump
    ```
 
    This bumps the marketing version (`2.0.9` → `2.0.10`) and build number in
    `tauri/src-tauri/tauri.ios.conf.json`, raises the `ios` floor in
    `min-native-build.json` to the new build number, and syncs the generated
-   Apple project metadata.
+   Apple project metadata. The new build number is one above the larger of
+   the committed number and the highest build App Store Connect has ever
+   seen, which is why the command runs through Doppler: a release made by
+   hand (Xcode Organizer, `just ios-release`) whose number was never
+   committed would otherwise be reused, and the floor derived from it would
+   be wrong. Without credentials the bump still runs but warns; the gate and
+   the release workflow both re-check the number against App Store Connect
+   and fail with a re-bump instruction if it collides.
 3. Add the **`ios-update`** label to the PR. The
    **`iOS App Store Release`** workflow
    (`.github/workflows/ios-app-store-release.yml`) then builds the app from
@@ -62,7 +69,10 @@ raising the floor.
 ## Manual / TestFlight-only releases
 
 `just ios-release` still does a full local build + TestFlight upload without
-any Xcode UI (it bumps only the build number; commit the result). It uses the
+any Xcode UI (it bumps only the build number). **Commit the bumped number**,
+whichever way you release — the automated flow treats the committed build
+number as the newest native code, and `just ios-bump` only catches an
+uncommitted one when it can ask App Store Connect. It uses the
 same toolchain split as `just ios-build` (`scripts/ios-native-env.sh`), so run
 it from the Nix dev shell like any other iOS build. See the header of
 `scripts/ios-release.sh` for the credentials it needs (`doppler run --project

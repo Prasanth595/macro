@@ -13,6 +13,13 @@
 //   --build-only     TestFlight iteration: bump only the build number
 //                    (same marketing version; used by ios-release.sh).
 //
+// The new build number is one above the larger of the committed number and
+// the highest build App Store Connect has ever seen for the app (hand-made
+// releases don't always get committed, and the native build floor assumes
+// numbers only go up). That lookup needs the App Store Connect credentials:
+//   doppler run --project ios-release --config prd -- just ios-bump
+// Without them the bump still works but warns that the number is unverified.
+//
 // Writes: tauri/src-tauri/tauri.ios.conf.json, min-native-build.json, and the
 // synced gen/apple plists + project.yml (via sync-ios-bundle-metadata.mjs).
 // Commit all of them.
@@ -43,6 +50,33 @@ const raiseMinNativeBuild = !buildOnly && !flags.has("--no-min");
 
 const iosConf = JSON.parse(readFileSync(iosConfPath, "utf8"));
 
+/// The highest build number App Store Connect has for the app, or null when
+/// no credentials are available (with a warning — a stale committed number
+/// would then go unnoticed).
+function highestUploadedBuild() {
+  const hasCredentials =
+    (process.env.APPLE_API_KEY || process.env.APPLE_API_KEY_ID) && process.env.APPLE_API_ISSUER;
+  if (!hasCredentials) {
+    console.warn(
+      "WARNING: no App Store Connect credentials, so the new build number is only " +
+        "based on the committed one. If a release was ever made by hand without " +
+        "committing its number, this bump may collide. To be safe, run:\n" +
+        "  doppler run --project ios-release --config prd -- just ios-bump",
+    );
+    return null;
+  }
+  const output = execFileSync(
+    "bun",
+    [path.join(appDir, "scripts", "ios-app-store.mjs"), "latest-build"],
+    { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] },
+  ).trim();
+  if (!/^\d+$/.test(output)) {
+    console.error(`Unexpected latest-build output: ${JSON.stringify(output)}`);
+    exit(1);
+  }
+  return Number(output);
+}
+
 const currentBuild = iosConf.bundle?.iOS?.bundleVersion;
 if (!/^\d+$/.test(currentBuild ?? "")) {
   console.error(
@@ -51,7 +85,14 @@ if (!/^\d+$/.test(currentBuild ?? "")) {
   );
   exit(1);
 }
-const newBuild = String(Number(currentBuild) + 1);
+const uploadedBuild = highestUploadedBuild();
+if (uploadedBuild !== null && uploadedBuild > Number(currentBuild)) {
+  console.log(
+    `App Store Connect already has build ${uploadedBuild}, above the committed ` +
+      `${currentBuild} (a release made by hand?); bumping past it.`,
+  );
+}
+const newBuild = String(Math.max(Number(currentBuild), uploadedBuild ?? 0) + 1);
 iosConf.bundle.iOS.bundleVersion = newBuild;
 
 let newVersion = iosConf.version;

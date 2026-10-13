@@ -38,7 +38,15 @@
 // Usage:
 //   bun scripts/ios-app-store.mjs wait-build [--timeout-minutes 30]
 //   bun scripts/ios-app-store.mjs submit [--whats-new "release notes"]
-//   bun scripts/ios-app-store.mjs status [--require-live]
+//   bun scripts/ios-app-store.mjs status [--require-live] [--require-unused-build]
+//   bun scripts/ios-app-store.mjs latest-build
+//
+// latest-build prints the highest build number App Store Connect has seen for
+// the app (any version, TestFlight included) — ios-bump-version.mjs uses it so
+// hand-made releases can't make the committed number fall behind. status's
+// collision check (on with --require-live or --require-unused-build) fails when
+// a build at or above ours exists under a different marketing version: the
+// native build floor assumes numbers increase across every release.
 
 import { readFileSync } from "node:fs";
 import os from "node:os";
@@ -66,7 +74,7 @@ const SUBMITTED_STATES = new Set([
   ...LIVE_STATES,
 ]);
 
-const BOOLEAN_FLAGS = new Set(["require-live"]);
+const BOOLEAN_FLAGS = new Set(["require-live", "require-unused-build"]);
 
 function parseArgs(argv) {
   const args = {};
@@ -93,8 +101,8 @@ function parseArgs(argv) {
 }
 
 const [command, ...rest] = process.argv.slice(2);
-if (!["wait-build", "submit", "status"].includes(command ?? "")) {
-  console.error("Usage: ios-app-store.mjs <wait-build|submit|status> [flags]");
+if (!["wait-build", "submit", "status", "latest-build"].includes(command ?? "")) {
+  console.error("Usage: ios-app-store.mjs <wait-build|submit|status|latest-build> [flags]");
   exit(2);
 }
 const args = parseArgs(rest);
@@ -204,6 +212,72 @@ async function findBuild() {
       `&sort=-uploadedDate&limit=1`,
   );
   return builds.data[0] ?? null;
+}
+
+/// The highest build number uploaded for the app across all marketing
+/// versions, as { number, version }, or null when nothing was ever uploaded.
+/// Build numbers are compared numerically; non-integer ones are ignored.
+async function highestUploadedBuild() {
+  let pathname =
+    `/v1/builds?filter[app]=${app.id}&include=preReleaseVersion` +
+    "&fields[builds]=version,preReleaseVersion&fields[preReleaseVersions]=version" +
+    "&sort=-uploadedDate&limit=200";
+  let highest = null;
+  while (pathname) {
+    const page = await api(pathname);
+    const preReleaseVersions = new Map(
+      (page.included ?? [])
+        .filter((record) => record.type === "preReleaseVersions")
+        .map((record) => [record.id, record.attributes.version]),
+    );
+    for (const record of page.data) {
+      if (!/^\d+$/.test(record.attributes.version)) continue;
+      const number = Number(record.attributes.version);
+      if (highest && number <= highest.number) continue;
+      const preReleaseId = record.relationships?.preReleaseVersion?.data?.id;
+      highest = { number, version: preReleaseVersions.get(preReleaseId) ?? "unknown" };
+    }
+    const next = page.links?.next;
+    pathname = next ? next.replace(API_BASE, "") : null;
+  }
+  return highest;
+}
+
+/// Fail when a build at or above ours was uploaded under another marketing
+/// version — our number would then not be the newest native code, and the
+/// floor `min-native-build.json` derives from it would lie.
+async function requireUnusedBuild() {
+  const highest = await highestUploadedBuild();
+  if (!highest) {
+    console.log("No builds uploaded yet; build number is free.");
+    return;
+  }
+  if (highest.number >= Number(build) && highest.version !== version) {
+    console.error(`Build ${build} is not above the highest build App Store Connect has seen: \
+build ${highest.number} was uploaded for version ${highest.version}
+(a manual release whose number was never committed?). Re-bump past it and commit:
+  cd apps/web && doppler run --project ios-release --config prd -- just ios-bump
+${testflightUrl}`);
+    exit(1);
+  }
+  console.log(
+    highest.number >= Number(build)
+      ? `Build ${build} was already uploaded for this version ${version} (a retry).`
+      : `Build ${build} is above the highest uploaded build ` +
+          `(${highest.number}, version ${highest.version}).`,
+  );
+}
+
+/// Print the highest uploaded build number alone on stdout (0 when none), for
+/// ios-bump-version.mjs; details go to stderr.
+async function latestBuild() {
+  const highest = await highestUploadedBuild();
+  console.error(
+    highest
+      ? `Highest uploaded build: ${highest.number} (version ${highest.version}).`
+      : "No builds uploaded yet.",
+  );
+  console.log(String(highest?.number ?? 0));
 }
 
 /// The IOS appStoreVersion for this marketing version, or null.
@@ -421,6 +495,9 @@ async function submit() {
 
 async function status() {
   const requireLive = args["require-live"] === true;
+  if (requireLive || args["require-unused-build"] === true) {
+    await requireUnusedBuild();
+  }
   const versionRecord = await findAppStoreVersion();
 
   const fail = (reason) => {
@@ -474,6 +551,8 @@ if (command === "wait-build") {
   await waitBuild();
 } else if (command === "submit") {
   await submit();
+} else if (command === "latest-build") {
+  await latestBuild();
 } else {
   await status();
 }
