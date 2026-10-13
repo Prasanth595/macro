@@ -1,7 +1,6 @@
 import { useLocation } from '@solidjs/router';
-import { type Component, type JSX, onMount } from 'solid-js';
+import { type Component, type JSX, onMount, Show } from 'solid-js';
 import { analytics } from '../utils/utilAnalytic';
-import { buildAppUrl } from '../utils/utilBaseUrl';
 import { viewportWidth } from '../utils/utilBreakpoint';
 import {
   conversionAlreadyFired,
@@ -11,22 +10,21 @@ import {
 } from '../utils/utilMobileSignup';
 import { setPageSeo } from '../utils/utilSeo';
 
-/** The Macro iOS app — the back door for visitors who already have an account. */
 const APP_STORE_URL = 'https://apps.apple.com/us/app/macro-app/id6743133649';
 
 const SUCCESS_GREEN = 'oklch(0.74 0.17 155)';
 
-const secondaryButtonStyle = {
+const appButtonStyle = {
   'align-items': 'center',
-  'background-color': 'transparent',
-  border: '1px solid color-mix(in srgb, var(--b4) 38%, transparent)',
+  'background-color': 'var(--c1)',
+  border: '1px solid transparent',
   'border-radius': '999px',
   'box-sizing': 'border-box',
-  color: 'var(--c1)',
+  color: 'var(--b0)',
   display: 'inline-flex',
   'font-family': 'body',
   'font-size': '16px',
-  'font-weight': '600',
+  'font-weight': '700',
   height: '46px',
   'justify-content': 'center',
   'line-height': 1,
@@ -123,7 +121,7 @@ function SentCheck(props: { style?: JSX.CSSProperties }): JSX.Element {
 export const RouteMobileSignupSent: Component = () => {
   setPageSeo({
     title: 'Check your email — Macro',
-    description: 'We sent you a link to set up Macro on your computer.',
+    description: 'We sent you an email to continue onboarding on desktop.',
     path: '/mobile-signup-sent',
     // The tail of the signup flow — never a landing page from search.
     noindex: true,
@@ -172,10 +170,7 @@ export const RouteMobileSignupSent: Component = () => {
         gap: '32px',
         'justify-items': 'start',
         'max-width': '520px',
-        // Match the home hero inset (page gutter + these paddings).
         'padding-bottom': '96px',
-        'padding-left': mobile() ? '18px' : '64px',
-        'padding-right': mobile() ? '18px' : '24px',
         'padding-top': mobile() ? '96px' : '128px',
         width: '100%',
       }}
@@ -193,93 +188,41 @@ export const RouteMobileSignupSent: Component = () => {
           margin: '0',
         }}
       >
-        Check your email → complete onboarding on your computer.
+        We&rsquo;ve sent you an email to continue onboarding on desktop.
       </h1>
 
-      <p
-        style={{
-          color: 'var(--c2)',
-          'font-family': 'Inter',
-          'font-size': '14px',
-          'font-weight': '400',
-          'line-height': 1.5,
-          margin: '0',
-          'max-width': '40ch',
+      <Show when={email()}>
+        {(address) => (
+          <p
+            style={{
+              color: 'var(--c2)',
+              'font-family': 'body',
+              'font-size': '15px',
+              'line-height': 1.5,
+              margin: '0',
+              'margin-top': '-16px',
+              'overflow-wrap': 'anywhere',
+            }}
+          >
+            Sent to <strong style={{ color: 'var(--c1)' }}>{address()}</strong>
+          </p>
+        )}
+      </Show>
+
+      <a
+        href={APP_STORE_URL}
+        target="_blank"
+        rel="noreferrer"
+        onClick={() => {
+          analytics.track('app_redirect', {
+            page_location: window.location.href,
+            button_name: 'mobile_signup_sent_app_store',
+          });
         }}
+        style={appButtonStyle}
       >
-        Macro has a mobile app, but to get started you need to complete the
-        onboarding on desktop.
-      </p>
-
-      <div
-        style={{
-          'border-top':
-            '1px solid color-mix(in srgb, var(--b4) 24%, transparent)',
-          'box-sizing': 'border-box',
-          display: 'grid',
-          gap: '12px',
-          'margin-top': '8px',
-          'padding-top': '28px',
-          width: '100%',
-        }}
-      >
-        <p
-          style={{
-            color: 'var(--c2)',
-            'font-family': 'body',
-            'font-size': '15px',
-            'font-weight': '600',
-            'line-height': 1.5,
-            margin: '0',
-          }}
-        >
-          Already a user?
-        </p>
-
-        <a
-          href={buildAppUrl('/app/login')}
-          onClick={(event) => {
-            event.preventDefault();
-            analytics.track('app_redirect', {
-              page_location: window.location.href,
-              button_name: 'mobile_signup_sent_login',
-            });
-            window.location.href = buildAppUrl('/app/login');
-          }}
-          style={secondaryButtonStyle}
-        >
-          Log in
-        </a>
-
-        <a
-          href={APP_STORE_URL}
-          target="_blank"
-          rel="noreferrer"
-          onClick={() => {
-            analytics.track('app_redirect', {
-              page_location: window.location.href,
-              button_name: 'mobile_signup_sent_app_store',
-            });
-          }}
-          style={secondaryButtonStyle}
-        >
-          Download the iOS app
-        </a>
-
-        <p
-          style={{
-            color: 'color-mix(in srgb, var(--c4) 78%, transparent)',
-            'font-family': 'body',
-            'font-size': '14px',
-            'line-height': 1.5,
-            margin: '0',
-            'margin-top': '4px',
-          }}
-        >
-          New to Macro? These are for existing accounts — sign up on your
-          computer using the link we just emailed you.
-        </p>
-      </div>
+        We also have a mobile app
+      </a>
     </section>
   );
 };
