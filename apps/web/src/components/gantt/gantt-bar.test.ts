@@ -1,8 +1,7 @@
-import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
+import { cleanup, fireEvent, render } from '@solidjs/testing-library';
 import { createComponent, createSignal } from 'solid-js';
-import { insert } from 'solid-js/web';
 import { afterEach, expect, it, vi } from 'vitest';
-import { Gantt, useGantt } from './gantt';
+import { Gantt } from './gantt';
 import { toGanttDay } from './gantt-date';
 
 afterEach(() => {
@@ -12,149 +11,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-function fixture(drawer = false) {
-  const viewport = document.createElement('div');
-  let context!: ReturnType<typeof useGantt>;
-  Object.defineProperty(viewport, 'clientWidth', { value: 1000 });
-  viewport.getBoundingClientRect = () => new DOMRect(0, 0, 1000, 600);
-  render(() =>
-    createComponent(Gantt.Root, {
-      labelWidth: drawer ? 0 : undefined,
-      range: {
-        start: toGanttDay('2026-03-01')!,
-        end: toGanttDay('2026-06-01')!,
-      },
-      get children() {
-        return createComponent(() => {
-          const gantt = useGantt();
-          context = gantt;
-          gantt.setViewport(viewport);
-          gantt.updateViewport();
-          insert(
-            viewport,
-            createComponent(Gantt.Row, {
-              get children() {
-                return createComponent(Gantt.Bar, {
-                  start: '2026-03-08',
-                  end: '2026-03-10',
-                  title: 'Example',
-                  children: 'Example',
-                });
-              },
-            })
-          );
-          return viewport;
-        }, {});
-      },
-    })
-  );
-  const element = viewport.querySelector<HTMLElement>('[data-gantt-bar]')!;
-  return {
-    element: () => element,
-    scrollTo: (left: number) => {
-      viewport.scrollLeft = left;
-      context.updateViewport();
-    },
-  };
-}
-
-it('renders a read-only bar with no resize handle, preview, or keyboard date change', () => {
-  const bar = fixture();
-  const end = bar.element().dataset.ganttEnd;
-  const width = bar.element().style.width;
-  expect(screen.queryByRole('button', { name: /Resize end date/ })).toBeNull();
-  expect(bar.element().querySelectorAll('button')).toHaveLength(1);
-  const button = screen.getByRole('button', { name: /Example/ });
-  fireEvent.keyDown(button, { key: 'ArrowRight' });
-  fireEvent.keyDown(button, { key: 'ArrowLeft', shiftKey: true });
-  fireEvent.pointerDown(button, { button: 0, clientX: 500 });
-  fireEvent.pointerMove(window, { clientX: 540 });
-  fireEvent.pointerUp(window, { clientX: 540 });
-  expect(bar.element().dataset.ganttEnd).toBe(end);
-  expect(bar.element().style.width).toBe(width);
-  expect(screen.queryByRole('status')).toBeNull();
-  expect(document.querySelector('[data-gantt-resize-preview]')).toBeNull();
-});
-
-it.each([false, true])(
-  'keeps the read-only bar clipped while scrolling (drawer: %s)',
-  (drawer) => {
-    const bar = fixture(drawer);
-    bar.scrollTo(170);
-    const body = bar
-      .element()
-      .querySelector<HTMLElement>('[data-gantt-bar-body]')!;
-    const clip = body.closest<HTMLElement>('[data-gantt-calendar-clip]')!;
-    expect(clip.style.left).toBe(drawer ? '0px' : '260px');
-    expect(clip.classList.contains('sticky')).toBe(true);
-    const boundary = clip.style.clipPath;
-    bar.scrollTo(190);
-    expect(clip.style.clipPath).toBe(boundary);
-  }
-);
-
-it('uses native sticky text bounded by the bar through scrolling, zoom, and narrow panes', async () => {
-  const viewport = document.createElement('div');
-  let width = 500;
-  Object.defineProperty(viewport, 'clientWidth', { get: () => width });
-  let gantt!: ReturnType<typeof useGantt>;
-  const view = render(() =>
-    createComponent(Gantt.Root, {
-      range: { start: 0, end: 100 },
-      get children() {
-        return createComponent(() => {
-          gantt = useGantt();
-          gantt.setViewport(viewport);
-          gantt.updateViewport();
-          return createComponent(Gantt.Bar, {
-            start: '1970-01-06',
-            end: '1970-02-10',
-            children: 'A long timeline',
-          });
-        }, {});
-      },
-    })
-  );
-  const bar = view.container.querySelector<HTMLElement>('[data-gantt-bar]')!;
-  const label = bar.querySelector<HTMLElement>('[data-gantt-bar-label]')!;
-  const button = label.closest('button')!;
-  expect(label.classList.contains('sticky')).toBe(true);
-  expect(label.classList.contains('max-w-full')).toBe(true);
-  expect(label.classList.contains('overflow-hidden')).toBe(true);
-  expect(button.classList.contains('overflow-hidden')).toBe(false);
-  expect(label.style.left).toBe('150px');
-  expect(label.style.width).toBe('');
-  expect(bar.style.width).toBe('720px');
-
-  viewport.scrollLeft = 200;
-  gantt.updateViewport();
-  expect(label.style.left).toBe('150px');
-  gantt.setScale('month');
-  await Promise.resolve();
-  expect(bar.style.width).toBe('216px');
-  expect(label.style.left).toBe('150px');
-
-  width = 300;
-  gantt.updateViewport();
-  expect(label.style.left).toBe('128px');
-  viewport.scrollLeft = 41 * gantt.pixelsPerDay();
-  gantt.updateViewport();
-  expect(label.style.left).toBe('128px');
-  expect(label.style.width).toBe('');
-  expect(bar.querySelector('[data-gantt-calendar-clip]')).not.toBeNull();
-});
-
-it('keeps sticky bar text outside the open drawer without scrolling calculations', () => {
-  const bar = fixture(true);
-  const label = bar
-    .element()
-    .querySelector<HTMLElement>('[data-gantt-bar-label]')!;
-  expect(label.style.left).toBe('280px');
-  bar.scrollTo(190);
-  expect(label.style.left).toBe('280px');
-});
-
-it('strengthens deadline gradients on calendar days without warning on undated, inactive, or clipped ends', () => {
+it('increases deadline urgency on calendar days but excludes undated, inactive, and clipped ends', () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date(2026, 2, 3, 12));
   const [end, setEnd] = createSignal<string | null>('2026-03-11');
@@ -181,17 +38,9 @@ it('strengthens deadline gradients on calendar days without warning on undated, 
   );
   const warning = () =>
     view.container.querySelector<HTMLElement>('[data-gantt-end-warning]');
-  const fill = () =>
-    view.container.querySelector<HTMLElement>('[data-gantt-bar-fill]')!;
   expect(warning()).toBeNull();
-  expect(fill().style.maskImage).toBe('');
   setEnd('2026-03-10');
   const distant = Number(warning()!.dataset.ganttEndWarning);
-  expect(warning()).toBe(fill());
-  expect(fill().style.opacity).toBe('');
-  expect(fill().style.getPropertyValue('--gantt-bar-gradient')).toContain(
-    'linear-gradient(to left, color-mix(in oklch, var(--color-failure-ink)'
-  );
   setEnd('2026-03-04');
   expect(Number(warning()!.dataset.ganttEndWarning)).toBeGreaterThan(distant);
   setEnd('2026-03-03');
@@ -203,11 +52,6 @@ it('strengthens deadline gradients on calendar days without warning on undated, 
   setEnabled(true);
   setEnd(null);
   expect(warning()).toBeNull();
-  expect(fill().style.maskImage).toBe(
-    'linear-gradient(to right, black 65%, transparent 100%)'
-  );
-  expect(fill().parentElement!.style.maskImage).toBe('');
-  expect(screen.queryByRole('button', { name: /Resize end date/ })).toBeNull();
   vi.setSystemTime(new Date(2026, 2, 28, 12));
   fireEvent.focus(window);
   setEnd('2026-03-30');

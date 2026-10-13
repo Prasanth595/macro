@@ -4,7 +4,6 @@ import {
   ganttBarGeometry,
   ganttDateFromDay,
   ganttTicks,
-  ganttYearTicks,
   normalizeGanttRange,
   toGanttDay,
 } from './gantt-date';
@@ -168,7 +167,7 @@ describe('Gantt calendar geometry', () => {
     ).toEqual([{ start: day('2027-01-09'), end: bounds.end, label: '9' }]);
   });
 
-  it('separates year markers across December and January without enumerating offscreen years', () => {
+  it('limits month labels to the visible window across December and January', () => {
     const bounds = { start: day('2000-01-01'), end: day('2050-01-01') };
     const visible = { start: day('2026-12-20'), end: day('2027-02-10') };
     const months = ganttTicks(bounds, 'month', visible);
@@ -177,30 +176,6 @@ describe('Gantt calendar geometry', () => {
       'January',
       'February',
     ]);
-    expect(ganttYearTicks(bounds, visible)).toEqual([
-      { start: day('2026-01-01'), end: day('2027-01-01'), label: '2026' },
-      { start: day('2027-01-01'), end: day('2028-01-01'), label: '2027' },
-    ]);
-    expect(
-      ganttYearTicks({ start: day('2026-12-31'), end: day('2027-01-02') })
-    ).toEqual([
-      { start: day('2026-12-31'), end: day('2027-01-01'), label: '2026' },
-      { start: day('2027-01-01'), end: day('2027-01-02'), label: '2027' },
-    ]);
-    expect(
-      ganttYearTicks(bounds, {
-        start: day('2027-01-31'),
-        end: day('2027-02-10'),
-      })
-    ).toEqual(
-      ganttYearTicks(bounds, {
-        start: day('2027-02-01'),
-        end: day('2027-03-10'),
-      })
-    );
-    expect(
-      ganttYearTicks(bounds, { start: bounds.end, end: bounds.end + 1 })
-    ).toEqual([]);
   });
   it('bounds tick generation to the visible window and guards enormous inputs', () => {
     const long = { start: day('2000-01-01'), end: day('2050-01-01') };

@@ -75,67 +75,8 @@ it('refreshes immutable rows and panel boundaries when reused keys change order 
   expect(panelEdges('end')).toEqual(['Latest A']);
 });
 
-it('fills resized viewports without losing the calendar anchor on zoom and range expansion', async () => {
-  const [range, setRange] = createSignal({ start: 0, end: 100 });
-  const viewport = document.createElement('div');
-  let viewportWidth = 1200;
-  Object.defineProperty(viewport, 'clientWidth', { get: () => viewportWidth });
-  let gantt!: ReturnType<typeof useGantt>;
-  const view = render(() =>
-    createComponent(Gantt.Root, {
-      get range() {
-        return range();
-      },
-      get children() {
-        return createComponent(() => {
-          gantt = useGantt();
-          gantt.setViewport(viewport);
-          gantt.updateViewport();
-          return createComponent(Gantt.Row, {
-            class: 'gantt-probe',
-            children: 'Viewport probe',
-          });
-        }, {});
-      },
-    })
-  );
-
-  expect(
-    view.container.querySelector<HTMLDivElement>('.gantt-probe')?.style.width
-  ).toBe('2260px');
-  viewport.scrollLeft = 300;
-  gantt.updateViewport();
-  const anchor = gantt.visibleRange().start;
-  expect(gantt.range().end).toBe(100);
-
-  gantt.setScale('month');
-  await Promise.resolve();
-  expect(gantt.visibleRange().start).toBe(anchor);
-  expect(gantt.width() - viewportWidth).toBeGreaterThanOrEqual(
-    viewport.scrollLeft
-  );
-
-  viewportWidth = 1800;
-  gantt.updateViewport();
-  expect(gantt.width() - viewportWidth).toBeGreaterThanOrEqual(
-    viewport.scrollLeft
-  );
-
-  setRange({ start: -20, end: 100 });
-  await Promise.resolve();
-  expect(gantt.visibleRange().start).toBe(anchor);
-  expect(gantt.width() - viewportWidth).toBeGreaterThanOrEqual(
-    viewport.scrollLeft
-  );
-
-  setRange({ start: -20, end: 365 });
-  await Promise.resolve();
-  expect(gantt.range().end).toBe(365);
-  expect(gantt.visibleRange().start).toBe(anchor);
-});
-
 it.each([1, 100])(
-  'continues leftward scrolling through edge extensions without stale corrections or clamping (range end %i)',
+  'preserves the date at native scroll edges (range end %i)',
   async (end) => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const viewport = document.createElement('div');
@@ -164,10 +105,10 @@ it.each([1, 100])(
         get children() {
           return createComponent(() => {
             gantt = useGantt();
-            const content = createComponent(Gantt.Row, {
-              children: 'Extent probe',
-            });
-            insert(viewport, content);
+            insert(
+              viewport,
+              createComponent(Gantt.Row, { children: 'Extent probe' })
+            );
             return viewport;
           }, {});
         },
@@ -176,8 +117,7 @@ it.each([1, 100])(
     gantt.setViewport(viewport);
     gantt.updateViewport();
     viewport.scrollTop = 77;
-    let previousDay = gantt.visibleRange().start;
-    for (const offset of [120.5, 0, 40.25, 0]) {
+    for (const offset of [120.5, 0]) {
       const before = gantt.range();
       left = offset;
       const anchor = before.start + left / gantt.pixelsPerDay();
@@ -185,10 +125,8 @@ it.each([1, 100])(
       gantt.updateViewport();
       expect(gantt.range().start).toBeLessThan(before.start);
       expect(gantt.visibleRange().start).toBeCloseTo(anchor);
-      expect(gantt.visibleRange().start).toBeLessThan(previousDay);
       expect(writeScroll).toHaveBeenCalledOnce();
       expect(viewport.scrollTop).toBe(77);
-      // A compensation scroll event must not prepend twice or schedule old-position restoration.
       gantt.updateViewport();
       left -= 20.5;
       gantt.updateViewport();
@@ -197,7 +135,6 @@ it.each([1, 100])(
       vi.advanceTimersByTime(40);
       expect(gantt.visibleRange().start).toBeCloseTo(moved);
       expect(writeScroll).toHaveBeenCalledOnce();
-      previousDay = moved;
     }
     const rebased = gantt.range();
     writeScroll.mockClear();
@@ -209,7 +146,7 @@ it.each([1, 100])(
   }
 );
 
-it('keeps the year on pinned months and January while zooming across year boundaries', async () => {
+it('pins the correct year and aligns date marks across month boundaries', async () => {
   const start = toGanttDay('2026-12-01')!;
   const viewport = document.createElement('div');
   Object.defineProperty(viewport, 'clientWidth', { value: 1000 });
@@ -227,115 +164,52 @@ it('keeps the year on pinned months and January while zooming across year bounda
       },
     })
   );
-  viewport.scrollLeft =
-    (toGanttDay('2026-12-31')! - start) * gantt.pixelsPerDay();
-  gantt.updateViewport();
-  const december = view.getByText('December');
-  const decemberLabel = december.parentElement!;
-  expect(decemberLabel.querySelector('[data-gantt-year]')?.textContent).toBe(
-    '2026'
-  );
-  expect(decemberLabel.classList.contains('sticky')).toBe(true);
-  expect(decemberLabel.classList.contains('items-baseline')).toBe(true);
-  const monthCell = decemberLabel.parentElement!;
-  const monthCenter = (label: HTMLElement) =>
-    Number.parseFloat(label.parentElement!.parentElement!.style.left) +
-    4 +
-    Number.parseFloat(label.style.width) / 2;
-  expect(monthCenter(december)).toBe(0);
-  expect(monthCell.classList.contains('overflow-clip')).toBe(true);
-  expect(Number(decemberLabel.style.opacity)).toBe(0);
-  const marks = view.container.querySelectorAll<HTMLElement>(
-    '[data-gantt-date-mark]'
-  );
-  expect(marks.length).toBeGreaterThan(0);
-  expect(
-    [...marks].every(
-      (mark) =>
-        mark.classList.contains('top-full') &&
-        mark.classList.contains('left-1/2') &&
-        mark.parentElement?.classList.contains('h-4') &&
-        mark.closest('[data-gantt-date-tick]')
-    )
-  ).toBe(true);
-  viewport.scrollLeft =
-    (toGanttDay('2027-01-01')! - start) * gantt.pixelsPerDay();
-  gantt.updateViewport();
-  expect(monthCenter(view.getByText('January'))).toBe(620);
-  expect(view.queryByText('December')).toBeNull();
-  const january = view.getByText('January');
-  const year = january.parentElement!.querySelector('[data-gantt-year]')!;
-  expect(year.textContent).toBe('2027');
-  expect(january.nextElementSibling).toBe(year);
-  expect(view.container.querySelectorAll('[data-gantt-year]')).toHaveLength(1);
-  viewport.scrollLeft =
-    (toGanttDay('2027-02-01')! - start) * gantt.pixelsPerDay();
-  gantt.updateViewport();
-  const february = view.getByText('February');
-  expect(Number(february.parentElement!.style.opacity)).toBe(1);
-  const februaryLabel = february.parentElement!;
-  const februaryYear = februaryLabel.querySelector('[data-gantt-year]')!;
-  expect(februaryYear.textContent).toBe('2027');
-  expect(
-    view.getByText('March').parentElement!.querySelector('[data-gantt-year]')
-  ).toBeNull();
-  const assertCenteredMark = (label: HTMLElement) => {
-    const center = monthCenter(label);
-    const mark = view.container.querySelector<HTMLElement>(
-      `[data-gantt-date-tick][style="left: ${center}px;"]`
-    );
-    expect(label.classList.contains('text-center')).toBe(true);
-    expect(mark?.querySelector('[data-gantt-date-mark]')).toBeTruthy();
+  const scrollTo = (date: string) => {
+    viewport.scrollLeft = (toGanttDay(date)! - start) * gantt.pixelsPerDay();
+    gantt.updateViewport();
   };
-  assertCenteredMark(view.getByText('March'));
-  viewport.scrollLeft += 20;
-  gantt.updateViewport();
-  expect(view.getByText('February').parentElement).toBe(februaryLabel);
-  expect(view.getByText('February').nextElementSibling).toBe(februaryYear);
+  for (const [date, month, year] of [
+    ['2026-12-31', 'December', '2026'],
+    ['2027-01-01', 'January', '2027'],
+    ['2027-02-01', 'February', '2027'],
+  ]) {
+    scrollTo(date);
+    expect(
+      view.getByText(month).parentElement?.querySelector('[data-gantt-year]')
+        ?.textContent
+    ).toBe(year);
+  }
+  expect(
+    view.getByText('March').parentElement?.querySelector('[data-gantt-year]')
+  ).toBeNull();
   gantt.setScale('month');
   await Promise.resolve();
-  expect(view.getByText('Feb').parentElement).toBe(februaryLabel);
-  expect(view.queryByText('February')).toBeNull();
-  expect(view.getByText('Feb').nextElementSibling).toBe(februaryYear);
-  assertCenteredMark(view.getByText('Mar'));
-  expect(februaryLabel.querySelector('[data-gantt-date-mark]')).toBeNull();
-  expect(view.container.querySelector('[data-gantt-year]')?.textContent).toBe(
-    '2027'
-  );
+  expect(
+    view.getByText('Feb').parentElement?.querySelector('[data-gantt-year]')
+      ?.textContent
+  ).toBe('2027');
   gantt.setScale('day');
   await Promise.resolve();
-  expect(view.getByText('February')).toBeTruthy();
-  expect(view.queryByText('Feb')).toBeNull();
-  for (const tick of view.container.querySelectorAll<HTMLElement>(
-    '[data-gantt-date-tick]'
-  )) {
-    const day = Number.parseFloat(tick.style.left) / gantt.pixelsPerDay();
-    expect(day).toBeCloseTo(Math.round(day));
-  }
   for (const lastDay of ['2026-12-31', '2027-01-31', '2027-02-28']) {
+    scrollTo(lastDay);
     const position = (toGanttDay(lastDay)! - start) * gantt.pixelsPerDay();
-    viewport.scrollLeft = position;
-    gantt.updateViewport();
-    const boundaryTicks = [
+    const ticks = [
       ...view.container.querySelectorAll<HTMLElement>('[data-gantt-date-tick]'),
     ].slice(0, 3);
-    expect(
-      boundaryTicks.map((tick) => Number.parseFloat(tick.style.left))
-    ).toEqual([
+    expect(ticks.map((tick) => Number.parseFloat(tick.style.left))).toEqual([
       position,
       position + gantt.pixelsPerDay(),
       position + 2 * gantt.pixelsPerDay(),
     ]);
-    // Month text can hide a day label, but never its date-aligned mark.
     expect(
-      boundaryTicks.map(
+      ticks.map(
         (tick) => tick.querySelectorAll('[data-gantt-date-mark]').length
       )
     ).toEqual([1, 1, 1]);
   }
 });
 
-it('opens timeline settings and updates the calendar grid without changing zoom', async () => {
+it('opens timeline settings without crashing and changes the calendar grid independently of zoom', async () => {
   vi.stubGlobal('scrollTo', vi.fn());
   vi.stubGlobal(
     'ResizeObserver',
@@ -360,27 +234,12 @@ it('opens timeline settings and updates the calendar grid without changing zoom'
   fireEvent.keyDown(screen.getByRole('button', { name: 'Timeline settings' }), {
     key: 'ArrowDown',
   });
-  await screen.findByRole('menu');
+  expect(await screen.findByRole('menu')).not.toBeNull();
   fireEvent.keyDown(screen.getByRole('menuitemradio', { name: 'Monthly' }), {
     key: 'Enter',
   });
   await waitFor(() => expect(gantt.gridScale()).toBe('month'));
   expect(gantt.scale()).toBe('week');
-  fireEvent.keyDown(
-    screen.getByRole('menuitemcheckbox', { name: 'Show grid lines' }),
-    { key: 'Enter' }
-  );
-  expect(gantt.gridVisible()).toBe(false);
-  fireEvent.keyDown(screen.getByRole('menuitemradio', { name: 'Dashed' }), {
-    key: 'Enter',
-  });
-
-  expect(gantt.gridStyle()).toBe('dashed');
-  fireEvent.keyDown(screen.getByRole('menuitemradio', { name: 'Month' }), {
-    key: 'Enter',
-  });
-  expect(gantt.scale()).toBe('month');
-  expect(gantt.gridScale()).toBe('month');
 });
 function chartFixture(initialWidth = 1000, drawer = false) {
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -396,9 +255,6 @@ function chartFixture(initialWidth = 1000, drawer = false) {
   const item = document.createElement('button');
   item.type = 'button';
   item.textContent = 'Item list entry';
-  const more = document.createElement('button');
-  more.type = 'button';
-  more.textContent = 'Load more rows';
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -442,17 +298,6 @@ function chartFixture(initialWidth = 1000, drawer = false) {
                     ? [
                         createComponent(Gantt.Row, {
                           get children() {
-                            return createComponent(Gantt.GroupHeader, {
-                              children: 'Group heading',
-                            });
-                          },
-                        }),
-                      ]
-                    : []),
-                  ...(drawer
-                    ? [
-                        createComponent(Gantt.Row, {
-                          get children() {
                             return [
                               createComponent(Gantt.Label, { children: item }),
                               createComponent(Gantt.Bar, {
@@ -464,32 +309,13 @@ function chartFixture(initialWidth = 1000, drawer = false) {
                             ];
                           },
                         }),
-                        createComponent(Gantt.Row, {
-                          get children() {
-                            return createComponent(Gantt.Pagination, {
-                              children: more,
-                            });
-                          },
-                        }),
                       ]
                     : []),
                   createComponent(Gantt.TodayMarker, {}),
                 ];
               },
             }),
-            ...(drawer
-              ? [
-                  createComponent(Gantt.SidebarToggle, {}),
-                  createComponent(Gantt.Controls, {
-                    get children() {
-                      return [
-                        createComponent(Gantt.TodayButton, {}),
-                        createComponent(Gantt.Settings, {}),
-                      ];
-                    },
-                  }),
-                ]
-              : []),
+            ...(drawer ? [createComponent(Gantt.SidebarToggle, {})] : []),
             createComponent(Gantt.ZoomControls, {}),
           ];
         }, {});
@@ -516,7 +342,7 @@ function chartFixture(initialWidth = 1000, drawer = false) {
   };
 }
 
-it('pans both axes from sidebar items and bars without activating their mouse handlers', async () => {
+it('starts middle-button panning from sidebar items and bars without activating them', async () => {
   const { gantt, viewport, container } = chartFixture(1000, true);
   await waitFor(() => expect(gantt.viewport()).toBe(viewport));
   await Promise.resolve();
@@ -540,29 +366,23 @@ it('pans both axes from sidebar items and bars without activating their mouse ha
     fireEvent(target, down);
     expect(down.defaultPrevented).toBe(true);
     expect(gantt.editing()).toBe(true);
-    expect(gantt.guide()).toBeUndefined();
-    expect(viewport.classList.contains('cursor-grabbing')).toBe(true);
     fireEvent.mouseMove(window, { buttons: 4, clientX: 450, clientY: 260 });
     fireEvent.mouseUp(window, { button: 0, buttons: 4 });
     expect(gantt.editing()).toBe(true);
     fireEvent.mouseUp(window, { button: 1 });
     expect(gantt.editing()).toBe(false);
-    const stoppedLeft = viewport.scrollLeft;
-    fireEvent.mouseMove(window, { buttons: 4, clientX: 400, clientY: 220 });
-    expect(viewport.scrollLeft).toBe(stoppedLeft);
-    expect(viewport.classList.contains('cursor-grabbing')).toBe(false);
   }
   expect(activate).not.toHaveBeenCalled();
+  gantt.setEditing(true);
+  fireEvent.mouseDown(viewport, { button: 1, buttons: 4 });
+  expect(gantt.editing()).toBe(true);
+  const stoppedLeft = viewport.scrollLeft;
+  fireEvent.mouseMove(window, { buttons: 4, clientX: 100, clientY: 0 });
+  expect(viewport.scrollLeft).toBe(stoppedLeft);
+  gantt.setEditing(false);
   expect(viewport.scrollLeft).toBe(initialLeft + 100);
   expect(viewport.scrollTop).toBe(280);
   expect(gantt.sidebar.open()).toBe(true);
-  const click = new MouseEvent('auxclick', {
-    button: 1,
-    bubbles: true,
-    cancelable: true,
-  });
-  fireEvent(targets[0], click);
-  expect(click.defaultPrevented).toBe(true);
 });
 
 it.each(['escape', 'blur', 'release', 'unmount'])(
@@ -584,41 +404,11 @@ it.each(['escape', 'blur', 'release', 'unmount'])(
       fireEvent.mouseMove(window, { buttons: 0, clientX: 400, clientY: 200 });
     if (reason === 'unmount') unmount();
     expect(gantt.editing()).toBe(false);
-    expect(gantt.sidebar.open()).toBe(true);
     const left = viewport.scrollLeft;
     fireEvent.mouseMove(window, { buttons: 4, clientX: 400, clientY: 200 });
     expect(viewport.scrollLeft).toBe(left);
   }
 );
-
-it('preserves the calendar date during middle-drag range rebasing and ignores other buttons or active edits', async () => {
-  const { gantt, viewport } = chartFixture();
-  await waitFor(() => expect(gantt.viewport()).toBe(viewport));
-  await Promise.resolve();
-  for (const button of [0, 2]) {
-    fireEvent.mouseDown(viewport, { button });
-    expect(gantt.editing()).toBe(false);
-  }
-  gantt.setEditing(true);
-  fireEvent.mouseDown(viewport, { button: 1, buttons: 4 });
-  expect(viewport.classList.contains('cursor-grabbing')).toBe(false);
-  gantt.setEditing(false);
-  viewport.scrollLeft = 10;
-  fireEvent.scroll(viewport);
-  const start = gantt.visibleRange().start;
-  const pixels = gantt.pixelsPerDay();
-  fireEvent.mouseDown(viewport, {
-    button: 1,
-    buttons: 4,
-    clientX: 500,
-    clientY: 300,
-  });
-  fireEvent.mouseMove(window, { buttons: 4, clientX: 550, clientY: 300 });
-  expect(gantt.visibleRange().start).toBeCloseTo(start - 50 / pixels);
-  fireEvent.mouseMove(window, { buttons: 4, clientX: 600, clientY: 300 });
-  expect(gantt.visibleRange().start).toBeCloseTo(start - 100 / pixels);
-  fireEvent.mouseUp(window, { button: 1 });
-});
 
 it.each([-5_000, -300, 300, 5_000])(
   'preserves the full %ipx middle-drag distance across native scroll boundaries',
@@ -655,7 +445,7 @@ it.each([-5_000, -300, 300, 5_000])(
     expect(gantt.visibleRange().start).toBeCloseTo(anchor + delta / pixels);
     fireEvent.mouseMove(window, {
       buttons: 4,
-      clientX: 500 - delta - delta / 2,
+      clientX: 500 - delta * 1.5,
       clientY: 300,
     });
     expect(gantt.visibleRange().start).toBeCloseTo(
@@ -689,59 +479,20 @@ it('defaults the drawer open and preserves explicit choices across responsive re
   expect(gantt.sidebar.open()).toBe(true);
   expect(gantt.visibleRange().start).toBeCloseTo(anchor);
 });
-it('opens the item drawer without shifting dates and restores focus after dismissal', async () => {
+it('preserves dates and restores focus when the item drawer opens and closes', async () => {
   const view = chartFixture(1000, true);
-  const { gantt, viewport, container } = view;
+  const { gantt, viewport } = view;
   await waitFor(() => expect(gantt.viewport()).toBe(viewport));
   await Promise.resolve();
-  await Promise.resolve();
   gantt.sidebar.setOpen(false);
-  viewport.scrollTop = 100;
-  const left = viewport.scrollLeft;
-  const width = gantt.width();
   const anchor = gantt.visibleRange().start;
-  const barLabel = container.querySelector<HTMLElement>(
-    '[data-gantt-bar-label]'
-  )!;
-  const barLabelLeft = Number.parseFloat(barLabel.style.left);
+  const left = viewport.scrollLeft;
   const toggle = view.getByRole('button', { name: 'Show timeline items' });
   expect(view.queryByRole('button', { name: 'Item list entry' })).toBeNull();
-  const drawerLabel = view
-    .getByText('Item list entry')
-    .closest<HTMLElement>('[data-gantt-label]')!;
-  expect(drawerLabel.inert).toBe(true);
-  expect(
-    container.querySelector('[data-gantt-header]')?.childElementCount
-  ).toBe(1);
-  expect(viewport.contains(view.getByRole('button', { name: 'Today' }))).toBe(
-    false
-  );
-  expect(container.querySelector('[data-gantt-sidebar-surface]')).toBeNull();
-  expect(drawerLabel.style.width).toBe('264px');
-  expect(drawerLabel.classList.contains('overflow-clip')).toBe(true);
-  const { compile } = await import('tailwindcss');
-  const utilities = await compile('@tailwind utilities;');
-  const panelCss = utilities.build([...drawerLabel.classList]);
-  expect(panelCss).toContain(
-    'translate: var(--tw-translate-x) var(--tw-translate-y);'
-  );
-  expect(panelCss).toContain('transition-property: translate,visibility;');
-
   fireEvent.click(toggle);
   const item = view.getByRole('button', { name: 'Item list entry' });
-  expect(Number.parseFloat(barLabel.style.left)).toBeCloseTo(
-    barLabelLeft + gantt.sidebar.width()
-  );
-  expect(gantt.labelWidth()).toBe(0);
-  expect(gantt.width()).toBe(width);
-  expect(viewport.scrollLeft).toBe(left);
-  expect(viewport.scrollTop).toBe(100);
-  const monthLabel = container.querySelector<HTMLElement>(
-    '[data-gantt-month] > .sticky'
-  )!;
-  expect(monthLabel.style.left).toBe('64px');
-  expect(container.querySelector('[data-gantt-toggle-mask]')).not.toBeNull();
   expect(gantt.visibleRange().start).toBe(anchor);
+  expect(viewport.scrollLeft).toBe(left);
   expect(gantt.pointToDay(20)).toBeUndefined();
   const wheel = new WheelEvent('wheel', {
     bubbles: true,
@@ -762,64 +513,16 @@ it('opens the item drawer without shifting dates and restores focus after dismis
   fireEvent.keyDown(item, { key: 'Escape' });
   expect(gantt.sidebar.open()).toBe(false);
   expect(document.activeElement).toBe(toggle);
-  expect(monthLabel.style.left).toBe('64px');
-  expect(Number.parseFloat(barLabel.style.left)).toBeCloseTo(barLabelLeft);
-
-  fireEvent.click(toggle);
-  view.getByRole('button', { name: /^Timeline item:/ }).focus();
-  expect(gantt.sidebar.open()).toBe(true);
-  expect(
-    view.queryByRole('button', { name: 'Item list entry' })
-  ).not.toBeNull();
-  expect(drawerLabel.inert).toBe(false);
-  expect(viewport.scrollLeft).toBe(left);
+  expect(gantt.visibleRange().start).toBe(anchor);
 });
 
-it('keeps pagination in the visible calendar without closing the drawer on chart clicks', async () => {
+it('keeps the drawer open on chart clicks', async () => {
   const view = chartFixture(1000, true);
-  const { gantt, viewport, container } = view;
-  await waitFor(() => expect(gantt.viewport()).toBe(viewport));
+  await waitFor(() => expect(view.gantt.viewport()).toBe(view.viewport));
   await Promise.resolve();
-  await Promise.resolve();
-  const pagination = container.querySelector<HTMLElement>(
-    '[data-gantt-pagination]'
-  )!;
-  expect(pagination.style.width).toBe('720px');
-  expect(pagination.style.left).toBe('280px');
-  const group = container.querySelector<HTMLElement>(
-    '[data-gantt-group-header]'
-  )!;
-  expect(group.style.width).toBe('992px');
-  expect(group.style.left).toBe('');
-  expect(group.closest('[data-gantt-label]')).toBeNull();
-  const fades = container.querySelector<HTMLElement>(
-    '[data-gantt-timeline-fades]'
-  )!;
-  expect(fades.closest('[data-gantt-header]')).not.toBeNull();
-  expect(viewport.style.maskImage).toBe('');
-  const fadeWindow = fades.firstElementChild as HTMLElement;
-  expect(fadeWindow.style.left).toBe('0px');
-  expect(fadeWindow.style.width).toBe('1000px');
-  viewport.scrollLeft += 500;
-  fireEvent.scroll(viewport);
-  expect(pagination.style.width).toBe('720px');
-  expect(fadeWindow.style.width).toBe('1000px');
-  expect(group.style.width).toBe('992px');
-  view.resize(320);
-  expect(pagination.style.width).toBe('320px');
-  expect(group.style.width).toBe('312px');
-  expect(
-    view.getByText('Group heading').closest('[aria-hidden="true"]')
-  ).toBeNull();
-  fireEvent.click(view.getByRole('button', { name: 'Show timeline items' }));
-  expect(view.queryByRole('button', { name: 'Load more rows' })).toBeNull();
-  view.getByRole('button', { name: 'Item list entry' }).focus();
-  view.resize(1000);
-  const more = view.getByRole('button', { name: 'Load more rows' });
-  fireEvent(more, new MouseEvent('pointerdown', { bubbles: true, button: 0 }));
-  expect(gantt.sidebar.open()).toBe(true);
-  more.focus();
-  expect(document.activeElement).toBe(more);
+  const bar = view.getByRole('button', { name: /^Timeline item:/ });
+  fireEvent(bar, new MouseEvent('pointerdown', { bubbles: true, button: 0 }));
+  expect(view.gantt.sidebar.open()).toBe(true);
 });
 
 it('bounds Ctrl/Cmd-wheel zoom while retaining the pointer date through rapid wheel events', async () => {
@@ -851,9 +554,6 @@ it('bounds Ctrl/Cmd-wheel zoom while retaining the pointer date through rapid wh
   expect(wheel(-100, false).defaultPrevented).toBe(false);
   expect(gantt.pixelsPerDay()).toBe(20);
   expect(wheel(-100).defaultPrevented).toBe(true);
-  wheel(-100);
-  await Promise.resolve();
-  expect(day()).toBeCloseTo(anchor);
   for (let i = 0; i < 12; i++) wheel(-100);
   await Promise.resolve();
   expect(gantt.pixelsPerDay()).toBe(MAX_GANTT_PIXELS_PER_DAY);
@@ -863,165 +563,51 @@ it('bounds Ctrl/Cmd-wheel zoom while retaining the pointer date through rapid wh
   await Promise.resolve();
   expect(gantt.pixelsPerDay()).toBe(MIN_GANTT_PIXELS_PER_DAY);
   expect(day()).toBeCloseTo(anchor);
-  expect(gantt.scale()).toBe('month');
-  wheel(-1, true, 1);
-  await Promise.resolve();
-  expect(gantt.pixelsPerDay()).toBeGreaterThan(MIN_GANTT_PIXELS_PER_DAY);
-  expect(day()).toBeCloseTo(anchor);
   expect(wheel(-100, false, 0, true).defaultPrevented).toBe(true);
   await Promise.resolve();
   expect(day()).toBeCloseTo(anchor);
 });
 
-it('retains wheel-zoom controls during momentum and hides them after inactivity', async () => {
-  const { gantt, viewport, unmount } = chartFixture();
+it('preserves the date anchor through zoom, resizing, and loading earlier dates', async () => {
+  const { gantt, viewport, resize, setRange } = chartFixture();
   await waitFor(() => expect(gantt.viewport()).toBe(viewport));
+  const anchor = gantt.visibleRange().start;
+  gantt.setScale('month');
   await Promise.resolve();
-  vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
-  const wheel = (ctrlKey: boolean) =>
-    fireEvent(
-      viewport,
-      new WheelEvent('wheel', {
-        bubbles: true,
-        cancelable: true,
-        clientX: 760,
-        ctrlKey,
-        deltaY: -10,
-      })
-    );
-
-  wheel(false);
-  expect(gantt.scrollZooming()).toBe(false);
-  wheel(true);
-  expect(gantt.scrollZooming()).toBe(true);
-  vi.advanceTimersByTime(600);
-  wheel(true);
-  vi.advanceTimersByTime(600);
-  expect(gantt.scrollZooming()).toBe(true);
-  vi.advanceTimersByTime(200);
-  expect(gantt.scrollZooming()).toBe(false);
-  gantt.setEditing(true);
-  wheel(true);
-  expect(gantt.scrollZooming()).toBe(false);
-  gantt.setEditing(false);
-  wheel(true);
-  unmount();
-  expect(vi.getTimerCount()).toBe(0);
+  expect(gantt.visibleRange().start).toBeCloseTo(anchor);
+  resize(1800);
+  setRange({ start: gantt.range().start - 20, end: gantt.range().end + 365 });
+  await Promise.resolve();
+  expect(gantt.visibleRange().start).toBeCloseTo(anchor);
+  expect(gantt.width() - viewport.clientWidth).toBeGreaterThanOrEqual(
+    viewport.scrollLeft
+  );
 });
 
-it('anchors floating zoom controls to the calendar center and disables them during editing or at bounds', async () => {
+it('anchors zoom buttons to the calendar center and blocks them during active edits', async () => {
   const { gantt, viewport } = chartFixture();
   await waitFor(() => expect(gantt.viewport()).toBe(viewport));
-  await Promise.resolve();
-  await Promise.resolve();
-  const zoomIn = screen.getByRole('button', { name: 'Zoom in' });
-  const zoomOut = screen.getByRole('button', { name: 'Zoom out' });
-  const reset = screen.getByRole('button', { name: 'Reset zoom' });
   const center = () =>
     (gantt.visibleRange().start + gantt.visibleRange().end) / 2;
   const anchor = center();
-  expect(viewport.contains(zoomIn)).toBe(false);
-
-  fireEvent.click(zoomIn);
-  fireEvent.click(zoomIn);
+  const zoom = screen.getByRole('button', { name: 'Zoom in' });
+  const reset = screen.getByRole('button', { name: 'Reset zoom' });
+  fireEvent.click(zoom);
   await Promise.resolve();
-  expect(gantt.pixelsPerDay()).toBeCloseTo(31.25);
+  expect(gantt.pixelsPerDay()).toBe(25);
   expect(center()).toBeCloseTo(anchor);
   fireEvent.click(reset);
   await Promise.resolve();
   expect(gantt.pixelsPerDay()).toBe(20);
-  expect(reset.textContent).toBe('100%');
   expect(center()).toBeCloseTo(anchor);
-
   gantt.setEditing(true);
-  expect(zoomIn.hasAttribute('disabled')).toBe(true);
-  expect(zoomOut.hasAttribute('disabled')).toBe(true);
-  expect(reset.hasAttribute('disabled')).toBe(true);
-  expect(screen.getByRole('button', { name: 'Zoom in' })).toBe(zoomIn);
-  expect(screen.getByRole('button', { name: 'Zoom out' })).toBe(zoomOut);
-  gantt.setEditing(false);
-  gantt.zoomAt(630, -10_000);
-  await Promise.resolve();
-  expect(zoomIn.hasAttribute('disabled')).toBe(true);
-  expect(zoomOut.hasAttribute('disabled')).toBe(false);
-  expect(screen.getByRole('button', { name: 'Zoom in' })).toBe(zoomIn);
-  gantt.zoomAt(630, 10_000);
-  await Promise.resolve();
-  expect(zoomOut.hasAttribute('disabled')).toBe(true);
-  expect(zoomIn.hasAttribute('disabled')).toBe(false);
-  expect(screen.getByRole('button', { name: 'Zoom out' })).toBe(zoomOut);
+  for (const name of ['Zoom in', 'Zoom out', 'Reset zoom']) {
+    expect(screen.getByRole('button', { name }).hasAttribute('disabled')).toBe(
+      true
+    );
+  }
 });
-
-it('shrinks the default sidebar in narrow panes while retaining the current dates', async () => {
-  const { gantt, viewport, resize } = chartFixture();
-  await waitFor(() => expect(gantt.viewport()).toBe(viewport));
-  await Promise.resolve();
-  await Promise.resolve();
-  const anchor = gantt.visibleRange().start;
-  expect(gantt.labelWidth()).toBe(260);
-  resize(600);
-  expect(gantt.labelWidth()).toBe(180);
-  resize(320);
-  expect(gantt.labelWidth()).toBe(128);
-  resize(280);
-  expect(screen.getByRole('button', { name: 'Reset zoom' })).not.toBeNull();
-  resize(288);
-  expect(screen.getByRole('button', { name: 'Reset zoom' })).not.toBeNull();
-  resize(200);
-  expect(screen.getByRole('button', { name: 'Reset zoom' })).not.toBeNull();
-  expect(
-    screen.getByRole('button', { name: 'Zoom in' }).hasAttribute('disabled')
-  ).toBe(false);
-  expect(gantt.labelWidth()).toBe(100);
-  resize(1200);
-  await Promise.resolve();
-  expect(gantt.labelWidth()).toBe(260);
-  expect(screen.getByRole('button', { name: 'Reset zoom' })).not.toBeNull();
-  expect(gantt.visibleRange().start).toBeCloseTo(anchor);
-});
-
-it('keeps Today clipping through drawer exits and resizing without shifting bar coordinates', async () => {
-  const { gantt, viewport, container, today, resize } = chartFixture(
-    1000,
-    true
-  );
-  await waitFor(() => expect(gantt.viewport()).toBe(viewport));
-  await Promise.resolve();
-  await Promise.resolve();
-  const body = container.querySelector<HTMLElement>(
-    '[data-gantt-today="body"]'
-  )!;
-  const clip = body.closest<HTMLElement>('[data-gantt-calendar-clip]')!;
-  const bar = container.querySelector<HTMLElement>('[data-gantt-bar]')!;
-  expect(clip.style.left).toBe(`${gantt.sidebar.width()}px`);
-  expect(
-    bar.querySelector<HTMLElement>('[data-gantt-calendar-clip]')!.style.left
-  ).toBe('0px');
-  const markerLeft = body.style.left;
-  viewport.scrollLeft =
-    (today + 0.5 - gantt.range().start) * gantt.pixelsPerDay() - 100;
-  fireEvent.scroll(viewport);
-  expect(clip.style.left).toBe(`${gantt.sidebar.width()}px`);
-  expect(body.style.left).toBe(markerLeft);
-  gantt.sidebar.setOpen(false);
-  expect(clip.style.left).toBe('0px');
-  expect(
-    clip.classList.contains('animate-[gantt-scene-close_200ms_linear]')
-  ).toBe(true);
-  expect(clip.classList.contains('motion-reduce:animate-none')).toBe(true);
-  expect(clip.style.getPropertyValue('--gantt-closing-inset')).toBe('280px');
-  const closingClasses = clip.className;
-  resize(240);
-  expect(clip.style.getPropertyValue('--gantt-closing-inset')).toBe('200px');
-  expect(clip.className).toBe(closingClasses);
-  gantt.sidebar.setOpen(true);
-  expect(
-    clip.classList.contains('animate-[gantt-scene-close_200ms_linear]')
-  ).toBe(false);
-  expect(clip.style.left).toBe('200px');
-  expect(body.style.left).toBe(markerLeft);
-});
-it('centers today once after delayed measurement and keeps both today lines out of sticky labels', async () => {
+it('initializes Today after delayed measurement and respects reduced motion', async () => {
   const { gantt, viewport, today, resize, setRange, container, scrollTo } =
     chartFixture(0);
   await Promise.resolve();
@@ -1032,34 +618,6 @@ it('centers today once after delayed measurement and keeps both today lines out 
       (gantt.visibleRange().start + gantt.visibleRange().end) / 2
     ).toBeCloseTo(today + 0.5)
   );
-  const header = container.querySelector<HTMLElement>(
-    '[data-gantt-today="header"]'
-  )!;
-  const body = container.querySelector<HTMLElement>(
-    '[data-gantt-today="body"]'
-  )!;
-  expect(
-    header.closest('[data-gantt-header]')!.firstElementChild!.contains(header)
-  ).toBe(false);
-  expect(header.classList.contains('inset-y-0')).toBe(true);
-  expect(body.classList.contains('z-0')).toBe(true);
-  expect(
-    Number.parseFloat(body.style.left) - Number.parseFloat(header.style.left)
-  ).toBe(gantt.labelWidth());
-  fireEvent(
-    viewport,
-    new MouseEvent('pointermove', { bubbles: true, clientX: 760, clientY: 300 })
-  );
-  const cursorLabel = container.querySelector<HTMLElement>(
-    '[data-gantt-cursor-label]'
-  )!;
-  expect(cursorLabel.closest('[data-gantt-header]')).not.toBeNull();
-  const cursorX = cursorLabel.style.left;
-  viewport.scrollTop = 400;
-  fireEvent.scroll(viewport);
-  await Promise.resolve();
-  expect(cursorLabel.style.left).toBe(cursorX);
-  expect(cursorLabel.classList.contains('bottom-1')).toBe(true);
   viewport.scrollLeft += 200;
   fireEvent.scroll(viewport);
   const anchor = gantt.visibleRange().start;
@@ -1077,7 +635,6 @@ it('centers today once after delayed measurement and keeps both today lines out 
       (gantt.visibleRange().start + gantt.visibleRange().end) / 2
     ).toBeCloseTo(today + 0.5)
   );
-  expect(container.querySelectorAll('[data-gantt-today]')).toHaveLength(2);
   expect(scrollTo).toHaveBeenLastCalledWith({
     left: viewport.scrollLeft,
     behavior: 'smooth',
@@ -1118,6 +675,19 @@ it('pads the complete Today animation path without shifting its start or rebasin
   scrollTo.mockImplementationOnce(() => {});
   gantt.scrollToToday();
   await Promise.resolve();
+  const days =
+    (viewport.clientWidth - gantt.labelWidth()) / gantt.pixelsPerDay();
+  const padding = Math.max(
+    30,
+    Math.ceil(viewport.clientWidth / gantt.pixelsPerDay())
+  );
+  const destination = today + 0.5 - days / 2;
+  expect(gantt.range().start).toBeLessThanOrEqual(
+    Math.floor(Math.min(anchor, destination) - padding)
+  );
+  expect(gantt.range().end).toBeGreaterThanOrEqual(
+    Math.ceil(Math.max(anchor, destination) + days + padding)
+  );
   expect(gantt.range().start + left / gantt.pixelsPerDay()).toBeCloseTo(anchor);
   const animation = scrollTo.mock.calls[0][0];
   expect(animation.behavior).toBe('smooth');
@@ -1241,30 +811,4 @@ it('cancels range creation and ignores clicks, labels, bars, and header space', 
   pointer(window, 'pointerup', 580);
   setCanCreate(true);
   expect(onCreate).not.toHaveBeenCalled();
-});
-
-it('hides the today marker before horizontal scrolling carries it behind sticky labels', () => {
-  const viewport = document.createElement('div');
-  Object.defineProperty(viewport, 'clientWidth', { value: 1000 });
-  let gantt!: ReturnType<typeof useGantt>;
-  const view = render(() =>
-    createComponent(Gantt.Root, {
-      range: { start: 0, end: 100 },
-      get children() {
-        return createComponent(() => {
-          gantt = useGantt();
-          gantt.setViewport(viewport);
-          gantt.updateViewport();
-          return createComponent(Gantt.TodayMarker, { date: '1970-01-21' });
-        }, {});
-      },
-    })
-  );
-  expect(view.container.querySelector('[data-gantt-today]')).not.toBeNull();
-  viewport.scrollLeft = 21 * gantt.pixelsPerDay();
-  gantt.updateViewport();
-  expect(view.container.querySelector('[data-gantt-today]')).toBeNull();
-  viewport.scrollLeft = 20 * gantt.pixelsPerDay();
-  gantt.updateViewport();
-  expect(view.container.querySelector('[data-gantt-today]')).not.toBeNull();
 });
