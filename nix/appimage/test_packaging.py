@@ -142,6 +142,24 @@ class PackagingTest(unittest.TestCase):
         )
         self.assertEqual(script.read_text(), "#!/usr/bin/env sh\necho ok\n")
 
+    def test_relocation_rewrites_release_webkit_helper_directory(self):
+        self.populate()
+        prefix = b"/nix/store/fixture/libexec/webkit2gtk-4.1"
+        webkit = self.compile(
+            "libwebkit2gtk-4.1.so.0",
+            f'const char helper_directory[] = "{prefix.decode()}";',
+            [],
+        )
+        bundled = self.bundle_lib / webkit.name
+        shutil.copy2(webkit, bundled)
+        relocate(self.appdir)
+        self.assertNotIn(prefix, bundled.read_bytes())
+        self.assertIn(b"./bin\x00", bundled.read_bytes())
+        self.assertEqual(patchelf(bundled, "--print-rpath"), "$ORIGIN")
+        before = bundled.read_bytes()
+        relocate(self.appdir)
+        self.assertEqual(bundled.read_bytes(), before)
+
     def test_relocation_rejects_conflicting_sonames(self):
         self.populate()
         conflicting = self.bundle_lib / "conflicting.so"

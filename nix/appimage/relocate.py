@@ -2,6 +2,7 @@
 """Finalize linuxdeploy's AppDir before the output plugin creates the squashfs."""
 
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -75,6 +76,20 @@ def relocate(appdir):
             if Path(interpreter).name != "ld-linux-x86-64.so.2":
                 raise RuntimeError(f"unexpected interpreter {interpreter}: {path}")
             patchelf(path, "--set-interpreter", "/lib64/ld-linux-x86-64.so.2")
+
+        if path.name.startswith("libwebkit2gtk-"):
+            # Release WebKit ignores WEBKIT_EXEC_PATH. Tauri's AppRun changes
+            # cwd to AppDir/usr, and its upstream GTK plugin likewise patches
+            # compiled-in absolute paths to relative ones. Keep ELF offsets
+            # unchanged by NUL-padding the replacement PKGLIBEXECDIR string.
+            contents = path.read_bytes()
+            relocated = re.sub(
+                rb"/nix/store/[^/\x00]+/libexec/webkit2gtk-4\.1\x00",
+                lambda match: b"./bin\x00".ljust(len(match[0]), b"\x00"),
+                contents,
+            )
+            if contents != relocated:
+                path.write_bytes(relocated)
 
     # Tauri copies Nix's xdg-utils scripts verbatim. Their build-time shebangs
     # must not leak into the distributable image either.

@@ -372,7 +372,6 @@
             int failed = 0;
             if (fputs("#! /usr/bin/env bash\n"
                       "export APPDIR=\"''${APPDIR:-\"$(dirname \"$(realpath \"$0\")\")\"}\"\n"
-                      "export WEBKIT_EXEC_PATH=\"$APPDIR/usr/bin\"\n"
                       "export WEBKIT_INJECTED_BUNDLE_PATH=\"$APPDIR/usr/lib\"\n"
                       "gio_modules=\"$APPDIR/usr/lib/gio/modules\"\n"
                       "if [ -d \"$gio_modules\" ]; then\n"
