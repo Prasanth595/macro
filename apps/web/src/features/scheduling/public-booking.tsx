@@ -14,7 +14,10 @@ type BookingPageParams = { profile: string; slug?: string };
 
 // The website opens these pages in its booking dialog. No other site can frame
 // them: the booking paths allow same-origin framing only.
-const embedded = window.self !== window.top;
+const isEmbedded = () => window.parent !== window;
+
+/** Tells the page around a framed booking page that a booking was made. */
+const BOOKING_MADE = 'macro:booking-made';
 
 function BookingPageContent(params: BookingPageParams) {
   const navigate = useNavigate();
@@ -46,9 +49,18 @@ function BookingPageContent(params: BookingPageParams) {
             profile={p()}
             event={p().eventTypes.find((e) => e.slug === params.slug)}
             source={source}
-            embedded={embedded}
+            embedded={isEmbedded()}
             onEvent={(slug) => navigate(`/book/${params.profile}/${slug}`)}
-            onReceipt={(r) => navigate(`/booking/${r.booking.id}#${r.token}`)}
+            onReceipt={(r) => {
+              // The website records the booking in its own analytics; it
+              // cannot see into the frame.
+              if (isEmbedded())
+                window.parent.postMessage(
+                  { type: BOOKING_MADE },
+                  window.location.origin
+                );
+              navigate(`/booking/${r.booking.id}#${r.token}`);
+            }}
           />
         </Show>
       )}
@@ -90,7 +102,7 @@ function ReceiptContent(params: { id: string }) {
       cancel={source.cancel}
       loadSlots={source.replacementSlots}
       reschedule={source.reschedule}
-      embedded={embedded}
+      embedded={isEmbedded()}
     />
   );
 }

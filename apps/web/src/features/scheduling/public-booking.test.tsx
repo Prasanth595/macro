@@ -1,5 +1,5 @@
 import { PosthogProvider } from '@app/lib/analytics/posthog';
-import { cleanup, render, screen } from '@solidjs/testing-library';
+import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
 import type { PostHog } from 'posthog-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -34,7 +34,15 @@ vi.mock('./views/booking-receipt-view', () => ({
   BookingReceiptView: () => <p>Private booking receipt</p>,
 }));
 vi.mock('./views/public-booking-view', () => ({
-  PublicBookingView: () => <p>Choose an event</p>,
+  PublicBookingView: (props: {
+    onReceipt: (receipt: { booking: { id: string }; token: string }) => void;
+  }) => (
+    <button
+      onClick={() => props.onReceipt({ booking: { id: 'b1' }, token: 't1' })}
+    >
+      Choose an event
+    </button>
+  ),
 }));
 
 import { BookingReceiptPage, PublicBookingPage } from './public-booking';
@@ -63,7 +71,10 @@ beforeEach(() => {
   posthog.featureFlags.getFlags.mockReturnValue([]);
   posthog.onFeatureFlags.mockReturnValue(() => {});
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe('public booking route', () => {
   it('lets a guest book when the flag request gets no answer', async () => {
@@ -104,6 +115,28 @@ describe('public booking route', () => {
       await screen.findByText('This booking page is unavailable.')
     ).toBeTruthy();
     expect(usePublicProfileQuery).not.toHaveBeenCalled();
+  });
+});
+
+describe('public booking route in the website dialog', () => {
+  it('tells the website when a guest books', async () => {
+    const website = { postMessage: vi.fn() };
+    vi.stubGlobal('parent', website);
+    posthog.getFeatureFlagResult.mockReturnValue({
+      key: SCHEDULING_FLAG,
+      enabled: true,
+      variant: undefined,
+      payload: undefined,
+    });
+    const answer = openBookingLink();
+    answer([SCHEDULING_FLAG], { [SCHEDULING_FLAG]: true });
+
+    fireEvent.click(await screen.findByText('Choose an event'));
+
+    expect(website.postMessage).toHaveBeenCalledWith(
+      { type: 'macro:booking-made' },
+      window.location.origin
+    );
   });
 });
 
