@@ -2,9 +2,10 @@
 set -euo pipefail
 source_dir=$(cd "$(dirname "$0")" && pwd)
 hook="$source_dir/runtime-hook.sh"
-data=${1:?usage: test_runtime.sh <bundled-xkb-data> <bundled-schemas> <gio-modules>}
+data=${1:?usage: test_runtime.sh <bundled-xkb-data> <bundled-schemas> <gio-modules> <AppRun>}
 schemas=${2:?missing bundled schemas}
 modules=${3:?missing GIO modules}
+apprun=${4:?missing real AppRun executable}
 xkb_smoke="$PWD/xkb-smoke"
 settings_smoke="$PWD/settings-smoke"
 
@@ -24,11 +25,21 @@ if env GSETTINGS_SCHEMA_DIR="$PWD/missing-schemas" "$settings_smoke"; then
 fi
 
 appdir="$PWD/Macro.AppDir"
-mkdir -p "$appdir/usr/share/X11" "$appdir/usr/share/glib-2.0" "$appdir/usr/lib/gio"
+mkdir -p "$appdir/usr/share/X11" "$appdir/usr/share/glib-2.0" "$appdir/usr/lib/gio" "$appdir/usr/bin"
 cp -r "$data" "$appdir/usr/share/X11/xkb"
 cp -r "$schemas" "$appdir/usr/share/glib-2.0/schemas"
 cp -rL "$modules" "$appdir/usr/lib/gio/modules"
-printf '#!/usr/bin/env bash\nsource %q\nexec "$@"\n' "$hook" > "$appdir/AppRun"
+# Use the same patched native launcher as the artifact, not a shell stand-in.
+# The unpatched executable corrupts GSETTINGS_SCHEMA_DIR after the hook runs.
+install -m0755 "$apprun" "$appdir/AppRun.wrapped"
+# Only the test copy needs a Nix interpreter to run in the build sandbox.
+interpreter=$(patchelf --print-interpreter "$xkb_smoke")
+patchelf --set-interpreter "$interpreter" --set-rpath "$(dirname "$interpreter")" "$appdir/AppRun.wrapped"
+printf '[Desktop Entry]\nType=Application\nName=Runtime test\nExec=app\n' > "$appdir/Runtime.desktop"
+printf '#!%s\nexec "$@"\n' "$BASH" > "$appdir/usr/bin/app"
+chmod +x "$appdir/usr/bin/app"
+# shellcheck disable=SC2016
+printf '#!/usr/bin/env bash\nsource %q\nexec "$APPDIR/AppRun.wrapped" "$@"\n' "$hook" > "$appdir/AppRun"
 
 # No user settings or session bus should be needed by these headless checks.
 export GSETTINGS_BACKEND=memory GIO_USE_PROXY_RESOLVER=gnome XDG_CURRENT_DESKTOP=GNOME

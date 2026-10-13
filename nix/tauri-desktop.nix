@@ -285,10 +285,13 @@
       };
 
       tauriBundlerSource = pkgs.cargo-tauri.src;
-      tauriAppRun = pkgs.fetchurl {
+      tauriAppRunSource = pkgs.fetchurl {
         url = "https://github.com/tauri-apps/binary-releases/releases/download/apprun-old/AppRun-x86_64";
         hash = "sha256-8wFApDoKWeRtshve/fdJuenyxpRukq+rus+YuK5z+08=";
       };
+      tauriAppRun = pkgs.runCommand "tauri-apprun" { } ''
+        ${pkgs.python3}/bin/python3 ${./appimage/patch_apprun.py} ${tauriAppRunSource} "$out"
+      '';
       tauriLinuxdeployWrapper = pkgs.stdenv.mkDerivation {
         pname = "tauri-linuxdeploy-wrapper";
         version = "1";
@@ -867,7 +870,8 @@
           ''
             export PYTHONDONTWRITEBYTECODE=1
             python3 -m unittest discover -s ${./appimage} -v
-            bash ${./appimage}/test_runtime.sh ${tauriXkbData} ${tauriGsettingsSchemas} ${gioTlsModulePath}
+            bash ${./appimage}/test_runtime.sh \
+              ${tauriXkbData} ${tauriGsettingsSchemas} ${gioTlsModulePath} ${tauriAppRun}
             bash ${./appimage}/test_xdg.sh ${tauriXdgUtils}
             # GStreamer's default Nix output is bin; its scanner and core plugins
             # live in the library output. Do not silently ship an empty helper dir.
