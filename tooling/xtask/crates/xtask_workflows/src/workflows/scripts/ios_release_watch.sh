@@ -7,16 +7,29 @@ set -euo pipefail
 cd apps/web
 conf_path="apps/web/tauri/src-tauri/tauri.ios.conf.json"
 
+# Git tree hash of a path at a commit, via the API (this checkout is main, not
+# the PR head): walks the tree one path component at a time.
+tree_hash() {
+  local sha=$1 part
+  for part in ${2//\// }; do
+    sha=$(gh api "repos/${GH_REPO}/git/trees/${sha}" --jq ".tree[] | select(.path == \"${part}\") | .sha")
+    [[ -n "$sha" ]] || return 1
+  done
+  echo "$sha"
+}
+
 jq -c '.[]' <<<"$PRS" | while read -r pr; do
   number=$(jq -r '.number' <<<"$pr")
   sha=$(jq -r '.sha' <<<"$pr")
   conf=$(gh api "repos/${GH_REPO}/contents/${conf_path}?ref=${sha}" --jq '.content' | base64 --decode)
   version=$(jq -r '.version' <<<"$conf")
   build=$(jq -r '.bundle.iOS.bundleVersion' <<<"$conf")
-  echo "PR #${number}: iOS ${version} (build ${build}) at ${sha:0:10}"
+  native_tree=$(tree_hash "$sha" "apps/web/tauri")
+  echo "PR #${number}: iOS ${version} (build ${build}) at ${sha:0:10}, native tree ${native_tree:0:10}"
 
   if ! bun scripts/ios-app-store.mjs status --require-live \
-      --version "$version" --build "$build" >"$RUNNER_TEMP/status-${number}.log" 2>&1; then
+      --version "$version" --build "$build" --native-tree "$native_tree" \
+      >"$RUNNER_TEMP/status-${number}.log" 2>&1; then
     echo "  not live yet:"
     sed 's/^/    /' "$RUNNER_TEMP/status-${number}.log"
     continue

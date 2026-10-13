@@ -43,12 +43,21 @@
 //
 // latest-build prints the highest build number App Store Connect has seen for
 // the app (any version, TestFlight included) — ios-bump-version.mjs uses it so
-// hand-made releases can't make the committed number fall behind. status's
-// collision check (on with --require-live or --require-unused-build) fails when
-// a build at or above ours exists under a different marketing version: the
-// native build floor assumes numbers increase across every release.
+// hand-made releases can't make the committed number fall behind.
+//
+// Provenance: version + build number alone don't identify a PR's native code
+// (two PRs bumped from the same base get the same numbers), so wait-build
+// stamps each uploaded build with the hash of the native tree it was built
+// from (`git rev-parse HEAD:apps/web/tauri`, or --native-tree) in its
+// TestFlight "What to Test" text. status's collision check (on with
+// --require-live or --require-unused-build) fails when a build at or above
+// ours exists with a different stamp — another PR or a hand release — and
+// reports `uploaded=true` (GITHUB_OUTPUT) when it is our own upload, so a
+// release retry skips the build. The live check requires the live build's
+// stamp to match this checkout's native tree.
 
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { appendFileSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { exit } from "node:process";
@@ -75,6 +84,11 @@ const SUBMITTED_STATES = new Set([
 ]);
 
 const BOOLEAN_FLAGS = new Set(["require-live", "require-unused-build"]);
+
+/// The directory whose git tree hash identifies "the native code" — the same
+/// definition the iOS Native Check path filter uses.
+const NATIVE_TREE_PATH = "apps/web/tauri";
+const STAMP_RE = /native tree ([0-9a-f]{40})/;
 
 function parseArgs(argv) {
   const args = {};
@@ -114,6 +128,29 @@ function readJson(relative) {
 
 const bundleId =
   args["bundle-id"] ?? readJson("tauri/src-tauri/tauri.conf.json").identifier;
+
+/// Hash of this checkout's native tree (--native-tree overrides, e.g. when
+/// the checkout isn't the commit in question), or null outside a git checkout.
+function nativeTreeHash() {
+  if (args["native-tree"]) {
+    return args["native-tree"];
+  }
+  try {
+    return execFileSync("git", ["rev-parse", `HEAD:${NATIVE_TREE_PATH}`], {
+      cwd: appDir,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return null;
+  }
+}
+
+function setGitHubOutput(name, value) {
+  if (process.env.GITHUB_OUTPUT) {
+    appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
+  }
+}
 const iosConf = readJson("tauri/src-tauri/tauri.ios.conf.json");
 const version = args.version ?? iosConf.version;
 const build = args.build ?? iosConf.bundle?.iOS?.bundleVersion;
@@ -176,7 +213,7 @@ async function makeToken() {
   return `${signingInput}.${base64url(new Uint8Array(signature))}`;
 }
 
-async function api(pathname, { method = "GET", body } = {}) {
+async function api(pathname, { method = "GET", body, onError } = {}) {
   const response = await fetch(`${API_BASE}${pathname}`, {
     method,
     headers: {
@@ -188,6 +225,9 @@ async function api(pathname, { method = "GET", body } = {}) {
   if (!response.ok) {
     const text = await response.text();
     console.error(`${method} ${pathname} → ${response.status}: ${text}`);
+    if (onError) {
+      await onError(response.status);
+    }
     exit(1);
   }
   return response.status === 204 ? null : response.json();
@@ -235,7 +275,11 @@ async function highestUploadedBuild() {
       const number = Number(record.attributes.version);
       if (highest && number <= highest.number) continue;
       const preReleaseId = record.relationships?.preReleaseVersion?.data?.id;
-      highest = { number, version: preReleaseVersions.get(preReleaseId) ?? "unknown" };
+      highest = {
+        id: record.id,
+        number,
+        version: preReleaseVersions.get(preReleaseId) ?? "unknown",
+      };
     }
     const next = page.links?.next;
     pathname = next ? next.replace(API_BASE, "") : null;
@@ -243,29 +287,104 @@ async function highestUploadedBuild() {
   return highest;
 }
 
-/// Fail when a build at or above ours was uploaded under another marketing
-/// version — our number would then not be the newest native code, and the
-/// floor `min-native-build.json` derives from it would lie.
-async function requireUnusedBuild() {
-  const highest = await highestUploadedBuild();
-  if (!highest) {
-    console.log("No builds uploaded yet; build number is free.");
+/// The native tree hash stamped on an uploaded build (its TestFlight "What to
+/// Test" text), or null for builds uploaded outside the release flow.
+async function buildStamp(buildId) {
+  const localizations = await api(`/v1/builds/${buildId}/betaBuildLocalizations?limit=10`);
+  for (const localization of localizations.data) {
+    const match = STAMP_RE.exec(localization.attributes.whatsNew ?? "");
+    if (match) {
+      return match[1];
+    }
+  }
+  return null;
+}
+
+/// Record which native tree a processed build was built from, in its en-US
+/// TestFlight "What to Test" text (readable back through the API).
+async function stampBuild(buildRecord) {
+  const tree = nativeTreeHash();
+  if (!tree) {
+    console.warn(
+      "WARNING: not in a git checkout and no --native-tree given; the build is not " +
+        "stamped with its native tree, so the merge gate will not accept it.",
+    );
     return;
   }
-  if (highest.number >= Number(build) && highest.version !== version) {
-    console.error(`Build ${build} is not above the highest build App Store Connect has seen: \
-build ${highest.number} was uploaded for version ${highest.version}
-(a manual release whose number was never committed?). Re-bump past it and commit:
+  const pr = process.env.IOS_RELEASE_PR ? ` for PR #${process.env.IOS_RELEASE_PR}` : "";
+  const whatsNew = `Built by ios-release.sh${pr} from native tree ${tree}.`;
+  const localizations = await api(
+    `/v1/builds/${buildRecord.id}/betaBuildLocalizations?limit=10`,
+  );
+  const existing = localizations.data.find(
+    (localization) => localization.attributes.locale === "en-US",
+  );
+  if (existing) {
+    await api(`/v1/betaBuildLocalizations/${existing.id}`, {
+      method: "PATCH",
+      body: {
+        data: { type: "betaBuildLocalizations", id: existing.id, attributes: { whatsNew } },
+      },
+    });
+  } else {
+    await api("/v1/betaBuildLocalizations", {
+      method: "POST",
+      body: {
+        data: {
+          type: "betaBuildLocalizations",
+          attributes: { locale: "en-US", whatsNew },
+          relationships: { build: { data: { type: "builds", id: buildRecord.id } } },
+        },
+      },
+    });
+  }
+  console.log(`Stamped build ${build} with native tree ${tree}.`);
+}
+
+/// Fail when a build at or above ours exists that is not our own upload: the
+/// floor `min-native-build.json` derives from our number assumes it is the
+/// newest native code, and the gate must never accept another PR's build
+/// that happens to share our version + number. Our own earlier upload (same
+/// version, same stamp) is a retry: report uploaded=true so the release
+/// workflow skips the build and goes straight to submit.
+async function requireUnusedBuild() {
+  const highest = await highestUploadedBuild();
+  const rebump = `Re-bump past it and commit:
   cd apps/web && doppler run --project ios-release --config prd -- just ios-bump
-${testflightUrl}`);
+${testflightUrl}`;
+  if (!highest) {
+    console.log("No builds uploaded yet; build number is free.");
+    setGitHubOutput("uploaded", "false");
+    return;
+  }
+  if (highest.number > Number(build)) {
+    console.error(`Build ${build} is below the highest build App Store Connect has seen: \
+build ${highest.number} was uploaded for version ${highest.version}
+(a manual release whose number was never committed, or another native PR). ${rebump}`);
+    exit(1);
+  }
+  if (highest.number === Number(build)) {
+    const stamp = await buildStamp(highest.id);
+    const ours = nativeTreeHash();
+    if (highest.version === version && ours && stamp === ours) {
+      console.log(
+        `Build ${build} (${version}) was already uploaded from this native tree — ` +
+          "a retry; the build and upload can be skipped.",
+      );
+      setGitHubOutput("uploaded", "true");
+      return;
+    }
+    console.error(`Build ${build} was already uploaded (for version ${highest.version}) from \
+different native code: its stamp is ${stamp ?? "missing (uploaded outside the release flow)"}, \
+this checkout's native tree is ${ours ?? "unknown (not a git checkout)"}.
+Another native PR or a hand release took this number. ${rebump}`);
     exit(1);
   }
   console.log(
-    highest.number >= Number(build)
-      ? `Build ${build} was already uploaded for this version ${version} (a retry).`
-      : `Build ${build} is above the highest uploaded build ` +
-          `(${highest.number}, version ${highest.version}).`,
+    `Build ${build} is above the highest uploaded build ` +
+      `(${highest.number}, version ${highest.version}).`,
   );
+  setGitHubOutput("uploaded", "false");
 }
 
 /// Print the highest uploaded build number alone on stdout (0 when none), for
@@ -341,7 +460,39 @@ async function waitBuild() {
   }
   console.log(`Export compliance resolved (usesNonExemptEncryption=${compliance}).`);
 
+  await stampBuild(buildRecord);
   console.log(`Build is ready for TestFlight: ${testflightUrl}`);
+}
+
+/// App Store Connect allows one iOS version in flight (anything that is not
+/// live or retired) at a time. Explain which one blocks us instead of
+/// surfacing the raw 409 from creating ours.
+async function explainVersionInFlight() {
+  const RETIRED_STATES = new Set([
+    "REPLACED_WITH_NEW_VERSION",
+    "REMOVED_FROM_SALE",
+    "DEVELOPER_REMOVED_FROM_SALE",
+    "NOT_APPLICABLE",
+  ]);
+  const versions = await api(
+    `/v1/apps/${app.id}/appStoreVersions?filter[platform]=IOS&limit=20`,
+  );
+  const inFlight = versions.data
+    .filter((record) => record.attributes.versionString !== version)
+    .filter((record) => {
+      const state = versionState(record);
+      return !LIVE_STATES.has(state) && !RETIRED_STATES.has(state);
+    })
+    .map((record) => `${record.attributes.versionString} (${versionState(record)})`);
+  if (inFlight.length === 0) {
+    return;
+  }
+  console.error(`Could not create App Store version ${version}: App Store Connect allows one iOS
+version in flight at a time, and these are: ${inFlight.join(", ")}.
+Wait for it to ship (another native PR's release) or remove it from review in App
+Store Connect, then remove and re-add the ios-update label — the uploaded build
+${build} is reused, only the submission is retried.
+${distributionUrl}`);
 }
 
 async function submit() {
@@ -367,6 +518,7 @@ async function submit() {
     versionRecord = (
       await api("/v1/appStoreVersions", {
         method: "POST",
+        onError: explainVersionInFlight,
         body: {
           data: {
             type: "appStoreVersions",
@@ -545,7 +697,20 @@ ${distributionUrl}`);
         `${attachedBuildNumber ?? "unknown"}, not this PR's build ${build}.`,
     );
   }
-  console.log(`App Store version ${version} (${build}) is live.`);
+  const stamp = await buildStamp(attachedBuild.data.id);
+  const ours = nativeTreeHash();
+  if (!ours || stamp !== ours) {
+    console.error(`App Store version ${version} (${build}) is live, but that build was not built from
+this PR's current native code: its stamp is ${stamp ?? "missing (uploaded outside the release flow)"},
+this PR's native tree (${NATIVE_TREE_PATH}) is ${ours ?? "unknown"}.
+Either native commits were pushed after the release, or another PR / a hand
+release shipped the same version + build number. Bump again, commit, and
+re-add the ios-update label so what this PR actually contains gets released:
+  cd apps/web && doppler run --project ios-release --config prd -- just ios-bump
+${distributionUrl}`);
+    exit(1);
+  }
+  console.log(`App Store version ${version} (${build}) is live, built from this native tree.`);
 }
 
 if (command === "wait-build") {

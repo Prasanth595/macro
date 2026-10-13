@@ -110,9 +110,15 @@ fn fetch_credentials() -> Step<Run> {
         .add_env(("DOPPLER_TOKEN", vars::IOS_RELEASE_DOPPLER_TOKEN))
 }
 
+/// The checkout is the PR's merge ref, so the native tree to compare the live
+/// build's stamp against is taken from the PR head commit explicitly (the
+/// merge commit's tree would also change whenever main's native code moves).
 fn require_live_version() -> Step<Run> {
     Step::new("Require the App Store release to be live")
-        .run("bun scripts/ios-app-store.mjs status --require-live")
+        .run(
+            "bun scripts/ios-app-store.mjs status --require-live \\\n  \
+             --native-tree \"$(git rev-parse \"${{ github.event.pull_request.head.sha }}:apps/web/tauri\")\"",
+        )
         .if_condition(gated())
         .working_directory(xtask_paths::repo_dir!("apps/web"))
 }

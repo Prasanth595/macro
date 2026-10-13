@@ -112,7 +112,8 @@ jobs:
       env:
         DOPPLER_TOKEN: ${{ secrets.IOS_RELEASE_DOPPLER_TOKEN }}
         IOS_DISTRIBUTION_CERTIFICATE: '1'
-    - name: Check the build number is unused in App Store Connect
+    - id: build-check
+      name: Check the build number is unused in App Store Connect
       run: |-
         nix develop --command bash -euo pipefail -c '
           cd apps/web
@@ -156,6 +157,7 @@ jobs:
         echo "Using signing identity: $identity"
       shell: bash
     - name: Build and upload to App Store Connect
+      if: steps.build-check.outputs.uploaded != 'true'
       run: |-
         nix develop --command bash -euo pipefail -c '
           bun install --frozen-lockfile
@@ -165,6 +167,7 @@ jobs:
       shell: bash
       env:
         VITE_POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+        IOS_RELEASE_PR: ${{ github.event.pull_request.number }}
     - name: Submit for App Review
       run: |-
         nix develop --command bash -euo pipefail -c '

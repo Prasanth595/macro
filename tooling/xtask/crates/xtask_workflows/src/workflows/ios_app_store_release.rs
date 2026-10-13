@@ -150,14 +150,18 @@ fn fetch_credentials() -> Step<Run> {
 }
 
 /// Fail before the (long) build if App Store Connect already holds a build at
-/// or above this PR's number under another version — e.g. a hand-made release
-/// whose bump was never committed. The floor derived from the number would
-/// otherwise be wrong.
+/// or above this PR's number that is not our own upload — another native PR
+/// bumped from the same base, or a hand-made release whose bump was never
+/// committed; the floor derived from the number would otherwise be wrong.
+/// Our own earlier upload (same version, same native-tree stamp) sets
+/// `uploaded=true`, and the build step is skipped: a retry goes straight to
+/// submit, since Apple rejects re-uploading a build number anyway.
 fn require_unused_build() -> Step<Run> {
     in_dev_shell(
         "Check the build number is unused in App Store Connect",
         "  cd apps/web\n  bun scripts/ios-app-store.mjs status --require-unused-build\n",
     )
+    .id("build-check")
 }
 
 fn configure_signing() -> Step<Run> {
@@ -169,12 +173,18 @@ fn configure_signing() -> Step<Run> {
 /// Build, validate, upload, and wait for App Store Connect processing +
 /// export compliance — the PR already carries the bump, hence `--no-bump`.
 /// The PostHog key is what `ios-build.sh` would otherwise pull from Doppler.
+/// `wait-build` stamps the processed build with the native tree it was built
+/// from (and the PR number), which the merge gate later verifies.
 fn build_and_upload() -> Step<Run> {
     in_dev_shell(
         "Build and upload to App Store Connect",
         "  bun install --frozen-lockfile\n  cd apps/web\n  just ios-release --no-bump\n",
     )
+    .if_condition(Expression::new(
+        "steps.build-check.outputs.uploaded != 'true'",
+    ))
     .add_env(("VITE_POSTHOG_API_KEY", vars::POSTHOG_API_KEY))
+    .add_env(("IOS_RELEASE_PR", "${{ github.event.pull_request.number }}"))
 }
 
 fn submit_for_review() -> Step<Run> {

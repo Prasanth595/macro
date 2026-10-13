@@ -76,6 +76,33 @@ the gate passes without a release. For a non-breaking change you still want
 to ship to the App Store, `just ios-bump --no-min` bumps the versions without
 raising the floor.
 
+## Several native PRs at once
+
+Version + build number alone don't identify a PR's native code: two PRs
+bumped from the same `main` get the same numbers. So the release stamps each
+uploaded build with the git tree hash of `apps/web/tauri` it was built from
+(in the build's TestFlight "What to Test" text), and the checks use it:
+
+- **Collision check** (release workflow before building, and the gate): a
+  build at or above the PR's number with a different stamp — another PR, or
+  a hand release — fails with "re-bump". The PR's own earlier upload (same
+  version, same stamp) is a retry: the release skips the build and goes
+  straight to submit.
+- **Live check** (the gate): the live build's stamp must equal the PR head's
+  native tree. Native commits pushed after the release, or another PR's
+  build that shares the numbers, fail with "bump and re-release". Web-only
+  commits don't change the tree and stay green.
+- **One version in flight**: App Store Connect allows one iOS version in
+  review at a time, so the second PR's `submit` fails naming the version
+  that blocks it. Once that one ships (or is removed from review in App
+  Store Connect), remove and re-add `ios-update`; the uploaded build is
+  reused. A rejected or abandoned submission blocks everyone until someone
+  removes it from review.
+
+In practice: native PRs ship through Apple one at a time, each with its own
+number, and the first to release wins its number; the others are told to
+re-bump at the earliest check that can know.
+
 ## Manual / TestFlight-only releases
 
 `just ios-release` still does a full local build + TestFlight upload without
