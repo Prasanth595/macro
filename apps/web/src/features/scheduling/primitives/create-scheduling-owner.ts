@@ -32,10 +32,21 @@ export function createSchedulingOwner(
   const [error, setError] = createSignal('');
   const [creating, setCreating] = createSignal(false);
   const [busyBooking, setBusyBooking] = createSignal('');
-  const [profileDraft, setProfileDraft] = createSignal<{
-    name: string;
-    description: string;
-  }>();
+  const [profileDraft, setProfileDraftValue] =
+    createSignal<Pick<SchedulingProfile, 'name' | 'description'>>();
+  const setProfileDraft = (
+    draft: Pick<SchedulingProfile, 'name' | 'description'> | undefined
+  ) => {
+    const profile = source.profile();
+    setProfileDraftValue(
+      draft &&
+        profile &&
+        draft.name === profile.name &&
+        draft.description === profile.description
+        ? undefined
+        : draft
+    );
+  };
   let eventOpener: HTMLElement | undefined;
   let scheduleOpener: HTMLElement | undefined;
   const focusedElement = () =>
@@ -79,6 +90,32 @@ export function createSchedulingOwner(
       throw new Error('Only owners and admins can edit team scheduling.');
     setError('');
     await source.save(next);
+  };
+  const hasProfileChanges = () => {
+    const draft = profileDraft();
+    const profile = source.profile();
+    return (
+      !!draft &&
+      (!profile ||
+        draft.name !== profile.name ||
+        draft.description !== profile.description)
+    );
+  };
+  const revertProfile = () => {
+    if (source.saving()) return;
+    setProfileDraft(undefined);
+    setError('');
+  };
+  const saveProfile = async () => {
+    if (!hasProfileChanges()) return;
+    if (source.saving()) throw new Error('Your booking page is still saving.');
+    const profile = source.profile();
+    const draft = profileDraft();
+    if (!profile || !draft)
+      throw new Error('Your booking page is not available yet.');
+    await save({ ...profile, ...draft });
+    // Preserve any newer edits made while the save was in flight.
+    if (profileDraft() === draft) setProfileDraft(undefined);
   };
   const action = async (fn: () => Promise<void>) => {
     setError('');
@@ -172,6 +209,9 @@ export function createSchedulingOwner(
     busyBooking,
     profileDraft,
     setProfileDraft,
+    hasProfileChanges,
+    revertProfile,
+    saveProfile,
     save,
     action,
     bookingAction,

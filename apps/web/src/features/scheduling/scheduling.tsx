@@ -1,5 +1,5 @@
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
-import { createSearchParams } from '@app/lib/split-router';
+import { createSearchParams, useBeforeLeave } from '@app/lib/split-router';
 import { useSplitDisplayName } from '@components/app/split-layout/layoutUtils';
 import { SplitPanel } from '@components/app/split-panel';
 import { toast } from '@core/component/Toast/Toast';
@@ -130,6 +130,11 @@ export function BookingLinksWorkspace() {
               <BookingWorkspaceView
                 search={search}
                 onSearchChange={(patch) => setSearch(patch)}
+                registerBeforeLeave={(guard) =>
+                  useBeforeLeave(({ signal }) => guard(signal), {
+                    search: ['scheduling'],
+                  })
+                }
               />
             </SchedulingHost>
           </Suspense>

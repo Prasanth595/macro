@@ -17,6 +17,7 @@ export function BookingPageEditor(props: {
   onName: (name: string) => void;
   onDescription: (description: string) => void;
   onSave: () => void;
+  onRevert: () => void;
 }) {
   const [mode, setMode] = createSignal<'edit' | 'preview'>('edit');
   return (
@@ -51,17 +52,29 @@ export function BookingPageEditor(props: {
           />
         </div>
         <Show when={mode() === 'edit'}>
-          <Button
-            type="submit"
-            class="pointer-events-auto"
-            variant="cta"
-            aria-label={
-              props.saving ? 'Saving booking page' : 'Save booking page'
-            }
-            disabled={!props.canEdit || !props.hasChanges || props.saving}
-          >
-            {props.saving ? 'Saving…' : 'Save'}
-          </Button>
+          <div class="pointer-events-auto flex items-center gap-2 rounded-lg bg-panel">
+            <Show when={props.canEdit && props.hasChanges}>
+              <Button
+                type="button"
+                variant="ghost"
+                aria-label="Revert booking page changes"
+                disabled={props.saving}
+                onClick={props.onRevert}
+              >
+                Revert
+              </Button>
+            </Show>
+            <Button
+              type="submit"
+              variant="cta"
+              aria-label={
+                props.saving ? 'Saving booking page' : 'Save booking page'
+              }
+              disabled={!props.canEdit || !props.hasChanges || props.saving}
+            >
+              {props.saving ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
         </Show>
       </div>
       <Show when={props.hasChanges}>

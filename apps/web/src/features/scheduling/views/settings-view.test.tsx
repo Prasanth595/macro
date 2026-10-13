@@ -100,6 +100,7 @@ afterEach(() => {
 function fixture(teamEditable = true) {
   const sources = new Map<string, SchedulingSource>();
   const saves = vi.fn();
+  let leave!: (signal: AbortSignal) => boolean | Promise<boolean>;
   const createSource: SchedulingCapabilities['createSource'] = (scope) => {
     const schedule = { ...newSchedule('UTC'), id: 'same-schedule-id' };
     // Identical IDs ensure actions are routed by owner, not accidental ID matching.
@@ -119,15 +120,21 @@ function fixture(teamEditable = true) {
       eventTypes: [event],
       revision: 1,
     });
+    const [saving, setSaving] = createSignal(false);
     const source: SchedulingSource = {
       profile,
       bookings: () => [],
       loading: () => false,
       error: () => undefined,
-      saving: () => false,
+      saving,
       save: async (next) => {
-        saves(scope().id, next);
-        setProfile(next);
+        setSaving(true);
+        try {
+          await saves(scope().id, next);
+          setProfile(next);
+        } finally {
+          setSaving(false);
+        }
       },
       approve: async () => {},
       cancel: async () => {},
@@ -158,10 +165,22 @@ function fixture(teamEditable = true) {
         manageBooking: async () => {},
       }}
     >
-      <BookingWorkspaceView search={search} onSearchChange={setSearch} />
+      <BookingWorkspaceView
+        search={search}
+        onSearchChange={setSearch}
+        registerBeforeLeave={(guard) => {
+          leave = guard;
+        }}
+      />
     </SchedulingProvider>
   ));
-  return { sources, saves };
+  return {
+    sources,
+    saves,
+    search,
+    setSearch,
+    leave: (signal = new AbortController().signal) => leave(signal),
+  };
 }
 
 it('switches owners and keeps link actions and editing within their owner', async () => {
@@ -324,4 +343,84 @@ it('creates a link for the chosen owner without replacing other owners', async (
   expect(
     screen.getByRole('button', { name: 'Personal catch-up' })
   ).toBeTruthy();
+});
+
+it('reverts booking page edits and guards tab and owner switching', async () => {
+  const { sources } = fixture();
+  const tabs = screen.getByRole('navigation', { name: 'Booking tabs' });
+  fireEvent.click(within(tabs).getByRole('button', { name: 'Booking page' }));
+  const name = screen.getByRole('textbox', { name: 'Display name' });
+  const introduction = screen.getByRole('textbox', { name: 'Introduction' });
+  expect(
+    screen.queryByRole('button', { name: 'Revert booking page changes' })
+  ).toBeNull();
+  fireEvent.input(name, { target: { value: 'Draft' } });
+  fireEvent.input(introduction, { target: { value: 'Draft introduction' } });
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Revert booking page changes' })
+  );
+  expect(name).toHaveProperty('value', 'Personal');
+  expect(introduction).toHaveProperty('value', '');
+  fireEvent.input(name, { target: { value: 'Draft' } });
+  fireEvent.input(name, { target: { value: 'Personal' } });
+  expect(
+    screen.queryByRole('button', { name: 'Revert booking page changes' })
+  ).toBeNull();
+  fireEvent.input(name, { target: { value: 'Draft' } });
+  fireEvent.click(within(tabs).getByRole('button', { name: 'Insights' }));
+  let dialog = await screen.findByRole('dialog', {
+    name: 'Save booking page changes?',
+  });
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Keep editing' }));
+  expect(name).toHaveProperty('value', 'Draft');
+  fireEvent.click(
+    within(
+      screen.getByRole('navigation', { name: 'Booking calendar owner' })
+    ).getByRole('button', { name: 'Design' })
+  );
+  dialog = await screen.findByRole('dialog', {
+    name: 'Save booking page changes?',
+  });
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Discard' }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole('textbox', { name: 'Display name' })
+    ).toHaveProperty('value', 'Design')
+  );
+  expect(sources.get('personal')!.profile()!.name).toBe('Personal');
+});
+
+it('retains failed leave saves and resumes navigation only after saving', async () => {
+  const { sources, saves, leave } = fixture();
+  fireEvent.click(
+    within(screen.getByRole('navigation', { name: 'Booking tabs' })).getByRole(
+      'button',
+      { name: 'Booking page' }
+    )
+  );
+  fireEvent.input(screen.getByRole('textbox', { name: 'Display name' }), {
+    target: { value: 'Saved after retry' },
+  });
+  const unload = new Event('beforeunload', { cancelable: true });
+  window.dispatchEvent(unload);
+  expect(unload.defaultPrevented).toBe(true);
+  saves.mockRejectedValueOnce(new Error('Offline'));
+  const result = leave();
+  const dialog = await screen.findByRole('dialog', {
+    name: 'Save booking page changes?',
+  });
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+  expect((await within(dialog).findByRole('alert')).textContent).toBe(
+    'Offline'
+  );
+  expect(
+    screen.getByRole('textbox', { name: 'Display name', hidden: true })
+  ).toHaveProperty('value', 'Saved after retry');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+  expect(await result).toBe(true);
+  expect(sources.get('personal')!.profile()!.name).toBe('Saved after retry');
+  expect(leave()).toBe(true);
+  const cleanUnload = new Event('beforeunload', { cancelable: true });
+  window.dispatchEvent(cleanUnload);
+  expect(cleanUnload.defaultPrevented).toBe(false);
 });

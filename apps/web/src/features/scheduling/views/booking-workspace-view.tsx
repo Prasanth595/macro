@@ -17,14 +17,17 @@ import {
   For,
   mapArray,
   on,
+  onCleanup,
   Show,
 } from 'solid-js';
 import type { BookingLinksState } from '../booking-links-search';
 import { AvailabilityTopBar } from '../components/availability-topbar';
+import { BookingPageLeaveDialog } from '../components/booking-page-leave-dialog';
 import { Field, TextInput } from '../components/fields';
 import { OwnerBadge } from '../components/owner-badge';
 import { useScheduling } from '../context/scheduling-context';
 import { reportDate, shiftReportDate } from '../core/insights';
+import { createBookingPageLeave } from '../primitives/create-booking-page-leave';
 import { createSchedulingOwner } from '../primitives/create-scheduling-owner';
 import { OwnerSettingsSection } from './owner-settings-section';
 
@@ -67,6 +70,9 @@ const TABS = [
 export function BookingWorkspaceView(props: {
   search: BookingLinksState;
   onSearchChange: (patch: Partial<BookingLinksState>) => void;
+  registerBeforeLeave?: (
+    guard: (signal: AbortSignal) => boolean | Promise<boolean>
+  ) => void;
 }) {
   const capabilities = useScheduling();
   const search = props.search;
@@ -112,8 +118,49 @@ export function BookingWorkspaceView(props: {
   const discardEditors = () => {
     for (const current of owners()) current.discardEditors();
   };
-  // Route history bypasses the UI setters. Dispose drafts when navigation
-  // changes their owner or tab, before they can reopen under a stale scope.
+  const dirtyOwners = () =>
+    owners().filter((current) => current.hasProfileChanges());
+  const hasPageChanges = () => dirtyOwners().length > 0;
+  const pageLeave = createBookingPageLeave({
+    dirty: hasPageChanges,
+    busy: isSaving,
+    save: async () => {
+      for (const current of dirtyOwners()) await current.saveProfile();
+    },
+    discard: () => {
+      for (const current of dirtyOwners()) current.revertProfile();
+    },
+  });
+  props.registerBeforeLeave?.(pageLeave.requestLeave);
+  const beforeUnload = (event: BeforeUnloadEvent) => {
+    if (!hasPageChanges()) return;
+    event.preventDefault();
+    event.returnValue = '';
+  };
+  createEffect(() => {
+    if (!hasPageChanges()) return;
+    window.addEventListener('beforeunload', beforeUnload);
+    onCleanup(() => window.removeEventListener('beforeunload', beforeUnload));
+  });
+  const commitSelection = (patch: Partial<BookingLinksState>) => {
+    discardEditors();
+    setSearch(patch);
+  };
+  const confirmSelection = async (
+    patch: Partial<BookingLinksState>,
+    result: Promise<boolean>
+  ) => {
+    if (await result) commitSelection(patch);
+  };
+  const requestSelection = (patch: Partial<BookingLinksState>) => {
+    if (pageLeave.open()) return;
+    const result = pageLeave.requestLeave();
+    if (typeof result === 'boolean') {
+      if (result) commitSelection(patch);
+    } else void confirmSelection(patch, result);
+  };
+  // Route history bypasses the UI setters. Dispose event/schedule editors,
+  // but retain booking-page drafts so same-view history cannot lose edits.
   createEffect(
     on(
       [selectedOwnerId, () => search.tab],
@@ -131,8 +178,7 @@ export function BookingWorkspaceView(props: {
     if (isSaving()) return;
     const next = TABS.find((item) => item.value === value);
     if (!next || next.value === search.tab) return;
-    discardEditors();
-    setSearch({ tab: next.value });
+    requestSelection({ tab: next.value });
   };
   const selectOwner = (id: string) => {
     if (
@@ -141,8 +187,7 @@ export function BookingWorkspaceView(props: {
       !scopes().some((scope) => scope.id === id)
     )
       return;
-    discardEditors();
-    setSearch({ owner: id });
+    requestSelection({ owner: id });
   };
   const create = (opener: HTMLElement) => {
     const current = owner();
@@ -159,6 +204,17 @@ export function BookingWorkspaceView(props: {
       resizable
       main={{ preferredWidth: 720 }}
     >
+      <BookingPageLeaveDialog
+        open={pageLeave.open()}
+        pending={pageLeave.busy()}
+        canSave={dirtyOwners().every(
+          (current) => current.scope().canEdit && !!current.source.profile()
+        )}
+        error={pageLeave.error()}
+        onKeepEditing={pageLeave.keepEditing}
+        onDiscard={pageLeave.discard}
+        onSave={() => void pageLeave.save()}
+      />
       <ViewShell.Aside>
         <ViewSidebar.Root aria-label="Scheduling navigation">
           <ViewSidebar.Header>

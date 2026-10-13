@@ -296,7 +296,7 @@ export function OwnerSettingsSection(props: {
                 }}
                 canEdit={scope().canEdit}
                 saving={source.saving()}
-                hasChanges={!!profileDraft()}
+                hasChanges={owner.hasProfileChanges()}
                 onName={(name) =>
                   setProfileDraft({
                     name,
@@ -309,12 +309,8 @@ export function OwnerSettingsSection(props: {
                     description,
                   })
                 }
-                onSave={() =>
-                  void action(async () => {
-                    await save({ ...p(), ...profileDraft() });
-                    setProfileDraft(undefined);
-                  })
-                }
+                onRevert={owner.revertProfile}
+                onSave={() => void action(owner.saveProfile)}
               />
             </div>
           </Match>
