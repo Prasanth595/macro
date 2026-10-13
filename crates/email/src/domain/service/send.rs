@@ -20,6 +20,25 @@ where
     anyhow::Error: From<T::Err>,
     anyhow::Error: From<E::Err>,
 {
+    #[tracing::instrument(skip_all, err)]
+    pub(crate) async fn send_message_for_user_impl(
+        &self,
+        macro_id: macro_user_id::user_id::MacroUserIdStr<'static>,
+        link_id: Option<uuid::Uuid>,
+        mut input: CreateDraftInput,
+    ) -> Result<CreatedDraft, EmailErr> {
+        let inboxes = self
+            .email_repo
+            .inboxes_for_macro_id(macro_id.clone())
+            .await
+            .map_err(anyhow::Error::from)?;
+        let link = super::draft::resolve_target_link(&inboxes, link_id, &macro_id)?;
+        let link_ids: Vec<_> = inboxes.iter().map(|link| link.id).collect();
+        self.resolve_client_handles(&mut input, &link_ids).await?;
+        input.actor = Some(macro_id);
+        self.send_message_impl(link, &inboxes, input).await
+    }
+
     #[tracing::instrument(err, skip(self, link, accessible_inboxes, input))]
     pub(crate) async fn send_message_impl(
         &self,

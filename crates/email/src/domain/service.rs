@@ -317,18 +317,10 @@ where
         &self,
         macro_id: macro_user_id::user_id::MacroUserIdStr<'static>,
         link_id: Option<Uuid>,
-        mut input: CreateDraftInput,
+        input: CreateDraftInput,
     ) -> Result<CreatedDraft, EmailErr> {
-        let inboxes = self
-            .email_repo
-            .inboxes_for_macro_id(macro_id.clone())
+        self.send_message_for_user_impl(macro_id, link_id, input)
             .await
-            .map_err(anyhow::Error::from)?;
-        let link = draft::resolve_target_link(&inboxes, link_id, &macro_id)?;
-        let link_ids: Vec<_> = inboxes.iter().map(|link| link.id).collect();
-        self.resolve_client_handles(&mut input, &link_ids).await?;
-        input.actor = Some(macro_id);
-        self.send_message_impl(link, &inboxes, input).await
     }
 
     async fn send_message(

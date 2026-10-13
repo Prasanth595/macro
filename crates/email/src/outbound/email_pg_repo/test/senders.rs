@@ -1,7 +1,6 @@
 use super::*;
 use crate::domain::{
     models::{ContactInfo, CreateDraftInput, EmailErr, Link},
-    ports::EmailService,
     senders::{EmailSenderProvider, SendAsAddress, SendAsFuture},
 };
 
@@ -66,7 +65,7 @@ async fn sender_survives_save_reopen_and_delivery_and_cannot_leak_to_another_inb
     let service = super::thread_unread::service(pool.clone()).with_sender_provider(Provider);
     let input = draft();
     let saved = service
-        .save_draft_for_user(actor(), Some(inbox_id()), input.clone())
+        .save_draft_for_user_impl(actor(), Some(inbox_id()), input.clone())
         .await?;
     assert_eq!(saved.sender.email, "resident@test.com");
     assert_eq!(saved.sender.name.as_deref(), Some("Property manager"));
@@ -79,7 +78,7 @@ async fn sender_survives_save_reopen_and_delivery_and_cannot_leak_to_another_inb
     let second_inbox = Uuid::parse_str("cccccccc-cccc-cccc-cccc-cccccccccccc")?;
     assert!(matches!(
         service
-            .save_draft_for_user(actor(), Some(second_inbox), input.clone())
+            .save_draft_for_user_impl(actor(), Some(second_inbox), input.clone())
             .await,
         Err(EmailErr::InvalidSender)
     ));
@@ -92,7 +91,7 @@ async fn sender_survives_save_reopen_and_delivery_and_cannot_leak_to_another_inb
     assert_eq!(unchanged.link_id, inbox_id());
 
     let sent = service
-        .send_message_for_user(actor(), Some(inbox_id()), input.clone())
+        .send_message_for_user_impl(actor(), Some(inbox_id()), input.clone())
         .await?;
     assert_eq!(sent.db_id, saved.draft.db_id);
     assert_eq!(sent.thread_db_id, saved.draft.thread_db_id);
@@ -101,7 +100,7 @@ async fn sender_survives_save_reopen_and_delivery_and_cannot_leak_to_another_inb
     assert_eq!(sender.email, "resident@test.com");
     assert!(
         service
-            .send_message_for_user(actor(), Some(inbox_id()), input)
+            .send_message_for_user_impl(actor(), Some(inbox_id()), input)
             .await
             .is_err(),
         "replayed delivery must not enqueue a second message"
@@ -118,7 +117,7 @@ async fn send_rejects_an_inaccessible_inbox(pool: Pool<Postgres>) -> anyhow::Res
     let stranger = MacroUserIdStr::try_from_email("stranger@example.com")?;
     assert!(matches!(
         service
-            .send_message_for_user(stranger, Some(inbox_id()), draft())
+            .send_message_for_user_impl(stranger, Some(inbox_id()), draft())
             .await,
         Err(EmailErr::InboxNotFound)
     ));
