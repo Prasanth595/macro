@@ -64,6 +64,7 @@ where
             mut send_times,
             timestamps,
             mut labels,
+            mut senders,
         ) = tokio::try_join!(
             self.email_repo.attachments_by_message_ids(&message_ids),
             self.email_repo
@@ -75,6 +76,7 @@ where
             self.email_repo
                 .message_timestamps(draft.db_id, draft.link_id),
             self.email_repo.labels_by_message_ids(&message_ids),
+            self.email_repo.senders_by_message_ids(&message_ids),
         )
         .map_err(anyhow::Error::from)?;
         let timestamps =
@@ -85,6 +87,8 @@ where
         draft.send_time = send_times.remove(&draft.db_id);
 
         Ok(SavedUserDraft {
+            sender: senders.remove(&draft.db_id)
+                .ok_or_else(|| anyhow::anyhow!("saved draft sender is unavailable"))?,
             created_at: timestamps.created_at,
             updated_at: timestamps.updated_at,
             labels: labels.remove(&draft.db_id).unwrap_or_default(),
@@ -114,7 +118,7 @@ where
     /// re-read it guards converge concurrent first saves on one row, and the
     /// upsert's owner guard rejects a write the resolution shouldn't have
     /// reached.
-    async fn resolve_client_handles(
+    pub(super) async fn resolve_client_handles(
         &self,
         input: &mut CreateDraftInput,
         accessible_link_ids: &[Uuid],
@@ -285,6 +289,7 @@ where
         is_draft: bool,
     ) -> Result<CreatedDraft, EmailErr> {
         let link_id = link.id;
+        let sender = self.resolve_sender(link, input.sender_email.as_ref(), !is_draft).await?;
         let accessible_link_ids: Vec<Uuid> = accessible_inboxes.iter().map(|l| l.id).collect();
 
         self.validate_existing_message(link_id, &accessible_link_ids, &mut input)
@@ -305,10 +310,9 @@ where
         }
 
         // Build parsed addresses
-        let from_email = String::from(link.email_address.clone());
         let addresses = ParsedAddresses {
-            from_email: from_email.clone(),
-            from_name: None,
+            from_email: sender.email,
+            from_name: sender.name,
             to: input.to.clone(),
             cc: input.cc.clone(),
             bcc: input.bcc.clone(),
@@ -676,7 +680,7 @@ fn resolve_thread_hint(existing: Option<&ThreadRow>, link_id: Uuid) -> ThreadHin
 /// matters: the links list includes delegated inboxes, which are primary for
 /// *their* account. Mirrors the `X-Email-Link-Id` axum extractor's semantics
 /// for transports that carry the inbox by value instead of a header.
-fn resolve_target_link<'a>(
+pub(super) fn resolve_target_link<'a>(
     links: &'a [Link],
     link_id: Option<Uuid>,
     caller: &macro_user_id::user_id::MacroUserIdStr<'_>,
