@@ -32,6 +32,7 @@ This file is the shared entry point: `AGENTS.md` symlinks to `CLAUDE.md`. Edit
 | `AGENTS.md` in a directory | Scope, map, checks, and gotchas for that subtree; a sibling `CLAUDE.md` symlinks to it. |
 | `.agents/skills/` | Task workflows. `.claude/skills` symlinks here. |
 | `.agents/rules/` | Path-scoped conventions, loaded when you touch matching files. `.claude/rules` and `.cursor/rules` symlink here. |
+| `.agents/agents/` | Subagents (`auditor`, `browser-verifier`). `.claude/agents` symlinks here. |
 | `.agents/templates/` | Templates for new rules and `AGENTS.md` files. |
 | `rules/ast-grep/` | Mechanically enforced code rules, run by `just check`. |
 
@@ -67,8 +68,9 @@ Real files live in `.agents/`; tool-specific directories only symlink to it.
 
 ## Before handing off
 
-- Always use Conventional Commit syntax for PR titles: `type(scope): description`
-  (scope optional), for example `fix(onboarding): preserve team inputs`.
+- Commits, branches, and PRs follow the `git` skill: Conventional Commit titles
+  such as `fix(onboarding): preserve team inputs`, and Why / What / Test plan bodies.
+- Run the `audit` skill (via the `auditor` subagent) before saying work is done.
 - Test the affected packages/services individually before committing. Use the
   relevant guide for setup; there is no root `just test` recipe.
 - For code changes, run `just check` (format/lint/code rules scoped to changes).
