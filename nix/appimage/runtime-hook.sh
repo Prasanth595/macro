@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # Sourced by linuxdeploy's AppRun before it launches the application.
 export APPDIR="${APPDIR:-"$(dirname "$(realpath "$0")")"}"
+# This hook sorts before other hooks, so external helpers can restore the
+# caller's environment rather than exporting AppImage libraries to host apps.
+# shellcheck disable=SC1091
+source "$APPDIR/usr/libexec/macro/host-environment.sh"
+macro_capture_host_environment
 export WEBKIT_INJECTED_BUNDLE_PATH="$APPDIR/usr/lib"
 # Nix's libxkbcommon embeds a store path that does not exist on other distros.
 export XKB_CONFIG_ROOT="$APPDIR/usr/share/X11/xkb"

@@ -361,13 +361,13 @@
               return 1;
             }
 
-            char *hook_path = malloc(strlen(hooks_dir) + strlen("/macro-gio-tls.sh") + 2);
+            char *hook_path = malloc(strlen(hooks_dir) + strlen("/00-macro-runtime.sh") + 2);
             if (hook_path == NULL) {
               perror("malloc TLS hook path");
               free(hooks_dir);
               return 1;
             }
-            sprintf(hook_path, "%s/macro-gio-tls.sh", hooks_dir);
+            sprintf(hook_path, "%s/00-macro-runtime.sh", hooks_dir);
 
             FILE *hook = fopen(hook_path, "w");
             if (hook == NULL) {
@@ -562,12 +562,7 @@
       tauriXkbData = pkgs.runCommand "tauri-appimage-xkb-data" { } ''
         cp -rL ${pkgs.xkeyboard-config}/share/X11/xkb "$out"
       '';
-      # Keep upstream PATH-based commands: nixpkgs' resholve preFixup makes
-      # these scripts (and even their data paths) depend on the build's store.
-      tauriXdgUtils = pkgs.xdg-utils.overrideAttrs {
-        preFixup = "";
-        dontPatchShebangs = true;
-      };
+      tauriXdgUtils = pkgs.callPackage ../nix-support/appimage-xdg-utils.nix { };
       tauriGsettingsSchemas =
         pkgs.runCommand "tauri-appimage-gsettings-schemas"
           {
@@ -605,6 +600,7 @@
           linux.appimage.files = {
             "/usr/bin/xdg-mime" = "${tauriXdgUtils}/bin/xdg-mime";
             "/usr/bin/xdg-open" = "${tauriXdgUtils}/bin/xdg-open";
+            "/usr/libexec/macro" = "${tauriXdgUtils}/libexec/macro";
             "/usr/share/X11/xkb" = "${tauriXkbData}";
             "/usr/share/glib-2.0/schemas" = "${tauriGsettingsSchemas}";
             "/usr/lib/gio/modules/giomodule.cache" = "${appimageGioModulePath}/giomodule.cache";

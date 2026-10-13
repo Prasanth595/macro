@@ -30,7 +30,8 @@ if env GSETTINGS_SCHEMA_DIR="$PWD/missing-schemas" "$settings_smoke"; then
 fi
 
 appdir="$PWD/Macro.AppDir"
-mkdir -p "$appdir/usr/share/X11" "$appdir/usr/share/glib-2.0" "$appdir/usr/lib/gio" "$appdir/usr/bin"
+mkdir -p "$appdir/usr/share/X11" "$appdir/usr/share/glib-2.0" "$appdir/usr/lib/gio" "$appdir/usr/bin" "$appdir/usr/libexec/macro"
+cp "$source_dir/host-environment.sh" "$appdir/usr/libexec/macro/host-environment.sh"
 cp -r "$data" "$appdir/usr/share/X11/xkb"
 cp -r "$schemas" "$appdir/usr/share/glib-2.0/schemas"
 cp -rL "$modules" "$appdir/usr/lib/gio/modules"
