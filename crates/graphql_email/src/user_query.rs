@@ -63,7 +63,14 @@ where
         self.service
             .get_user_email_links(self.user_id.clone())
             .await
-            .map(|links| links.into_iter().map(|link| GraphqlEmailLink::new(link, Arc::clone(&self.service), self.user_id.clone())).collect())
+            .map(|links| {
+                links
+                    .into_iter()
+                    .map(|link| {
+                        GraphqlEmailLink::new(link, Arc::clone(&self.service), self.user_id.clone())
+                    })
+                    .collect()
+            })
             .map_err(|error| {
                 tracing::error!(
                     error = ?error,

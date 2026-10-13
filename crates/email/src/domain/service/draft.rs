@@ -87,7 +87,8 @@ where
         draft.send_time = send_times.remove(&draft.db_id);
 
         Ok(SavedUserDraft {
-            sender: senders.remove(&draft.db_id)
+            sender: senders
+                .remove(&draft.db_id)
                 .ok_or_else(|| anyhow::anyhow!("saved draft sender is unavailable"))?,
             created_at: timestamps.created_at,
             updated_at: timestamps.updated_at,
@@ -289,7 +290,9 @@ where
         is_draft: bool,
     ) -> Result<CreatedDraft, EmailErr> {
         let link_id = link.id;
-        let sender = self.resolve_sender(link, input.sender_email.as_ref(), !is_draft).await?;
+        let sender = self
+            .resolve_sender(link, input.sender_email.as_ref(), !is_draft)
+            .await?;
         let accessible_link_ids: Vec<Uuid> = accessible_inboxes.iter().map(|l| l.id).collect();
 
         self.validate_existing_message(link_id, &accessible_link_ids, &mut input)

@@ -79,7 +79,10 @@ impl EmailMutationService for CapturingEmailMutationService {
         input: CreateDraftInput,
     ) -> Result<CreatedDraft, EmailErr> {
         self.send_inputs.lock().unwrap().push((
-            input.sender_email.as_ref().map(|email| email.0.as_ref().to_owned()),
+            input
+                .sender_email
+                .as_ref()
+                .map(|email| email.0.as_ref().to_owned()),
             input.include_signature,
         ));
         Ok(self.save_email_draft(user_id, link_id, input).await?.draft)
@@ -178,8 +181,12 @@ impl EmailMutationService for CapturingEmailMutationService {
         }
         Ok(SavedUserDraft {
             sender: ContactInfo {
-                email: input.sender_email.map(|email| email.0.as_ref().to_owned())
-                    .unwrap_or_else(|| String::from(test_sending_link(link_id.unwrap_or_default()).email_address)),
+                email: input
+                    .sender_email
+                    .map(|email| email.0.as_ref().to_owned())
+                    .unwrap_or_else(|| {
+                        String::from(test_sending_link(link_id.unwrap_or_default()).email_address)
+                    }),
                 name: None,
                 photo_url: None,
             },

@@ -143,7 +143,9 @@ async fn service_authorizes_actor_and_validates_future_time(
     pool: Pool<Postgres>,
 ) -> anyhow::Result<()> {
     let service = EmailServiceImpl {
-        sender_provider: std::sync::Arc::new(crate::domain::senders::UnavailableEmailSenderProvider),
+        sender_provider: std::sync::Arc::new(
+            crate::domain::senders::UnavailableEmailSenderProvider,
+        ),
         email_repo: EmailPgRepo::new(pool),
         frecency_service: (),
         enqueuer: (),
@@ -196,7 +198,9 @@ async fn scheduled_source_rejects_delete_and_migration_into_existing_reply(
     };
 
     let service = EmailServiceImpl {
-        sender_provider: std::sync::Arc::new(crate::domain::senders::UnavailableEmailSenderProvider),
+        sender_provider: std::sync::Arc::new(
+            crate::domain::senders::UnavailableEmailSenderProvider,
+        ),
         email_repo: EmailPgRepo::new(pool.clone()),
         frecency_service: FrecencyQueryServiceImpl::new(FrecencyPgStorage::new(pool.clone())),
         enqueuer: NoOpEnqueuer,
@@ -493,7 +497,9 @@ async fn initial_schedule_prepares_signature_but_time_updates_preserve_content(
     sqlx::query!("UPDATE email_messages SET body_html_sanitized = '<p>Hello</p>', body_text = 'Hello' WHERE id = $1", message)
         .execute(&pool).await?;
     let service = EmailServiceImpl {
-        sender_provider: std::sync::Arc::new(crate::domain::senders::UnavailableEmailSenderProvider),
+        sender_provider: std::sync::Arc::new(
+            crate::domain::senders::UnavailableEmailSenderProvider,
+        ),
         email_repo: EmailPgRepo::new(pool.clone()),
         frecency_service: (),
         enqueuer: (),

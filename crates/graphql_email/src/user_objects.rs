@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use async_graphql::{ComplexObject, Enum, ErrorExtensions, ID, SimpleObject};
-use email::domain::ports::EmailUserService;
-use macro_user_id::user_id::MacroUserIdStr;
 use email::domain::models::{
     EmailSyncStatus, LabelListVisibility, LabelType, LinkLabel, MessageListVisibility,
     UserEmailLink, UserEmailLinkSettings, UserProvider,
 };
+use email::domain::ports::EmailUserService;
+use macro_user_id::user_id::MacroUserIdStr;
 use uuid::Uuid;
 
 mod senders;

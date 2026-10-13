@@ -4,8 +4,8 @@ use async_graphql::{Context, ErrorExtensions, ID, InputObject, Object, OutputTyp
 use chrono::Utc;
 use email::domain::{
     models::{
-        ContactInfo, CreateDraftInput, CreatedDraft, DeletedUserDraft, EmailErr, Message, SavedUserDraft,
-        UpdateThreadLabelsResult,
+        ContactInfo, CreateDraftInput, CreatedDraft, DeletedUserDraft, EmailErr, Message,
+        SavedUserDraft, UpdateThreadLabelsResult,
     },
     ports::EmailService,
 };
@@ -447,9 +447,18 @@ fn draft_mutation_error(error: &EmailErr) -> async_graphql::Error {
         EmailErr::MessageNotFound(_) => ("referenced email message not found", "NOT_FOUND"),
         EmailErr::ThreadNotFound => ("email thread not found", "NOT_FOUND"),
         EmailErr::InboxNotFound => ("email inbox not found", "INBOX_NOT_FOUND"),
-        EmailErr::InvalidSender => ("address is not a verified sender for this inbox", "INVALID_SENDER"),
-        EmailErr::SendAsPermissionRequired => ("reconnect this inbox to use its sender addresses", "NEEDS_REAUTH"),
-        EmailErr::SendAsUnavailable => ("email sender addresses are unavailable", "SEND_AS_UNAVAILABLE"),
+        EmailErr::InvalidSender => (
+            "address is not a verified sender for this inbox",
+            "INVALID_SENDER",
+        ),
+        EmailErr::SendAsPermissionRequired => (
+            "reconnect this inbox to use its sender addresses",
+            "NEEDS_REAUTH",
+        ),
+        EmailErr::SendAsUnavailable => (
+            "email sender addresses are unavailable",
+            "SEND_AS_UNAVAILABLE",
+        ),
         EmailErr::CannotReplyToDraft => ("cannot reply to a draft", "INVALID"),
         EmailErr::Base64DecodeError(_) | EmailErr::Utf8Error(_) => {
             ("email draft body is invalid", "INVALID")
@@ -726,10 +735,13 @@ fn draft_input_from_graphql(input: SaveEmailDraftInput) -> async_graphql::Result
         .transpose()?;
 
     Ok(CreateDraftInput {
-        sender_email: input.sender_email.map(|address| {
-            macro_user_id::email::EmailStr::try_from(address)
-                .map_err(|_| draft_mutation_error(&EmailErr::InvalidSender))
-        }).transpose()?,
+        sender_email: input
+            .sender_email
+            .map(|address| {
+                macro_user_id::email::EmailStr::try_from(address)
+                    .map_err(|_| draft_mutation_error(&EmailErr::InvalidSender))
+            })
+            .transpose()?,
         db_id: Some(parse_id(input.draft_id, "draftId")?),
         provider_id: input.provider_id,
         replying_to_id: input

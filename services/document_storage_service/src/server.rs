@@ -406,7 +406,10 @@ pub async fn run() -> anyhow::Result<()> {
         email::outbound::GmailTokenProviderImpl::new(
             redis_client.get_multiplexed_async_connection().await?,
             Arc::new(authentication_service_client::AuthServiceClient::new(
-                config.authentication_service_secret_key.as_ref().to_string(),
+                config
+                    .authentication_service_secret_key
+                    .as_ref()
+                    .to_string(),
                 macro_service_urls::AuthServiceUrl::new()?.to_string(),
             )),
         ),

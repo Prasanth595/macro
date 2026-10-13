@@ -31,10 +31,18 @@ pub(super) async fn send<S: EmailMutationService>(
     input: SendEmailMessageInput,
 ) -> async_graphql::Result<SendEmailMessagePayload> {
     let user_id = require_authenticated_user(ctx)?;
-    let link_id = input.draft.link_id.clone().map(|id| parse_id(id, "linkId")).transpose()?;
+    let link_id = input
+        .draft
+        .link_id
+        .clone()
+        .map(|id| parse_id(id, "linkId"))
+        .transpose()?;
     let mut draft = draft_input_from_graphql(input.draft)?;
     draft.include_signature = input.include_signature;
-    let sent = ctx.data::<Arc<S>>()?.send_email_message(user_id, link_id, draft).await
+    let sent = ctx
+        .data::<Arc<S>>()?
+        .send_email_message(user_id, link_id, draft)
+        .await
         .map_err(|error| {
             tracing::error!(error = ?error, "failed to enqueue email delivery");
             draft_mutation_error(&error)

@@ -17,13 +17,27 @@ impl<T, U, E, CS, Eam, B> EmailServiceImpl<T, U, E, CS, Eam, B> {
         refresh: bool,
     ) -> Result<ContactInfo, EmailErr> {
         let primary = link.email_address.0.as_ref();
-        let Some(requested) = requested.filter(|email| !email.0.as_ref().eq_ignore_ascii_case(primary)) else {
-            return Ok(ContactInfo { email: primary.to_owned(), name: None, photo_url: None });
+        let Some(requested) =
+            requested.filter(|email| !email.0.as_ref().eq_ignore_ascii_case(primary))
+        else {
+            return Ok(ContactInfo {
+                email: primary.to_owned(),
+                name: None,
+                photo_url: None,
+            });
         };
         let senders = self.sender_provider.send_as(link, refresh).await?;
-        let sender = senders.into_iter().find(|sender| {
-            sender.verified && sender.email_address.0.as_ref().eq_ignore_ascii_case(requested.0.as_ref())
-        }).ok_or(EmailErr::InvalidSender)?;
+        let sender = senders
+            .into_iter()
+            .find(|sender| {
+                sender.verified
+                    && sender
+                        .email_address
+                        .0
+                        .as_ref()
+                        .eq_ignore_ascii_case(requested.0.as_ref())
+            })
+            .ok_or(EmailErr::InvalidSender)?;
         Ok(ContactInfo {
             email: sender.email_address.0.as_ref().to_owned(),
             name: sender.display_name,
@@ -34,7 +48,10 @@ impl<T, U, E, CS, Eam, B> EmailServiceImpl<T, U, E, CS, Eam, B> {
 
 /// Only verified provider identities may appear as alternate senders.
 pub(super) fn verified_senders(senders: Vec<SendAsAddress>) -> Vec<SendAsAddress> {
-    senders.into_iter().filter(|sender| sender.verified).collect()
+    senders
+        .into_iter()
+        .filter(|sender| sender.verified)
+        .collect()
 }
 
 #[cfg(test)]
