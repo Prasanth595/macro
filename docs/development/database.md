@@ -109,8 +109,8 @@ compatible with the service code currently deployed, not just the code in its PR
 4. **Update affected tests/fixtures and run package tests** from the root with
    `SQLX_OFFLINE` unset. Test between batches of query changes, not just at the end.
 
-5. **Refresh the workspace SQLx cache** when queries (including test queries) or
-   schema change, or when required metadata is missing. From the repository root:
+5. **Refresh the workspace SQLx cache** when non-test queries or schema
+   change, or when required metadata is missing. From the repository root:
 
    ```bash
    nix develop --command just prepare_db
@@ -124,29 +124,20 @@ compatible with the service code currently deployed, not just the code in its PR
 6. **Rerun the affected tests** after preparation or fixes. Cache preparation is
    not a substitute for `cargo test -p <package>` against the live local database.
 
-### Include test-only queries in preparation
+### Test queries are not cached
 
-The root `prepare_db` wrapper takes **no flags**. If SQLx needs metadata for
-queries compiled only in tests, call the workspace helper from the root. First
-set `DATABASE_URL` to your intended local database URL, replacing the placeholders
-below with your local connection details:
-
-```bash
-export DATABASE_URL='postgres://<user>:<password>@<host>:<port>/<database>'
-nix develop --command just sqlx::prepare_db "$DATABASE_URL" --tests
-```
-
-The helper in
-[sqlx.just](../../tooling/just/sqlx.just) forwards `--tests` to Cargo while keeping
-workspace scope and the root `.sqlx` directory. Do not run preparation from an
-individual crate or try `just prepare_db --tests`.
+Tests compile against a live database with `SQLX_OFFLINE` unset, and the offline
+checks (`just rust-check`, `just clippy`) don't compile tests, so test-only queries
+never need `.sqlx` metadata. Prepare with the root `prepare_db` wrapper only. Never
+pass `--tests` to `sqlx::prepare_db` or `cargo sqlx prepare`, and don't commit
+cache entries for test queries.
 
 ## Troubleshooting
 
 - **Connection or schema errors:** confirm local Postgres is running, test envs
   point to the intended local database, and migrations have been applied.
-- **Missing cached query data:** use the preparation commands above, including
-  `--tests` through the helper for test-only queries. Leave `SQLX_OFFLINE` unset
+- **Missing cached query data:** run `just prepare_db` as above. If the missing
+  query is test-only, the test is running offline: leave `SQLX_OFFLINE` unset
   for `cargo test`; enabling it can hide schema drift and produce misleading
   type-inference errors. Offline mode is only for builds/checks/lints.
 - **Preparation still fails:** fix in-scope query/schema issues; if the blocker
