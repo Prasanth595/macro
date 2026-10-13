@@ -88,6 +88,7 @@ export function useReminderEmailSource(
           {
             tab: 'reminders',
             inboxIds: state.inboxIds,
+            aliasFilter: state.aliasFilter,
             facets: state.facets,
             facetContext: tagContext(),
           },
@@ -97,7 +98,7 @@ export function useReminderEmailSource(
     );
   });
   const scope = createMemo(() =>
-    JSON.stringify([userId(), active(), filters()])
+    JSON.stringify([userId(), active(), filters(), state.aliasFilter])
   );
   const [disposed, setDisposed] = createSignal(false);
   onCleanup(() => setDisposed(true));

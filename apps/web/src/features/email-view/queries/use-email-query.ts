@@ -45,7 +45,7 @@ export type EmailDataSource = ListDataSource<EmailDataSourceItem> & {
 
 export type EmailDataSourceInput = Pick<
   EmailViewState,
-  'tab' | 'search' | 'inboxIds' | 'facets'
+  'tab' | 'search' | 'inboxIds' | 'facets' | 'aliasFilter'
 >;
 
 export type UseEmailDataSourceOptions = {
@@ -128,6 +128,7 @@ export function useEmailDataSource(
     (): EmailQueryContext => ({
       tab: state.tab,
       inboxIds: state.inboxIds === undefined ? undefined : [...state.inboxIds],
+      aliasFilter: state.aliasFilter,
       facets: state.facets,
       facetContext: facetContext(),
     })
@@ -181,6 +182,41 @@ export function useEmailDataSource(
       buildEmailSearchRequest(searchContext(), request),
   });
 
+  // Search retains its existing relevance service. Intersect its candidate
+  // IDs with the same GraphQL alias predicate used by normal mail discovery;
+  // never broaden an alias selection or depend on incomplete search previews.
+  const aliasSearchBatches = createMemo(() =>
+    state.aliasFilter &&
+    search.usesServiceSearch() &&
+    search.searchQuery.isSuccess &&
+    !search.searchQuery.isPlaceholderData
+      ? emailAdmissionBatches(selectEmails(search.data()))
+      : []
+  );
+  const aliasSearchQueries = indexArray(aliasSearchBatches, (ids) =>
+    useSoupAstItemsQuery(
+      () => buildEmailQuery(queryContext(), ids()),
+      () => ({
+        enabled: !!state.aliasFilter && search.usesServiceSearch(),
+        keepPreviousData: false,
+      })
+    )
+  );
+  const aliasSearchPending = () =>
+    aliasSearchQueries().some(
+      (query) => query.isPending || query.isPlaceholderData
+    );
+  const aliasSearchIds = createMemo(
+    () =>
+      new Set(
+        aliasSearchQueries().flatMap((query) =>
+          !query.isPending && !query.isPlaceholderData
+            ? (query.data?.entities.map((entity) => entity.id) ?? [])
+            : []
+        )
+      )
+  );
+
   const rawEntities = createMemo<EntityData[]>(() => {
     // Scheduled/Reminders disable native discovery. Reading its pending data
     // would suspend the whole split even though that query is not fetching.
@@ -199,7 +235,9 @@ export function useEmailDataSource(
     // Never admit the previous text/filter query's placeholder results.
     if (!search.usesServiceSearch() || search.searchQuery.isPlaceholderData)
       return [];
-    return search.data();
+    return state.aliasFilter
+      ? search.data().filter((entity) => aliasSearchIds().has(entity.id))
+      : search.data();
   });
 
   const hasReadFilter = () => (state.facets.read?.length ?? 0) > 0;
@@ -259,7 +297,10 @@ export function useEmailDataSource(
   const retainedQueries = indexArray(admissionBatches, (ids) => {
     const list = useSoupAstItemsQuery(
       () => buildEmailQuery(queryContext(), ids()),
-      () => ({ enabled: filtersReady() && !search.isSearching() })
+      () => ({
+        enabled:
+          filtersReady() && (!search.isSearching() || !!state.aliasFilter),
+      })
     );
     const searchQuery = useSearchSoupQuery(
       () =>
@@ -278,7 +319,15 @@ export function useEmailDataSource(
       data: () =>
         search.isSearching()
           ? searchQuery.isSuccess && !searchQuery.isPlaceholderData
-            ? searchQuery.data
+            ? state.aliasFilter
+              ? !list.isLoading && !list.isPlaceholderData
+                ? searchQuery.data.filter((entity) =>
+                    list.data?.entities.some(
+                      (member) => member.id === entity.id
+                    )
+                  )
+                : undefined
+              : searchQuery.data
             : undefined
           : !list.isLoading && !list.isPlaceholderData
             ? list.data?.entities
@@ -387,7 +436,7 @@ export function useEmailDataSource(
       return isListPending();
     }
     if (entities().length > 0) return false;
-    if (usesServiceSearch()) return search.isLoading();
+    if (usesServiceSearch()) return search.isLoading() || aliasSearchPending();
     return query.isLoading;
   };
 
@@ -420,6 +469,7 @@ export function useEmailDataSource(
           ? favorites.error
           : undefined) ??
         (usesServiceSearch() ? search.error() : query.error) ??
+        aliasSearchQueries().find((query) => query.error)?.error ??
         retainedQueries()
           .map((lookup) => lookup.error())
           .find((error) => error instanceof Error) ??

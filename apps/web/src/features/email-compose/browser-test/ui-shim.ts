@@ -2,6 +2,8 @@ export {
   Button,
   buttonClasses,
 } from '../../../components/ui/components/Button';
+export { Dropdown } from '../../../components/ui/components/Dropdown';
+export { pressHandlers } from '../../../components/ui/utils/press';
 export { SendButton } from '../../../components/ui/components/SendButton';
 export { Surface } from '../../../components/ui/components/Surface';
 export { Tooltip } from '../../../components/ui/components/Tooltip';
