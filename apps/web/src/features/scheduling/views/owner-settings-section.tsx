@@ -6,7 +6,6 @@ import { AvailabilityPanel } from '../components/availability-panel';
 import { BookingPageEditor } from '../components/booking-page-editor';
 import { BookingsPanel } from '../components/bookings-panel';
 import { EventTypesPanel } from '../components/event-types-panel';
-import { OwnerBadge } from '../components/owner-badge';
 import { useScheduling } from '../context/scheduling-context';
 import type { SchedulingOwner } from '../primitives/create-scheduling-owner';
 import { EventEditor } from './event-editor-view';
@@ -190,7 +189,6 @@ export function OwnerSettingsSection(props: {
                 }
               >
                 <AvailabilityPanel
-                  owner={scope()}
                   profile={p()}
                   canEdit={scope().canEdit}
                   saving={source.saving()}
@@ -302,9 +300,6 @@ export function OwnerSettingsSection(props: {
               role="group"
               aria-label={`${scope().name} ${props.kind === 'page' ? 'booking page' : props.kind}`}
             >
-              <div class="mb-4">
-                <OwnerBadge scope={scope()} />
-              </div>
               <BookingsPanel
                 bookings={source.bookings()}
                 events={p().eventTypes}
@@ -335,9 +330,6 @@ export function OwnerSettingsSection(props: {
               role="group"
               aria-label={`${scope().name} ${props.kind === 'page' ? 'booking page' : props.kind}`}
             >
-              <div class="mb-4">
-                <OwnerBadge scope={scope()} />
-              </div>
               <Show when={scope().id} keyed>
                 {(_scopeId) => (
                   <InsightsView

@@ -6,17 +6,11 @@ import Info from '@phosphor/info.svg';
 import { Button } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
 import { unwrap } from 'solid-js/store';
-import type {
-  AvailabilitySchedule,
-  SchedulingProfile,
-  SchedulingScope,
-} from '../core/types';
+import type { AvailabilitySchedule, SchedulingProfile } from '../core/types';
 import { WEEKDAYS } from '../core/types';
-import { OwnerBadge } from './owner-badge';
 
 export function AvailabilityPanel(props: {
   profile: SchedulingProfile;
-  owner?: SchedulingScope;
   canEdit: boolean;
   saving: boolean;
   onEdit: (schedule: AvailabilitySchedule) => void;
@@ -35,9 +29,6 @@ export function AvailabilityPanel(props: {
         fallback={
           <div class="col-span-full flex flex-col items-center gap-3 rounded-xl border border-dashed border-edge px-6 py-12 text-center">
             <Clock class="size-7 text-ink-muted" />
-            <Show when={props.owner}>
-              {(owner) => <OwnerBadge scope={owner()} />}
-            </Show>
             <h2 class="font-semibold">Set your working hours</h2>
             <p class="text-sm text-ink-muted">
               Create a schedule to start accepting bookings.
@@ -56,9 +47,6 @@ export function AvailabilityPanel(props: {
               >
                 <div class="flex flex-wrap items-center gap-3">
                   <h2 class="font-semibold">{schedule.name}</h2>
-                  <Show when={props.owner}>
-                    {(owner) => <OwnerBadge scope={owner()} />}
-                  </Show>
                   <Show when={defaultId() === schedule.id}>
                     <span class="rounded-md bg-active px-2 py-0.5 text-xs text-ink-muted">
                       Default

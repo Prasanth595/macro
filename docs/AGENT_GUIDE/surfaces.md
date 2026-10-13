@@ -1221,8 +1221,8 @@ Booking links, Availability, Bookings, Insights, and Booking page without a
 Calendar/Booking links switcher. The sidebar lists **Personal** first, then each team by
 name as vertical, single-selection rows matching Email's inbox list. The active
 row has a checkmark; the list scrolls when more calendars are present. Selecting
-a row switches the owner for the entire workspace; ownership badges identify
-the selected scope. Owner changes discard link/schedule drafts and stay disabled during saves.
+a row switches the owner for the entire workspace; ownership badges appear only
+in the top header, not on cards or tab content. Owner changes discard link/schedule drafts and stay disabled during saves.
 Each tab's heading appears in the main topbar, with its description available
 through an info tooltip rather than a separate large header. **New booking link** also lives in the
 topbar; link search and booking date filters remain below it. Tab content aligns
