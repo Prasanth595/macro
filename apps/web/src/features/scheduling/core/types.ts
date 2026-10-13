@@ -254,7 +254,12 @@ export function eventDurationIssues(event: EventType): EventValidationIssue[] {
   return !Number.isInteger(event.durationMinutes) ||
     event.durationMinutes < 5 ||
     event.durationMinutes > 480
-    ? [{ field: 'durationMinutes', message: 'Duration must be 5–480 minutes.' }]
+    ? [
+        {
+          field: 'durationMinutes',
+          message: 'Duration must be between 5 mins and 8 hours.',
+        },
+      ]
     : [];
 }
 

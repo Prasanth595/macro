@@ -1,12 +1,12 @@
 import { useLocale } from '@kobalte/core/i18n';
-import { Slider, Tooltip } from '@ui';
-import { createSignal, createUniqueId, For, Show } from 'solid-js';
+import { cn, Slider, Tooltip } from '@ui';
+import { createSignal, createUniqueId, For, type JSX, Show } from 'solid-js';
 import {
   type BookingValueUnit,
   describeBookingValue,
 } from '../core/booking-units';
 import { BookingFieldInfo } from './booking-field-info';
-import { BookingValueInput } from './booking-value-input';
+import { FieldError } from './fields';
 import { createSliderPointerIntent } from './slider-pointer-intent';
 
 /** Slider gestures edit common values; the adjacent input retains every supported exact value. */
@@ -25,8 +25,10 @@ export function BookingValueSlider(props: {
   zeroLabel?: string;
   marks?: readonly { value: number; label?: string }[];
   disabled: boolean;
+  rowClass?: string;
   error?: string;
   onChange: (value: number) => void;
+  children: (errorId: string) => JSX.Element;
 }) {
   const errorId = createUniqueId();
   const [hovered, setHovered] = createSignal(false);
@@ -150,7 +152,10 @@ export function BookingValueSlider(props: {
           )}
         </Show>
       </div>
-      <div class="flex min-w-0 items-center gap-4" data-booking-slider-row>
+      <div
+        class={cn('flex min-w-0 items-center gap-4', props.rowClass)}
+        data-booking-slider-row
+      >
         <div class="min-w-0 flex-1">
           <div
             class="flex justify-between gap-2 text-[11px] text-ink-muted"
@@ -180,7 +185,7 @@ export function BookingValueSlider(props: {
                 <For each={props.marks}>
                   {(mark) => (
                     <span
-                      class="absolute top-1/2 h-3 w-0.5 -translate-x-1/2 -translate-y-1/2 bg-ink-muted/70 rtl:translate-x-1/2"
+                      class="absolute top-1/2 size-1 rounded-full -translate-x-1/2 -translate-y-1/2 bg-ink-muted/70 rtl:translate-x-1/2"
                       style={{
                         'inset-inline-start': `${position(mark.value)}%`,
                       }}
@@ -190,7 +195,6 @@ export function BookingValueSlider(props: {
               </div>
             </Show>
             <Slider.Thumb
-              aria-label={props.label}
               aria-valuemin={props.min}
               aria-valuemax={max()}
               aria-valuenow={bounded()}
@@ -245,23 +249,9 @@ export function BookingValueSlider(props: {
               </For>
             </div>
           </Show>
+          <FieldError id={errorId} message={props.error} />
         </div>
-        <div class="w-32 min-w-0 shrink-0">
-          <BookingValueInput
-            label={props.label}
-            value={props.value}
-            min={props.min}
-            max={props.max}
-            units={units()}
-            disabled={props.disabled}
-            controls={false}
-            fullWidth
-            zeroLabel={props.zeroLabel}
-            error={props.error}
-            errorId={errorId}
-            onChange={props.onChange}
-          />
-        </div>
+        <div class="min-w-0 shrink-0">{props.children(errorId)}</div>
       </div>
     </Slider>
   );

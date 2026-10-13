@@ -6,7 +6,7 @@ export function formatBookingNotice(minutes: number): string {
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
   return hours
-    ? `${hours} h${remainder ? `, ${remainder} m` : ''}`
+    ? `${hours} h${remainder ? ` ${remainder} m` : ''}`
     : `${remainder} m`;
 }
 

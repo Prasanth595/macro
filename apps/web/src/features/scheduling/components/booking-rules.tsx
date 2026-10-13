@@ -3,8 +3,8 @@ import { MINUTE_UNITS } from '../core/booking-units';
 import type { EventType, EventValidationIssue } from '../core/types';
 import { BookingFieldInfo } from './booking-field-info';
 import { BookingRange } from './booking-range';
+import { BookingRulePresets } from './booking-rule-value';
 import { BookingValueInput } from './booking-value-input';
-import { BookingValueSlider } from './booking-value-slider';
 
 const BUFFER_UNITS = MINUTE_UNITS.slice(0, 1);
 
@@ -46,7 +46,7 @@ export function BookingRules(props: {
   return (
     <fieldset
       disabled={props.disabled}
-      class="flex min-w-0 flex-col gap-4"
+      class="flex min-w-0 flex-col gap-8"
       data-booking-rules-visual
       onKeyDown={(event) => {
         // Exact-value editing never advances or saves the enclosing form on Enter.
@@ -63,6 +63,73 @@ export function BookingRules(props: {
         issues={props.issues}
         onUpdate={props.onUpdate}
       />
+      <section
+        aria-label="Booking frequency"
+        class="flex min-w-0 flex-col gap-8"
+      >
+        <div
+          role="group"
+          aria-label="Time-slot interval"
+          class="flex min-w-0 flex-col gap-2"
+        >
+          <RuleLabel
+            label="Time-slot interval"
+            description="Spacing between the meeting start times guests can choose."
+          />
+          <BookingRulePresets
+            label="Time-slot interval"
+            value={props.draft.intervalMinutes}
+            min={5}
+            max={480}
+            units={BUFFER_UNITS}
+            disabled={props.disabled}
+            error={error('intervalMinutes')}
+            presets={[5, 10, 15, 20, 30, 45, 60].map((value) => ({
+              value,
+              label: `${value} mins`,
+            }))}
+            onChange={(value) => update('intervalMinutes', value)}
+          />
+        </div>
+        <div
+          role="group"
+          aria-label="Daily booking limit"
+          class="flex min-w-0 flex-col gap-2"
+        >
+          <RuleLabel
+            label="Daily booking limit"
+            description="The maximum meetings guests can book each day."
+          />
+          <BookingRulePresets
+            label="Daily booking limit"
+            value={props.draft.dailyLimit ?? 0}
+            min={0}
+            max={100}
+            units={[
+              {
+                id: 'bookings',
+                label: 'Bookings',
+                short: 'bookings',
+                factor: 1,
+              },
+            ]}
+            disabled={props.disabled}
+            error={error('dailyLimit')}
+            presets={[
+              { value: 0, label: 'No limit' },
+              ...[1, 3, 5, 10, 20].map((value) => ({
+                value,
+                label: String(value),
+              })),
+            ]}
+            onChange={(value) => {
+              if (props.disabled) return;
+              if (value === 0) props.onDailyLimitEnabled(false);
+              else props.onUpdate('dailyLimit', value);
+            }}
+          />
+        </div>
+      </section>
       <section
         aria-label="Time between meetings"
         class="flex min-w-0 flex-col gap-3"
@@ -106,72 +173,6 @@ export function BookingRules(props: {
               onChange={after}
             />
           </div>
-        </div>
-      </section>
-      <section
-        aria-label="Booking frequency"
-        class="flex min-w-0 flex-col gap-4"
-      >
-        <div
-          role="group"
-          aria-label="Time-slot interval"
-          class="flex min-w-0 flex-col gap-2"
-        >
-          <BookingValueSlider
-            label="Time-slot interval"
-            description="Spacing between the meeting start times guests can choose."
-            value={props.draft.intervalMinutes}
-            min={5}
-            max={480}
-            sliderMax={60}
-            sliderStep={5}
-            minLabel="5 min"
-            maxLabel="60 min+"
-            unit="min"
-            units={BUFFER_UNITS}
-            disabled={props.disabled}
-            error={error('intervalMinutes')}
-            marks={Array.from({ length: 10 }, (_, index) => {
-              const value = (index + 2) * 5;
-              return {
-                value,
-                label: value % 15 === 0 ? String(value) : undefined,
-              };
-            })}
-            onChange={(value) => update('intervalMinutes', value)}
-          />
-        </div>
-        <div
-          role="group"
-          aria-label="Daily booking limit"
-          class="flex min-w-0 flex-col gap-2"
-        >
-          <BookingValueSlider
-            label="Daily booking limit"
-            description="The maximum meetings guests can book each day. Zero means no limit."
-            value={props.draft.dailyLimit ?? 0}
-            min={0}
-            max={100}
-            unit="bookings"
-            minLabel="No limit"
-            zeroLabel="No limit"
-            maxLabel="100"
-            units={[
-              {
-                id: 'bookings',
-                label: 'Bookings',
-                short: 'bookings',
-                factor: 1,
-              },
-            ]}
-            disabled={props.disabled}
-            error={error('dailyLimit')}
-            onChange={(value) => {
-              if (props.disabled) return;
-              if (value === 0) props.onDailyLimitEnabled(false);
-              else props.onUpdate('dailyLimit', value);
-            }}
-          />
         </div>
       </section>
     </fieldset>

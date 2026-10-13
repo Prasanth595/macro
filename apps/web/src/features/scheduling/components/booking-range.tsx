@@ -4,19 +4,28 @@ import { createSignal, createUniqueId, For } from 'solid-js';
 import { formatBookingNotice } from '../core/booking-notice';
 import {
   BOOKING_RANGE_TIMELINE,
+  bookingNoticeTick,
   bookingTimelinePosition,
   bookingTimelineValue,
+  snapBookingNotice,
 } from '../core/booking-rule-timeline';
 import { DAY_UNITS } from '../core/booking-units';
 import type { EventType, EventValidationIssue } from '../core/types';
-import { BookingNoticeInput } from './booking-notice-input';
+import { BookingFieldInfo } from './booking-field-info';
+import { BookingTimeInput } from './booking-time-input';
 import { BookingValueInput } from './booking-value-input';
 import { createSliderPointerIntent } from './slider-pointer-intent';
 
 type RangeField = 'noticeMinutes' | 'horizonDays';
 const MINUTES_PER_DAY = 1440;
 const SLIDER_MAX_DAYS = 30;
-const RANGE_MARKS = ['1 hour', '1 day', '7 days'];
+const RANGE_MARKS = [
+  { value: 60, label: '1 h' },
+  { value: 240, label: '4 h' },
+  { value: 1440, label: '1 d' },
+  { value: 10080, label: '7 d' },
+  { value: 20160, label: '14 d' },
+] as const;
 const RANGE_DAY_UNITS = DAY_UNITS.slice(0, 1);
 
 /** The displayed scale clips outliers, while exact inputs retain the stored range. */
@@ -26,6 +35,7 @@ export function BookingRange(props: {
   issues?: EventValidationIssue[];
   onUpdate: <K extends keyof EventType>(key: K, value: EventType[K]) => void;
 }) {
+  const headingId = createUniqueId();
   const fromId = createUniqueId();
   const toId = createUniqueId();
   const fromErrorId = createUniqueId();
@@ -33,12 +43,19 @@ export function BookingRange(props: {
   const [hovered, setHovered] = createSignal<RangeField>();
   const [focused, setFocused] = createSignal<RangeField>();
   const [dragging, setDragging] = createSignal<RangeField>();
+  const [fine, setFine] = createSignal(false);
   const { direction } = useLocale();
   let keyboardGesture = false;
   const pointerIntent = createSliderPointerIntent();
+  const beginPointer = (event: PointerEvent) => setFine(event.ctrlKey);
+  const movePointer = (event: PointerEvent) => {
+    pointerIntent.move(event);
+    setFine(event.ctrlKey);
+  };
   const finishDrag = () => {
     pointerIntent.end();
     setDragging(undefined);
+    setFine(false);
   };
   const tooltipVisible = (field: RangeField) =>
     !props.disabled &&
@@ -93,26 +110,45 @@ export function BookingRange(props: {
       )
     );
   };
-  const describeNotice = () => formatBookingNotice(props.draft.noticeMinutes);
+  const describeNotice = () =>
+    props.draft.noticeMinutes === 0
+      ? 'Immediately'
+      : formatBookingNotice(props.draft.noticeMinutes);
   const describeHorizon = () =>
     `${props.draft.horizonDays} ${props.draft.horizonDays === 1 ? 'day' : 'days'}`;
   const horizonLabel = () =>
     props.draft.horizonDays > SLIDER_MAX_DAYS
-      ? `30 days+, exact value ${describeHorizon()}`
+      ? `30 days+ (exact value ${describeHorizon()})`
       : describeHorizon();
   const keyboard = (field: RangeField, event: KeyboardEvent) => {
     if (props.disabled) return;
     const notice = field === 'noticeMinutes';
     const value = notice ? earliest() : latest();
-    const increment = event.shiftKey ? (notice ? 60 : 7) : 1;
+    const increment = event.ctrlKey
+      ? 1
+      : event.shiftKey
+        ? notice
+          ? 60
+          : 7
+        : 1;
+    const tick = (sign: number) =>
+      notice && !event.ctrlKey && !event.shiftKey
+        ? bookingNoticeTick(value, sign)
+        : value + sign * increment;
+    const pageStep = (sign: number) =>
+      notice
+        ? value + (sign < 0 ? -1 : 0) < MINUTES_PER_DAY
+          ? 60
+          : MINUTES_PER_DAY
+        : 7;
     const horizontal = direction() === 'rtl' ? -1 : 1;
     const values: Record<string, number> = {
-      ArrowLeft: value - increment * horizontal,
-      ArrowRight: value + increment * horizontal,
-      ArrowDown: value - increment,
-      ArrowUp: value + increment,
-      PageDown: value - (notice ? 60 : 7),
-      PageUp: value + (notice ? 60 : 7),
+      ArrowLeft: tick(-horizontal),
+      ArrowRight: tick(horizontal),
+      ArrowDown: tick(-1),
+      ArrowUp: tick(1),
+      PageDown: value - pageStep(-1),
+      PageUp: value + pageStep(1),
       Home: notice ? 0 : 1,
       End: notice ? 10080 : SLIDER_MAX_DAYS,
     };
@@ -133,10 +169,23 @@ export function BookingRange(props: {
       <div
         role="group"
         aria-label="Booking range"
-        class="flex min-w-0 flex-col gap-1.5"
+        class="flex min-w-0 flex-col gap-3"
         data-booking-range
       >
+        <div class="flex items-center gap-1.5">
+          <h4
+            id={headingId}
+            class="text-sm font-normal tracking-wide text-ink-muted"
+          >
+            Booking range
+          </h4>
+          <BookingFieldInfo
+            label="Booking range"
+            description="Left: how soon a meeting can start after booking. Right: how many days ahead guests can book."
+          />
+        </div>
         <Slider
+          aria-labelledby={headingId}
           value={positions()}
           minValue={0}
           maxValue={100}
@@ -147,7 +196,7 @@ export function BookingRange(props: {
             error('noticeMinutes') || error('horizonDays') ? 'invalid' : 'valid'
           }
           class="gap-3"
-          onPointerMove={pointerIntent.move}
+          onPointerMove={movePointer}
           onPointerUp={finishDrag}
           onPointerCancel={finishDrag}
           onLostPointerCapture={finishDrag}
@@ -159,35 +208,30 @@ export function BookingRange(props: {
             )
               return;
             const previous = positions();
-            if (values[0] !== previous[0])
-              changeNotice(
-                bookingTimelineValue(values[0], BOOKING_RANGE_TIMELINE)
+            if (values[0] !== previous[0]) {
+              const minutes = bookingTimelineValue(
+                values[0],
+                BOOKING_RANGE_TIMELINE
               );
-            else if (values[1] !== previous[1])
+              changeNotice(fine() ? minutes : snapBookingNotice(minutes));
+            } else if (values[1] !== previous[1])
               changeHorizon(
                 bookingTimelineValue(values[1], BOOKING_RANGE_TIMELINE) /
                   MINUTES_PER_DAY
               );
           }}
         >
-          <Slider.Label
-            as="h4"
-            class="text-sm font-normal tracking-wide text-ink-muted"
-          >
-            Booking range
-          </Slider.Label>
           <div class="flex min-w-0 flex-col gap-1.5" data-booking-range-row>
             <div
               class="flex min-w-0 items-start justify-between gap-2"
               data-booking-range-values
             >
               <div class="min-w-0" data-booking-range-earliest>
-                <BookingNoticeInput
+                <BookingTimeInput
                   label="What's the earliest someone can book?"
                   inputId={fromId}
                   value={props.draft.noticeMinutes}
-                  min={0}
-                  max={10080}
+                  formatValue={formatBookingNotice}
                   disabled={props.disabled}
                   error={error('noticeMinutes')}
                   errorId={fromErrorId}
@@ -217,7 +261,8 @@ export function BookingRange(props: {
             <div class="min-w-0" data-booking-range-timeline>
               <Slider.Track
                 class="my-2"
-                onPointerMove={pointerIntent.move}
+                onPointerDown={beginPointer}
+                onPointerMove={movePointer}
                 onPointerUp={finishDrag}
                 onPointerCancel={finishDrag}
                 onLostPointerCapture={finishDrag}
@@ -236,6 +281,7 @@ export function BookingRange(props: {
                   }
                   onKeyDown={(event) => keyboard('noticeMinutes', event)}
                   onPointerDown={(event) => {
+                    beginPointer(event);
                     pointerIntent.thumbDown(event);
                     setDragging('noticeMinutes');
                   }}
@@ -243,7 +289,7 @@ export function BookingRange(props: {
                   onPointerLeave={() => setHovered(undefined)}
                   onFocus={() => setFocused('noticeMinutes')}
                   onBlur={() => setFocused(undefined)}
-                  onPointerMove={pointerIntent.move}
+                  onPointerMove={movePointer}
                   onPointerUp={finishDrag}
                   onPointerCancel={finishDrag}
                   onLostPointerCapture={finishDrag}
@@ -272,6 +318,7 @@ export function BookingRange(props: {
                   }
                   onKeyDown={(event) => keyboard('horizonDays', event)}
                   onPointerDown={(event) => {
+                    beginPointer(event);
                     pointerIntent.thumbDown(event);
                     setDragging('horizonDays');
                   }}
@@ -279,7 +326,7 @@ export function BookingRange(props: {
                   onPointerLeave={() => setHovered(undefined)}
                   onFocus={() => setFocused('horizonDays')}
                   onBlur={() => setFocused(undefined)}
-                  onPointerMove={pointerIntent.move}
+                  onPointerMove={movePointer}
                   onPointerUp={finishDrag}
                   onPointerCancel={finishDrag}
                   onLostPointerCapture={finishDrag}
@@ -301,12 +348,14 @@ export function BookingRange(props: {
                 aria-hidden="true"
               >
                 <For each={RANGE_MARKS}>
-                  {(mark, index) => (
+                  {(mark) => (
                     <span
                       class="absolute -translate-x-1/2 rtl:translate-x-1/2"
-                      style={{ 'inset-inline-start': `${(index() + 1) * 25}%` }}
+                      style={{
+                        'inset-inline-start': `${bookingTimelinePosition(mark.value, BOOKING_RANGE_TIMELINE)}%`,
+                      }}
                     >
-                      {mark}
+                      {mark.label}
                     </span>
                   )}
                 </For>

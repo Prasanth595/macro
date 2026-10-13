@@ -1,18 +1,14 @@
 import { InputGroup } from '@ui';
 import { batch, createSignal, createUniqueId } from 'solid-js';
-import {
-  formatBookingNotice,
-  parseBookingNotice,
-} from '../core/booking-notice';
+import { parseBookingNotice } from '../core/booking-notice';
 import { FieldError } from './fields';
 
-/** A single exact notice field accepts whole hours and minutes without a unit menu. */
-export function BookingNoticeInput(props: {
+/** A single exact time field accepts whole hours and minutes without a unit menu. */
+export function BookingTimeInput(props: {
   label: string;
   value: number;
-  min: number;
-  max: number;
   disabled: boolean;
+  formatValue: (minutes: number) => string;
   inputId?: string;
   error?: string;
   errorId?: string;
@@ -22,19 +18,14 @@ export function BookingNoticeInput(props: {
   const hintId = createUniqueId();
   const generatedErrorId = createUniqueId();
   const errorId = () => props.errorId ?? generatedErrorId;
-  const text = () => editing() ?? formatBookingNotice(props.value);
+  const text = () => editing() ?? props.formatValue(props.value);
   const changeText = (text: string) => {
     if (props.disabled) return;
     const value = parseBookingNotice(text);
     batch(() => {
       setEditing(text);
-      if (
-        value !== undefined &&
-        value >= props.min &&
-        value <= props.max &&
-        value !== props.value
-      )
-        props.onChange(value);
+      // Keep parsed values in the draft so owner validation blocks invalid ranges.
+      if (value !== undefined && value !== props.value) props.onChange(value);
     });
   };
   return (
@@ -43,7 +34,7 @@ export function BookingNoticeInput(props: {
         size="lg"
         class="w-auto max-w-full"
         data-number-unit-input
-        data-booking-notice-input
+        data-booking-time-input
       >
         <InputGroup.Input
           id={props.inputId}
@@ -58,7 +49,7 @@ export function BookingNoticeInput(props: {
           value={text()}
           class="flex-none px-3 text-base sm:text-sm"
           style={{
-            width: `calc(${Math.min(12, Math.max(5, text().length))}ch + 1.5rem)`,
+            width: `calc(${Math.min(18, Math.max(5, text().length))}ch + 1.5rem)`,
           }}
           onInput={(event) => changeText(event.currentTarget.value)}
           onFocus={(event) => setEditing(event.currentTarget.value)}
@@ -66,8 +57,8 @@ export function BookingNoticeInput(props: {
         />
       </InputGroup>
       <span id={hintId} class="sr-only">
-        Enter whole hours and minutes, for example 1 h, 30 m. Numbers without
-        units mean minutes.
+        Enter whole hours and minutes, for example 1 hour 30 mins. Numbers
+        without units mean minutes.
       </span>
       <FieldError id={errorId()} message={props.error} />
     </div>

@@ -181,7 +181,7 @@ export function BookingValueInput(props: {
                 props.fullWidth
                   ? undefined
                   : {
-                      width: `calc(${Math.max(2, String(editing()?.text ?? storedText(currentUnit())).length)}ch + 1.5rem)`,
+                      width: `calc(${Math.max(2, String(showZeroLabel() ? props.zeroLabel : (editing()?.text ?? storedText(currentUnit()))).length)}ch + 1.5rem)`,
                     }
               }
               onInput={() => props.onEdit?.()}

@@ -73,6 +73,68 @@ export function focusExactValue(input: () => HTMLInputElement | undefined) {
   });
 }
 
+/** Preset pills retain a distinct Custom choice with an exact value underneath. */
+export function BookingRulePresets(props: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  units: readonly BookingValueUnit[];
+  disabled: boolean;
+  error?: string;
+  presets: BookingPreset[];
+  onChange: (value: number) => void;
+}) {
+  const [manual, setManual] = createSignal(false);
+  let exactInput: HTMLInputElement | undefined;
+  const custom = () =>
+    manual() ||
+    !!props.error ||
+    !props.presets.some((preset) => preset.value === props.value);
+  return (
+    <div class="flex min-w-0 flex-col items-start gap-3">
+      <BookingPresets
+        label={props.label}
+        value={props.value}
+        custom={custom()}
+        disabled={props.disabled}
+        presets={props.presets}
+        onChange={(value) => {
+          if (props.disabled) return;
+          setManual(false);
+          props.onChange(value);
+        }}
+        onCustom={() => {
+          if (props.disabled) return;
+          setManual(true);
+          focusExactValue(() => exactInput);
+        }}
+      />
+      <Show when={custom()}>
+        <BookingValueInput
+          inputRef={(element) => {
+            exactInput = element;
+          }}
+          label={props.label}
+          value={props.value}
+          min={props.min}
+          max={props.max}
+          units={props.units}
+          compact
+          controls={false}
+          disabled={props.disabled}
+          error={props.error}
+          onChange={(value) => {
+            if (props.disabled) return;
+            setManual(true);
+            props.onChange(value);
+          }}
+        />
+      </Show>
+    </div>
+  );
+}
+
 /** Common values use one select; custom values reveal an exact input. */
 export function BookingRuleSelect(props: {
   label: string;
