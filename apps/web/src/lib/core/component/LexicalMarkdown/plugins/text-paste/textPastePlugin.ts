@@ -221,7 +221,8 @@ function $insertPastedGithubPullRequest(
   $insertNodes([placeholder]);
   const placeholderKey = placeholder.getKey();
 
-  void fetchPullRequestByGithubKey(githubKey).then((entity) => {
+  const upgradePlaceholder = async () => {
+    const entity = await fetchPullRequestByGithubKey(githubKey);
     if (!entity) return;
     editor.update(
       () => {
@@ -248,7 +249,33 @@ function $insertPastedGithubPullRequest(
       },
       { tag: HISTORY_MERGE_TAG }
     );
-  });
+  };
+  void upgradePlaceholder();
+}
+
+function $insertLargePlainTextPaste(
+  editor: LexicalEditor,
+  event: ClipboardEvent,
+  pastedText: string
+): boolean {
+  // Defer rich clipboards to their handlers; collapse only genuine plain text.
+  const clipboard = event.clipboardData;
+  const isRichClipboard = Boolean(
+    clipboard?.getData('application/x-lexical-editor') ||
+      clipboard?.getData('text/html')
+  );
+  if (
+    isRichClipboard ||
+    !editor.hasNode(PasteNode) ||
+    pastedText.length <= LARGE_PASTE_CHAR_THRESHOLD
+  ) {
+    return false;
+  }
+  const selection = $getSelection();
+  if ($isRangeSelection(selection) && !selection.isCollapsed()) return false;
+  event.preventDefault();
+  $insertNodesAndSplitList([$createPasteNode({ content: pastedText })]);
+  return true;
 }
 
 function registerTextPastePlugin(
@@ -304,31 +331,7 @@ function registerTextPastePlugin(
             resolveAppLink
           );
           if (!parsedMacroAppUrl?.id || !parsedMacroAppUrl.block) {
-            // Large plain-text pastes collapse into a block-level PasteNode
-            // (Anthropic-style "pasted" chip). Only handle genuine plain text
-            // pastes: defer to the richer paste handlers for HTML / Lexical
-            // clipboards, and only when the cursor is a collapsed selection.
-            const clipboard = event.clipboardData;
-            const isRichClipboard = Boolean(
-              clipboard?.getData('application/x-lexical-editor') ||
-                clipboard?.getData('text/html')
-            );
-            if (
-              !isRichClipboard &&
-              editor.hasNode(PasteNode) &&
-              pastedText.length > LARGE_PASTE_CHAR_THRESHOLD
-            ) {
-              const selection = $getSelection();
-              if ($isRangeSelection(selection) && !selection.isCollapsed()) {
-                return false;
-              }
-              event.preventDefault();
-              $insertNodesAndSplitList([
-                $createPasteNode({ content: pastedText }),
-              ]);
-              return true;
-            }
-            return false;
+            return $insertLargePlainTextPaste(editor, event, pastedText);
           }
 
           const selection = $getSelection();

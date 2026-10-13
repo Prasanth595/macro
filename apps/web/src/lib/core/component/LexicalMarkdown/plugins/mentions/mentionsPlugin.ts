@@ -1,5 +1,5 @@
+import { untrackMention } from '@app/lib/queries/storage/mentions';
 import { verifyBlockName } from '@core/constant/allBlocks';
-import { untrackMention } from '@core/signal/mention';
 import { $wrapNodeInElement, mergeRegister } from '@lexical/utils';
 import type { PeerIdValidator } from '@macro-inc/lexical-core';
 import {
@@ -50,7 +50,7 @@ import {
 } from '@macro-inc/lexical-core';
 import { $getId } from '@macro-inc/lexical-core/plugins/nodeIdPlugin';
 import type { MentionNode } from '@macro-inc/lexical-core/utils/mentions';
-import { blockNameToItemType, type ItemType } from '@service-storage/client';
+import { blockNameToItemType, type ItemType } from '@service-storage/itemType';
 import {
   $createParagraphNode,
   $createTextNode,
@@ -207,9 +207,65 @@ function $mentionItemFromNode(node: MentionNode): ItemMention {
       fileType = 'md';
       itemType = 'skill';
     } else if (blockName === 'csv') fileType = 'csv';
-    else if (blockName === 'canvas') fileType = 'canvas';
+    else
+      ({ fileType, itemType } = updateFileType(
+        blockName,
+        fileType,
+        itemType,
+        node
+      ));
+    return {
+      itemType: itemType,
+      itemId: node.getDocumentId(),
+      fileType,
+      documentName,
+      channelType: node.getChannelType(),
+    };
+  } else if ($isUserMentionNode(node)) {
+    return {
+      itemType: 'user',
+      itemId: node.getUserId(),
+    };
+  } else if ($isContactMentionNode(node)) {
+    return {
+      itemType: 'contact',
+      itemId: node.getContactId(),
+    };
+  } else if ($isGroupMentionNode(node)) {
+    return {
+      itemType: 'group',
+      itemId: node.getGroupAlias(),
+      groupAlias: node.getGroupAlias(),
+    };
+  } else if ($isAgentSessionMentionNode(node)) {
+    return {
+      itemType: 'agent_session',
+      itemId: node.getId(),
+      documentName: node.getLabel(),
+    };
+  } else if ($isPullRequestMentionNode(node)) {
+    return {
+      itemType: 'foreign',
+      itemId: node.getId(),
+      fileType: 'github_pull_request',
+      documentName: node.getLabel(),
+    };
+  } else {
+    return {
+      itemType: 'date',
+      itemId: node.getDate(),
+    };
+  }
+
+  function updateFileType(
+    blockName: string,
+    fileType: string,
+    itemType: ItemMention['itemType'],
+    nodeInput: DocumentMentionNode
+  ) {
+    if (blockName === 'canvas') fileType = 'canvas';
     else if (blockName === 'code') {
-      const blockParams = node.getBlockParams();
+      const blockParams = nodeInput.getBlockParams();
       fileType = blockParams?.fileType || 'txt';
     } else if (blockName === 'image') {
       fileType = 'png'; // Default to png
@@ -253,47 +309,7 @@ function $mentionItemFromNode(node: MentionNode): ItemMention {
     } else if (blockName === 'unknown') {
       fileType = 'unknown';
     }
-    return {
-      itemType: itemType,
-      itemId: node.getDocumentId(),
-      fileType,
-      documentName,
-      channelType: node.getChannelType(),
-    };
-  } else if ($isUserMentionNode(node)) {
-    return {
-      itemType: 'user',
-      itemId: node.getUserId(),
-    };
-  } else if ($isContactMentionNode(node)) {
-    return {
-      itemType: 'contact',
-      itemId: node.getContactId(),
-    };
-  } else if ($isGroupMentionNode(node)) {
-    return {
-      itemType: 'group',
-      itemId: node.getGroupAlias(),
-      groupAlias: node.getGroupAlias(),
-    };
-  } else if ($isAgentSessionMentionNode(node)) {
-    return {
-      itemType: 'agent_session',
-      itemId: node.getId(),
-      documentName: node.getLabel(),
-    };
-  } else if ($isPullRequestMentionNode(node)) {
-    return {
-      itemType: 'foreign',
-      itemId: node.getId(),
-      fileType: 'github_pull_request',
-      documentName: node.getLabel(),
-    };
-  } else {
-    return {
-      itemType: 'date',
-      itemId: node.getDate(),
-    };
+    return { fileType, itemType };
   }
 }
 

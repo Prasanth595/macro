@@ -8,6 +8,12 @@ import {
   Show,
 } from 'solid-js';
 import {
+  Field,
+  TextArea,
+  TextInput,
+  TimeZoneInput,
+} from '../components/fields';
+import {
   type BookingReceipt,
   meetingPlaceLabel,
   type PublicEvent,
@@ -17,7 +23,6 @@ import {
   type BookingSource,
   createBookingFlow,
 } from '../primitives/booking-flow';
-import { Field, TextArea, TextInput, TimeZoneInput } from './fields';
 
 function dateKey(date: Date) {
   return date.toISOString().slice(0, 10);

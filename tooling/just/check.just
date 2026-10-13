@@ -3,7 +3,7 @@
 # the output is exactly what is wrong with YOUR changes — legacy findings in
 # untouched files never appear. Findings print as file:line with the rule id;
 # ast-grep rule ids map to docs/STYLE_GUIDE.md (its `severity: error` rules fail
-# the run, warnings/hints only print; oxlint is warn-only for now).
+# the run, warnings/hints only print). Frontend oxlint warnings also fail.
 #
 #   just check        fast: rustfmt + biome + oxlint + ast-grep   (~seconds)
 #   just check full   also runs tsc + clippy                      (~minutes)
@@ -29,7 +29,7 @@ check *ARGS:
 
     rs=$(grep -E '^(crates|services|tooling)/.*\.rs$' <<<"$changed" || true)
     # Match packages/sdk/biome.jsonc: preserve generator output verbatim.
-    js=$(grep -E '^(apps/(web|marketing)|packages|services/(analytics-proxy|ai-editing-worker|lexical-service|websocket-service))/.*\.(ts|tsx)$' <<<"$changed" | grep -v '^packages/sdk/generated/' || true)
+    js=$(grep -E '^(apps/(web|marketing)|packages|services/(analytics-proxy|ai-editing-worker|lexical-service|websocket-service))/.*\.(js|jsx|mjs|cjs|ts|tsx|mts|cts)$' <<<"$changed" | grep -v '^packages/sdk/generated/' || true)
     sg=$(grep -E '^(apps|crates|packages|services|tooling)/.*\.(rs|ts|tsx)$' <<<"$changed" || true)
 
     fail=0
@@ -69,8 +69,8 @@ check *ARGS:
             || { echo "   fix: (\cd packages/sdk && bun run format && bun run lint), then re-check"; fail=1; }
         fi
       fi
-      echo "── oxlint (warn-only; docs/STYLE_GUIDE.md FE-12)"
-      (cd apps/web && bunx --yes oxlint@1.73.0 "${js_paths[@]}") || fail=1
+      echo "── oxlint (docs/STYLE_GUIDE.md FE-12)"
+      (cd apps/web && bunx --yes oxlint@1.73.0 --deny-warnings "${js_paths[@]}") || fail=1
     fi
     if [ -n "$sg" ]; then
       echo "── ast-grep code rules (rule ids map to docs/STYLE_GUIDE.md)"

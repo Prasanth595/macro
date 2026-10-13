@@ -226,7 +226,7 @@ export function createDatabaseSqlQuery(
     const settle = async () => {
       const result = await answered;
       if (generation === latest && !options.keepLoading) setLoading(false);
-      return result;
+      return await result;
     };
     return new ResultAsync(settle());
   };
@@ -238,7 +238,7 @@ export function createDatabaseSqlQuery(
     const settle = async () => {
       const result = await reading;
       if (networkRead === reading) networkRead = undefined;
-      return result;
+      return await result;
     };
     return new ResultAsync(settle());
   }

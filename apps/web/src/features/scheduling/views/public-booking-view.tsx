@@ -1,6 +1,5 @@
 import { cn } from '@ui';
 import { For, Show } from 'solid-js';
-import { BookingPicker } from '../components/booking-picker';
 import {
   type BookingReceipt,
   meetingPlaceLabel,
@@ -8,6 +7,7 @@ import {
   type PublicProfile,
 } from '../core/types';
 import type { BookingSource } from '../primitives/booking-flow';
+import { BookingPicker } from './booking-picker';
 
 export function PublicBookingView(props: {
   profile: PublicProfile;

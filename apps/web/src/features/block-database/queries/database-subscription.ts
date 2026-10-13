@@ -1,5 +1,5 @@
+import { useEntitySubscription } from '@queries/connection/tracked-entities';
 import { invalidateDatabase } from '@queries/storage/databases';
-import { useEntitySubscription } from '@service-connection/client';
 
 /**
  * Share gateway tracking and catch up on subscription, reconnect and refocus.
