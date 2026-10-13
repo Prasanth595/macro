@@ -18,7 +18,13 @@ pub struct BookingLinkEvent {
     pub duration_minutes: u16,
     /// Meeting location.
     pub location: String,
-    /// Generate a Google Meet conference.
+    /// Attach a Macro call when someone books. A join link is created for that
+    /// booking and written onto the calendar invitation. Mutually exclusive
+    /// with `googleMeet`. Prefer this for a Macro booking; omit or false when
+    /// the link should use Google Meet or no video.
+    #[serde(default)]
+    pub macro_call: bool,
+    /// Generate a Google Meet conference. Mutually exclusive with `macroCall`.
     pub google_meet: bool,
     /// Whether new bookings are accepted.
     pub enabled: bool,
@@ -115,6 +121,7 @@ impl BookingLinkDraft {
                 description: event.description.clone(),
                 duration_minutes: event.duration_minutes,
                 location: event.location.clone(),
+                macro_call: event.macro_call,
                 google_meet: event.google_meet,
                 enabled: event.enabled,
                 mode: event.mode,
@@ -146,6 +153,7 @@ impl BookingLinkDraft {
                 description: self.event.description,
                 duration_minutes: self.event.duration_minutes,
                 location: self.event.location,
+                macro_call: self.event.macro_call,
                 google_meet: self.event.google_meet,
                 enabled: self.event.enabled,
                 mode: self.event.mode,
