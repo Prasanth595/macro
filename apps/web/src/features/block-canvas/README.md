@@ -15,5 +15,5 @@ flag; there is no separate local demo route.
 
 The editor has drawing, rich text/mentions, connectors, media and document
 cards/embeds. Embedded documents keep their existing persistence. See the
-[parity plan](../../../../../docs/GRAPHICS_PARITY.md) for remaining collaboration,
+[parity plan](../../../../../docs/design/graphics-parity.md) for remaining collaboration,
 legacy-content support and editing work.

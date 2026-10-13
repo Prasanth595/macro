@@ -1,4 +1,4 @@
-// Keep the connect slug first, per docs/SLACK_LIVE_CHANNEL_IMPORT.md.
+// Keep the connect slug first, per docs/runbooks/slack-live-channel-import.md.
 export const SLACK_PIPEDREAM_SLUGS = ['slack', 'slack_v2'] as const;
 export const SLACK_CONNECT_SLUG = SLACK_PIPEDREAM_SLUGS[0];
 
