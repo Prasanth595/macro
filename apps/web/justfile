@@ -60,13 +60,13 @@ ios-build-sim prebuilt="false": ios-prepare
 ios-release *ARGS:
     bash scripts/ios-release.sh {{ARGS}}
 
-# iOS: bump the release numbers for an App Store release (marketing version,
-# build number, and the iOS floor in min-native-build.json) and sync gen/apple
-# metadata. Run it through Doppler so the build number also clears everything
-# App Store Connect has seen (`doppler run --project ios-release --config prd
-# -- just ios-bump`), then commit the result before adding the `ios-update`
-# label to a PR with breaking native changes. Flags: --no-min (non-breaking
-# App Store release) --build-only (TestFlight iteration)
+# iOS: bump the release numbers for an App Store release (build number, the
+# iOS floor in min-native-build.json, and the marketing version if the
+# committed one has already shipped) and sync gen/apple metadata. Run it
+# through Doppler so it can ask App Store Connect (`doppler run --project
+# ios-release --config prd -- just ios-bump`), then commit the result before
+# adding the `ios-update` label to a PR with breaking native changes. Flags:
+# --no-min (non-breaking App Store release) --build-only (TestFlight iteration)
 ios-bump *ARGS:
     bun scripts/ios-bump-version.mjs {{ARGS}}
 

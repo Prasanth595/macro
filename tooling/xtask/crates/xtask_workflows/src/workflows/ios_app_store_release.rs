@@ -94,15 +94,40 @@ fn release_job() -> Job {
                 .contents(Level::Read)
                 .pull_requests(Level::Write),
         )
+        .add_env(("GH_TOKEN", "${{ github.token }}"))
+        .add_env(("GH_REPO", "${{ github.repository }}"))
+        .add_env(("PR_NUMBER", "${{ github.event.pull_request.number }}"))
         .add_step(checkout_pr_head())
+        .add_step(preconditions())
         .add_step(steps::install_nix_macos())
         .add_step(verify_bump())
         .add_step(fetch_credentials())
         .add_step(require_unused_build())
         .add_step(configure_signing())
         .add_step(build_and_upload())
+        .add_step(head_guard())
         .add_step(submit_for_review())
         .add_step(pr_comment())
+}
+
+/// `ios-update` means "release this and merge it when Apple approves", so the
+/// PR must already be mergeable: not a draft, every other check on the head
+/// commit green (pending ones are waited on). Fails before the long build.
+fn preconditions() -> Step<Run> {
+    Step::new("Require the PR to be ready to merge")
+        .run(include_str!("scripts/ios_release_preconditions.sh"))
+        .shell("bash")
+        .add_env(("HEAD_SHA", "${{ github.event.pull_request.head.sha }}"))
+        .add_env(("WAIT_MINUTES", "20"))
+}
+
+/// Native code pushed while the build ran would make the upload stale; don't
+/// submit it (the drift workflow also withdraws after the fact).
+fn head_guard() -> Step<Run> {
+    Step::new("Require the PR's native code to be unchanged since the build")
+        .run(include_str!("scripts/ios_release_head_guard.sh"))
+        .shell("bash")
+        .add_env(("NATIVE_TREE_PATH", "apps/web/tauri"))
 }
 
 fn checkout_pr_head() -> Step<Use> {
@@ -187,11 +212,14 @@ fn build_and_upload() -> Step<Run> {
     .add_env(("IOS_RELEASE_PR", "${{ github.event.pull_request.number }}"))
 }
 
+/// `IOS_RELEASE_PR` lets `submit` recognise (and take over) this PR's own
+/// earlier in-flight version from its build stamp.
 fn submit_for_review() -> Step<Run> {
     in_dev_shell(
         "Submit for App Review",
         "  cd apps/web\n  bun scripts/ios-app-store.mjs submit\n",
     )
+    .add_env(("IOS_RELEASE_PR", "${{ github.event.pull_request.number }}"))
 }
 
 fn pr_comment() -> Step<Use> {

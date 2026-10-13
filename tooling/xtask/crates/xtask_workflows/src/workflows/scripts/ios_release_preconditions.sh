@@ -1,0 +1,41 @@
+set -euo pipefail
+# The ios-update label means "release this and merge it when Apple approves",
+# so refuse to start unless the PR is in a mergeable state: not a draft, and
+# every other check on the head commit passing. Pending checks are waited on
+# (the label often lands right after a push); anything failing stops the
+# release before the long build. Our own checks are excluded: the native
+# check is expected to be red until the release is live.
+pr_json=$(gh pr view "$PR_NUMBER" --repo "$GH_REPO" --json isDraft,headRefOid)
+if [[ "$(jq -r '.isDraft' <<<"$pr_json")" == "true" ]]; then
+  echo "PR #${PR_NUMBER} is a draft; mark it ready for review before adding ios-update." >&2
+  exit 1
+fi
+head_sha=$(jq -r '.headRefOid' <<<"$pr_json")
+if [[ "$head_sha" != "$HEAD_SHA" ]]; then
+  echo "PR #${PR_NUMBER} moved to ${head_sha:0:10} since this run started (${HEAD_SHA:0:10});" \
+    "re-add ios-update on the current head." >&2
+  exit 1
+fi
+
+ours='^(iOS Native Check|iOS App Store Release|Enable auto-merge|iOS Release Drift)'
+deadline=$(( $(date +%s) + WAIT_MINUTES * 60 ))
+while true; do
+  checks=$(gh pr checks "$PR_NUMBER" --repo "$GH_REPO" --json name,bucket 2>/dev/null \
+    | jq -c --arg ours "$ours" '[.[] | select(.name | test($ours) | not)]')
+  failing=$(jq -r '[.[] | select(.bucket == "fail" or .bucket == "cancel") | .name] | join(", ")' <<<"$checks")
+  pending=$(jq -r '[.[] | select(.bucket == "pending") | .name] | join(", ")' <<<"$checks")
+  if [[ -n "$failing" ]]; then
+    echo "PR #${PR_NUMBER} has failing checks: ${failing}. Get the PR green, then re-add ios-update." >&2
+    exit 1
+  fi
+  if [[ -z "$pending" ]]; then
+    echo "All other checks on ${head_sha:0:10} pass."
+    exit 0
+  fi
+  if (( $(date +%s) > deadline )); then
+    echo "Checks still pending after ${WAIT_MINUTES} minutes: ${pending}. Re-add ios-update once they pass." >&2
+    exit 1
+  fi
+  echo "Waiting for: ${pending}"
+  sleep 60
+done

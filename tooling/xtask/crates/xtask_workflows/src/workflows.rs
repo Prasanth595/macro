@@ -39,6 +39,7 @@ mod ensure_daytona_snapshot;
 mod ios_app_store_release;
 mod ios_native_check;
 mod ios_preview;
+mod ios_release_drift;
 mod ios_release_watch;
 mod path_validation;
 mod publish_sdk;
@@ -292,6 +293,11 @@ const WORKFLOWS: &[WorkflowFile] = &[
         slug: "ios_native_check",
         file_name: "ios-native-check.yml",
         render_yaml: || render_gh_workflow(ios_native_check::ios_native_check)(),
+    },
+    WorkflowFile {
+        slug: "ios_release_drift",
+        file_name: "ios-release-drift.yml",
+        render_yaml: || render_gh_workflow(ios_release_drift::ios_release_drift)(),
     },
     WorkflowFile {
         slug: "ios_release_watch",

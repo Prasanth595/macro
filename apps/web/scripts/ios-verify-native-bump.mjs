@@ -2,7 +2,8 @@
 // branch. Fail-fast guard used by the `iOS Native Check` merge gate and by
 // `iOS App Store Release` before spending ~40 minutes building: a PR with
 // native iOS changes must ship a new App Store release, which requires
-//   - a new marketing version (App Review rejects a reused version string),
+//   - a marketing version no lower than the base's (it only moves once the
+//     committed one has shipped — a re-release keeps it),
 //   - a higher build number, and
 //   - the iOS floor in min-native-build.json raised to that build number, so
 //     the next prod web deploy locks out older native builds (run `just ios-bump` to do all
@@ -71,10 +72,9 @@ const baseTriple = versionTriple(baseVersion);
 const headTriple = versionTriple(headVersion);
 if (!headTriple) {
   errors.push(`version ${JSON.stringify(headVersion)} is not "major.minor.patch".`);
-} else if (baseTriple && compareTriples(headTriple, baseTriple) <= 0) {
+} else if (baseTriple && compareTriples(headTriple, baseTriple) < 0) {
   errors.push(
-    `version is ${headVersion}, but ${baseRef} is already at ${baseVersion} — ` +
-      "App Review needs a new, higher marketing version.",
+    `version is ${headVersion}, below ${baseRef}'s ${baseVersion} — it must not go backwards.`,
   );
 }
 

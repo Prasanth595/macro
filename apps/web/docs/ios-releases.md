@@ -24,20 +24,24 @@ this end to end.
    cd apps/web && doppler run --project ios-release --config prd -- just ios-bump
    ```
 
-   This bumps the marketing version (`2.0.9` → `2.0.10`) and build number in
-   `tauri/src-tauri/tauri.ios.conf.json`, raises the `ios` floor in
-   `min-native-build.json` to the new build number, and syncs the generated
-   Apple project metadata. The new build number is one above the larger of
-   the committed number and the highest build App Store Connect has ever
-   seen, which is why the command runs through Doppler: a release made by
-   hand (Xcode Organizer, `just ios-release`) whose number was never
-   committed would otherwise be reused, and the floor derived from it would
-   be wrong. Without credentials the bump still runs but warns; the gate and
-   the release workflow both re-check the number against App Store Connect
-   and fail with a re-bump instruction if it collides.
-3. Add the **`ios-update`** label to the PR. The
+   This bumps the build number in `tauri/src-tauri/tauri.ios.conf.json`,
+   raises the `ios` floor in `min-native-build.json` to it, syncs the
+   generated Apple project metadata, and bumps the marketing version
+   (`2.0.9` → `2.0.10`) **only if the committed one has already shipped** —
+   a version that was never released, or whose submission was withdrawn,
+   keeps its string and just gets a new build. The build number is one above
+   the larger of the committed number and the highest build App Store
+   Connect has ever seen, which is why the command runs through Doppler: a
+   release made by hand (Xcode Organizer, `just ios-release`) whose number
+   was never committed would otherwise be reused, and the floor derived from
+   it would be wrong. Without credentials the bump still runs but warns (and
+   bumps the version unconditionally); the gate and the release workflow
+   both re-check the number against App Store Connect and fail with a
+   re-bump instruction if it collides.
+3. Add the **`ios-update`** label to the PR — once it is ready to merge: the
    **`iOS App Store Release`** workflow
-   (`.github/workflows/ios-app-store-release.yml`) then builds the app from
+   (`.github/workflows/ios-app-store-release.yml`) first refuses drafts and
+   PRs with failing checks (pending ones are waited on), then builds the app from
    the PR head on the Namespace macOS runner inside the Nix dev shell (like
    the `ios-preview` label), uploads it to TestFlight, waits for App Store
    Connect processing + export compliance, and submits it for App Review
@@ -102,6 +106,28 @@ uploaded build with the git tree hash of `apps/web/tauri` it was built from
 In practice: native PRs ship through Apple one at a time, each with its own
 number, and the first to release wins its number; the others are told to
 re-bump at the earliest check that can know.
+
+## Pushing to a PR after the label
+
+The label means "release this and merge it when Apple approves", so the
+release only starts on a PR that is ready to merge. Pushes afterwards:
+
+- **Web-only commits** need nothing. The native tree is unchanged, the gate
+  stays green, and the reviewed build's embedded web bundle is replaced over
+  the air after the merge like every other OTA update.
+- **Native commits** make the uploaded build stale, and a stale build Apple
+  approves would go straight to the App Store. The
+  **`iOS Release Drift`** workflow (`.github/workflows/ios-release-drift.yml`)
+  runs on every push to a labeled PR and, when `apps/web/tauri` changed,
+  cancels any release run still building, withdraws the PR's submission from
+  review (the API equivalent of "Remove from Review"), removes the
+  `ios-update` label, and comments. The release itself also refuses to
+  submit if the native tree moved while it was building. To continue: bump
+  (the marketing version stays, the build number moves), commit, push, and
+  re-add the label; `submit` takes the withdrawn version record over, so no
+  App Store Connect visit is needed. If Apple had already released the stale
+  build, nothing can be withdrawn: the comment says so, and the follow-up
+  release should ship as soon as possible.
 
 ## Manual / TestFlight-only releases
 

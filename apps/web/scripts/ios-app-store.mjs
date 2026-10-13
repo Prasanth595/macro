@@ -39,11 +39,19 @@
 //   bun scripts/ios-app-store.mjs wait-build [--timeout-minutes 30]
 //   bun scripts/ios-app-store.mjs submit [--whats-new "release notes"]
 //   bun scripts/ios-app-store.mjs status [--require-live] [--require-unused-build]
-//   bun scripts/ios-app-store.mjs latest-build
+//   bun scripts/ios-app-store.mjs release-info
+//   bun scripts/ios-app-store.mjs withdraw --pr <number>
 //
-// latest-build prints the highest build number App Store Connect has seen for
-// the app (any version, TestFlight included) — ios-bump-version.mjs uses it so
-// hand-made releases can't make the committed number fall behind.
+// release-info prints JSON for ios-bump-version.mjs: the highest build number
+// App Store Connect has seen (any version, TestFlight included), whether the
+// committed marketing version has ever been released, and the highest version
+// string — so hand-made releases can't make the committed numbers fall behind
+// and the marketing version only moves once it has actually shipped.
+//
+// withdraw removes PR <number>'s in-flight submission from review (the build's
+// stamp names the PR) — the drift workflow runs it when native code is pushed
+// after a release, so a stale build can never go live. submit later takes
+// that version record over (renaming it if the version string moved).
 //
 // Provenance: version + build number alone don't identify a PR's native code
 // (two PRs bumped from the same base get the same numbers), so wait-build
@@ -83,12 +91,29 @@ const SUBMITTED_STATES = new Set([
   ...LIVE_STATES,
 ]);
 
+// Versions that shipped and were superseded or pulled — never in flight.
+const RETIRED_STATES = new Set([
+  "REPLACED_WITH_NEW_VERSION",
+  "REMOVED_FROM_SALE",
+  "DEVELOPER_REMOVED_FROM_SALE",
+  "NOT_APPLICABLE",
+]);
+
+// Review submission states that can still be withdrawn.
+const WITHDRAWABLE_SUBMISSION_STATES = new Set([
+  "READY_FOR_REVIEW",
+  "WAITING_FOR_REVIEW",
+  "IN_REVIEW",
+  "UNRESOLVED_ISSUES",
+]);
+
 const BOOLEAN_FLAGS = new Set(["require-live", "require-unused-build"]);
 
 /// The directory whose git tree hash identifies "the native code" — the same
 /// definition the iOS Native Check path filter uses.
 const NATIVE_TREE_PATH = "apps/web/tauri";
 const STAMP_RE = /native tree ([0-9a-f]{40})/;
+const STAMP_PR_RE = /for PR #(\d+)/;
 
 function parseArgs(argv) {
   const args = {};
@@ -115,8 +140,10 @@ function parseArgs(argv) {
 }
 
 const [command, ...rest] = process.argv.slice(2);
-if (!["wait-build", "submit", "status", "latest-build"].includes(command ?? "")) {
-  console.error("Usage: ios-app-store.mjs <wait-build|submit|status|latest-build> [flags]");
+if (!["wait-build", "submit", "status", "release-info", "withdraw"].includes(command ?? "")) {
+  console.error(
+    "Usage: ios-app-store.mjs <wait-build|submit|status|release-info|withdraw> [flags]",
+  );
   exit(2);
 }
 const args = parseArgs(rest);
@@ -287,18 +314,23 @@ async function highestUploadedBuild() {
   return highest;
 }
 
-/// The native tree hash stamped on an uploaded build (its TestFlight "What to
-/// Test" text), or null for builds uploaded outside the release flow.
+/// The stamp on an uploaded build (its TestFlight "What to Test" text) as
+/// { tree, pr }, or null for builds uploaded outside the release flow.
 async function buildStamp(buildId) {
   const localizations = await api(`/v1/builds/${buildId}/betaBuildLocalizations?limit=10`);
   for (const localization of localizations.data) {
-    const match = STAMP_RE.exec(localization.attributes.whatsNew ?? "");
+    const text = localization.attributes.whatsNew ?? "";
+    const match = STAMP_RE.exec(text);
     if (match) {
-      return match[1];
+      return { tree: match[1], pr: STAMP_PR_RE.exec(text)?.[1] ?? null };
     }
   }
   return null;
 }
+
+/// The PR number this run releases for (the stamp carries it, so later runs
+/// can tell their own in-flight submission from another PR's), or null.
+const releasePr = process.env.IOS_RELEASE_PR || null;
 
 /// Record which native tree a processed build was built from, in its en-US
 /// TestFlight "What to Test" text (readable back through the API).
@@ -311,7 +343,7 @@ async function stampBuild(buildRecord) {
     );
     return;
   }
-  const pr = process.env.IOS_RELEASE_PR ? ` for PR #${process.env.IOS_RELEASE_PR}` : "";
+  const pr = releasePr ? ` for PR #${releasePr}` : "";
   const whatsNew = `Built by ios-release.sh${pr} from native tree ${tree}.`;
   const localizations = await api(
     `/v1/builds/${buildRecord.id}/betaBuildLocalizations?limit=10`,
@@ -364,7 +396,7 @@ build ${highest.number} was uploaded for version ${highest.version}
     exit(1);
   }
   if (highest.number === Number(build)) {
-    const stamp = await buildStamp(highest.id);
+    const stamp = (await buildStamp(highest.id))?.tree ?? null;
     const ours = nativeTreeHash();
     if (highest.version === version && ours && stamp === ours) {
       console.log(
@@ -387,16 +419,139 @@ Another native PR or a hand release took this number. ${rebump}`);
   setGitHubOutput("uploaded", "false");
 }
 
-/// Print the highest uploaded build number alone on stdout (0 when none), for
-/// ios-bump-version.mjs; details go to stderr.
-async function latestBuild() {
-  const highest = await highestUploadedBuild();
-  console.error(
-    highest
-      ? `Highest uploaded build: ${highest.number} (version ${highest.version}).`
-      : "No builds uploaded yet.",
+function versionTriple(versionString) {
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(versionString ?? "");
+  return match ? match.slice(1).map(Number) : null;
+}
+
+function compareVersions(a, b) {
+  const [ta, tb] = [versionTriple(a) ?? [0, 0, 0], versionTriple(b) ?? [0, 0, 0]];
+  for (let i = 0; i < 3; i += 1) {
+    if (ta[i] !== tb[i]) return ta[i] - tb[i];
+  }
+  return 0;
+}
+
+/// All IOS appStoreVersions of the app (newest first).
+async function allAppStoreVersions() {
+  const versions = await api(
+    `/v1/apps/${app.id}/appStoreVersions?filter[platform]=IOS&limit=50`,
   );
-  console.log(String(highest?.number ?? 0));
+  return versions.data;
+}
+
+function isInFlight(record) {
+  const state = versionState(record);
+  return !LIVE_STATES.has(state) && !RETIRED_STATES.has(state);
+}
+
+/// JSON on stdout for ios-bump-version.mjs (details on stderr).
+async function releaseInfo() {
+  const highest = await highestUploadedBuild();
+  const versions = await allAppStoreVersions();
+  const committed = versions.find((record) => record.attributes.versionString === version);
+  const state = committed ? versionState(committed) : null;
+  const highestVersion = versions
+    .map((record) => record.attributes.versionString)
+    .reduce((best, candidate) => (compareVersions(candidate, best) > 0 ? candidate : best), "0.0.0");
+  const info = {
+    highestBuild: highest?.number ?? 0,
+    highestBuildVersion: highest?.version ?? null,
+    version,
+    versionState: state,
+    versionReleased: committed ? !isInFlight(committed) : false,
+    highestVersion,
+  };
+  console.error(
+    `Highest uploaded build: ${info.highestBuild} (version ${info.highestBuildVersion ?? "n/a"}); ` +
+      `version ${version}: ${state ?? "no App Store record"}` +
+      `${info.versionReleased ? " (released)" : " (never released)"}; ` +
+      `highest App Store version: ${highestVersion}.`,
+  );
+  console.log(JSON.stringify(info));
+}
+
+/// Withdraw an in-flight review submission. Returns true when one was
+/// withdrawn, false when there was nothing withdrawable.
+async function cancelOpenSubmission() {
+  const submissions = await api(
+    `/v1/reviewSubmissions?filter[app]=${app.id}&filter[platform]=IOS` +
+      `&filter[state]=${[...WITHDRAWABLE_SUBMISSION_STATES].join(",")}&limit=25`,
+  );
+  const submission = submissions.data[0];
+  if (!submission) {
+    return false;
+  }
+  await api(`/v1/reviewSubmissions/${submission.id}`, {
+    method: "PATCH",
+    body: {
+      data: {
+        type: "reviewSubmissions",
+        id: submission.id,
+        attributes: { canceled: true },
+      },
+    },
+  });
+  console.log(
+    `Withdrew review submission ${submission.id} (was ${submission.attributes.state}).`,
+  );
+  return true;
+}
+
+/// The in-flight App Store version whose attached build is stamped with the
+/// given PR number, as { record, buildNumber }, or null.
+async function inFlightVersionForPr(pr) {
+  for (const record of await allAppStoreVersions()) {
+    if (!isInFlight(record)) continue;
+    const attached = await api(`/v1/appStoreVersions/${record.id}/build`);
+    if (!attached.data) continue;
+    const stamp = await buildStamp(attached.data.id);
+    if (stamp?.pr === String(pr)) {
+      return { record, buildNumber: attached.data.attributes.version };
+    }
+  }
+  return null;
+}
+
+/// `withdraw --pr N`: remove PR N's in-flight submission from review (native
+/// code changed after the release, so that build must never go live).
+/// GITHUB_OUTPUT gets withdrawn=true|false and, if the PR's version already
+/// shipped, live=<version> (<build>) so the caller can warn loudly.
+async function withdraw() {
+  const pr = args.pr ?? releasePr;
+  if (!pr) {
+    console.error("withdraw needs --pr <number> (or IOS_RELEASE_PR).");
+    exit(2);
+  }
+  const mine = await inFlightVersionForPr(pr);
+  if (mine) {
+    const state = versionState(mine.record);
+    console.log(
+      `PR #${pr}'s App Store version ${mine.record.attributes.versionString} ` +
+        `(build ${mine.buildNumber}) is ${state}.`,
+    );
+    const withdrawn = await cancelOpenSubmission();
+    setGitHubOutput("withdrawn", withdrawn ? "true" : "false");
+    if (!withdrawn) {
+      console.log("No withdrawable review submission; the version is already editable.");
+    }
+    return;
+  }
+  setGitHubOutput("withdrawn", "false");
+  // Not in flight: either never submitted, or Apple already released it.
+  for (const record of await allAppStoreVersions()) {
+    if (!LIVE_STATES.has(versionState(record))) continue;
+    const attached = await api(`/v1/appStoreVersions/${record.id}/build`);
+    if (!attached.data) continue;
+    const stamp = await buildStamp(attached.data.id);
+    if (stamp?.pr === String(pr)) {
+      const live = `${record.attributes.versionString} (${attached.data.attributes.version})`;
+      console.log(`PR #${pr}'s version ${live} is already live on the App Store.`);
+      setGitHubOutput("live", live);
+      return;
+    }
+  }
+  console.log(`PR #${pr} has no in-flight App Store submission; nothing to withdraw.`);
 }
 
 /// The IOS appStoreVersion for this marketing version, or null.
@@ -468,21 +623,9 @@ async function waitBuild() {
 /// live or retired) at a time. Explain which one blocks us instead of
 /// surfacing the raw 409 from creating ours.
 async function explainVersionInFlight() {
-  const RETIRED_STATES = new Set([
-    "REPLACED_WITH_NEW_VERSION",
-    "REMOVED_FROM_SALE",
-    "DEVELOPER_REMOVED_FROM_SALE",
-    "NOT_APPLICABLE",
-  ]);
-  const versions = await api(
-    `/v1/apps/${app.id}/appStoreVersions?filter[platform]=IOS&limit=20`,
-  );
-  const inFlight = versions.data
+  const inFlight = (await allAppStoreVersions())
     .filter((record) => record.attributes.versionString !== version)
-    .filter((record) => {
-      const state = versionState(record);
-      return !LIVE_STATES.has(state) && !RETIRED_STATES.has(state);
-    })
+    .filter(isInFlight)
     .map((record) => `${record.attributes.versionString} (${versionState(record)})`);
   if (inFlight.length === 0) {
     return;
@@ -508,11 +651,62 @@ async function submit() {
 
   let versionRecord = await findAppStoreVersion();
   if (versionRecord && SUBMITTED_STATES.has(versionState(versionRecord))) {
-    console.log(
-      `App Store version ${version} is already submitted ` +
-        `(state ${versionState(versionRecord)}); nothing to do.\n${distributionUrl}`,
-    );
-    return;
+    const attached = await api(`/v1/appStoreVersions/${versionRecord.id}/build`);
+    const attachedNumber = attached.data?.attributes.version ?? null;
+    if (attachedNumber === build) {
+      console.log(
+        `App Store version ${version} (${build}) is already submitted ` +
+          `(state ${versionState(versionRecord)}); nothing to do.\n${distributionUrl}`,
+      );
+      return;
+    }
+    // Submitted with another build. Ours (same PR, i.e. a stale submission
+    // the drift workflow didn't get to) is withdrawn and replaced below;
+    // anyone else's is left alone.
+    const stamp = attached.data ? await buildStamp(attached.data.id) : null;
+    if (!LIVE_STATES.has(versionState(versionRecord)) && releasePr && stamp?.pr === releasePr) {
+      console.log(
+        `App Store version ${version} is in review with this PR's stale build ` +
+          `${attachedNumber}; withdrawing it to resubmit with build ${build}.`,
+      );
+      await cancelOpenSubmission();
+    } else {
+      console.error(
+        `App Store version ${version} is ${versionState(versionRecord)} with build ` +
+          `${attachedNumber ?? "none"}, not this PR's build ${build}` +
+          (stamp?.pr ? ` (uploaded for PR #${stamp.pr})` : " (uploaded outside the release flow)") +
+          `. Bump past it (\`just ios-bump\`) and re-add the ios-update label.\n${distributionUrl}`,
+      );
+      exit(1);
+    }
+  }
+  // Take over this PR's own in-flight version from an earlier release whose
+  // version string has since moved on (its submission was withdrawn by the
+  // drift workflow, or is withdrawn here): App Store Connect allows one
+  // editable version, and its version string can be changed until approval.
+  if (!versionRecord && releasePr) {
+    const mine = await inFlightVersionForPr(releasePr);
+    if (mine) {
+      const from = mine.record.attributes.versionString;
+      console.log(
+        `Taking over this PR's in-flight App Store version ${from} ` +
+          `(build ${mine.buildNumber}, ${versionState(mine.record)}) as ${version}.`,
+      );
+      await cancelOpenSubmission();
+      versionRecord = (
+        await api(`/v1/appStoreVersions/${mine.record.id}`, {
+          method: "PATCH",
+          body: {
+            data: {
+              type: "appStoreVersions",
+              id: mine.record.id,
+              attributes: { versionString: version },
+            },
+          },
+        })
+      ).data;
+      console.log(`Renamed App Store version ${from} → ${version}.`);
+    }
   }
   if (!versionRecord) {
     versionRecord = (
@@ -697,7 +891,7 @@ ${distributionUrl}`);
         `${attachedBuildNumber ?? "unknown"}, not this PR's build ${build}.`,
     );
   }
-  const stamp = await buildStamp(attachedBuild.data.id);
+  const stamp = (await buildStamp(attachedBuild.data.id))?.tree ?? null;
   const ours = nativeTreeHash();
   if (!ours || stamp !== ours) {
     console.error(`App Store version ${version} (${build}) is live, but that build was not built from
@@ -717,8 +911,10 @@ if (command === "wait-build") {
   await waitBuild();
 } else if (command === "submit") {
   await submit();
-} else if (command === "latest-build") {
-  await latestBuild();
+} else if (command === "release-info") {
+  await releaseInfo();
+} else if (command === "withdraw") {
+  await withdraw();
 } else {
   await status();
 }
