@@ -9,7 +9,7 @@ import { createTaskBoardQueries } from './task-board-queries';
 const fixture = vi.hoisted(() => ({
   definitions: {} as Record<string, unknown>,
   projectQueries: [] as Record<string, unknown>[],
-  projectOptions: [] as unknown[],
+  projectIds: [] as string[],
   save: vi.fn(async (_input: unknown) => {}),
 }));
 
@@ -24,27 +24,22 @@ vi.mock('@queries/properties/definitions', () => ({
 vi.mock('@queries/properties/entity', () => ({
   useBulkSaveEntityPropertiesMutation: () => ({ mutateAsync: fixture.save }),
 }));
-vi.mock('@tanstack/solid-query', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@tanstack/solid-query')>()),
-  useQueries: (options: () => { queries: unknown[] }) => {
-    fixture.projectOptions = options().queries;
-    return fixture.projectQueries;
-  },
-  useQueryClient: () => ({
-    ensureQueryData: () => {
-      throw new Error('Project edit permissions must not be fetched');
-    },
-  }),
+vi.mock('@service-storage/graphql-soup', () => ({
+  getGraphqlSoupClient: () => ({}),
 }));
-vi.mock('@service-storage/initiative', () => ({ initiativeClient: {} }));
 vi.mock('@app/features/projects/queries/project-identity', () => ({
-  projectDetailQueryOptions: (
+  createProjectDetailQuery: (
     _client: unknown,
     _user: unknown,
-    id: string
-  ) => ({
-    queryKey: ['project', id],
-  }),
+    id: () => string
+  ) => {
+    fixture.projectIds.push(id());
+    return (
+      fixture.projectQueries[fixture.projectIds.length - 1] ?? {
+        isSuccess: false,
+      }
+    );
+  },
 }));
 
 const disposers: (() => void)[] = [];
@@ -67,7 +62,7 @@ function setup(
 
 beforeEach(() => {
   fixture.projectQueries = [];
-  fixture.projectOptions = [];
+  fixture.projectIds = [];
   fixture.definitions = {
     isSuccess: false,
     get data() {
@@ -93,7 +88,7 @@ it('allows task editing without a permission prefetch and keeps missing-row guar
   expect(source.canEditProperty('missing', SYSTEM_PROPERTY_IDS.PRIORITY)).toBe(
     false
   );
-  expect(fixture.projectOptions).toEqual([]);
+  expect(fixture.projectIds).toEqual([]);
 });
 
 it('blocks overlapping property writes and restores editability when a write fails', async () => {
@@ -158,9 +153,7 @@ it('attempts project moves without destination edit access and preserves column 
   expect(source.columns().find((column) => column.id === 'launch')?.label).toBe(
     'Launch'
   );
-  expect(fixture.projectOptions).toEqual([
-    { queryKey: ['project', 'launch'], enabled: true },
-  ]);
+  expect(fixture.projectIds).toEqual(['launch']);
   expect(source.actions.canMoveTo('project', 'launch')).toBe(true);
 
   fixture.save.mockRejectedValueOnce(new Error('server rejected'));

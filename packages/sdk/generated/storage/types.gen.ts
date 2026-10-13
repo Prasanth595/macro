@@ -1920,6 +1920,12 @@ export type CallRecord = {
      */
     transcript: Array<CallRecordTranscriptSegment>;
     userAccessLevel?: null | AccessLevel;
+    /**
+     * Whether the authenticated viewer has declined this call on any device.
+     * Set on the single-record read so clients that missed `call_declined`
+     * can still stop ringing via reconciliation; `false` in list contexts.
+     */
+    viewerHasDeclined?: boolean;
 };
 
 /**
@@ -3058,6 +3064,12 @@ export type ColumnChange = {
      */
     option: string;
 } | {
+    /**
+     * The formula, over the table's other columns.
+     */
+    formula: Formula;
+    kind: 'set_formula';
+} | {
     kind: 'delete_option';
     /**
      * The option.
@@ -3068,10 +3080,10 @@ export type ColumnChange = {
 /**
  * How a change touched a column.
  */
-export type ColumnChangeKind = 'create' | 'rename' | 'change_type' | 'delete' | 'add_options' | 'update_option' | 'delete_option' | 'reorder' | 'infer_type' | 'related';
+export type ColumnChangeKind = 'create' | 'rename' | 'change_type' | 'set_formula' | 'delete' | 'add_options' | 'update_option' | 'delete_option' | 'reorder' | 'infer_type' | 'related';
 
 /**
- * A relation column: its cells reference rows of another table.
+ * Column-kind specific configuration stored on the placement.
  */
 export type ColumnConfig = {
     /**
@@ -3083,6 +3095,12 @@ export type ColumnConfig = {
      * Target table.
      */
     table_id: string;
+} | {
+    /**
+     * How its cells are computed.
+     */
+    formula: Formula;
+    kind: 'derived';
 };
 
 /**
@@ -3225,6 +3243,8 @@ export type ColumnResult = {
     kind: 'option_updated';
 } | {
     kind: 'option_deleted';
+} | {
+    kind: 'formula_set';
 };
 
 /**
@@ -6793,6 +6813,43 @@ export type FormTally = {
     questions: Array<QuestionTally>;
 };
 
+/**
+ * An expression over one row's cells.
+ */
+export type Formula = {
+    /**
+     * The column placement.
+     */
+    column: string;
+    kind: 'column';
+} | {
+    kind: 'number';
+    /**
+     * The value; finite.
+     */
+    value: number;
+} | {
+    kind: 'binary';
+    /**
+     * The left operand.
+     */
+    left: Formula;
+    /**
+     * How.
+     */
+    operator: Operator;
+    /**
+     * The right operand.
+     */
+    right: Formula;
+} | {
+    kind: 'negate';
+    /**
+     * The expression negated; a number.
+     */
+    operand: Formula;
+};
+
 export type GenericErrorResponse = {
     /**
      * Indicates if an error occurred
@@ -9251,6 +9308,17 @@ export type NewColumn = {
     type: ColumnKind;
 } | {
     /**
+     * How its cells are computed: arithmetic over the table's number,
+     * date and other derived columns.
+     */
+    formula: Formula;
+    /**
+     * The column's name, unique within the table ignoring case.
+     */
+    name: string;
+    source: 'derived';
+} | {
+    /**
      * The property's definition.
      */
     property: string;
@@ -9513,6 +9581,11 @@ export type OpResult = {
      */
     tables: Array<VersionedTable>;
 };
+
+/**
+ * An arithmetic operator.
+ */
+export type Operator = 'add' | 'subtract' | 'multiply' | 'divide';
 
 /**
  * A select option, by its id or by its label.
@@ -10501,7 +10574,7 @@ export type ResponseSummary = {
  * Per-user status of an incoming-call ring, as reported by the
  * ring-status endpoint while a native client is ringing.
  */
-export type RingStatus = 'ringing' | 'answered' | 'ended';
+export type RingStatus = 'ringing' | 'answered' | 'declined' | 'ended';
 
 /**
  * Response body for `GET /call/ring-status/{call_id}`.
@@ -15452,6 +15525,38 @@ export type EditCallRecordResponses = {
 
 export type EditCallRecordResponse = EditCallRecordResponses[keyof EditCallRecordResponses];
 
+export type DeclineCallData = {
+    body?: never;
+    path: {
+        /**
+         * Call ID
+         */
+        call_id: string;
+    };
+    query?: never;
+    url: '/call/record/{call_id}/decline';
+};
+
+export type DeclineCallErrors = {
+    401: ErrorResponse;
+    /**
+     * The call is no longer active
+     */
+    404: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type DeclineCallError = DeclineCallErrors[keyof DeclineCallErrors];
+
+export type DeclineCallResponses = {
+    /**
+     * Decline recorded
+     */
+    204: void;
+};
+
+export type DeclineCallResponse = DeclineCallResponses[keyof DeclineCallResponses];
+
 export type MeetingShareData = {
     body?: never;
     path: {
@@ -15566,6 +15671,41 @@ export type GetRingStatusResponses = {
 };
 
 export type GetRingStatusResponse = GetRingStatusResponses[keyof GetRingStatusResponses];
+
+export type DeclineRingData = {
+    body?: never;
+    path: {
+        /**
+         * Call ID
+         */
+        call_id: string;
+    };
+    query?: never;
+    url: '/call/ring-status/{call_id}/decline';
+};
+
+export type DeclineRingErrors = {
+    /**
+     * Missing or invalid bearer token
+     */
+    401: ErrorResponse;
+    /**
+     * The call is no longer ringing
+     */
+    404: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type DeclineRingError = DeclineRingErrors[keyof DeclineRingErrors];
+
+export type DeclineRingResponses = {
+    /**
+     * Decline recorded
+     */
+    204: void;
+};
+
+export type DeclineRingResponse = DeclineRingResponses[keyof DeclineRingResponses];
 
 export type CallWebhookData = {
     body?: never;

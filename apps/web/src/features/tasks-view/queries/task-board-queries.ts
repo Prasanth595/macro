@@ -1,4 +1,4 @@
-import { projectDetailQueryOptions } from '@app/features/projects/queries/project-identity';
+import { createProjectDetailQuery } from '@app/features/projects/queries/project-identity';
 import type { FacetSelection, SortSelection } from '@app/features/soup';
 import { sortItems } from '@app/features/soup/collection/transforms';
 import { soupPropertyToProperty } from '@entity/extractors-property/property-helpers';
@@ -8,9 +8,8 @@ import type { Property, PropertyApiValues } from '@property/types';
 import { toPropertyDefinitionDomain } from '@property/utils/transforms';
 import { useListPropertiesQuery } from '@queries/properties/definitions';
 import { useBulkSaveEntityPropertiesMutation } from '@queries/properties/entity';
-import { initiativeClient } from '@service-storage/initiative';
-import { useQueries } from '@tanstack/solid-query';
-import { type Accessor, createMemo, createSignal } from 'solid-js';
+import { getGraphqlSoupClient } from '@service-storage/graphql-soup';
+import { type Accessor, createMemo, createSignal, mapArray } from 'solid-js';
 import { TASK_SORT_DEFINITIONS } from '../constants';
 import type { TaskBoardActions } from '../context/task-board';
 import type { TaskBoardColumn, TaskBoardGrouping } from '../core/task-board';
@@ -104,22 +103,15 @@ export function createTaskBoardQueries(options: {
     return rawColumns().flatMap((column) => (column.id ? [column.id] : []));
   });
 
-  const projects = useQueries(() => ({
-    queries: projectIds().map((id) => ({
-      ...projectDetailQueryOptions(initiativeClient, options.userId(), id),
-      enabled: !!options.userId(),
-    })),
-  }));
+  const projects = mapArray(projectIds, (id) =>
+    createProjectDetailQuery(getGraphqlSoupClient, options.userId, () => id)
+  );
 
   const projectMap = createMemo(() => {
-    const entries = projects.flatMap((query) => {
-      if (!query.isSuccess) {
-        return [];
-      }
+    const entries = projects().flatMap((query) => {
+      const project = query.isSuccess ? query.data?.project : undefined;
 
-      const project = query.data.project;
-
-      return [[project.id, project] as const];
+      return project ? [[project.id, project] as const] : [];
     });
 
     return new Map(entries);

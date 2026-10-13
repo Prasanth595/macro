@@ -2484,6 +2484,12 @@ export const getCallRecordResponse = zod
           .describe('Ordered from least to most access top -> bottom'),
       ])
       .optional(),
+    viewerHasDeclined: zod
+      .boolean()
+      .optional()
+      .describe(
+        'Whether the authenticated viewer has declined this call on any device.\nSet on the single-record read so clients that missed `call_declined`\ncan still stop ringing via reconciliation; `false` in list contexts.'
+      ),
   })
   .describe(
     'Full record of a call, unifying rows from `calls` (active) and\n`call_records` (archived) into a single response shape.'
@@ -2580,6 +2586,17 @@ export const editCallRecordBody = zod
       ),
   })
   .describe('Edit call request, as supplied by inbound callers.');
+
+/**
+ * Declines the identified active call for the caller without joining it.
+Bound to `call_id` so a stale incoming-call UI cannot decline a newer call
+that replaced it in the same channel. The caller's other devices are told
+to stop ringing (`call_declined`); the call continues for everyone else.
+ * @summary Handler for `POST /call/record/{call_id}/decline`.
+ */
+export const declineCallParams = zod.object({
+  call_id: zod.uuid().describe('Call ID'),
+});
 
 /**
  * @summary Handle `POST /call/record/{call_id}/link` through the call domain service.
@@ -2687,12 +2704,24 @@ export const getRingStatusParams = zod.object({
 export const getRingStatusResponse = zod
   .object({
     status: zod
-      .enum(['ringing', 'answered', 'ended'])
+      .enum(['ringing', 'answered', 'declined', 'ended'])
       .describe(
         'Per-user status of an incoming-call ring, as reported by the\nring-status endpoint while a native client is ringing.'
       ),
   })
   .describe('Response body for `GET \/call\/ring-status\/{call_id}`.');
+
+/**
+ * Declines a ringing call from a native client, e.g. the iPhone lock-screen
+decline button, so the user's other devices stop ringing. Authorized like
+[`ring_status_handler`]: the bearer credential is the recipient's LiveKit
+JWT from the VoIP push payload, which identifies both the room and the
+declining user.
+ * @summary Handler for `POST /call/ring-status/{call_id}/decline`.
+ */
+export const declineRingParams = zod.object({
+  call_id: zod.uuid().describe('Call ID'),
+});
 
 /**
  * Gets or creates a call for the channel. If a call already exists, joins it;
@@ -5069,6 +5098,65 @@ export const applyCrmPipelineOpsBody = zod
                               .describe('A new property the database owns.'),
                             zod
                               .object({
+                                formula: zod
+                                  .union([
+                                    zod
+                                      .object({
+                                        column: zod
+                                          .uuid()
+                                          .describe('The column placement.'),
+                                        kind: zod.enum(['column']),
+                                      })
+                                      .describe(
+                                        "The row's cell in another column of the table: a number, date or\nderived column."
+                                      ),
+                                    zod
+                                      .object({
+                                        kind: zod.enum(['number']),
+                                        value: zod
+                                          .number()
+                                          .describe('The value; finite.'),
+                                      })
+                                      .describe(
+                                        'A constant. Added to or subtracted from a date, it counts days.'
+                                      ),
+                                    zod
+                                      .object({
+                                        kind: zod.enum(['binary']),
+                                        left: zod.unknown(),
+                                        operator: zod
+                                          .enum([
+                                            'add',
+                                            'subtract',
+                                            'multiply',
+                                            'divide',
+                                          ])
+                                          .describe('An arithmetic operator.'),
+                                        right: zod.unknown(),
+                                      })
+                                      .describe('Two expressions combined.'),
+                                    zod
+                                      .object({
+                                        kind: zod.enum(['negate']),
+                                        operand: zod.unknown(),
+                                      })
+                                      .describe("An expression's negation."),
+                                  ])
+                                  .describe(
+                                    "An expression over one row's cells."
+                                  ),
+                                name: zod
+                                  .string()
+                                  .describe(
+                                    "The column's name, unique within the table ignoring case."
+                                  ),
+                                source: zod.enum(['derived']),
+                              })
+                              .describe(
+                                "A derived column: its cells are what `formula` computes from the\nrow's other cells, and nothing writes them."
+                              ),
+                            zod
+                              .object({
                                 property: zod
                                   .uuid()
                                   .describe("The property's definition."),
@@ -5259,6 +5347,58 @@ export const applyCrmPipelineOpsBody = zod
                       })
                       .describe(
                         'Relabel or recolour one option of a select or tag column. Every cell\nholding it keeps it. A column bound to a property shared outside the\ndatabase changes wherever that property is used, so it takes the\nright to edit that property.'
+                      ),
+                    zod
+                      .object({
+                        formula: zod
+                          .union([
+                            zod
+                              .object({
+                                column: zod
+                                  .uuid()
+                                  .describe('The column placement.'),
+                                kind: zod.enum(['column']),
+                              })
+                              .describe(
+                                "The row's cell in another column of the table: a number, date or\nderived column."
+                              ),
+                            zod
+                              .object({
+                                kind: zod.enum(['number']),
+                                value: zod
+                                  .number()
+                                  .describe('The value; finite.'),
+                              })
+                              .describe(
+                                'A constant. Added to or subtracted from a date, it counts days.'
+                              ),
+                            zod
+                              .object({
+                                kind: zod.enum(['binary']),
+                                left: zod.unknown(),
+                                operator: zod
+                                  .enum([
+                                    'add',
+                                    'subtract',
+                                    'multiply',
+                                    'divide',
+                                  ])
+                                  .describe('An arithmetic operator.'),
+                                right: zod.unknown(),
+                              })
+                              .describe('Two expressions combined.'),
+                            zod
+                              .object({
+                                kind: zod.enum(['negate']),
+                                operand: zod.unknown(),
+                              })
+                              .describe("An expression's negation."),
+                          ])
+                          .describe("An expression over one row's cells."),
+                        kind: zod.enum(['set_formula']),
+                      })
+                      .describe(
+                        'Give a derived column a new formula. Its cells follow at once: it\nstores none.'
                       ),
                     zod
                       .object({
@@ -6835,6 +6975,11 @@ export const applyCrmPipelineOpsResponse = zod
                         kind: zod.enum(['option_deleted']),
                       })
                       .describe('One of its options was removed.'),
+                    zod
+                      .object({
+                        kind: zod.enum(['formula_set']),
+                      })
+                      .describe('Its formula changed.'),
                   ])
                   .describe('What happened to a column.'),
                 column: zod.uuid().describe('The column.'),
@@ -8345,14 +8490,69 @@ export const getCrmPipelineTableResponse = zod
                 config: zod.union([
                   zod.null(),
                   zod
-                    .object({
-                      database_id: zod.uuid().describe('Target database.'),
-                      kind: zod.enum(['link']),
-                      table_id: zod.uuid().describe('Target table.'),
-                    })
-                    .describe(
-                      'A relation column: its cells reference rows of another table.'
-                    )
+                    .union([
+                      zod
+                        .object({
+                          database_id: zod.uuid().describe('Target database.'),
+                          kind: zod.enum(['link']),
+                          table_id: zod.uuid().describe('Target table.'),
+                        })
+                        .describe(
+                          'A relation column: its cells reference rows of another table.'
+                        ),
+                      zod
+                        .object({
+                          formula: zod
+                            .union([
+                              zod
+                                .object({
+                                  column: zod
+                                    .uuid()
+                                    .describe('The column placement.'),
+                                  kind: zod.enum(['column']),
+                                })
+                                .describe(
+                                  "The row's cell in another column of the table: a number, date or\nderived column."
+                                ),
+                              zod
+                                .object({
+                                  kind: zod.enum(['number']),
+                                  value: zod
+                                    .number()
+                                    .describe('The value; finite.'),
+                                })
+                                .describe(
+                                  'A constant. Added to or subtracted from a date, it counts days.'
+                                ),
+                              zod
+                                .object({
+                                  kind: zod.enum(['binary']),
+                                  left: zod.unknown(),
+                                  operator: zod
+                                    .enum([
+                                      'add',
+                                      'subtract',
+                                      'multiply',
+                                      'divide',
+                                    ])
+                                    .describe('An arithmetic operator.'),
+                                  right: zod.unknown(),
+                                })
+                                .describe('Two expressions combined.'),
+                              zod
+                                .object({
+                                  kind: zod.enum(['negate']),
+                                  operand: zod.unknown(),
+                                })
+                                .describe("An expression's negation."),
+                            ])
+                            .describe("An expression over one row's cells."),
+                          kind: zod.enum(['derived']),
+                        })
+                        .describe(
+                          "A derived column: its cells are computed from the row's others, and\nits definition, a number or date one, never holds a value."
+                        ),
+                    ])
                     .describe(
                       'Column-kind specific configuration stored on the placement.'
                     ),
@@ -9307,16 +9507,77 @@ export const getDatabaseResponse = zod
                         config: zod.union([
                           zod.null(),
                           zod
-                            .object({
-                              database_id: zod
-                                .uuid()
-                                .describe('Target database.'),
-                              kind: zod.enum(['link']),
-                              table_id: zod.uuid().describe('Target table.'),
-                            })
-                            .describe(
-                              'A relation column: its cells reference rows of another table.'
-                            )
+                            .union([
+                              zod
+                                .object({
+                                  database_id: zod
+                                    .uuid()
+                                    .describe('Target database.'),
+                                  kind: zod.enum(['link']),
+                                  table_id: zod
+                                    .uuid()
+                                    .describe('Target table.'),
+                                })
+                                .describe(
+                                  'A relation column: its cells reference rows of another table.'
+                                ),
+                              zod
+                                .object({
+                                  formula: zod
+                                    .union([
+                                      zod
+                                        .object({
+                                          column: zod
+                                            .uuid()
+                                            .describe('The column placement.'),
+                                          kind: zod.enum(['column']),
+                                        })
+                                        .describe(
+                                          "The row's cell in another column of the table: a number, date or\nderived column."
+                                        ),
+                                      zod
+                                        .object({
+                                          kind: zod.enum(['number']),
+                                          value: zod
+                                            .number()
+                                            .describe('The value; finite.'),
+                                        })
+                                        .describe(
+                                          'A constant. Added to or subtracted from a date, it counts days.'
+                                        ),
+                                      zod
+                                        .object({
+                                          kind: zod.enum(['binary']),
+                                          left: zod.unknown(),
+                                          operator: zod
+                                            .enum([
+                                              'add',
+                                              'subtract',
+                                              'multiply',
+                                              'divide',
+                                            ])
+                                            .describe(
+                                              'An arithmetic operator.'
+                                            ),
+                                          right: zod.unknown(),
+                                        })
+                                        .describe('Two expressions combined.'),
+                                      zod
+                                        .object({
+                                          kind: zod.enum(['negate']),
+                                          operand: zod.unknown(),
+                                        })
+                                        .describe("An expression's negation."),
+                                    ])
+                                    .describe(
+                                      "An expression over one row's cells."
+                                    ),
+                                  kind: zod.enum(['derived']),
+                                })
+                                .describe(
+                                  "A derived column: its cells are computed from the row's others, and\nits definition, a number or date one, never holds a value."
+                                ),
+                            ])
                             .describe(
                               'Column-kind specific configuration stored on the placement.'
                             ),
@@ -10376,6 +10637,65 @@ export const applyDatabaseOpsBody = zod
                               .describe('A new property the database owns.'),
                             zod
                               .object({
+                                formula: zod
+                                  .union([
+                                    zod
+                                      .object({
+                                        column: zod
+                                          .uuid()
+                                          .describe('The column placement.'),
+                                        kind: zod.enum(['column']),
+                                      })
+                                      .describe(
+                                        "The row's cell in another column of the table: a number, date or\nderived column."
+                                      ),
+                                    zod
+                                      .object({
+                                        kind: zod.enum(['number']),
+                                        value: zod
+                                          .number()
+                                          .describe('The value; finite.'),
+                                      })
+                                      .describe(
+                                        'A constant. Added to or subtracted from a date, it counts days.'
+                                      ),
+                                    zod
+                                      .object({
+                                        kind: zod.enum(['binary']),
+                                        left: zod.unknown(),
+                                        operator: zod
+                                          .enum([
+                                            'add',
+                                            'subtract',
+                                            'multiply',
+                                            'divide',
+                                          ])
+                                          .describe('An arithmetic operator.'),
+                                        right: zod.unknown(),
+                                      })
+                                      .describe('Two expressions combined.'),
+                                    zod
+                                      .object({
+                                        kind: zod.enum(['negate']),
+                                        operand: zod.unknown(),
+                                      })
+                                      .describe("An expression's negation."),
+                                  ])
+                                  .describe(
+                                    "An expression over one row's cells."
+                                  ),
+                                name: zod
+                                  .string()
+                                  .describe(
+                                    "The column's name, unique within the table ignoring case."
+                                  ),
+                                source: zod.enum(['derived']),
+                              })
+                              .describe(
+                                "A derived column: its cells are what `formula` computes from the\nrow's other cells, and nothing writes them."
+                              ),
+                            zod
+                              .object({
                                 property: zod
                                   .uuid()
                                   .describe("The property's definition."),
@@ -10566,6 +10886,58 @@ export const applyDatabaseOpsBody = zod
                       })
                       .describe(
                         'Relabel or recolour one option of a select or tag column. Every cell\nholding it keeps it. A column bound to a property shared outside the\ndatabase changes wherever that property is used, so it takes the\nright to edit that property.'
+                      ),
+                    zod
+                      .object({
+                        formula: zod
+                          .union([
+                            zod
+                              .object({
+                                column: zod
+                                  .uuid()
+                                  .describe('The column placement.'),
+                                kind: zod.enum(['column']),
+                              })
+                              .describe(
+                                "The row's cell in another column of the table: a number, date or\nderived column."
+                              ),
+                            zod
+                              .object({
+                                kind: zod.enum(['number']),
+                                value: zod
+                                  .number()
+                                  .describe('The value; finite.'),
+                              })
+                              .describe(
+                                'A constant. Added to or subtracted from a date, it counts days.'
+                              ),
+                            zod
+                              .object({
+                                kind: zod.enum(['binary']),
+                                left: zod.unknown(),
+                                operator: zod
+                                  .enum([
+                                    'add',
+                                    'subtract',
+                                    'multiply',
+                                    'divide',
+                                  ])
+                                  .describe('An arithmetic operator.'),
+                                right: zod.unknown(),
+                              })
+                              .describe('Two expressions combined.'),
+                            zod
+                              .object({
+                                kind: zod.enum(['negate']),
+                                operand: zod.unknown(),
+                              })
+                              .describe("An expression's negation."),
+                          ])
+                          .describe("An expression over one row's cells."),
+                        kind: zod.enum(['set_formula']),
+                      })
+                      .describe(
+                        'Give a derived column a new formula. Its cells follow at once: it\nstores none.'
                       ),
                     zod
                       .object({
@@ -12146,6 +12518,11 @@ export const applyDatabaseOpsResponse = zod
                         kind: zod.enum(['option_deleted']),
                       })
                       .describe('One of its options was removed.'),
+                    zod
+                      .object({
+                        kind: zod.enum(['formula_set']),
+                      })
+                      .describe('Its formula changed.'),
                   ])
                   .describe('What happened to a column.'),
                 column: zod.uuid().describe('The column.'),
@@ -13264,6 +13641,7 @@ export const getDatabaseTableChangesResponse = zod
                 'create',
                 'rename',
                 'change_type',
+                'set_formula',
                 'delete',
                 'add_options',
                 'update_option',
@@ -13729,14 +14107,64 @@ export const inferDatabaseColumnTypeResponse = zod
             config: zod.union([
               zod.null(),
               zod
-                .object({
-                  database_id: zod.uuid().describe('Target database.'),
-                  kind: zod.enum(['link']),
-                  table_id: zod.uuid().describe('Target table.'),
-                })
-                .describe(
-                  'A relation column: its cells reference rows of another table.'
-                )
+                .union([
+                  zod
+                    .object({
+                      database_id: zod.uuid().describe('Target database.'),
+                      kind: zod.enum(['link']),
+                      table_id: zod.uuid().describe('Target table.'),
+                    })
+                    .describe(
+                      'A relation column: its cells reference rows of another table.'
+                    ),
+                  zod
+                    .object({
+                      formula: zod
+                        .union([
+                          zod
+                            .object({
+                              column: zod
+                                .uuid()
+                                .describe('The column placement.'),
+                              kind: zod.enum(['column']),
+                            })
+                            .describe(
+                              "The row's cell in another column of the table: a number, date or\nderived column."
+                            ),
+                          zod
+                            .object({
+                              kind: zod.enum(['number']),
+                              value: zod
+                                .number()
+                                .describe('The value; finite.'),
+                            })
+                            .describe(
+                              'A constant. Added to or subtracted from a date, it counts days.'
+                            ),
+                          zod
+                            .object({
+                              kind: zod.enum(['binary']),
+                              left: zod.unknown(),
+                              operator: zod
+                                .enum(['add', 'subtract', 'multiply', 'divide'])
+                                .describe('An arithmetic operator.'),
+                              right: zod.unknown(),
+                            })
+                            .describe('Two expressions combined.'),
+                          zod
+                            .object({
+                              kind: zod.enum(['negate']),
+                              operand: zod.unknown(),
+                            })
+                            .describe("An expression's negation."),
+                        ])
+                        .describe("An expression over one row's cells."),
+                      kind: zod.enum(['derived']),
+                    })
+                    .describe(
+                      "A derived column: its cells are computed from the row's others, and\nits definition, a number or date one, never holds a value."
+                    ),
+                ])
                 .describe(
                   'Column-kind specific configuration stored on the placement.'
                 ),
