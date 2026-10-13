@@ -38,18 +38,6 @@ export function snapGanttGuide(
   return result;
 }
 
-export function resizedGanttEnd(start: number, boundary: number): number {
-  return Math.max(start, Math.round(boundary) - 1);
-}
-
-/** Follow fractional pointer positions while writing an inclusive calendar-day end. */
-export function ganttResizePreview(start: number, boundary: number) {
-  return {
-    boundary: Math.max(start + 1, boundary),
-    end: resizedGanttEnd(start, boundary),
-  };
-}
-
 /** Selection direction does not change the selected calendar dates. */
 export function ganttCreationRange(first: number, last: number): GanttRange {
   return {

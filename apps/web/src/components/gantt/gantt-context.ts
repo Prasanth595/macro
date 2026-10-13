@@ -4,6 +4,7 @@ import type { GanttGuide } from './gantt-interaction';
 
 export const HEADER_HEIGHT = 48;
 export type GanttContext = {
+  today: Accessor<number>;
   range: Accessor<GanttRange>;
   scale: Accessor<GanttScale>;
   setScale: (scale: GanttScale) => void;

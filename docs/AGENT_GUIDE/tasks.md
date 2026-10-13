@@ -83,18 +83,28 @@ instead. Keyboard list navigation only moves focus; press Enter to open the focu
 Choose **Gantt** from the **Task layout** dropdown to see task timelines.
 The same option is available in a project's Tasks section. The timeline uses
 Created at as the start and Due date as the end; no separate Start date is
-created or saved. Dashed, open-ended bars mean no due date is set. Invalid or
+created or saved. Bars without a due date fade to transparent at the right edge.
+The fade affects only the bar fill; labels remain visible.
+Their displayed tail is a visual placeholder, not a saved deadline. Invalid or
 missing start dates and due dates before creation are identified rather than
 silently displayed as valid intervals.
 The calendar fills the available pane width and height, including empty space
-below loaded rows. Zooming, resizing, and loading earlier items preserve the
+below loaded rows. Zooming, pane resizing, and loading earlier items preserve the
 visible calendar position. On first load, the chart centers on today after its
 viewport is measurable. Refetches and later resizes do not reset the scroll.
-Bars use the app's neutral depth-two surface and semantic border, with a small
-status-colored indicator. In light mode, bars have a stronger solid neutral fill
-and outline, and item panels have a subtle neutral fill and clearer border.
-Dark-mode surfaces stay unchanged. Bar text stays inside the visible portion of its bar as
-you scroll, zoom, or open the item drawer, and truncates in narrow segments.
+Bars use the app's neutral depth-two surface without an outline, with a small
+status-colored indicator. In light mode, bars have a stronger solid neutral fill,
+and item panels have a subtle neutral fill and clearer border.
+Dark-mode base surfaces stay unchanged. Active items due within seven calendar
+days use a danger-color background gradient at the due-date edge, blending into
+the neutral fill toward the left and strengthening as the deadline approaches.
+Due-today and overdue items use the strongest tint; completed, canceled, and
+undated items stay neutral.
+Deadline tints and the Today marker refresh at local midnight and when a tab
+becomes visible or focused again.
+The tint only appears when the actual end is inside the calendar range.
+Bar text stays inside the visible portion of its bar as you scroll, zoom, or
+open the item drawer, and truncates in narrow segments.
 The full-width date header stays visible during vertical scrolling; the pointer's
 date label stays in that header, and the vertical scrollbar begins below it.
 Timeline-edge fades stay within the date header, beneath its floating buttons.
@@ -154,14 +164,8 @@ Left-edge rebasing preserves the current visible date immediately; right-edge
 extension does not write the scroll position. Click a task label or bar to open
 the task; right-click either for the same actions as its list item.
 
-When editing is permitted, drag a bar's right edge to change Due date. The edge
-tracks the pointer smoothly and shows a date tooltip below the edge, above group
-headers and clear of the item panels. There is no resize snapping indicator or
-settling animation. Release saves the calendar date.
-Escape cancels the preview; failed saves restore the previous date.
-Arrow keys on the resize handle change one day; Shift changes one week.
-Created at stays fixed: moving a bar does not shift its dates, and start-date
-resizing is unavailable.
+Timeline dates are read-only: bars have no resize handles or end-date editing.
+Created at stays fixed, and moving a bar between groups does not shift its dates.
 
 When grouped by Status, Priority, Assignee, or Project, drag a task's list item or
 bar into another visible group to change that property. Projects support Status,
@@ -490,8 +494,8 @@ On desktop, **Project layout** offers **List** and **Gantt**. Gantt shows one
 bar per visible project from Created at to Due date, using the same search,
 filters, sort, grouping, and pagination as the project list. Click a project
 label or bar to open its overview. Right-click either for its project list menu.
-The same timeline settings and permission-gated Due date resize controls apply
-as in task Gantt. **Load more projects** continues the chart.
+The same timeline settings and read-only dates apply as in task Gantt.
+**Load more projects** continues the chart.
 The selection persists in `projects.layout` and restores with the navigation
 entry. Projects without a due date have explicitly open-ended bars. Mobile
 continues to render the project list.

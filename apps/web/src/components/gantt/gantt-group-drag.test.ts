@@ -66,9 +66,9 @@ function fixture(withPreview = false) {
               text.textContent = 'Bar';
               bar.append(text);
               bar.onclick = open;
-              const resize = document.createElement('button');
-              resize.textContent = 'Resize';
-              body.append(bar, resize);
+              const action = document.createElement('button');
+              action.textContent = 'Action';
+              body.append(bar, action);
               insert(
                 viewport,
                 createComponent(Gantt.DragItem, {
@@ -176,9 +176,9 @@ it.each(['escape', 'permission', 'scope', 'outside'])(
   }
 );
 
-it('keeps the resize handle separate from group dragging', () => {
+it('does not start group dragging from secondary action buttons', () => {
   const chart = fixture();
-  chart.press('Resize');
+  chart.press('Action');
   chart.hover();
   chart.release();
   expect(chart.move).not.toHaveBeenCalled();

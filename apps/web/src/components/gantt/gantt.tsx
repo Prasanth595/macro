@@ -14,6 +14,7 @@ import {
   untrack,
 } from 'solid-js';
 import { match } from 'ts-pattern';
+import { createGanttToday } from './create-gantt-today';
 import { GanttBar } from './gantt-bar';
 import { GanttCalendarScene } from './gantt-clip';
 import {
@@ -73,6 +74,7 @@ export function GanttRoot(
     class?: string;
   }>
 ) {
+  const today = createGanttToday();
   const dataRange = createMemo(
     () => normalizeGanttRange(props.range),
     undefined,
@@ -255,6 +257,7 @@ export function GanttRoot(
   );
 
   const context: GanttContext = {
+    today,
     range,
     scale,
     setScale: (value) => setPixelsPerDay(ganttPixelsPerDay(value)),
@@ -796,7 +799,8 @@ export function GanttDateHint(props: {
 
 function TodayLine(props: { date?: GanttDate; header?: boolean }) {
   const gantt = useGantt();
-  const day = () => toGanttDay(props.date ?? new Date());
+  const day = () =>
+    props.date == null ? gantt.today() : toGanttDay(props.date);
   const visible = () => {
     const current = day();
     return (

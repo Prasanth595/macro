@@ -13,6 +13,7 @@ import { useUserId } from '@core/context/user';
 import { getTaskStatusOptionId, type TaskEntityWithProperties } from '@entity';
 import { PropertyValueIcon } from '@property/component/propertyValue';
 import { usePropertyUserDisplay } from '@property/hooks/usePropertyUserDisplay';
+import { PROPERTY_OPTION_IDS } from '@property/identifiers';
 import type { Accessor, JSX } from 'solid-js';
 import { TASK_SORT_DEFINITIONS } from './constants';
 import { taskGanttDates } from './queries/task-gantt';
@@ -65,6 +66,15 @@ export function TasksGantt(props: { ref?: (element: HTMLDivElement) => void }) {
     label: JSX.Element
   ) => {
     const list = toSingleEntityActionListState(task);
+    const deadlineWarning = () => {
+      const entity = task();
+      const status = getTaskStatusOptionId(entity);
+      return (
+        !(entity.subType?.type === 'task' && entity.subType.is_completed) &&
+        status !== PROPERTY_OPTION_IDS.STATUS.COMPLETED &&
+        status !== PROPERTY_OPTION_IDS.STATUS.CANCELED
+      );
+    };
     return (
       <SoupEntityContextMenu
         as="div"
@@ -77,12 +87,8 @@ export function TasksGantt(props: { ref?: (element: HTMLDivElement) => void }) {
         <Gantt.Bar
           {...taskGanttDates(task())}
           title={task().name}
+          deadlineWarning={deadlineWarning()}
           onClick={(event) => onOpen(task(), event)}
-          onEndChange={
-            queries.canEdit(task().id)
-              ? (date: Date) => queries.saveEnd(task().id, date)
-              : undefined
-          }
         >
           <PropertyValueIcon
             optionId={getTaskStatusOptionId(task()) ?? ''}

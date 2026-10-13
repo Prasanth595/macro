@@ -28,7 +28,10 @@ import CalendarIcon from '@phosphor/calendar.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import SpinnerIcon from '@phosphor/spinner.svg';
 import { PropertyValueIcon } from '@property/component/propertyValue';
-import { SYSTEM_PROPERTY_IDS } from '@property/identifiers';
+import {
+  PROPERTY_OPTION_IDS,
+  SYSTEM_PROPERTY_IDS,
+} from '@property/identifiers';
 import type { Property, PropertyApiValues } from '@property/types';
 import { Button, Dropdown, Input } from '@ui';
 import {
@@ -196,32 +199,6 @@ export function ProjectsCollection(props: {
   };
   const menuTargets = (entity: ProjectListEntity) =>
     getSoupMenuEntities(entity, getSoupRowEntities(list.selection.items()));
-  const canEditDueDate = (entity: ProjectListEntity) => {
-    const property = definition(SYSTEM_PROPERTY_IDS.DUE_DATE);
-    return (
-      canEditProject(entity.project) &&
-      property?.valueType === 'DATE' &&
-      !property.isMetadata &&
-      !commands.pending()
-    );
-  };
-  const saveDueDate = async (id: string, date: Date) => {
-    const row = collection
-      .items()
-      .find((item) => item.kind === 'entity' && item.entity.id === id);
-    const property = definition(SYSTEM_PROPERTY_IDS.DUE_DATE);
-    try {
-      if (row?.kind !== 'entity' || !property || !canEditDueDate(row.entity))
-        throw new Error('Project is no longer editable');
-      await commands.saveProperty(id, property, {
-        valueType: 'DATE',
-        value: date,
-      });
-    } catch (error) {
-      toast.failure('Could not update due date');
-      throw error;
-    }
-  };
   const groupProperty = () => {
     const id = projectGroupPropertyId(collection.groupBy());
     return id ? definition(id) : undefined;
@@ -813,10 +790,11 @@ export function ProjectsCollection(props: {
                   <Gantt.Bar
                     {...projectTimelineDates(entity())}
                     title={entity().project.name}
-                    onEndChange={
-                      canEditDueDate(entity())
-                        ? (date) => saveDueDate(entity().id, date)
-                        : undefined
+                    deadlineWarning={
+                      statusOptionId(entity()) !==
+                        PROPERTY_OPTION_IDS.STATUS.COMPLETED &&
+                      statusOptionId(entity()) !==
+                        PROPERTY_OPTION_IDS.STATUS.CANCELED
                     }
                     onClick={(event) =>
                       props.onOpen(entity().id, {
