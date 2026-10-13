@@ -1,5 +1,6 @@
 import { useLocation } from '@solidjs/router';
-import { type Component, type JSX, onMount, Show } from 'solid-js';
+import { type Component, onMount, Show } from 'solid-js';
+import { MobileSignupMark } from '../components/graphics/MobileSignupMark';
 import { analytics } from '../utils/utilAnalytic';
 import { viewportWidth } from '../utils/utilBreakpoint';
 import {
@@ -11,103 +12,6 @@ import {
 import { setPageSeo } from '../utils/utilSeo';
 
 const APP_STORE_URL = 'https://apps.apple.com/us/app/macro-app/id6743133649';
-
-const SUCCESS_GREEN = 'oklch(0.74 0.17 155)';
-
-const appButtonStyle = {
-  'align-items': 'center',
-  'background-color': 'var(--c1)',
-  border: '1px solid transparent',
-  'border-radius': '999px',
-  'box-sizing': 'border-box',
-  color: 'var(--b0)',
-  display: 'inline-flex',
-  'font-family': 'body',
-  'font-size': '16px',
-  'font-weight': '700',
-  height: '46px',
-  'justify-content': 'center',
-  'line-height': 1,
-  'text-decoration': 'none',
-  width: '100%',
-} as const;
-
-/** Circle + check that draws in to confirm the email was sent. */
-function SentCheck(props: { style?: JSX.CSSProperties }): JSX.Element {
-  return (
-    <div
-      aria-hidden="true"
-      class="mobile-signup-sent-check"
-      style={{
-        display: 'block',
-        height: '52px',
-        width: '52px',
-        ...props.style,
-      }}
-    >
-      <style>{`
-        .mobile-signup-sent-check__svg {
-          display: block;
-          height: 100%;
-          width: 100%;
-        }
-        .mobile-signup-sent-check__circle,
-        .mobile-signup-sent-check__mark {
-          fill: none;
-          stroke: ${SUCCESS_GREEN};
-          stroke-linecap: round;
-          stroke-linejoin: round;
-        }
-        .mobile-signup-sent-check__circle {
-          stroke-width: 2.25;
-          stroke-dasharray: 151;
-          stroke-dashoffset: 151;
-        }
-        .mobile-signup-sent-check__mark {
-          stroke-width: 3;
-          stroke-dasharray: 48;
-          stroke-dashoffset: 48;
-        }
-        @media (prefers-reduced-motion: no-preference) {
-          .mobile-signup-sent-check__circle {
-            animation: mobile-signup-sent-circle 520ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-          }
-          .mobile-signup-sent-check__mark {
-            animation: mobile-signup-sent-mark 380ms cubic-bezier(0.22, 1, 0.36, 1) 360ms forwards;
-          }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .mobile-signup-sent-check__circle,
-          .mobile-signup-sent-check__mark {
-            stroke-dashoffset: 0;
-          }
-        }
-        @keyframes mobile-signup-sent-circle {
-          to { stroke-dashoffset: 0; }
-        }
-        @keyframes mobile-signup-sent-mark {
-          to { stroke-dashoffset: 0; }
-        }
-      `}</style>
-      <svg
-        class="mobile-signup-sent-check__svg"
-        viewBox="0 0 52 52"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <circle
-          class="mobile-signup-sent-check__circle"
-          cx="26"
-          cy="26"
-          r="24"
-        />
-        <path
-          class="mobile-signup-sent-check__mark"
-          d="M15.5 26.5l7.5 7.5 14-14.5"
-        />
-      </svg>
-    </div>
-  );
-}
 
 /**
  * Confirmation step of the site's mobile email capture: the visitor has been
@@ -135,7 +39,7 @@ export const RouteMobileSignupSent: Component = () => {
   const email = (): string | null => location.state?.email ?? submittedEmail();
 
   onMount(() => {
-    // Header signup field can stay mounted across this route change — force the
+    // The email field can stay focused across this route change — force the
     // keyboard down even if blur-before-navigate was skipped somehow.
     (document.activeElement as HTMLElement | null)?.blur?.();
 
@@ -165,52 +69,68 @@ export const RouteMobileSignupSent: Component = () => {
   return (
     <section
       style={{
+        'align-content': 'center',
         'box-sizing': 'border-box',
         display: 'grid',
-        gap: '32px',
-        'justify-items': 'start',
-        'max-width': '520px',
-        'padding-bottom': '96px',
-        'padding-top': mobile() ? '96px' : '128px',
+        gap: '20px',
+        'justify-items': 'center',
+        margin: '0 auto',
+        'max-width': '420px',
+        'min-height': 'calc(100dvh / var(--site-scale, 1))',
+        padding: '56px 0 12vh',
+        'text-align': 'center',
         width: '100%',
       }}
     >
-      <SentCheck />
+      <MobileSignupMark />
 
       <h1
         style={{
           color: 'var(--c0)',
           'font-family': 'display',
-          'font-size': mobile() ? 'clamp(28px, 7.5vw, 36px)' : '40px',
+          'font-size': mobile() ? 'clamp(28px, 8vw, 36px)' : '36px',
           'font-weight': 'calc(315 + var(--cream-slab-weight-increase, 0))',
           'letter-spacing': '-0.012em',
-          'line-height': 1.22,
-          margin: '0',
+          'line-height': 1.18,
+          margin: '12px 0 0',
+          'text-wrap': 'balance',
         }}
       >
         We&rsquo;ve sent you an email to continue onboarding on desktop.
       </h1>
 
-      <Show when={email()}>
-        {(address) => (
-          <p
-            style={{
-              color: 'var(--c2)',
-              'font-family': 'body',
-              'font-size': '15px',
-              'line-height': 1.5,
-              margin: '0',
-              'margin-top': '-16px',
-              'overflow-wrap': 'anywhere',
-            }}
-          >
-            Sent to <strong style={{ color: 'var(--c1)' }}>{address()}</strong>
-          </p>
-        )}
-      </Show>
+      <p
+        style={{
+          color: 'var(--c2)',
+          'font-family': 'body',
+          'font-size': '15px',
+          'line-height': 1.5,
+          margin: '0 0 12px',
+          'max-width': '34ch',
+          'text-wrap': 'balance',
+        }}
+      >
+        <Show
+          when={email()}
+          fallback="Open the link on your computer to finish signing up."
+        >
+          {(address) => (
+            <>
+              We emailed{' '}
+              <span
+                style={{ color: 'var(--c0)', 'overflow-wrap': 'anywhere' }}
+              >
+                {address()}
+              </span>{' '}
+              a link. Open it on your computer to finish signing up.
+            </>
+          )}
+        </Show>
+      </p>
 
       <a
         href={APP_STORE_URL}
+        class="mobile-signup-submit"
         target="_blank"
         rel="noreferrer"
         onClick={() => {
@@ -219,7 +139,16 @@ export const RouteMobileSignupSent: Component = () => {
             button_name: 'mobile_signup_sent_app_store',
           });
         }}
-        style={appButtonStyle}
+        style={{
+          'align-items': 'center',
+          'box-sizing': 'border-box',
+          display: 'inline-flex',
+          height: '46px',
+          'justify-content': 'center',
+          'line-height': 1,
+          'text-decoration': 'none',
+          width: '100%',
+        }}
       >
         We also have a mobile app
       </a>
