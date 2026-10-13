@@ -1,12 +1,15 @@
 import { Dialog } from '@kobalte/core/dialog';
 import X from '@phosphor/x.svg';
 import { createSignal, onCleanup, onMount, Show } from 'solid-js';
+import { handleDemoBooked } from '../../../app/utils/utilCta';
 import { DEMO_BOOKING_URL } from '../core/navigation';
 import { createFrameEscape } from '../primitives/createFrameEscape';
 import './demo-booking-dialog.css';
 
 // The booking page allows framing from its own origin only.
 const BOOKING_PATH = new URL(DEMO_BOOKING_URL).pathname;
+// The framed booking page posts this to the page around it once a guest books.
+const BOOKING_MADE = 'macro:booking-made';
 
 /**
  * A refused frame (booking paths that do not allow framing yet, or an app copy
@@ -32,6 +35,7 @@ export function DemoBookingDialog() {
   const [open, setOpen] = createSignal(false);
   const [loaded, setLoaded] = createSignal(false);
   let opener: HTMLAnchorElement | undefined;
+  let frame: HTMLIFrameElement | undefined;
   const frameEscape = createFrameEscape(() => changeOpen(false));
   const changeOpen = (value: boolean) => {
     if (!value) frameEscape.release();
@@ -51,8 +55,17 @@ export function DemoBookingDialog() {
       opener = link;
       changeOpen(true);
     };
+    const reportBooking = (event: MessageEvent) => {
+      if (!frame?.contentWindow || event.source !== frame.contentWindow) return;
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type === BOOKING_MADE) handleDemoBooked();
+    };
     document.addEventListener('click', openFromLink);
-    onCleanup(() => document.removeEventListener('click', openFromLink));
+    window.addEventListener('message', reportBooking);
+    onCleanup(() => {
+      document.removeEventListener('click', openFromLink);
+      window.removeEventListener('message', reportBooking);
+    });
   });
 
   return (
@@ -80,6 +93,7 @@ export function DemoBookingDialog() {
             </Show>
             <Show when={open()}>
               <iframe
+                ref={frame}
                 src={BOOKING_PATH}
                 title="Book a demo"
                 class="demo-booking-frame"

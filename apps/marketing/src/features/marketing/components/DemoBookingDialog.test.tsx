@@ -9,6 +9,9 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { DEMO_BOOKING_URL } from '../core/navigation';
 import { DemoBookingDialog } from './DemoBookingDialog';
 
+const analytics = vi.hoisted(() => ({ track: vi.fn(), trackMeta: vi.fn() }));
+vi.mock('../../../app/utils/utilAnalytic', () => ({ analytics }));
+
 const BOOKING_PATH = new URL(DEMO_BOOKING_URL).pathname;
 
 function renderSite() {
@@ -60,6 +63,7 @@ function finishLoading(
 }
 
 beforeEach(() => {
+  vi.clearAllMocks();
   vi.spyOn(window, 'open').mockImplementation(() => null);
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
   // JSDOM has no default animation-name; presence detection expects `none`.
@@ -111,4 +115,31 @@ it('sends the visitor to the booking page when the frame is refused', async () =
   });
 
   expect(window.open).toHaveBeenCalledWith(DEMO_BOOKING_URL, '_self');
+});
+
+it('reports a demo booked in the dialog to Meta, and only from its own frame', async () => {
+  renderSite();
+  const { frame } = await openDialog();
+  const booked = (source: Window | null) =>
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        origin: window.location.origin,
+        source,
+        data: { type: 'macro:booking-made' },
+      })
+    );
+
+  booked(window);
+  expect(analytics.trackMeta).not.toHaveBeenCalled();
+
+  booked(frame.contentWindow);
+  expect(analytics.trackMeta).toHaveBeenCalledExactlyOnceWith(
+    'CompleteRegistration',
+    {
+      content_name: 'demo_meeting',
+      content_category: 'cal_booking',
+      value: 100,
+      currency: 'USD',
+    }
+  );
 });

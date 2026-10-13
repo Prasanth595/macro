@@ -47,6 +47,23 @@ export const handleDemoClick = (buttonName: string): void => {
   });
 };
 
+/**
+ * A demo was booked in the site's dialog. Sends Meta the conversion the backend
+ * sent for a cal.com demo booking (`crates/cal`), so campaigns that count demos
+ * keep counting them.
+ */
+export const handleDemoBooked = (): void => {
+  analytics.track('demo_booking_complete', {
+    page_location: window.location.href,
+  });
+  analytics.trackMeta('CompleteRegistration', {
+    content_name: 'demo_meeting',
+    content_category: 'cal_booking',
+    value: 100,
+    currency: 'USD',
+  });
+};
+
 /** Shared primary-CTA click handler: tracks the click, then routes to ctaHref(). */
 export const handleCtaClick = (event: MouseEvent, buttonName: string): void => {
   event.preventDefault();
