@@ -6,7 +6,7 @@ use futures::Stream;
 use serde_json::{Value, json};
 use std::{net::SocketAddr, time::Duration};
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::{TcpListener, TcpStream},
     task::JoinHandle,
     time::timeout,
@@ -99,7 +99,7 @@ async fn handshake(
 
 // Use independent flate2 framing rather than the Signal client: assert RSV1
 // and actual raw DEFLATE payloads on the wire, not just handshake advertising.
-async fn send_json(socket: &mut TcpStream, message: Value, compressed: bool) {
+async fn send_json(socket: &mut (impl AsyncWrite + Unpin), message: Value, compressed: bool) {
     let payload = serde_json::to_vec(&message).unwrap();
     let payload = if compressed {
         let mut output = Vec::with_capacity(payload.len() + 128);
@@ -224,6 +224,42 @@ async fn uncompressed_clients_and_unsupported_offers_still_work() {
             subscription_roundtrip(protocol, offer, false).await;
         }
     }
+}
+
+#[tokio::test]
+async fn compressed_connections_can_receive_uncompressed_messages() {
+    let server = start_server().await;
+    let (mut socket, response) = handshake(
+        server.address,
+        "graphql-transport-ws",
+        Some("permessage-deflate"),
+        true,
+    )
+    .await;
+    assert!(response.contains("sec-websocket-extensions:"));
+    send_json(&mut socket, json!({"type": "connection_init"}), false).await;
+    assert_eq!(read_json(&mut socket, true).await["type"], "connection_ack");
+}
+
+#[tokio::test]
+async fn decompressed_messages_still_obey_size_limits() {
+    let (mut client, server) = tokio::io::duplex(4096);
+    let mut config = WebSocketConfig::default()
+        .max_message_size(Some(64))
+        .max_frame_size(Some(128));
+    config.extensions.permessage_deflate = Some(DeflateConfig::default());
+    let mut server = WebSocketStream::from_raw_socket(server, Role::Server, Some(config)).await;
+    // The compressed frame fits, but its decoded contents exceed the limit.
+    send_json(&mut client, json!({"payload": "x".repeat(1024)}), true).await;
+    let result = timeout(Duration::from_secs(5), server.next())
+        .await
+        .unwrap();
+    assert!(matches!(
+        result,
+        Some(Err(tungstenite_signal::Error::Capacity(
+            tungstenite_signal::error::CapacityError::MessageTooLong { .. }
+        )))
+    ));
 }
 
 #[tokio::test]
