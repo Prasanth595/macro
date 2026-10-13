@@ -18,7 +18,16 @@
       isX86_64Linux = system == "x86_64-linux";
       isAarch64Darwin = system == "aarch64-darwin";
 
-      appVersion = (builtins.fromJSON (builtins.readFile ../apps/web/package.json)).version;
+      desktopRelease = builtins.fromJSON (builtins.readFile ../apps/web/tauri/desktop-release.json);
+      appVersion = desktopRelease.version;
+      desktopPlugins = {
+        desktop-update.enabled = desktopRelease.enabled;
+        macro-bundle-updater.nativeBuild = desktopRelease.nativeBuild;
+        updater = {
+          pubkey = desktopRelease.publicKey;
+          endpoints = [ desktopRelease.endpoint ];
+        };
+      };
       gitRev = inputs.self.shortRev or inputs.self.dirtyShortRev or "unknown";
 
       rustToolchain = fenix.packages.${system}.fromToolchainFile {
@@ -35,7 +44,11 @@
           let
             rel = lib.removePrefix ((toString jsRoot) + "/") (toString path);
           in
-          !(lib.hasPrefix "node_modules/" rel)
+          # Packaging helpers are separate derivation inputs, not frontend or
+          # WASM sources. Avoid recompiling both for AppImage-only changes.
+          rel != "nix"
+          && !(lib.hasPrefix "nix/" rel)
+          && !(lib.hasPrefix "node_modules/" rel)
           && !(lib.hasPrefix "apps/web/node_modules/" rel)
           && !(lib.hasPrefix "apps/web/dist/" rel)
           && !(lib.hasPrefix "apps/web/tauri/target/" rel)
@@ -128,7 +141,7 @@
               cd apps/web
               MODE=production NODE_ENV=production bun ../../node_modules/vite/bin/vite.js build -c vite.config.ts
               printf '${appVersion}+${gitRev}\n' > dist/semver.txt
-              BUNDLE_BUILD_NUMBER=1 MIN_NATIVE_BUILD=0 bun scripts/write-bundle-manifest.mjs
+              BUNDLE_BUILD_NUMBER=${toString desktopRelease.bundleBuild} MIN_NATIVE_BUILD=0 bun scripts/write-bundle-manifest.mjs
             )
 
             runHook postBuild
@@ -363,6 +376,7 @@
             int failed = 0;
             if (fputs("#! /usr/bin/env bash\n"
                       "export APPDIR=\"''${APPDIR:-\"$(dirname \"$(realpath \"$0\")\")\"}\"\n"
+                      "export WEBKIT_INJECTED_BUNDLE_PATH=\"$APPDIR/usr/lib\"\n"
                       "gio_modules=\"$APPDIR/usr/lib/gio/modules\"\n"
                       "if [ -d \"$gio_modules\" ]; then\n"
                       "  case \":''${GIO_EXTRA_MODULES:-}:\" in\n"
@@ -414,7 +428,19 @@
               setenv("PATH", path, 1);
             }
 
-            char **args = calloc((size_t)argc + 1, sizeof(char *));
+            // These are loaded at runtime, so ldd on the main binary cannot
+            // discover them. Deploy their dependency graphs as well.
+            const char *runtime_args[] = {
+              "--executable", "${pkgs.webkitgtk_4_1}/libexec/webkit2gtk-4.1/WebKitWebProcess",
+              "--executable", "${pkgs.webkitgtk_4_1}/libexec/webkit2gtk-4.1/WebKitNetworkProcess",
+              "--executable", "${pkgs.webkitgtk_4_1}/libexec/webkit2gtk-4.1/WebKitGPUProcess",
+              "--library", "${pkgs.webkitgtk_4_1}/lib/webkit2gtk-4.1/injected-bundle/libwebkit2gtkinjectedbundle.so",
+              "--library", "${gioTlsModulePath}/libgiognutls.so",
+              "--library", "${gioTlsModulePath}/libgiognomeproxy.so",
+              "--library", "${gioTlsModulePath}/libgiolibproxy.so",
+            };
+            size_t runtime_argc = sizeof(runtime_args) / sizeof(runtime_args[0]);
+            char **args = calloc((size_t)argc + runtime_argc + 1, sizeof(char *));
             args[0] = "${pkgs.linuxdeploy}/bin/linuxdeploy";
             int out = 1;
             for (int i = 1; i < argc; i++) {
@@ -429,6 +455,9 @@
                 continue;
               }
               args[out++] = argv[i];
+            }
+            for (size_t i = 0; i < runtime_argc; i++) {
+              args[out++] = (char *)runtime_args[i];
             }
             args[out] = NULL;
             execv(args[0], args);
@@ -466,10 +495,26 @@
           cp -a ${tauriLinuxdeployAppimagePluginExtracted}/. "$out/lib/linuxdeploy-plugin-appimage/"
           chmod -R u+w "$out/lib/linuxdeploy-plugin-appimage"
           patchShebangs "$out/lib/linuxdeploy-plugin-appimage"
-          printf '%s\n' \
-            '#!${pkgs.runtimeShell}' \
-            'exec "'$out'/lib/linuxdeploy-plugin-appimage/AppRun" "$@"' \
-            > "$out/bin/linuxdeploy-plugin-appimage.AppImage"
+          cat > "$out/bin/linuxdeploy-plugin-appimage.AppImage" <<'EOF'
+          #!${pkgs.runtimeShell}
+          set -euo pipefail
+          args=("$@")
+          appdir=""
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              --appdir=*) appdir="''${1#--appdir=}" ;;
+              --appdir) shift; appdir="$1" ;;
+            esac
+            shift
+          done
+          if [ -n "$appdir" ]; then
+            export PATH="${lib.makeBinPath [ pkgs.patchelf ]}:$PATH"
+            ${pkgs.python3}/bin/python3 ${./appimage/relocate.py} "$appdir"
+          fi
+          exec @plugin@ "''${args[@]}"
+          EOF
+          substituteInPlace "$out/bin/linuxdeploy-plugin-appimage.AppImage" \
+            --replace-fail '@plugin@' "$out/lib/linuxdeploy-plugin-appimage/AppRun"
           chmod 0755 "$out/bin/linuxdeploy-plugin-appimage.AppImage"
         '';
       };
@@ -497,7 +542,22 @@
       tauriRuntimeClosure = pkgs.closureInfo {
         rootPaths = tauriRuntimeLibraries ++ tauri.commonArgs.buildInputs;
       };
+      tauriGstreamerPlugins = pkgs.symlinkJoin {
+        name = "tauri-gstreamer-plugins";
+        paths = map lib.getLib (
+          with pkgs.gst_all_1;
+          [
+            gstreamer
+            gst-plugins-base
+            gst-plugins-good
+            gst-plugins-bad
+            gst-libav
+          ]
+        );
+      };
       tauriAppImageConfig = builtins.toJSON {
+        version = appVersion;
+        plugins = desktopPlugins;
         build = {
           frontendDist = "${frontend}";
           beforeBuildCommand = "";
@@ -506,6 +566,7 @@
           active = true;
           targets = [ "appimage" ];
           useLocalToolsDir = true;
+          linux.appimage.bundleMediaFramework = true;
           linux.appimage.files = {
             "/usr/bin/xdg-mime" = "${pkgs.xdg-utils}/bin/xdg-mime";
             "/usr/bin/xdg-open" = "${pkgs.xdg-utils}/bin/xdg-open";
@@ -581,6 +642,8 @@
       tauriDesktopDmgConfig = builtins.toJSON (
         lib.recursiveUpdate
           {
+            version = appVersion;
+            plugins = desktopPlugins;
             build = {
               frontendDist = "${frontend}";
               beforeBuildCommand = "";
@@ -723,6 +786,9 @@
             sign_darwin_app "$appPath"
 
             mkdir -p "$out"
+            # Export the final, relocated and signed app for updater packaging.
+            # Notarization, stapling and updater signing happen outside the store.
+            cp -a "$appPath" "$out/Macro.app"
             dmgPath="$out/Macro-${appVersion}-${system}.dmg"
             # Package a drag-to-install volume, including Finder's icon layout.
             dmgRoot=$(mktemp -d "$TMPDIR/macro-dmg.XXXXXX")
@@ -759,6 +825,26 @@
         }
       );
 
+      tauriAppImagePackagingTests =
+        pkgs.runCommand "tauri-appimage-packaging-tests"
+          {
+            nativeBuildInputs = [
+              pkgs.python3
+              pkgs.patchelf
+              pkgs.stdenv.cc
+            ];
+          }
+          ''
+            export PYTHONDONTWRITEBYTECODE=1
+            python3 -m unittest discover -s ${./appimage} -v
+            # GStreamer's default Nix output is bin; its scanner and core plugins
+            # live in the library output. Do not silently ship an empty helper dir.
+            test -x ${lib.getLib pkgs.gst_all_1.gstreamer}/libexec/gstreamer-1.0/gst-plugin-scanner
+            test -f ${tauriGstreamerPlugins}/lib/gstreamer-1.0/libgstcoreelements.so
+            test -f ${tauriGstreamerPlugins}/lib/gstreamer-1.0/libgstapp.so
+            touch "$out"
+          '';
+
       tauriDesktopAppImage = craneLib.mkCargoDerivation (
         tauri.commonArgs
         // {
@@ -776,11 +862,15 @@
             pkgs.gnugrep
             pkgs.gnused
             pkgs.patchelf
+            pkgs.python3
             pkgs.which
           ];
           LD_LIBRARY_PATH = tauriRuntimeLibraryPath;
           LDAI_RUNTIME_FILE = tauriAppImageRuntime;
+          GSTREAMER_PLUGINS_DIR = "${tauriGstreamerPlugins}/lib/gstreamer-1.0";
+          GSTREAMER_HELPERS_DIR = "${lib.getLib pkgs.gst_all_1.gstreamer}/libexec/gstreamer-1.0";
           preBuild = ''
+            test -e ${tauriAppImagePackagingTests}
             ${tauriDesktopPreBuild}
 
             runtime_library_path="$(while IFS= read -r store_path; do
@@ -796,71 +886,12 @@
             install -m 0755 ${tauriLinuxdeployAppimagePlugin}/bin/linuxdeploy-plugin-appimage.AppImage target/.tauri/linuxdeploy-plugin-appimage.AppImage
             install -m 0755 ${tauriBundlerSource}/crates/tauri-bundler/src/bundle/linux/appimage/linuxdeploy-plugin-gtk.sh target/.tauri/linuxdeploy-plugin-gtk.sh
             install -m 0755 ${tauriBundlerSource}/crates/tauri-bundler/src/bundle/linux/appimage/linuxdeploy-plugin-gstreamer.sh target/.tauri/linuxdeploy-plugin-gstreamer.sh
-            cat > target/.tauri/ldd <<'EOF'
-            #!${pkgs.runtimeShell}
-            set -euo pipefail
-
-            binary="''${1:?usage: ldd <elf>}"
-            if ! needed=$(patchelf --print-needed "$binary" 2>/dev/null); then
-              echo "not a dynamic executable"
-              exit 1
-            fi
-
-            origin=$(cd "$(dirname "$binary")" && pwd -P)
-            rpath=$(patchelf --print-rpath "$binary" 2>/dev/null || true)
-            search_path=""
-            append_search_path() {
-              local path_entry="$1"
-              [ -n "$path_entry" ] || return 0
-              if [ -z "$search_path" ]; then
-                search_path="$path_entry"
-              else
-                search_path="$search_path:$path_entry"
-              fi
-            }
-
-            IFS=: read -r -a rpath_entries <<< "$rpath"
-            for entry in "''${rpath_entries[@]}"; do
-              entry=$(printf '%s' "$entry" | awk -v origin="$origin" '{ gsub(/\$\{ORIGIN\}/, origin); gsub(/\$ORIGIN/, origin); print }')
-              append_search_path "$entry"
-            done
-            append_search_path "''${LD_LIBRARY_PATH:-}"
-            append_search_path "/lib"
-            append_search_path "/usr/lib"
-            append_search_path "/lib64"
-            append_search_path "/usr/lib64"
-
-            resolve_needed() {
-              local needed_name="$1"
-              if [ "''${needed_name#/}" != "$needed_name" ] && [ -e "$needed_name" ]; then
-                readlink -f "$needed_name"
-                return 0
-              fi
-
-              local entry candidate
-              IFS=: read -r -a search_entries <<< "$search_path"
-              for entry in "''${search_entries[@]}"; do
-                [ -n "$entry" ] || continue
-                candidate="$entry/$needed_name"
-                if [ -e "$candidate" ]; then
-                  readlink -f "$candidate"
-                  return 0
-                fi
-              done
-
-              return 1
-            }
-
-            while IFS= read -r needed_name; do
-              [ -n "$needed_name" ] || continue
-              if resolved=$(resolve_needed "$needed_name"); then
-                printf '\t%s => %s (0x0000000000000000)\n' "$needed_name" "$resolved"
-              else
-                printf '\t%s => not found\n' "$needed_name"
-              fi
-            done <<< "$needed"
-            EOF
-            chmod 0755 target/.tauri/ldd
+            # The upstream plugin copies Nix's read-only modes, then immediately
+            # calls patchelf on those copies. Make both libraries and helpers writable.
+            substituteInPlace target/.tauri/linuxdeploy-plugin-gstreamer.sh \
+              --replace-fail 'cp "$i" "$plugins_target_dir"' 'install -m0755 "$i" "$plugins_target_dir"' \
+              --replace-fail 'cp "$i" "$helpers_target_dir"' 'install -m0755 "$i" "$helpers_target_dir"'
+            install -m 0755 ${./appimage/ldd.py} target/.tauri/ldd
             patchShebangs target/.tauri/*.sh target/.tauri/ldd target/.tauri/linuxdeploy-plugin-appimage.AppImage
           '';
           buildPhaseCargoCommand = ''
@@ -885,6 +916,10 @@
       );
     in
     {
+      checks = lib.optionalAttrs isX86_64Linux {
+        tauri-appimage-packaging = tauriAppImagePackagingTests;
+      };
+
       apps = lib.optionalAttrs isLinux {
         tauri-desktop = {
           type = "app";

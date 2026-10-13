@@ -36,3 +36,35 @@ Queries, caching, and where data is fetched. IDs are stable; cite them in review
   If none exists below the app root, or the nearest one is far outside the component's
   own UI scope (e.g. the route-level boundary in `apps/web/src/routes/Root.tsx`, whose
   fallback blanks unrelated UI), flag it and ask which boundary is intended.
+
+## Query callback lifetimes
+
+Query options can remain cached after their UI unmounts, including for disabled
+queries. Callbacks created inside hooks can retain component accessors, Solid
+owners, and detached DOM through shared closure environments—even when a callback
+only references a locally resolved ID. This does not mean every closure captures
+every local variable.
+
+- Create cached callbacks in module-scope query factories accepting resolved IDs,
+  flags, and plain data. Resolve reactive inputs inside the `useQuery` /
+  `useInfiniteQuery` options accessor, e.g. `useQuery(() => itemQueryOptions(id()))`,
+  so inputs still update reactively.
+- Keep pure selectors and polling policies at module scope, or inside those
+  factories. Check **all** retained callbacks: `queryFn`, `select`,
+  `refetchInterval`, pagination, placeholder callbacks, and functions in `meta`.
+- Do not pass component accessors, props getters, or query proxies into the
+  factory. For reactive selection, pass plain snapshots of the needed values
+  (such as channel names or a resolved document ID). Naming a function or copying
+  an ID inside the hook does not isolate its closure from the hook.
+- Use `keepPreviousData` from `@tanstack/solid-query` instead of an inline
+  `placeholderData: (p) => p`.
+- The same rule applies to callers of wrapper hooks such as `useSoupAstItemsQuery`
+  and `createGroupedSoupQueries`: `meta.itemFilter` / `meta.insertFilter` passed
+  from a component or view context are cached too, so build them with a
+  module-scope factory over plain snapshots (see
+  [drive-data-source](../../../apps/web/src/features/drive-view/queries/drive-data-source.ts)).
+- Query hooks in `src/lib/urql-solid` are exempt: their observers are created per
+  mount and destroyed on cleanup, so nothing outlives the component.
+
+Examples: [session query factory](../../../apps/web/src/lib/queries/agent-session/session.ts) and
+[search query factories](../../../apps/web/src/lib/queries/soup/search.ts).

@@ -1,7 +1,8 @@
 # Infrastructure
 
 Macro's AWS infrastructure is Pulumi in TypeScript under `infra/`, run with Bun,
-all in `us-east-1`. Cloudflare Workers deploy with `wrangler`, not Pulumi. This
+in `us-east-1`; the observability pilot (`infra/stacks/observability`) runs in
+`us-east-2`. Cloudflare Workers deploy with `wrangler`, not Pulumi. This
 guide covers how the code is laid out, the patterns to copy, how deploys happen,
 and the traps. To add a whole service, follow the
 [new service guide](new-service.md).
@@ -15,7 +16,7 @@ and the traps. To add a whole service, follow the
 
 | Path | Contents |
 | --- | --- |
-| `infra/stacks/<name>/` | One Pulumi project per directory (46 of them). `Pulumi.yaml` plus `Pulumi.dev.yaml` / `Pulumi.prod.yaml`. |
+| `infra/stacks/<name>/` | One Pulumi project per directory. `Pulumi.yaml` plus `Pulumi.dev.yaml` / `Pulumi.prod.yaml`. |
 | `infra/packages/shared` | Constants, config singletons, typed stack references, gateway priorities, Doppler, service URLs. |
 | `infra/packages/resources` | Reusable components: ALB, target group, queue, RDS, Redis, DynamoDB, Kafka, buckets, Datadog sidecars, alarms. |
 | `infra/packages/service` | `EcrImage`, least-privilege DynamoDB, cluster stack reference. |

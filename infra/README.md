@@ -1,6 +1,9 @@
 # Macro Cloud Infra
 
-Pulumi (TypeScript, Bun) for all of Macro's AWS infrastructure, in `us-east-1`.
+Pulumi (TypeScript, Bun) for all of Macro's AWS infrastructure. Production is in
+`us-east-1`; the [observability pilot](stacks/observability/README.md) runs
+independently in `us-east-2`.
+
 Each directory under `stacks/` is one Pulumi project with `dev` and `prod` stacks;
 shared components live in `packages/`.
 

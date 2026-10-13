@@ -71,6 +71,10 @@ Real files live in `.agents/`; tool-specific directories only symlink to it.
 - Commits, branches, and PRs follow the `git` skill: Conventional Commit titles
   such as `fix(onboarding): preserve team inputs`, and Why / What / Test plan bodies.
 - Run the `audit` skill (via the `auditor` subagent) before saying work is done.
+- Open pull requests ready for review. If one is created as a draft, mark it
+  ready for review before handing off.
+- Get CI passing before handing off. A pull request whose checks are failing
+  or still running is not done.
 - Test the affected packages/services individually before committing. Use the
   relevant guide for setup; there is no root `just test` recipe.
 - For code changes, run `just check` (format/lint/code rules scoped to changes).

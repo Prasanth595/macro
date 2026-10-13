@@ -27,6 +27,7 @@ mod middleware;
 // Routes
 mod annotations;
 mod documents;
+mod folders_query;
 mod graphql_soup;
 mod health;
 mod history;
@@ -215,6 +216,17 @@ fn api_router(state: ApiContext) -> Router {
         .nest("/entity", entity::router())
         .merge(calendar_events::inbound::axum_router::calendar_router(
             state.calendar_state.clone(),
+        ))
+        .merge(calendar_events::inbound::team_router::team_calendar_router(
+            calendar_events::inbound::team_router::CalendarTeamRouterState::new(
+                std::sync::Arc::new(calendar_events::domain::team::CalendarTeamServiceImpl::new(
+                    calendar_events::outbound::pg_team::PgCalendarTeamRepository::new(
+                        state.db.clone(),
+                    ),
+                    state.config.calendar_team_sharing_enabled,
+                )),
+                state.authorization_state.clone(),
+            ),
         ))
         .nest(
             "/channels",

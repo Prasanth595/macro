@@ -75,6 +75,12 @@ Attach proof for user-visible changes: screenshots or a recording (see the
 `record-proof` skill when it is available). Never claim a check passed that you
 didn't run; say what was skipped.
 
+## Handing off a PR
+
+Open PRs ready for review, not as drafts; if one was created as a draft, mark it
+ready. A PR whose checks are failing or still running is not done: watch CI and fix
+failures before handing off.
+
 ## Updating a PR
 
 Push follow-up commits rather than force-pushing over review history, unless the
