@@ -35,15 +35,26 @@ function SchedulingHost(props: ParentProps) {
   const team = useCurrentTeamQuery();
   const settings = useSettingsState();
   const currentTeam = () => (team.isSuccess ? team.data : undefined);
-  const members = () =>
-    currentTeam()?.members.map((m) => {
-      const id = tryMacroId(m.user_id);
+  const members = () => {
+    const result = (currentTeam()?.members ?? []).map((member) => {
+      const id = tryMacroId(member.user_id);
       return {
-        id: m.user_id,
-        name: id ? getDisplayName(id) : m.user_id,
-        email: id ? macroIdToEmail(id) : m.user_id,
+        id: member.user_id,
+        name: id ? getDisplayName(id) : member.user_id,
+        email: id ? macroIdToEmail(id) : member.user_id,
       };
-    }) ?? [];
+    });
+    const userId = user.userId();
+    if (userId && !result.some((member) => member.id === userId)) {
+      const id = tryMacroId(userId);
+      result.push({
+        id: userId,
+        name: id ? getDisplayName(id) : userId,
+        email: id ? macroIdToEmail(id) : userId,
+      });
+    }
+    return result;
+  };
   const scopes = (): SchedulingScope[] => {
     const result: SchedulingScope[] = [
       { id: user.userId() ?? 'me', name: 'Personal', canEdit: true },
