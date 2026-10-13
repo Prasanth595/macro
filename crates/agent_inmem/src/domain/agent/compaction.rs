@@ -20,11 +20,9 @@
 
 use std::collections::HashMap;
 
-use agent_client_protocol::JsonRpcNotification;
 use agent_runtime_protocol::domain::action::PromptAttachment;
 use agent_runtime_protocol::domain::context::ContextSummaryNotification;
 use futures::StreamExt as _;
-use serde::{Deserialize, Serialize};
 
 use super::*;
 use crate::domain::session::{PendingSummary, SUMMARY_PREAMBLE, end_of_turn, splice_summary};

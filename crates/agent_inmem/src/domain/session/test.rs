@@ -195,8 +195,7 @@ fn image_names_and_source_uris_reach_the_model_after_history_replay() {
         .expect("logged request");
         let history = crate::domain::replay::replay_history([Message::ToRuntime(
             ToRuntimeMessage::Acp(AcpMessage(raw)),
-        )])
-        .history;
+        )]);
         let messages = messages_for_turn(&history, &UserPrompt::text("use that reference"));
         let serialized = serde_json::to_string(&agent::to_rig_messages(&messages))
             .expect("model messages serialize");
