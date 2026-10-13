@@ -129,7 +129,7 @@ and the Rust handler share one trace ID.
 
 The condensed version is below; the full field-tested guide (routes, every
 surface, keyboard model, crash recovery, trace correlation from a network
-request's `traceparent`) is `docs/AGENT_GUIDE/`.
+request's `traceparent`) is `docs/agent-guide/`.
 
 - Unauthenticated users land on `/app/welcome`: "Continue with email" → fill
   the email input → "Continue". Locally this may log in with no code prompt;

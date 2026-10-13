@@ -156,5 +156,5 @@ list):
   the tour reopens on every mount. Walk
   every step, including one that waits on an entry, once with the sidebar
   open and once collapsed.
-- Update `docs/AGENT_GUIDE/view-tours.md` when a view gains a tour or its steps
+- Update `docs/agent-guide/view-tours.md` when a view gains a tour or its steps
   change.
