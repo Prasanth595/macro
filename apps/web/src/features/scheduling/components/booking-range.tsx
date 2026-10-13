@@ -1,17 +1,15 @@
 import { useLocale } from '@kobalte/core/i18n';
 import { Slider, Tooltip } from '@ui';
 import { createSignal, createUniqueId, For } from 'solid-js';
+import { formatBookingNotice } from '../core/booking-notice';
 import {
   BOOKING_RANGE_TIMELINE,
   bookingTimelinePosition,
   bookingTimelineValue,
 } from '../core/booking-rule-timeline';
-import {
-  DAY_UNITS,
-  describeBookingValue,
-  NOTICE_UNITS,
-} from '../core/booking-units';
+import { DAY_UNITS } from '../core/booking-units';
 import type { EventType, EventValidationIssue } from '../core/types';
+import { BookingNoticeInput } from './booking-notice-input';
 import { BookingValueInput } from './booking-value-input';
 import { createSliderPointerIntent } from './slider-pointer-intent';
 
@@ -19,6 +17,7 @@ type RangeField = 'noticeMinutes' | 'horizonDays';
 const MINUTES_PER_DAY = 1440;
 const SLIDER_MAX_DAYS = 30;
 const RANGE_MARKS = ['1 hour', '1 day', '7 days'];
+const RANGE_DAY_UNITS = DAY_UNITS.slice(0, 1);
 
 /** The displayed scale clips outliers, while exact inputs retain the stored range. */
 export function BookingRange(props: {
@@ -94,10 +93,9 @@ export function BookingRange(props: {
       )
     );
   };
-  const describeNotice = () =>
-    describeBookingValue(props.draft.noticeMinutes, NOTICE_UNITS);
+  const describeNotice = () => formatBookingNotice(props.draft.noticeMinutes);
   const describeHorizon = () =>
-    describeBookingValue(props.draft.horizonDays, DAY_UNITS);
+    `${props.draft.horizonDays} ${props.draft.horizonDays === 1 ? 'day' : 'days'}`;
   const horizonLabel = () =>
     props.draft.horizonDays > SLIDER_MAX_DAYS
       ? `30 days+, exact value ${describeHorizon()}`
@@ -178,41 +176,45 @@ export function BookingRange(props: {
           >
             Booking range
           </Slider.Label>
-          <div
-            class="grid min-w-0 grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-[auto_minmax(0,1fr)_auto]"
-            data-booking-range-row
-          >
+          <div class="flex min-w-0 flex-col gap-1.5" data-booking-range-row>
             <div
-              class="order-2 min-w-0 sm:order-1 sm:self-center"
-              data-booking-range-earliest
+              class="flex min-w-0 items-start justify-between gap-2"
+              data-booking-range-values
             >
-              <BookingValueInput
-                label="What's the earliest someone can book?"
-                inputId={fromId}
-                value={props.draft.noticeMinutes}
-                min={0}
-                max={10080}
-                units={NOTICE_UNITS}
-                compact
-                controls={false}
-                disabled={props.disabled}
-                error={error('noticeMinutes')}
-                errorId={fromErrorId}
-                onChange={(value) => update('noticeMinutes', value)}
-              />
-            </div>
-            <div
-              class="order-1 col-span-2 min-w-0 sm:order-2 sm:col-span-1"
-              data-booking-range-timeline
-            >
-              <div
-                class="flex justify-between gap-2 text-[11px] text-ink-muted"
-                aria-hidden="true"
-                data-booking-slider-scale
-              >
-                <span>Immediately</span>
-                <span>30 days+</span>
+              <div class="min-w-0" data-booking-range-earliest>
+                <BookingNoticeInput
+                  label="What's the earliest someone can book?"
+                  inputId={fromId}
+                  value={props.draft.noticeMinutes}
+                  min={0}
+                  max={10080}
+                  disabled={props.disabled}
+                  error={error('noticeMinutes')}
+                  errorId={fromErrorId}
+                  onChange={(value) => update('noticeMinutes', value)}
+                />
               </div>
+              <div
+                class="flex min-w-0 flex-col items-end"
+                data-booking-range-latest
+              >
+                <BookingValueInput
+                  label="What's the latest someone can book?"
+                  inputId={toId}
+                  value={props.draft.horizonDays}
+                  min={1}
+                  max={365}
+                  units={RANGE_DAY_UNITS}
+                  compact
+                  controls={false}
+                  disabled={props.disabled}
+                  error={error('horizonDays')}
+                  errorId={toErrorId}
+                  onChange={(value) => update('horizonDays', value)}
+                />
+              </div>
+            </div>
+            <div class="min-w-0" data-booking-range-timeline>
               <Slider.Track
                 class="my-2"
                 onPointerMove={pointerIntent.move}
@@ -309,25 +311,6 @@ export function BookingRange(props: {
                   )}
                 </For>
               </div>
-            </div>
-            <div
-              class="order-3 flex min-w-0 flex-col items-end sm:self-center"
-              data-booking-range-latest
-            >
-              <BookingValueInput
-                label="What's the latest someone can book?"
-                inputId={toId}
-                value={props.draft.horizonDays}
-                min={1}
-                max={365}
-                units={DAY_UNITS}
-                compact
-                controls={false}
-                disabled={props.disabled}
-                error={error('horizonDays')}
-                errorId={toErrorId}
-                onChange={(value) => update('horizonDays', value)}
-              />
             </div>
           </div>
         </Slider>

@@ -1439,15 +1439,14 @@ Remove questions action. Removing an
 individual question focuses the next question, the previous question after removing
 the last one, or Add a question if none remain. Booking rules has no outer
 disclosure or Remove action.
-Booking rules shows a Booking range heading above one two-handle slider, with exact
-inputs beside the track: earliest on the left and latest on the right. On narrow screens,
-inputs sit below the track to preserve usable slider width. There are no visible question
-labels or section divider lines. Both offsets are measured from now, not from one another.
-These rules restrict meeting start times, not when
-the link is active. The scale starts at Immediately and has landmarks at one hour,
-one day, seven days, and thirty days. Min/max labels sit above the track, with 30 days+
-marking the upper display limit. Values above thirty days remain at the right edge
-without changing their exact stored value; the latest input accepts up to 365 days.
+Booking rules shows a Booking range heading above one two-handle slider. Exact
+current-value inputs replace the static scale endpoints above the track: earliest
+on the left and latest on the right, including on narrow screens. There are no
+visible question labels, unit menus, or section divider lines. Both offsets are
+measured from now, not from one another. These rules restrict meeting start times,
+not when the link is active. The scale has landmarks at one hour, one day, seven
+days, and thirty days. Values above thirty days remain at the right edge without
+changing their exact stored value; the latest input accepts up to 365 days.
 Moving one handle changes only that endpoint. Keyboard gestures use actual minutes
 for earliest and days for latest, with direction-aware horizontal arrows. Slider
 gestures keep the endpoints ordered; exact inputs preserve equal/reversed values
@@ -1459,20 +1458,22 @@ Time-slot interval uses a slider with interior ticks every five minutes, no endp
 ticks, and labels at 15, 30, and 45 minutes. Its exact input stays on the right. The displayed range
 is 5–60 minutes; 60 minutes+ indicates larger exact values, supported up to 480 minutes.
 Daily booking limit uses a 0–100 slider and a right-hand exact input. Zero displays
-Infinite and saves as null. Focus the input to edit its numeric zero or a positive limit.
-Every slider displays min/max labels above its ends.
+No limit and saves as null. Focus the input to edit its numeric zero or a positive limit.
+Other sliders display min/max labels above their ends; Booking range displays
+editable current values instead.
 Enter in any exact input never advances the step or saves the link. Validation,
 field bounds, unit conversion, draft retention, save, and discard behavior remain
 unchanged. Errors stay below controls; stored fractions stay visible until corrected.
-Duration offers minutes/hours, earliest offers minutes/hours/days, and latest uses
-days/weeks. Number and unit use the reusable NumberUnitInput, built on Kobalte
-NumberField. Exact input frames remain visible beside or below their sliders;
-none of these slider/input controls shows minus/plus buttons.
-Hours and days use readable unit names, not single-letter abbreviations.
-Click the displayed unit inside the frame to change it; there is no separate unit
-selector. Auto remains available in its menu, but the frame never displays a
-“· Auto” suffix. Hours allow up to two decimal places; other units and booking counts
-stay whole. Auto uses smaller units when necessary to preserve precision.
+Booking range displays earliest as whole hours and minutes, such as `1 h, 30 m`;
+its thumb tooltip uses the same format. The earliest textbox accepts `1 h, 30 m`,
+`1h 30m`, or `90 m`; a bare number means minutes. Partial text stays local until
+it parses, and blur restores the last valid draft in hours/minutes format. The
+latest input and tooltip use days only, never weeks. Neither endpoint has a unit
+menu. Other number/unit controls use NumberUnitInput on Kobalte NumberField and
+retain their unit menus. Exact input frames stay visible above, beside, or below
+sliders; no slider/input control shows minus/plus buttons. Duration offers
+minutes/hours. Its unit menu offers Auto without a “· Auto” suffix, allows up to
+two decimals for hours, and keeps other units and booking counts whole.
 Blank or out-of-range input stays local; blur restores the last valid draft.
 Explicit unit choices replace the previous preference. Saved values remain whole
 minutes or days. Slider movement never overwrites another endpoint or a clipped

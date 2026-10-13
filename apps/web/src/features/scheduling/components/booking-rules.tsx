@@ -148,13 +148,13 @@ export function BookingRules(props: {
         >
           <BookingValueSlider
             label="Daily booking limit"
-            description="The maximum meetings guests can book each day. Zero means infinite bookings."
+            description="The maximum meetings guests can book each day. Zero means no limit."
             value={props.draft.dailyLimit ?? 0}
             min={0}
             max={100}
             unit="bookings"
-            minLabel="Infinite"
-            zeroLabel="Infinite"
+            minLabel="No limit"
+            zeroLabel="No limit"
             maxLabel="100"
             units={[
               {
