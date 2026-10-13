@@ -593,14 +593,38 @@ async fn an_answer_that_could_not_be_posted_is_posted_by_recovery(pool: sqlx::Pg
     says(&container.agent(), "The only passage.");
     announcer.fails("messages unavailable");
     container.agent().completes_prompt().await;
-    signals.lifecycle_published(4).await;
+    eventually("the original reply attempt has settled", || {
+        signals
+            .lifecycle()
+            .iter()
+            .any(|event| matches!(event, AgentSessionLifecycleEvent::Settled(_)))
+    })
+    .await;
     let unposted = journal.get(source, command.bot_id).await.unwrap().unwrap();
     assert!(!unposted.reply_finalized);
     assert!(answers(&announcer).is_empty());
 
     // The replica that watched the turn has forgotten its reply by now.
     announcer.recovers();
-    service.recover_conversations().await.unwrap();
+    // Dropping the original reply lease queues its transaction rollback.
+    // Recovery may briefly see that lease held and leave it to the next pass.
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            service.recover_conversations().await.unwrap();
+            if journal
+                .get(source, command.bot_id)
+                .await
+                .unwrap()
+                .unwrap()
+                .reply_finalized
+            {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("recovery posts and finalizes the answer once the reply lease releases");
     assert_eq!(answers(&announcer), ["The only passage."]);
     let reserved = unposted.in_flight.unwrap().presented;
     assert!(
