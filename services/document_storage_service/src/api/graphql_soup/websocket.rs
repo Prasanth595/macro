@@ -24,6 +24,11 @@ use tungstenite_signal::{
 #[cfg(test)]
 mod test;
 
+// Preserve the previous Axum receive limits without relying on fork defaults.
+// The message limit also applies to decompressed input.
+const MAX_GRAPHQL_MESSAGE_BYTES: usize = 64 << 20;
+const MAX_GRAPHQL_FRAME_BYTES: usize = 16 << 20;
+
 /// An authenticated handler must call `serve` to complete the upgrade.
 /// Merely extracting this value never starts a socket or executes GraphQL.
 pub(super) struct GraphqlWebSocketUpgrade {
@@ -58,7 +63,9 @@ impl<S: Send + Sync> FromRequestParts<S> for GraphqlWebSocketUpgrade {
             HeaderValue::from_static(protocol.sec_websocket_protocol()),
         );
 
-        let mut config = WebSocketConfig::default();
+        let mut config = WebSocketConfig::default()
+            .max_message_size(Some(MAX_GRAPHQL_MESSAGE_BYTES))
+            .max_frame_size(Some(MAX_GRAPHQL_FRAME_BYTES));
         if let Some((deflate, agreed)) = negotiate_compression(&parts.headers) {
             config.extensions.permessage_deflate = Some(deflate);
             response

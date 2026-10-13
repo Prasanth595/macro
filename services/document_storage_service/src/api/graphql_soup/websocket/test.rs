@@ -11,6 +11,7 @@ use tokio::{
     task::JoinHandle,
     time::timeout,
 };
+use tungstenite_signal::client::IntoClientRequest;
 
 const MAX_TEST_MESSAGE_BYTES: usize = 256 * 1024;
 
@@ -363,6 +364,43 @@ async fn compressed_connections_can_receive_uncompressed_messages() {
     assert!(response.contains("sec-websocket-extensions:"));
     send_json(&mut socket, json!({"type": "connection_init"}), false).await;
     assert_eq!(read_json(&mut socket, true).await["type"], "connection_ack");
+}
+
+#[tokio::test]
+async fn receive_limits_match_previous_axum_limits_for_every_negotiation_outcome() {
+    for offer in [
+        None,
+        Some("permessage-deflate"),
+        Some("permessage-deflate; unknown=1"),
+    ] {
+        let mut request = "ws://localhost/soup/graphql/ws"
+            .into_client_request()
+            .unwrap();
+        request.headers_mut().insert(
+            header::SEC_WEBSOCKET_PROTOCOL,
+            HeaderValue::from_static("graphql-transport-ws"),
+        );
+        if let Some(offer) = offer {
+            request.headers_mut().insert(
+                header::SEC_WEBSOCKET_EXTENSIONS,
+                HeaderValue::from_static(offer),
+            );
+        }
+        // Extraction needs a Hyper upgrade handle, but this test never awaits it.
+        let on_upgrade = hyper::upgrade::on(&mut request);
+        request.extensions_mut().insert(on_upgrade);
+        let (mut parts, ()) = request.into_parts();
+        let upgrade = GraphqlWebSocketUpgrade::from_request_parts(&mut parts, &())
+            .await
+            .unwrap();
+
+        assert_eq!(upgrade.config.max_message_size, Some(64 << 20));
+        assert_eq!(upgrade.config.max_frame_size, Some(16 << 20));
+        assert_eq!(
+            upgrade.config.extensions.permessage_deflate.is_some(),
+            offer == Some("permessage-deflate")
+        );
+    }
 }
 
 #[tokio::test]
