@@ -32,10 +32,15 @@ const GATEWAY_ALB = 'loadbalancer:app/prod-gateway-alb/8e99d35bdc70b1c9';
 const ROLLOUT_CONTEXT = `Rollout: \`enable-graphql-soup\` (https://us.posthog.com/project/299018/feature_flags/738783).
 Client-side view: https://us.posthog.com/project/299018/dashboard/2198651`;
 
+// Datadog webhook integration that posts into the Macro "Alerts" channel
+// (https://macro.com/app/channel/019fb34d-fcfd-7548-9a0f-7084ea16416c). There
+// is no separate severe channel, so severity is marked in the message instead.
+const MACRO_ALERTS_CHANNEL = '@webhook-macro-alert-hook';
+
 const notify = (severe: boolean) =>
   severe
-    ? '@slack-monitoring\n{{#is_alert}}@slack-holy-shit-alarms{{/is_alert}}'
-    : '@slack-monitoring';
+    ? `{{#is_alert}}SEVERE: user-facing impact likely, act now.{{/is_alert}}\n${MACRO_ALERTS_CHANNEL}`
+    : MACRO_ALERTS_CHANNEL;
 
 function rolloutMonitor(
   name: string,
