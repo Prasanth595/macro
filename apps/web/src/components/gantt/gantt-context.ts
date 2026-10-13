@@ -31,6 +31,7 @@ export type GanttContext = {
   viewport: Accessor<HTMLDivElement | undefined>;
   setViewport: (element: HTMLDivElement | undefined) => void;
   updateViewport: () => void;
+  panBy: (deltaX: number, deltaY: number) => void;
   scrollToToday: (behavior?: ScrollBehavior) => void;
   guide: Accessor<GanttGuide | undefined>;
   setGuide: (guide: GanttGuide | undefined) => void;

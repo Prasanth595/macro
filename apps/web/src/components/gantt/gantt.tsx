@@ -324,6 +324,27 @@ export function GanttRoot(
     viewport,
     setViewport,
     updateViewport,
+    panBy: (deltaX, deltaY) => {
+      const element = viewport();
+      if (!element) return;
+      const current = range();
+      const pixels = pixelsPerDay();
+      const anchor = current.start + (element.scrollLeft + deltaX) / pixels;
+      const days = Math.max(1, element.clientWidth - labelWidth()) / pixels;
+      const padding = Math.max(30, Math.ceil(element.clientWidth / pixels));
+      // Reserve the desired dates before the browser can clamp the drag distance.
+      extendBounds({
+        start:
+          anchor < current.start ? Math.floor(anchor) - padding : current.start,
+        end:
+          anchor + days > current.end
+            ? Math.ceil(anchor + days) + padding
+            : current.end,
+      });
+      element.scrollLeft = (anchor - range().start) * pixels;
+      element.scrollTop += deltaY;
+      updateViewport();
+    },
     guide,
     setGuide,
     editing,
@@ -475,7 +496,6 @@ export function GanttChart(
     if (event.button !== 1 || gantt.editing() || !element) return;
     event.preventDefault();
     event.stopPropagation();
-    const viewport = element;
     let x = event.clientX;
     let y = event.clientY;
     pointerX = undefined;
@@ -499,12 +519,9 @@ export function GanttChart(
       }
       next.preventDefault();
       next.stopPropagation();
-      // Use deltas so calendar rebasing and clamped edges do not stale the origin.
-      viewport.scrollLeft -= next.clientX - x;
-      viewport.scrollTop -= next.clientY - y;
+      gantt.panBy(x - next.clientX, y - next.clientY);
       x = next.clientX;
       y = next.clientY;
-      gantt.updateViewport();
     };
     const release = (next: MouseEvent) => {
       if (next.button !== 1) return;

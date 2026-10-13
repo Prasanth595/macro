@@ -620,6 +620,51 @@ it('preserves the calendar date during middle-drag range rebasing and ignores ot
   fireEvent.mouseUp(window, { button: 1 });
 });
 
+it.each([-5_000, -300, 300, 5_000])(
+  'preserves the full %ipx middle-drag distance across native scroll boundaries',
+  async (delta) => {
+    const { gantt, viewport } = chartFixture();
+    await waitFor(() => expect(gantt.viewport()).toBe(viewport));
+    await Promise.resolve();
+    let left =
+      delta < 0 ? 170 : viewport.scrollWidth - viewport.clientWidth - 170;
+    Object.defineProperty(viewport, 'scrollLeft', {
+      get: () => left,
+      set: (value: number) => {
+        left = Math.max(
+          0,
+          Math.min(value, viewport.scrollWidth - viewport.clientWidth)
+        );
+      },
+      configurable: true,
+    });
+    fireEvent.scroll(viewport);
+    const anchor = gantt.visibleRange().start;
+    const pixels = gantt.pixelsPerDay();
+    fireEvent.mouseDown(viewport, {
+      button: 1,
+      buttons: 4,
+      clientX: 500,
+      clientY: 300,
+    });
+    fireEvent.mouseMove(window, {
+      buttons: 4,
+      clientX: 500 - delta,
+      clientY: 300,
+    });
+    expect(gantt.visibleRange().start).toBeCloseTo(anchor + delta / pixels);
+    fireEvent.mouseMove(window, {
+      buttons: 4,
+      clientX: 500 - delta - delta / 2,
+      clientY: 300,
+    });
+    expect(gantt.visibleRange().start).toBeCloseTo(
+      anchor + (delta * 1.5) / pixels
+    );
+    fireEvent.mouseUp(window, { button: 1 });
+  }
+);
+
 it('defaults the drawer open and preserves explicit choices across responsive resizing', async () => {
   const view = chartFixture(1000, true);
   const { gantt, viewport, resize } = view;
