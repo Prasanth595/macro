@@ -9,7 +9,7 @@ use comms_db_client::{
 };
 use macro_authorization::{InternalOnly, MacroAuthorizationExtractor};
 use macro_user_id::user_id::MacroUserIdStr;
-use model::{authentication::webhooks::FusionAuthUserWebhook, user::UserInfoWithMacroUserId};
+use model::{authentication::webhooks::FusionAuthUserWebhook, user::UserInfo};
 use notification::domain::ports::NotificationRepository;
 use notification::outbound::repository::DbNotificationRepository;
 use sqlx::{Pool, Postgres};
@@ -167,15 +167,15 @@ async fn delete_user(
         .in_current_span()
     });
 
-    // Fixed: Create futures and await them all concurrently
+    // `user_ids` are `User.id` profile ids (`macro|<email>`), so look them up by
+    // id rather than by the email column.
     let user_info_futures = user_ids
         .clone()
         .into_iter()
         .map(|user_id| {
             let db = ctx.db.clone();
             async move {
-                let result =
-                    macro_db_client::user::get::get_user_info_by_email(&db, &user_id).await;
+                let result = macro_db_client::user::get::get_user_profile(&db, &user_id).await;
                 (user_id, result)
             }
         })
@@ -187,7 +187,7 @@ async fn delete_user(
     // Lookups are best-effort: a profile whose info cannot be loaded still has
     // its durable data deleted below, but skips the cache/channel/notification
     // cleanup, so record which ones were skipped.
-    let user_infos: Vec<UserInfoWithMacroUserId> = user_info_results
+    let user_infos: Vec<UserInfo> = user_info_results
         .into_iter()
         .filter_map(|(user_id, result)| {
             result
