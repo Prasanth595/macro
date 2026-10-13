@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod test;
+
 use crate::messages;
 use crate::messages::get;
 
@@ -44,7 +47,7 @@ where
         tracing::warn!(
             message_id = %message_id,
             link_id = %link_id,
-            "No message was updated - message may not exist or doesn't belong to the link"
+            "Message not found - it may not exist or doesn't belong to the link"
         );
     }
 
@@ -96,12 +99,12 @@ where
     .fetch_one(executor)
     .await?;
 
-    if (matched as u64) < updates.len() as u64 {
+    if matched < updates.len() as i64 {
         tracing::warn!(
             link_id = %link_id,
-            expected_updates = updates.len(),
-            actual_updates = matched,
-            "Fewer messages were updated than expected. Some messages may not exist or do not belong to the link."
+            expected_messages = updates.len(),
+            found_messages = matched,
+            "Fewer messages found than expected. Some messages may not exist or do not belong to the link."
         );
     }
 
