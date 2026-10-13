@@ -1,3 +1,5 @@
+import { useFeatureFlag } from '@app/lib/analytics/posthog';
+import { enableInboxNotifiedSort } from '@core/constant/featureFlags';
 import { createLiveQuery } from '@graphql-cache/solid/create-live-query';
 import { registerActivityRevalidator } from '@queries/activity/push-registry';
 import { registerChannelNotificationRefresh } from '@queries/channel/register-notification-refresh';
@@ -22,30 +24,38 @@ const selectItems = (data: HomeUnreadPresenceQuery) => data.user.soup.items;
 export function useHomeUnreadQuery(
   graphqlEnabled: Accessor<boolean>
 ): Accessor<boolean> {
-  // Retain REST rollout behavior, but never mount an enabled full Soup reader
-  // alongside the GraphQL witness query. Its context also owns the shared flags.
+  // Notified-at sorting is REST-only. Keep that rollout's existing candidate
+  // page rather than silently changing its order/bounds or building an invalid
+  // GraphQL input. Disabled queries must not compile an unsupported AST either.
+  const notifiedSort = useFeatureFlag(enableInboxNotifiedSort);
+  const enabled = () => graphqlEnabled() && !notifiedSort().enabled;
   const legacy = useHomeEntitiesQuery(
     { tab: 'signal', facets: { read: ['unread'] } },
-    { enabled: () => !graphqlEnabled() }
+    { enabled: () => !enabled() }
   );
-  const variables = createMemo(() => ({
-    input: makeGraphqlSoupInput(buildHomeQuery(legacy.viewContext())),
-  }));
+  const variables = createMemo(() =>
+    enabled()
+      ? { input: makeGraphqlSoupInput(buildHomeQuery(legacy.viewContext())) }
+      : undefined
+  );
   const query = createLiveQuery(HomeUnreadPresenceDocument, variables, () => ({
     client: getGraphqlSoupClient(),
-    enabled: graphqlEnabled(),
+    enabled: enabled(),
     requestPolicy: 'cache-and-network',
     select: selectItems,
   }));
   const items = () => (!query.isPending ? (query.data ?? []) : []);
-  const queries = () => [
-    { document: HomeUnreadPresenceDocument, variables: variables() },
-  ];
+  const queries = () => {
+    const value = variables();
+    return value
+      ? [{ document: HomeUnreadPresenceDocument, variables: value }]
+      : [];
+  };
   const refresh = registerChannelNotificationRefresh(() => ({
     client: getGraphqlSoupClient(),
     queries: queries(),
     reader: {
-      enabled: graphqlEnabled(),
+      enabled: enabled(),
       fetching: query.isFetching,
       filtered: true,
       scope: 'all-entities',
@@ -57,26 +67,19 @@ export function useHomeUnreadQuery(
       ]),
     },
   }));
-  onCleanup(
-    registerGraphqlSoupRevalidations(
-      () => (graphqlEnabled() ? queries() : []),
-      getGraphqlSoupClient
-    )
-  );
-  onCleanup(
-    registerActiveGraphqlSoupQuery({ isEnabled: graphqlEnabled, refresh })
-  );
+  onCleanup(registerGraphqlSoupRevalidations(queries, getGraphqlSoupClient));
+  onCleanup(registerActiveGraphqlSoupQuery({ isEnabled: enabled, refresh }));
   onCleanup(
     registerActivityRevalidator({
       client: getGraphqlSoupClient,
       refresh: async () => {
-        if (graphqlEnabled()) await refresh();
+        if (enabled()) await refresh();
       },
     })
   );
 
   return () => {
-    if (!graphqlEnabled()) {
+    if (!enabled()) {
       if (legacy.query.isLoading) return false;
       return legacy.hasUnreadEntity(legacy.query.data?.entities ?? []);
     }

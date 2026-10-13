@@ -18,6 +18,10 @@ const mocks = vi.hoisted(() => ({
   client: vi.fn(),
   legacy: vi.fn(),
   legacyUnread: vi.fn(),
+  notifiedSort: vi.fn(),
+}));
+vi.mock('@app/lib/analytics/posthog', () => ({
+  useFeatureFlag: () => () => ({ enabled: mocks.notifiedSort() }),
 }));
 vi.mock('@service-storage/graphql-soup', () => ({
   getGraphqlSoupClient: mocks.client,
@@ -41,7 +45,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function setup() {
+function setup(initialNotifiedSort = false) {
   const operations: Operation[] = [];
   const network = makeSubject<OperationResult>();
   const client = createClient({
@@ -60,13 +64,16 @@ function setup() {
   const root = createRoot((dispose) => {
     cleanups.push(dispose, () => disposeChannelNotificationRefresh(client));
     const [enabled, setEnabled] = createSignal(false);
+    const [notifiedSort, setNotifiedSort] = createSignal(initialNotifiedSort);
+    mocks.notifiedSort.mockImplementation(notifiedSort);
     const [state, setState] = createSignal<'unseen' | 'seen' | 'done'>();
     mocks.legacyUnread.mockReturnValue(true);
     mocks.legacy.mockReturnValue({
       query: {
         isLoading: false,
         get data() {
-          if (enabled()) throw new Error('Read inactive full Soup query');
+          if (enabled() && !notifiedSort())
+            throw new Error('Read inactive full Soup query');
           return { entities: [] };
         },
       },
@@ -84,12 +91,12 @@ function setup() {
           calendar: true,
           snippets: true,
           foreignEntities: true,
-          notifiedSort: false,
+          notifiedSort: notifiedSort(),
         },
       }),
     });
     const unread = useHomeUnreadQuery(enabled);
-    return { unread, setEnabled, setState };
+    return { unread, setEnabled, setState, setNotifiedSort };
   });
   const queries = () => operations.filter((op) => op.kind === 'query');
   const respond = (state: 'UNSEEN' | 'SEEN', error?: CombinedError) =>
@@ -178,6 +185,25 @@ describe('Home unread presence query', () => {
     f.respond('SEEN');
     expect(f.unread()).toBe(false);
     f.setEnabled(false);
+    expect(f.unread()).toBe(true);
+    expect(getActiveGraphqlSoupRevalidations(f.client)).toEqual([]);
+  });
+
+  it('keeps notified-at sorting on REST, including while GraphQL is disabled', async () => {
+    const f = setup(true);
+    expect(f.unread()).toBe(true);
+    expect(f.queries()).toHaveLength(0);
+    f.setEnabled(true);
+    expect(f.unread()).toBe(true);
+    expect(mocks.legacy.mock.calls[0][1].enabled()).toBe(true);
+    expect(f.queries()).toHaveLength(0);
+    expect(getActiveGraphqlSoupRevalidations(f.client)).toEqual([]);
+    f.setNotifiedSort(false);
+    expect(mocks.legacy.mock.calls[0][1].enabled()).toBe(false);
+    await vi.waitFor(() => expect(f.queries()).toHaveLength(1));
+    f.respond('UNSEEN');
+    expect(f.unread()).toBe(true);
+    f.setNotifiedSort(true);
     expect(f.unread()).toBe(true);
     expect(getActiveGraphqlSoupRevalidations(f.client)).toEqual([]);
   });
