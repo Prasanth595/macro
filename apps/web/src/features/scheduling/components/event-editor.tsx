@@ -89,7 +89,7 @@ function QuestionField(props: {
   return (
     <div data-booking-question-row class="flex flex-col gap-2">
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <label for={inputId} class="text-base font-medium">
+        <label for={inputId} class="text-sm font-normal text-ink-muted">
           Question {props.index + 1}
         </label>
         <div class="flex items-center gap-3">
@@ -256,12 +256,6 @@ export function EventEditor(props: EventEditorProps) {
         data-booking-scroll-area
         class={`min-h-0 overflow-y-auto overscroll-contain px-5 pt-4 pb-7 sm:px-6 ${props.step === 'review' ? 'flex-auto' : 'flex-1'}`}
       >
-        <h3
-          id={progressId}
-          class="mb-6 text-2xl font-medium leading-snug tracking-wide"
-        >
-          {EVENT_EDITOR_STEPS[stepIndex()].heading}
-        </h3>
         <Stepper
           step={stepIndex()}
           keepMounted
@@ -276,7 +270,12 @@ export function EventEditor(props: EventEditorProps) {
               class="flex min-w-0 flex-col gap-6 outline-none"
             >
               <div class="flex min-w-0 flex-col gap-2">
-                <Field label="Title" error={error('title')} class="text-base">
+                <Field
+                  label="Title"
+                  error={error('title')}
+                  class="text-base"
+                  labelClass="text-sm font-normal text-ink-muted"
+                >
                   <TextInput
                     required
                     size="lg"
@@ -329,6 +328,7 @@ export function EventEditor(props: EventEditorProps) {
                           <Field
                             label="Custom link"
                             class="text-base"
+                            labelClass="text-sm font-normal text-ink-muted"
                             hint="Optional. Leave blank to use the meeting title."
                             error={error('slug')}
                           >
@@ -367,7 +367,10 @@ export function EventEditor(props: EventEditorProps) {
                 </div>
               </div>
               <div class="flex flex-col gap-2">
-                <label for={descriptionId} class="text-base font-medium">
+                <label
+                  for={descriptionId}
+                  class="text-sm font-normal text-ink-muted"
+                >
                   Description
                 </label>
                 <TextArea
@@ -404,7 +407,7 @@ export function EventEditor(props: EventEditorProps) {
               class="flex min-w-0 flex-col gap-6 outline-none"
             >
               <section class="flex flex-col gap-2">
-                <h4 class="text-base font-medium tracking-wide">
+                <h4 class="text-sm font-normal tracking-wide text-ink-muted">
                   Meeting location
                 </h4>
                 <div class="flex flex-col gap-3">
@@ -420,8 +423,8 @@ export function EventEditor(props: EventEditorProps) {
                       aria-pressed={props.draft.googleMeet}
                       class={`rounded-full border px-4 ${
                         props.draft.googleMeet
-                          ? 'border-accent/40 bg-accent/10 text-accent not-touch:not-disabled:hover:text-accent'
-                          : 'border-edge-muted text-ink-muted not-touch:not-disabled:hover:text-ink-muted'
+                          ? 'border-accent/30 bg-accent/10 text-accent not-touch:not-disabled:hover:bg-accent/15 not-touch:not-disabled:hover:text-accent'
+                          : 'border-edge-frame text-ink-muted not-touch:not-disabled:hover:text-ink-muted'
                       }`}
                       onClick={() => props.onUpdate('googleMeet', true)}
                     >
@@ -435,8 +438,8 @@ export function EventEditor(props: EventEditorProps) {
                       aria-pressed={!props.draft.googleMeet}
                       class={`rounded-full border px-4 ${
                         !props.draft.googleMeet
-                          ? 'border-accent/40 bg-accent/10 text-accent not-touch:not-disabled:hover:text-accent'
-                          : 'border-edge-muted text-ink-muted not-touch:not-disabled:hover:text-ink-muted'
+                          ? 'border-accent/30 bg-accent/10 text-accent not-touch:not-disabled:hover:bg-accent/15 not-touch:not-disabled:hover:text-accent'
+                          : 'border-edge-frame text-ink-muted not-touch:not-disabled:hover:text-ink-muted'
                       }`}
                       onClick={() => props.onUpdate('googleMeet', false)}
                     >
@@ -472,7 +475,7 @@ export function EventEditor(props: EventEditorProps) {
               </section>
               <section>
                 <div class="mb-2 flex items-center gap-1">
-                  <h4 class="text-base font-medium tracking-wide">
+                  <h4 class="text-sm font-normal tracking-wide text-ink-muted">
                     Availability
                   </h4>
                   <BookingFieldInfo
@@ -526,7 +529,11 @@ export function EventEditor(props: EventEditorProps) {
                   disabled={props.saving}
                   invalid={!!error('hosts')}
                 >
-                  <Field label="Scheduling type" class="text-base">
+                  <Field
+                    label="Scheduling type"
+                    class="text-base"
+                    labelClass="text-sm font-normal text-ink-muted"
+                  >
                     <SelectInput
                       label="Scheduling type"
                       value={props.draft.mode}
@@ -757,7 +764,13 @@ export function EventEditor(props: EventEditorProps) {
           </Stepper.Step>
         </Stepper>
       </div>
-      <header class="order-first flex shrink-0 items-start border-b border-edge-muted px-5 pt-6 pb-4 sm:px-6">
+      <header class="order-first flex shrink-0 items-center justify-between gap-4 px-5 pt-6 pb-4 sm:px-6">
+        <h3
+          id={progressId}
+          class="min-w-0 text-xl font-medium leading-snug tracking-wide"
+        >
+          {EVENT_EDITOR_STEPS[stepIndex()].heading}
+        </h3>
         <EventEditorProgress step={stepIndex()} />
       </header>
       <Show when={props.step === 'questions'}>
@@ -769,7 +782,7 @@ export function EventEditor(props: EventEditorProps) {
           Name and email are always collected.
         </p>
       </Show>
-      <footer class="flex shrink-0 flex-wrap items-start justify-between gap-3 border-t border-edge-muted px-5 py-4 sm:px-6">
+      <footer class="flex shrink-0 flex-wrap items-start justify-between gap-3 border-t border-edge-frame px-5 py-4 sm:px-6">
         <Button
           type="button"
           variant="ghost"

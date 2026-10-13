@@ -180,12 +180,20 @@ function expectStepProgress(
   const progress = within(container).getByRole('progressbar', {
     name: 'Booking setup progress',
   });
-  expect(progress.getAttribute('aria-valuemin')).toBe('1');
+  expect(progress.getAttribute('aria-valuemin')).toBe('0');
   expect(progress.getAttribute('aria-valuemax')).toBe('5');
   expect(progress.getAttribute('aria-valuenow')).toBe(String(step));
   expect(progress.getAttribute('aria-valuetext')).toBe(
     `Step ${step} of 5: ${heading}`
   );
+  expect(progress.classList.contains('h-2')).toBe(true);
+  expect(progress.classList.contains('w-16')).toBe(true);
+  expect(progress.classList.contains('sm:w-20')).toBe(true);
+  expect(progress.children).toHaveLength(1);
+  expect(progress.querySelector('[data-booking-progress-segment]')).toBeNull();
+  const fill = progress.firstElementChild as HTMLElement;
+  expect(fill.getAttribute('aria-hidden')).toBe('true');
+  expect(fill.style.width).toBe(`${(step / 5) * 100}%`);
   return progress;
 }
 
@@ -364,13 +372,13 @@ it('shows step progress in the header and validates sequential navigation', asyn
   ).toBeNull();
   expect(form.queryByRole('tablist')).toBeNull();
   expect(within(header).queryByRole('button')).toBeNull();
-  expect(within(header).queryByRole('heading')).toBeNull();
+  expect(
+    within(header).getByRole('heading', { name: 'Meeting details' })
+  ).toBeTruthy();
   const currentHeading = form.getByRole('heading', {
     name: 'Meeting details',
   });
-  expect(
-    currentHeading.parentElement?.hasAttribute('data-booking-scroll-area')
-  ).toBe(true);
+  expect(currentHeading.parentElement).toBe(header);
   expectStepProgress(header, 1, 'Meeting details');
   await user.click(form.getByRole('button', { name: 'Next' }));
   const title = form.getByRole('textbox', { name: 'Title' });
@@ -385,9 +393,7 @@ it('shows step progress in the header and validates sequential navigation', asyn
   ].entries()) {
     await user.click(form.getByRole('button', { name: 'Next' }));
     const currentHeading = form.getByRole('heading', { name: heading });
-    expect(
-      currentHeading.parentElement?.hasAttribute('data-booking-scroll-area')
-    ).toBe(true);
+    expect(currentHeading.parentElement).toBe(header);
     expectStepProgress(header, index + 2, heading);
     expect(form.getAllByRole('heading', { name: heading })).toHaveLength(1);
     const panel = dialog.querySelector<HTMLElement>(
@@ -405,6 +411,98 @@ it('shows step progress in the header and validates sequential navigation', asyn
   await user.click(form.getByRole('button', { name: 'Next' }));
   expectStepProgress(header, 1, 'Meeting details');
   expect(saves).not.toHaveBeenCalled();
+});
+
+it('keeps step subheadings smaller and more muted than entered values', async () => {
+  const user = userEvent.setup();
+  workspaceFixture('links');
+  await user.click(screen.getByRole('button', { name: 'New booking link' }));
+  const dialog = screen.getByRole('dialog', {
+    name: 'New personal booking link',
+  });
+  const form = within(dialog);
+  const expectMutedLabel = (element: HTMLElement) => {
+    expect(element.classList.contains('text-sm')).toBe(true);
+    expect(element.classList.contains('font-normal')).toBe(true);
+    expect(element.classList.contains('text-ink-muted')).toBe(true);
+  };
+  expect(
+    form.getByRole('heading', { name: 'Meeting details' }).className
+  ).toContain('text-xl');
+  for (const label of ['Title', 'Description', 'Duration']) {
+    expectMutedLabel(form.getByText(label));
+  }
+  expect(form.getByRole('textbox', { name: 'Title' }).className).not.toContain(
+    'text-ink-muted'
+  );
+  await advanceEditor(user, 1);
+  for (const label of ['Meeting location', 'Availability']) {
+    expectMutedLabel(form.getByRole('heading', { name: label }));
+  }
+  await advanceEditor(user, 1);
+  await user.click(form.getByRole('button', { name: 'Add a question' }));
+  expectMutedLabel(form.getByText('Question 1'));
+  fireEvent.input(form.getByRole('textbox', { name: 'Question 1' }), {
+    target: { value: 'What should we discuss?' },
+  });
+  await advanceEditor(user, 1);
+  for (const label of [
+    'Booking range',
+    'Time between meetings',
+    'Before each meeting',
+    'After each meeting',
+    'Time-slot interval',
+    'Daily booking limit',
+  ]) {
+    expectMutedLabel(form.getByText(label));
+  }
+  await advanceEditor(user, 1);
+  const review = within(
+    dialog.querySelector<HTMLElement>('[data-booking-step="review"]')!
+  );
+  for (const label of ['Questions', 'Booking rules']) {
+    expectMutedLabel(review.getByRole('heading', { name: label }));
+  }
+});
+
+it('uses contrast-aware borders for multi-step editor dividers and unselected location choices', async () => {
+  const user = userEvent.setup();
+  workspaceFixture('links');
+  await user.click(screen.getByRole('button', { name: 'New booking link' }));
+  const dialog = screen.getByRole('dialog', {
+    name: 'New personal booking link',
+  });
+  const form = dialog.querySelector('form');
+  expect(form).toBeTruthy();
+  expect(form?.querySelector('header')?.className).not.toContain('border-b');
+  const footer = form?.querySelector('footer');
+  expect(footer?.className).toContain('border-t');
+  expect(footer?.className).toContain('border-edge-frame');
+  expect(footer?.className).not.toContain('border-edge-muted');
+  await advanceEditor(user, 1);
+  const location = screen.getByRole('group', {
+    name: 'Meeting location presets',
+  });
+  const custom = within(location).getByRole('button', { name: 'Custom' });
+  expect(custom.className).toContain('border-edge-frame');
+  await user.click(custom);
+  const googleMeet = within(location).getByRole('button', {
+    name: 'Google Meet',
+  });
+  expect(googleMeet.className).toContain('border-edge-frame');
+  await advanceEditor(user, 2);
+  for (const name of ['Time between meetings', 'Booking frequency']) {
+    const section = screen.getByRole('region', { name });
+    expect(section.className).not.toContain('border-t');
+    expect(section.className).not.toContain('border-edge-frame');
+  }
+  await advanceEditor(user, 1);
+  for (const name of ['Questions', 'Booking rules']) {
+    expect(
+      within(dialog).getByRole('heading', { name }).closest('section')
+        ?.className
+    ).toContain('border-edge-frame');
+  }
 });
 
 it('enforces timeline guards and revalidates earlier steps on Next', () => {
@@ -2461,6 +2559,9 @@ it('edits location, availability, and questions in their steps without saving ea
     const selected = choice.getAttribute('aria-pressed') === 'true';
     expect(choice.classList.contains('rounded-full')).toBe(true);
     expect(choice.classList.contains('bg-accent-bg')).toBe(false);
+    expect(choice.classList.contains('bg-accent/10')).toBe(selected);
+    expect(choice.classList.contains('border-accent/30')).toBe(selected);
+    expect(choice.classList.contains('bg-accent')).toBe(false);
     expect(
       choice.classList.contains(selected ? 'text-accent' : 'text-ink-muted')
     ).toBe(true);
@@ -2815,8 +2916,11 @@ it('walks through five steps, keeps drafts mounted, and saves only after review'
     form.getByRole('button', { name: 'Next' }).getAttribute('data-variant')
   ).toBe('cta');
   const header = editor.querySelector<HTMLElement>('header')!;
-  expect(header.children).toHaveLength(1);
-  expect(header.classList.contains('border-b')).toBe(true);
+  expect(header.children).toHaveLength(2);
+  expect(header.firstElementChild?.tagName.toLowerCase()).toBe('h3');
+  expect(header.classList.contains('justify-between')).toBe(true);
+  expect(header.classList.contains('items-center')).toBe(true);
+  expect(header.classList.contains('border-b')).toBe(false);
   expect(header.classList.contains('pt-6')).toBe(true);
   expect(header.classList.contains('pb-4')).toBe(true);
   expect(header.classList.contains('sm:px-6')).toBe(true);
@@ -2867,10 +2971,8 @@ it('walks through five steps, keeps drafts mounted, and saves only after review'
   const nextButton = form.getByRole('button', { name: 'Next' });
   expect(nextButton.querySelector('svg')).toBeNull();
   expect(
-    form
-      .getByRole('heading', { name: 'Meeting details' })
-      .closest('[data-booking-scroll-area]')
-  ).toBe(scrollArea);
+    form.getByRole('heading', { name: 'Meeting details' }).closest('header')
+  ).toBe(header);
   await user.click(form.getByRole('button', { name: 'Next' }));
   expect(
     document.getElementById(title.getAttribute('aria-describedby') ?? '')
@@ -2946,7 +3048,7 @@ it('walks through five steps, keeps drafts mounted, and saves only after review'
   const reviewHeading = form.getByRole('heading', {
     name: 'Review',
   });
-  expect(reviewHeading.classList.contains('text-2xl')).toBe(true);
+  expect(reviewHeading.classList.contains('text-xl')).toBe(true);
   expect(form.getByText('Intro call')).toBeTruthy();
   expect(form.getByText('Intro call').classList.contains('text-xl')).toBe(true);
   expect(form.getByText('Bring a topic.')).toBeTruthy();
@@ -3192,7 +3294,7 @@ it('shows two optional question fields and omits blank rows from validation, rev
   expect(row.className).not.toMatch(/\bp-\d/);
   expect(row.className).not.toContain('border');
   const questionHeading = screen.getByRole('heading', { name: 'Questions' });
-  expect(questionHeading.closest('[data-booking-scroll-area]')).not.toBeNull();
+  expect(questionHeading.closest('header')).not.toBeNull();
   const attendeeNote = screen.getByText('Name and email are always collected.');
   const formElement = first.closest('form')!;
   expect(attendeeNote.hasAttribute('data-booking-attendee-note')).toBe(true);

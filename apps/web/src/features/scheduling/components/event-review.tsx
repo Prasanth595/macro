@@ -37,7 +37,7 @@ function ReviewSection(props: {
   children: JSX.Element;
 }) {
   return (
-    <section class="grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-x-3 border-t border-edge-muted pt-4">
+    <section class="grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-x-3 border-t border-edge-frame pt-4">
       <Dynamic
         component={props.icon}
         class="mt-0.5 size-5 shrink-0 text-ink-muted"
@@ -45,7 +45,7 @@ function ReviewSection(props: {
       />
       <div class="flex min-w-0 flex-col gap-3">
         <div class="flex min-w-0 items-center gap-2">
-          <h4 class="min-w-0 text-base font-medium tracking-wide">
+          <h4 class="min-w-0 text-sm font-normal tracking-wide text-ink-muted">
             {props.label}
           </h4>
           {props.headingAction}

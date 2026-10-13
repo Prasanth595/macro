@@ -70,6 +70,11 @@ function Fixture() {
     });
     for (const [key, value] of Object.entries(vars))
       document.documentElement.style.setProperty(key, value);
+    // Match the contrast token to the fixture's neutral accent.
+    document.documentElement.style.setProperty(
+      '--color-accent-contrast',
+      isDark ? '#171717' : '#ffffff'
+    );
     document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
   };
   onMount(() => applyTheme(false));

@@ -1341,11 +1341,15 @@ admins can edit team links; ordinary members retain read-only access. New bookin
 link opens a dialog without saving anything, including when no schedule exists.
 The dialog grows to 42rem wide and retains an 8px gutter on narrow screens.
 Editing steps stay at 36rem when space permits. Review can grow with its content.
-Both are capped for the viewport, safe areas, and virtual keyboard. The header
-and footer stay fixed; content scrolls when it reaches the height limit.
+Both are capped for the viewport, safe areas, and virtual keyboard. The header and
+footer stay fixed; content scrolls when it reaches the height limit.
 Header, content, and footer use matching 24px horizontal padding on wider screens.
-The fixed header contains only a continuous progress bar for the five editor steps.
-The active step heading appears below the bar at the top of scrollable content.
+The fixed header has no bottom divider. The active step heading sits on the left,
+with a compact continuous progress bar on the right. The bar is 8px tall and
+64px wide on narrow screens, increasing to 80px on wider screens. Its accent fill
+extends through the current step. Footer and section dividers use contrast-aware
+border tokens in light and dark themes. Field and section subheadings use smaller,
+normal-weight, muted text, while entered values retain their normal contrast.
 The footer keeps Cancel at the far left; Back sits beside Next and is absent on
 the first step. The form has no tabs or step menus. Inputs use consistent styling
 and rounded pill presets whose selected accent or unselected muted text stays
@@ -1388,9 +1392,10 @@ another Next click.
 Submitting with Enter or Next focuses the first invalid control and scrolls its
 message into view. Live edits clear errors without moving focus to another control.
 Save failures appear beneath the action that attempted the write, not in a banner.
-The progress bar exposes Step X of 5 and the active heading to assistive technology.
-It updates on each step. Stepper animates the body while retaining controls. Back
-and Next remain text-only. Saving disables navigation and editor actions.
+The progress bar exposes Step X of 5 and the active heading to assistive
+technology. It updates on each step. Stepper animates the body
+while retaining controls. Back and Next remain text-only. Saving disables
+navigation and editor actions.
 Description sits below the title/link area. Neither description nor duration has
 an info icon. Duration always shows a slider with its exact number/unit input on
 the right, without presets or minus/plus buttons. Min/max values appear above
@@ -1409,7 +1414,8 @@ Only entered custom links validate their format; Reset to title generates a uniq
 URL for the current title.
 Escape closes the popover without closing the editor and returns focus to the pencil
 icon.
-Location uses Google Meet/Custom presets, with a camera icon beside Google Meet.
+Location uses Google Meet/Custom options, with a camera icon beside Google Meet.
+The selected option uses a subtle accent tint, accent text, and an accent border.
 The custom address or URL input appears
 below the presets only when Custom is selected. Google Meet shows joining
 instructions in an inline input below the presets. Switching between Google Meet

@@ -15,11 +15,13 @@ export function BookingEditorSection(props: {
   const contentId = createUniqueId();
   const isExpanded = () => expanded() || !!props.invalid;
   return (
-    <section class="min-w-0 border-b border-edge-muted py-3 first:pt-0 last:border-b-0 last:pb-0">
+    <section class="min-w-0 border-b border-edge-frame py-3 first:pt-0 last:border-b-0 last:pb-0">
       <div class="flex items-start justify-between gap-4">
         <div class="flex min-w-0 flex-col gap-0.5">
           <div class="flex items-center gap-1">
-            <span class="text-sm font-medium">{props.label}</span>
+            <span class="text-sm font-normal text-ink-muted">
+              {props.label}
+            </span>
             <Show when={props.description}>
               {(description) => (
                 <BookingFieldInfo

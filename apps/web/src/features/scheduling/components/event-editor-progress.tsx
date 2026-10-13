@@ -9,15 +9,16 @@ export function EventEditorProgress(props: { step: number }) {
     <div
       role="progressbar"
       aria-label="Booking setup progress"
-      aria-valuemin={1}
+      aria-valuemin={0}
       aria-valuemax={total}
       aria-valuenow={position()}
       aria-valuetext={`Step ${position()} of ${total}: ${currentStep().heading}`}
       aria-live="polite"
       aria-atomic="true"
-      class="h-1.5 w-full overflow-hidden rounded-full bg-active"
+      class="h-2 w-16 shrink-0 overflow-hidden rounded-full bg-active sm:w-20"
     >
       <div
+        aria-hidden="true"
         class="h-full rounded-full bg-accent transition-[width] duration-200 motion-reduce:transition-none"
         style={{ width: `${(position() / total) * 100}%` }}
       />
