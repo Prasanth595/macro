@@ -21,8 +21,9 @@ pub struct BookingLinkEvent {
     /// Attach a Macro call when someone books. A join link is created for that
     /// booking and written onto the calendar invitation. Mutually exclusive
     /// with `googleMeet`. Prefer this for a Macro booking; omit or false when
-    /// the link should use Google Meet or no video.
-    #[serde(default)]
+    /// the link should use Google Meet or no video. False is omitted so drafts
+    /// saved before this field still round-trip unchanged.
+    #[serde(default, skip_serializing_if = "is_false")]
     pub macro_call: bool,
     /// Generate a Google Meet conference. Mutually exclusive with `macroCall`.
     pub google_meet: bool,
@@ -109,6 +110,10 @@ pub struct BookingLinkListing {
     pub schedules: Vec<Schedule>,
     /// Links whose title, slug or description matches the search, including paused links.
     pub links: Vec<BookingLink>,
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 impl BookingLinkDraft {
