@@ -2,6 +2,7 @@
 //! external runtime that dials in. Each creates the row, provisions egress
 //! where there is a sandbox to give it to, and attaches the runtime.
 
+use crate::domain::model::{is_coding_agent, with_coding_preferences};
 use agent_session::domain::model::session_owner_user;
 use agent_session::domain::repository_branch::RepositoryBranch;
 use model_owner::Owner;
@@ -90,6 +91,15 @@ where
             ),
             None => (defaults.model.clone(), defaults.harness.clone(), None),
         };
+        let instructions = self
+            .inner
+            .with_owner_coding_preferences(
+                &owner_user,
+                request.bot_id,
+                AgentKind::for_session(request.bot_id, &harness),
+                request.instructions.or(profile_instructions),
+            )
+            .await?;
         let session = self
             .inner
             .sessions
@@ -106,7 +116,7 @@ where
                 repo_url: request.repo_url,
                 workspace: request.workspace,
                 sandbox_size: SandboxSize::Default,
-                instructions: request.instructions.or(profile_instructions),
+                instructions,
                 // No egress, so no MCP servers of ours to select from.
                 mcp_servers: AgentMcpServers::OwnerConnections,
                 // Mint the internal-tool credential when an authenticated
@@ -227,6 +237,30 @@ where
     Mentions: PromptMentions,
     Notifier: AgentSessionNotifier,
 {
+    /// A new session's instructions, ending with the workflows its owner's
+    /// coding preferences add when the session is a coding agent's.
+    ///
+    /// Warm sessions are only ever the in-memory chat agent's, which never
+    /// gets the workflows, so the warm claim's instructions match still holds.
+    pub(super) async fn with_owner_coding_preferences(
+        &self,
+        owner: &MacroUserIdStr<'static>,
+        bot_id: BotId,
+        kind: AgentKind,
+        instructions: Option<String>,
+    ) -> agent_session::domain::error::Result<Option<String>> {
+        let choice = self
+            .coding_agents
+            .coding_agent_choice(bot_id)
+            .await
+            .map_err(AgentSessionError::Unknown)?;
+        if !is_coding_agent(choice, kind) {
+            return Ok(instructions);
+        }
+        let preferences = self.sessions.user_coding_preferences(owner).await?;
+        Ok(with_coding_preferences(instructions, preferences))
+    }
+
     #[tracing::instrument(err, skip(self, command), fields(
         %session_id,
         bot_id = %command.bot_id,
@@ -352,7 +386,14 @@ where
         let sandbox_size = self.sessions.user_sandbox_size(&actor).await?;
         // Assignments retain the original task and update policy alongside the
         // profile instructions, including across later turns and reattachments.
-        let instructions = origin.session_instructions(&runtime.instructions);
+        let instructions = self
+            .with_owner_coding_preferences(
+                &actor,
+                bot_id,
+                runtime.kind,
+                origin.session_instructions(&runtime.instructions),
+            )
+            .await?;
 
         // Provisioned before the session exists, because the row is what makes
         // the token mean anything: it carries the hash the proxy recognises.
@@ -402,10 +443,10 @@ where
         // External runtimes bind on first delivery. Their operator owns the
         // process; opening a conversation must never provision a managed sandbox for it.
         if runtime.kind.is_managed() {
-            let mcp_servers = if runtime.kind == AgentKind::CodexCloud {
-                Vec::new()
-            } else {
+            let mcp_servers = if runtime.kind.takes_egress_mcp_servers() {
                 egress.sandbox.acp_servers()
+            } else {
+                Vec::new()
             };
             let container = match self
                 .containers
@@ -473,6 +514,7 @@ where
                 } else {
                     AgentActionId::mint()
                 },
+                context: origin.context().cloned(),
                 action: origin.into_action(),
                 actor: Some(actor),
                 announce: Some(announcement),

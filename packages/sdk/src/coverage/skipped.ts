@@ -75,10 +75,13 @@ export const authExcluded = [
   'getAiBillingSummary',
   'getCodexConnection',
   'getCursorApiKey',
+  'getGithubPullRequestMergeability',
   'getGtmInviteOffer',
   'getLegacyUserPermissions',
   'getPermissions',
   'getReferralCode',
+  // Renewal and scheduled-plan details are part of the app's billing settings.
+  'getSubscriptionStatus',
   'getTeamInvites',
   'getUserInvites',
   'getUserLinkExists',
@@ -126,6 +129,7 @@ export const authExcluded = [
   'sendReferralCode',
   'sessionCreation',
   'sessionLogin',
+  'setGithubPullRequestDraft',
   'ssoLogin',
   'startCodexLogin',
   'toggleTeamAutoJoinDomain',
@@ -322,6 +326,9 @@ export const storageExcluded = [
   'createCollabSurfaceToken',
   'createInstructionsHandler',
   'createViewHandler',
+  // Declining a ringing call is a live-device session flow, like leaving.
+  'declineCall',
+  'declineRing',
   'deleteCollabSurface',
   'ensureCollabSurface',
   // First-run sample content is provisioned by the app's feature-gated onboarding.
@@ -329,6 +336,9 @@ export const storageExcluded = [
   'deleteHistoryHandler',
   'deleteUserDocumentViewLocation',
   'deleteViewHandler',
+  // Called by third parties holding a webhook's URL; its token, not the
+  // SDK's credentials, authenticates it.
+  'deliverDatabaseWebhook',
   // Old numeric comment links resolve inside the web app only.
   'entityMessageLegacy',
   'excludeDefaultViewHandler',

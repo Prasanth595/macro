@@ -19,6 +19,8 @@ use messages::domain::events::{MessageEventAttachment, MessagePostedMetadata};
 use messages::domain::models::MessageParent;
 use serde::{Deserialize, Serialize};
 
+use trigger_context::TriggerContext;
+
 #[cfg(test)]
 mod test;
 
@@ -44,6 +46,10 @@ pub struct AgentBotMentionedEvent {
     pub bot_id: BotId,
     /// The message that triggered this, verbatim.
     pub message: ChannelMessagePostedMetadata,
+    /// Why the agent was called, for whoever composes its prompt. Absent on
+    /// events from producers that predate it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<TriggerContext>,
 }
 
 /// A session opened by a mention on a message parent. Today only document
@@ -56,6 +62,10 @@ pub struct AgentMentionedEvent {
     pub bot_id: BotId,
     /// The message that triggered this, verbatim, with its parent.
     pub message: MessagePostedMetadata,
+    /// Why the agent was called, for whoever composes its prompt. Absent on
+    /// events from producers that predate it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<TriggerContext>,
 }
 
 /// A session opened when a task is assigned to an agent.
@@ -71,6 +81,10 @@ pub struct AgentAssignedToTaskEvent {
     pub actor: macro_user_id::user_id::MacroUserIdStr<'static>,
     /// Private startup prompt, never posted as a discussion message.
     pub prompt: String,
+    /// Why the agent was called, for whoever composes its prompt. Absent on
+    /// events from producers that predate it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<TriggerContext>,
 }
 
 /// A session somebody asked for from Macro itself - the composer - rather
@@ -92,6 +106,10 @@ pub struct AgentSessionRequestedEvent {
     /// Repository selected by the requester, absent on older producers.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub repo_url: Option<String>,
+    /// Why the agent was called, for whoever composes its prompt. Absent on
+    /// events from producers that predate it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<TriggerContext>,
 }
 
 /// A message in a channel where an agent persona converses. The session
@@ -105,6 +123,10 @@ pub struct AgentConversationMessageEvent {
     pub session_id: AgentSessionId,
     /// Committed user message.
     pub message: MessagePostedMetadata,
+    /// Why the agent was called, read under the sender's access. Absent when
+    /// the read failed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<TriggerContext>,
 }
 
 /// Events that open a new session.
@@ -132,6 +154,8 @@ pub struct OpeningMention {
     pub bot_id: BotId,
     /// The opening message, with its parent.
     pub message: MessagePostedMetadata,
+    /// Why the agent was called.
+    pub context: Option<TriggerContext>,
 }
 
 impl NewAgentSessionEvent {
@@ -143,10 +167,12 @@ impl NewAgentSessionEvent {
             Self::TopLevelMentioned(mentioned) => Some(OpeningMention {
                 bot_id: mentioned.bot_id,
                 message: posted_from_channel_event(&mentioned.message),
+                context: mentioned.context.clone(),
             }),
             Self::Mentioned(mentioned) => Some(OpeningMention {
                 bot_id: mentioned.bot_id,
                 message: mentioned.message.clone(),
+                context: mentioned.context.clone(),
             }),
             Self::AssignedToTask(_) | Self::Requested(_) | Self::ConversationMessage(_) => None,
         }
@@ -177,6 +203,10 @@ pub struct ChannelEventMetadata {
     pub kind: ThreadMessageKind,
     /// The message, verbatim.
     pub message: ChannelMessagePostedMetadata,
+    /// Why the agent was called, for whoever composes its prompt. Absent on
+    /// events from producers that predate it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<TriggerContext>,
 }
 
 /// A message for a session that already exists, with its parent. Today only
@@ -193,6 +223,10 @@ pub struct ThreadEventMetadata {
     pub kind: ThreadMessageKind,
     /// The message, verbatim, with its parent.
     pub message: MessagePostedMetadata,
+    /// Why the agent was called, for whoever composes its prompt. Absent on
+    /// events from producers that predate it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<TriggerContext>,
 }
 
 /// Events for a session that already exists.
@@ -217,6 +251,8 @@ pub struct SessionMessage {
     pub kind: ThreadMessageKind,
     /// The message, with its parent.
     pub message: MessagePostedMetadata,
+    /// Why the agent was called.
+    pub context: Option<TriggerContext>,
 }
 
 impl ExistingAgentSessionEvent {
@@ -230,12 +266,14 @@ impl ExistingAgentSessionEvent {
                 session_id: metadata.session_id,
                 kind: metadata.kind,
                 message: posted_from_channel_event(&metadata.message),
+                context: metadata.context.clone(),
             }),
             Self::Thread(metadata) => Some(SessionMessage {
                 bot_id: metadata.bot_id,
                 session_id: metadata.session_id,
                 kind: metadata.kind,
                 message: metadata.message.clone(),
+                context: metadata.context.clone(),
             }),
         }
     }
@@ -379,6 +417,7 @@ impl AgentSessionMacroEvent {
     pub fn from_decision(
         decision: TriggerDecision,
         channel_type: Option<ChannelType>,
+        context: Option<TriggerContext>,
     ) -> Result<Self, MissingChannelType> {
         let channel = match &decision.message().parent {
             MessageParent::Channel(channel_id) => Some(
@@ -404,6 +443,7 @@ impl AgentSessionMacroEvent {
                     bot_id,
                     session_id,
                     message,
+                    context,
                 },
             )),
             TriggerDecision::Open { bot_id, message } => match channel {
@@ -411,11 +451,13 @@ impl AgentSessionMacroEvent {
                     NewAgentSessionEvent::TopLevelMentioned(AgentBotMentionedEvent {
                         bot_id,
                         message: channel_event_from_posted(&message, channel_id, channel_type),
+                        context,
                     }),
                 ),
                 None => Self::new_session(NewAgentSessionEvent::Mentioned(AgentMentionedEvent {
                     bot_id,
                     message,
+                    context,
                 })),
             },
             TriggerDecision::Existing {
@@ -430,6 +472,7 @@ impl AgentSessionMacroEvent {
                         session_id,
                         kind,
                         message: channel_event_from_posted(&message, channel_id, channel_type),
+                        context,
                     }),
                     bot_id,
                 ),
@@ -439,6 +482,7 @@ impl AgentSessionMacroEvent {
                         session_id,
                         kind,
                         message,
+                        context,
                     }),
                     bot_id,
                 ),

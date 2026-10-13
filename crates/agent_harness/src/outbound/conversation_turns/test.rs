@@ -79,6 +79,7 @@ async fn setup(pool: PgPool) -> (PgConversationTurnStore, AgentSessionId, Uuid, 
             sender: user,
             content: "Remember this".to_owned(),
             attachments: vec![],
+            context: None,
         }),
     };
     (

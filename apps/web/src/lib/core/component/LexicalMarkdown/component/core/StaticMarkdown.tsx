@@ -15,6 +15,7 @@ import {
   type AgentContextNode,
   type AgentSessionMentionNode,
   type AwaitNode,
+  type BookingLinkMentionNode,
   type ClassedBlockNode,
   type ConnectAppNode,
   type ContactMentionNode,
@@ -32,6 +33,7 @@ import {
   type MagicChipNode,
   normalizedLanguage,
   type PasteNode,
+  type PullRequestMentionNode,
   type ReplyTargetNode,
   type SnapshotNode,
   SupportedNodeTypes,
@@ -86,6 +88,7 @@ import { AgentActivity as AgentActivityDecorator } from '../decorator/AgentActiv
 import { AgentContext as AgentContextDecorator } from '../decorator/AgentContext';
 import { AgentSessionMention as AgentSessionMentionDecorator } from '../decorator/AgentSessionMention';
 import { Await as AwaitDecorator } from '../decorator/Await';
+import { BookingLinkMention as BookingLinkMentionDecorator } from '../decorator/BookingLinkMention';
 import { ConnectApp as ConnectAppDecorator } from '../decorator/ConnectApp';
 import { ContactMention as ContactMentionDecorator } from '../decorator/ContactMention';
 import { CursorSystemNotification as CursorSystemNotificationDecorator } from '../decorator/CursorSystemNotification';
@@ -103,6 +106,7 @@ import { MagicChip as MagicChipDecorator } from '../decorator/MagicChip';
 import { MarkdownImage as ImageDecorator } from '../decorator/MarkdownImage';
 import { MarkdownVideo as VideoDecorator } from '../decorator/MarkdownVideo';
 import { PasteNode as PasteNodeDecorator } from '../decorator/PasteNode';
+import { PullRequestMention as PullRequestMentionDecorator } from '../decorator/PullRequestMention';
 import { ReplyTarget as ReplyTargetDecorator } from '../decorator/ReplyTarget';
 import { Snapshot as SnapshotDecorator } from '../decorator/Snapshot';
 import { TagMention as TagMentionDecorator } from '../decorator/TagMention';
@@ -248,6 +252,8 @@ function getTextClassName(
     | UserMentionNode
     | DocumentMentionNode
     | AgentSessionMentionNode
+    | PullRequestMentionNode
+    | BookingLinkMentionNode
     | ContactMentionNode
     | DateMentionNode
     | WatermarkNode,
@@ -413,11 +419,39 @@ const AgentSessionMention: TypedRenderableEntity<AgentSessionMentionNode> = {
     node.__type === 'agent-session-mention',
   render: (props) => (
     <span class={getTextClassName(props.node, props.theme)}>
-      {AgentSessionMentionDecorator({
-        ...props.node.exportComponentProps(),
-        key: props.node.getKey(),
-        theme: props.theme,
-      })}
+      <AgentSessionMentionDecorator
+        {...props.node.exportComponentProps()}
+        key={props.node.getKey()}
+        theme={props.theme}
+      />
+    </span>
+  ),
+};
+
+const PullRequestMention: TypedRenderableEntity<PullRequestMentionNode> = {
+  guard: (node: LexicalNode): node is PullRequestMentionNode =>
+    node.__type === 'pr-mention',
+  render: (props) => (
+    <span class={getTextClassName(props.node, props.theme)}>
+      <PullRequestMentionDecorator
+        {...props.node.exportComponentProps()}
+        key={props.node.getKey()}
+        theme={props.theme}
+      />
+    </span>
+  ),
+};
+
+const BookingLinkMention: TypedRenderableEntity<BookingLinkMentionNode> = {
+  guard: (node: LexicalNode): node is BookingLinkMentionNode =>
+    node.__type === 'booking-link-mention',
+  render: (props) => (
+    <span class={getTextClassName(props.node, props.theme)}>
+      <BookingLinkMentionDecorator
+        {...props.node.exportComponentProps()}
+        key={props.node.getKey()}
+        theme={props.theme}
+      />
     </span>
   ),
 };
@@ -988,6 +1022,8 @@ const InlineEntities: RenderableEntity[] = [
   eraseRenderableEntity(UserMention),
   eraseRenderableEntity(DocumentMention),
   eraseRenderableEntity(AgentSessionMention),
+  eraseRenderableEntity(PullRequestMention),
+  eraseRenderableEntity(BookingLinkMention),
   eraseRenderableEntity(DocumentCard),
   eraseRenderableEntity(ContactMention),
   eraseRenderableEntity(DateMention),
@@ -1198,15 +1234,34 @@ export function StaticMarkdown(props: {
   // TODO: Move citations to bulk query when built in backend
   createEffect(() => {
     const editor = currentEditor();
+    const markdown = props.markdown;
+    const target = props.target;
+    const singleLine = props.singleLine;
+    // Without citations the replacement is identical; re-rendering it would
+    // parse the markdown again and rebuild the same DOM.
+    if (!markdown.includes('[[')) return;
+
+    // A newer render owns the editor state; drop this lookup's late result.
+    let current = true;
+    onCleanup(() => {
+      current = false;
+    });
 
     // Handle citations without affecting mentions
-    replaceCitations(props.markdown).then((content: string) => {
-      setEditorStateFromMarkdown(editor, content, props.target);
-      if (props.singleLine) {
-        forceSingleLine(editor);
+    const renderCitations = async () => {
+      try {
+        const content = await replaceCitations(markdown);
+        if (!current || content === markdown) return;
+        setEditorStateFromMarkdown(editor, content, target);
+        if (singleLine) {
+          forceSingleLine(editor);
+        }
+        setEditorState(editor.getEditorState());
+      } catch (error) {
+        console.error('Failed to resolve markdown citations', error);
       }
-      setEditorState(editor.getEditorState());
-    });
+    };
+    void renderCitations();
   });
 
   const domTree = createMemo(() => {

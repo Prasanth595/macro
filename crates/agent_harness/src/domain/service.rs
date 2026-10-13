@@ -23,7 +23,7 @@ mod lifecycle_events;
 mod open;
 mod present;
 mod queue;
-pub mod session_mcp;
+mod session_mcp;
 mod warm;
 
 use std::sync::Arc;
@@ -49,6 +49,7 @@ use macro_user_id::user_id::MacroUserIdStr;
 use tokio::sync::{mpsc, oneshot};
 use tracing::Instrument as _;
 use tracing::instrument::WithSubscriber as _;
+use trigger_context::TriggerContext;
 
 use crate::domain::error::{HarnessError, Result};
 use crate::domain::model::{

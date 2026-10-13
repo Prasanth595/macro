@@ -26,6 +26,15 @@ outline surface and border with semibold text, without inverted colors. Disabled
 and pending primary actions retain the strong variant. Mobile confirmation drawers
 use the same action hierarchy.
 
+## List-item sharing
+
+Right-click a shareable list row and choose **Share**. The sharing dialog must
+remain open after the context menu closes, with recipient selection and the
+optional message available. Dismiss it with Cancel, then reopen Share on the
+same row and confirm focus enters the recipient selector again. Opening or
+cancelling the dialog does not change access; do not submit shares on real dev
+data unless authorized.
+
 ## User cards
 
 Avatar and user-mention cards open on hover on pointer devices and as a bottom
@@ -156,6 +165,12 @@ editing: only moved or removed rows should be added or removed. Rename a row and
 then drag it: its drag label/payload must use the new fields without another
 registration/layout measurement.
 
+Desktop multi-select filter menus in Home, Tasks, Drive, Email, Reviews, Search,
+CRM, Calendar, and database option-value filters close after an ordinary click or
+Enter. Hold Shift while clicking or pressing Enter to toggle individual options
+and keep the menu open for further selections. Shift does not select a range.
+Single-select controls and mobile filter drawers retain their existing behavior.
+
 Channels use the same general Soup reconciliation path, not a separate local page
 chain. Channel ID, type, team, organization, importance, and participant-scoped
 filters operate over synchronized channel metadata. The default channel scope
@@ -229,6 +244,19 @@ chat remain visible, and that loading older rows still works through pages of
 Noise-only email activity. Each entity appears once, ordered by its latest
 notification or own action. On desktop, the funnel button to the right of **Home**
 opens **Filter Home**.
+
+With the GraphQL Soup flag on, desktop Signal reads
+the server work feed (`user.workFeed` plus the `workFeedUpdates` subscription)
+instead of merging sources in the browser; Noise, search, and touch devices keep
+the merged feed. Verify these against a backend that serves the work feed: a
+document you edited with no notifications appears read and offers no **Mark Done**.
+**Mark Done** clears a row's notifications (and archives an inbox email): a row
+that is only notifications leaves and stays gone after a reload, while a row you
+also worked on stays, read, at the time of your own work. **Undo** brings a done
+row back in place. A new comment on a months-old document appears at the top. With
+two sessions of the same account, marking a row done in one removes it from the
+other without reloading. A channel thread and its channel remain separate rows, and
+completing the channel leaves the thread.
 The menu shares the legacy compact submenus: **Status** offers **Unread**, **Read**,
 and **All** as single-select radio items with a checkmark on the right of the selected
 option, and **Type** contains the entity checkboxes. Status closes the menu
@@ -381,9 +409,8 @@ longer notifies the thread. Settings → notifications lists them under `AI`.
 ## Tasks — `/app/component/tasks`
 
 Task navigation uses `My Tasks`, `All Tasks`, and `Created by me`. The desktop
-sidebar has a full-width `New task` action, a collapsible list of task favorites,
-and a collapsible list of tags. Selecting a tag filters the current task view;
-selecting it again clears that tag filter. Favorite rows open their tasks.
+sidebar has a full-width `New task` action and a collapsible list of task favorites;
+tag filtering lives in the `Filter` menu. Favorite rows open their tasks.
 Normal row and favorite activation replaces the list with the editable task
 document; its originating-tab breadcrumb returns to the list and its
 header exposes Share and the task Details/Properties panel. Shift-click opens
@@ -406,10 +433,10 @@ The mobile task drawer retains its existing layout.
 
 ## Email — `/app/component/mail`
 
-Email's Tags sidebar uses the same [nested tag tree as Tasks](tasks.md#nested-sidebar-tags).
+Email's Tags sidebar uses the [nested tag tree](tasks.md#nested-sidebar-tags).
 Carets and folder-only parents expand branches; actual tags select their exact ID
 and switch the mailbox to All. Parent selection does not include descendant tags.
-Unlike Tasks and Drive, it lists only personal tags; team-shared tags are hidden,
+Unlike Calls, it lists only personal tags; team-shared tags are hidden,
 and its `New tag` action creates a personal tag with no Team sharing option.
 
 Full email client. Tabs: `Signal` / `Noise` / `Favorites` / `Sent` / `Scheduled` / `Calendar` / `Drafts` / `Shared` /
@@ -538,6 +565,17 @@ Mark Not Done remains available for an archived thread whose inbox timestamp is
 missing; the server decides whether its received-message history allows restoration.
 The REST path retains its timestamp preflight, whole-batch handling, notification
 ordering, and existing cache reconciliation.
+For optimistic mutation interface changes, delay the network response and verify
+that only the affected row's read/done indicator changes, with scroll position and
+unrelated rows retained. Quickly reverse the action, then reject the first request:
+the later intent must remain visible. A stale refresh while either write is pending
+must not clear its optimistic state. A retryable failure should remain queued;
+a permanent failure should restore only the failed intent's fields.
+With two views of the same thread mounted, a read/unread or archive scalar
+change should update both existing query stores without a full query reread.
+Observers of unrelated fields should stay idle. Changes to links, record
+identity, or unsupported query projections still take the cache reread path;
+a subsequent scalar update must not cancel that pending structural refresh.
 
 The service retains both replica-backed Soup reads and a primary-backed email
 writer. Email mutations and their uncached reply reloads use the primary; ordinary
@@ -553,6 +591,12 @@ Browser WASM and native cache builds must include the regenerated schema metadat
 native offline archive support therefore requires a full app build, not just OTA.
 
 ### Cached Mail filtering
+
+The per-query caches for email threads, channels, and native offline document
+context reopen closed IndexedDB connections. Verify a cached read and a subsequent
+write after closing the connection, then clear/logout during recovery: old-account
+entries must not return. Only transaction creation retries automatically; persistent
+storage failures still follow the existing cache fallback behavior.
 
 Performance check: switch Signal → All twice against a large synchronized cache.
 Dense local pages use bounded sort-index candidates rather than sorting the entire
@@ -705,6 +749,15 @@ when delivery fails. Later edits can show it again after the usual pause.
 Verify the label does not cycle through saving/syncing text on each edit and
 that retry remains accessible beside the actions on mobile. Editing while failed
 continues saving locally without repeatedly submitting the rejected request.
+Local draft storage reopens unexpectedly closed IndexedDB connections. If creating
+a transaction fails because the connection is closing, it retries once before
+running any writes. Verify by closing the draft database connection, then editing:
+the latest content must persist locally and server autosave must continue without
+reloading. Repeat across background/resume on an iPhone. A transaction that has
+already started is never automatically replayed. Persistent failures still block
+server autosave; copy unsaved content before restarting. Storage failures and
+recovery report current page visibility and network state without draft content.
+
 Repeated local-save failures show one persistent warning per composer; recovery
 or closing that composer dismisses it. A later failure shows a new warning.
 Retry preserves the original draft handle. An already-sent rejection drops the
@@ -967,6 +1020,33 @@ search field, filter menu and preview control. The sidebar lists the inboxes abo
 `Connect another account` starts the add-inbox flow from its own row below the
 scrolling list. `New email` prefills From with the selected inbox, or the primary
 inbox when All inboxes is selected; reopening a draft keeps its saved sender.
+The From menu groups each connected inbox with its verified Gmail send-as aliases.
+Replies default to an address on the thread's own inbox: preserve an outgoing
+message's From, otherwise match To before Cc/Bcc (prefer an alias within each
+recipient group). A manual choice or saved draft takes precedence over late
+account refreshes. Reply-all excludes the inbox's primary address and its aliases.
+Aliases are scoped to their owning inbox, even when two inboxes share an address.
+A failed alias lookup for one inbox does not hide other inboxes' aliases. An
+invalid or unavailable selected alias is rejected on save/send, never silently
+replaced with the primary address.
+
+The sidebar and mobile inbox picker also list aliases beneath their inbox.
+Selecting one scopes mail to that inbox and the exact address in From/To/Cc/Bcc;
+search candidates are checked against the same GraphQL scope. Search and Reminders
+automatically advance nonmatching candidate pages until a match or exhaustion;
+while alias membership is loading, wait rather than treating it as an empty inbox.
+Refresh retries both search and alias membership. A failed retained membership
+lookup shows an error without discarding already-confirmed rows. If a saved alias
+disappears from the catalog, the primary address must not look selected; use
+`All inboxes` or choose an available address to clear that scope. Scheduled mail
+matches its saved sender. `All inboxes` clears both the inbox and alias selection,
+and the selection survives reloads. With one inbox **and aliases**, the All row
+and address pickers remain available. To check without sending real mail, open
+both pickers, select an alias, switch to the primary address, reopen a saved alias
+draft, and confirm the address remains unchanged. Alias discovery uses
+`MailAccounts`, draft saves use `saveEmailDraft`, and delivery uses
+`sendEmailMessage` in GraphQL; the existing undo-send window still applies.
+
 If an explicitly selected sending inbox is unavailable, Send reports
 `Unable to find linked email account. Select a sending inbox.` without delivering
 through another account. The From picker stays available as `Select sending inbox`,
@@ -976,7 +1056,7 @@ sending; the picker never displays another inbox as selected before that choice.
 With no explicit selection, an unavailable primary still falls back to
 the first linked inbox.
 Sidebar rows, including `All inboxes`, replace their icon with an accent-colored checkmark when
-selected. With exactly one connected inbox, only its address appears as the selected
+selected. With exactly one connected inbox and no aliases, only its address appears as the selected
 row, followed by `Connect another account`; there is no `All inboxes` row, title
 inbox dropdown, or inbox section in the mobile filter drawer. The inbox section shows up to four rows (including `All inboxes`), then
 scrolls independently without overscroll so the email tabs stay in place. With many
@@ -1087,13 +1167,9 @@ touch uses the global search overlay and creation uses the dock's New button.
 The **Folders** pill opens the folder overview and stays highlighted inside
 any folder; tapping it from inside a folder returns to the overview, and
 selecting another pill leaves the folder tree. The sidebar contains `New file or folder`, `My Files`, `Recent`,
-`Shared with me`, collapsible Favorites, a searchable folder hierarchy, and a
-collapsible Tags section beneath the folders. Tags lists every tag you can apply,
-nested by `/` in the tag name, with a `New tag` action in its header. Choosing a
-tag shows only that tag's files within the current tab or folder and exits any
-inline file detail; choosing the highlighted tag again clears it, and the same
-selection appears under the **Filter** menu's Tags submenu. Navigating to another
-tab or folder clears tag filters. A folder with no files matching the active tag
+`Shared with me`, collapsible Favorites, and a searchable folder hierarchy. Filter
+by tag from the **Filter** menu's Tags submenu; navigating to another tab or folder
+clears tag filters. A folder with no files matching the active tag
 shows the list's no-match state rather than `This folder is empty`.
 Drive omits split-history back/forward buttons in both wide and narrow layouts;
 the split close button remains available when multiple splits are open.
@@ -1138,6 +1214,13 @@ and **Created by** submenus alongside **Files** for Default, All files, and Emai
 attachments. Options within a group match any selected option; different groups
 combine to narrow the results. Created by is hidden while My Files
 is restricted to your own files. Recent offers only file-scope filtering.
+Hold Shift while selecting or deselecting Type options to keep the submenu open
+and combine several file types without reopening it. Desktop filter submenus allow a
+250 ms grace period when the mouse crosses the parent menu's padding; entering
+the submenu cancels the pending close. While the mouse heads toward an open
+submenu, including one that opens to the left, the categories it crosses on the
+way do not take over. A category the mouse moves to directly, or rests on for
+300 ms, opens in its place. Escape and outside clicks still dismiss immediately.
 `Sort files` offers modified, created, and viewed dates.
 Recent uses the viewer's own interaction order and does not offer a sort override.
 The New menu and drag/drop uploads target the selected folder. **New → Folder**
@@ -1287,18 +1370,19 @@ Calendar scheduling is on by default in dev. Production uses the PostHog flag
 While off, the Calendar settings tab and calendar booking shortcuts are hidden;
 public booking and receipt links show an unavailable page without fetching
 scheduling data. When enabling a production rollout, include anonymous visitors
-so invitees can open those links.
+so invitees can open those links. A public booking link stays available when
+the flag request gets no answer, for example when a browser blocks it.
 
 Calendar connections live in **Settings → Calendar** (`/app/settings/calendar`).
 Scheduling lives in the separate **Settings → Booking links** item
-(`/app/settings/booking-links`), with Booking links, Availability, Booking pages,
-Teams, Bookings, and Insights in one scrolling page. The calendar toolbar’s
-booking actions open Booking links; email and integration connection shortcuts
-continue to open Calendar.
-There is no second sidebar or global owner switch. Personal and team booking links
-appear together with ownership badges. New booking link and New schedule ask which
-owner to create for when multiple editable owners are available, then open inline editors;
-event options are stacked sections. Save changes or Cancel returns to the list.
+(`/app/settings/booking-links`). Use the owner menu at the top right to choose
+**Personal** or **Team · team name**,
+then use **Links**, **Availability**, **Booking page**, **Bookings**, or **Insights**.
+Every section and creation action applies to that selected owner. The default is
+Personal. **Manage teams** in that menu opens team settings. The calendar toolbar’s booking
+actions open Booking links; connection shortcuts continue to open Calendar.
+**New booking link** and **New schedule** create for the selected owner and open
+inline editors. Save changes or Cancel returns to that owner's list.
 Connected calendars offers Connect account (the existing Google consent flow),
 Connect calendar for accounts missing calendar permission, and Disconnect with
 confirmation. Disconnect removes calendar access/data, not the Gmail connection.
@@ -1314,11 +1398,17 @@ Booking status filters use the same segmented control as the CRM sidebar.
 In Availability, each weekday has an enable switch, time ranges, an add button,
 and a copy-hours menu; select target days and Apply before saving the schedule.
 Date overrides and the searchable timezone picker sit below the weekly hours.
-Ownership badges identify Personal or Team · team name on links and availability.
-Public booking pages, bookings, and insights are grouped by owner and remain visible
-together; editing one owner does not switch the rest of the page. Search booking
-links by title, slug, or owner. Team owners/admins can edit team links; ordinary members can view them. `Event types` creates, edits,
-pauses, duplicates, previews, and copies booking links. Event settings include
+The header shows the selected owner; team owners have an explicit **Team** label.
+Links and availability use flat rows, with actions beside each item.
+Booking pages, bookings, and insights show only the selected owner. Search filters
+that owner’s links and clears when switching owners. Any team member can edit
+team links. Hosts can cancel or reschedule the meetings they host; team
+owners/admins can also manage teammates’ bookings and approve pending ones.
+`Links` creates, edits, pauses,
+duplicates, previews, and copies booking links. Event settings include a
+video choice. New links default to a Macro call, which is created when
+someone books and attached to the calendar invitation. Google Meet and no
+video link remain available. Event settings also include
 weekly availability, collective/all-host or round-robin/one-host assignment,
 notice, buffers, booking horizon, daily limits, and custom questions. New event
 types stay paused until `Accept bookings` is selected and changes are saved.
@@ -1326,8 +1416,8 @@ types stay paused until `Accept bookings` is selected and changes are saved.
 zone. Set a default schedule for new event types; a schedule cannot be deleted
 until its event types use another one. Collective and round-robin team meetings
 respect each host’s personal default hours when configured, plus busy calendars.
-`Teams` summarizes connected teams and links to team settings; the member roster
-lives in team settings. Choose hosts for a team booking link inside its editor.
+**Manage teams** opens team settings, where the member roster lives. Choose hosts
+for a team booking link inside its editor.
 `Booking page` edits the public name and description. `Bookings` shows
 upcoming, unconfirmed, past, and cancelled meetings; admins can confirm requests,
 reschedule, or cancel them. Choose From/Through dates to load bookings (initially 30 days before and after today), then search by guest/title/email and filter by event type. Dates use your browser time zone; shorten the range if more than 5,000 bookings match.
@@ -1348,7 +1438,10 @@ Oversized result sets return an error instead of silently truncating insights.
 
 The calendar header includes `Copy booking link` and `Open calendar scheduling
 settings`. Copy opens settings when no active personal link exists. Public
-`/app/book/:profile/:slug?` pages accept bookings without Macro sign-in. Uncertain
+`/app/book/:profile/:slug?` pages accept bookings without Macro sign-in. The website
+opens them in its own dialog; framed there, a booking page and its receipt drop their
+Macro heading and footer, and the booking page tells the website when a booking is
+made. Only macro.com can frame them. Uncertain
 calendar writes retain the booking and show its private receipt while automatic recovery runs.
 After a network response cannot be verified, `Check booking status` retries the original request;
 do not create a replacement booking. Receipt pages poll while the calendar update is pending. Visitors
@@ -1558,6 +1651,12 @@ Editing or rescheduling an owned event retains and updates its selected Macro ca
 Selecting `Macro call` on an owned editable event without one adds a call on save;
 choosing another option removes its generated Macro link from the invitation.
 Removing the link or deleting the calendar event does not revoke the reusable call.
+The AI's `CreateCalendarEvent` composer (chat, agent sessions, channel review cards)
+offers the same selector under the same quick-calls flag; `Macro call` there maps to
+the tool's `addMacroCall`, and the call is created when the tool executes, before the
+event is written, so the single invitation already carries the link. The MCP server
+and channel bot accept `addMacroCall` directly. `addMacroCall` and `addGoogleMeet`
+are mutually exclusive, and out-of-office entries accept neither.
 
 The sidebar's `Calendars` section folds each connected account into a collapsible
 group: a caret plus the account address header with a checkbox that shows or hides all of
@@ -1624,11 +1723,13 @@ that date. Coverage depends on each teammate having connected their own calendar
 Google's out-of-office event type.
 
 A calendar event mentioned in a channel message opens the calendar focused on the viewer's
-own copy of the meeting. When the sender holds the event on their own calendar, the mention
-also shares it read-only with the channel's current members: a member without a copy of their
-own sees the mention's title and time, and its hover card adds a `Shared with you · not on
+own copy of the meeting. When a person holds the event on their own calendar and posts the
+mention, it is shared read-only with the channel's current members: a member without a copy of
+their own sees the mention's title and time, and its hover card adds a `Shared with you · not on
 your calendar` line with no open action. Clicking such a mention shows that hover card
-instead of opening the calendar. Private and confidential events are never shared this way.
+instead of opening the calendar. A classic `@Macro` reply that mentions an event does not share
+it by posting the chip. It asks whether to share with the channel, and a yes in that thread
+writes the same channel grant. Private and confidential events are never shared this way.
 Every calendar mention's hover card shows the schedule, location, organizer and attendee
 count, plus the first lines of the event description (its links open), and no last-updated
 byline.
@@ -1641,13 +1742,15 @@ scope; desktop's default scope remains **Involves me**.
 
 Macro-linked GitHub pull requests open inside the Reviews shell, with a Reviews
 breadcrumb, PR title/status, linked GitHub metadata, discussion timeline, and Details/Checks
-side panel below the top bar. An open PR also shows a **Merge** button in the
-top bar beside **Changes**. It opens a confirmation with the repository, PR number,
+side panel below the top bar. An open PR that is not a draft, and whose checks
+have all finished with a success, skipped, or neutral conclusion, also shows a
+**Merge** button in the top bar beside **Changes**. It opens a confirmation with the repository, PR number,
 and title, then merges on GitHub as the signed-in user through their linked account.
 GitHub's permissions and branch protections decide; a refusal appears as a toast
 with GitHub's reason, and a merge refreshes the PR status in place. Without a linked
-GitHub account the toast points to Settings. Merged and closed PRs have no Merge
-button. PRs are not tasks and do not appear in the Tasks list.
+GitHub account the toast points to Settings. Draft PRs, PRs with no checks, and PRs
+whose checks are still running or failing have no Merge button. Merged and closed
+PRs have no Merge button. PRs are not tasks and do not appear in the Tasks list.
 The metadata pills beneath the PR title include linked agent sessions, using the
 agent sparkle icon. A single session shows its name; several sessions show a
 count chip opening a session list. Selecting a session opens it, with Shift-click
@@ -1723,11 +1826,19 @@ separate diff and discussion requests are outside this subscription behavior.
 
 ## Calls — `/app/component/calls`
 
-Tabs `All` / `Missed` / `Unattended`; `New call` offers `Call a channel or contact`
-and, with `enable-quick-calls` enabled, `Manage call links`. Create Quick Calls
-with `New Call` beside Calendar's
-`New event`, or with `Create` → `Call` (`C C`). Scheduled calls are created through
-Calendar and can be shared with people who do not have a Macro account.
+On desktop a collapsible sidebar holds the search field (`Search calls`, `⌘F`),
+the views `All` / `Missed` / `Unattended`, a `Type` section (`Internal` /
+`External`; External means at least one guest without a Macro account joined),
+a `Channels` section listing channels seen in loaded calls, and `Tags`. Choosing
+a type, channel, or tag shows only that one; choosing it again clears it. These
+refinements carry across the three views. Sort, group, filter, and `New call`
+sit in the list's top bar. Phones keep pill tabs and the header search.
+With `enable-quick-calls` enabled, `New call` opens a menu with `Start an instant
+call`, `Call a channel or contact`, and `Manage call links`; without the flag it
+opens the recipient picker directly. `Start an instant call` opens `/app/meet/new`
+without creating a meeting, the same setup reached from `New Call` beside
+Calendar's `New event` or `Create` → `Call` (`C C`). Scheduled calls are created
+through Calendar and can be shared with people who do not have a Macro account.
 The channel/contact option opens the recipient picker.
 Recordings, transcriptions
 and summaries appear here; empty state notes "Calls are available to agents."
@@ -1746,6 +1857,15 @@ playing elsewhere. On phones, recorded call headers omit **Call Again**.
 A channel's `Calls` tab lists that channel's recordings with the same rows, filtered
 by the channel id. Its search field matches call names and transcripts in that
 channel.
+
+In the native iOS call drawer, the horizontal participant row excludes the person
+shown in the large video. While holding or scrolling the row (including momentum),
+the displayed primary and row membership stay fixed; speaking indicators still
+update. The latest primary and membership update together after scrolling settles,
+preserving a surviving participant's position where possible. Verify that dragging
+does not pin someone, tapping pins the displayed person, and a participant who
+leaves during a held touch cannot be selected. Exercise speaker changes and
+departures during row gestures on a physical iPhone as well as the simulator.
 
 If a recording fails to play, reload the page to obtain a fresh recording link,
 or use **Open or download recording**. The playback warning does not assume
@@ -1886,8 +2006,10 @@ are plain soup lists with the shared pagination. Existing personal/team saved
 views stay in the toolbar's Views menu.
 
 Companies lists every visible company, grouped by Stage by default, with Owner,
-Revenue and Last Interaction columns. Its toolbar holds sort, group, filter,
-display options, saved views, and **New company** at the right end.
+Revenue and Last Interaction columns. A Stage column is off by default; turn it
+on, or hide Owner or Revenue, under **Display options**. Its toolbar holds
+sort, group, filter, display options, saved views, and **New company** at the
+right end.
 
 People lists contacts across every CRM-enabled team the viewer belongs to, from
 the same Soup query with only CRM contacts opted in (`crmf`). The server collapses
@@ -1942,19 +2064,57 @@ available in the embedded company and contact breadcrumb header.
 A company is laid out like a project. Its split header or embedded breadcrumb
 header shows inset `Overview`, `Team`, `Emails`, `Files`, `Tasks`, and `Calls`
 tabs, collapsing to icons when narrow. Overview shows the name, pills
-for each domain and `Last interacted`, the generated description and the
-Discussion. Team lists the contacts with `Add contact`. Emails keeps the
-`Signal`/`All` and `Team`/`Me` toggles. Files lists non-task documents whose
-`Companies` property references the company, plus attachments of emails with
-its domains. Tasks is the Tasks list scoped to the `Companies` property; its
-`New task` composer pre-fills the company. Calls lists calls linked to the
-company, including those linked automatically from their participants. The side
-panel keeps Properties and Sharing.
+for each domain and `Last interacted`, the generated description, a
+**Pipelines** section and the Discussion. Pipelines stacks one full-width card
+per row of a pipeline you can open that references the record. A card's header
+strip names the pipeline (a lock marks a private one); below it, the row's first
+four fields sit side by side, label over value, and the rest wait behind
+`Show N more`. Cells edit like the pipeline table's when you can edit that
+pipeline. Inside Customers, the header's `Open <pipeline>` button opens it. The
+`Pipelines` caret header collapses and expands the cards, like the Discussion
+header; both start expanded on each visit. The
+section is absent when the record is in no pipeline.
+Team lists the contacts with `Add contact`. Emails keeps the
+`Signal`/`All` and `Team`/`Me` toggles; `Team` shows teammates' threads even to
+a viewer with no connected mailbox. Files, Tasks, and Calls list items
+*associated* with the company: its `Companies` property names the company, its
+`Contacts` property names one of the company's contacts, or it @mentions (or a
+message attaches) the company or one of those contacts. Contacts beyond the Team
+tab's first page count, hidden contacts count only for team admins and owners,
+and an item matching several ways appears once. Files lists non-task documents
+plus attachments of emails with the company's domains. Tasks is the Tasks list
+with that scope, grouping, and Load more; `Search tasks` matches task names
+within the scope (not content). Its `New task` composer pre-fills the company.
+Calls includes calls linked automatically from their participants and calls
+whose thread mentions the company. The side panel keeps Properties and Sharing,
+and adds **References**: associated items of any type (documents, tasks,
+channel messages, email threads and calls with the property, events, chats,
+projects, and companies or contacts whose properties or Discussion name the
+company) as compact icon-and-name rows, paged as it scrolls. A channel message
+row opens its thread; a reply surfaces as its thread's row. A document
+Discussion message makes its document the item. Initiatives and database rows
+are not listed.
+When a record list fails to refresh (for example, the record became
+inaccessible), it replaces its rows with `Couldn't load this list.` and
+`Retry` reloads it; a failed later page keeps the rows and shows `Couldn't
+load more.`
 A contact has the same layout with `Overview`, `Emails`, `Files`, `Tasks` and
 `Calls`: Overview pills show the email, the company (opens it) and `Last
-interacted`. Files and Calls match on the contact's `Contacts` property and, for
-files, attachments of emails with its address. Tasks created from a contact also
-reference its company. The side panel keeps Sharing (admins only).
+interacted`, followed by the contact's Pipelines cards. Its Files, Tasks, Calls,
+and References show items associated with the contact itself (its `Contacts`
+property or an @mention of it), not everything associated with its company;
+Files also includes attachments of emails with its address. Tasks created from a
+contact also reference its company. The side panel keeps Sharing (admins only)
+and adds References.
+
+Mentioning a company or contact with `@` in a document or task records it as a
+reference of that record (removing the chip removes it) without sharing the
+document, inviting anyone, or notifying the contact; channel and Discussion
+messages record their CRM mentions when sent or edited. Open record lists
+refresh after a CRM mention or a `Companies`/`Contacts` property changes. To
+verify, mention a contact in a document, then check the contact's and its
+company's References and Files without reloading; remove the chip and confirm it
+drops out.
 
 Company and contact pages have a **Discussion** section built from the same
 message conversation as a document's Discussion: threaded replies, reactions,
@@ -1990,10 +2150,15 @@ and can change access later through the standard **Share** dialog. Under
 pipeline private. **Copy Link** copies a CRM link that opens this pipeline for
 anyone who has access. On mobile, team access is in the **Team** tab.
 
-The first column is a required company/contact reference. The same company or
-contact can occur in multiple rows in a pipeline and can also belong to other
-pipelines. Each row has its own field values; **Duplicate** copies a row into a new
-entry referencing the same company or contact. The reference column
+The first column is a required company/contact reference. Clicking a filled
+reference, or pressing Enter on it, opens that company or contact; on desktop it
+opens in place with the pipeline name in its breadcrumb (choose it to return),
+and on mobile in its own view. The same applies to the reference shown as a
+board card's or record panel's title. To change which record a row references,
+focus the cell and press F2 or start typing; an empty reference cell opens the
+picker on click. The same company or contact can occur in multiple rows in a
+pipeline and can also belong to other pipelines. Each row has its own field
+values; **Duplicate** copies a row into a new entry referencing the same company or contact. The reference column
 can be renamed but cannot be removed or changed to another type. Stage, Owner,
 and Revenue are independent pipeline fields; editing them does not modify the
 company's CRM fields. Use **Add column** or a column header's menu to customize
@@ -2134,6 +2299,13 @@ afterwards in **Settings → Billing**, where Guest users can buy Premium or Max
 ## Settings — `/app/settings/<section>`
 
 ### Slack archive import
+
+Temporary message storage recovers closed IndexedDB connections without restarting
+the import or deleting staged history. Verify closure between staging batches and
+between cursor pages: all messages must remain ordered, deduplicated, and within
+the original byte limit. Cancellation and cleanup still work during recovery.
+Deleted or replaced scratch databases fail the old import instead of silently
+continuing with incomplete history; its cleanup must leave a replacement intact.
 
 In **Team → Connections**, **Import from Slack** appears only for team admins
 and owners with `enable-slack-archive-import` enabled. Production rollout stays
@@ -2278,10 +2450,12 @@ split view: the rail's gear button (or `Ctrl ;`) opens it in the active split
 like any other rail item, and Shift-click opens it in a new split.
 `/app/settings/<tab>` opens it as the only split with the app rail still
 visible, and `/app/home/~/settings/<tab>` places it beside Home. Its inner
-sidebar matches Email and Tasks: a **Settings** title bar with the
-**Hide navigation** toggle (`Cmd .`), a rounded **Search settings** field, the
-grouped section pills, and **Log out** pinned to the bottom. Below 720px the
-sidebar becomes an overlay opened from **Show navigation**. Escape closes a
+sidebar matches Email and Tasks: a **Settings** title bar, a rounded
+**Search settings** field, the grouped section pills, and **Log out** pinned to
+the bottom. Unlike other views, it cannot be hidden at desktop widths: there is
+no **Hide navigation** toggle and `Cmd .` does nothing, even if it was hidden
+before. Below 720px the sidebar becomes an overlay opened from **Show
+navigation** (or `Cmd .`), which starts closed. Escape closes a
 settings split that shares the layout, or steps back to the previous view when
 it is the only split (Home when there is none). Leave settings by picking any
 other rail item; there is no separate back or fullscreen control.
@@ -2291,16 +2465,31 @@ Section headings and controls share a white surface in light mode and the
 composer border in dark mode, with subtle row separators. The compact sidebar
 uses the shared workspace width.
 
+When a newer version is ready, an **Update available** button (a download icon
+in a subtle accent circle that a glowing comet periodically circles) appears in
+the sidebar rail above the mobile-app and settings icons. Its popover (a title,
+a short description, and one action) opens by itself once per update until
+dismissed (click outside or Escape); the button stays until the update is
+applied. Its wording and action depend on the update: **New version available**
+/ **Reload** for a newer web build, **Update ready** / **Update** for a
+downloaded bundle in the desktop app, and **Desktop app update ready** /
+**Restart and update** for a native desktop update. When part of the app fails
+to load because a newer web build replaced it, the same button appears and its
+popover opens again (even if dismissed) with **Reload**; there is no blocking
+alert. Touch layouts have no rail, so a newer web build shows a **Reload** toast
+there instead.
+
 On desktop release builds, **Account → Desktop app update** shows native update
-progress. When a verified update is ready, an **Update available** arrow icon
-appears in the sidebar above the mobile-app and settings icons. Click it to open
-**Update Macro**, then choose **Restart and update** or **Later**. Dismissing the
-modal leaves the sidebar notification available. While preparing to restart,
-the modal disables its actions. Restart waits for pending canvas/PDF saves and
+progress. While preparing to restart, the popover can't be dismissed and its
+action is disabled. Restart waits for pending canvas/PDF saves and
 local persistence; active calls, uploads, and imports must finish first. A ready
 update also installs on normal app quit. Closing a window only triggers
 installation if it exits the app. Browser, mobile, and development builds do not
 show this native updater row.
+
+Below Profile, **Account** shows a card naming the current plan (**Free plan**,
+**Pro plan**, or **Max plan**; **Loading plan…** until the billing summary
+arrives). Clicking it opens **Billing** settings.
 
 Left nav (feature and platform gates still apply):
 
@@ -2344,7 +2533,18 @@ editing. **Usage Credits** shows the dollar balance and `Add more`, which opens
 **Need more usage?** with `$25` / `$50` / `$100` / `Other`. Supported amounts
 redirect to Stripe Checkout; unsupported custom amounts are disabled. Free
 accounts see `View plans` instead of purchase or reload controls; paid team
-members who are not the payer cannot manage billing.
+members who are not the payer see only “Usage credits are managed by your team.”
+Their credit balance and automatic reload row are hidden, with no
+credit-purchase action.
+Team owners who pay for their team's seats manage the shared credit balance and
+automatic reload here in Usage, including purchases, balance thresholds, the
+monthly reload cap, and payment methods. Team payers see **Team Usage
+Credits**, “Credits are shared by your entire team.” and **Shared team balance**.
+The purchase and auto-reload dialogs also identify the team-wide credit balance.
+Team settings manages seats. Included
+usage remains per seat: the owner's Monthly limit meter describes their own
+usage, not the sum of the team's allowances. Team payers with a finite
+allowance see “This is your personal monthly usage limit.” beneath the meter.
 Unlimited enterprise plans show `Unlimited` and do not offer credit purchases
 or automatic reload. The development paid-plan preview can still display
 those controls, with purchases disabled.
@@ -2356,9 +2556,11 @@ and the automatic-charge warning. The dialog saves for paid payers:
 `Turn on auto-reload` enables automatic credit purchases with those thresholds,
 `Save` updates them while on, and `Turn off` disables automatic reload. The monthly
 limit caps reload purchases per UTC calendar month. The **Automatic reload**
-switch reflects the saved state. Paid team members who are not the payer see
+switch reflects the saved state and is the billing opt-in indicator. Paid team
+members who are not the payer see
 `Only the account that pays for this plan can change automatic reload.` and
-cannot save. After a failed automatic reload the dialog shows `Your last
+cannot save. After a failed automatic reload the Usage row shows
+`Paused — payment failed` while preserving the enabled setting. The dialog shows `Your last
 automatic reload could not be charged. Update your payment method, then save to
 try again.`; saving retries. Extra usage is funded entirely by prepaid credits.
 If the reload budget runs out or payment fails, uncovered usage cannot trigger a
@@ -2378,6 +2580,34 @@ Usage controls, including usage-limit dialogs. Dev tools remain interactive:
 Free and paid previews can be combined with this state, and `Reset preview`
 restores the normal dev view.
 
+Local **Developer tools → Open Billing Lab** opens `/billing-lab.html`, a
+standalone simulator with no login or billing API calls. Its 20 presets include
+Max with a pending Pro downgrade, exhausted allowances, credits, payment
+failures, team roles, loading, and errors. Select **Max → Pro at renewal**
+to start with a scheduled downgrade, and choose **Advance to
+renewal**: Max stays active until renewal, then Pro becomes active and included
+usage resets. Billing displays the scheduled downgrade and effective date;
+**Keep Max plan** cancels it and preserves the active plan and usage. The
+timeline also offers **Cancel scheduled change**. Purchases open a simulated checkout with explicit completion;
+**Fail the next billing request** enables error and retry checks. Scenario links
+restore the preset, not edits. **Monthly reload limit reached** opens Usage with
+a notice banner: **Monthly auto-reload $50 limit reached**, with **resets Nov 1**
+on the right. **Adjust limit** opens Auto-Reload; **Add credits** opens credit purchase.
+Manual credits do not count toward the monthly reload cap, which resets at the
+UTC month boundary. Live Usage shows this same banner from the API's monthly
+reload commitments and reset date, including when remaining cap room is below
+the minimum reload charge. Paid/pending reloads and failed invoices that can
+still collect count toward the cap. Older backends without these facts show no notice.
+The **Teams** scenario group opens Usage directly. **Mixed-plan team owner**
+previews shared credits and enabled reload for one Max and three Pro seats;
+**Team credits exhausted**, **Team reload paused**, and **Team monthly reload
+limit** exercise the owner's purchase, payment-recovery, and cap controls through
+the same Usage dialogs. Credit purchases add to the shared balance, while the
+included-usage meter remains scoped to the viewer's own seat. **Team-paid Max
+member** previews the notice-only member view. The simulator does not meter
+other members' activity or perform automatic charges.
+See [Billing Lab setup and boundaries](../../apps/web/src/features/billing-lab/README.md).
+
 `Billing` shows the current plan and `Manage`. Free users see separate Pro
 (`Get Pro`) and Max (`Get Max`) cards, side by side when the panel is wide enough
 and stacked on narrow panels. The Pro card shows `Free for one month!` for Free
@@ -2388,7 +2618,7 @@ Ineligible accounts see the rejection reason and are not silently charged.
 `per seat / month` for team accounts. Each card puts its button beside the price when wide enough and below
 the price when narrow. Free lists 2 connected email accounts; Pro and Max list
 unlimited connected email accounts. Pro users see a Max card (`Upgrade to Max`); Max
-users see a Pro card (`Switch to Pro`). Cards appear only for users who can
+users keep their current plan. Cards appear only for users who can
 manage their subscription. Team-paid members see no plan options, including
 on Free seats. Member options stay hidden until the billing summary confirms
 they pay for their own seat. On a team, a plan change moves only the viewer's
@@ -2416,9 +2646,17 @@ with the selection preserved. `Manage plan` returns to the selected Billing prev
 the signed-in account. State is not persisted and resets on leaving Billing.
 These controls are excluded from deployed builds, including dev.macro.com.
 
+Billing shows the current billing period end and any scheduled downgrade date.
+Max stays active until renewal; **Keep Max plan** cancels a pending downgrade
+without resetting usage. Failed renewal-detail reads offer **Try again**.
+Team members who cannot manage billing see the notice without its action.
+
 `Team` (members list; on a paid team each row shows the seat's plan,
-and admins/owners can move a seat between Premium and Max with the `Seat plan`
-menu; moves are prorated at once). CRM (enable/disable; once enabled, a `Deal stages` section
+and admins/owners can move a seat between Pro and Max with the `Seat plan`
+menu; Max upgrades are immediate and prorated, Pro downgrades start at renewal.
+**Keep Max** appears only for a confirmed pending downgrade and cancels it;
+failed scheduled-plan reads offer **Try again**, while teams without applicable
+scheduled plans show no retry notice). CRM (enable/disable; once enabled, a `Deal stages` section
 with `Customize stages`, inline rename, reorder by drag handle or arrow keys (up/down
 buttons on touch), delete, `Add stage`, `Reset to defaults`, and `Closed stages`
 checkboxes, editable by the role set as `edit_stages_role`)
@@ -2447,9 +2685,22 @@ With `pipedream-mcp` enabled, Connections (in Agents or Settings) has `Connected
 tabs. Connected groups GitHub, Linear, Notion, and Slack tool grants by provider,
 lists other catalog connections alongside them, and puts custom MCP servers in
 a separate section. Discover offers featured providers, a searchable catalog,
-and `Add custom MCP`. Slack discovery retains its development-only gate.
+and `Add custom MCP`. Pipedream Slack OAuth is available in production and
+development from the featured Slack provider. Connecting Slack here grants tool
+access; channel import is a separate action where the user chooses channels.
 Provider Back returns to the tab that opened it; navigation is local to each
 Connections page and starts at Connected on a fresh visit.
+
+Macro agents and external AI clients using Macro's MCP server can run
+`ImportNotionPage` and the shared import ledger tools against the user's
+connections saved in Macro.
+Verify a Notion import returns a document and a repeated import returns the
+existing document; Linear imports recorded with `CreateImportEntity` should
+appear in `ListImportEntities`. These calls must not report that import tracking
+is unavailable.
+On hosts without Pipedream credentials, saved Pipedream accounts must not hide
+native Notion, Linear, or Slack connections when selecting import tools.
+
 Provider and custom-server More menus contain Disable, Reconnect, and Disconnect;
 custom servers also offer Rename. Disabled grants show Enable. Unauthenticated
 custom servers show Connect and Remove. Disconnect/Remove require confirmation.
@@ -2493,7 +2744,7 @@ New macrod sessions use the agent's saved model before sending the first prompt.
 Changing that default applies to new sessions; existing sessions keep their selected model.
 If the runtime rejects the saved model, the prompt fails instead of using a different model.
 
-The `Runtimes` section shows built-in Macro, Cursor, Claude, and Codex configuration, followed by paired macrod runtimes. The “Bring your own agent” card sits above the Agents / Runtimes navigation and is visible on both sections. It rotates Claude Code, OpenCode, OpenClaw, and Hermes; reduced motion keeps a static name. Its `New runtime` action opens the full-page pairing flow from either section: enter the code, look up the request, review the machine, name, sharing and permission consent, then Approve and Done. Back/Cancel returns to the runtime list. Destructive removal still requires confirmation. `/settings/runtimes` opens this section; legacy `/settings/harness?pair=…` links remain supported.
+The `Runtimes` section shows built-in Macro, Cursor, Claude, and Codex configuration, followed by paired macrod runtimes. Claude's card appears only with the `claude-cloud` flag, and Codex's only within the agents and Codex rollouts. The “Bring your own agent” card sits above the Agents / Runtimes navigation and is visible on both sections. It rotates Claude Code, OpenCode, OpenClaw, and Hermes; reduced motion keeps a static name. Its `New runtime` action opens the full-page pairing flow from either section: enter the code, look up the request, review the machine, name, sharing and permission consent, then Approve and Done. Back/Cancel returns to the runtime list. Destructive removal still requires confirmation. `/settings/runtimes` opens this section; legacy `/settings/harness?pair=…` links remain supported.
 Connection chips in agent replies open this page, including before any account is connected. Cursor's default-model picker uses
 the same live model discovery and retains its existing save action.
 
@@ -2522,9 +2773,9 @@ session were not exercised by that UI check.
 ## Notifications
 
 In the desktop app, **Settings → Notifications → Delivery → Desktop notifications**
-controls system notification delivery for this installation. When the Notifications
-page is disabled by its feature flag, the existing **Account → Notifications**
-switch controls the same preference.
+controls system notification delivery for this installation. The Notifications
+page is always present, in the same place on web, desktop, and mobile; Account
+has no notification switch.
 Turning it off takes effect immediately and persists across app restarts; turning
 it on requests permission and resumes delivery when authorized. On macOS the
 switch reads the actual system authorization, and enabling it requests macOS
@@ -2615,6 +2866,9 @@ A newly arrived scheduling update shows RSVP and Join only once its calendar sta
 been checked. A series invitation shows its current or next live occurrence.
 
 A connected, resolved invitation shows the responding address and Yes / Maybe / No.
+Calendars connected through a linked inbox also resolve here, using that inbox's
+address for responses. Access is limited to the delegated inbox; another inbox owned
+by the same account stays private, and removing the link removes invitation access.
 Local verification requires both email and calendar services: email supplies saved
 snapshots and resolves them against the synced calendar, while calendar service handles
 the RSVP write. With calendar service's `CALENDAR_SYNC_ENABLED` off, its RSVP route is

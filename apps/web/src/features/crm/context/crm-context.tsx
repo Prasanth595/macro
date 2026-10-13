@@ -31,6 +31,7 @@ import type {
 } from './crm-sources';
 import type {
   PipelineEditor,
+  PipelineEntriesView,
   PipelineSharing,
   PipelinesSource,
 } from './pipelines';
@@ -38,6 +39,7 @@ import type {
 export type CrmContext = {
   createPipelines(teamId: Accessor<string | undefined>): PipelinesSource;
   PipelineEditor: PipelineEditor;
+  PipelineEntries: PipelineEntriesView;
   PipelineSharing: PipelineSharing;
   downloadCsv(content: string, filename: string): Promise<{ saved: boolean }>;
   contactInitials(name: string | null | undefined, email: string): string;
@@ -77,6 +79,10 @@ export type CrmContext = {
   ): ItemListSource;
   /** Calls associated with the record. */
   createRecordCalls(
+    scope: Accessor<CrmRecordScope | undefined>
+  ): ItemListSource;
+  /** Items associated with the record through properties or references. */
+  createRecordReferences(
     scope: Accessor<CrmRecordScope | undefined>
   ): ItemListSource;
   /** The record's Tasks tab, scoped to tasks associated with it. */
