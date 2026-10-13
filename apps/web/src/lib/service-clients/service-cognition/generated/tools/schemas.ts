@@ -883,6 +883,7 @@ export const ContentSearch = z.object({
       ])
     )
     .optional(),
+  agentSessionIds: z.array(z.string().uuid()).optional(),
   inbox: z.union([z.string(), z.null()]).optional(),
   tags: z
     .union([
