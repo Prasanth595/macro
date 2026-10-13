@@ -10,7 +10,7 @@
  */
 
 import { DiffCounts } from '@app/components/diff-view';
-import { useOptionalAgentChanges } from '@app/features/agent-changes/context/agent-changes-controller';
+import { useOptionalChanges } from '@app/features/changes/context/changes-controller';
 import { SidePanel } from '@components/app/side-panel';
 import { EntityMetadata } from '@components/app/side-panel/EntityMetadata';
 import { ModelIcon } from '@core/component/AI/component/ProviderIcon';
@@ -24,6 +24,7 @@ import { sessionStatus } from '../../state/session-status';
 import { activityCounts, latestPlan } from '../../state/session-summary';
 import { CountSummary, SessionStatusPill, TodoList } from '../../ui';
 import { AgentPullRequestChip } from '../AgentPullRequestChip';
+import { AgentTaskChip } from '../AgentTaskChip';
 import {
   modelDisplayName,
   sessionHarnessTitle,
@@ -35,7 +36,7 @@ export function AgentSidePanelSections() {
   const { sessionId, session, bot, metadata, messages } = useAgentSession();
 
   const plan = createMemo(() => latestPlan(messages()));
-  const changes = useOptionalAgentChanges();
+  const changes = useOptionalChanges();
   const files = () => changes?.model.files() ?? [];
   const activity = createMemo(() => activityCounts(messages()));
   const totals = () => changes?.changeCounts();
@@ -98,6 +99,13 @@ export function AgentSidePanelSections() {
                   <GitBranch class="size-3 shrink-0" />
                   <span class="truncate">{repoName(url())}</span>
                 </button>
+              </SidePanel.Row>
+            )}
+          </Show>
+          <Show when={session()?.taskId}>
+            {(taskId) => (
+              <SidePanel.Row label="Task">
+                <AgentTaskChip taskId={taskId()} />
               </SidePanel.Row>
             )}
           </Show>

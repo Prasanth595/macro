@@ -10,6 +10,14 @@ import {
   Show,
   Suspense,
 } from 'solid-js';
+import { isServer } from 'solid-js/web';
+import {
+  applyPalette,
+  onPaletteChange,
+  preferredPalette,
+} from '../../features/setup/sitePalette';
+import '../../styles/dark-theme.css';
+import '../../features/setup/cream-preview.css';
 import { DemoMentionMenu } from '../../features/marketing/components/DemoMentionMenu';
 import { PageVignette } from '../../features/marketing/components/PageVignette';
 import {
@@ -29,7 +37,7 @@ import {
 
 function JourneyEntry() {
   onMount(() => {
-    window.location.replace('/start');
+    window.location.replace('/app/signup');
   });
   return null;
 }
@@ -114,6 +122,10 @@ const RoutePricing = lazy(() =>
     default: module.RoutePricing,
   }))
 );
+const RouteDownload = lazy(async () => {
+  const module = await import('../routes/RouteDownload');
+  return { default: module.RouteDownload };
+});
 const RouteTour = lazy(() =>
   import('../../features/marketing/views/SalesPage').then((module) => ({
     default: module.RouteTour,
@@ -160,6 +172,11 @@ macbook of protons
 
 const RootLayout: ParentComponent = (props) => {
   const location = useLocation();
+  createEffect(() => {
+    void location.search;
+    if (!isServer) applyPalette(preferredPalette());
+  });
+  onMount(() => onCleanup(onPaletteChange(applyPalette)));
   let scrollRef!: HTMLDivElement;
   const [headerCtaActive, setHeaderCtaActive] = createSignal(false);
 
@@ -227,7 +244,12 @@ const RootLayout: ParentComponent = (props) => {
                 width: 'calc(100vw / var(--site-scale, 1))',
               }}
             >
-              <BaseHeader ctaActive={headerCtaActive()} />
+              <BaseHeader
+                ctaActive={headerCtaActive()}
+                hideOpenApp={
+                  location.pathname.replace(/\/$/, '') === '/download'
+                }
+              />
               <UtilWrap>{props.children}</UtilWrap>
             </div>
             <PageVignette />
@@ -272,6 +294,7 @@ export const App: Component<{
       <Route path="/agents" component={RouteAgents} />
       <Route path="/github" component={RouteGithub} />
       <Route path="/pricing" component={RoutePricing} />
+      <Route path="/download" component={RouteDownload} />
       {/* Paid-social landing page: noindex and kept out of the nav. */}
       <Route path="/tour" component={RouteTour} />
       {/* Partner program: the landing page and its full program terms. */}

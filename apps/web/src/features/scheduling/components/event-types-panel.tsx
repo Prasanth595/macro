@@ -6,11 +6,13 @@ import Dots from '@phosphor/dots-three.svg';
 import Link from '@phosphor/link.svg';
 import { Button, ToggleSwitch } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
-import type { EventType } from '../core/types';
+import type { EventType, SchedulingScope } from '../core/types';
 import { TextInput } from './fields';
 
 export function EventTypesPanel(props: {
   events: EventType[];
+  owner?: SchedulingScope;
+  search?: string;
   canEdit: boolean;
   saving: boolean;
   onEdit: (event: EventType) => void;
@@ -20,28 +22,33 @@ export function EventTypesPanel(props: {
   onCopy: (event: EventType) => void;
   link: (event: EventType) => string;
 }) {
-  const [search, setSearch] = createSignal('');
+  const [localSearch, setSearch] = createSignal('');
+  const search = () => (props.search ?? localSearch()).trim();
   const [removing, setRemoving] = createSignal<string>();
   const filtered = () =>
     props.events.filter((e) =>
-      `${e.title} ${e.slug}`.toLowerCase().includes(search().toLowerCase())
+      `${e.title} ${e.slug} ${props.owner?.name ?? ''} ${props.owner?.teamId ? 'team' : 'personal'}`
+        .toLowerCase()
+        .includes(search().toLowerCase())
     );
   return (
     <div class="flex flex-col gap-5">
-      <div class="max-w-sm">
-        <TextInput
-          type="search"
-          aria-label="Search event types"
-          placeholder="Search event types…"
-          value={search()}
-          onInput={(e) => setSearch(e.currentTarget.value)}
-        />
-      </div>
-      <div class="overflow-hidden rounded-xl border border-edge-muted bg-panel">
+      <Show when={props.search === undefined}>
+        <div class="max-w-sm">
+          <TextInput
+            type="search"
+            aria-label="Search event types"
+            placeholder="Search event types…"
+            value={search()}
+            onInput={(e) => setSearch(e.currentTarget.value)}
+          />
+        </div>
+      </Show>
+      <div class="divide-y divide-edge-muted border-y border-edge-muted">
         <For
           each={filtered()}
           fallback={
-            <div class="flex flex-col items-center gap-3 px-6 py-16 text-center">
+            <div class="flex flex-col items-center gap-3 px-6 py-8 text-center">
               <Link class="size-7 text-ink-muted" />
               <h2 class="font-semibold">
                 {search()
@@ -57,33 +64,30 @@ export function EventTypesPanel(props: {
           }
         >
           {(event) => (
-            <article class="border-b border-edge-muted px-5 py-5 last:border-b-0">
-              <div class="flex flex-wrap items-center gap-x-6 gap-y-4">
-                <div class="min-w-48 flex-1">
-                  <button
-                    type="button"
-                    disabled={!props.canEdit}
-                    onClick={() => props.onEdit(event)}
-                    class="max-w-full text-left"
-                  >
-                    <h2 class="truncate text-base font-semibold">
-                      {event.title}
-                    </h2>
-                  </button>
+            <article class="py-4">
+              <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+                <div class="min-w-44 flex-1">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={!props.canEdit}
+                      onClick={() => props.onEdit(event)}
+                      class="max-w-full text-left"
+                    >
+                      <h2 class="truncate text-sm font-medium">
+                        {event.title}
+                      </h2>
+                    </button>
+                  </div>
                   <p class="mt-1 truncate text-xs text-ink-muted">
                     /{event.slug}
                   </p>
-                  <Show when={event.description}>
-                    <p class="mt-2 line-clamp-1 text-sm text-ink-muted">
-                      {event.description}
-                    </p>
-                  </Show>
-                  <div class="mt-3 flex flex-wrap items-center gap-2 text-xs text-ink-muted">
-                    <span class="inline-flex items-center gap-1 rounded-md border border-edge-muted px-2 py-1">
+                  <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-muted">
+                    <span class="inline-flex items-center gap-1">
                       <Clock class="size-3" />
                       {event.durationMinutes}m
                     </span>
-                    <span class="rounded-md border border-edge-muted px-2 py-1">
+                    <span>
                       {event.mode === 'roundRobin'
                         ? 'Round robin'
                         : event.mode === 'collective'
@@ -112,7 +116,7 @@ export function EventTypesPanel(props: {
                   />
                   <a
                     aria-label={`Preview ${event.title}`}
-                    class="rounded-lg border border-edge-muted p-2 text-ink-muted hover:bg-hover"
+                    class="rounded-md p-2 text-ink-muted outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-ink"
                     href={props.link(event)}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -120,7 +124,7 @@ export function EventTypesPanel(props: {
                     <External class="size-4" />
                   </a>
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="icon-md"
                     label={`Copy link for ${event.title}`}
                     onClick={() => props.onCopy(event)}
@@ -132,14 +136,14 @@ export function EventTypesPanel(props: {
                     <DropdownMenu>
                       <DropdownMenu.Trigger
                         as={Button}
-                        variant="outline"
+                        variant="ghost"
                         size="icon-md"
                         label={`Options for ${event.title}`}
                       >
                         <Dots class="size-5" />
                       </DropdownMenu.Trigger>
                       <DropdownMenu.Portal>
-                        <DropdownMenu.Content class="z-action-menu min-w-40 rounded-lg border border-edge-muted bg-menu p-1 text-sm shadow-lg">
+                        <DropdownMenu.Content class="menu-surface z-action-menu min-w-40 p-1 text-sm">
                           <DropdownMenu.Item
                             class="rounded px-3 py-2 outline-none data-highlighted:bg-hover"
                             onSelect={() => props.onEdit(event)}
