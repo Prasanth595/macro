@@ -64,6 +64,9 @@ const QUEUE_ATTEMPT_CONTEXT_KEY = 'normalizedCacheQueueAttempt';
 export const QUEUE_REQUEST_TIMEOUT_MS = 60_000;
 export const QUEUE_LEASE_MS = 5 * 60_000;
 const EMPTY_QUEUE_POLL_MS = 30_000;
+// Deferred recovery is usually waiting on user info, which lands within a
+// second or two of the cache client at startup.
+const PREPARATION_RETRY_MS = 1_000;
 const MAX_MUTATION_SERVER_FAILURES = 10;
 const MUTATION_LIFECYCLE_TIMEOUT_MS = 2_000;
 
@@ -340,7 +343,7 @@ export function createMutationQueueRunner(
   // idempotency to make replay safe across runners.
   let head: HeadState = IDLE;
   // Pump state: wakeups and the retry hint are independent of the head.
-  let queuePreparation: Promise<void> | undefined;
+  let queuePreparation: Promise<boolean> | undefined;
   const reportedRecoveryFailures = new Set<string>();
   let drainRunning = false;
   let drainRequested = false;
@@ -421,7 +424,10 @@ export function createMutationQueueRunner(
     // removed, including settlement by another runner or a storage reset.
     if (!transition(attempt, PREPARING)) return;
     try {
-      if (options.prepareMutationQueue) await prepareQueueRecovery();
+      if (options.prepareMutationQueue && !(await prepareQueueRecovery())) {
+        await deferUntilPrepared(claimed, attempt);
+        return;
+      }
       if (
         options.beforeMutationAttempt &&
         !(await boundedMutationLifecycle(() =>
@@ -529,6 +535,33 @@ export function createMutationQueueRunner(
     resolveLiveOperationsAsQueued();
   }
 
+  /**
+   * preparing → settling → idle, keeping the head queued. Admission hooks
+   * cannot judge a head before recovery runs (drafts need the signed-in
+   * user), and failing it there would roll back saved intent.
+   */
+  async function deferUntilPrepared(
+    claimed: ClaimedMutation,
+    attempt: QueueAttemptContext
+  ): Promise<void> {
+    try {
+      if (!transition(attempt, SETTLING)) return;
+      await host.deferOptimisticWrite(
+        claimed.transactionId,
+        claimOf(attempt),
+        Date.now() + PREPARATION_RETRY_MS,
+        'Waiting for mutation recovery'
+      );
+    } catch {
+      // The lease expires and the head is claimed again; nothing is lost.
+    } finally {
+      if (transition(attempt, IDLE)) {
+        resolveLiveOperationsAsQueued();
+        scheduleDrain(PREPARATION_RETRY_MS);
+      }
+    }
+  }
+
   /** preparing → settling → idle for a head whose recovery state failed. */
   async function failPreparation(
     claimed: ClaimedMutation,
@@ -610,7 +643,11 @@ export function createMutationQueueRunner(
       // Restore can invalidate the generation while the host initializes.
       // Finish that handshake before tagging a claim or starting its lease.
       await host.currentRevision();
-      if (options.prepareMutationQueue) await prepareQueueRecovery();
+      if (options.prepareMutationQueue && !(await prepareQueueRecovery())) {
+        resolveLiveOperationsAsQueued();
+        scheduleDrain(PREPARATION_RETRY_MS);
+        return;
+      }
       const now = Date.now();
       // A wakeup probes immediately, but must retain a future retry
       // deadline if the durable head is not eligible yet. Consume expired
@@ -651,25 +688,32 @@ export function createMutationQueueRunner(
     }
   }
 
-  async function prepareQueueRecovery(): Promise<void> {
+  /**
+   * False while recovery is deferred: claims must wait. A failed recovery is
+   * best-effort and still admits heads, so unrelated mutations keep draining.
+   */
+  async function prepareQueueRecovery(): Promise<boolean> {
     try {
       queuePreparation ??= (async () => {
         const prepared = await boundedMutationLifecycle(() =>
           options.prepareMutationQueue!()
         );
         if (prepared === false) queuePreparation = undefined;
+        return prepared !== false;
       })();
-      await queuePreparation;
+      return await queuePreparation;
     } catch (error) {
       queuePreparation = undefined;
       // A stuck tab retries every poll; one warning per cause is enough.
       const cause = error instanceof Error ? error.message : String(error);
-      if (reportedRecoveryFailures.has(cause)) return;
-      reportedRecoveryFailures.add(cause);
-      console.warn(
-        '[graphql-cache] Unable to prepare mutation recovery',
-        error
-      );
+      if (!reportedRecoveryFailures.has(cause)) {
+        reportedRecoveryFailures.add(cause);
+        console.warn(
+          '[graphql-cache] Unable to prepare mutation recovery',
+          error
+        );
+      }
+      return true;
     }
   }
 

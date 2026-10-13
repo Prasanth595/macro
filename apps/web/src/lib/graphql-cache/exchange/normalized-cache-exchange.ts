@@ -374,7 +374,8 @@ function uncertainEnqueueResult(op: Operation, error: Error): OperationResult {
 export interface NormalizedCacheExchangeOptions {
   /**
    * Best-effort startup recovery before per-mutation admission. Resolve
-   * `false` when it cannot run yet; the next drain asks again.
+   * `false` when it cannot run yet: queued mutations stay queued, unclaimed,
+   * until a later drain gets past it.
    */
   prepareMutationQueue?: () => Promise<boolean | void>;
   /** False discards obsolete client intent without sending it to the server. */

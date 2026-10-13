@@ -3115,6 +3115,81 @@ describe('normalizedCacheExchange', () => {
       }
     });
 
+    /** The draft lifecycle defers recovery until user info loads and rejects admission before it. */
+    function signedInDraftLifecycle(): {
+      signIn(): void;
+      options: NormalizedCacheExchangeOptions;
+    } {
+      let signedIn = false;
+      return {
+        signIn: () => {
+          signedIn = true;
+        },
+        options: {
+          prepareMutationQueue: async () => (signedIn ? undefined : false),
+          beforeMutationAttempt: async () => {
+            if (!signedIn) throw new Error('Sign in to save drafts');
+            return true;
+          },
+        },
+      };
+    }
+
+    it('keeps a restored draft queued until sign-in instead of rolling it back', async () => {
+      vi.useFakeTimers();
+      try {
+        host.seedQueued({
+          uuid: 'draft',
+          query: stringifyDocument(SaveEmailDraftDocument),
+          operationName: 'SaveEmailDraft',
+          variables: { input: { draftId: 'draft' } },
+          data: optimistic,
+          clientMetadata: { kind: 'email-draft' },
+        });
+        const lifecycle = signedInDraftLifecycle();
+        const { forwarded } = harness(host, undefined, lifecycle.options);
+        await vi.advanceTimersByTimeAsync(5_000);
+        expect(host.claims).toHaveLength(0);
+        expect(host.rollbacks).toHaveLength(0);
+        expect(forwarded).toHaveLength(0);
+
+        lifecycle.signIn();
+        await vi.advanceTimersByTimeAsync(1_010);
+        expect(host.rollbacks).toHaveLength(0);
+        expect(host.commits).toMatchObject([{ transactionId: 'restored-1' }]);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('defers a mutation enqueued before sign-in instead of rolling it back', async () => {
+      vi.useFakeTimers();
+      try {
+        const lifecycle = signedInDraftLifecycle();
+        const { ops, results, forwarded } = harness(
+          host,
+          undefined,
+          lifecycle.options
+        );
+        ops.next(makeMutationOp(1, optimistic));
+        await vi.advanceTimersByTimeAsync(10);
+        expect(host.claims).toEqual(['txn-1']);
+        expect(host.defers).toMatchObject([{ transactionId: 'txn-1' }]);
+        expect(host.rollbacks).toHaveLength(0);
+        expect(forwarded).toHaveLength(0);
+        expect(results).toHaveLength(1);
+        expect(results[0]?.error).toBeUndefined();
+
+        lifecycle.signIn();
+        await vi.advanceTimersByTimeAsync(1_010);
+        expect(host.rollbacks).toHaveLength(0);
+        expect(forwarded).toHaveLength(1);
+        expect(host.commits).toMatchObject([{ transactionId: 'txn-1' }]);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('stops polling once its host is retired', async () => {
       vi.useFakeTimers();
       try {
