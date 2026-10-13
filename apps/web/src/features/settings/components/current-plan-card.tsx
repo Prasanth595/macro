@@ -14,7 +14,7 @@ export function CurrentPlanCard(props: {
     <SettingsCard>
       <button
         type="button"
-        class="w-full text-left outline-none hover:bg-ink/4 focus-visible:bg-ink/6"
+        class="w-full rounded-[inherit] text-left outline-none hover:bg-ink/4 focus-visible:bg-ink/6 focus-visible:inset-ring-2 focus-visible:inset-ring-accent"
         onClick={() => props.onOpen()}
       >
         <IntegrationRow
