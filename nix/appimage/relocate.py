@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""Finalize linuxdeploy's AppDir before the output plugin creates the squashfs."""
+
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+
+def patchelf(path, *args):
+    return subprocess.check_output(["patchelf", *args, str(path)], text=True).strip()
+
+
+def elf_files(root):
+    for path in sorted(root.rglob("*")):
+        if path.is_symlink() or not path.is_file():
+            continue
+        with path.open("rb") as stream:
+            if stream.read(4) == b"\x7fELF":
+                yield path
+
+
+def relocate(appdir):
+    appdir = Path(appdir).resolve()
+    libdir = appdir / "usr/lib"
+    dynamic = []
+    for path in elf_files(appdir):
+        # AppImage's static launcher has no dynamic section.
+        result = subprocess.run(
+            ["patchelf", "--print-needed", str(path)], capture_output=True, text=True
+        )
+        if result.returncode:
+            continue
+        dynamic.append((path, result.stdout.splitlines()))
+        soname = patchelf(path, "--print-soname")
+        if soname:
+            if "/" in soname:
+                raise RuntimeError(f"invalid SONAME {soname!r}: {path}")
+            alias = path.with_name(soname)
+            if alias.exists() or alias.is_symlink():
+                if alias.resolve() != path.resolve():
+                    raise RuntimeError(f"conflicting SONAME {soname}: {alias}, {path}")
+            else:
+                alias.symlink_to(path.name)
+
+    for path, needed in dynamic:
+        for name in needed:
+            if name.startswith("/nix/store/"):
+                basename = Path(name).name
+                if not (libdir / basename).is_file():
+                    raise RuntimeError(f"unbundled absolute dependency {name}: {path}")
+                patchelf(path, "--replace-needed", name, basename)
+
+        # Every library needs its own RUNPATH: DT_RUNPATH is not inherited by
+        # transitive dependencies (including GIO modules and WebKit helpers).
+        relative_lib = os.path.relpath(libdir, path.parent)
+        rpaths = ["$ORIGIN"]
+        if relative_lib != ".":
+            rpaths.append(f"$ORIGIN/{relative_lib}")
+        for entry in patchelf(path, "--print-rpath").split(":"):
+            if entry.startswith(("$ORIGIN", "${ORIGIN}")) and entry not in rpaths:
+                rpaths.append(entry)
+        patchelf(path, "--set-rpath", ":".join(rpaths))
+
+        interpreter = subprocess.run(
+            ["patchelf", "--print-interpreter", str(path)], capture_output=True, text=True
+        ).stdout.strip()
+        if interpreter.startswith("/nix/store/"):
+            if Path(interpreter).name != "ld-linux-x86-64.so.2":
+                raise RuntimeError(f"unexpected interpreter {interpreter}: {path}")
+            patchelf(path, "--set-interpreter", "/lib64/ld-linux-x86-64.so.2")
+
+    # Tauri copies Nix's xdg-utils scripts verbatim. Their build-time shebangs
+    # must not leak into the distributable image either.
+    for path in (appdir / "usr/bin").iterdir():
+        if path.is_symlink() or not path.is_file():
+            continue
+        with path.open("rb") as stream:
+            first = stream.readline(256)
+        if first.startswith(b"#!/nix/store/"):
+            shell = first.decode().strip().rsplit("/", 1)[-1]
+            if shell not in ("sh", "bash"):
+                raise RuntimeError(f"unexpected Nix shebang: {path}: {first!r}")
+            content = path.read_bytes()
+            path.write_bytes(f"#!/usr/bin/env {shell}\n".encode() + content[len(first):])
+
+    # Fail the build rather than silently shipping another Nix-only ELF.
+    for path, _ in dynamic:
+        for field in ("needed", "rpath"):
+            if "/nix/store/" in patchelf(path, f"--print-{field}"):
+                raise RuntimeError(f"unrelocated {field}: {path}")
+    print(f"Relocated {len(dynamic)} ELF files in {appdir}")
+
+
+if __name__ == "__main__":
+    relocate(sys.argv[1])
