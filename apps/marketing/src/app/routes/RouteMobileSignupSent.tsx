@@ -2,7 +2,6 @@ import { useLocation } from '@solidjs/router';
 import { type Component, onMount, Show } from 'solid-js';
 import { MobileSignupMark } from '../components/graphics/MobileSignupMark';
 import { analytics } from '../utils/utilAnalytic';
-import { viewportWidth } from '../utils/utilBreakpoint';
 import {
   conversionAlreadyFired,
   MOBILE_WEB_SIGNUP_LEAD_VALUE,
@@ -10,6 +9,7 @@ import {
   submittedEmail,
 } from '../utils/utilMobileSignup';
 import { setPageSeo } from '../utils/utilSeo';
+import './RouteMobileSignup.css';
 
 const APP_STORE_URL = 'https://apps.apple.com/us/app/macro-app/id6743133649';
 
@@ -32,7 +32,6 @@ export const RouteMobileSignupSent: Component = () => {
   });
 
   const location = useLocation<{ email: string }>();
-  const mobile = () => viewportWidth() < 700;
 
   // Present when the visitor got here by submitting the form (history state
   // survives a refresh; session storage covers a fresh tab in the same session).
@@ -67,49 +66,12 @@ export const RouteMobileSignupSent: Component = () => {
   });
 
   return (
-    <section
-      style={{
-        'align-content': 'center',
-        'box-sizing': 'border-box',
-        display: 'grid',
-        gap: '20px',
-        'justify-items': 'center',
-        margin: '0 auto',
-        'max-width': '420px',
-        'min-height': 'calc(100dvh / var(--site-scale, 1))',
-        padding: '56px 0 12vh',
-        'text-align': 'center',
-        width: '100%',
-      }}
-    >
+    <section class="mobile-signup-card">
       <MobileSignupMark />
-
-      <h1
-        style={{
-          color: 'var(--c0)',
-          'font-family': 'display',
-          'font-size': mobile() ? 'clamp(28px, 8vw, 36px)' : '36px',
-          'font-weight': 'calc(315 + var(--cream-slab-weight-increase, 0))',
-          'letter-spacing': '-0.012em',
-          'line-height': 1.18,
-          margin: '12px 0 0',
-          'text-wrap': 'balance',
-        }}
-      >
-        We&rsquo;ve sent you an email to continue onboarding on desktop.
+      <h1 class="mobile-signup-card-title">
+        Continue onboarding on desktop
       </h1>
-
-      <p
-        style={{
-          color: 'var(--c2)',
-          'font-family': 'body',
-          'font-size': '15px',
-          'line-height': 1.5,
-          margin: '0 0 12px',
-          'max-width': '34ch',
-          'text-wrap': 'balance',
-        }}
-      >
+      <p class="mobile-signup-card-subtitle">
         <Show
           when={email()}
           fallback="Open the link on your computer to finish signing up."
@@ -118,7 +80,10 @@ export const RouteMobileSignupSent: Component = () => {
             <>
               We emailed{' '}
               <span
-                style={{ color: 'var(--c0)', 'overflow-wrap': 'anywhere' }}
+                style={{
+                  color: 'var(--color-ink)',
+                  'overflow-wrap': 'anywhere',
+                }}
               >
                 {address()}
               </span>{' '}
@@ -127,31 +92,22 @@ export const RouteMobileSignupSent: Component = () => {
           )}
         </Show>
       </p>
-
-      <a
-        href={APP_STORE_URL}
-        class="mobile-signup-submit"
-        target="_blank"
-        rel="noreferrer"
-        onClick={() => {
-          analytics.track('app_redirect', {
-            page_location: window.location.href,
-            button_name: 'mobile_signup_sent_app_store',
-          });
-        }}
-        style={{
-          'align-items': 'center',
-          'box-sizing': 'border-box',
-          display: 'inline-flex',
-          height: '46px',
-          'justify-content': 'center',
-          'line-height': 1,
-          'text-decoration': 'none',
-          width: '100%',
-        }}
-      >
-        We also have a mobile app
-      </a>
+      <div class="mobile-signup-card-body">
+        <a
+          href={APP_STORE_URL}
+          class="mobile-signup-card-pill"
+          target="_blank"
+          rel="noreferrer"
+          onClick={() => {
+            analytics.track('app_redirect', {
+              page_location: window.location.href,
+              button_name: 'mobile_signup_sent_app_store',
+            });
+          }}
+        >
+          Download our mobile app
+        </a>
+      </div>
     </section>
   );
 };

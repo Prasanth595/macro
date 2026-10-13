@@ -13,21 +13,21 @@ export function MobileSignupMark() {
           background: linear-gradient(145deg, #171717, #090909 65%);
           border-radius: 18px;
           box-shadow: inset .5px .5px 1px #ffffff1c, inset -.5px -.5px 1px #0008, 0 1px 1px #131313, 0 4px 10px #0005;
-          color: var(--a0);
+          color: var(--color-ink);
           display: flex;
           height: 64px;
           justify-content: center;
           width: 64px;
         }
         html[data-palette='cream'] .mobile-signup-mark {
-          background: linear-gradient(145deg, #fefdfb, #ece7dd 70%);
-          box-shadow: inset 0 1px 0 #fff, 0 0 0 1px #1d1c1a12, 0 1px 1px #1d1c1a0d, 0 6px 14px -6px #1d1c1a2e;
+          background: linear-gradient(145deg, #fdfcfb, #faf8f3);
+          box-shadow: 0 8px 30px -12px #1d1c1a20;
         }
       `}</style>
       {/* `rel="external"` makes this a full page load: `/` is its own
           prerendered document, not a route in this router. */}
       <a href="/" rel="external" class="mobile-signup-mark" aria-label="Macro home">
-        <MacroMarkIcon style={{ height: '22px', width: '34px' }} />
+        <MacroMarkIcon style={{ height: '22px', width: '32px' }} />
       </a>
     </>
   );
