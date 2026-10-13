@@ -25,11 +25,18 @@ import { EmailComposeToolbar } from '@app/features/email-compose/views/compose-t
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { toast } from '@core/component/Toast/Toast';
 import { enableEmailSignatures } from '@core/constant/featureFlags';
+import { useUserId } from '@core/context/user';
 import { isMobile } from '@core/mobile/isMobile';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { interceptMailtoLinks } from '@core/util/interceptMailtoLinks';
 import { forceDssRuleset, uploadFile } from '@core/util/upload';
-import { useEmailLinksQuery, useEmailSignature } from '@queries/email/link';
+import {
+  findPrimaryEmailLinkId,
+  useEmailLinksQuery,
+  useEmailSignature,
+  useMessageInboxId,
+} from '@queries/email/link';
+import { queryReadyGate } from '@queries/gate';
 import { fetchDocumentMetadata } from '@queries/storage/document-metadata';
 import { entityKeys } from '@queries/storage/keys';
 import type { SendEmail } from '@service-cognition/generated/tools/types';
@@ -52,6 +59,7 @@ import {
   type DocumentDescription,
   documentAttachmentFileName,
 } from './draft-attachments';
+import { resolveSendingInbox } from './sending-inbox';
 
 export type EmailDraftComposerProps = {
   /** The draft as the agent wrote it, or as the user last saved it. */
@@ -111,12 +119,29 @@ async function uploadAttachmentDocument(
 
 export function EmailDraftComposer(props: EmailDraftComposerProps) {
   const uiDisabled = () => !props.sink.canAct() || props.readOnly === true;
+  const userId = useUserId();
   const emailLinksQuery = useEmailLinksQuery();
-  // The inbox this card sends from — always the first linked inbox (shown as
-  // "from"); the backend resolves the same default at send time.
+  const inboxes = createMemo(() =>
+    queryReadyGate(emailLinksQuery) ? (emailLinksQuery.data.links ?? []) : []
+  );
+  // A reply goes out from the inbox that received the message it answers, so
+  // a draft that names no sender has to resolve that inbox to show an honest
+  // "from" — the agent only names the message. The backend derives the same
+  // inbox from the same message, so the two always agree.
+  const replyTargetInboxId = useMessageInboxId(() =>
+    props.initialData.from?.trim()
+      ? undefined
+      : (props.initialData.replyingToId ?? undefined)
+  );
+  const [chosenInboxId, setChosenInboxId] = createSignal<string>();
   const sendingLink = createMemo(() => {
-    if (!emailLinksQuery.isSuccess && !emailLinksQuery.isError) return;
-    return emailLinksQuery.data?.links?.[0];
+    const list = inboxes();
+    return resolveSendingInbox(list, {
+      chosenInboxId: chosenInboxId(),
+      draftFrom: props.initialData.from,
+      replyTargetInboxId: replyTargetInboxId(),
+      primaryInboxId: findPrimaryEmailLinkId(list, userId()),
+    });
   });
   const fromAddress = () => sendingLink()?.email_address;
   const signature = useEmailSignature(() => sendingLink()?.id);
@@ -201,6 +226,10 @@ export function EmailDraftComposer(props: EmailDraftComposerProps) {
       subject: subject(),
       body: prepareEmailBody(editor())?.bodyHtml ?? '',
       replyingToId: props.initialData.replyingToId,
+      // The inbox shown in the From row, so the email goes out as the sender
+      // the user is looking at. Omitted only while the inboxes are still
+      // loading, where the backend's own default applies.
+      from: fromAddress(),
       // Omit to use the backend default policy; false only when dismissed.
       includeSignature: includeSignature() ? undefined : false,
       attachments: attachments.toToolArgs(),
@@ -326,6 +355,13 @@ export function EmailDraftComposer(props: EmailDraftComposerProps) {
     ],
     validationError: (type) => validationErrors().find((e) => e.type === type),
     fromAddress,
+    fromInboxes: inboxes,
+    selectedInboxId: () => sendingLink()?.id,
+    onSelectInbox: (inboxId) => {
+      if (uiDisabled()) return;
+      setChosenInboxId(inboxId);
+      scheduleUpdate();
+    },
     recipients,
     // Read-only preview of the signature the backend appends on send, with a ✕
     // to drop it for this one email (persisted through the sink's edit).
