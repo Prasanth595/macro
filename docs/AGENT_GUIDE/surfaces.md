@@ -1233,15 +1233,17 @@ open the sidebar to switch the tab or owner. Calendar's booking actions open
 this workspace.
 **Booking page** is a full-width, height-filling public-page canvas, with no
 centered workspace width cap or separate details panel. **Edit** and **Preview**
-mode tabs sit on the left of its header; the accent **Save** action sits on the
-right in Edit mode only, with a divider below the header. Edit mode places outlined Display name
-and Introduction inputs where guests see the heading and description. The
-outlines overlay the content without adding padding or moving the meeting
-cards. Introduction grows with its text and uses the preview's typography.
-Preview mode removes the inputs, outlines, and Save action, showing the draft with
-the real public-page layout. Switching modes keeps edits; return to Edit to save.
-The canvas scrolls below the header. Its branding, published meeting cards,
-and empty state reuse the public page's components. Meeting cards are
+mode tabs float at the top-left of the canvas; the accent **Save** action floats
+at the top-right in Edit mode only. The controls overlay the canvas without a
+separate header bar, divider, or reserved header height. Edit mode places outlined
+Display name and Introduction inputs where guests see the heading and description.
+The outlines sit four pixels outside the text boxes, adding visual padding without
+changing text positions or moving the meeting cards. Introduction grows with its
+text and uses the preview's typography. Preview mode removes the inputs, outlines,
+and Save action, showing the draft with the real public-page layout. Switching
+modes keeps edits; return to Edit to save. The canvas scrolls behind the floating
+controls. Its branding, published meeting cards, and empty state reuse the public
+page's components. Meeting cards are
 display-only, so editing cannot start a real booking. Above the canvas, a single
 split control shows the saved page URL on the left and **Copy page link** on the
 right, separated by a full-height divider. Clicking the URL opens the guest page
