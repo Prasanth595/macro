@@ -1224,26 +1224,58 @@ row has a checkmark; the list scrolls when more calendars are present. Selecting
 a row switches the owner for the entire workspace; ownership badges appear only
 in the top header, not on cards or tab content. Owner changes discard link/schedule drafts and stay disabled during saves.
 Each tab's heading appears in the main topbar, with its description available
-through an info tooltip rather than a separate large header. **New booking link** also lives in the
-topbar; link search and booking date filters remain below it. Tab content aligns
-with the left content gutter instead of using automatic horizontal margins. The selected tab and
+through an info tooltip rather than a separate large header. Booking links uses the
+shared ViewShell search bar below the topbar, with **New** on the same
+row at the far right. Link rows use the full pane width with the same rounded
+list-hover treatment as Drive and Email: acceptance switch, link icon, name,
+description, then larger task-style URL-path and duration pills with matching
+surfaces and globe/timer icons. Row content has no hover tooltips. Paused links
+appear dimmed but remain editable. The URL pill offers Copy link and Open in new
+tab. The More and right-click context menus share Copy link, Preview, Edit,
+Duplicate, and Delete, with editing actions limited to owners and admins.
+Open the URL-pill dropdown with a pointer. Enter/Space opening currently loops in
+nested scroll containers; avoid keyboard opening for that dropdown.
+Clicking a link's name or description opens **Booking link details**, a summary-only
+dialog that reuses the create/edit Review contents. Title and Description are
+stacked labeled values, followed by a Link field with the copy action beside its
+URL. Active links offer Copy; the footer contains only Edit for authorized owners.
+Close details with the header close button, Escape, or outside dismissal.
+Paused links still show their details. Legacy links requiring confirmation show
+Paused without Copy because they cannot accept bookings. Read-only team members can view details
+without an Edit action or status toggle. Owners and admins can choose **Edit
+booking link** in the dialog footer or Edit in either row menu. Closing details
+restores focus to the row; editing opens the unchanged five-step flow, including
+Review. Viewing details does not save changes or fetch another copy of the profile.
+Narrow panes wrap properties below the link text.
+Booking date filters remain below the topbar. Tab content aligns with the left
+content gutter instead of using automatic horizontal margins. The selected tab and
 owner survive reload through route search state (`tab` and `owner` in the
-`booking-links` namespace). Tab navigation stays in the sidebar at every width;
+`scheduling` namespace). Tab navigation stays in the sidebar at every width;
 open the sidebar to switch the tab or owner. Calendar's booking actions open
 this workspace.
 **Booking page** is a full-width, height-filling public-page canvas, with no
 centered workspace width cap or separate details panel. **Edit** and **Preview**
 mode tabs float at the top-left of the canvas; the accent **Save** action floats
-at the top-right in Edit mode only. The controls overlay the canvas without a
-separate header bar, divider, or reserved header height. Edit mode places outlined
-Display name and Introduction inputs where guests see the heading and description.
+at the top-right in Edit mode only. **Revert** appears beside Save when the name or
+introduction differs from the saved page, and restores both saved values. Both
+controls are disabled while saving. The controls overlay the canvas without a
+separate header bar, divider, or reserved header height.
+Edit mode places outlined Display name and Introduction inputs where guests see
+the heading and description.
 The outlines sit four pixels outside the text boxes, adding visual padding without
 changing text positions or moving the meeting cards. Introduction grows with its
 text and uses the preview's typography. Preview mode removes the inputs, outlines,
-and Save action, showing the draft with the real public-page layout. Switching
-modes keeps edits; return to Edit to save. The canvas scrolls behind the floating
-controls. Its branding, published meeting cards, and empty state reuse the public
-page's components. Meeting cards are
+and Save/Revert actions, showing the draft with the real public-page layout.
+Switching modes keeps edits; return to Edit to save. Switching workspace tabs or
+owners with edits opens **Save booking page changes?**: **Save** persists before
+continuing, **Discard** restores saved values, and **Keep editing** cancels the
+navigation. A failed save keeps the draft and displays the error for retry. The
+split-router leave guard protects navigation away and closing the split. Browser
+refresh/close uses the browser's native unsaved-changes warning. Browser Back and
+Forward also show the same prompt when they change the Scheduling tab or owner.
+The canvas scrolls
+behind the floating controls. Its branding, published meeting cards, and empty
+state reuse the public page's components. Meeting cards are
 display-only, so editing cannot start a real booking. Above the canvas, a single
 split control shows the saved page URL on the left and **Copy page link** on the
 right, separated by a full-height divider. Clicking the URL opens the guest page
@@ -1278,10 +1310,10 @@ put **Back to availability** in the topbar and the editable schedule name above 
 calendar. **Save schedule** and **Cancel** stay in a separate footer. Back and Cancel
 discard the schedule draft; scrolling never moves the footer.
 The calendar is month-only, with six Sunday–Saturday rows and square date cells.
-Its rounded frame clips the scrolling grid at the corners. It is capped at 42rem
-wide and scrolls inside its available height; narrow screens also scroll horizontally
-instead of stretching the page. Previous/next arrows move one month. The month
-picker jumps directly to another month or **Today**.
+Its rounded frame clips the scrolling grid at the corners. It fills the available
+content width and scrolls inside its available height; narrow screens also scroll
+horizontally instead of stretching the page. Previous/next arrows move one month.
+The month picker jumps directly to another month or **Today**.
 The toolbar holds the schedule-wide time zone and a **12h / 24h** display toggle.
 The display toggle changes calendar, details, and template times without changing
 stored hours. Bars show only their time range or **All day**: the key and solid
@@ -1339,7 +1371,7 @@ Apply or cancel a range edit or stamp selection before saving; disabled Save nev
 dismisses pending work. Leave the editor to discard verification drafts instead of
 modifying hosted data.
 Ownership badges identify Personal or Team · team name on links and availability.
-Search booking links by title or slug within the selected owner. Team owners and
+Search booking links by title, description, or slug within the selected owner. Team owners and
 admins can edit team links; ordinary members retain read-only access. The standard
 **New booking link** action opens a dialog without saving anything, including when no
 schedule exists. It grows to 42rem wide and retains an 8px gutter on narrow screens.
@@ -1348,13 +1380,17 @@ Both are capped for the viewport, safe areas, and virtual keyboard. The header a
 footer stay fixed; content scrolls when it reaches the height limit.
 Header, content, and footer use matching 24px horizontal padding on wider screens.
 The fixed header has no bottom divider. The active step heading sits on the left,
-with a compact continuous progress bar on the right. The bar is 8px tall and
-64px wide on narrow screens, increasing to 80px on wider screens. Its accent fill
-extends through the current step. Footer and section dividers use contrast-aware
-border tokens in light and dark themes. Field and section subheadings use smaller,
+with a compact continuous progress bar on the right. Its accent fill extends
+through the current step. The current step number sits before the heading and
+matches its typography and color, without a visible button frame. Click it to open
+a dropdown listing all five steps, with the current step checked.
+Earlier steps open directly; forward jumps validate all earlier steps and focus
+the first invalid field if needed. The step menu supports keyboard navigation
+and locks while saving. Footer and section dividers use contrast-aware border tokens
+in light and dark themes. Field and section subheadings use smaller,
 normal-weight, muted text, while entered values retain their normal contrast.
 The footer keeps Cancel at the far left; Back sits beside Next and is absent on
-the first step. The form has no tabs or step menus. Inputs use consistent styling
+the first step. Step content has no separate tabs. Inputs use consistent styling
 and rounded pill presets whose selected accent or unselected muted text stays
 unchanged on hover.
 The screen-reader-only title identifies New personal booking link, New team booking
@@ -1365,19 +1401,20 @@ Next validates required values without saving; Back preserves the draft and
 control state and returns to the preceding step even if external schedule changes
 invalidate earlier values. Next and Back move between steps and focus the active
 content. Step content uses compact top padding below the header.
-Review sections share a fixed left icon column; headings and all section content
-align in an indented content column. A larger booking title introduces combined
-Details and Location & availability, without a separate Meeting details heading.
+Review sections have no dividers and share a fixed left icon column. Headings and
+all section content align in an indented content column. Title and Description
+are stacked label/value fields, followed by the Link URL and its copy-link icon.
 There are no Review Edit actions; use Back to change values. Icons appear beside
 section headings, not individual values. Values sit closely below their plain
-labels. For saved links, a copy-link icon beside the title copies the persisted
-booking URL without saving pending edits. New and duplicated links have no copy
-action until saved. Meeting buffers combines nonzero before/after values and shows
+labels. For saved links, the Link field shows and copies the persisted booking URL
+without saving pending edits. New and duplicated links show their draft URL and
+have no copy action until saved. Meeting buffers combines nonzero before/after values and shows
 No buffers when both are zero.
-On Review, the warning-triangle action beside Questions opens a bounded help popover
+On Review, the warning-triangle action sits closely beside Questions and opens a bounded help popover
 explaining that name and email are always collected. The note stays hidden until opened.
-Existing links show an Accept bookings checkbox under Status on Review. Pausing or
-reactivating changes only the draft until Save changes. The control disables while
+Existing links show an Enabled section with a power icon after Booking rules.
+Only the switch appears below the heading; its accessible label is Enabled.
+Pausing or reactivating changes only the draft until Save changes. The control disables while
 saving. New links retain their active default; duplicates retain their paused default.
 Use automatic confirmation updates a legacy link's draft without saving or leaving
 Review. Reset team hosts changes only the host draft and stays on Location.
@@ -1395,14 +1432,17 @@ another Next click.
 Submitting with Enter or Next focuses the first invalid control and scrolls its
 message into view. Live edits clear errors without moving focus to another control.
 Save failures appear beneath the action that attempted the write, not in a banner.
-The progress bar exposes Step X of 5 and the active heading to assistive
+The progress indicator exposes Step X of 5 and the active heading to assistive
 technology. It updates on each step. Stepper animates the body
 while retaining controls. Back and Next remain text-only. Saving disables
 navigation and editor actions.
 Description sits below the title/link area. Neither description nor duration has
-an info icon. Duration always shows a slider with its exact number/unit input on
-the right, without presets or minus/plus buttons. Min/max values appear above
-both ends. The slider uses 15-minute adjustments with a 5-minute lower limit;
+an info icon. Duration always shows a slider with numeric hours/minutes fields
+sharing a compact frame on the right. Both parts stay visible, including `0 hours`
+and `0 mins`; the unit labels are fixed, with no selector, presets, or minus/plus
+buttons. Excess minutes normalize into hours on blur. Errors appear below the
+slider and say “Duration must be between 5 mins and 8 hours.” Min/max labels appear
+above both ends. The slider uses 15-minute adjustments with a 5-minute lower limit;
 Ctrl enables one-minute pointer or keyboard adjustments. The shared Tooltip component
 shows each slider's current value on hover, focus, and drag, anchored to its thumb.
 Duration tooltips show hours and minutes for longer durations.
@@ -1439,42 +1479,55 @@ Remove questions action. Removing an
 individual question focuses the next question, the previous question after removing
 the last one, or Add a question if none remain. Booking rules has no outer
 disclosure or Remove action.
-Booking rules shows a Booking range heading above one two-handle slider. Exact
+Booking rules shows a Booking range heading and click-open info popover above one
+two-handle slider. The short popover explains how soon a meeting can start after
+booking and how many days ahead guests can book. Exact
 current-value inputs replace the static scale endpoints above the track: earliest
 on the left and latest on the right, including on narrow screens. There are no
 visible question labels, unit menus, or section divider lines. Both offsets are
 measured from now, not from one another. These rules restrict meeting start times,
-not when the link is active. The scale has landmarks at one hour, one day, seven
-days, and thirty days. Values above thirty days remain at the right edge without
-changing their exact stored value; the latest input accepts up to 365 days.
-Moving one handle changes only that endpoint. Keyboard gestures use actual minutes
-for earliest and days for latest, with direction-aware horizontal arrows. Slider
+not when the link is active. The scale gives hours and days more room, with visible
+landmarks at 1 hour, 4 hours, 1 day, 7 days, and 14 days, ending at 30 days.
+Values above thirty days remain at the right edge without changing their exact
+stored value; the latest input accepts up to 365 days. Moving one handle changes
+only that endpoint. Earliest gestures use 15-minute steps below 2 hours,
+30-minute steps below 4 hours, hourly steps below 1 day, and daily steps beyond.
+Ctrl enables minute-level pointer/arrow adjustments, including stationary clicks;
+latest arrows step in days. Earliest PageDown at one day returns to 23 hours.
+Horizontal arrows follow the reading direction. Slider
 gestures keep the endpoints ordered; exact inputs preserve equal/reversed values
 and show existing cross-field validation instead of silently changing the other end.
 Earliest supports 0–10,080 minutes; latest supports 1–365 days. Latest must extend
 beyond earliest. Invalid ranges block Next/save and focus the affected input.
-Meeting buffers remain separate before/after number inputs, without sliders.
-Time-slot interval uses a slider with interior ticks every five minutes, no endpoint
-ticks, and labels at 15, 30, and 45 minutes. Its exact input stays on the right. The displayed range
-is 5–60 minutes; 60 minutes+ indicates larger exact values, supported up to 480 minutes.
-Daily booking limit uses a 0–100 slider and a right-hand exact input. Zero displays
-No limit and saves as null. Focus the input to edit its numeric zero or a positive limit.
+Time-slot interval uses preset pills for 5, 10, 15, 20, 30, 45, and 60 mins,
+plus Custom. Custom reveals a compact exact input supporting 5–480 minutes.
+Daily booking limit uses No limit, 1, 3, 5, 10, and 20 preset pills, plus Custom.
+Its exact input supports 0–100 bookings; zero saves as null. Both pill rows wrap
+on narrow screens. Selecting Custom focuses its input without changing the value.
+Typing a preset value manually keeps Custom selected. Selecting a preset hides the
+exact input. The frequency controls have no sliders.
+Time between meetings appears last, with separate before/after number inputs and no
+sliders. Booking range, time-slot interval, daily booking limit, and Time between
+meetings have 32px vertical gaps between sections.
 Other sliders display min/max labels above their ends; Booking range displays
 editable current values instead.
 Enter in any exact input never advances the step or saves the link. Validation,
 field bounds, unit conversion, draft retention, save, and discard behavior remain
 unchanged. Errors stay below controls; stored fractions stay visible until corrected.
-Booking range displays earliest as whole hours and minutes, such as `1 h, 30 m`;
-its thumb tooltip uses the same format. The earliest textbox accepts `1 h, 30 m`,
+Booking range displays earliest as whole hours and minutes, such as `1 h 30 m`;
+its thumb tooltip uses the same format. The earliest textbox accepts `1 h 30 m`,
 `1h 30m`, or `90 m`; a bare number means minutes. Partial text stays local until
 it parses, and blur restores the last valid draft in hours/minutes format. The
 latest input and tooltip use days only, never weeks. Neither endpoint has a unit
 menu. Other number/unit controls use NumberUnitInput on Kobalte NumberField and
 retain their unit menus. Exact input frames stay visible above, beside, or below
-sliders; no slider/input control shows minus/plus buttons. Duration offers
-minutes/hours. Its unit menu offers Auto without a “· Auto” suffix, allows up to
-two decimals for hours, and keeps other units and booking counts whole.
-Blank or out-of-range input stays local; blur restores the last valid draft.
+sliders; no slider/input control shows minus/plus buttons. Duration fields accept
+whole hours and minutes, preserve exact minute values, and normalize on blur.
+Other controls keep booking counts and minute/day units whole.
+Parsed out-of-range duration and notice values remain visible in the draft;
+validation blocks Next/save with an error until corrected. Blank or non-parsable
+time text stays local; blur restores the last parsed draft value. Other number/unit
+inputs restore their last valid values after blank or out-of-range input.
 Explicit unit choices replace the previous preference. Saved values remain whole
 minutes or days. Slider movement never overwrites another endpoint or a clipped
 exact value. No limit and zero save as null, preserving the backend contract.
@@ -1516,6 +1569,40 @@ zone; failed/processing requests are excluded. Completed means ended confirmed
 bookings excluding recorded no-shows. Rescheduled counts bookings with recorded
 reschedule history. Ratings/CSAT are not shown because no survey data is collected.
 Oversized result sets return an error instead of silently truncating insights.
+The top toolbar groups event type, host, and date-range selectors on the left,
+with Download on the right when space permits. All four controls share the same
+height, including the larger touch target on touch devices.
+The host filter uses Tasks' Assignee submenu search header, compact rows, and small
+avatars, but selects one host at a time. The selected host has a trailing checkmark,
+not a leading checkbox, and stays pinned first on reopening. Its searchable,
+virtualized list is capped at 240px tall. Rows show names without email subtitles;
+search still matches names and emails. Screen readers announce emails to distinguish
+names.
+Choices include the signed-in user, team members, booking-link
+hosts, and hosts from loaded bookings, without duplicate IDs or a display limit.
+Historical hosts absent from the member directory remain available as Former member.
+A selected historical host stays selected and visible after date-range changes,
+even when the new range has no bookings for that host. Select All hosts to remove
+the host filter. Custom range opens a submenu with
+Start date and End date fields, with Clear on the left and Apply dates on the right.
+Draft changes do not alter the report until applied. Clear empties both date fields
+and removes validation errors without changing the report; Escape discards drafts.
+The Events card includes an outcome donut with one slice per booking outcome:
+Completed, Upcoming, Cancelled, Pending approval, Host no-show, or Guest no-show.
+Rescheduled remains a separate metric because a rescheduled booking also has an
+outcome. The outcome rows show counts by default. Use the # / % buttons above the
+rows to switch between counts and percentages. Focus or hover a slice to read
+both values. The donut total remains a booking count. Event trends and
+Popular booking times use lazily loaded Observable Plot; the donut uses D3.
+Popular event types and Bookings by host use simple name/count rows with progress
+bars relative to the highest count. Toggle trend series in the legend, or focus
+the trend chart and use left/right arrows to read dates. Each Plot chart also
+offers a data table. Performance retains separate time and no-show metrics rather
+than putting different units on one scale.
+Insights fills the available content width. Wide panes stack Popular event types,
+Popular booking times, and Bookings by host in a column beside the metrics and
+event trend. Narrow panes move the same stack below the metrics and event trend.
+Layout responds to the pane width, including split views, rather than only the window width.
 
 The calendar header includes `Copy booking link` and `Manage booking links`.
 Copy opens the booking workspace when no active personal link exists. Public
