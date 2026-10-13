@@ -380,10 +380,19 @@ async function stampBuild(buildRecord) {
 /// version, same stamp) is a retry: report uploaded=true so the release
 /// workflow skips the build and goes straight to submit.
 async function requireUnusedBuild() {
-  const highest = await highestUploadedBuild();
   const rebump = `Re-bump past it and commit:
   cd apps/web && doppler run --project ios-release --config prd -- just ios-bump
 ${testflightUrl}`;
+  // App Store Connect won't accept a version string at or below the latest
+  // release, and the bump only moves the version once the committed one has
+  // shipped — so a shipped version here means the PR is behind the store.
+  const released = await highestReleasedVersion();
+  if (compareVersions(version, released) <= 0) {
+    console.error(`Marketing version ${version} is not above the latest App Store release ${released}. ${rebump}`);
+    exit(1);
+  }
+  console.log(`Marketing version ${version} is above the latest App Store release (${released}).`);
+  const highest = await highestUploadedBuild();
   if (!highest) {
     console.log("No builds uploaded yet; build number is free.");
     setGitHubOutput("uploaded", "false");
@@ -443,6 +452,15 @@ async function allAppStoreVersions() {
 function isInFlight(record) {
   const state = versionState(record);
   return !LIVE_STATES.has(state) && !RETIRED_STATES.has(state);
+}
+
+/// The highest marketing version that has ever shipped (live or retired), or
+/// "0.0.0" when none has.
+async function highestReleasedVersion() {
+  return (await allAppStoreVersions())
+    .filter((record) => !isInFlight(record))
+    .map((record) => record.attributes.versionString)
+    .reduce((best, candidate) => (compareVersions(candidate, best) > 0 ? candidate : best), "0.0.0");
 }
 
 /// JSON on stdout for ios-bump-version.mjs (details on stderr).

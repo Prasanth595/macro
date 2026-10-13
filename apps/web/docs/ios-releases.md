@@ -87,7 +87,8 @@ bumped from the same `main` get the same numbers. So the release stamps each
 uploaded build with the git tree hash of `apps/web/tauri` it was built from
 (in the build's TestFlight "What to Test" text), and the checks use it:
 
-- **Collision check** (release workflow before building, and the gate): a
+- **Collision check** (release workflow before building, and the gate): the
+  marketing version must be above the latest App Store release, and a
   build at or above the PR's number with a different stamp — another PR, or
   a hand release — fails with "re-bump". The PR's own earlier upload (same
   version, same stamp) is a retry: the release skips the build and goes

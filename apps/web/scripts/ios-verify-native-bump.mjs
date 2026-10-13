@@ -5,9 +5,13 @@
 //   - a marketing version no lower than the base's (it only moves once the
 //     committed one has shipped — a re-release keeps it),
 //   - a higher build number, and
-//   - the iOS floor in min-native-build.json raised to that build number, so
-//     the next prod web deploy locks out older native builds (run `just ios-bump` to do all
-//     three; see scripts/ios-bump-version.mjs).
+//   - the iOS floor in min-native-build.json either raised to that build
+//     number, so the next prod web deploy locks out older native builds, or
+//     left exactly as the base has it (`just ios-bump --no-min`: a release
+//     older installs don't need). Run `just ios-bump` to do all three; see
+//     scripts/ios-bump-version.mjs. Whether the version is above the latest
+//     App Store release is checked by `ios-app-store.mjs status`, which can
+//     ask App Store Connect.
 //
 // The base ref defaults to origin/main; override with BASE_REF. Requires the
 // base ref to be fetched (CI checks out with full history).
@@ -48,6 +52,8 @@ const headConf = JSON.parse(
   readFileSync(path.join(appDir, "tauri", "src-tauri", "tauri.ios.conf.json"), "utf8"),
 );
 const headMin = JSON.parse(readFileSync(path.join(appDir, "min-native-build.json"), "utf8"));
+const baseMinText = baseFile(MIN_NATIVE_BUILD);
+const baseMinIos = baseMinText === null ? null : JSON.parse(baseMinText).ios;
 
 const baseVersion = baseConf.version;
 const headVersion = headConf.version;
@@ -86,10 +92,11 @@ if (!Number.isInteger(headBuild)) {
   );
 }
 
-if (headMin.ios !== headBuild) {
+if (headMin.ios !== headBuild && headMin.ios !== baseMinIos) {
   errors.push(
     `min-native-build.json has ios ${headMin.ios}, expected the new build number ` +
-      `${headBuild} so older native builds get locked out after the prod deploy.`,
+      `${headBuild} so older native builds get locked out after the prod deploy` +
+      (baseMinIos === null ? "." : ` (or ${baseMinIos}, unchanged from ${baseRef}, for a release older installs don't need).`),
   );
 }
 
@@ -109,5 +116,5 @@ if (errors.length > 0) {
 
 console.log(
   `iOS release numbers are bumped: ${baseVersion} (${baseBuild}) → ${headVersion} (${headBuild}), ` +
-    `iOS floor ${headMin.ios}.`,
+    `iOS floor ${headMin.ios}${headMin.ios === headBuild ? "" : " (unchanged: older installs are not locked out)"}.`,
 );
