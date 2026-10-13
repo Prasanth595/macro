@@ -538,6 +538,16 @@
       tauriRuntimeClosure = pkgs.closureInfo {
         rootPaths = tauriRuntimeLibraries ++ tauri.commonArgs.buildInputs;
       };
+      tauriGstreamerPlugins = pkgs.symlinkJoin {
+        name = "tauri-gstreamer-plugins";
+        paths = with pkgs.gst_all_1; [
+          gstreamer
+          gst-plugins-base
+          gst-plugins-good
+          gst-plugins-bad
+          gst-libav
+        ];
+      };
       tauriAppImageConfig = builtins.toJSON {
         version = appVersion;
         plugins = desktopPlugins;
@@ -549,6 +559,7 @@
           active = true;
           targets = [ "appimage" ];
           useLocalToolsDir = true;
+          linux.appimage.bundleMediaFramework = true;
           linux.appimage.files = {
             "/usr/bin/xdg-mime" = "${pkgs.xdg-utils}/bin/xdg-mime";
             "/usr/bin/xdg-open" = "${pkgs.xdg-utils}/bin/xdg-open";
@@ -844,6 +855,8 @@
           ];
           LD_LIBRARY_PATH = tauriRuntimeLibraryPath;
           LDAI_RUNTIME_FILE = tauriAppImageRuntime;
+          GSTREAMER_PLUGINS_DIR = "${tauriGstreamerPlugins}/lib/gstreamer-1.0";
+          GSTREAMER_HELPERS_DIR = "${pkgs.gst_all_1.gstreamer}/libexec/gstreamer-1.0";
           preBuild = ''
             test -e ${tauriAppImagePackagingTests}
             ${tauriDesktopPreBuild}

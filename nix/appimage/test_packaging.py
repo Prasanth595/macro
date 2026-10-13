@@ -142,6 +142,19 @@ class PackagingTest(unittest.TestCase):
         )
         self.assertEqual(script.read_text(), "#!/usr/bin/env sh\necho ok\n")
 
+    def test_relocation_handles_read_only_nix_copies(self):
+        self.populate()
+        for path in self.bundle_lib.iterdir():
+            path.chmod(0o555)
+        script = self.appdir / "usr/bin/xdg-open"
+        script.write_text("#!/nix/store/fixture/bin/sh\necho ok\n")
+        script.chmod(0o555)
+        relocate(self.appdir)
+        self.assertEqual(
+            patchelf(self.bundle_lib / self.first.name, "--print-rpath"), "$ORIGIN"
+        )
+        self.assertTrue(script.read_text().startswith("#!/usr/bin/env sh\n"))
+
     def test_relocation_rewrites_release_webkit_helper_directory(self):
         self.populate()
         prefix = b"/nix/store/fixture/libexec/webkit2gtk-4.1"

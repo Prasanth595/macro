@@ -3,6 +3,7 @@
 
 import os
 import re
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -35,6 +36,8 @@ def relocate(appdir):
         )
         if result.returncode:
             continue
+        # Tauri's additional files retain read-only Nix store permissions.
+        path.chmod(path.stat().st_mode | stat.S_IWUSR)
         dynamic.append((path, result.stdout.splitlines()))
         soname = patchelf(path, "--print-soname")
         if soname:
@@ -103,6 +106,7 @@ def relocate(appdir):
             if shell not in ("sh", "bash"):
                 raise RuntimeError(f"unexpected Nix shebang: {path}: {first!r}")
             content = path.read_bytes()
+            path.chmod(path.stat().st_mode | stat.S_IWUSR)
             path.write_bytes(
                 f"#!/usr/bin/env {shell}\n".encode() + content[len(first) :]
             )
