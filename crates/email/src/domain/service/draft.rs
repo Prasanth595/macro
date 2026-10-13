@@ -334,6 +334,14 @@ where
         // Resolve all IDs and build the insert-ready struct
         let message_db_id = input.db_id.unwrap_or_else(macro_uuid::generate_uuid_v7);
 
+        // Start the undo window only after provider validation and preparation.
+        // A slow send-as lookup must not consume the user's cancellation window.
+        if !is_draft {
+            input.send_time = Some(
+                chrono::Utc::now()
+                    + chrono::Duration::seconds(i64::from(self.sent_undo_delay_secs)),
+            );
+        }
         let resolved = ResolvedDraftInput {
             db_id: message_db_id,
             provider_id: input.provider_id,

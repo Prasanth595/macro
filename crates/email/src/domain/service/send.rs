@@ -1,5 +1,3 @@
-use chrono::Duration;
-
 use crate::domain::{
     events::{EmailMacroEvent, MessageSendQueuedMetadata},
     models::{CreateDraftInput, CreatedDraft, EmailErr, Link},
@@ -44,16 +42,18 @@ where
         &self,
         link: &Link,
         accessible_inboxes: &[Link],
-        mut input: CreateDraftInput,
+        input: CreateDraftInput,
     ) -> Result<CreatedDraft, EmailErr> {
         let delay_secs = self.sent_undo_delay_secs;
-        let send_time = chrono::Utc::now() + Duration::seconds(delay_secs as i64);
-        input.send_time = Some(send_time);
         let actor = input.actor.clone();
 
         let created = self
             .prepare_and_insert_db_message(link, accessible_inboxes, input, false)
             .await?;
+
+        let send_time = created
+            .send_time
+            .ok_or_else(|| anyhow::anyhow!("prepared delivery has no scheduled send time"))?;
 
         // FE displays "Undo" button for delay_secs. Give extra time for round trip of cancel request
         let sqs_delay = delay_secs as i32 + 2;

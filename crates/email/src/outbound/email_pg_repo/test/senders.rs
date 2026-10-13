@@ -1,4 +1,6 @@
 use super::*;
+
+mod send_window;
 use crate::domain::{
     models::{ContactInfo, CreateDraftInput, EmailErr, Link},
     senders::{EmailSenderProvider, SendAsAddress, SendAsFuture},

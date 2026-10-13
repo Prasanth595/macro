@@ -100,9 +100,17 @@ export type EmailComposeContextOptions = {
   threadTransport?: Accessor<ThreadQueryTransport | undefined>;
 };
 
-async function refreshSentSoup(threadId: string): Promise<void> {
+async function refreshEmailLists(
+  threadId: string,
+  completingThread: boolean
+): Promise<void> {
   try {
-    await refetchSoupEntity(threadId, 'emailThread');
+    // Keep legacy list observers in step with GraphQL writes without
+    // invalidating the active editor's thread resource.
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: emailKeys.previews._def }),
+      completingThread ? undefined : refetchSoupEntity(threadId, 'emailThread'),
+    ]);
   } catch (error) {
     Telemetry.error(error);
   }
@@ -376,7 +384,10 @@ export function createEmailComposeContext(
         });
         try {
           const threadId = result.threadId;
-          if (threadId) markThreadDraftSaved(threadId);
+          if (threadId) {
+            markThreadDraftSaved(threadId);
+            void refreshEmailLists(threadId, !!completingThread);
+          }
           if (previousThreadId && previousThreadId !== threadId) {
             markThreadDraftSaved(previousThreadId);
             invalidateSoupEntity(previousThreadId);
@@ -455,7 +466,7 @@ export function createEmailComposeContext(
           if (result.threadId) {
             markThreadDraftSaved(result.threadId);
             refreshThread(result.threadId);
-            if (!completingThread) void refreshSentSoup(result.threadId);
+            void refreshEmailLists(result.threadId, !!completingThread);
           }
           analytics.track('email_message_sent');
         } catch (error) {
