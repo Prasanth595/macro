@@ -62,18 +62,15 @@ export function createTaskGanttQueries(options: {
       ? property
       : undefined;
   });
-  const destinations = createMemo(
-    () =>
-      new Set(
-        options
-          .rows()
-          .flatMap((row) => (row.kind === 'group-header' ? [row.groupId] : []))
-      )
+  const destinations = createMemo(() =>
+    options
+      .rows()
+      .flatMap((row) => (row.kind === 'group-header' ? [row.groupId] : []))
   );
-  const [saving, setSaving] = createSignal<ReadonlySet<string>>(new Set());
+  const [saving, setSaving] = createSignal<string[]>([]);
   const save = useBulkSaveEntityPropertiesMutation();
   const canDrag = (id: string) =>
-    tasks().has(id) && !saving().has(id) && !!groupProperty();
+    tasks().has(id) && !saving().includes(id) && !!groupProperty();
 
   const resolveMove = (move: GanttGroupMove) => {
     const group = grouping();
@@ -84,7 +81,7 @@ export function createTaskGanttQueries(options: {
       !property ||
       !task ||
       !canDrag(move.id) ||
-      !destinations().has(move.toGroup)
+      !destinations().includes(move.toGroup)
     )
       return;
     const boardTask = toBoardTask(task);
@@ -119,7 +116,7 @@ export function createTaskGanttQueries(options: {
       if (!resolved)
         throw new Error('Task or destination is no longer editable');
       const { task, group, property, boardMove } = resolved;
-      setSaving((ids) => new Set([...ids, move.id]));
+      setSaving((ids) => [...ids, move.id]);
       try {
         await save.mutateAsync({
           properties: [
@@ -132,7 +129,7 @@ export function createTaskGanttQueries(options: {
           ],
         });
       } finally {
-        setSaving((ids) => new Set([...ids].filter((id) => id !== move.id)));
+        setSaving((ids) => ids.filter((id) => id !== move.id));
       }
     },
   };

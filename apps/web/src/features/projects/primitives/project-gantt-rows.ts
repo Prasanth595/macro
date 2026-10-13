@@ -23,18 +23,11 @@ export function createProjectGanttRows(options: {
   // Remember assignees seen in this scope, including a group emptied by a move.
   const assignees = createMemo<{ scope: string; ids: string[] }>((previous) => {
     const scope = options.scope();
-    const ids =
-      options.grouping() === 'assignee'
-        ? [
-            ...new Set([
-              ...(previous?.scope === scope ? previous.ids : []),
-              ...options
-                .groups()
-                .map((group) => group.id)
-                .filter(Boolean),
-            ]),
-          ]
-        : [];
+    if (options.grouping() !== 'assignee') return { scope, ids: [] };
+    const ids = previous?.scope === scope ? previous.ids.slice() : [];
+    for (const group of options.groups()) {
+      if (group.id && !ids.includes(group.id)) ids.push(group.id);
+    }
     return { scope, ids };
   });
   const groups = createMemo<SoupGroup<ProjectListEntity>[]>(() => {

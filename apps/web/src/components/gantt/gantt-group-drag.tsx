@@ -56,7 +56,7 @@ export function GanttGroupDrag(
   const gantt = useGantt();
   const [active, setActive] = createSignal<DragItem>();
   const [target, setTarget] = createSignal<string>();
-  const [pending, setPending] = createSignal<ReadonlySet<string>>(new Set());
+  const [pending, setPending] = createSignal<string[]>([]);
   const [error, setError] = createSignal<string>();
   const [preview, setPreview] = createSignal<{
     element: HTMLElement;
@@ -75,7 +75,7 @@ export function GanttGroupDrag(
     if (active()) gantt.setEditing(false);
   });
 
-  const canDrag = (id: string) => props.canDrag(id) && !pending().has(id);
+  const canDrag = (id: string) => props.canDrag(id) && !pending().includes(id);
   const request = (): GanttGroupMove | undefined => {
     const item = active();
     const group = target();
@@ -122,7 +122,7 @@ export function GanttGroupDrag(
   };
   const saveMove = async (move: GanttGroupMove) => {
     const attemptScope = props.scope;
-    setPending((ids) => new Set([...ids, move.id]));
+    setPending((ids) => [...ids, move.id]);
     try {
       await props.onMove(move);
     } catch {
@@ -130,8 +130,7 @@ export function GanttGroupDrag(
         setError('Could not move item. Try again.');
       }
     } finally {
-      if (alive)
-        setPending((ids) => new Set([...ids].filter((id) => id !== move.id)));
+      if (alive) setPending((ids) => ids.filter((id) => id !== move.id));
     }
   };
   const finish = () => {

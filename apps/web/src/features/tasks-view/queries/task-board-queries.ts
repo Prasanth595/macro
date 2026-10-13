@@ -34,9 +34,7 @@ export function createTaskBoardQueries(options: {
   facets?: Accessor<FacetSelection>;
   sort?: Accessor<SortSelection<TaskSortId>[]>;
 }) {
-  const [propertySaving, setPropertySaving] = createSignal<ReadonlySet<string>>(
-    new Set()
-  );
+  const [propertySaving, setPropertySaving] = createSignal<string[]>([]);
 
   const entities = createMemo(() => {
     const result = new Map<string, TaskEntityWithProperties>();
@@ -150,7 +148,7 @@ export function createTaskBoardQueries(options: {
 
   const actions: TaskBoardActions = {
     canEditTask(id) {
-      return entities().has(id) && !propertySaving().has(id);
+      return entities().has(id) && !propertySaving().includes(id);
     },
     canMoveTo(grouping, id) {
       const property = properties().get(taskBoardPropertyId(grouping));
@@ -248,7 +246,7 @@ export function createTaskBoardQueries(options: {
       throw new Error('Task is no longer editable');
     }
 
-    setPropertySaving((ids) => new Set([...ids, id]));
+    setPropertySaving((ids) => [...ids, id]);
 
     try {
       if (definition.id === SYSTEM_PROPERTY_IDS.PROJECT) {
@@ -267,9 +265,7 @@ export function createTaskBoardQueries(options: {
         ],
       });
     } finally {
-      setPropertySaving(
-        (ids) => new Set([...ids].filter((pendingId) => pendingId !== id))
-      );
+      setPropertySaving((ids) => ids.filter((pendingId) => pendingId !== id));
     }
   };
 
