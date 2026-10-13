@@ -550,6 +550,34 @@
       tauriXkbData = pkgs.runCommand "tauri-appimage-xkb-data" { } ''
         cp -rL ${pkgs.xkeyboard-config}/share/X11/xkb "$out"
       '';
+      # Keep upstream PATH-based commands: nixpkgs' resholve preFixup makes
+      # these scripts (and even their data paths) depend on the build's store.
+      tauriXdgUtils = pkgs.xdg-utils.overrideAttrs {
+        preFixup = "";
+        dontPatchShebangs = true;
+      };
+      tauriGsettingsSchemas =
+        pkgs.runCommand "tauri-appimage-gsettings-schemas"
+          {
+            nativeBuildInputs = [ pkgs.glib.dev ];
+            schemaDirs =
+              lib.concatMapStringsSep " " (p: "${p}/share/gsettings-schemas/${p.name}/glib-2.0/schemas")
+                [
+                  pkgs.gsettings-desktop-schemas
+                  pkgs.gtk3
+                ];
+          }
+          ''
+            mkdir -p "$out"
+            shopt -s nullglob
+            for schema_dir in $schemaDirs; do
+              cp "$schema_dir/"*.xml "$out/"
+              for override in "$schema_dir/"*.gschema.override; do
+                cp "$override" "$out/"
+              done
+            done
+            glib-compile-schemas --strict "$out"
+          '';
       tauriAppImageConfig = builtins.toJSON {
         version = appVersion;
         plugins = desktopPlugins;
@@ -563,9 +591,10 @@
           useLocalToolsDir = true;
           linux.appimage.bundleMediaFramework = true;
           linux.appimage.files = {
-            "/usr/bin/xdg-mime" = "${pkgs.xdg-utils}/bin/xdg-mime";
-            "/usr/bin/xdg-open" = "${pkgs.xdg-utils}/bin/xdg-open";
+            "/usr/bin/xdg-mime" = "${tauriXdgUtils}/bin/xdg-mime";
+            "/usr/bin/xdg-open" = "${tauriXdgUtils}/bin/xdg-open";
             "/usr/share/X11/xkb" = "${tauriXkbData}";
+            "/usr/share/glib-2.0/schemas" = "${tauriGsettingsSchemas}";
             "/usr/lib/gio/modules/giomodule.cache" = "${pkgs.glib-networking}/lib/gio/modules/giomodule.cache";
             "/usr/lib/gio/modules/libgiognomeproxy.so" = "${pkgs.glib-networking}/lib/gio/modules/libgiognomeproxy.so";
             "/usr/lib/gio/modules/libgiognutls.so" = "${pkgs.glib-networking}/lib/gio/modules/libgiognutls.so";
@@ -830,12 +859,16 @@
               pkgs.stdenv.cc
               pkgs.pkg-config
             ];
-            buildInputs = [ pkgs.libxkbcommon ];
+            buildInputs = [
+              pkgs.libxkbcommon
+              pkgs.glib
+            ];
           }
           ''
             export PYTHONDONTWRITEBYTECODE=1
             python3 -m unittest discover -s ${./appimage} -v
-            bash ${./appimage}/test_runtime.sh ${tauriXkbData}
+            bash ${./appimage}/test_runtime.sh ${tauriXkbData} ${tauriGsettingsSchemas} ${gioTlsModulePath}
+            bash ${./appimage}/test_xdg.sh ${tauriXdgUtils}
             # GStreamer's default Nix output is bin; its scanner and core plugins
             # live in the library output. Do not silently ship an empty helper dir.
             test -x ${lib.getLib pkgs.gst_all_1.gstreamer}/libexec/gstreamer-1.0/gst-plugin-scanner

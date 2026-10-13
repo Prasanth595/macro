@@ -2,31 +2,49 @@
 set -euo pipefail
 source_dir=$(cd "$(dirname "$0")" && pwd)
 hook="$source_dir/runtime-hook.sh"
-data=${1:?usage: test_runtime.sh <bundled-xkb-data>}
-smoke="$PWD/xkb-smoke"
+data=${1:?usage: test_runtime.sh <bundled-xkb-data> <bundled-schemas> <gio-modules>}
+schemas=${2:?missing bundled schemas}
+modules=${3:?missing GIO modules}
+xkb_smoke="$PWD/xkb-smoke"
+settings_smoke="$PWD/settings-smoke"
 
 # shellcheck disable=SC2046
-cc -Wall -Wextra -Werror "$source_dir/test_xkb.c" $(pkg-config --cflags --libs xkbcommon) -o "$smoke"
+cc -Wall -Wextra -Werror "$source_dir/test_xkb.c" $(pkg-config --cflags --libs xkbcommon) -o "$xkb_smoke"
+# shellcheck disable=SC2046
+cc -Wall -Wextra -Werror "$source_dir/test_settings.c" $(pkg-config --cflags --libs gio-2.0) -o "$settings_smoke"
 
-# Prove that the fixture cannot silently fall back to the build host's data.
-if env XKB_CONFIG_ROOT="$PWD/missing-xkb-data" "$smoke"; then
+# Prove that neither fixture silently falls back to the build host's data.
+if env XKB_CONFIG_ROOT="$PWD/missing-xkb-data" "$xkb_smoke"; then
   echo "XKB smoke test unexpectedly used host keyboard data" >&2
+  exit 1
+fi
+if env GSETTINGS_SCHEMA_DIR="$PWD/missing-schemas" "$settings_smoke"; then
+  echo "GSettings smoke test unexpectedly used host schemas" >&2
   exit 1
 fi
 
 appdir="$PWD/Macro.AppDir"
-mkdir -p "$appdir/usr/share/X11"
+mkdir -p "$appdir/usr/share/X11" "$appdir/usr/share/glib-2.0" "$appdir/usr/lib/gio"
 cp -r "$data" "$appdir/usr/share/X11/xkb"
+cp -r "$schemas" "$appdir/usr/share/glib-2.0/schemas"
+cp -rL "$modules" "$appdir/usr/lib/gio/modules"
 printf '#!/usr/bin/env bash\nsource %q\nexec "$@"\n' "$hook" > "$appdir/AppRun"
 
-# Normal AppImage startup supplies APPDIR; no caller workaround is necessary.
-env -u XKB_CONFIG_ROOT APPDIR="$appdir" bash "$appdir/AppRun" "$smoke"
+# No user settings or session bus should be needed by these headless checks.
+export GSETTINGS_BACKEND=memory GIO_USE_PROXY_RESOLVER=gnome XDG_CURRENT_DESKTOP=GNOME
+export XDG_DATA_DIRS="$PWD/missing-system-data"
 
-# It must still work after extraction/mounting at another path, including spaces,
-# and override a stale inherited path rather than reaching back into /nix/store.
+# Normal AppImage startup supplies APPDIR; no caller workaround is necessary.
+for smoke in "$xkb_smoke" "$settings_smoke"; do
+  env -u XKB_CONFIG_ROOT -u GSETTINGS_SCHEMA_DIR APPDIR="$appdir" bash "$appdir/AppRun" "$smoke"
+done
+
+# Relocating the bundle (including spaces) must override stale inherited paths.
 mv "$appdir" "$PWD/Relocated Macro.AppDir"
 appdir="$PWD/Relocated Macro.AppDir"
-env XKB_CONFIG_ROOT="$PWD/missing-xkb-data" APPDIR="$appdir" bash "$appdir/AppRun" "$smoke"
-
-# linuxdeploy's standalone AppRun also works without the AppImage runtime env.
-env -u APPDIR -u XKB_CONFIG_ROOT bash "$appdir/AppRun" "$smoke"
+for smoke in "$xkb_smoke" "$settings_smoke"; do
+  env XKB_CONFIG_ROOT="$PWD/missing-xkb-data" GSETTINGS_SCHEMA_DIR="$PWD/missing-schemas" \
+    APPDIR="$appdir" bash "$appdir/AppRun" "$smoke"
+  # linuxdeploy's standalone AppRun also works without the runtime environment.
+  env -u APPDIR -u XKB_CONFIG_ROOT -u GSETTINGS_SCHEMA_DIR bash "$appdir/AppRun" "$smoke"
+done
