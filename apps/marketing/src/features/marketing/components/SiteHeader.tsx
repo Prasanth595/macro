@@ -10,6 +10,7 @@ import {
   DEMO_BOOKING_URL,
   FEATURE_PAGES,
   RESOURCE_PAGES,
+  routePhoneToMobileSignup,
 } from '../core/navigation';
 import { DemoBookingDialog } from './DemoBookingDialog';
 import './site-navigation.css';
@@ -186,6 +187,7 @@ export function SiteHeader(props: { hideOpenApp?: boolean }) {
             class="site-nav-start"
             target="_self"
             href="/app/signup"
+            onClick={routePhoneToMobileSignup}
             onPointerEnter={moveGlow}
             onPointerMove={moveGlow}
             onPointerLeave={stopGlow}
