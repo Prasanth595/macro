@@ -6,6 +6,7 @@ mod loaders;
 mod mutation;
 mod objects;
 mod operation;
+mod prepared_body;
 mod user_objects;
 mod user_query;
 
