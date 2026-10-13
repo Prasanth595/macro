@@ -48,9 +48,10 @@ function useInboxSelection() {
   );
 
   const isAll = () => state.inboxIds === undefined && !state.aliasFilter;
-  const hasMultipleInboxes = () => options().length > 1;
+  // A persisted alias still needs a clear/switch control if it disappears.
+  const hasMultipleInboxes = () => options().length > 1 || !!state.aliasFilter;
   const isSelected = (id: string) =>
-    options().length === 1 || selectedId() === id;
+    (options().length === 1 && !state.aliasFilter) || selectedId() === id;
   const selectedId = () => {
     if (state.aliasFilter)
       return `${state.aliasFilter.inboxId}:${state.aliasFilter.emailAddress.toLowerCase()}`;

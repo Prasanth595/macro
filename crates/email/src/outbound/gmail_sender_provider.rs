@@ -16,6 +16,9 @@ use crate::domain::{
     senders::{EmailSenderProvider, SendAsAddress, SendAsFuture},
 };
 
+#[cfg(test)]
+mod test;
+
 const CACHE_TTL: Duration = Duration::from_secs(5 * 60);
 const LOOKUP_TIMEOUT: Duration = Duration::from_secs(15);
 
@@ -61,27 +64,35 @@ impl<T: GmailTokenProvider> GmailSenderProvider<T> {
                 EmailErr::ProviderErr(error.into())
             }
         })?;
-        response
-            .send_as
-            .unwrap_or_default()
-            .into_iter()
-            .map(|alias| {
-                let email_address = EmailStr::try_from(alias.send_as_email)
-                    .map_err(|_| EmailErr::SendAsUnavailable)?;
-                let verified = alias.verification_status
-                    == Some(models_email::gmail::SendAsVerificationStatus::Accepted)
-                    || email_address
-                        .0
-                        .as_ref()
-                        .eq_ignore_ascii_case(link.email_address.0.as_ref());
-                Ok(SendAsAddress {
-                    email_address,
-                    display_name: alias.display_name,
-                    verified,
-                })
-            })
-            .collect()
+        Ok(sender_addresses(link, response.send_as.unwrap_or_default()))
     }
+}
+
+fn sender_addresses(
+    link: &Link,
+    aliases: Vec<models_email::gmail::SendAsAlias>,
+) -> Vec<SendAsAddress> {
+    aliases
+        .into_iter()
+        .filter_map(|alias| {
+            let Ok(email_address) = EmailStr::try_from(alias.send_as_email) else {
+                // Do not log the invalid address: provider data may contain PII.
+                tracing::warn!(link_id = %link.id, "skipping malformed Gmail send-as address");
+                return None;
+            };
+            let verified = alias.verification_status
+                == Some(models_email::gmail::SendAsVerificationStatus::Accepted)
+                || email_address
+                    .0
+                    .as_ref()
+                    .eq_ignore_ascii_case(link.email_address.0.as_ref());
+            Some(SendAsAddress {
+                email_address,
+                display_name: alias.display_name,
+                verified,
+            })
+        })
+        .collect()
 }
 
 impl<T: GmailTokenProvider> EmailSenderProvider for GmailSenderProvider<T> {

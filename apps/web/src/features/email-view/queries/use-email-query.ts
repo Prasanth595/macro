@@ -26,10 +26,11 @@ import { useFavoritesQuery } from '@queries/favorites/favorites';
 import { useSoupAstItemsQuery } from '@queries/soup/items';
 import { useSearchSoupQuery } from '@queries/soup/search';
 import type { TagSetResponse } from '@service-properties/generated/schemas/tagSetResponse';
-import { type Accessor, createMemo, indexArray } from 'solid-js';
+import { type Accessor, createMemo, createSignal, indexArray } from 'solid-js';
 import { match } from 'ts-pattern';
 import { EMAIL_FACETS, type EmailFacetContext } from '../filters/email-facets';
 import type { EmailTab, EmailViewState } from '../types';
+import { advanceEmptyAliasPages } from './advance-empty-alias-pages';
 import { buildEmailQuery, type EmailQueryContext } from './email-query';
 import { groupEmailEntitiesByDate } from './email-results';
 import { buildEmailSearchRequest } from './email-search';
@@ -204,8 +205,10 @@ export function useEmailDataSource(
   );
   const aliasSearchPending = () =>
     aliasSearchQueries().some(
-      (query) => query.isPending || query.isPlaceholderData
+      (query) => query.isPending || query.isPlaceholderData || query.isFetching
     );
+  const aliasSearchError = () =>
+    aliasSearchQueries().find((query) => query.error)?.error;
   const aliasSearchIds = createMemo(
     () =>
       new Set(
@@ -316,26 +319,32 @@ export function useEmailDataSource(
     );
     return {
       ids,
-      data: () =>
-        search.isSearching()
-          ? searchQuery.isSuccess && !searchQuery.isPlaceholderData
-            ? state.aliasFilter
-              ? !list.isLoading && !list.isPlaceholderData
-                ? searchQuery.data.filter((entity) =>
-                    list.data?.entities.some(
-                      (member) => member.id === entity.id
-                    )
-                  )
-                : undefined
-              : searchQuery.data
-            : undefined
-          : !list.isLoading && !list.isPlaceholderData
+      data: () => {
+        if (!search.isSearching())
+          return !list.isPending && !list.isPlaceholderData
             ? list.data?.entities
-            : undefined,
-      error: () => (search.isSearching() ? searchQuery.error : list.error),
+            : undefined;
+        if (!searchQuery.isSuccess || searchQuery.isPlaceholderData)
+          return undefined;
+        if (!state.aliasFilter) return searchQuery.data;
+        if (list.isPending || list.isPlaceholderData) return undefined;
+        const members = list.data?.entities;
+        // A failed membership read is unknown, not proof every row disappeared.
+        if (!members) return undefined;
+        const memberIds = new Set(members.map((entity) => entity.id));
+        return searchQuery.data.filter((entity) => memberIds.has(entity.id));
+      },
+      error: () =>
+        search.isSearching()
+          ? (searchQuery.error ?? (state.aliasFilter ? list.error : undefined))
+          : list.error,
       refresh: async () => {
-        if (search.usesServiceSearch()) await searchQuery.refetch();
-        else if (!search.isSearching()) await list.refresh();
+        if (search.usesServiceSearch()) {
+          await Promise.all([
+            searchQuery.refetch(),
+            ...(state.aliasFilter ? [list.refresh()] : []),
+          ]);
+        } else if (!search.isSearching()) await list.refresh();
       },
     };
   });
@@ -395,6 +404,25 @@ export function useEmailDataSource(
   );
 
   const usesServiceSearch = search.usesServiceSearch;
+  const [refreshing, setRefreshing] = createSignal(false);
+  const aliasAdvance = advanceEmptyAliasPages({
+    scope,
+    enabled: () =>
+      sourceEnabled() && !!state.aliasFilter && usesServiceSearch(),
+    ready: () =>
+      filtersReady() &&
+      search.searchQuery.isSuccess &&
+      !search.isFetching() &&
+      !refreshing() &&
+      !search.searchQuery.isPlaceholderData &&
+      !aliasSearchPending() &&
+      !search.error() &&
+      !aliasSearchError() &&
+      !retainedQueries().some((query) => query.error()),
+    hasItems: () => entities().length > 0,
+    hasNextPage: search.hasNextPage,
+    loadMore: search.fetchNextPage,
+  });
 
   const hasMore = () => {
     if (!filtersReady()) return false;
@@ -403,7 +431,12 @@ export function useEmailDataSource(
   };
 
   const isLoadingMore = () => {
-    if (usesServiceSearch()) return search.isFetchingNextPage();
+    if (usesServiceSearch())
+      return (
+        search.isFetchingNextPage() ||
+        aliasSearchPending() ||
+        aliasAdvance.isFetching()
+      );
     return query.isFetchingNextPage;
   };
 
@@ -436,7 +469,10 @@ export function useEmailDataSource(
       return isListPending();
     }
     if (entities().length > 0) return false;
-    if (usesServiceSearch()) return search.isLoading() || aliasSearchPending();
+    if (usesServiceSearch())
+      return (
+        search.isLoading() || aliasSearchPending() || aliasAdvance.isFetching()
+      );
     return query.isLoading;
   };
 
@@ -459,7 +495,11 @@ export function useEmailDataSource(
       if (showsReminders()) return reminders.isFetching();
       if (showsScheduled()) return scheduled.isFetching();
       if (search.isSettling()) return true;
-      return usesServiceSearch() ? search.isFetching() : query.isFetching;
+      return (
+        refreshing() ||
+        aliasAdvance.isFetching() ||
+        (usesServiceSearch() ? search.isFetching() : query.isFetching)
+      );
     },
     error: () => {
       if (showsReminders()) return reminders.error();
@@ -469,7 +509,8 @@ export function useEmailDataSource(
           ? favorites.error
           : undefined) ??
         (usesServiceSearch() ? search.error() : query.error) ??
-        aliasSearchQueries().find((query) => query.error)?.error ??
+        aliasSearchError() ??
+        aliasAdvance.error() ??
         retainedQueries()
           .map((lookup) => lookup.error())
           .find((error) => error instanceof Error) ??
@@ -489,6 +530,7 @@ export function useEmailDataSource(
       }
       if (showsScheduled()) return;
       if (usesServiceSearch()) {
+        aliasAdvance.resetError();
         await search.fetchNextPage();
         return;
       }
@@ -503,11 +545,24 @@ export function useEmailDataSource(
         await scheduled.refresh();
         return;
       }
-      if (showsFavorites() && search.isSearching()) await favorites.refetch();
-      await Promise.all([
-        usesServiceSearch() ? search.refetch() : query.refresh(),
-        ...retainedQueries().map((lookup) => lookup.refresh()),
-      ]);
+      const requestScope = scope();
+      setRefreshing(true);
+      aliasAdvance.resetError();
+      try {
+        if (showsFavorites() && search.isSearching()) await favorites.refetch();
+        await (usesServiceSearch() ? search.refetch() : query.refresh());
+        if (scope() !== requestScope) return;
+        // Refresh admission after search publishes its candidates: a refetch
+        // can detach/recreate these readers even when their IDs stay the same.
+        await Promise.all([
+          ...(usesServiceSearch() && state.aliasFilter
+            ? aliasSearchQueries().map((lookup) => lookup.refresh())
+            : []),
+          ...retainedQueries().map((lookup) => lookup.refresh()),
+        ]);
+      } finally {
+        setRefreshing(false);
+      }
     },
   } satisfies EmailDataSource;
 }

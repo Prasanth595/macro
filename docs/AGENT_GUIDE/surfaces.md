@@ -1023,7 +1023,13 @@ replaced with the primary address.
 
 The sidebar and mobile inbox picker also list aliases beneath their inbox.
 Selecting one scopes mail to that inbox and the exact address in From/To/Cc/Bcc;
-search candidates are checked against the same GraphQL scope. Scheduled mail
+search candidates are checked against the same GraphQL scope. Search and Reminders
+automatically advance nonmatching candidate pages until a match or exhaustion;
+while alias membership is loading, wait rather than treating it as an empty inbox.
+Refresh retries both search and alias membership. A failed retained membership
+lookup shows an error without discarding already-confirmed rows. If a saved alias
+disappears from the catalog, the primary address must not look selected; use
+`All inboxes` or choose an available address to clear that scope. Scheduled mail
 matches its saved sender. `All inboxes` clears both the inbox and alias selection,
 and the selection survives reloads. With one inbox **and aliases**, the All row
 and address pickers remain available. To check without sending real mail, open

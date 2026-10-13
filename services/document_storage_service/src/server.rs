@@ -403,8 +403,8 @@ pub async fn run() -> anyhow::Result<()> {
     )
     .with_sender_provider(email::outbound::GmailSenderProvider::new(
         gmail_client::GmailClient::without_watch(),
-        email::outbound::GmailTokenProviderImpl::new(
-            redis_client.get_multiplexed_async_connection().await?,
+        email::outbound::GmailTokenProviderImpl::lazy(
+            redis_client.clone(),
             Arc::new(authentication_service_client::AuthServiceClient::new(
                 config
                     .authentication_service_secret_key

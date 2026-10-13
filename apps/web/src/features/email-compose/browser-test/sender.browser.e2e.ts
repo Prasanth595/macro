@@ -27,6 +27,31 @@ test('reply defaults to its alias and selections retain the owning inbox', async
   await expect(page.getByTestId('sender')).toHaveText('owned:base@example.com');
 });
 
+test('an unavailable saved alias does not select the sole primary inbox and can still be cleared', async ({
+  page,
+}) => {
+  await page.goto('/?senders');
+  const sidebar = page.getByRole('navigation', { name: 'Inboxes' });
+  await sidebar
+    .getByRole('button', { name: 'resident@example.com', exact: true })
+    .first()
+    .click();
+  await page
+    .getByRole('button', { name: 'Simulate unavailable aliases' })
+    .click();
+  await expect(page.getByTestId('alias-filter')).toContainText(
+    'resident@example.com'
+  );
+  await expect(
+    sidebar.getByRole('button', { name: 'base@example.com', exact: true })
+  ).not.toHaveAttribute('aria-current', 'true');
+  await sidebar.getByRole('button', { name: 'All inboxes' }).click();
+  await expect(page.getByTestId('alias-filter')).toHaveText('{}');
+  await expect(
+    sidebar.getByRole('button', { name: 'base@example.com', exact: true })
+  ).toHaveAttribute('aria-current', 'true');
+});
+
 test('sidebar aliases select independently and All clears both filters', async ({
   page,
 }) => {
