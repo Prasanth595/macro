@@ -1,5 +1,5 @@
 use super::*;
-use async_graphql::{Context, EmptyMutation, Object, Schema, Subscription};
+use async_graphql::{Context, EmptyMutation, Json, Object, Schema, Subscription};
 use axum::{Router, routing::get};
 use flate2::{Compress, Compression, Decompress, FlushCompress, FlushDecompress};
 use futures::Stream;
@@ -11,6 +11,8 @@ use tokio::{
     task::JoinHandle,
     time::timeout,
 };
+
+const MAX_TEST_MESSAGE_BYTES: usize = 256 * 1024;
 
 struct Query;
 
@@ -29,6 +31,16 @@ impl Subscriptions {
         let viewer = context.data_unchecked::<String>().clone();
         futures::stream::iter([viewer.clone(), viewer])
     }
+
+    async fn snapshots(&self, context: &Context<'_>) -> impl Stream<Item = Json<Value>> {
+        futures::stream::iter(
+            context
+                .data_unchecked::<Vec<Value>>()
+                .clone()
+                .into_iter()
+                .map(Json),
+        )
+    }
 }
 
 struct TestServer {
@@ -43,19 +55,27 @@ impl Drop for TestServer {
 }
 
 async fn start_server() -> TestServer {
+    start_server_with_payloads(Vec::new()).await
+}
+
+async fn start_server_with_payloads(payloads: Vec<Value>) -> TestServer {
     let app = Router::new().route(
         "/soup/graphql/ws",
         get(
-            |headers: HeaderMap, upgrade: GraphqlWebSocketUpgrade| async move {
-                // Mirror the production handler's requirement: extraction must not
-                // upgrade the connection until the handler supplies authorized data.
-                if headers.get(header::AUTHORIZATION).is_none() {
-                    return StatusCode::UNAUTHORIZED.into_response();
+            move |headers: HeaderMap, upgrade: GraphqlWebSocketUpgrade| {
+                let payloads = payloads.clone();
+                async move {
+                    // Mirror the production handler's requirement: extraction must not
+                    // upgrade the connection until the handler supplies authorized data.
+                    if headers.get(header::AUTHORIZATION).is_none() {
+                        return StatusCode::UNAUTHORIZED.into_response();
+                    }
+                    let schema = Schema::build(Query, EmptyMutation, Subscriptions).finish();
+                    let mut data = Data::default();
+                    data.insert(String::from("authorized-viewer"));
+                    data.insert(payloads);
+                    upgrade.serve(schema, data)
                 }
-                let schema = Schema::build(Query, EmptyMutation, Subscriptions).finish();
-                let mut data = Data::default();
-                data.insert(String::from("authorized-viewer"));
-                upgrade.serve(schema, data)
             },
         ),
     );
@@ -135,29 +155,47 @@ async fn send_json(socket: &mut (impl AsyncWrite + Unpin), message: Value, compr
     socket.write_all(&masked).await.unwrap();
 }
 
+struct MeasuredMessage {
+    json: Value,
+    payload_bytes: usize,
+    frame_bytes: usize,
+    decoded_bytes: usize,
+}
+
 async fn read_json(socket: &mut TcpStream, compressed: bool) -> Value {
+    read_measured_message(socket, compressed).await.json
+}
+
+async fn read_measured_message(socket: &mut TcpStream, compressed: bool) -> MeasuredMessage {
     timeout(Duration::from_secs(5), async {
         let header = socket.read_u8().await.unwrap();
         assert_eq!(header, if compressed { 0xc1 } else { 0x81 });
         let length = socket.read_u8().await.unwrap();
         assert_eq!(length & 0x80, 0, "server frames must not be masked");
-        let length = match length {
-            126 => usize::from(socket.read_u16().await.unwrap()),
-            127 => socket.read_u64().await.unwrap().try_into().unwrap(),
-            length => usize::from(length),
+        let (length, header_bytes) = match length {
+            126 => (usize::from(socket.read_u16().await.unwrap()), 4),
+            127 => (socket.read_u64().await.unwrap().try_into().unwrap(), 10),
+            length => (usize::from(length), 2),
         };
-        assert!(length < 8192);
+        assert!(length < MAX_TEST_MESSAGE_BYTES);
         let mut payload = vec![0; length];
         socket.read_exact(&mut payload).await.unwrap();
         if compressed {
             payload.extend_from_slice(&[0, 0, 255, 255]);
-            let mut output = Vec::with_capacity(8192);
-            Decompress::new(false)
+            let mut output = Vec::with_capacity(MAX_TEST_MESSAGE_BYTES);
+            let mut decoder = Decompress::new(false);
+            decoder
                 .decompress_vec(&payload, &mut output, FlushDecompress::Sync)
                 .unwrap();
+            assert_eq!(decoder.total_in(), payload.len() as u64);
             payload = output;
         }
-        serde_json::from_slice(&payload).unwrap()
+        MeasuredMessage {
+            json: serde_json::from_slice(&payload).unwrap(),
+            payload_bytes: length,
+            frame_bytes: header_bytes + length,
+            decoded_bytes: payload.len(),
+        }
     })
     .await
     .expect("GraphQL response timed out")
@@ -203,6 +241,92 @@ async fn subscription_roundtrip(protocol: &str, offer: Option<&str>, compressed:
         send_json(&mut socket, json!({"type": "ping"}), compressed).await;
         assert_eq!(read_json(&mut socket, compressed).await["type"], "pong");
     }
+}
+
+fn measurement_snapshot(entity_count: usize) -> Value {
+    let template: Value = serde_json::from_str(include_str!("measurement-entity.json")).unwrap();
+    let entities: Vec<_> = (0..entity_count)
+        .map(|index| {
+            let mut entity = template.clone();
+            entity["id"] = json!(format!("018c8d80-0000-7000-8000-{index:012x}"));
+            entity["name"] = json!(format!("Planning document {index}"));
+            entity["isUnread"] = json!(index % 3 == 0);
+            entity
+        })
+        .collect();
+    json!({"entities": entities, "totalCount": entity_count, "hasNextPage": false})
+}
+
+async fn measure_snapshot_connection(
+    address: SocketAddr,
+    compressed: bool,
+    snapshot_count: usize,
+) -> Vec<MeasuredMessage> {
+    let offer = compressed.then_some("permessage-deflate; client_max_window_bits");
+    let (mut socket, response) = handshake(address, "graphql-transport-ws", offer, true).await;
+    assert!(response.starts_with("http/1.1 101"));
+    assert_eq!(response.contains("sec-websocket-extensions:"), compressed);
+    // Keep client requests identical. A negotiated connection can receive
+    // uncompressed messages; only the server-to-client bytes are measured here.
+    send_json(&mut socket, json!({"type": "connection_init"}), false).await;
+    let mut messages = vec![read_measured_message(&mut socket, compressed).await];
+    assert_eq!(messages[0].json["type"], "connection_ack");
+    send_json(
+        &mut socket,
+        json!({
+            "id": "measure",
+            "type": "subscribe",
+            "payload": {"query": "subscription { snapshots }"}
+        }),
+        false,
+    )
+    .await;
+    for _ in 0..snapshot_count {
+        let message = read_measured_message(&mut socket, compressed).await;
+        assert_eq!(message.json["type"], "next");
+        assert!(message.json["payload"].get("errors").is_none());
+        messages.push(message);
+    }
+    let complete = read_measured_message(&mut socket, compressed).await;
+    assert_eq!(complete.json["type"], "complete");
+    messages.push(complete);
+    messages
+}
+
+/// A local TCP measurement of this production upgrade adapter, not an estimate
+/// from recompressing serialized JSON. The data is explicitly synthetic; it is
+/// not a claim about production traffic. Run with `--nocapture` for the CSV.
+#[tokio::test]
+async fn measure_subscription_payload_sizes() {
+    let sizes = [1, 25, 100];
+    let server = start_server_with_payloads(sizes.map(measurement_snapshot).to_vec()).await;
+    let plain = measure_snapshot_connection(server.address, false, sizes.len()).await;
+    let deflate = measure_snapshot_connection(server.address, true, sizes.len()).await;
+    let labels = [
+        "connection_ack",
+        "snapshot_1_entity",
+        "snapshot_25_entities",
+        "snapshot_100_entities",
+        "complete",
+    ];
+    println!(
+        "case,plain_payload_bytes,deflate_payload_bytes,plain_frame_bytes,deflate_frame_bytes,payload_saved_percent"
+    );
+    for ((label, plain), deflate) in labels.iter().zip(&plain).zip(&deflate) {
+        assert_eq!(plain.json, deflate.json);
+        assert_eq!(plain.decoded_bytes, deflate.decoded_bytes);
+        assert_eq!(plain.payload_bytes, plain.decoded_bytes);
+        let saved = 100.0 * (1.0 - deflate.payload_bytes as f64 / plain.payload_bytes as f64);
+        println!(
+            "{label},{},{},{},{},{saved:.2}",
+            plain.payload_bytes, deflate.payload_bytes, plain.frame_bytes, deflate.frame_bytes
+        );
+    }
+    for (plain, deflate) in plain[1..=sizes.len()].iter().zip(&deflate[1..=sizes.len()]) {
+        assert!(deflate.payload_bytes < plain.payload_bytes);
+    }
+    // Tiny GraphQL control messages can grow under deflate; do not assert savings for
+    // connection_ack/complete or hide their cost in the larger snapshots.
 }
 
 #[tokio::test]

@@ -29,6 +29,34 @@ Transport regression tests (including wire-level compression and fallback):
 cargo test -p document_storage_service --lib api::graphql_soup::websocket::test
 ```
 
+### Measure payload savings locally
+
+```sh
+cargo test -p document_storage_service --lib measure_subscription_payload_sizes -- --nocapture
+```
+
+This starts a loopback Axum server using the production upgrade adapter and
+subscribes twice to identical synthetic snapshots, with and without deflate.
+The raw TCP reader counts actual WebSocket payload and frame bytes, checks RSV1,
+and independently decompresses each message to verify identical JSON. No
+recompression estimate, production data, or per-message production logging is
+involved. The fixture is
+`src/api/graphql_soup/websocket/measurement-entity.json`.
+
+With the pinned dependencies, the local measurement is:
+
+| Message | Plain payload | Deflate payload | Payload saved |
+| --- | ---: | ---: | ---: |
+| Connection acknowledgement | 25 B | 27 B | -8.00% |
+| Synthetic 1-entity snapshot | 632 B | 360 B | 43.04% |
+| Synthetic 25-entity snapshot | 13,120 B | 632 B | 95.18% |
+| Synthetic 100-entity snapshot | 52,171 B | 1,349 B | 97.41% |
+| Subscription completion | 34 B | 35 B | -2.94% |
+
+These are controlled, repetitive fixtures, **not production traffic statistics**.
+Small messages can grow. CSV `*_frame_bytes` columns also count the WebSocket
+header; HTTP handshake, TCP/IP, and TLS overhead are excluded.
+
 ## Prerequisites
 
 Install and setup **Rust** ecosystem on your machine.
