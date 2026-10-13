@@ -913,6 +913,13 @@ pub(in crate::outbound::pg_soup_repo) fn build_document_filter(
         filter_ast::ExprFrame::Literal(DocumentLiteral::EmailAttachmentParticipant(email)) => {
             email_attachment_participant_predicate(&email, "d.id")
         }
+        filter_ast::ExprFrame::Literal(DocumentLiteral::NameContains(name)) => format!(
+            "STRPOS(LOWER(d.name), {}) > 0",
+            sql_string_literal(&name.to_lowercase())
+        ),
+        // The Soup domain replaces CRM associations with the associated
+        // document ids before querying, so an unresolved one matches nothing.
+        filter_ast::ExprFrame::Literal(DocumentLiteral::CrmAssociated(_)) => "FALSE".to_string(),
     });
     if formatting.is_empty() {
         String::new()
