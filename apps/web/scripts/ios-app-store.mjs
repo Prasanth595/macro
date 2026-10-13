@@ -23,9 +23,13 @@
 // Auth (same values as ios-release.sh):
 //   APPLE_API_KEY       App Store Connect API Key ID
 //   APPLE_API_ISSUER    Issuer ID
-//   APPLE_API_KEY_P8    contents of the AuthKey .p8 (CI-friendly), or
+//   APPLE_API_KEY_P8    contents of the AuthKey .p8, or
 //   APPLE_API_KEY_PATH  path to AuthKey_<KEYID>.p8 (defaults to
 //                       ~/.appstoreconnect/private_keys/AuthKey_<KEYID>.p8)
+// Doppler's names (ios-release/prd: APPLE_API_KEY_ID, APPLE_API_ISSUER,
+// APPLE_API_PRIVATE_KEY) are accepted as fallbacks, so locally
+//   doppler run --project ios-release --config prd -- bun scripts/ios-app-store.mjs …
+// works as-is. CI fetches the same secrets and writes the .p8 to the default path.
 //
 // --bundle-id / --version / --build default to the identifier in
 // tauri/src-tauri/tauri.conf.json and the version / bundleVersion in
@@ -112,16 +116,17 @@ if (!bundleId || !version || !build) {
   exit(2);
 }
 
-const keyId = process.env.APPLE_API_KEY;
+// Unset CI env vars surface as empty strings, so || (not ??) throughout.
+const keyId = process.env.APPLE_API_KEY || process.env.APPLE_API_KEY_ID;
 const issuerId = process.env.APPLE_API_ISSUER;
 if (!keyId || !issuerId) {
-  console.error("APPLE_API_KEY and APPLE_API_ISSUER must be set.");
+  console.error("APPLE_API_KEY (or APPLE_API_KEY_ID) and APPLE_API_ISSUER must be set.");
   exit(2);
 }
 
-// Unset GitHub secrets surface as empty strings, so || (not ??) throughout.
 const pem =
   process.env.APPLE_API_KEY_P8 ||
+  process.env.APPLE_API_PRIVATE_KEY ||
   readFileSync(
     process.env.APPLE_API_KEY_PATH ||
       path.join(os.homedir(), ".appstoreconnect", "private_keys", `AuthKey_${keyId}.p8`),

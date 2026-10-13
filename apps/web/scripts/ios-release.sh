@@ -21,14 +21,14 @@
 # encryption only); step 6 fails if App Store Connect reports the question as
 # still unanswered.
 #
-# One-time setup:
-#   1. appstoreconnect.apple.com → Users and Access → Integrations →
-#      App Store Connect API → Team Keys → Generate API Key with the
-#      "App Manager" role. Note the Key ID and the Issuer ID, and download
-#      AuthKey_<KEYID>.p8 (downloadable only once).
-#   2. mkdir -p ~/.appstoreconnect/private_keys && mv AuthKey_<KEYID>.p8 there.
-#   3. export APPLE_API_KEY=<key id> APPLE_API_ISSUER=<issuer id>
-#      APPLE_API_KEY_PATH is optional when the key lives in the directory above.
+# Credentials: the App Store Connect team API key (App Manager role) lives in
+# Doppler as ios-release/prd APPLE_API_KEY_ID / APPLE_API_ISSUER /
+# APPLE_API_PRIVATE_KEY, which this script accepts directly:
+#   doppler run --project ios-release --config prd -- just ios-release
+# (the key is written to ~/.appstoreconnect/private_keys/AuthKey_<ID>.p8, where
+# altool insists on finding it). Or set APPLE_API_KEY=<key id>
+# APPLE_API_ISSUER=<issuer id> with the .p8 in that directory or at
+# APPLE_API_KEY_PATH.
 #
 # CI runs this via the `iOS App Store Release` workflow (add the `ios-update`
 # label to a PR; see docs/ios-releases.md and
@@ -69,6 +69,8 @@ command -v just >/dev/null || fail "just not installed."
 command -v cargo-tauri >/dev/null || cargo tauri --version >/dev/null 2>&1 \
   || fail "tauri CLI not installed (cargo install tauri-cli)."
 ios_resolve_toolchain aarch64-apple-ios
+# Accept Doppler's names (ios-release/prd) as fallbacks for tauri's.
+export APPLE_API_KEY="${APPLE_API_KEY:-${APPLE_API_KEY_ID:-}}"
 [[ -n "${APPLE_API_KEY:-}" ]] || fail "APPLE_API_KEY not set (App Store Connect API Key ID — see header)."
 [[ -n "${APPLE_API_ISSUER:-}" ]] || fail "APPLE_API_ISSUER not set (App Store Connect Issuer ID — see header)."
 
@@ -76,6 +78,11 @@ ios_resolve_toolchain aarch64-apple-ios
 # ~/.appstoreconnect/private_keys for AuthKey_<ID>.p8, so make sure the key is
 # in the canonical spot; tauri/xcodebuild take an explicit path instead.
 CANONICAL_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${APPLE_API_KEY}.p8"
+if [[ ! -f "$CANONICAL_KEY_PATH" && -z "${APPLE_API_KEY_PATH:-}" && -n "${APPLE_API_PRIVATE_KEY:-${APPLE_API_KEY_P8:-}}" ]]; then
+  mkdir -p "$(dirname "$CANONICAL_KEY_PATH")"
+  (umask 077 && printf '%s\n' "${APPLE_API_PRIVATE_KEY:-${APPLE_API_KEY_P8:-}}" > "$CANONICAL_KEY_PATH")
+  echo "Wrote API key from the environment to $CANONICAL_KEY_PATH."
+fi
 if [[ -z "${APPLE_API_KEY_PATH:-}" ]]; then
   [[ -f "$CANONICAL_KEY_PATH" ]] \
     || fail "API key not found at $CANONICAL_KEY_PATH. Put AuthKey_${APPLE_API_KEY}.p8 there or set APPLE_API_KEY_PATH."

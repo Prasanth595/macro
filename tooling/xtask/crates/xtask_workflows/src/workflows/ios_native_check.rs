@@ -11,6 +11,9 @@
 //!    `ios-update` label to run the [`super::ios_app_store_release`] workflow,
 //!    wait for Apple's approval, then re-run this check.
 //!
+//! The App Store Connect key comes from Doppler (`ios-release/prd` via the
+//! `IOS_RELEASE_DOPPLER_TOKEN` secret), shared with the release workflow.
+//!
 //! The `skip-ios-update` label bypasses the gate for tauri changes that don't
 //! break the native/web contract (label changes re-trigger the check). The job
 //! name must stay stable: branch protection references `iOS Native Check`.
@@ -50,6 +53,7 @@ fn check_job() -> Job {
         .add_step(paths_filter())
         .add_step(setup_bun())
         .add_step(verify_bump())
+        .add_step(fetch_credentials())
         .add_step(require_live_version())
         .add_step(skip_notice())
 }
@@ -94,14 +98,21 @@ fn verify_bump() -> Step<Run> {
         .add_env(("BASE_REF", "origin/${{ github.base_ref }}"))
 }
 
+/// Exports `APPLE_API_KEY` / `APPLE_API_ISSUER` via `GITHUB_ENV` and writes
+/// the `.p8` where `ios-app-store.mjs` looks for it by default.
+fn fetch_credentials() -> Step<Run> {
+    Step::new("Fetch App Store Connect credentials from Doppler")
+        .run(include_str!("scripts/ios_app_store_connect_credentials.sh"))
+        .shell("bash")
+        .if_condition(gated())
+        .add_env(("DOPPLER_TOKEN", vars::IOS_RELEASE_DOPPLER_TOKEN))
+}
+
 fn require_live_version() -> Step<Run> {
     Step::new("Require the App Store release to be live")
         .run("bun scripts/ios-app-store.mjs status --require-live")
         .if_condition(gated())
         .working_directory(xtask_paths::repo_dir!("apps/web"))
-        .add_env(("APPLE_API_KEY", vars::APPLE_API_KEY))
-        .add_env(("APPLE_API_ISSUER", vars::APPLE_API_ISSUER))
-        .add_env(("APPLE_API_KEY_P8", vars::APPLE_API_KEY_P8))
 }
 
 fn skip_notice() -> Step<Run> {

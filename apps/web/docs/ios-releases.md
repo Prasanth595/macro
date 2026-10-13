@@ -65,7 +65,8 @@ raising the floor.
 any Xcode UI (it bumps only the build number; commit the result). It uses the
 same toolchain split as `just ios-build` (`scripts/ios-native-env.sh`), so run
 it from the Nix dev shell like any other iOS build. See the header of
-`scripts/ios-release.sh` for one-time API-key setup, and
+`scripts/ios-release.sh` for the credentials it needs (`doppler run --project
+ios-release --config prd -- just ios-release` covers them), and
 `scripts/ios-app-store.mjs` for the underlying App Store Connect commands
 (`wait-build`, `submit`, `status`).
 
@@ -74,14 +75,19 @@ it from the Nix dev shell like any other iOS build. See the header of
 - **Labels**: create `ios-update` and `skip-ios-update`.
 - **Branch protection**: add `iOS Native Check` to the required status checks
   for `main`.
-- **Secrets** (App Store Connect team API key with the App Manager role, from
-  Users and Access → Integrations):
-  - `APPLE_API_KEY` — the Key ID
-  - `APPLE_API_ISSUER` — the Issuer ID
-  - `APPLE_API_KEY_P8` — the contents of the downloaded `AuthKey_<ID>.p8`
-  - `POSTHOG_API_KEY` (already present) — embedded as `VITE_POSTHOG_API_KEY`
-    in the release build
+- **Doppler project `ios-release`, config `prd`** (same shape as
+  `macos-release/prd`, which the desktop notarization uses; that key has only
+  the Developer role, which cannot submit for review, hence a separate key):
+  - `APPLE_API_KEY_ID`, `APPLE_API_ISSUER`, `APPLE_API_PRIVATE_KEY` — an App
+    Store Connect team API key with the **App Manager** role (Users and
+    Access → Integrations → Team Keys) and the contents of its
+    `AuthKey_<ID>.p8`
   - optional `APPLE_DISTRIBUTION_CERTIFICATE_BASE64` /
     `APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD` — a base64-encoded Apple
     Distribution `.p12`; without it the release workflow relies on Xcode
     cloud signing through the API key.
+- **GitHub secrets**:
+  - `IOS_RELEASE_DOPPLER_TOKEN` — a Doppler service token with read access to
+    `ios-release/prd`, used by both workflows above
+  - `POSTHOG_API_KEY` (already present) — embedded as `VITE_POSTHOG_API_KEY`
+    in the release build

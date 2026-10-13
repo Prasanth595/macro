@@ -1,13 +1,13 @@
 set -euo pipefail
-if [ -z "${APPLE_DISTRIBUTION_CERTIFICATE_BASE64:-}" ]; then
-  echo "No Apple Distribution certificate secret; relying on Xcode cloud signing" \
-    "via the App Store Connect API key (-allowProvisioningUpdates)."
+# The credentials step decodes the optional .p12 from Doppler and exports its
+# path; without one, xcodebuild uses cloud signing through the API key
+# (-allowProvisioningUpdates).
+certificate_path="${APPLE_DISTRIBUTION_CERTIFICATE_PATH:-}"
+if [ -z "$certificate_path" ]; then
+  echo "No Apple Distribution certificate; relying on Xcode cloud signing" \
+    "via the App Store Connect API key."
   exit 0
 fi
-
-certificate_path="$RUNNER_TEMP/apple-distribution.p12"
-printf '%s' "$APPLE_DISTRIBUTION_CERTIFICATE_BASE64" | base64 --decode > "$certificate_path" 2>/dev/null \
-  || printf '%s' "$APPLE_DISTRIBUTION_CERTIFICATE_BASE64" | base64 -D > "$certificate_path"
 
 # Mirror configure_signing_identity.sh (DMG builds): the System keychain keeps
 # the identity visible to xcodebuild without per-user keychain unlocking.

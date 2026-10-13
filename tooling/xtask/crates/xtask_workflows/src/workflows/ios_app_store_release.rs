@@ -16,11 +16,11 @@
 //! Nix-vs-Xcode toolchain split itself through `ios-native-env.sh`, so one
 //! `nix develop` invocation covers the whole build.
 //!
-//! Requires the `APPLE_API_KEY` / `APPLE_API_ISSUER` / `APPLE_API_KEY_P8`
-//! secrets (App Store Connect team API key, App Manager role). The optional
-//! `APPLE_DISTRIBUTION_CERTIFICATE_BASE64` / `..._PASSWORD` secrets import a
-//! distribution identity; without them xcodebuild uses cloud signing through
-//! the API key.
+//! Credentials come from Doppler (`ios-release/prd`, read with the
+//! `IOS_RELEASE_DOPPLER_TOKEN` service token, like the DMG workflow's
+//! `macos-release/prd`): the App Store Connect team API key (App Manager
+//! role) and optionally an Apple Distribution certificate; without the
+//! certificate xcodebuild uses cloud signing through the API key.
 
 use gh_workflow::{
     Concurrency, Event, Expression, Job, Level, Permissions, PullRequest, PullRequestType, Run,
@@ -61,7 +61,7 @@ fn release_job() -> Job {
         .add_step(checkout_pr_head())
         .add_step(steps::install_nix_macos())
         .add_step(verify_bump())
-        .add_step(write_api_key())
+        .add_step(fetch_credentials())
         .add_step(configure_signing())
         .add_step(build_and_upload())
         .add_step(submit_for_review())
@@ -101,27 +101,21 @@ fn verify_bump() -> Step<Run> {
     ))
 }
 
-fn write_api_key() -> Step<Run> {
-    Step::new("Write App Store Connect API key")
-        .run(include_str!("scripts/ios_release_api_key.sh"))
+/// Writes the API key where altool/tauri/the scripts look for it and exports
+/// `APPLE_API_KEY` / `APPLE_API_ISSUER` (plus the optional distribution
+/// certificate path) through `GITHUB_ENV` for the steps below.
+fn fetch_credentials() -> Step<Run> {
+    Step::new("Fetch App Store Connect credentials from Doppler")
+        .run(include_str!("scripts/ios_app_store_connect_credentials.sh"))
         .shell("bash")
-        .add_env(("APPLE_API_KEY", vars::APPLE_API_KEY))
-        .add_env(("APPLE_API_ISSUER", vars::APPLE_API_ISSUER))
-        .add_env(("APPLE_API_KEY_P8", vars::APPLE_API_KEY_P8))
+        .add_env(("DOPPLER_TOKEN", vars::IOS_RELEASE_DOPPLER_TOKEN))
+        .add_env(("IOS_DISTRIBUTION_CERTIFICATE", "1"))
 }
 
 fn configure_signing() -> Step<Run> {
     Step::new("Configure signing identity")
         .run(include_str!("scripts/ios_release_signing.sh"))
         .shell("bash")
-        .add_env((
-            "APPLE_DISTRIBUTION_CERTIFICATE_BASE64",
-            vars::APPLE_DISTRIBUTION_CERTIFICATE_BASE64,
-        ))
-        .add_env((
-            "APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD",
-            vars::APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD,
-        ))
 }
 
 /// Build, validate, upload, and wait for App Store Connect processing +
@@ -133,8 +127,6 @@ fn build_and_upload() -> Step<Run> {
         "  bun install --frozen-lockfile\n  cd apps/web\n  just ios-release --no-bump\n",
     )
     .add_env(("VITE_POSTHOG_API_KEY", vars::POSTHOG_API_KEY))
-    .add_env(("APPLE_API_KEY", vars::APPLE_API_KEY))
-    .add_env(("APPLE_API_ISSUER", vars::APPLE_API_ISSUER))
 }
 
 fn submit_for_review() -> Step<Run> {
@@ -142,8 +134,6 @@ fn submit_for_review() -> Step<Run> {
         "Submit for App Review",
         "  cd apps/web\n  bun scripts/ios-app-store.mjs submit\n",
     )
-    .add_env(("APPLE_API_KEY", vars::APPLE_API_KEY))
-    .add_env(("APPLE_API_ISSUER", vars::APPLE_API_ISSUER))
 }
 
 fn pr_comment() -> Step<Use> {
