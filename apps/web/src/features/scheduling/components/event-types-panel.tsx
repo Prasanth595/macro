@@ -10,7 +10,6 @@ import { Button, buttonClasses, Dropdown, ToggleSwitch } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
 import type { EventType, SchedulingScope } from '../core/types';
 import { TextInput } from './fields';
-import { OwnerBadge } from './owner-badge';
 
 export function EventTypesPanel(props: {
   events: EventType[];
@@ -19,8 +18,6 @@ export function EventTypesPanel(props: {
   canEdit: boolean;
   saving: boolean;
   onEdit: (event: EventType) => void;
-  onEditSinglePage?: (event: EventType) => void;
-  onCreateSinglePage?: () => void;
   onToggle: (event: EventType, enabled: boolean) => void;
   onDuplicate: (event: EventType) => void;
   onDelete: (event: EventType) => void;
@@ -47,21 +44,6 @@ export function EventTypesPanel(props: {
             value={search()}
             onInput={(e) => setSearch(e.currentTarget.value)}
           />
-        </div>
-      </Show>
-      <Show
-        when={import.meta.env.DEV && props.canEdit && props.onCreateSinglePage}
-      >
-        <div class="flex justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={props.saving}
-            onClick={props.onCreateSinglePage}
-          >
-            Try single-page editor
-          </Button>
         </div>
       </Show>
       <SettingsCard>
@@ -98,9 +80,6 @@ export function EventTypesPanel(props: {
                         {event.title}
                       </h2>
                     </button>
-                    <Show when={props.owner}>
-                      {(owner) => <OwnerBadge scope={owner()} />}
-                    </Show>
                   </div>
                   <p class="mt-1 truncate text-xs text-ink-muted">
                     /{event.slug}
@@ -182,17 +161,6 @@ export function EventTypesPanel(props: {
                             <Pencil class="size-4" />
                             Edit
                           </Dropdown.Item>
-                          <Show
-                            when={import.meta.env.DEV && props.onEditSinglePage}
-                          >
-                            <Dropdown.Item
-                              disabled={props.saving}
-                              onSelect={() => props.onEditSinglePage?.(event)}
-                            >
-                              <Pencil class="size-4" />
-                              Edit in single-page editor
-                            </Dropdown.Item>
-                          </Show>
                           <Dropdown.Item
                             disabled={props.saving}
                             onSelect={() => props.onDuplicate(event)}

@@ -50,11 +50,6 @@ export function createEventEditor(options: {
   const [step, setStep] = createSignal<EventEditorStep>('details');
   const [validatedStep, setValidatedStep] = createSignal<EventEditorStep>();
   const [validationAttempt, setValidationAttempt] = createSignal(0);
-  const [pageValidationActive, setPageValidationActive] = createSignal(false);
-  const allStepIssues = (event: EventType) =>
-    EVENT_EDITOR_STEPS.slice(0, -1).flatMap((entry) =>
-      stepIssues(entry.id, event)
-    );
   const configured: EventDetail[] = [];
   if (initial.slug && initial.slug !== slugify(initial.title))
     configured.push('link');
@@ -102,8 +97,7 @@ export function createEventEditor(options: {
   const setDraft = (update: (current: EventType) => EventType) => {
     const next = setDraftValue(update);
     setSubmitError('');
-    if (pageValidationActive()) setIssues(allStepIssues(next));
-    else if (validatedStep() === step()) setIssues(stepIssues(step(), next));
+    if (validatedStep() === step()) setIssues(stepIssues(step(), next));
     options.onChange?.(next);
     return next;
   };
@@ -177,7 +171,6 @@ export function createEventEditor(options: {
   };
   const selectStep = (next: EventEditorStep) => {
     batch(() => {
-      setPageValidationActive(false);
       setSubmitError('');
       setIssues([]);
       setValidatedStep(undefined);
@@ -211,7 +204,6 @@ export function createEventEditor(options: {
     if (target) selectStep(target.id);
   };
   const save = async () => {
-    setPageValidationActive(false);
     const next = {
       ...draft(),
       slug: slug(),
@@ -244,39 +236,6 @@ export function createEventEditor(options: {
       );
     }
   };
-  const saveSinglePage = async () => {
-    const next = {
-      ...draft(),
-      slug: slug(),
-      questions: configuredBookingQuestions(draft().questions),
-      enabled: isNew() && options.createActive() ? true : draft().enabled,
-    };
-    setSubmitError('');
-    const found = allStepIssues(next);
-    if (found.length) {
-      batch(() => {
-        setPageValidationActive(true);
-        setValidatedStep(undefined);
-        setIssues(found);
-        setValidationAttempt((attempt) => attempt + 1);
-      });
-      return;
-    }
-    batch(() => {
-      setPageValidationActive(false);
-      setIssues([]);
-      setValidatedStep(undefined);
-    });
-    try {
-      await options.onSave(next);
-    } catch (cause) {
-      setSubmitError(
-        cause instanceof Error
-          ? cause.message
-          : 'Could not save this booking link.'
-      );
-    }
-  };
   return {
     draft,
     issues,
@@ -298,6 +257,5 @@ export function createEventEditor(options: {
     addDetail,
     removeDetail,
     save,
-    saveSinglePage,
   };
 }

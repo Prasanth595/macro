@@ -1343,21 +1343,6 @@ Search booking links by title or slug within the selected owner. Team owners and
 admins can edit team links; ordinary members retain read-only access. The standard
 **New booking link** action opens a dialog without saving anything, including when no
 schedule exists. It grows to 42rem wide and retains an 8px gutter on narrow screens.
-Development builds expose separate **Try single-page editor** and **Edit in single-page
-editor** actions. They open a distinct, taller dialog; neither editor contains a switch.
-The single-page version places Custom link directly below Title, with a live booking URL
-preview visible whether its editor is collapsed or expanded. Optional description and
-Duration follow. Duration and Meeting link use selectors; Custom duration retains an exact
-value input. Availability precedes Meeting link. Its selector sits beside a centered info
-button whose popover shows the selected schedule's time zone and weekly hours. Required
-fields have red asterisks.
-Each section uses 12px vertical padding and a 6px heading-to-control gap, without helper
-descriptions. Subheadings use muted, normal-weight 14px text. Single-line inputs and selectors
-are 36px tall; duration options have 36px rows and medium-weight text.
-Custom link, questions, booking rules, and team hosts each have a heading and compact Add
-button. Add expands controls in that same section without changing section order; removal
-restores its Add button and keyboard focus. Existing optional settings remain expanded when
-editing. Its Save action validates the whole form.
 Editing steps stay at 36rem when space permits. Review can grow with its content.
 Both are capped for the viewport, safe areas, and virtual keyboard. The header and
 footer stay fixed; content scrolls when it reaches the height limit.

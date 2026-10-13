@@ -18,9 +18,6 @@ export function createSchedulingOwner(
 ) {
   const source = capabilities.createSource(scope, range, loadBookings);
   const [event, setEvent] = createSignal<EventType>();
-  const [eventEditorVariant, setEventEditorVariant] = createSignal<
-    'steps' | 'single'
-  >('steps');
   const [createActive, setCreateActive] = createSignal(false);
   const [schedule, setSchedule] = createSignal<AvailabilitySchedule>();
   const [pendingSchedule, setPendingSchedule] =
@@ -49,23 +46,17 @@ export function createSchedulingOwner(
     queueMicrotask(() => {
       if (opener?.isConnected) opener.focus({ preventScroll: true });
     });
-  const editEvent = (
-    next: EventType,
-    variant: 'steps' | 'single' = 'steps'
-  ) => {
+  const editEvent = (next: EventType) => {
     eventOpener = focusedElement();
     setCreateActive(false);
-    setEventEditorVariant(variant);
     setEvent(next);
   };
-  const editEventSinglePage = (next: EventType) => editEvent(next, 'single');
   const editSchedule = (next: AvailabilitySchedule) => {
     scheduleOpener = focusedElement();
     setSchedule(next);
   };
   const closeEventEditor = () => {
     setEvent(undefined);
-    setEventEditorVariant('steps');
     setCreateActive(false);
     setPendingSchedule(undefined);
     restoreFocus(eventOpener);
@@ -102,10 +93,7 @@ export function createSchedulingOwner(
     await action(fn);
     setBusyBooking('');
   };
-  const createEvent = async (
-    opener?: HTMLElement,
-    variant: 'steps' | 'single' = 'steps'
-  ) => {
+  const createEvent = async (opener?: HTMLElement) => {
     if (!scope().canEdit || creating() || source.saving()) return;
     const profile = source.profile();
     if (!profile) return;
@@ -123,7 +111,6 @@ export function createSchedulingOwner(
           'Choose an availability schedule before creating a link.'
         );
       setCreateActive(true);
-      setEventEditorVariant(variant);
       setEvent(
         newEventType(scheduleId, [capabilities.userId()], !!scope().teamId)
       );
@@ -131,8 +118,6 @@ export function createSchedulingOwner(
       setCreating(false);
     }
   };
-  const createEventSinglePage = (opener?: HTMLElement) =>
-    createEvent(opener, 'single');
   const createSchedule = (opener?: HTMLElement) => {
     if (scope().canEdit && !source.saving()) {
       editSchedule(
@@ -141,25 +126,19 @@ export function createSchedulingOwner(
       scheduleOpener = opener ?? scheduleOpener;
     }
   };
-  const duplicate = (
-    item: EventType,
-    variant: 'steps' | 'single' = 'steps'
-  ) => {
+  const duplicate = (item: EventType) => {
     const existing = source.profile()?.eventTypes ?? [];
     let slug = `${item.slug}-copy`;
     let suffix = 2;
     while (existing.some((e) => e.slug === slug))
       slug = `${item.slug}-copy-${suffix++}`;
-    editEvent(
-      {
-        ...structuredClone(unwrap(item)),
-        id: crypto.randomUUID(),
-        title: `${item.title} (copy)`,
-        slug,
-        enabled: false,
-      },
-      variant
-    );
+    editEvent({
+      ...structuredClone(unwrap(item)),
+      id: crypto.randomUUID(),
+      title: `${item.title} (copy)`,
+      slug,
+      enabled: false,
+    });
   };
   const saveEvent = async (next: EventType) => {
     const profile = source.profile();
@@ -181,7 +160,6 @@ export function createSchedulingOwner(
     scope,
     source,
     event,
-    eventEditorVariant,
     createActive,
     schedule,
     eventSchedules,
@@ -195,13 +173,11 @@ export function createSchedulingOwner(
     action,
     bookingAction,
     editEvent,
-    editEventSinglePage,
     editSchedule,
     closeEventEditor,
     closeScheduleEditor,
     discardEditors,
     createEvent,
-    createEventSinglePage,
     createSchedule,
     duplicate,
   };

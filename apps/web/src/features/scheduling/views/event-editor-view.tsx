@@ -8,7 +8,7 @@ import type {
 } from '../core/types';
 import { createEventEditor } from '../primitives/create-event-editor';
 
-export type EventEditorViewProps = {
+type EventEditorViewProps = {
   event: EventType;
   events: EventType[];
   schedules: AvailabilitySchedule[];
