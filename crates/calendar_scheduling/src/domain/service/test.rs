@@ -343,7 +343,7 @@ async fn team_permissions_and_host_membership_are_server_enforced() {
     let team = Some(Uuid::new_v4());
     let p = profile(team);
     assert!(matches!(
-        service.save("member", team, p.clone()).await,
+        service.save("stranger", team, p.clone()).await,
         Err(Error::Forbidden)
     ));
     assert!(matches!(
@@ -356,8 +356,8 @@ async fn team_permissions_and_host_membership_are_server_enforced() {
         service.save("admin", team, bad).await,
         Err(Error::Invalid(_))
     ));
-    assert!(service.save("admin", team, p).await.is_ok());
-    assert!(service.settings("member", team).await.is_ok());
+    assert!(service.save("member", team, p).await.is_ok());
+    assert!(service.settings("admin", team).await.is_ok());
 }
 #[tokio::test]
 async fn personal_calendar_cannot_impersonate_another_host() {

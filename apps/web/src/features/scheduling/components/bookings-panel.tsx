@@ -19,7 +19,7 @@ export type BookingsPanelProps = {
   bookings: Booking[];
   events: EventType[];
   members: SchedulingMember[];
-  canEdit: boolean;
+  canManageBookings: boolean;
   busyId: string;
   currentUserId: string;
   onApprove: (id: string) => void;
@@ -83,7 +83,7 @@ function BookingRow(
       return member?.name || member?.email || 'Calendar host';
     });
   const canManage = () =>
-    props.canEdit &&
+    props.canManageBookings &&
     (props.booking.status === 'pending' ||
       (props.booking.status === 'confirmed' && !isPast()));
   const meetingUrl = () => {
@@ -278,7 +278,7 @@ function BookingRow(
                   { value: 'hostNoShow', label: 'Host no-show' },
                 ]}
                 disabled={
-                  (!props.canEdit &&
+                  (!props.canManageBookings &&
                     !props.booking.hosts.includes(props.currentUserId)) ||
                   !!props.busyId
                 }

@@ -1368,8 +1368,9 @@ Date overrides and the searchable timezone picker sit below the weekly hours.
 The header shows the selected owner; team owners have an explicit **Team** label.
 Links and availability use flat rows, with actions beside each item.
 Booking pages, bookings, and insights show only the selected owner. Search filters
-that owner’s links and clears when switching owners. Team owners/admins can edit
-team links; ordinary members can view them. `Links` creates, edits, pauses,
+that owner’s links and clears when switching owners. Any team member can edit
+team links; only team owners/admins can cancel or reschedule a teammate’s booking.
+`Links` creates, edits, pauses,
 duplicates, previews, and copies booking links. Event settings include
 weekly availability, collective/all-host or round-robin/one-host assignment,
 notice, buffers, booking horizon, daily limits, and custom questions. New event

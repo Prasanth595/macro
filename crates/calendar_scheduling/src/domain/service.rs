@@ -71,11 +71,13 @@ impl<R: Repository, C, D: Directory> Service<R, C, D> {
         );
         Uuid::new_v5(&Uuid::NAMESPACE_URL, scope.as_bytes())
     }
+    /// Any team member may read and edit their team's profile; `admin` limits
+    /// the action to the team's administrators.
     pub(super) async fn authorize(
         &self,
         user: &str,
         owner: &OwnedProfile,
-        write: bool,
+        admin: bool,
     ) -> Result<(), Error> {
         if let Some(team) = owner.team_id {
             if self
@@ -83,7 +85,7 @@ impl<R: Repository, C, D: Directory> Service<R, C, D> {
                 .members(team)
                 .await?
                 .iter()
-                .any(|m| m.user_id == user && (!write || m.admin))
+                .any(|m| m.user_id == user && (!admin || m.admin))
             {
                 return Ok(());
             }
@@ -135,7 +137,7 @@ impl<R: Repository, C, D: Directory> Service<R, C, D> {
         self.authorize(user, &owner, false).await?;
         Ok(owner.profile)
     }
-    /// Save a validated, revision-protected profile. Only team admins may edit team links.
+    /// Save a validated, revision-protected profile. Any team member may edit team links.
     pub async fn save(
         &self,
         user: &str,
@@ -151,7 +153,7 @@ impl<R: Repository, C, D: Directory> Service<R, C, D> {
             team_id: team,
             profile,
         };
-        self.authorize(user, &owner, true).await?;
+        self.authorize(user, &owner, false).await?;
         let previous = self.repository.profile(owner.profile.id).await?;
         self.validate_hosts(&owner, previous.as_ref()).await?;
         self.repository.save_profile(owner).await
