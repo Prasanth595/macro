@@ -31,7 +31,8 @@ import type {
 } from '../core/types';
 import { BookingEditorSection } from './booking-editor-section';
 import { BookingFieldInfo } from './booking-field-info';
-import { BookingRuleSliders, BookingValueSlider } from './booking-rule-sliders';
+import { BookingRules as BookingRuleSliders } from './booking-rules';
+import { BookingValueSlider } from './booking-value-slider';
 import { EventEditorProgress } from './event-editor-progress';
 import { EventReview } from './event-review';
 import {
@@ -390,12 +391,6 @@ export function EventEditor(props: EventEditorProps) {
                 sliderStep={15}
                 disabled={props.saving}
                 error={error('durationMinutes')}
-                presets={[
-                  { value: 15, label: '15 min' },
-                  { value: 30, label: '30 min' },
-                  { value: 45, label: '45 min' },
-                  { value: 60, label: '1 hour' },
-                ]}
                 onChange={(value) => props.onUpdate('durationMinutes', value)}
               />
             </fieldset>

@@ -2,6 +2,7 @@
 export const NOTICE_TIMELINE = [0, 60, 1440, 10080] as const;
 export const BUFFER_TIMELINE = [0, 30, 120, 1440, 10080] as const;
 export const WINDOW_TIMELINE = [1, 365] as const;
+export const BOOKING_RANGE_TIMELINE = [0, 60, 1440, 10080, 43200] as const;
 
 /** Map stored values onto equally spaced, explicitly labelled scale landmarks. */
 export function bookingTimelinePosition(

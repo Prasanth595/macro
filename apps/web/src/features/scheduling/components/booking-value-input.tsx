@@ -30,6 +30,7 @@ export function BookingValueInput(props: {
   controls?: boolean;
   fullWidth?: boolean;
   variant?: 'outline' | 'bare';
+  zeroLabel?: string;
   inputId?: string;
   onChange: (value: number) => void;
   onEdit?: () => void;
@@ -111,6 +112,8 @@ export function BookingValueInput(props: {
     return Number(amount) === 1 ? unit.short.replace(/s$/, '') : unit.short;
   };
   const controls = () => props.controls ?? !props.compact;
+  const showZeroLabel = () =>
+    !!props.zeroLabel && props.value === 0 && !editing();
   return (
     <div
       class={`flex max-w-full flex-col gap-1.5 ${props.fullWidth ? 'w-full' : 'items-start'}`}
@@ -147,16 +150,26 @@ export function BookingValueInput(props: {
           </Show>
           <NumberUnitInput.Frame
             variant={props.variant}
-            class={props.fullWidth ? 'min-w-0 flex-1' : undefined}
+            class={props.fullWidth ? 'relative min-w-0 flex-1' : 'relative'}
           >
+            <Show when={showZeroLabel()}>
+              <span
+                aria-hidden="true"
+                class="pointer-events-none absolute inset-y-0 start-3 flex items-center text-base text-ink sm:text-sm"
+                data-booking-zero-label
+              >
+                {props.zeroLabel}
+              </span>
+            </Show>
             <NumberUnitInput.Input
               ref={props.inputRef}
               id={props.inputId}
-              class={
+              class={`${
                 props.fullWidth
                   ? 'w-0 min-w-0 flex-1 px-3 text-base sm:text-sm'
                   : 'px-3 text-base sm:text-sm'
-              }
+              } ${showZeroLabel() ? 'text-transparent' : ''}`}
+              aria-valuetext={props.value === 0 ? props.zeroLabel : undefined}
               aria-label={`${props.label} exact value`}
               aria-describedby={[
                 unitDescriptionId,
@@ -182,49 +195,51 @@ export function BookingValueInput(props: {
               onBlur={() => setEditing(undefined)}
             />
             <NumberUnitInput.Unit>
-              <Show when={props.units.length > 1} fallback={unitText()}>
-                <Select<UnitOption>
-                  options={options()}
-                  optionValue="id"
-                  optionTextValue="label"
-                  value={selectedOption()}
-                  disabled={props.disabled}
-                  modal={false}
-                  allowDuplicateSelectionEvents
-                  disallowEmptySelection
-                  onChange={(option) => {
-                    if (!option) return;
-                    const unit = availableUnits().find(
-                      (unit) => unit.id === option.id
-                    );
-                    const value = unit
-                      ? convertBookingValue(
-                          props.value,
-                          unit,
-                          props.min,
-                          props.max
-                        )
-                      : props.value;
-                    batch(() => {
-                      setEditing(undefined);
-                      setPreference(option.id);
-                      if (Number.isFinite(value) && value !== props.value)
-                        props.onChange(value);
-                    });
-                  }}
-                >
-                  <Select.Trigger
-                    {...{ role: 'combobox' }}
-                    aria-label={`${props.label} units`}
-                    class="h-full w-auto gap-1 rounded-none border-0 bg-transparent px-0 text-sm text-ink-muted focus-visible:ring-1 focus-visible:ring-edge-focus"
+              <Show when={!showZeroLabel()}>
+                <Show when={props.units.length > 1} fallback={unitText()}>
+                  <Select<UnitOption>
+                    options={options()}
+                    optionValue="id"
+                    optionTextValue="label"
+                    value={selectedOption()}
+                    disabled={props.disabled}
+                    modal={false}
+                    allowDuplicateSelectionEvents
+                    disallowEmptySelection
+                    onChange={(option) => {
+                      if (!option) return;
+                      const unit = availableUnits().find(
+                        (unit) => unit.id === option.id
+                      );
+                      const value = unit
+                        ? convertBookingValue(
+                            props.value,
+                            unit,
+                            props.min,
+                            props.max
+                          )
+                        : props.value;
+                      batch(() => {
+                        setEditing(undefined);
+                        setPreference(option.id);
+                        if (Number.isFinite(value) && value !== props.value)
+                          props.onChange(value);
+                      });
+                    }}
                   >
-                    <span class="min-w-0 truncate">{unitText()}</span>
-                    <Select.Icon />
-                  </Select.Trigger>
-                  <Select.Content portalScope="local" class="min-w-36">
-                    <Select.Listbox />
-                  </Select.Content>
-                </Select>
+                    <Select.Trigger
+                      {...{ role: 'combobox' }}
+                      aria-label={`${props.label} units`}
+                      class="h-full w-auto gap-1 rounded-none border-0 bg-transparent px-0 text-sm text-ink-muted focus-visible:ring-1 focus-visible:ring-edge-focus"
+                    >
+                      <span class="min-w-0 truncate">{unitText()}</span>
+                      <Select.Icon />
+                    </Select.Trigger>
+                    <Select.Content portalScope="local" class="min-w-36">
+                      <Select.Listbox />
+                    </Select.Content>
+                  </Select>
+                </Show>
               </Show>
             </NumberUnitInput.Unit>
           </NumberUnitInput.Frame>

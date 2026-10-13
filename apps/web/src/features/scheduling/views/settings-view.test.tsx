@@ -25,7 +25,11 @@ import {
   type SchedulingCapabilities,
   SchedulingProvider,
 } from '../context/scheduling-context';
-import { BUFFER_TIMELINE } from '../core/booking-rule-timeline';
+import {
+  BOOKING_RANGE_TIMELINE,
+  BUFFER_TIMELINE,
+  bookingTimelinePosition,
+} from '../core/booking-rule-timeline';
 import {
   automaticBookingUnit,
   convertBookingValue,
@@ -124,6 +128,28 @@ function unitText(input: HTMLElement) {
     ?.querySelector('[data-number-unit]')?.textContent;
 }
 
+function mockSliderPointer(thumb: HTMLElement, width: number) {
+  vi.spyOn(thumb.parentElement!, 'getBoundingClientRect').mockReturnValue(
+    new DOMRect(0, 0, width, 8)
+  );
+  let captured = false;
+  for (
+    let element: HTMLElement | null = thumb;
+    element && element !== document.body;
+    element = element.parentElement
+  ) {
+    Object.assign(element, {
+      setPointerCapture: () => {
+        captured = true;
+      },
+      hasPointerCapture: () => captured,
+      releasePointerCapture: () => {
+        captured = false;
+      },
+    });
+  }
+}
+
 function bookingRuleInput(label: string) {
   const inputLabel =
     label === 'Meeting buffers'
@@ -136,10 +162,14 @@ function bookingRuleInput(label: string) {
   return screen.getByRole('spinbutton', { name: `${inputLabel} exact value` });
 }
 
-function bookingRuleSelect(label: string) {
-  return screen.getByRole('combobox', {
-    name: new RegExp(`^${label}(?: |$)`),
-  });
+function bookingThumb(label: string) {
+  const name =
+    label.includes('earliest') || label === 'From'
+      ? 'Booking range Earliest booking time'
+      : label.includes('latest') || label === 'To'
+        ? 'Booking range Latest booking time'
+        : `${label} ${label}`;
+  return screen.getByRole('slider', { name });
 }
 
 function expectStepProgress(
@@ -159,14 +189,6 @@ function expectStepProgress(
   return progress;
 }
 
-async function selectBookingRule(
-  user: ReturnType<typeof userEvent.setup>,
-  label: string,
-  value: string
-) {
-  await user.click(bookingRuleSelect(label));
-  await user.click(screen.getByRole('option', { name: value }));
-}
 async function focusBookingRule(
   user: ReturnType<typeof userEvent.setup>,
   label: string
@@ -1341,7 +1363,7 @@ it('keeps description visible and edits the link through an icon-triggered popov
   expect(saves).not.toHaveBeenCalled();
 });
 
-it('combines booking range inputs and edits interval values through a shared select', async () => {
+it('shows a two-handle booking range and an exact interval beside its marked slider', async () => {
   const user = userEvent.setup();
   const [draft, setDraft] = createSignal({
     ...newEventType('hours', ['user'], false),
@@ -1361,11 +1383,39 @@ it('combines booking range inputs and edits interval values through a shared sel
     />
   ));
   const range = screen.getByRole('group', { name: 'Booking range' });
-  expect(range.getAttribute('aria-describedby')).toBeTruthy();
   expect(
-    screen.getByText(
-      'Guests can choose any available time between these limits, measured from now.'
-    )
+    within(range).getByRole('heading', { name: 'Booking range' })
+  ).toBeTruthy();
+  expect(range.getAttribute('aria-describedby')).toBeNull();
+  expect(range.querySelector('[data-booking-slider-scale]')?.textContent).toBe(
+    'Immediately30 days+'
+  );
+  expect(screen.queryByText(/Measured from now/)).toBeNull();
+  expect(range.classList.contains('gap-1.5')).toBe(true);
+  expect(range.classList.contains('gap-3')).toBe(false);
+  const row = range.querySelector('[data-booking-range-row]')!;
+  const earliestControl = row.querySelector('[data-booking-range-earliest]')!;
+  const timeline = row.querySelector('[data-booking-range-timeline]')!;
+  const latestControl = row.querySelector('[data-booking-range-latest]')!;
+  expect(row.classList.contains('grid-cols-2')).toBe(true);
+  expect(row.classList.contains('sm:grid-cols-[auto_minmax(0,1fr)_auto]')).toBe(
+    true
+  );
+  expect(earliestControl.classList.contains('sm:order-1')).toBe(true);
+  expect(timeline.classList.contains('sm:order-2')).toBe(true);
+  expect(latestControl.classList.contains('order-3')).toBe(true);
+  expect(earliestControl.contains(bookingRuleInput('From'))).toBe(true);
+  expect(latestControl.contains(bookingRuleInput('To'))).toBe(true);
+  expect(timeline.contains(bookingThumb('From'))).toBe(true);
+  expect(timeline.contains(bookingThumb('To'))).toBe(true);
+  for (const label of [
+    "What's the earliest someone can book?",
+    "What's the latest someone can book?",
+  ]) {
+    expect(within(range).queryByText(label)).toBeNull();
+  }
+  expect(
+    bookingRuleInput('To').parentElement?.closest('.items-end')
   ).toBeTruthy();
   for (const label of [
     "What's the earliest someone can book?",
@@ -1376,56 +1426,42 @@ it('combines booking range inputs and edits interval values through a shared sel
       name: `${label} units`,
     });
     expect(range.contains(input)).toBe(true);
-    expect(screen.getByLabelText(label)).toBe(input);
+    expect(input.getAttribute('aria-label')).toBe(`${label} exact value`);
     const frame = input.closest('[data-number-unit-input]');
     expect(frame?.getAttribute('data-variant')).not.toBe('bare');
     expect(frame?.contains(units)).toBe(true);
-    expect(screen.queryByRole('slider', { name: label })).toBeNull();
-  }
-  for (const label of ['Minimum notice', 'Booking window']) {
-    expect(screen.queryByRole('slider', { name: label })).toBeNull();
-    expect(
-      screen.queryByRole('group', { name: `${label} presets` })
-    ).toBeNull();
+    const thumb = bookingThumb(label);
+    expect(range.contains(thumb)).toBe(true);
+    expect(thumb.getAttribute('aria-valuemin')).toBe(
+      label.includes('earliest') ? '0' : '1'
+    );
   }
   expect(
-    screen.queryByRole('slider', { name: 'Time-slot interval' })
-  ).toBeNull();
+    bookingThumb("What's the earliest someone can book?").getAttribute(
+      'aria-valuenow'
+    )
+  ).toBe('120');
+  expect(
+    bookingThumb("What's the latest someone can book?").getAttribute(
+      'aria-valuenow'
+    )
+  ).toBe('30');
   expect((bookingRuleInput('From') as HTMLInputElement).value).toBe('2');
   expect((bookingRuleInput('To') as HTMLInputElement).value).toBe('60');
-  await focusBookingRule(user, 'Time-slot interval');
-  expect(
-    screen.getByRole('spinbutton', { name: 'Time-slot interval exact value' })
-  ).toBeTruthy();
-  expect(
-    screen.queryByRole('combobox', { name: /^Time-slot interval units/ })
-  ).toBeNull();
-  const intervalSelect = bookingRuleSelect('Time-slot interval');
-  expect(intervalSelect.textContent).toContain('Custom');
-  expect(draft().intervalMinutes).toBe(17);
-  expect(
-    screen.queryByRole('group', { name: 'Time-slot interval presets' })
-  ).toBeNull();
-  await selectBookingRule(user, 'Time-slot interval', '15 min');
-  expect(draft().intervalMinutes).toBe(15);
-  expect(intervalSelect.textContent).toContain('15 min');
-  await waitFor(() => expect(document.activeElement).toBe(intervalSelect));
-  expect(
-    screen.queryByRole('spinbutton', { name: 'Time-slot interval exact value' })
-  ).toBeNull();
-  await selectBookingRule(user, 'Time-slot interval', 'Custom');
-  const exactInterval = bookingRuleInput('Time-slot interval');
-  await waitFor(() => expect(document.activeElement).toBe(exactInterval));
-  fireEvent.input(exactInterval, { target: { value: '15' } });
-  fireEvent.blur(exactInterval);
-  expect(intervalSelect.textContent).toContain('Custom');
-  expect(draft().intervalMinutes).toBe(15);
-  await selectBookingRule(user, 'Time-slot interval', '20 min');
-  expect(draft().intervalMinutes).toBe(20);
-  expect(intervalSelect.textContent).toContain('20 min');
-  expect(
-    screen.queryByRole('spinbutton', { name: 'Time-slot interval exact value' })
-  ).toBeNull();
+  const interval = bookingRuleInput('Time-slot interval') as HTMLInputElement;
+  expect(interval.value).toBe('17');
+  expect(bookingThumb('Time-slot interval').getAttribute('aria-valuenow')).toBe(
+    '17'
+  );
+  expect(interval.getAttribute('aria-valuemax')).toBe('480');
+  fireEvent.input(interval, { target: { value: '480' } });
+  fireEvent.blur(interval);
+  expect(draft().intervalMinutes).toBe(480);
+  expect(bookingThumb('Time-slot interval').getAttribute('aria-valuenow')).toBe(
+    '60'
+  );
+  fireEvent.keyDown(bookingThumb('Time-slot interval'), { key: 'Home' });
+  expect(draft().intervalMinutes).toBe(5);
   const earliest = bookingRuleInput('From');
   await user.click(earliest);
   fireEvent.input(earliest, { target: { value: '0' } });
@@ -1440,7 +1476,7 @@ it('combines booking range inputs and edits interval values through a shared sel
   expect(draft().noticeMinutes).toBe(0);
 });
 
-it('uses labeled minute inputs for meeting spacing without sliders', async () => {
+it('uses labeled minute inputs for meeting spacing alongside booking sliders', async () => {
   const user = userEvent.setup();
   const [draft, setDraft] = createSignal({
     ...newEventType('hours', ['user'], false),
@@ -1478,7 +1514,7 @@ it('uses labeled minute inputs for meeting spacing without sliders', async () =>
   expect(after.type).toBe('text');
   expect(before.closest('[data-number-unit-input]')?.textContent).toBe('min');
   expect(after.closest('[data-number-unit-input]')?.textContent).toBe('min');
-  expect(screen.queryByRole('slider')).toBeNull();
+  expect(bookingThumb('Time-slot interval')).toBeTruthy();
   fireEvent.input(before, { target: { value: '90' } });
   fireEvent.blur(before);
   expect(draft().beforeMinutes).toBe(90);
@@ -1541,7 +1577,7 @@ it('commits rounded units instead of displaying a value different from the draft
   await user.click(screen.getByRole('option', { name: 'Weeks' }));
   expect(value()).toBe(364);
   expect(input.value).toBe('52');
-  // Slider and preset edits return to Auto when whole weeks cannot represent the amount.
+  // External edits return to Auto when whole weeks cannot represent the amount.
   setValue(30);
   expect(input.value).toBe('30');
   expect(unitText(input)).toBe('days');
@@ -1801,19 +1837,14 @@ it('preserves durations below the first 15-minute slider tick without mutating t
   const input = screen.getByRole('spinbutton', {
     name: 'Duration exact value',
   }) as HTMLInputElement;
-  const sliders = screen.getAllByRole('slider', { name: 'Duration' });
-  const thumb = sliders.find((slider) => slider.tagName !== 'INPUT');
-  const range = sliders.find(
-    (slider) => slider.tagName === 'INPUT'
-  ) as HTMLInputElement;
-  if (!thumb) throw new Error('Duration thumb did not render');
+  const thumb = bookingThumb('Duration');
+
   for (let minutes = 5; minutes < 15; minutes++) {
     setDuration(minutes);
     expect(input.value).toBe(String(minutes));
     expect(thumb.getAttribute('aria-valuenow')).toBe(String(minutes));
     expect(thumb.getAttribute('aria-valuetext')).toBe(`${minutes} minutes`);
     expect(thumb.getAttribute('aria-valuemin')).toBe('5');
-    expect(range.value).toBe(String(minutes));
     expect(duration()).toBe(minutes);
   }
   expect(changes).not.toHaveBeenCalled();
@@ -1822,14 +1853,12 @@ it('preserves durations below the first 15-minute slider tick without mutating t
   fireEvent.keyDown(thumb, { key: 'Home' });
   fireEvent.keyDown(thumb, { key: 'ArrowLeft' });
   expect(duration()).toBe(5);
-  expect(changes).not.toHaveBeenCalled();
   fireEvent.keyDown(thumb, { key: 'ArrowRight' });
   expect(duration()).toBe(15);
   fireEvent.keyDown(thumb, { key: 'ArrowRight' });
   expect(duration()).toBe(30);
   fireEvent.keyDown(thumb, { key: 'Home' });
   expect(duration()).toBe(5);
-  expect(range.value).toBe('5');
 });
 
 it('uses one-minute Ctrl keyboard adjustments without snapping the draft when Ctrl is released', () => {
@@ -1847,9 +1876,7 @@ it('uses one-minute Ctrl keyboard adjustments without snapping the draft when Ct
       onChange={setValue}
     />
   ));
-  const thumb = screen
-    .getAllByRole('slider', { name: 'Duration' })
-    .find((element) => element.tagName !== 'INPUT')!;
+  const thumb = bookingThumb('Duration');
   thumb.focus();
   fireEvent.keyDown(thumb, { key: 'Control', ctrlKey: true });
   fireEvent.keyDown(thumb, { key: 'ArrowRight', ctrlKey: true });
@@ -1866,7 +1893,7 @@ it('uses one-minute Ctrl keyboard adjustments without snapping the draft when Ct
   expect(value()).toBe(6);
 });
 
-it('supports Ctrl changes during a duration drag and follows the thumb with its current-value hint', async () => {
+it('moves duration with pointer gestures and updates its accessible current value', async () => {
   vi.stubGlobal('PointerEvent', MouseEvent);
   const [value, setValue] = createSignal(30);
   render(() => (
@@ -1882,9 +1909,7 @@ it('supports Ctrl changes during a duration drag and follows the thumb with its 
       onChange={setValue}
     />
   ));
-  const thumb = screen
-    .getAllByRole('slider', { name: 'Duration' })
-    .find((element) => element.tagName !== 'INPUT')!;
+  const thumb = bookingThumb('Duration');
   let captured = false;
   for (
     let element: HTMLElement | null = thumb;
@@ -1908,29 +1933,147 @@ it('supports Ctrl changes during a duration drag and follows the thumb with its 
   fireEvent.pointerDown(thumb, { clientX: 30, button: 0 });
   fireEvent.pointerMove(thumb, { clientX: 45 });
   expect(value()).toBe(45);
-  fireEvent.keyDown(document, { key: 'Control', ctrlKey: true });
+  // Shared Tooltip omits popup markup in test mode; real-browser checks verify its anchor.
+  expect(thumb.getAttribute('aria-valuetext')).toBe('45 minutes');
+  expect(track.querySelector('[role="tooltip"]')).toBeNull();
   fireEvent.pointerMove(thumb, { clientX: 46, ctrlKey: true });
   expect(value()).toBe(46);
   fireEvent.pointerMove(thumb, { clientX: 47, ctrlKey: true });
   expect(value()).toBe(47);
-  const hint = await screen.findByRole('tooltip');
-  expect(hint.textContent).toContain('47');
-  expect(thumb.getAttribute('aria-describedby')?.split(' ')).toContain(hint.id);
-  expect(hint.className).toContain('pointer-events-none');
-  expect(track.className).toContain('mb-5');
-  expect(hint.className).toContain('absolute');
-  expect(hint.className).toContain('bg-tooltip');
-  fireEvent.keyUp(document, { key: 'Control' });
-  expect(value()).toBe(47);
   fireEvent.pointerMove(thumb, { clientX: 60 });
   expect(value()).toBe(60);
-  fireEvent.pointerMove(thumb, { clientX: 65, ctrlKey: true });
-  expect(value()).toBe(65);
-  expect(hint.textContent).toBe('1 hour 5 mins');
-  fireEvent.pointerUp(thumb, { clientX: 65 });
+  expect(thumb.getAttribute('aria-valuetext')).toBe('1 hour');
+  fireEvent.pointerUp(thumb, { clientX: 60 });
 });
 
-it('keeps timing controls visible and preserves custom selections', async () => {
+it.each([
+  { label: 'Duration', exact: 30, displayMax: 480, step: 15 },
+  { label: 'Duration', exact: 37, displayMax: 480, step: 15 },
+  { label: 'Time-slot interval', exact: 480, displayMax: 60, step: 5 },
+])(
+  'preserves $label exact value $exact when its thumb is pressed without movement',
+  async ({ label, exact, displayMax, step }) => {
+    vi.stubGlobal('PointerEvent', MouseEvent);
+    const [value, setValue] = createSignal(exact);
+    const changes = vi.fn((next: number) => setValue(next));
+    render(() => (
+      <BookingValueSlider
+        label={label}
+        value={value()}
+        min={5}
+        max={480}
+        sliderMax={displayMax}
+        sliderStep={step}
+        unit="min"
+        disabled={false}
+        onChange={changes}
+      />
+    ));
+    const thumb = bookingThumb(label);
+    mockSliderPointer(thumb, displayMax);
+    const x = Math.min(exact, displayMax);
+    fireEvent.pointerDown(thumb, { clientX: x, button: 0 });
+    expect(value()).toBe(exact);
+    fireEvent.pointerMove(thumb, { clientX: x });
+    fireEvent.pointerUp(thumb, { clientX: x });
+    await Promise.resolve();
+    expect(value()).toBe(exact);
+    expect(changes).not.toHaveBeenCalled();
+  }
+);
+
+it('reaches the advertised duration maximum with a pointer drag', () => {
+  vi.stubGlobal('PointerEvent', MouseEvent);
+  const [value, setValue] = createSignal(30);
+  render(() => (
+    <BookingValueSlider
+      label="Duration"
+      value={value()}
+      min={5}
+      max={480}
+      sliderStep={15}
+      unit="min"
+      disabled={false}
+      onChange={setValue}
+    />
+  ));
+  const thumb = bookingThumb('Duration');
+  mockSliderPointer(thumb, 480);
+  fireEvent.pointerDown(thumb, { clientX: 30, button: 0 });
+  fireEvent.pointerMove(thumb, { clientX: 480 });
+  fireEvent.pointerUp(thumb, { clientX: 480 });
+  expect(value()).toBe(480);
+});
+
+it.each(['Earliest booking time', 'Latest booking time'])(
+  'preserves both exact range endpoints when %s is pressed without movement',
+  async (label) => {
+    vi.stubGlobal('PointerEvent', MouseEvent);
+    const draft = timelineRulesFixture({ noticeMinutes: 120, horizonDays: 60 });
+    const thumb = bookingThumb(
+      label === 'Earliest booking time' ? 'From' : 'To'
+    );
+    mockSliderPointer(thumb, 100);
+    const x =
+      label === 'Earliest booking time'
+        ? bookingTimelinePosition(120, BOOKING_RANGE_TIMELINE)
+        : 100;
+    fireEvent.pointerDown(thumb, { clientX: x, button: 0 });
+    expect(draft().noticeMinutes).toBe(120);
+    expect(draft().horizonDays).toBe(60);
+    fireEvent.pointerMove(thumb, { clientX: x });
+    fireEvent.pointerUp(thumb, { clientX: x });
+    await Promise.resolve();
+    expect(draft().noticeMinutes).toBe(120);
+    expect(draft().horizonDays).toBe(60);
+  }
+);
+
+it('moves the interval slider with pointer and keyboard without changing exact overflow bounds', () => {
+  vi.stubGlobal('PointerEvent', MouseEvent);
+  const draft = timelineRulesFixture({ intervalMinutes: 480 });
+  const thumb = bookingThumb('Time-slot interval');
+  const input = bookingRuleInput('Time-slot interval') as HTMLInputElement;
+  expect(input.value).toBe('480');
+  expect(thumb.getAttribute('aria-valuenow')).toBe('60');
+  expect(thumb.getAttribute('aria-valuetext')).toContain(
+    'exact value 480 minutes'
+  );
+  expect(input.getAttribute('aria-valuemax')).toBe('480');
+  const track = thumb.parentElement!;
+  vi.spyOn(track, 'getBoundingClientRect').mockReturnValue(
+    new DOMRect(0, 0, 110, 8)
+  );
+  let captured = false;
+  for (
+    let element: HTMLElement | null = thumb;
+    element && element !== document.body;
+    element = element.parentElement
+  ) {
+    Object.assign(element, {
+      setPointerCapture: () => {
+        captured = true;
+      },
+      hasPointerCapture: () => captured,
+      releasePointerCapture: () => {
+        captured = false;
+      },
+    });
+  }
+  fireEvent.pointerDown(thumb, { clientX: 110, button: 0 });
+  fireEvent.pointerMove(thumb, { clientX: 0 });
+  expect(draft().intervalMinutes).toBe(5);
+  fireEvent.pointerUp(thumb, { clientX: 0 });
+  fireEvent.keyDown(thumb, { key: 'ArrowRight' });
+  expect(draft().intervalMinutes).toBe(10);
+  fireEvent.keyDown(thumb, { key: 'End' });
+  expect(draft().intervalMinutes).toBe(60);
+  fireEvent.input(input, { target: { value: '480' } });
+  fireEvent.blur(input);
+  expect(draft().intervalMinutes).toBe(480);
+});
+
+it('keeps range units independent and shows frequency sliders with right-hand exact inputs', async () => {
   const user = userEvent.setup();
   const [draft, setDraft] = createSignal(
     newEventType('hours', ['user'], false)
@@ -1948,8 +2091,6 @@ it('keeps timing controls visible and preserves custom selections', async () => 
       }
     />
   ));
-  expect(screen.getAllByRole('spinbutton')).toHaveLength(4);
-  expect(screen.queryByRole('slider')).toBeNull();
   expect(
     screen.getByRole('region', { name: 'Meeting times guests can choose' })
   ).toBeTruthy();
@@ -1959,40 +2100,85 @@ it('keeps timing controls visible and preserves custom selections', async () => 
   expect((bookingRuleInput('Meeting buffers') as HTMLInputElement).value).toBe(
     '0'
   );
-  for (const label of ['Minimum notice', 'Booking window', 'Meeting buffers']) {
-    expect(bookingRuleInput(label)).toBeTruthy();
-  }
-  for (const [label, value] of [
-    ['Time-slot interval', '30 min'],
-    ['Daily booking limit', 'No limit'],
+  for (const label of [
+    "What's the earliest someone can book?",
+    "What's the latest someone can book?",
+    'Time-slot interval',
+    'Daily booking limit',
   ]) {
-    expect(bookingRuleSelect(label).textContent).toContain(value);
+    expect(bookingThumb(label)).toBeTruthy();
+    const input = bookingRuleInput(label);
+    expect(input).toBeTruthy();
+    const slider = bookingThumb(label);
+    const expectedPosition =
+      label === "What's the earliest someone can book?"
+        ? Node.DOCUMENT_POSITION_PRECEDING
+        : Node.DOCUMENT_POSITION_FOLLOWING;
     expect(
-      screen.queryByRole('spinbutton', { name: `${label} exact value` })
-    ).toBeNull();
-    expect(
-      screen.queryByRole('group', { name: `${label} presets` })
-    ).toBeNull();
-    await selectBookingRule(user, label, 'Custom');
-    const exact = bookingRuleInput(label);
-    await waitFor(() => expect(document.activeElement).toBe(exact));
-    expect(bookingRuleSelect(label).textContent).toContain('Custom');
+      slider.compareDocumentPosition(input) & expectedPosition
+    ).toBeTruthy();
   }
+  for (const [label, minimum, maximum] of [
+    ['Time-slot interval', '5 min', '60 min+'],
+    ['Daily booking limit', 'Infinite', '100'],
+  ]) {
+    const group = screen.getByRole('group', { name: label });
+    const scale = group.querySelector('[data-booking-slider-scale]')!;
+    expect(scale.children[0]?.textContent).toBe(minimum);
+    expect(scale.children[1]?.textContent).toBe(maximum);
+    expect(
+      scale.compareDocumentPosition(bookingThumb(label)) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  }
+  const intervalGroup = screen.getByRole('group', {
+    name: 'Time-slot interval',
+  });
+  const marks = intervalGroup.querySelector('[data-booking-slider-marks]')!;
+  expect(marks.children).toHaveLength(10);
+  const tickPositions = Array.from(marks.children, (mark) =>
+    (mark as HTMLElement).style.getPropertyValue('inset-inline-start')
+  );
+  expect(tickPositions).toEqual(
+    Array.from(
+      { length: 10 },
+      (_, index) => `${(((index + 2) * 5 - 5) / 55) * 100}%`
+    )
+  );
+  expect(tickPositions).not.toContain('0%');
+  expect(tickPositions).not.toContain('100%');
+  for (const mark of Array.from(marks.children)) {
+    expect(mark.classList.contains('h-3')).toBe(true);
+    expect(mark.classList.contains('w-0.5')).toBe(true);
+    expect(mark.classList.contains('bg-ink-muted/70')).toBe(true);
+  }
+  expect(
+    intervalGroup.querySelector('[data-booking-slider-mark-labels]')
+      ?.textContent
+  ).toBe('153045');
+  expect(bookingThumb('Time-slot interval').getAttribute('aria-valuemin')).toBe(
+    '5'
+  );
+  expect(bookingThumb('Time-slot interval').getAttribute('aria-valuemax')).toBe(
+    '60'
+  );
+  expect(
+    bookingThumb('Daily booking limit').getAttribute('aria-valuemin')
+  ).toBe('0');
+  expect(
+    bookingThumb('Daily booking limit').getAttribute('aria-valuemax')
+  ).toBe('100');
   const input = bookingRuleInput('From');
-  expect(screen.queryByRole('button', { name: 'Decrease from' })).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Increase from' })).toBeNull();
   await user.click(input);
   fireEvent.input(input, { target: { value: '2' } });
   fireEvent.blur(input);
   expect(draft().noticeMinutes).toBe(120);
-  expect(bookingRuleInput('From')).toBe(input);
   await user.click(
     screen.getByRole('combobox', {
       name: "What's the earliest someone can book? units",
     })
   );
   await user.click(screen.getByRole('option', { name: 'Days' }));
-  await user.click(input);
   fireEvent.input(input, { target: { value: '1' } });
   fireEvent.blur(input);
   expect(draft().noticeMinutes).toBe(1440);
@@ -2000,7 +2186,7 @@ it('keeps timing controls visible and preserves custom selections', async () => 
   expect(bookingRuleInput('From')).toBe(input);
 });
 
-it('selects Custom for manual duration edits even when they match a preset', () => {
+it('keeps duration slider and exact input visible at preset values', () => {
   const [value, setValue] = createSignal(30);
   render(() => (
     <BookingValueSlider
@@ -2012,87 +2198,30 @@ it('selects Custom for manual duration edits even when they match a preset', () 
       units={MINUTE_UNITS}
       sliderStep={15}
       disabled={false}
-      presets={[
-        { value: 15, label: '15 min' },
-        { value: 30, label: '30 min' },
-      ]}
       onChange={setValue}
     />
   ));
-  const presets = within(
-    screen.getByRole('group', { name: 'Duration presets' })
-  );
+  const thumb = bookingThumb('Duration');
+  const input = bookingRuleInput('Duration') as HTMLInputElement;
+  expect(input.value).toBe('30');
+  const scale = thumb
+    .closest('[role="group"]')!
+    .querySelector('[data-booking-slider-scale]')!;
+  expect(scale?.children[0]?.textContent).toBe('5 minutes');
+  expect(scale?.children[1]?.textContent).toBe('8 hours');
   expect(
-    presets.getByRole('button', { name: '30 min' }).getAttribute('aria-pressed')
-  ).toBe('true');
-  expect(
-    screen.queryByRole('spinbutton', { name: 'Duration exact value' })
-  ).toBeNull();
-  expect(screen.queryByRole('slider', { name: 'Duration' })).toBeNull();
-  expect(presets.getByRole('button', { name: '30 min' }).className).toContain(
-    'h-8'
-  );
-  for (const choice of presets.getAllByRole('button')) {
-    const selected = choice.getAttribute('aria-pressed') === 'true';
-    expect(choice.classList.contains('rounded-full')).toBe(true);
-    expect(
-      choice.classList.contains('not-touch:not-disabled:hover:text-ink')
-    ).toBe(false);
-    expect(
-      choice.classList.contains('not-touch:not-disabled:hover:text-current')
-    ).toBe(false);
-    expect(choice.className).toContain(
-      selected
-        ? 'not-touch:not-disabled:hover:text-accent'
-        : 'not-touch:not-disabled:hover:text-ink-muted'
-    );
-    expect(choice.className).toContain(
-      'not-touch:not-disabled:hover:overlay-hover'
-    );
-  }
-  fireEvent.click(presets.getByRole('button', { name: 'Custom' }));
-  expect(
-    presets.getByRole('button', { name: 'Custom' }).getAttribute('aria-pressed')
-  ).toBe('true');
-  expect(screen.getAllByRole('slider', { name: 'Duration' })).not.toHaveLength(
-    0
-  );
-  expect(screen.getAllByText('Duration')).toHaveLength(1);
-  const thumb = screen
-    .getAllByRole('slider', { name: 'Duration' })
-    .find((slider) => slider.tagName !== 'INPUT');
-  expect(thumb?.parentElement?.className).toContain('bg-ink/15');
-  expect(thumb?.parentElement?.className).toContain('shrink-0');
-  const input = screen.getByRole('spinbutton', {
-    name: 'Duration exact value',
-  });
-  expect(input.classList.contains('px-3')).toBe(true);
-  expect(input.style.width).toContain('1.5rem');
-  for (const label of ['Decrease duration', 'Increase duration']) {
-    expect(
-      screen.getByRole('button', { name: label }).classList.contains('size-9')
-    ).toBe(true);
-  }
-  const inputFrame = input.closest('[data-number-unit-input]');
-  if (!inputFrame) throw new Error('Missing number input frame');
-  expect(
-    inputFrame.compareDocumentPosition(
-      presets.getByRole('button', { name: 'Custom' })
-    ) & Node.DOCUMENT_POSITION_PRECEDING
+    scale?.compareDocumentPosition(thumb) & Node.DOCUMENT_POSITION_FOLLOWING
   ).toBeTruthy();
-  fireEvent.focus(input);
-  fireEvent.input(input, { target: { value: '30' } });
+  expect(thumb.getAttribute('aria-valuenow')).toBe('30');
+  expect(
+    thumb.compareDocumentPosition(input) & Node.DOCUMENT_POSITION_FOLLOWING
+  ).toBeTruthy();
+  fireEvent.input(input, { target: { value: '45' } });
   fireEvent.blur(input);
-  expect(
-    presets.getByRole('button', { name: 'Custom' }).getAttribute('aria-pressed')
-  ).toBe('true');
-  expect(value()).toBe(30);
-  fireEvent.click(presets.getByRole('button', { name: '15 min' }));
-  expect(
-    presets.getByRole('button', { name: '15 min' }).getAttribute('aria-pressed')
-  ).toBe('true');
-  expect(value()).toBe(15);
-  expect(screen.queryByRole('slider', { name: 'Duration' })).toBeNull();
+  expect(value()).toBe(45);
+  expect(thumb.getAttribute('aria-valuenow')).toBe('45');
+  fireEvent.keyDown(thumb, { key: 'ArrowRight' });
+  expect(value()).toBe(60);
 });
 
 it('changes before and after meeting values independently without changing duration', () => {
@@ -2140,11 +2269,12 @@ it('changes before and after meeting values independently without changing durat
   expect(
     screen
       .getByRole('group', { name: 'Booking range' })
-      .classList.contains('sm:gap-x-8')
-  ).toBe(true);
+      .querySelector('[data-booking-range-row]')
+  ).not.toBeNull();
   const frequency = screen.getByRole('region', { name: 'Booking frequency' });
-  expect(frequency.classList.contains('gap-x-6')).toBe(true);
-  expect(frequency.classList.contains('sm:gap-x-8')).toBe(true);
+  expect(
+    within(frequency).getByRole('group', { name: 'Daily booking limit' })
+  ).toBeTruthy();
   for (const input of [
     before,
     after,
@@ -2155,8 +2285,7 @@ it('changes before and after meeting values independently without changing durat
     expect(frame?.classList.contains('w-full')).toBe(false);
     expect(frame?.classList.contains('flex-1')).toBe(false);
   }
-  expect(screen.queryByRole('slider')).toBeNull();
-  expect(bookingRuleSelect('Time-slot interval')).toBeTruthy();
+  expect(bookingThumb('Time-slot interval')).toBeTruthy();
 });
 
 it('removes the booking-rule draft explanation and remove actions', async () => {
@@ -2416,57 +2545,44 @@ it('shows weekly hours below availability and keeps calendar exclusion help by a
   ).toBeTruthy();
 });
 
-it('preserves custom daily limits through No limit and returning to the rules flow', async () => {
+it('maps daily zero to no limit through exact input and slider edits', async () => {
   const user = userEvent.setup();
   const { saves } = workspaceFixture('links');
   await user.click(screen.getByRole('button', { name: 'New booking link' }));
   await advanceEditor(user, 3);
-  expect(
-    screen.queryByRole('checkbox', { name: 'Limit bookings per day' })
-  ).toBeNull();
-  expect(bookingRuleSelect('Daily booking limit').textContent).toContain(
-    'No limit'
-  );
-  expect(
-    screen.queryByRole('spinbutton', {
-      name: 'Daily booking limit exact value',
-    })
-  ).toBeNull();
-  await selectBookingRule(user, 'Daily booking limit', 'Custom');
-  let input = bookingRuleInput('Daily booking limit') as HTMLInputElement;
-  expect(input.value).toBe('5');
+  const input = bookingRuleInput('Daily booking limit') as HTMLInputElement;
+  const thumb = bookingThumb('Daily booking limit');
+  expect(input.value).toBe('0');
+  expect(thumb.getAttribute('aria-valuenow')).toBe('0');
+  const group = screen.getByRole('group', { name: 'Daily booking limit' });
+  const zeroLabel = () => group.querySelector('[data-booking-zero-label]');
+  expect(zeroLabel()?.textContent).toBe('Infinite');
+  expect(input.getAttribute('aria-valuetext')).toBe('Infinite');
+  expect(input.classList.contains('text-transparent')).toBe(true);
+  await user.click(input);
+  expect(input.value).toBe('0');
+  expect(zeroLabel()).toBeNull();
+  expect(input.classList.contains('text-transparent')).toBe(false);
   fireEvent.input(input, { target: { value: '12' } });
   fireEvent.blur(input);
-  await selectBookingRule(user, 'Daily booking limit', 'No limit');
-  expect(
-    screen.queryByRole('spinbutton', {
-      name: 'Daily booking limit exact value',
-    })
-  ).toBeNull();
+  expect(input.value).toBe('12');
+  expect(zeroLabel()).toBeNull();
+  expect(input.getAttribute('aria-valuetext')).not.toBe('Infinite');
+  fireEvent.input(input, { target: { value: '0' } });
+  fireEvent.blur(input);
+  expect(input.value).toBe('0');
+  expect(zeroLabel()?.textContent).toBe('Infinite');
   await user.click(screen.getByRole('button', { name: 'Back' }));
   await user.click(screen.getByRole('button', { name: 'Next' }));
-  await selectBookingRule(user, 'Daily booking limit', 'Custom');
-  input = bookingRuleInput('Daily booking limit') as HTMLInputElement;
-  expect(input.value).toBe('12');
+  expect(bookingRuleInput('Daily booking limit')).toBe(input);
+  fireEvent.keyDown(thumb, { key: 'ArrowRight' });
+  expect(input.value).toBe('1');
   fireEvent.input(input, { target: { value: '19' } });
   fireEvent.blur(input);
-  await selectBookingRule(user, 'Daily booking limit', 'No limit');
-  await selectBookingRule(user, 'Daily booking limit', 'Custom');
-  expect(
-    (bookingRuleInput('Daily booking limit') as HTMLInputElement).value
-  ).toBe('19');
-  expect(saves).not.toHaveBeenCalled();
-  await selectBookingRule(user, 'Daily booking limit', '5 bookings');
-  expect(bookingRuleSelect('Daily booking limit').textContent).toContain(
-    '5 bookings'
-  );
-  expect(
-    screen.queryByRole('spinbutton', {
-      name: 'Daily booking limit exact value',
-    })
-  ).toBeNull();
-  await selectBookingRule(user, 'Daily booking limit', 'Custom');
-  input = bookingRuleInput('Daily booking limit') as HTMLInputElement;
+  fireEvent.input(input, { target: { value: '0' } });
+  fireEvent.blur(input);
+  fireEvent.keyDown(thumb, { key: 'ArrowRight' });
+  expect(input.value).toBe('1');
   fireEvent.input(input, { target: { value: '0' } });
   fireEvent.blur(input);
   await user.click(screen.getByRole('button', { name: 'Next' }));
@@ -2479,7 +2595,37 @@ it('preserves custom daily limits through No limit and returning to the rules fl
   expect(saves.mock.calls[0][1].eventTypes[0].dailyLimit).toBeNull();
 });
 
-it('reveals and focuses an invalid zero daily limit even when it matches No limit', async () => {
+it('remembers positive daily limits when the rule becomes unlimited', () => {
+  const [editor, dispose] = createRoot(
+    (dispose) =>
+      [
+        createEventEditor({
+          event: newEventType('hours', ['user'], false),
+          events: () => [],
+          missingHosts: () => [],
+          hasSchedule: () => true,
+          createActive: () => false,
+          onSave: async () => {},
+        }),
+        dispose,
+      ] as const
+  );
+  try {
+    editor.update('dailyLimit', 12);
+    editor.setDailyLimitEnabled(false);
+    expect(editor.draft().dailyLimit).toBeNull();
+    editor.setDailyLimitEnabled(true);
+    expect(editor.draft().dailyLimit).toBe(12);
+    editor.update('dailyLimit', 19);
+    editor.setDailyLimitEnabled(false);
+    editor.setDailyLimitEnabled(true);
+    expect(editor.draft().dailyLimit).toBe(19);
+  } finally {
+    dispose();
+  }
+});
+
+it('focuses an invalid saved zero daily limit and clears validation on editing', async () => {
   const user = userEvent.setup();
   const { saves } = workspaceFixture('links', { dailyLimit: 0 });
   await user.click(
@@ -2491,116 +2637,42 @@ it('reveals and focuses an invalid zero daily limit even when it matches No limi
   );
   await advanceEditor(user, 3);
   await user.click(editor.getByRole('button', { name: 'Next' }));
-  const trigger = bookingRuleInput('Daily booking limit');
-  expect(trigger.getAttribute('aria-invalid')).toBe('true');
-  expect(editor.getByRole('alert').textContent).toContain('1–100');
-  await waitFor(() => expect(document.activeElement).toBe(trigger));
-  await focusBookingRule(user, 'Daily booking limit');
-  const input = editor.getByRole('spinbutton', {
-    name: 'Daily booking limit exact value',
-  });
+  const input = bookingRuleInput('Daily booking limit');
   expect(input.getAttribute('aria-invalid')).toBe('true');
-  expect(saves).not.toHaveBeenCalled();
-  await selectBookingRule(user, 'Daily booking limit', 'No limit');
+  expect(editor.getByRole('alert').textContent).toContain('1–100');
+  await waitFor(() => expect(document.activeElement).toBe(input));
+  fireEvent.input(input, { target: { value: '5' } });
+  fireEvent.blur(input);
   expect(editor.queryByRole('alert')).toBeNull();
-  expect(
-    editor.queryByRole('spinbutton', {
-      name: 'Daily booking limit exact value',
-    })
-  ).toBeNull();
-  expect(bookingRuleSelect('Daily booking limit').textContent).toContain(
-    'No limit'
-  );
+  fireEvent.input(input, { target: { value: '0' } });
+  fireEvent.blur(input);
   await user.click(editor.getByRole('button', { name: 'Next' }));
   await user.click(editor.getByRole('button', { name: 'Save changes' }));
   await waitFor(() => expect(saves).toHaveBeenCalledOnce());
   expect(saves.mock.calls[0][1].eventTypes[0].dailyLimit).toBeNull();
 });
 
-it('focuses and selects custom preset inputs so typing immediately replaces the preset value', async () => {
+it('keeps duration and interval exact inputs available without activating custom modes', async () => {
   const user = userEvent.setup();
   workspaceFixture('links');
   await user.click(screen.getByRole('button', { name: 'New booking link' }));
-  const duration = within(
-    screen.getByRole('group', { name: 'Duration presets' })
-  );
-  await user.click(duration.getByRole('button', { name: 'Custom' }));
-  const durationInput = screen.getByRole('spinbutton', {
-    name: 'Duration exact value',
-  }) as HTMLInputElement;
-  expect(document.activeElement).toBe(durationInput);
-  expect(durationInput.selectionStart).toBe(0);
-  expect(durationInput.selectionEnd).toBe(durationInput.value.length);
-  await user.keyboard('17');
-  expect(durationInput.value).toBe('17');
+  const duration = bookingRuleInput('Duration') as HTMLInputElement;
+  await user.click(duration);
+  await user.clear(duration);
+  await user.type(duration, '17');
+  expect(duration.value).toBe('17');
   await advanceEditor(user, 3);
   for (const label of ['From', 'To']) {
     await focusBookingRule(user, label);
     expect(document.activeElement).toBe(bookingRuleInput(label));
-    expect(
-      screen.queryByRole('group', { name: `${label} presets` })
-    ).toBeNull();
   }
-  await selectBookingRule(user, 'Time-slot interval', 'Custom');
-  const intervalInput = screen.getByRole('spinbutton', {
-    name: 'Time-slot interval exact value',
-  }) as HTMLInputElement;
-  await waitFor(() => expect(document.activeElement).toBe(intervalInput));
-  expect(intervalInput.selectionStart).toBe(0);
-  expect(intervalInput.selectionEnd).toBe(intervalInput.value.length);
-  await user.keyboard('17');
-  expect(
-    (
-      screen.getByRole('spinbutton', {
-        name: 'Time-slot interval exact value',
-      }) as HTMLInputElement
-    ).value
-  ).toBe('17');
-  await selectBookingRule(user, 'Time-slot interval', '60 min');
-  expect(
-    screen.queryByRole('spinbutton', { name: 'Time-slot interval exact value' })
-  ).toBeNull();
-  bookingRuleSelect('Time-slot interval').focus();
-  await user.keyboard('{ArrowRight}');
-  const keyboardInput = bookingRuleInput(
-    'Time-slot interval'
-  ) as HTMLInputElement;
-  await waitFor(() => expect(document.activeElement).toBe(keyboardInput));
-  expect(keyboardInput.selectionStart).toBe(0);
-  expect(keyboardInput.selectionEnd).toBe(keyboardInput.value.length);
-  expect(keyboardInput.value).toBe('60');
-});
-
-it('does not steal focus when a custom input is removed before its queued focus runs', async () => {
-  const [value, setValue] = createSignal(30);
-  render(() => (
-    <BookingValueSlider
-      label="Duration"
-      value={value()}
-      min={5}
-      max={480}
-      unit="min"
-      units={MINUTE_UNITS}
-      disabled={false}
-      presets={[
-        { value: 15, label: '15 min' },
-        { value: 30, label: '30 min' },
-      ]}
-      onChange={setValue}
-    />
-  ));
-  const presets = within(
-    screen.getByRole('group', { name: 'Duration presets' })
-  );
-  fireEvent.click(presets.getByRole('button', { name: 'Custom' }));
-  const preset = presets.getByRole('button', { name: '15 min' });
-  preset.focus();
-  fireEvent.click(preset);
-  await Promise.resolve();
-  expect(
-    screen.queryByRole('spinbutton', { name: 'Duration exact value' })
-  ).toBeNull();
-  expect(document.activeElement).toBe(preset);
+  const interval = bookingRuleInput('Time-slot interval') as HTMLInputElement;
+  await user.click(interval);
+  await user.clear(interval);
+  await user.type(interval, '480');
+  expect(interval.value).toBe('480');
+  fireEvent.blur(interval);
+  expect(bookingThumb('Time-slot interval')).toBeTruthy();
 });
 
 it('edits additional Google Meet details without changing the selected location type', async () => {
@@ -2816,12 +2888,6 @@ it('walks through five steps, keeps drafts mounted, and saves only after review'
   fireEvent.input(form.getByRole('textbox', { name: 'Description' }), {
     target: { value: 'Bring a topic.' },
   });
-  await user.click(
-    within(form.getByRole('group', { name: 'Duration presets' })).getByRole(
-      'button',
-      { name: 'Custom' }
-    )
-  );
   const duration = form.getByRole('spinbutton', {
     name: 'Duration exact value',
   }) as HTMLInputElement;
@@ -3989,7 +4055,55 @@ it('preserves independent notice and window values without imposing ordering', (
   expect((bookingRuleInput('To') as HTMLInputElement).value).toBe('10');
 });
 
-it('disables every visible rule input and select', async () => {
+it.each([
+  {
+    noticeMinutes: 10080,
+    horizonDays: 365,
+    moved: "What's the earliest someone can book?",
+    retained: 'horizonDays' as const,
+    value: 365,
+  },
+  {
+    noticeMinutes: 10080,
+    horizonDays: 365,
+    moved: "What's the latest someone can book?",
+    retained: 'noticeMinutes' as const,
+    value: 10080,
+  },
+])(
+  'preserves exact overflow $retained when the other booking-range handle moves',
+  ({ noticeMinutes, horizonDays, moved, retained, value }) => {
+    const [draft, setDraft] = createSignal({
+      ...newEventType('hours', ['user'], false),
+      noticeMinutes,
+      horizonDays,
+    });
+    render(() => (
+      <BookingRuleSliders
+        draft={draft()}
+        disabled={false}
+        onUpdate={(key, next) =>
+          setDraft((current) => ({ ...current, [key]: next }))
+        }
+        onBuffers={() => {}}
+        onDailyLimitEnabled={() => {}}
+      />
+    ));
+    expect((bookingRuleInput('To') as HTMLInputElement).value).toBe('365');
+    expect((bookingRuleInput('From') as HTMLInputElement).value).toBe('7');
+    fireEvent.keyDown(bookingThumb(moved), { key: 'Home' });
+    expect(draft()[retained]).toBe(value);
+    expect(
+      (
+        bookingRuleInput(
+          retained === 'horizonDays' ? 'To' : 'From'
+        ) as HTMLInputElement
+      ).value
+    ).toBe(retained === 'horizonDays' ? '365' : '7');
+  }
+);
+
+it('disables every visible rule input and slider', async () => {
   const user = userEvent.setup();
   const onUpdate = vi.fn();
   render(() => (
@@ -4012,9 +4126,9 @@ it('disables every visible rule input and select', async () => {
     await user.click(input);
   }
   for (const label of ['Time-slot interval', 'Daily booking limit']) {
-    const select = bookingRuleSelect(label);
-    expect(select.hasAttribute('disabled')).toBe(true);
-    await user.click(select);
+    const input = bookingRuleInput(label);
+    expect(input.hasAttribute('disabled')).toBe(true);
+    await user.click(input);
   }
   expect(screen.queryByRole('listbox')).toBeNull();
   expect(screen.queryByRole('dialog')).toBeNull();
@@ -4023,10 +4137,16 @@ it('disables every visible rule input and select', async () => {
       .getAllByRole('spinbutton')
       .every((input) => input.hasAttribute('disabled'))
   ).toBe(true);
-  expect(screen.queryByRole('slider')).toBeNull();
-  expect(
-    screen.getAllByRole('button').every((button) => button.matches(':disabled'))
-  ).toBe(true);
+  for (const label of [
+    "What's the earliest someone can book?",
+    "What's the latest someone can book?",
+    'Time-slot interval',
+    'Daily booking limit',
+  ]) {
+    const thumb = bookingThumb(label);
+    expect(thumb.getAttribute('data-disabled')).not.toBeNull();
+    fireEvent.keyDown(thumb, { key: 'ArrowRight' });
+  }
   expect(onUpdate).not.toHaveBeenCalled();
 });
 
@@ -4051,7 +4171,7 @@ function timelineRulesFixture(initial: Partial<EventType> = {}) {
   return draft;
 }
 
-it('edits booking limits and buffers through exact inputs without sliders', () => {
+it('edits booking limits and buffers through exact inputs alongside sliders', () => {
   const draft = timelineRulesFixture({
     beforeMinutes: 17,
     afterMinutes: 23,
@@ -4085,7 +4205,7 @@ it('edits booking limits and buffers through exact inputs without sliders', () =
   fireEvent.blur(window);
   expect(draft().horizonDays).toBe(1);
   expect(draft().durationMinutes).toBe(30);
-  expect(screen.queryByRole('slider')).toBeNull();
+  expect(bookingThumb('Time-slot interval')).toBeTruthy();
 });
 
 it('opens exact saved values without snapping timeline fields and shows invalid fractions verbatim', () => {
@@ -4141,12 +4261,12 @@ it('shows independent endpoint validation errors inside the shared range frame',
   }
 });
 
-it('shows exact values for long meeting breaks and renders no sliders', () => {
+it('shows exact values for long meeting breaks alongside booking sliders', () => {
   const draft = timelineRulesFixture({
     beforeMinutes: 6000,
     afterMinutes: 7000,
   });
-  expect(screen.queryByRole('slider')).toBeNull();
+  expect(bookingThumb('Time-slot interval')).toBeTruthy();
   expect((bookingRuleInput('Meeting buffers') as HTMLInputElement).value).toBe(
     '6000'
   );

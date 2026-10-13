@@ -3,14 +3,10 @@ import { MINUTE_UNITS } from '../core/booking-units';
 import type { EventType, EventValidationIssue } from '../core/types';
 import { BookingFieldInfo } from './booking-field-info';
 import { BookingRange } from './booking-range';
-import { BookingRuleSelect } from './booking-rule-value';
 import { BookingValueInput } from './booking-value-input';
+import { BookingValueSlider } from './booking-value-slider';
 
 const BUFFER_UNITS = MINUTE_UNITS.slice(0, 1);
-const INTERVAL_PRESETS = [5, 10, 15, 20, 30, 45, 60].map((value) => ({
-  value,
-  label: `${value} min`,
-}));
 
 function RuleLabel(props: {
   label: string;
@@ -19,7 +15,7 @@ function RuleLabel(props: {
 }) {
   return (
     <div class="flex min-w-0 items-center gap-1.5">
-      <span class="text-base font-medium">{props.label}</span>
+      <span class="text-sm font-normal text-ink-muted">{props.label}</span>
       <BookingFieldInfo label={props.label} description={props.description} />
       {props.children}
     </div>
@@ -69,7 +65,7 @@ export function BookingRules(props: {
       />
       <section
         aria-label="Time between meetings"
-        class="flex min-w-0 flex-col gap-3 border-t border-edge-muted pt-3"
+        class="flex min-w-0 flex-col gap-3"
       >
         <RuleLabel
           label="Time between meetings"
@@ -77,7 +73,7 @@ export function BookingRules(props: {
         />
         <div class="grid min-w-0 grid-cols-2 gap-x-6 gap-y-4 sm:gap-x-8">
           <div class="flex min-w-0 flex-col gap-1.5">
-            <label for={beforeId} class="text-base font-medium">
+            <label for={beforeId} class="text-sm font-normal text-ink-muted">
               Before each meeting
             </label>
             <BookingValueInput
@@ -94,7 +90,7 @@ export function BookingRules(props: {
             />
           </div>
           <div class="flex min-w-0 flex-col gap-1.5">
-            <label for={afterId} class="text-base font-medium">
+            <label for={afterId} class="text-sm font-normal text-ink-muted">
               After each meeting
             </label>
             <BookingValueInput
@@ -114,26 +110,34 @@ export function BookingRules(props: {
       </section>
       <section
         aria-label="Booking frequency"
-        class="grid min-w-0 grid-cols-2 gap-x-6 gap-y-4 border-t border-edge-muted pt-3 sm:gap-x-8"
+        class="flex min-w-0 flex-col gap-4"
       >
         <div
           role="group"
           aria-label="Time-slot interval"
           class="flex min-w-0 flex-col gap-2"
         >
-          <RuleLabel
+          <BookingValueSlider
             label="Time-slot interval"
             description="Spacing between the meeting start times guests can choose."
-          />
-          <BookingRuleSelect
-            label="Time-slot interval"
             value={props.draft.intervalMinutes}
             min={5}
             max={480}
+            sliderMax={60}
+            sliderStep={5}
+            minLabel="5 min"
+            maxLabel="60 min+"
+            unit="min"
             units={BUFFER_UNITS}
             disabled={props.disabled}
             error={error('intervalMinutes')}
-            presets={INTERVAL_PRESETS}
+            marks={Array.from({ length: 10 }, (_, index) => {
+              const value = (index + 2) * 5;
+              return {
+                value,
+                label: value % 15 === 0 ? String(value) : undefined,
+              };
+            })}
             onChange={(value) => update('intervalMinutes', value)}
           />
         </div>
@@ -142,15 +146,16 @@ export function BookingRules(props: {
           aria-label="Daily booking limit"
           class="flex min-w-0 flex-col gap-2"
         >
-          <RuleLabel
+          <BookingValueSlider
             label="Daily booking limit"
-            description="The maximum meetings guests can book each day. Zero means no limit."
-          />
-          <BookingRuleSelect
-            label="Daily booking limit"
+            description="The maximum meetings guests can book each day. Zero means infinite bookings."
             value={props.draft.dailyLimit ?? 0}
             min={0}
             max={100}
+            unit="bookings"
+            minLabel="Infinite"
+            zeroLabel="Infinite"
+            maxLabel="100"
             units={[
               {
                 id: 'bookings',
@@ -161,16 +166,6 @@ export function BookingRules(props: {
             ]}
             disabled={props.disabled}
             error={error('dailyLimit')}
-            presets={[
-              { value: 0, label: 'No limit' },
-              { value: 1, label: '1 booking' },
-              { value: 5, label: '5 bookings' },
-              { value: 10, label: '10 bookings' },
-              { value: 20, label: '20 bookings' },
-            ]}
-            onCustom={() => {
-              if (!props.disabled) props.onDailyLimitEnabled(true);
-            }}
             onChange={(value) => {
               if (props.disabled) return;
               if (value === 0) props.onDailyLimitEnabled(false);

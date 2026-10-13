@@ -1392,12 +1392,15 @@ The progress bar exposes Step X of 5 and the active heading to assistive technol
 It updates on each step. Stepper animates the body while retaining controls. Back
 and Next remain text-only. Saving disables navigation and editor actions.
 Description sits below the title/link area. Neither description nor duration has
-an info icon. Custom duration opens its slider and exact-value input below the
-compact presets, without another heading. The slider uses a 15-minute grid with
-a 5-minute lower limit. Hold Ctrl for one-minute pointer or keyboard adjustments.
-A current-value tooltip follows below the thumb on hover, focus, and drag.
-Saved whole-minute durations, including 5–14 minutes, remain visible without
-rounding; exact input accepts other whole-minute durations.
+an info icon. Duration always shows a slider with its exact number/unit input on
+the right, without presets or minus/plus buttons. Min/max values appear above
+both ends. The slider uses 15-minute adjustments with a 5-minute lower limit;
+Ctrl enables one-minute pointer or keyboard adjustments. The shared Tooltip component
+shows each slider's current value on hover, focus, and drag, anchored to its thumb.
+Duration tooltips show hours and minutes for longer durations.
+Pressing a thumb without moving it preserves exact values, including values beyond
+the displayed scale. Duration dragging reaches the full 480-minute maximum.
+Saved exact values stay unchanged until an explicit input or slider movement.
 The pencil icon beside the URL opens an optional custom-link popover. A blank
 custom link uses a unique automatic URL based on the meeting title. New title-based
 links receive a suffix when another link already uses that URL. Renaming a saved
@@ -1427,39 +1430,35 @@ Remove questions action. Removing an
 individual question focuses the next question, the previous question after removing
 the last one, or Add a question if none remain. Booking rules has no outer
 disclosure or Remove action.
-Booking rules shows **Meeting times guests can choose** with **From** and **To**
-inputs in one outlined Booking range frame. Both offsets are measured from the
-visitor's current time, not from one another. Guests can reserve a meeting
-immediately; these rules restrict the meeting's start time, not when the link is
-active. Each endpoint has an always-visible number input and inline unit selector.
-A live **For a guest visiting now** preview shows concrete dates and times in the
-browser's time zone, with a highlighted range and muted time outside its endpoints.
-Only available meeting starts inside that range can appear; the preview does not
-fetch free/busy data or promise that every time is available. The preview refreshes
-as time passes and after returning to the tab, without changing the draft.
-From supports 0–10,080 minutes; To supports 1–365 days. To must extend beyond From.
-Equal or reversed ranges keep their entered values, show an inline error on To,
-and block Next/save. Invalid ranges do not show a misleading date preview.
-There are no separate notice/window sliders or preset rows.
-Meeting spacing places before-buffer and after-buffer sliders around a fixed-width,
-read-only meeting segment. The connected strip has no visible scale labels; both
-exact buffer inputs stay visible underneath. Arrow keys adjust one minute. In
-left-to-right layouts, ArrowLeft on the before-buffer slider increases that buffer.
-Locale direction controls arrow keys and thumb alignment. Slider thumbs expose
-actual booking values. Interval and daily maximum use shared selects below the strip.
-Enter in any exact input never advances the step or saves the link.
-Validation, field bounds, unit conversion, and daily-limit memory stay unchanged.
-Custom values and unit preferences survive Back/Next navigation. Validation errors
-stay below the affected controls; Next focuses the invalid manual input.
-Invalid stored fractions remain visible until corrected. Choosing No limit corrects
-a stored zero daily limit to the supported no-limit value. The five-step editor,
-save behavior, and discard confirmation remain unchanged.
-Duration offers minutes/hours, From offers minutes/hours/days, and To uses
+Booking rules shows a Booking range heading above one two-handle slider, with exact
+inputs beside the track: earliest on the left and latest on the right. On narrow screens,
+inputs sit below the track to preserve usable slider width. There are no visible question
+labels or section divider lines. Both offsets are measured from now, not from one another.
+These rules restrict meeting start times, not when
+the link is active. The scale starts at Immediately and has landmarks at one hour,
+one day, seven days, and thirty days. Min/max labels sit above the track, with 30 days+
+marking the upper display limit. Values above thirty days remain at the right edge
+without changing their exact stored value; the latest input accepts up to 365 days.
+Moving one handle changes only that endpoint. Keyboard gestures use actual minutes
+for earliest and days for latest, with direction-aware horizontal arrows. Slider
+gestures keep the endpoints ordered; exact inputs preserve equal/reversed values
+and show existing cross-field validation instead of silently changing the other end.
+Earliest supports 0–10,080 minutes; latest supports 1–365 days. Latest must extend
+beyond earliest. Invalid ranges block Next/save and focus the affected input.
+Meeting buffers remain separate before/after number inputs, without sliders.
+Time-slot interval uses a slider with interior ticks every five minutes, no endpoint
+ticks, and labels at 15, 30, and 45 minutes. Its exact input stays on the right. The displayed range
+is 5–60 minutes; 60 minutes+ indicates larger exact values, supported up to 480 minutes.
+Daily booking limit uses a 0–100 slider and a right-hand exact input. Zero displays
+Infinite and saves as null. Focus the input to edit its numeric zero or a positive limit.
+Every slider displays min/max labels above its ends.
+Enter in any exact input never advances the step or saves the link. Validation,
+field bounds, unit conversion, draft retention, save, and discard behavior remain
+unchanged. Errors stay below controls; stored fractions stay visible until corrected.
+Duration offers minutes/hours, earliest offers minutes/hours/days, and latest uses
 days/weeks. Number and unit use the reusable NumberUnitInput, built on Kobalte
-NumberField. Booking range uses two bare endpoint controls inside its shared frame;
-other controls retain their own frames. The buffer row stretches its frames to equal
-column widths. Optional outlined minus/plus buttons sit outside other frames, one
-on each side; compact booking-rule inputs omit them.
+NumberField. Exact input frames remain visible beside or below their sliders;
+none of these slider/input controls shows minus/plus buttons.
 Hours and days use readable unit names, not single-letter abbreviations.
 Click the displayed unit inside the frame to change it; there is no separate unit
 selector. Auto remains available in its menu, but the frame never displays a
@@ -1467,13 +1466,8 @@ selector. Auto remains available in its menu, but the frame never displays a
 stay whole. Auto uses smaller units when necessary to preserve precision.
 Blank or out-of-range input stays local; blur restores the last valid draft.
 Explicit unit choices replace the previous preference. Saved values remain whole
-minutes or days. Time-slot interval offers minute presets and Custom in one select.
-Daily booking limit offers No limit, booking-count presets, and Custom in one select,
-without an enabling checkbox or slider. Choosing Custom reveals an exact-value
-input; validation errors also reveal the affected input. Selecting a preset hides it.
-Choosing Custom focuses and selects its input. Switching to No limit and back to
-Custom restores the previous limit. Entering zero also removes the limit. No limit
-and zero save as null, preserving the backend contract.
+minutes or days. Slider movement never overwrites another endpoint or a clipped
+exact value. No limit and zero save as null, preserving the backend contract.
 Questions are booking-specific text answers with labels and Required checkboxes,
 not forms. Only Create link or Save changes persists the draft.
 Configured options remain visible when editing. **Create link** uses shared primary
