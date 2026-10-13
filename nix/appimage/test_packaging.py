@@ -1,11 +1,11 @@
 """Small real-ELF regression fixtures; no frontend or Rust build required."""
 
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from ldd import dependencies
@@ -27,7 +27,9 @@ class PackagingTest(unittest.TestCase):
         self.environment.start()
         self.addCleanup(self.environment.stop)
 
-        self.second = self.compile("libsecond.so.2.3", "int second(void) { return 0; }", [])
+        self.second = self.compile(
+            "libsecond.so.2.3", "int second(void) { return 0; }", []
+        )
         patchelf(self.second, "--set-soname", "libsecond.so.2")
         self.alias = self.lib / "libsecond.so.2"
         self.alias.symlink_to(self.second.name)
@@ -38,7 +40,9 @@ class PackagingTest(unittest.TestCase):
         )
         patchelf(self.first, "--set-soname", "libfirst.so.1")
         self.app = self.compile(
-            "app", "extern int first(void); void _start(void) { first(); }", [str(self.first)]
+            "app",
+            "extern int first(void); void _start(void) { first(); }",
+            [str(self.first)],
         )
         (self.lib / "libfirst.so.1").symlink_to(self.first.name)
 
@@ -46,9 +50,24 @@ class PackagingTest(unittest.TestCase):
         output = self.lib / name
         link_mode = [] if name == "app" else ["-shared"]
         subprocess.run(
-            [os.environ.get("CC", "cc"), *link_mode, "-fPIC", "-nostdlib", "-x", "c", "-",
-             "-x", "none", *libraries, f"-Wl,-rpath,{self.lib}", "-o", str(output)],
-            input=source, text=True, check=True,
+            [
+                os.environ.get("CC", "cc"),
+                *link_mode,
+                "-fPIC",
+                "-nostdlib",
+                "-x",
+                "c",
+                "-",
+                "-x",
+                "none",
+                *libraries,
+                f"-Wl,-rpath,{self.lib}",
+                "-o",
+                str(output),
+            ],
+            input=source,
+            text=True,
+            check=True,
         )
         return output
 
@@ -83,10 +102,14 @@ class PackagingTest(unittest.TestCase):
     def test_relocation_restores_sonames_and_origin_paths(self):
         self.populate()
         relocate(self.appdir)
-        self.assertEqual((self.bundle_lib / "libsecond.so.2").readlink(), Path(self.second.name))
+        self.assertEqual(
+            (self.bundle_lib / "libsecond.so.2").readlink(), Path(self.second.name)
+        )
         binary = self.appdir / "usr/bin/app"
         self.assertEqual(patchelf(binary, "--print-rpath"), "$ORIGIN:$ORIGIN/../lib")
-        self.assertEqual(patchelf(self.bundle_lib / self.first.name, "--print-rpath"), "$ORIGIN")
+        self.assertEqual(
+            patchelf(self.bundle_lib / self.first.name, "--print-rpath"), "$ORIGIN"
+        )
         self.assertEqual(len(dependencies(binary)), 2)
         relocate(self.appdir)  # Idempotent; never create links to links.
 
@@ -108,11 +131,15 @@ class PackagingTest(unittest.TestCase):
     def test_relocation_rewrites_interpreter_and_shebang(self):
         self.populate()
         binary = self.appdir / "usr/bin/app"
-        patchelf(binary, "--set-interpreter", "/nix/store/fixture/lib/ld-linux-x86-64.so.2")
+        patchelf(
+            binary, "--set-interpreter", "/nix/store/fixture/lib/ld-linux-x86-64.so.2"
+        )
         script = self.appdir / "usr/bin/xdg-open"
         script.write_text("#!/nix/store/fixture/bin/sh\necho ok\n")
         relocate(self.appdir)
-        self.assertEqual(patchelf(binary, "--print-interpreter"), "/lib64/ld-linux-x86-64.so.2")
+        self.assertEqual(
+            patchelf(binary, "--print-interpreter"), "/lib64/ld-linux-x86-64.so.2"
+        )
         self.assertEqual(script.read_text(), "#!/usr/bin/env sh\necho ok\n")
 
     def test_relocation_rejects_conflicting_sonames(self):

@@ -2,9 +2,9 @@
 """Resolve the full ELF dependency graph for linuxdeploy without executing it."""
 
 import os
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 
 def elf_field(binary, field):

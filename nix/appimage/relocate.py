@@ -2,9 +2,9 @@
 """Finalize linuxdeploy's AppDir before the output plugin creates the squashfs."""
 
 import os
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 
 def patchelf(path, *args):
@@ -27,7 +27,10 @@ def relocate(appdir):
     for path in elf_files(appdir):
         # AppImage's static launcher has no dynamic section.
         result = subprocess.run(
-            ["patchelf", "--print-needed", str(path)], capture_output=True, text=True
+            ["patchelf", "--print-needed", str(path)],
+            capture_output=True,
+            text=True,
+            check=False,
         )
         if result.returncode:
             continue
@@ -63,7 +66,10 @@ def relocate(appdir):
         patchelf(path, "--set-rpath", ":".join(rpaths))
 
         interpreter = subprocess.run(
-            ["patchelf", "--print-interpreter", str(path)], capture_output=True, text=True
+            ["patchelf", "--print-interpreter", str(path)],
+            capture_output=True,
+            text=True,
+            check=False,
         ).stdout.strip()
         if interpreter.startswith("/nix/store/"):
             if Path(interpreter).name != "ld-linux-x86-64.so.2":
@@ -82,7 +88,9 @@ def relocate(appdir):
             if shell not in ("sh", "bash"):
                 raise RuntimeError(f"unexpected Nix shebang: {path}: {first!r}")
             content = path.read_bytes()
-            path.write_bytes(f"#!/usr/bin/env {shell}\n".encode() + content[len(first):])
+            path.write_bytes(
+                f"#!/usr/bin/env {shell}\n".encode() + content[len(first) :]
+            )
 
     # Fail the build rather than silently shipping another Nix-only ELF.
     for path, _ in dynamic:
