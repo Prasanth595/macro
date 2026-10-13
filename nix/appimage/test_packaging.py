@@ -71,6 +71,15 @@ class PackagingTest(unittest.TestCase):
         patchelf(self.second, "--add-needed", "libfirst.so.1")
         self.assertEqual(len(dependencies(self.app)), 2)
 
+    def test_ldd_reuses_first_loaded_soname(self):
+        alternate = self.root / "alternate"
+        alternate.mkdir()
+        shutil.copy2(self.second, alternate / "libsecond.so.2")
+        patchelf(self.first, "--set-rpath", str(alternate))
+        patchelf(self.app, "--add-needed", "libsecond.so.2")
+        result = dependencies(self.app)
+        self.assertEqual(result["libsecond.so.2"], self.alias)
+
     def test_relocation_restores_sonames_and_origin_paths(self):
         self.populate()
         relocate(self.appdir)

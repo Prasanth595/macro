@@ -44,12 +44,14 @@ def dependencies(binary):
             continue
         visited.add(real)
         for needed in elf_field(current, "needed").splitlines():
+            # Like the loader, reuse the first loaded SONAME. Nix closures may
+            # contain multiple build variants of the same ABI (e.g. libwebp).
+            if needed in result:
+                continue
             resolved = resolve(current, needed)
             if resolved is None:
                 raise RuntimeError(f"{current}: {needed} => not found")
-            previous = result.setdefault(needed, resolved)
-            if previous.resolve() != resolved.resolve():
-                raise RuntimeError(f"conflicting dependency {needed}: {previous}, {resolved}")
+            result[needed] = resolved
             queue.append(resolved)
     return result
 

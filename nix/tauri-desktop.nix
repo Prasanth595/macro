@@ -808,13 +808,20 @@
         }
       );
 
-      tauriAppImagePackagingTests = pkgs.runCommand "tauri-appimage-packaging-tests" {
-        nativeBuildInputs = [ pkgs.python3 pkgs.patchelf pkgs.stdenv.cc ];
-      } ''
-        export PYTHONDONTWRITEBYTECODE=1
-        python3 -m unittest discover -s ${./appimage} -v
-        touch "$out"
-      '';
+      tauriAppImagePackagingTests =
+        pkgs.runCommand "tauri-appimage-packaging-tests"
+          {
+            nativeBuildInputs = [
+              pkgs.python3
+              pkgs.patchelf
+              pkgs.stdenv.cc
+            ];
+          }
+          ''
+            export PYTHONDONTWRITEBYTECODE=1
+            python3 -m unittest discover -s ${./appimage} -v
+            touch "$out"
+          '';
 
       tauriDesktopAppImage = craneLib.mkCargoDerivation (
         tauri.commonArgs
