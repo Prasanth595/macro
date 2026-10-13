@@ -154,22 +154,9 @@ request's `traceparent`) is `docs/agent-guide/`.
 
 ## Write tracing code that is debuggable
 
-Follow CLAUDE.md's tracing rules (`err` on `Result`-returning `#[instrument]`,
-never `level = "info"`, `tracing::error!(error=?e, "msg")`, prefer
-`.inspect_err`). Beyond those:
-
-- Instrument boundaries, not plumbing: HTTP handlers get spans from
-  `macro_tower_layers`; add `#[tracing::instrument]` to queue consumers,
-  cross-service client calls, and multi-step business operations — the places
-  a trace would otherwise go dark.
-- Skip bulky args (`#[instrument(skip(payload), fields(document_id = %id))]`)
-  and record the IDs you will actually search by: entity IDs, user IDs,
-  counts. A span you can't find by ID is a span you can't use.
-- Record late-known values with `tracing::Span::current().record(...)` rather
-  than emitting a second event.
-- Events inside a span inherit its trace: one `tracing::warn!` with fields
-  beats three unstructured `debug!`s. Fields, not format strings —
-  `warn!(attempts, "retrying")`, not `warn!("retrying attempt {attempts}")`.
-- Verify your instrumentation live: run the code path, then confirm the span
-  shows up in Tempo with the fields you expect. Unverified instrumentation is
-  the usual reason "the trace was empty" during a real incident.
+The conventions are the always-on
+[observability rule](../../rules/observability.md) and CS-22 in
+[`rust/code.md`](../../rules/rust/code.md). Use the queries above to verify new
+instrumentation live: run the code path and confirm the span shows up in Tempo,
+connected to its parent trace, with the fields you expect. Unverified
+instrumentation is the usual reason "the trace was empty" during an incident.
