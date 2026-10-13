@@ -4,6 +4,31 @@
 
 You can use the **/docs** endpoint for a full swagger.
 
+## GraphQL subscription compression
+
+`GET /soup/graphql/ws` negotiates browser-native `permessage-deflate` for both
+`graphql-transport-ws` and `graphql-ws`. Authentication and subscription context
+are unchanged. Clients that omit compression or offer unsupported parameters
+continue with uncompressed messages; no frontend decompressor is needed.
+
+The transport in `src/api/graphql_soup/websocket.rs` uses Signal's tungstenite
+fork pinned in the root `Cargo.toml`. The fork is based on 0.27, so it uses a
+separate `tokio-tungstenite-signal` dependency (upstream Tokio adapter 0.27).
+Other WebSocket endpoints retain their existing upstream dependencies.
+
+Signal does not expose its handshake extension negotiation helpers publicly.
+The Hyper adapter accepts known, unquoted RFC 7692 parameters with 9–15-bit
+windows; quoted or unsupported offers fall back to uncompressed transport.
+Both directions disable context takeover between messages. Existing default
+frame/message size limits remain in place, including decompressed message limits.
+The fork's `deflate` feature requires a zlib-compatible flate2 backend.
+
+Transport regression tests (including wire-level compression and fallback):
+
+```sh
+cargo test -p document_storage_service --lib api::graphql_soup::websocket::test
+```
+
 ## Prerequisites
 
 Install and setup **Rust** ecosystem on your machine.
