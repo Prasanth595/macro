@@ -751,6 +751,28 @@ describe('GraphQL Soup browser cache session gate', () => {
     }
   );
 
+  it('moves readers that sampled the signed-out host onto the cache at sign-in', async () => {
+    mocks.signedIn = false;
+    const soup = await import('./graphql-soup');
+    const { createMemo, createRoot } = await import('solid-js');
+    const readers = createRoot((dispose) => ({
+      dispose,
+      host: createMemo(() => soup.getGraphqlCacheHost()),
+      gatedHost: createMemo(() =>
+        soup.graphqlCacheEnabled() ? !!soup.getGraphqlCacheHost() : false
+      ),
+    }));
+    expect(readers.host()).toBeUndefined();
+    expect(readers.gatedHost()).toBe(false);
+
+    soup.setGraphqlSoupSessionActive(true);
+
+    expect(readers.host()).toBeDefined();
+    expect(readers.gatedHost()).toBe(true);
+    expect(mocks.createWorkerCacheHost).toHaveBeenCalledOnce();
+    readers.dispose();
+  });
+
   it.each([true, false])(
     'tears down the session clients when the session ends (cache rollout: %s)',
     async (cacheEnabled) => {

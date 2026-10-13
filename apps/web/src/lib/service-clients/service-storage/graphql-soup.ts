@@ -67,7 +67,7 @@ import {
   createClient as createGraphqlWsClient,
   type Client as GraphqlWsClient,
 } from 'graphql-ws';
-import { createSignal, untrack } from 'solid-js';
+import { batch, createSignal, untrack } from 'solid-js';
 import { match } from 'ts-pattern';
 import { delegateChannelNotificationRefresh } from '../../queries/channel/notification-refresh';
 import { soupOptimisticResolvers } from '../../queries/optimistic-resolvers';
@@ -444,9 +444,19 @@ const [sessionActive, setSessionActive] = createSignal(hasLoginCookie());
  */
 export function setGraphqlSoupSessionActive(active: boolean): void {
   if (untrack(sessionActive) === active) return;
-  // Flip first, or a reactive reader woken by the teardown rebuilds the client.
-  setSessionActive(active);
-  if (!active) disposeSessionClients();
+  if (!active) {
+    // Flip first, or a reactive reader woken by the teardown rebuilds the client.
+    setSessionActive(false);
+    disposeSessionClients();
+    return;
+  }
+  // Build before readers wake: getGraphqlCacheHost() only reports an existing
+  // host, so a reader that ran while signed out would otherwise stay uncached.
+  batch(() => {
+    setSessionActive(true);
+    untrack(getGraphqlSoupClient);
+    setCacheAvailability((version) => version + 1);
+  });
 }
 
 function disposeSessionClients(): void {
