@@ -505,6 +505,7 @@ fn harness_with_ports(
         permission_policies,
         coding_agents,
         mentions,
+        egress,
         None,
     )
 }
@@ -515,6 +516,7 @@ fn harness_with_ports_and_journal(
     permission_policies: impl crate::domain::ports::PermissionPolicySource,
     coding_agents: impl crate::domain::ports::CodingAgentSource,
     mentions: PromptMentionsMock,
+    egress: EgressProvisionerMock,
     journal: Option<Arc<dyn crate::domain::conversation_turns::ConversationTurnStore>>,
 ) -> (TestBench, TurnSignals) {
     harness_with_journal_and_policy(
@@ -523,17 +525,23 @@ fn harness_with_ports_and_journal(
         permission_policies,
         coding_agents,
         mentions,
+        egress,
         journal,
         None,
     )
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the test harness accepts independently replaceable ports"
+)]
 fn harness_with_journal_and_policy(
     prompt_context: PromptContextMock,
     prompt_composer: PromptComposerMock,
     permission_policies: impl crate::domain::ports::PermissionPolicySource,
     coding_agents: impl crate::domain::ports::CodingAgentSource,
     mentions: PromptMentionsMock,
+    egress: EgressProvisionerMock,
     journal: Option<Arc<dyn crate::domain::conversation_turns::ConversationTurnStore>>,
     policy: Option<Arc<dyn crate::domain::conversations::ConversationPolicy>>,
 ) -> (TestBench, TurnSignals) {

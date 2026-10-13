@@ -15,6 +15,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   issue: vi.fn(),
+  failure: vi.fn(),
   canEdit: true,
   profileLoading: false,
   liveSessions: 0,
@@ -72,7 +73,9 @@ vi.mock(
     StaticMarkdown: (props: { markdown: string }) => <p>{props.markdown}</p>,
   })
 );
-vi.mock('@core/component/Toast/Toast', () => ({ toast: { failure: vi.fn() } }));
+vi.mock('@core/component/Toast/Toast', () => ({
+  toast: { failure: mocks.failure },
+}));
 vi.mock('@ui', () => ({
   Button: (props: JSX.ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button {...props} />
@@ -187,6 +190,24 @@ it('streams the unfinished passage beneath and stops the turn', async () => {
   await waitFor(() =>
     expect(mocks.issue).toHaveBeenCalledWith({ type: 'stop' })
   );
+});
+
+it('allows Stop to be retried after its request rejects', async () => {
+  typing('working');
+  setMessages([writing('Partial')]);
+  mocks.issue.mockRejectedValueOnce(new Error('Disconnected'));
+  const view = render(() => <AgentTyping parent={parent} threadId={null} />);
+  const stop = view.getByRole<HTMLButtonElement>('button', { name: 'Stop' });
+
+  await fireEvent.click(stop);
+  await waitFor(() => {
+    expect(mocks.failure).toHaveBeenCalledWith(
+      'The agent could not be stopped'
+    );
+    expect(stop.disabled).toBe(false);
+  });
+  await fireEvent.click(stop);
+  await waitFor(() => expect(mocks.issue).toHaveBeenCalledTimes(2));
 });
 
 it('puts a question for the running turn under the row', () => {

@@ -148,7 +148,10 @@ async fn a_restarted_manager_reads_a_summary_in_place_of_the_turns_it_covered() 
         Arc::new(crate::domain::mcp::NoMcpServers),
         Arc::new(crate::testing::TestModelAccess::paid()),
     );
-    let transport = before.attach(on_model(None), None).await;
+    let transport = before
+        .attach(on_model(None), None)
+        .await
+        .expect("history should restore");
     sessions
         .attach_session(id, RuntimeAttachment::solo(transport))
         .await

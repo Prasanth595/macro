@@ -36,7 +36,8 @@ avatar sits under the newest message: `<name> is thinking`, `is typing`,
 `is working`, or `is waiting for an answer`. Below that row, the owner sees the
 passage being written as it streams. They also see any live question or
 permission request and **Stop**, which cancels the active turn. Answer those
-controls to continue.
+controls to continue. If **Stop** fails, a failure toast appears and the control
+becomes available again so you can retry.
 
 The reply is posted as ordinary messages while the turn runs. Each finished
 passage becomes a message. The steps taken between passages show inside the

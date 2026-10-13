@@ -858,7 +858,8 @@ async fn teardown_releases_pooled_mcp_sessions_for_the_egress_token() {
     let id = AgentSessionId::new();
     let _spawned = manager
         .attach(facts(id), Some("session-token".to_owned()))
-        .await;
+        .await
+        .expect("history should restore");
 
     manager.teardown(id);
 
@@ -884,11 +885,20 @@ async fn attaching_with_a_new_token_releases_the_replaced_one() {
         Arc::new(crate::testing::TestModelAccess::paid()),
     );
     let id = AgentSessionId::new();
-    let _spawned = manager.attach(facts(id), Some("spawned".to_owned())).await;
-    let _same = manager.attach(facts(id), Some("spawned".to_owned())).await;
+    let _spawned = manager
+        .attach(facts(id), Some("spawned".to_owned()))
+        .await
+        .expect("history should restore");
+    let _same = manager
+        .attach(facts(id), Some("spawned".to_owned()))
+        .await
+        .expect("history should restore");
     assert!(mcp.released.lock().expect("lock").is_empty());
 
-    let _rotated = manager.attach(facts(id), Some("rotated".to_owned())).await;
+    let _rotated = manager
+        .attach(facts(id), Some("rotated".to_owned()))
+        .await
+        .expect("history should restore");
 
     assert_eq!(manager.session_token(id).as_deref(), Some("rotated"));
     assert_eq!(mcp.released.lock().expect("lock").as_slice(), ["spawned"]);

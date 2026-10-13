@@ -181,9 +181,14 @@ function AgentTypingEntry(props: {
   const [stopping, setStopping] = createSignal(false);
   const stop = async () => {
     setStopping(true);
-    const result = await live.issue({ type: 'stop' });
-    if (result?.isErr()) toast.failure('The agent could not be stopped');
-    setStopping(false);
+    try {
+      const result = await live.issue({ type: 'stop' });
+      if (result?.isErr()) toast.failure('The agent could not be stopped');
+    } catch {
+      toast.failure('The agent could not be stopped');
+    } finally {
+      setStopping(false);
+    }
   };
 
   return (

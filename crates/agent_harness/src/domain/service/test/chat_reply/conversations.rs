@@ -34,6 +34,7 @@ async fn quota_denial_finishes_queued_conversation_turns_without_stopping_the_ru
         KindDefaultPolicies,
         HarnessDefaultCodingAgents,
         PromptMentionsMock::new(),
+        EgressProvisionerMock::new(),
         Some(journal.clone()),
     );
     let mut command = direct_command();
@@ -134,6 +135,7 @@ async fn a_message_whose_conversation_was_deleted_is_acknowledged_instead_of_red
         KindDefaultPolicies,
         HarnessDefaultCodingAgents,
         PromptMentionsMock::new(),
+        EgressProvisionerMock::new(),
         Some(journal),
         Some(policy),
     );
@@ -419,6 +421,7 @@ async fn a_completed_conversation_message_never_runs_again_when_the_broker_repla
         KindDefaultPolicies,
         HarnessDefaultCodingAgents,
         PromptMentionsMock::new(),
+        EgressProvisionerMock::new(),
         Some(journal.clone()),
     );
     let mut command = direct_command();
@@ -470,6 +473,7 @@ async fn recovered_messages_dispatch_in_durable_order_even_when_delivered_in_rev
         KindDefaultPolicies,
         HarnessDefaultCodingAgents,
         PromptMentionsMock::new(),
+        EgressProvisionerMock::new(),
         Some(journal.clone()),
     );
     let mut first = direct_command();
@@ -554,6 +558,7 @@ async fn journaled_conversation(
         KindDefaultPolicies,
         HarnessDefaultCodingAgents,
         PromptMentionsMock::new(),
+        EgressProvisionerMock::new(),
         Some(journal),
     );
     let mut command = direct_command();
@@ -907,6 +912,7 @@ async fn two_queued_behind_a_running_turn(
         KindDefaultPolicies,
         HarnessDefaultCodingAgents,
         PromptMentionsMock::new(),
+        EgressProvisionerMock::new(),
         Some(journal),
     );
     let mut command = direct_command();
