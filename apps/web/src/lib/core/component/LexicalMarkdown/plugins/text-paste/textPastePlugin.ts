@@ -1,6 +1,7 @@
 import {
   type PrRef,
   prDisplayName,
+  prHtmlUrl,
   toGithubKey,
 } from '@app/features/block-pr/util/prKey';
 import {
@@ -200,10 +201,17 @@ function $insertPastedGithubPullRequest(
 ) {
   const githubKey = toGithubKey(ref);
   const label = prDisplayName(ref);
+  // The canonical URL, not a pasted subpage, so agents reading the mention
+  // get the pull request itself.
+  const prUrl = prHtmlUrl(ref);
 
   const cached = getCachedPullRequestByGithubKey(githubKey);
   if (cached) {
-    editor.dispatchCommand(INSERT_PR_MENTION_COMMAND, { id: cached.id, label });
+    editor.dispatchCommand(INSERT_PR_MENTION_COMMAND, {
+      id: cached.id,
+      label,
+      url: prUrl,
+    });
     return;
   }
 
@@ -230,7 +238,11 @@ function $insertPastedGithubPullRequest(
           (selection.anchor.key === placeholderKey ||
             node.isParentOf(selection.anchor.getNode()));
 
-        const mention = $createPullRequestMentionNode({ id: entity.id, label });
+        const mention = $createPullRequestMentionNode({
+          id: entity.id,
+          label,
+          url: prUrl,
+        });
         node.replace(mention);
         if (caretInPlaceholder) mention.selectEnd();
       },

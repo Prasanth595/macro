@@ -128,6 +128,7 @@ describe('GitHub pull request smart paste', () => {
       if (!$isPullRequestMentionNode(mention)) return;
       expect(mention.getId()).toBe(ENTITY.id);
       expect(mention.getLabel()).toBe('macro-inc/macro#7870');
+      expect(mention.getUrl()).toBe(PR_URL);
     });
   });
 
@@ -144,7 +145,7 @@ describe('GitHub pull request smart paste', () => {
     unregisterInsert();
 
     expect(insertMention).toHaveBeenCalledWith(
-      { id: ENTITY.id, label: 'macro-inc/macro#7870' },
+      { id: ENTITY.id, label: 'macro-inc/macro#7870', url: PR_URL },
       editor
     );
     expect(fetchPullRequestByGithubKey).not.toHaveBeenCalled();
