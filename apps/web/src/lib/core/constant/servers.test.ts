@@ -28,9 +28,8 @@ it('keeps browser image URLs proxied but gives the agent a fetchable hosted URL'
   vi.stubEnv('VITE_LOCAL_SERVERS', '');
   vi.stubGlobal('location', { origin: 'https://localhost:3003' });
   vi.resetModules();
-  const { staticFileIdEndpoint, staticFileReferenceEndpoint } = await import(
-    './servers'
-  );
+  const { staticFileIdEndpoint, staticFileReferenceEndpoint } =
+    await import('./servers');
   expect(staticFileIdEndpoint('test-image')).toBe(
     'https://localhost:3003/__macro_dev/static/file/test-image'
   );

@@ -16,18 +16,49 @@ const WARMUP = 20;
 const EDITED = 7;
 const SHAPE = queryShape(gql`
   query Page($input: SoupInput!) {
-    user { id soup(input: $input) { items {
-      __typename id frecencyScore
-      ... on GraphqlSoupDocument {
-        documentName: name ownerId fileType projectId createdAt updatedAt viewedAt deletedAt
-        subType { __typename ... on GraphqlTaskSubType { isCompleted } }
-        properties { id propertyDefinitionId displayName dataType isMultiSelect value {
+    user {
+      id
+      soup(input: $input) {
+        items {
           __typename
-          ... on GraphqlSelectOptionPropertyValue { optionIds }
-          ... on GraphqlStringPropertyValue { value }
-        } }
+          id
+          frecencyScore
+          ... on GraphqlSoupDocument {
+            documentName: name
+            ownerId
+            fileType
+            projectId
+            createdAt
+            updatedAt
+            viewedAt
+            deletedAt
+            subType {
+              __typename
+              ... on GraphqlTaskSubType {
+                isCompleted
+              }
+            }
+            properties {
+              id
+              propertyDefinitionId
+              displayName
+              dataType
+              isMultiSelect
+              value {
+                __typename
+                ... on GraphqlSelectOptionPropertyValue {
+                  optionIds
+                }
+                ... on GraphqlStringPropertyValue {
+                  value
+                }
+              }
+            }
+          }
+        }
+        nextCursor
       }
-    } nextCursor } }
+    }
   }
 `);
 

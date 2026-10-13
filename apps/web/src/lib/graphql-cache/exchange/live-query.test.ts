@@ -20,9 +20,24 @@ describe('live query field propagation', () => {
   it('preserves unchanged untyped properties through structural snapshots without notifying their readers', () => {
     createRoot((dispose) => {
       try {
-        const shape = queryShape(gql`query Rows {
-          user { id rows { __typename id properties { id value { __typename optionIds } } } }
-        }`);
+        const shape = queryShape(gql`
+          query Rows {
+            user {
+              id
+              rows {
+                __typename
+                id
+                properties {
+                  id
+                  value {
+                    __typename
+                    optionIds
+                  }
+                }
+              }
+            }
+          }
+        `);
         const initial = {
           user: {
             id: 'viewer',
@@ -65,9 +80,22 @@ describe('live query field propagation', () => {
     });
   });
   it('keeps typed descendants reactive when a structural snapshot replaces an untyped ancestor', () => {
-    const shape = queryShape(
-      gql`query Rows { user { id rows { __typename id name properties { __typename id } } } }`
-    );
+    const shape = queryShape(gql`
+      query Rows {
+        user {
+          id
+          rows {
+            __typename
+            id
+            name
+            properties {
+              __typename
+              id
+            }
+          }
+        }
+      }
+    `);
     const row = {
       __typename: 'Task',
       id: 'task',
@@ -90,10 +118,30 @@ describe('live query field propagation', () => {
     expect(held.properties[0].id).toBe('tag');
   });
   it('replaces same-ID entities when their concrete type is not selected', () => {
-    const shape = queryShape(gql`query Rows {
-      rows { ... on Task { id name } ... on Project { id name } }
-      selected { ... on Task { id name } ... on Project { id name } }
-    }`);
+    const shape = queryShape(gql`
+      query Rows {
+        rows {
+          ... on Task {
+            id
+            name
+          }
+          ... on Project {
+            id
+            name
+          }
+        }
+        selected {
+          ... on Task {
+            id
+            name
+          }
+          ... on Project {
+            id
+            name
+          }
+        }
+      }
+    `);
     const task = { id: 'shared', name: 'task' };
     const project = { id: 'shared', name: 'project' };
     const view = new LiveQuery(

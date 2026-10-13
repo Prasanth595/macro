@@ -83,9 +83,8 @@ import { SessionExpiredRedirect } from './SessionExpiredRedirect';
 import { useAppSquishHandlers } from './useAppSquishHandlers';
 
 const StarterDatabase = lazy(async () => {
-  const module = await import(
-    '../../features/block-database/views/starter-database'
-  );
+  const module =
+    await import('../../features/block-database/views/starter-database');
   return { default: module.StarterDatabase };
 });
 

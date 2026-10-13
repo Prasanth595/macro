@@ -81,7 +81,7 @@ jobs:
       run: bun run type-check
       working-directory: apps/web
     - name: Check Functional Test Types
-      run: bun run --bun --silent tsc --project tests/functional/tsconfig.json
+      run: bun scripts/typescript.ts native --project tests/functional/tsconfig.json
       working-directory: apps/web
     - name: Check Collaboration Package Types
       run: bun run type-check
@@ -214,10 +214,10 @@ jobs:
       continue-on-error: true
     - name: Setup Nix
       uses: './.github/actions/setup-nix'
-    - name: Setup Nix dev shell
-      uses: './.github/actions/setup-nix-dev-shell'
-    - name: Run Biome
-      run: biome ci --changed --no-errors-on-unmatched --error-on-warnings
+    - name: Setup Web Tooling
+      uses: './.github/actions/setup-reqs-web'
+    - name: Check Web Formatting and Lint
+      run: bun run lint:ci
       working-directory: apps/web
     - name: Run Collaboration Package Biome
       run: biome ci --changed --no-errors-on-unmatched --error-on-warnings
@@ -279,10 +279,13 @@ jobs:
       continue-on-error: true
     - name: Setup Nix
       uses: './.github/actions/setup-nix'
-    - name: Setup Nix dev shell
-      uses: './.github/actions/setup-nix-dev-shell'
+    - name: Setup Web Tooling
+      uses: './.github/actions/setup-reqs-web'
     - name: Cycles Import Check
       run: biome lint --changed --no-errors-on-unmatched --only=suspicious/noImportCycles
+      working-directory: apps/web
+    - name: Knip Runtime Cycles (advisory)
+      run: bun run cycles
       working-directory: apps/web
     - name: Collaboration Package Cycles Import Check
       run: biome lint --changed --no-errors-on-unmatched --only=suspicious/noImportCycles

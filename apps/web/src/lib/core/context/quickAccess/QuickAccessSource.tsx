@@ -1281,8 +1281,8 @@ export function createQuickAccessValue(): QuickAccessContextValue {
         options?.enabled?.() !== false &&
         Boolean(
           projected?.isLoading() ||
-            historyQuery.isLoading ||
-            (cacheHost() ? cachedChannelsQuery.isLoading : channelsLoading())
+          historyQuery.isLoading ||
+          (cacheHost() ? cachedChannelsQuery.isLoading : channelsLoading())
         ),
       isLoadingMore: () => projected?.isLoadingMore() ?? false,
       loadMore: async () => {

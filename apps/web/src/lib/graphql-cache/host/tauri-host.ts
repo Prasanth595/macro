@@ -255,9 +255,8 @@ export function createTauriCacheHost(options: TauriHostOptions): CacheHost {
   }
 
   async function initialize(): Promise<void> {
-    const { default: schemaSdl } = await import(
-      '../../../../../../static_assets/schema.graphql?raw'
-    );
+    const { default: schemaSdl } =
+      await import('../../../../../../static_assets/schema.graphql?raw');
     await request<void>('graphql_cache_init_with_schema', {
       scope: options.scope,
       hotCapacity: options.hotCapacity,

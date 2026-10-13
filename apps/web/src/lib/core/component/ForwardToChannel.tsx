@@ -45,14 +45,13 @@ import { ScrollIndicators } from './VerticalScrollIndicators';
 
 type Recipient = WithCustomUserInput<'user' | 'contact' | 'channel'>;
 
-interface MobileForwardToChannelLayoutProps
-  extends Pick<
-    ForwardToChannelProps,
-    | 'submitPermissionInfo'
-    | 'hideAccessLevelSelector'
-    | 'editPermissionEnabled'
-    | 'allowedAccessLevels'
-  > {
+interface MobileForwardToChannelLayoutProps extends Pick<
+  ForwardToChannelProps,
+  | 'submitPermissionInfo'
+  | 'hideAccessLevelSelector'
+  | 'editPermissionEnabled'
+  | 'allowedAccessLevels'
+> {
   isAuthenticated: Accessor<boolean | undefined>;
   selectedOptions: Accessor<Recipient[]>;
   setSelectedOptions: (v: Recipient[]) => void;

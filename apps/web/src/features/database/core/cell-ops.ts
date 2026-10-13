@@ -33,12 +33,11 @@ function listedValues(
     (text: string): unknown => JSON.parse(text),
     (): DatabaseCellFailure => ({ kind: 'malformed-list' })
   )(value);
-  return parsed.andThen(
-    (list): Result<string[], DatabaseCellFailure> =>
-      Array.isArray(list) &&
-      list.every((item) => typeof item === 'string' || typeof item === 'number')
-        ? ok(list.map(String))
-        : err({ kind: 'malformed-list' })
+  return parsed.andThen((list): Result<string[], DatabaseCellFailure> =>
+    Array.isArray(list) &&
+    list.every((item) => typeof item === 'string' || typeof item === 'number')
+      ? ok(list.map(String))
+      : err({ kind: 'malformed-list' })
   );
 }
 
@@ -76,9 +75,8 @@ export function cellValue(
 ): Result<CellValue, DatabaseCellFailure> {
   const definition = column;
   if (column.relation)
-    return listedValues(value).map(
-      (rows): CellValue =>
-        rows.length ? { type: 'rows', value: [...new Set(rows)] } : CLEAR
+    return listedValues(value).map((rows): CellValue =>
+      rows.length ? { type: 'rows', value: [...new Set(rows)] } : CLEAR
     );
   if (definition.isMultiSelect)
     return listedValues(value).andThen(

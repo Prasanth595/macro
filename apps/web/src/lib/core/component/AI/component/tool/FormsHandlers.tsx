@@ -43,9 +43,9 @@ function handler<N extends Name>(name: N): ToolHandler<N, RenderContext> {
     },
     handleResponse: async (context) => {
       if (isFeatureEnabled(enableForms))
-        await (await import('./Forms')).formsToolHandlers[
-          name
-        ].handleResponse?.(context);
+        await (
+          await import('./Forms')
+        ).formsToolHandlers[name].handleResponse?.(context);
     },
   };
 }

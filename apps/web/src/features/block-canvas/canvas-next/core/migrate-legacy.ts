@@ -67,33 +67,30 @@ function migrateNode(
     height: Math.max(1, node.height),
   };
   return match(node)
-    .with(
-      { type: 'shape' },
-      (node): ShapeItem<'rectangle' | 'ellipse'> => ({
-        ...base,
-        type: node.shape,
-        appearance: {
-          ...appearance(node.style, true),
-          cornerRadius:
-            (node.style?.cornerRadius ?? 0) >= 100
-              ? Math.min(box.width, box.height) / 2
-              : (node.style?.cornerRadius ?? 0),
-        },
-        geometry: {
-          ...box,
-          ...(node.label
-            ? {
-                label: {
-                  content: plainRichText(node.label, 'center'),
-                  fontSize: node.style?.textSize ?? 12,
-                  fontFamily: 'sans',
-                  height: (node.style?.textSize ?? 12) * 1.35,
-                },
-              }
-            : {}),
-        },
-      })
-    )
+    .with({ type: 'shape' }, (node): ShapeItem<'rectangle' | 'ellipse'> => ({
+      ...base,
+      type: node.shape,
+      appearance: {
+        ...appearance(node.style, true),
+        cornerRadius:
+          (node.style?.cornerRadius ?? 0) >= 100
+            ? Math.min(box.width, box.height) / 2
+            : (node.style?.cornerRadius ?? 0),
+      },
+      geometry: {
+        ...box,
+        ...(node.label
+          ? {
+              label: {
+                content: plainRichText(node.label, 'center'),
+                fontSize: node.style?.textSize ?? 12,
+                fontFamily: 'sans',
+                height: (node.style?.textSize ?? 12) * 1.35,
+              },
+            }
+          : {}),
+      },
+    }))
     .with({ type: 'text' }, (node): ShapeItem<'text'> => {
       const content = text(node.text);
       if (!validCanvasText(content))

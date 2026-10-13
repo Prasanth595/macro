@@ -212,13 +212,11 @@ function discussion(
     isSuccess: true,
     get data() {
       return {
-        pages: pages().map(
-          (messages): MessageTimelinePage => ({
-            entries: messages.map((message) => ({ type: 'message', message })),
-            next_cursor: null,
-            previous_cursor: null,
-          })
-        ),
+        pages: pages().map((messages): MessageTimelinePage => ({
+          entries: messages.map((message) => ({ type: 'message', message })),
+          next_cursor: null,
+          previous_cursor: null,
+        })),
       };
     },
   });

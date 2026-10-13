@@ -52,13 +52,11 @@ export function createEraserState(
     const now = performance.now();
     samples = samples.filter((point) => now - point.time < lifetime);
     setTrail(
-      samples.map(
-        (point): PencilPoint => [
-          point.x,
-          point.y,
-          Math.max(0, 1 - (now - point.time) / lifetime),
-        ]
-      )
+      samples.map((point): PencilPoint => [
+        point.x,
+        point.y,
+        Math.max(0, 1 - (now - point.time) / lifetime),
+      ])
     );
     frame = samples.length ? requestAnimationFrame(animate) : undefined;
   };

@@ -263,6 +263,65 @@ fn test_job_runs_signup_browser_tests_after_vitest() {
 }
 
 #[test]
+fn web_typecheck_uses_the_native_compiler_script() {
+    let yaml = web_app_check_main().to_string().expect("workflow yaml");
+    let step = yaml
+        .split("name: Check Types\n")
+        .nth(1)
+        .and_then(|rest| rest.split("- name:").next())
+        .expect("web typecheck step");
+    assert!(step.contains("run: bun run type-check"));
+    assert!(step.contains("working-directory: apps/web"));
+    assert!(!step.contains("--silent tsc"));
+}
+
+#[test]
+fn web_tooling_changes_do_not_replace_shared_package_biome() {
+    let yaml = web_app_check_main().to_string().expect("workflow yaml");
+    assert!(yaml.contains("name: Check Web Formatting and Lint"));
+    assert!(yaml.contains("run: bun run lint:ci"));
+    let biome = yaml
+        .split("\n  biome-check:\n")
+        .nth(1)
+        .and_then(|rest| rest.split("\n  test:").next())
+        .expect("Biome job");
+    let dependencies = biome
+        .find(".github/actions/setup-reqs-web")
+        .expect("install pinned web tooling");
+    let lint = biome.find("run: bun run lint:ci").expect("web lint step");
+    assert!(dependencies < lint);
+    let step = yaml
+        .split("name: Run Collaboration Package Biome")
+        .nth(1)
+        .and_then(|rest| rest.split("- name:").next())
+        .expect("collaboration lint step");
+    assert!(step.contains("biome ci --changed --no-errors-on-unmatched --error-on-warnings"));
+    assert!(step.contains("working-directory: packages/collaboration"));
+}
+
+#[test]
+fn runtime_cycles_keep_the_original_biome_policy_check() {
+    let yaml = web_app_check_main().to_string().expect("workflow yaml");
+    let cycles = yaml
+        .split("\n  cycles:\n")
+        .nth(1)
+        .and_then(|rest| rest.split("\n  build:").next())
+        .expect("cycles job");
+    let dependencies = cycles
+        .find(".github/actions/setup-reqs-web")
+        .expect("install pinned Knip dependencies");
+    let biome = cycles
+        .find("--only=suspicious/noImportCycles")
+        .expect("Biome cycle check");
+    let knip = cycles
+        .find("Knip Runtime Cycles (advisory)")
+        .expect("Knip cycle check");
+    assert!(biome < knip);
+    assert!(dependencies < biome);
+    assert!(cycles.contains("run: bun run cycles"));
+}
+
+#[test]
 fn test_job_keeps_vitest_module_cache_on_the_cache_volume() {
     let yaml = web_app_check_main().to_string().expect("workflow yaml");
     let start = yaml.find("name: Test\n").expect("Test job");

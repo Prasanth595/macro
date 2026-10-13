@@ -9,9 +9,30 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { empty, makeSubject, mergeMap, pipe, type Subject } from 'wonka';
 import { networkRevalidationExchange } from './network-revalidation-exchange';
 
-const LIST = gql`query List { items { id tags } }`;
-const DETAIL = gql`query Detail { item { id tags } }`;
-const SAVE = gql`mutation Save { save { id tags } }`;
+const LIST = gql`
+  query List {
+    items {
+      id
+      tags
+    }
+  }
+`;
+const DETAIL = gql`
+  query Detail {
+    item {
+      id
+      tags
+    }
+  }
+`;
+const SAVE = gql`
+  mutation Save {
+    save {
+      id
+      tags
+    }
+  }
+`;
 
 async function observeSettlement<T>(
   result: Promise<T>,

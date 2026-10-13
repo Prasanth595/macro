@@ -32,9 +32,8 @@ vi.mock('@app/features/next-soup/soup-view/soup-view-context', () => ({
   SoupViewContextProvider: (props: ParentProps) => props.children,
 }));
 vi.mock('@app/features/next-soup/soup-view/soup-view', async () => {
-  const { SoupViewFileDropzone } = await import(
-    '@app/features/next-soup/soup-view/soup-view-file-dropzone'
-  );
+  const { SoupViewFileDropzone } =
+    await import('@app/features/next-soup/soup-view/soup-view-file-dropzone');
   return {
     SoupViewList: (props: { uploadProjectId?: string }) => (
       <SoupViewFileDropzone projectId={props.uploadProjectId}>

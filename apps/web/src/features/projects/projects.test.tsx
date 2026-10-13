@@ -300,9 +300,8 @@ it('keeps permission denials latched across cache hits and hides disabled detail
   setupGraphql();
   const data = (
     await mocks.soup({
-      query: (
-        await import('@service-storage/graphql/generated/graphql')
-      ).InitiativeDocument,
+      query: (await import('@service-storage/graphql/generated/graphql'))
+        .InitiativeDocument,
     })
   ).data;
   const { client, requests } = controlledClient();

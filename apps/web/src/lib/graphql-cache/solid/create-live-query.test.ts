@@ -11,10 +11,13 @@ import { parseCacheRevision } from '../protocol';
 import { createLiveQuery } from './create-live-query';
 
 it('uses typed document variables, pauses undefined inputs and updates held objects', async () => {
-  const doc = gql<
-    { user: { name: string } },
-    { id: string }
-  >`query Viewer($id: ID!) { user(id:$id) { name } }`;
+  const doc = gql<{ user: { name: string } }, { id: string }>`
+    query Viewer($id: ID!) {
+      user(id: $id) {
+        name
+      }
+    }
+  `;
   let affected!: (keys: number[]) => void;
   let key = 0;
   const watchQuery = vi.fn().mockImplementation(async (args) => {
@@ -79,7 +82,13 @@ it('uses typed document variables, pauses undefined inputs and updates held obje
 });
 
 it('does not replay a network result or its persistence acknowledgement on a cache notification', async () => {
-  const doc = gql<{ user: { name: string } }>`query Viewer { user { name } }`;
+  const doc = gql<{ user: { name: string } }>`
+    query Viewer {
+      user {
+        name
+      }
+    }
+  `;
   let affected!: (keys: number[]) => void;
   let key = 0;
   const revision = parseCacheRevision;

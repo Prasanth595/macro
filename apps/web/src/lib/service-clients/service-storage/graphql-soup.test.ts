@@ -464,9 +464,8 @@ describe('legacy channel list notifications', () => {
 
   it('preserves mention and reply thread membership and message targets', async () => {
     const { mapGraphqlNotification } = await import('./graphql-soup');
-    const { scopeChannelNotificationsForEntity } = await import(
-      '../../../features/soup/entity-notifications'
-    );
+    const { scopeChannelNotificationsForEntity } =
+      await import('../../../features/soup/entity-notifications');
     const mapped = [
       notification({
         __typename: 'GraphqlChannelMessageSendMetadata',
@@ -761,9 +760,8 @@ describe('GraphQL Soup browser cache session gate', () => {
       const report =
         mocks.normalizedCacheExchange.mock.calls[0]?.[1]?.onCacheError;
 
-      const { CacheNavigationError } = await import(
-        '@graphql-cache/host/navigation-error'
-      );
+      const { CacheNavigationError } =
+        await import('@graphql-cache/host/navigation-error');
       report?.(new CacheNavigationError(), operation);
       report?.(
         Object.assign(new Error('owner lock is held by another context'), {
@@ -795,9 +793,8 @@ describe('GraphQL Soup browser cache session gate', () => {
     async (causeKind, errorCode, shouldReport) => {
       const soup = await import('./graphql-soup');
       soup.getGraphqlSoupClient();
-      const { CacheNavigationError } = await import(
-        '@graphql-cache/host/navigation-error'
-      );
+      const { CacheNavigationError } =
+        await import('@graphql-cache/host/navigation-error');
       const navigation = new CacheNavigationError();
       const causes = {
         navigation,
@@ -983,9 +980,8 @@ describe('GraphQL Soup browser cache session gate', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     mocks.tauri = true;
     const soup = await import('./graphql-soup');
-    const { NativeCacheUpgradeRequiredError } = await import(
-      '@graphql-cache/host/tauri-host'
-    );
+    const { NativeCacheUpgradeRequiredError } =
+      await import('@graphql-cache/host/tauri-host');
     const cached = soup.getGraphqlSoupClient();
     mocks.failInitialization(new NativeCacheUpgradeRequiredError());
     expect(mocks.toastFailure).toHaveBeenCalledWith(

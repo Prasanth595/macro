@@ -10,5 +10,4 @@ import type { TeamWithMembersScheduledSeatPlansAnyOf } from './teamWithMembersSc
  * Provider-confirmed pending seat changes, keyed by member user ID.
 Empty when no changes apply to this viewer; absent when the lookup fails.
  */
-export type TeamWithMembersScheduledSeatPlans =
-  TeamWithMembersScheduledSeatPlansAnyOf | null;
+export type TeamWithMembersScheduledSeatPlans = TeamWithMembersScheduledSeatPlansAnyOf | null;

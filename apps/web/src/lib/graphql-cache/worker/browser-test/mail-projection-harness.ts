@@ -347,7 +347,13 @@ document.querySelector('#resume-draft')!.addEventListener('click', async () => {
     // Initialize the exchange, which resumes the durable queue without a composer.
     await client
       .query(
-        gql`query Viewer { user { id } }`,
+        gql`
+          query Viewer {
+            user {
+              id
+            }
+          }
+        `,
         {},
         { requestPolicy: 'cache-only' }
       )
@@ -391,10 +397,16 @@ document
       const missingThread = id(12);
       const deletedDraftThread = id(24);
       const directQuery = gql`
-      query EmailThreadPage($threadId: ID!) {
-        user { id emailThread(input: {threadId: $threadId}) { id name } }
-      }
-    `;
+        query EmailThreadPage($threadId: ID!) {
+          user {
+            id
+            emailThread(input: { threadId: $threadId }) {
+              id
+              name
+            }
+          }
+        }
+      `;
       const client = createClient({
         url: '/scripted-email-server',
         exchanges: [

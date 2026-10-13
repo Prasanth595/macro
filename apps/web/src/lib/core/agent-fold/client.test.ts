@@ -94,9 +94,8 @@ describe('agent fold preloading', () => {
   });
 
   it('reports an unavailable script with its URL without assuming a stale build', async () => {
-    const { AgentFoldWorkerUnavailable, pushSession } = await import(
-      './client'
-    );
+    const { AgentFoldWorkerUnavailable, pushSession } =
+      await import('./client');
     const pushed = pushSession('session', [{ kind: 'snapshot', rows: [] }]);
 
     workers[0]!.dispatchEvent(new ErrorEvent('error', { message: '' }));
@@ -108,9 +107,8 @@ describe('agent fold preloading', () => {
   });
 
   it('reports a script that loaded and threw as a startup failure', async () => {
-    const { AgentFoldWorkerUnavailable, pushSession } = await import(
-      './client'
-    );
+    const { AgentFoldWorkerUnavailable, pushSession } =
+      await import('./client');
     const pushed = pushSession('session', [{ kind: 'snapshot', rows: [] }]);
 
     workers[0]!.dispatchEvent(

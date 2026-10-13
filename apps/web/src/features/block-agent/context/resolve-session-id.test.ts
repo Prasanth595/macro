@@ -128,13 +128,11 @@ vi.mock('@core/agent-session/AgentSession', () => ({
   },
 }));
 
-const { forgetPendingSession, startPendingSession } = await import(
-  './pending-session'
-);
+const { forgetPendingSession, startPendingSession } =
+  await import('./pending-session');
 const { PromptTrace } = await import('@core/agent-session/prompt-telemetry');
-const { agentHarnessServiceClient } = await import(
-  '@service-agent-harness/client'
-);
+const { agentHarnessServiceClient } =
+  await import('@service-agent-harness/client');
 const { resolveSessionId } = await import('./resolve-session-id');
 
 /** Let the mocked create's `.then` run. */

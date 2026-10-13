@@ -97,8 +97,8 @@ function setup(grouped: boolean, targets: string[]) {
     const pending = usePendingGraphqlSoupDone();
     const project = createGraphqlSoupDoneProjection();
     const deleted = new Set<string>();
-    const visible = createMemo(
-      () => project('same-query', source, pending(), true, deleted)!
+    const visible = createMemo(() =>
+      project('same-query', source, pending(), true, deleted)!
     );
     const entities = source.entities.filter(({ id }) => targets.includes(id));
     const operation = createGraphqlDoneOperation({

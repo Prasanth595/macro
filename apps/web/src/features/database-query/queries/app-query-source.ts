@@ -42,12 +42,10 @@ const databasesFailure = (thrown: unknown): QueryFailure => ({
 });
 
 function viewerDatabases(): ResultAsync<DatabaseDetail[], QueryFailure> {
-  return fetchViewerDatabases().mapErr(
-    (errors): QueryFailure => ({
-      kind: 'databases',
-      error: serviceError(errors),
-    })
-  );
+  return fetchViewerDatabases().mapErr((errors): QueryFailure => ({
+    kind: 'databases',
+    error: serviceError(errors),
+  }));
 }
 
 function generateDatabaseQuery(
@@ -158,12 +156,10 @@ export function saveQuestionSql(input: {
       createSavedDatabaseQuery({
         definition: { version: 1, query: input.sql },
         ...(input.databaseId ? { databaseId: input.databaseId } : {}),
-      }).mapErr(
-        (errors): QueryFailure => ({
-          kind: 'question',
-          error: serviceError(errors),
-        })
-      )
+      }).mapErr((errors): QueryFailure => ({
+        kind: 'question',
+        error: serviceError(errors),
+      }))
     )
     .map((saved) => saved.id);
 }

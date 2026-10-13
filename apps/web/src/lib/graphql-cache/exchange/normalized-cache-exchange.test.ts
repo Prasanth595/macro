@@ -765,8 +765,24 @@ describe('normalizedCacheExchange', () => {
 
   it('keeps live objects reactive through full reads on older cache hosts', async () => {
     type Rows = { rows: { __typename: string; id: string; isRead: boolean }[] };
-    const first = gql<Rows>`query First { rows { __typename id isRead } }`;
-    const second = gql<Rows>`query Second { rows { __typename id isRead } }`;
+    const first = gql<Rows>`
+      query First {
+        rows {
+          __typename
+          id
+          isRead
+        }
+      }
+    `;
+    const second = gql<Rows>`
+      query Second {
+        rows {
+          __typename
+          id
+          isRead
+        }
+      }
+    `;
     const snapshot = {
       rows: [{ __typename: 'Thread', id: '17', isRead: false }],
     };

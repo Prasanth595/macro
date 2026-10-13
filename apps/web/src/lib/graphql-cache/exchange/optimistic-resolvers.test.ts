@@ -72,7 +72,11 @@ describe('automatic local mutation resolvers', () => {
         input?: { id?: string; tags?: string[]; mode?: string };
         limit?: number;
       }
-    >`mutation Apply($input: ApplyInput, $limit: Int) { apply(input: $input, limit: $limit) }`;
+    >`
+      mutation Apply($input: ApplyInput, $limit: Int) {
+        apply(input: $input, limit: $limit)
+      }
+    `;
     const { client, forwarded } = setup(() => [
       optimisticResolver(document, (args) => {
         resolved.push(args);
@@ -83,7 +87,10 @@ describe('automatic local mutation resolvers', () => {
       .mutation(
         gql`
           mutation ApplyFast($id: ID = "default", $tag: String, $limit: Int) {
-            apply(input: { id: $id, tags: [$tag, "fixed"], mode: FAST }, limit: $limit)
+            apply(
+              input: { id: $id, tags: [$tag, "fixed"], mode: FAST }
+              limit: $limit
+            )
           }
         `,
         { tag: 'one' }
@@ -99,11 +106,18 @@ describe('automatic local mutation resolvers', () => {
   });
 
   it('predicts every root field and merges their options', async () => {
-    const lookup = gql`query Thread($id: ID!) { thread(id: $id) { id } }`;
-    const archive = gql<
-      { archived: boolean },
-      { threadId: string }
-    >`mutation Archive($threadId: ID!) { archived(threadId: $threadId) }`;
+    const lookup = gql`
+      query Thread($id: ID!) {
+        thread(id: $id) {
+          id
+        }
+      }
+    `;
+    const archive = gql<{ archived: boolean }, { threadId: string }>`
+      mutation Archive($threadId: ID!) {
+        archived(threadId: $threadId)
+      }
+    `;
     const { client, forwarded } = setup(() => [
       optimisticResolver(
         MarkEmailThreadSeenDocument,
@@ -126,9 +140,13 @@ describe('automatic local mutation resolvers', () => {
       .mutation(
         gql`
           mutation SeenAndArchived {
-            first: markEmailThreadSeen(input: { threadId: "first" }) { id }
+            first: markEmailThreadSeen(input: { threadId: "first" }) {
+              id
+            }
             archived(threadId: "second")
-            third: markEmailThreadSeen(input: { threadId: "third" }) { id }
+            third: markEmailThreadSeen(input: { threadId: "third" }) {
+              id
+            }
           }
         `,
         {},
@@ -153,15 +171,37 @@ describe('automatic local mutation resolvers', () => {
   it.each([
     [
       'an unregistered field',
-      gql`mutation Mixed { markEmailThreadSeen(input: { threadId: "thread" }) { id } other }`,
+      gql`
+        mutation Mixed {
+          markEmailThreadSeen(input: { threadId: "thread" }) {
+            id
+          }
+          other
+        }
+      `,
     ],
     [
       'a conditional field',
-      gql`mutation Conditional($skip: Boolean!) { markEmailThreadSeen(input: { threadId: "thread" }) @skip(if: $skip) { id } }`,
+      gql`
+        mutation Conditional($skip: Boolean!) {
+          markEmailThreadSeen(input: { threadId: "thread" }) @skip(if: $skip) {
+            id
+          }
+        }
+      `,
     ],
     [
       'a root fragment',
-      gql`mutation Spread { ...Root } fragment Root on Mutation { markEmailThreadSeen(input: { threadId: "thread" }) { id } }`,
+      gql`
+        mutation Spread {
+          ...Root
+        }
+        fragment Root on Mutation {
+          markEmailThreadSeen(input: { threadId: "thread" }) {
+            id
+          }
+        }
+      `,
     ],
   ])('sends %s without any prediction', async (_, document) => {
     const { client, forwarded, resolved } = setup();
@@ -174,14 +214,25 @@ describe('automatic local mutation resolvers', () => {
   it('sends no partial prediction when one root field declines', async () => {
     const declined = gql<{
       declined: boolean;
-    }>`mutation Declined { declined }`;
+    }>`
+      mutation Declined {
+        declined
+      }
+    `;
     const { client, forwarded, resolved } = setup((seen) => [
       seen,
       optimisticResolver(declined, () => undefined),
     ]);
     await client
       .mutation(
-        gql`mutation Both { markEmailThreadSeen(input: { threadId: "thread" }) { id } declined }`,
+        gql`
+          mutation Both {
+            markEmailThreadSeen(input: { threadId: "thread" }) {
+              id
+            }
+            declined
+          }
+        `,
         {}
       )
       .toPromise();
@@ -191,7 +242,13 @@ describe('automatic local mutation resolvers', () => {
   });
 
   it('combines variable-dependent resolver options with caller options', async () => {
-    const lookup = gql`query Thread($id: ID!) { thread(id: $id) { id } }`;
+    const lookup = gql`
+      query Thread($id: ID!) {
+        thread(id: $id) {
+          id
+        }
+      }
+    `;
     const resolver = optimisticResolver(
       MarkEmailThreadSeenDocument,
       ({ input }) => ({ id: String(input.threadId), isRead: true }),
@@ -225,7 +282,11 @@ describe('automatic local mutation resolvers', () => {
     async (value) => {
       const document = gql<{
         applied: boolean | null;
-      }>`mutation Apply { applied }`;
+      }>`
+        mutation Apply {
+          applied
+        }
+      `;
       const { client, forwarded } = setup(() => [
         optimisticResolver(document, () => value),
       ]);
@@ -245,7 +306,16 @@ describe('automatic local mutation resolvers', () => {
         { optimisticMutation: false }
       )
       .toPromise();
-    await client.mutation(gql`mutation Other { other }`, {}).toPromise();
+    await client
+      .mutation(
+        gql`
+          mutation Other {
+            other
+          }
+        `,
+        {}
+      )
+      .toPromise();
     expect(forwarded.map(optimisticContextOf)).toEqual([undefined, undefined]);
   });
 
@@ -279,26 +349,71 @@ describe('automatic local mutation resolvers', () => {
   it('rejects a second resolver for the same field and non-mutation documents', () => {
     const { resolver } = setup();
     const aliased = optimisticResolver(
-      gql<
-        { seen: { id: string } },
-        { input: { threadId: string } }
-      >`mutation Aliased($input: MarkEmailThreadSeenInput!) { seen: markEmailThreadSeen(input: $input) { id } }`,
+      gql<{ seen: { id: string } }, { input: { threadId: string } }>`
+        mutation Aliased($input: MarkEmailThreadSeenInput!) {
+          seen: markEmailThreadSeen(input: $input) {
+            id
+          }
+        }
+      `,
       ({ input }) => ({ id: input.threadId })
     );
     expect(() => optimisticResolversExchange([resolver, aliased])).toThrow(
       'Duplicate optimistic resolver for mutation field markEmailThreadSeen'
     );
     expect(() =>
-      optimisticResolver(gql`query Read { id }`, () => undefined)
+      optimisticResolver(
+        gql`
+          query Read {
+            id
+          }
+        `,
+        () => undefined
+      )
     ).toThrow('mutation');
   });
 
   it.each([
-    gql`mutation Both { first { id } second { id } }`,
-    gql`mutation Conditional($skip: Boolean!) { first @skip(if: $skip) { id } }`,
-    gql`mutation Spread { ...Root } fragment Root on Mutation { first { id } }`,
-    gql`mutation Metadata { renamed: __typename }`,
-    gql`mutation ExtraMetadata { renamed: __typename first { id } }`,
+    gql`
+      mutation Both {
+        first {
+          id
+        }
+        second {
+          id
+        }
+      }
+    `,
+    gql`
+      mutation Conditional($skip: Boolean!) {
+        first @skip(if: $skip) {
+          id
+        }
+      }
+    `,
+    gql`
+      mutation Spread {
+        ...Root
+      }
+      fragment Root on Mutation {
+        first {
+          id
+        }
+      }
+    `,
+    gql`
+      mutation Metadata {
+        renamed: __typename
+      }
+    `,
+    gql`
+      mutation ExtraMetadata {
+        renamed: __typename
+        first {
+          id
+        }
+      }
+    `,
   ])('rejects roots that cannot be wrapped unambiguously', (document) => {
     expect(() => optimisticResolver(document, () => undefined)).toThrow(
       'one unconditional top-level mutation field'
@@ -306,10 +421,34 @@ describe('automatic local mutation resolvers', () => {
   });
 
   it.each([
-    gql`mutation Nested($id: ID!) { first(input: { id: $id }) { id } }`,
-    gql`mutation Renamed($other: ID!) { first(id: $other) { id } }`,
-    gql`mutation Constant { first(id: "id") { id } }`,
-    gql`mutation Unused($id: ID!, $extra: Boolean) { first(id: $id) { id } }`,
+    gql`
+      mutation Nested($id: ID!) {
+        first(input: { id: $id }) {
+          id
+        }
+      }
+    `,
+    gql`
+      mutation Renamed($other: ID!) {
+        first(id: $other) {
+          id
+        }
+      }
+    `,
+    gql`
+      mutation Constant {
+        first(id: "id") {
+          id
+        }
+      }
+    `,
+    gql`
+      mutation Unused($id: ID!, $extra: Boolean) {
+        first(id: $id) {
+          id
+        }
+      }
+    `,
   ])(
     'requires representative arguments to be same-named variables',
     (document) => {

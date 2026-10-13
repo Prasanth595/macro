@@ -12,7 +12,8 @@ type LoadedForm = FormDetail & { userAccessLevel: AccessLevel };
  */
 export async function loadForm(id: string) {
   const result = await fetchFormDetail(id);
-  return result.map(
-    (detail): LoadedForm => ({ ...detail, userAccessLevel: detail.access })
-  );
+  return result.map((detail): LoadedForm => ({
+    ...detail,
+    userAccessLevel: detail.access,
+  }));
 }

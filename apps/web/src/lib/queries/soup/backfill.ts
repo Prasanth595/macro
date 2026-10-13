@@ -421,18 +421,16 @@ function withEmailRecency(
   if (!windows?.length) return input;
 
   const recency = windows
-    .map(
-      ({ signal, days }): GraphqlEmailExpr => ({
-        and: {
-          left: { literal: { importance: signal } },
-          right: {
-            literal: {
-              updatedAt: { gte: new Date(now - days * DAY_MS).toISOString() },
-            },
+    .map(({ signal, days }): GraphqlEmailExpr => ({
+      and: {
+        left: { literal: { importance: signal } },
+        right: {
+          literal: {
+            updatedAt: { gte: new Date(now - days * DAY_MS).toISOString() },
           },
         },
-      })
-    )
+      },
+    }))
     .reduce((left, right) => ({ or: { left, right } }));
   const filters = input.filters ?? {};
   return {

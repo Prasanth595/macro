@@ -187,9 +187,8 @@ describe('trigger conditions', () => {
 
 describe('completed routine classification', () => {
   it('recognizes exhausted multiple and custom schedules, but not Macro events', async () => {
-    const { hasOnlyScheduledTriggers } = await import(
-      '../core/routine-triggers'
-    );
+    const { hasOnlyScheduledTriggers } =
+      await import('../core/routine-triggers');
     expect(
       hasOnlyScheduledTriggers([
         newScheduleTrigger('once'),

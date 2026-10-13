@@ -62,14 +62,12 @@ function exportTableCsv(
         message: 'This form’s table no longer exists.',
       });
     return exportDatabaseTableCsv(detail, table)
-      .mapErr(
-        (failure): FormWriteFailure => ({
-          message:
-            failure.kind === 'too-large'
-              ? 'This table is too large for CSV export.'
-              : 'Could not export this table.',
-        })
-      )
+      .mapErr((failure): FormWriteFailure => ({
+        message:
+          failure.kind === 'too-large'
+            ? 'This table is too large for CSV export.'
+            : 'Could not export this table.',
+      }))
       .andThen((blob) =>
         ResultAsync.fromPromise(
           downloadFile(blob, `${table.table.name}.csv`),

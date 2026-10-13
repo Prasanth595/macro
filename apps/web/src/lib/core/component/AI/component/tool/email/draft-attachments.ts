@@ -55,14 +55,12 @@ export type DraftAttachmentsOptions = {
 
 export function createDraftAttachments(options: DraftAttachmentsOptions) {
   const [list, setList] = createSignal<DraftFormAttachment[]>(
-    (options.initial ?? []).map(
-      (attachment): DocumentAttachment => ({
-        type: 'document',
-        documentId: attachment.documentId,
-        fileName: PENDING_ATTACHMENT_NAME,
-        fileSize: 0,
-      })
-    )
+    (options.initial ?? []).map((attachment): DocumentAttachment => ({
+      type: 'document',
+      documentId: attachment.documentId,
+      fileName: PENDING_ATTACHMENT_NAME,
+      fileSize: 0,
+    }))
   );
   const [uploadingCount, setUploadingCount] = createSignal(0);
 
@@ -115,17 +113,16 @@ export function createDraftAttachments(options: DraftAttachmentsOptions) {
         return;
       }
       setList((current) =>
-        current.map(
-          (attachment): DraftFormAttachment =>
-            attachment.type === 'local' && attachment.file === entry.file
-              ? {
-                  type: 'document',
-                  documentId: uploaded.documentId,
-                  fileName: entry.file.name,
-                  mimeType: entry.file.type || undefined,
-                  fileSize: entry.file.size,
-                }
-              : attachment
+        current.map((attachment): DraftFormAttachment =>
+          attachment.type === 'local' && attachment.file === entry.file
+            ? {
+                type: 'document',
+                documentId: uploaded.documentId,
+                fileName: entry.file.name,
+                mimeType: entry.file.type || undefined,
+                fileSize: entry.file.size,
+              }
+            : attachment
         )
       );
       options.onChange();

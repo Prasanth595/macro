@@ -337,9 +337,8 @@ export function loadCacheWasm(): Promise<CacheWasmModule> {
         if (!(exports.memory instanceof WebAssembly.Memory)) {
           throw new Error('cache WASM did not export its linear memory');
         }
-        const { default: schemaSdl } = await import(
-          '../../../../../../static_assets/schema.graphql?raw'
-        );
+        const { default: schemaSdl } =
+          await import('../../../../../../static_assets/schema.graphql?raw');
         mod.configureCacheSchema(schemaSdl);
         wasmMemory = exports.memory;
         mod.setSlowQueryCallback?.((queryFingerprint, durationMs, success) => {

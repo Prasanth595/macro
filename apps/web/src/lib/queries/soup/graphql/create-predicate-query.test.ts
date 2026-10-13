@@ -23,7 +23,13 @@ type Row = {
   nested: { count: number };
 };
 const selection = selectRecords(
-  gql`fragment Item on GraphqlSoupEmailThread { id name read: isRead }` as TypedDocumentNode<Row>
+  gql`
+    fragment Item on GraphqlSoupEmailThread {
+      id
+      name
+      read: isRead
+    }
+  ` as TypedDocumentNode<Row>
 );
 const request = {
   source: {

@@ -16,9 +16,8 @@ export const openGlobalShareModal = async (props: {
   // A form shares its respond link and audience at its own access level.
   if (entity.type === 'form') {
     try {
-      const { openFormShareModal } = await import(
-        '@app/features/block-form/form-global-sharing'
-      );
+      const { openFormShareModal } =
+        await import('@app/features/block-form/form-global-sharing');
       return await openFormShareModal(entity.id);
     } catch {
       toast.failure('This form’s sharing couldn’t be loaded.');
