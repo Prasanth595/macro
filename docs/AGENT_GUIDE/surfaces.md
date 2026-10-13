@@ -1225,11 +1225,12 @@ a row switches the owner for the entire workspace; ownership badges identify
 the selected scope. Owner changes discard link/schedule drafts and stay disabled during saves.
 Each tab's heading appears in the main topbar, with its description available
 through an info tooltip rather than a separate large header. **New booking link** also lives in the
-topbar; link search and booking date filters remain below it. The selected tab and
+topbar; link search and booking date filters remain below it. Tab content aligns
+with the left content gutter instead of using automatic horizontal margins. The selected tab and
 owner survive reload through route search state (`tab` and `owner` in the
-`booking-links` namespace). On collapsed or overlay navigation, tab controls remain
-above the content; expand the sidebar to switch the owner. Calendar's booking
-actions open this workspace.
+`booking-links` namespace). Tab navigation stays in the sidebar at every width;
+open the sidebar to switch the tab or owner. Calendar's booking actions open
+this workspace.
 **Booking page** is a full-width, height-filling public-page canvas, with no
 centered workspace width cap or separate details panel. **Edit** and **Preview**
 mode tabs sit on the left of its header; the accent **Save** action sits on the

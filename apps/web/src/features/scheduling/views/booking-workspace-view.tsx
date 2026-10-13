@@ -1,8 +1,4 @@
-import {
-  useViewShell,
-  ViewShell,
-  ViewSidebar,
-} from '@app/components/view-shell';
+import { ViewShell, ViewSidebar } from '@app/components/view-shell';
 import PageIcon from '@phosphor/browser.svg';
 import CalendarIcon from '@phosphor/calendar-blank.svg';
 import ChartIcon from '@phosphor/chart-bar.svg';
@@ -13,7 +9,7 @@ import LinkIcon from '@phosphor/link.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import UserIcon from '@phosphor/user.svg';
 import UsersIcon from '@phosphor/users.svg';
-import { Button, cn, pressHandlers, Tabs } from '@ui';
+import { Button, cn, pressHandlers } from '@ui';
 import {
   createEffect,
   createMemo,
@@ -67,27 +63,6 @@ const TABS = [
       'Customize your public booking page, preview it, and share its link.',
   },
 ];
-
-function BookingWorkspaceTabs(props: {
-  value: string;
-  onChange: (value: string) => void;
-  disabled: boolean;
-}) {
-  const shell = useViewShell();
-  return (
-    <Show when={shell.aside.isCollapsed() || shell.aside.isOverlay()}>
-      <div class="mt-4 min-w-0 overflow-x-auto">
-        <Tabs
-          aria-label="Booking tabs"
-          disabled={props.disabled}
-          list={TABS}
-          value={props.value}
-          onChange={props.onChange}
-        />
-      </div>
-    </Show>
-  );
-}
 
 export function BookingWorkspaceView(props: {
   search: BookingLinksState;
@@ -361,19 +336,12 @@ export function BookingWorkspaceView(props: {
             'pb-4': search.tab === 'page',
           })}
         >
-          <Show when={!editingSchedule()}>
-            <BookingWorkspaceTabs
-              value={search.tab}
-              onChange={selectTab}
-              disabled={isSaving()}
-            />
-          </Show>
           <For each={owners()}>
             {(current) => (
               <div
                 class="min-w-0"
                 classList={{
-                  'mx-auto max-w-5xl':
+                  'max-w-5xl':
                     search.tab !== 'availability' && search.tab !== 'page',
                   'flex min-h-0 flex-1 flex-col':
                     editingSchedule() || search.tab === 'page',
