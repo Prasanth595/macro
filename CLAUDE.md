@@ -49,6 +49,7 @@ Real files live in `.agents/`; tool-specific directories only symlink to it.
 | Web frontend | [Web agent guide](apps/web/AGENTS.md) |
 | Email body rendering or snapshots | [Standalone renderer](packages/email-renderer/README.md) |
 | Running the frontend or backend on a local machine | [Running locally](docs/development/running-locally.md) |
+| Giving the user a local preview link | `local-preview` skill |
 | Working inside Cursor Cloud | [Cursor Cloud](docs/development/cursor-cloud.md) |
 | Driving the app through a browser | [App agent guide](docs/agent-guide/README.md) |
 | SDK version bumps and npm publishing | [SDK release guide](packages/sdk/RELEASING.md), [release-sdk skill](.agents/skills/release-sdk/SKILL.md) |
