@@ -11,7 +11,7 @@ import {
   useSplitPanelOrThrow,
   withSplitPanelOwner,
 } from '@components/app/split-layout/layoutUtils';
-import { enableProjects } from '@core/constant/featureFlags';
+import { enableGantt, enableProjects } from '@core/constant/featureFlags';
 import { useUserId } from '@core/context/user';
 import { usePropertyUserDisplay } from '@property/hooks/usePropertyUserDisplay';
 import { queryClient } from '@queries/client';
@@ -123,6 +123,7 @@ function ProjectsCollectionHost(props: {
   const panel = useSplitPanelOrThrow();
   const layout = useSplitLayout();
   const context = useProjectsContext();
+  const ganttFlag = useFeatureFlag(enableGantt);
   const [search, setSearch] = createSearchParams(projectCollectionSearch);
   const activation = withSplitPanelOwner(
     listOwnedSlotName('initiatives:activation'),
@@ -172,6 +173,7 @@ function ProjectsCollectionHost(props: {
       <ProjectsCollection
         onOpen={open}
         collection={displayCollection}
+        ganttEnabled={ganttFlag().enabled}
         createAssigneeName={(id) => usePropertyUserDisplay(id).name}
         onCreate={(initialDraft) =>
           layout.popoverSplit({

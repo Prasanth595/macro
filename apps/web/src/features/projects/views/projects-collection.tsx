@@ -76,6 +76,7 @@ export function ProjectsCollection(props: {
   scopeId: string;
   isActive: Accessor<boolean>;
   collection: ReturnType<typeof createProjectCollection>;
+  ganttEnabled: boolean;
   /** Whether the layout has room to open a project beside the list. */
   canOpenInNewSplit: Accessor<boolean>;
   onCopyLink(id: string): void;
@@ -92,7 +93,8 @@ export function ProjectsCollection(props: {
   let timeline: HTMLDivElement | undefined;
   let searchInput: HTMLInputElement | undefined;
   const [openMenu, setOpenMenu] = createSignal<'filters' | 'sort'>();
-  const isGantt = () => !isTouchDevice() && collection.layout() === 'gantt';
+  const isGantt = () =>
+    props.ganttEnabled && !isTouchDevice() && collection.layout() === 'gantt';
   const definition = (id: string) =>
     definitions
       .properties()
@@ -454,8 +456,8 @@ export function ProjectsCollection(props: {
               <Show when={!isTouchDevice()}>
                 <ViewLayoutDropdown
                   label="Project layout"
-                  layouts={['list', 'gantt']}
-                  value={collection.layout()}
+                  layouts={props.ganttEnabled ? ['list', 'gantt'] : ['list']}
+                  value={isGantt() ? 'gantt' : 'list'}
                   onChange={(layout) => {
                     if (layout !== 'board') collection.setLayout(layout);
                   }}
