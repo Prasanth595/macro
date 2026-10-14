@@ -35,6 +35,7 @@ use std::time::Duration;
 use uuid::Uuid;
 
 mod admission;
+mod notion_fetch;
 mod prompts;
 mod slack;
 mod slack_discovery;
@@ -595,8 +596,9 @@ where
         mcp_tools: &M,
         row: &ImportEntity,
     ) -> anyhow::Result<()> {
-        let fetch_tool = notion_fetch_tool_name(mcp_tools)
-            .ok_or_else(|| anyhow::anyhow!("connector exposes no notion-fetch tool"))?;
+        let fetch_tool = notion_fetch_tool_name(mcp_tools).ok_or_else(|| {
+            anyhow::anyhow!("connector exposes no supported Notion page-fetch tool")
+        })?;
         let target = row
             .metadata
             .get("url")
@@ -609,7 +611,7 @@ where
             (),
             RequestContext::new(user.clone()),
             &fetch_tool,
-            &serde_json::json!({ "id": target }),
+            &notion_fetch::arguments(&fetch_tool, &target),
         )
         .await
         .map_err(|e| anyhow::anyhow!("fetch dispatch failed: {e}"))?
@@ -1536,7 +1538,8 @@ where
 }
 
 /// The mangled name of the connector's Notion fetch tool. Notion exposes this
-/// as `notion-fetch` generally and as `fetch` on OpenAI-compatible surfaces.
+/// as `notion-fetch` generally, `fetch` on OpenAI-compatible surfaces, and
+/// `notion-retrieve-page` via Pipedream.
 fn notion_fetch_tool_name(mcp_tools: &impl ToolSet<()>) -> Option<String> {
     ToolSet::<()>::request_schemas(mcp_tools)?
         .into_iter()
@@ -1547,7 +1550,7 @@ fn notion_fetch_tool_name(mcp_tools: &impl ToolSet<()>) -> Option<String> {
 fn is_notion_fetch_tool_name(name: &str) -> bool {
     matches!(
         name.rsplit_once("__").map(|(_, tool)| tool),
-        Some("notion-fetch" | "fetch")
+        Some("notion-fetch" | "fetch" | "notion-retrieve-page")
     )
 }
 
@@ -1601,6 +1604,14 @@ fn parse_notion_fetch_result(result: serde_json::Value) -> ParsedNotionPage {
 }
 
 fn parse_notion_fetch_object(map: serde_json::Map<String, serde_json::Value>) -> ParsedNotionPage {
+    if map.get("type").and_then(serde_json::Value::as_str) == Some("text")
+        && let Some(text) = map.get("text").and_then(serde_json::Value::as_str)
+    {
+        return parse_notion_fetch_result(serde_json::Value::String(text.to_string()));
+    }
+    if let Some(page) = notion_fetch::parse_pipedream_page(&map) {
+        return page;
+    }
     let title = notion_title_from_map(&map).or_else(|| {
         map.get("metadata")
             .and_then(|value| value.as_object())

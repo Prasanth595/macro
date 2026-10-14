@@ -21,7 +21,12 @@ Pipedream compatibility. Live verification remains a release prerequisite.
 
 ## Slug decision
 
-Canonical slug: `slack` (unverified fallback; retain until dev evidence supports `slack_v2`).
+New-connection slug: `slack_v2`. On 2026-10-12 the authenticated production
+`/cognition/pipedream/mcp/catalog?search=Slack` endpoint returned `slack_v2`
+(display name Slack), and the production Connect token opened its hosted flow.
+The frontend keeps `slack` as the canonical display identity and recognizes both
+stored slugs. This verifies catalog/Connect availability, not authorization or
+successful Slack tool execution; those still require the live checks below.
 
 | Evidence | `slack` | `slack_v2` |
 | --- | --- | --- |

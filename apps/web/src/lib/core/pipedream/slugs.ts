@@ -1,6 +1,7 @@
-// Keep the connect slug first, per docs/SLACK_LIVE_CHANNEL_IMPORT.md.
+// Production catalog verified 2026-10-12: new authorizations use slack_v2.
+// Keep the legacy slug as an identity alias for existing accounts.
 export const SLACK_PIPEDREAM_SLUGS = ['slack', 'slack_v2'] as const;
-export const SLACK_CONNECT_SLUG = SLACK_PIPEDREAM_SLUGS[0];
+export const SLACK_CONNECT_SLUG = 'slack_v2';
 
 export function isSlackPipedreamSlug(slug: string): boolean {
   return SLACK_PIPEDREAM_SLUGS.some((alias) => alias === slug);

@@ -355,3 +355,22 @@ async fn get_state_carries_the_suggested_team_domain() {
     let state = service.get_state(user()).await.expect("get_state");
     assert_eq!(state.suggested_team_domain.as_deref(), Some("macro.com"));
 }
+
+#[tokio::test]
+async fn active_flow_auto_imports_both_linear_and_notion() {
+    let (service, import) = service(
+        OnboardingStatus::Active,
+        vec![
+            record("https://mcp.linear.app/mcp", true),
+            record("https://mcp.notion.com/mcp", true),
+        ],
+    );
+    service
+        .reconcile(user())
+        .await
+        .expect("post-connect reconcile");
+    assert_eq!(
+        import.gathers.lock().unwrap().as_slice(),
+        &[(ImportSource::Linear, true), (ImportSource::Notion, true)]
+    );
+}

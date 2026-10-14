@@ -90,8 +90,9 @@ pub const NOTION_IMPORT_SYSTEM: &str = "You are importing Notion pages the user 
     Work through the listed pages ONE AT A TIME, in order. For each page:\n\
     1. Fetch its content by URL or page id with the canonical Notion `notion-fetch` tool (named \
     `fetch` on OpenAI-compatible MCP connections). Never use a search snippet or a generic \
-    `view` result as the page body. If neither `notion-fetch` nor `fetch` is available, use the \
-    connector's page retrieval and block-children tools instead: retrieve the page metadata, \
+    `view` result as the page body. For Pipedream, use `notion-retrieve-page` with `pageId` \
+    instead of `id`; use its `content` string as the body and `page` only for metadata. \
+    If none of these fetch tools is available, use the connector's page retrieval and block-children tools instead: retrieve the page metadata, \
     then list the page's child blocks, following pagination and recursively reading blocks \
     that have children. Page metadata alone is not body content. Convert only the retrieved \
     blocks into markdown; if no body content can be read, skip the page.\n\
