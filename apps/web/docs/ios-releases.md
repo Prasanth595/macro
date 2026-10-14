@@ -51,7 +51,7 @@ this end to end.
    Disable auto-merge on the PR to hold it. Auto-merge is enabled with the
    `IOS_RELEASE_GITHUB_TOKEN` secret (a PAT or GitHub App token with
    contents + pull-requests write): a merge set up by the Actions token does
-   not trigger the on-push deploy of `main`. Without the secret the workflow
+   not trigger the push-to-`main` workflows (the dev redeploy among them). Without the secret the workflow
    asks the author to click "Enable auto-merge" instead. It also refuses to
    enable auto-merge while `iOS Native Check` is not a required check (the PR
    would merge before Apple approves). To retry after a failure, remove and
@@ -174,7 +174,8 @@ ios-release --config prd -- just ios-release` covers them), and
     `ios-release/prd`, used by the iOS workflows
   - `IOS_RELEASE_GITHUB_TOKEN` — a fine-grained PAT (or GitHub App token)
     with contents + pull-requests write on this repo, used only to enable
-    auto-merge so the resulting merge triggers the on-push deploy; optional,
+    auto-merge so the resulting merge still triggers the push-to-main
+    workflows (dev redeploy etc.); optional,
     without it the author enables auto-merge by hand
   - `POSTHOG_API_KEY` (already present) — embedded as `VITE_POSTHOG_API_KEY`
     in the release build

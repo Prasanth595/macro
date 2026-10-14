@@ -343,10 +343,11 @@ jobs:
         fi
 
         # 2. A merge set up with the Actions token does not trigger on-push workflows
-        #    (no deploy of main), so a real user/app token is required.
+        #    (the dev redeploy and the other push-to-main workflows would not run),
+        #    so a real user/app token is required.
         if [[ -z "${AUTO_MERGE_TOKEN:-}" ]]; then
           echo "IOS_RELEASE_GITHUB_TOKEN is not configured; asking the author to enable auto-merge."
-          comment "ℹ️ Enable **auto-merge** on this PR yourself (the button next to \"Merge\"): it was not enabled automatically because the \`IOS_RELEASE_GITHUB_TOKEN\` secret is not configured, and auto-merge set up by the Actions token would merge without triggering the deploy of \`${BASE_REF}\`. GitHub then merges as soon as \`iOS Native Check\` passes."
+          comment "ℹ️ Enable **auto-merge** on this PR yourself (the button next to \"Merge\"): it was not enabled automatically because the \`IOS_RELEASE_GITHUB_TOKEN\` secret is not configured, and auto-merge set up by the Actions token would merge without triggering the push-to-\`${BASE_REF}\` workflows (the dev redeploy among them). GitHub then merges as soon as \`iOS Native Check\` passes."
           exit 0
         fi
 

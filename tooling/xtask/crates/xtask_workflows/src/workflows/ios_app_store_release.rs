@@ -53,7 +53,8 @@ pub fn ios_app_store_release() -> Workflow {
 /// branch, or auto-merge would merge right away, before Apple approves. And
 /// the merge must be performed with `IOS_RELEASE_GITHUB_TOKEN` (a PAT or
 /// GitHub App token), not the Actions token: a merge that the Actions token
-/// set up does not trigger `on: push` workflows, so main would not deploy.
+/// set up does not trigger `on: push` workflows, so the push-to-main
+/// workflows (the dev redeploy among them) would not run.
 /// Without that secret the author is asked to click "Enable auto-merge".
 fn auto_merge_job() -> Job {
     Job::default()
