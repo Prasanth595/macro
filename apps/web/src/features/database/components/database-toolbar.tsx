@@ -153,15 +153,17 @@ export function DatabaseToolbar(props: DatabaseToolbarProps) {
             class="flex min-w-0 items-center gap-0.5 overflow-x-auto"
             aria-label="Views"
           >
-            <button
+            <Button
               ref={allRecordsButton}
               type="button"
+              variant="ghost"
+              size="md"
               aria-pressed={!props.selectedViewId}
               onClick={() => props.onSelectView()}
-              class="flex h-8 max-w-40 shrink-0 items-center gap-1.5 rounded-full border border-transparent aria-pressed:border-edge-frame aria-pressed:bg-active aria-pressed:text-ink px-4 text-xs font-medium text-ink-extra-muted outline-none hover:text-ink focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-edge-focus transition-colors duration-120 motion-reduce:transition-none"
+              class="max-w-40 px-4 aria-pressed:border-edge-frame aria-pressed:bg-active aria-pressed:text-ink"
             >
               <span class="truncate">All records</span>
-            </button>
+            </Button>
             <DragDropProvider
               collisionDetector={closestCenter}
               onDragEnd={({ draggable, droppable }) => {
@@ -217,9 +219,10 @@ export function DatabaseToolbar(props: DatabaseToolbarProps) {
           <Show when={props.canEdit}>
             <Dropdown placement="bottom-start">
               <Dropdown.Trigger
-                size="icon-sm"
+                size="md"
+                square
                 variant="ghost"
-                aria-label="New view"
+                label="New view"
                 class="ml-2 shrink-0"
                 disabled={creating()}
               >
@@ -244,45 +247,47 @@ export function DatabaseToolbar(props: DatabaseToolbarProps) {
             </Dropdown>
           </Show>
         </div>
-        <div class="flex shrink-0 items-center gap-0.5 @max-[520px]/view-toolbar:w-full @max-[520px]/view-toolbar:justify-end">
+        <div class="flex shrink-0 items-center gap-2 @max-[520px]/view-toolbar:w-full @max-[520px]/view-toolbar:flex-wrap @max-[520px]/view-toolbar:justify-end">
           <Show when={canChangeView()}>
             <Show when={board()}>
               {(current) => (
                 <Dropdown placement="bottom-start">
                   <Dropdown.Trigger
-                    aria-label="Group board by"
-                    title="Group by"
-                    size="icon-md"
+                    label="Group board by"
+                    tooltip="Group by"
+                    size="md"
+                    square
                     variant="ghost"
-                    class="h-8 w-auto rounded-md px-2 text-ink-muted hover:bg-hover data-expanded:bg-hover"
                   >
                     <StackIcon class="size-3.5" />
                   </Dropdown.Trigger>
                   <Dropdown.Content class="min-w-48">
-                    <Dropdown.RadioGroup
-                      value={current().groupBy}
-                      onChange={(columnId) => {
-                        if (columnId !== current().groupBy)
-                          props.onChangeView({
-                            layout: {
-                              ...current(),
-                              groupBy: columnId,
-                              lanes: [],
-                            },
-                          });
-                      }}
-                    >
-                      <For each={groupColumns()}>
-                        {(column) => (
-                          <Dropdown.RadioItem closeOnSelect value={column.id}>
-                            <span class="flex-1">{column.name}</span>
-                            <Dropdown.ItemIndicator>
-                              <CheckIcon class="size-3.5 text-accent" />
-                            </Dropdown.ItemIndicator>
-                          </Dropdown.RadioItem>
-                        )}
-                      </For>
-                    </Dropdown.RadioGroup>
+                    <Dropdown.Group>
+                      <Dropdown.RadioGroup
+                        value={current().groupBy}
+                        onChange={(columnId) => {
+                          if (columnId !== current().groupBy)
+                            props.onChangeView({
+                              layout: {
+                                ...current(),
+                                groupBy: columnId,
+                                lanes: [],
+                              },
+                            });
+                        }}
+                      >
+                        <For each={groupColumns()}>
+                          {(column) => (
+                            <Dropdown.RadioItem closeOnSelect value={column.id}>
+                              <span class="flex-1">{column.name}</span>
+                              <Dropdown.ItemIndicator>
+                                <CheckIcon class="size-3.5 text-accent" />
+                              </Dropdown.ItemIndicator>
+                            </Dropdown.RadioItem>
+                          )}
+                        </For>
+                      </Dropdown.RadioGroup>
+                    </Dropdown.Group>
                   </Dropdown.Content>
                 </Dropdown>
               )}
@@ -318,12 +323,11 @@ export function DatabaseToolbar(props: DatabaseToolbarProps) {
             </ToolbarPopover>
           </Show>
           {props.search}
-          <div class="ml-1 flex shrink-0 items-center">
+          <div class="flex shrink-0 items-center gap-2">
             <Show when={props.onCreateRecord && board()}>
               <Button
-                size="sm"
+                size="md"
                 variant="outline"
-                class="h-8 gap-1.5 px-2.5 text-xs"
                 aria-label={props.creating ? 'Saving record' : 'New record'}
                 disabled={!props.canCreateRecord || props.creating}
                 onClick={() => props.onCreateRecord?.()}
@@ -420,7 +424,7 @@ function ViewTab(props: {
               maxlength={100}
               value={props.renameDraft}
               readOnly={props.renamePending}
-              class="h-8 w-36 rounded-md border border-ink/40 bg-input px-2 text-xs text-ink outline-none focus:ring-2 focus:ring-ink/10"
+              class="h-8 w-36 rounded-md border border-ink/40 bg-input px-2 text-sm text-ink outline-none focus:ring-2 focus:ring-ink/10"
               onInput={(event) =>
                 props.onRenameInput(event.currentTarget.value)
               }
@@ -438,7 +442,10 @@ function ViewTab(props: {
         <ContextMenu>
           <Tooltip label={props.view.name}>
             <ContextMenu.Trigger
-              as="button"
+              as={Button}
+              variant="ghost"
+              size="md"
+              tooltipDisabled
               type="button"
               {...(props.canReorder ? sortable.dragActivators : {})}
               data-view-id={props.view.id}
@@ -455,7 +462,7 @@ function ViewTab(props: {
                   props.onRename();
                 }
               }}
-              class="flex h-8 max-w-40 items-center gap-1.5 rounded-full border border-transparent aria-pressed:border-edge-frame aria-pressed:bg-active aria-pressed:text-ink px-4 text-xs font-medium text-ink-extra-muted outline-none hover:text-ink focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-edge-focus transition-colors duration-120 motion-reduce:transition-none"
+              class="max-w-40 px-4 aria-pressed:border-edge-frame aria-pressed:bg-active aria-pressed:text-ink"
             >
               <span class="truncate">{props.view.name}</span>
             </ContextMenu.Trigger>
