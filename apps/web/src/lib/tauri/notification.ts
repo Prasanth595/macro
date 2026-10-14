@@ -9,6 +9,7 @@ import {
   sendNotification,
 } from '@tauri-apps/plugin-notification';
 import { type as osType } from '@tauri-apps/plugin-os';
+import { showLinuxNotification } from './linux-notification';
 
 export class MacOSNotificationUpdateRequiredError extends Error {
   constructor(cause: unknown) {
@@ -21,7 +22,8 @@ export function createTauriNotificationInterface(
   setDisabled: () => Promise<void>,
   shouldSend: () => boolean = () => true
 ): PlatformNotificationInterface {
-  const isMacOS = osType() === 'macos';
+  const platform = osType();
+  const isMacOS = platform === 'macos';
   let hasMacOSPermissionCommands = isMacOS;
 
   async function getCur(): Promise<NotificationPermission> {
@@ -84,6 +86,10 @@ export function createTauriNotificationInterface(
           throw error;
         }
         return createTauriNotification();
+      }
+
+      if (platform === 'linux') {
+        return await showLinuxNotification(data);
       }
 
       if (!data.options) {
