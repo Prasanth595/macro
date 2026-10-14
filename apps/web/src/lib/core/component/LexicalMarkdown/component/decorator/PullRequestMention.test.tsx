@@ -1,10 +1,19 @@
 import type { ForeignEntity } from '@service-storage/generated/schemas';
 import { render, screen } from '@solidjs/testing-library';
-import { createSignal } from 'solid-js';
+import type { LexicalCommand } from 'lexical';
+import { createSignal, type JSX } from 'solid-js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const mocks = vi.hoisted(() => ({
+  openWithSplit: vi.fn(),
+  openExternalUrl: vi.fn(),
+}));
+
 vi.mock('@components/app/split-layout/layout', () => ({
-  useSplitLayout: () => ({ openWithSplit: vi.fn() }),
+  useSplitLayout: () => ({ openWithSplit: mocks.openWithSplit }),
+}));
+vi.mock('@core/util/url', () => ({
+  openExternalUrl: mocks.openExternalUrl,
 }));
 vi.mock('@queries/storage/pr-mention', () => ({
   usePrMentionQuery: () => idQuery,
@@ -14,11 +23,16 @@ vi.mock('@queries/auth/github-link', () => ({
   useGithubLinkStatusQuery: () => githubLinkStatusQuery,
 }));
 vi.mock('@core/component/HoverCard', () => ({
-  HoverCard: (props: { trigger: import('solid-js').JSX.Element }) =>
-    props.trigger,
+  HoverCard: (props: { trigger: JSX.Element }) => props.trigger,
 }));
 vi.mock('../../plugins', () => ({ autoRegister: vi.fn() }));
+vi.mock('../../context/LexicalWrapperContext', async () => {
+  const { createContext } = await import('solid-js');
+  return { LexicalWrapperContext: createContext() };
+});
 
+import { KEY_ENTER_COMMAND } from 'lexical';
+import { LexicalWrapperContext } from '../../context/LexicalWrapperContext';
 import { PullRequestMention } from './PullRequestMention';
 
 const title = 'feat(text-paste): smart paste for GitHub pull request URLs';
@@ -77,6 +91,8 @@ const githubLinkStatusQuery = {
 beforeEach(() => {
   setResolved(undefined);
   setGithubLinkStatus('linked');
+  mocks.openWithSplit.mockReset();
+  mocks.openExternalUrl.mockReset();
 });
 
 describe('pull request mention face', () => {
@@ -188,5 +204,71 @@ describe('pull request mention face', () => {
     const mention = view.container.querySelector('[data-pr-mention]');
     expect(mention).not.toBeNull();
     expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  it('renders as a plain link when GitHub is unlinked even with a nonempty id', () => {
+    setGithubLinkStatus('unlinked');
+
+    const view = render(() => (
+      <PullRequestMention
+        id={pullRequest.id}
+        url={url}
+        label="macro-inc/macro#7956"
+        key="node"
+        theme={{}}
+      />
+    ));
+
+    const link = screen.getByRole('link');
+    expect(link.getAttribute('href')).toBe(url);
+    expect(view.container.querySelector('[data-pr-mention]')).toBeNull();
+  });
+
+  it('opens the GitHub URL on Enter when GitHub is unlinked and the mention has an id', () => {
+    setGithubLinkStatus('unlinked');
+    type EnterHandler = (event: KeyboardEvent | null) => boolean;
+    let enterHandler: EnterHandler | undefined;
+    const editor = {
+      registerCommand: <T,>(
+        command: LexicalCommand<T>,
+        handler: (payload: T) => boolean
+      ) => {
+        if (command === KEY_ENTER_COMMAND) {
+          enterHandler = handler as EnterHandler;
+        }
+        return () => {};
+      },
+    };
+    const selection = {
+      type: 'node' as const,
+      nodeKeys: new Set(['node']),
+    };
+
+    render(() => (
+      <LexicalWrapperContext.Provider
+        value={{
+          type: 'markdown',
+          owner: null,
+          plugins: {} as never,
+          editor: editor as never,
+          cleanup: () => {},
+          isInteractable: () => true,
+          selection: selection as never,
+        }}
+      >
+        <PullRequestMention
+          id={pullRequest.id}
+          url={url}
+          label="macro-inc/macro#7956"
+          key="node"
+          theme={{}}
+        />
+      </LexicalWrapperContext.Provider>
+    ));
+
+    expect(enterHandler).toBeDefined();
+    expect(enterHandler?.(null)).toBe(true);
+    expect(mocks.openExternalUrl).toHaveBeenCalledWith(url);
+    expect(mocks.openWithSplit).not.toHaveBeenCalled();
   });
 });

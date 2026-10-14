@@ -568,7 +568,19 @@ export function PullRequestMention(props: PullRequestMentionDecoratorProps) {
   );
   const entityId = () => props.id || urlEntity()?.id;
 
+  // When GitHub is not linked, render as a plain link instead of the fancy mention UI
+  const shouldRenderAsPlainLink = () => {
+    if (lexicalWrapper?.skipPreviewFetch) return false;
+    return !!(githubLinkQuery.isFetched && !isGithubLinked() && props.url);
+  };
+
   const open = (e: MouseEvent | KeyboardEvent | null) => {
+    // Match the rendered plain-link destination: Enter must not open the
+    // internal PR split when GitHub is unlinked, even if props.id is set.
+    if (shouldRenderAsPlainLink()) {
+      openExternalUrl(props.url!);
+      return;
+    }
     const id = entityId();
     if (!id) {
       // A PR Macro has not synced has no split to open; fall back to GitHub.
@@ -601,12 +613,6 @@ export function PullRequestMention(props: PullRequestMentionDecoratorProps) {
     e.stopPropagation();
     open(e);
   });
-
-  // When GitHub is not linked, render as a plain link instead of the fancy mention UI
-  const shouldRenderAsPlainLink = () => {
-    if (lexicalWrapper?.skipPreviewFetch) return false;
-    return githubLinkQuery.isFetched && !isGithubLinked() && props.url;
-  };
 
   return (
     <Show
