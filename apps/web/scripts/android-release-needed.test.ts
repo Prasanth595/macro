@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { androidReleaseDecision } from './android-release-needed.mjs';
+import { checkAndroidVersion } from './android-version-check.mjs';
 
 const nativeConfig = 'apps/web/tauri/src-tauri/tauri.android.conf.json';
 let cwd: string;
@@ -61,6 +62,93 @@ beforeEach(() => {
 });
 
 afterEach(() => rmSync(cwd, { recursive: true, force: true }));
+
+describe('PR Android version enforcement', () => {
+  it('passes frontend-only and backend-only changes without a bump', () => {
+    const base = git('rev-parse', 'HEAD');
+    write('apps/web/src/index.tsx', '// frontend');
+    write('services/example/src/lib.rs', '// backend');
+    commit();
+    expect(checkAndroidVersion({ cwd, base })).toContain('No Tauri changes');
+  });
+
+  it.each(['modify', 'add', 'delete', 'rename'])(
+    'rejects a native %s without a bump',
+    (change) => {
+      const base = git('rev-parse', 'HEAD');
+      const path = 'apps/web/tauri/src-tauri/src/lib.rs';
+      if (change === 'modify') write(path, '// changed');
+      if (change === 'add') write('apps/web/tauri/src-tauri/new-file', 'new');
+      if (change === 'delete') rmSync(join(cwd, path));
+      if (change === 'rename') git('mv', path, `${path}.renamed`);
+      commit();
+      expect(() => checkAndroidVersion({ cwd, base })).toThrow(
+        /just android-bump/
+      );
+    }
+  );
+
+  it('accepts native changes with a higher version code', () => {
+    const base = git('rev-parse', 'HEAD');
+    write('apps/web/tauri/src-tauri/src/lib.rs', '// changed');
+    version(2);
+    commit();
+    expect(checkAndroidVersion({ cwd, base })).toContain('from 1 to 2');
+  });
+
+  it.each([0, 1.5, 2_100_000_001])(
+    'rejects invalid version code %s',
+    (code) => {
+      const base = git('rev-parse', 'HEAD');
+      version(code);
+      commit();
+      expect(() => checkAndroidVersion({ cwd, base })).toThrow(
+        /Invalid Android versionCode/
+      );
+    }
+  );
+
+  it('rejects a version downgrade', () => {
+    version(3);
+    commit();
+    const base = git('rev-parse', 'HEAD');
+    version(2);
+    commit();
+    expect(() => checkAndroidVersion({ cwd, base })).toThrow(/must exceed/);
+  });
+
+  it('rejects two PRs trying to use the same version code', () => {
+    git('checkout', '-b', 'pr');
+    version(2);
+    write('apps/web/tauri/first-native-change', 'PR change');
+    commit();
+    git('checkout', 'main');
+    version(2);
+    write('apps/web/tauri/second-native-change', 'Already merged');
+    commit();
+    const base = git('rev-parse', 'HEAD');
+    git('merge', '--no-ff', 'pr', '-m', 'PR merge result');
+    expect(() => checkAndroidVersion({ cwd, base })).toThrow(
+      /base branch \(2\)/
+    );
+  });
+
+  it('does not attribute newer base-branch native changes to a frontend-only PR', () => {
+    git('checkout', '-b', 'pr');
+    write('apps/web/src/index.tsx', '// frontend');
+    commit();
+    git('checkout', 'main');
+    version(2);
+    commit();
+    const base = git('rev-parse', 'HEAD');
+    git('merge', '--no-ff', 'pr', '-m', 'PR merge result');
+    expect(checkAndroidVersion({ cwd, base })).toContain('No Tauri changes');
+  });
+
+  it('fails closed if the base commit is unavailable', () => {
+    expect(() => checkAndroidVersion({ cwd, base: 'missing-base' })).toThrow();
+  });
+});
 
 describe('native release detection', () => {
   it('builds the first AAB when no complete ancestor bundle exists', () => {

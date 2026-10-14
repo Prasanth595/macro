@@ -2,7 +2,8 @@
 //! Generated into `web-app-check-main.yml`.
 
 use gh_workflow::{
-    Concurrency, Event, Expression, Job, PullRequest, PullRequestType, Run, Step, Use, Workflow,
+    Concurrency, Event, Expression, Job, Level, Permissions, PullRequest, PullRequestType, Run,
+    Step, Use, Workflow,
 };
 
 use crate::workflows::{
@@ -47,6 +48,7 @@ pub fn web_app_check_main() -> Workflow {
             .cancel_in_progress(true),
         )
         .add_job("path-check", path_check())
+        .add_job("android-version", android_version())
         .add_job("typescript", typescript())
         .add_job("generated-code", generated_code())
         .add_job("biome-check", biome_check())
@@ -54,6 +56,23 @@ pub fn web_app_check_main() -> Workflow {
         .add_job("cycles", cycles())
         .add_job("build", build())
         .add_job("status-check", status_check())
+}
+
+/// Always run so the required collector can distinguish a successful native
+/// check from a cancelled or skipped one, including frontend/backend-only PRs.
+fn android_version() -> Job {
+    Job::default()
+        .name("Android Version Code")
+        .runs_on("ubuntu-24.04")
+        .permissions(Permissions::default().contents(Level::Read))
+        .add_step(
+            checkout("Checkout PR merge commit", true).add_with(("persist-credentials", false)),
+        )
+        .add_step(
+            Step::new("Require an Android version bump for Tauri changes")
+                .add_env(("BASE_SHA", "${{ github.event.pull_request.base.sha }}"))
+                .run("node apps/web/scripts/android-version-check.mjs \"$BASE_SHA\""),
+        )
 }
 
 fn path_check() -> Job {
@@ -202,6 +221,7 @@ fn status_check() -> Job {
         .cond(Expression::new("always()"))
         .needs(vec![
             "path-check".to_string(),
+            "android-version".to_string(),
             "typescript".to_string(),
             "generated-code".to_string(),
             "biome-check".to_string(),
@@ -433,6 +453,7 @@ fn run_build() -> Step<Run> {
 fn check_job_results() -> Step<Run> {
     Step::new("Check job results").run(indoc::indoc! {r#"
         echo "path-check: ${{ needs.path-check.result }}"
+        echo "android-version: ${{ needs.android-version.result }}"
         echo "typescript: ${{ needs.typescript.result }}"
         echo "generated-code: ${{ needs.generated-code.result }}"
         echo "biome-check: ${{ needs.biome-check.result }}"
@@ -441,7 +462,8 @@ fn check_job_results() -> Step<Run> {
         echo "build: ${{ needs.build.result }}"
 
         # Fail if any job failed (skipped and success are both OK)
-        if [[ "${{ needs.path-check.result }}" == "failure" ]] || \
+        if [[ "${{ needs.android-version.result }}" != "success" ]] || \
+           [[ "${{ needs.path-check.result }}" == "failure" ]] || \
            [[ "${{ needs.typescript.result }}" == "failure" ]] || \
            [[ "${{ needs.generated-code.result }}" == "failure" ]] || \
            [[ "${{ needs.biome-check.result }}" == "failure" ]] || \

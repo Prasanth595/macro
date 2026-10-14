@@ -55,6 +55,21 @@ jobs:
             - 'packages/sdk/**'
             - 'apps/docs/**'
             - '.github/actions/setup-reqs-web/**'
+  android-version:
+    name: Android Version Code
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+    - name: Checkout PR merge commit
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+      with:
+        fetch-depth: '0'
+        persist-credentials: 'false'
+    - name: Require an Android version bump for Tauri changes
+      run: node apps/web/scripts/android-version-check.mjs "$BASE_SHA"
+      env:
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
   typescript:
     needs:
     - path-check
@@ -363,6 +378,7 @@ jobs:
   status-check:
     needs:
     - path-check
+    - android-version
     - typescript
     - generated-code
     - biome-check
@@ -376,6 +392,7 @@ jobs:
     - name: Check job results
       run: |
         echo "path-check: ${{ needs.path-check.result }}"
+        echo "android-version: ${{ needs.android-version.result }}"
         echo "typescript: ${{ needs.typescript.result }}"
         echo "generated-code: ${{ needs.generated-code.result }}"
         echo "biome-check: ${{ needs.biome-check.result }}"
@@ -384,7 +401,8 @@ jobs:
         echo "build: ${{ needs.build.result }}"
 
         # Fail if any job failed (skipped and success are both OK)
-        if [[ "${{ needs.path-check.result }}" == "failure" ]] || \
+        if [[ "${{ needs.android-version.result }}" != "success" ]] || \
+           [[ "${{ needs.path-check.result }}" == "failure" ]] || \
            [[ "${{ needs.typescript.result }}" == "failure" ]] || \
            [[ "${{ needs.generated-code.result }}" == "failure" ]] || \
            [[ "${{ needs.biome-check.result }}" == "failure" ]] || \
