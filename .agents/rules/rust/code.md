@@ -68,3 +68,9 @@ Type design, idioms, errors and observability, performance, and tests. IDs are s
   spans in tools or toolsets, and never record prompts, tool arguments or tool results
   as span fields or logs — they are content, recorded on the spans under the
   `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` policy and a size budget.
+- **CS-68** `[types]` Don't mark types `#[non_exhaustive]` by default. Exhaustive
+  matches are how a new variant reaches every place that must handle it; reserve
+  the attribute for types published outside the workspace.
+- **CS-69** `[types]` Derive serde, schema, and other traits on the type itself.
+  Don't keep parallel copies (a `wire.rs` mirror of domain types) just to carry
+  derives; add a separate type only when the wire shape genuinely differs.
