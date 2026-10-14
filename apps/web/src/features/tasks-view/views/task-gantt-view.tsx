@@ -1,5 +1,5 @@
+import type { GanttCreation } from '@app/components/gantt/create-gantt-creation';
 import { Gantt } from '@app/components/gantt/gantt';
-import type { GanttCreation } from '@app/components/gantt/gantt-create-area';
 import { deriveGanttRange } from '@app/components/gantt/gantt-date';
 import { UserIcon } from '@core/component/UserIcon';
 import {

@@ -1,15 +1,12 @@
-import { createEffect, createSignal, on, onCleanup, Show } from 'solid-js';
-import { GanttCalendarClip } from './gantt-clip';
-import { HEADER_HEIGHT, useGantt } from './gantt-context';
+import { Show } from 'solid-js';
 import {
-  formatGanttDay,
-  type GanttDate,
-  ganttDateFromDay,
-  toGanttDay,
-} from './gantt-date';
+  createGanttCreation,
+  type GanttCreation,
+} from './create-gantt-creation';
+import { GanttCalendarClip } from './gantt-clip';
+import { useGantt } from './gantt-context';
+import { formatGanttDay, type GanttDate } from './gantt-date';
 import { ganttCreationRange } from './gantt-interaction';
-
-export type GanttCreation = { start: Date; end: Date };
 
 /** Available space opens a host-owned composer without writing an entity. */
 export function GanttCreateArea(props: {
@@ -17,99 +14,16 @@ export function GanttCreateArea(props: {
   minDate?: GanttDate;
 }) {
   const gantt = useGantt();
-  const [draft, setDraft] = createSignal<{
-    first: number;
-    last: number;
-    top: number;
-  }>();
-  let disposeDrag: (() => void) | undefined;
-
-  function begin(event: PointerEvent) {
-    const viewport = gantt.viewport();
-    if (!props.onCreate || !viewport || event.button !== 0 || gantt.editing())
-      return;
-    const target = event.target;
-    if (
-      !(target instanceof Element) ||
-      target.closest(
-        'button, a, input, [data-gantt-bar], [data-gantt-label], [data-gantt-header], [data-gantt-group-header], [data-gantt-pagination]'
-      )
-    )
-      return;
-    const rect = viewport.getBoundingClientRect();
-    if (event.clientY < rect.top + HEADER_HEIGHT) return;
-    const first = gantt.pointToDay(event.clientX, undefined, false)?.day;
-    const minimum = toGanttDay(props.minDate);
-    if (first === undefined || (minimum !== undefined && first < minimum))
-      return;
-
-    event.preventDefault();
-    const pointerId = event.pointerId;
-    const initialX = event.clientX;
-    const top = event.clientY - rect.top + viewport.scrollTop - 14;
-    let last = first;
-    let moved = false;
-    gantt.setEditing(true);
-    gantt.setGuide(undefined);
-
-    const update = (next: PointerEvent) => {
-      if (next.pointerId !== pointerId) return;
-      moved ||= Math.abs(next.clientX - initialX) >= 8;
-      const x = Math.max(
-        rect.left + gantt.labelWidth(),
-        Math.min(next.clientX, rect.right - 1)
-      );
-      last = Math.max(
-        minimum ?? -Infinity,
-        gantt.pointToDay(x, undefined, false)?.day ?? last
-      );
-      if (moved) setDraft({ first, last, top });
-    };
-    const cleanup = () => {
-      window.removeEventListener('pointermove', update);
-      window.removeEventListener('pointerup', finish);
-      window.removeEventListener('pointercancel', cancel);
-      window.removeEventListener('keydown', cancelOnEscape, true);
-      window.removeEventListener('blur', cancel);
-      gantt.setEditing(false);
-      setDraft(undefined);
-      disposeDrag = undefined;
-    };
-    const cancel = () => cleanup();
-    const cancelOnEscape = (next: KeyboardEvent) => {
-      if (next.key !== 'Escape') return;
-      next.preventDefault();
-      next.stopPropagation();
-      cancel();
-    };
-    const finish = (next: PointerEvent) => {
-      if (next.pointerId !== pointerId) return;
-      update(next);
-      const range = ganttCreationRange(first, last);
-      cleanup();
-      if (moved)
-        props.onCreate?.({
-          start: ganttDateFromDay(range.start),
-          end: ganttDateFromDay(range.end - 1),
-        });
-    };
-    disposeDrag = cancel;
-    window.addEventListener('pointermove', update);
-    window.addEventListener('pointerup', finish);
-    window.addEventListener('pointercancel', cancel);
-    window.addEventListener('keydown', cancelOnEscape, true);
-    window.addEventListener('blur', cancel);
-  }
-
-  createEffect(
-    on(gantt.viewport, (viewport) => {
-      viewport?.addEventListener('pointerdown', begin);
-      onCleanup(() => {
-        viewport?.removeEventListener('pointerdown', begin);
-        disposeDrag?.();
-      });
-    })
-  );
+  const { draft } = createGanttCreation({
+    viewport: gantt.viewport,
+    editing: gantt.editing,
+    setEditing: gantt.setEditing,
+    clearGuide: () => gantt.setGuide(undefined),
+    labelWidth: gantt.labelWidth,
+    pointToDay: gantt.pointToDay,
+    onCreate: () => props.onCreate,
+    minDate: () => props.minDate,
+  });
 
   return (
     <Show when={draft()}>

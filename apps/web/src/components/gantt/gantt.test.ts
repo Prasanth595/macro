@@ -8,7 +8,8 @@ import {
 import { createComponent, createSignal } from 'solid-js';
 import { insert } from 'solid-js/web';
 import { afterEach, expect, it, vi } from 'vitest';
-import { Gantt, useGantt } from './gantt';
+import { Gantt } from './gantt';
+import { useGantt } from './gantt-context';
 import { toGanttDay } from './gantt-date';
 import {
   MAX_GANTT_PIXELS_PER_DAY,
@@ -710,7 +711,7 @@ function creationFixture(minDate?: string) {
   Object.defineProperty(viewport, 'clientWidth', { value: 1000 });
   viewport.getBoundingClientRect = () => new DOMRect(0, 0, 1000, 600);
   let gantt!: ReturnType<typeof useGantt>;
-  render(() =>
+  const view = render(() =>
     createComponent(Gantt.Root, {
       range: { start: 0, end: 100 },
       get children() {
@@ -745,8 +746,9 @@ function creationFixture(minDate?: string) {
     });
     Object.defineProperty(event, 'pointerId', { value: 1 });
     fireEvent(target, event);
+    return event;
   };
-  return { viewport, gantt, pointer, onCreate, setCanCreate };
+  return { ...view, viewport, gantt, pointer, onCreate, setCanCreate };
 }
 
 it('opens a composer only after a completed range drag, including reverse selections', () => {
@@ -773,6 +775,52 @@ it('keeps creation within the host minimum date instead of creating reversed int
   expect(toGanttDay(onCreate.mock.calls[0][0].start)).toBe(20);
   expect(toGanttDay(onCreate.mock.calls[0][0].end)).toBe(22);
 });
+
+it.each(['blur', 'pointercancel', 'unmount', 'viewport-replacement'])(
+  'cancels creation and invalidates queued callbacks on %s',
+  (reason) => {
+    const { viewport, gantt, pointer, onCreate, unmount } = creationFixture();
+    const events: EventTarget = window;
+    const listeners = vi.spyOn(events, 'addEventListener');
+    const removed = vi.spyOn(events, 'removeEventListener');
+    pointer(viewport, 'pointerdown', 500);
+    pointer(window, 'pointermove', 580);
+    expect(gantt.editing()).toBe(true);
+    const finish = listeners.mock.calls.find(
+      ([type]) => type === 'pointerup'
+    )?.[1];
+    const update = listeners.mock.calls.find(
+      ([type]) => type === 'pointermove'
+    )?.[1];
+    if (typeof finish !== 'function' || typeof update !== 'function')
+      throw new Error('Creation listeners were not registered');
+
+    switch (reason) {
+      case 'blur':
+        fireEvent.blur(window);
+        break;
+      case 'pointercancel':
+        pointer(window, 'pointercancel', 580);
+        break;
+      case 'unmount':
+        unmount();
+        break;
+      case 'viewport-replacement':
+        gantt.setViewport(document.createElement('div'));
+        break;
+    }
+    expect(gantt.editing()).toBe(false);
+    expect(removed).toHaveBeenCalledWith('pointerup', finish);
+    expect(removed).toHaveBeenCalledWith('pointermove', update);
+
+    gantt.setEditing(true);
+    update.call(window, pointer(window, 'pointermove', 620));
+    finish.call(window, pointer(window, 'pointerup', 620));
+    expect(onCreate).not.toHaveBeenCalled();
+    expect(gantt.editing()).toBe(true);
+    gantt.setEditing(false);
+  }
+);
 
 it('cancels range creation and ignores clicks, labels, bars, and header space', () => {
   const { viewport, gantt, pointer, onCreate, setCanCreate } =
