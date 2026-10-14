@@ -1,8 +1,18 @@
 # Coding rules
 
-Read this before writing code in this repository. Language- and area-specific
-rules in `.agents/rules/` load when you touch matching files; the style guide
-indexes them.
+Read this before writing code in this repository, then read what applies to
+the area you're changing:
+
+| Writing | Also read |
+| --- | --- |
+| Rust | [Hexagonal architecture skill](.agents/skills/cloud-storage-hexagonal-architecture/SKILL.md), [Rust guide](docs/development/rust.md) |
+| SQL, migrations, SQLx | [Database guide](docs/development/database.md) |
+| Web frontend | [Web agent guide](apps/web/AGENTS.md), [frontend feature architecture](docs/architecture/frontend-features.md) |
+| Infrastructure | [Infrastructure guide](docs/development/infrastructure.md) |
+| A new service, entity, block, or other multi-place change | The matching [guide](docs/guides/README.md) |
+
+Path-scoped rules in `.agents/rules/` load automatically when you touch matching
+files; the [style guide](docs/development/style-guide.md) indexes them.
 
 ## Code
 
