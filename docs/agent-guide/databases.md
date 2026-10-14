@@ -86,7 +86,7 @@ in the CRM to switch between **None** (private) and **Edit** (team). A pipeline'
 company/contact reference is required. The same company or contact can appear
 in multiple independent rows, including through the row menu's **Duplicate** action.
 The reference column and table are protected against removal or type changes. See
-[Customers (CRM)](surfaces.md#customers-crm--appcomponentcompanies) for the flow.
+[Customers (CRM)](crm.md#customers-crm--appcomponentcompanies) for the flow.
 
 Teams migrated from the legacy CRM have a team-shared **Sales** pipeline with
 their visible companies and copied Stage, Owner and Revenue values, including

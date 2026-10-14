@@ -229,7 +229,7 @@ kinds introduced by a newer backend.
 ## 8. Docs
 
 Update the [app agent guide](../agent-guide/README.md) page for the surface where
-the notification appears (`channels.md`, `surfaces.md`, ...).
+the notification appears (`channels.md`, `home.md`, `notifications.md`, ...).
 
 ## Compatibility and observability
 

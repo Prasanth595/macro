@@ -12,12 +12,26 @@ verified live against a local stack (`just run_local`).
 | [databases.md](databases.md) | Properties, records, kanban boards, saved views, AI questions, live answers |
 | [forms.md](forms.md) | Forms: create doors, builder (drag and drop, gates), respond route, Responses grid, sharing, polls |
 | [ai-chat.md](ai-chat.md) | Standalone and doc-scoped AI chat |
-| [../CLAUDE_CLOUD_DEMO.md](../runbooks/claude-cloud-demo.md) | Claude in Harness settings, encrypted saved connection, Open in Claude, and cloud-side transcript polling |
+| [claude-cloud-demo.md](../runbooks/claude-cloud-demo.md) | Claude in Harness settings, encrypted saved connection, Open in Claude, and cloud-side transcript polling |
 | [channels.md](channels.md) | Channels: create, invite, message, participants, bots |
 | [tasks.md](tasks.md) | Task list and creation dialog |
 | [view-tours.md](view-tours.md) | Desktop feature flyovers, dismissal, targeting, and embedded videos |
 | [reminders.md](reminders.md) | Email snoozing, the reminder command menu, delivery, and safe failure verification |
-| [surfaces.md](surfaces.md) | Every other surface: inbox, email, search, files, calendar, calls, customers, activity, settings |
+| [home.md](home.md) | Home and the mobile Notifications inbox |
+| [email.md](email.md) | Mail: threads, read state, trash, cached filtering, reminders |
+| [calendar.md](calendar.md) | Calendar views, events, and invitations in email |
+| [search.md](search.md) | Search |
+| [files.md](files.md) | Files (Drive) |
+| [calls.md](calls.md) | Calls, call links, guests, and sharing |
+| [crm.md](crm.md) | Customers (CRM) |
+| [pull-requests.md](pull-requests.md) | Pull request review |
+| [activity.md](activity.md) | Activity |
+| [notifications.md](notifications.md) | Notifications |
+| [settings.md](settings.md) | Settings sections, including Slack import and team membership |
+| [onboarding.md](onboarding.md) | Onboarding bypass and setup plan |
+| [canvas.md](canvas.md) | Canvas colors and link paste |
+| [soup-live-updates.md](soup-live-updates.md) | Live updates in flat Soup lists |
+| [ui-conventions.md](ui-conventions.md) | Shared UI behavior: list loading, top bars, dialog actions, user cards, information panels |
 | [browser-technique.md](browser-technique.md) | Generic chrome-devtools MCP lessons learned on this app |
 | [observability.md](observability.md) | Correlating a UI action to backend traces/logs with the Grafana MCP |
 

@@ -54,7 +54,7 @@ status filtering, authorization, attendance, host availability, and transactiona
 reservations. Browser checks cover page navigation, filters, chart interactions,
 CSV trigger, no-show-to-insights updates, defaults, schedule deletion protection,
 read-only scopes, event creation, and both themes. See the crate README for backend
-setup and operational details; `docs/agent-guide/surfaces.md` describes the UI.
+setup and operational details; `docs/agent-guide/calendar.md` describes the UI.
 
 Pre-production checks also exercise lost provider responses and duplicate-provider
 conflicts, database completion failures, recovery lease takeover, repeated cancellation,

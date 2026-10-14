@@ -686,3 +686,29 @@ Use the caret to expand or collapse a branch. A folder-only parent expands witho
 filtering; clicking an actual tag selects only that tag, including when it has
 children. Personal and team paths stay separate. Ancestors of restored selected
 tags start expanded. Filter-menu options continue to show full tag names.
+
+## Tasks — `/app/component/tasks`
+
+Task navigation uses `My Tasks`, `All Tasks`, and `Created by me`. The desktop
+sidebar has a full-width `New task` action, a collapsible list of task favorites,
+and a collapsible list of tags. Selecting a tag filters the current task view;
+selecting it again clears that tag filter. Favorite rows open their tasks.
+Normal row and favorite activation replaces the list with the editable task
+document; its originating-tab breadcrumb returns to the list and its
+header exposes Share and the task Details/Properties panel. Shift-click opens
+the task in a new split instead. While the list is visible, `J` and `K` move
+focus without opening a task until activation. In an open task detail, they
+replace it with the next or previous task in the same filtered order.
+
+When `enable-tasks-reviews` is enabled, `Reviews` appears above `My Tasks` as a
+shortcut to the separate Reviews view. It lists accessible GitHub pull requests;
+Open/Closed tabs below search and filters default to Open; Closed includes merged
+PRs. Status also remains in the filter menu. Custom multi-status selections hide
+the tabs except for the combined Closed preset.
+The list topbar says Reviews at narrow widths or with its sidebar collapsed;
+selecting one opens `/app/reviews/pr/<foreignEntityId>` with a Reviews breadcrumb.
+See [Tasks](tasks.md#reviews-view) for verification.
+
+The desktop `Create` → `Task` modal uses the standard dialog panel, circular
+icon controls, and a pill-shaped `Create Task` button with 16px outer padding.
+The mobile task drawer retains its existing layout.

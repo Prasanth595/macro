@@ -7,7 +7,7 @@ troubleshoot without separate approval.
 
 See [the contract](slack-archive-import-contract.md),
 [local setup](../development/running-locally.md), [database workflows](../development/database.md),
-and [the Settings interaction guide](../agent-guide/surfaces.md#slack-archive-import).
+and [the Settings interaction guide](../agent-guide/settings.md#slack-archive-import).
 
 ## Deployment order and configuration
 
