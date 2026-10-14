@@ -1,8 +1,11 @@
 # genai_telemetry
 
-GenAI span telemetry shared by the AI toolset and agent loop: `gen_ai.*`
-content/tool-definition attributes that Datadog LLM Observability needs, on
-top of the structural spans `rig` already emits.
+## What it is
+
+Supports the agent sessions feature's observability: adds `gen_ai.*`
+content/tool-definition attributes that Datadog LLM Observability needs on
+top of the structural spans `rig` already emits, shared by the AI toolset and
+agent loop.
 
 ## Start here
 

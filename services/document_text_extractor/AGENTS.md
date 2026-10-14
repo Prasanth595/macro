@@ -1,7 +1,10 @@
 # document_text_extractor
 
-Lambda that extracts text and citations from uploaded documents (including PDF
-rendering via pdfium) and stores the result in MacroDB.
+## What it is
+
+Documents feature: Lambda that extracts text and citations from uploaded
+documents (including PDF rendering via pdfium) and stores the result in
+MacroDB, feeding search and citations elsewhere.
 
 ## Start here
 

@@ -1,8 +1,10 @@
 # search_processing_service (sps)
 
-Hexagonal service owning the search-event pipeline: indexes calls, agent
-sessions, documents, emails, and other entities into OpenSearch, and exposes
-backfill HTTP routes for each.
+## What it is
+
+Powers Search: a hexagonal service owning the search-event pipeline. Indexes
+calls, agent sessions, documents, emails, and other entities into
+OpenSearch, and exposes backfill HTTP routes for each.
 
 ## Start here
 

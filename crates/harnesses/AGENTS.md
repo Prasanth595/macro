@@ -1,8 +1,11 @@
 # harnesses
 
-User-run agent harness (macrod) registration: device-code pairing (create,
-approve, claim), the harness list the settings UI renders, revocation, and the
-bound-agent listing the daemon reconciles its webhook feed from.
+## What it is
+
+Belongs to agent sessions: registration for user-run agent harnesses
+(macrod). Owns device-code pairing (create, approve, claim), the harness
+list the settings UI renders, revocation, and the bound-agent listing the
+daemon reconciles its webhook feed from.
 
 ## Start here
 

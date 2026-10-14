@@ -1,5 +1,8 @@
 # worker_trigger
 
+## What it is
+
+Shared infrastructure for document/attachment storage cleanup: an
 EventBridge-scheduled Lambda that starts an ECS `RunTask` for the
 `sha_cleanup_worker` task definition.
 

@@ -1,8 +1,10 @@
 # connection_gateway
 
-Deployable service managing per-entity WebSocket connections, so other
-services can push messages to a specific connected entity without holding the
-socket themselves.
+## What it is
+
+Shared infrastructure: manages per-entity WebSocket connections so other
+services can push messages to a specific connected entity without holding
+the socket themselves.
 
 ## Start here
 

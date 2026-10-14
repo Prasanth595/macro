@@ -1,9 +1,11 @@
 # graphql_activity
 
-GraphQL adapter for the activity system: three read surfaces over the
-`activity_events` log — the viewer's feed, a trailing-year overview, a
-per-entity `activity` edge (batched via DataLoader), plus database/form
-timelines and a realtime subscription.
+## What it is
+
+Backs the Activity feed feature across the app: a GraphQL adapter exposing
+three read surfaces over the `activity_events` log — the viewer's feed, a
+trailing-year overview, a per-entity `activity` edge (batched via
+DataLoader) — plus database/form timelines and a realtime subscription.
 
 ## Start here
 

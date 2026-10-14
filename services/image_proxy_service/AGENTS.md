@@ -1,7 +1,10 @@
 # image_proxy_service
 
-Deployable service that proxies arbitrary remote image URLs (e.g. for email
-rendering) through an authenticated, SSRF-guarded fetch.
+## What it is
+
+Shared infrastructure for rendering remote images safely, used by Email
+rendering among other callers. A deployable service that proxies arbitrary
+remote image URLs through an authenticated, SSRF-guarded fetch.
 
 ## Start here
 

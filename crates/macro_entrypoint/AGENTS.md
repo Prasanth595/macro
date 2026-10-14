@@ -1,7 +1,10 @@
 # macro_entrypoint
 
-Standardized binary initialization: tracing/logging/OTel setup, used as the
-first thing nearly every Rust service's `main.rs` calls.
+## What it is
+
+Belongs to shared infrastructure: standardized binary initialization —
+tracing/logging/OTel setup and graceful shutdown — used as the first thing
+nearly every Rust service's `main.rs` calls.
 
 ## Start here
 

@@ -1,9 +1,12 @@
 # git_patch
 
-Parses git-style unified diffs into per-file facts, cuts them to a size
-budget, and builds the changeset-summary types both agent session changes and
-GitHub pull request changes read through — so a file's status/line counts and
-the summary a client decodes are the same whichever produced the patch.
+## What it is
+
+Shared infrastructure for the agent sessions and GitHub integration features:
+parses git-style unified diffs into per-file facts, cuts them to a size
+budget, and builds the changeset-summary types both agent session changes
+and GitHub pull request changes read through, so a client sees the same
+status/line counts whichever produced the patch.
 
 ## Start here
 

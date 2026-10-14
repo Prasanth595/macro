@@ -1,8 +1,12 @@
 # system_properties
 
-Database operations for system-managed properties: predefined properties
-(e.g. email attachments, CRM stage definitions) that users apply to entities
-but cannot create or delete.
+## What it is
+
+Part of the shared properties feature — database operations for
+system-managed properties: predefined properties (e.g. email attachments,
+CRM stage definitions) that users apply to entities but cannot create or
+delete. Consumed by CRM, projects, initiatives, and other entity-kind crates
+for their fixed property catalogs.
 
 ## Start here
 

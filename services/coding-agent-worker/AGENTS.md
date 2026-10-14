@@ -1,8 +1,11 @@
 # coding-agent-worker
 
-Bun/Hono service that boots a sandboxed container with a coding agent
-(opencode) and relays ACP frames between it and `agent_proxy`, triggered by a
-`start_agent_session <repo-url> [prompt...]` chat message.
+## What it is
+
+Agent sessions feature: Bun/Hono service that boots a sandboxed container
+running a coding agent (opencode) and relays ACP frames between it and
+`agent_proxy`, triggered by a `start_agent_session <repo-url> [prompt...]`
+chat message.
 
 ## Start here
 

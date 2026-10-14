@@ -1,9 +1,13 @@
 # turso-opfs
 
-Browser-only Turso `Clock`/`IO`/`File` adapter over a DedicatedWorker's Origin
-Private File System. Production code is wasm32-only; the lifecycle state
-machine also compiles natively for its unit tests. See `README.md` for the full
-ownership/recovery contract and the multi-target verification commands.
+## What it is
+
+Part of the web client's shared infrastructure: a browser-only Turso
+`Clock`/`IO`/`File` adapter over a DedicatedWorker's Origin Private File
+System, backing `cache-turso`'s storage for the normalized GraphQL cache.
+Production code is wasm32-only; the lifecycle state machine also compiles
+natively for its unit tests. See `README.md` for the full ownership/recovery
+contract and the multi-target verification commands.
 
 ## Start here
 

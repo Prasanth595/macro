@@ -1,9 +1,11 @@
 # ai_toolset
 
-Infrastructure for defining AI tools: the `AsyncTool` trait, JSON schema
-generation via `schemars`, per-tool context extraction, and toolset
-collection/dispatch. This is the framework; `ai_tools` is the assembled
-product toolset built on it.
+## What it is
+
+Part of AI: the framework underneath every AI tool in the product — the
+`AsyncTool` trait, JSON schema generation via `schemars`, per-tool context
+extraction, and toolset collection/dispatch that `ai_tools` assembles
+domain crates' tools with.
 
 Do not change this crate without reading `TOOL_DESIGN.md` first; it is
 deliberately stable and widely depended on.

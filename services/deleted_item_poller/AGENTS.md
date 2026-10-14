@@ -1,7 +1,10 @@
 # deleted_item_poller
 
-EventBridge-scheduled Lambda that sweeps users' deleted items older than 30
-days and queues them for permanent deletion.
+## What it is
+
+Shared infrastructure: EventBridge-scheduled Lambda that sweeps users'
+deleted items (chats, documents, projects) older than 30 days and queues
+them for permanent deletion.
 
 ## Start here
 

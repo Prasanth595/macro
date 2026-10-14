@@ -1,7 +1,10 @@
 # slack_integration
 
-Browser-staged Slack archive imports: upload a Slack export, map it onto
-Macro channels/messages/users, and import it as a job.
+## What it is
+
+Part of the channels/chat (messaging) feature — lets a team bring its Slack
+history into Macro. Browser-staged Slack archive imports: upload a Slack
+export, map it onto Macro channels/messages/users, and import it as a job.
 
 ## Start here
 

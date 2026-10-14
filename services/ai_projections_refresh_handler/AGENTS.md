@@ -1,7 +1,11 @@
 # ai_projections_refresh_handler
 
-Scheduled Lambda that sweeps `ai_projection` instances for one refresh cadence:
-deletes inactive ones and enqueues a refresh for stale ones.
+## What it is
+
+Part of the AI projections feature (cached AI-generated views of a user's
+data, e.g. a dashboard widget) — a scheduled Lambda that sweeps
+`ai_projection` instances for one refresh cadence: deletes inactive ones and
+enqueues a refresh for stale ones.
 
 ## Start here
 

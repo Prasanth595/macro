@@ -1,7 +1,10 @@
 # ses_client
 
-Outbound transactional email: SES in dev/prod, local SMTP (Mailpit) when
-`SMTP_HOST` is set.
+## What it is
+
+Part of shared infrastructure (transactional email). Outbound email
+delivery: SES in dev/prod, local SMTP (Mailpit) when `SMTP_HOST` is set,
+used by `authentication_service` for invite emails.
 
 ## Start here
 

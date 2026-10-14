@@ -1,8 +1,10 @@
 # email_refresh_handler
 
-Lambda, triggered hourly by EventBridge, that re-subscribes a slice of Gmail
-inboxes to push notifications (each inbox refreshed once per day) by enqueuing
-`LinkManagerMessage`s for `email_service` to process.
+## What it is
+
+Email feature: Lambda, triggered hourly by EventBridge, that re-subscribes a
+slice of Gmail inboxes to push notifications (each inbox refreshed once per
+day) by enqueuing `LinkManagerMessage`s for `email_service` to process.
 
 ## Start here
 

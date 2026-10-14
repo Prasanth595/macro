@@ -1,8 +1,12 @@
 # soup_realtime
 
-Turns document/project/chat/email/channel/property Kafka events into
-recipient-targeted Soup patches, and fans those out to instance-local,
-user-keyed subscriptions. No composition root; starts no tasks itself.
+## What it is
+
+Part of the Soup query feature (Home/Recent/Signal) — keeps cached Soup
+results live by turning document/project/chat/email/channel/property Kafka
+events into recipient-targeted Soup patches, and fanning those out to
+instance-local, user-keyed subscriptions. No composition root; starts no
+tasks itself.
 
 ## Start here
 

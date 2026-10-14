@@ -1,7 +1,9 @@
 # native_app_service
 
-Serverside handlers for dynamically updating the Tauri desktop/native app
-(update checks, version negotiation).
+## What it is
+
+Part of the native apps (Tauri desktop and iOS). Server-side handlers for
+updating them: update checks and version negotiation.
 
 ## Start here
 

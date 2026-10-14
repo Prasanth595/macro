@@ -1,8 +1,11 @@
 # cursor_cloud_agents
 
-An ACP agent backed by Cursor cloud agents: one ACP session is one Cursor
-*agent*, one `session/prompt` is one Cursor *run*, and the run's SSE stream is
-translated into ACP `session/update` notifications as it arrives.
+## What it is
+
+Part of agent sessions: an ACP agent backed by Cursor cloud agents — one
+ACP session is one Cursor *agent*, one `session/prompt` is one Cursor
+*run*, and the run's SSE stream is translated into ACP `session/update`
+notifications as it arrives.
 
 ## Start here
 

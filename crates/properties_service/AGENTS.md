@@ -1,7 +1,10 @@
 # properties_service
 
-Composition shim binding the `properties` crate's axum router to concrete
-domain and authorization service types, for embedding in a host service.
+## What it is
+
+Part of the Databases and CRM features. Composition shim binding the
+`properties` crate's axum router to concrete domain and authorization
+service types, for embedding in a host service.
 
 Note: `README.md` describes an older, service-owned-logic shape
 (`properties_db_client`, `local_auth`) that no longer matches this crate —

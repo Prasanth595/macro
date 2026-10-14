@@ -1,7 +1,10 @@
 # macro_sha_count_client
 
-Redis-backed reference counter for content-addressed file blobs (SHA keys),
-used to know when a blob's last reference is gone and it's safe to delete.
+## What it is
+
+Part of document/file storage. A Redis-backed reference counter for
+content-addressed file blobs (SHA keys), used to know when a blob's last
+reference is gone and it's safe to delete.
 
 ## Start here
 

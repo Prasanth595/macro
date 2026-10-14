@@ -1,8 +1,18 @@
 # agent_fold
 
-Collapses an agent session's raw ACP/ARP protocol log into the renderable
-message vocabulary — the fold every caller (harness, web, exports) reads
-sessions through. Builds native (`rlib`) and as wasm (`cdylib`) for the browser.
+## What it is
+
+Core to the agent sessions feature: collapses an agent session's raw ACP/ARP
+protocol log into the renderable message vocabulary every caller (harness,
+web, exports) reads sessions through. Builds native (`rlib`) and as wasm
+(`cdylib`) for the browser.
+
+## How it works
+
+Raw log frames (`domain/log.rs`) go in; `domain/fold.rs` folds them, handling
+lifecycle and speculative state, and always succeeds (unaccounted frames are
+logged, not errored); `domain/model.rs` renderable messages come out, exposed
+to the browser via `inbound/wasm`.
 
 ## Start here
 

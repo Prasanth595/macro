@@ -1,7 +1,10 @@
 # search_service
 
-OpenSearch-backed search API — per-entity-type search plus a unified search
-across them — mounted into `document_storage_service`, not run standalone.
+## What it is
+
+Part of the Search feature. OpenSearch-backed search API —
+per-entity-type search plus a unified search across them — mounted into
+`document_storage_service`, not run standalone.
 
 ## Start here
 

@@ -1,7 +1,12 @@
 # anthropic
 
-SDK client for the Anthropic Messages API, plus an OpenAI-compatible request/response
-mapping layer and an AI toolset (web search, web fetch, bash/text-editor code execution).
+## What it is
+
+Part of AI: the SDK client for the Anthropic Messages API that the rest of
+the product's AI surfaces (via `agent`) build requests against, plus an
+OpenAI-compatible request/response mapping layer and Anthropic's own
+server-side tools (web search, web fetch, bash/text-editor code
+execution).
 
 ## Start here
 

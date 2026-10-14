@@ -1,7 +1,11 @@
 # preview_gateway
 
-Composition root exposing coding-agent dev-server previews over SSH tunnels
-and short-lived browser tickets, on its own `macro-agent-gateway.com` domain.
+## What it is
+
+Serves agent sessions: lets people view a coding agent's running dev-server
+preview from the browser. A composition root exposing coding-agent dev-server
+previews over SSH tunnels and short-lived browser tickets, on its own
+`macro-agent-gateway.com` domain.
 
 ## Start here
 

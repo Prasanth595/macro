@@ -1,8 +1,10 @@
 # contacts_service
 
-Thin composition root for the `contacts` domain crate: HTTP router, an SQS
-worker that ingests connection events, and an outbox worker that notifies
-`connection_gateway`.
+## What it is
+
+Contacts/CRM feature: thin composition root for the `contacts` domain
+crate — HTTP router, an SQS worker that ingests connection events, and an
+outbox worker that notifies `connection_gateway`.
 
 ## Start here
 

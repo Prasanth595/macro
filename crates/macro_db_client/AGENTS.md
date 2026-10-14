@@ -1,7 +1,10 @@
 # macro_db_client
 
-Database client crate for MacroDB (Postgres): owns its migrations and most of
-the compile-time-checked queries used across Rust services.
+## What it is
+
+Belongs to shared infrastructure: the database client crate for MacroDB
+(Postgres), owning its migrations and most of the compile-time-checked
+queries used across Rust services.
 
 ## Start here
 

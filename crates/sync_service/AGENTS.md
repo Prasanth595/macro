@@ -1,7 +1,11 @@
 # sync_service
 
-Hex crate defining the sync service's domain ports and an axum router shim.
-Package name is `sync_service_hex` (not `sync_service`) — depend on it with
+## What it is
+
+Part of the Documents (collaborative editing/sync) feature — a hex crate
+defining the sync service's domain ports and an axum router shim, used by
+`document_storage_service`'s in-process sync integration. Package name is
+`sync_service_hex` (not `sync_service`) — depend on it with
 `path = "../sync_service", package = "sync_service_hex"`.
 
 ## Start here

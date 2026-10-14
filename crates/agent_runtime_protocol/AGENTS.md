@@ -1,8 +1,12 @@
 # agent_runtime_protocol
 
-Wire types for the Agent Runtime Protocol: the outer protocol that carries
-Agent Client Protocol (ACP) messages plus runtime control messages, without
-interpreting the wrapped ACP payloads.
+## What it is
+
+Part of agent sessions: the outer wire protocol every coding-agent
+transport (sandboxed containers, in-process, and the Cursor/Codex/Claude
+cloud-agent adapters) speaks — carries Agent Client Protocol (ACP) payloads
+plus runtime control messages without interpreting the wrapped ACP
+payloads.
 
 ## Start here
 

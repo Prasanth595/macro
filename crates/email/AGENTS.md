@@ -1,8 +1,10 @@
 # email
 
-Email domain crate: threads/messages orchestration, scheduling and
-reminders/followups, calendar-invitation extraction, and the AI email tools —
-hexagonal, heavily feature-gated.
+## What it is
+
+The core of the Email feature: threads/messages orchestration, scheduling
+and reminders/followups, calendar-invitation extraction, and the AI email
+tools — hexagonal, heavily feature-gated.
 
 ## Start here
 

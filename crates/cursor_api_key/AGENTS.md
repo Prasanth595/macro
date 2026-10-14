@@ -1,8 +1,11 @@
 # cursor_api_key
 
-A user's Cursor API key: KMS encryption (`cipher`) and row storage (`store`)
-for the per-user secret `@cursor` sessions run on. See the crate-level doc
-comment in `src/lib.rs` for the full threat model.
+## What it is
+
+Part of agent sessions: a user's Cursor API key — KMS encryption (`cipher`)
+and row storage (`store`) for the per-user secret `@cursor` sessions run
+on. See the crate-level doc comment in `src/lib.rs` for the full threat
+model.
 
 ## Boundaries
 

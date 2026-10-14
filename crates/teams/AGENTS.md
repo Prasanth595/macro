@@ -1,8 +1,11 @@
 # teams
 
-Team management: membership, invites, roles, CRM/analytics settings, and the
-`macro.teams` lifecycle event producer. See `README.md` for the full event
-contract (schema, sanitization, delivery semantics).
+## What it is
+
+Part of account/workspace management — team membership, invites, roles,
+CRM/analytics settings, and the `macro.teams` lifecycle event producer that
+other features (billing, CRM) subscribe to. See `README.md` for the full
+event contract (schema, sanitization, delivery semantics).
 
 ## Start here
 

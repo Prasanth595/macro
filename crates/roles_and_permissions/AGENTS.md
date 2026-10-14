@@ -1,6 +1,9 @@
 # roles_and_permissions
 
-Domain for user roles and permissions (not item-level sharing — see Scope).
+## What it is
+
+Part of shared infrastructure. Domain for user roles and permissions (not
+item-level sharing — see Scope).
 
 ## Start here
 

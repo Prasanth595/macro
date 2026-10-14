@@ -1,8 +1,10 @@
 # comms_db_client
 
-Query layer for channel messages, participants, mentions, activity, and
-attachment references — the shared tables behind channel/document
-conversations.
+## What it is
+
+Part of Chat's shared infrastructure: the query layer for channel messages,
+participants, mentions, activity, and attachment references — the shared
+tables behind channel/document conversations.
 
 ## Start here
 

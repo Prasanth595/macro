@@ -1,7 +1,10 @@
 # graphql_calendar
 
-GraphQL inbound adapter for calendars: typed calendar/event/occurrence
-objects, reads, mutations, and the authenticated user's calendar query root.
+## What it is
+
+Backs the Calendar feature: the GraphQL inbound adapter exposing typed
+calendar/event/occurrence objects, reads, mutations, and the authenticated
+user's calendar query root.
 
 ## Start here
 

@@ -1,8 +1,10 @@
 # opensearch_query_builder
 
-Type-safe builders for OpenSearch query DSL and request bodies (bool, match,
-range, nested, terms, function_score, ...), each implementing
-`ToOpenSearchJson`.
+## What it is
+
+Part of the Search feature. Type-safe builders for OpenSearch query DSL
+and request bodies (bool, match, range, nested, terms, function_score,
+...), each implementing `ToOpenSearchJson`, used by `opensearch_client`.
 
 ## Start here
 

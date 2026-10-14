@@ -1,7 +1,10 @@
 # graphql_crm
 
-Typed GraphQL inbound adapter for CRM pipeline records (rows that reference a
-company or contact), composed onto their Soup entities.
+## What it is
+
+Backs the CRM feature: the typed GraphQL inbound adapter for CRM pipeline
+records (rows that reference a company or contact), composed onto their Soup
+entities.
 
 ## Start here
 

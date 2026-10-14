@@ -1,8 +1,11 @@
 # scheduled_action
 
-Deployable service for scheduled and event-triggered agent automations
-("routines"): cron-style schedules plus Kafka/Jev-gated event triggers that
-run a target (agent, workflow) and track each run.
+## What it is
+
+Serves agent sessions' automations ("routines"): a deployable service for
+scheduled and event-triggered agent automations — cron-style schedules plus
+Kafka/Jev-gated event triggers that run a target (agent, workflow) and track
+each run.
 
 ## Start here
 

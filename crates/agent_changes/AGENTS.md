@@ -1,7 +1,11 @@
 # agent_changes
 
-Reviews the GitHub pull request linked to an agent session: per-file diff
-facts, the patch, and a summary, captured after each turn and on demand.
+## What it is
+
+Part of agent sessions: after each turn, reviews the GitHub pull request
+linked to a coding-agent session and captures per-file diff facts, the
+patch, and a summary, so the harness and its UI can show what changed
+without re-reading the repo.
 
 ## Start here
 

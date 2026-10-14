@@ -1,7 +1,11 @@
 # graphql_properties
 
-GraphQL inbound adapter for the properties domain: property object types,
-definitions, filter inputs, and the DataLoader-backed entity property edge.
+## What it is
+
+Shared infrastructure for features that attach custom properties to entities
+(CRM, Initiatives): the GraphQL inbound adapter exposing property object
+types, definitions, filter inputs, and the DataLoader-backed entity property
+edge.
 
 ## Start here
 

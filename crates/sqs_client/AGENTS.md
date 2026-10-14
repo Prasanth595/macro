@@ -1,7 +1,10 @@
 # sqs_client
 
-Thin SQS client plus one queue-specific enqueue module per consumer, gated
-behind Cargo features.
+## What it is
+
+Shared infrastructure — a thin SQS client plus one queue-specific enqueue
+module per consumer, gated behind Cargo features, used by any service or
+crate that produces or consumes an SQS queue.
 
 ## Start here
 

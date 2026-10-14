@@ -1,7 +1,9 @@
 # local_e2e_test_support
 
-Shared helpers for Rust local end-to-end tests: fixture loading, local JWTs,
-and local-only service URLs.
+## What it is
+
+Belongs to local dev tooling: shared helpers for Rust local end-to-end
+tests — fixture loading, local JWTs, and local-only service URLs.
 
 ## Start here
 

@@ -1,7 +1,10 @@
 # authentication_service_client
 
-Thin reqwest HTTP client for calling `authentication_service` from other Rust
-services, with one module per endpoint group.
+## What it is
+
+Part of shared infrastructure: the typed Rust client other services use to
+call `authentication_service`'s internal API (users, Google access tokens,
+AI billing hooks, inbox-grant management), one module per endpoint group.
 
 ## Start here
 

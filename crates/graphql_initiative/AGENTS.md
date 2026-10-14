@@ -1,6 +1,9 @@
 # graphql_initiative
 
-Typed GraphQL inbound adapter for initiatives (named task groupings).
+## What it is
+
+Backs the Initiatives feature (named task groupings): the typed GraphQL
+inbound adapter exposing initiative queries, mutations, and loaders.
 
 ## Start here
 

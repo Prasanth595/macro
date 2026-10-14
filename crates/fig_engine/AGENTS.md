@@ -1,7 +1,10 @@
 # fig_engine
 
-A from-scratch Figma (`.fig`) file engine: decode, expand instances, render,
-inspect, edit, and save — same Rust native and as wasm in the web `.fig` viewer.
+## What it is
+
+Backs the Design feature's `.fig` file viewer/editor: a from-scratch Figma
+file engine that decodes, expands instances, renders, inspects, edits, and
+saves `.fig` files, built both as native Rust and as wasm for the web viewer.
 
 ## Start here
 

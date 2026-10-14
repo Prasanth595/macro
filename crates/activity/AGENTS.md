@@ -1,7 +1,13 @@
 # activity
 
-The activity protocol and its storage/consumer machinery: one durable
-`activity_events` row per "a principal did something to an entity."
+## What it is
+
+Shared infrastructure behind activity feeds, entity timelines, and
+attribution sorts across the product (Soup, Documents, Forms, Databases,
+Initiative, and more): one durable `activity_events` row per "a principal
+did something to an entity." Domain crates decide what counts as activity
+in their own domain; this crate owns the vocabulary, storage, and
+distribution.
 
 ## Start here
 

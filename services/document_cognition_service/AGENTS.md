@@ -1,8 +1,10 @@
 # document_cognition_service
 
-Deployable service (mounted at `/cognition` behind the gateway) hosting AI
-chat: completions, streaming, tool selection, structured completion,
-citations, and chat/attachment management.
+## What it is
+
+AI chat feature: deployable service (mounted at `/cognition` behind the
+gateway) hosting completions, streaming, tool selection, structured
+completion, citations, and chat/attachment management.
 
 ## Start here
 

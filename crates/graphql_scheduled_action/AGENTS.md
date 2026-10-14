@@ -1,7 +1,9 @@
 # graphql_scheduled_action
 
-GraphQL inbound adapter for listing AI routines (`ScheduledAction`). Read-only:
-no mutations.
+## What it is
+
+Backs the AI routines (scheduled actions) feature: the GraphQL inbound
+adapter for listing `ScheduledAction` records. Read-only: no mutations.
 
 ## Start here
 

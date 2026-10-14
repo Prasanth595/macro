@@ -1,7 +1,10 @@
 # bots
 
-Bot management hex crate: bot models, persistence, and HTTP/AI-tool adapters,
-plus lifecycle events for bot mutations.
+## What it is
+
+Part of agent sessions: owns the bot entity itself — models, persistence,
+ownership (user or team), and HTTP/AI-tool adapters, plus lifecycle events
+for bot mutations that channel bots, agent triggers, and memory build on.
 
 ## Start here
 

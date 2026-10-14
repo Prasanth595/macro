@@ -1,9 +1,12 @@
 # ai-editing-worker
 
-Cloudflare Worker that joins a document as a real Loro collaboration peer and
-streams AI-driven edits through it. `AI_EDITING.md` has the full flow
-(interpreter/supervisor/writer agents, the QuickJS sandbox → `DocumentOp[]` →
-animation pipeline). Read it before touching the edit flow.
+## What it is
+
+Part of Documents' AI editing feature — a Cloudflare Worker that joins a
+document as a real Loro collaboration peer and streams AI-driven edits
+through it. `AI_EDITING.md` has the full flow (interpreter/supervisor/writer
+agents, the QuickJS sandbox → `DocumentOp[]` → animation pipeline). Read it
+before touching the edit flow.
 
 ## Start here
 

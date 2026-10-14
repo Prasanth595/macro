@@ -1,8 +1,11 @@
 # mcp_auth_proxy
 
-Library crate (mounted into `mcp_service`, not its own binary) implementing an
-OAuth 2.1 Dynamic Client Registration broker in front of FusionAuth, which
-doesn't support DCR itself.
+## What it is
+
+Supports agent sessions: lets external MCP clients (e.g. cursor.com)
+authenticate against Macro. A library crate (mounted into `mcp_service`, not
+its own binary) implementing an OAuth 2.1 Dynamic Client Registration broker
+in front of FusionAuth, which doesn't support DCR itself.
 
 ## Start here
 

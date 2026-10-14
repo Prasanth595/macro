@@ -1,8 +1,11 @@
 # github_pull_requests
 
-GitHub pull requests stored as `foreign_entity` records: the PR model, the
-rules for merging refreshed GitHub data into what's already stored, the typed
-columns read from it, and the service that writes and lists visible PRs.
+## What it is
+
+Backs the GitHub integration's pull request surface (agent session
+changesets and PR review): the PR model, stored as `foreign_entity` records,
+the rules for merging refreshed GitHub data, and the service that writes and
+lists visible PRs.
 
 ## Start here
 

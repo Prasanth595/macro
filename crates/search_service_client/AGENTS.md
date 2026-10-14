@@ -1,7 +1,9 @@
 # search_service_client
 
-HTTP client for `search_service`, authenticating with the internal API key
-header instead of a user JWT.
+## What it is
+
+Part of the Search feature. HTTP client for `search_service`,
+authenticating with the internal API key header instead of a user JWT.
 
 ## Start here
 

@@ -1,7 +1,10 @@
 # email_api_client
 
-Provider-neutral contracts and models for email provider integrations (sync,
-send, tokens, rate limits), plus the Gmail outbound adapter.
+## What it is
+
+Part of the Email feature: provider-neutral contracts and models for email
+provider integrations (sync, send, tokens, rate limits), plus the Gmail
+outbound adapter.
 
 ## Start here
 

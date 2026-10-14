@@ -1,9 +1,11 @@
 # coding_agent_worker
 
-`macrod`: the agent harness daemon operators run on their own machine — serves
-a registered harness's agent sessions, bridges the local ACP process (Claude
-Code, Codex, ...), and drives native [herdr](https://herdr.dev) sessions, all
-inside one terminal control panel.
+## What it is
+
+Part of agent sessions: `macrod`, the agent harness daemon operators run on
+their own machine — serves a registered harness's agent sessions, bridges
+the local ACP process (Claude Code, Codex, ...), and drives native
+[herdr](https://herdr.dev) sessions, all inside one terminal control panel.
 
 ## Start here
 

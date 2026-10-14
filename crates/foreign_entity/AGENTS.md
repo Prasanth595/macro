@@ -1,7 +1,10 @@
 # foreign_entity
 
-CRUD for external-entity mappings (records sourced from a third-party system,
-like GitHub) stored generically, following the hexagonal architecture pattern.
+## What it is
+
+Shared infrastructure used across many product features (GitHub PRs, Soup,
+documents, memory, AI tools): generic CRUD storage for records sourced from a
+third-party system, following the hexagonal architecture pattern.
 
 ## Start here
 

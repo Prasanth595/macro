@@ -1,8 +1,11 @@
 # codex_cloud_agents
 
-Codex cloud transport and ACP conversations: OAuth/credentials, the OpenAI
-cloud-task HTTP client, and the ACP adapter used by both the `codex-acp`
-binary and `codex_connection`'s hosted sessions.
+## What it is
+
+Part of agent sessions: Codex cloud transport and ACP conversations —
+OAuth/credentials, the OpenAI cloud-task HTTP client, and the ACP adapter
+used by both the `codex-acp` binary and `codex_connection`'s hosted
+sessions.
 
 ## Start here
 

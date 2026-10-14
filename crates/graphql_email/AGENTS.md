@@ -1,7 +1,9 @@
 # graphql_email
 
-GraphQL inbound adapter for the email domain: message object types, the
-`EmailThread` edge resolvers, and draft mutations.
+## What it is
+
+Backs the Email feature: the GraphQL inbound adapter exposing message object
+types, the `EmailThread` edge resolvers, and draft mutations.
 
 ## Start here
 

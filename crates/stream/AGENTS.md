@@ -1,7 +1,10 @@
 # stream
 
-Redis Streams abstraction: typed append/read/ack over `model-entity` payloads,
-used as a lightweight event log independent of Kafka.
+## What it is
+
+Shared infrastructure — a Redis Streams abstraction (typed append/read/ack
+over `model-entity` payloads) for services that want an ordered,
+consumer-group event log without a full Kafka dependency.
 
 ## Start here
 

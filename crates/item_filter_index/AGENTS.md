@@ -1,8 +1,11 @@
 # item_filter_index
 
-Versioned flat Soup eligibility: compiles `EntityFilterAst` filter trees into
-the generic `predicate_index` IR, one compiler per entity kind. Wasm-compatible
-(used in the browser soup engine) — keep it free of native-only dependencies.
+## What it is
+
+Belongs to Search (Soup): compiles `EntityFilterAst` filter trees into the
+generic `predicate_index` IR that decides versioned flat Soup eligibility,
+one compiler per entity kind. Wasm-compatible (used in the browser soup
+engine) — keep it free of native-only dependencies.
 
 ## Start here
 

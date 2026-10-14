@@ -1,8 +1,10 @@
 # onboarding
 
-The onboarding flow (`/setup`): one row per user tracking whether they are
-still in the flow, plus the hook that starts import gather runs when
-connectors authenticate during it.
+## What it is
+
+Part of the onboarding feature (`/setup`). Tracks one row per user for
+whether they are still in the flow, and starts import gather runs when
+connectors authenticate during onboarding.
 
 ## Start here
 

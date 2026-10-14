@@ -1,7 +1,10 @@
 # claude_cloud_agents
 
-Demo-only Claude Code cloud provider: runs agent sessions against Anthropic's
-hosted Claude Code using user subscription OAuth, via the Agent Client Protocol.
+## What it is
+
+Part of agent sessions: a demo-only Claude Code cloud provider that runs
+agent sessions against Anthropic's hosted Claude Code using user
+subscription OAuth, via the Agent Client Protocol.
 
 ## Start here
 

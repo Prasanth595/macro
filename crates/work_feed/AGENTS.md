@@ -1,7 +1,9 @@
 # work_feed
 
-Home's combined work feed: one paginated, stacked, live-updating list of
-things that need the viewer's attention plus work they recently did.
+## What it is
+
+Part of Home — the combined work feed: one paginated, stacked, live-updating
+list of things that need the viewer's attention plus work they recently did.
 
 ## Start here
 

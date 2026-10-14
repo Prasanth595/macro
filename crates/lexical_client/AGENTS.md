@@ -1,7 +1,10 @@
 # lexical_client
 
-HTTP client for `lexical_service`, plus a Rust parser for Lexical's markdown
-subset.
+## What it is
+
+Belongs to Documents: the Rust-side HTTP client for `lexical_service`, plus
+a parser for Lexical's markdown subset, used by any backend crate that needs
+to read or render document content.
 
 ## Start here
 

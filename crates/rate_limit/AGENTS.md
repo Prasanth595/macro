@@ -1,7 +1,9 @@
 # rate_limit
 
-Generic rate limiting: a hashed-key sliding-window counter, checked and
-rolled back atomically via Redis.
+## What it is
+
+Part of shared infrastructure. Generic rate limiting: a hashed-key
+sliding-window counter, checked and rolled back atomically via Redis.
 
 ## Start here
 

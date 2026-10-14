@@ -1,8 +1,19 @@
 # cache-core
 
-The normalized GraphQL cache engine: pure, native-tested core shared by every
-storage backend and host (web, Tauri). Design doc:
+## What it is
+
+Part of the web client's shared infrastructure: the normalized GraphQL
+cache engine — pure, native-tested core shared by every storage backend and
+host (web, Tauri). Design doc:
 `apps/web/docs/graphql-normalized-cache-plan.md`.
+
+## How it works
+
+GraphQL responses are normalized into keyed records (`normalize.rs`);
+watched queries and the optimistic mutation queue read/write those records
+through the predicate/projection IR; results are denormalized back into
+GraphQL response shape for callers. A concrete `Storage` impl (e.g.
+`cache-turso`) persists the records.
 
 ## Start here
 

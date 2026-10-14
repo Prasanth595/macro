@@ -1,8 +1,11 @@
 # authentication_service
 
-Deployable service: FusionAuth-backed identity, sessions/JWTs, signup policy,
-OAuth/OAuth2 linking (Google/Microsoft/GitHub), subscription checkout status,
-Cursor/Codex API key issuance, and account merge/link flows.
+## What it is
+
+Account sign-in and identity feature: FusionAuth-backed login, session/JWT
+issuance, signup policy and allowlisting, OAuth/OAuth2 account linking
+(Google/Microsoft/GitHub), subscription checkout status, Cursor/Codex API
+key issuance, and account merge/link flows.
 
 ## Start here
 

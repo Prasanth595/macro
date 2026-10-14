@@ -1,7 +1,11 @@
 # agent_inmem
 
-The in-memory agent runtime: serves the agent side of ACP in-process,
-instead of a sandboxed container, so a session starts in milliseconds.
+## What it is
+
+Part of agent sessions: the lightweight alternative to `agent_harness`'s
+sandboxed containers — serves the agent side of ACP in-process, running
+the same agentic loop behind the same ACP contract, so a session starts in
+milliseconds instead of waiting on container provisioning.
 
 ## Start here
 

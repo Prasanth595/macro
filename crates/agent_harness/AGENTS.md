@@ -1,7 +1,11 @@
 # agent_harness
 
-Orchestrates sandboxed coding-agent sessions: provisions containers, speaks
-to each runtime (Claude, Codex), routes triggers, and relays ACP traffic.
+## What it is
+
+Part of agent sessions: orchestrates sandboxed coding-agent sessions end to
+end — provisioning containers, speaking to each coding-agent runtime
+(Claude, Codex), routing triggers to a session, and relaying ACP traffic
+between the sandbox and the rest of the product.
 
 ## Start here
 

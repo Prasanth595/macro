@@ -1,6 +1,9 @@
 # models_permissions
 
-Wire models for entity sharing: share permissions (user/team/link), access
+## What it is
+
+Part of entity sharing/permissions, used across nearly every feature. Wire
+models for entity sharing: share permissions (user/team/link), access
 levels, and the computed `UserItemAccess` a caller has to an entity.
 
 ## Start here

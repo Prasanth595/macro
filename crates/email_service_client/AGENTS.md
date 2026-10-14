@@ -1,7 +1,10 @@
 # email_service_client
 
-Rust HTTP client for `email_service`: message/thread lookups by id, thread
-owner lookup, and an external (JWT-authenticated) preview endpoint.
+## What it is
+
+Part of the Email feature: a Rust HTTP client for `email_service` —
+message/thread lookups by id, thread owner lookup, and an external
+(JWT-authenticated) preview endpoint.
 
 ## Start here
 

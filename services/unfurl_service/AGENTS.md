@@ -1,8 +1,11 @@
 # unfurl_service
 
-Deployable service that fetches link previews (title, description, image,
-favicon) for arbitrary URLs and proxies image responses, with SSRF
-protections since both accept user-supplied URLs.
+## What it is
+
+Shared infrastructure for rendering link previews wherever a URL is pasted
+(documents, chat, email). A deployable service that fetches link previews
+(title, description, image, favicon) for arbitrary URLs and proxies image
+responses, with SSRF protections since both accept user-supplied URLs.
 
 ## Start here
 

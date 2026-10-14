@@ -1,7 +1,10 @@
 # unfurl
 
-Hex crate for URL unfurling: fetches a URL's meta tags (title, description,
-image, favicon) with SSRF protections.
+## What it is
+
+Shared infrastructure for link previews, used by email and CRM — a hex crate
+for URL unfurling: fetches a URL's meta tags (title, description, image,
+favicon) with SSRF protections.
 
 ## Start here
 

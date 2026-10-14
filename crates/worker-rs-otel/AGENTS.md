@@ -1,8 +1,11 @@
 # worker-rs-otel
 
-OpenTelemetry tracing support for Cloudflare Workers built with `worker-rs`
-(used by `services/sync-service`). Hand-rolled OTLP transport/buffer/flush
-because wasm Workers can't use the regular `opentelemetry-otlp` exporter.
+## What it is
+
+Shared infrastructure for observability — OpenTelemetry tracing support for
+Cloudflare Workers built with `worker-rs` (used by `services/sync-service`).
+Hand-rolled OTLP transport/buffer/flush because wasm Workers can't use the
+regular `opentelemetry-otlp` exporter.
 
 ## Start here
 

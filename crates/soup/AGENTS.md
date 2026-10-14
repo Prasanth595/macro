@@ -1,9 +1,11 @@
 # soup
 
+## What it is
+
+Backs the Home, Recent, Signal/work-feed, and GraphQL Soup query surfaces.
 Soup is the amalgamated query service: callers filter across many entity
 types (documents, channels, chats, calendar events, agent sessions, database
-rows, initiatives, ...) and get back a single unified, paginated result —
-backing Home, Recent, Signal/work-feed, and GraphQL Soup queries.
+rows, initiatives, ...) and get back a single unified, paginated result.
 
 ## Start here
 

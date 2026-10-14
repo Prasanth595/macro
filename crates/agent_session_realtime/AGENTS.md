@@ -1,7 +1,10 @@
 # agent_session_realtime
 
-Session-scoped fan-out of appended agent session log frames, from Kafka to
-whoever is subscribed over GraphQL.
+## What it is
+
+Part of agent sessions: fans out newly appended agent session log frames,
+from Kafka to whoever is subscribed over GraphQL, so an open session view
+updates live.
 
 ## Start here
 

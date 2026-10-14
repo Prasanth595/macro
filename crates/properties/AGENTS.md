@@ -1,8 +1,11 @@
 # properties
 
-Entity properties: definitions, selectable options (including tags),
-per-entity values, and the CRM pipeline/stage definitions built on them.
-Publishes property mutation events to the `macro.properties` Kafka topic.
+## What it is
+
+Part of the Databases and CRM features. Entity properties: definitions,
+selectable options (including tags), per-entity values, and the CRM
+pipeline/stage definitions built on them. Publishes property mutation
+events to the `macro.properties` Kafka topic.
 
 ## Start here
 

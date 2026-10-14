@@ -1,9 +1,11 @@
 # agent_egress
 
-Credential-stamping egress proxy for agent sandboxes: the sandbox holds only
-a short-lived session token, and this crate resolves it to an upstream
-credential (MCP app, custom server, or GitHub installation token) on each
-request.
+## What it is
+
+Part of agent sessions: the security boundary for sandboxed coding agents.
+A sandbox running model-authored code holds only a short-lived session
+token; this crate resolves that token to the right upstream credential (an
+MCP app, a custom server, or a GitHub installation token) on each request.
 
 ## Start here
 

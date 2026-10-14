@@ -1,7 +1,10 @@
 # entity_registry_db_utils
 
-Transactional writes to the `entity` table, for callers to run inside their
-own resource-row transaction.
+## What it is
+
+Shared infrastructure used across every owned-entity feature: transactional
+writes to the `entity` table, for callers to run inside their own
+resource-row transaction.
 
 ## Start here
 

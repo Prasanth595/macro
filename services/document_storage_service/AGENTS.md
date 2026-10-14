@@ -1,8 +1,10 @@
 # document_storage_service
 
-Deployable service (DSS) hosting document/item CRUD, the "Soup" GraphQL API,
-and most cross-entity concerns: history, annotations, threads, pins, recents,
-notifications, folders, activity.
+## What it is
+
+Documents feature: deployable service (DSS) hosting document/item CRUD, the
+"Soup" GraphQL API, and most cross-entity concerns — history, annotations,
+threads, pins, recents, notifications, folders, activity.
 
 ## Start here
 

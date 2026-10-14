@@ -1,8 +1,10 @@
 # databases
 
-Domain crate for Macro databases: tables of typed rows whose cells are entity
-properties, behind a hexagonal service with Axum, agent-tool and Postgres
-adapters.
+## What it is
+
+The core of the Databases feature (also underlies CRM and Forms storage):
+tables of typed rows whose cells are entity properties, behind a hexagonal
+service with Axum, agent-tool and Postgres adapters.
 
 ## Start here
 

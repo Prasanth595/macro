@@ -1,7 +1,10 @@
 # models_soup
 
-Shared API models for the Soup feed (Home/Recent/the unified activity feed):
-one module per entity kind Soup can surface, plus the unified item model.
+## What it is
+
+Part of the Soup feed (Home/Recent, the unified activity feed). Shared API
+models: one module per entity kind Soup can surface, plus the unified item
+model.
 
 ## Start here
 

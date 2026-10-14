@@ -1,7 +1,10 @@
 # sync_service_client
 
-HTTP client for the deployed sync service (`services/sync-service`, a
-Cloudflare Durable Object): document CRUD, state, surfaces, and wakeup calls.
+## What it is
+
+Part of the Documents (collaborative editing/sync) feature — the HTTP client
+for the deployed sync service (`services/sync-service`, a Cloudflare Durable
+Object): document CRUD, state, surfaces, and wakeup calls.
 
 ## Start here
 

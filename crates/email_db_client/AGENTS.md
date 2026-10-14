@@ -1,7 +1,10 @@
 # email_db_client
 
-SQLx query crate for MacroDB's email tables: messages, threads, contacts,
-labels, links, attachments, sync tokens, CRM cleanup, and backfill.
+## What it is
+
+Part of the Email feature: the SQLx query crate for MacroDB's email tables —
+messages, threads, contacts, labels, links, attachments, sync tokens, CRM
+cleanup, and backfill.
 
 ## Start here
 

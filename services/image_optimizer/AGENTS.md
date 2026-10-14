@@ -1,7 +1,11 @@
 # image_optimizer
 
-Lambda behind CloudFront (triggered via Function URL) that resizes/transcodes
-images on first request and caches the result in S3 at a variant key.
+## What it is
+
+Shared infrastructure for serving images (documents, email, attachments,
+etc.). A Lambda behind CloudFront (triggered via Function URL) that
+resizes/transcodes images on first request and caches the result in S3 at a
+variant key.
 
 ## Start here
 

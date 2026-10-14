@@ -1,6 +1,8 @@
 # chat
 
-AI chat domain crate: chats and chat messages, persistence, HTTP/toolset
+## What it is
+
+Part of AI chat: chats and chat messages, persistence, HTTP/toolset
 adapters, and lifecycle events. See `README.md` for the Kafka event schema.
 
 ## Start here

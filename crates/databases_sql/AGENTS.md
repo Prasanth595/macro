@@ -1,8 +1,11 @@
 # databases_sql
 
-Runs the `database_sql` engine over Macro databases for agents: reads go
-through Soup and contacts, writes go through `databases`' typed ops — the
-agent-tool counterpart to the browser's direct `database_sql` wasm usage.
+## What it is
+
+Part of the Databases feature: runs the `database_sql` engine over Macro
+databases for agents, as the agent-tool counterpart to the browser's direct
+`database_sql` wasm usage. Reads go through Soup and contacts, writes go
+through `databases`' typed ops.
 
 ## Start here
 

@@ -1,7 +1,10 @@
 # macro_auth
 
-Low-level JWT and internal-credential primitives: decoding Macro API tokens,
-validating the internal API key, and the Axum JWT-decode middleware.
+## What it is
+
+Belongs to shared infrastructure: low-level JWT and internal-credential
+primitives used across services — decoding Macro API tokens, validating the
+internal API key, and the Axum JWT-decode middleware.
 
 ## Start here
 

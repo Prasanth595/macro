@@ -1,8 +1,10 @@
 # docx_engine
 
-A from-scratch Word (`.docx`) engine: parse, lay out, render, edit, save.
-Runs natively (tests, the corpus CLI) and as WebAssembly in the web app's
-DOCX editor worker.
+## What it is
+
+Powers Word-document editing within the Documents feature: a from-scratch
+`.docx` engine — parse, lay out, render, edit, save. Runs natively (tests,
+the corpus CLI) and as WebAssembly in the web app's DOCX editor worker.
 
 ## Start here
 

@@ -1,7 +1,10 @@
 # entity_access_management
 
-Manages `entity_access` row updates triggered by entity lifecycle events:
-adding/removing an entity from a project, and moving a project.
+## What it is
+
+Shared infrastructure backing entity access, mainly for the Projects
+feature: manages `entity_access` row updates triggered by entity lifecycle
+events — adding/removing an entity from a project, and moving a project.
 
 ## Start here
 

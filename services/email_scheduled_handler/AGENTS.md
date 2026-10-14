@@ -1,8 +1,10 @@
 # email_scheduled_handler
 
-Lambda, triggered every minute by EventBridge, that finds scheduled email
-drafts whose `send_time` has passed and publishes a `ScheduledPubsubMessage`
-per draft for `email_service` to actually send.
+## What it is
+
+Email feature: Lambda, triggered every minute by EventBridge, that finds
+scheduled email drafts whose `send_time` has passed and publishes a
+`ScheduledPubsubMessage` per draft for `email_service` to actually send.
 
 ## Start here
 

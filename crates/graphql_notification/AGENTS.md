@@ -1,8 +1,10 @@
 # graphql_notification
 
-GraphQL inbound adapter for notifications: the notification object type, the
-DataLoader-backed entity notification edge, mutations, and the realtime
-subscription.
+## What it is
+
+Backs the Notifications feature: the GraphQL inbound adapter exposing the
+notification object type, the DataLoader-backed entity notification edge,
+mutations, and the realtime subscription.
 
 ## Start here
 

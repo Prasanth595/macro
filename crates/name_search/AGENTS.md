@@ -1,7 +1,10 @@
 # name_search
 
-Postgres queries for server-side name search over channels and chats (used
-by AI tools and `search_service`'s name-match path), plus match highlighting.
+## What it is
+
+Part of the Search feature. Postgres queries for server-side name search
+over channels and chats (used by AI tools and `search_service`'s name-match
+path), plus match highlighting.
 
 ## Start here
 

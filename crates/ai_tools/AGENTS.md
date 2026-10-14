@@ -1,9 +1,11 @@
 # ai_tools
 
-The assembled AI toolset: every domain crate's tool implementations wired
-together into one `AsyncToolCollection`, plus the cross-cutting tools
-(search, subagents, deferred execution, display) that don't belong to a
-single domain.
+## What it is
+
+Part of AI: assembles every domain crate's AI tool implementations into
+the one `AsyncToolCollection` every AI surface (chat, agent sessions, MCP)
+calls through, plus the cross-cutting tools (search, subagents, deferred
+execution, display) that don't belong to a single domain.
 
 ## Start here
 

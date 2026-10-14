@@ -1,7 +1,10 @@
 # document_storage_service_client
 
-Rust HTTP client for `document_storage_service` (DSS): documents, projects,
-threads, notifications, and uploads.
+## What it is
+
+Shared infrastructure for the Documents feature (and the other entities DSS
+hosts): a Rust HTTP client for `document_storage_service` (DSS) covering
+documents, projects, threads, notifications, and uploads.
 
 ## Start here
 

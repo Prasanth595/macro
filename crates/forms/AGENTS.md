@@ -1,8 +1,11 @@
 # forms
 
-Macro Forms: questionnaires that are views of a database table. Answers land
-as rows of the table through the `databases` service; this crate owns
-presentation, collaborative authoring, and the response ledger.
+## What it is
+
+Backs the Forms feature: questionnaires that are views of a database table.
+This crate owns form presentation, collaborative authoring, sharing, and the
+response ledger; answers land as rows of the table through the `databases`
+service.
 
 ## Start here
 

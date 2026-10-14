@@ -1,6 +1,9 @@
 # model
 
-Core wire/domain models for documents, items, chat, projects, threads, and
+## What it is
+
+Shared infrastructure underlying Documents, chat, and authentication. Core
+wire/domain models for documents, items, chat, projects, threads, and
 authentication — one of the most widely depended-on crates in the backend.
 
 ## Start here

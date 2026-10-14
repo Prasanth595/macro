@@ -1,7 +1,10 @@
 # macro_service_urls
 
-Typed per-environment URLs for every Macro service and gateway, resolved from
-`macro_env::Environment` with an `OVERRIDE_<NAME>` env var escape hatch.
+## What it is
+
+Belongs to shared infrastructure: typed per-environment URLs for every Macro
+service and gateway, resolved from `macro_env::Environment` with an
+`OVERRIDE_<NAME>` env var escape hatch.
 
 ## Start here
 

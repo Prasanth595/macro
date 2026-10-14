@@ -1,7 +1,10 @@
 # initiative
 
-Initiatives: a named grouping of tasks. Owns initiative lifecycle, assignment
-policy, sharing, properties, and activity.
+## What it is
+
+Belongs to tasks/project management: initiatives are a named grouping of
+tasks. This crate owns initiative lifecycle, assignment policy, sharing,
+properties, and activity.
 
 ## Start here
 

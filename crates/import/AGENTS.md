@@ -1,9 +1,12 @@
 # import
 
-The import pipeline: tracking external items (Linear issues, Notion pages,
-Slack channels) as they're discovered, accepted, and copied into Macro
-entities. Host-agnostic — onboarding (`/setup`) and AI chat both drive the
-same primitives, distinguished only by the `initiator` recorded on each row.
+## What it is
+
+Belongs to onboarding and AI chat: the import pipeline tracking external
+items (Linear issues, Notion pages, Slack channels) as they're discovered,
+accepted, and copied into Macro entities. Host-agnostic — onboarding
+(`/setup`) and AI chat both drive the same primitives, distinguished only by
+the `initiator` recorded on each row.
 
 Not to be confused with `crates/foreign_entity`: foreign entities stay live in
 the external system; an `ImportEntity` here is a ledger row for an item being

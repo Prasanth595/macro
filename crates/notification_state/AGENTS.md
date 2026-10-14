@@ -1,7 +1,10 @@
 # notification_state
 
-The shared `NotificationState` lifecycle enum (`Unseen` / `Seen` / `Done`)
-and its transition policy, kept dependency-light so it compiles to wasm.
+## What it is
+
+Part of the notifications feature. Defines the shared `NotificationState`
+lifecycle enum (`Unseen` / `Seen` / `Done`) and its transition policy, kept
+dependency-light so it compiles to wasm.
 
 ## Start here
 

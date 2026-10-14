@@ -1,7 +1,10 @@
 # last_online_tracker
 
-Tracks each user's last-seen timestamp in Redis, written off the hot path
-through a background worker.
+## What it is
+
+Belongs to notifications/presence: tracks each user's last-seen timestamp in
+Redis, written off the hot path through a background worker, for presence
+and notification decisions.
 
 ## Start here
 

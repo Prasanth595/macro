@@ -1,9 +1,11 @@
 # psd_engine
 
-A from-scratch Photoshop (`.psd`/`.psb`) engine — read, composite, edit with
-undo, collaborate, and save — compiled both natively and to WebAssembly for
-the browser Photoshop editor. See `README.md` for the file format, module
-map, and design before changing anything here.
+## What it is
+
+Part of the Documents feature (image editing). A from-scratch Photoshop
+(`.psd`/`.psb`) engine — read, composite, edit with undo, collaborate, and
+save — compiled both natively and to WebAssembly for the browser Photoshop
+editor.
 
 ## Start here
 

@@ -1,9 +1,11 @@
 # notification_service
 
-Deployable service that composes the `notification` domain crate into a
-running process: HTTP API for reading/unsubscribing from notifications, plus
-the Kafka-driven egress worker that sends email/mobile-push/websocket
-notifications.
+## What it is
+
+Serves Notifications across the product: a deployable service that composes
+the `notification` domain crate into a running process. Exposes an HTTP API
+for reading/unsubscribing from notifications, plus the Kafka-driven egress
+worker that sends email/mobile-push/websocket notifications.
 
 ## Start here
 

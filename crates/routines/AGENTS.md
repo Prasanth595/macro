@@ -1,7 +1,10 @@
 # routines
 
-Validated routine (scheduled-action) commands and AI tools for agents to
-schedule themselves or another persona/model to run later.
+## What it is
+
+Part of the agent sessions feature. Validated routine (scheduled-action)
+commands and AI tools for agents to schedule themselves or another
+persona/model to run later.
 
 ## Start here
 

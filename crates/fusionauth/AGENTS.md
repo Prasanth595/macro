@@ -1,7 +1,10 @@
 # fusionauth
 
-FusionAuth API client: OAuth/identity-provider login, user management, JWTs,
-and passwordless/password flows against the FusionAuth HTTP API.
+## What it is
+
+Backs the Authentication feature: a FusionAuth API client for
+OAuth/identity-provider login, user management, JWTs, and
+passwordless/password flows against the FusionAuth HTTP API.
 
 ## Start here
 

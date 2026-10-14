@@ -1,8 +1,10 @@
 # channel_bots
 
-Built-in agents for document comments and channel messages: reads committed
-posts from the common message boundary, decides whether to trigger, authorizes,
-and delivers a reply.
+## What it is
+
+Part of Chat and Documents: built-in agents for document comments and
+channel messages. Reads committed posts from the common message boundary,
+decides whether to trigger, authorizes, and delivers a reply.
 
 ## Start here
 

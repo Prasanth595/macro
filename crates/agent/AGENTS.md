@@ -1,7 +1,11 @@
 # agent
 
-The agentic loop: the model-agnostic turn runner, streaming, and the
-predefined model/speed/metering layer every AI surface builds on.
+## What it is
+
+Part of AI: the model-agnostic turn runner every AI surface in the product
+builds on — agent sessions, document AI, and background AI features all
+run a turn through this crate's loop, with a shared model/speed vocabulary
+and usage metering.
 
 ## Start here
 

@@ -1,8 +1,18 @@
 # notification
 
-Hexagonal notification system: fans a domain event out to in-app realtime
-(WebSocket/Kafka), push (mobile/web), email digests, and per-item
-preferences/snoozing/muting.
+## What it is
+
+The notifications feature's hexagonal core. Fans a domain event out to
+in-app realtime (WebSocket/Kafka), push (mobile/web), and email digests, and
+manages per-item preferences, snoozing, and muting.
+
+## How it works
+
+A domain event arrives via HTTP, the queue worker, or the Kafka listener;
+the domain service applies per-user preferences/mute/snooze state, then
+dispatches to whichever outbound adapters apply (realtime fan-out, push,
+digest email). State transitions and device registration are read back
+through the same service.
 
 ## Start here
 

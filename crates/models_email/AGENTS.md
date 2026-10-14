@@ -1,7 +1,9 @@
 # models_email
 
-Wire models for email and Gmail sync: thread/message API types, DB row
-types, and Gmail API response shapes.
+## What it is
+
+Part of the Email feature. Wire models for email and Gmail sync:
+thread/message API types, DB row types, and Gmail API response shapes.
 
 ## Start here
 

@@ -1,7 +1,10 @@
 # connection
 
-Domain port over the connection gateway: sends realtime invalidation events
-and arbitrary channel messages to users, independent of the HTTP client.
+## What it is
+
+Part of shared infrastructure: a domain port over the connection gateway,
+sending realtime invalidation events and arbitrary channel messages to
+users, independent of the HTTP client.
 
 ## Start here
 

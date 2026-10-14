@@ -1,7 +1,10 @@
 # projects
 
-Project (folder) entity: hierarchy, sharing/team-share policy, soft
-delete/restore/purge, and bulk upload into a project tree.
+## What it is
+
+Part of the Projects feature (folder organization for documents and other
+entities). Owns the project entity: hierarchy, sharing/team-share policy,
+soft delete/restore/purge, and bulk upload into a project tree.
 
 ## Start here
 

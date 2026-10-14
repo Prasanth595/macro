@@ -1,9 +1,10 @@
 # pptx_engine
 
-A from-scratch PowerPoint (`.pptx`) engine — parse, render, edit, and save —
-compiled both natively and to WebAssembly for the browser presentation
-editor. See `README.md` for the design (XML-is-source-of-truth), module
-map, and current fidelity/known-gaps before changing anything here.
+## What it is
+
+Part of the Documents feature (presentations). A from-scratch PowerPoint
+(`.pptx`) engine — parse, render, edit, and save — compiled both natively
+and to WebAssembly for the browser presentation editor.
 
 ## Start here
 

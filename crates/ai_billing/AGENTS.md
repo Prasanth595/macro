@@ -1,7 +1,10 @@
 # ai_billing
 
-Plan allowances, prepaid credits, and post-paid overage for AI usage,
-priced at provider cost (plus markup for overage).
+## What it is
+
+Part of billing: meters and charges for AI usage across the product — plan
+allowances, prepaid credits, and post-paid overage for AI usage, priced at
+provider cost (plus markup for overage).
 
 ## Start here
 

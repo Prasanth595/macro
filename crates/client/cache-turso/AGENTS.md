@@ -1,8 +1,10 @@
 # cache-turso
 
-Production Turso (SQLite-compatible, embedded) storage adapter for
-`cache-core`'s normalized GraphQL cache — native for tests/Tauri, OPFS-backed
-on wasm32.
+## What it is
+
+Part of the web client's shared infrastructure: the production Turso
+(SQLite-compatible, embedded) storage adapter for `cache-core`'s normalized
+GraphQL cache — native for tests/Tauri, OPFS-backed on wasm32.
 
 ## Start here
 

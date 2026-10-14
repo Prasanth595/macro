@@ -1,8 +1,10 @@
 # documents
 
-Hexagonal domain crate for document CRUD, content storage, AI editing/tools,
-and file-type-specific services (spreadsheets, presentations, word docs,
-Illustrator/Photoshop files).
+## What it is
+
+The core of the Documents feature: document CRUD, content storage, AI
+editing/tools, and file-type-specific services (spreadsheets, presentations,
+word docs, Illustrator/Photoshop files).
 
 ## Start here
 

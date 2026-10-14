@@ -1,7 +1,18 @@
 # mcp_client
 
-MCP (Model Context Protocol) client library: connects to user-configured MCP
-servers (including OAuth-protected ones) and executes their tools for agents.
+## What it is
+
+Part of agent sessions / AI tooling. An MCP (Model Context Protocol) client
+library: connects to user-configured MCP servers (including OAuth-protected
+ones) and executes their tools for agents.
+
+## How it works
+
+A user connects a server through the HTTP routes (OAuth callback if needed);
+the server config and OAuth tokens are stored via the outbound adapters
+(Postgres, Redis). When an agent calls one of that server's tools, the
+service orchestration layer looks up the connection and executes the tool
+through `rmcp`, returning the result to the caller's tool-calling loop.
 
 ## Start here
 

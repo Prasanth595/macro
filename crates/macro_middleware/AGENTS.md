@@ -1,7 +1,9 @@
 # macro_middleware
 
-Small grab bag of Axum middleware shared by several services, each piece
-gated behind its own Cargo feature.
+## What it is
+
+Belongs to shared infrastructure: a small grab bag of Axum middleware shared
+by several services, each piece gated behind its own Cargo feature.
 
 ## Start here
 

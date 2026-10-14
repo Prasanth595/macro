@@ -1,8 +1,11 @@
 # messages
 
-Domain crate for messages and anchored discussions on channels and
-documents: models, authorization, and the HTTP/Postgres/delivery adapters,
-feature-gated so callers pull in only what they need.
+## What it is
+
+The messaging/discussions feature: anchored discussions on channels and
+documents. This domain crate owns the models, authorization, and the
+HTTP/Postgres/delivery adapters, feature-gated so callers pull in only what
+they need.
 
 ## Start here
 

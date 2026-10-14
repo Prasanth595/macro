@@ -1,7 +1,10 @@
 # organization_retention_trigger
 
-Lambda fired on an EventBridge schedule that reads each organization's
-retention settings and enqueues one SQS message per organization.
+## What it is
+
+Shared infrastructure for organization data retention policies. A Lambda
+fired on an EventBridge schedule that reads each organization's retention
+settings and enqueues one SQS message per organization.
 
 ## Start here
 

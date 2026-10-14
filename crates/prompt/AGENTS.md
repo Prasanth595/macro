@@ -1,8 +1,11 @@
 # prompt
 
-Static prompt fragments composed into AI system prompts: one module per
-prompt section, each exporting a `StaticPrompt` (or a dynamically-built
-`ComposedPrompt`) that chains via `StaticPrompt::compose`.
+## What it is
+
+Part of the agent sessions feature. Static prompt fragments composed into
+AI system prompts: one module per prompt section, each exporting a
+`StaticPrompt` (or a dynamically-built `ComposedPrompt`) that chains via
+`StaticPrompt::compose`.
 
 ## Start here
 

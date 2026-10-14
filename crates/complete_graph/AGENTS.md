@@ -1,14 +1,16 @@
 # complete_graph — schema conventions
 
-This crate composes the domain GraphQL adapter crates (`graphql_soup`,
-`graphql_properties`, `graphql_notification`, `graphql_email`,
-`graphql_entity_mutation`, with shared plumbing in `graphql_common`) into the
-complete GraphQL schema consumed by the client's
-**normalized cache** (`crates/client`, design doc:
+## What it is
+
+Part of the web client's shared infrastructure: this crate composes the
+domain GraphQL adapter crates (`graphql_soup`, `graphql_properties`,
+`graphql_notification`, `graphql_email`, `graphql_entity_mutation`, with
+shared plumbing in `graphql_common`) into the complete GraphQL schema
+consumed by the client's **normalized cache** (`crates/client`, design doc:
 `apps/web/docs/graphql-normalized-cache-plan.md`). The conventions below are
-load-bearing for cache correctness and API consistency. The
-cache's build validates *shapes* but cannot validate *semantics* — that's
-what schema review is for.
+load-bearing for cache correctness and API consistency. The cache's build
+validates *shapes* but cannot validate *semantics* — that's what schema
+review is for.
 
 ## 1. `id` is a reserved, semantic field name (presence-of-id convention)
 

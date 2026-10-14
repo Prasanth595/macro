@@ -1,6 +1,9 @@
 # entity_access_db_utils
 
-Transactional helpers for the shared `entity_access` table: insert grant
+## What it is
+
+Shared infrastructure backing entity access across every feature:
+transactional helpers for the shared `entity_access` table — insert grant
 rows, and the channel-share/team-share/source-grant query helpers built on
 top of it.
 

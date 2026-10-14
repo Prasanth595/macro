@@ -1,8 +1,11 @@
 # gmail_client
 
-A thin Gmail API client: `GmailClient` wraps per-area modules (messages,
-threads, labels, filters, history, contacts, watch) behind a single public
-facade; most modules are `pub(crate)`.
+## What it is
+
+Backs the Email feature's Gmail sync: a thin Gmail API client, `GmailClient`,
+wrapping per-area modules (messages, threads, labels, filters, history,
+contacts, watch) behind a single public facade; most modules are
+`pub(crate)`.
 
 ## Start here
 

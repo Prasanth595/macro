@@ -1,7 +1,10 @@
 # notification_db_client
 
-Query-only client for the notification tables in MacroDB: devices, user
-notifications, email-sent/unsubscribe records, and mute state.
+## What it is
+
+Part of the notifications feature. Query-only client for the notification
+tables in MacroDB: devices, user notifications, email-sent/unsubscribe
+records, and mute state.
 
 ## Start here
 

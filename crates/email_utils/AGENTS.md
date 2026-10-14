@@ -1,7 +1,10 @@
 # email_utils
 
-Shared email text handling: HTML sanitization, reply-quote stripping, body
-parsing, contact name normalization, and sender/generic-address checks.
+## What it is
+
+Part of the Email feature: shared email text handling — HTML sanitization,
+reply-quote stripping, body parsing, contact name normalization, and
+sender/generic-address checks.
 
 ## Start here
 

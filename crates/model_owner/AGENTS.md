@@ -1,7 +1,10 @@
 # model_owner
 
-Typed owner reference (`Owner`/`OwnerType`) for Macro entities — a user, bot,
-or team principal, distinct from the acting user.
+## What it is
+
+Shared infrastructure used by nearly every domain crate with typed
+ownership. A typed owner reference (`Owner`/`OwnerType`) for Macro entities
+— a user, bot, or team principal, distinct from the acting user.
 
 ## Start here
 

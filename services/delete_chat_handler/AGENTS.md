@@ -1,7 +1,9 @@
 # delete_chat_handler
 
-SQS-triggered Lambda that permanently deletes a chat once it has been marked
-deleted.
+## What it is
+
+Chat feature: SQS-triggered Lambda that permanently deletes a chat once it
+has been marked deleted.
 
 ## Start here
 

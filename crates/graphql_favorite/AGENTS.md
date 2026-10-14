@@ -1,7 +1,10 @@
 # graphql_favorite
 
-GraphQL inbound adapter for favorites: ordered favorite objects, user-scoped
-queries/mutations, and the DataLoader-backed current-viewer favorite edge.
+## What it is
+
+Backs the Favorites feature (Soup sidebar pinning): the GraphQL inbound
+adapter exposing ordered favorite objects, user-scoped queries/mutations, and
+the DataLoader-backed current-viewer favorite edge.
 
 ## Start here
 

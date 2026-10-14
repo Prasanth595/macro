@@ -1,8 +1,11 @@
 # mention_utils
 
-Parses and serializes `@mention` XML chips (`<m-user>`, `<m-channel>`,
-`<m-bot>`, GitHub PR links, etc.) shared between AI editors, lexical, and
-notification text.
+## What it is
+
+Shared infrastructure for the `@mention` feature, used by messages,
+documents, and notifications. Parses and serializes `@mention` XML chips
+(`<m-user>`, `<m-channel>`, `<m-bot>`, GitHub PR links, etc.) shared between
+AI editors, lexical, and notification text.
 
 ## Start here
 

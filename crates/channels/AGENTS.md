@@ -1,7 +1,9 @@
 # channels
 
-Paginated channel messages — threads, reactions, attachments, DMs, and the
-shared message store other domains discuss things on.
+## What it is
+
+Part of Chat: paginated channel messages — threads, reactions, attachments,
+DMs, and the shared message store other domains discuss things on.
 
 ## Start here
 

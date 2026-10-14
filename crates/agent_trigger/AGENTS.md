@@ -1,7 +1,11 @@
 # agent_trigger
 
-Decides whether a posted message, task assignment, or project assignment
-should trigger an agent, and builds the context for the resulting prompt.
+## What it is
+
+Part of agent sessions: decides whether a posted channel message, task
+assignment, or project assignment should start an agent session, and
+assembles the prompt context (thread history, people, discussion) for the
+session that results.
 
 ## Start here
 

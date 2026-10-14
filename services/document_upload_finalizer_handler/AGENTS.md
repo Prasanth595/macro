@@ -1,7 +1,10 @@
 # document_upload_finalizer_handler
 
-Lambda that finalizes a document upload after the object lands in S3: resolves
-file type, upgrades legacy Office formats, and initializes markdown content.
+## What it is
+
+Documents feature: Lambda that finalizes a document upload after the object
+lands in S3 — resolves file type, upgrades legacy Office formats, and
+initializes markdown content.
 
 ## Start here
 

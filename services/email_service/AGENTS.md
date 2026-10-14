@@ -1,8 +1,10 @@
 # email_service
 
-Deployable service hosting Gmail sync, email send/schedule/draft routes,
-calendar invitation handling, and contacts/CRM sync, behind the gateway
-`/email` prefix.
+## What it is
+
+Email feature: deployable service hosting Gmail sync, email send/schedule/
+draft routes, calendar invitation handling, and contacts/CRM sync, behind
+the gateway `/email` prefix.
 
 ## Start here
 

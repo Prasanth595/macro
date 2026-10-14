@@ -1,7 +1,10 @@
 # image_generation
 
-Image generation and storage as static files, exposed through an AI toolset
-(`GenerateImage`).
+## What it is
+
+Belongs to AI tools: generates images from a prompt (with up to three
+reference images), stores them as static files, and exposes the flow through
+an AI toolset (`GenerateImage`).
 
 ## Start here
 

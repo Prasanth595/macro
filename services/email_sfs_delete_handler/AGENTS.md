@@ -1,8 +1,10 @@
 # email_sfs_delete_handler
 
-Lambda, triggered daily by EventBridge, that finds orphaned static file
-service (SFS) email attachments and enqueues delete messages for the SFS
-delete worker.
+## What it is
+
+Part of Email's attachment storage cleanup. A Lambda, triggered daily by
+EventBridge, that finds orphaned static file service (SFS) email attachments
+and enqueues delete messages for the SFS delete worker.
 
 ## Start here
 

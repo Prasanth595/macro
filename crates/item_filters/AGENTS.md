@@ -1,7 +1,10 @@
 # item_filters
 
-Typed filter DTOs for every entity type searchable in soup/search, plus the
-AST layer that expands them into a strict, logically-combinable query form.
+## What it is
+
+Belongs to Search (Soup): typed filter DTOs for every entity type searchable
+in soup/search, plus the AST layer that expands them into a strict,
+logically-combinable query form.
 
 ## Start here
 

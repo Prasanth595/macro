@@ -1,12 +1,15 @@
 # lexical-service
 
-Bun server exposing stateless Lexical document conversions (plaintext,
-search/cognition preprocessing, markdown, HTML, XML) over an internal HTTP API.
-Production runs on ECS behind the gateway at `/lexical`
-(`infra/stacks/lexical-service`, `docker/lexical-service.Dockerfile`).
-
 Status: migrating from Cloudflare Workers to ECS; `wrangler.jsonc` and
 `deploy-lexical-service.yml` still deploy the old worker.
+
+## What it is
+
+Serves Documents: a Bun server exposing stateless Lexical document
+conversions (plaintext, search/cognition preprocessing, markdown, HTML, XML)
+over an internal HTTP API, used by search indexing, AI agent context, and
+comment/markdown rendering. Production runs on ECS behind the gateway at
+`/lexical` (`infra/stacks/lexical-service`, `docker/lexical-service.Dockerfile`).
 
 ## Start here
 

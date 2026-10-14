@@ -1,7 +1,10 @@
 # referral
 
-Referral codes and invite-to-Macro flow: generates/redeems referral codes,
-grants the Stripe discount, and notifies the referrer.
+## What it is
+
+Part of the billing feature (referrals). Generates/redeems referral codes,
+grants the Stripe discount, and notifies the referrer for the
+invite-to-Macro flow.
 
 ## Start here
 

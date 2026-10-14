@@ -1,8 +1,11 @@
 # connection_gateway_client
 
-HTTP client for `services/connection_gateway`: pushes best-effort realtime
-messages (invalidation events, channel messages, feature-specific refreshes)
-to connected users.
+## What it is
+
+Part of shared infrastructure: the HTTP client for
+`services/connection_gateway`, pushing best-effort realtime messages
+(invalidation events, channel messages, feature-specific refreshes) to
+connected users.
 
 ## Start here
 

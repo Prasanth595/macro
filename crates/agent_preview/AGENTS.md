@@ -1,7 +1,11 @@
 # agent_preview
 
-Leased, entity-authorized live previews of a coding session's dev server,
-tunneled over stock OpenSSH reverse forwarding.
+## What it is
+
+Part of agent sessions: lets an agent session's dev server be viewed live
+by other people. Leases an entity-authorized preview and proxies
+HTTP/WebSocket traffic (including Vite HMR) to viewers over a tunnel built
+on stock OpenSSH reverse forwarding.
 
 ## Start here
 

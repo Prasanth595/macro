@@ -1,6 +1,9 @@
 # macro_cache_client
 
-Redis-backed auth rate limiters, one module per limited action, each gated
+## What it is
+
+Belongs to shared infrastructure (authentication): Redis-backed rate
+limiters for auth-adjacent flows, one module per limited action, each gated
 behind its own Cargo feature.
 
 ## Start here

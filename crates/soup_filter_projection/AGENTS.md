@@ -1,7 +1,10 @@
 # soup_filter_projection
 
-Direct-field Soup projection helpers and the versioned wire format for
-caching an authoritative Soup entity's filterable facts.
+## What it is
+
+Part of the Soup query feature (Home/Recent/Signal) — direct-field Soup
+projection helpers and the versioned wire format for caching an authoritative
+Soup entity's filterable facts, shared by server and client-side cache code.
 
 ## Start here
 

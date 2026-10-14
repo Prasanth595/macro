@@ -1,7 +1,9 @@
 # call_recording_preview_handler
 
-S3-triggered Lambda that generates a JPEG preview thumbnail for a call
-recording MP4 using ffmpeg/ffprobe.
+## What it is
+
+Calls feature: S3-triggered Lambda that generates a JPEG preview thumbnail
+for a call recording MP4, using ffmpeg/ffprobe.
 
 ## Start here
 

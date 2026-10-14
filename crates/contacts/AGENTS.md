@@ -1,8 +1,10 @@
 # contacts
 
-Hexagonal contacts service: who each user knows, built from message/call
-activity and explicit relationships, exposed over HTTP and kept in sync via
-the connection gateway.
+## What it is
+
+Part of Contacts: a hexagonal service tracking who each user knows, built
+from message/call activity and explicit relationships, exposed over HTTP
+and kept in sync via the connection gateway.
 
 ## Start here
 

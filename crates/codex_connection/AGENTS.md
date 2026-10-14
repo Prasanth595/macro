@@ -1,7 +1,10 @@
 # codex_connection
 
-Owner-bound Codex OAuth connections: durable device login and encrypted
-credential storage/rotation for hosted Codex sessions.
+## What it is
+
+Part of agent sessions: owner-bound Codex OAuth connections — durable
+device login and encrypted credential storage/rotation for hosted Codex
+sessions.
 
 ## Start here
 

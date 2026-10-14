@@ -1,7 +1,10 @@
 # calendar_events
 
-Calendar event domain: parsing, mutation, reminder dispatch, team availability,
-and provider (Google/Postgres) persistence for the stable `CalendarEvent` entity.
+## What it is
+
+Part of Calendar: owns the stable `CalendarEvent` entity — parsing from
+external sources (Google Calendar, email invitations), mutation, reminder
+dispatch, team availability, and Google/Postgres persistence.
 
 ## Start here
 

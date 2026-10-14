@@ -1,7 +1,10 @@
 # ai_usage
 
-A robust log of AI usage with cost computed from model id and token counts
-(or audio duration), plus a flexible admin query API.
+## What it is
+
+Part of billing: a robust log of AI usage with cost computed from model id
+and token counts (or audio duration), feeding `ai_billing`'s admission and
+ledger decisions, plus a flexible admin query API.
 
 ## Start here
 

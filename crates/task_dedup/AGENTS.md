@@ -1,7 +1,10 @@
 # task_dedup
 
-Task duplicate detection: embeds a task, searches a pgvector corpus, and
-judges candidate duplicates with an LLM.
+## What it is
+
+Part of the Projects/Tasks feature — detects duplicate tasks by embedding a
+task, searching a pgvector corpus, and judging candidate duplicates with an
+LLM.
 
 ## Start here
 

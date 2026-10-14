@@ -1,6 +1,9 @@
 # macro_user_id
 
-The `MacroUserId` newtype (`macro|<email>`) and its `nom`-based parser —
+## What it is
+
+Shared infrastructure: the identity type used across the whole backend. The
+`MacroUserId` newtype (`macro|<email>`) and its `nom`-based parser —
 parse-don't-validate for the single most widely used identity type in the
 backend.
 

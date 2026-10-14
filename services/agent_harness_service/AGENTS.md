@@ -1,8 +1,10 @@
 # agent_harness_service
 
-Composition root for coding-agent sessions: agent-session trigger events in,
-sandboxed coding agent sessions (Daytona containers or the in-process ACP
-runtime) out.
+## What it is
+
+Part of the agent sessions feature — the composition root for coding-agent
+sessions: agent-session trigger events in, sandboxed coding agent sessions
+(Daytona containers or the in-process ACP runtime) out.
 
 ## Start here
 

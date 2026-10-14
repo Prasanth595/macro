@@ -1,7 +1,10 @@
 # static_file
 
-Hex crate for resolving static file (SFS) references — attachments and
-uploads — into URLs or metadata without depending on `attachment` directly.
+## What it is
+
+Shared infrastructure for attachments and uploads — a hex crate for
+resolving static file (SFS) references into URLs or metadata without callers
+depending on `attachment` directly.
 
 ## Start here
 

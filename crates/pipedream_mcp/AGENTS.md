@@ -1,8 +1,10 @@
 # pipedream_mcp
 
-Pipedream-managed MCP connectors: users connect third-party apps through
-Pipedream Connect (Pipedream owns grants/tokens/refresh), and the AI loop
-calls their tools through Pipedream's remote MCP server.
+## What it is
+
+Part of the AI agent tools feature. Lets users connect third-party apps
+through Pipedream Connect (Pipedream owns grants/tokens/refresh), and the
+AI loop calls their tools through Pipedream's remote MCP server.
 
 ## Start here
 

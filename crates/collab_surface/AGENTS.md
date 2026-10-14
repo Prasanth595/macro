@@ -1,7 +1,11 @@
 # collab_surface
 
-Stable ids for arbitrary collaborative markdown surfaces, each backed by its
-own Loro CRDT session in sync-service, independent of the `Document` table.
+## What it is
+
+Part of Documents (and other features that embed collaborative markdown):
+stable ids for arbitrary collaborative markdown surfaces, each backed by
+its own Loro CRDT session in sync-service, independent of the `Document`
+table.
 
 ## Start here
 

@@ -1,7 +1,10 @@
 # reminders
 
-Private email snoozes: durable inbox restoration, scheduled dispatch, and
-notification delivery, plus email follow-up reminders.
+## What it is
+
+Part of the Email feature. Private email snoozes: durable inbox
+restoration, scheduled dispatch, and notification delivery, plus email
+follow-up reminders.
 
 ## Start here
 

@@ -1,7 +1,10 @@
 # s3_client
 
-Thin async wrapper around `aws-sdk-s3`: get/put/delete/exists/copy, folder
-variants, and presigned URLs, all behind one `S3` struct.
+## What it is
+
+Part of shared infrastructure (cloud storage). Thin async wrapper around
+`aws-sdk-s3`: get/put/delete/exists/copy, folder variants, and presigned
+URLs, all behind one `S3` struct.
 
 ## Start here
 

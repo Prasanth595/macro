@@ -1,7 +1,11 @@
 # static_file_service (sfs)
 
-Deployable service for uploading, storing, and serving file attachments:
-DynamoDB holds file metadata, S3 holds bytes, presigned URLs handle upload.
+## What it is
+
+Shared infrastructure for file attachments across the product (documents,
+email, chat). A deployable service for uploading, storing, and serving file
+attachments: DynamoDB holds file metadata, S3 holds bytes, presigned URLs
+handle upload.
 
 ## Start here
 

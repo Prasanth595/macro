@@ -1,7 +1,9 @@
 # models_pagination
 
-Typesafe, generic cursor pagination and simple sort methods, shared by almost
-every list endpoint in the backend.
+## What it is
+
+Shared infrastructure. Typesafe, generic cursor pagination and simple sort
+methods, shared by almost every list endpoint in the backend.
 
 ## Start here
 

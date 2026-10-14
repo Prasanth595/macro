@@ -1,8 +1,11 @@
 # local_e2e (crates/integration_tests/local_e2e)
 
-End-to-end Rust tests (`local_e2e_integration_tests` package) that run against
-an isolated local stack started through the xtask local orchestrator, seeded
-with the same fixtures `seed_cli` and Playwright use.
+## What it is
+
+Belongs to local dev tooling: end-to-end Rust tests
+(`local_e2e_integration_tests` package) that run against an isolated local
+stack started through the xtask local orchestrator, seeded with the same
+fixtures `seed_cli` and Playwright use.
 
 ## Start here
 

@@ -1,7 +1,10 @@
 # macro_event_broker
 
-Kafka-backed event broker, ports-and-adapters style: typed per-topic events
-in, a publish/consume API services build on.
+## What it is
+
+Belongs to shared infrastructure: a Kafka-backed event broker,
+ports-and-adapters style, giving services a typed publish/consume API over
+Macro's event topics.
 
 ## Start here
 

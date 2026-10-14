@@ -1,7 +1,10 @@
 # share_permission_db_utils
 
-Small SQL helpers for `SharePermission` and `ChannelSharePermission` rows —
-specifically team-level link-share defaults and team sharing.
+## What it is
+
+Part of shared infrastructure (sharing and permissions). Small SQL helpers
+for `SharePermission` and `ChannelSharePermission` rows — specifically
+team-level link-share defaults and team sharing.
 
 ## Start here
 

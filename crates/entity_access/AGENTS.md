@@ -1,8 +1,11 @@
 # entity_access
 
-Entity access control for cloud storage: checks a user's or bot's access
-level to any entity (documents, chats, projects, and more). One of the most
-widely depended-on crates in the backend.
+## What it is
+
+Shared infrastructure used across nearly every feature: entity access
+control for cloud storage, checking a user's or bot's access level to any
+entity (documents, chats, projects, and more). One of the most widely
+depended-on crates in the backend.
 
 ## Start here
 

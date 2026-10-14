@@ -1,7 +1,10 @@
 # entity_registry
 
-Owning crate for the `entity` table: one recorded owner per in-scope
-resource.
+## What it is
+
+Shared infrastructure used across every owned-entity feature: the owning
+crate for the `entity` table, recording one owner per in-scope resource,
+plus the owner-grant policy for what access that owner implies.
 
 ## Start here
 

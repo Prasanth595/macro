@@ -1,7 +1,10 @@
 # feature_flags
 
-Async flag loading for the authenticated Macro user: one load returns a
-stable `FlagSnapshot`, read synchronously after.
+## What it is
+
+Shared infrastructure for cross-feature rollout gating: async flag loading
+for the authenticated Macro user, where one load returns a stable
+`FlagSnapshot`, read synchronously after.
 
 ## Start here
 

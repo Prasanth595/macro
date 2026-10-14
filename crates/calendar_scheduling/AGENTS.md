@@ -1,8 +1,11 @@
 # calendar_scheduling
 
-Personal and Macro-team booking pages: event types, availability, collective/
-round-robin hosts, booking limits, and booking lifecycle. See `README.md` for
-the full product model and the required MacroDB migrations.
+## What it is
+
+Part of Calendar: personal and Macro-team booking pages — event types,
+availability, collective/round-robin hosts, booking limits, and the booking
+lifecycle. See `README.md` for the full product model and the required
+MacroDB migrations.
 
 ## Start here
 

@@ -1,7 +1,11 @@
 # graphql_work_feed
 
-GraphQL inbound adapter for the work feed: the `workFeed` page under the
-viewer, done/undo mutations, and the `workFeedUpdates` subscription.
+## What it is
+
+Belongs to the work feed feature: a viewer's aggregated feed of tasks and
+items needing attention. This crate is the GraphQL inbound adapter exposing
+the `workFeed` page, done/undo mutations, and the `workFeedUpdates`
+subscription.
 
 ## Start here
 

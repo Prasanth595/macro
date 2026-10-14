@@ -1,8 +1,10 @@
 # convert_service
 
-Deployable service that converts uploaded Office documents (docx/xlsx/legacy
-Office formats) using LibreOfficeKit, triggered synchronously via HTTP or
-asynchronously via SQS.
+## What it is
+
+Documents feature: converts uploaded Office documents (docx/xlsx/legacy
+Office formats) into Macro documents using LibreOfficeKit, triggered
+synchronously via HTTP or asynchronously via SQS.
 
 ## Start here
 

@@ -1,7 +1,10 @@
 # calendar_service
 
-Deployable service hosting Google Calendar sync, user-initiated calendar
-mutations, and calendar scheduling behind the gateway `/calendar` prefix.
+## What it is
+
+Calendar feature: deployable service hosting Google Calendar sync,
+user-initiated calendar mutations, and calendar scheduling behind the
+gateway `/calendar` prefix.
 
 ## Start here
 

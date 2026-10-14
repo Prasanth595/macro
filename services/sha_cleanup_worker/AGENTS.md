@@ -1,7 +1,10 @@
 # sha_cleanup_worker
 
-Periodic worker that deletes S3 objects whose SHA was placed in the
-`bucket:sha-delete` Redis set, decrementing a shared reference count first.
+## What it is
+
+Shared infrastructure for document/attachment storage: a periodic worker
+that deletes S3 objects whose SHA was placed in the `bucket:sha-delete`
+Redis set, decrementing a shared reference count first.
 
 ## Start here
 

@@ -1,7 +1,10 @@
 # user_api_key
 
-Create, list, and delete a user's API keys. Authenticating a request *with* a
-key lives in `macro_authorization`, not here.
+## What it is
+
+Part of account security — creates, lists, and deletes a user's API keys.
+Authenticating a request *with* a key lives in `macro_authorization`, not
+here.
 
 ## Start here
 

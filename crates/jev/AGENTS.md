@@ -1,7 +1,10 @@
 # jev
 
-Yes/no classification of arbitrary JSON against a list of questions, backed
-by TypeSafe's Jev model, with usage metering built in.
+## What it is
+
+Belongs to automations: yes/no classification of arbitrary JSON against a
+list of questions, backed by TypeSafe's Jev model, with usage metering built
+in — used to gate scheduled-action triggers on a condition.
 
 ## Start here
 

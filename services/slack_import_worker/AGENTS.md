@@ -1,8 +1,11 @@
 # slack_import_worker
 
-Composition root for importing Slack archive exports: writes conversations,
-messages, and references into Macro as channels, and sends one best-effort
-colleague-join email.
+## What it is
+
+Onboards new Channels (chat) customers from Slack: a composition root for
+importing Slack archive exports. Writes conversations, messages, and
+references into Macro as channels, and sends one best-effort colleague-join
+email.
 
 ## Start here
 

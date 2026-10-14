@@ -1,7 +1,10 @@
 # dictation
 
-Private, transient audio transcription for composer dictation: validates a
-recording, transcribes it via Whisper, and returns text — nothing is stored.
+## What it is
+
+Backs voice dictation in document and chat composers: private, transient
+audio transcription that validates a recording, transcribes it via Whisper,
+and returns text — nothing is stored.
 
 ## Start here
 

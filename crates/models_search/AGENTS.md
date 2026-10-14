@@ -1,7 +1,10 @@
 # models_search
 
-Wire models for OpenSearch-backed full-text search results, one module per
-indexed entity kind, plus the unified cross-entity response.
+## What it is
+
+Part of the Search feature. Wire models for OpenSearch-backed full-text
+search results, one module per indexed entity kind, plus the unified
+cross-entity response.
 
 ## Start here
 

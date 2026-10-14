@@ -1,7 +1,9 @@
 # channel_labels
 
-Shared or private named groups of chat channels shown in the Chat sidebar,
-following the standard hexagonal crate layout.
+## What it is
+
+Part of Chat: shared or private named groups of chat channels shown in the
+Chat sidebar, following the standard hexagonal crate layout.
 
 ## Start here
 

@@ -1,7 +1,9 @@
 # docx_unzip_handler
 
-Lambda that unzips uploaded `.docx` files from S3 and converts their XML parts
-into a Bill Of Materials (BOM) stored in MacroDB.
+## What it is
+
+Documents feature: Lambda that unzips uploaded `.docx` files from S3 and
+converts their XML parts into a Bill Of Materials (BOM) stored in MacroDB.
 
 ## Start here
 

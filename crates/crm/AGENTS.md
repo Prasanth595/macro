@@ -1,7 +1,10 @@
 # crm
 
-Hexagonal CRM crate: companies, contacts, pipelines (incl. the legacy-CRM →
-Sales migration), and the AI tools/HTTP/GraphQL surfaces over them.
+## What it is
+
+Part of CRM (Sales): a hexagonal crate for companies, contacts, and
+pipelines (including the legacy-CRM → Sales migration), plus the AI
+tools/HTTP/GraphQL surfaces over them.
 
 ## Start here
 

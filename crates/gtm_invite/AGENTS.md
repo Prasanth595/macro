@@ -1,8 +1,11 @@
 # gtm_invite
 
-GTM invite links: personal, time-limited signup links Macro staff create for
-prospects. Redeeming one attributes the new account to the staff member and
-carries a promotional first month of Premium through checkout.
+## What it is
+
+Belongs to growth/GTM tooling: personal, time-limited signup links Macro
+staff create for prospects. Redeeming one attributes the new account to the
+staff member and carries a promotional first month of Premium through
+checkout.
 
 ## Start here
 

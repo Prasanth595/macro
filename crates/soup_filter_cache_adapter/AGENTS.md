@@ -1,5 +1,9 @@
 # soup_filter_cache_adapter
 
+## What it is
+
+Part of the Soup query feature (Home/Recent/Signal) — the client-side piece
+that lets the app filter Soup locally without a server round-trip. A
 Soup-specific host adapter for the generic `predicate-index` cache: owns the
 application GraphQL schema and Soup projection policy, compiling GraphQL
 Soup-filter queries down to the generic query/projection IR the cache crates

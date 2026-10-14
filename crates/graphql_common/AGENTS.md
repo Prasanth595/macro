@@ -1,8 +1,10 @@
 # graphql_common
 
-Shared plumbing for every domain GraphQL adapter crate: request-scoped
-extractor context, filter-input conversion, and cross-domain schema types
-(entity type, owner type, property filters).
+## What it is
+
+Shared infrastructure for every product feature's GraphQL adapter crate:
+request-scoped extractor context, filter-input conversion, and cross-domain
+schema types (entity type, owner type, property filters).
 
 ## Start here
 

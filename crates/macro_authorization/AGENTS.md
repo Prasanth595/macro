@@ -1,8 +1,12 @@
 # macro_authorization
 
-Transport-independent authorization: validates user, bot, internal-service,
-harness, and user-API-key credentials and returns a typed principal. The
-Axum layer (`axum` feature) exposes this as extractors keyed by policy.
+## What it is
+
+Belongs to shared infrastructure: transport-independent authorization used
+by nearly every authenticated service. Validates user, bot,
+internal-service, harness, and user-API-key credentials and returns a typed
+principal; the Axum layer (`axum` feature) exposes this as extractors keyed
+by policy.
 
 ## Start here
 

@@ -1,7 +1,10 @@
 # organization_retention_handler
 
-Lambda that consumes `OrganizationRetentionQueue` SQS messages, finds items
-older than an organization's retention window, and enqueues them for deletion.
+## What it is
+
+Shared infrastructure for organization data retention policies. A Lambda
+that consumes `OrganizationRetentionQueue` SQS messages, finds items older
+than an organization's retention window, and enqueues them for deletion.
 
 ## Start here
 

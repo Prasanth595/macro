@@ -1,6 +1,10 @@
 # call
 
-Macro video/audio call management (hexagonal), using LiveKit as the RTC backend.
+## What it is
+
+Part of Calls: Macro's video/audio call management (hexagonal), using
+LiveKit as the RTC backend — call lifecycle, LiveKit rooms, recordings, and
+in-call chat.
 
 ## Start here
 

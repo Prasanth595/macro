@@ -1,7 +1,10 @@
 # memory
 
-Generates and stores a per-user AI memory (a free-text summary an agent can
-load as context) by running the agent loop over that user's own tools.
+## What it is
+
+Part of agent sessions. Generates and stores a per-user AI memory (a
+free-text summary an agent can load as context) by running the agent loop
+over that user's own tools.
 
 ## Start here
 

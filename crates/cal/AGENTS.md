@@ -1,7 +1,11 @@
 # cal
 
-Cal.com webhook integration: receives booking-event webhooks and fires
-analytics events in response. No other consumers in the workspace yet.
+## What it is
+
+Part of Calendar: receives cal.com booking-event webhooks and fires
+analytics events in response. Macro's own calendar/booking domain lives in
+`calendar_events`/`calendar_scheduling`; no other consumers of this crate
+in the workspace yet.
 
 ## Start here
 

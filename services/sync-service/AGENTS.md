@@ -1,7 +1,11 @@
 # sync-service
 
-Cloudflare Worker (Rust compiled to wasm) hosting one Durable Object per
-collaborative document ("room"), syncing Loro CRDT updates over WebSocket.
+## What it is
+
+Powers real-time collaboration on Documents and other collab surfaces
+(spreadsheets, forms): a Cloudflare Worker (Rust compiled to wasm) hosting
+one Durable Object per collaborative document ("room"), syncing Loro CRDT
+updates over WebSocket.
 
 ## Start here
 

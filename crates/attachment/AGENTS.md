@@ -1,7 +1,11 @@
 # attachment
 
-Shared trait and types for resolving entity references into AI-consumable content;
-no dependency on any domain crate.
+## What it is
+
+Part of AI: the shared contract for turning a reference to any entity (a
+document, a channel message, a calendar event) into AI-consumable content,
+so AI tools and attachments behave the same way across every domain. No
+dependency on any domain crate.
 
 ## Start here
 

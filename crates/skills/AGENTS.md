@@ -1,8 +1,10 @@
 # skills
 
-Skill discovery and reading for AI agents: skills are markdown documents
-(document sub type `skill`) whose instructions an agent follows when the
-skill is referenced in its input.
+## What it is
+
+Part of the agent sessions feature. Skill discovery and reading for AI
+agents: skills are markdown documents (document sub type `skill`) whose
+instructions an agent follows when the skill is referenced in its input.
 
 ## Start here
 

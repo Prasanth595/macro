@@ -1,7 +1,10 @@
 # agent_session
 
-The coding-agent session entity: lifecycle, control, sharing, and the
-Postgres/HTTP surface every agent-harness consumer talks to.
+## What it is
+
+Part of agent sessions: the coding-agent session entity itself — lifecycle,
+control, sharing, and the Postgres/HTTP surface every agent-harness
+consumer talks to.
 
 ## Start here
 

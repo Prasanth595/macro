@@ -1,7 +1,10 @@
 # cache-wasm
 
-Browser-only wasm-bindgen shell exposing `cache-core` + `cache-turso` +
-`turso-opfs` as a `CacheEngine` JS class to the web worker glue in
+## What it is
+
+Part of the web client's shared infrastructure: the browser-only
+wasm-bindgen shell exposing `cache-core` + `cache-turso` + `turso-opfs` as a
+`CacheEngine` JS class to the web worker glue in
 `apps/web/src/lib/graphql-cache/`.
 
 ## Start here

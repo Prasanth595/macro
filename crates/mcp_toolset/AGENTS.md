@@ -1,8 +1,10 @@
 # mcp_toolset
 
-Shared `ai_toolset::ToolSet` adapter over already-connected MCP server
-sessions: lists their tools, mangles names, and routes calls back to the
-right server.
+## What it is
+
+Part of agent sessions / AI tooling. A shared `ai_toolset::ToolSet` adapter
+over already-connected MCP server sessions: lists their tools, mangles
+names, and routes calls back to the right server.
 
 ## Start here
 

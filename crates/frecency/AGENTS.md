@@ -1,7 +1,10 @@
 # frecency
 
-Frecency (frequency + recency) scoring for ranking a user's items, following
-the hexagonal architecture pattern.
+## What it is
+
+Shared infrastructure for Search/Soup ranking and other item lists (used by
+soup, ai_tools, memory, channels, email, scheduled actions): frecency
+(frequency + recency) scoring, following the hexagonal architecture pattern.
 
 ## Start here
 

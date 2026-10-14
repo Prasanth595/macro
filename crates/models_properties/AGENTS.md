@@ -1,7 +1,10 @@
 # models_properties
 
-Data models for the custom-properties system, split into three layers plus a
-`shared` layer used by all of them.
+## What it is
+
+Part of the custom-properties feature (custom fields on documents, CRM
+records, and other entities). Data models for the custom-properties system,
+split into three layers plus a `shared` layer used by all of them.
 
 ## Start here
 

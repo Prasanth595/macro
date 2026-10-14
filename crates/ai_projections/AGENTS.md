@@ -1,7 +1,10 @@
 # ai_projections
 
-Materialized, cached AI-generated views of a user's data (e.g. a dashboard
-widget), keyed by a frontend-defined id, regenerated on demand or cold.
+## What it is
+
+Part of AI: materialized, cached AI-generated views of a user's data (for
+example a dashboard widget), keyed by a frontend-defined id and
+regenerated on demand or when cold.
 
 ## Start here
 

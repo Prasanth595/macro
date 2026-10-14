@@ -1,9 +1,12 @@
 # ai_engine
 
-A from-scratch Illustrator (`.ai`) engine: reads Illustrator's PDF-based
-files, builds an editable model, renders it, edits with undo, collaborates,
-and saves files Illustrator and any PDF reader open. Runs natively and as
-WebAssembly in the web Illustrator editor.
+## What it is
+
+Part of Documents: the engine behind the web app's Illustrator editor — a
+from-scratch Illustrator (`.ai`) implementation that reads Illustrator's
+PDF-based files, builds an editable model, renders it, edits with undo,
+collaborates, and saves files Illustrator and any PDF reader open. Runs
+natively and as WebAssembly.
 
 ## Start here
 

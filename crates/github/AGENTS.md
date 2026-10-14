@@ -1,5 +1,8 @@
 # github
 
+## What it is
+
+Backs the GitHub integration used by agent sessions and document storage:
 GitHub account linking, the GitHub App install/webhook sync, and the OAuth
 link flow, following the hexagonal architecture pattern.
 

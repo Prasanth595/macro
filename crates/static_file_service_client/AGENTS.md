@@ -1,7 +1,10 @@
 # static_file_service_client
 
-HTTP client for the static file service (SFS): put, get, and delete a file by
-key over internal-auth-key-authenticated requests.
+## What it is
+
+Shared infrastructure for attachments and uploads — the HTTP client for the
+static file service (SFS): put, get, and delete a file by key over
+internal-auth-key-authenticated requests.
 
 ## Start here
 

@@ -1,8 +1,11 @@
 # mcp_service
 
-Deployable service exposing Macro's AI toolset (the same tools the agent
-chat/stream API uses) as a Streamable HTTP MCP server, authenticated via
-OAuth 2.1 backed by FusionAuth.
+## What it is
+
+Lets external AI clients act as Macro agent sessions: a deployable service
+exposing Macro's AI toolset (the same tools the agent chat/stream API uses)
+as a Streamable HTTP MCP server, authenticated via OAuth 2.1 backed by
+FusionAuth.
 
 ## Start here
 
