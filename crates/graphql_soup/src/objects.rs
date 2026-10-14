@@ -1416,6 +1416,7 @@ where
 pub struct GraphqlSoupEmailParticipant {
     /// The referenced address-book contact's identifier.
     id: ID,
+    /// The message-specific sender fields exposed by the legacy participant.
     #[graphql(flatten)]
     sender: GraphqlSoupEmailSender,
 }
