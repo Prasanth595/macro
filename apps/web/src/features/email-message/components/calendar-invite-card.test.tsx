@@ -14,7 +14,10 @@ vi.mock('@ui', async () => ({
     <button {...props} />
   ),
 }));
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 const resolved: InvitationResolution = {
   kind: 'resolved',
   eventId: 'event',
@@ -211,6 +214,25 @@ describe('native invitation card', () => {
     ));
     expect(fireEvent.click(screen.getByText('Details'))).toBe(false);
     expect(openExternal).toHaveBeenCalledExactlyOnceWith(url);
+  });
+  it('opens links in a new tab when the card has no host action', () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    render(() => (
+      <CalendarInviteCard
+        invitation={{
+          ...invitationFixture,
+          description: '<p><a href="https://example.com">Meeting notes</a></p>',
+        }}
+      />
+    ));
+    expect(
+      fireEvent.click(screen.getByRole('link', { name: 'Meeting notes' }))
+    ).toBe(false);
+    expect(open).toHaveBeenCalledExactlyOnceWith(
+      'https://example.com/',
+      '_blank',
+      'noopener,noreferrer'
+    );
   });
   it('escapes angle brackets in plain text descriptions', () => {
     const plainTextInvitation = {
