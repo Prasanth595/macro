@@ -3115,7 +3115,7 @@ describe('normalizedCacheExchange', () => {
       }
     });
 
-    /** The draft lifecycle defers recovery until user info loads and rejects admission before it. */
+    /** Like the draft lifecycle: drafts cannot be judged until user info loads. */
     function signedInDraftLifecycle(): {
       signIn(): void;
       options: NormalizedCacheExchangeOptions;
@@ -3127,12 +3127,22 @@ describe('normalizedCacheExchange', () => {
         },
         options: {
           prepareMutationQueue: async () => (signedIn ? undefined : false),
-          beforeMutationAttempt: async () => {
-            if (!signedIn) throw new Error('Sign in to save drafts');
-            return true;
-          },
+          beforeMutationAttempt: async (mutation) =>
+            signedIn || mutation.operationName !== 'SaveEmailDraft'
+              ? true
+              : 'defer',
         },
       };
+    }
+
+    function draftOp(key: number): Operation {
+      return makeOperation(
+        'mutation',
+        createRequest(SaveEmailDraftDocument, {
+          input: { draftId: 'draft', subject: 'Draft' },
+        }),
+        makeMutationOp(key, optimistic).context
+      );
     }
 
     it('keeps a restored draft queued until sign-in instead of rolling it back', async () => {
@@ -3149,20 +3159,45 @@ describe('normalizedCacheExchange', () => {
         const lifecycle = signedInDraftLifecycle();
         const { forwarded } = harness(host, undefined, lifecycle.options);
         await vi.advanceTimersByTimeAsync(5_000);
-        expect(host.claims).toHaveLength(0);
+        expect(host.defers.length).toBeGreaterThan(1);
         expect(host.rollbacks).toHaveLength(0);
         expect(forwarded).toHaveLength(0);
 
         lifecycle.signIn();
         await vi.advanceTimersByTimeAsync(1_010);
         expect(host.rollbacks).toHaveLength(0);
+        expect(forwarded).toHaveLength(1);
         expect(host.commits).toMatchObject([{ transactionId: 'restored-1' }]);
       } finally {
         vi.useRealTimers();
       }
     });
 
-    it('defers a mutation enqueued before sign-in instead of rolling it back', async () => {
+    it('sends other mutations while draft recovery waits for sign-in', async () => {
+      vi.useFakeTimers();
+      try {
+        host.seedQueued({
+          uuid: 'unrelated',
+          query: stringifyDocument(MUTATION),
+          operationName: 'SetEntityProperty',
+          variables: { input: {} },
+          data: optimistic,
+        });
+        const { forwarded } = harness(
+          host,
+          undefined,
+          signedInDraftLifecycle().options
+        );
+        await vi.advanceTimersByTimeAsync(10);
+        expect(forwarded).toHaveLength(1);
+        expect(host.defers).toHaveLength(0);
+        expect(host.commits).toMatchObject([{ transactionId: 'restored-1' }]);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('defers a draft enqueued before sign-in instead of rolling it back', async () => {
       vi.useFakeTimers();
       try {
         const lifecycle = signedInDraftLifecycle();
@@ -3171,7 +3206,7 @@ describe('normalizedCacheExchange', () => {
           undefined,
           lifecycle.options
         );
-        ops.next(makeMutationOp(1, optimistic));
+        ops.next(draftOp(1));
         await vi.advanceTimersByTimeAsync(10);
         expect(host.claims).toEqual(['txn-1']);
         expect(host.defers).toMatchObject([{ transactionId: 'txn-1' }]);

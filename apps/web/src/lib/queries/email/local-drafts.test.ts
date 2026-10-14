@@ -199,6 +199,23 @@ describe('draft queue recovery', () => {
     await expect(lifecycle.prepareMutationQueue!()).resolves.toBeUndefined();
     expect((await runtime.readLocalDraft('local'))?.status).toBe('unconfirmed');
   });
+  it('defers a queued draft without a session instead of rejecting it', async () => {
+    const draft = await runtime.saveLocalDraft(input());
+    const attempt = await runtime.beginDraftAttempt(draft, 'save');
+    const lifecycle = runtime.localDraftQueueLifecycle(host);
+    for (const mutation of [claimed(attempt), claimed(undefined)]) {
+      for (const user of [undefined, { authenticated: false, id: '' }]) {
+        auth.user = user as never;
+        await expect(lifecycle.beforeMutationAttempt!(mutation)).resolves.toBe(
+          'defer'
+        );
+      }
+    }
+    auth.user = { authenticated: true, id: 'owner' };
+    await expect(
+      lifecycle.beforeMutationAttempt!(claimed(attempt))
+    ).resolves.toBe(true);
+  });
   it('marks an abandoned queued intent recoverable after restart', async () => {
     const draft = await runtime.saveLocalDraft(input());
     const attempt = await runtime.beginDraftAttempt(draft, 'save');
