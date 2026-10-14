@@ -22,6 +22,7 @@ use agent_runtime_protocol::domain::{
     action::{AgentAction, AgentActionId},
     schema::v0::SystemEvent,
 };
+use ai_billing::inbound::admission::AiAdmissionErrorBody;
 use axum::{
     Json, Router,
     extract::{FromRef, Path, State},
@@ -38,7 +39,7 @@ use entity_registry::{NonUserOwners, resolve_creation_principal};
 use macro_authorization::{
     ActingUser, InternalOnly, MacroAuthorization, MacroAuthorizationExtractor,
     MacroAuthorizationService, MacroAuthorizationState, UserBotOrHarness,
-    UserBotOrHarnessAuthorization,
+    UserBotOrHarnessAuthorization, UserOnly,
 };
 use macro_user_id::user_id::MacroUserIdStr;
 use macro_uuid::Uuid;
@@ -46,6 +47,7 @@ use model_owner::Owner;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use crate::domain::coding_preferences::CodingPreferences;
 use crate::domain::error::AgentSessionError;
 use crate::domain::model::{
     AgentSession, AgentSessionId, AgentSessionPreview, ExternalSession, Message, SandboxSize,
@@ -64,6 +66,11 @@ mod test;
 
 /// Link, channel, and team sharing routes.
 pub mod sharing;
+
+/// Routes associating pull requests with sessions.
+pub mod pull_requests;
+
+mod owned_purge;
 
 /// Shared state for the agent session router: the agent session service plus
 /// the authorization state the request extractors authenticate against.
@@ -225,6 +232,10 @@ where
             delete(delete_user_sessions_handler::<R, Access, Auth>),
         )
         .route(
+            "/internal/{session_id}",
+            delete(owned_purge::purge_owned_session_handler::<R, Access, Auth>),
+        )
+        .route(
             "/{session_id}/control",
             post(control_agent_session_handler::<R, Access, Auth>),
         )
@@ -236,6 +247,10 @@ where
             "/{session_id}/queue/{action_id}",
             put(edit_queued_action_handler::<R, Access, Auth>)
                 .delete(remove_queued_action_handler::<R, Access, Auth>),
+        )
+        .route(
+            "/{session_id}/queue/{action_id}/steer",
+            post(steer_queued_action_handler::<R, Access, Auth>),
         )
         .route(
             "/{session_id}/sandbox-size",
@@ -278,6 +293,25 @@ where
         .with_state(state)
 }
 
+/// Build the caller's coding preferences router. Mount at `/agent-coding-preferences`.
+pub fn agent_coding_preferences_router<T, Access, Auth, S>(
+    state: AgentSessionRouterState<T, Access, Auth>,
+) -> Router<S>
+where
+    T: AgentSessionService,
+    Access: EntityAccessService,
+    Auth: MacroAuthorizationService,
+    S: Clone + Send + Sync + 'static,
+{
+    Router::new()
+        .route(
+            "/agent-coding-preferences",
+            get(get_agent_coding_preferences_handler::<T, Access, Auth>)
+                .put(put_agent_coding_preferences_handler::<T, Access, Auth>),
+        )
+        .with_state(state)
+}
+
 /// Transport error for agent session handlers.
 #[derive(Debug)]
 pub enum AgentSessionApiError {
@@ -300,6 +334,7 @@ impl IntoResponse for AgentSessionApiError {
             // here, and nothing the caller does again right now will land, so it
             // answers 409 with a reason rather than a 500 that reads as a bug
             // and buries the one fact worth showing a user.
+            Self::Domain(AgentSessionError::Admission(error)) => error.into_response(),
             Self::Domain(AgentSessionError::Disconnected(session_id)) => {
                 tracing::info!(%session_id, "action refused: the session's runtime is not connected");
                 (
@@ -374,9 +409,11 @@ impl IntoResponse for AgentSessionApiError {
             Self::Domain(error @ AgentSessionError::ControlQueueFull(_)) => {
                 (StatusCode::UNPROCESSABLE_ENTITY, error.to_string()).into_response()
             }
-            Self::Domain(error @ AgentSessionError::TooManyPreviewIds(_)) => {
-                (StatusCode::BAD_REQUEST, error.to_string()).into_response()
-            }
+            Self::Domain(
+                error @ (AgentSessionError::TooManyPreviewIds(_)
+                | AgentSessionError::TooManyPullRequests(_)
+                | AgentSessionError::InvalidPullRequestUrl),
+            ) => (StatusCode::BAD_REQUEST, error.to_string()).into_response(),
             Self::Domain(error @ AgentSessionError::Archived(_)) => {
                 (StatusCode::CONFLICT, error.to_string()).into_response()
             }
@@ -471,6 +508,11 @@ pub struct ControlRequest {
     /// fields, which are tagged under `type`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub action_id: Option<AgentActionId>,
+    /// Why the agent is being asked. Only a runtime forwarding a triggered
+    /// prompt may send it; a user's request carrying it is refused.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<Object>)]
+    pub context: Option<trigger_context::TriggerContext>,
     /// The operation to perform.
     #[serde(flatten)]
     pub action: AgentAction,
@@ -578,6 +620,8 @@ pub struct AgentSessionResponse {
     pub repo_url: Option<String>,
     /// The session's linked pull request.
     pub pull_request_url: Option<String>,
+    /// The Macro task the session was linked to.
+    pub task_id: Option<String>,
     /// The directory the session's harness runs in on its runtime.
     pub workspace: String,
     /// Compute tier of the managed sandbox.
@@ -632,6 +676,7 @@ impl AgentSessionResponse {
             Some(messages::domain::models::MessageParent::Channel(channel_id)) => Some(*channel_id),
             Some(
                 messages::domain::models::MessageParent::Document(_)
+                | messages::domain::models::MessageParent::Call(_)
                 | messages::domain::models::MessageParent::Initiative(_)
                 | messages::domain::models::MessageParent::CrmCompany(_)
                 | messages::domain::models::MessageParent::CrmContact(_),
@@ -653,6 +698,7 @@ impl AgentSessionResponse {
             harness: session.harness,
             repo_url: session.repo_url,
             pull_request_url: session.pull_request_url,
+            task_id: session.task_id,
             workspace: session.workspace,
             sandbox_size: session.sandbox_size,
             instructions: session.instructions,
@@ -673,12 +719,22 @@ impl AgentSessionResponse {
     params(("session_id" = Uuid, Path, description = "ID of the agent session")),
     responses(
         (status = 200, body = AgentSessionResponse),
-        (status = 401, body = String),
+        (status = 401, body = String, description = "the session exists but is not this caller's"),
         (status = 403, body = String),
+        (
+            status = 404,
+            body = String,
+            description = "no session with this id: not created yet, or deleted since"
+        ),
         (status = 500, body = String),
     )
 )]
 /// Get an agent session by id.
+///
+/// A caller holding no grant is answered 401; an id with no session behind it
+/// at all is answered 404. They used to be the same answer, which left a
+/// client that read a session before its create had landed unable to tell a
+/// race it should retry from a refusal it should not.
 #[tracing::instrument(skip_all, fields(session_id = %session_id), err(Debug))]
 pub async fn get_agent_session_handler<
     T: AgentSessionService,
@@ -951,9 +1007,16 @@ async fn ensure_harness_serves_session<R: AgentSessionNotificationRecipient>(
                            running turn to end and can be edited or removed meanwhile."
         ),
         (status = 401, body = String),
+        (status = 402, description = "AI allowance exhausted", body = AiAdmissionErrorBody),
         (status = 403, body = String),
         (status = 422, body = String),
         (status = 500, body = String),
+        (status = 503, description = "AI usage validation unavailable, or replica draining; retry later",
+            content(
+                (AiAdmissionErrorBody = "application/json"),
+                (String = "text/plain"),
+            )
+        ),
     )
 )]
 /// Perform a control operation on a live agent session.
@@ -1007,6 +1070,7 @@ pub async fn control_agent_session_handler<
             ControlEvent::authorized(
                 req.action,
                 req.action_id,
+                req.context,
                 principal,
                 access.entity_access_receipt,
             )?,
@@ -1163,6 +1227,55 @@ pub async fn remove_queued_action_handler<
 }
 
 #[utoipa::path(
+    post,
+    path = "/agent-sessions/{session_id}/queue/{action_id}/steer",
+    tag = "agent-sessions",
+    operation_id = "steer_queued_action",
+    params(
+        ("session_id" = Uuid, Path, description = "ID of the agent session"),
+        ("action_id" = Uuid, Path, description = "ID the action was accepted under"),
+    ),
+    responses(
+        (status = 204),
+        (status = 401, body = String),
+        (status = 403, body = String),
+        (status = 404, body = String, description = "Already dispatched or never queued"),
+        (status = 500, body = String),
+    )
+)]
+/// Run a queued action next. Moves it ahead of the rest of the queue and
+/// cancels the turn in flight, so this entry dispatches when that turn ends.
+#[tracing::instrument(
+    skip_all,
+    fields(actor = %caller.acting_entity(), session_id = %session_id, %action_id),
+    err(Debug)
+)]
+pub async fn steer_queued_action_handler<
+    R: AgentSessionNotificationRecipient,
+    Access: EntityAccessService,
+    Auth: MacroAuthorizationService,
+>(
+    _access: AgentSessionAccessLevelExtractor<EditAccessLevel, Access, Auth>,
+    State(state): State<AgentSessionControlState<R, Access, Auth>>,
+    caller: MacroAuthorizationExtractor<Auth, UserBotOrHarness>,
+    Path((session_id, action_id)): Path<(Uuid, Uuid)>,
+) -> Result<StatusCode, AgentSessionApiError> {
+    let session_id = AgentSessionId::new_from_uuid(session_id);
+    ensure_harness_serves_session(&caller.authorization, state.recipient.as_ref(), session_id)
+        .await?;
+
+    let actor = caller
+        .authorization
+        .acting_user()
+        .map(|user| user.macro_user_id.clone());
+    state
+        .recipient
+        .steer_queued_control(session_id, AgentActionId::from_uuid(action_id), actor)
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[utoipa::path(
     delete,
     path = "/agent-sessions/{session_id}",
     tag = "agent-sessions",
@@ -1300,6 +1413,100 @@ pub async fn put_agent_sandbox_size_handler<
     state
         .service
         .set_user_sandbox_size(&caller.authorization.user.macro_user_id, req.size)
+        .await?;
+    Ok(Json(req))
+}
+
+/// Request or response body for the caller's coding preferences.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CodingPreferencesBody {
+    /// Whether new coding sessions research prior work and link a Macro task.
+    pub create_tasks: bool,
+    /// Whether new coding sessions deliver their work as a pull request.
+    pub open_pull_requests: bool,
+}
+
+impl From<CodingPreferences> for CodingPreferencesBody {
+    fn from(preferences: CodingPreferences) -> Self {
+        Self {
+            create_tasks: preferences.create_tasks,
+            open_pull_requests: preferences.open_pull_requests,
+        }
+    }
+}
+
+impl From<CodingPreferencesBody> for CodingPreferences {
+    fn from(body: CodingPreferencesBody) -> Self {
+        Self {
+            create_tasks: body.create_tasks,
+            open_pull_requests: body.open_pull_requests,
+        }
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/agent-coding-preferences",
+    tag = "agent-sessions",
+    operation_id = "get_agent_coding_preferences",
+    responses(
+        (status = 200, body = CodingPreferencesBody),
+        (status = 401, body = String),
+        (status = 500, body = String),
+    )
+)]
+/// Read what the caller's new coding sessions are told to do beyond their assignment.
+#[tracing::instrument(skip_all, fields(actor = %caller.acting_entity()), err(Debug))]
+pub async fn get_agent_coding_preferences_handler<
+    T: AgentSessionService,
+    Access: EntityAccessService,
+    Auth: MacroAuthorizationService,
+>(
+    State(state): State<AgentSessionRouterState<T, Access, Auth>>,
+    caller: MacroAuthorizationExtractor<Auth, ActingUser>,
+) -> Result<Json<CodingPreferencesBody>, AgentSessionApiError> {
+    let preferences = state
+        .service
+        .user_coding_preferences(&caller.authorization.user.macro_user_id)
+        .await?;
+    Ok(Json(preferences.into()))
+}
+
+#[utoipa::path(
+    put,
+    path = "/agent-coding-preferences",
+    tag = "agent-sessions",
+    operation_id = "put_agent_coding_preferences",
+    request_body = CodingPreferencesBody,
+    responses(
+        (status = 200, body = CodingPreferencesBody),
+        (status = 401, body = String),
+        (status = 500, body = String),
+    )
+)]
+/// Replace the caller's coding preferences.
+#[tracing::instrument(
+    skip_all,
+    fields(
+        actor = %caller.acting_entity(),
+        create_tasks = req.create_tasks,
+        open_pull_requests = req.open_pull_requests,
+    ),
+    err(Debug)
+)]
+pub async fn put_agent_coding_preferences_handler<
+    T: AgentSessionService,
+    Access: EntityAccessService,
+    Auth: MacroAuthorizationService,
+>(
+    State(state): State<AgentSessionRouterState<T, Access, Auth>>,
+    caller: MacroAuthorizationExtractor<Auth, ActingUser>,
+    Json(req): Json<CodingPreferencesBody>,
+) -> Result<Json<CodingPreferencesBody>, AgentSessionApiError> {
+    state
+        .service
+        .set_user_coding_preferences(&caller.authorization.user.macro_user_id, req.into())
         .await?;
     Ok(Json(req))
 }
@@ -1531,6 +1738,10 @@ where
             "/",
             post(create_agent_session_handler::<Opener, Bots, Requests, Auth>),
         )
+        .route(
+            "/warm",
+            post(warm_agent_session_handler::<Opener, Bots, Requests, Auth>),
+        )
         .with_state(state)
 }
 
@@ -1615,6 +1826,9 @@ pub struct CreateAgentSessionRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateSessionThread {
+    /// Update the existing bot response reserved by a task assignment.
+    #[serde(default)]
+    pub reuse_origin_message: bool,
     /// Entity the mentioning message was posted in.
     #[serde(default)]
     pub parent: Option<messages::domain::models::MessageParent>,
@@ -1762,6 +1976,7 @@ impl IntoResponse for CreateSessionApiError {
                 };
                 return (StatusCode::CONFLICT, Json(body)).into_response();
             }
+            Self::Domain(AgentSessionError::Admission(error)) => return error.into_response(),
             Self::Domain(AgentSessionError::ThreadSessionExists) => (
                 StatusCode::CONFLICT,
                 "this bot already has a session for this thread".to_owned(),
@@ -1908,10 +2123,12 @@ fn principal_owner(
     responses(
         (status = 201, body = CreateAgentSessionResponse),
         (status = 401, body = String),
+        (status = 402, description = "AI allowance exhausted", body = AiAdmissionErrorBody),
         (status = 403, body = String),
         (status = 404, body = String),
         (status = 422, body = String),
         (status = 500, body = String),
+        (status = 503, description = "AI usage validation unavailable; retry later", body = AiAdmissionErrorBody),
     )
 )]
 /// Open an agent session served by an external runtime.
@@ -1973,13 +2190,10 @@ pub async fn create_agent_session_handler<
                 // caller delivers its first prompt through the control
                 // endpoint once this answers, as it does for a managed one.
                 SelectedPersona::External { bot_id } => {
-                    if request.repo_url.is_some() || request.repo_branch.is_some() {
-                        return Err(CreateSessionApiError::Domain(
-                            AgentSessionError::InvalidRepositorySelection(
-                                "repository selection is supported for Cursor coding agents",
-                            ),
-                        ));
-                    }
+                    let repo_url = crate::domain::ports::external_repository(
+                        request.repo_url,
+                        request.repo_branch.as_deref(),
+                    )?;
                     // Refused rather than dropped: nothing delivers it, and a
                     // caller that sent one would otherwise never learn it was
                     // ignored. A model is different - it is applied when the
@@ -2002,6 +2216,7 @@ pub async fn create_agent_session_handler<
                                 .map(AgentSessionId::new_from_uuid)
                                 .unwrap_or_else(AgentSessionId::new),
                             bot_id,
+                            repo_url,
                             owner,
                             model: request.model.filter(|model| !model.trim().is_empty()),
                         })
@@ -2100,6 +2315,7 @@ pub async fn create_agent_session_handler<
                     .map(messages::domain::models::MessageParent::Channel))
                 .ok_or(CreateSessionApiError::ThreadParentRequired)?;
             Ok::<_, CreateSessionApiError>(SessionThread {
+                reuse_origin_message: thread.reuse_origin_message,
                 parent,
                 thread_id: thread.thread_id.unwrap_or(thread.message_id),
                 message_id: thread.message_id,
@@ -2145,4 +2361,43 @@ pub async fn create_agent_session_handler<
             session: AgentSessionResponse::new(session, true),
         }),
     ))
+}
+
+/// A client-minted id deduplicates warm calls without creating a conversation.
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct WarmAgentSessionRequest {
+    /// Id reserved by this browser for its next in-memory conversation.
+    pub id: Uuid,
+}
+
+/// A bounded best-effort warm attempt; absence means normal creation should proceed.
+#[derive(serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct WarmAgentSessionResponse {
+    /// Prepared session, hidden until explicitly claimed through create.
+    pub session: Option<AgentSessionResponse>,
+}
+
+/// Prepare MCP connections without sending a prompt or creating a visible list row.
+#[utoipa::path(post, path = "/agent-sessions/warm", request_body = WarmAgentSessionRequest,
+    responses((status = 200, body = WarmAgentSessionResponse)), tag = "agent-sessions")]
+pub async fn warm_agent_session_handler<
+    Opener: SessionOpener,
+    Bots: BotDirectory,
+    Requests: ExternalSessionRequester,
+    Auth: MacroAuthorizationService,
+>(
+    State(state): State<CreateSessionState<Opener, Bots, Requests, Auth>>,
+    caller: MacroAuthorizationExtractor<Auth, UserOnly>,
+    Json(request): Json<WarmAgentSessionRequest>,
+) -> Result<Json<WarmAgentSessionResponse>, CreateSessionApiError> {
+    let owner = Owner::User(caller.authorization.macro_user_id.clone());
+    let session = state
+        .opener
+        .warm_session(owner, AgentSessionId::new_from_uuid(request.id))
+        .await?;
+    Ok(Json(WarmAgentSessionResponse {
+        session: session.map(|session| AgentSessionResponse::new(session, true)),
+    }))
 }

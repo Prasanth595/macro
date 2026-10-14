@@ -46,10 +46,7 @@ import {
   groupedPropertyKeys,
   type PrepareGroupedPropertyUpdates,
 } from '../../soup/grouped/graphql-optimistic';
-import {
-  buildOptimisticSetEntityProperty,
-  isTemporaryGraphqlProperty,
-} from '../graphql-optimistic';
+import { buildOptimisticSetEntityProperty } from '../graphql-optimistic';
 import { buildPropertyAssignmentLinks } from './assignment-links';
 import { observePropertyMutationSettlements } from './mutation-settlements';
 
@@ -175,7 +172,7 @@ function toGraphqlEntityReference(
   };
 }
 
-function toGraphqlSetPropertyValue(
+export function toGraphqlSetPropertyValue(
   value: SetPropertyValue | null
 ): GraphqlSetPropertyValue | null {
   if (value === null) return null;
@@ -206,6 +203,9 @@ export function toGraphqlPropertyTargetEntityType(
   if (entityType === 'TASK') return 'DOCUMENT';
   if (entityType === 'CALENDAR_EVENT') {
     throw new Error('calendar events do not support properties');
+  }
+  if (entityType === 'CONTACT') {
+    throw new Error('crm contacts do not support properties');
   }
   return entityType;
 }
@@ -246,10 +246,7 @@ async function prepareMutationArgs(
   const host = getGraphqlCacheHost();
   if (host) {
     try {
-      if (
-        optimisticProperty &&
-        isTemporaryGraphqlProperty(optimisticProperty.id)
-      ) {
+      if (optimisticProperty) {
         optimisticCache.updates = buildPropertyAssignmentLinks(
           entityType,
           input.entityId,
@@ -266,6 +263,7 @@ async function prepareMutationArgs(
           optimisticCache.revalidations.push({
             document: EntityPropertiesDocument,
             variables: { input: targetInput },
+            onlyOnLinkFailure: true,
           });
         }
       }

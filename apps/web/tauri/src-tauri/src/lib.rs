@@ -33,10 +33,16 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use url::Url;
 
+mod desktop_update;
 mod device;
+mod diagnostics;
 mod logging;
+#[cfg(target_os = "macos")]
+mod macos_notification_permission;
 mod share_target;
 mod staged_upload;
+#[cfg(desktop)]
+mod window_state;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum AppEnvironment {
@@ -118,6 +124,9 @@ type Type = std::sync::OnceLock<
 pub fn run() {
     use tracing_subscriber::EnvFilter;
 
+    let diagnostics = diagnostics::Diagnostics::from_launch();
+    let recording = diagnostics.is_recording();
+
     let filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| logging::default_filter(cfg!(debug_assertions)));
 
@@ -152,16 +161,17 @@ pub fn run() {
     {
         // single instance plugin should always be the first registered
         tracing::debug!("register single instance plugin");
-        builder = builder.plugin(tauri_plugin_single_instance::init(|_app, argv, _cwd| {
-            tracing::debug!("single instance callback with argv: {argv:?}");
-        }))
+        builder = builder
+            .plugin(tauri_plugin_single_instance::init(|_app, argv, _cwd| {
+                tracing::debug!("single instance callback with argv: {argv:?}");
+            }))
+            .plugin(window_state::plugin());
     }
 
     #[cfg(target_os = "ios")]
     {
         builder = builder
             .plugin(tauri_plugin_auth::init())
-            .plugin(tauri_plugin_notifications::init())
             .plugin(tauri_plugin_virtual_keyboard::init())
             .plugin(tauri_plugin_edit_menu::init())
             .plugin(tauri_plugin_input_accessory::init())
@@ -176,7 +186,8 @@ pub fn run() {
         builder = builder
             .plugin(tauri_plugin_android_auth::init())
             .plugin(tauri_plugin_android_mobile::init())
-            .plugin(tauri_plugin_android_push::init());
+            .plugin(tauri_plugin_android_push::init())
+            .plugin(tauri_plugin_network_status::init());
     }
 
     // register the rest of the common plugins
@@ -217,8 +228,16 @@ pub fn run() {
             // Builds without this feature (just ios-dev, ios-build-no-update)
             // must never check for or apply OTA bundles on their own; manual
             // checks from settings still work.
-            .with_auto_update(cfg!(feature = "auto_apply_update")),
+            .with_auto_update(cfg!(feature = "auto_apply_update") && !recording),
         );
+
+    #[cfg(target_os = "ios")]
+    {
+        // Both notification plugins assign UNUserNotificationCenter.delegate.
+        // Initialize push last: the local-notification delegate ignores remote
+        // pushes, so leaving it installed drops taps before frontend navigation.
+        builder = builder.plugin(tauri_plugin_notifications::init());
+    }
 
     #[cfg(mobile)]
     {
@@ -258,16 +277,30 @@ pub fn run() {
         .manage(graphql_cache_plugin::CacheState::default())
         .manage(IsIpad(is_ipad_device))
         .invoke_handler(tauri::generate_handler![
+            desktop_update::get_native_update_status,
+            desktop_update::restart_native_update,
+            diagnostics::read_desktop_diagnostics,
+            #[cfg(target_os = "macos")]
+            macos_notification_permission::get_macos_notification_permission,
+            #[cfg(target_os = "macos")]
+            macos_notification_permission::request_macos_notification_permission,
+            #[cfg(target_os = "macos")]
+            macos_notification_permission::send_macos_notification,
             graphql_cache_plugin::commands::graphql_cache_init,
+            graphql_cache_plugin::commands::graphql_cache_init_with_schema,
             graphql_cache_plugin::commands::graphql_cache_current_revision,
             graphql_cache_plugin::commands::graphql_cache_current_storage_generation,
             graphql_cache_plugin::commands::graphql_cache_read,
+            graphql_cache_plugin::commands::graphql_cache_watch,
             graphql_cache_plugin::commands::graphql_cache_read_records_by_keys,
             graphql_cache_plugin::commands::graphql_cache_search,
             graphql_cache_plugin::commands::graphql_cache_entity_filter,
+            graphql_cache_plugin::commands::graphql_cache_calendar_range,
+            graphql_cache_plugin::commands::graphql_cache_calendar_commit,
             graphql_cache_plugin::commands::graphql_cache_write,
             graphql_cache_plugin::commands::graphql_cache_hydrate,
             graphql_cache_plugin::commands::graphql_cache_enqueue_optimistic_mutation,
+            graphql_cache_plugin::commands::graphql_cache_inspect_mutations,
             graphql_cache_plugin::commands::graphql_cache_inspect_query_variants,
             graphql_cache_plugin::commands::graphql_cache_inspect_query,
             graphql_cache_plugin::commands::graphql_cache_claim_next_mutation,
@@ -293,7 +326,10 @@ pub fn run() {
             flush_launch_deep_link,
             staged_upload::upload_staged_file_to_presigned_url,
         ])
-        .setup(|app| {
+        .setup(move |app| {
+            #[cfg(desktop)]
+            desktop_update::setup(app, recording)?;
+            diagnostics::setup(app, diagnostics);
             #[cfg(any(target_os = "linux", all(windows, debug_assertions)))]
             {
                 use tauri_plugin_deep_link::DeepLinkExt;
@@ -311,7 +347,7 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(move |app_handle, event| match &event {
-            RunEvent::Ready => {
+            RunEvent::Ready if !recording => {
                 #[cfg(feature = "auto_apply_update")]
                 {
                     let app = app_handle.clone();
@@ -364,6 +400,11 @@ pub fn run() {
                         }
                     });
                 }
+            }
+            #[cfg(desktop)]
+            RunEvent::ExitRequested { api, .. } => {
+                window_state::save(app_handle);
+                desktop_update::on_exit_requested(app_handle, api)
             }
             RunEvent::Exit => {
                 if let Some(state) = app_handle.try_state::<graphql_cache_plugin::CacheState>() {

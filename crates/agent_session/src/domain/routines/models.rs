@@ -61,6 +61,9 @@ pub struct PromptRoutineSession {
     pub action: RoutineSessionAction,
     /// Routine guidance, instructions, and context; not persona system settings.
     pub prompt: String,
+    /// What made the routine fire, rendered ahead of the prompt.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<trigger_context::TriggerContext>,
 }
 
 /// Prompt admission is not completion.
@@ -122,6 +125,10 @@ pub enum RoutineFailureReason {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, thiserror::Error)]
 #[serde(rename_all = "snake_case")]
 pub enum RoutineSessionError {
+    /// Definitive refusal before Macro-funded work was accepted.
+    #[cfg(feature = "admission")]
+    #[error(transparent)]
+    Admission(#[from] crate::domain::error::AiAdmissionError),
     /// Non-v7 execution ids, empty prompt, or blank supplied model.
     #[error("invalid routine session command")]
     InvalidCommand,

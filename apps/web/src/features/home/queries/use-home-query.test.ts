@@ -1,4 +1,7 @@
 import type { EmailEntity, EntityData } from '@entity/types/entity';
+import { unreadFilterFn } from '@entity/utils/filter';
+import { getDocumentCommentNotification } from '@notifications/document-comment-notification';
+import type { UnifiedNotification } from '@notifications/types';
 import type { SoupAstItemsQuery } from '@queries/soup/items';
 import { useSoupAstItemsQuery } from '@queries/soup/items';
 import { soupPageTimestamp } from '@queries/soup/page-timestamp';
@@ -11,6 +14,7 @@ import { type HomeDataSource, useHomeDataSource } from './use-home-query';
 vi.mock('@app/features/soup', async () => ({
   ...(await import('@app/features/soup/filters')),
   ...(await import('@app/features/soup/collection/rows')),
+  ...(await import('@app/features/soup/collection/row-store')),
   useSearchContext: () => ({ entityPool: () => [] }),
   createSearchState: () => ({
     isSearching: () => false,
@@ -26,8 +30,40 @@ vi.mock('@entity', async () => ({
   ...(await import('@entity/utils/company-properties')),
 }));
 vi.mock('@notifications', async () => await import('@notifications/types'));
+const flags = vi.hoisted(() => ({ graphqlSoup: false }));
 vi.mock('@app/lib/analytics/posthog', () => ({
-  useFeatureFlag: () => () => ({ enabled: true }),
+  useFeatureFlag: (flag: { key: string }) => () => ({
+    enabled: flag.key === 'enable-graphql-soup' ? flags.graphqlSoup : true,
+  }),
+}));
+const workFeedSource = vi.hoisted(() => ({
+  enabled: undefined as (() => boolean) | undefined,
+  items: () => [] as unknown[],
+  delegate: { canComplete: () => undefined, prepare: () => undefined },
+}));
+vi.mock('../work-feed/home-work-feed', () => ({
+  useWorkFeedHomeDataSource: (
+    _state: unknown,
+    options: { enabled: () => boolean }
+  ) => {
+    workFeedSource.enabled = options.enabled;
+    return {
+      items: () => workFeedSource.items(),
+      isLoading: () => false,
+      isFetching: () => false,
+      isLoadingMore: () => false,
+      hasMore: () => false,
+      error: () => undefined,
+      warning: () => undefined,
+      loadMore: async () => {},
+      refresh: async () => {},
+      markDoneDelegate: () => workFeedSource.delegate,
+    };
+  },
+}));
+const touch = vi.hoisted(() => ({ device: false }));
+vi.mock('@core/mobile/isTouchDevice', () => ({
+  isTouchDevice: () => touch.device,
 }));
 vi.mock('@components/app/GlobalAppState', () => ({
   useGlobalNotificationSource: () => ({ notificationsByEntity: () => ({}) }),
@@ -96,6 +132,7 @@ function makeQuery(initial: EntityData[], hasMore = true) {
     },
     isFetching: false,
     isFetchingNextPage: false,
+    isFetchNextPageError: false,
     isPlaceholderData: false,
     isEnabled: true,
     transport: 'rest',
@@ -143,10 +180,75 @@ describe('Home data source', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.setSystemTime(new Date(2026, 8, 10, 12));
+    flags.graphqlSoup = false;
+    touch.device = false;
   });
   afterEach(() => {
     dispose?.();
     vi.useRealTimers();
+  });
+
+  it('keeps old notifications unread but presents newer own activity as the task', () => {
+    const comment: UnifiedNotification = {
+      id: 'comment-notification',
+      entity_id: 'task',
+      entity_type: 'document',
+      sender_id: 'peter',
+      state: 'unseen',
+      created_at: '2026-09-01T16:37:00Z',
+      updated_at: '2026-09-01T16:37:00Z',
+      viewed_at: null,
+      sent: true,
+      notification_event_type: 'replied_to_document_comment_thread',
+      notification_metadata: {
+        tag: 'replied_to_document_comment_thread',
+        content: {
+          documentName: 'emails not sending',
+          owner: 'alice',
+          fileType: 'md',
+          commentId: 'comment',
+          threadId: 'thread',
+          text: 'Making progress',
+        },
+      },
+    };
+    const task = {
+      type: 'document' as const,
+      id: 'task',
+      name: 'emails not sending',
+      ownerId: 'alice',
+      fileType: 'md',
+      updatedAt: comment.created_at,
+      notifiedAt: comment.created_at,
+      notifications: () => [comment],
+    };
+    const notifications = makeQuery([task], false);
+    const activity = makeQuery(
+      [{ ...task, touchedAt: '2026-09-10T13:02:00Z' }],
+      false
+    );
+    const { source } = mount(notifications, activity);
+    const [row] = rows(source);
+    expect(row.sortTs).toBe('2026-09-10T13:02:00Z');
+    expect(getDocumentCommentNotification(row)).toBeUndefined();
+    expect(row.notifications?.()).toEqual([comment]);
+    expect(unreadFilterFn(row)).toBe(true);
+
+    const fresh = {
+      ...comment,
+      id: 'fresh',
+      created_at: '2026-09-10T14:00:00Z',
+    };
+    notifications.setEntities([
+      {
+        ...task,
+        notifiedAt: fresh.created_at,
+        notifications: () => [fresh, comment],
+      },
+    ]);
+    const [refreshed] = rows(source);
+    expect(refreshed.sortTs).toBe(fresh.created_at);
+    expect(getDocumentCommentNotification(refreshed)).toEqual(fresh);
   });
 
   it('excludes Noise and unclassified emails from recent activity, even when important or drafted', () => {
@@ -405,5 +507,59 @@ describe('Home data source', () => {
     expect(ids(source)).toEqual(['chat']);
     setState('facets', { type: ['agents'] });
     expect(ids(source)).toEqual(['agent']);
+  });
+});
+
+describe('Home work feed', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.setSystemTime(new Date(2026, 8, 10, 12));
+    flags.graphqlSoup = true;
+    touch.device = false;
+    workFeedSource.items = () => [
+      {
+        kind: 'entity',
+        id: 'work-feed-row',
+        entity: { type: 'document', id: 'from-work-feed' },
+      },
+    ];
+  });
+  afterEach(() => {
+    dispose?.();
+    vi.useRealTimers();
+  });
+
+  it('reads desktop Signal from the work feed and delegates done to it', () => {
+    const notifications = makeQuery([email('from-soup', 9)], false);
+    const activity = makeQuery([], false);
+    const { source } = mount(notifications, activity);
+
+    expect(workFeedSource.enabled?.()).toBe(true);
+    expect(ids(source)).toEqual(['from-work-feed']);
+    expect(source.markDoneDelegate()).toBe(workFeedSource.delegate);
+  });
+
+  it('keeps Noise and search on the Soup sources', () => {
+    const notifications = makeQuery([email('from-soup', 9)], false);
+    const activity = makeQuery([], false);
+    const { source, setState } = mount(notifications, activity);
+
+    setState('tab', 'noise');
+    expect(workFeedSource.enabled?.()).toBe(false);
+    expect(source.markDoneDelegate()).toBeUndefined();
+
+    setState('tab', 'signal');
+    setState('search', 'plan');
+    expect(workFeedSource.enabled?.()).toBe(false);
+  });
+
+  it('keeps touch devices on the notification feed', () => {
+    touch.device = true;
+    const notifications = makeQuery([email('from-soup', 9)], false);
+    const activity = makeQuery([], false);
+    const { source } = mount(notifications, activity);
+
+    expect(workFeedSource.enabled?.()).toBe(false);
+    expect(ids(source)).toEqual(['from-soup']);
   });
 });

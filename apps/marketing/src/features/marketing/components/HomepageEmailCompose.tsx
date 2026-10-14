@@ -14,10 +14,35 @@ import './homepage-email-compose.css';
 
 /** A frozen website composer. Addresses, attachments, edits, and sends stay local. */
 export default function HomepageEmailCompose(
-  props: { appChrome?: boolean } = {}
+  props: {
+    appChrome?: boolean;
+    readOnly?: boolean;
+    draft?: {
+      subject: string;
+      to: string;
+      body: string;
+      cc?: string;
+      bcc?: string;
+    };
+    onSend?: (draft: {
+      subject: string;
+      to: string;
+      body: string;
+      cc?: string;
+      bcc?: string;
+    }) => void;
+    onDraftChange?: (draft: {
+      subject: string;
+      to: string;
+      body: string;
+      cc?: string;
+      bcc?: string;
+    }) => void;
+  } = {}
 ) {
+  const initialBody = props.draft?.body;
   const [subject, setSubject] = createSignal(
-    'Great meeting you — demo follow-up'
+    props.draft?.subject ?? 'Great meeting you — demo follow-up'
   );
   const [showBcc, setShowBcc] = createSignal(false);
   const [showFormat, setShowFormat] = createSignal(false);
@@ -27,6 +52,21 @@ export default function HomepageEmailCompose(
   let root: HTMLDivElement | undefined;
   let body: HTMLDivElement | undefined;
   let fileInput: HTMLInputElement | undefined;
+  const [to, setTo] = createSignal(
+    props.draft?.to ?? 'Dana <dana@example.com>'
+  );
+  const [cc, setCc] = createSignal(
+    props.draft?.cc ?? 'Julia <julia@macro.com>'
+  );
+  const [bcc, setBcc] = createSignal(props.draft?.bcc ?? '');
+  const draftValue = () => ({
+    subject: subject(),
+    to: to(),
+    cc: cc(),
+    bcc: bcc(),
+    body: body?.innerText ?? body?.textContent ?? '',
+  });
+  const changed = () => props.onDraftChange?.(draftValue());
   const disposeMentions: Array<() => void> = [];
   onCleanup(() => disposeMentions.forEach((dispose) => dispose()));
 
@@ -68,8 +108,19 @@ export default function HomepageEmailCompose(
       }
     }
   }
-  const generation = createEmailDemoGeneration(() => root, append);
-  const generating = () => generation.phase() !== 'complete';
+  const generation = createEmailDemoGeneration(
+    () => (props.draft ? undefined : root),
+    append
+  );
+  const generating = () => !props.draft && generation.phase() !== 'complete';
+  const send = () => {
+    if (props.readOnly) return;
+    if (props.onSend) {
+      if (!subject().trim() || !to().trim() || !draftValue().body.trim())
+        return;
+      props.onSend(draftValue());
+    } else setSent(true);
+  };
 
   function addAttachments(files: File[]) {
     const bytes = [...attachments(), ...files].reduce(
@@ -104,7 +155,7 @@ export default function HomepageEmailCompose(
           !generating()
         ) {
           event.preventDefault();
-          setSent(true);
+          send();
         }
       }}
     >
@@ -127,18 +178,18 @@ export default function HomepageEmailCompose(
                 height="24"
                 alt=""
               />
-              Jacob Beckerman
+              Jacob
             </span>
             <Show when={generating()}>
               <span class="homepage-email-generating" role="status">
                 Generating<span aria-hidden="true">…</span>
               </span>
             </Show>
-            <Show when={!showBcc()}>
+            <Show when={!showBcc() && !props.readOnly}>
               <button
                 type="button"
                 class="homepage-email-bcc"
-                disabled={generating()}
+                disabled={generating() || props.readOnly}
                 onClick={() => setShowBcc(true)}
               >
                 Bcc
@@ -151,14 +202,14 @@ export default function HomepageEmailCompose(
                 <span class="homepage-email-label">{label}</span>
                 <input
                   aria-label={label}
-                  value={
-                    label === 'To'
-                      ? 'Dana Whitfield <dana@example.com>'
-                      : label === 'Cc'
-                        ? 'Julia Westphal <julia@macro.com>'
-                        : ''
-                  }
-                  disabled={generating()}
+                  value={label === 'To' ? to() : label === 'Cc' ? cc() : bcc()}
+                  onInput={(event) => {
+                    if (label === 'To') setTo(event.currentTarget.value);
+                    if (label === 'Cc') setCc(event.currentTarget.value);
+                    if (label === 'Bcc') setBcc(event.currentTarget.value);
+                    changed();
+                  }}
+                  disabled={generating() || props.readOnly}
                   placeholder="Email address"
                 />
               </label>
@@ -169,8 +220,11 @@ export default function HomepageEmailCompose(
             <input
               aria-label="Subject"
               value={subject()}
-              onInput={(event) => setSubject(event.currentTarget.value)}
-              disabled={generating()}
+              onInput={(event) => {
+                setSubject(event.currentTarget.value);
+                changed();
+              }}
+              disabled={generating() || props.readOnly}
               placeholder="Subject"
             />
           </label>
@@ -179,12 +233,15 @@ export default function HomepageEmailCompose(
           <div
             ref={body}
             class="homepage-email-body"
-            contentEditable={!generating()}
+            contentEditable={!generating() && !props.readOnly}
             role="textbox"
             aria-label="Email body"
+            onInput={changed}
             aria-multiline="true"
-            aria-disabled={generating()}
-          />
+            aria-disabled={generating() || props.readOnly}
+          >
+            {initialBody}
+          </div>
           <For each={attachments()}>
             {(file) => (
               <div class="homepage-email-attachment">
@@ -241,90 +298,92 @@ export default function HomepageEmailCompose(
             </For>
           </div>
         </Show>
-        <div
-          class={
-            props.appChrome
-              ? 'homepage-email-app-toolbar'
-              : 'homepage-email-toolbar'
-          }
-        >
-          <input
-            ref={fileInput}
-            type="file"
-            multiple
-            hidden
-            aria-label="Choose attachments"
-            onChange={(event) => {
-              addAttachments(Array.from(event.currentTarget.files ?? []));
-              event.currentTarget.value = '';
-            }}
-          />
-          <Show
-            when={props.appChrome}
-            fallback={
-              <>
-                <button
-                  type="button"
-                  aria-label="Attach"
-                  title="Attach"
-                  disabled={generating()}
-                  onClick={() => fileInput?.click()}
-                >
-                  <Paperclip />
-                </button>
-                <button
-                  type="button"
-                  aria-label="Format"
-                  title="Format"
-                  aria-pressed={showFormat()}
-                  disabled={generating()}
-                  onClick={() => setShowFormat(!showFormat())}
-                >
-                  <TextAa />
-                </button>
-                <button
-                  type="button"
-                  class="homepage-email-send"
-                  aria-label="Send email"
-                  title="Send email"
-                  disabled={generating()}
-                  onClick={() => setSent(true)}
-                >
-                  <ArrowUp />
-                </button>
-              </>
+        <Show when={!props.readOnly}>
+          <div
+            class={
+              props.appChrome
+                ? 'homepage-email-app-toolbar'
+                : 'homepage-email-toolbar'
             }
           >
-            <Button
-              variant="ghost"
-              size="icon-composer"
-              class="rounded-full"
-              aria-label="Attach"
-              disabled={generating()}
-              onClick={() => fileInput?.click()}
-            >
-              <Paperclip />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-composer"
-              class="rounded-full"
-              aria-label="Format"
-              aria-pressed={showFormat()}
-              disabled={generating()}
-              onClick={() => setShowFormat(!showFormat())}
-            >
-              <TextAa />
-            </Button>
-            <SendButton
-              data-input-action="send"
-              appearance="composer"
-              aria-label="Send email"
-              disabled={generating()}
-              onClick={() => setSent(true)}
+            <input
+              ref={fileInput}
+              type="file"
+              multiple
+              hidden
+              aria-label="Choose attachments"
+              onChange={(event) => {
+                addAttachments(Array.from(event.currentTarget.files ?? []));
+                event.currentTarget.value = '';
+              }}
             />
-          </Show>
-        </div>
+            <Show
+              when={props.appChrome}
+              fallback={
+                <>
+                  <button
+                    type="button"
+                    aria-label="Attach"
+                    title="Attach"
+                    disabled={generating() || props.readOnly}
+                    onClick={() => fileInput?.click()}
+                  >
+                    <Paperclip />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Format"
+                    title="Format"
+                    aria-pressed={showFormat()}
+                    disabled={generating() || props.readOnly}
+                    onClick={() => setShowFormat(!showFormat())}
+                  >
+                    <TextAa />
+                  </button>
+                  <button
+                    type="button"
+                    class="homepage-email-send"
+                    aria-label="Send email"
+                    title="Send email"
+                    disabled={generating() || props.readOnly}
+                    onClick={send}
+                  >
+                    <ArrowUp />
+                  </button>
+                </>
+              }
+            >
+              <Button
+                variant="ghost"
+                size="icon-composer"
+                class="rounded-full"
+                aria-label="Attach"
+                disabled={generating() || props.readOnly}
+                onClick={() => fileInput?.click()}
+              >
+                <Paperclip />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-composer"
+                class="rounded-full"
+                aria-label="Format"
+                aria-pressed={showFormat()}
+                disabled={generating() || props.readOnly}
+                onClick={() => setShowFormat(!showFormat())}
+              >
+                <TextAa />
+              </Button>
+              <SendButton
+                data-input-action="send"
+                appearance="composer"
+                aria-label="Send email"
+                disabled={generating() || props.readOnly}
+                onClick={send}
+              />
+            </Show>
+          </div>
+        </Show>
       </Dynamic>
     </div>
   );
