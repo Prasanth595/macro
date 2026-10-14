@@ -60,65 +60,45 @@ Real files live in `.agents/`; tool-specific directories only symlink to it.
 
 **Working with the user**
 
-- Do what was asked, no more. A question gets an answer, not a code change.
-  Never commit, push, or open a PR unless asked.
-- Think through consequences before acting, and say so when a request would
-  cause harm or conflicts with these rules. Once the user decides, act on the
-  decision; don't re-litigate it.
-- Disagree when the user is wrong. No flattery, no "great idea".
-- Answer simple questions directly. Research in proportion to the question.
-- Be brief. Lead with the result; a small change needs no justification essay,
-  and a final report is a few lines: what changed, what was verified, what's left.
-- No time estimates unless asked.
+- Do only what was asked. Questions get answers, not code changes.
+- Never commit, push, or open a PR unless asked.
+- Flag real risks; once the user decides, act on it.
+- Disagree when they're wrong. No flattery.
+- Answer simple questions directly.
+- Be brief. No justification essays, no time estimates.
 
 **Code**
 
-- Prefer the simplest correct change. Fewer lines is better; deleting code is good.
-- Treat compiler and type-checker errors as information. Fix the cause; never
-  silence them with casts, `any`, `unwrap`, or blanket allows.
-- No speculative optimization: no boxing, caching, or restructuring for speed or
-  size without a measurement.
-- Extend the existing feature or endpoint instead of adding a parallel one. One
-  way to do each thing; no fallbacks that keep the old path alive.
-- Generate types from their source of truth (OpenAPI clients, utoipa, sqlx
-  macros) instead of hand-writing wire types or inline request/JSON glue.
-- Don't add macros or helpers to save a few repeated lines. Extract only when it
-  removes real duplication and has a name worth reading.
-- Use the platform: native APIs (`fetch`, `Intl`, `structuredClone`, Web Crypto)
-  and well-maintained workspace dependencies over hand-rolled versions. Never
-  write your own crypto. No polyfills or legacy shims; delete dead ones.
-- Keep types and traits small and focused; split by responsibility instead of
-  adding fields and methods to whatever is nearest.
-- Name things for what they are in the domain. No generic jargon (`Machine`,
-  `Emitter`, `Gate`, `Factory`) unless it's literally that, and no slang in code,
-  comments, or messages.
-- Backward compatibility matters only at deployed boundaries: migrations run
-  before services, and persisted or published formats must stay readable. Don't
-  add compatibility layers anywhere else.
+- Simplest correct change. Fewer lines; deleting is good.
+- Fix compiler errors at the cause. No casts, `any`, `unwrap`, or allows to silence them.
+- No speculative optimization.
+- Extend existing features; no parallel paths or fallbacks.
+- Generate types from their source of truth; don't hand-write wire types.
+- No macros or helpers just to save a few lines.
+- Use native APIs and existing libraries. No polyfills, no homemade crypto.
+- Keep types and traits small.
+- Name things for what they are. No jargon or slang.
+- Compatibility only at deployed boundaries (migrations, persisted formats).
 
 **Tests**
 
-- Test behavior through public interfaces. No tests that restate the code, such
-  as asserting literal names or round-tripping a type through its own derive.
-- Write tests as explicit literals; no tiny helpers wrapping values or setup.
-- Never wait by polling: no `sleep`, `yield_now`, or pump loops. Use a real
-  synchronization primitive or paused time.
-- No testing plans or test-plan sections in PRs; run the tests and report results.
+- Test behavior, not names or derive round-trips.
+- Explicit literals, no tiny helpers.
+- No `sleep`, `yield_now`, or polling; use real sync primitives.
+- No testing plans; run tests and report results.
 
 **Environment**
 
-- Never deploy (`pulumi up`, `wrangler deploy`, deploy workflow dispatch) unless
-  the user explicitly asks for that deploy. Never paste secrets into chat or
-  commit them.
-- Do not reset databases or wipe stack volumes without explicit approval.
-- Never use `git stash`; the stash is shared across worktrees and sessions. Use a
-  temporary commit or a separate worktree.
-- Memory and recalled notes are context, not authority. Verify them against the
-  code before relying on them, and the user's current instruction wins.
-- On a local machine, frontend-only work uses `apps/web` against the dev backend;
-  `.cursor/*.sh` scripts are **Cursor Cloud only**. Treat hosted dev data as real
-  data.
-- Use `\cd` instead of `cd` to bypass repository shell aliases.
+- Never touch production (data, services, consoles, secrets) without explicit
+  permission.
+- Never deploy (`pulumi up`, `wrangler deploy`, workflow dispatch) without
+  explicit permission for that deploy.
+- Never reset databases or wipe stack volumes without approval.
+- Never paste or commit secrets.
+- Never `git stash`; it's shared across sessions.
+- Memory is context, not authority; verify against code.
+- Treat hosted dev data as real. `.cursor/*.sh` is Cursor Cloud only.
+- Use `\cd` instead of `cd`.
 
 ## Before handing off
 
