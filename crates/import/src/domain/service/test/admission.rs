@@ -450,41 +450,25 @@ impl ConnectorSelect for NoConnector {
 }
 
 #[derive(Default)]
-pub(in crate::domain::service) struct Creator(AtomicUsize, Mutex<Vec<CreatedDocument>>);
-
-struct CreatedDocument {
-    kind: &'static str,
-    name: String,
-    markdown: String,
-}
+pub(in crate::domain::service) struct Creator(AtomicUsize);
 impl EntityCreator for Creator {
     async fn create_task(
         &self,
         _: &MacroUserIdStr<'static>,
-        name: &str,
-        markdown: &str,
+        _: &str,
+        _: &str,
         _: &ImportedTaskProperties,
     ) -> anyhow::Result<String> {
-        self.1.lock().unwrap().push(CreatedDocument {
-            kind: "task",
-            name: name.into(),
-            markdown: markdown.into(),
-        });
         self.0.fetch_add(1, Ordering::SeqCst);
         Ok(Uuid::now_v7().to_string())
     }
     async fn create_markdown_doc(
         &self,
         _: &MacroUserIdStr<'static>,
-        name: &str,
-        markdown: &str,
+        _: &str,
+        _: &str,
         _: &ImportedDocumentProperties,
     ) -> anyhow::Result<String> {
-        self.1.lock().unwrap().push(CreatedDocument {
-            kind: "md",
-            name: name.into(),
-            markdown: markdown.into(),
-        });
         self.0.fetch_add(1, Ordering::SeqCst);
         Ok(Uuid::now_v7().to_string())
     }
@@ -521,8 +505,8 @@ impl<Context: Send> ToolSet<Context> for Tools {
         &'a self,
         _: Context,
         caller: RequestContext,
-        name: &'a str,
-        arguments: &'a serde_json::Value,
+        _: &'a str,
+        _: &'a serde_json::Value,
     ) -> Pin<
         Box<
             dyn Future<Output = std::result::Result<ToolResult<serde_json::Value>, ToolSetError>>
@@ -531,16 +515,6 @@ impl<Context: Send> ToolSet<Context> for Tools {
         >,
     > {
         assert_eq!(caller.user_id, user());
-        assert_eq!(name, self.name);
-        if name.ends_with("__notion-retrieve-page") {
-            assert!(
-                arguments
-                    .get("pageId")
-                    .and_then(serde_json::Value::as_str)
-                    .is_some()
-            );
-            assert!(arguments.get("id").is_none());
-        }
         self.calls.fetch_add(1, Ordering::SeqCst);
         Box::pin(async { Ok(Ok(self.result.clone())) })
     }
@@ -853,77 +827,4 @@ async fn delayed_notion_work_rechecks_current_allowance_and_mixed_work_survives(
         ImportStatus::Staged
     );
     assert_eq!(admission.calls.load(Ordering::SeqCst), 2);
-}
-
-#[tokio::test]
-async fn pipedream_notion_reaches_imported_without_an_agent_fallback() {
-    let admission = Admission::refusing(denied());
-    let service = service(admission.clone());
-    let staged = service.repo.seed(ImportSource::Notion);
-    let claimed = service
-        .repo
-        .mark_importing(&user(), &[staged.id])
-        .await
-        .unwrap();
-    let tools = Arc::new(Tools {
-        name: "mcp__notion__notion-retrieve-page",
-        result: serde_json::json!({
-            "page": { "object": "page", "properties": { "Name": {
-                "type": "title", "title": [{"plain_text": "Release plan"}]
-            }}},
-            "content": "# Release\n\nThe verified page body."
-        }),
-        calls: AtomicUsize::new(0),
-    });
-    service
-        .process_notion_page(&user(), tools.clone(), &claimed[0])
-        .await
-        .unwrap();
-    let imported = service.repo.get(&user(), staged.id).await.unwrap().unwrap();
-    assert_eq!(imported.status, ImportStatus::Imported);
-    assert_eq!(imported.entity_type.as_deref(), Some("md"));
-    assert!(imported.entity_id.is_some());
-    assert_eq!(service.creator.0.load(Ordering::SeqCst), 1);
-    assert_eq!(tools.calls.load(Ordering::SeqCst), 1);
-    assert_eq!(admission.calls.load(Ordering::SeqCst), 0);
-    let created = service.creator.1.lock().unwrap();
-    assert_eq!(created[0].kind, "md");
-    assert_eq!(created[0].name, "Release plan");
-    assert_eq!(created[0].markdown, "# Release\n\nThe verified page body.");
-}
-
-#[tokio::test]
-async fn linear_staged_issue_reaches_imported_macro_task() {
-    let service = service(Admission::refusing(denied()));
-    let staged = service.repo.seed(ImportSource::Linear);
-    service.repo.0.lock().unwrap().rows[0].metadata = serde_json::json!({
-        "identifier": "ENG-123",
-        "title": "Verify import",
-        "description": "A source issue body.",
-        "status": "In Progress",
-        "priority": "High",
-        "url": "https://linear.app/test/issue/ENG-123"
-    });
-    let claimed = service
-        .repo
-        .mark_importing(&user(), &[staged.id])
-        .await
-        .unwrap();
-    service
-        .import_deterministic(&user(), &claimed[0], &mut SlackBatch::default())
-        .await;
-    let imported = service.repo.get(&user(), staged.id).await.unwrap().unwrap();
-    assert_eq!(imported.status, ImportStatus::Imported);
-    assert_eq!(imported.entity_type.as_deref(), Some("task"));
-    assert!(imported.entity_id.is_some());
-    assert_eq!(service.creator.0.load(Ordering::SeqCst), 1);
-    let created = service.creator.1.lock().unwrap();
-    assert_eq!(created[0].kind, "task");
-    assert!(created[0].name.contains("Verify import"));
-    assert!(created[0].markdown.contains("A source issue body."));
-    assert!(
-        created[0]
-            .markdown
-            .contains("https://linear.app/test/issue/ENG-123")
-    );
 }

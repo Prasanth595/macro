@@ -148,14 +148,6 @@ existing `slack` accounts remain recognized. Production release requires a real
 Slack authorization and a successful read-only tool call, not just fixture tests.
 Cards use the Pipedream logo, with bundled icons and a generic plug as fallbacks.
 
-While onboarding is active, connecting Linear or Notion triggers the existing
-automatic import pipeline. Linear issues become Macro tasks; Notion pages become
-Macro markdown documents. Discovery selects relevant recent work, not a complete
-workspace migration. Notion imports support both native `notion-fetch` / `fetch`
-and Pipedream `notion-retrieve-page` (`pageId`, `{ page, content }`). Verify actual
-created content and terminal import status; an OAuth success or Connected badge
-alone does not establish a successful import.
-
 GitHub uses Macro's native OAuth/re-authorization flow and returns to the tools
 step. It shows **Account linked**, distinct from agent-tool readiness. A
 **Configure GitHub repositories** action opens native GitHub App installation;
