@@ -233,15 +233,15 @@ describe('Harness', () => {
     }
   );
 
-  it('offers Claude connection when the rollout flag is off', () => {
+  it('hides the Claude connection outside its rollout', () => {
     claudeFlag.enabled = false;
     claudeFlag.source.mockClear();
     try {
       render(() => <Harness />);
       expect(
         screen.queryByRole('region', { name: 'Claude Cloud connection' })
-      ).toBeTruthy();
-      expect(claudeFlag.source).toHaveBeenCalled();
+      ).toBeNull();
+      expect(claudeFlag.source).not.toHaveBeenCalled();
       expect(screen.getByRole('heading', { name: 'Cursor' })).toBeTruthy();
     } finally {
       claudeFlag.enabled = true;

@@ -1,3 +1,4 @@
+import { CLAUDE_BOT_PRINCIPAL_ID } from '@core/constant/claudeAgent';
 import {
   MACRO_AGENT_NAME,
   MACRO_AGENT_PRINCIPAL_ID,
@@ -11,20 +12,27 @@ import { MACRO_NEW_PRINCIPAL_ID } from '@core/constant/macroNew';
 import type { IUser } from '@core/user/types';
 import { createRoot, createSignal } from 'solid-js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { claudeMentionUser } from './macroAi';
 import { useAgentMentionUsers } from './use-agent-mention-users';
 
 const flags = vi.hoisted(() => ({
   agents: (): boolean => false,
+  claude: (): boolean => false,
   cursor: (): boolean => false,
 }));
 vi.mock('@core/constant/featureFlags', () => ({
+  claudeCloud: { key: 'claude-cloud' },
   enableChatV3Agents: { key: 'enable-chat-v3-agents' },
   enableCursorAgents: { key: 'enable-cursor-agents' },
 }));
 vi.mock('@app/lib/analytics/posthog', () => ({
   useFeatureFlag: (flag: { key: string }) => () => ({
     enabled:
-      flag.key === 'enable-chat-v3-agents' ? flags.agents() : flags.cursor(),
+      flag.key === 'enable-chat-v3-agents'
+        ? flags.agents()
+        : flag.key === 'claude-cloud'
+          ? flags.claude()
+          : flags.cursor(),
   }),
 }));
 
@@ -35,7 +43,24 @@ function macroEntries(users: IUser[]): IUser[] {
 describe('useAgentMentionUsers', () => {
   beforeEach(() => {
     flags.agents = () => false;
+    flags.claude = () => false;
     flags.cursor = () => false;
+  });
+
+  it('offers Claude only within its rollout, even when it is a participant', () => {
+    createRoot((dispose) => {
+      const [enabled, setEnabled] = createSignal(false);
+      flags.claude = enabled;
+      const users = useAgentMentionUsers(() => [claudeMentionUser()]);
+      const claudeIds = () =>
+        users()
+          .map((user) => user.id)
+          .filter((id) => id === CLAUDE_BOT_PRINCIPAL_ID);
+      expect(claudeIds()).toEqual([]);
+      setEnabled(true);
+      expect(claudeIds()).toEqual([CLAUDE_BOT_PRINCIPAL_ID]);
+      dispose();
+    });
   });
 
   it('offers the classic Macro bot as the only Macro entry without the rollout', () => {
