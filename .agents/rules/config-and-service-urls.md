@@ -50,7 +50,7 @@ startup loudly.
 
 - **Web app:** service hosts come from `SERVER_HOSTS` in `servers.ts`; app
   origin from `getWebOrigin`. Feature switches use `defineFlag` (see the
-  `define-feature-flag` skill), not raw `VITE_ENABLE_*` reads. Declare new
+  `feature-flags` skill), not raw `VITE_ENABLE_*` reads. Declare new
   `VITE_*` vars in `src/vite-env.d.ts`.
 - **Cloudflare workers:** non-secret config goes in every `[env.*.vars]` block
   of `wrangler.toml`/`.jsonc` (named envs don't inherit) and

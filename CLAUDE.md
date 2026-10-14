@@ -92,6 +92,9 @@ Real files live in `.agents/`; tool-specific directories only symlink to it.
 - Commits, branches, and PRs follow the `git` skill: Conventional Commit titles
   such as `fix(onboarding): preserve team inputs`, and Why / What bodies with no test plan.
 - Run the `audit` skill (via the `auditor` subagent) before saying work is done.
+- Update every doc your change makes stale, in the same change: the `AGENTS.md`
+  of each directory you touched, `docs/guides/`, `docs/architecture/`, the
+  agent guide, READMEs, rules, and skills. Search for the names you changed.
 - Open pull requests ready for review. If one is created as a draft, mark it
   ready for review before handing off.
 - Get CI passing before handing off. A pull request whose checks are failing

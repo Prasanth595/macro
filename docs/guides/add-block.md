@@ -75,7 +75,7 @@ and none of the file-type steps. Sections 4 and 5 are one or the other.
   (defaults on and writes a history row; turn it off when there is nothing to
   record, as `block-database` does), `defaultFilename`, `aliases`.
 - Gate the block with a flag in `apps/web/src/lib/core/constant/featureFlags.ts`
-  via the [define-feature-flag skill](../../.agents/skills/define-feature-flag/SKILL.md).
+  via the [feature-flags skill](../../.agents/skills/feature-flags/SKILL.md).
   `isFeatureEnabled` answers `false` until PostHog has loaded, so on a cold deep
   link a PostHog-gated block reads as off. Wait for the decision in both
   `component` and `load`, as `block-database/queries/database-rollout.ts` does.

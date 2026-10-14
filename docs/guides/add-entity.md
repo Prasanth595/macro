@@ -49,7 +49,7 @@ into the PR description, because the optional steps fail silently when skipped.
 Ship in layers, each reviewable alone: type and access, then domain and lifecycle,
 then properties and GraphQL, then discussions, then activity, then AI tools, then
 the frontend. A layer may land a stub only if nothing consumes it yet. Hide the
-UI behind a [feature flag](../../.agents/skills/define-feature-flag/SKILL.md)
+UI behind a [feature flag](../../.agents/skills/feature-flags/SKILL.md)
 until the backend is complete.
 
 ## 1. The entity type

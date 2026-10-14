@@ -37,6 +37,7 @@ For every changed file:
 | User-visible web behavior | Exercised in a browser; `docs/agent-guide` updated if routes, editors, AI surfaces, or composer changed |
 | `infra/` | `bun run --cwd infra check`; no deploy was run |
 | New or changed flow, cross-service call, queue, or background job | Instrumented per the observability rule; trace verified connected in Tempo, or listed as not verified |
+| Any behavior, API, name, or workflow change | Every doc that mentions it is updated: touched directories' `AGENTS.md`, `docs/guides/`, `docs/architecture/`, agent guide, READMEs, rules, skills (grep the changed names) |
 | Config, env vars, service URLs | Every copy and Doppler step in the config rule is done or listed as a follow-up |
 
 Deduplicate. Run one command per package, not per file.
