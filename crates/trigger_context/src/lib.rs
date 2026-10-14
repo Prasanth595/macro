@@ -485,6 +485,53 @@ pub enum RoutineEvent {
         /// Its id.
         entity_id: String,
     },
+    /// A call the routine's owner joined ended.
+    CallEnded {
+        /// The call.
+        call: CallSnapshot,
+    },
+}
+
+/// An ended call, read under the routine owner's access.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CallSnapshot {
+    /// Call id.
+    pub id: Uuid,
+    /// The call's name, when it has one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    /// The channel the call was held in; absent for meetings outside one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub channel_id: Option<Uuid>,
+    /// That channel's name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub channel_name: Option<String>,
+    /// When it started.
+    pub started_at: DateTime<Utc>,
+    /// When it ended.
+    pub ended_at: DateTime<Utc>,
+    /// Everyone who joined, people and guests.
+    pub participants: Vec<ContextPerson>,
+    /// AI summary of the call, once one has been written.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
+    /// What was said, oldest first.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub transcript: Vec<TranscriptLine>,
+    /// Whether the end of the transcript was left out.
+    pub transcript_omitted: bool,
+}
+
+/// One stretch of speech in a call transcript.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TranscriptLine {
+    /// Who spoke, as a reader would name them. Attributed by audio track, so
+    /// people sharing a device share a speaker.
+    pub speaker: String,
+    /// What they said.
+    pub text: String,
+    /// When they started speaking.
+    pub at: DateTime<Utc>,
 }
 
 /// A document, read under the routine owner's access.

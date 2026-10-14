@@ -85,6 +85,49 @@ const dispatchedWire = {
   from_bot: null,
 };
 
+const callEndedRoutineWire = {
+  kind: 'routine',
+  routine_id: '00000000-0000-0000-0000-0000000000f1',
+  name: 'Call recap',
+  owner: {
+    id: 'macro|julia@example.com',
+    name: 'Julia',
+    email: 'julia@example.com',
+  },
+  instructions: 'Post a recap with action items.',
+  triggers: [{ type: 'events', events: ['call.ended'] }],
+  firing: {
+    type: 'event',
+    // The `call` is the wire example in crates/trigger_context/src/test.rs.
+    event: {
+      event: 'call_ended',
+      call: {
+        id: '00000000-0000-0000-0000-0000000000ca',
+        channel_id: '00000000-0000-0000-0000-0000000000c1',
+        channel_name: 'eng',
+        started_at: '2026-10-08T14:00:00Z',
+        ended_at: '2026-10-08T14:30:00Z',
+        participants: [
+          {
+            id: 'macro|julia@example.com',
+            name: 'julia@example.com',
+            email: 'julia@example.com',
+          },
+          { id: 'guest_1', name: 'Sam (Acme)' },
+        ],
+        transcript: [
+          {
+            speaker: 'Sam (Acme)',
+            text: 'Can we ship Friday?',
+            at: '2026-10-08T14:01:00Z',
+          },
+        ],
+        transcript_omitted: true,
+      },
+    },
+  },
+};
+
 function endpoint() {
   const app = new Hono();
   fromHono(app).post('/agent-context', AgentContextEndpoint);
@@ -98,7 +141,12 @@ function endpoint() {
 
 describe('agent-context request schema', () => {
   it('accepts each Rust wire example as the trigger, unchanged', () => {
-    for (const trigger of [followUpWire, taskAssignedWire, dispatchedWire]) {
+    for (const trigger of [
+      followUpWire,
+      taskAssignedWire,
+      dispatchedWire,
+      callEndedRoutineWire,
+    ]) {
       const parsed = agentContextRequest.safeParse({
         promptMarkdown: 'please fix',
         trigger,
@@ -140,7 +188,12 @@ describe('agent-context request schema', () => {
 describe('POST /agent-context', () => {
   it('composes a prompt from each Rust wire example', async () => {
     const post = endpoint();
-    for (const trigger of [followUpWire, taskAssignedWire, dispatchedWire]) {
+    for (const trigger of [
+      followUpWire,
+      taskAssignedWire,
+      dispatchedWire,
+      callEndedRoutineWire,
+    ]) {
       const response = await post({ promptMarkdown: 'please fix', trigger });
       expect(response.status).toBe(200);
       const { markdown } = (await response.json()) as { markdown: string };

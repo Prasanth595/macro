@@ -5943,6 +5943,10 @@ enum GraphqlScheduledActionEventName {
 	A channel message attachment was created.
 	"""
 	CHANNEL_MESSAGE_ATTACHMENT_CREATED
+	"""
+	A call the routine's owner joined ended.
+	"""
+	CALL_ENDED
 }
 
 """

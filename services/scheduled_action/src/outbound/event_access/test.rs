@@ -136,6 +136,13 @@ async fn mints_entity_specific_receipts_for_exact_owner_and_entity() {
             },
         ),
         (
+            "call.ended",
+            EntityType::Call,
+            EntityPermission::AccessLevel {
+                access_level: AccessLevel::View,
+            },
+        ),
+        (
             "channel.created",
             EntityType::Channel,
             EntityPermission::ChannelViewOnly,
@@ -168,6 +175,7 @@ async fn wrong_permission_family_is_denied_not_reinterpreted() {
     let owner = MacroUserIdStr::parse_from_str("macro|owner@macro.com").unwrap();
     for (name, permission) in [
         ("document.updated", EntityPermission::ChannelViewOnly),
+        ("call.ended", EntityPermission::ChannelViewOnly),
         (
             "channel.created",
             EntityPermission::AccessLevel {

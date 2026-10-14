@@ -220,7 +220,30 @@ export type RoutineEvent =
       discussion: DiscussionContext;
       entity_type: string;
       entity_id: string;
-    };
+    }
+  | { event: 'call_ended'; call: CallSnapshot };
+
+/** An ended call, read under the routine owner's access. */
+export type CallSnapshot = {
+  id: string;
+  title?: string;
+  /** Absent for meetings outside a channel. */
+  channel_id?: string;
+  channel_name?: string;
+  started_at: string;
+  ended_at: string;
+  /** People and guests who joined. */
+  participants: ContextPerson[];
+  /** Absent until an AI summary has been written. */
+  summary?: string;
+  /** Oldest first; absent when empty. */
+  transcript?: TranscriptLine[];
+  /** Whether the end of the transcript was left out. */
+  transcript_omitted: boolean;
+};
+
+/** One stretch of speech in a call transcript. */
+export type TranscriptLine = { speaker: string; text: string; at: string };
 
 /** A document, read under the routine owner's access. */
 export type DocumentSnapshot = {
@@ -963,6 +986,55 @@ function documentNode(document: DocumentSnapshot): FxpNode {
   );
 }
 
+function transcriptNode(call: CallSnapshot): FxpNode {
+  const lines = call.transcript ?? [];
+  return el(
+    'transcript',
+    [
+      note(
+        lines.length === 0 && !call.transcript_omitted
+          ? 'Nothing was transcribed.'
+          : 'Speakers are named by audio track, so people sharing a device share a speaker.'
+      ),
+      ...lines.map((line) =>
+        el('line', [text(line.text)], { speaker: line.speaker, at: line.at })
+      ),
+      ...(call.transcript_omitted
+        ? [
+            note(
+              'The rest of the transcript is not shown. ReadCallRecord with this call id returns all of it.'
+            ),
+          ]
+        : []),
+    ],
+    present({ omitted: call.transcript_omitted ? 'true' : undefined })
+  );
+}
+
+function callNode(call: CallSnapshot): FxpNode {
+  return el(
+    'call',
+    [
+      el(
+        'participants',
+        call.participants.map((person) => personNode('participant', person))
+      ),
+      ...(call.summary === undefined
+        ? []
+        : [el('summary', [text(call.summary)])]),
+      transcriptNode(call),
+    ],
+    present({
+      id: call.id,
+      title: call.title,
+      channel: call.channel_name,
+      channel_id: call.channel_id,
+      started_at: call.started_at,
+      ended_at: call.ended_at,
+    })
+  );
+}
+
 function mentionedNode(discussion: DiscussionContext): FxpNode {
   return el(
     'trigger',
@@ -1140,6 +1212,7 @@ function routineEventChildren(event: RoutineEvent): FxpNode[] {
         discussionNode(discussion, routineDiscussion),
       ]
     )
+    .with({ event: 'call_ended' }, ({ call }) => [callNode(call)])
     .exhaustive();
 }
 
