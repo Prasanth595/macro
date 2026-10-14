@@ -30,6 +30,17 @@ describe('forwardedAttachments', () => {
     expect(forwarded.map((a) => a.db_id)).toEqual(['logo']);
   });
 
+  it('ignores cid: values outside an image source', () => {
+    const forwarded = forwardedAttachments({
+      body_html_sanitized:
+        '<img data-src="cid:logo" src="https://example.com/logo.png"><div xsrc="cid:logo"></div>',
+      attachments: [
+        attachment('logo', { content_id: '<logo>', sfs_id: 'logo-file' }),
+      ],
+    });
+    expect(forwarded.map((a) => a.db_id)).toEqual(['logo']);
+  });
+
   it('attaches a file whose Content-ID the body never shows inline', () => {
     const forwarded = forwardedAttachments({
       body_html_sanitized: '<p>See attached</p>',

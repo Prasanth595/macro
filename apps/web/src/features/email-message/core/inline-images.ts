@@ -8,7 +8,9 @@ export function normalizeContentId(contentId: string): string {
 /** Content-IDs of the attachments an HTML body shows inline through `cid:`. */
 export function inlineContentIds(html: string): Set<string> {
   const ids = new Set<string>();
-  for (const match of html.matchAll(/src=["']cid:([^"']+)["']/gi)) {
+  for (const match of html.matchAll(
+    /<img\b[^>]*?\ssrc=["']cid:([^"']+)["']/gi
+  )) {
     const id = normalizeContentId(match[1]);
     if (id) ids.add(id);
   }
