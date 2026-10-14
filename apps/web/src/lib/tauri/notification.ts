@@ -89,7 +89,7 @@ export function createTauriNotificationInterface(
       }
 
       if (platform === 'linux') {
-        return await showLinuxNotification(data);
+        return await showLinuxNotification(data.title, data.options);
       }
 
       if (!data.options) {

@@ -9,10 +9,6 @@ version = "0.1.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[[example]]
-name = "notification-test-daemon"
-path = "../../tests/native/fixtures/notification-daemon.rs"
-
 [lib]
 crate-type = ["rlib", "staticlib", "cdylib"]
 name = "app_lib"

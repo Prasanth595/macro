@@ -1,14 +1,20 @@
-import type {
-  PlatformNotificationData,
-  PlatformNotificationHandle,
-} from '@notifications';
 import { Channel, invoke } from '@tauri-apps/api/core';
 
 type NotificationEvent = 'click' | 'dismissed';
 
+function dispatch(callback: () => void) {
+  try {
+    callback();
+  } catch (error) {
+    // Do not let a navigation error interrupt Tauri's channel-end bookkeeping.
+    console.error('Linux notification callback failed', error);
+  }
+}
+
 export async function showLinuxNotification(
-  data: PlatformNotificationData
-): Promise<PlatformNotificationHandle> {
+  title: string,
+  options?: Pick<NotificationOptions, 'body' | 'icon'>
+) {
   const clicks: (() => void)[] = [];
   const dismissals: (() => void)[] = [];
   let finished: NotificationEvent | undefined;
@@ -16,16 +22,16 @@ export async function showLinuxNotification(
     if (finished) return;
     finished = event;
     const callbacks = event === 'click' ? clicks : dismissals;
-    for (const callback of callbacks) callback();
+    for (const callback of callbacks) dispatch(callback);
     clicks.length = 0;
     dismissals.length = 0;
   });
   let id: string;
   try {
     id = await invoke<string>('send_linux_notification', {
-      title: data.title,
-      body: data.options?.body,
-      icon: data.options?.icon,
+      title,
+      body: options?.body,
+      icon: options?.icon,
       onEvent: events,
     });
   } catch (error) {
@@ -50,14 +56,14 @@ export async function showLinuxNotification(
   }
 
   return {
-    onClick(callback) {
+    onClick(callback: () => void) {
       // The daemon can deliver a click before the command returns, or before
       // the caller has registered its navigation callback. Replay it once.
-      if (finished === 'click') callback();
+      if (finished === 'click') dispatch(callback);
       else if (!finished) clicks.push(callback);
     },
-    onDismiss(callback) {
-      if (finished === 'dismissed') callback();
+    onDismiss(callback: () => void) {
+      if (finished === 'dismissed') dispatch(callback);
       else if (!finished) dismissals.push(callback);
     },
     close() {

@@ -232,6 +232,27 @@ describe('desktop notification delivery', () => {
       expect(mocks.sendNotification).not.toHaveBeenCalled();
     });
 
+    it('isolates callback errors from channel cleanup and other listeners', async () => {
+      const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        const handle = await show();
+        const failure = new Error('Navigation failed');
+        const clicked = vi.fn();
+        handle.onClick(() => {
+          throw failure;
+        });
+        handle.onClick(clicked);
+        expect(() => mocks.channels[0].onmessage('click')).not.toThrow();
+        expect(clicked).toHaveBeenCalledOnce();
+        expect(log).toHaveBeenCalledWith(
+          'Linux notification callback failed',
+          failure
+        );
+      } finally {
+        log.mockRestore();
+      }
+    });
+
     it('keeps simultaneous notifications and their close handles separate', async () => {
       mocks.invoke
         .mockResolvedValueOnce('first')

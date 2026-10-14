@@ -33,10 +33,16 @@ impl Notification {
         body: Option<&str>,
         icon: Option<&str>,
     ) -> zbus::Result<Self> {
-        let owner = zbus::fdo::DBusProxy::new(&connection)
-            .await?
-            .get_name_owner(SERVICE.try_into()?)
-            .await?;
+        let bus = zbus::fdo::DBusProxy::new(&connection).await?;
+        let owner = match bus.get_name_owner(SERVICE.try_into()?).await {
+            Ok(owner) => owner,
+            Err(zbus::fdo::Error::NameHasNoOwner(_)) => {
+                // Preserve D-Bus activation for lazily started daemons (e.g. dunst).
+                bus.start_service_by_name(SERVICE.try_into()?, 0).await?;
+                bus.get_name_owner(SERVICE.try_into()?).await?
+            }
+            Err(error) => return Err(error.into()),
+        };
         // Pin the daemon's unique connection, not its replaceable service name:
         // a restarted daemon may reuse the same numeric notification IDs.
         let proxy = Proxy::new_owned(connection, owner, PATH, SERVICE).await?;

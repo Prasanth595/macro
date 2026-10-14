@@ -17,9 +17,7 @@ window.notificationFixture = {
   dismissed: [],
   async show() {
     const index = handles.length;
-    const handle = await showLinuxNotification({
-      title: `Notification ${index}`,
-    });
+    const handle = await showLinuxNotification(`Notification ${index}`);
     handles.push(handle);
     handle.onClick(() => {
       window.notificationFixture.clicked.push(index);
