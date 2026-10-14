@@ -276,6 +276,7 @@ fn profile(team: Option<Uuid>) -> Profile {
                     start: "09:00".into(),
                     end: "17:00".into(),
                 }],
+                unavailable_windows: None,
             })
             .collect(),
         overrides: vec![],

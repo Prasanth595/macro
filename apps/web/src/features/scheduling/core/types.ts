@@ -1,7 +1,17 @@
 export type SchedulingMode = 'individual' | 'collective' | 'roundRobin';
 export type TimeWindow = { start: string; end: string };
-export type WeeklyDay = { day: number; windows: TimeWindow[] };
-export type DateOverride = { date: string; windows: TimeWindow[] };
+export type WeeklyDay = {
+  day: number;
+  windows: TimeWindow[];
+  unavailableWindows?: TimeWindow[] | null;
+};
+export type DateOverride = {
+  date: string;
+  windows: TimeWindow[];
+  unavailableWindows?: TimeWindow[] | null;
+};
+/** Legacy gap inference can materialize more fragments than the bookable ranges. */
+export const MAX_UNAVAILABLE_WINDOWS = 32;
 export type AvailabilitySchedule = {
   id: string;
   name: string;
@@ -155,6 +165,7 @@ export function newSchedule(timeZone: string): AvailabilitySchedule {
     weekly: WEEKDAYS.map((_, day) => ({
       day,
       windows: day > 0 && day < 6 ? [{ start: '09:00', end: '17:00' }] : [],
+      unavailableWindows: [],
     })),
     overrides: [],
   };
@@ -202,20 +213,34 @@ export function validateSchedule(
     return 'Choose a valid time zone.';
   }
   for (const day of [...schedule.weekly, ...schedule.overrides]) {
-    const windows = [...day.windows].sort((a, b) =>
-      a.start.localeCompare(b.start)
-    );
-    for (let i = 0; i < windows.length; i++) {
-      const w = windows[i];
-      if (
-        !/^([01]\d|2[0-3]):[0-5]\d$/.test(w.start) ||
-        !/^([01]\d|2[0-3]):[0-5]\d$/.test(w.end) ||
-        w.start >= w.end
-      )
-        return 'Each time range must end after it starts.';
-      if (i > 0 && windows[i - 1].end > w.start)
-        return 'Time ranges cannot overlap.';
+    for (const ranges of [day.windows, day.unavailableWindows ?? []]) {
+      const windows = [...ranges].sort((a, b) =>
+        a.start.localeCompare(b.start)
+      );
+      for (let i = 0; i < windows.length; i++) {
+        const w = windows[i];
+        if (
+          !/^([01]\d|2[0-3]):[0-5]\d$/.test(w.start) ||
+          !/^([01]\d|2[0-3]):[0-5]\d$/.test(w.end) ||
+          w.start >= w.end
+        )
+          return 'Each time range must end after it starts.';
+        if (i > 0 && windows[i - 1].end > w.start)
+          return 'Time ranges cannot overlap.';
+      }
     }
+    if ((day.unavailableWindows?.length ?? 0) > MAX_UNAVAILABLE_WINDOWS)
+      return `Use at most ${MAX_UNAVAILABLE_WINDOWS} time-off ranges per day.`;
+    if (
+      day.windows.some((available) =>
+        day.unavailableWindows?.some(
+          (unavailable) =>
+            available.start < unavailable.end &&
+            available.end > unavailable.start
+        )
+      )
+    )
+      return 'Available hours and time off cannot overlap.';
   }
   if (
     new Set(schedule.overrides.map((o) => o.date)).size !==

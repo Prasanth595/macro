@@ -5,7 +5,6 @@ import {
   minuteTime,
   partialTimeOffOrigin,
   rangeOverlaps,
-  subtractWindows,
   timeMinutes,
 } from './availability';
 import type { TimeWindow } from './types';
@@ -46,11 +45,9 @@ export function availabilityBars(
         change.origin?.mode !== 'available' || index !== change.index
     );
     nextAvailable = mergeWindows([...remaining, change.window]);
-    if (unavailableOrigin)
-      nextUnavailable = unavailable.flatMap((window) =>
-        sameWindow(window, unavailableOrigin)
-          ? subtractWindows([window], change.window)
-          : [window]
+    if (change.origin?.mode === 'unavailable')
+      nextUnavailable = unavailable.filter(
+        (window) => !sameWindow(window, change.origin!.window)
       );
   } else if (change?.mode === 'unavailable') {
     nextUnavailable = mergeWindows([
@@ -61,12 +58,7 @@ export function availabilityBars(
       ),
       change.window,
     ]);
-    if (change.origin?.mode === 'unavailable') {
-      const restored = mergeWindows([...effective, change.origin.window]);
-      nextAvailable = conflicts.length
-        ? restored
-        : subtractWindows(restored, change.window);
-    }
+    nextAvailable = effective;
   }
   const bars = (windows: TimeWindow[], mode: AvailabilityChange['mode']) =>
     mergeWindows(windows).map((window): AvailabilityBar => {

@@ -1,6 +1,8 @@
+import { match } from 'ts-pattern';
 import { shiftReportDate } from './insights';
 import {
   type AvailabilitySchedule,
+  MAX_UNAVAILABLE_WINDOWS,
   type TimeWindow,
   validateSchedule,
 } from './types';
@@ -8,6 +10,7 @@ import {
 export type AvailabilityTarget =
   | { kind: 'weekly'; day: number }
   | { kind: 'date'; date: string };
+export type AvailabilityState = 'unset' | 'available' | 'unavailable';
 export type AvailabilityChange = {
   target: AvailabilityTarget;
   window: TimeWindow;
@@ -56,7 +59,8 @@ export function availabilityWeek(date: string): string[] {
 }
 
 export function windowsIssue(
-  windows: TimeWindow[]
+  windows: TimeWindow[],
+  limit = 8
 ): AvailabilityIssue | undefined {
   const sorted = [...windows].sort((a, b) => a.start.localeCompare(b.start));
   if (
@@ -82,9 +86,9 @@ export function windowsIssue(
         'These hours overlap an existing range. Adjust the times or merge the overlapping ranges.',
       mergeable: true,
     };
-  if (windows.length > 8)
+  if (windows.length > limit)
     return {
-      message: 'Use at most eight time ranges per day.',
+      message: `Use at most ${limit} time ranges per day.`,
       mergeable: false,
     };
 }
@@ -164,7 +168,12 @@ export function unavailableWindows(
   date: string
 ): TimeWindow[] {
   const override = schedule.overrides.find((item) => item.date === date);
-  if (!override) return [];
+  if (!override)
+    return (
+      schedule.weekly.find((day) => day.day === dateWeekday(date))
+        ?.unavailableWindows ?? []
+    );
+  if (override.unavailableWindows != null) return override.unavailableWindows;
   let unavailable: TimeWindow[] = [{ start: '00:00', end: '23:59' }];
   for (const window of override.windows)
     unavailable = subtractWindows(unavailable, window);
@@ -178,7 +187,12 @@ export function calendarUnavailableWindows(
   previousWindows: TimeWindow[] = []
 ): TimeWindow[] {
   const override = schedule.overrides.find((item) => item.date === date);
-  if (!override) return [];
+  if (!override)
+    return (
+      schedule.weekly.find((day) => day.day === dateWeekday(date))
+        ?.unavailableWindows ?? []
+    );
+  if (override.unavailableWindows != null) return override.unavailableWindows;
   if (!override.windows.length) return [{ start: '00:00', end: '23:59' }];
 
   const weekly = schedule.weekly.find((day) => day.day === dateWeekday(date));
@@ -190,17 +204,55 @@ export function calendarUnavailableWindows(
   );
 }
 
+/** A date override replaces both interval sets, including an explicit blank date. */
+export function targetUnavailableWindows(
+  schedule: AvailabilitySchedule,
+  target: AvailabilityTarget,
+  legacyDisplayed?: TimeWindow[]
+): TimeWindow[] {
+  const weekly = schedule.weekly.find(
+    (day) =>
+      day.day ===
+      (target.kind === 'weekly' ? target.day : dateWeekday(target.date))
+  );
+  const record =
+    target.kind === 'date'
+      ? (schedule.overrides.find((override) => override.date === target.date) ??
+        weekly)
+      : weekly;
+  if (record?.unavailableWindows != null) return record.unavailableWindows;
+  return target.kind === 'weekly'
+    ? []
+    : (legacyDisplayed ?? calendarUnavailableWindows(schedule, target.date));
+}
+
+export function availabilityState(
+  schedule: AvailabilitySchedule,
+  target: AvailabilityTarget
+): AvailabilityState {
+  if (targetWindows(schedule, target).length) return 'available';
+  return targetUnavailableWindows(schedule, target).length
+    ? 'unavailable'
+    : 'unset';
+}
+
 export function setTargetWindows(
   schedule: AvailabilitySchedule,
   target: AvailabilityTarget,
-  windows: TimeWindow[]
+  windows: TimeWindow[],
+  unavailableWindows = targetUnavailableWindows(schedule, target)
 ): AvailabilitySchedule {
   const sorted = [...windows].sort((a, b) => a.start.localeCompare(b.start));
+  const unavailable = [...unavailableWindows].sort((a, b) =>
+    a.start.localeCompare(b.start)
+  );
   if (target.kind === 'weekly')
     return {
       ...schedule,
       weekly: schedule.weekly.map((day) =>
-        day.day === target.day ? { ...day, windows: sorted } : day
+        day.day === target.day
+          ? { ...day, windows: sorted, unavailableWindows: unavailable }
+          : day
       ),
     };
   const exists = schedule.overrides.some(
@@ -211,10 +263,81 @@ export function setTargetWindows(
     overrides: exists
       ? schedule.overrides.map((override) =>
           override.date === target.date
-            ? { ...override, windows: sorted }
+            ? { ...override, windows: sorted, unavailableWindows: unavailable }
             : override
         )
-      : [...schedule.overrides, { date: target.date, windows: sorted }],
+      : [
+          ...schedule.overrides,
+          {
+            date: target.date,
+            windows: sorted,
+            unavailableWindows: unavailable,
+          },
+        ],
+  };
+}
+
+/** Clear values without creating time off or deleting a date override. */
+export function clearAvailabilityRange(
+  schedule: AvailabilitySchedule,
+  target: AvailabilityTarget,
+  window?: TimeWindow,
+  displayedUnavailable = targetUnavailableWindows(schedule, target)
+): AvailabilityResult {
+  const targetIssue = availabilityTargetIssue(schedule, target);
+  if (targetIssue) return availabilityFailure(targetIssue);
+  if (window) {
+    const issue = windowsIssue([window]);
+    if (issue) return { ok: false, issue };
+  }
+  const windows = window
+    ? subtractWindows(targetWindows(schedule, target), window)
+    : [];
+  const unavailable = window
+    ? subtractWindows(
+        targetUnavailableWindows(schedule, target, displayedUnavailable),
+        window
+      )
+    : [];
+  const issue =
+    windowsIssue(windows) ?? windowsIssue(unavailable, MAX_UNAVAILABLE_WINDOWS);
+  if (issue) return { ok: false, issue };
+  return {
+    ok: true,
+    schedule: setTargetWindows(schedule, target, windows, unavailable),
+  };
+}
+
+/** Full-day status changes are drafts; date overrides remain independent of weekly rules. */
+export function setAvailabilityState(
+  schedule: AvailabilitySchedule,
+  target: AvailabilityTarget,
+  state: AvailabilityState
+): AvailabilityResult {
+  const targetIssue = availabilityTargetIssue(schedule, target);
+  if (targetIssue) return availabilityFailure(targetIssue);
+  const current = targetWindows(schedule, target);
+  const rules = match(state)
+    .with('unset', () => ({ windows: [], unavailable: [] }))
+    .with('unavailable', () => ({
+      windows: [],
+      unavailable: [{ start: '00:00', end: '23:59' }],
+    }))
+    .with('available', () => ({
+      windows: current.length ? current : [{ start: '09:00', end: '17:00' }],
+      unavailable: [],
+    }))
+    .exhaustive();
+  const issue = windowsIssue(rules.windows);
+  if (issue) return { ok: false, issue };
+  return {
+    ok: true,
+    schedule: setTargetWindows(
+      schedule,
+      target,
+      rules.windows,
+      rules.unavailable
+    ),
   };
 }
 
@@ -239,6 +362,17 @@ export function availabilityScheduleIssue(
   for (const day of [...schedule.weekly, ...schedule.overrides]) {
     const issue = windowsIssue(day.windows);
     if (issue) return issue.message;
+    const timeOffIssue = windowsIssue(
+      day.unavailableWindows ?? [],
+      MAX_UNAVAILABLE_WINDOWS
+    );
+    if (timeOffIssue) return timeOffIssue.message;
+    if (
+      day.windows.some(
+        (window) => rangeOverlaps(window, day.unavailableWindows ?? []).length
+      )
+    )
+      return 'Available hours and time off cannot overlap.';
   }
   return validateSchedule(schedule);
 }
@@ -293,9 +427,11 @@ export function availabilityConflicts(
   if (windowsIssue([window])) return [];
   if (change.mode === 'unavailable')
     return rangeOverlaps(window, targetWindows(schedule, change.target));
-  if (change.target.kind === 'weekly') return [];
-  const opposing =
-    unavailable ?? calendarUnavailableWindows(schedule, change.target.date);
+  const opposing = targetUnavailableWindows(
+    schedule,
+    change.target,
+    unavailable
+  );
   const origin = partialTimeOffOrigin(change);
   return rangeOverlaps(
     window,
@@ -315,7 +451,7 @@ export function availabilityConflictIssue(
     .join(', ');
   const opposite = change.mode === 'available' ? 'unavailable' : 'available';
   return {
-    message: `${hours} is currently ${opposite}. Keep existing hours or confirm making these hours ${change.mode}.`,
+    message: `Currently ${opposite}: ${hours}.`,
     mergeable: false,
     overlaps,
   };
@@ -336,18 +472,9 @@ function editOriginIssue(
         ? current[change.index] &&
           sameWindow(current[change.index], origin.window)
         : current.some((window) => sameWindow(window, origin.window))
-      : change.target.kind === 'date' &&
-        unavailable.some((window) => sameWindow(window, origin.window));
+      : unavailable.some((window) => sameWindow(window, origin.window));
   if (!matches)
     return 'This range has changed. Select the current range again.';
-  if (
-    origin.mode === 'unavailable' &&
-    change.mode === 'unavailable' &&
-    origin.window.start === '00:00' &&
-    origin.window.end === '23:59' &&
-    !sameWindow(origin.window, changeWindow(change))
-  )
-    return 'Use Make available or Use weekly hours to replace all-day time off. Previous working hours cannot be inferred.';
 }
 
 export function applyAvailabilityChange(
@@ -359,70 +486,63 @@ export function applyAvailabilityChange(
   const target = change.target;
   const targetIssue = availabilityTargetIssue(schedule, target);
   if (targetIssue) return availabilityFailure(targetIssue);
-  if (change.mode === 'unavailable' && target.kind !== 'date')
-    return availabilityFailure(
-      'Time off applies to a specific date. Turn a weekday off using its toggle.'
-    );
   const window = changeWindow(change);
   const rangeIssue = windowsIssue([window]);
   if (rangeIssue) return { ok: false, issue: rangeIssue };
   const current = targetWindows(schedule, target);
   const invalid = current.map((range) => windowsIssue([range])).find(Boolean);
   if (invalid) return { ok: false, issue: invalid };
-  const unavailable =
-    displayedUnavailable ??
-    (target.kind === 'date'
-      ? calendarUnavailableWindows(schedule, target.date)
-      : []);
+  const unavailable = targetUnavailableWindows(
+    schedule,
+    target,
+    displayedUnavailable
+  );
   const originIssue = editOriginIssue(schedule, change, unavailable);
   if (originIssue) return availabilityFailure(originIssue);
   const origin = change.origin;
-  let windows: TimeWindow[];
+  const editIndex =
+    origin?.mode === 'unavailable'
+      ? undefined
+      : (change.index ??
+        (origin?.mode === 'available'
+          ? current.findIndex((range) => sameWindow(range, origin.window))
+          : undefined));
+  if (
+    editIndex !== undefined &&
+    (!Number.isInteger(editIndex) ||
+      editIndex < 0 ||
+      editIndex >= current.length)
+  )
+    return availabilityFailure(
+      'This range is no longer available. Select a range again.'
+    );
+  let windows = current;
+  let timeOff = unavailable.filter(
+    (range) =>
+      origin?.mode !== 'unavailable' || !sameWindow(range, origin.window)
+  );
   if (change.mode === 'available') {
-    const editIndex =
-      origin?.mode === 'unavailable'
-        ? undefined
-        : (change.index ??
-          (origin?.mode === 'available'
-            ? current.findIndex((range) => sameWindow(range, origin.window))
-            : undefined));
-    if (
-      editIndex !== undefined &&
-      (!Number.isInteger(editIndex) ||
-        editIndex < 0 ||
-        editIndex >= current.length)
-    )
-      return availabilityFailure(
-        'This range is no longer available. Select a range again.'
-      );
     windows = mergeWindows([
-      ...current.filter((_, index) => index !== editIndex),
+      ...windows.filter((_, index) => index !== editIndex),
       window,
     ]);
+    timeOff = subtractWindows(timeOff, window);
   } else {
-    const restored =
-      change.origin?.mode === 'unavailable'
-        ? mergeWindows([...current, change.origin.window])
-        : mergeWindows(current);
-    windows = change.allDay ? [] : subtractWindows(restored, window);
-    if (
-      !change.allDay &&
-      !rangeOverlaps(window, restored).length &&
-      !unavailable.some(
-        (range) => range.start <= window.end && range.end >= window.start
-      )
-    )
-      return availabilityFailure(
-        'This time is already unavailable. Choose available hours or extend an existing time-off range.'
-      );
+    // Time off removes only the covered hours, even when editing an available range.
+    windows = subtractWindows(windows, window);
+    timeOff = mergeWindows([...timeOff, window]);
   }
-  const issue = windowsIssue(windows);
+  const issue =
+    windowsIssue(windows) ?? windowsIssue(timeOff, MAX_UNAVAILABLE_WINDOWS);
   if (issue) return { ok: false, issue };
   if (!replaceConflicts) {
     const conflict = availabilityConflictIssue(schedule, change, unavailable);
     if (conflict) return { ok: false, issue: conflict };
   }
-  return { ok: true, schedule: setTargetWindows(schedule, target, windows) };
+  return {
+    ok: true,
+    schedule: setTargetWindows(schedule, target, windows, timeOff),
+  };
 }
 
 /** Validate every destination before changing any destination. */
@@ -439,21 +559,6 @@ export function copyAvailability(
     const key = target.kind === 'weekly' ? `day:${target.day}` : target.date;
     if (visited.has(key)) continue;
     visited.add(key);
-    // Applying time off across dates leaves already-off hours unchanged.
-    if (
-      change.mode === 'unavailable' &&
-      !change.allDay &&
-      target.kind === 'date' &&
-      validAvailabilityDate(target.date) &&
-      !windowsIssue([change.window])
-    ) {
-      const current = targetWindows(next, target);
-      if (
-        !current.some((window) => windowsIssue([window])) &&
-        !rangeOverlaps(change.window, current).length
-      )
-        continue;
-    }
     const result = applyAvailabilityChange(
       next,
       { ...change, target, index: undefined, origin: undefined },

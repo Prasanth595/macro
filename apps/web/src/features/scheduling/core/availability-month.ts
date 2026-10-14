@@ -32,6 +32,32 @@ export function availabilityDateRange(anchor: string, end: string): string[] {
   );
 }
 
+/** Describe consecutive dates as readable ranges, without week-boundary splits. */
+export function formatAvailabilityDateRanges(dates: string[]): string {
+  const selected = [...new Set(dates.filter(validAvailabilityDate))].sort();
+  const ranges: { start: string; end: string }[] = [];
+  for (const date of selected) {
+    const previous = ranges.at(-1);
+    if (previous && shiftReportDate(previous.end, 1) === date)
+      previous.end = date;
+    else ranges.push({ start: date, end: date });
+  }
+  const includeYear =
+    new Set(selected.map((date) => date.slice(0, 4))).size > 1;
+  const format = new Intl.DateTimeFormat('en', {
+    month: 'long',
+    day: 'numeric',
+    ...(includeYear ? { year: 'numeric' } : {}),
+    timeZone: 'UTC',
+  });
+  const label = (date: string) => format.format(new Date(`${date}T00:00:00Z`));
+  return ranges
+    .map(({ start, end }) =>
+      start === end ? label(start) : `${label(start)} to ${label(end)}`
+    )
+    .join(', ');
+}
+
 export type AvailabilityMonthRun = { startIndex: number; dates: string[] };
 
 /** Join selected neighbors, breaking at gaps and Sunday-first week boundaries. */
