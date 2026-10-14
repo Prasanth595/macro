@@ -10,7 +10,8 @@ import { createLiveSession } from './queries/live-session';
  * Live while the run of steps is still open, from the session's own fold, so
  * a step ticks from running to done where it was posted. Once the run seals,
  * or for a viewer who cannot read the session, the snapshot the server wrote
- * into the message is the whole story - the same rows, worded the same way.
+ * into the message keeps the status and label. Raw commands and tool-input
+ * details are available only in the authorized live session view.
  */
 export function AgentActivity(props: AgentActivityData) {
   return (

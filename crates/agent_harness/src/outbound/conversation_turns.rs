@@ -224,6 +224,24 @@ impl ConversationTurnStore for PgConversationTurnStore {
         Ok(())
     }
 
+    async fn record_reply_flight(
+        &self,
+        action: AgentActionId,
+        expected: &InFlightTurn,
+        turn: &InFlightTurn,
+    ) -> Result<bool> {
+        if expected.action_id != action || turn.action_id != action {
+            return Ok(false);
+        }
+        let expected = serde_json::to_value(expected).map_err(anyhow::Error::from)?;
+        let flight = serde_json::to_value(turn).map_err(anyhow::Error::from)?;
+        let saved = sqlx::query!(
+            "UPDATE agent_conversation_turns SET in_flight = $2, updated_at = now() WHERE action_id = $1 AND state IN ('succeeded', 'failed', 'stopped', 'interrupted') AND NOT reply_finalized AND in_flight = $3",
+            action.as_uuid(), flight, expected
+        ).execute(&self.pool).await.map_err(anyhow::Error::from)?;
+        Ok(saved.rows_affected() == 1)
+    }
+
     async fn save_reply(
         &self,
         action: AgentActionId,

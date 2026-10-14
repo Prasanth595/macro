@@ -146,3 +146,35 @@ it('updates a live row in place as the run paints, rather than redrawing it', ()
     ['Readinglib.rs', 'running'],
   ]);
 });
+
+it('keeps snapshots free of tool details while authorized live rows retain them', () => {
+  const safe = [{ id: 't1', label: 'Ran', status: 'completed' as const }];
+  const snapshotView = render(() => (
+    <AgentActivity
+      agentSessionId="private-session"
+      turn={2}
+      segment={1}
+      rows={safe}
+      sealed
+    />
+  ));
+  expect(snapshotView.getByRole('listitem').textContent).toBe('Ran');
+  expect(live.acquired).toEqual([]);
+  snapshotView.unmount();
+  const liveView = render(() => (
+    <AgentActivity
+      agentSessionId="private-session"
+      turn={2}
+      segment={1}
+      rows={safe}
+      sealed={false}
+    />
+  ));
+  expect(liveView.getByRole('listitem').textContent).toBe('Ran');
+  setMessages([
+    reply([{ ...safe[0], detail: 'TOKEN=private-value run-report' }]),
+  ]);
+  expect(liveView.getByRole('listitem').textContent).toBe(
+    'RanTOKEN=private-value run-report'
+  );
+});

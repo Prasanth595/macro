@@ -18,6 +18,7 @@ pub struct AnnouncerMock {
     resolved: Arc<Mutex<Vec<ResolvedReply>>>,
     presented: Arc<Mutex<Vec<ReplyPresentation>>>,
     typed: Arc<Mutex<Vec<AgentTypingUpdate>>>,
+    present_failure: Arc<Mutex<Option<String>>>,
     /// When set, every announce fails with this message.
     failure: Arc<Mutex<Option<String>>>,
 }
@@ -38,8 +39,20 @@ impl AnnouncerMock {
             Some(message.to_owned());
     }
 
+    /// Record a committed presentation, then simulate losing its response.
+    pub fn fails_after_presenting(&self, message: &str) {
+        *self
+            .present_failure
+            .lock()
+            .expect("announcer mock lock should not be poisoned") = Some(message.to_owned());
+    }
+
     /// Stop failing: the next announce, resolve or presentation succeeds.
     pub fn recovers(&self) {
+        *self
+            .present_failure
+            .lock()
+            .expect("announcer mock lock should not be poisoned") = None;
         *self
             .failure
             .lock()
@@ -176,6 +189,14 @@ impl SessionAnnouncer for AnnouncerMock {
             .lock()
             .expect("announcer mock presented lock should not be poisoned")
             .push(presentation);
+        if let Some(message) = self
+            .present_failure
+            .lock()
+            .expect("announcer mock lock should not be poisoned")
+            .clone()
+        {
+            return Err(HarnessError::Announce(rootcause::report!("{message}")));
+        }
         Ok(())
     }
 

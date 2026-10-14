@@ -286,3 +286,21 @@ fn humanize_keeps_acronyms_and_splits_every_convention() {
     assert_eq!(humanize("FetchURL"), "Fetch URL");
     assert_eq!(humanize(""), "Tool");
 }
+
+#[test]
+fn session_activity_retains_command_and_tool_input_details_for_authorized_live_views() {
+    let command = "TOKEN=private-value run-report";
+    let query = "confidential acquisition";
+    let parts = [
+        run("terminal", command, ToolStatus::Completed),
+        macro_tool(
+            "search",
+            "search",
+            serde_json::json!({"query": query}),
+            ToolStatus::Completed,
+        ),
+    ];
+    let live = segments(&parts, true);
+    assert_eq!(live[0].rows[0].detail.as_deref(), Some(command));
+    assert_eq!(live[0].rows[1].detail.as_deref(), Some(query));
+}

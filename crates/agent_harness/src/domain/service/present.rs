@@ -245,29 +245,44 @@ where
             segments = saved;
         }
         let planned = plan_messages(&closed(segments));
+        let mut flight = flight.clone();
+        let expected = flight.clone();
+        let count = planned.len().max(1);
+        if flight.presented.len() < count {
+            flight
+                .presented
+                .resize_with(count, macro_uuid::generate_uuid_v7);
+            flight.announcement_message_id = flight.presented.last().copied();
+            if let Some(store) = &self.conversation_turns {
+                match store
+                    .record_reply_flight(flight.action_id, &expected, &flight)
+                    .await
+                {
+                    Ok(true) => {}
+                    Ok(false) => return false,
+                    Err(error) => {
+                        tracing::error!(?error, %session_id, "could not reserve final reply message IDs");
+                        return false;
+                    }
+                }
+            }
+        }
         if planned.is_empty() {
             // Nothing the reply said or did can be shown, so say how the
             // turn ended. A replica saves a reply's segments before it shows
             // any of them, and again before its last message, so without
             // them nothing of the reply was posted: how the turn ended is
             // posted on its own.
-            let mut presentation = voice.presentation(
-                session_id,
-                flight.turn,
-                macro_uuid::generate_uuid_v7(),
-                Vec::new(),
-            );
+            let mut presentation =
+                voice.presentation(session_id, flight.turn, flight.presented[0], Vec::new());
             presentation.outcome = Some(outcome);
             presentation.notify = true;
             return self.present_reply(presentation).await;
         }
-        let mut ids = flight.presented.clone();
-        while ids.len() < planned.len() {
-            ids.push(macro_uuid::generate_uuid_v7());
-        }
         let last = planned.len() - 1;
         let mut presented = true;
-        for (index, (message, message_id)) in planned.into_iter().zip(ids).enumerate() {
+        for (index, (message, message_id)) in planned.into_iter().zip(flight.presented).enumerate()
+        {
             let closing = index == last;
             if !closing && !self.shows_differently(message_id, &message.segments) {
                 continue;

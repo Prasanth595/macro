@@ -313,7 +313,9 @@ export function Agents(props: {
                   {(agent) => (
                     <AgentRow
                       agent={agent}
-                      onMessage={agentDm ? () => void messageAgent(agent.id) : undefined}
+                      onMessage={
+                        agentDm ? () => void messageAgent(agent.id) : undefined
+                      }
                       messagePending={agentDm?.pending()}
                       onEdit={
                         agent.editable && agent.persistedAgent

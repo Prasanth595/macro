@@ -43,7 +43,9 @@ The reply is posted as ordinary messages while the turn runs. Each finished
 passage becomes a message. The steps taken between passages show inside the
 message as compact rows: a status icon (spinner, check, cross, or warning for
 interrupted), a label such as `Ran`, `Read`, `Edited`, or `Searching`, and a
-short detail like the command or file name. A long run shows its latest six
+short detail like the command or file name for readers with session access.
+Stored activity snapshots keep the status and label but omit commands and tool
+input details, in both shared threads and DMs. A long run shows its latest six
 steps behind an `N earlier steps` control. Rows tick live while the run is
 open, then freeze
 into the snapshot saved in the message. Readers without session access always

@@ -145,6 +145,15 @@ pub trait ConversationTurnStore: Send + Sync + 'static {
     async fn claim(&self, action: AgentActionId, turn: &InFlightTurn) -> Result<bool>;
     /// Save the posted reply before the model can begin producing output.
     async fn record_flight(&self, action: AgentActionId, turn: &InFlightTurn) -> Result<()>;
+    /// Reserve final reply IDs under a reply lease. Returns false if the
+    /// attempt is no longer terminal and unfinalized, or its saved flight
+    /// changed since it was read. No message may be posted on a failed write.
+    async fn record_reply_flight(
+        &self,
+        action: AgentActionId,
+        expected: &InFlightTurn,
+        turn: &InFlightTurn,
+    ) -> Result<bool>;
     /// Save what a turn's reply shows: as its messages are posted, and
     /// finished, before its outcome. Whichever replica reconciles the reply
     /// then posts the same messages, and closes the ones already posted.

@@ -100,7 +100,10 @@ fn reply_segments(turn: TurnId, segments: &[ProjectedSegment]) -> Vec<AgentReply
                     .map(|row| AgentActivityRow {
                         id: row.id.clone(),
                         label: row.label.clone(),
-                        detail: row.detail.clone(),
+                        // Stored messages are readable by the conversation's
+                        // audience, which may not have access to the session.
+                        // Raw commands and tool inputs stay in authorized live views.
+                        detail: None,
                         status: match row.status {
                             ActivityStatus::Running => AgentActivityStatus::Running,
                             ActivityStatus::Completed => AgentActivityStatus::Completed,

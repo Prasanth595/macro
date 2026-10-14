@@ -323,11 +323,19 @@ where
         } else {
             None
         };
+        let mut turn = turn.clone();
         let mut saved_reply = Vec::new();
         if terminal && let Some(store) = conversation_store {
             match store.by_action(turn.action_id).await {
                 Ok(Some(record)) if record.reply_finalized => return,
                 Ok(Some(record)) => {
+                    // Another replica may have reserved more reply IDs since
+                    // the caller read this turn. Always use the durable flight
+                    // read under the reply lease, including after a failed post.
+                    let Some(saved_flight) = record.in_flight else {
+                        return;
+                    };
+                    turn = saved_flight;
                     if let Some(saved) = record.outcome {
                         outcome = saved;
                     }
@@ -337,11 +345,11 @@ where
                     tracing::error!(?error, %session_id, "could not read the durable conversation reply state");
                     return;
                 }
-                _ => {}
+                Ok(None) => return,
             }
         }
         let resolved = if in_segments {
-            self.present_final(session_id, turn, outcome.clone(), saved_reply)
+            self.present_final(session_id, &turn, outcome.clone(), saved_reply)
                 .await
         } else {
             let segments = if turn.speaks_as_chip {

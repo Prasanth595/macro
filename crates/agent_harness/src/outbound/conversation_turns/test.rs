@@ -815,3 +815,110 @@ async fn a_failure_older_than_the_reported_turns_still_retries(pool: PgPool) {
         ConversationTurnState::Queued
     );
 }
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn terminal_reply_ids_require_the_current_unfinalized_attempt_and_saved_flight(pool: PgPool) {
+    let (store, session, channel, command) = setup(pool).await;
+    let record = store.admit(session, channel, command).await.unwrap();
+    let mut original = flight(&record);
+    original.announcement_message_id = None;
+    let mut reserved = original.clone();
+    reserved.presented.push(macro_uuid::generate_uuid_v7());
+    reserved.announcement_message_id = reserved.presented.last().copied();
+    assert!(store.claim(record.action_id, &original).await.unwrap());
+    assert!(
+        !store
+            .record_reply_flight(record.action_id, &original, &reserved)
+            .await
+            .unwrap(),
+        "running attempts use progress persistence"
+    );
+    store
+        .finish(
+            record.action_id,
+            ConversationTurnState::Failed,
+            ReplyOutcome::Failed,
+        )
+        .await
+        .unwrap();
+    assert!(
+        store
+            .record_reply_flight(record.action_id, &original, &reserved)
+            .await
+            .unwrap()
+    );
+    let mut stale = reserved.clone();
+    stale.presented.push(macro_uuid::generate_uuid_v7());
+    assert!(
+        !store
+            .record_reply_flight(record.action_id, &original, &stale)
+            .await
+            .unwrap(),
+        "a stale flight cannot overwrite already reserved IDs"
+    );
+    assert!(
+        !store
+            .retry(record.source_message_id, record.bot_id, record.action_id)
+            .await
+            .unwrap()
+    );
+    let status = store
+        .for_conversation(channel, record.bot_id, 10)
+        .await
+        .unwrap();
+    assert_eq!(status[0].reply_message_id, reserved.announcement_message_id);
+    assert!(!status[0].retryable);
+    store
+        .finalize_reply(record.action_id, &ReplyOutcome::Failed)
+        .await
+        .unwrap();
+    assert!(
+        !store
+            .record_reply_flight(record.action_id, &reserved, &stale)
+            .await
+            .unwrap(),
+        "finalized replies cannot reserve new IDs"
+    );
+    assert!(
+        store
+            .retry(record.source_message_id, record.bot_id, record.action_id)
+            .await
+            .unwrap()
+    );
+    assert!(
+        !store
+            .record_reply_flight(record.action_id, &original, &reserved)
+            .await
+            .unwrap(),
+        "a retried attempt no longer owns the record"
+    );
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn retry_racing_the_first_terminal_reservation_cannot_discard_a_postable_reply(pool: PgPool) {
+    let (store, session, channel, command) = setup(pool).await;
+    let record = store.admit(session, channel, command).await.unwrap();
+    let mut original = flight(&record);
+    original.announcement_message_id = None;
+    assert!(store.claim(record.action_id, &original).await.unwrap());
+    store
+        .finish(
+            record.action_id,
+            ConversationTurnState::Failed,
+            ReplyOutcome::Failed,
+        )
+        .await
+        .unwrap();
+    let mut reserved = original.clone();
+    reserved.presented.push(macro_uuid::generate_uuid_v7());
+    reserved.announcement_message_id = reserved.presented.last().copied();
+    let (retry, saved) = tokio::join!(
+        store.retry(record.source_message_id, record.bot_id, record.action_id),
+        store.record_reply_flight(record.action_id, &original, &reserved),
+    );
+    assert_ne!(
+        retry.unwrap(),
+        saved.unwrap(),
+        "either retry takes ownership or reservation blocks retry, never both"
+    );
+}

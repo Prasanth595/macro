@@ -1,3 +1,5 @@
+mod final_reply;
+
 use super::*;
 use crate::domain::model::ReplyPlacement;
 use macro_db_migrator::MACRO_DB_MIGRATIONS;
@@ -698,6 +700,7 @@ async fn an_answer_whose_turn_ended_unwatched_is_still_posted(pool: sqlx::PgPool
 struct FlakyJournal {
     inner: crate::outbound::conversation_turns::PgConversationTurnStore,
     fail_finish: std::sync::atomic::AtomicBool,
+    fail_reply_flight: std::sync::atomic::AtomicBool,
 }
 
 #[async_trait::async_trait]
@@ -788,6 +791,20 @@ impl crate::domain::conversation_turns::ConversationTurnStore for FlakyJournal {
     ) -> agent_session::domain::error::Result<()> {
         self.inner.record_flight(action, turn).await
     }
+    async fn record_reply_flight(
+        &self,
+        action: AgentActionId,
+        expected: &crate::domain::queue::InFlightTurn,
+        turn: &crate::domain::queue::InFlightTurn,
+    ) -> agent_session::domain::error::Result<bool> {
+        if self
+            .fail_reply_flight
+            .load(std::sync::atomic::Ordering::SeqCst)
+        {
+            return Err(anyhow::anyhow!("reply ID persistence is unavailable").into());
+        }
+        self.inner.record_reply_flight(action, expected, turn).await
+    }
     async fn save_reply(
         &self,
         action: AgentActionId,
@@ -865,6 +882,7 @@ async fn a_turn_end_the_journal_cannot_record_still_frees_the_session(pool: sqlx
     let journal = Arc::new(FlakyJournal {
         inner: crate::outbound::conversation_turns::PgConversationTurnStore::new(pool.clone()),
         fail_finish: std::sync::atomic::AtomicBool::new(false),
+        fail_reply_flight: std::sync::atomic::AtomicBool::new(false),
     });
     let (service, announcer, _signals, container, _) =
         journaled_conversation(pool, journal.clone()).await;
