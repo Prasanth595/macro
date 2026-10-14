@@ -30,7 +30,7 @@ if [[ "$head_sha" != "$HEAD_SHA" ]]; then
   echo "PR #${PR_NUMBER} moved to ${head_sha:0:10} since this run started, but its native code is unchanged; continuing."
 fi
 
-ours='^(iOS Native Check|iOS App Store Release|Enable auto-merge|iOS Release Drift)'
+ours='^(iOS Native Check|iOS App Store Release|iOS Release Drift)'
 deadline=$(( $(date +%s) + WAIT_MINUTES * 60 ))
 while true; do
   checks=$(gh pr checks "$PR_NUMBER" --repo "$GH_REPO" --json name,bucket \

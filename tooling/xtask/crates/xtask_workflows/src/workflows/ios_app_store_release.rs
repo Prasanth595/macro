@@ -3,9 +3,11 @@
 //! head, uploads it to TestFlight, and submits it for App Review — the release
 //! the [`super::ios_native_check`] merge gate then waits on
 //! ([`super::ios_release_watch`] re-runs the gate once Apple releases it).
-//! On success it also enables GitHub auto-merge on the PR, so `ios-update`
-//! means "release this and merge it as soon as Apple approves"; disable
-//! auto-merge on the PR to hold it.
+//! The success comment tells the author to enable GitHub auto-merge on the
+//! PR if they want it merged the moment Apple approves. The workflow does not
+//! enable it itself: that would need a user token (a merge set up by the
+//! Actions token does not trigger the push-to-main workflows, the dev
+//! redeploy among them), and nobody's PAT belongs in a repo secret.
 //!
 //! The PR must already contain the version bump (`just ios-bump` in
 //! `apps/web`, committed): the workflow verifies it and fails fast otherwise.
@@ -42,38 +44,6 @@ pub fn ios_app_store_release() -> Workflow {
             "ios-app-store-release-${{ github.event.pull_request.number }}",
         )))
         .add_job("release", release_job())
-        .add_job("auto-merge", auto_merge_job())
-}
-
-/// Enable GitHub's native auto-merge once the release is submitted: GitHub
-/// then merges the PR itself the moment every required check is green, i.e.
-/// when [`super::ios_release_watch`] re-runs the gate after Apple's release.
-///
-/// Two guards. The gate must actually be a required check on the base
-/// branch, or auto-merge would merge right away, before Apple approves. And
-/// the merge must be performed with `IOS_RELEASE_GITHUB_TOKEN` (a PAT or
-/// GitHub App token), not the Actions token: a merge that the Actions token
-/// set up does not trigger `on: push` workflows, so the push-to-main
-/// workflows (the dev redeploy among them) would not run.
-/// Without that secret the author is asked to click "Enable auto-merge".
-fn auto_merge_job() -> Job {
-    Job::default()
-        .name("Enable auto-merge")
-        .add_needs("release")
-        .cond(Expression::new("needs.release.result == 'success'"))
-        .runs_on(runners::Runner::TinyNoCache.to_string())
-        .timeout_minutes(5u32)
-        .permissions(Permissions::default().pull_requests(Level::Write))
-        .add_step(
-            Step::new("Enable auto-merge (squash) on the PR")
-                .run(include_str!("scripts/ios_release_auto_merge.sh"))
-                .shell("bash")
-                .add_env(("GH_TOKEN", "${{ github.token }}"))
-                .add_env(("AUTO_MERGE_TOKEN", vars::IOS_RELEASE_GITHUB_TOKEN))
-                .add_env(("GH_REPO", "${{ github.repository }}"))
-                .add_env(("BASE_REF", "${{ github.event.pull_request.base.ref }}"))
-                .add_env(("PR_NUMBER", "${{ github.event.pull_request.number }}")),
-        )
 }
 
 fn release_job() -> Job {
@@ -255,8 +225,8 @@ fn pr_comment() -> Step<Use> {
                       '',
                       'When Apple approves it, the version releases to the App Store automatically,',
                       'the **iOS Release Watch** workflow re-runs the **iOS Native Check** on this PR',
-                      'within half an hour of that, and **auto-merge** (see the next job\'s comment) then',
-                      'squash-merges the PR. Disable auto-merge on the PR if you want to hold it.',
+                      'within half an hour of that, and the PR becomes mergeable. To merge it the',
+                      'moment that happens, click **Enable auto-merge** on this PR now (squash).',
                       `After merge, the next prod deploy raises the iOS native build floor (\`MIN_NATIVE_BUILD_IOS\`) to ${build}, prompting older installs to update.`,
                       '',
                       `[Workflow run](${runUrl})`,

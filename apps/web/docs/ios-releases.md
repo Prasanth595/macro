@@ -46,22 +46,18 @@ this end to end.
    the `ios-preview` label), uploads it to TestFlight, waits for App Store
    Connect processing + export compliance, and submits it for App Review
    (release type: automatic after approval). It comments the outcome
-   on the PR and, on success, **enables GitHub auto-merge** (squash) on it:
-   `ios-update` means "release this and merge it as soon as Apple approves".
-   Disable auto-merge on the PR to hold it. Auto-merge is enabled with the
-   `IOS_RELEASE_GITHUB_TOKEN` secret (a PAT or GitHub App token with
-   contents + pull-requests write): a merge set up by the Actions token does
-   not trigger the push-to-`main` workflows (the dev redeploy among them). Without the secret the workflow
-   asks the author to click "Enable auto-merge" instead. It also refuses to
-   enable auto-merge while `iOS Native Check` is not a required check (the PR
-   would merge before Apple approves). To retry after a failure, remove and
-   re-add the label.
+   on the PR. To merge the moment Apple approves, click **Enable
+   auto-merge** (squash) on the PR: GitHub then merges it as soon as
+   `iOS Native Check` passes. (The workflow doesn't enable auto-merge
+   itself: that would need a user token, because a merge set up by the
+   Actions token doesn't trigger the push-to-`main` workflows such as the
+   dev redeploy.) To retry after a failure, remove and re-add the label.
 4. Wait for Apple to approve. The version releases automatically, and the
    **`iOS Release Watch`** workflow (`.github/workflows/ios-release-watch.yml`,
    every 30 minutes) notices: for each open PR labeled `ios-update` it asks
    App Store Connect whether the version + build at the PR head is live and,
    when it is, re-runs the PR's failed `iOS Native Check` and comments. The
-   gate turns green on its own and auto-merge squash-merges the PR.
+   gate turns green on its own and the PR merges if auto-merge is on.
    (Re-running the check by hand works too. The watcher stops after two
    automatic re-runs so a check failing for another reason doesn't retry
    forever.)
@@ -172,10 +168,5 @@ ios-release --config prd -- just ios-release` covers them), and
 - **GitHub secrets**:
   - `IOS_RELEASE_DOPPLER_TOKEN` — a Doppler service token with read access to
     `ios-release/prd`, used by the iOS workflows
-  - `IOS_RELEASE_GITHUB_TOKEN` — a fine-grained PAT (or GitHub App token)
-    with contents + pull-requests write on this repo, used only to enable
-    auto-merge so the resulting merge still triggers the push-to-main
-    workflows (dev redeploy etc.); optional,
-    without it the author enables auto-merge by hand
   - `POSTHOG_API_KEY` (already present) — embedded as `VITE_POSTHOG_API_KEY`
     in the release build
