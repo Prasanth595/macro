@@ -1,4 +1,3 @@
-import './gantt-clip.css';
 import { cn } from '@ui';
 import type { ParentProps } from 'solid-js';
 import { HEADER_HEIGHT, useGantt } from './gantt-context';
