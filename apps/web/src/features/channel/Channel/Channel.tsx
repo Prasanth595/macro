@@ -1044,6 +1044,7 @@ export function Channel(props: ChannelProps) {
                                 ? () => void channelCall.start()
                                 : undefined
                             }
+                            callInProgress={channelCall.isCallInProgress()}
                             onStartTyping={() =>
                               typingMutation.mutate({
                                 parent: {

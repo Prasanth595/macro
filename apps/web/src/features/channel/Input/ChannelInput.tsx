@@ -64,7 +64,11 @@ import { useAgentMentionUsers } from '../use-agent-mention-users';
 import { useMessageBotMentionUsers } from '../use-channel-bot-mention-users';
 import { useMessageParticipants } from '../use-message-participants';
 import { CHANNEL_FILE_PICKER_ACCEPT } from './accepted-file-types';
-import { ComposerAddMenu, type ComposerAddMenuGroup } from './ComposerAddMenu';
+import {
+  ComposerAddDrawer,
+  ComposerAddMenu,
+  type ComposerAddMenuGroup,
+} from './ComposerAddMenu';
 import {
   channelComposerActions,
   createConfiguredChannelMarkdownEditor,
@@ -111,6 +115,8 @@ export type ChannelInputProps = InputCallbacks & {
   onReady?: (handle: InputHandle) => void;
   /** Offers "Start a call" in the add menu; omitted where a call can't start. */
   onStartCall?: () => void;
+  /** A call is live in the channel, so the add menu offers to join it. */
+  callInProgress?: boolean;
   children?: JSX.Element;
   /** Whether to auto-focus the input on mount. Defaults to `!isTouchDevice()`. */
   autofocus?: boolean;
@@ -360,9 +366,12 @@ export function ChannelInput(props: ChannelInputProps) {
     [...ACTIONS, ...channelComposerActions(sendFromAction)].find(
       (action) => action.id === id
     );
-  const runInEditor = (run: (editor: LexicalEditor) => void) => {
+  const runInEditor = (
+    run: (editor: LexicalEditor) => void,
+    options: { focus: boolean }
+  ) => {
     collapsedInput.expand();
-    focusEditor();
+    if (options.focus) focusEditor();
     queueMicrotask(() => run(lexicalEditor()));
   };
   const openMentionTypeahead = (editor: LexicalEditor) => {
@@ -403,12 +412,15 @@ export function ChannelInput(props: ChannelInputProps) {
           label,
           icon,
           onSelect: () =>
-            runInEditor((editor) => action.action(editor, actionContext)),
+            runInEditor((editor) => action.action(editor, actionContext), {
+              focus: false,
+            }),
         },
       ];
     };
     const macro = macroUser();
     const startCall = props.onStartCall;
+    const callInProgress = !!props.callInProgress;
     return [
       {
         items: [
@@ -417,14 +429,14 @@ export function ChannelInput(props: ChannelInputProps) {
             label: 'Mention',
             icon: <AtIcon class="size-3.5" />,
             hint: '@',
-            onSelect: () => runInEditor(openMentionTypeahead),
+            onSelect: () => runInEditor(openMentionTypeahead, { focus: true }),
+            focusesEditor: true,
           },
           {
             id: 'attach',
             label: 'Attach files',
             icon: <PaperclipIcon class="size-3.5" />,
             onSelect: () => collapsedInput.attach(),
-            inGesture: true,
           },
         ],
       },
@@ -463,18 +475,22 @@ export function ChannelInput(props: ChannelInputProps) {
                   icon: <EntityIcon targetType="agent" size="xs" />,
                   hint: '@macro',
                   onSelect: () =>
-                    runInEditor((editor) => {
-                      void handleUserMention(macro, {
-                        editor,
-                        blockName: groupMentions ? 'channel' : undefined,
-                      }).then(() =>
-                        editor.update(() => {
-                          const selection = $getSelection();
-                          if ($isRangeSelection(selection))
-                            selection.insertText(' ');
-                        })
-                      );
-                    }),
+                    runInEditor(
+                      (editor) => {
+                        void handleUserMention(macro, {
+                          editor,
+                          blockName: groupMentions ? 'channel' : undefined,
+                        }).then(() =>
+                          editor.update(() => {
+                            const selection = $getSelection();
+                            if ($isRangeSelection(selection))
+                              selection.insertText(' ');
+                          })
+                        );
+                      },
+                      { focus: true }
+                    ),
+                  focusesEditor: true,
                 },
               ]
             : []),
@@ -482,8 +498,12 @@ export function ChannelInput(props: ChannelInputProps) {
             ? [
                 {
                   id: 'call',
-                  label: 'Start a call',
-                  icon: <PhoneIcon class="size-3.5" />,
+                  label: callInProgress ? 'Join call' : 'Start a call',
+                  icon: (
+                    <PhoneIcon
+                      class={cn('size-3.5', callInProgress && 'text-success')}
+                    />
+                  ),
                   onSelect: startCall,
                 },
               ]
@@ -492,9 +512,11 @@ export function ChannelInput(props: ChannelInputProps) {
       },
     ];
   };
+  const [addDrawerOpen, setAddDrawerOpen] = createSignal(false);
   const addMenu = (pill?: boolean) => (
     <ComposerAddMenu
       groups={addMenuGroups()}
+      onOpenDrawer={() => setAddDrawerOpen(true)}
       class={pill ? 'not-touch:light-mode:text-composer-ink' : undefined}
     />
   );
@@ -690,7 +712,9 @@ export function ChannelInput(props: ChannelInputProps) {
               <DefaultActions
                 input={inputState.view()}
                 dictation={dictation}
-                addMenu={addMenu()}
+                // The collapsed pill carries the + while collapsed; one + at
+                // a time, so the menu never anchors to a hidden one.
+                addMenu={<Show when={!isCollapsed()}>{addMenu()}</Show>}
               />
             </Match>
           </Switch>
@@ -707,6 +731,12 @@ export function ChannelInput(props: ChannelInputProps) {
       // flat composer's host card already pads it.
       class={cn(props.flat && 'mb-0')}
     >
+      <ComposerAddDrawer
+        groups={addMenuGroups()}
+        getEditor={() => lexicalEditor().getRootElement()}
+        open={addDrawerOpen()}
+        onOpenChange={setAddDrawerOpen}
+      />
       {/* File picker opened from the add menu, collapsed or not. */}
       <input
         ref={collapsedInput.setFilePickerRef}

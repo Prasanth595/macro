@@ -1,5 +1,8 @@
+import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
+import { focusInput } from '@core/directive/focusInput';
+import { isMobile } from '@core/mobile/isMobile';
 import PlusIcon from '@phosphor/plus.svg';
-import { cn, Dropdown } from '@ui';
+import { Button, cn, Dropdown } from '@ui';
 import { For, type JSX, Show } from 'solid-js';
 
 export type ComposerAddMenuItem = {
@@ -10,10 +13,10 @@ export type ComposerAddMenuItem = {
   hint?: string;
   onSelect: () => void;
   /**
-   * Run inside the click rather than once the menu has closed, for a file
-   * picker that browsers only open from a user gesture.
+   * The item puts the caret in the editor (a mention, an inserted card), so
+   * the editor takes focus as the menu closes instead of the +.
    */
-  inGesture?: boolean;
+  focusesEditor?: boolean;
 };
 
 export type ComposerAddMenuGroup = {
@@ -21,19 +24,55 @@ export type ComposerAddMenuGroup = {
   items: ComposerAddMenuItem[];
 };
 
-/** The composer's +: everything that can go into a message, in one menu. */
+const nonEmpty = (groups: ComposerAddMenuGroup[]) =>
+  groups.filter((group) => group.items.length > 0);
+
+/**
+ * The composer's +: everything that can go into a message. A menu on desktop;
+ * on mobile it opens the composer's `ComposerAddDrawer`.
+ */
 export function ComposerAddMenu(props: {
+  groups: ComposerAddMenuGroup[];
+  onOpenDrawer: () => void;
+  class?: string;
+}) {
+  return (
+    <Show
+      when={isMobile()}
+      fallback={
+        <AddDropdown groups={nonEmpty(props.groups)} class={props.class} />
+      }
+    >
+      <Button
+        variant="ghost"
+        size="icon-composer"
+        class={cn('touch:size-6', props.class)}
+        aria-label="Add"
+        aria-haspopup="dialog"
+        // Keep compatibility mouse focus from blurring the editor before the
+        // tap's click; pointerdown stays uncancelled so WebKit emits it.
+        onMouseDown={(event: MouseEvent) => {
+          if (event.button === 0) event.preventDefault();
+        }}
+        onClick={() => props.onOpenDrawer()}
+      >
+        <PlusIcon />
+      </Button>
+    </Show>
+  );
+}
+
+function AddDropdown(props: {
   groups: ComposerAddMenuGroup[];
   class?: string;
 }) {
-  const groups = () => props.groups.filter((group) => group.items.length > 0);
-  // Most items move focus into the editor (a mention typeahead, an inserted
-  // card), so they run after the menu has closed and instead of the menu's
-  // return of focus to the +.
+  // An item that moves focus into the editor runs once the menu has closed,
+  // in place of the menu's return of focus to the +; otherwise that return
+  // closes the mention typeahead the item just opened.
   let pending: (() => void) | undefined;
   const select = (item: ComposerAddMenuItem) => {
-    if (item.inGesture) item.onSelect();
-    else pending = item.onSelect;
+    if (item.focusesEditor) pending = item.onSelect;
+    else item.onSelect();
   };
 
   return (
@@ -44,8 +83,6 @@ export function ComposerAddMenu(props: {
         class={cn('touch:size-6', props.class)}
         aria-label="Add"
         label="Add"
-        // Keep the editor's selection: actions insert where the caret is.
-        onPointerDown={(event: PointerEvent) => event.preventDefault()}
       >
         <PlusIcon />
       </Dropdown.Trigger>
@@ -59,7 +96,7 @@ export function ComposerAddMenu(props: {
           run();
         }}
       >
-        <For each={groups()}>
+        <For each={props.groups}>
           {(group) => (
             <Dropdown.Group>
               <Show when={group.label}>
@@ -68,7 +105,7 @@ export function ComposerAddMenu(props: {
               <For each={group.items}>
                 {(item) => (
                   <Dropdown.Item onSelect={() => select(item)}>
-                    <span class="flex size-3.5 shrink-0 items-center justify-center text-ink-muted touch:size-6">
+                    <span class="flex size-3.5 shrink-0 items-center justify-center text-ink-muted">
                       {item.icon}
                     </span>
                     <span class="flex-1 truncate">{item.label}</span>
@@ -85,5 +122,70 @@ export function ComposerAddMenu(props: {
         </For>
       </Dropdown.Content>
     </Dropdown>
+  );
+}
+
+/**
+ * The mobile add menu. One per composer, mounted outside its collapsing parts:
+ * opening it takes focus from the editor, which collapses the composer and
+ * unmounts the + that opened it.
+ */
+export function ComposerAddDrawer(props: {
+  groups: ComposerAddMenuGroup[];
+  /** The editor element, focused within the tap so the iOS keyboard opens. */
+  getEditor: () => HTMLElement | null | undefined;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <MobileDrawer
+      side="bottom"
+      open={props.open}
+      onOpenChange={props.onOpenChange}
+      preventScroll={false}
+      preventScrollbarShift={false}
+    >
+      <MobileDrawer.Portal>
+        <MobileDrawer.Overlay />
+        <MobileDrawer.Content aria-label="Add to message">
+          <MobileDrawer.Handle />
+          <MobileDrawer.ScrollBody class="gap-3">
+            <For each={nonEmpty(props.groups)}>
+              {(group) => (
+                <div class="flex shrink-0 flex-col">
+                  <Show when={group.label}>
+                    <MobileDrawer.Label>{group.label}</MobileDrawer.Label>
+                  </Show>
+                  <MobileDrawer.Section class="flex flex-col">
+                    <For each={group.items}>
+                      {(item) => (
+                        <MobileDrawer.Item
+                          data-composer-add-item={item.id}
+                          ref={(el) => {
+                            if (item.focusesEditor)
+                              focusInput(el, () => ({
+                                getTarget: props.getEditor,
+                              }));
+                          }}
+                          onClick={() => {
+                            props.onOpenChange(false);
+                            item.onSelect();
+                          }}
+                        >
+                          <span class="flex size-5 shrink-0 items-center justify-center text-ink-muted [&_svg]:size-5">
+                            {item.icon}
+                          </span>
+                          <span class="flex-1">{item.label}</span>
+                        </MobileDrawer.Item>
+                      )}
+                    </For>
+                  </MobileDrawer.Section>
+                </div>
+              )}
+            </For>
+          </MobileDrawer.ScrollBody>
+        </MobileDrawer.Content>
+      </MobileDrawer.Portal>
+    </MobileDrawer>
   );
 }
