@@ -70,7 +70,7 @@ Real files live in `.agents/`; tool-specific directories only symlink to it.
 ## Before handing off
 
 - Commits, branches, and PRs follow the `git` skill: Conventional Commit titles
-  such as `fix(onboarding): preserve team inputs`, and Why / What / Test plan bodies.
+  such as `fix(onboarding): preserve team inputs`, and Why / What bodies with no test plan.
 - Run the `audit` skill (via the `auditor` subagent) before saying work is done.
 - Open pull requests ready for review. If one is created as a draft, mark it
   ready for review before handing off.

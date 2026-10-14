@@ -60,20 +60,15 @@ measured, the user request. Link issues.
 - One bullet per meaningful change, in reading order. Name files or modules
   when it helps navigation. Call out decisions and alternatives rejected.
 
-## Test plan
-
-- Each command run and its result (`cargo test -p x`: 42 passed).
-- What was exercised in a browser or against a stack, and what was not.
-- Checks you couldn't run and why.
-
 ## Follow-ups
 
 - Work deliberately left out, with the reason.
 ```
 
-Attach proof for user-visible changes: screenshots or a recording (see the
-`record-proof` skill when it is available). Never claim a check passed that you
-didn't run; say what was skipped.
+No test plan or testing section in PR descriptions or commit messages: CI shows
+the checks, and what you ran goes in your report to the user. Attach proof for
+user-visible changes: screenshots or a recording (see the `record-proof` skill
+when it is available).
 
 ## Handing off a PR
 
@@ -85,4 +80,4 @@ failures before handing off.
 
 Push follow-up commits rather than force-pushing over review history, unless the
 user asks for a rebase. When the scope changes, update the title and the What
-and Test plan sections to match.
+section to match.
