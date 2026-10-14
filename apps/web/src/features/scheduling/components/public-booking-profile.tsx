@@ -1,6 +1,6 @@
 import { For, type JSX, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
-import type { PublicProfile } from '../core/types';
+import { meetingPlaceLabel, type PublicProfile } from '../core/types';
 
 export function PublicBookingProfile(props: {
   profile: PublicProfile;
@@ -57,10 +57,7 @@ export function PublicBookingProfile(props: {
               <div class="min-w-0">
                 <h3 class="break-words font-semibold">{event.title}</h3>
                 <p class="mt-2 break-words text-xs text-ink-muted">
-                  {event.durationMinutes} minutes ·{' '}
-                  {event.googleMeet
-                    ? 'Google Meet'
-                    : event.location || 'Meeting'}
+                  {event.durationMinutes} minutes · {meetingPlaceLabel(event)}
                 </p>
                 <Show when={event.description}>
                   <p class="mt-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-ink-muted">

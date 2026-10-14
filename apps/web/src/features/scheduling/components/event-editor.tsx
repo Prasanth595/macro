@@ -7,6 +7,7 @@ import Warning from '@phosphor/warning.svg';
 import { Button, ToggleSwitch } from '@ui';
 import { Stepper } from '@ui/components/Stepper';
 import {
+  batch,
   createEffect,
   createSignal,
   createUniqueId,
@@ -436,37 +437,57 @@ export function EventEditor(props: EventEditorProps) {
                     aria-label="Meeting location presets"
                     class="flex flex-wrap gap-2"
                   >
-                    <Button
-                      type="button"
-                      size="md"
-                      variant="ghost"
-                      aria-pressed={props.draft.googleMeet}
-                      class={`rounded-full border px-4 ${
-                        props.draft.googleMeet
-                          ? 'border-accent/30 bg-accent/10 text-accent not-touch:not-disabled:hover:bg-accent/15 not-touch:not-disabled:hover:text-accent'
-                          : 'border-edge-frame text-ink-muted not-touch:not-disabled:hover:text-ink-muted'
-                      }`}
-                      onClick={() => props.onUpdate('googleMeet', true)}
+                    <For
+                      each={[
+                        { kind: 'macro', label: 'Macro call' },
+                        { kind: 'google', label: 'Google Meet' },
+                        { kind: 'custom', label: 'Custom' },
+                      ]}
                     >
-                      <VideoCamera class="size-4" aria-hidden="true" />
-                      Google Meet
-                    </Button>
-                    <Button
-                      type="button"
-                      size="md"
-                      variant="ghost"
-                      aria-pressed={!props.draft.googleMeet}
-                      class={`rounded-full border px-4 ${
-                        !props.draft.googleMeet
-                          ? 'border-accent/30 bg-accent/10 text-accent not-touch:not-disabled:hover:bg-accent/15 not-touch:not-disabled:hover:text-accent'
-                          : 'border-edge-frame text-ink-muted not-touch:not-disabled:hover:text-ink-muted'
-                      }`}
-                      onClick={() => props.onUpdate('googleMeet', false)}
-                    >
-                      Custom
-                    </Button>
+                      {(option) => {
+                        const selected = () =>
+                          option.kind === 'macro'
+                            ? props.draft.macroCall
+                            : option.kind === 'google'
+                              ? props.draft.googleMeet
+                              : !props.draft.macroCall &&
+                                !props.draft.googleMeet;
+                        return (
+                          <Button
+                            type="button"
+                            size="md"
+                            variant="ghost"
+                            aria-pressed={selected()}
+                            class={`rounded-full border px-4 ${
+                              selected()
+                                ? 'border-accent/30 bg-accent/10 text-accent not-touch:not-disabled:hover:bg-accent/15 not-touch:not-disabled:hover:text-accent'
+                                : 'border-edge-frame text-ink-muted not-touch:not-disabled:hover:text-ink-muted'
+                            }`}
+                            onClick={() =>
+                              batch(() => {
+                                props.onUpdate(
+                                  'macroCall',
+                                  option.kind === 'macro'
+                                );
+                                props.onUpdate(
+                                  'googleMeet',
+                                  option.kind === 'google'
+                                );
+                              })
+                            }
+                          >
+                            <Show when={option.kind !== 'custom'}>
+                              <VideoCamera class="size-4" aria-hidden="true" />
+                            </Show>
+                            {option.label}
+                          </Button>
+                        );
+                      }}
+                    </For>
                   </div>
-                  <Show when={!props.draft.googleMeet}>
+                  <Show
+                    when={!props.draft.macroCall && !props.draft.googleMeet}
+                  >
                     <TextInput
                       size="lg"
                       class="w-full text-base sm:text-sm"
@@ -478,7 +499,7 @@ export function EventEditor(props: EventEditorProps) {
                       }
                     />
                   </Show>
-                  <Show when={props.draft.googleMeet}>
+                  <Show when={props.draft.macroCall || props.draft.googleMeet}>
                     <TextInput
                       size="lg"
                       class="w-full text-base sm:text-sm"

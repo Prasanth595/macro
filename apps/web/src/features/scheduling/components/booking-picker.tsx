@@ -7,7 +7,12 @@ import {
   on,
   Show,
 } from 'solid-js';
-import type { BookingReceipt, PublicEvent, PublicProfile } from '../core/types';
+import {
+  type BookingReceipt,
+  meetingPlaceLabel,
+  type PublicEvent,
+  type PublicProfile,
+} from '../core/types';
 import {
   type BookingSource,
   createBookingFlow,
@@ -129,11 +134,7 @@ export function BookingPicker(props: {
           </h2>
           <div class="mt-5 flex flex-wrap gap-x-4 gap-y-2 text-xs text-ink-muted @3xl:flex-col">
             <p>{event().durationMinutes} minutes</p>
-            <p>
-              {event().googleMeet
-                ? 'Google Meet'
-                : event().location || 'Meeting'}
-            </p>
+            <p>{meetingPlaceLabel(event())}</p>
           </div>
           <Show when={event().description}>
             <p class="mt-5 whitespace-pre-wrap text-sm leading-relaxed text-ink-muted">

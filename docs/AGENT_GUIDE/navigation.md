@@ -6,11 +6,34 @@ double-click it to toggle zoom. The loading shell uses the same inset; browser,
 Windows, Linux, and mobile layouts do not add this space.
 
 Native desktop content keeps its rounded split frame even with only one split,
-and the app icon rail has no right divider. On macOS, the sidebar icon beside the
-traffic lights toggles navigation for the active split; it replaces the controls
-inside the workspace. The top-right split icon opens another Home split, even
+and the app icon rail has no right divider. On macOS, Back and Forward arrows
+beside the traffic lights navigate the active split's history. Each arrow is
+disabled when its direction has no entry. Sidebar controls remain inside each
+workspace. The top-right split icon opens another Home split, even
 when Home is already open, and is disabled when there is no room for a new split.
 Its tooltip is “New Split” and displays the registered new-split shortcut (`\`).
+
+After native bundle updates, verify that Home and channel details load without
+an update toast on every launch. Relative bundled assets such as Loro's WASM
+must load through the webview, not native HTTP. A `vite:preloadError` with
+`scheme tauri not supported` indicates an asset-routing failure; reloading the
+same bundle does not resolve it.
+
+## External links in the native app
+
+Desktop external links open in the system browser, whether activated by a normal
+anchor, a `target="_blank"` anchor, or `window.open(url)`. Native webview navigation
+handles this, not a window-level DOM click listener. Each activation should open
+exactly once, without replacing the app or creating another app window. Macro app
+links (including same-origin popup links) route inside the existing SPA.
+
+Verify the `owner/repo#number` footer link in a pull request's floating details
+panel with both a click and keyboard activation. The panel stops click propagation;
+that must not prevent the link from opening or dismiss the panel. Also verify a
+prevented click does nothing. Browser-only URLs such as `about:blank`, `data:`,
+`blob:` and `javascript:` must not launch an external handler. Web browser anchor
+behavior is unchanged. iOS/Android retain their existing JS opener fallback because
+Tauri's native popup callback is desktop-only.
 
 ## Returning from another page
 
@@ -108,6 +131,7 @@ successfully rather than hashing the empty JavaScript placeholder.
 | `/app/md/<doc>/channel/<channel>` | Doc + channel in a split |
 | `/app/settings/account` | Settings (also `/app/settings/api-keys`, `/mcp-server`, `/shortcuts`, etc.) |
 | `/app/debug/ui?ui=invert-util` | UI gallery, including the inverted Markdown demo on the InvertUtil page |
+| `/app/debug/create-menu-demo` | Inline create-menu comparison: classic list, minimal carousel, and details on the left. Each has independent search and selection; choosing an item only updates the preview status and creates no data. |
 | `/app/debug/<component>` | Registered debug views (for example `icon-gallery`, `md`, or `agent-ui`); existing environment gates apply. `/app/component/<component>` remains a compatibility alias for these views |
 
 Each `~`-separated part of an app URL is a split (`/app/home/~/drive`). The
@@ -206,7 +230,8 @@ headings. Tags and folders have a separate disclosure button on the **right** of
 the row: clicking the label selects the destination; clicking Expand/Collapse
 only opens or closes its children. Selecting a Drive folder or tab closes an
 inline detail into that destination; it does not navigate back to Drive's root.
-Drive's **New** menu (sidebar, or the header in narrow layouts) is headed
+Drive's **New** menu (in the sidebar and after the header's Sort and Filter
+buttons; beside the title in narrow layouts) is headed
 **Create in &lt;folder&gt;** and creates everything in the open folder; on a tab or
 the Drive root it reads **Create in Drive**. **Folder** opens a **New folder**
 dialog with `Untitled folder` preselected; creating keeps Drive where it is, adds
@@ -262,6 +287,8 @@ Shrinking again starts with the overlay closed. Chat is the exception while no
 conversation is selected: its navigation stays docked with no **Hide
 navigation** control, and narrow Chat opens the overlay on its own (see
 [Chat navigation rail](channels.md#chat-navigation-rail)).
+Settings navigation always stays docked at desktop width with no **Hide
+navigation** control; only its narrow overlay opens and closes.
 The overlay never contains the split's **Close** button. Mobile keeps
 its existing navigation controls. Block detail panels (including Calendar) have
 **Hide side panel** in their own header and a hamburger **Show side panel** beside
@@ -331,8 +358,18 @@ use the standard 400 ms hover delay and 300 ms grace period between items. Home,
 Email, and Chat show a small accent dot when the loaded data contains an unread
 item. Home uses Signal; Email uses Important across all linked inboxes.
 Noise does not light either dot. These are presence indicators, not counts; they
-do not fetch additional pages to find every unread item. Opening a view alone does
-not clear its dot — reading or completing the represented items does. The button's
+do not fetch additional pages to find every unread item. With GraphQL enabled,
+Home uses `HomeUnreadPresence` over its existing 100-item Signal/unread candidate
+page, with one state-only notification witness per entity (plus one reminder
+witness for email). It must not fetch full notification history just to draw the
+dot. Channel/thread scoping happens before the witness limit; seen thread reasons
+still affect that scoping. Reading or completing a witness refreshes the bounded
+edge so an older unread item can keep the dot lit. These witnesses must never be
+used as the complete mark-read/done input. The experimental notification-time
+sort remains on its existing REST path; disabling GraphQL or enabling that sort
+must not construct an unsupported GraphQL input or blank the app shell.
+Opening a view alone does not clear its dot — reading or completing the represented
+items does. The button's
 accessible description is `Unread items` while its dot is active.
 The Home dot stops checking rows at the first eligible unread item, using the
 same Signal membership, channel/thread scoping, and local read/done overrides as
@@ -431,6 +468,44 @@ changes roll back rather than becoming committed local favorites.
 
 ## Create menu
 
+On desktop, the rail **Create** button, **C**, and the command menu’s **Create**
+entry open the detailed launcher at standard dialog width. Selecting **Create**
+closes the command menu and hands focus to the launcher; individual creation
+commands remain searchable in the command menu. The left list starts with up to three **Recents** from
+actual launcher usage, followed by all choices grouped by category.
+Categories appear in this order: **Docs** (Document, Snippet), **Organization**
+(Folder), **Design** (Canvas, Design, Photoshop file, Illustrator file), **Data**
+(Database, Spreadsheet, Form), **Comms** (Email, Message, Channel, Call), **Tasks**
+(Task, Project, Reminder), **AI** (Agent, Routine, Skill), and **Other** (Code and
+any uncategorized entries). Only available entries and nonempty categories appear.
+Recent items also remain in their categories. With no history, the list starts
+with categories. Hover or keyboard navigation updates the right detail panel;
+click a row or press Enter to start that creation flow. The detail panel is
+top-aligned, shares the list background, and is separated by a vertical divider.
+The shortcut below the description shows the sequence, such as **C then T** for
+Task, while direct shortcut mode is active.
+Its lower-right **Create [type]** button starts the selected creation flow and
+shows the Enter shortcut. Holding Shift adds an **In new split** indicator and
+changes the button shortcut to Shift+Enter; clicking while holding Shift uses
+the same new-split behavior where supported.
+
+The **Search mode** toggle (or **/**) switches between direct entity shortcuts
+shown beside each choice and the standard create search input. The preference
+persists across opens. Search filters both Recents and categories. Up/Down moves
+through the displayed order and scrolls the selected row into view; Left/Right
+edits the search input. Enter creates the selected item, Shift+Enter opens it in a
+new split where supported, and Escape closes the launcher. Typing in search mode
+never runs an entity shortcut. Switching modes preserves selection and dimensions.
+
+The detailed layout replaces the old desktop launcher, including the onboarding
+Create lesson. The PostHog flag `enable-carousel-create-menu` opts into the
+carousel instead; when off, unknown, or loading, the detailed layout is used.
+For local testing, set `VITE_ENABLE_CAROUSEL_CREATE_MENU=true` (or `false` to force
+the detailed layout). The carousel shares creation actions, recents ordering,
+search mode, and shortcuts; Left/Right also navigates its cards outside search.
+The inline `/app/debug/create-menu-demo` keeps all three layouts for comparison
+without creating data. Mobile continues to use its create sheet.
+
 On mobile, the bottom dock fits fixed-width buttons in this order: Notifications,
 Calendar, Email, Channels, Files, Agents, Tasks, Calls, and CRM (when enabled). Calendar appears in the
 dock and search scope pills only when the calendar UI flag is enabled.
@@ -463,10 +538,8 @@ directly in the sheet without replacing the current view or changing its URL.
 If a requested section is unavailable, the sheet shows an unavailable message
 and a **Back to settings** button that returns to the grouped main page.
 
-Fresh mobile CRM visits default to list view, including when
-applying a default saved view; explicitly selected saved views and back/forward
-navigation retain their layout. The mobile **+ Company** button opens the
-company-creation sheet.
+CRM Companies and People are list-only on every device. The mobile
+**+ Company** button opens the company-creation sheet.
 
 The labeled glass button one row above Search opens the current page's creation
 flow directly: **+ Task** on Tasks, **+ Email** on Email, **+ Message** on Channels,
@@ -696,7 +769,12 @@ after typing stops and pages 100 contacts at a time, so contacts beyond the firs
 usual recency lists without contacts. A contact whose email belongs to a Macro user
 appears as that person instead, even when only the CRM name matched: their existing
 direct message when you have one, otherwise the person, and selecting them opens a
-direct message. Other contacts show their email and open the contact page; Enter and
+direct message. Matching direct messages and Macro users rank ahead of CRM contacts,
+even when the conversation is old or has no recorded activity. Relevance and recency
+still order results within each group; other result types keep their positions.
+Verify this in both People and All with a recent CRM contact and a matching DM last
+viewed more than 30 days ago, including when server contacts arrive after the DM.
+Other contacts show their email and open the contact page; Enter and
 click open in place, Shift+Enter in a new split. A server match that arrives after
 typing takes the default selection from the Search for… row. Global Search does not
 list CRM contacts; Search for… from People still opens the Channels search. Verify
@@ -753,13 +831,16 @@ restart rules still apply.
 - In any text surface: `@` mentions (bidirectional links), `#` tags, `/` block commands,
   `:` emoji. Clicking a rendered tag opens a Search split filtered to that tag.
 
-Settings → Agents → Agents / Runtimes render while their requests are pending.
+Settings → Agents, its Cursor guide, and Runtimes render while their requests are pending.
 A pending Cursor model catalog shows `Loading models…` beside a disabled model
 picker; a failed catalog shows an inline error. The rest of settings stays usable.
+Settings → Agents → Agents ends with **Coding sessions**: per-user **Create
+tasks** and **Open pull requests** switches, both off by default. Each saves on
+toggle and reverts with a toast if the save fails.
 
 With the `claude-cloud` feature flag enabled, Claude Cloud connection setup is in
-Settings → Agents → Runtimes, above Cursor, with the
-Anthropic logo. Settings → Agents → Agents selects an agent's runtime but does not host
+Settings → Agents → Runtimes (Manage on Bring your own agent), above Cursor, with the
+Anthropic logo. The agent editor's Where it runs offers In Claude Code but does not host
 Claude's connection form. **Connect Claude** starts authorization and opens sign-in
 on the first click; a fallback link remains if the browser blocks the tab.
 Approve on Claude's page, copy the complete `code#state`, then use **Finish
@@ -785,6 +866,13 @@ polled into Macro about every two seconds; disconnected runtimes must resume fir
 Home does not bind Delete or Backspace to deleting list items. These keys remain
 available to the open editor (for example, clearing a selected spreadsheet range).
 Use the item menu to delete an item from Home.
+
+Home and Agents unsent composer storage follows the current account identity.
+Before identity is available, it uses memory only and does not restore legacy
+shared drafts or attachment projections. Logout
+clears composer drafts and attachment projections, including legacy keys. When
+checking Android draft recovery, verify the actual editor text after process
+death; storage unit tests alone do not establish lifecycle recovery.
 
 `C A` (Create → Agent) opens the Agents new-conversation page and focuses its
 message input; `C Shift+A` requests a new split. It does not open a modal or
@@ -858,3 +946,12 @@ retry errors inline. See [Email reminders](reminders.md).
 Action dialogs share `ActionDialogShell` presentation slots: the same capped selection badges for single and multiple items, compact heading and copy, prominent fields, and an attached footer. Rename, delete, move, and shared confirmations use this layout. Bulk rename keeps bubble tabs and one first-item preview.
 
 The Move to folder picker uses the Drive sidebar’s folder rows: neutral icons, trailing expand/collapse buttons, and indented branch guides. Click a folder to select it; use the chevron to expand it. Search and arrow-key navigation remain available.
+
+### Native update-required dialog
+
+When newer frontend JS requires a newer native app, the mobile shell offers
+**Update app** and **OK**. Update app uses the native opener; Android targets the
+HTTPS Play listing for `com.macro.workspace.mobile`, allowing a browser when the Store app
+is absent. An opener failure displays an inline error and the dialog stays
+dismissible. A missing listing is handled in the external store/browser: return
+to Macro, dismiss, and retry later. Task 07 verifies the live listing.

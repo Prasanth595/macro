@@ -31,7 +31,8 @@ import { BookingStatus } from './booking-status';
 export function BookingCard(props: {
   booking: Booking;
   timeZone: string;
-  canEdit: boolean;
+  canManageBookings: boolean;
+  currentUserId: string;
   busyId: string;
   hostNames: string;
   onView: (
@@ -60,7 +61,12 @@ export function BookingCard(props: {
   };
   const past = () => bookingIsPast(props.booking, Date.now());
   const manageable = () =>
-    canManageBooking(props.booking, props.canEdit, Date.now());
+    canManageBooking(
+      props.booking,
+      props.canManageBookings,
+      props.currentUserId,
+      Date.now()
+    );
   const join = () =>
     props.booking.status === 'confirmed' && !past()
       ? bookingMeetingUrl(props.booking.location)

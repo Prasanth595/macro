@@ -9,7 +9,7 @@ export function BookingsView(props: {
   bookings: Booking[];
   events: EventType[];
   members: SchedulingMember[];
-  canEdit: boolean;
+  canManageBookings: boolean;
   busyId: string;
   currentUserId: string;
   search?: string;
@@ -56,7 +56,8 @@ export function BookingsView(props: {
         count={state.visible().length}
         loading={props.loading}
         error={props.error}
-        canEdit={props.canEdit}
+        canManageBookings={props.canManageBookings}
+        currentUserId={props.currentUserId}
         busyId={props.busyId}
         onTab={state.setTab}
         onEvent={state.setEventId}
@@ -78,12 +79,13 @@ export function BookingsView(props: {
                 members={props.members}
                 timeZone={state.timeZone()}
                 currentUserId={props.currentUserId}
-                canEdit={props.canEdit}
+                canManageBookings={props.canManageBookings}
                 busyId={props.busyId}
                 error={props.error}
                 confirmCancel={selection.confirmCancel}
                 onClose={state.closeDetails}
                 onRestoreFocus={() => {
+                  if (!panel?.isConnected) return;
                   const row = panel?.querySelector<HTMLButtonElement>(
                     `[data-booking-opener="${CSS.escape(selection.id)}"]`
                   );

@@ -58,6 +58,7 @@ export const unsubscribeItemParams = zod.object({
     'static_file',
     'crm_company',
     'crm_contact',
+    'crm_pipeline',
     'reminder',
     'skill',
     'agent_session',
@@ -102,6 +103,7 @@ export const removeUnsubscribeItemParams = zod.object({
     'static_file',
     'crm_company',
     'crm_contact',
+    'crm_pipeline',
     'reminder',
     'skill',
     'agent_session',
@@ -211,6 +213,7 @@ export const listTypedNotificationsResponse = zod
                 'static_file',
                 'crm_company',
                 'crm_contact',
+                'crm_pipeline',
                 'reminder',
                 'skill',
                 'agent_session',
@@ -715,6 +718,12 @@ export const listTypedNotificationsResponse = zod
                           invitedBy: zod
                             .string()
                             .describe('The user who sent the invitation'),
+                          isDirectMessage: zod
+                            .boolean()
+                            .optional()
+                            .describe(
+                              'Whether this is a direct message rather than a channel invitation.\nOlder notification payloads retain channel-invitation wording.'
+                            ),
                           messageContent: zod
                             .string()
                             .nullish()
@@ -2106,6 +2115,7 @@ export const bulkGetTypedNotificationsByEventItemIdsResponse = zod
                 'static_file',
                 'crm_company',
                 'crm_contact',
+                'crm_pipeline',
                 'reminder',
                 'skill',
                 'agent_session',
@@ -2610,6 +2620,12 @@ export const bulkGetTypedNotificationsByEventItemIdsResponse = zod
                           invitedBy: zod
                             .string()
                             .describe('The user who sent the invitation'),
+                          isDirectMessage: zod
+                            .boolean()
+                            .optional()
+                            .describe(
+                              'Whether this is a direct message rather than a channel invitation.\nOlder notification payloads retain channel-invitation wording.'
+                            ),
                           messageContent: zod
                             .string()
                             .nullish()
@@ -3995,6 +4011,7 @@ export const getTypedNotificationsByEventItemIdResponse = zod
                 'static_file',
                 'crm_company',
                 'crm_contact',
+                'crm_pipeline',
                 'reminder',
                 'skill',
                 'agent_session',
@@ -4499,6 +4516,12 @@ export const getTypedNotificationsByEventItemIdResponse = zod
                           invitedBy: zod
                             .string()
                             .describe('The user who sent the invitation'),
+                          isDirectMessage: zod
+                            .boolean()
+                            .optional()
+                            .describe(
+                              'Whether this is a direct message rather than a channel invitation.\nOlder notification payloads retain channel-invitation wording.'
+                            ),
                           messageContent: zod
                             .string()
                             .nullish()
@@ -5889,6 +5912,7 @@ export const getTypedNotificationByIdResponse = zod
         'static_file',
         'crm_company',
         'crm_contact',
+        'crm_pipeline',
         'reminder',
         'skill',
         'agent_session',
@@ -6355,6 +6379,12 @@ export const getTypedNotificationByIdResponse = zod
                   invitedBy: zod
                     .string()
                     .describe('The user who sent the invitation'),
+                  isDirectMessage: zod
+                    .boolean()
+                    .optional()
+                    .describe(
+                      'Whether this is a direct message rather than a channel invitation.\nOlder notification payloads retain channel-invitation wording.'
+                    ),
                   messageContent: zod
                     .string()
                     .nullish()

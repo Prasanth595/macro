@@ -11,10 +11,12 @@ export function PublicBookingView(props: {
   source: BookingSource;
   onEvent: (slug: string) => void;
   onReceipt: (r: BookingReceipt) => void;
+  /** Shown inside another Macro page, which already carries the Macro name. */
+  embedded?: boolean;
 }) {
   return (
     <main class="flex min-h-screen flex-col overflow-y-auto bg-panel">
-      <PublicBookingLayout>
+      <PublicBookingLayout embedded={props.embedded}>
         <Show
           when={props.event}
           fallback={

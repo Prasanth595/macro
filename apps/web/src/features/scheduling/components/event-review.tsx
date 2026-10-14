@@ -26,6 +26,7 @@ import type {
   EventType,
   SchedulingMember,
 } from '../core/types';
+import { meetingPlaceLabel } from '../core/types';
 import { BookingFieldInfo } from './booking-field-info';
 import { FieldError } from './fields';
 
@@ -162,9 +163,11 @@ export function EventReview(props: {
                 : 'Paused'}
             </ReviewValue>
             <ReviewValue label="Meeting location">
-              {props.draft.googleMeet
-                ? 'Google Meet'
-                : props.draft.location || 'No location set'}
+              {props.draft.macroCall ||
+              props.draft.googleMeet ||
+              props.draft.location
+                ? meetingPlaceLabel(props.draft)
+                : 'No location set'}
             </ReviewValue>
             <ReviewValue label="Availability">
               {props.schedule?.name ?? 'No availability schedule'}
@@ -174,7 +177,12 @@ export function EventReview(props: {
                 {props.schedule?.timeZone.replaceAll('_', ' ')}
               </ReviewValue>
             </Show>
-            <Show when={props.draft.googleMeet && props.draft.location}>
+            <Show
+              when={
+                (props.draft.macroCall || props.draft.googleMeet) &&
+                props.draft.location
+              }
+            >
               <ReviewValue label="Joining instructions">
                 {props.draft.location}
               </ReviewValue>

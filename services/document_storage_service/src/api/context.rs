@@ -187,6 +187,20 @@ pub(crate) type DssCrmStageService = crm::domain::stages::CrmStageServiceImpl<
     crm::outbound::stage_definitions::PropertiesStageDefinitionStore<PropertiesService>,
 >;
 
+pub(crate) type DssPipelineService = crm::domain::pipelines::PipelineServiceImpl<
+    crm::outbound::pipelines::PgPipelineRepo<
+        databases::outbound::pg_cell_store::PgCellStore<PropertiesPgRepo>,
+    >,
+    DatabasesServiceType,
+    EntityAccessService,
+    crm::outbound::stage_definitions::PropertiesStageDefinitionStore<PropertiesService>,
+>;
+pub(crate) type DssPipelineState = crm::inbound::pipelines::PipelineRouterState<
+    DssPipelineService,
+    EntityAccessService,
+    AuthorizationService,
+>;
+
 pub(crate) type DssCrmState = crm::inbound::axum_router::CrmRouterState<
     DssCrmService,
     DssCrmStageService,
@@ -559,6 +573,18 @@ pub(crate) type DatabasesServiceType =
 pub(crate) type DssDatabasesState =
     DatabasesRouterState<DatabasesServiceType, EntityAccessService, AuthorizationService>;
 
+/// Webhooks insert rows through the databases domain service, so they keep its validation and events.
+pub(crate) type DatabaseWebhooksServiceType =
+    database_webhooks::wiring::PgDatabaseWebhooksService<DatabasesServiceType, EntityAccessService>;
+
+/// Webhooks use the same authentication and entity-access services as databases.
+pub(crate) type DssDatabaseWebhooksState =
+    database_webhooks::inbound::axum_router::DatabaseWebhooksRouterState<
+        DatabaseWebhooksServiceType,
+        EntityAccessService,
+        AuthorizationService,
+    >;
+
 /// Forms compose the databases domain service, so row writes retain its validation and events.
 pub(crate) type FormsServiceType = forms::wiring::PgFormsService<
     DatabasesServiceType,
@@ -813,12 +839,17 @@ pub(crate) struct ApiContext {
     pub reminders_state: DssRemindersState,
     pub slack_state: DssSlackState,
     pub initiative_state: DssInitiativeState,
+    pub graphql_crm_context: graphql_crm::CrmGraphqlContext,
     pub graphql_initiative_context: graphql_initiative::InitiativeGraphqlContext,
     pub graphql_scheduled_action_context: graphql_scheduled_action::ScheduledActionGraphqlContext,
     pub graphql_calendar_context: graphql_calendar::CalendarGraphqlContext,
+    pub graphql_calendar_mutation_context: graphql_calendar::CalendarGraphqlMutationContext,
+    pub graphql_work_feed_context: complete_graph::WorkFeedGraphqlContext,
     pub graphql_initiative_entity_loader: graphql_initiative::InitiativeEntityLoader,
     pub graphql_agent_session_entity_loader: graphql_soup::AgentSessionEntityLoader,
+    pub graphql_soup_update_hydration_loader: graphql_soup::SoupUpdateHydrationLoader,
     pub databases_state: DssDatabasesState,
+    pub database_webhooks_state: DssDatabaseWebhooksState,
     pub forms_state: DssFormsState,
     pub database_starter_state: DssDatabaseStarterState,
     pub collab_surface_state: DssCollabSurfaceState,
@@ -864,6 +895,7 @@ pub(crate) struct ApiContext {
     pub entity_access_management_service: EntityAccessManagementService,
     pub crm_state: DssCrmState,
     pub owned_purge_state: DssOwnedPurgeState,
+    pub pipeline_state: DssPipelineState,
 }
 
 env_var! {

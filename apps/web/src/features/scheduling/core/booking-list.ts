@@ -107,13 +107,15 @@ export function bookingIsPast(booking: Booking, now: number): boolean {
 
 export function canManageBooking(
   booking: Booking,
-  canEdit: boolean,
+  canManageBookings: boolean,
+  currentUserId: string,
   now: number
 ): boolean {
   return (
-    canEdit &&
-    (booking.status === 'pending' ||
-      (booking.status === 'confirmed' && !bookingIsPast(booking, now)))
+    (canManageBookings && booking.status === 'pending') ||
+    ((canManageBookings || booking.hosts.includes(currentUserId)) &&
+      booking.status === 'confirmed' &&
+      !bookingIsPast(booking, now))
   );
 }
 

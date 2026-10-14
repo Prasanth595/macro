@@ -58,7 +58,7 @@ export function BookingDetailsDialog(props: {
   members: SchedulingMember[];
   timeZone: string;
   currentUserId: string;
-  canEdit: boolean;
+  canManageBookings: boolean;
   busyId: string;
   error?: string;
   confirmCancel?: boolean;
@@ -78,7 +78,12 @@ export function BookingDetailsDialog(props: {
   const confirmationMessageId = createUniqueId();
   const past = () => bookingIsPast(props.booking, Date.now());
   const manageable = () =>
-    canManageBooking(props.booking, props.canEdit, Date.now());
+    canManageBooking(
+      props.booking,
+      props.canManageBookings,
+      props.currentUserId,
+      Date.now()
+    );
   const join = () =>
     props.booking.status === 'confirmed' && !past()
       ? bookingMeetingUrl(props.booking.location)
@@ -286,7 +291,7 @@ export function BookingDetailsDialog(props: {
                       { value: 'hostNoShow', label: 'Host no-show' },
                     ]}
                     disabled={
-                      (!props.canEdit &&
+                      (!props.canManageBookings &&
                         !props.booking.hosts.includes(props.currentUserId)) ||
                       !!props.busyId
                     }

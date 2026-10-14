@@ -23,7 +23,8 @@ export function BookingsPanel(props: {
   count: number;
   loading?: boolean;
   error?: string;
-  canEdit: boolean;
+  canManageBookings: boolean;
+  currentUserId: string;
   members: SchedulingMember[];
   busyId: string;
   onTab: (tab: BookingTab) => void;
@@ -138,7 +139,8 @@ export function BookingsPanel(props: {
                     <BookingCard
                       booking={booking}
                       timeZone={props.timeZone}
-                      canEdit={props.canEdit}
+                      canManageBookings={props.canManageBookings}
+                      currentUserId={props.currentUserId}
                       busyId={props.busyId}
                       hostNames={booking.hosts
                         .map((id) => {

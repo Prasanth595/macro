@@ -16,6 +16,7 @@ import {
   type SchedulingSource,
 } from '../context/scheduling-context';
 import {
+  type Booking,
   newEventType,
   newSchedule,
   type SchedulingProfile,
@@ -82,6 +83,7 @@ vi.mock('@app/components/view-shell', async () => {
 
 beforeEach(() => {
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  vi.stubGlobal('CSS', { escape: (value: string) => value });
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -97,7 +99,29 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function fixture(teamEditable = true) {
+const future = (hours: number) =>
+  new Date(Date.now() + hours * 3_600_000).toISOString();
+
+/** A confirmed team meeting hosted by a teammate, not the signed-in user. */
+const teammateBooking: Booking = {
+  id: 'booking',
+  eventTypeId: 'same-event-id',
+  title: 'Team planning',
+  name: 'Guest',
+  email: 'guest@example.com',
+  startsAt: future(24),
+  endsAt: future(25),
+  timeZone: 'UTC',
+  hosts: ['teammate'],
+  status: 'confirmed',
+  attendance: 'unknown',
+  rescheduleCount: 0,
+  rescheduledAt: null,
+  location: '',
+  answers: {},
+};
+
+function fixture(team = { canEdit: true, canManageBookings: true }) {
   const sources = new Map<string, SchedulingSource>();
   const saves = vi.fn();
   let leave!: (signal: AbortSignal) => boolean | Promise<boolean>;
@@ -123,7 +147,18 @@ function fixture(teamEditable = true) {
     const [saving, setSaving] = createSignal(false);
     const source: SchedulingSource = {
       profile,
-      bookings: () => [],
+      bookings: () =>
+        scope().teamId
+          ? [
+              teammateBooking,
+              {
+                ...teammateBooking,
+                id: 'hosted',
+                name: 'Own guest',
+                hosts: ['user'],
+              },
+            ]
+          : [],
       loading: () => false,
       error: () => undefined,
       saving,
@@ -153,8 +188,13 @@ function fixture(teamEditable = true) {
     <SchedulingProvider
       value={{
         scopes: () => [
-          { id: 'personal', name: 'Personal', canEdit: true },
-          { id: 'team', name: 'Design', teamId: 'team', canEdit: teamEditable },
+          {
+            id: 'personal',
+            name: 'Personal',
+            canEdit: true,
+            canManageBookings: true,
+          },
+          { id: 'team', name: 'Design', teamId: 'team', ...team },
         ],
         members: () => [],
         userId: () => 'user',
@@ -259,7 +299,7 @@ it('switches owners and keeps link actions and editing within their owner', asyn
 });
 
 it('searches the selected owner and preserves read-only team access', async () => {
-  const { saves } = fixture(false);
+  const { saves } = fixture({ canEdit: false, canManageBookings: false });
   const owners = screen.getByRole('navigation', {
     name: 'Booking calendar owner',
   });
@@ -423,4 +463,48 @@ it('retains failed leave saves and resumes navigation only after saving', async 
   const cleanUnload = new Event('beforeunload', { cancelable: true });
   window.dispatchEvent(cleanUnload);
   expect(cleanUnload.defaultPrevented).toBe(false);
+});
+
+it('lets a team member edit booking links and manage only the meetings they host', async () => {
+  fixture({ canEdit: true, canManageBookings: false });
+  fireEvent.click(
+    within(
+      screen.getByRole('navigation', { name: 'Booking calendar owner' })
+    ).getByRole('button', { name: 'Design' })
+  );
+  expect(screen.getByRole('button', { name: 'New booking link' })).toBeTruthy();
+
+  fireEvent.click(
+    within(screen.getByRole('navigation', { name: 'Booking tabs' })).getByRole(
+      'button',
+      { name: 'Bookings' }
+    )
+  );
+  fireEvent.click(
+    await screen.findByRole('button', {
+      name: /^Team planning with Guest,/,
+    })
+  );
+  let dialog = await screen.findByRole('dialog', { name: 'Booking details' });
+  expect(within(dialog).queryByRole('button', { name: 'Cancel' })).toBeNull();
+  expect(
+    within(dialog).queryByRole('button', { name: 'Reschedule' })
+  ).toBeNull();
+  fireEvent.click(
+    within(dialog).getByRole('button', { name: 'Close booking details' })
+  );
+  await waitFor(() =>
+    expect(screen.queryByRole('dialog', { name: 'Booking details' })).toBeNull()
+  );
+
+  fireEvent.click(
+    screen.getByRole('button', {
+      name: /^Team planning with Own guest,/,
+    })
+  );
+  dialog = await screen.findByRole('dialog', { name: 'Booking details' });
+  expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeTruthy();
+  expect(
+    within(dialog).getByRole('button', { name: 'Reschedule' })
+  ).toBeTruthy();
 });

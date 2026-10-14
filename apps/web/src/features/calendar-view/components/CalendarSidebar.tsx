@@ -14,6 +14,7 @@ import {
   useHasTeammates,
   useUpcomingTeamOoo,
 } from '@app/features/calendar/hooks/use-team-ooo';
+import { CalendarTeamSidebar } from '@app/features/calendar-team/calendar-team';
 import { ShowFeatureFlag } from '@app/lib/analytics/posthog';
 import { useNavigate } from '@app/lib/split-router';
 import { bookingLinksRoute } from '@app/routes/routes';
@@ -180,7 +181,7 @@ function TeamOooUpcomingList() {
         </Match>
         <Match when={windows().length === 0}>
           <span class="px-2 py-1 text-xs text-ink-muted">
-            No time off in the next 90 days
+            No shared time off in the next 90 days
           </span>
         </Match>
         <Match when={windows().length > 0}>
@@ -324,6 +325,7 @@ export function CalendarSidebar() {
         <CalendarMiniCalendar />
         <UpcomingEventsSection />
         <CalendarSourcesSection />
+        <CalendarTeamSidebar />
         <ShowFeatureFlag flag={enableCalendarTeamOoo}>
           <CalendarTeamOooSection />
         </ShowFeatureFlag>

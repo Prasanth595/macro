@@ -85,6 +85,10 @@ const SearchRouteView = lazyNamed(
   () => import('@app/features/next-soup/route-views'),
   'SearchRouteView'
 );
+const FolderComposeView = lazyNamed(
+  () => import('@app/features/drive-view/folder-compose-view'),
+  'FolderComposeView'
+);
 const CreateProjectView = lazyNamed(
   () => import('@app/features/projects/project-view'),
   'CreateProjectView'
@@ -268,6 +272,9 @@ const GatedCreateProjectView = (
 registerComponent('new-project', withAuth(GatedCreateProjectView), {
   splitPanelLayout: 'composable',
 });
+registerComponent('folder-compose', withAuth(FolderComposeView), {
+  splitPanelLayout: 'composable',
+});
 registerComponent('project-compose', withAuth(GatedCreateProjectView), {
   splitPanelLayout: 'composable',
 });
@@ -349,15 +356,15 @@ registerComponent(
   () => <ChannelsRouteView />,
   () => composableLayout()
 );
-registerComponent('calls', () => <CallsRouteView />);
 registerComponent(
-  'companies',
-  () => <CompaniesRouteView />,
-  () => ({
-    ownsCollectionState: true,
-    ...(isTouchDevice() ? {} : { splitPanelLayout: 'composable' as const }),
-  })
+  'calls',
+  () => <CallsRouteView />,
+  () => composableLayout()
 );
+registerComponent('companies', () => <CompaniesRouteView />, {
+  ownsCollectionState: true,
+  splitPanelLayout: 'composable',
+});
 registerComponent('folders', () => <FoldersRouteView />);
 registerComponent('search', () => <SearchRouteView />);
 registerComponent('firehose', () => (
@@ -647,4 +654,9 @@ registerComponent(
 registerComponent(
   'ui',
   lazy(() => import('@app/features/ui-gallery/UiGallery'))
+);
+
+registerComponent(
+  'create-menu-demo',
+  lazy(() => import('@app/features/command/debug/CreateMenuDemo'))
 );

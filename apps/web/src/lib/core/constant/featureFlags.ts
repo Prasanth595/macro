@@ -91,11 +91,10 @@ export function defineFlag(config: RemoteFlagConfig | EnvFlagConfig): Flag {
   };
 }
 
-/** Opt-in versioned canvas documents. Unset overrides defer to PostHog. */
-export const enableCanvasNext = defineFlag({
-  key: 'enable-canvas-next',
-  env: 'ENABLE_CANVAS_NEXT',
-  default: LOCAL_ONLY ? false : undefined,
+/** Opt into the carousel create menu; otherwise use the detailed launcher. */
+export const enableCarouselCreateMenu = defineFlag({
+  key: 'enable-carousel-create-menu',
+  env: 'ENABLE_CAROUSEL_CREATE_MENU',
 });
 
 /**
@@ -164,8 +163,15 @@ export const enableTasksReviews = defineFlag({
   default: onInDev,
 });
 
-// Claude Cloud demo onboarding and harness/model discovery. Off until PostHog
-// enables it, including in dev; override locally with VITE_CLAUDE_CLOUD.
+/** Gantt layouts stay hidden until enabled remotely or with a local override. */
+export const enableGantt = defineFlag({
+  key: 'enable-gantt',
+  env: 'ENABLE_GANTT',
+});
+
+// Claude Cloud: the built-in @claude mention and agent assignee, its Runtimes
+// connection card, and harness/model discovery. Off until PostHog enables it,
+// including in dev; override locally with VITE_CLAUDE_CLOUD.
 export const claudeCloud = defineFlag({
   key: 'claude-cloud',
   env: 'CLAUDE_CLOUD',
@@ -287,22 +293,6 @@ export const ENABLE_BEARER_TOKEN_AUTH = defineFlag({
 export const ENABLE_MARKDOWN_SEARCH_TEXT = defineFlag({
   env: 'ENABLE_MARKDOWN_SEARCH_TEXT',
   default: DEV_MODE_ENV,
-}).enabled;
-
-export const CANVAS_SVG_IMPORT = defineFlag({
-  env: 'CANVAS_SVG_IMPORT',
-  default: true,
-}).enabled;
-
-export const ENABLE_CANVAS_VIDEO = defineFlag({
-  env: 'ENABLE_CANVAS_VIDEO',
-  default: true,
-}).enabled;
-
-// TODO: figure out why the image does not load into canvas after upload
-export const ENABLE_CANVAS_HEIC = defineFlag({
-  env: 'ENABLE_CANVAS_HEIC',
-  default: false,
 }).enabled;
 
 // TODO - comments are not stable in markdown multiplayer, they will need more work.
@@ -471,6 +461,13 @@ export const enableCrmLists = defineFlag({
   key: 'enable-crm-lists',
   env: 'ENABLE_CRM_LISTS',
   default: false,
+});
+
+// Pipelines roll out per team; while off the CRM tab hides them without touching stored pipelines.
+export const enableCrmPipelines = defineFlag({
+  key: 'enable-crm-pipelines',
+  env: 'ENABLE_CRM_PIPELINES',
+  default: onInDev,
 });
 
 // Native Projects frontend: navigation, creation, task assignment and project
@@ -666,6 +663,13 @@ export const enableCalendarTeamOoo = defineFlag({
   default: onInDev,
 });
 
+// Read-only team calendar projections; the server separately controls rollout.
+export const enableCalendarTeamSharing = defineFlag({
+  key: 'enable-calendar-team-sharing',
+  env: 'ENABLE_CALENDAR_TEAM_SHARING',
+  default: onInDev,
+});
+
 // Sharing a personal tag with the team: the "Share with team" action on
 // personal tags in Settings › Tags, and the prompt that merges into an
 // existing team label when the names collide. The backend endpoints ship
@@ -757,16 +761,6 @@ export const enableRoutineConditions = defineFlag({
 export const enableRecentView = defineFlag({
   key: 'enable-recent-view',
   env: 'ENABLE_RECENT_VIEW',
-  default: onInDev,
-});
-
-// Settings › Notifications: the dedicated preferences tab (delivery, per-type
-// opt-outs, muted items). When off, the tab is hidden and Account keeps the
-// existing desktop/mobile toggle. PostHog-gated with a dev-mode default;
-// override with VITE_ENABLE_NOTIFICATION_SETTINGS.
-export const enableNotificationSettings = defineFlag({
-  key: 'enable-notification-settings',
-  env: 'ENABLE_NOTIFICATION_SETTINGS',
   default: onInDev,
 });
 

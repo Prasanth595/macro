@@ -5,6 +5,32 @@ User-sent messages in chat and agent transcripts use an ink-colored bubble with
 lighter bubble with the normal text palette. Preview Markdown and controls at
 `/app/debug/ui?ui=invert-util` under **User-sent AI message**.
 
+## Connecting an app from an agent session
+
+When existing tools cannot handle a request, agent sessions can use
+`DiscoverConnectors` to search Pipedream by app name and inspect an app's actual
+tool list. Expand the discovery row to see the results. An app name alone does
+not establish that the requested action is supported.
+
+For a suitable unconnected app, the assistant offers **Connect <app>**. Clicking
+it opens the hosted authorization flow over the agent transcript. After the
+backend verifies and registers the connection, the agent session sends a visible
+continuation message in the same conversation. Before that message reaches the
+agent, the harness hands the live session its permitted connector servers again
+(a `session/resume`), so the next turn can use the new app. The native Macro
+runtime and sandboxed coding sessions support this; a runtime that cannot resume
+a session picks the app up when it next attaches. The unsent draft
+is preserved. Closing authorization or a failed registration sends no message.
+If the conversation changed or was closed during auth, there is no automatic
+continuation; the connected app remains available for the next request.
+
+Verify with an unconnected app: inspect its tools, click Connect, cancel once,
+then complete authorization and check that exactly one continuation appears and
+the assistant can discover the app's tools. Also verify a disabled connection
+does not display as connected. Regular AI chat does not expose discovery or
+automatic continuation. A selected-app agent keeps its configured MCP scope;
+authorization does not add apps outside that scope.
+
 ## Checking first-response latency
 
 From outside an editor, press `c`, then `a`, type a prompt, and press Enter.
@@ -17,11 +43,27 @@ runtime starts on it; no model change appears in the new session's transcript.
 A selected effort is confirmed before the first prompt; settings the runtime
 already reports do not need another control request.
 
+Macro's in-process agent opens each reply with a line from a fast model
+(`gpt-5.4-mini`), usually within half a second of Enter. Small talk
+("hi there", "thanks") gets that line as the whole reply, and the chosen model,
+already started alongside it, is cancelled. A real task ("what is on my calendar tomorrow?") gets a short
+opener ("Let me check your calendar."), then the chosen model's answer after a
+blank line, with no second acknowledgement. The opener answers the user's
+words, never the prompt's hidden context. The sent prompt is fully opaque from
+the first paint, and its `Context` chip is already in place, so nothing shifts
+when the server confirms it.
+
 Repeat from a fresh tab using Home, Agents, and a document's Chat action.
 Focusing an agent composer prepares its transcript renderer locally; focus alone
 must not send a prompt. Record navigation and focus time separately from typing
 and Enter-to-first-answer time. Check the first readable agent words in the DOM,
 not a loading indicator or a bare Markdown delimiter.
+
+Verify transcript startup against a production build as well as the dev server.
+The first fold should load a compiled `fold.worker-*.js` script and its WASM
+assets; importing the client alone should not construct a worker. A
+`data:video/mp2t` worker URL indicates raw TypeScript was packaged as an asset.
+An empty worker startup error does not by itself establish that the tab is stale.
 
 Repeat from Home, Agents, and the create menu with an already-ready session.
 The first prompt can be accepted before its destination mounts; navigating into
@@ -60,6 +102,19 @@ another split. **Result data** reveals the complete returned response. Successfu
 mutations refresh the project views.
 Deleting a project shows its result without a link to the deleted project.
 Failed project deletions show `Not deleted`.
+
+## Acting on items
+
+The assistant can take the same item actions as the app's menus. Messages
+and comments: edit, delete, or react to channel messages; edit or delete
+document comments; open a DM. Items: move to trash, duplicate, rename, change
+sharing, favorite, and mute or snooze notifications. Also: create CRM companies
+and contacts, rename or delete calls, create skills, and run or delete routines.
+Edits and deletes act as the message or comment's author, so the assistant
+changes its own messages as itself and the user's as the user. Reactions are
+always the user's. Each row names the item with a chip that opens it; edit and
+sharing rows expand to show the new text or settings. Verify with throwaway
+items, since these mutate real data.
 
 ## Phones with new agents enabled
 
@@ -380,15 +435,31 @@ the shimmer.
   its mode and conversation. Newly created sessions replace their temporary
   URL with the real id without remounting the composer or adding a temporary
   history step.
-- **Agents page** uses the same **Agents** management screen as Settings.
-  **Agents** lists Team and Private agents with Edit / Delete actions; **Runtimes**
-  configures built-in providers and paired machines. **New agent** and **New runtime**
-  replace the list with full-page forms, not dialogs. Back/Cancel returns to the list;
-  use **New conversation** in the sidebar to return to the composer. The animated
-  **Bring your own agent** card appears only in **Runtimes**, below the tabs and
-  above the runtime lists. It links directly to runtime pairing and its setup guide.
-  The **Paired runtimes** section appears once you have a paired runtime; an empty
-  list does not repeat the pairing action from **Bring your own agent**.
+- **Agents page** uses the same **Agents** management screen as Settings. Two
+  slim strips sit above the list: **Connect Cursor** (**Manage** once connected)
+  and **Bring your own agent** (**Set up**, or **Paired** + **Manage** once a
+  machine is paired). One **Your agents** list shows Macro, team agents, then
+  private agents, each with a TEAM/PRIVATE pill and an "In Macro / In Cursor /
+  In your harness · model · channels" subtitle, plus Edit / Delete actions.
+  **Add agent**, the setup strips, and Edit replace the list with full pages,
+  not dialogs; Back/Cancel returns to the list. Use **New conversation** in the
+  sidebar to return to the composer.
+  The agent editor has Profile, Instructions, **Where it runs** (In Macro, In
+  Cursor, In your harness; In Claude Code too with the `claude-cloud` flag once
+  Claude lists models) and **Who can use it** (Private / Team). The selected
+  place opens its Model picker inside its card; In your harness adds a Harness
+  picker beside it. An unconnected Cursor or unpaired harness is disabled with
+  **Connect** / **Set up**, which open the setup guide in place and return to the
+  editor with that option selected. Mention style, permission requests,
+  connections, and channels sit in a collapsed **Advanced** section whose
+  description summarizes the current choices.
+  **Connect Cursor** is a three-step guide: a screenshot of Cursor's API & SSH
+  Keys page with **Open API & SSH Keys** (cursor.com/dashboard/api), an API key
+  field focused on open, and a default model picker that enables once the key is
+  saved. Connected, the same page shows the saved date, **Disconnect**, and
+  **Done**. **Manage** on a paired machine opens **Runtimes** (Back returns to
+  Agents): built-in providers, **New runtime**, and the **Paired runtimes** list,
+  which appears once you have a paired runtime.
   **New runtime** shows three steps: install macrod from the linked release,
   run `./macrod` and configure your agent in Quickstart, then enter your pairing
   code and click **Look up**. Review the request and click **Approve** to connect.
@@ -539,7 +610,9 @@ file or a guessed remote revision.
 Home's composer follows the existing `enable-chat-v3-agents` flag: disabled keeps
 legacy chat; enabled mounts the same new-conversation composer as the Agents page.
 The greeting, agent/model selector, coding repository/branch drawer, and send flow
-are shared. Sending opens the new session inside Agents with the matching URL.
+are shared. Sending stays on Home and opens the new session in Home's detail
+pane (`/home/agent/<id>`) with the first prompt shown as sent; its row joins the
+top of the Home list once the session is created.
 Home suggestions and document/project context populate this same draft as markdown
 mentions. A failed suggestion conversion preserves the text and shows an error.
 Session creation and prompt delivery use the shared pending-session flow.
@@ -566,7 +639,7 @@ documents:
 
 Quota admission uses the backend's default-off `ENABLE_AI_USAGE_ENFORCEMENT`
 policy once configured by the host; it is independent of environment. Settlement
-(credit consumption and Stripe overage collection) is gated by the separate
+(credit consumption and automatic credit reloads) is gated by the separate
 default-off `ENABLE_AI_USAGE_BILLING` policy, also independent of environment.
 With admission enabled, cognition chat
 and structured completion return 402 for exhausted allowance or 503 with
@@ -681,7 +754,7 @@ preserve the submitted tool selection.
 ## Composer anatomy (a11y)
 
 AI chat (including Home and doc-scoped chat) and agent session composers have
-a **Start dictation with OpenAI Whisper** microphone beside Send. It records
+a **Start dictation** microphone beside Send. It records
 in memory and uploads to the
 authenticated `/dictation/transcribe` storage endpoint only on confirmation.
 Whisper is available on all plans without consuming chat credits; its server
@@ -691,13 +764,15 @@ no browser speech-recognition or language-pack installation flows.
 
 While dictating, a scrolling microphone-volume timeline and **Cancel dictation** / **Use dictation**
 replace the composer controls. Cancel (or Escape) preserves the original draft.
-Bars sample microphone volume as recording chunks arrive (normally every 200ms): silence stays dotted, louder speech
+Bars sample microphone volume on a fixed timer (every 80ms), independent of recording chunks: silence stays dotted, louder speech
 creates taller bars, and earlier levels move left without changing height.
 Volume analysis stays on-device and stops on confirm, cancel, error, or close.
 Use dictation stops recording, waits for Whisper, and appends plain text to
 the draft without sending it. Existing rich text and attachments remain intact.
 If the browser stops listening on its own, **Ready** waits for confirmation.
 While **Finishing…**, the checkmark is disabled and Cancel remains available.
+No provider name or transcription hint appears below the composer; only the
+recording limit and failures do.
 Mobile chat stays expanded when focus moves into dictation controls.
 Starting dictation in another composer releases the previous session without
 moving focus back to it. Closing the composer releases the microphone. Capture failures
@@ -757,6 +832,18 @@ On desktop, email drafts embedded in chat use the same rounded, elevated surface
 as email blocks: an opaque background, subtle border and shadow, and a raised
 rim in dark mode. The recipients, subject, body, and send controls stay inside
 that card. Touch-device styling is unchanged.
+
+A drafted email can carry attachments. The agent attaches uploaded Macro files
+(PDFs, images, spreadsheets, Word documents; a Word document is attached as its
+PDF rendering) through `SendEmail`'s `attachments`, and each appears as a
+removable file pill under the body once its name resolves. The card's paperclip
+`Attach` control and dropping files onto the body add more: each file is first
+uploaded as a Macro document, shown as a pill while it uploads, and `Send email`
+stays disabled until every upload finishes. Macro-native documents written in the
+editor have no file and cannot be attached; the send reports which document
+could not be attached. Attachments together may total 18 MB. The sent and
+saved-draft rows read `with N attachments`, and the expanded sent card shows
+the pills read-only.
 
 The reliable completion signal is the disappearance of the `Stop generating` button — poll
 with `evaluate_script`. Do not wait on response text: the page displays
@@ -839,6 +926,22 @@ in-process agent; sandboxed ones wait as long when their MCP client accepts prog
 four minutes otherwise). A declined or cancelled call does not run and the agent says so. The Magic Chip
 reads `Waiting for approval`. The agent's hidden context names the owner and the prompter.
 
+## Forms authoring and sharing
+
+With Forms enabled, ask the agent to create a complete form, including ordered
+sections and qualification screeners. Creation starts closed and members-only.
+The expandable tool result shows the saved questions, builder link, respondent
+link, and actual response availability. Edits use granular CRDT updates
+to preserve unrelated human changes. Partial outcomes have recovery guidance;
+a link by itself is not a completed or open form.
+
+`SetFormAccess` executes immediately for the form owner, using the same settings
+and channel-sharing services as the browser. There is no custom review card.
+Channel Edit also grants access to the entire response database. Settings and
+channel grants are separate writes; inspect any partial outcome before retrying.
+See [Forms](forms.md#forms-through-the-ai-tools) for screeners, booking link reveal,
+supported edits and retry behavior.
+
 ## In channels
 
 Mention `@Macro` in any channel message. Without the `enable-chat-v3-agents` rollout it is
@@ -896,6 +999,22 @@ On a local stack, the in-memory agent reads uploaded image attachments from loca
 storage and sends their bytes to the model. The provider does not need access to
 the stack's private hostname. This also applies to images in earlier turns when
 resuming a conversation after a service restart.
+
+A long conversation with the in-memory agent stays within its model's context by
+itself. Once it fills 60% of the model's window, a summary of all but the latest
+turns is written in the background, with each image described, and the agent reads
+that summary in place of those turns from then on. The transcript keeps every
+message and shows a "Context compacted" line where the summary landed. The agent
+does not pause to summarize unless the conversation would otherwise not fit its
+model, as after switching to a model with a smaller window, or the message that
+crosses 60% is itself long (a tenth of the window or more), as a large paste is:
+that message waits for the summary so it has room at once. To recover an exact
+detail from the summarized part, the agent runs a **ContentSearch** step scoped to
+its own session. A message that alone takes more than half of the model's
+window is refused with "This message is too long. Split it into smaller messages
+or attach it as a file." `/compact` is an ordinary message to every agent: the
+transcript shows it as sent, followed by the agent's reply; a "Context compacted"
+line appears only when the agent reports a compaction.
 
 Cursor walkthrough files the run re-hosts appear in the transcript after the
 answer: screenshots as images, recordings as video players, and `.txt` / `.log`
@@ -1034,10 +1153,13 @@ select people or channels, choose their access level, and send the session with
 an optional message using the same Share dialog and mobile drawer as tasks.
 Sessions also support **Share** from entity list menus and the entity sharing
 shortcut. **People with access** lists the owner and shared conversations;
-the owner can change or remove a conversation's access. **Link sharing** offers
+the owner can change or remove a conversation's access. When that list holds
+nobody but the owner — what a participant who cannot read the other grants
+sees — the section is titled **Owner** instead. **Link sharing** offers
 None / Public / Team and an access level. **Team access** shares directly with
 the owner's team when one exists. On mobile these controls are in the Share,
-People, and Link tabs. View and Comment allow reading; Edit also allows
+People, and Link tabs, and the People tab is likewise named Owner when only the
+owner is listed. View and Comment allow reading; Edit also allows
 controlling the session. View-only sessions keep the composer, model selector,
 and queued-message controls disabled. **Copy Share Link** remains in the header. Cancel
 closes the composer without sending.
@@ -1058,6 +1180,9 @@ choose **Reply to this** above the selection. The composer inserts a single-line
 **Replying to** preview with the same quote-reply styling as channel replies.
 Click the preview to open the full **Referenced text** viewer. While editable,
 hover the preview for its menu: **Copy**, **Convert to text**, or **Delete**.
+A plain-text paste over 1500 characters collapses into a **pasted** chip that
+opens the same viewer, titled **Pasted text**. Text in either viewer can be
+drag-selected and copied, from the composer and from sent messages.
 Selecting text in the composer or outside the transcript must not show the reply
 button; clearing the transcript selection dismisses it.
 
@@ -1500,9 +1625,75 @@ calling `CreateBookingLink` or `EditBookingLink`. An initial request to create a
 link is not approval of the proposal. IDs and revisions are discovered through
 tools; you should never be asked to enter a team ID, host ID or JSON.
 
-A successful result returns the saved URL. Link creation itself sends no calendar
-invitations; guests receive an invitation when they book. Editing hours affects
-only that link. If another edit makes the revision stale, the AI reads the latest
-settings and confirms a fresh proposal. Identical retries reuse the saved link.
-Old pending booking review requests can be dismissed so the agent can resume with
-conversational confirmation.
+A successful result returns the saved URL, which the AI shares as a booking-link
+mention chip (`<m-booking-link-mention>`) rather than a bare URL. Pasting that
+same `/app/book/…` URL into chat, channels, or a document also becomes a chip.
+Link creation itself sends no calendar invitations; guests receive an invitation
+when they book. Editing hours affects only that link. If another edit makes the
+revision stale, the AI reads the latest settings and confirms a fresh proposal.
+Identical retries reuse the saved link. Old pending booking review requests can
+be dismissed so the agent can resume with conversational confirmation.
+
+## Image attachments and model selection
+
+Attach images using the plus button, paste, or drop. Image-capable models receive
+uploaded images as normalized inline content, including attachments from earlier
+turns. Test an image-only prompt and a text-plus-image prompt, then follow up
+without reattaching the image.
+
+Text-only model choices show a description and a composer warning. Pasted,
+dropped, and picked images should be refused before upload; document attachments
+and text should still work. If an image is already attached when switching to a
+text-only model, keep the draft and image chip but disable Send until the image
+is removed or a vision model is selected. Switching an existing image conversation
+to a text-only model is rejected by the backend when sending, with guidance to
+choose a vision model or start a conversation without images.
+
+
+## Accelerated model speed
+
+The lightning button beside the model selector enables Ultrafast for GPT-6 Astra
+and GPT-6.1 Sol (6× token pricing). Its tooltip shows the mode, state, and usage
+multiplier before sending. Claude models, including Opus 5.5, stay on standard
+speed until Anthropic approves fast mode for this account. Other models keep
+standard speed. The preference is saved in browser local storage and shared by
+legacy chat and native Macro agent composers. External coding agents use their
+own speed controls.
+
+Preview the controls at `/app/debug/ui?ui=speed-toggle`.
+Click the bolt and verify its brief scale/rotation animation and highlighted state.
+Reload, change between supported models, and confirm the preference survives.
+Select an unsupported model and verify the bolt is hidden; switching back restores
+the preference. With reduced motion enabled, toggling changes the state without
+animation. Native sessions confirm speed configuration before sending the prompt;
+a rejected configuration must retain the unsent draft and attachments.
+
+Usage records follow the provider's delivered speed for each call, including tool
+loops. OpenAI prompts exceeding 272,000 tokens use the long-context rate for that
+call. Standard and accelerated rates have separate pricing keys.
+
+### Booking settings, meetings, and reporting through MCP
+
+All AI hosts, including MCP, also provide:
+
+- `ReadBookingSettings`: full personal/team page, shared schedules, default hours,
+  link settings and revision. Discover team IDs with `ListBookingLinks`.
+- `UpdateBookingSettings`: save a complete profile at the read revision. Preserve
+  unrelated settings; explain the proposal and quote the user’s later approving
+  reply in `userConfirmation`, as with link authoring. Supports page text,
+  schedule CRUD, default hours, link schedule assignments, duplication, deletion
+  and enabled state. Shared-hours
+  changes affect all referencing links; deleting a link keeps existing meetings.
+  Use the existing confirmed create/edit tools for ordinary link authoring.
+- `ListBookings`: complete meetings and answers in a half-open timestamp range.
+  Narrow the range on overflow; do not treat an error as an empty report.
+- `GetBookingRescheduleSlots` and `ChangeBooking`: discover replacements, move or
+  cancel meetings, approve legacy pending requests, and record/clear attendance.
+  Rescheduling requires the personal owner or team admin. Attendance also allows
+  assigned hosts after confirmed meetings end. Changes can notify attendees.
+- `GetBookingInsights`: inclusive local dates, IANA time zone, optional link/host
+  filters, current and previous period metrics, daily/hourly trends, and link/host
+  counts. Uses the same definitions as the visual Insights page. Meeting minutes
+  measure scheduled duration; completion does not claim verified attendance.
+
+These tools use the same domain permissions and booking lifecycle as the UI.
