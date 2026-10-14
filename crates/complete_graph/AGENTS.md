@@ -101,6 +101,6 @@ cargo run -p complete_graph --bin graphql_schema -- static_assets/schema.graphql
 ```
 
 The exported `static_assets/schema.graphql` feeds both the client codegen
-(`apps/web && bun gen-graphql`) and the cache metadata codegen (hashing it —
-any change rotates all persisted client caches, which rebuild from the
-network automatically).
+(`apps/web && bun gen-graphql`) and the cache metadata codegen. Additive changes
+keep persisted client caches; a change that makes stored records unsafe needs a
+bump of `CACHE_SCHEMA_COMPATIBILITY_EPOCH` in `crates/client/cache-core/src/codec.rs`.

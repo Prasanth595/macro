@@ -62,7 +62,7 @@ Module layout, layering, and TypeScript conventions.
   `ts-/tsx-feature-components-presentational`, `ts-/tsx-feature-data-no-ui`,
   `ts-/tsx-feature-layers-use-context`, warning; currently scoped to activity.
   Separate production composition and source-contract inversion still require
-  explicit review; the existing rules do not enforce them..
+  explicit review; the existing rules do not enforce them.
 - **FE-34** Treat the legacy block state system as adapter-boundary code, not
   state management for new or refactored surfaces. Do not add new `useBlock*`,
   `createBlock*`, block-scoped signal/store/memo/resource, or block permission
@@ -78,3 +78,9 @@ Module layout, layering, and TypeScript conventions.
 
 - For exhaustive matching use `match(...).exhaustive()` from `ts-pattern`, never
   a hand-written `switch`.
+- **FE-47** Blocks are a legacy integration pattern we live with, not an
+  architecture to build on. Keep `definition.ts` to registration and lazy
+  loading, and the `<name>-block.tsx` adapter to translating block state once;
+  put all behavior in the feature layers so it mounts without a block. Don't
+  add block-level abstractions, and prefer moving logic out of a block over
+  extending it.
