@@ -26,7 +26,6 @@ export const tasksTour = defineViewTour({
     },
     {
       target: TASKS_TOUR.filter,
-      placement: 'bottom-end',
       title: 'Keep tasks organized with tags',
       description:
         'Tag tasks by project, team, or type of work, then use Filter to narrow your task list to the tags that matter now.',
