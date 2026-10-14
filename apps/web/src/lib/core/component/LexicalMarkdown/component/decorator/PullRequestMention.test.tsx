@@ -10,6 +10,9 @@ vi.mock('@queries/storage/pr-mention', () => ({
   usePrMentionQuery: () => idQuery,
   usePullRequestByGithubKeyQuery: () => githubKeyQuery,
 }));
+vi.mock('@queries/auth/github-link', () => ({
+  useGithubLinkStatusQuery: () => githubLinkStatusQuery,
+}));
 vi.mock('@core/component/HoverCard', () => ({
   HoverCard: (props: { trigger: import('solid-js').JSX.Element }) =>
     props.trigger,
@@ -39,6 +42,10 @@ const pullRequest: ForeignEntity = {
 };
 
 const [resolved, setResolved] = createSignal<ForeignEntity>();
+const [githubLinkStatus, setGithubLinkStatus] = createSignal<
+  'linked' | 'unlinked' | 'reauthentication_required'
+>('linked');
+
 // Reading a pending solid-query `data` suspends the caller, so it throws here.
 const idQuery = {
   get isSuccess() {
@@ -58,9 +65,18 @@ const githubKeyQuery = {
     return resolved() ?? null;
   },
 };
+const githubLinkStatusQuery = {
+  get isFetched() {
+    return true;
+  },
+  get data() {
+    return { status: githubLinkStatus() };
+  },
+};
 
 beforeEach(() => {
   setResolved(undefined);
+  setGithubLinkStatus('linked');
 });
 
 describe('pull request mention face', () => {
@@ -116,5 +132,61 @@ describe('pull request mention face', () => {
 
     expect(agentWritten.textContent).toBe(`${title} #7956`);
     expect(agentWritten.classList.contains('w-[20em]')).toBe(true);
+  });
+
+  it('renders as a plain link when GitHub is not linked', () => {
+    setGithubLinkStatus('unlinked');
+
+    const view = render(() => (
+      <PullRequestMention
+        id=""
+        url={url}
+        label="macro-inc/macro#7956"
+        key="node"
+        theme={{}}
+      />
+    ));
+
+    const link = screen.getByRole('link');
+    expect(link.getAttribute('href')).toBe(url);
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.textContent).toBe('macro-inc/macro#7956');
+    expect(view.container.querySelector('[data-pr-mention]')).toBeNull();
+  });
+
+  it('renders as a plain link when GitHub reauthentication is required', () => {
+    setGithubLinkStatus('reauthentication_required');
+
+    const view = render(() => (
+      <PullRequestMention
+        id=""
+        url={url}
+        label="macro-inc/macro#7956"
+        key="node"
+        theme={{}}
+      />
+    ));
+
+    const link = screen.getByRole('link');
+    expect(link.getAttribute('href')).toBe(url);
+    expect(view.container.querySelector('[data-pr-mention]')).toBeNull();
+  });
+
+  it('renders as fancy mention when GitHub is linked', () => {
+    setGithubLinkStatus('linked');
+
+    const view = render(() => (
+      <PullRequestMention
+        id=""
+        url={url}
+        label="macro-inc/macro#7956"
+        key="node"
+        theme={{}}
+      />
+    ));
+
+    const mention = view.container.querySelector('[data-pr-mention]');
+    expect(mention).not.toBeNull();
+    expect(screen.queryByRole('link')).toBeNull();
   });
 });

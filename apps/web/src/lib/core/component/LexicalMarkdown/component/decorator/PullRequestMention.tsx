@@ -23,6 +23,7 @@ import OpenIcon from '@phosphor/arrows-out.svg';
 import ChatCircle from '@phosphor/chat-circle.svg';
 import GitMerge from '@phosphor/git-merge.svg';
 import GitPullRequest from '@phosphor/git-pull-request.svg';
+import { useGithubLinkStatusQuery } from '@queries/auth/github-link';
 import {
   usePrMentionQuery,
   usePullRequestByGithubKeyQuery,
@@ -550,6 +551,11 @@ export function PullRequestMention(props: PullRequestMentionDecoratorProps) {
   const selection = () => lexicalWrapper?.selection;
   const { openWithSplit } = useSplitLayout()!;
 
+  const githubLinkQuery = useGithubLinkStatusQuery({
+    enabled: () => !lexicalWrapper?.skipPreviewFetch,
+  });
+  const isGithubLinked = () => githubLinkQuery.data?.status === 'linked';
+
   const isSelectedAsNode = () => {
     const sel = selection();
     if (!sel) return false;
@@ -596,41 +602,61 @@ export function PullRequestMention(props: PullRequestMentionDecoratorProps) {
     open(e);
   });
 
+  // When GitHub is not linked, render as a plain link instead of the fancy mention UI
+  const shouldRenderAsPlainLink = () => {
+    if (lexicalWrapper?.skipPreviewFetch) return false;
+    return githubLinkQuery.isFetched && !isGithubLinked() && props.url;
+  };
+
   return (
-    <HoverCard
-      trigger={
-        <span class="relative">
-          <span
-            class={cn(
-              'size-full py-0.5 cursor-default rounded-xs hover:bg-hover focus:bg-active',
-              isSelectedAsNode() && 'bg-active text-ink'
-            )}
-            {...navHandlers}
-          >
-            <PullRequestMentionContent {...props} />
-          </span>
-          <MentionTooltip show={isSelectedAsNode()} text="Open" />
-        </span>
-      }
-      content={
-        <Show
-          when={entityId()}
-          fallback={
-            <UnsyncedPullRequestPreviewCard
-              label={fallbackLabel(mentionFallbackLabel(props))}
-              url={props.url}
-            />
-          }
+    <Show
+      when={!shouldRenderAsPlainLink()}
+      fallback={
+        <a
+          href={props.url}
+          target="_blank"
+          rel="noreferrer"
+          class="text-link hover:text-link-hover visited:text-link-visited underline"
         >
-          {(id) => (
-            <PullRequestPreviewCard
-              id={id()}
-              fallbackLabel={mentionFallbackLabel(props)}
-            />
-          )}
-        </Show>
+          {fallbackLabel(mentionFallbackLabel(props))}
+        </a>
       }
-    />
+    >
+      <HoverCard
+        trigger={
+          <span class="relative">
+            <span
+              class={cn(
+                'size-full py-0.5 cursor-default rounded-xs hover:bg-hover focus:bg-active',
+                isSelectedAsNode() && 'bg-active text-ink'
+              )}
+              {...navHandlers}
+            >
+              <PullRequestMentionContent {...props} />
+            </span>
+            <MentionTooltip show={isSelectedAsNode()} text="Open" />
+          </span>
+        }
+        content={
+          <Show
+            when={entityId()}
+            fallback={
+              <UnsyncedPullRequestPreviewCard
+                label={fallbackLabel(mentionFallbackLabel(props))}
+                url={props.url}
+              />
+            }
+          >
+            {(id) => (
+              <PullRequestPreviewCard
+                id={id()}
+                fallbackLabel={mentionFallbackLabel(props)}
+              />
+            )}
+          </Show>
+        }
+      />
+    </Show>
   );
 }
 
