@@ -95,6 +95,10 @@ Real files live in `.agents/`; tool-specific directories only symlink to it.
 - Update every doc your change makes stale, in the same change: the `AGENTS.md`
   of each directory you touched, `docs/guides/`, `docs/architecture/`, the
   agent guide, READMEs, rules, and skills. Search for the names you changed.
+- A new crate, service, or package gets an `AGENTS.md` from the
+  [template](.agents/templates/AGENTS.md); one you change keeps its `AGENTS.md`
+  current. Add the sibling symlink (`ln -s AGENTS.md CLAUDE.md`) so Claude Code
+  reads it too.
 - Open pull requests ready for review. If one is created as a draft, mark it
   ready for review before handing off.
 - Get CI passing before handing off. A pull request whose checks are failing

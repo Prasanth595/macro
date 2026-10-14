@@ -40,5 +40,5 @@ integration and conflict-policy approval remain separate work.
 
 See the [graphics package README](../../packages/graphics/README.md),
 [scene foundation](graphics-scene-foundation.md),
-[Canvas Next README](../../apps/web/src/features/block-canvas/canvas-next/README.md),
+[Canvas Next README](../../apps/web/src/features/block-canvas/README.md),
 and [collaboration notes](../../packages/graphics/src/loro/README.md).
