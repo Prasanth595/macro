@@ -1,4 +1,6 @@
-import { Button } from '@ui';
+import Trash from '@phosphor/trash.svg';
+import WarningCircle from '@phosphor/warning-circle.svg';
+import { Button, DatePicker } from '@ui';
 import { createSignal, Show } from 'solid-js';
 import {
   AVAILABILITY_STEP_MINUTES,
@@ -6,12 +8,19 @@ import {
   type AvailabilityIssue,
   dateWeekday,
 } from '../core/availability';
+import {
+  type AvailabilityTimeFormat,
+  availabilityTimeLabel,
+  formatAvailabilityDateRanges,
+} from '../core/availability-month';
 import { AvailabilityTypePicker } from './availability-type-picker';
+import { BookingFieldInfo } from './booking-field-info';
 import { CheckField, Field, TextInput } from './fields';
 
 export function AvailabilityRangeEditor(props: {
   change: AvailabilityChange;
   date: string;
+  timeFormat: AvailabilityTimeFormat;
   dates?: string[];
   issue?: AvailabilityIssue;
   disabled: boolean;
@@ -20,6 +29,7 @@ export function AvailabilityRangeEditor(props: {
   ) => void;
   onApply: (replaceConflicts?: boolean) => void;
   onClose: () => void;
+  onClear: () => void;
 }) {
   const [weeklyDate, setWeeklyDate] = createSignal(props.date);
   const editing = () =>
@@ -34,35 +44,40 @@ export function AvailabilityRangeEditor(props: {
   return (
     <section aria-label="Availability form editor" class="min-w-0">
       <fieldset disabled={props.disabled} class="flex min-w-0 flex-col gap-4">
-        <AvailabilityTypePicker
-          mode={props.change.mode}
-          onChange={(mode) =>
-            props.onChange((change) => ({
-              ...change,
-              mode,
-              target:
-                mode === 'unavailable' && change.target.kind === 'weekly'
-                  ? { kind: 'date', date: date() }
-                  : change.target,
-            }))
-          }
-        />
+        <div class="flex items-center justify-between gap-2">
+          <AvailabilityTypePicker
+            mode={props.change.mode}
+            onChange={(mode) =>
+              props.onChange((change) => ({ ...change, mode }))
+            }
+          />
+          <BookingFieldInfo
+            label="these hours"
+            description={
+              bulk()
+                ? 'Applies to the selected dates only. Matching hours merge; replacing opposite hours requires approval.'
+                : props.change.target.kind === 'weekly'
+                  ? 'Repeats weekly. Date overrides stay unchanged.'
+                  : props.change.mode === 'unavailable'
+                    ? 'Time off applies to this date only. Replacing available hours requires approval.'
+                    : 'Applies to this date only. Matching hours merge; replacing time off requires approval.'
+            }
+          />
+        </div>
         <Show when={bulk()}>
-          <p class="text-xs text-ink-muted">
-            Apply to {props.dates?.length} dates: {props.dates?.join(', ')}.
-            This changes only these dates.
+          <p class="text-sm font-medium">
+            {formatAvailabilityDateRanges(props.dates ?? [])}
           </p>
         </Show>
         <div class="flex items-end gap-4">
           <Field label="Date" class="flex-1 gap-2 text-xs [&_label]:gap-2">
-            <TextInput
-              type="date"
+            <DatePicker
               aria-label="Availability date"
               class="h-9 w-full text-xs"
               value={date()}
-              disabled={editing() || bulk()}
-              onInput={(event) => {
-                const value = event.currentTarget.value;
+              required
+              disabled={props.disabled || editing() || bulk()}
+              onChange={(value) => {
                 setWeeklyDate(value);
                 props.onChange((change) => ({
                   ...change,
@@ -127,7 +142,7 @@ export function AvailabilityRangeEditor(props: {
             </Field>
           </div>
         </Show>
-        <Show when={props.change.mode === 'available' && !bulk()}>
+        <Show when={!bulk()}>
           <CheckField
             label="Repeat every week"
             class="text-xs"
@@ -143,25 +158,44 @@ export function AvailabilityRangeEditor(props: {
             }
           />
         </Show>
-        <p class="text-xs leading-relaxed text-ink-muted">
-          {props.change.target.kind === 'weekly'
-            ? 'These hours repeat every week. Date overrides stay unchanged.'
-            : props.change.mode === 'unavailable'
-              ? editing()
-                ? 'This replaces the selected time-off range. Any newly covered available hours need your approval.'
-                : 'Time off removes these hours from this date only. Conflicting available hours need your approval.'
-              : editing()
-                ? 'Only this range changes. Matching available hours merge automatically.'
-                : 'These hours extend existing availability on this date. Matching ranges merge automatically.'}
-        </p>
         <Show when={props.issue}>
           {(issue) => (
-            <p role="alert" class="text-xs leading-relaxed text-failure">
-              {issue().message}
-            </p>
+            <div
+              role="alert"
+              class="flex items-start gap-2 rounded-lg bg-failure-bg p-2.5 text-xs text-failure"
+            >
+              <WarningCircle class="mt-0.5 size-3.5 shrink-0" />
+              <div class="min-w-0">
+                <p class="font-medium">
+                  {conflicting()
+                    ? `Overlaps ${props.change.mode === 'available' ? 'unavailable' : 'available'} hours`
+                    : issue().message}
+                </p>
+                <Show when={conflicting()}>
+                  <p class="mt-1 max-h-16 overflow-y-auto leading-relaxed tabular-nums">
+                    {issue()
+                      .overlaps?.map((window) =>
+                        availabilityTimeLabel(window, props.timeFormat)
+                      )
+                      .join(' · ')}
+                  </p>
+                </Show>
+              </div>
+            </div>
           )}
         </Show>
         <div class="flex flex-wrap justify-end gap-2 pt-1">
+          <div class="mr-auto">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              label="Clear these hours"
+              tooltip="Leave these hours blank and non-bookable, without time off"
+              onClick={props.onClear}
+            >
+              <Trash class="size-4" />
+            </Button>
+          </div>
           <Button
             variant="ghost"
             size="sm"
@@ -172,23 +206,20 @@ export function AvailabilityRangeEditor(props: {
             }
             onClick={props.onClose}
           >
-            {conflicting() ? 'Keep existing hours' : 'Cancel'}
+            Cancel
           </Button>
           <Button
             variant="cta"
             size="sm"
-            class="h-auto min-h-7 max-w-full whitespace-normal py-1.5"
             tooltip={
               conflicting()
-                ? 'Replace only the conflicting hours with the selected availability type'
+                ? `Replace overlapping hours with ${props.change.mode} hours`
                 : 'Apply these hours to the schedule'
             }
             onClick={() => props.onApply(conflicting())}
           >
             {conflicting()
-              ? props.change.mode === 'available'
-                ? 'Make overlapping hours available'
-                : 'Mark overlapping hours unavailable'
+              ? 'Replace hours'
               : bulk()
                 ? `Apply to ${props.dates?.length} days`
                 : editing()

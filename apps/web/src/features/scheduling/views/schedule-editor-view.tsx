@@ -40,13 +40,11 @@ export function ScheduleEditor(props: {
   };
   return (
     <ScheduleEditorForm
-      schedule={draft()}
       saving={props.saving}
       topBarOwned={props.topBarOwned}
       creating={props.creating}
       editingRange={editingRange()}
       error={error()}
-      onNameChange={(name) => update((schedule) => ({ ...schedule, name }))}
       onSubmit={(event) => void save(event)}
       onCancel={props.onCancel}
     >

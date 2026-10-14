@@ -124,6 +124,7 @@ export function SelectInput(props: {
         required={props.required}
         modal={false}
       >
+        <Select.Label class="sr-only">{props.label}</Select.Label>
         <Select.Trigger
           aria-label={props.label}
           aria-invalid={message() ? true : undefined}

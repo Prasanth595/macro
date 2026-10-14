@@ -1,21 +1,26 @@
+import { deepEqual } from '@core/util/compareUtils';
 import { type Accessor, createSignal } from 'solid-js';
 import {
   type AvailabilityChange,
   type AvailabilityIssue,
   type AvailabilityResult,
+  type AvailabilityState,
   type AvailabilityTarget,
   applyAvailabilityChange,
   availabilityConflictIssue,
-  availabilityTargetIssue,
   calendarUnavailableWindows,
+  clearAvailabilityRange,
   copyAvailability,
   mergeWindows,
-  rangeOverlaps,
-  setTargetWindows,
+  setAvailabilityState,
   targetWindows,
   windowsIssue,
 } from '../core/availability';
-import type { AvailabilitySchedule, TimeWindow } from '../core/types';
+import {
+  type AvailabilitySchedule,
+  MAX_UNAVAILABLE_WINDOWS,
+  type TimeWindow,
+} from '../core/types';
 
 export function createAvailabilityEditor(props: {
   schedule: Accessor<AvailabilitySchedule>;
@@ -26,23 +31,18 @@ export function createAvailabilityEditor(props: {
   ) => void;
 }) {
   const [selection, setSelection] = createSignal<AvailabilityChange>();
+  let initialSelection: AvailabilityChange | undefined;
+  const hasChanges = () => {
+    const current = selection();
+    return !!current && !deepEqual(current, initialSelection);
+  };
   const [validationIssue, setIssue] = createSignal<AvailabilityIssue>();
   const [notice, setNotice] = createSignal('');
   const [actionError, setActionError] = createSignal('');
-  const remembered = new Map<string, TimeWindow[]>();
-  const targetKey = (target: AvailabilityTarget) =>
-    target.kind === 'weekly' ? `day:${target.day}` : target.date;
-  const displayWeeklyWindows = (day: number) => {
-    const target: AvailabilityTarget = { kind: 'weekly', day };
-    const windows = targetWindows(props.schedule(), target);
-    return windows.length ? windows : (remembered.get(targetKey(target)) ?? []);
-  };
+  const displayWeeklyWindows = (day: number) =>
+    targetWindows(props.schedule(), { kind: 'weekly', day });
   const displayUnavailableWindows = (date: string) =>
-    calendarUnavailableWindows(
-      props.schedule(),
-      date,
-      remembered.get(date) ?? []
-    );
+    calendarUnavailableWindows(props.schedule(), date);
   const issue = () => {
     const invalid = validationIssue();
     if (invalid) return invalid;
@@ -56,33 +56,21 @@ export function createAvailabilityEditor(props: {
         : undefined
     );
   };
-  const rememberDate = (
-    schedule: AvailabilitySchedule,
-    date: string,
-    extra: TimeWindow[] = []
-  ) => {
-    remembered.set(
-      date,
-      mergeWindows([
-        ...(remembered.get(date) ?? []),
-        ...targetWindows(schedule, { kind: 'date', date }),
-        ...extra,
-      ])
-    );
-  };
   const open = (change: AvailabilityChange) => {
     if (props.disabled()) return;
     setActionError('');
     props.onEditingChange?.(true);
     setIssue(undefined);
     setNotice('');
-    setSelection({
+    initialSelection = {
       ...change,
+      allDay: !!change.allDay,
       window: { ...change.window },
       origin: change.origin
         ? { ...change.origin, window: { ...change.origin.window } }
         : undefined,
-    });
+    };
+    setSelection(initialSelection);
   };
   const close = () => {
     setSelection(undefined);
@@ -98,9 +86,8 @@ export function createAvailabilityEditor(props: {
   const apply = (replaceConflicts = false) => {
     const current = selection();
     if (!current || props.disabled()) return;
-    const schedule = props.schedule();
     const result = applyAvailabilityChange(
-      schedule,
+      props.schedule(),
       current,
       replaceConflicts,
       current.target.kind === 'date'
@@ -111,20 +98,11 @@ export function createAvailabilityEditor(props: {
       setIssue(result.issue.overlaps?.length ? undefined : result.issue);
       return;
     }
-    if (current.target.kind === 'date') {
-      if (current.mode === 'unavailable')
-        rememberDate(schedule, current.target.date, [
-          ...(current.origin?.mode === 'unavailable'
-            ? [current.origin.window]
-            : []),
-          current.allDay ? { start: '00:00', end: '23:59' } : current.window,
-        ]);
-    } else remembered.delete(targetKey(current.target));
     props.onChange(() => result.schedule);
     close();
     setNotice(
       current.mode === 'unavailable'
-        ? 'Time off added to this date.'
+        ? 'Time off updated.'
         : 'Availability updated.'
     );
   };
@@ -141,7 +119,6 @@ export function createAvailabilityEditor(props: {
           mergeable: false,
         },
       };
-    const schedule = props.schedule();
     const unavailableByDate = new Map(
       targets.flatMap((target) =>
         target.kind === 'date'
@@ -150,25 +127,13 @@ export function createAvailabilityEditor(props: {
       )
     );
     const result = copyAvailability(
-      schedule,
+      props.schedule(),
       change,
       targets,
       replaceConflicts,
       unavailableByDate
     );
     if (result.ok) {
-      for (const target of targets) {
-        if (target.kind === 'weekly') remembered.delete(targetKey(target));
-        else if (
-          change.mode === 'unavailable' &&
-          (change.allDay ||
-            rangeOverlaps(change.window, targetWindows(schedule, target))
-              .length)
-        )
-          rememberDate(schedule, target.date, [
-            change.allDay ? { start: '00:00', end: '23:59' } : change.window,
-          ]);
-      }
       props.onChange(() => result.schedule);
       setNotice(
         `Copied to ${targets.length} ${targets.length === 1 ? 'day' : 'days'}.`
@@ -176,54 +141,46 @@ export function createAvailabilityEditor(props: {
     }
     return result;
   };
-  const toggle = (target: AvailabilityTarget, checked: boolean) => {
+  const setState = (target: AvailabilityTarget, state: AvailabilityState) => {
     if (props.disabled()) return;
     setActionError('');
-    const targetIssue = availabilityTargetIssue(props.schedule(), target);
-    if (targetIssue) {
-      setActionError(targetIssue);
+    const result = setAvailabilityState(props.schedule(), target, state);
+    if (!result.ok) {
+      setActionError(result.issue.message);
       return;
     }
-    const current = targetWindows(props.schedule(), target);
-    if (!checked)
-      remembered.set(
-        targetKey(target),
-        current.map((window) => ({ ...window }))
-      );
-    const fallback =
-      target.kind === 'date'
-        ? targetWindows({ ...props.schedule(), overrides: [] }, target)
-        : [];
-    const windows = checked
-      ? (remembered.get(targetKey(target)) ??
-        (fallback.length ? fallback : [{ start: '09:00', end: '17:00' }]))
-      : [];
-    const error = windowsIssue(windows);
-    if (error) {
-      setActionError(error.message);
-      return;
-    }
-    if (checked) remembered.delete(targetKey(target));
-    props.onChange((schedule) => setTargetWindows(schedule, target, windows));
+    props.onChange(() => result.schedule);
     setNotice(
-      checked ? 'Available hours restored.' : 'Day marked unavailable.'
+      state === 'unset'
+        ? 'Hours cleared. This day is blank and non-bookable.'
+        : `Day marked ${state}.`
     );
   };
-  const remove = (target: AvailabilityTarget, index: number) => {
-    if (props.disabled()) return;
-    if (target.kind === 'weekly') remembered.delete(targetKey(target));
-    props.onChange((schedule) =>
-      setTargetWindows(
-        schedule,
-        target,
-        targetWindows(schedule, target).filter((_, i) => i !== index)
-      )
+  const clearRanges = (targets: AvailabilityTarget[], window?: TimeWindow) => {
+    if (props.disabled()) return false;
+    setActionError('');
+    let next = props.schedule();
+    for (const target of targets) {
+      const result = clearAvailabilityRange(next, target, window);
+      if (!result.ok) {
+        setActionError(result.issue.message);
+        return false;
+      }
+      next = result.schedule;
+    }
+    props.onChange(() => next);
+    close();
+    setNotice(
+      'Selected hours cleared. Cleared time is blank and non-bookable.'
     );
-    setNotice('Time range removed.');
+    return true;
+  };
+  const remove = (target: AvailabilityTarget, index: number) => {
+    const window = targetWindows(props.schedule(), target)[index];
+    if (window) clearRanges([target], window);
   };
   const restoreDate = (date: string) => {
     if (props.disabled()) return;
-    remembered.delete(date);
     props.onChange((schedule) => ({
       ...schedule,
       overrides: schedule.overrides.filter(
@@ -232,25 +189,56 @@ export function createAvailabilityEditor(props: {
     }));
     setNotice('Date override removed. Weekly hours apply again.');
   };
+  const clear = () => {
+    if (props.disabled()) return;
+    close();
+    setActionError('');
+    props.onChange((schedule) => ({
+      ...schedule,
+      weekly: schedule.weekly.map((day) => ({
+        ...day,
+        windows: [],
+        unavailableWindows: [],
+      })),
+      overrides: [],
+    }));
+    setNotice('Availability cleared. Save the schedule to apply this change.');
+  };
+  const mergeDay = <
+    T extends {
+      windows: TimeWindow[];
+      unavailableWindows?: TimeWindow[] | null;
+    },
+  >(
+    day: T
+  ): T => ({
+    ...day,
+    windows: windowsIssue(day.windows)?.mergeable
+      ? mergeWindows(day.windows)
+      : day.windows,
+    ...(day.unavailableWindows != null
+      ? {
+          unavailableWindows: windowsIssue(
+            day.unavailableWindows,
+            MAX_UNAVAILABLE_WINDOWS
+          )?.mergeable
+            ? mergeWindows(day.unavailableWindows)
+            : day.unavailableWindows,
+        }
+      : {}),
+  });
   const fixOverlaps = () => {
     if (props.disabled()) return;
     props.onChange((schedule) => ({
       ...schedule,
-      weekly: schedule.weekly.map((day) =>
-        windowsIssue(day.windows)?.mergeable
-          ? { ...day, windows: mergeWindows(day.windows) }
-          : day
-      ),
-      overrides: schedule.overrides.map((override) =>
-        windowsIssue(override.windows)?.mergeable
-          ? { ...override, windows: mergeWindows(override.windows) }
-          : override
-      ),
+      weekly: schedule.weekly.map(mergeDay),
+      overrides: schedule.overrides.map(mergeDay),
     }));
     setNotice('Overlapping hours merged. Review the schedule before saving.');
   };
   return {
     selection,
+    hasChanges,
     issue,
     actionError,
     notice,
@@ -261,7 +249,12 @@ export function createAvailabilityEditor(props: {
     updateSelection,
     apply,
     copy,
-    toggle,
+    setState,
+    clearRanges,
+    // Retained until the weekday header consumes the three-state controls.
+    toggle: (target: AvailabilityTarget, checked: boolean) =>
+      setState(target, checked ? 'available' : 'unavailable'),
+    clear,
     remove,
     restoreDate,
     fixOverlaps,

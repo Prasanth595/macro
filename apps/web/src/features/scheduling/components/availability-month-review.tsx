@@ -7,6 +7,7 @@ import type {
 import {
   type AvailabilityTimeFormat,
   availabilityTimeLabel,
+  formatAvailabilityDateRanges,
 } from '../core/availability-month';
 import { CheckField } from './fields';
 
@@ -59,17 +60,13 @@ export function AvailabilityMonthReview(props: {
           Exit stamp mode
         </Button>
       </div>
-      <div class="mt-3 flex max-h-20 flex-wrap gap-1 overflow-y-auto text-[11px]">
-        <For
-          each={props.dates}
+      <div class="mt-3 max-h-20 overflow-y-auto text-xs text-ink-muted">
+        <Show
+          when={props.dates.length}
           fallback={<span class="text-ink-extra-muted">No dates selected</span>}
         >
-          {(date) => (
-            <span class="rounded border border-edge-muted px-2 py-1">
-              {date}
-            </span>
-          )}
-        </For>
+          <p>{formatAvailabilityDateRanges(props.dates)}</p>
+        </Show>
       </div>
       <Show when={props.conflicts.length}>
         <div

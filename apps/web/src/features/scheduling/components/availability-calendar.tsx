@@ -1,9 +1,8 @@
-import { ToggleSwitch } from '@ui';
 import { createMemo, createSignal, For, Index, onMount, Show } from 'solid-js';
 import { createPointerAutoScroll } from '../../../components/drag-drop/create-pointer-auto-scroll';
 import {
   type AvailabilityChange,
-  type AvailabilityTarget,
+  type AvailabilityState,
   dateWeekday,
   windowsIssue,
 } from '../core/availability';
@@ -34,13 +33,13 @@ export type AvailabilityColumn = {
 export function AvailabilityCalendar(props: {
   columns: AvailabilityColumn[];
   month: string;
+  today: string;
   disabled: boolean;
   timeFormat: AvailabilityTimeFormat;
-  popoverOpen?: boolean;
   stamping: boolean;
   selectedDates: string[];
   selectionPreview: Pick<AvailabilityChange, 'mode' | 'window' | 'allDay'>;
-  onDismissPopover: () => void;
+  getBoundary?: () => HTMLElement;
   onCancelSelection: () => void;
   onCancelReady: (cancel: () => void) => void;
   onDates: (dates: string[], anchor: HTMLElement, toggle: boolean) => void;
@@ -49,7 +48,9 @@ export function AvailabilityCalendar(props: {
     anchor: HTMLElement,
     date: string
   ) => void;
-  onToggle: (target: AvailabilityTarget, checked: boolean) => void;
+  weekdayStates: AvailabilityState[];
+  selectedWeekday?: number;
+  onSelectWeekday: (day: number, anchor: HTMLElement) => void;
 }) {
   const [drag, setDrag] = createSignal<{
     pointerId: number;
@@ -108,11 +109,24 @@ export function AvailabilityCalendar(props: {
   let header!: HTMLDivElement;
   let pointer: { x: number; y: number } | undefined;
   let suppressedClick = false;
+  const visibleBounds = () => {
+    const bounds = scroll.getBoundingClientRect();
+    const boundary = props.getBoundary?.().getBoundingClientRect();
+    return {
+      left: Math.max(bounds.left, boundary?.left ?? bounds.left),
+      right: Math.min(bounds.right, boundary?.right ?? bounds.right),
+      top: Math.max(
+        header.getBoundingClientRect().bottom,
+        boundary?.top ?? bounds.top
+      ),
+      bottom: Math.min(bounds.bottom, boundary?.bottom ?? bounds.bottom),
+    };
+  };
   const updateDate = () => {
     const current = drag();
     if (!current || !pointer) return;
-    const bounds = scroll.getBoundingClientRect();
-    const top = Math.max(header.getBoundingClientRect().bottom, 0);
+    const bounds = visibleBounds();
+    const top = Math.max(bounds.top, 0);
     const bottom = Math.min(bounds.bottom, window.innerHeight);
     const left = Math.max(bounds.left, 0);
     const right = Math.min(bounds.right, window.innerWidth);
@@ -129,15 +143,7 @@ export function AvailabilityCalendar(props: {
   const autoScroll = createPointerAutoScroll({
     getViewport: () => scroll,
     getPointer: () => (drag() ? pointer : undefined),
-    getBounds: (viewport) => {
-      const bounds = viewport.getBoundingClientRect();
-      return {
-        left: bounds.left,
-        right: bounds.right,
-        top: header.getBoundingClientRect().bottom,
-        bottom: bounds.bottom,
-      };
-    },
+    getBounds: visibleBounds,
     axis: 'both',
     allowOutside: true,
     onScroll: updateDate,
@@ -164,47 +170,50 @@ export function AvailabilityCalendar(props: {
       aria-label="Availability calendar"
       class="min-h-0 w-full flex-1 overflow-auto overscroll-contain bg-panel"
       onScroll={updateDate}
-      onPointerDown={() => {
-        if (!props.popoverOpen) return;
-        suppressedClick = true;
-        props.onDismissPopover();
-      }}
       onKeyDown={(event) => {
         if (event.key !== 'Escape') return;
         suppressedClick = true;
         cancel();
         props.onCancelSelection();
+        event.preventDefault();
       }}
     >
-      <div class="flex min-w-[560px] flex-col">
+      <div class="flex h-full min-h-96 min-w-[560px] flex-col">
         <div
           ref={header}
-          class="sticky top-0 z-20 grid h-14 shrink-0 grid-cols-7 border-b border-edge-muted bg-panel"
+          class="sticky top-0 z-20 grid h-12 shrink-0 grid-cols-7 border-b border-edge-muted bg-panel"
         >
           <For each={WEEKDAYS}>
             {(label, day) => (
-              <div class="flex items-center justify-center gap-2 px-2 text-xs text-ink-muted">
+              <button
+                type="button"
+                class="flex min-w-0 flex-col items-center justify-center gap-0.5 border-r border-edge-muted px-1 text-xs outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent disabled:opacity-50"
+                classList={{ 'bg-accent/10': props.selectedWeekday === day() }}
+                aria-label={`${label}: ${props.weekdayStates[day()]}. Edit recurring hours`}
+                aria-expanded={props.selectedWeekday === day()}
+                disabled={props.disabled || props.stamping}
+                onClick={(event) =>
+                  props.onSelectWeekday(day(), event.currentTarget)
+                }
+              >
                 <span>{label.slice(0, 3)}</span>
-                <ToggleSwitch
-                  size="xs"
-                  label={<span class="sr-only">{label} availability</span>}
-                  checked={
-                    props.columns.find(
-                      (column) => dateWeekday(column.target.date) === day()
-                    )?.weeklyEnabled ?? false
-                  }
-                  disabled={
-                    props.disabled || props.popoverOpen || props.stamping
-                  }
-                  onChange={(checked) =>
-                    props.onToggle({ kind: 'weekly', day: day() }, checked)
-                  }
-                />
-              </div>
+                <span
+                  class="text-[10px] capitalize"
+                  classList={{
+                    'text-accent': props.weekdayStates[day()] === 'available',
+                    'text-ink-muted':
+                      props.weekdayStates[day()] === 'unavailable',
+                    'text-ink-extra-muted':
+                      props.weekdayStates[day()] === 'unset',
+                  }}
+                >
+                  {props.weekdayStates[day()]}
+                </span>
+              </button>
             )}
           </For>
         </div>
-        <div class="grid grid-cols-7">
+        <div class="grid min-h-0 flex-1 grid-cols-7 grid-rows-6">
           <Index each={props.columns}>
             {(column, index) => {
               const date = () => column().target.date;
@@ -243,10 +252,9 @@ export function AvailabilityCalendar(props: {
                 window: TimeWindow,
                 index?: number
               ): AvailabilityChange => ({
-                target:
-                  mode === 'available' && column().inherited
-                    ? { kind: 'weekly', day: dateWeekday(date()) }
-                    : column().target,
+                target: column().inherited
+                  ? { kind: 'weekly', day: dateWeekday(date()) }
+                  : column().target,
                 mode,
                 window,
                 index,
@@ -256,6 +264,7 @@ export function AvailabilityCalendar(props: {
                 <div
                   role="group"
                   aria-label={`${dateLabel(date())}. Click to add availability or drag across days.`}
+                  aria-current={date() === props.today ? 'date' : undefined}
                   data-availability-day
                   data-availability-date={date()}
                   data-selected={
@@ -266,18 +275,14 @@ export function AvailabilityCalendar(props: {
                     'grid-row': Math.floor(index / 7) + 1,
                     'grid-column': (index % 7) + 1,
                   }}
-                  class="flex aspect-square min-h-0 touch-none select-none flex-col gap-1 border-r border-b border-edge-muted p-2 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+                  class="flex min-h-0 touch-none select-none flex-col gap-1 overflow-hidden border-r border-b border-edge-muted p-1.5 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
                   classList={{
                     'bg-surface-1': !date().startsWith(props.month),
                     'bg-accent/10 ring-2 ring-inset ring-accent':
                       selected().includes(date()),
                   }}
                   onKeyDown={(event) => {
-                    if (
-                      event.target !== event.currentTarget ||
-                      props.disabled ||
-                      props.popoverOpen
-                    )
+                    if (event.target !== event.currentTarget || props.disabled)
                       return;
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault();
@@ -285,7 +290,7 @@ export function AvailabilityCalendar(props: {
                     }
                   }}
                   onPointerDown={(event) => {
-                    if (event.defaultPrevented || props.popoverOpen) {
+                    if (event.defaultPrevented) {
                       suppressedClick = true;
                       return;
                     }
@@ -342,14 +347,22 @@ export function AvailabilityCalendar(props: {
                     if (drag()?.pointerId === event.pointerId) cancel();
                   }}
                 >
-                  <div class="flex shrink-0 items-center justify-between gap-1 text-xs">
+                  <div class="flex shrink-0 flex-wrap items-center justify-between gap-1 text-xs">
                     <span
-                      class="tabular-nums"
+                      class="flex items-center gap-1 tabular-nums"
                       classList={{
                         'text-ink-extra-muted': !date().startsWith(props.month),
                       }}
                     >
-                      {Number(date().slice(-2))}
+                      <span
+                        class="flex size-5 shrink-0 items-center justify-center rounded-md border border-transparent"
+                        classList={{
+                          'border-accent bg-accent font-semibold text-accent-contrast':
+                            date() === props.today,
+                        }}
+                      >
+                        {Number(date().slice(-2))}
+                      </span>
                     </span>
                     <Show when={column().overridden}>
                       <span class="text-[9px] text-ink-extra-muted">
@@ -398,16 +411,10 @@ export function AvailabilityCalendar(props: {
                                   'ring-1 ring-failure': !!bar.overlaps.length,
                                 }}
                                 onPointerDown={(event) => {
-                                  suppressedClick =
-                                    event.defaultPrevented ||
-                                    !!props.popoverOpen;
+                                  suppressedClick = event.defaultPrevented;
                                 }}
                                 onClick={(event) => {
-                                  if (
-                                    (event.detail && suppressedClick) ||
-                                    props.popoverOpen
-                                  )
-                                    return;
+                                  if (event.detail && suppressedClick) return;
                                   if (props.stamping)
                                     props.onDates(
                                       [date()],
@@ -426,9 +433,7 @@ export function AvailabilityCalendar(props: {
                                   {hours()}
                                 </span>
                                 <Show when={bar.overlaps.length}>
-                                  <span class="block text-[9px]">
-                                    Conflicting hours
-                                  </span>
+                                  <span class="block text-[9px]">Overlap</span>
                                 </Show>
                               </button>
                             );

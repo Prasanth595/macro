@@ -1,29 +1,34 @@
 import ArrowLeft from '@phosphor/caret-left.svg';
 import ArrowRight from '@phosphor/caret-right.svg';
 import Plus from '@phosphor/plus.svg';
-import X from '@phosphor/x.svg';
+import Trash from '@phosphor/trash.svg';
 import { Button, Tabs } from '@ui';
-import { createSignal, For, Show } from 'solid-js';
+import { batch, createSignal, Show } from 'solid-js';
+import { getDefaultCalendarTimeFormat } from '../../calendar/utils/time-format';
 import {
   AvailabilityCalendar,
   type AvailabilityColumn,
 } from '../components/availability-calendar';
+import { AvailabilityDateOverrides } from '../components/availability-date-overrides';
+import { AvailabilityDayDetails } from '../components/availability-day-details';
 import { AvailabilityMonthPicker } from '../components/availability-month-picker';
 import { AvailabilityMonthReview } from '../components/availability-month-review';
-import { AvailabilityRangePopover } from '../components/availability-range-popover';
-import { AvailabilityTypePicker } from '../components/availability-type-picker';
-import { Field, TimeZoneInput } from '../components/fields';
+import { AvailabilityRangeDetails } from '../components/availability-range-details';
+import { Field, TextInput, TimeZoneInput } from '../components/fields';
 import {
   type AvailabilityChange,
   type AvailabilityIssue,
+  type AvailabilityTarget,
+  availabilityState,
   dateWeekday,
+  targetUnavailableWindows,
   targetWindows,
-  validAvailabilityDate,
   windowsIssue,
 } from '../core/availability';
 import {
   type AvailabilityTimeFormat,
   availabilityMonth,
+  formatAvailabilityDateRanges,
   shiftAvailabilityMonth,
 } from '../core/availability-month';
 import { reportDate } from '../core/insights';
@@ -43,8 +48,9 @@ export function ScheduleFields(props: {
   const [monthDate, setMonthDate] = createSignal(
     reportDate(new Date(), props.schedule.timeZone)
   );
-  const [timeFormat, setTimeFormat] =
-    createSignal<AvailabilityTimeFormat>('24h');
+  const [timeFormat, setTimeFormat] = createSignal<AvailabilityTimeFormat>(
+    getDefaultCalendarTimeFormat() === '24-hour' ? '24h' : '12h'
+  );
   const [batchDates, setBatchDates] = createSignal<string[]>([]);
   const [batchIssue, setBatchIssue] = createSignal<AvailabilityIssue>();
   let stamp!: ReturnType<typeof createAvailabilityMonthEditor>;
@@ -63,36 +69,68 @@ export function ScheduleFields(props: {
     onEditingChange: (editing) =>
       props.onEditingChange?.(editing || !!editor.selection()),
   });
-  let boundary!: HTMLDivElement;
+  let root!: HTMLDivElement;
+  let viewport!: HTMLDivElement;
   let cancelCalendarDrag = () => {};
-  let addTrigger!: HTMLButtonElement;
   const [drawingMode, setDrawingMode] =
     createSignal<AvailabilityChange['mode']>('available');
   const drawingPreview = () => ({
     mode: drawingMode(),
     window: { start: '09:00', end: '17:00' },
   });
-  const [popover, setPopover] = createSignal<{
+  const [selectedRange, setSelectedRange] = createSignal<{
     change: AvailabilityChange;
     anchor: HTMLElement;
     drawn: boolean;
     date: string;
   }>();
-  const closePopover = () => {
+  const [selectedDay, setSelectedDay] = createSignal<{
+    target: AvailabilityTarget;
+    date: string;
+    anchor: HTMLElement;
+  }>();
+  const selectedWeekday = () => {
+    const target = selectedDay()?.target ?? selectedRange()?.change.target;
+    return target?.kind === 'weekly' ? target.day : undefined;
+  };
+  const dismissDay = () => {
+    const selected = selectedDay();
+    setSelectedDay(undefined);
+    queueMicrotask(
+      () => selected?.anchor.isConnected && selected.anchor.focus()
+    );
+  };
+  const openDay = (
+    target: AvailabilityTarget,
+    date: string,
+    anchor: HTMLElement
+  ) => {
+    closeRange();
+    setSelectedDay({ target, date, anchor });
+    queueMicrotask(() =>
+      root
+        .querySelector<HTMLButtonElement>(
+          '[aria-label="Day availability state"] button[aria-pressed="true"]'
+        )
+        ?.focus()
+    );
+  };
+  const closeRange = () => {
     editor.close();
-    setPopover(undefined);
+    setSelectedRange(undefined);
     setBatchDates([]);
     setBatchIssue(undefined);
   };
-  const openPopover = (
+  const openRange = (
     change: AvailabilityChange,
     anchor: HTMLElement,
     drawn = false,
     date = change.target.kind === 'date' ? change.target.date : monthDate()
   ) => {
     setDrawingMode(change.mode);
-    closePopover();
-    setPopover({
+    setSelectedDay(undefined);
+    closeRange();
+    setSelectedRange({
       change,
       anchor: anchor.closest<HTMLElement>('[data-availability-date]') ?? anchor,
       drawn,
@@ -100,8 +138,8 @@ export function ScheduleFields(props: {
     });
     if (drawn) editor.open(change);
   };
-  const editPopover = () => {
-    const selected = popover();
+  const editRange = () => {
+    const selected = selectedRange();
     if (!selected) return;
     const change = selected.change;
     editor.open({
@@ -123,7 +161,7 @@ export function ScheduleFields(props: {
         replaceConflicts
       );
       if (!result.ok) setBatchIssue(result.issue);
-      else closePopover();
+      else dismissRange();
       return;
     }
     editor.apply(replaceConflicts);
@@ -136,7 +174,7 @@ export function ScheduleFields(props: {
       (window) =>
         window.start <= savedWindow.start && window.end >= savedWindow.end
     );
-    setPopover(
+    setSelectedRange(
       (current) =>
         current && {
           ...current,
@@ -162,8 +200,24 @@ export function ScheduleFields(props: {
         }
     );
   };
-  const anchorRect = () => popover()?.anchor.getBoundingClientRect();
-  // Capture the range before the popover closes and disposes its selection.
+  const clearSelectedHours = () => {
+    const change = editor.selection() ?? selectedRange()?.change;
+    if (!change) return;
+    const targets =
+      batchDates().length > 1
+        ? batchDates().map(
+            (date): AvailabilityTarget => ({ kind: 'date', date })
+          )
+        : [change.target];
+    if (
+      editor.clearRanges(
+        targets,
+        change.allDay ? { start: '00:00', end: '23:59' } : change.window
+      )
+    )
+      dismissRange();
+  };
+  // Capture the selected range before closing its details.
   const removeAction = (change: AvailabilityChange) => () => {
     if (change.index !== undefined) editor.remove(change.target, change.index);
   };
@@ -176,7 +230,7 @@ export function ScheduleFields(props: {
     const target = editor.selection()?.target;
     return target?.kind === 'date'
       ? target.date
-      : (popover()?.date ?? monthDate());
+      : (selectedRange()?.date ?? monthDate());
   };
   const dates = () => availabilityMonth(monthDate());
   const batchConflicts = () =>
@@ -197,7 +251,11 @@ export function ScheduleFields(props: {
   };
   const previewForDate = (date: string, overridden: boolean) => {
     const stamped = stamp.dates().includes(date) ? stamp.template() : undefined;
-    const change = stamped ?? editor.selection();
+    const change =
+      stamped ??
+      (selectedRange()?.drawn || editor.hasChanges()
+        ? editor.selection()
+        : undefined);
     if (!change || (!change.allDay && windowsIssue([change.window]))) return;
     const bulk = !!stamped || batchDates().length > 1;
     if (
@@ -229,7 +287,7 @@ export function ScheduleFields(props: {
       stamp.select(dates, toggle);
       return;
     }
-    openPopover(
+    openRange(
       {
         target: { kind: 'date', date: dates[0] },
         ...drawingPreview(),
@@ -274,305 +332,430 @@ export function ScheduleFields(props: {
     );
   const hasOverlaps = () =>
     invalidDays().some((day) => windowsIssue(day.windows)?.mergeable);
+  const dismissRange = () => {
+    const current = selectedRange();
+    closeRange();
+    if (!current) return;
+    queueMicrotask(() => {
+      const fallback = Array.from(
+        root.querySelectorAll<HTMLElement>('[data-availability-date]')
+      ).find((element) => element.dataset.availabilityDate === current.date);
+      (current.anchor.isConnected ? current.anchor : fallback)?.focus({
+        preventScroll: true,
+      });
+    });
+  };
+  const clearAvailability = () => {
+    if (props.disabled) return;
+    cancelCalendarDrag();
+    batch(() => {
+      stamp.exit();
+      closeRange();
+      setSelectedDay(undefined);
+      setDrawingMode('available');
+      editor.clear();
+    });
+  };
+  const selectOverride = (date: string, anchor: HTMLElement) => {
+    const override = props.schedule.overrides.find(
+      (override) => override.date === date
+    );
+    if (!override) return;
+    setMonthDate(date);
+    if (stamp.template()) return;
+    const window = override.windows[0];
+    const timeOff = targetUnavailableWindows(props.schedule, {
+      kind: 'date',
+      date,
+    });
+    if (!window && !timeOff.length) {
+      openDay({ kind: 'date', date }, date, anchor);
+      return;
+    }
+    openRange(
+      {
+        target: { kind: 'date', date },
+        mode: window ? 'available' : 'unavailable',
+        window: window ?? timeOff[0],
+        index: window ? 0 : undefined,
+        allDay:
+          (window ?? timeOff[0]).start === '00:00' &&
+          (window ?? timeOff[0]).end === '23:59',
+      },
+      anchor,
+      false,
+      date
+    );
+  };
+
   return (
     <div
-      ref={boundary}
-      class="portal-scope @container relative flex min-h-0 min-w-0 flex-1 flex-col gap-3"
+      ref={root}
+      class="portal-scope @container/availability relative flex min-h-0 min-w-0 flex-1 flex-col"
       onKeyDown={(event) => {
         if (
           event.key !== 'Escape' ||
           event.defaultPrevented ||
-          !stamp.template()
+          (event.target instanceof Element &&
+            event.target.closest(
+              '[role="dialog"], [aria-haspopup="dialog"][aria-expanded="true"]'
+            ))
         )
           return;
-        cancelCalendarDrag();
-        stamp.exit();
+        if (stamp.template()) {
+          cancelCalendarDrag();
+          stamp.exit();
+        } else if (selectedRange()) {
+          cancelCalendarDrag();
+          dismissRange();
+        } else if (selectedDay()) dismissDay();
+        else return;
         event.preventDefault();
       }}
     >
-      <section class="flex min-h-0 min-w-0 w-full flex-1 flex-col">
-        <div class="flex shrink-0 flex-wrap items-center justify-between gap-3 pb-3">
-          <div class="flex items-center gap-1.5">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              label="Previous month"
-              disabled={props.disabled}
-              onClick={() => {
-                closePopover();
-                setMonthDate(shiftAvailabilityMonth(monthDate(), -1));
-              }}
-            >
-              <ArrowLeft class="size-4" />
-            </Button>
-            <AvailabilityMonthPicker
-              date={monthDate()}
-              disabled={props.disabled}
-              onChange={(date) => {
-                closePopover();
-                setMonthDate(date);
+      <div
+        ref={viewport}
+        class="flex min-h-0 min-w-0 flex-1 flex-col gap-8 overflow-y-auto @min-[1000px]/availability:flex-row @min-[1000px]/availability:overflow-hidden"
+      >
+        <section class="flex h-[34rem] min-h-0 min-w-0 shrink-0 flex-col @min-[1000px]/availability:h-auto @min-[1000px]/availability:flex-1">
+          <div class="flex shrink-0 flex-wrap items-center justify-between gap-3 pb-3">
+            <div class="flex items-center gap-1.5">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                label="Previous month"
+                disabled={props.disabled}
+                onClick={() => {
+                  closeRange();
+                  setSelectedDay(undefined);
+                  setMonthDate(shiftAvailabilityMonth(monthDate(), -1));
+                }}
+              >
+                <ArrowLeft class="size-4" />
+              </Button>
+              <AvailabilityMonthPicker
+                date={monthDate()}
+                disabled={props.disabled}
+                onChange={(date) => {
+                  closeRange();
+                  setSelectedDay(undefined);
+                  setMonthDate(date);
+                }}
+              />
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                label="Next month"
+                disabled={props.disabled}
+                onClick={() => {
+                  closeRange();
+                  setSelectedDay(undefined);
+                  setMonthDate(shiftAvailabilityMonth(monthDate(), 1));
+                }}
+              >
+                <ArrowRight class="size-4" />
+              </Button>
+            </div>
+            <Tabs
+              aria-label="Time format"
+              list={[
+                { value: '12h', label: '12h' },
+                { value: '24h', label: '24h' },
+              ]}
+              value={timeFormat()}
+              onChange={(value) => {
+                if (value === '12h' || value === '24h') setTimeFormat(value);
               }}
             />
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              label="Next month"
-              disabled={props.disabled}
-              onClick={() => {
-                closePopover();
-                setMonthDate(shiftAvailabilityMonth(monthDate(), 1));
-              }}
-            >
-              <ArrowRight class="size-4" />
-            </Button>
           </div>
-          <Tabs
-            aria-label="Time format"
-            list={[
-              { value: '12h', label: '12h' },
-              { value: '24h', label: '24h' },
-            ]}
-            value={timeFormat()}
-            onChange={(value) => {
-              if (value === '12h' || value === '24h') setTimeFormat(value);
-            }}
-          />
-          <Field label="Time zone" class="w-48 max-w-full gap-1 text-xs">
-            <TimeZoneInput
-              disabled={
-                props.disabled || !!editor.selection() || !!stamp.template()
+          <Show when={invalidDays().length}>
+            <div
+              role="alert"
+              class="mb-3 flex shrink-0 flex-wrap items-center gap-2 rounded-lg bg-failure-bg p-3 text-xs text-failure"
+            >
+              <p class="flex-1">
+                {invalidDays()
+                  .map(
+                    (day) =>
+                      `${'day' in day ? WEEKDAYS[day.day] : day.date}: ${windowsIssue(day.windows)?.message}`
+                  )
+                  .join(' ')}
+              </p>
+              <Show when={hasOverlaps()}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={props.disabled}
+                  onClick={editor.fixOverlaps}
+                >
+                  Merge overlapping hours
+                </Button>
+              </Show>
+            </div>
+          </Show>
+          <Show when={editor.actionError()}>
+            <p role="alert" class="mb-3 shrink-0 text-xs text-failure">
+              {editor.actionError()}
+            </p>
+          </Show>
+          <div
+            class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-edge-muted bg-panel"
+            data-availability-calendar-frame
+          >
+            <AvailabilityCalendar
+              columns={columns()}
+              timeFormat={timeFormat()}
+              month={monthDate().slice(0, 7)}
+              today={reportDate(new Date(), props.schedule.timeZone)}
+              disabled={!!props.disabled || editor.hasChanges()}
+              stamping={!!stamp.template()}
+              getBoundary={() => viewport}
+              selectedDates={
+                stamp.template()
+                  ? stamp.dates()
+                  : batchDates().length
+                    ? batchDates()
+                    : selectedRange()
+                      ? [selectedDate()]
+                      : []
               }
-              value={props.schedule.timeZone}
-              onChange={(timeZone) =>
-                props.onChange((schedule) => ({ ...schedule, timeZone }))
+              selectionPreview={
+                stamp.template() ?? editor.selection() ?? drawingPreview()
+              }
+              onCancelReady={(cancel) => {
+                cancelCalendarDrag = cancel;
+              }}
+              onCancelSelection={() => {
+                if (stamp.template()) stamp.exit();
+                else if (selectedRange()) dismissRange();
+                else dismissDay();
+              }}
+              onDates={selectDates}
+              onSelect={(change, anchor, date) =>
+                openRange(change, anchor, false, date)
+              }
+              weekdayStates={WEEKDAYS.map((_, day) =>
+                availabilityState(props.schedule, { kind: 'weekly', day })
+              )}
+              selectedWeekday={selectedWeekday()}
+              onSelectWeekday={(day, anchor) =>
+                openDay(
+                  { kind: 'weekly', day },
+                  dates().find(
+                    (date) =>
+                      date.startsWith(monthDate().slice(0, 7)) &&
+                      dateWeekday(date) === day
+                  ) ?? monthDate(),
+                  anchor
+                )
               }
             />
-          </Field>
-          <AvailabilityTypePicker
-            label="Availability drawing type"
-            mode={drawingMode()}
-            disabled={props.disabled || !!popover() || !!stamp.template()}
-            onChange={setDrawingMode}
-          />
+          </div>
+          <div class="mt-3 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-ink-extra-muted">
+            <span class="flex items-center gap-1.5">
+              <span class="size-2 rounded-sm bg-accent" />
+              Available
+            </span>
+            <span class="flex items-center gap-1.5">
+              <span class="size-2 rounded-sm bg-edge" />
+              Unavailable
+            </span>
+            <span class="ml-auto">
+              Click a day to add · drag across days · select an item to edit
+            </span>
+          </div>
+          <Show when={editor.notice()}>
+            <p role="status" class="mt-3 shrink-0 text-xs text-ink-muted">
+              {editor.notice()}
+            </p>
+          </Show>
+        </section>
+        <aside
+          aria-label="Schedule details"
+          class="flex min-h-0 w-full shrink-0 flex-col gap-5 rounded-xl border border-edge-muted bg-surface-1 p-5 @min-[1000px]/availability:w-96 @min-[1000px]/availability:overflow-y-auto @min-[1000px]/availability:overscroll-contain"
+        >
+          <div class="flex shrink-0 flex-col gap-4">
+            <h2 class="text-sm font-semibold">Schedule details</h2>
+            <Field label="Name" class="gap-2 text-xs">
+              <TextInput
+                aria-label="Schedule name"
+                class="h-10"
+                required
+                maxLength={100}
+                value={props.schedule.name}
+                disabled={props.disabled}
+                onInput={(event) =>
+                  props.onChange((schedule) => ({
+                    ...schedule,
+                    name: event.currentTarget.value,
+                  }))
+                }
+              />
+            </Field>
+            <Field label="Time zone" class="gap-2 text-xs">
+              <TimeZoneInput
+                disabled={
+                  props.disabled || !!editor.selection() || !!stamp.template()
+                }
+                value={props.schedule.timeZone}
+                onChange={(timeZone) =>
+                  props.onChange((schedule) => ({ ...schedule, timeZone }))
+                }
+              />
+            </Field>
+          </div>
           <Button
-            ref={addTrigger}
             variant="ghost"
             size="sm"
-            disabled={props.disabled || !!stamp.template()}
-            onClick={(event) => {
-              if (popover()) return;
-              openPopover(
-                {
-                  target: { kind: 'date', date: monthDate() },
-                  mode: drawingMode(),
-                  window: { start: '09:00', end: '17:00' },
-                },
-                event.currentTarget,
-                true
-              );
-            }}
+            class="shrink-0 self-start text-failure not-touch:not-disabled:hover:text-failure"
+            tooltip="Clear all weekly hours and date overrides from this draft. Save to apply."
+            disabled={props.disabled}
+            onClick={clearAvailability}
           >
-            <Plus class="size-3.5" />
-            Add availability
+            <Trash class="size-4" />
+            Clear availability
           </Button>
-        </div>
-        <Show when={invalidDays().length}>
-          <div
-            role="alert"
-            class="mt-4 flex flex-wrap items-center gap-2 rounded-lg bg-failure-bg p-3 text-xs text-failure"
-          >
-            <p class="flex-1">
-              {invalidDays()
-                .map(
-                  (day) =>
-                    `${'day' in day ? WEEKDAYS[day.day] : day.date}: ${windowsIssue(day.windows)?.message}`
-                )
-                .join(' ')}
-            </p>
-            <Show when={hasOverlaps()}>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={props.disabled}
-                onClick={editor.fixOverlaps}
-              >
-                Merge overlapping hours
-              </Button>
+          <div class="shrink-0 border-t border-edge-muted pt-5">
+            <Show
+              when={stamp.template()}
+              fallback={
+                <Show
+                  keyed
+                  when={selectedRange()}
+                  fallback={
+                    <Show
+                      keyed
+                      when={selectedDay()}
+                      fallback={
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          class="min-h-10 w-full"
+                          disabled={props.disabled}
+                          onClick={(event) =>
+                            openRange(
+                              {
+                                target: { kind: 'date', date: monthDate() },
+                                ...drawingPreview(),
+                              },
+                              event.currentTarget,
+                              true
+                            )
+                          }
+                        >
+                          <Plus class="size-3.5" />
+                          Add availability
+                        </Button>
+                      }
+                    >
+                      {(selected) => (
+                        <AvailabilityDayDetails
+                          target={selected.target}
+                          label={
+                            selected.target.kind === 'weekly'
+                              ? WEEKDAYS[selected.target.day]
+                              : formatAvailabilityDateRanges([selected.date])
+                          }
+                          state={availabilityState(
+                            props.schedule,
+                            selected.target
+                          )}
+                          windows={targetWindows(
+                            props.schedule,
+                            selected.target
+                          )}
+                          unavailable={targetUnavailableWindows(
+                            props.schedule,
+                            selected.target
+                          )}
+                          timeFormat={timeFormat()}
+                          disabled={!!props.disabled}
+                          onStateChange={(state) =>
+                            editor.setState(selected.target, state)
+                          }
+                          onSelect={(change, anchor, drawn) =>
+                            openRange(change, anchor, drawn, selected.date)
+                          }
+                          onClose={dismissDay}
+                        />
+                      )}
+                    </Show>
+                  }
+                >
+                  {(selected) => {
+                    const change = () =>
+                      selectedRange()?.change ?? selected.change;
+                    return (
+                      <AvailabilityRangeDetails
+                        change={change()}
+                        timeZone={props.schedule.timeZone}
+                        timeFormat={timeFormat()}
+                        date={selectedDate()}
+                        dates={batchDates()}
+                        inherited={selectedColumn()?.inherited ?? false}
+                        overridden={selectedColumn()?.overridden ?? false}
+                        disabled={!!props.disabled}
+                        draft={editor.selection()}
+                        issue={rangeIssue()}
+                        onEdit={editRange}
+                        onChange={(update) => {
+                          editor.updateSelection(update);
+                          const selection = editor.selection();
+                          setBatchIssue(undefined);
+                          if (
+                            batchDates().length === 1 &&
+                            selection?.target.kind === 'date'
+                          )
+                            setBatchDates([selection.target.date]);
+                          if (selection) setDrawingMode(selection.mode);
+                        }}
+                        onApply={apply}
+                        onClose={dismissRange}
+                        onCancelEdit={() => {
+                          if (selectedRange()?.drawn) dismissRange();
+                          else editor.close();
+                        }}
+                        onRemove={removeAction(change())}
+                        onClear={clearSelectedHours}
+                        onRestore={restoreAction(change())}
+                        onStamp={() => {
+                          const template = change();
+                          closeRange();
+                          stamp.begin(template);
+                        }}
+                      />
+                    );
+                  }}
+                </Show>
+              }
+            >
+              {(template) => (
+                <AvailabilityMonthReview
+                  template={template()}
+                  timeFormat={timeFormat()}
+                  dates={stamp.dates()}
+                  conflicts={stamp.conflicts()}
+                  error={stamp.error()}
+                  disabled={!!props.disabled}
+                  onClear={stamp.clear}
+                  onExit={stamp.exit}
+                  onApply={stamp.apply}
+                />
+              )}
             </Show>
           </div>
-        </Show>
-        <Show when={stamp.template()}>
-          {(template) => (
-            <div class="my-3">
-              <AvailabilityMonthReview
-                template={template()}
-                timeFormat={timeFormat()}
-                dates={stamp.dates()}
-                conflicts={stamp.conflicts()}
-                error={stamp.error()}
-                disabled={!!props.disabled}
-                onClear={stamp.clear}
-                onExit={stamp.exit}
-                onApply={stamp.apply}
-              />
-            </div>
-          )}
-        </Show>
-        <Show when={editor.actionError()}>
-          <p role="alert" class="mt-3 text-xs text-failure">
-            {editor.actionError()}
-          </p>
-        </Show>
-        <div
-          class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-edge-muted bg-panel"
-          data-availability-calendar-frame
-        >
-          <AvailabilityCalendar
-            columns={columns()}
-            timeFormat={timeFormat()}
-            month={monthDate().slice(0, 7)}
-            disabled={!!props.disabled || !!editor.selection()}
-            popoverOpen={!!popover()}
-            stamping={!!stamp.template()}
-            selectedDates={stamp.template() ? stamp.dates() : batchDates()}
-            selectionPreview={
-              stamp.template() ?? editor.selection() ?? drawingPreview()
-            }
-            onDismissPopover={closePopover}
-            onCancelReady={(cancel) => {
-              cancelCalendarDrag = cancel;
+          <AvailabilityDateOverrides
+            overrides={props.schedule.overrides}
+            disabled={!!props.disabled || editor.hasChanges()}
+            onSelect={selectOverride}
+            onRemove={(date) => {
+              if (selectedRange() && selectedDate() === date) dismissRange();
+              if (selectedDay()?.date === date) dismissDay();
+              editor.restoreDate(date);
             }}
-            onCancelSelection={() => {
-              if (stamp.template()) stamp.exit();
-              else closePopover();
-            }}
-            onDates={selectDates}
-            onSelect={(change, anchor, date) =>
-              openPopover(change, anchor, false, date)
-            }
-            onToggle={editor.toggle}
           />
-        </div>
-        <div class="mt-3 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-ink-extra-muted">
-          <span class="flex items-center gap-1.5">
-            <span class="size-2 rounded-sm bg-accent" />
-            Available
-          </span>
-          <span class="flex items-center gap-1.5">
-            <span class="size-2 rounded-sm bg-edge" />
-            Unavailable
-          </span>
-          <span class="ml-auto">
-            Click a day to add · drag across days · select an item to apply
-            elsewhere
-          </span>
-        </div>
-        <Show when={editor.notice()}>
-          <p role="status" class="mt-3 text-xs text-ink-muted">
-            {editor.notice()}
-          </p>
-        </Show>
-      </section>
-      <Show when={props.schedule.overrides.length}>
-        <section
-          aria-label="Saved date overrides"
-          class="max-h-24 shrink-0 overflow-y-auto border-b border-edge-muted pb-3"
-        >
-          <h4 class="mb-3 text-xs font-semibold">
-            Date overrides in this schedule
-          </h4>
-          <div class="flex flex-wrap gap-2">
-            <For
-              each={[...props.schedule.overrides].sort((a, b) =>
-                a.date.localeCompare(b.date)
-              )}
-            >
-              {(override) => (
-                <div class="flex items-center rounded-md border border-edge-muted text-xs">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={
-                      props.disabled || !validAvailabilityDate(override.date)
-                    }
-                    onClick={() => {
-                      closePopover();
-                      setMonthDate(override.date);
-                    }}
-                  >
-                    {override.date || 'Choose a date'} ·{' '}
-                    {override.windows.length
-                      ? `${override.windows.length} ${override.windows.length === 1 ? 'range' : 'ranges'}`
-                      : 'Unavailable'}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    label={`Remove override ${override.date}`}
-                    disabled={props.disabled}
-                    onClick={() => editor.restoreDate(override.date)}
-                  >
-                    <X class="size-3" />
-                  </Button>
-                </div>
-              )}
-            </For>
-          </div>
-        </section>
-      </Show>
-      <Show keyed when={popover()?.anchor}>
-        {(anchor) => {
-          const initial = popover()!.change;
-          const change = () => popover()?.change ?? initial;
-          return (
-            <AvailabilityRangePopover
-              anchor={anchor}
-              addTrigger={addTrigger}
-              getAnchorRect={anchorRect}
-              boundary={boundary}
-              change={change()}
-              timeZone={props.schedule.timeZone}
-              timeFormat={timeFormat()}
-              date={selectedDate()}
-              dates={batchDates()}
-              inherited={selectedColumn()?.inherited ?? false}
-              overridden={selectedColumn()?.overridden ?? false}
-              inactive={
-                change().target.kind === 'weekly' &&
-                !selectedColumn()?.weeklyEnabled
-              }
-              disabled={!!props.disabled}
-              draft={editor.selection()}
-              issue={rangeIssue()}
-              onEdit={editPopover}
-              onChange={(update) => {
-                editor.updateSelection(update);
-                const selection = editor.selection();
-                setBatchIssue(undefined);
-                if (
-                  batchDates().length === 1 &&
-                  selection?.target.kind === 'date'
-                )
-                  setBatchDates([selection.target.date]);
-                if (selection) setDrawingMode(selection.mode);
-              }}
-              onApply={apply}
-              onClose={closePopover}
-              onCancelEdit={() => {
-                if (popover()?.drawn) closePopover();
-                else editor.close();
-              }}
-              onRemove={removeAction(change())}
-              onRestore={restoreAction(change())}
-              onStamp={() => {
-                const template = change();
-                closePopover();
-                stamp.begin(template);
-              }}
-            />
-          );
-        }}
-      </Show>
+        </aside>
+      </div>
     </div>
   );
 }
