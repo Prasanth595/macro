@@ -88,7 +88,9 @@ and keyboard activation, a normal `_blank` link, same-frame external navigation,
 `window.open`, and absolute/relative Macro app links. Each external activation
 must launch exactly once and retain the original webview. Prevented clicks and
 browser-only/local-file popup URLs must not launch anything. The desktop JS click
-interceptor must be absent. Artifacts are under `test-results/native/links-*`.
+interceptor must be absent. A trusted standalone HTML document must open in a
+separate native window, not be converted to an SPA navigation or external launch.
+Artifacts are under `test-results/native/links-*`.
 This is Linux coverage; macOS/Windows native popup handling and the unchanged
 mobile JS fallback need platform-specific verification.
 
