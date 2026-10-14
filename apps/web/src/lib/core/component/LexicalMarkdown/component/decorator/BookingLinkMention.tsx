@@ -110,11 +110,9 @@ function BookingLinkMentionContent(props: BookingLinkMentionDecoratorProps) {
       <span class="flex min-w-0 items-baseline underline decoration-current/20 decoration-[max(1px,0.1em)] underline-offset-2">
         <span class="min-w-0 truncate">{label()}</span>
         <Show when={props.slug && label() !== props.slug}>
-          {() => (
-            <span class="shrink-0 whitespace-pre text-ink-extra-muted text-[0.8em]">
-              {` /${props.slug}`}
-            </span>
-          )}
+          <span class="shrink-0 whitespace-pre text-ink-extra-muted text-[0.8em]">
+            {` /${props.slug}`}
+          </span>
         </Show>
       </span>
     </span>
