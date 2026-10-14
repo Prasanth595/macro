@@ -36,7 +36,7 @@ patterns in older code.
 | --- | --- |
 | `CODING.md` | Coding rules for every language; read before writing code. |
 | `AGENTS.md` in a directory | Scope, map, checks, and gotchas for that subtree; a sibling `CLAUDE.md` symlinks to it. |
-| `.agents/skills/` | Task workflows. `.claude/skills` symlinks here. |
+| `.agents/skills/` | Task workflows. `.claude/skills` and `.pi/skills` symlink here. |
 | `.agents/rules/` | Path-scoped conventions, loaded when you touch matching files. `.claude/rules` and `.cursor/rules` symlink here. |
 | `.agents/agents/` | Subagents (`auditor`, `browser-verifier`). `.claude/agents` symlinks here. |
 | `.agents/templates/` | Templates for new rules and `AGENTS.md` files. |
@@ -71,6 +71,7 @@ Real files live in `.agents/`; tool-specific directories only symlink to it.
 - Flag real risks; once the user decides, act on it.
 - Disagree when they're wrong. No flattery.
 - Answer simple questions directly.
+- For UI work, ask how it should behave on mobile unless that's obvious.
 - Be brief. No justification essays, no time estimates.
 
 **Environment**

@@ -98,13 +98,17 @@ compatible with the service code currently deployed, not just the code in its PR
 2. **Use compile-time checked queries** (`query!`, `query_as!`, `query_scalar!`,
    `query_file!`) by default. Dynamic SQL is only for genuinely dynamic queries;
    bind values and allowlist dynamic identifiers. Review indexes, bounded results,
-   and access-control predicates with the [SQLx query validator](../../.pi/skills/sqlx-query-validator/SKILL.md).
+   and access-control predicates with the [SQLx query validator](../../.agents/skills/sqlx-query-validator/SKILL.md).
 
 3. **Apply schema changes** to the local database:
 
    ```bash
    just crates/macro_db_client/migrate_db
    ```
+
+   Migrations deploy before services and must survive a rolling deploy: give
+   new `NOT NULL` columns a default, and for large tables set `lock_timeout` and
+   use `NOT VALID` + `VALIDATE` or `CREATE INDEX CONCURRENTLY` (CS-70).
 
 4. **Update affected tests/fixtures and run package tests** from the root with
    `SQLX_OFFLINE` unset. Test between batches of query changes, not just at the end.

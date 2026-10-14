@@ -68,3 +68,14 @@ every local variable.
 
 Examples: [session query factory](../../../apps/web/src/lib/queries/agent-session/session.ts) and
 [search query factories](../../../apps/web/src/lib/queries/soup/search.ts).
+- **FE-48** Keep cached data on screen through refetch errors: gate on
+  `isPending`, never `isSuccess` / `isError`. Every query view handles pending,
+  error, empty, and nothing-selected separately.
+- **FE-49** Refetches and optimistic updates never wipe local state (drafts,
+  anchors, selections), and a refetch started before a mutation can't overwrite
+  its result. Optimistic rollback state lives in `onMutate`; temporary ids are
+  never openable.
+- **FE-50** Scope invalidation to what changed, but update every reader of it.
+  Query keys hold exactly the fetch inputs.
+- **FE-51** State moved into the URL round-trips every field. Removed or renamed
+  routes and route ids get redirects, and saved split layouts keep working.

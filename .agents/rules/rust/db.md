@@ -36,3 +36,6 @@ Rust database rules: ids, keys, migrations, and SQLx.
   --command just prepare_db` from the repository root; never commit a `.sqlx`
   directory inside an individual crate. See the [database
   guide](../../../docs/development/database.md).
+- **CS-70** Migrations survive a rolling deploy: new `NOT NULL` columns get a
+  default, and changes to large tables set `lock_timeout` and use `NOT VALID` +
+  `VALIDATE` or `CREATE INDEX CONCURRENTLY` instead of a full rewrite.

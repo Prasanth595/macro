@@ -27,8 +27,26 @@ files; the [style guide](docs/development/style-guide.md) indexes them.
 - Name things for what they are. No jargon or slang.
 - Compatibility only at deployed boundaries (migrations, persisted formats).
 
+## Correctness
+
+- Anything a caller can retry, cancel, or redeliver is safe to repeat: no double
+  effects, no stuck state.
+- Clear or drain state only after the step that can fail succeeds. Multi-step
+  creates and deletes leave no orphans, and projections can't resurrect a
+  deleted row.
+- When an async result arrives, check it still applies (same account, selection,
+  version) before writing it. When racing async sources, flush the loser's
+  buffered state before teardown.
+- One bad item never fails a batch or stalls a consumer partition.
+- A new gate (permission, archived state, caller type, feature flag) applies at
+  every entry point and sibling handler. New routes copy their sibling's access
+  check.
+- When behavior changes, update every doc that mentions it in the same change.
+
 ## Tests
 
+- Every bug fix adds a regression test that fails before the fix and passes
+  after.
 - Test behavior, not names or derive round-trips.
 - Explicit literals, no tiny helpers.
 - No `sleep`, `yield_now`, or polling; use real sync primitives.

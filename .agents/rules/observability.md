@@ -31,7 +31,8 @@ treat missing instrumentation on a new flow as a defect, like a missing test.
 - Name spans for the operation (`calendar.sync_account`), not the function.
 - Record the IDs you will search by (entity, user, team, session, document) and
   sizes/counts as fields. Skip bulky or sensitive arguments; never record
-  prompts, message content, tokens, or secrets.
+  prompts, message content, tokens, secrets, or personal data (email, username,
+  IP); use opaque ids.
 - Async work that outlives the request (spawned tasks, queued jobs) links to or
   parents on the span that started it, so the flow stays one trace.
 

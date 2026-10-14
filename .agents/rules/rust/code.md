@@ -35,8 +35,9 @@ Type design, idioms, errors and observability, performance, and tests.
   the narrowest item it applies to; `allow` silently rots when the lint stops
   firing, `expect` warns.
 - **CS-42** Don't re-state trait bounds already implied by a supertrait.
-- **CS-43** Use the smallest sufficient integer type — a version counter that
-  can't plausibly pass 255 is a `u8`.
+- **CS-43** Use the smallest type that makes invalid states unrepresentable: a
+  counter that can't go negative is unsigned, one that can't plausibly pass 255
+  is a `u8`.
 - **CS-44** Large inline strings belong in files — use `include_str!`.
 - **CS-45** CLI binaries use `clap`, not hand-rolled arg parsing.
 - **CS-46** Use `rootcause` for error handling in new code — it's preferred over
@@ -54,9 +55,10 @@ Type design, idioms, errors and observability, performance, and tests.
   when queries/schema change or required cache data is missing, not for
   unrelated Rust-only edits. Run affected tests with `SQLX_OFFLINE` unset. See
   the [database guide](../../../docs/development/database.md).
-- **CS-54** New crates put `#![deny(missing_docs)]` in `lib.rs` and document all
-  public items. Do not mark documentation code blocks `ignore` to skip doctests
-  unless explicitly directed.
+- **CS-54** New library crates (not service binaries) put
+  `#![deny(missing_docs)]` in `lib.rs` and document all public items. Do not
+  mark documentation code blocks `ignore` to skip doctests unless explicitly
+  directed.
 - **CS-55** AI spans follow the OpenTelemetry GenAI conventions (`gen_ai.*`, see
   `crates/genai_telemetry`). Agent sessions of every harness are traced in one
   place: the session actor projects each session's ACP frames onto

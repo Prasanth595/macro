@@ -58,3 +58,16 @@ Components, styling, and interaction conventions.
   and give reactive logic narrow feature-owned contracts.
   `src/features/activity` illustrates the layers but still has documented
   composition and contract migration gaps.
+- **FE-53** Use the shared components in `apps/web/src/components/ui` (`@ui`)
+  whenever one fits; browse them at `/app/component/ui`. Don't build a one-off
+  button, dialog, menu, or input. A missing primitive is added there, with a
+  `*.docs.tsx` page and tests, not inside a feature.
+- **FE-54** Decide mobile behavior deliberately. Unless the change makes it
+  obvious, ask the user how a UI change should look and behave on mobile.
+  Implement it with the `touch:` / `not-touch:` / `mobile:` variants and
+  `@core/mobile` helpers (`isMobile`, `isTouchDevice`), and check it at phone
+  width.
+- **FE-55** UI tests drive real interactions (click, type, keyboard, focus)
+  through `@solidjs/testing-library` and assert what the user sees or can do.
+  No tests that only render and check classes, snapshot markup, or mock the
+  component under test; cover full flows with browser tests.

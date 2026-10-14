@@ -62,3 +62,6 @@ State ownership, reactivity, and async error handling.
   further down does not save you. This has blanked the calendar grid twice — see
   `focusTarget` in `src/features/block-calendar/CalendarBlockAdapter.tsx` and
   `useSystemSkillsQuery`.
+- **FE-52** Read reactive values (feature flags, `isEditable()`, the current
+  user) inside a reactive scope, never as a snapshot at mount. A flag that is
+  still loading is not "off".
