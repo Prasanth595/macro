@@ -158,7 +158,7 @@ describe('native invitation card', () => {
     expect(screen.queryByRole('button', { name: 'Yes' })).toBeNull();
     expect(screen.getByText(/Responses are paused/)).toBeTruthy();
   });
-  it('renders HTML descriptions safely', () => {
+  it('renders formatted descriptions and keeps lists outside paragraphs', () => {
     const htmlInvitation = {
       ...invitationFixture,
       description:
@@ -166,23 +166,90 @@ describe('native invitation card', () => {
     };
     render(() => <CalendarInviteCard invitation={htmlInvitation} />);
     const description = screen.getByText(/Meeting details/);
-    // HTML should be rendered, not shown as raw text
-    expect(description.innerHTML).toContain('<strong>');
-    expect(description.innerHTML).toContain('<a');
-    expect(description.innerHTML).toContain('<ul');
-    // Text content should not contain raw HTML tags
+    expect(description.querySelector('strong')?.textContent).toBe('bold');
+    expect(
+      screen.getByRole('link', { name: 'link' }).getAttribute('href')
+    ).toBe('https://example.com/');
+    expect(
+      screen.getByText('First item').closest('ul')?.previousElementSibling
+    ).toBe(description);
+    expect(screen.getByText('Second item').tagName).toBe('LI');
     expect(description.textContent).not.toContain('<strong>');
+  });
+  it('removes active markup and unsafe URLs from descriptions', () => {
+    const { container } = render(() => (
+      <CalendarInviteCard
+        invitation={{
+          ...invitationFixture,
+          description:
+            '<p onclick="alert(1)">Safe text<script>alert(1)</script><img src="x" onerror="alert(1)"><a href="javascript:alert(1)">unsafe link</a></p>',
+        }}
+      />
+    ));
+    expect(screen.getByText(/Safe text/).textContent).toBe(
+      'Safe textunsafe link'
+    );
+    expect(
+      container.querySelector('script, img, [onclick], [onerror]')
+    ).toBeNull();
+    expect(screen.queryByRole('link', { name: 'unsafe link' })).toBeNull();
+  });
+  it.each([
+    'https://example.com/',
+    'mailto:bob@example.com',
+    'tel:+15555550100',
+  ])('opens description links through the host: %s', (url) => {
+    const openExternal = vi.fn();
+    render(() => (
+      <CalendarInviteCard
+        invitation={{
+          ...invitationFixture,
+          description: `<p><a href="${url}"><strong>Details</strong></a></p>`,
+        }}
+        actions={{ openExternal }}
+      />
+    ));
+    expect(fireEvent.click(screen.getByText('Details'))).toBe(false);
+    expect(openExternal).toHaveBeenCalledExactlyOnceWith(url);
   });
   it('escapes angle brackets in plain text descriptions', () => {
     const plainTextInvitation = {
       ...invitationFixture,
-      description: 'Email <bob@example.com> for questions',
+      description: 'Email <bob@example.com> for questions\nOwner: <TBD>',
     };
     render(() => <CalendarInviteCard invitation={plainTextInvitation} />);
     const description = screen.getByText(/Email/);
-    // Angle brackets should be visible as text
     expect(description.textContent).toContain('<bob@example.com>');
-    // But not as actual HTML tags
-    expect(description.querySelector('bob')).toBeNull();
+    expect(description.textContent).toContain('Owner: <TBD>');
+    expect(description.querySelector('br')).not.toBeNull();
+    expect(description.querySelector('bob, tbd')).toBeNull();
+  });
+  it('updates the sanitized description when the calendar resolves newer details', () => {
+    const [resolution, setResolution] = createSignal<InvitationResolution>({
+      kind: 'loading',
+    });
+    render(() => (
+      <CalendarInviteCard
+        invitation={{
+          ...invitationFixture,
+          description: '<p>Original details</p>',
+        }}
+        actions={{
+          get resolution() {
+            return resolution();
+          },
+        }}
+      />
+    ));
+    expect(screen.getByText('Original details')).toBeTruthy();
+    setResolution({
+      ...resolved,
+      current: {
+        ...invitationFixture,
+        description: '<p><strong>Updated details</strong></p>',
+      },
+    });
+    expect(screen.queryByText('Original details')).toBeNull();
+    expect(screen.getByText('Updated details').tagName).toBe('STRONG');
   });
 });
