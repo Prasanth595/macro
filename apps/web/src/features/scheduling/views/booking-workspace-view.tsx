@@ -11,6 +11,7 @@ import UserIcon from '@phosphor/user.svg';
 import UsersIcon from '@phosphor/users.svg';
 import { Button, cn, pressHandlers } from '@ui';
 import {
+  batch,
   createEffect,
   createMemo,
   createSignal,
@@ -23,7 +24,7 @@ import {
 import type { BookingLinksState } from '../booking-links-search';
 import { AvailabilityTopBar } from '../components/availability-topbar';
 import { BookingPageLeaveDialog } from '../components/booking-page-leave-dialog';
-import { Field, TextInput } from '../components/fields';
+import { BookingsDateRange } from '../components/bookings-date-range';
 import { OwnerBadge } from '../components/owner-badge';
 import { useScheduling } from '../context/scheduling-context';
 import { reportDate, shiftReportDate } from '../core/insights';
@@ -82,6 +83,7 @@ export function BookingWorkspaceView(props: {
   const [from, setFrom] = createSignal(shiftReportDate(today, -30));
   const [to, setTo] = createSignal(shiftReportDate(today, 30));
   const [query, setQuery] = createSignal('');
+  const [bookingsSearch, setBookingsSearch] = createSignal('');
   const scopes = createMemo(() => {
     const available = capabilities.scopes();
     return [
@@ -327,12 +329,7 @@ export function BookingWorkspaceView(props: {
         </ViewShell.TopBar>
         <Show when={search.tab === 'links' || search.tab === 'bookings'}>
           <ViewShell.Header>
-            <div
-              class={cn('flex min-w-0 gap-3', {
-                'items-center': search.tab === 'links',
-                'flex-wrap items-end': search.tab === 'bookings',
-              })}
-            >
+            <div class="flex min-w-0 flex-wrap items-center gap-3">
               <Show when={search.tab === 'links'}>
                 <SearchBar
                   label="Search booking links"
@@ -360,30 +357,25 @@ export function BookingWorkspaceView(props: {
                 </Show>
               </Show>
               <Show when={search.tab === 'bookings'}>
-                <Field label="From">
-                  <TextInput
-                    type="date"
-                    value={from()}
-                    max={to()}
-                    onChange={(event) =>
-                      event.currentTarget.value &&
-                      event.currentTarget.value <= to() &&
-                      setFrom(event.currentTarget.value)
+                <SearchBar
+                  label="Search bookings"
+                  placeholder="Search bookings…"
+                  value={bookingsSearch()}
+                  onValueChange={setBookingsSearch}
+                  class="max-w-md flex-1 basis-48"
+                />
+                <div class="ml-auto min-w-0 max-w-full">
+                  <BookingsDateRange
+                    from={from()}
+                    to={to()}
+                    onChange={(start, end) =>
+                      batch(() => {
+                        setFrom(start);
+                        setTo(end);
+                      })
                     }
                   />
-                </Field>
-                <Field label="Through">
-                  <TextInput
-                    type="date"
-                    value={to()}
-                    min={from()}
-                    onChange={(event) =>
-                      event.currentTarget.value &&
-                      event.currentTarget.value >= from() &&
-                      setTo(event.currentTarget.value)
-                    }
-                  />
-                </Field>
+                </div>
               </Show>
             </div>
           </ViewShell.Header>
@@ -401,7 +393,6 @@ export function BookingWorkspaceView(props: {
               <div
                 class="min-w-0"
                 classList={{
-                  'max-w-5xl': search.tab === 'bookings',
                   'flex min-h-0 flex-1 flex-col':
                     editingSchedule() || search.tab === 'page',
                 }}
@@ -409,7 +400,7 @@ export function BookingWorkspaceView(props: {
               >
                 <Show when={current.source.loading()}>
                   <p role="status" class="py-8 text-sm text-ink-muted">
-                    Loading booking links…
+                    Loading {tab().label.toLowerCase()}…
                   </p>
                 </Show>
                 <Show when={current.error() || current.source.error()}>
@@ -449,8 +440,13 @@ export function BookingWorkspaceView(props: {
                     scheduleTopBarOwned
                   />
                 </Show>
-                <Show when={search.tab === 'bookings'}>
-                  <OwnerSettingsSection kind="bookings" owner={current} />
+                <Show when={search.tab === 'bookings' && owner() === current}>
+                  <OwnerSettingsSection
+                    kind="bookings"
+                    owner={current}
+                    search={bookingsSearch()}
+                    onSearchChange={setBookingsSearch}
+                  />
                 </Show>
                 <Show when={search.tab === 'insights' && owner() === current}>
                   <OwnerSettingsSection kind="insights" owner={current} />

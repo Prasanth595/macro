@@ -60,3 +60,70 @@ export function bookingTimeRange(booking: Booking, timeZone: string): string {
   });
   return `${time.format(start)} – ${endTime.format(end)}`;
 }
+
+export type BookingDateGroup = {
+  date: string;
+  label: string;
+  bookings: Booking[];
+};
+
+/** Preserve the filtered order while grouping by the displayed start date. */
+export function groupBookingsByDate(
+  bookings: Booking[],
+  timeZone: string
+): BookingDateGroup[] {
+  const date = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const label = new Intl.DateTimeFormat(undefined, {
+    timeZone,
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  const groups = new Map<string, BookingDateGroup>();
+  for (const booking of bookings) {
+    const start = new Date(booking.startsAt);
+    const key = date.format(start);
+    const group = groups.get(key);
+    if (group) group.bookings.push(booking);
+    else
+      groups.set(key, {
+        date: key,
+        label: label.format(start),
+        bookings: [booking],
+      });
+  }
+  return [...groups.values()];
+}
+
+export function bookingIsPast(booking: Booking, now: number): boolean {
+  return new Date(booking.endsAt).getTime() <= now;
+}
+
+export function canManageBooking(
+  booking: Booking,
+  canEdit: boolean,
+  now: number
+): boolean {
+  return (
+    canEdit &&
+    (booking.status === 'pending' ||
+      (booking.status === 'confirmed' && !bookingIsPast(booking, now)))
+  );
+}
+
+export function bookingMeetingUrl(location: string): string | undefined {
+  try {
+    const url = new URL(location);
+    return url.protocol === 'http:' || url.protocol === 'https:'
+      ? url.href
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}

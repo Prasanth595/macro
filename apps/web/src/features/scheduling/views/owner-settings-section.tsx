@@ -4,10 +4,10 @@ import { ButtonGroup, CopyButton, Tooltip } from '@ui';
 import { createSignal, Match, onCleanup, Show, Switch } from 'solid-js';
 import { AvailabilityPanel } from '../components/availability-panel';
 import { BookingPageEditor } from '../components/booking-page-editor';
-import { BookingsPanel } from '../components/bookings-panel';
 import { EventTypesPanel } from '../components/event-types-panel';
 import { useScheduling } from '../context/scheduling-context';
 import type { SchedulingOwner } from '../primitives/create-scheduling-owner';
+import { BookingsView } from './bookings-view';
 import { EventDetailsDialog } from './event-details-view';
 import { EventEditor } from './event-editor-view';
 import { InsightsView } from './insights-view';
@@ -17,6 +17,7 @@ export function OwnerSettingsSection(props: {
   kind: 'links' | 'availability' | 'page' | 'bookings' | 'insights';
   owner: SchedulingOwner;
   search?: string;
+  onSearchChange?: (value: string) => void;
   scheduleTopBarOwned?: boolean;
 }) {
   const capabilities = useScheduling();
@@ -320,7 +321,11 @@ export function OwnerSettingsSection(props: {
               role="group"
               aria-label={`${scope().name} ${props.kind === 'page' ? 'booking page' : props.kind}`}
             >
-              <BookingsPanel
+              <BookingsView
+                search={props.search}
+                onSearchChange={props.onSearchChange}
+                loading={source.loading()}
+                error={owner.error() || source.error()}
                 bookings={source.bookings()}
                 events={p().eventTypes}
                 members={capabilities.members()}
