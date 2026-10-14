@@ -132,6 +132,26 @@ describe('routine trigger mapping', () => {
   });
 });
 
+describe('call triggers', () => {
+  it('fire on every call the owner joins, without choosing items', async () => {
+    const { eventScopeKind, isGlobalEvent } = await import(
+      '../core/routine-triggers'
+    );
+    const trigger = {
+      id: 'call',
+      kind: 'event' as const,
+      events: ['call.ended' as const],
+    };
+    expect(isGlobalEvent(trigger.events)).toBe(true);
+    expect(eventScopeKind(trigger)).toBe('CALL_RECORD');
+    expect(validateTriggers([trigger], true)).toBeNull();
+    expect(serializeTriggers([trigger])).toEqual({
+      type: 'events',
+      filters: [{ events: ['call.ended'] }],
+    });
+  });
+});
+
 describe('trigger conditions', () => {
   it('round trips a condition with its filter', () => {
     const config = {
