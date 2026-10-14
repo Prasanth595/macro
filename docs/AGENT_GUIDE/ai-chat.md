@@ -15,8 +15,11 @@ not establish that the requested action is supported.
 For a suitable unconnected app, the assistant offers **Connect <app>**. Clicking
 it opens the hosted authorization flow over the agent transcript. After the
 backend verifies and registers the connection, the agent session sends a visible
-continuation message in the same conversation. The native Macro runtime refreshes
-the session’s permitted connector tools before the next turn. The unsent draft
+continuation message in the same conversation. Before that message reaches the
+agent, the harness hands the live session its permitted connector servers again
+(a `session/resume`), so the next turn can use the new app. The native Macro
+runtime and sandboxed coding sessions support this; a runtime that cannot resume
+a session picks the app up when it next attaches. The unsent draft
 is preserved. Closing authorization or a failed registration sends no message.
 If the conversation changed or was closed during auth, there is no automatic
 continuation; the connected app remains available for the next request.
@@ -432,15 +435,31 @@ the shimmer.
   its mode and conversation. Newly created sessions replace their temporary
   URL with the real id without remounting the composer or adding a temporary
   history step.
-- **Agents page** uses the same **Agents** management screen as Settings.
-  **Agents** lists Team and Private agents with Edit / Delete actions; **Runtimes**
-  configures built-in providers and paired machines. **New agent** and **New runtime**
-  replace the list with full-page forms, not dialogs. Back/Cancel returns to the list;
-  use **New conversation** in the sidebar to return to the composer. The animated
-  **Bring your own agent** card appears only in **Runtimes**, below the tabs and
-  above the runtime lists. It links directly to runtime pairing and its setup guide.
-  The **Paired runtimes** section appears once you have a paired runtime; an empty
-  list does not repeat the pairing action from **Bring your own agent**.
+- **Agents page** uses the same **Agents** management screen as Settings. Two
+  slim strips sit above the list: **Connect Cursor** (**Manage** once connected)
+  and **Bring your own agent** (**Set up**, or **Paired** + **Manage** once a
+  machine is paired). One **Your agents** list shows Macro, team agents, then
+  private agents, each with a TEAM/PRIVATE pill and an "In Macro / In Cursor /
+  In your harness · model · channels" subtitle, plus Edit / Delete actions.
+  **Add agent**, the setup strips, and Edit replace the list with full pages,
+  not dialogs; Back/Cancel returns to the list. Use **New conversation** in the
+  sidebar to return to the composer.
+  The agent editor has Profile, Instructions, **Where it runs** (In Macro, In
+  Cursor, In your harness; In Claude Code too with the `claude-cloud` flag once
+  Claude lists models) and **Who can use it** (Private / Team). The selected
+  place opens its Model picker inside its card; In your harness adds a Harness
+  picker beside it. An unconnected Cursor or unpaired harness is disabled with
+  **Connect** / **Set up**, which open the setup guide in place and return to the
+  editor with that option selected. Mention style, permission requests,
+  connections, and channels sit in a collapsed **Advanced** section whose
+  description summarizes the current choices.
+  **Connect Cursor** is a three-step guide: a screenshot of Cursor's API & SSH
+  Keys page with **Open API & SSH Keys** (cursor.com/dashboard/api), an API key
+  field focused on open, and a default model picker that enables once the key is
+  saved. Connected, the same page shows the saved date, **Disconnect**, and
+  **Done**. **Manage** on a paired machine opens **Runtimes** (Back returns to
+  Agents): built-in providers, **New runtime**, and the **Paired runtimes** list,
+  which appears once you have a paired runtime.
   **New runtime** shows three steps: install macrod from the linked release,
   run `./macrod` and configure your agent in Quickstart, then enter your pairing
   code and click **Look up**. Review the request and click **Approve** to connect.
@@ -978,6 +997,22 @@ On a local stack, the in-memory agent reads uploaded image attachments from loca
 storage and sends their bytes to the model. The provider does not need access to
 the stack's private hostname. This also applies to images in earlier turns when
 resuming a conversation after a service restart.
+
+A long conversation with the in-memory agent stays within its model's context by
+itself. Once it fills 60% of the model's window, a summary of all but the latest
+turns is written in the background, with each image described, and the agent reads
+that summary in place of those turns from then on. The transcript keeps every
+message and shows a "Context compacted" line where the summary landed. The agent
+does not pause to summarize unless the conversation would otherwise not fit its
+model, as after switching to a model with a smaller window, or the message that
+crosses 60% is itself long (a tenth of the window or more), as a large paste is:
+that message waits for the summary so it has room at once. To recover an exact
+detail from the summarized part, the agent runs a **ContentSearch** step scoped to
+its own session. A message that alone takes more than half of the model's
+window is refused with "This message is too long. Split it into smaller messages
+or attach it as a file." `/compact` is an ordinary message to every agent: the
+transcript shows it as sent, followed by the agent's reply; a "Context compacted"
+line appears only when the agent reports a compaction.
 
 Cursor walkthrough files the run re-hosts appear in the transcript after the
 answer: screenshots as images, recordings as video players, and `.txt` / `.log`
@@ -1614,11 +1649,12 @@ choose a vision model or start a conversation without images.
 ## Accelerated model speed
 
 The lightning button beside the model selector enables Ultrafast for GPT-6 Astra
-and GPT-6.1 Sol (6× token pricing), or Fast for Claude Opus 5.5 (2× token pricing).
-Its tooltip shows the mode, state, and usage multiplier before sending. Other
-models keep standard speed. The preference is saved in browser local storage and
-shared by legacy chat and native Macro agent composers. External coding agents
-use their own speed controls.
+and GPT-6.1 Sol (6× token pricing). Its tooltip shows the mode, state, and usage
+multiplier before sending. Claude models, including Opus 5.5, stay on standard
+speed until Anthropic approves fast mode for this account. Other models keep
+standard speed. The preference is saved in browser local storage and shared by
+legacy chat and native Macro agent composers. External coding agents use their
+own speed controls.
 
 Preview the controls at `/app/debug/ui?ui=speed-toggle`.
 Click the bolt and verify its brief scale/rotation animation and highlighted state.

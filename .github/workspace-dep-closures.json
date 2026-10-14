@@ -440,6 +440,7 @@
       "crates/agent_inmem",
       "crates/agent_runtime_protocol",
       "crates/agent_session",
+      "crates/agent_session_realtime",
       "crates/agent_trigger",
       "crates/ai_billing",
       "crates/ai_engine",
@@ -6290,6 +6291,11 @@
       "crates/prompt",
       "crates/remote_env_var",
       "crates/workspace-hack"
+    ],
+    "feature_flags": [
+      "crates/cowlike",
+      "crates/feature_flags",
+      "crates/macro_user_id"
     ],
     "fig_engine": [
       "crates/fig_engine"
