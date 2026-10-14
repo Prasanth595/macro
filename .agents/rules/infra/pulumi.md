@@ -21,8 +21,8 @@ before changing a stack.
   `ServiceTargetGroup` with a unique `GATEWAY_PRIORITIES` entry,
   `DopplerEcsEnvironment`, `EcrImage`, Fargate with the circuit breaker. Not
   per-service ALBs, raw `aws.sqs.Queue`, or `createServiceRole`.
-- `MacroConfig` sees only `APP_SECRETS_JSON` in ECS: values infra produces go into
-  Doppler, not container `environment:`.
+- `MacroConfig` sees only `APP_SECRETS_JSON` in ECS: values infra produces go
+  into Doppler, not container `environment:`.
 - Pulumi config holds Secrets Manager names, never secret values; never put a
   resolved `secretString` in an env var.
 - Generated files (`.github/kafka-cluster-topics.json`, workspace closures) are

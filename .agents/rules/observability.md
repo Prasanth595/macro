@@ -14,10 +14,10 @@ treat missing instrumentation on a new flow as a defect, like a missing test.
 
 - Propagate W3C trace context on every hop. Inbound HTTP adopts `traceparent`
   through `macro_tower_layers`; outbound Rust HTTP calls `inject_trace_headers`;
-  Kafka publishes carry trace headers via `kafka_util`; agent and ACP messages use
-  `genai_telemetry::propagation`. A new transport (queue message, websocket frame,
-  worker call) needs inject on send and extract on receive. If a hop can't carry
-  context, record the upstream trace id as a span field.
+  Kafka publishes carry trace headers via `kafka_util`; agent and ACP messages
+  use `genai_telemetry::propagation`. A new transport (queue message, websocket
+  frame, worker call) needs inject on send and extract on receive. If a hop
+  can't carry context, record the upstream trace id as a span field.
 - Web and Cloudflare Workers use the `@macro-inc/observability` `Telemetry`
   facade (`Telemetry.span`, `Telemetry.clientSpan`); don't import OpenTelemetry
   directly and don't add a second telemetry path.
@@ -25,23 +25,23 @@ treat missing instrumentation on a new flow as a defect, like a missing test.
 ## Spans at boundaries
 
 - Span the places a trace would otherwise go dark: queue and Kafka consumers,
-  cross-service client calls, background jobs, and multi-step business operations.
-  Don't span trivial helpers; HTTP handlers already get spans from
+  cross-service client calls, background jobs, and multi-step business
+  operations. Don't span trivial helpers; HTTP handlers already get spans from
   `macro_tower_layers`.
 - Name spans for the operation (`calendar.sync_account`), not the function.
 - Record the IDs you will search by (entity, user, team, session, document) and
-  sizes/counts as fields. Skip bulky or sensitive arguments; never record prompts,
-  message content, tokens, or secrets.
+  sizes/counts as fields. Skip bulky or sensitive arguments; never record
+  prompts, message content, tokens, or secrets.
 - Async work that outlives the request (spawned tasks, queued jobs) links to or
   parents on the span that started it, so the flow stays one trace.
 
 ## Timing
 
-- Separate the phases a reader would ask about: queueing vs. execution, network vs.
-  processing, each external call. Long operations get child spans per phase, not
-  one opaque span.
-- Record outcome on the span (error status, retry count, cache hit/miss), so slow
-  and failed paths can be filtered without logs.
+- Separate the phases a reader would ask about: queueing vs. execution, network
+  vs. processing, each external call. Long operations get child spans per phase,
+  not one opaque span.
+- Record outcome on the span (error status, retry count, cache hit/miss), so
+  slow and failed paths can be filtered without logs.
 
 ## Logs
 

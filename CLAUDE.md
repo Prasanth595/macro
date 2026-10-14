@@ -6,11 +6,16 @@ This file is the shared entry point: `AGENTS.md` symlinks to `CLAUDE.md`. Edit
 
 ## Start here
 
-1. Identify the affected app, service, or crate using the map below.
-2. Read any applicable directory-level `AGENTS.md` / `CLAUDE.md` before editing.
+Unless the user says otherwise, before writing any code:
+
+1. Read [CODING.md](CODING.md).
+2. Find the affected app, service, or crate in the map below and read its
+   `AGENTS.md`.
 3. Read the task-relevant guides below, not every linked document.
-4. Rules in `.agents/rules/` load when you touch matching files. Prefer them over
-   patterns in older code.
+4. Explore the code you will change and its callers until you know how it works.
+
+Rules in `.agents/rules/` load when you touch matching files. Prefer them over
+patterns in older code.
 
 ## Repository map
 
@@ -29,6 +34,7 @@ This file is the shared entry point: `AGENTS.md` symlinks to `CLAUDE.md`. Edit
 
 | Path | Contents |
 | --- | --- |
+| `CODING.md` | Coding rules for every language; read before writing code. |
 | `AGENTS.md` in a directory | Scope, map, checks, and gotchas for that subtree; a sibling `CLAUDE.md` symlinks to it. |
 | `.agents/skills/` | Task workflows. `.claude/skills` symlinks here. |
 | `.agents/rules/` | Path-scoped conventions, loaded when you touch matching files. `.claude/rules` and `.cursor/rules` symlink here. |
@@ -67,26 +73,6 @@ Real files live in `.agents/`; tool-specific directories only symlink to it.
 - Answer simple questions directly.
 - Be brief. No justification essays, no time estimates.
 
-**Code**
-
-- Simplest correct change. Fewer lines; deleting is good.
-- Fix compiler errors at the cause. No casts, `any`, `unwrap`, or allows to silence them.
-- No speculative optimization.
-- Extend existing features; no parallel paths or fallbacks.
-- Generate types from their source of truth; don't hand-write wire types.
-- No macros or helpers just to save a few lines.
-- Use native APIs and existing libraries. No polyfills, no homemade crypto.
-- Keep types and traits small.
-- Name things for what they are. No jargon or slang.
-- Compatibility only at deployed boundaries (migrations, persisted formats).
-
-**Tests**
-
-- Test behavior, not names or derive round-trips.
-- Explicit literals, no tiny helpers.
-- No `sleep`, `yield_now`, or polling; use real sync primitives.
-- No testing plans; run tests and report results.
-
 **Environment**
 
 - Never touch production (data, services, consoles, secrets) without explicit
@@ -122,7 +108,8 @@ Real files live in `.agents/`; tool-specific directories only symlink to it.
 ## Keeping these instructions useful
 
 Keep this file short: shared guardrails and links with explicit reading triggers.
-Put workflows in skills or guides, conventions in `.agents/rules/`, and
+Put workflows in skills or guides, general coding rules in `CODING.md`,
+path-scoped conventions in `.agents/rules/`, and
 subtree-specific navigation in that directory's `AGENTS.md`. Do not append implementation
 journals, duplicate command lists, or environment-specific runbooks here.
 
