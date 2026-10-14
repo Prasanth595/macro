@@ -47,23 +47,25 @@ mod linux {
             &self,
             id: u32,
             #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
-        ) -> zbus::Result<()> {
+        ) -> zbus::fdo::Result<()> {
             emitter
                 .emit(SERVICE, "ActivationToken", &(id, "fixture-token"))
                 .await?;
             emitter
                 .emit(SERVICE, "ActionInvoked", &(id, "default"))
-                .await
+                .await?;
+            Ok(())
         }
 
         async fn dismiss(
             &self,
             id: u32,
             #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
-        ) -> zbus::Result<()> {
+        ) -> zbus::fdo::Result<()> {
             emitter
                 .emit(SERVICE, "NotificationClosed", &(id, 2u32))
-                .await
+                .await?;
+            Ok(())
         }
     }
 
