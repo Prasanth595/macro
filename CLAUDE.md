@@ -67,7 +67,8 @@ Real files live in `.agents/`; tool-specific directories only symlink to it.
 **Working with the user**
 
 - Do only what was asked. Questions get answers, not code changes.
-- Never commit, push, or open a PR unless asked.
+- Commit as you go, in small logical commits on a feature branch, without
+  asking. Never commit to `main`. Push or open a PR only when asked.
 - Flag real risks; once the user decides, act on it.
 - Disagree when they're wrong. No flattery.
 - Answer simple questions directly.

@@ -5,7 +5,8 @@ description: Commit, branch, push, and open or update pull requests in this repo
 
 # Git and pull requests
 
-Commit, push, or open a PR only when the user asks. Never commit to `main`.
+Commit as you go on a feature branch, one logical change per commit, without
+asking. Never commit to `main`. Push or open a PR only when the user asks.
 
 ## Branches
 
