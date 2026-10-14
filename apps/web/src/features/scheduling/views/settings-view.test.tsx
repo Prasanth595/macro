@@ -98,7 +98,18 @@ function fixture(team = { canEdit: true, canManageBookings: true }) {
     });
     const source: SchedulingSource = {
       profile,
-      bookings: () => (scope().teamId ? [teammateBooking] : []),
+      bookings: () =>
+        scope().teamId
+          ? [
+              teammateBooking,
+              {
+                ...teammateBooking,
+                id: 'hosted',
+                name: 'Own guest',
+                hosts: ['user'],
+              },
+            ]
+          : [],
       loading: () => false,
       error: () => undefined,
       saving: () => false,
@@ -229,13 +240,15 @@ it('preserves read-only access and clears search when switching owners', async (
   ).toBeTruthy();
 });
 
-it("lets a team member edit booking links but not manage a teammate's booking", async () => {
+it('lets a team member edit booking links and manage only the meetings they host', async () => {
   fixture({ canEdit: true, canManageBookings: false });
   await selectOwner('Team · Design');
   expect(screen.getByRole('button', { name: 'New booking link' })).toBeTruthy();
 
   fireEvent.click(screen.getByRole('tab', { name: 'Bookings' }));
   expect(await screen.findByText('Guest')).toBeTruthy();
-  expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Reschedule' })).toBeNull();
+  expect(screen.getByText('Own guest')).toBeTruthy();
+  // One Cancel and one Reschedule: the meeting they host, not the teammate's.
+  expect(screen.getAllByRole('button', { name: 'Cancel' })).toHaveLength(1);
+  expect(screen.getAllByRole('button', { name: 'Reschedule' })).toHaveLength(1);
 });

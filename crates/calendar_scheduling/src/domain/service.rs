@@ -613,11 +613,7 @@ impl<R: Repository, C: Calendars, D: Directory> Service<R, C, D> {
             .profile(record.profile_id)
             .await?
             .ok_or(Error::NotFound)?;
-        if record.booking.hosts.iter().any(|host| host == user) {
-            self.authorize(user, &owner, false).await?;
-        } else {
-            self.authorize(user, &owner, true).await?;
-        }
+        self.authorize_booking(user, &owner, &record).await?;
         if record.booking.status != BookingStatus::Confirmed || record.booking.ends_at > Utc::now()
         {
             return Err(Error::Invalid(
@@ -690,8 +686,18 @@ impl<R: Repository, C: Calendars, D: Directory> Service<R, C, D> {
             .profile(record.profile_id)
             .await?
             .ok_or(Error::NotFound)?;
-        self.authorize(user, &owner, true).await?;
+        self.authorize_booking(user, &owner, &record).await?;
         Ok(record)
+    }
+    /// Hosts may manage the meetings they host; anyone else needs admin rights.
+    async fn authorize_booking(
+        &self,
+        user: &str,
+        owner: &OwnedProfile,
+        record: &BookingRecord,
+    ) -> Result<(), Error> {
+        let hosts = record.booking.hosts.iter().any(|host| host == user);
+        self.authorize(user, owner, !hosts).await
     }
     /// Read a booking using its unguessable booker capability.
     pub async fn receipt(&self, id: Uuid, token: Uuid) -> Result<BookingRecord, Error> {
@@ -811,7 +817,7 @@ impl<R: Repository, C: Calendars, D: Directory> Service<R, C, D> {
                 .profile(record.profile_id)
                 .await?
                 .ok_or(Error::NotFound)?;
-            self.authorize(user.ok_or(Error::Forbidden)?, &owner, true)
+            self.authorize_booking(user.ok_or(Error::Forbidden)?, &owner, &record)
                 .await?;
         }
         if record.booking.status == BookingStatus::Cancelled {

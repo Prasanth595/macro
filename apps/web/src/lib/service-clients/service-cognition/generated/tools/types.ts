@@ -9407,7 +9407,7 @@ export interface InsightCounts {
   hostNoShow: number;
 }
 /**
- * Find available replacement times for a booking discovered through ListBookings. The date is in the booking schedule time zone. Only the personal owner or team administrators may reschedule it. Returns absolute start/end times for ChangeBooking reschedule; availability is checked again when moving the meeting.
+ * Find available replacement times for a booking discovered through ListBookings. The date is in the booking schedule time zone. Only the personal owner, a host of the meeting or team administrators may reschedule it. Returns absolute start/end times for ChangeBooking reschedule; availability is checked again when moving the meeting.
  */
 export interface GetBookingRescheduleSlots {
   /**

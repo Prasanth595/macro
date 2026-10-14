@@ -645,6 +645,45 @@ async fn approval_rechecks_assigned_hosts_even_after_link_removal() {
 }
 
 #[tokio::test]
+async fn hosts_manage_the_team_meetings_they_host() {
+    let store = Arc::new(Memory::default());
+    let service = TestService::new(store.clone(), Arc::new(Calendar::default()), Members);
+    let team = Some(Uuid::new_v4());
+    let mut p = profile(team);
+    p.event_types[0].hosts = vec!["member".into()];
+    let p = service.save("admin", team, p).await.unwrap();
+    let r = service
+        .book(p.id, p.event_types[0].id, request())
+        .await
+        .unwrap();
+    let set_hosts = |hosts: &[&str]| {
+        let mut data = store.bookings.lock().unwrap();
+        data.get_mut(&r.booking.id).unwrap().booking.hosts =
+            hosts.iter().map(|host| host.to_string()).collect();
+    };
+    set_hosts(&["admin"]);
+    assert!(matches!(
+        service.manage("member", r.booking.id).await,
+        Err(Error::Forbidden)
+    ));
+    assert!(matches!(
+        service.cancel(r.booking.id, None, Some("member")).await,
+        Err(Error::Forbidden)
+    ));
+    set_hosts(&["member"]);
+    assert!(service.manage("admin", r.booking.id).await.is_ok());
+    assert!(service.manage("member", r.booking.id).await.is_ok());
+    assert_eq!(
+        service
+            .cancel(r.booking.id, None, Some("member"))
+            .await
+            .unwrap()
+            .status,
+        BookingStatus::Cancelled
+    );
+}
+
+#[tokio::test]
 async fn attendance_requires_finished_confirmed_booking_and_current_host_or_admin() {
     let store = Arc::new(Memory::default());
     let service = TestService::new(store.clone(), Arc::new(Calendar::default()), Members);
