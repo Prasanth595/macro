@@ -46,4 +46,4 @@ Typed per-environment URLs for every Macro service and gateway, resolved from
 ## Related
 
 - Rules: `.agents/rules/config-and-service-urls.md` ·
-  Docs: `docs/development/new-service.md` (§5 Service discovery)
+  Docs: `docs/guides/new-service.md` (§5 Service discovery)

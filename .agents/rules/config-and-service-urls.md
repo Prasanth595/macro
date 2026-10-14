@@ -57,5 +57,5 @@ startup loudly.
   `wrangler.docker.toml`; secrets via `wrangler secret put`; type them in the
   worker's env module.
 
-Details: [new service guide](../../docs/development/new-service.md),
+Details: [new service guide](../../docs/guides/new-service.md),
 [infrastructure guide](../../docs/development/infrastructure.md).

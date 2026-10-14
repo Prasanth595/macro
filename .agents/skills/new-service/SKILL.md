@@ -5,7 +5,7 @@ description: Create and register a new deployable service (Rust ECS service, wor
 
 # New service
 
-Follow [docs/development/new-service.md](../../../docs/development/new-service.md)
+Follow [docs/guides/new-service.md](../../../docs/guides/new-service.md)
 section by section. It is the checklist; this skill makes sure none of it is skipped.
 
 1. Pick the model to copy from the guide's table and say which one.

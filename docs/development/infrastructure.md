@@ -5,7 +5,7 @@ in `us-east-1`; the observability pilot (`infra/stacks/observability`) runs in
 `us-east-2`. Cloudflare Workers deploy with `wrangler`, not Pulumi. This
 guide covers how the code is laid out, the patterns to copy, how deploys happen,
 and the traps. To add a whole service, follow the
-[new service guide](new-service.md).
+[new service guide](../guides/new-service.md).
 
 > **Agents never deploy.** Do not run `pulumi up`, `pulumi destroy`,
 > `wrangler deploy`, `wrangler secret put`, or a deploy workflow dispatch unless the

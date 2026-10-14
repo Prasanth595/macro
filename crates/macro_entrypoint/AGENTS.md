@@ -49,4 +49,4 @@ first thing nearly every Rust service's `main.rs` calls.
 
 ## Related
 
-- Skill: `new-service` · Docs: `docs/development/new-service.md`
+- Skill: `new-service` · Docs: `docs/guides/new-service.md`

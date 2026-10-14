@@ -6,7 +6,7 @@ and needed a follow-up fix; those misses are called out inline.
 
 > **Agents never deploy.** Everything here is code and config in a PR. The first
 > deploy, Doppler secrets, and DNS are done by a person or on their explicit
-> request. See the [infrastructure guide](infrastructure.md).
+> request. See the [infrastructure guide](../development/infrastructure.md).
 
 ## Pick a model to copy
 
@@ -35,7 +35,7 @@ cautionary example.
   `inbound/`, `domain/`, and `outbound/` (see the
   [hexagonal architecture skill](../../.agents/skills/cloud-storage-hexagonal-architecture/SKILL.md)).
 - If it uses `sqlx::query!`, run `nix develop --command just prepare_db` and commit
-  the root `.sqlx/` ([database guide](database.md)).
+  the root `.sqlx/` ([database guide](../development/database.md)).
 
 ### `main.rs`, in order
 
@@ -78,7 +78,7 @@ Listen on `8080` by default; the Dockerfile sets `PORT=8080`.
 
 ## 3. Infrastructure
 
-Follow the [infrastructure guide](infrastructure.md) for the pattern itself.
+Follow the [infrastructure guide](../development/infrastructure.md) for the pattern itself.
 
 - Create `infra/stacks/<kebab-name>/` (`Pulumi.yaml`, `Pulumi.dev.yaml`,
   `Pulumi.prod.yaml`, `package.json`, `tsconfig.json`, `index.ts`, `service.ts`) by

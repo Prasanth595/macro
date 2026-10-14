@@ -49,4 +49,4 @@ mutations, and calendar scheduling behind the gateway `/calendar` prefix.
 ## Related
 
 - Rules: `.agents/rules/config-and-service-urls.md` · Skill: `new-service` ·
-  Docs: `docs/development/new-service.md` (uses this service as the model)
+  Docs: `docs/guides/new-service.md` (uses this service as the model)

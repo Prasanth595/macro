@@ -3,6 +3,7 @@
 | Directory | Contents |
 | --- | --- |
 | [`development/`](development/) | How to build, run, test, and style code in this repository. |
+| [`guides/`](guides/) | End-to-end walkthroughs: adding a service, entity, block, and more. |
 | [`architecture/`](architecture/) | How shipped systems work today. |
 | [`design/`](design/) | Proposals, plans, and audits; check each doc's status. |
 | [`runbooks/`](runbooks/) | Rollouts, migrations, imports, and demos with operational steps. |
