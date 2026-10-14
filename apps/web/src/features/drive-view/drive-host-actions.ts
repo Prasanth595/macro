@@ -23,6 +23,8 @@ import {
 import type { Accessor } from 'solid-js';
 import type { DriveHostActions } from './context/drive-context';
 import { useDriveDetailNavigation } from './drive-detail-navigation';
+import { documentTargetFromRoute } from './primitives/drive-detail-trail';
+import { driveDocumentFromContent } from './primitives/drive-route';
 
 /** App-specific navigation, upload and sharing adapters for the Drive workspace. */
 export function createDriveHostActions(options: {
@@ -133,6 +135,14 @@ export function createDriveHostActions(options: {
       if (result.status === 'reused' && result.owner !== result.sourceOwner) {
         toast.alert('Content already open');
       }
+    },
+
+    openCreatedDocument({ blockName, id }) {
+      const target = documentTargetFromRoute(
+        driveDocumentFromContent({ type: blockName, id })
+      );
+
+      return target !== undefined && navigation.openRoot(target);
     },
 
     openFolderInNewSplit: (folder) => {

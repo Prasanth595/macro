@@ -7,6 +7,7 @@ const host = vi.hoisted(() => ({
   popoverSplit: vi.fn(),
   openWithSplit: vi.fn(),
   createFolder: vi.fn(),
+  createSpreadsheet: vi.fn(async () => 'sheet-1' as string | undefined),
   projectFlag: (): boolean | undefined => true,
   carouselFlag: (): boolean | undefined => undefined,
 }));
@@ -26,15 +27,14 @@ vi.mock(
   '@app/features/block-spreadsheet/primitives/use-spreadsheet-access',
   () => ({ useSpreadsheetAccess: () => () => false })
 );
-vi.mock(
-  '@app/features/block-spreadsheet/queries/create-spreadsheet',
-  () => ({})
-);
+vi.mock('@app/features/block-spreadsheet/queries/create-spreadsheet', () => ({
+  createSpreadsheetDocument: host.createSpreadsheet,
+}));
 vi.mock('@app/features/block-ai/queries/create-ai', () => ({}));
 vi.mock('@app/features/block-psd/queries/create-psd', () => ({}));
 vi.mock('@app/features/block-fig/queries/create-fig', () => ({}));
 vi.mock('@app/features/block-spreadsheet/queries/spreadsheet-access', () => ({
-  isSpreadsheetEnabledForCurrentUser: () => false,
+  isSpreadsheetEnabledForCurrentUser: () => true,
 }));
 vi.mock('@app/features/email-compose/core/constants', () => ({}));
 vi.mock('@app/features/reminders/reminder-composer', () => ({}));
@@ -195,6 +195,59 @@ it('offers Project in the shared create menu and opens its native composer', () 
   expect(createMenuOpen()).toBe(false);
   expect(host.openWithSplit).not.toHaveBeenCalled();
   expect(host.createFolder).not.toHaveBeenCalled();
+});
+
+it('shows a loading pane while a document is created, then opens it there', async () => {
+  const replace = vi.fn();
+  host.openWithSplit.mockReturnValueOnce({ split: { replace } });
+
+  runCreateAction('spreadsheet', { projectId: 'folder-1', source: 'drive' });
+
+  expect(host.openWithSplit).toHaveBeenCalledExactlyOnceWith(
+    { type: 'component', id: 'loading' },
+    { referredFrom: 'launcher', preferNewSplit: false }
+  );
+  await vi.waitFor(() => expect(replace).toHaveBeenCalledOnce());
+  expect(replace).toHaveBeenCalledWith({
+    next: { type: 'spreadsheet', id: 'sheet-1', params: undefined },
+    mergeHistory: true,
+    referredFrom: 'launcher',
+  });
+});
+
+it('lets the requesting surface keep its content and open the new document itself', async () => {
+  const openCreated = vi.fn(() => true);
+
+  runCreateAction('spreadsheet', {
+    projectId: 'folder-1',
+    source: 'drive',
+    openCreated,
+  });
+
+  await vi.waitFor(() =>
+    expect(openCreated).toHaveBeenCalledExactlyOnceWith({
+      blockName: 'spreadsheet',
+      id: 'sheet-1',
+    })
+  );
+  expect(host.createSpreadsheet).toHaveBeenCalledWith({
+    projectId: 'folder-1',
+    source: 'drive',
+  });
+  expect(host.openWithSplit).not.toHaveBeenCalled();
+});
+
+it('opens the new document in a split when the requesting surface declines it', async () => {
+  const openCreated = vi.fn(() => false);
+
+  runCreateAction('spreadsheet', { openCreated });
+
+  await vi.waitFor(() => expect(host.openWithSplit).toHaveBeenCalledOnce());
+  expect(openCreated).toHaveBeenCalledOnce();
+  expect(host.openWithSplit).toHaveBeenCalledWith(
+    { type: 'spreadsheet', id: 'sheet-1' },
+    { referredFrom: 'launcher', preferNewSplit: false }
+  );
 });
 
 it('opens the Folder composer without creating a folder immediately', () => {

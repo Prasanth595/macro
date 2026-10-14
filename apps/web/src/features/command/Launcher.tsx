@@ -91,7 +91,11 @@ import {
 } from './core/launcher-history';
 import { createCallCommand } from './create-call-command';
 import { MobileCreateSheet } from './mobile/MobileCreateSheet';
-import type { CreatableBlock, CreatableName } from './types';
+import type {
+  CreatableBlock,
+  CreatableName,
+  OpenCreatedDocument,
+} from './types';
 
 const LAUNCHER_FRECENCY_STORE = 'launcher-frecency-v1';
 const LAUNCHER_SEARCH_MODE_STORE = 'launcher-search-mode-v1';
@@ -150,17 +154,19 @@ const createBlock = async (spec: {
   createFn: () => Promise<string | undefined>;
   loading?: boolean;
   shouldInsert?: boolean;
+  openCreated?: OpenCreatedDocument;
   /** Active creation span; registered by document id after creation. */
   span?: Span;
 }) => {
   const { openWithSplit } = useSplitLayout();
-  const { blockName, createFn, loading, span } = spec;
+  const { blockName, createFn, loading, openCreated, span } = spec;
 
   setCreateMenuOpen(false, false);
 
   // On mobile, navigate directly after creation instead of showing an
-  // intermediate loading pane during the swipe transition.
-  const showLoadingFirst = loading && !isMobile();
+  // intermediate loading pane during the swipe transition. The loading pane
+  // would also unmount a surface that opens the document itself.
+  const showLoadingFirst = loading && !isMobile() && !openCreated;
 
   const split = showLoadingFirst
     ? openWithSplit(
@@ -179,6 +185,11 @@ const createBlock = async (spec: {
 
   span?.setAttr('document.id', id);
   if (span) registerDocumentSpan(id, span);
+
+  if (openCreated?.({ blockName, id })) {
+    span?.event('doc.navigated');
+    return;
+  }
 
   // If we are creating a new markdown document "from scratch" then we can let
   // them instantly start editing
@@ -252,9 +263,12 @@ export function runCreateAction(
     source?: string;
     projectId?: string;
     destination?: string;
+    /** Applies to documents; other creatables open as they otherwise would. */
+    openCreated?: OpenCreatedDocument;
   } = {}
 ) {
   const shouldInsert = options.shouldInsert ?? false;
+  const openCreated = options.openCreated;
   // Creation analytics fire at the data-layer chokepoints (create.ts /
   // projects.ts); `source` just attributes which surface initiated it.
   const source = options.source ?? 'create_menu';
@@ -278,6 +292,7 @@ export function runCreateAction(
                 source,
               }),
             shouldInsert,
+            openCreated,
           })
         )
         .catch((error) => {
@@ -298,6 +313,7 @@ export function runCreateAction(
             source,
           }),
         shouldInsert,
+        openCreated,
       });
       return;
     case 'psd':
@@ -308,6 +324,7 @@ export function runCreateAction(
         createFn: () =>
           createPsdDocument({ projectId: options.projectId, source }),
         shouldInsert,
+        openCreated,
       });
       return;
     case 'fig':
@@ -318,6 +335,7 @@ export function runCreateAction(
         createFn: () =>
           createFigDocument({ projectId: options.projectId, source }),
         shouldInsert,
+        openCreated,
       });
       return;
     case 'ai':
@@ -328,6 +346,7 @@ export function runCreateAction(
         createFn: () =>
           createAiDocument({ projectId: options.projectId, source }),
         shouldInsert,
+        openCreated,
       });
       return;
     case 'canvas':
@@ -345,6 +364,7 @@ export function runCreateAction(
           return result.documentId ?? undefined;
         },
         shouldInsert,
+        openCreated,
       });
       return;
     case 'task':
@@ -372,6 +392,7 @@ export function runCreateAction(
             source,
           }),
         shouldInsert,
+        openCreated,
       });
       return;
     case 'email':
@@ -484,6 +505,7 @@ export function runCreateAction(
           return result.value.documentId ?? undefined;
         },
         shouldInsert,
+        openCreated,
       });
       return;
     case 'routine':
