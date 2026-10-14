@@ -515,7 +515,7 @@ describe('database table view', () => {
         });
         fireEvent.input(input, { target: { value: 'Invalid number' } });
         fireEvent.keyDown(input, { key: 'Enter' });
-        expect(within(dialog).getByRole('alert').textContent).toBe(
+        expect(screen.getByRole('alert').textContent).toBe(
           'Enter a valid number'
         );
       }
@@ -529,7 +529,7 @@ describe('database table view', () => {
       expect(
         within(dialog).queryByRole('textbox', { name: 'Edit Amount' })
       ).toBeNull();
-      expect(within(dialog).queryByRole('alert')).toBeNull();
+      expect(screen.queryByRole('alert')).toBeNull();
       const title = within(dialog).getByRole('textbox', {
         name: 'Edit Name',
       }) as HTMLInputElement;
