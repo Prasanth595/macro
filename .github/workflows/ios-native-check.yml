@@ -5,6 +5,7 @@ name: iOS Native Check
   pull_request:
     types:
     - opened
+    - edited
     - synchronize
     - reopened
     - ready_for_review
@@ -30,6 +31,9 @@ jobs:
         filters: |
           ios_native:
             - 'apps/web/tauri/**'
+            - '!apps/web/tauri/android_*/**'
+            - '!apps/web/tauri/desktop-release.json'
+            - '!apps/web/tauri/.helix/**'
     - name: Setup Bun
       if: steps.filter.outputs.ios_native == 'true' && !contains(github.event.pull_request.labels.*.name, 'skip-ios-update')
       uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
@@ -55,7 +59,7 @@ jobs:
         # decoded to $RUNNER_TEMP and exported as APPLE_DISTRIBUTION_CERTIFICATE_PATH
         # / _PASSWORD for the signing step.
         if [ -z "${DOPPLER_TOKEN:-}" ]; then
-          echo "IOS_RELEASE_DOPPLER_TOKEN must grant read access to ios-release/prd" >&2
+          echo "DOPPLER_TOKEN is empty: the IOS_RELEASE_DOPPLER_TOKEN secret is missing, or this is a fork PR (secrets are not available to forks; a maintainer must run the release from a branch in this repository, or add skip-ios-update if the change is non-breaking)." >&2
           exit 1
         fi
 

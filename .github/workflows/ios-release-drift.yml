@@ -18,27 +18,60 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
-      NATIVE_TREE_PATH: apps/web/tauri
     timeout-minutes: 15
     steps:
+    - name: Checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      with:
+        clean: 'false'
+        persist-credentials: 'false'
     - id: detect
       name: Detect native changes in this push
       run: |
+        # --- native tree ------------------------------------------------------------
+        # Hash identifying "the iOS native code" at a commit: every tracked blob under
+        # apps/web/tauri except the paths that never reach the iOS binary — the
+        # Android-only plugins (android-only cargo target dependencies), the desktop
+        # updater manifest, and editor config. The release stamps uploaded builds
+        # with it, the merge gate compares the live build's stamp against the merge
+        # result's, and the drift / head guards compare commits with it. Must match
+        # nativeTreeHash() in apps/web/scripts/ios-app-store.mjs and the iOS Native
+        # Check path filter (ios_native_check.rs).
+        NATIVE_TREE_PATH=apps/web/tauri
+        NATIVE_TREE_EXCLUDE='^(android_[^/]*/|desktop-release\.json$|\.helix/)'
+
+        # native_tree_hash <commit>: prints the hash, fails if the path is missing.
+        # (--full-tree: ls-tree otherwise narrows its output to the current directory,
+        # which would silently hash nothing when run from apps/web.)
+        native_tree_hash() {
+          git rev-parse -q --verify "$1:${NATIVE_TREE_PATH}" >/dev/null || return 1
+          git ls-tree -r --full-tree "$1:${NATIVE_TREE_PATH}" \
+            | awk -F'\t' -v exclude="$NATIVE_TREE_EXCLUDE" '$2 !~ exclude' \
+            | git hash-object --stdin
+        }
+
+        # native_tree_fetch <sha>: make a commit that is not in this checkout (a new
+        # PR head, GitHub's test merge commit, the pre-push head) available to
+        # native_tree_hash. Checkouts here don't persist credentials, so authenticate
+        # the way actions/checkout does. Fails if the commit is unreachable (a
+        # force-pushed-away head).
+        native_tree_fetch() {
+          local auth
+          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth}" \
+            fetch -q --depth=1 origin "$1"
+        }
+        # ----------------------------------------------------------------------------
         set -euo pipefail
         # A push landed on a PR that carries ios-update. Compare the native tree
-        # before and after the push (through the API: this works for force-pushes too
-        # and needs no checkout). Only native changes matter — web-only commits ship
-        # over the air after the merge.
-        tree_hash() {
-          local sha=$1 part
-          for part in ${NATIVE_TREE_PATH//\// }; do
-            sha=$(gh api "repos/${GH_REPO}/git/trees/${sha}" --jq ".tree[] | select(.path == \"${part}\") | .sha" 2>/dev/null) || return 1
-            [[ -n "$sha" ]] || return 1
-          done
-          echo "$sha"
-        }
-        before_tree=$(tree_hash "$BEFORE_SHA" || echo "unknown")
-        after_tree=$(tree_hash "$AFTER_SHA")
+        # before and after the push. Only native changes matter — web-only commits
+        # ship over the air after the merge. A force-push that discarded the old
+        # head counts as changed: nothing proves the released build still matches.
+        if native_tree_fetch "$BEFORE_SHA" && before_tree=$(native_tree_hash "$BEFORE_SHA"); then :; else
+          before_tree=unknown
+        fi
+        native_tree_fetch "$AFTER_SHA"
+        after_tree=$(native_tree_hash "$AFTER_SHA")
         echo "native tree before: ${before_tree}"
         echo "native tree after:  ${after_tree}"
         if [[ "$before_tree" == "$after_tree" ]]; then
@@ -67,15 +100,21 @@ jobs:
           echo "Cancelling release run ${run_id} (it would upload a build of the old head)."
           gh run cancel "$run_id" --repo "$GH_REPO" || true
         done
+        # Wait for them to stop: a run already inside `submit` could
+        # otherwise submit after the withdrawal below looked for nothing.
+        deadline=$(( $(date +%s) + 180 ))
+        for run_id in $runs; do
+          while [[ "$(gh run view "$run_id" --repo "$GH_REPO" --json status --jq .status)" != "completed" ]]; do
+            if (( $(date +%s) > deadline )); then
+              echo "::warning::Release run ${run_id} is still not completed; withdrawing anyway."
+              break
+            fi
+            sleep 10
+          done
+        done
       shell: bash
       env:
         HEAD_REF: ${{ github.event.pull_request.head.ref }}
-    - name: Checkout
-      if: steps.detect.outputs.changed == 'true'
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
-      with:
-        clean: 'false'
-        persist-credentials: 'false'
     - name: Setup Bun
       if: steps.detect.outputs.changed == 'true'
       uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
@@ -95,7 +134,7 @@ jobs:
         # decoded to $RUNNER_TEMP and exported as APPLE_DISTRIBUTION_CERTIFICATE_PATH
         # / _PASSWORD for the signing step.
         if [ -z "${DOPPLER_TOKEN:-}" ]; then
-          echo "IOS_RELEASE_DOPPLER_TOKEN must grant read access to ios-release/prd" >&2
+          echo "DOPPLER_TOKEN is empty: the IOS_RELEASE_DOPPLER_TOKEN secret is missing, or this is a fork PR (secrets are not available to forks; a maintainer must run the release from a branch in this repository, or add skip-ios-update if the change is non-breaking)." >&2
           exit 1
         fi
 
@@ -163,7 +202,7 @@ jobs:
         if [[ "$WITHDRAW_OUTCOME" != "success" ]]; then
           body="🚨 Native changes were pushed to this PR after its App Store release started, but withdrawing the App Review submission **failed** (see the [workflow run](${RUN_URL})). If a submission is pending, remove it from review in App Store Connect by hand so the stale build cannot go live. The \`ios-update\` label was removed; when the PR is ready again, bump (\`${bump}\`), commit, push, and re-add \`ios-update\`."
         elif [[ -n "$LIVE" ]]; then
-          body="🚨 Native changes were pushed to this PR after iOS ${LIVE} had already been released to the App Store, so that build is live with native code this PR no longer matches. Bump (\`${bump}\`), commit, re-add the \`ios-update\` label, and ship the follow-up as soon as possible. The label was removed."
+          body="🚨 Native changes were pushed to this PR after Apple had already approved iOS ${LIVE}, so that build is (or is about to be) live with native code this PR no longer matches. Bump (\`${bump}\`), commit, re-add the \`ios-update\` label, and ship the follow-up as soon as possible. The label was removed."
         else
           body="📱 Native code changed after this PR's App Store release started, so the release was stopped: any in-progress build was cancelled and any pending App Review submission withdrawn (nothing stale can go live), and the \`ios-update\` label was removed. When the PR is ready again, bump (\`${bump}\`; the marketing version stays, the build number moves), commit, push, and re-add \`ios-update\`."
         fi

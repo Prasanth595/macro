@@ -93,7 +93,10 @@ fn fetch_credentials() -> Step<Run> {
 
 fn rerun_live_checks() -> Step<Run> {
     Step::new("Re-run the check on PRs whose release is live")
-        .run(include_str!("scripts/ios_release_watch.sh"))
+        .run(concat!(
+            include_str!("scripts/ios_native_tree.sh"),
+            include_str!("scripts/ios_release_watch.sh")
+        ))
         .shell("bash")
         .if_condition(gated())
         .add_env(("PRS", "${{ steps.prs.outputs.prs }}"))

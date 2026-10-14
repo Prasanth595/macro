@@ -9,17 +9,6 @@ set -euo pipefail
 cd apps/web
 conf_path="apps/web/tauri/src-tauri/tauri.ios.conf.json"
 
-# Git tree hash of a path at a commit, via the API (this checkout is main, not
-# the PR): walks the tree one path component at a time.
-tree_hash() {
-  local sha=$1 part
-  for part in ${2//\// }; do
-    sha=$(gh api "repos/${GH_REPO}/git/trees/${sha}" --jq ".tree[] | select(.path == \"${part}\") | .sha")
-    [[ -n "$sha" ]] || return 1
-  done
-  echo "$sha"
-}
-
 check_pr() {
   local pr=$1 number sha merge conf version build native_tree run run_id status conclusion attempt run_url
   number=$(jq -r '.number' <<<"$pr")
@@ -32,7 +21,8 @@ check_pr() {
   conf=$(gh api "repos/${GH_REPO}/contents/${conf_path}?ref=${sha}" --jq '.content' | base64 --decode)
   version=$(jq -r '.version' <<<"$conf")
   build=$(jq -r '.bundle.iOS.bundleVersion' <<<"$conf")
-  native_tree=$(tree_hash "$merge" "apps/web/tauri")
+  native_tree_fetch "$merge"
+  native_tree=$(native_tree_hash "$merge")
   echo "PR #${number}: iOS ${version} (build ${build}) at ${sha:0:10}, merge-result native tree ${native_tree:0:10}"
 
   if ! bun scripts/ios-app-store.mjs status --require-live \

@@ -55,7 +55,7 @@ jobs:
         # decoded to $RUNNER_TEMP and exported as APPLE_DISTRIBUTION_CERTIFICATE_PATH
         # / _PASSWORD for the signing step.
         if [ -z "${DOPPLER_TOKEN:-}" ]; then
-          echo "IOS_RELEASE_DOPPLER_TOKEN must grant read access to ios-release/prd" >&2
+          echo "DOPPLER_TOKEN is empty: the IOS_RELEASE_DOPPLER_TOKEN secret is missing, or this is a fork PR (secrets are not available to forks; a maintainer must run the release from a branch in this repository, or add skip-ios-update if the change is non-breaking)." >&2
           exit 1
         fi
 
@@ -109,6 +109,40 @@ jobs:
     - name: Re-run the check on PRs whose release is live
       if: steps.prs.outputs.count != '0'
       run: |
+        # --- native tree ------------------------------------------------------------
+        # Hash identifying "the iOS native code" at a commit: every tracked blob under
+        # apps/web/tauri except the paths that never reach the iOS binary — the
+        # Android-only plugins (android-only cargo target dependencies), the desktop
+        # updater manifest, and editor config. The release stamps uploaded builds
+        # with it, the merge gate compares the live build's stamp against the merge
+        # result's, and the drift / head guards compare commits with it. Must match
+        # nativeTreeHash() in apps/web/scripts/ios-app-store.mjs and the iOS Native
+        # Check path filter (ios_native_check.rs).
+        NATIVE_TREE_PATH=apps/web/tauri
+        NATIVE_TREE_EXCLUDE='^(android_[^/]*/|desktop-release\.json$|\.helix/)'
+
+        # native_tree_hash <commit>: prints the hash, fails if the path is missing.
+        # (--full-tree: ls-tree otherwise narrows its output to the current directory,
+        # which would silently hash nothing when run from apps/web.)
+        native_tree_hash() {
+          git rev-parse -q --verify "$1:${NATIVE_TREE_PATH}" >/dev/null || return 1
+          git ls-tree -r --full-tree "$1:${NATIVE_TREE_PATH}" \
+            | awk -F'\t' -v exclude="$NATIVE_TREE_EXCLUDE" '$2 !~ exclude' \
+            | git hash-object --stdin
+        }
+
+        # native_tree_fetch <sha>: make a commit that is not in this checkout (a new
+        # PR head, GitHub's test merge commit, the pre-push head) available to
+        # native_tree_hash. Checkouts here don't persist credentials, so authenticate
+        # the way actions/checkout does. Fails if the commit is unreachable (a
+        # force-pushed-away head).
+        native_tree_fetch() {
+          local auth
+          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth}" \
+            fetch -q --depth=1 origin "$1"
+        }
+        # ----------------------------------------------------------------------------
         set -euo pipefail
         # For each open PR labeled `ios-update` (PRS: [{number, sha, merge}]), ask App
         # Store Connect whether the iOS version + build committed at the PR head is
@@ -119,17 +153,6 @@ jobs:
         # clicking "Re-run". GH_TOKEN needs actions:write + pull-requests:write.
         cd apps/web
         conf_path="apps/web/tauri/src-tauri/tauri.ios.conf.json"
-
-        # Git tree hash of a path at a commit, via the API (this checkout is main, not
-        # the PR): walks the tree one path component at a time.
-        tree_hash() {
-          local sha=$1 part
-          for part in ${2//\// }; do
-            sha=$(gh api "repos/${GH_REPO}/git/trees/${sha}" --jq ".tree[] | select(.path == \"${part}\") | .sha")
-            [[ -n "$sha" ]] || return 1
-          done
-          echo "$sha"
-        }
 
         check_pr() {
           local pr=$1 number sha merge conf version build native_tree run run_id status conclusion attempt run_url
@@ -143,7 +166,8 @@ jobs:
           conf=$(gh api "repos/${GH_REPO}/contents/${conf_path}?ref=${sha}" --jq '.content' | base64 --decode)
           version=$(jq -r '.version' <<<"$conf")
           build=$(jq -r '.bundle.iOS.bundleVersion' <<<"$conf")
-          native_tree=$(tree_hash "$merge" "apps/web/tauri")
+          native_tree_fetch "$merge"
+          native_tree=$(native_tree_hash "$merge")
           echo "PR #${number}: iOS ${version} (build ${build}) at ${sha:0:10}, merge-result native tree ${native_tree:0:10}"
 
           if ! bun scripts/ios-app-store.mjs status --require-live \

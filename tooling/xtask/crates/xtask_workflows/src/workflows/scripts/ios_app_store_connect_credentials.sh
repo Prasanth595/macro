@@ -9,7 +9,7 @@ set -euo pipefail
 # decoded to $RUNNER_TEMP and exported as APPLE_DISTRIBUTION_CERTIFICATE_PATH
 # / _PASSWORD for the signing step.
 if [ -z "${DOPPLER_TOKEN:-}" ]; then
-  echo "IOS_RELEASE_DOPPLER_TOKEN must grant read access to ios-release/prd" >&2
+  echo "DOPPLER_TOKEN is empty: the IOS_RELEASE_DOPPLER_TOKEN secret is missing, or this is a fork PR (secrets are not available to forks; a maintainer must run the release from a branch in this repository, or add skip-ios-update if the change is non-breaking)." >&2
   exit 1
 fi
 

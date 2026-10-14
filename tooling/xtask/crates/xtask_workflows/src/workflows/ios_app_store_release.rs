@@ -63,12 +63,15 @@ fn release_job() -> Job {
             Permissions::default()
                 .checks(Level::Read)
                 .contents(Level::Read)
-                .pull_requests(Level::Write),
+                .pull_requests(Level::Write)
+                // `gh pr checks` also reads commit statuses (the CLA check).
+                .statuses(Level::Read),
         )
         .add_env(("GH_TOKEN", "${{ github.token }}"))
         .add_env(("GH_REPO", "${{ github.repository }}"))
         .add_env(("PR_NUMBER", "${{ github.event.pull_request.number }}"))
         .add_step(checkout_pr_head())
+        .add_step(require_cli_tools())
         .add_step(preconditions())
         .add_step(steps::install_nix_macos())
         .add_step(verify_bump())
@@ -86,20 +89,43 @@ fn release_job() -> Job {
 /// commit green (pending ones are waited on). Fails before the long build.
 fn preconditions() -> Step<Run> {
     Step::new("Require the PR to be ready to merge")
-        .run(include_str!("scripts/ios_release_preconditions.sh"))
+        .run(concat!(
+            include_str!("scripts/ios_native_tree.sh"),
+            include_str!("scripts/ios_release_preconditions.sh")
+        ))
         .shell("bash")
         .add_env(("HEAD_SHA", "${{ github.event.pull_request.head.sha }}"))
-        .add_env(("NATIVE_TREE_PATH", "apps/web/tauri"))
         .add_env(("WAIT_MINUTES", "20"))
+}
+
+/// The pre-build steps run outside the Nix dev shell (it isn't installed
+/// yet) and need `gh` + `jq`; the Namespace macOS image is not guaranteed to
+/// ship them.
+fn require_cli_tools() -> Step<Run> {
+    Step::new("Ensure gh and jq are installed")
+        .run(indoc::indoc! {r#"
+            set -euo pipefail
+            for tool in gh jq; do
+              if ! command -v "$tool" >/dev/null; then
+                echo "${tool} missing on this runner; installing with Homebrew."
+                brew install "$tool"
+              fi
+            done
+            gh --version | head -1
+            jq --version
+        "#})
+        .shell("bash")
 }
 
 /// Native code pushed while the build ran would make the upload stale; don't
 /// submit it (the drift workflow also withdraws after the fact).
 fn head_guard() -> Step<Run> {
     Step::new("Require the PR's native code to be unchanged since the build")
-        .run(include_str!("scripts/ios_release_head_guard.sh"))
+        .run(concat!(
+            include_str!("scripts/ios_native_tree.sh"),
+            include_str!("scripts/ios_release_head_guard.sh")
+        ))
         .shell("bash")
-        .add_env(("NATIVE_TREE_PATH", "apps/web/tauri"))
 }
 
 fn checkout_pr_head() -> Step<Use> {
@@ -227,7 +253,7 @@ fn pr_comment() -> Step<Use> {
                       'the **iOS Release Watch** workflow re-runs the **iOS Native Check** on this PR',
                       'within half an hour of that, and the PR becomes mergeable. To merge it the',
                       'moment that happens, click **Enable auto-merge** on this PR now (squash).',
-                      `After merge, the next prod deploy raises the iOS native build floor (\`MIN_NATIVE_BUILD_IOS\`) to ${build}, prompting older installs to update.`,
+                      'After merge, the next prod deploy applies the iOS native build floor committed in `min-native-build.json`, prompting older installs to update.',
                       '',
                       `[Workflow run](${runUrl})`,
                     ].join('\n')

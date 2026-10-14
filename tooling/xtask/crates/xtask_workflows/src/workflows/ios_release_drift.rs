@@ -7,7 +7,7 @@
 //! workflow:
 //!
 //! 1. cancels any [`super::ios_app_store_release`] run still building the
-//!    old head,
+//!    old head and waits for it to stop,
 //! 2. withdraws the PR's submission from review in App Store Connect
 //!    (`ios-app-store.mjs withdraw`, found by the PR number in the build
 //!    stamp) so nothing stale can go live,
@@ -17,8 +17,8 @@
 //!    keeps the marketing version and `submit` takes the withdrawn version
 //!    record over.
 //!
-//! If Apple had already released the stale build there is nothing to
-//! withdraw; the comment then says so loudly.
+//! If Apple had already approved or released the stale build there is
+//! nothing to withdraw; the comment then says so loudly.
 
 use gh_workflow::{
     Event, Expression, Job, Level, Permissions, PullRequest, PullRequestType, Run, Step, Use,
@@ -55,10 +55,9 @@ fn drift_job() -> Job {
         .add_env(("GH_TOKEN", "${{ github.token }}"))
         .add_env(("GH_REPO", "${{ github.repository }}"))
         .add_env(("PR_NUMBER", "${{ github.event.pull_request.number }}"))
-        .add_env(("NATIVE_TREE_PATH", "apps/web/tauri"))
+        .add_step(steps::checkout(false, false))
         .add_step(detect())
         .add_step(cancel_release_runs())
-        .add_step(steps::checkout(false, false).if_condition(changed()))
         .add_step(setup_bun())
         .add_step(fetch_credentials())
         .add_step(withdraw())
@@ -72,7 +71,10 @@ fn changed() -> Expression {
 
 fn detect() -> Step<Run> {
     Step::new("Detect native changes in this push")
-        .run(include_str!("scripts/ios_release_drift.sh"))
+        .run(concat!(
+            include_str!("scripts/ios_native_tree.sh"),
+            include_str!("scripts/ios_release_drift.sh")
+        ))
         .id("detect")
         .shell("bash")
         .add_env(("BEFORE_SHA", "${{ github.event.before }}"))
@@ -93,6 +95,18 @@ fn cancel_release_runs() -> Step<Run> {
             for run_id in $runs; do
               echo "Cancelling release run ${run_id} (it would upload a build of the old head)."
               gh run cancel "$run_id" --repo "$GH_REPO" || true
+            done
+            # Wait for them to stop: a run already inside `submit` could
+            # otherwise submit after the withdrawal below looked for nothing.
+            deadline=$(( $(date +%s) + 180 ))
+            for run_id in $runs; do
+              while [[ "$(gh run view "$run_id" --repo "$GH_REPO" --json status --jq .status)" != "completed" ]]; do
+                if (( $(date +%s) > deadline )); then
+                  echo "::warning::Release run ${run_id} is still not completed; withdrawing anyway."
+                  break
+                fi
+                sleep 10
+              done
             done
         "#})
         .if_condition(changed())
@@ -149,7 +163,7 @@ fn comment() -> Step<Run> {
             if [[ "$WITHDRAW_OUTCOME" != "success" ]]; then
               body="🚨 Native changes were pushed to this PR after its App Store release started, but withdrawing the App Review submission **failed** (see the [workflow run](${RUN_URL})). If a submission is pending, remove it from review in App Store Connect by hand so the stale build cannot go live. The \`ios-update\` label was removed; when the PR is ready again, bump (\`${bump}\`), commit, push, and re-add \`ios-update\`."
             elif [[ -n "$LIVE" ]]; then
-              body="🚨 Native changes were pushed to this PR after iOS ${LIVE} had already been released to the App Store, so that build is live with native code this PR no longer matches. Bump (\`${bump}\`), commit, re-add the \`ios-update\` label, and ship the follow-up as soon as possible. The label was removed."
+              body="🚨 Native changes were pushed to this PR after Apple had already approved iOS ${LIVE}, so that build is (or is about to be) live with native code this PR no longer matches. Bump (\`${bump}\`), commit, re-add the \`ios-update\` label, and ship the follow-up as soon as possible. The label was removed."
             else
               body="📱 Native code changed after this PR's App Store release started, so the release was stopped: any in-progress build was cancelled and any pending App Review submission withdrawn (nothing stale can go live), and the \`ios-update\` label was removed. When the PR is ready again, bump (\`${bump}\`; the marketing version stays, the build number moves), commit, push, and re-add \`ios-update\`."
             fi

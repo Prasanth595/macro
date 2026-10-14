@@ -14,15 +14,8 @@ head_sha=$(jq -r '.headRefOid' <<<"$pr_json")
 if [[ "$head_sha" != "$HEAD_SHA" ]]; then
   # Pushed since the label event. Web-only commits are fine (they ship over
   # the air after the merge); native ones would make this build stale.
-  tree_hash() {
-    local sha=$1 part
-    for part in ${NATIVE_TREE_PATH//\// }; do
-      sha=$(gh api "repos/${GH_REPO}/git/trees/${sha}" --jq ".tree[] | select(.path == \"${part}\") | .sha")
-      [[ -n "$sha" ]] || return 1
-    done
-    echo "$sha"
-  }
-  if [[ "$(tree_hash "$head_sha")" != "$(git rev-parse "HEAD:${NATIVE_TREE_PATH}")" ]]; then
+  native_tree_fetch "$head_sha"
+  if [[ "$(native_tree_hash "$head_sha")" != "$(native_tree_hash HEAD)" ]]; then
     echo "PR #${PR_NUMBER} got native changes since this run started (${HEAD_SHA:0:10} → ${head_sha:0:10});" \
       "re-add ios-update on the current head." >&2
     exit 1

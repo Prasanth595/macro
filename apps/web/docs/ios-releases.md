@@ -7,7 +7,7 @@ depends on new native code must therefore never be deployed before the
 matching native build is downloadable, and users on older native builds must
 be pushed to update before they receive that bundle.
 
-Two generated workflows plus a checked-in `min-native-build.json` enforce
+Four generated workflows plus a checked-in `min-native-build.json` enforce
 this end to end.
 
 ## The flow for a PR with breaking native changes
@@ -35,9 +35,9 @@ this end to end.
    release made by hand (Xcode Organizer, `just ios-release`) whose number
    was never committed would otherwise be reused, and the floor derived from
    it would be wrong. Without credentials the bump still runs but warns (and
-   bumps the version unconditionally); the gate and the release workflow
-   both re-check the number against App Store Connect and fail with a
-   re-bump instruction if it collides.
+   bumps the version unconditionally); the release workflow re-checks the
+   number against App Store Connect before building and fails with a re-bump
+   instruction if it collides.
 3. Add the **`ios-update`** label to the PR — once it is ready to merge: the
    **`iOS App Store Release`** workflow
    (`.github/workflows/ios-app-store-release.yml`) first refuses drafts and
@@ -60,7 +60,8 @@ this end to end.
    gate turns green on its own and the PR merges if auto-merge is on.
    (Re-running the check by hand works too. The watcher stops after two
    automatic re-runs so a check failing for another reason doesn't retry
-   forever.)
+   forever, and GitHub refuses to re-run runs older than 30 days — after a
+   review that long, push a commit to get a fresh run.)
 5. The next prod web deploy (`just build-prod`) reads both platform floors
    from `min-native-build.json` into `MIN_NATIVE_BUILD_ANDROID` /
    `MIN_NATIVE_BUILD_IOS`, so `dist/bundle-manifest.json` carries
@@ -86,10 +87,14 @@ raising the floor.
 
 Version + build number alone don't identify a PR's native code: two PRs
 bumped from the same `main` get the same numbers. So the release stamps each
-uploaded build with the git tree hash of `apps/web/tauri` it was built from
-(in the build's TestFlight "What to Test" text), and the checks use it:
+uploaded build with a hash of the native code it was built from (in the
+build's TestFlight "What to Test" text), and the checks use it. "Native
+code" is everything under `apps/web/tauri` except what never reaches the iOS
+binary: the `android_*` plugins, `desktop-release.json`, and `.helix/`
+(defined once, in `scripts/ios_native_tree.sh` next to the workflow sources,
+mirrored in `ios-app-store.mjs` and the gate's path filter). The checks:
 
-- **Collision check** (release workflow before building, and the gate): the
+- **Collision check** (release workflow, before building): the
   marketing version must be above the latest App Store release, and a
   build at or above the PR's number with a different stamp — another PR, or
   a hand release — fails with "re-bump". The PR's own earlier upload (same
@@ -101,7 +106,11 @@ uploaded build with the git tree hash of `apps/web/tauri` it was built from
   since (merge main into the PR), or another PR's build that shares the
   numbers, all fail with "bump and re-release": the floor the merge would
   set must describe a build that really contains main's native code.
-  Web-only commits don't change the tree and stay green.
+  Web-only (and Android-only) commits don't change the hash and stay green.
+  The flip side: any merge to `main` that touches the iOS native code while
+  a release is in review (even a `skip-ios-update` one) changes the merge
+  result's hash, so that release has to be bumped and redone after merging
+  `main`.
 - **One version in flight**: App Store Connect allows one iOS version in
   review at a time, so the second PR's `submit` fails naming the version
   that blocks it. Once that one ships (or is removed from review in App
@@ -131,9 +140,10 @@ release only starts on a PR that is ready to merge. Pushes afterwards:
   submit if the native tree moved while it was building. To continue: bump
   (the marketing version stays, the build number moves), commit, push, and
   re-add the label; `submit` takes the withdrawn version record over, so no
-  App Store Connect visit is needed. If Apple had already released the stale
-  build, nothing can be withdrawn: the comment says so, and the follow-up
-  release should ship as soon as possible.
+  App Store Connect visit is needed. If Apple had already approved the stale
+  build (with automatic release that means it is live or minutes away),
+  nothing can be withdrawn: the comment says so, and the follow-up release
+  should ship as soon as possible.
 
 ## Manual / TestFlight-only releases
 

@@ -3,7 +3,10 @@
 //! through the App Store, so a PR whose bundle depends on new native code must
 //! not merge before that native build is actually downloadable. The gate:
 //!
-//! 1. Detects native changes with a path filter over `apps/web/tauri/**`.
+//! 1. Detects native changes with a path filter over `apps/web/tauri/**`,
+//!    minus what never reaches the iOS binary (Android-only plugins, the
+//!    desktop updater manifest, editor config) — the same exclusions as the
+//!    native tree hash in `scripts/ios_native_tree.sh`.
 //! 2. Verifies the PR bumped the iOS release numbers (`just ios-bump`):
 //!    marketing version, build number, and `min-native-build.json`.
 //! 3. Asks the App Store Connect API whether exactly that version + build is
@@ -38,6 +41,8 @@ pub fn ios_native_check() -> Workflow {
             PullRequest::default()
                 .add_branch("main")
                 .add_type(PullRequestType::Opened)
+                // A retarget (base branch change) changes the merge result.
+                .add_type(PullRequestType::Edited)
                 .add_type(PullRequestType::Synchronize)
                 .add_type(PullRequestType::Reopened)
                 .add_type(PullRequestType::ReadyForReview)
@@ -79,6 +84,9 @@ fn paths_filter() -> Step<Use> {
             indoc::indoc! {"
                 ios_native:
                   - 'apps/web/tauri/**'
+                  - '!apps/web/tauri/android_*/**'
+                  - '!apps/web/tauri/desktop-release.json'
+                  - '!apps/web/tauri/.helix/**'
             "},
         ))
 }

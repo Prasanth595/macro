@@ -57,9 +57,9 @@
 // (two PRs bumped from the same base get the same numbers), so wait-build
 // stamps each uploaded build with the hash of the native tree it was built
 // from (`git rev-parse HEAD:apps/web/tauri`, or --native-tree) in its
-// TestFlight "What to Test" text. status's collision check (on with
-// --require-live or --require-unused-build) fails when a build at or above
-// ours exists with a different stamp — another PR or a hand release — and
+// TestFlight "What to Test" text. status's collision check (with
+// --require-unused-build, before the release builds) fails when a build at
+// or above ours exists with a different stamp — another PR or a hand release — and
 // reports `uploaded=true` (GITHUB_OUTPUT) when it is our own upload, so a
 // release retry skips the build. The live check (--require-live) requires the
 // live build's stamp to match this checkout's native tree — in the merge gate
@@ -76,6 +76,8 @@ import { fileURLToPath } from "node:url";
 const API_BASE = "https://api.appstoreconnect.apple.com";
 const POLL_INTERVAL_MS = 30_000;
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // appVersionState values that mean "users can download this version from the
 // App Store". READY_FOR_SALE is the deprecated appStoreState spelling.
 const LIVE_STATES = new Set(["READY_FOR_DISTRIBUTION", "READY_FOR_SALE"]);
@@ -91,6 +93,16 @@ const SUBMITTED_STATES = new Set([
   "PROCESSING_FOR_DISTRIBUTION",
   "PROCESSING_FOR_APP_STORE",
   ...LIVE_STATES,
+]);
+
+// Past review: Apple approved the version and nothing can withdraw it any
+// more — with release type "after approval" it is minutes from live.
+const APPROVED_STATES = new Set([
+  "ACCEPTED",
+  "PENDING_APPLE_RELEASE",
+  "PENDING_DEVELOPER_RELEASE",
+  "PROCESSING_FOR_DISTRIBUTION",
+  "PROCESSING_FOR_APP_STORE",
 ]);
 
 // Versions that shipped and were superseded or pulled — never in flight.
@@ -111,9 +123,13 @@ const WITHDRAWABLE_SUBMISSION_STATES = new Set([
 
 const BOOLEAN_FLAGS = new Set(["require-live", "require-unused-build"]);
 
-/// The directory whose git tree hash identifies "the native code" — the same
-/// definition the iOS Native Check path filter uses.
+/// "The native code": every tracked blob under this directory except what
+/// never reaches the iOS binary (Android-only plugins, the desktop updater
+/// manifest, editor config). Must match `native_tree_hash` in
+/// tooling/xtask/.../workflows/scripts/ios_native_tree.sh and the iOS Native
+/// Check path filter.
 const NATIVE_TREE_PATH = "apps/web/tauri";
+const NATIVE_TREE_EXCLUDE = /^(android_[^/]*\/|desktop-release\.json$|\.helix\/)/;
 const STAMP_RE = /native tree ([0-9a-f]{40})/;
 const STAMP_PR_RE = /for PR #(\d+)/;
 
@@ -165,11 +181,20 @@ function nativeTreeHash() {
     return args["native-tree"];
   }
   try {
-    return execFileSync("git", ["rev-parse", `HEAD:${NATIVE_TREE_PATH}`], {
-      cwd: appDir,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
+    const git = (gitArgs, input) =>
+      execFileSync("git", gitArgs, {
+        cwd: appDir,
+        encoding: "utf8",
+        input,
+        stdio: ["pipe", "pipe", "ignore"],
+      });
+    // --full-tree: ls-tree otherwise narrows its output to the cwd (apps/web).
+    const listing = git(["ls-tree", "-r", "--full-tree", `HEAD:${NATIVE_TREE_PATH}`])
+      .split("\n")
+      .filter((line) => line && !NATIVE_TREE_EXCLUDE.test(line.split("\t")[1]))
+      .map((line) => `${line}\n`)
+      .join("");
+    return git(["hash-object", "--stdin"], listing).trim();
   } catch {
     return null;
   }
@@ -242,15 +267,36 @@ async function makeToken() {
   return `${signingInput}.${base64url(new Uint8Array(signature))}`;
 }
 
+const RETRY_DELAYS_MS = [5_000, 15_000, 30_000, 60_000];
+
+/// One App Store Connect call. Network errors, 429 and 5xx are retried with
+/// backoff: a single hiccup must not kill a run that has already uploaded a
+/// build (that would leave the build unstamped and the number burnt). Other
+/// non-2xx responses are fatal; `onError` gets a chance to explain first.
 async function api(pathname, { method = "GET", body, onError } = {}) {
-  const response = await fetch(`${API_BASE}${pathname}`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${await makeToken()}`,
-      ...(body ? { "Content-Type": "application/json" } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let response;
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      response = await fetch(`${API_BASE}${pathname}`, {
+        method,
+        headers: {
+          Authorization: `Bearer ${await makeToken()}`,
+          ...(body ? { "Content-Type": "application/json" } : {}),
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    } catch (error) {
+      response = { ok: false, status: 0, text: async () => String(error) };
+    }
+    const transient = response.status === 0 || response.status === 429 || response.status >= 500;
+    if (!transient || attempt >= RETRY_DELAYS_MS.length) break;
+    const delay = RETRY_DELAYS_MS[attempt];
+    console.warn(
+      `${method} ${pathname} → ${response.status || "network error"}: ${await response.text()}; ` +
+        `retrying in ${delay / 1000}s (${attempt + 1}/${RETRY_DELAYS_MS.length}).`,
+    );
+    await sleep(delay);
+  }
   if (!response.ok) {
     const text = await response.text();
     console.error(`${method} ${pathname} → ${response.status}: ${text}`);
@@ -420,7 +466,9 @@ build ${highest.number} was uploaded for version ${highest.version}
     console.error(`Build ${build} was already uploaded (for version ${highest.version}) from \
 different native code: its stamp is ${stamp ?? "missing (uploaded outside the release flow)"}, \
 this checkout's native tree is ${ours ?? "unknown (not a git checkout)"}.
-Another native PR or a hand release took this number. ${rebump}`);
+Another native PR or a hand release took this number${
+      stamp ? "" : " (or a release run died between uploading and stamping it)"
+    }. ${rebump}`);
     exit(1);
   }
   console.log(
@@ -443,12 +491,17 @@ function compareVersions(a, b) {
   return 0;
 }
 
-/// All IOS appStoreVersions of the app (newest first).
+/// All IOS appStoreVersions of the app, every page.
 async function allAppStoreVersions() {
-  const versions = await api(
-    `/v1/apps/${app.id}/appStoreVersions?filter[platform]=IOS&limit=50`,
-  );
-  return versions.data;
+  const records = [];
+  let pathname = `/v1/apps/${app.id}/appStoreVersions?filter[platform]=IOS&limit=200`;
+  while (pathname) {
+    const page = await api(pathname);
+    records.push(...page.data);
+    const next = page.links?.next;
+    pathname = next ? next.replace(API_BASE, "") : null;
+  }
+  return records;
 }
 
 function isInFlight(record) {
@@ -529,7 +582,7 @@ async function cancelOpenSubmission() {
       console.error(`Review submission ${submission.id} is still ${state} after 5 minutes; try again later.`);
       exit(1);
     }
-    await new Promise((resolve) => setTimeout(resolve, 10_000));
+    await sleep(10_000);
   }
 }
 
@@ -550,8 +603,9 @@ async function inFlightVersionForPr(pr) {
 
 /// `withdraw --pr N`: remove PR N's in-flight submission from review (native
 /// code changed after the release, so that build must never go live).
-/// GITHUB_OUTPUT gets withdrawn=true|false and, if the PR's version already
-/// shipped, live=<version> (<build>) so the caller can warn loudly.
+/// GITHUB_OUTPUT gets withdrawn=true|false and, if the PR's version is past
+/// the point of withdrawal — approved by Apple or already shipped —
+/// live=<version> (<build>) so the caller can warn loudly.
 async function withdraw() {
   const pr = args.pr ?? releasePr;
   if (!pr) {
@@ -568,7 +622,16 @@ async function withdraw() {
     const withdrawn = await cancelOpenSubmission();
     setGitHubOutput("withdrawn", withdrawn ? "true" : "false");
     if (!withdrawn) {
-      console.log("No withdrawable review submission; the version is already editable.");
+      if (APPROVED_STATES.has(state)) {
+        const live = `${mine.record.attributes.versionString} (${mine.buildNumber})`;
+        console.error(
+          `PR #${pr}'s version ${live} is ${state}: Apple has approved it and the ` +
+            "submission can no longer be withdrawn, so that build is going live.",
+        );
+        setGitHubOutput("live", live);
+      } else {
+        console.log("No withdrawable review submission; the version is already editable.");
+      }
     }
     return;
   }
@@ -626,7 +689,7 @@ async function waitBuild() {
         ? `Build ${version} (${build}) is processing…`
         : `Waiting for build ${version} (${build}) to appear in App Store Connect…`,
     );
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    await sleep(POLL_INTERVAL_MS);
   }
 
   const state = buildRecord.attributes.processingState;
@@ -714,6 +777,14 @@ async function submit() {
         );
         exit(1);
       }
+    } else if (LIVE_STATES.has(state)) {
+      console.error(
+        `App Store version ${version} is already live with build ${attachedNumber ?? "none"}` +
+          (stamp?.pr ? ` (released for PR #${stamp.pr})` : " (released outside the release flow)") +
+          ", so the version string is used up. `just ios-bump` moves the marketing version: " +
+          `bump, commit, and re-add the ios-update label.\n${distributionUrl}`,
+      );
+      exit(1);
     } else {
       console.error(
         `App Store version ${version} is ${state} with build ${attachedNumber ?? "none"}, ` +
@@ -900,8 +971,9 @@ async function status() {
     console.error(`${reason}
 
 This PR changes native iOS code, so iOS ${version} (build ${build}) must be
-live on the App Store before merging (the next prod deploy will raise the
-iOS native build floor to ${build} and prompt older installs to update):
+live on the App Store before merging (after the merge, the next prod deploy
+applies the iOS native build floor committed in min-native-build.json and
+prompts older installs to update):
   - Not started yet? Add the \`ios-update\` label to the PR to build, upload,
     and submit it for review.
   - Submitted? Wait for Apple to approve and release it. The \`iOS Release
@@ -948,9 +1020,10 @@ ${distributionUrl}`);
 the native code this merge would produce: its stamp is ${stamp ?? "missing (uploaded outside the release flow)"},
 the merge result's native tree (${NATIVE_TREE_PATH}) is ${ours ?? "unknown"}.
 Either native commits were pushed to this PR after the release, native code landed
-on main since (merge main into the PR), or another PR / a hand release shipped the
-same version + build number. Bump again, commit, and re-add the ios-update label so
-what will actually be merged gets released:
+on main since the release (so the merge would contain code the shipped build lacks),
+or another PR / a hand release shipped the same version + build number. Merging main
+alone cannot fix it: bump again, commit, and re-add the ios-update label so what will
+actually be merged gets released:
   cd apps/web && doppler run --project ios-release --config prd -- just ios-bump
 ${distributionUrl}`);
     exit(1);
