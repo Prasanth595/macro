@@ -59,6 +59,10 @@ files; the [style guide](docs/development/style-guide.md) indexes them.
 - **CS-26** Reuse before reimplementing. If the logic plausibly exists (service
   clients, permission checks, OAuth utilities, the `agent` crate), find it and
   reuse or extract it instead of writing a second copy.
+- **CS-71** Reuse only what was built for the same purpose. Don't repurpose a
+  table, column, type, endpoint, or component for an unrelated feature because
+  its shape fits; confirm what it's for (its owner, callers, and docs) first,
+  and create a new one when the meaning differs.
 - **CS-28** Don't extract single-use code into shared crates or packages
   prematurely. Dependencies point from specific to general, never the reverse.
 - **CS-29** Group proliferating root files (e.g. Dockerfiles) into a dedicated

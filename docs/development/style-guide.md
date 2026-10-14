@@ -21,7 +21,7 @@ ID; deletions leave gaps and new rules take the next free number. A rule line re
 | File | IDs | Applies to |
 | --- | --- | --- |
 | [`config-and-service-urls.md`](../../.agents/rules/config-and-service-urls.md) | CS 14–18 | Everywhere |
-| [`CODING.md`](../../CODING.md) | CS 24, 26, 28, 29, 32–35 | Everywhere; read before writing code |
+| [`CODING.md`](../../CODING.md) | CS 24, 26, 28, 29, 32–35, 71 | Everywhere; read before writing code |
 | [`observability.md`](../../.agents/rules/observability.md) | | Everywhere |
 | [`rust/guardrails.md`](../../.agents/rules/rust/guardrails.md) | | Backend: tests, migrations, crate boundaries |
 | [`rust/db.md`](../../.agents/rules/rust/db.md) | CS | Migrations, SQL, DB clients, outbound adapters |
