@@ -929,8 +929,8 @@ describe('grid cell', () => {
       name: 'Search Status options',
     });
     await waitFor(() => expect(document.activeElement).toBe(search));
-    // The rows are Clear value, To do, then Done.
-    await userEvent.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}');
+    // Clear value is a footer button; only To do and Done are list options.
+    await userEvent.keyboard('{ArrowDown}{ArrowDown}');
     expect(search.getAttribute('aria-activedescendant')).toBe(option.id);
     expect(document.activeElement).toBe(search);
     await userEvent.tab();
