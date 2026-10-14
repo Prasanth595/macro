@@ -7,18 +7,13 @@ import {
   Show,
   Switch,
 } from 'solid-js';
-import type { CanvasFile } from '../canvas-next/core/document-format';
-import {
-  type CanvasLoadResult,
-  loadCanvasFile,
-} from '../canvas-next/core/load-document';
-import type { CanvasView } from '../canvas-next/core/view';
-import { importCanvasMarkdown } from '../canvas-next/primitives/text-lexical';
+import type { CanvasFile } from '../core/document-format';
+import { type CanvasLoadResult, loadCanvasFile } from '../core/load-document';
+import type { CanvasView } from '../core/view';
+import { importCanvasMarkdown } from '../primitives/text-lexical';
 import { Loading } from './Loading';
 
-const CanvasNextDocument = lazy(
-  () => import('../canvas-next/canvas-next-document')
-);
+const CanvasNextDocument = lazy(() => import('../canvas-next-document'));
 
 export type CanvasDocumentMethods = {
   exportCanvas: () => Promise<CanvasFile>;

@@ -37,4 +37,4 @@ fixtures before allowing write-back.
 
 See the [architecture overview](CANVAS_ARCHITECTURE.md),
 [parity plan](GRAPHICS_PARITY.md), and
-[Canvas Next format notes](../apps/web/src/features/block-canvas/canvas-next/README.md).
+[Canvas Next format notes](../apps/web/src/features/block-canvas/README.md).

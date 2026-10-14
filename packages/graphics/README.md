@@ -320,7 +320,7 @@ Built-ins: `selectAllCommand`, `nudgeCommand`, `duplicateCommand`, `pasteCommand
 selected subtrees in paint order, with root transforms expressed in world space.
 `parseFragment` validates bounded clipboard input; `pasteFragment` remaps every ID
 and reconstructs local transforms in the destination parent. Canvas supplies OS
-clipboard and shortcut policy. See the [Canvas Next notes](../../apps/web/src/features/block-canvas/canvas-next/README.md).
+clipboard and shortcut policy. See the [Canvas Next notes](../../apps/web/src/features/block-canvas/README.md).
 
 Groups have no inherited appearance. Styling a group updates its leaves. Stroke
 width (default 2), opacity (1), and rectangle radius (0) are optional typed fields;
@@ -371,7 +371,7 @@ measurer and Solid TextView treat content as literal plain text. A host using an
 encoded format supplies a `contentView` to TextView/RectangleView/EllipseView and a
 matching TextMeasurer. Graphics does not parse editor JSON or infer empty content.
 
-Canvas Next owns its Lexical codec in `canvas-next/core/text-codec.ts`, including
+Canvas Next owns its Lexical codec in `apps/web/src/features/block-canvas/core/text-codec.ts`, including
 bounded tree validation, seed construction, serialization and empty-content
 checks. Its clipboard adapter validates imported text/labels.
 It uses the shared Markdown builder and StaticLexical renderer for editing,

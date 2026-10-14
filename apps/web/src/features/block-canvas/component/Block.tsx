@@ -11,7 +11,7 @@ import { blockFileSignal, blockHandleSignal } from '@core/signal/load';
 import { useCanEdit } from '@core/signal/permissions';
 import { useSearchParams } from '@solidjs/router';
 import { Show } from 'solid-js';
-import type { CanvasView } from '../canvas-next/core/view';
+import type { CanvasView } from '../core/view';
 import { CanvasDocument, type CanvasDocumentMethods } from './CanvasDocument';
 import { TopBar } from './TopBar';
 

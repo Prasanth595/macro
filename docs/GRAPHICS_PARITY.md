@@ -39,4 +39,4 @@ identity.
 See the [Canvas architecture](CANVAS_ARCHITECTURE.md),
 [legacy bridge](CANVAS_LEGACY_BRIDGE.md),
 [graphics README](../packages/graphics/README.md), and
-[Canvas Next README](../apps/web/src/features/block-canvas/canvas-next/README.md).
+[Canvas Next README](../apps/web/src/features/block-canvas/README.md).

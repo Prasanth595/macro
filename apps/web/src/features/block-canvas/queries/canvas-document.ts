@@ -1,5 +1,5 @@
 import { storageServiceClient } from '@service-storage/client';
-import type { CanvasFile } from '../canvas-next/core/document-format';
+import type { CanvasFile } from '../core/document-format';
 
 export type CanvasViewLocation = {
   x?: number;

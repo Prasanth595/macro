@@ -8,16 +8,16 @@ import {
   Show,
   useContext,
 } from 'solid-js';
-import type { CanvasDocumentProps } from '../component/CanvasDocument';
-import {
-  fetchCanvasViewLocation,
-  saveCanvasViewLocation,
-} from '../queries/canvas-document';
 import { CanvasNextEditor } from './canvas-next';
+import type { CanvasDocumentProps } from './component/CanvasDocument';
 import { CanvasAncestry } from './context/canvas-ancestry';
 import type { CanvasFile } from './core/document-format';
 import { createNumericParser } from './core/parse';
 import { createDocumentPersistence } from './primitives/create-document-persistence';
+import {
+  fetchCanvasViewLocation,
+  saveCanvasViewLocation,
+} from './queries/canvas-document';
 import { canvasDocumentSource } from './queries/document';
 
 const parseLocation = createNumericParser<{
