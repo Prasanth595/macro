@@ -1,10 +1,10 @@
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import CaretRightIcon from '@phosphor/caret-right.svg';
 import CheckIcon from '@phosphor/check.svg';
-import { Button, Dropdown } from '@ui';
+import { Button, DatePicker, Dropdown } from '@ui';
 import { createEffect, createSignal, For, onCleanup, Show } from 'solid-js';
 import { insightPresetRange, insightRangeError } from '../core/insights';
-import { Field, TextInput } from './fields';
+import { Field } from './fields';
 
 export function InsightsRangeSelector(props: {
   from: string;
@@ -18,7 +18,7 @@ export function InsightsRangeSelector(props: {
   const [from, setFrom] = createSignal(props.from);
   const [to, setTo] = createSignal(props.to);
   const [error, setError] = createSignal('');
-  const [startInput, setStartInput] = createSignal<HTMLInputElement>();
+  const [startInput, setStartInput] = createSignal<HTMLButtonElement>();
   const selected = () =>
     [7, 30, 90].find((days) => {
       const range = insightPresetRange(days, props.timeZone, props.now);
@@ -121,9 +121,16 @@ export function InsightsRangeSelector(props: {
                   class="flex flex-col gap-3 p-3"
                   onFocusIn={(event) => event.stopPropagation()}
                   onKeyDown={(event) => {
-                    // Preserve native date-field arrows and Tab navigation.
+                    // Keep calendar keys and nested dismissal out of the range menu.
                     event.stopPropagation();
-                    if (event.key === 'Escape') {
+                    if (
+                      event.key === 'Escape' &&
+                      !event.defaultPrevented &&
+                      !(
+                        event.target instanceof Element &&
+                        event.target.closest('[role="dialog"]')
+                      )
+                    ) {
                       event.preventDefault();
                       close();
                     }
@@ -141,21 +148,21 @@ export function InsightsRangeSelector(props: {
                   }}
                 >
                   <Field label="Start date">
-                    <TextInput
+                    <DatePicker
                       ref={setStartInput}
+                      aria-label="Start date"
                       required
-                      type="date"
                       value={from()}
-                      onInput={(event) => setFrom(event.currentTarget.value)}
+                      onChange={setFrom}
                     />
                   </Field>
                   <Field label="End date">
-                    <TextInput
+                    <DatePicker
+                      aria-label="End date"
                       required
-                      type="date"
                       min={from()}
                       value={to()}
-                      onInput={(event) => setTo(event.currentTarget.value)}
+                      onChange={setTo}
                     />
                   </Field>
                   <Show when={error()}>
