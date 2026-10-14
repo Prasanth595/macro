@@ -380,6 +380,7 @@
       "crates/macro_uuid",
       "crates/maybe_send",
       "crates/mcp_client",
+      "crates/mcp_select",
       "crates/mcp_toolset",
       "crates/mention_utils",
       "crates/messages",

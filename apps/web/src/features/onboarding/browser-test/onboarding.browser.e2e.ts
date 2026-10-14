@@ -425,7 +425,7 @@ test('system theme changes keep the current onboarding step and selected accent'
 test('tools keep Drive and Sheets, hide excluded Google apps and preserve native connections', async ({
   page,
 }, testInfo) => {
-  await openFixture(page, '/?view=flow', {
+  await openFixture(page, '/?view=flow&theme=cream', {
     catalog: [
       ['gmail', 'Gmail'],
       ['google_sheets', 'Google Sheets'],
@@ -519,12 +519,12 @@ test('tools keep Drive and Sheets, hide excluded Google apps and preserve native
     'Connect Supabase',
   ]);
   // Exercise directory logos, including apps without a bundled native icon.
-  await expect(cards.locator('img')).toHaveCount(19);
+  await expect(cards.locator('img')).toHaveCount(21);
   await expect(
     page
       .getByRole('button', { name: 'Connect Notion', exact: true })
       .locator('img')
-  ).toHaveCSS('filter', /invert\(1\)/);
+  ).toHaveCSS('filter', /invert\(0\)/);
   const stripeIcon = page
     .getByRole('button', { name: 'Connect Stripe', exact: true })
     .locator('img');

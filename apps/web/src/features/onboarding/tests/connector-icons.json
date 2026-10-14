@@ -98,5 +98,15 @@
     "page": "https://pipedream.com/apps/mysql",
     "source": "https://pipedream.com/s.v0/app_1YMhwo/logo/96",
     "file": "mysql.png"
+  },
+  "google_sheets": {
+    "page": "https://pipedream.com/apps/google-sheets",
+    "source": "https://pipedream.com/s.v0/app_168hvn/logo/96",
+    "file": "google_sheets.png"
+  },
+  "google_drive": {
+    "page": "https://pipedream.com/apps/google-drive",
+    "source": "https://pipedream.com/s.v0/app_1lxhk1/logo/96",
+    "file": "google_drive.png"
   }
 }
