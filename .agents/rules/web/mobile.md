@@ -14,6 +14,10 @@ The web app is also the iOS and Android apps. Mobile bugs come from hover-only
 UI, taps that drop the keyboard, content under chrome or safe areas, and
 WebKit quirks that Chrome emulation never shows.
 
+Before building mobile UI, open the app at phone width and study how existing
+surfaces solve the same problem (sheets, the dock, header islands, list rows),
+read their code, and follow that pattern rather than inventing a new one.
+
 ## Detection and input
 
 - `isTouchDevice()` / `touch:` decide input (no hover); `isMobile()` /
