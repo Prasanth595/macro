@@ -14,7 +14,6 @@ Type design, idioms, errors and observability, performance, and tests.
 
 - **CS-10** Newtype your identifiers and tokens — wrap raw `String`
   ids/tokens/model-ids in a validated newtype that checks shape at construction.
-
 - **CS-11** A closed set of string values is an enum, not a `String` — impl
   `Display`/`FromStr` as needed.
 - **CS-12** Optional means `Option<T>` — don't rely on sentinel values or

@@ -16,14 +16,12 @@ State ownership, reactivity, and async error handling.
 - **FE-09** Derive, don't sync — an effect that only copies one signal into
   another similarly-shaped signal should be a derived signal at the appropriate
   level.
-
 - **FE-10** `createEffect` is for external/imperative systems only (DOM APIs,
   third-party libs, navigation events) — never for deriving state; use `on()` to
   make dependencies explicit when an effect is warranted. Prefer wrapping the
   setter over `createEffect(() => { if (signal()) sideEffect() })` when setting
   a value should also clear related UI, blur a control, or scroll.
 - **FE-11** Check `solid-primitives` before writing a custom reactive utility.
-
 - **FE-12** `async`/`await`, not `.then()`/`.catch()` chains; fallible calls
   return `Result` (FE-36) rather than being wrapped in `try`/`catch`. Enforced
   by oxlint `promise/prefer-await-to-then` — `bun run lint:oxlint` from the
@@ -31,7 +29,6 @@ State ownership, reactivity, and async error handling.
 - **FE-13** Extract multi-step async coordination into named helper functions,
   and make intentionally-unawaited promises explicit — no bare floating
   promises.
-
 - **FE-14** Keep neverthrow `Result`/`ResultAsync` intact end-to-end — use the
   existing helpers (`ResultAsync`, `throwOnErr` in `queryFn`, `catchToResult`)
   instead of ad hoc `Promise <-> Result` conversions.

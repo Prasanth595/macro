@@ -19,4 +19,3 @@ Authorization and permission checks in backend code.
 - **CS-38** Tool responses must be valid members of the message chain — include
   `tool_call_id` and required chain metadata.
 - **CS-39** Pin third-party GitHub Actions to a commit SHA, not a movable tag.
-

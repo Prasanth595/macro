@@ -20,7 +20,6 @@ Module layout, layering, and TypeScript conventions.
 - **FE-18** Within a package, use relative imports — don't route through the
   package's own barrel file; it adds indirection and invites circular
   dependencies.
-
 - **FE-19** Trust `match` narrowing — an exhaustive `ts-pattern` match already
   narrows the type inside each closure; a manual `Extract<>` alias is redundant.
 - **FE-20** Exhaustive branching uses `match` from `ts-pattern`.

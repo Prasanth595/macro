@@ -3,7 +3,6 @@
 Database client crate for MacroDB (Postgres): owns its migrations and most of
 the compile-time-checked queries used across Rust services.
 
-
 ## Start here
 
 - `src/lib.rs`: the module list — one module per table/feature area

@@ -20,7 +20,6 @@ Rust database rules: ids, keys, migrations, and SQLx.
   with an `ON CONFLICT` handler.
 - **CS-03** Prefer natural/composite keys over surrogate ids when the table is
   queried/sorted by those columns anyway, and key REST routes on the natural id.
-
 - **CS-04** Name user columns `user_id` — not `owner_user_id` or other variants;
   follow existing tables.
 - **CS-05** New tables need a deliberate cascade/cleanup story, not whatever the

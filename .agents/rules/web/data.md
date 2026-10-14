@@ -22,7 +22,6 @@ Queries, caching, and where data is fetched.
 - **FE-04** Pre-populating data means exposing a cache-seeding method on the
   query, not an ad hoc manual cache.
 - **FE-05** Data-dependent UI that must not suspend uses `queryReadyGate`.
-
 - **FE-06** Extend `QUERY_FILTERS_BASE` instead of re-deriving filter exclusions
   per query, and prefer explicit include lists — exclude lists silently break
   when a new entity type is added.

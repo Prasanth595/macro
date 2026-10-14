@@ -3,7 +3,6 @@
 Deployable service hosting Google Calendar sync, user-initiated calendar
 mutations, and calendar scheduling behind the gateway `/calendar` prefix.
 
-
 ## Start here
 
 - `src/main.rs`: composition root — config, db/redis, event broker, workers, router.

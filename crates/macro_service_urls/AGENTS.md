@@ -3,7 +3,6 @@
 Typed per-environment URLs for every Macro service and gateway, resolved from
 `macro_env::Environment` with an `OVERRIDE_<NAME>` env var escape hatch.
 
-
 ## Start here
 
 - `src/lib.rs`: the `service_url!` macro and the `ServiceUrls` collection — the
