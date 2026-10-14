@@ -218,8 +218,12 @@ buttons; beside the title in narrow layouts) is headed
 **Create in &lt;folder&gt;** and creates everything in the open folder; on a tab or
 the Drive root it reads **Create in Drive**. **Folder** opens a **New folder**
 dialog with `Untitled folder` preselected; creating keeps Drive where it is, adds
-the folder to the open folder's list, and shows a toast with **Open**. Other
-items open after creation. **Database** is offered only outside folders.
+the folder to the open folder's list, and shows a toast with **Open**. Documents,
+snippets, spreadsheets, canvases, and code files open as an inline detail in the
+open folder or tab once created (`/app/drive/folder/<uuid>/spreadsheet/<uuid>`),
+the same as opening an existing file: the Drive sidebar stays mounted and no
+loading pane replaces Drive. Databases and forms open in their own view after
+creation. **Database** is offered only outside folders.
 Home, Email, Tasks, Channels, and Drive keep their workspace provider mounted
 while typed child routes own the accepted inline detail. Tasks and Email replace
 the list with detail, capturing its focus and scroll state before disposal. Their child
