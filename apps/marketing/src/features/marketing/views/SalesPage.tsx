@@ -41,11 +41,14 @@ function TourHeading(props: {
 
 /**
  * Every demo CTA scrolls to the inline booker instead of opening the booking
- * dialog. Cancelling the click keeps `DemoBookingDialog` from opening it.
+ * dialog. Cancelling the click keeps `DemoBookingDialog` from opening it; a
+ * new-tab click still follows the link.
  */
 function bookDemo(event: MouseEvent, buttonName: string) {
-  event.preventDefault();
   handleDemoClick(buttonName);
+  if (event.defaultPrevented || event.button !== 0) return;
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  event.preventDefault();
   document
     .getElementById('book')
     ?.scrollIntoView({ behavior: 'smooth', block: 'start' });

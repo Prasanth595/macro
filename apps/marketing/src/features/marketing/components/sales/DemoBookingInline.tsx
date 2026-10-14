@@ -40,7 +40,14 @@ export function DemoBookingInline() {
     <Show
       when={!refused()}
       fallback={
-        <a class="site-nav-start homepage-hero-cta tour-cta" href={demoHref()}>
+        // The dialog would open the refused frame again, so keep the click
+        // from reaching its document listener. Solid delegates `onClick` to
+        // the document, so only a native handler runs first.
+        <a
+          class="site-nav-start homepage-hero-cta tour-cta"
+          href={demoHref()}
+          on:click={(event) => event.stopPropagation()}
+        >
           Pick a time
         </a>
       }
