@@ -1,34 +1,63 @@
-{ lib, pkgs, ... }:
+{ pkgs, ... }:
 let
-  loki = {
-    type = "loki";
-    uid = "loki";
+  tempo = {
+    type = "tempo";
+    uid = "tempo";
   };
-  events = ''{service_name="github-actions"} | deployment_environment="ci" | json'';
-  panel = id: title: expr: unit: {
-    inherit id title;
-    type = "timeseries";
-    datasource = loki;
+  selector = ''resource.service.name="github-actions" && resource.deployment.environment="ci"'';
+  panel = id: title: description: filter: fields: {
+    inherit id title description;
+    type = "table";
+    datasource = tempo;
     gridPos = {
-      x = if lib.mod (id - 1) 2 == 0 then 0 else 12;
-      y = ((id - 1) / 2) * 8;
-      w = 12;
-      h = 8;
+      x = 0;
+      y = (id - 1) * 10;
+      w = 24;
+      h = 10;
     };
     targets = [
       {
         refId = "A";
-        inherit expr;
+        queryType = "traceql";
+        query = "{ ${selector} && ${filter} } | select(name, ${fields})";
+        tableType = "spans";
+        limit = 100;
+        spss = 100;
       }
     ];
-    fieldConfig.defaults = { inherit unit; };
+    transformations = [
+      {
+        id = "organize";
+        options = {
+          excludeByName = {
+            "Trace Service" = true;
+            "deployment.environment" = true;
+            "service.name" = true;
+            workflow_run_id = true;
+            job_id = true;
+            workflow_name = true;
+            job_name = true;
+            step_name = true;
+          };
+          indexByName = {
+            "Name" = 0;
+            conclusion = 1;
+            "Duration" = 2;
+            "Start time" = 3;
+            "Span ID" = 4;
+            "Trace Name" = 5;
+          };
+        };
+      }
+    ];
+    options.showHeader = true;
   };
   dashboard = {
     uid = "macro-ci";
     title = "Macro CI";
-    description = "Completed GitHub Actions attempts and jobs. Events arrive after the entire workflow finishes; job duration excludes waiting. Open an event's GitHub URL for logs and steps.";
+    description = "GitHub Actions workflow, job and step traces exported after completion. Select a trace to open its execution waterfall. Tables are bounded search results, not complete counts or percentile summaries. Narrow the time range when there are many runs.";
     schemaVersion = 39;
-    version = 1;
+    version = 2;
     editable = false;
     tags = [
       "macro"
@@ -41,45 +70,26 @@ let
       to = "now";
     };
     panels = [
-      (panel 1 "Completed workflows by outcome"
-        ''sum by (conclusion) (count_over_time(${events} | event_type="workflow" [$__interval]))''
-        "short"
+      (panel 1 "Workflow runs — open a trace for jobs and steps"
+        "Workflow duration includes waiting; for reruns the upstream exporter starts the root span at the original run creation. Use job durations for execution timing. The url attribute links to GitHub."
+        "span.workflow_run_id != nil"
+        "span.workflow_name, span.conclusion, span.run_attempt, span.url"
       )
-      (panel 2 "Failed jobs by workflow"
-        ''sum by (workflow) (count_over_time(${events} | event_type="job" | conclusion="failure" [$__interval]))''
-        "short"
+      (panel 2 "Failed, cancelled or timed-out jobs"
+        "Cancellation is included; inspect the conclusion attribute to distinguish it from a failure."
+        "span.job_id != nil && status = error"
+        "span.workflow_name, span.job_name, span.conclusion, span.runner_name"
       )
-      (panel 3 "Workflow duration p95"
-        ''quantile_over_time(0.95, ${events} | event_type="workflow" | unwrap duration_seconds | __error__="" [1h]) by (workflow)''
-        "s"
+      (panel 3 "Jobs taking more than five minutes"
+        "Job span duration measures execution, excluding runner queue time."
+        "span.job_id != nil && duration > 5m"
+        "span.workflow_name, span.job_name, span.conclusion, span.runner_name"
       )
-      (panel 4 "Job execution duration p95"
-        ''quantile_over_time(0.95, ${events} | event_type="job" | unwrap duration_seconds | __error__="" [1h]) by (workflow)''
-        "s"
+      (panel 4 "Failed, cancelled or timed-out steps"
+        "Open the trace to see the step in its parent job and workflow. Raw build logs and individual test cases remain in GitHub."
+        "span.step_name != nil && status = error"
+        "span.step_name, span.conclusion"
       )
-      {
-        id = 5;
-        title = "Workflow and job activity — expand for GitHub links";
-        type = "logs";
-        datasource = loki;
-        gridPos = {
-          x = 0;
-          y = 16;
-          w = 24;
-          h = 16;
-        };
-        targets = [
-          {
-            refId = "A";
-            expr = events;
-          }
-        ];
-        options = {
-          showTime = true;
-          wrapLogMessage = true;
-          sortOrder = "Descending";
-        };
-      }
     ];
   };
 in
