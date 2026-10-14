@@ -1,10 +1,7 @@
 # Canvas Next — drawing, rich text, media and document cards
 
-Canvas Next opens saved documents behind the remote `enable-canvas-next` flag.
-Use `VITE_ENABLE_CANVAS_NEXT=true` in `apps/web/.env.local` to opt in locally.
-Local analytics is disabled, so unset remote flags settle as off without waiting
-for PostHog. Deployed builds use the remote rollout when no override is set. The flag is sampled when
-opening a document, so remote refreshes cannot switch an active editing session.
+Canvas Next is the default editor for saved canvases, drive details, and embeds.
+No rollout flag or local override is required.
 
 The frontend treats unversioned JSON (and explicit version 1) as legacy Canvas.
 It converts supported records on load to `{ version: 2, document, legacy? }`.
@@ -12,14 +9,13 @@ It converts supported records on load to `{ version: 2, document, legacy? }`.
 notes for recovery. No migration is saved merely by viewing a file. The first
 committed edit writes version 2 using the existing JSON/simple-save endpoint.
 Subsequent loads validate version 2 directly; they never replay the archived data.
-Unknown versions and invalid scenes fail closed. With the flag off, version 2
-files show a Canvas Next requirement instead of opening in the legacy editor.
+Unknown versions and invalid scenes fail closed without writing data.
 
 Migration preserves IDs, groups, stacking order, positions, shape labels,
 Markdown text, connector bindings/styles, media references and flips, and all
 legacy entity references. Pencil samples are retained and use the new brush.
 Unsupported links, connector labels, invalid records, and interleaved group layers
-offer **Open in legacy editor** without writing data.
+show a migration error without writing data. The legacy editor has been removed.
 There is no version 2-to-legacy downgrade. Document-level read-only mode mounts a
 selection/navigation surface without editing, paste/drop, or embedded editing handlers.
 Markdown embeds explicitly pass `isEmbedded` to the editor and use this same

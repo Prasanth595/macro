@@ -7,8 +7,9 @@ For a short implementation-based reference, start with the
 
 Status reviewed 2026-09-28. The [parity plan](../../docs/GRAPHICS_PARITY.md) is the
 progress/next-checkpoint index. Canvas Next now includes rich text/mentions,
-shape labels, connectors, media, document cards and full embeds behind its rollout
-flag. The Loro adapter remains experimental; production persistence is not wired.
+shape labels, connectors, media, document cards and full embeds as the default
+canvas editor. Versioned JSON persistence is wired at the Canvas host boundary.
+The Loro adapter remains experimental; production collaboration is not wired.
 The next product checkpoint is a
 [legacy bridge and color policy](../../docs/CANVAS_LEGACY_BRIDGE.md), kept outside
 the pure core. Expanding peer support is deferred.

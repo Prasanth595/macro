@@ -13,10 +13,10 @@ import {
   fetchCanvasViewLocation,
   saveCanvasViewLocation,
 } from '../queries/canvas-document';
-import { createNumericParser } from '../util/parse';
 import { CanvasNextEditor } from './canvas-next';
 import { CanvasAncestry } from './context/canvas-ancestry';
 import type { CanvasFile } from './core/document-format';
+import { createNumericParser } from './core/parse';
 import { createDocumentPersistence } from './primitives/create-document-persistence';
 import { canvasDocumentSource } from './queries/document';
 
@@ -166,7 +166,6 @@ export default function CanvasNextDocument(
   );
   return props.children
     ? props.children(content, {
-        mode: 'next',
         savedFile: () => persistence()?.savedFile(),
         location: currentLocation,
       })
