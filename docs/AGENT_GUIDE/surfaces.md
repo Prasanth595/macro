@@ -400,9 +400,8 @@ longer notifies the thread. Settings → notifications lists them under `AI`.
 ## Tasks — `/app/component/tasks`
 
 Task navigation uses `My Tasks`, `All Tasks`, and `Created by me`. The desktop
-sidebar has a full-width `New task` action, a collapsible list of task favorites,
-and a collapsible list of tags. Selecting a tag filters the current task view;
-selecting it again clears that tag filter. Favorite rows open their tasks.
+sidebar has a full-width `New task` action and a collapsible list of task favorites;
+tag filtering lives in the `Filter` menu. Favorite rows open their tasks.
 Normal row and favorite activation replaces the list with the editable task
 document; its originating-tab breadcrumb returns to the list and its
 header exposes Share and the task Details/Properties panel. Shift-click opens
@@ -425,10 +424,10 @@ The mobile task drawer retains its existing layout.
 
 ## Email — `/app/component/mail`
 
-Email's Tags sidebar uses the same [nested tag tree as Tasks](tasks.md#nested-sidebar-tags).
+Email's Tags sidebar uses the [nested tag tree](tasks.md#nested-sidebar-tags).
 Carets and folder-only parents expand branches; actual tags select their exact ID
 and switch the mailbox to All. Parent selection does not include descendant tags.
-Unlike Tasks and Drive, it lists only personal tags; team-shared tags are hidden,
+Unlike Calls, it lists only personal tags; team-shared tags are hidden,
 and its `New tag` action creates a personal tag with no Team sharing option.
 
 Full email client. Tabs: `Signal` / `Noise` / `Favorites` / `Sent` / `Scheduled` / `Calendar` / `Drafts` / `Shared` /
@@ -1132,13 +1131,9 @@ touch uses the global search overlay and creation uses the dock's New button.
 The **Folders** pill opens the folder overview and stays highlighted inside
 any folder; tapping it from inside a folder returns to the overview, and
 selecting another pill leaves the folder tree. The sidebar contains `New file or folder`, `My Files`, `Recent`,
-`Shared with me`, collapsible Favorites, a searchable folder hierarchy, and a
-collapsible Tags section beneath the folders. Tags lists every tag you can apply,
-nested by `/` in the tag name, with a `New tag` action in its header. Choosing a
-tag shows only that tag's files within the current tab or folder and exits any
-inline file detail; choosing the highlighted tag again clears it, and the same
-selection appears under the **Filter** menu's Tags submenu. Navigating to another
-tab or folder clears tag filters. A folder with no files matching the active tag
+`Shared with me`, collapsible Favorites, and a searchable folder hierarchy. Filter
+by tag from the **Filter** menu's Tags submenu; navigating to another tab or folder
+clears tag filters. A folder with no files matching the active tag
 shows the list's no-match state rather than `This folder is empty`.
 Drive omits split-history back/forward buttons in both wide and narrow layouts;
 the split close button remains available when multiple splits are open.
@@ -1370,8 +1365,10 @@ Date overrides and the searchable timezone picker sit below the weekly hours.
 The header shows the selected owner; team owners have an explicit **Team** label.
 Links and availability use flat rows, with actions beside each item.
 Booking pages, bookings, and insights show only the selected owner. Search filters
-that owner’s links and clears when switching owners. Team owners/admins can edit
-team links; ordinary members can view them. `Links` creates, edits, pauses,
+that owner’s links and clears when switching owners. Any team member can edit
+team links. Hosts can cancel or reschedule the meetings they host; team
+owners/admins can also manage teammates’ bookings and approve pending ones.
+`Links` creates, edits, pauses,
 duplicates, previews, and copies booking links. Event settings include a
 video choice. New links default to a Macro call, which is created when
 someone books and attached to the calendar invitation. Google Meet and no
@@ -2709,7 +2706,7 @@ New macrod sessions use the agent's saved model before sending the first prompt.
 Changing that default applies to new sessions; existing sessions keep their selected model.
 If the runtime rejects the saved model, the prompt fails instead of using a different model.
 
-The `Runtimes` section shows built-in Macro, Cursor, Claude, and Codex configuration, followed by paired macrod runtimes. The “Bring your own agent” card sits above the Agents / Runtimes navigation and is visible on both sections. It rotates Claude Code, OpenCode, OpenClaw, and Hermes; reduced motion keeps a static name. Its `New runtime` action opens the full-page pairing flow from either section: enter the code, look up the request, review the machine, name, sharing and permission consent, then Approve and Done. Back/Cancel returns to the runtime list. Destructive removal still requires confirmation. `/settings/runtimes` opens this section; legacy `/settings/harness?pair=…` links remain supported.
+The `Runtimes` section shows built-in Macro, Cursor, Claude, and Codex configuration, followed by paired macrod runtimes. Claude's card appears only with the `claude-cloud` flag, and Codex's only within the agents and Codex rollouts. The “Bring your own agent” card sits above the Agents / Runtimes navigation and is visible on both sections. It rotates Claude Code, OpenCode, OpenClaw, and Hermes; reduced motion keeps a static name. Its `New runtime` action opens the full-page pairing flow from either section: enter the code, look up the request, review the machine, name, sharing and permission consent, then Approve and Done. Back/Cancel returns to the runtime list. Destructive removal still requires confirmation. `/settings/runtimes` opens this section; legacy `/settings/harness?pair=…` links remain supported.
 Connection chips in agent replies open this page, including before any account is connected. Cursor's default-model picker uses
 the same live model discovery and retains its existing save action.
 
