@@ -1,40 +1,27 @@
-import { Key } from '@solid-primitives/keyed';
-import { Button, cn, Scroll } from '@ui';
+import { cn } from '@ui';
 import {
   batch,
   createEffect,
   createMemo,
   createSignal,
-  For,
   on,
   onCleanup,
-  onMount,
   type ParentProps,
-  Show,
   untrack,
 } from 'solid-js';
-import { match } from 'ts-pattern';
 import { createGanttToday } from './create-gantt-today';
 import { GanttBar } from './gantt-bar';
-import { GanttCalendarScene } from './gantt-clip';
+import { GanttChart } from './gantt-chart';
 import {
   GanttContextProvider as Context,
   type GanttContext,
   HEADER_HEIGHT,
-  useGantt,
 } from './gantt-context';
 import { GanttCreateArea } from './gantt-create-area';
 import {
-  formatGanttDay,
-  formatGanttMonth,
-  type GanttDate,
   type GanttRange,
   type GanttScale,
-  type GanttTick,
-  ganttBarGeometry,
-  ganttDateFromDay,
   ganttPixelsPerDay,
-  ganttTicks,
   normalizeGanttRange,
   toGanttDay,
 } from './gantt-date';
@@ -44,12 +31,18 @@ import {
   GanttGroupDrag,
   GanttGroupDrop,
 } from './gantt-group-drag';
+import { GanttHeader } from './gantt-header';
 import {
   extendGanttRange,
   type GanttGuide,
   snapGanttGuide,
   zoomedGanttPixels,
 } from './gantt-interaction';
+import {
+  GanttDateHint,
+  GanttTodayButton,
+  GanttTodayMarker,
+} from './gantt-markers';
 import { GanttRow, GanttRows } from './gantt-rows';
 import { GanttSettings } from './gantt-settings';
 import {
@@ -60,9 +53,6 @@ import {
   GanttSidebarToggle,
 } from './gantt-sidebar';
 import { GanttZoomControls } from './gantt-zoom-controls';
-
-export { useGantt } from './gantt-context';
-export { GanttLabel } from './gantt-sidebar';
 
 const SIDEBAR_COLLAPSE_WIDTH = 640;
 export function GanttRoot(
@@ -424,501 +414,6 @@ export function GanttRoot(
       </div>
     </Context.Provider>
   );
-}
-
-function GanttCursorGuide() {
-  const gantt = useGantt();
-  return (
-    <Show when={!gantt.editing() && gantt.guide()}>
-      {(guide) => (
-        <GanttCalendarScene class="z-20">
-          <div
-            data-gantt-cursor-line=""
-            class="absolute inset-y-0 border-l border-dashed border-ink-muted opacity-70"
-            style={{
-              left: `${gantt.labelWidth() + (guide().day - gantt.range().start) * gantt.pixelsPerDay()}px`,
-            }}
-          />
-        </GanttCalendarScene>
-      )}
-    </Show>
-  );
-}
-
-function GanttCursorTooltip() {
-  const gantt = useGantt();
-  return (
-    <Show when={!gantt.editing() && gantt.guide()}>
-      {(guide) => (
-        <span
-          data-gantt-cursor-label=""
-          class="pointer-events-none absolute bottom-1 z-30 overflow-hidden rounded border border-edge-muted bg-tooltip px-1.5 py-0.5 text-xxs text-ink whitespace-nowrap"
-          style={{
-            left: `${(guide().day - gantt.range().start) * gantt.pixelsPerDay()}px`,
-            'max-width': `${Math.max(0, (gantt.visibleRange().end - gantt.visibleRange().start) * gantt.pixelsPerDay() - 16)}px`,
-            translate: `clamp(${(gantt.visibleRange().start - guide().day) * gantt.pixelsPerDay() + 8}px, -50%, calc(${(gantt.visibleRange().end - guide().day) * gantt.pixelsPerDay() - 8}px - 100%)) 0`,
-          }}
-        >
-          {formatGanttDay(
-            guide().edge === 'end' ? guide().day - 1 : Math.floor(guide().day),
-            false
-          )}
-        </span>
-      )}
-    </Show>
-  );
-}
-export function GanttTodayButton() {
-  const gantt = useGantt();
-  return (
-    <Button
-      depth={2}
-      size="md"
-      variant="outline"
-      class="bg-surface shadow-sm"
-      onClick={() => gantt.scrollToToday()}
-    >
-      Today
-    </Button>
-  );
-}
-
-export function GanttChart(
-  props: ParentProps<{ class?: string; label?: string }>
-) {
-  const gantt = useGantt();
-  let element: HTMLDivElement | undefined;
-  let pointerX: number | undefined;
-  let centered = false;
-  const [panning, setPanning] = createSignal(false);
-  let disposePan: (() => void) | undefined;
-  const pan = (event: MouseEvent) => {
-    if (event.button !== 1 || gantt.editing() || !element) return;
-    event.preventDefault();
-    event.stopPropagation();
-    let x = event.clientX;
-    let y = event.clientY;
-    pointerX = undefined;
-    gantt.setGuide(undefined);
-    gantt.setEditing(true);
-    setPanning(true);
-
-    const finish = () => {
-      window.removeEventListener('mousemove', move, true);
-      window.removeEventListener('mouseup', release, true);
-      window.removeEventListener('keydown', cancelOnEscape, true);
-      window.removeEventListener('blur', finish);
-      setPanning(false);
-      gantt.setEditing(false);
-      disposePan = undefined;
-    };
-    const move = (next: MouseEvent) => {
-      if (!(next.buttons & 4)) {
-        finish();
-        return;
-      }
-      next.preventDefault();
-      next.stopPropagation();
-      gantt.panBy(x - next.clientX, y - next.clientY);
-      x = next.clientX;
-      y = next.clientY;
-    };
-    const release = (next: MouseEvent) => {
-      if (next.button !== 1) return;
-      next.preventDefault();
-      next.stopPropagation();
-      finish();
-    };
-    const cancelOnEscape = (next: KeyboardEvent) => {
-      if (next.key !== 'Escape') return;
-      next.preventDefault();
-      next.stopPropagation();
-      finish();
-    };
-    disposePan = finish;
-    window.addEventListener('mousemove', move, true);
-    window.addEventListener('mouseup', release, true);
-    window.addEventListener('keydown', cancelOnEscape, true);
-    window.addEventListener('blur', finish);
-  };
-  const preventMiddleClick = (event: MouseEvent) => {
-    if (event.button !== 1) return;
-    event.preventDefault();
-    event.stopPropagation();
-  };
-  const measure = () => {
-    gantt.updateViewport();
-    if (centered || !element?.clientWidth) return;
-    centered = true;
-    queueMicrotask(() => {
-      if (gantt.viewport() === element) gantt.scrollToToday('instant');
-    });
-  };
-  const zoom = (event: WheelEvent) => {
-    if (!event.ctrlKey && !event.metaKey) {
-      // Wheel events continue at a clamped edge even when no scroll event fires.
-      gantt.updateViewport();
-      return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-    if (
-      event.target instanceof Element &&
-      event.target.closest('[data-gantt-label]')
-    )
-      return;
-    if (gantt.editing()) return;
-    gantt.markScrollZoom();
-    const unit =
-      event.deltaMode === 1
-        ? 16
-        : event.deltaMode === 2
-          ? element!.clientHeight
-          : 1;
-    gantt.zoomAt(event.clientX, event.deltaY * unit);
-    updateGuide();
-  };
-  const updateGuide = () =>
-    queueMicrotask(() => {
-      if (
-        pointerX === undefined ||
-        gantt.editing() ||
-        gantt.viewport() !== element
-      )
-        return;
-      gantt.setGuide(gantt.pointToDay(pointerX));
-    });
-  onMount(() => {
-    const resize = new ResizeObserver(measure);
-    const attachment = new MutationObserver(connect);
-    function connect() {
-      if (!element?.isConnected) return;
-      attachment.disconnect();
-      gantt.setViewport(element);
-      resize.observe(element);
-      element.addEventListener('wheel', zoom, { passive: false });
-      element.addEventListener('mousedown', pan, true);
-      element.addEventListener('auxclick', preventMiddleClick, true);
-      measure();
-    }
-    attachment.observe(document, { childList: true, subtree: true });
-    connect();
-    onCleanup(() => {
-      resize.disconnect();
-      attachment.disconnect();
-      element?.removeEventListener('wheel', zoom);
-      element?.removeEventListener('mousedown', pan, true);
-      element?.removeEventListener('auxclick', preventMiddleClick, true);
-      disposePan?.();
-      if (gantt.viewport() === element) gantt.setViewport(undefined);
-    });
-  });
-  return (
-    <Scroll
-      class={cn('min-h-0 min-w-0 flex-1', props.class)}
-      orientation="both"
-      scrollbars="both"
-      autoHide={false}
-      verticalScrollbarInset={HEADER_HEIGHT}
-      scrollRef={(viewport) => {
-        element = viewport;
-      }}
-      viewportProps={{
-        'aria-label': props.label ?? 'Gantt timeline',
-        class: panning()
-          ? 'cursor-grabbing select-none [&_*]:cursor-grabbing'
-          : undefined,
-        tabIndex: 0,
-        style: { 'overscroll-behavior': 'none', 'overflow-anchor': 'none' },
-        onScroll: () => {
-          gantt.updateViewport();
-          updateGuide();
-        },
-        onPointerMove: (event) => {
-          if (
-            event.target.closest(
-              '[data-gantt-label], [data-gantt-group-header]'
-            )
-          ) {
-            pointerX = undefined;
-            gantt.setGuide(undefined);
-            return;
-          }
-          pointerX = event.clientX;
-          if (gantt.editing()) return;
-          gantt.setGuide(gantt.pointToDay(event.clientX));
-        },
-        onPointerLeave: () => {
-          pointerX = undefined;
-          if (!gantt.editing()) gantt.setGuide(undefined);
-        },
-      }}
-      contentProps={{
-        style: {
-          position: 'relative',
-          isolation: 'isolate',
-          width: `${gantt.width()}px`,
-          'min-height': '100%',
-          'padding-bottom': '32px',
-        },
-      }}
-    >
-      <GridLines />
-      <GanttCursorGuide />
-      {props.children}
-    </Scroll>
-  );
-}
-
-export function GanttHeader(props: ParentProps<{ class?: string }>) {
-  const gantt = useGantt();
-  const months = createMemo(() =>
-    ganttTicks(gantt.range(), 'month', gantt.visibleRange()).map((tick) => ({
-      ...tick,
-      label: formatGanttMonth(
-        tick.start,
-        gantt.scale() === 'month' ? 'short' : 'long'
-      ),
-    }))
-  );
-  const ticks = createMemo(() =>
-    ganttTicks(gantt.range(), gantt.scale(), gantt.visibleRange())
-  );
-  const left = (day: number) =>
-    (day - gantt.range().start) * gantt.pixelsPerDay();
-  const calendarWidth = () =>
-    (gantt.visibleRange().end - gantt.visibleRange().start) *
-    gantt.pixelsPerDay();
-  // The drawer starts below the header; reserve only its toggle in the timeline band.
-  const textInset = () =>
-    gantt.labelWidth() > 0 ? gantt.labelWidth() + 8 : 64;
-  const pinnedMonthLeft = () =>
-    left(gantt.visibleRange().start) + textInset() - gantt.labelWidth();
-  const monthTextWidth = (tick: GanttTick) => tick.label.length * 7;
-  // Center the month text on its date; a trailing year does not shift that anchor.
-  const monthNaturalLeft = (tick: GanttTick) =>
-    left(tick.start) - monthTextWidth(tick) / 2 - 4;
-  const monthYear = (tick: GanttTick) => {
-    const date = ganttDateFromDay(tick.start);
-    return date.getMonth() === 0 || monthNaturalLeft(tick) <= pinnedMonthLeft()
-      ? date.getFullYear()
-      : undefined;
-  };
-  const monthLabelWidth = (tick: GanttTick) =>
-    monthTextWidth(tick) + (monthYear(tick) === undefined ? 8 : 44);
-  const monthLeft = (tick: GanttTick) =>
-    Math.min(
-      Math.max(monthNaturalLeft(tick), pinnedMonthLeft()),
-      left(tick.end) - monthLabelWidth(tick)
-    );
-  const monthOpacity = (tick: GanttTick) =>
-    Math.max(0, 1 - Math.max(0, pinnedMonthLeft() - monthLeft(tick)) / 32);
-  return (
-    <div
-      class={cn(
-        'sticky top-0 z-30 flex border-b border-edge-muted bg-panel text-xs text-ink-muted',
-        props.class
-      )}
-      data-gantt-header=""
-      style={{ height: `${HEADER_HEIGHT}px`, width: `${gantt.width()}px` }}
-    >
-      <Show when={gantt.labelWidth() > 0}>
-        <div
-          class="sticky left-0 z-10 flex shrink-0 flex-wrap content-center items-center justify-between gap-x-2 gap-y-1 border-r border-edge-muted bg-inherit px-3 font-medium text-ink"
-          style={{ width: `${gantt.labelWidth()}px` }}
-        >
-          {props.children}
-        </div>
-      </Show>
-      <div class="relative isolate flex-1 overflow-clip">
-        <TodayLine header />
-        <For each={ticks()}>
-          {(tick) => (
-            <div
-              data-gantt-date-tick=""
-              class="absolute inset-y-0 flex items-center leading-4 whitespace-nowrap"
-              style={{ left: `${left(tick.start)}px` }}
-            >
-              <span class="relative h-4 -translate-x-1/2">
-                <Show
-                  when={
-                    gantt.scale() !== 'month' &&
-                    !months().some((month) => {
-                      const distance = left(tick.start) - monthLeft(month);
-                      const halfLabel = tick.label.length * 3 + 4;
-                      return (
-                        monthOpacity(month) > 0 &&
-                        distance > -halfLabel &&
-                        distance < monthLabelWidth(month) + halfLabel
-                      );
-                    })
-                  }
-                >
-                  {tick.label}
-                </Show>
-                <span
-                  aria-hidden="true"
-                  data-gantt-date-mark=""
-                  class="absolute top-full left-1/2 mt-1 h-1.5 w-px -translate-x-1/2 bg-ink-extra-muted/70"
-                />
-              </span>
-            </div>
-          )}
-        </For>
-        <Key each={months()} by="start">
-          {(tick) => (
-            <div
-              data-gantt-month=""
-              class="pointer-events-none absolute inset-y-0 flex items-center overflow-clip text-ink whitespace-nowrap"
-              style={{
-                left: `${monthNaturalLeft(tick())}px`,
-                width: `${left(tick().end) - monthNaturalLeft(tick())}px`,
-              }}
-            >
-              <span
-                class="sticky z-20 flex shrink-0 items-baseline gap-2 bg-panel px-1 text-xs leading-4"
-                style={{
-                  left: `${textInset()}px`,
-                  opacity: monthOpacity(tick()),
-                }}
-              >
-                <span
-                  class="shrink-0 text-center font-semibold"
-                  style={{ width: `${monthTextWidth(tick())}px` }}
-                >
-                  {tick().label}
-                </span>
-                <Show when={monthYear(tick()) !== undefined}>
-                  <span
-                    data-gantt-year=""
-                    class="font-medium text-ink tabular-nums"
-                  >
-                    {monthYear(tick())}
-                  </span>
-                </Show>
-              </span>
-            </div>
-          )}
-        </Key>
-        <div
-          aria-hidden="true"
-          data-gantt-timeline-fades=""
-          class="pointer-events-none absolute inset-0 z-10"
-        >
-          <div
-            class="sticky h-full"
-            style={{
-              left: `${gantt.labelWidth()}px`,
-              width: `${calendarWidth()}px`,
-            }}
-          >
-            <div class="absolute inset-y-0 left-0 w-[min(128px,33%)] bg-gradient-to-r from-panel to-transparent" />
-            <div class="absolute inset-y-0 right-0 w-[min(128px,33%)] bg-gradient-to-l from-panel to-transparent" />
-          </div>
-        </div>
-        <Show when={gantt.labelWidth() === 0}>
-          <div class="pointer-events-none absolute inset-0 z-30">
-            <div
-              data-gantt-toggle-mask=""
-              class="sticky left-0 h-full w-14 bg-panel"
-            />
-          </div>
-        </Show>
-        <GanttCursorTooltip />
-      </div>
-    </div>
-  );
-}
-
-function GridLines() {
-  const gantt = useGantt();
-  const ticks = createMemo(() =>
-    gantt.gridVisible()
-      ? ganttTicks(gantt.range(), gantt.gridScale(), gantt.visibleRange())
-      : []
-  );
-  return (
-    <GanttCalendarScene>
-      <For each={ticks()}>
-        {(tick) => (
-          <div
-            class={cn(
-              'absolute inset-y-0 border-l border-edge-muted/60',
-              gantt.gridStyle() === 'dashed' && 'border-dashed'
-            )}
-            style={{
-              left: `${gantt.labelWidth() + (tick.start - gantt.range().start) * gantt.pixelsPerDay()}px`,
-            }}
-          />
-        )}
-      </For>
-    </GanttCalendarScene>
-  );
-}
-
-/** Compose inside Gantt.Label so invalid-date explanations remain visible while scrolling. */
-export function GanttDateHint(props: {
-  start: GanttDate;
-  end?: GanttDate;
-  class?: string;
-}) {
-  const gantt = useGantt();
-  const problem = () =>
-    match(ganttBarGeometry(props, gantt.range(), gantt.pixelsPerDay()).kind)
-      .with('missing-start', () => 'No start date')
-      .with('invalid-start', () => 'Invalid start date')
-      .with('invalid-end', () => 'Invalid end date')
-      .with('reversed', () => 'End date precedes start')
-      .otherwise(() => '');
-  return (
-    <Show when={problem()}>
-      <span
-        class={cn('block truncate text-xxs text-ink-muted', props.class)}
-        title={problem()}
-      >
-        {problem()}
-      </span>
-    </Show>
-  );
-}
-
-function TodayLine(props: { date?: GanttDate; header?: boolean }) {
-  const gantt = useGantt();
-  const day = () =>
-    props.date == null ? gantt.today() : toGanttDay(props.date);
-  const visible = () => {
-    const current = day();
-    return (
-      current !== undefined &&
-      current + 0.5 >= gantt.visibleRange().start &&
-      current + 0.5 < gantt.visibleRange().end
-    );
-  };
-  const marker = () => (
-    <div
-      aria-hidden="true"
-      data-gantt-today={props.header ? 'header' : 'body'}
-      class="pointer-events-none absolute inset-y-0 z-0 w-px bg-ink-muted/60"
-      style={{
-        left: `${(props.header ? 0 : gantt.labelWidth()) + (day()! - gantt.range().start + 0.5) * gantt.pixelsPerDay()}px`,
-      }}
-    />
-  );
-  return (
-    <Show when={visible()}>
-      <Show
-        when={props.header}
-        fallback={
-          <GanttCalendarScene class="z-0">{marker()}</GanttCalendarScene>
-        }
-      >
-        {marker()}
-      </Show>
-    </Show>
-  );
-}
-export function GanttTodayMarker(props: { date?: GanttDate }) {
-  return <TodayLine date={props.date} />;
 }
 
 export const Gantt = {

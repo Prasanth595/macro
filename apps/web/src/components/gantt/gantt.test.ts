@@ -392,6 +392,9 @@ it.each(['escape', 'blur', 'release', 'unmount'])(
     const { gantt, viewport, unmount } = chartFixture(1000, true);
     await waitFor(() => expect(gantt.viewport()).toBe(viewport));
     await Promise.resolve();
+    const events: EventTarget = window;
+    const listeners = vi.spyOn(events, 'addEventListener');
+    const removed = vi.spyOn(events, 'removeEventListener');
     fireEvent.mouseDown(viewport, {
       button: 1,
       buttons: 4,
@@ -399,15 +402,35 @@ it.each(['escape', 'blur', 'release', 'unmount'])(
       clientY: 300,
     });
     expect(gantt.editing()).toBe(true);
+    const move = listeners.mock.calls.find(
+      ([type]) => type === 'mousemove'
+    )?.[1];
+    const release = listeners.mock.calls.find(
+      ([type]) => type === 'mouseup'
+    )?.[1];
+    if (typeof move !== 'function' || typeof release !== 'function')
+      throw new Error('Pan listeners were not registered');
+
     if (reason === 'escape') fireEvent.keyDown(viewport, { key: 'Escape' });
     if (reason === 'blur') fireEvent.blur(window);
     if (reason === 'release')
       fireEvent.mouseMove(window, { buttons: 0, clientX: 400, clientY: 200 });
     if (reason === 'unmount') unmount();
     expect(gantt.editing()).toBe(false);
+    expect(removed).toHaveBeenCalledWith('mousemove', move, true);
+    expect(removed).toHaveBeenCalledWith('mouseup', release, true);
+
     const left = viewport.scrollLeft;
-    fireEvent.mouseMove(window, { buttons: 4, clientX: 400, clientY: 200 });
+    // A queued callback from the ended gesture must not disturb another editing owner.
+    gantt.setEditing(true);
+    move.call(
+      window,
+      new MouseEvent('mousemove', { buttons: 4, clientX: 400, clientY: 200 })
+    );
+    release.call(window, new MouseEvent('mouseup', { button: 1 }));
     expect(viewport.scrollLeft).toBe(left);
+    expect(gantt.editing()).toBe(true);
+    gantt.setEditing(false);
   }
 );
 

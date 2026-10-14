@@ -8,7 +8,8 @@ import {
 import { createComponent, createSignal } from 'solid-js';
 import { insert } from 'solid-js/web';
 import { afterEach, expect, it, vi } from 'vitest';
-import { Gantt, useGantt } from './gantt';
+import { Gantt } from './gantt';
+import { useGantt } from './gantt-context';
 import type { GanttGroupMove } from './gantt-group-drag';
 
 afterEach(() => {
