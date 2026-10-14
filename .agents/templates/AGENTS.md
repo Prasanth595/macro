@@ -1,8 +1,16 @@
 # <crate or directory name>
 
-<One sentence: what this owns.>
-
 Status: legacy — do not extend; use `<replacement>` | migrating to `<target>`
+
+## What it is
+
+<Which product feature this belongs to (Calendar, CRM, agent sessions, ...) and
+what this crate does for it, in one to three sentences.>
+
+## How it works
+
+<Optional. The main flow in a few lines: what comes in, the key steps, what
+comes out. Omit when "Start here" already makes it obvious.>
 
 ## Start here
 
