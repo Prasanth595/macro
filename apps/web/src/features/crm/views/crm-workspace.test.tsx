@@ -20,7 +20,7 @@ const fixture = vi.hoisted(() => ({
 vi.mock('@app/components/view-shell', () => ({
   ViewShell: {
     Root: (props: ParentProps) => props.children,
-    Aside: () => null,
+    Aside: (props: ParentProps) => props.children,
     Main: (props: ParentProps) => props.children,
     Header: (props: ParentProps) => <header>{props.children}</header>,
   },
@@ -108,9 +108,35 @@ vi.mock(
 vi.mock('../components/company-list-dialog', () => ({
   CrmListDialog: () => null,
 }));
-vi.mock('../components/crm-sidebar', () => ({ CrmSidebar: () => null }));
+vi.mock('../components/crm-sidebar', () => ({
+  CrmSidebar: (props: {
+    pipelines?: JSX.Element;
+    onNavigate: (id: string) => void;
+  }) => (
+    <nav aria-label="CRM sidebar">
+      <button type="button" onClick={() => props.onNavigate('active')}>
+        Companies
+      </button>
+      <button type="button" onClick={() => props.onNavigate('people')}>
+        People
+      </button>
+      {props.pipelines}
+    </nav>
+  ),
+}));
 vi.mock('../components/pipeline-sidebar', () => ({
-  PipelineSidebar: () => null,
+  PipelineSidebar: (props: {
+    pipelines: { id: string; name: string }[];
+    onSelect: (id: string) => void;
+  }) => (
+    <>
+      {props.pipelines.map((pipeline) => (
+        <button type="button" onClick={() => props.onSelect(pipeline.id)}>
+          {pipeline.name}
+        </button>
+      ))}
+    </>
+  ),
 }));
 vi.mock('../components/pipeline-dialog', () => ({
   PipelineDialog: () => null,
@@ -217,7 +243,7 @@ function setup(initialTab = 'active') {
   render(() => (
     <CrmWorkspaceView>{() => <div>Record list</div>}</CrmWorkspaceView>
   ));
-  return { activeTab, setPipelineRequest };
+  return { activeTab, setActiveTab, setPipelineRequest };
 }
 
 it('keeps sidebar destinations in the mobile header when switching records, pipelines and lists', () => {
@@ -286,4 +312,14 @@ it('opens the company of a pipeline row in its own split on touch', () => {
     { activate: true }
   );
   expect(screen.getByText('Sales table')).toBeTruthy();
+});
+
+it('closes an open record when activeTab changes via history navigation', () => {
+  fixture.touch = false;
+  const { setActiveTab } = setup('pipeline:sales');
+  fireEvent.click(screen.getByRole('button', { name: 'Open Acme' }));
+  expect(screen.getByText('Sales record company:acme')).toBeTruthy();
+  setActiveTab('people');
+  expect(screen.queryByText(/record company:acme/)).toBeNull();
+  expect(screen.getByText('Record list')).toBeTruthy();
 });

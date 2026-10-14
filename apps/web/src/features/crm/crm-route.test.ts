@@ -98,6 +98,9 @@ describe('pipeline links', () => {
 
       const first = open();
       expect(first.pathname).toBe('/companies');
+      expect(first.searchParams.get('s0.crm.tab')).toBe(
+        pipelineTab(pipelineId)
+      );
       expect(first.searchParams.get('s0.crm.pipeline')).toBe(pipelineId);
       // Opening the same pipeline again is a new request.
       expect(open().searchParams.get('s0.crm.seek')).not.toBe(
