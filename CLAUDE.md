@@ -105,15 +105,32 @@ Real files live in `.agents/`; tool-specific directories only symlink to it.
   [app agent guide](docs/agent-guide/README.md) in the same change.
 - Report what you tested and any checks blocked by the environment.
 
-## Keeping these instructions useful
+## Keeping guidance current
 
-Keep this file short: shared guardrails and links with explicit reading triggers.
-Put workflows in skills or guides, general coding rules in `CODING.md`,
-path-scoped conventions in `.agents/rules/`, and
-subtree-specific navigation in that directory's `AGENTS.md`. Do not append implementation
-journals, duplicate command lists, or environment-specific runbooks here.
+Update the docs in the same change whenever:
 
-When the user corrects something that would apply beyond the current change, add
-or update a rule in `.agents/rules/<area>/` from the
-[rule template](.agents/templates/rule.md), scoped to the narrowest paths that
-need it. If the rule can be checked mechanically, write an ast-grep rule instead.
+- the user gives feedback that applies beyond the current task,
+- you and the user settle on a new convention or reverse an old one,
+- you find a doc, rule, or guide that is wrong or stale.
+
+Put it in exactly one place, the narrowest that fits:
+
+| Kind of guidance | Goes in |
+| --- | --- |
+| How to behave with the user, or a cross-cutting guardrail | This file, **Rules** |
+| A coding rule for every language | `CODING.md` |
+| A convention for certain paths (Rust, web, DB, infra) | `.agents/rules/<area>/`, from the [rule template](.agents/templates/rule.md) |
+| Something checkable by a tool | An ast-grep rule in `rules/ast-grep/` or a lint, instead of prose |
+| Navigation, recipes, or gotchas for one directory | That directory's `AGENTS.md`, from the [template](.agents/templates/AGENTS.md) |
+| A repeatable multi-step task | A skill in `.agents/skills/` |
+| An end-to-end walkthrough of a change | `docs/guides/` |
+| How a system works | `docs/architecture/` |
+
+How:
+
+- Edit the existing entry before adding a new one; delete what the change makes
+  wrong. Never leave two versions of the same rule.
+- Write the rule as one imperative line, with the reason only when it isn't
+  obvious. ID-bearing rules take the next free number.
+- Keep this file short: rules and links, no journals, command lists, or runbooks.
+- Tell the user which doc you changed and how, in one line.
