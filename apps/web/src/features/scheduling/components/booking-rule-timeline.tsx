@@ -104,7 +104,7 @@ export function BookingRuleTimeline(props: {
               ? 'translateX(-50%)'
               : 'translateX(50%)',
           }}
-          class="size-4 border-2 border-accent bg-panel"
+          class="size-4 border-2 border-ink bg-ink"
         />
         {/* The scaled position is internal. Expose only the thumb's actual-value slider. */}
       </Slider.Track>

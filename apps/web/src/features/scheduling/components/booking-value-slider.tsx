@@ -217,7 +217,7 @@ export function BookingValueSlider(props: {
               onKeyDown={keyboard}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
-              class="border-2 border-accent"
+              class="border-2 border-ink bg-ink"
             >
               <Tooltip
                 label={valueLabel()}

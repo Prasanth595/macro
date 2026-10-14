@@ -293,7 +293,7 @@ export function BookingRange(props: {
                   onPointerUp={finishDrag}
                   onPointerCancel={finishDrag}
                   onLostPointerCapture={finishDrag}
-                  class="border-2 border-accent"
+                  class="border-2 border-ink bg-ink"
                 >
                   <Tooltip
                     label={describeNotice()}
@@ -330,7 +330,7 @@ export function BookingRange(props: {
                   onPointerUp={finishDrag}
                   onPointerCancel={finishDrag}
                   onLostPointerCapture={finishDrag}
-                  class="border-2 border-accent"
+                  class="border-2 border-ink bg-ink"
                 >
                   <Tooltip
                     label={horizonLabel()}
