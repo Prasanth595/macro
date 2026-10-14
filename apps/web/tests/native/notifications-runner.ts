@@ -163,9 +163,16 @@ try {
     await browser.execute(() => window.notificationFixture.clicked),
     [1]
   );
+  for (const log of ['tauri.log', 'tauri.stderr.log']) {
+    assert.doesNotMatch(
+      await Bun.file(resolve(artifacts, log)).text(),
+      /Unable to close Linux notification/,
+      'A notification already removed by the daemon must not warn'
+    );
+  }
   await browser.saveScreenshot(resolve(artifacts, 'notifications.png'));
   console.log(
-    'PASS: real Linux WebKit -> native D-Bus delivery -> GTK activation -> correct JS callback; dismissal and explicit close'
+    'PASS: real Linux WebKit -> native D-Bus delivery -> GTK activation -> correct JS callback; dismissal, explicit close, and already-removed cleanup without warnings'
   );
 } finally {
   if (browser) {

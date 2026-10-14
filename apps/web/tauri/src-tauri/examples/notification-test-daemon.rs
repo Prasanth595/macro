@@ -3,7 +3,10 @@
 
 #[cfg(target_os = "linux")]
 mod linux {
-    use std::{collections::HashMap, time::Duration};
+    use std::{
+        collections::{HashMap, HashSet},
+        time::Duration,
+    };
     use zbus::{object_server::SignalEmitter, zvariant::OwnedValue};
 
     const SERVICE: &str = "org.freedesktop.Notifications";
@@ -13,6 +16,13 @@ mod linux {
     struct Daemon {
         next_id: u32,
         closed: Vec<u32>,
+        removed: HashSet<u32>,
+    }
+
+    #[derive(Debug, zbus::DBusError)]
+    #[zbus(prefix = "org.freedesktop.Notifications.Error")]
+    enum CloseError {
+        NotFound(String),
     }
 
     #[zbus::interface(name = "org.freedesktop.Notifications")]
@@ -35,8 +45,12 @@ mod linux {
             self.next_id
         }
 
-        fn close_notification(&mut self, id: u32) {
+        fn close_notification(&mut self, id: u32) -> Result<(), CloseError> {
             self.closed.push(id);
+            if !self.removed.insert(id) {
+                return Err(CloseError::NotFound("notification id was not found".into()));
+            }
+            Ok(())
         }
 
         fn snapshot(&self) -> String {
@@ -44,10 +58,13 @@ mod linux {
         }
 
         async fn activate(
-            &self,
+            &mut self,
             id: u32,
             #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
         ) -> zbus::fdo::Result<()> {
+            // Match Noctalia: activation removes the alert before the client
+            // processes ActionInvoked and asks to close it.
+            self.removed.insert(id);
             emitter
                 .emit(SERVICE, "ActivationToken", &(id, "fixture-token"))
                 .await?;
@@ -58,10 +75,11 @@ mod linux {
         }
 
         async fn dismiss(
-            &self,
+            &mut self,
             id: u32,
             #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
         ) -> zbus::fdo::Result<()> {
+            self.removed.insert(id);
             emitter
                 .emit(SERVICE, "NotificationClosed", &(id, 2u32))
                 .await?;

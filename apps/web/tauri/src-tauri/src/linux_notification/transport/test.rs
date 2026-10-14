@@ -12,6 +12,14 @@ struct Calls {
     actions: Vec<String>,
     bodies: Vec<String>,
     closed: Vec<u32>,
+    close_error: Option<CloseError>,
+}
+
+#[derive(Clone, Debug, zbus::DBusError)]
+#[zbus(prefix = "org.freedesktop.Notifications.Error")]
+enum CloseError {
+    NotFound(String),
+    Failed(String),
 }
 
 struct Daemon {
@@ -62,8 +70,13 @@ impl Daemon {
         Ok(id)
     }
 
-    fn close_notification(&self, id: u32) {
-        self.calls.lock().unwrap().closed.push(id);
+    fn close_notification(&self, id: u32) -> Result<(), CloseError> {
+        let mut calls = self.calls.lock().unwrap();
+        calls.closed.push(id);
+        match calls.close_error.clone() {
+            Some(error) => Err(error),
+            None => Ok(()),
+        }
     }
 }
 
@@ -151,6 +164,41 @@ async fn advertises_default_action_and_buffers_early_token_and_click() {
     assert_eq!(calls.actions, ["default", "Open"]);
     assert_eq!(calls.bodies, ["&lt;hello&gt; &amp; goodbye"]);
     assert_eq!(calls.closed, [1]);
+}
+
+#[tokio::test]
+async fn closing_an_already_removed_notification_succeeds() {
+    let (_bus, _server, client, calls) = setup(false, false).await;
+    let notification = show(client).await;
+    calls.lock().unwrap().close_error =
+        Some(CloseError::NotFound("notification id was not found".into()));
+    notification.close().await.unwrap();
+    assert_eq!(calls.lock().unwrap().closed, [1]);
+}
+
+#[tokio::test]
+async fn daemon_removal_on_click_does_not_prevent_activation() {
+    let (_bus, _server, client, calls) = setup(true, false).await;
+    let notification = show(client).await;
+    calls.lock().unwrap().close_error =
+        Some(CloseError::NotFound("notification id was not found".into()));
+    let (_close, closed) = oneshot::channel();
+    assert_eq!(
+        outcome(notification, closed).await,
+        Outcome::Activated(Some("early-token".into()))
+    );
+    assert_eq!(calls.lock().unwrap().closed, [1]);
+}
+
+#[tokio::test]
+async fn other_close_errors_are_not_suppressed_even_with_the_same_description() {
+    let (_bus, _server, client, calls) = setup(false, false).await;
+    let notification = show(client).await;
+    calls.lock().unwrap().close_error =
+        Some(CloseError::Failed("notification id was not found".into()));
+    let error = notification.close().await.unwrap_err();
+    assert!(matches!(error, zbus::Error::MethodError(name, _, _)
+        if name.as_str() == "org.freedesktop.Notifications.Error.Failed"));
 }
 
 #[tokio::test]
