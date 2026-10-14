@@ -20,6 +20,7 @@ export type ComposerAddMenuItem = {
 };
 
 export type ComposerAddMenuGroup = {
+  /** Heads the group in the desktop menu. */
   label?: string;
   items: ComposerAddMenuItem[];
 };
@@ -153,9 +154,7 @@ export function ComposerAddDrawer(props: {
             <For each={nonEmpty(props.groups)}>
               {(group) => (
                 <div class="flex shrink-0 flex-col">
-                  <Show when={group.label}>
-                    <MobileDrawer.Label>{group.label}</MobileDrawer.Label>
-                  </Show>
+                  {/* Sections alone separate the groups on mobile. */}
                   <MobileDrawer.Section class="flex flex-col">
                     <For each={group.items}>
                       {(item) => (
