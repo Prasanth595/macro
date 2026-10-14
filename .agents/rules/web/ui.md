@@ -63,10 +63,8 @@ Components, styling, and interaction conventions.
   button, dialog, menu, or input. A missing primitive is added there, with a
   `*.docs.tsx` page and tests, not inside a feature.
 - **FE-54** Decide mobile behavior deliberately. Unless the change makes it
-  obvious, ask the user how a UI change should look and behave on mobile.
-  Implement it with the `touch:` / `not-touch:` / `mobile:` variants and
-  `@core/mobile` helpers (`isMobile`, `isTouchDevice`), and check it at phone
-  width.
+  obvious, ask the user how a UI change should look and behave on mobile, then
+  follow [`mobile.md`](mobile.md).
 - **FE-55** UI tests drive real interactions (click, type, keyboard, focus)
   through `@solidjs/testing-library` and assert what the user sees or can do.
   No tests that only render and check classes, snapshot markup, or mock the
