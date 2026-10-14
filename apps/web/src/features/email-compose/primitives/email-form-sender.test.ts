@@ -89,6 +89,42 @@ it.each(['base@example.com', 'resident@example.com'])(
     })
 );
 
+it('preserves the alias sender when forwarding and retains only attachments not linked in the quote', () =>
+  createRoot((dispose) => {
+    try {
+      const original = message('parent', {
+        ...parent,
+        body_html_sanitized: '<img src="cid:logo"><img src="cid:chart">',
+        attachments: [
+          {
+            db_id: 'logo',
+            mime_type: 'image/png',
+            content_id: '<logo>',
+            sfs_id: 'logo-file',
+          },
+          { db_id: 'chart', mime_type: 'image/png', content_id: '<chart>' },
+          { db_id: 'report', mime_type: 'application/pdf' },
+        ],
+      });
+      const form = createEmailFormState(
+        { viewerEmail: () => 'base@example.com', inboxes: () => [loaded] },
+        { type: 'replying_to', messageId: 'parent' },
+        {
+          getMessageById: () => original,
+          getDraftForMessageReply: () => undefined,
+        }
+      );
+      form.setReplyType('forward');
+      expect(form.senderEmail()).toBe('resident@example.com');
+      expect(
+        form.attachments.list().map((attachment) => attachment.attachmentId)
+      ).toEqual(['chart', 'report']);
+      expect(form.recipients()).toEqual({ to: [], cc: [], bcc: [] });
+    } finally {
+      dispose();
+    }
+  }));
+
 it('does not pick an alias belonging only to another connected inbox', () =>
   createRoot((dispose) => {
     try {
