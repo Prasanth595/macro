@@ -11,7 +11,6 @@ import {
 } from '@macro-inc/lexical-core';
 import OpenIcon from '@phosphor/arrows-out.svg';
 import CalendarBlank from '@phosphor/calendar-blank.svg';
-import { useNavigate } from '@solidjs/router';
 import { cn, Surface } from '@ui';
 import {
   $getNodeByKey,
@@ -126,7 +125,6 @@ export function BookingLinkMention(props: BookingLinkMentionDecoratorProps) {
   const lexicalWrapper = useContext(LexicalWrapperContext);
   const editor = lexicalWrapper?.editor;
   const selection = () => lexicalWrapper?.selection;
-  const navigate = useNavigate();
 
   const isSelectedAsNode = () => {
     const sel = selection();
@@ -134,18 +132,10 @@ export function BookingLinkMention(props: BookingLinkMentionDecoratorProps) {
     return sel.type === 'node' && sel.nodeKeys.has(props.key);
   };
 
-  const bookingPath = () => {
-    const slug = props.slug;
-    const base = `/app/book/${encodeURIComponent(props.profileId)}`;
-    return slug ? `${base}/${encodeURIComponent(slug)}` : base;
-  };
-
-  const open = (e: MouseEvent | KeyboardEvent | null) => {
-    if (e?.shiftKey) {
-      openExternalUrl(props.url);
-    } else {
-      navigate(bookingPath());
-    }
+  // Booking pages are full-page public routes outside the split layout, so
+  // open the shareable URL the same way an unsynced PR falls back to GitHub.
+  const open = (_e: MouseEvent | KeyboardEvent | null) => {
+    openExternalUrl(props.url);
   };
 
   if (editor) {
