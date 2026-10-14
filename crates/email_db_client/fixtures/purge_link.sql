@@ -1,6 +1,6 @@
 -- SQL fixture for purge_link tests.
 -- Two mailboxes with identical shapes: link a001 is purged, link b001 must be left intact.
--- Each has 4 contacts, 3 labels and 10 threads of 3 messages. Every message replies to the
+-- Each has 4 contacts, 3 labels, 10 threads of 3 messages and 1 empty thread. Every message replies to the
 -- previous one in its thread, carries 2 labels and 2 recipients; the first message of each
 -- thread has an attachment stored in SFS; each thread has user history; one message is a
 -- scheduled send.
@@ -34,6 +34,11 @@ FROM purge_fixture_links l, generate_series(1, 3) AS n;
 INSERT INTO email_threads (id, link_id, provider_id, inbox_visible)
 SELECT md5(l.tag || '-thread-' || t)::uuid, l.id, l.tag || '-thread-' || t, true
 FROM purge_fixture_links l, generate_series(1, 10) AS t;
+
+-- A thread with no messages, which only the thread phase reaches.
+INSERT INTO email_threads (id, link_id, provider_id)
+SELECT md5(tag || '-thread-empty')::uuid, id, tag || '-thread-empty'
+FROM purge_fixture_links;
 
 INSERT INTO email_messages (id, thread_id, link_id, provider_id, from_contact_id, replying_to_id,
                             internal_date_ts, body_text)

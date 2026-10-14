@@ -56,7 +56,7 @@ impl LinkRows {
         sync_tokens: 1,
         contacts: 4,
         labels: 3,
-        threads: 10,
+        threads: 11,
         messages: 30,
         message_labels: 60,
         recipients: 60,
@@ -164,7 +164,7 @@ async fn purge_removes_all_link_data_in_batches(pool: Pool<Postgres>) -> anyhow:
         summary,
         PurgeSummary {
             messages: 30,
-            threads: 10,
+            threads: 11,
             contacts: 4,
             link_deleted: true,
         }
@@ -182,15 +182,20 @@ async fn purge_removes_all_link_data_in_batches(pool: Pool<Postgres>) -> anyhow:
     fixtures(path = "../../../fixtures", scripts("purge_link"))
 )]
 async fn purge_resumes_after_an_interrupted_run(pool: Pool<Postgres>) -> anyhow::Result<()> {
-    // A worker that crashed partway through the message phase.
+    // A worker that crashed partway through the message phase. Threads hold 3 messages, so
+    // two batches of 7 finish 4 threads and stop partway into a fifth.
     mark_link_deleting(&pool, PURGED).await?;
     let limit = NonZeroU32::new(7).expect("non-zero");
-    assert_eq!(purge_message_batch(&pool, PURGED, limit).await?, 7);
-    assert_eq!(purge_message_batch(&pool, PURGED, limit).await?, 7);
+    let first = purge_message_batch(&pool, PURGED, Uuid::nil(), limit).await?;
+    assert_eq!((first.messages, first.threads), (7, 2));
+    let cursor = first.next_cursor.expect("more messages remain");
+    let second = purge_message_batch(&pool, PURGED, cursor, limit).await?;
+    assert_eq!((second.messages, second.threads), (7, 2));
 
     let partial = link_rows(&pool, PURGED).await?;
     assert_eq!(partial.links, 1);
     assert_eq!(partial.messages, 16);
+    assert_eq!(partial.threads, 7);
     let state = deletion_state(&pool, PURGED).await?;
     assert!(!state.is_sync_active);
     assert!(state.deleting_at.is_some());
@@ -201,7 +206,7 @@ async fn purge_resumes_after_an_interrupted_run(pool: Pool<Postgres>) -> anyhow:
         resumed,
         PurgeSummary {
             messages: 16,
-            threads: 10,
+            threads: 7,
             contacts: 4,
             link_deleted: true,
         }
@@ -222,6 +227,34 @@ async fn purge_resumes_after_an_interrupted_run(pool: Pool<Postgres>) -> anyhow:
     migrator = "MACRO_DB_MIGRATIONS",
     fixtures(path = "../../../fixtures", scripts("purge_link"))
 )]
+async fn message_batches_keep_a_thread_until_its_last_message_is_gone(
+    pool: Pool<Postgres>,
+) -> anyhow::Result<()> {
+    // Threads hold 3 messages, so a batch of 2 ends inside a thread every time.
+    mark_link_deleting(&pool, PURGED).await?;
+    let limit = NonZeroU32::new(2).expect("non-zero");
+
+    let first = purge_message_batch(&pool, PURGED, Uuid::nil(), limit).await?;
+    assert_eq!((first.messages, first.threads), (2, 0));
+    let partial = link_rows(&pool, PURGED).await?;
+    assert_eq!((partial.messages, partial.threads), (28, 11));
+
+    let cursor = first.next_cursor.expect("more messages remain");
+    let second = purge_message_batch(&pool, PURGED, cursor, limit).await?;
+    assert_eq!((second.messages, second.threads), (2, 1));
+    let partial = link_rows(&pool, PURGED).await?;
+    assert_eq!((partial.messages, partial.threads), (26, 10));
+    assert_eq!(partial.user_history, 9);
+
+    assert_eq!(link_rows(&pool, KEPT).await?, LinkRows::FULL);
+
+    Ok(())
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("purge_link"))
+)]
 async fn concurrent_purges_of_one_link_both_succeed(pool: Pool<Postgres>) -> anyhow::Result<()> {
     let (first, second) = tokio::try_join!(
         purge_link(&pool, PURGED, batch_sizes(2, 2, 1)),
@@ -229,7 +262,7 @@ async fn concurrent_purges_of_one_link_both_succeed(pool: Pool<Postgres>) -> any
     )?;
 
     assert_eq!(first.messages + second.messages, 30);
-    assert_eq!(first.threads + second.threads, 10);
+    assert_eq!(first.threads + second.threads, 11);
     assert_eq!(first.contacts + second.contacts, 4);
     assert!(first.link_deleted != second.link_deleted);
 
