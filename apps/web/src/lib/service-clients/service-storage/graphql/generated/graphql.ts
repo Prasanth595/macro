@@ -795,7 +795,8 @@ export type GraphqlDocumentLiteral =
   createdAt: GraphqlDateLiteral; crmAssociated?: never; emailAttachmentParticipant?: never; fileAssoc?: never; fileType?: never; id?: never; importance?: never; includeCbmAtmNc?: never; isEmailAttachment?: never; nameContains?: never; notificationState?: never; owner?: never; projectId?: never; property?: never; subType?: never; updatedAt?: never; }
   |  { createdAt?: never;   /**
    * Associated with a CRM record through its Companies or Contacts
-   * property or a reference to the record.
+   * property or a reference to the record. Requires an expanded,
+   * timestamp-sorted query.
    */
   crmAssociated: GraphqlCrmAssociation; emailAttachmentParticipant?: never; fileAssoc?: never; fileType?: never; id?: never; importance?: never; includeCbmAtmNc?: never; isEmailAttachment?: never; nameContains?: never; notificationState?: never; owner?: never; projectId?: never; property?: never; subType?: never; updatedAt?: never; }
   |  { createdAt?: never; crmAssociated?: never;   /** Uploaded from an email attachment sent by, or to, a matching address. */
@@ -954,7 +955,10 @@ export type GraphqlEntityFilterAst = {
   channelThreadFilter?: GraphqlChannelThreadExpr | null | undefined;
   /** The chat filter to apply. */
   chatFilter?: GraphqlChatExpr | null | undefined;
-  /** Restrict every entity type to items associated with this CRM record. */
+  /**
+   * Restrict every entity type to items associated with this CRM record.
+   * Requires an expanded, timestamp-sorted query.
+   */
   crmAssociation?: GraphqlCrmAssociation | null | undefined;
   /** The crm company filter to apply. */
   crmCompanyFilter?: GraphqlCrmCompanyExpr | null | undefined;

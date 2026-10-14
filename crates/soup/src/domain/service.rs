@@ -1684,6 +1684,13 @@ where
                     "CRM associations require a timestamp sort".into(),
                 )));
             }
+            // Unexpanded candidate queries cannot apply filter trees, so the
+            // resolved entity sets would have nowhere to go.
+            if matches!(req.soup_type, SoupType::UnExpanded) {
+                return Err(SoupErr::AstErr(item_filters::ast::ExpandErr::ApiAst(
+                    "CRM associations require an expanded query".into(),
+                )));
+            }
             let resolved = self
                 .resolve_crm_associations(&req.user, team_receipt.as_ref(), req.entity_ast())
                 .await?;

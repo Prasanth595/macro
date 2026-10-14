@@ -1200,7 +1200,8 @@ pub struct ApiEntityFilterAst {
     /// Restrict every entity type to items associated with this CRM record
     /// (wire key `crma`): its Companies or Contacts property names the
     /// record, or it references the record. A company also matches through
-    /// its contacts. Unknown or inaccessible records answer 404.
+    /// its contacts. Unknown or inaccessible records answer 404; requests
+    /// that are not expanded or not timestamp-sorted answer 400.
     #[serde(default, rename = "crma", skip_serializing_if = "Option::is_none")]
     pub crm_association: Option<item_filters::ast::crm_association::CrmAssociation>,
     /// filters applied to canonical calendar events

@@ -212,8 +212,9 @@ parent identity. Soup groups the edges per source and ANDs an id set into each
 source tree (the favorites precedent), so each source's own access checks,
 filters, sort, limit, grouping, counts, and cursor apply after the association.
 Cursors keep the unresolved record, so every page re-authorizes. Frecency,
-touched, and notified sorts and the work feed reject associations. Grouped
-queries resolve without a team receipt (viewer scope).
+touched, and notified sorts, unexpanded (`expand=false`) requests, and the work
+feed reject associations with a 400. Grouped queries resolve without a team
+receipt (viewer scope).
 
 **Source mapping.** Property rows map by entity type (document/task, chat,
 project, initiative, database row, calendar event, email thread, call, channel,
@@ -227,13 +228,14 @@ sessions carry no association.
 **Reference recording.** Document and task editors now record CRM company and
 contact chips as `crm_company` / `crm_contact` mentions with a mention id, so
 removal deletes the edge; companies no longer call the document share/attach
-callback. Message editors already record CRM mentions on send and edit.
-Routed documents (`/app/drive/md/...`) previously recorded no mentions of any
-type: the mentions menu read its source from the legacy block context, which
-those routes lack. The menu now takes the source from the editing surface.
-Recording publishes the existing `mention.created` event only; nothing is
-shared, invited, or notified. Mentions, CRM property saves, and message
-send/edit/delete refresh the mounted CRM-associated lists on both transports.
+callback. Message editors already record CRM mentions on send and edit. Routed
+documents (`/app/drive/md/...`) previously recorded no mentions of any type: the
+mentions menu read its source from the legacy block context, which those routes
+lack. The menu now takes the source from the editing surface. Recording
+publishes the existing `mention.created` event only; nothing is shared, invited,
+or notified. Mentions, CRM property saves, message edits and deletes, and sends
+that mention or attach a CRM record refresh the mounted CRM-associated lists on
+both transports.
 
 **Frontend.** Files, Calls, and Tasks use the association. Tasks pass a `crm`
 scope to the Tasks source: server rows and grouped continuations are not

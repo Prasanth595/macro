@@ -362,6 +362,7 @@ pub struct GraphqlEntityFilterAst {
     /// Restrict results to the authenticated viewer's favorites when true.
     favorites_only: Option<bool>,
     /// Restrict every entity type to items associated with this CRM record.
+    /// Requires an expanded, timestamp-sorted query.
     crm_association: Option<GraphqlCrmAssociation>,
     /// The calendar event filter to apply.
     calendar_event_filter: Option<GraphqlCalendarEventExpr>,
@@ -690,7 +691,8 @@ enum GraphqlDocumentLiteral {
     /// Uploaded from an email attachment sent by, or to, a matching address.
     EmailAttachmentParticipant(GraphqlEmailValue),
     /// Associated with a CRM record through its Companies or Contacts
-    /// property or a reference to the record.
+    /// property or a reference to the record. Requires an expanded,
+    /// timestamp-sorted query.
     CrmAssociated(GraphqlCrmAssociation),
     /// Case-insensitive substring of the document name.
     NameContains(String),

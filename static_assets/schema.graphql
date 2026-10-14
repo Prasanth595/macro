@@ -3175,7 +3175,8 @@ input GraphqlDocumentLiteral @oneOf {
 	emailAttachmentParticipant: GraphqlEmailValue
 	"""
 	Associated with a CRM record through its Companies or Contacts
-	property or a reference to the record.
+	property or a reference to the record. Requires an expanded,
+	timestamp-sorted query.
 	"""
 	crmAssociated: GraphqlCrmAssociation
 	"""
@@ -3598,6 +3599,7 @@ input GraphqlEntityFilterAst {
 	favoritesOnly: Boolean
 	"""
 	Restrict every entity type to items associated with this CRM record.
+	Requires an expanded, timestamp-sorted query.
 	"""
 	crmAssociation: GraphqlCrmAssociation
 	"""

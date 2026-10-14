@@ -71,7 +71,8 @@ pub enum DocumentLiteral {
     /// the document or task is associated with a CRM record through its
     /// Companies or Contacts property or a reference to the record. Soup
     /// resolves the record before querying; it composes with the other
-    /// document literals the way [`DocumentLiteral::Property`] does.
+    /// document literals the way [`DocumentLiteral::Property`] does. Only
+    /// expanded, timestamp-sorted queries accept it.
     #[serde(rename = "crm")]
     CrmAssociated(CrmAssociation),
     /// case-insensitive substring of the document name

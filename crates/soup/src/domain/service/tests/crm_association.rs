@@ -305,7 +305,7 @@ impl ChannelListService for ReferencingComms {
 
 fn request(filters: EntityFilterAst) -> SoupRequest<EntityFilterAst> {
     SoupRequest {
-        soup_type: SoupType::UnExpanded,
+        soup_type: SoupType::Expanded,
         limit: 1,
         cursor: SoupQuery::new_sort_simple(SimpleSortMethod::UpdatedAt, filters),
         sort_direction: SoupSortDirection::Desc,
@@ -370,7 +370,7 @@ async fn company_scope_matches_properties_and_references_of_its_contacts() {
                 ])
             })
         });
-    repo.expect_unexpanded_generic_cursor_soup()
+    repo.expect_expanded_generic_cursor_soup()
         .times(1)
         .returning(|request| {
             let SimpleSortQuery::ItemsFilter(query) = request.cursor else {
@@ -433,7 +433,7 @@ async fn contact_scope_excludes_company_only_and_sibling_items() {
             assert_eq!(contacts, [CONTACT]);
             Box::pin(async { Ok(Vec::new()) })
         });
-    repo.expect_unexpanded_generic_cursor_soup()
+    repo.expect_expanded_generic_cursor_soup()
         .times(1)
         .returning(|request| {
             let SimpleSortQuery::ItemsFilter(query) = request.cursor else {
@@ -519,4 +519,29 @@ async fn associations_require_a_timestamp_sort() {
             .await;
         assert_matches!(result, Err(SoupErr::AstErr(_)));
     }
+}
+
+#[tokio::test]
+async fn associations_require_an_expanded_query() {
+    let company = Record::Company(COMPANY);
+    let comms = ReferencingComms::default();
+    for filters in [
+        EntityFilterAst {
+            crm_association: Some(company),
+            ..Default::default()
+        },
+        EntityFilterAst {
+            document_filter: Some(Arc::new(Expr::val(DocumentLiteral::CrmAssociated(company)))),
+            ..Default::default()
+        },
+    ] {
+        let mut request = request(filters);
+        request.soup_type = SoupType::UnExpanded;
+        // The repo has no expectations, so an edge or candidate read panics.
+        let result = service(MockSoupRepo::new(), comms.clone())
+            .get_user_soup(request, None)
+            .await;
+        assert_matches!(result, Err(SoupErr::AstErr(_)));
+    }
+    assert!(comms.targets.lock().unwrap().is_empty());
 }
