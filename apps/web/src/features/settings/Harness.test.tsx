@@ -225,11 +225,11 @@ beforeEach(() => {
 
 describe('Harness', () => {
   it.each([false, true])(
-    'offers Codex settings even when rollout access is %s',
+    'shows Codex settings only within its rollout (access %s)',
     (enabled) => {
       codexAccess.enabled = enabled;
       render(() => <Harness />);
-      expect(screen.getByTestId('codex-harness')).toBeTruthy();
+      expect(Boolean(screen.queryByTestId('codex-harness'))).toBe(enabled);
     }
   );
 

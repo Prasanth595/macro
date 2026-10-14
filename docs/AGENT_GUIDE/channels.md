@@ -287,10 +287,12 @@ Draft PRs, PRs with no checks, and PRs whose checks are still running or failing
 show no Merge button. Merged and closed PRs show no Merge button. Expanded session mentions retain their
 collapse control. The card never expands in place.
 
-`@codex` is offered to every user before account setup. The built-in
-`@cursor` entry requires the `enable-cursor-agents` rollout flag (local override:
-`VITE_ENABLE_CURSOR_AGENTS`), and `@claude` requires the `claude-cloud` flag
-(local override: `VITE_CLAUDE_CLOUD`). Outside a rollout the entry is absent from
+Built-in provider agents are offered before account setup, each within its own
+rollout: `@cursor` requires the `enable-cursor-agents` flag (local override:
+`VITE_ENABLE_CURSOR_AGENTS`), `@claude` requires the `claude-cloud` flag
+(local override: `VITE_CLAUDE_CLOUD`), and `@codex` requires both
+`enable-chat-v3-agents` and `enable-codex-agents` (local override:
+`VITE_ENABLE_CODEX_AGENTS`). Outside a rollout the entry is absent from
 the mention menu and from task agent assignees, even when that bot is already a
 channel participant. Custom agents keep their channel visibility rules
 regardless of which harness they use.
