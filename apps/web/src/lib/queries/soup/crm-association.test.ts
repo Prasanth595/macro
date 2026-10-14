@@ -16,7 +16,7 @@ vi.mock('./graphql/active-queries', () => ({
 
 import {
   hasCrmAssociation,
-  mentionsCrmRecord,
+  messageReferencesCrmRecord,
   refreshCrmAssociatedSoupQueries,
 } from './crm-association';
 import { soupKeys } from './keys';
@@ -49,13 +49,22 @@ describe('CRM-associated Soup lists', () => {
 
   it('recognizes CRM message references', () => {
     expect(
-      mentionsCrmRecord([
-        { entity_type: 'user' },
-        { entity_type: 'crm_contact' },
-      ])
+      messageReferencesCrmRecord({
+        mentions: [{ entity_type: 'user' }, { entity_type: 'crm_contact' }],
+      })
     ).toBe(true);
-    expect(mentionsCrmRecord([{ entity_type: 'document' }])).toBe(false);
-    expect(mentionsCrmRecord(undefined)).toBe(false);
+    expect(
+      messageReferencesCrmRecord({
+        attachments: [{ entity_type: 'crm_company' }],
+      })
+    ).toBe(true);
+    expect(
+      messageReferencesCrmRecord({
+        mentions: [{ entity_type: 'document' }],
+        attachments: [{ entity_type: 'document' }],
+      })
+    ).toBe(false);
+    expect(messageReferencesCrmRecord({})).toBe(false);
   });
 
   it('refetches only associated lists on both transports', async () => {

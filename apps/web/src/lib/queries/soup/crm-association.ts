@@ -26,14 +26,22 @@ export function hasCrmAssociation(body: unknown): boolean {
   return body.crma !== undefined || treeNamesCrmAssociation(body.df);
 }
 
-/** Whether message mentions name a CRM company or contact. */
-export function mentionsCrmRecord(
-  mentions: readonly { entity_type: string }[] | undefined
-): boolean {
-  return (mentions ?? []).some(
-    (mention) =>
-      mention.entity_type === 'crm_company' ||
-      mention.entity_type === 'crm_contact'
+type EntityRef = { entity_type: string };
+
+const isCrmRecord = ({ entity_type }: EntityRef) =>
+  entity_type === 'crm_company' || entity_type === 'crm_contact';
+
+/**
+ * Whether a message mentions or attaches a CRM company or contact; either
+ * makes the message an associated item of that record.
+ */
+export function messageReferencesCrmRecord(message: {
+  mentions?: readonly EntityRef[];
+  attachments?: readonly EntityRef[];
+}): boolean {
+  return (
+    (message.mentions ?? []).some(isCrmRecord) ||
+    (message.attachments ?? []).some(isCrmRecord)
   );
 }
 

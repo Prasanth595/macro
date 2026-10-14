@@ -4,7 +4,7 @@ import { toast } from '@core/component/Toast/Toast';
 import type { DateValue } from '@core/util/date';
 import { markMessageSent } from '@core/util/message-send-motion';
 import {
-  mentionsCrmRecord,
+  messageReferencesCrmRecord,
   refreshCrmAssociatedSoupQueries,
 } from '@queries/soup/crm-association';
 import {
@@ -504,8 +504,8 @@ export function useSendMessageMutation(
             invalidateSoupEntity(variables.parent.id);
           }
 
-          // CRM record lists include messages that reference the record.
-          if (mentionsCrmRecord(variables.message.mentions))
+          // CRM record lists include messages that mention or attach the record.
+          if (messageReferencesCrmRecord(variables.message))
             void refreshCrmAssociatedSoupQueries();
 
           if (variables.parent.type === 'channel')
