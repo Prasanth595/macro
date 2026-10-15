@@ -66,9 +66,8 @@ export function useDriveFilters() {
     });
   });
 
-  // Memoized so `groups` only rebuilds when an answer flips. Reading the state
-  // signal there would hand the menu a fresh group list on every selection,
-  // tearing down the open submenu and closing the menu after one pick.
+  // Menu structure only depends on location/scope, not the selected facets.
+  // Reading the whole state in `groups` remounts its submenus on each selection.
   const showCreators = createMemo(() => {
     const { location, scope } = state.value();
 
@@ -76,10 +75,8 @@ export function useDriveFilters() {
 
     return location.tab !== 'owned' || scope !== 'default';
   });
-
   const isRecent = createMemo(() => {
     const location = state.value().location;
-
     return location.kind === 'tab' && location.tab === 'recent';
   });
 
