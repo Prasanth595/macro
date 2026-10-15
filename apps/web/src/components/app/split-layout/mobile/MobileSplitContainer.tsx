@@ -1,4 +1,3 @@
-
 import { useAndroidBackNavigation } from '@core/mobile/androidBack';
 import {
   type Accessor,
