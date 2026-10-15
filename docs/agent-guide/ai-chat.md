@@ -361,7 +361,8 @@ the shimmer.
   sit inside the input on the right.
   Direct model selections show the model icon, with the model name in the title.
   Saved and coding agents show their own icon and name on desktop, without a
-  second model icon; phones use an icon-only picker.
+  second model icon; phones use an icon-only picker. Routine configuration
+  keeps the saved model name visible in its picker, including unavailable models.
 - The agent dropdown includes saved agents of the selected mode regardless of
   runtime, plus Cursor in Code mode.
   Macro's models use the same searchable catalog as running sessions:

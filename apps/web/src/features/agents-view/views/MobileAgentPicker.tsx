@@ -96,7 +96,11 @@ export function MobileAgentPicker(props: AgentPickerProps) {
         size="sm"
         aria-label="Agent"
         title={label()}
-        class="size-[34px] shrink-0 rounded-full p-0 text-ink-muted"
+        class={
+          props.showModelLabel
+            ? 'h-[34px] max-w-full min-w-0 gap-1.5 rounded-full px-2 text-ink-muted'
+            : 'size-[34px] shrink-0 rounded-full p-0 text-ink-muted'
+        }
         // Let click open the sheet before any native focus can move the trigger.
         // Physical iOS devices also send mousedown after a cancelled pointerdown.
         onPointerDown={(event: PointerEvent) => event.preventDefault()}
@@ -108,6 +112,9 @@ export function MobileAgentPicker(props: AgentPickerProps) {
           fallback={<ModelIcon model={model()} class="size-[18px]" />}
         >
           {(agent) => <AgentIcon agent={agent()} class="size-[18px]" />}
+        </Show>
+        <Show when={props.showModelLabel}>
+          <span class="min-w-0 truncate">{modelLabel(model())}</span>
         </Show>
       </MobileDrawer.Trigger>
       <MobileDrawer.Portal>

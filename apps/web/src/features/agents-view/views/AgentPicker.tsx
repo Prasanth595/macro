@@ -28,6 +28,8 @@ export type AgentPickerProps = {
   modelOverride?: string;
   loading: boolean;
   triggerClass?: string;
+  /** Configuration forms keep the saved model visible beside the icon. */
+  showModelLabel?: boolean;
   effortLabel?: string;
   menuHeader?: JSX.Element;
   effortSelection?: EffortSelection;
@@ -119,6 +121,9 @@ function DesktopAgentPicker(props: AgentPickerProps) {
         {/* The model shows as its provider's logo; the title spells it out. */}
         <Show when={rawModel()}>
           <ModelIcon model={model()} class="size-[15px] shrink-0" />
+        </Show>
+        <Show when={props.showModelLabel}>
+          <span class="min-w-0 truncate text-left leading-5">{label()}</span>
         </Show>
         <CaretDownIcon class="size-[15px] shrink-0" />
       </Dropdown.Trigger>
