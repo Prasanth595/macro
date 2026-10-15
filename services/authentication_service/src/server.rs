@@ -5,6 +5,7 @@ use analytics_client::{
     AnalyticsClient, AnalyticsClientConfig, GoogleAnalyticsConfig, MetaConfig, PostHogConfig,
 };
 use anyhow::{Context, anyhow};
+use bots::outbound::pg_bots_repo::PgBotsRepo;
 use channels::{
     domain::{
         service::ChannelServiceImpl,
@@ -22,6 +23,7 @@ use connection_gateway_client::ConnectionGatewayClient;
 use contacts::{domain::service::SqsContactsIngress, outbound::ingress::SqsContactsQueue};
 use document_storage_service_client::DocumentStorageServiceClient;
 use entity_access::{domain::service::EntityAccessServiceImpl, outbound::PgAccessRepository};
+use entity_registry::{EntityRegistryServiceImpl, PgEntityRegistryRepository};
 use foreign_entity::{
     domain::service::ForeignEntityServiceImpl,
     outbound::pg_foreign_entity_repo::PgForeignEntityRepo,
@@ -89,6 +91,7 @@ use crate::{
     microsoft_token_cipher::{
         EnvelopeMicrosoftTokenCipher, KmsDataKeyProvider, MicrosoftTokenCipher,
     },
+    outbound::team_owned_entity_cleanup::TeamOwnedEntityCleanupAdapter,
 };
 use std::{sync::Arc, time::Duration};
 use tokio_util::task::TaskTracker;
@@ -362,8 +365,11 @@ pub async fn run() -> anyhow::Result<()> {
     }
 
     let teams_repo_impl = TeamRepositoryImpl::new(db.clone());
-    let customer_repo_impl =
-        CustomerRepositoryImpl::new(stripe_client.clone(), stripe_prices.seat_prices());
+    let customer_repo_impl = CustomerRepositoryImpl::new(
+        stripe_client.clone(),
+        stripe_prices.seat_prices(),
+        db.clone(),
+    );
     let favorites_service = favorites::domain::service::FavoritesServiceImpl::new(
         favorites::outbound::pg_favorites_repo::PgFavoritesRepo::new(db.clone()),
     );
@@ -450,6 +456,8 @@ pub async fn run() -> anyhow::Result<()> {
     let foreign_entity_service =
         ForeignEntityServiceImpl::new(PgForeignEntityRepo::new(db.clone()));
 
+    let account_link_state_key = config.account_link_state_key()?;
+
     let github_link_service_impl = GithubLinkServiceImpl::new(
         PgGithubRepo::new(db.clone()),
         GithubOauthImpl::default(),
@@ -457,6 +465,11 @@ pub async fn run() -> anyhow::Result<()> {
         GithubPullRequestServiceImpl::new(
             foreign_entity_service,
             PgGithubPullRequestRepo::new(db.clone()),
+        )
+        .with_event_publisher(
+            github_pull_requests::broker::BrokerGithubPullRequestPublisher(
+                macro_event_broker.clone(),
+            ),
         ),
         GithubLinkConfig {
             client_id: config.github_client_id.to_string(),
@@ -502,7 +515,30 @@ pub async fn run() -> anyhow::Result<()> {
         None
     };
 
+    let plan_customer = CustomerRepositoryImpl::new(
+        stripe_client.clone(),
+        stripe_prices.seat_prices(),
+        db.clone(),
+    );
     let stripe_client = Arc::new(stripe_client);
+    let plan_gateway = crate::outbound::subscription_plan::StripePlanGateway::new(
+        db.clone(),
+        stripe_client.clone(),
+        stripe_prices.seat_prices(),
+        plan_customer,
+    );
+    let subscription_plan = Arc::new(crate::service::subscription_plan::PlanService::new(
+        plan_gateway.clone(),
+    ));
+    let subscription_status = Arc::new(
+        crate::service::subscription_status::SubscriptionStatusService::new(
+            ai_billing::outbound::RolesTeamsEntitlementSource::new(
+                user_roles_and_permissions_service.clone(),
+                teams_repo_impl.clone(),
+            ),
+            plan_gateway,
+        ),
+    );
     let gtm_invite_service = Arc::new(gtm_invite_service);
     let subscription_checkout =
         Arc::new(crate::service::subscription_checkout::CheckoutService::new(
@@ -529,6 +565,44 @@ pub async fn run() -> anyhow::Result<()> {
         .with_enforcement(config.enable_ai_usage_enforcement)
         .with_billing(config.enable_ai_usage_billing),
     );
+    // The floor under every settlement request: on a schedule, settle
+    // everyone who recorded counted usage recently, whose period just closed,
+    // or who holds a reload that was never collected. Settlement is
+    // idempotent and serialized per payer in the database, so replicas may
+    // sweep concurrently. Not started while billing is off: every settlement
+    // would return before reading anything.
+    let settlement_sweep = config.enable_ai_usage_billing.is_enabled().then(|| {
+        tokio::spawn(ai_billing::inbound::run_settlement_sweep(
+            ai_billing::domain::SettlementSweep::new(
+                ai_billing_service.clone(),
+                ai_billing::outbound::PgSettlementCandidates::new(db.clone()),
+                ai_billing::outbound::RolesTeamsEntitlementSource::new(
+                    user_roles_and_permissions_service.clone(),
+                    teams_repo_impl.clone(),
+                ),
+            ),
+            ai_billing::inbound::SETTLEMENT_SWEEP_INITIAL_DELAY,
+            ai_billing::inbound::SETTLEMENT_SWEEP_INTERVAL,
+        ))
+    });
+    if settlement_sweep.is_none() {
+        tracing::info!("ai billing settlement sweep not started: ENABLE_AI_USAGE_BILLING is off");
+    }
+    let document_storage_service_client = Arc::new(document_storage_service_client);
+    // The harness and scheduled-action services validate the fleet-wide
+    // internal key, not this service's own inbound key.
+    let internal_key = config.service_internal_auth_key.to_string();
+    let harness_url = macro_service_urls::AgentHarnessServiceUrl::new()?.to_string();
+    let scheduled_action_url = macro_service_urls::ScheduledActionServiceUrl::new()?.to_string();
+    let team_owned_entity_cleanup = TeamOwnedEntityCleanupAdapter::new(
+        PgBotsRepo::new(db.clone()),
+        EntityRegistryServiceImpl::new(PgEntityRegistryRepository::new(db.clone())),
+        document_storage_service_client.clone(),
+        internal_key.clone(),
+        harness_url.clone(),
+        scheduled_action_url.clone(),
+    )
+    .map_err(|error| anyhow::anyhow!("{error:?}"))?;
     let teams_service_impl = TeamServiceImpl::new_with_analytics(
         teams_repo_impl.clone(),
         customer_repo_impl,
@@ -541,11 +615,9 @@ pub async fn run() -> anyhow::Result<()> {
     )
     .with_contacts_enqueuer(contacts_enqueuer)
     .with_event_broker(macro_event_broker)
-    .with_open_seat_release((*ai_billing_service).clone());
+    .with_open_seat_release((*ai_billing_service).clone())
+    .with_owned_entity_cleanup(team_owned_entity_cleanup);
     let teams_service = Arc::new(teams_service_impl);
-    let document_storage_service_client = Arc::new(document_storage_service_client);
-    // The harness and scheduled-action services validate the fleet-wide
-    // internal key, not this service's own inbound key.
     let user_deletion = Arc::new(
         crate::outbound::user_deletion::UserDeletionAdapter::new(
             db.clone(),
@@ -553,9 +625,9 @@ pub async fn run() -> anyhow::Result<()> {
             teams_service.clone(),
             onboarding::outbound::pg_onboarding_repo::PgOnboardingRepo::new(db.clone()),
             stripe_client.clone(),
-            config.service_internal_auth_key.to_string(),
-            macro_service_urls::AgentHarnessServiceUrl::new()?.to_string(),
-            macro_service_urls::ScheduledActionServiceUrl::new()?.to_string(),
+            internal_key,
+            harness_url,
+            scheduled_action_url,
         )
         .map_err(|error| anyhow::anyhow!("{error:?}"))?,
     );
@@ -571,6 +643,8 @@ pub async fn run() -> anyhow::Result<()> {
             macro_cache_client: Arc::new(macro_cache_client),
             stripe_client,
             subscription_checkout,
+            subscription_plan,
+            subscription_status,
             document_storage_service_client,
             user_deletion,
             email_service_client: Arc::new(email_service_client),
@@ -581,6 +655,7 @@ pub async fn run() -> anyhow::Result<()> {
             signup_policy,
             rate_limit_service: rate_limit,
             calendar_scope_enabled: config.calendar_scope_enabled,
+            account_link_state_key,
             jwt_args,
             authorization_state,
             token_context: MacroApiTokenContext {
@@ -626,6 +701,12 @@ pub async fn run() -> anyhow::Result<()> {
         config.port,
     )
     .await;
+
+    // A sweep interrupted here leaves nothing half done: each settlement
+    // step commits on its own and the next sweep, on any replica, resumes.
+    if let Some(sweep) = settlement_sweep {
+        sweep.abort();
+    }
 
     tracing::info!("waiting for event broker publishes to drain");
     event_broker_tracker.close();

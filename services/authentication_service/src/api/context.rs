@@ -57,6 +57,7 @@ use roles_and_permissions::{
 use sqlx::PgPool;
 use tokio_util::task::TaskTracker;
 
+use crate::account_link_state::AccountLinkStateKey;
 use crate::microsoft_token_cipher::MicrosoftTokenCipher;
 use crate::service::signup_policy::SignupPolicy;
 use cursor_api_key::cipher::CursorApiKeyCipher;
@@ -91,6 +92,17 @@ pub(crate) type AiBillingServiceType = ai_billing::domain::BillingServiceImpl<
     ai_billing::outbound::StripePaymentGateway,
 >;
 
+pub(crate) type SubscriptionStatusServiceType =
+    crate::service::subscription_status::SubscriptionStatusService<
+        ai_billing::outbound::RolesTeamsEntitlementSource<
+            UserRolesAndPermissionsServiceImpl<MacroDB, MacroDB>,
+            teams::outbound::team_repo::TeamRepositoryImpl,
+        >,
+        crate::outbound::subscription_plan::StripePlanGateway<
+            teams::outbound::customer_repo::CustomerRepositoryImpl,
+        >,
+    >;
+
 pub(crate) type TeamsServiceType = teams::domain::team_service::TeamServiceImpl<
     teams::outbound::team_repo::TeamRepositoryImpl,
     teams::outbound::customer_repo::CustomerRepositoryImpl,
@@ -105,6 +117,10 @@ pub(crate) type TeamsServiceType = teams::domain::team_service::TeamServiceImpl<
     >,
     AuthenticationEventBroker,
     AiBillingServiceType,
+    crate::outbound::team_owned_entity_cleanup::TeamOwnedEntityCleanupAdapter<
+        bots::outbound::pg_bots_repo::PgBotsRepo,
+        entity_registry::EntityRegistryServiceImpl<entity_registry::PgEntityRegistryRepository>,
+    >,
 >;
 
 pub(crate) type RateLimiter = RateLimitServiceImpl<RedisRateLimitAdapter<redis::Client>>;
@@ -147,6 +163,14 @@ pub(crate) struct ApiContext {
     pub codex_connection: Option<Arc<dyn codex_connection::domain::ConnectionService>>,
     pub macro_cache_client: Arc<MacroCache>,
     pub stripe_client: Arc<stripe::Client>,
+    pub subscription_status: Arc<SubscriptionStatusServiceType>,
+    pub subscription_plan: Arc<
+        crate::service::subscription_plan::PlanService<
+            crate::outbound::subscription_plan::StripePlanGateway<
+                teams::outbound::customer_repo::CustomerRepositoryImpl,
+            >,
+        >,
+    >,
     pub subscription_checkout: Arc<
         crate::service::subscription_checkout::CheckoutService<
             crate::outbound::subscription_checkout::StripeCheckoutGateway<GtmInviteServiceType>,
@@ -191,6 +215,8 @@ pub(crate) struct ApiContext {
     pub ai_payment_gateway: Arc<ai_billing::outbound::StripePaymentGateway>,
     /// Whether Gmail link consent requests the Google Calendar scope.
     pub calendar_scope_enabled: bool,
+    /// Signs and verifies the `state` on account-link OAuth round trips.
+    pub account_link_state_key: AccountLinkStateKey,
 }
 
 env_var! {

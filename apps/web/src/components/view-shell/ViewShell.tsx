@@ -4,6 +4,7 @@ import {
   type BreakpointThresholds,
   createSizeBreakpoints,
 } from '@app/util/create-size-breakpoints';
+import { SplitHeaderContextMenu } from '@components/app/split-layout/components/SplitHeaderContextMenu';
 import { SplitPanelContext } from '@components/app/split-layout/context';
 import { SplitPanel } from '@components/app/split-panel';
 import { Resize } from '@core/component/Resize';
@@ -19,7 +20,6 @@ import { tourTarget } from '@ui/components/Tour';
 import {
   type Accessor,
   batch,
-  type ComponentProps,
   createComputed,
   createContext,
   createSignal,
@@ -30,11 +30,10 @@ import {
   Show,
   Switch,
   splitProps,
+  untrack,
   useContext,
 } from 'solid-js';
-import { Portal } from 'solid-js/web';
 import { createSidebarMotion } from './create-sidebar-motion';
-import { ViewNavigationSlotContext } from './navigation-slot';
 import { VIEW_SHELL_TOUR } from './tour';
 import {
   type AsideLayout,
@@ -130,7 +129,10 @@ export type ViewShellRootProps = Omit<
   resizable?: boolean;
   /** Set to false when the workspace has no navigation region. */
   aside?: false | Partial<AsideLayout>;
-  /** Sticky navigation visibility, scoped to this app type rather than an entry. */
+  /**
+   * Sticky navigation visibility, scoped to this app type rather than an entry.
+   * Only the first split uses it; other splits start collapsed.
+   */
   asidePreferenceKey?: string;
   /**
    * Keep navigation open while true, e.g. while Main has nothing selected and
@@ -139,6 +141,13 @@ export type ViewShellRootProps = Omit<
    * open the overlay, which stays dismissible.
    */
   asideRequired?: boolean;
+  /**
+   * Keep navigation docked in wide layouts, for views that are unusable
+   * without it. Like `asideRequired`, it withholds the collapse control and
+   * ignores the saved preference there; narrow layouts still start with the
+   * overlay closed.
+   */
+  asidePinned?: boolean;
   main?: Partial<MainLayout>;
   detail?: Partial<DetailLayout>;
   /** Controlled detail open state. Omit for uncontrolled. */
@@ -163,6 +172,7 @@ function Root(props: ViewShellRootProps) {
     'aside',
     'asidePreferenceKey',
     'asideRequired',
+    'asidePinned',
     'main',
     'detail',
     'detailOpen',
@@ -170,12 +180,20 @@ function Root(props: ViewShellRootProps) {
     'onDetailOpenChange',
   ]);
 
-  const [wideAsideCollapsed, setWideAsideCollapsed] = local.asidePreferenceKey
-    ? usePreference(
-        `macro:pref:view-sidebar:collapsed:${local.asidePreferenceKey}`,
-        { default: false }
-      )
-    : createSignal(false);
+  const panel = useContext(SplitPanelContext);
+  // A view opened beside another split starts without navigation; only the
+  // primary split follows, and writes, the saved preference.
+  const secondarySplit =
+    local.asidePreferenceKey !== undefined &&
+    panel !== undefined &&
+    !untrack(panel.handle.isFirst);
+  const [wideAsideCollapsed, setWideAsideCollapsed] =
+    local.asidePreferenceKey && !secondarySplit
+      ? usePreference(
+          `macro:pref:view-sidebar:collapsed:${local.asidePreferenceKey}`,
+          { default: false }
+        )
+      : createSignal(secondarySplit);
   const id = createUniqueId();
   const [root, setRoot] = createSignal<HTMLDivElement>();
   const animateSidebar = createSidebarMotion(root);
@@ -239,7 +257,8 @@ function Root(props: ViewShellRootProps) {
   );
   // Only a docked aside can be pinned open: a pinned overlay would hide Main
   // behind a backdrop with no way to dismiss it.
-  const asidePinned = () => asideRequired() && !atLayoutBreakpoint();
+  const asidePinned = () =>
+    (asideRequired() || (local.asidePinned ?? false)) && !atLayoutBreakpoint();
 
   const asideMode = (): AsideMode =>
     local.aside === false ||
@@ -325,8 +344,6 @@ function Root(props: ViewShellRootProps) {
     },
   };
 
-  const panel = useContext(SplitPanelContext);
-  const navigationSlot = useContext(ViewNavigationSlotContext);
   if (panel) {
     registerHotkey({
       hotkey: 'cmd+.',
@@ -344,29 +361,6 @@ function Root(props: ViewShellRootProps) {
 
   return (
     <ViewShellContext.Provider value={value}>
-      <Show
-        when={
-          navigationSlot?.() &&
-          panel?.isPanelActive() &&
-          value.aside.canCollapse()
-        }
-      >
-        <Portal mount={navigationSlot?.()}>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            label={
-              value.aside.isCollapsed() ? 'Show navigation' : 'Hide navigation'
-            }
-            hotkey={TOKENS.workspace.toggleNavigation}
-            aria-expanded={!value.aside.isCollapsed()}
-            ref={tourTarget(VIEW_SHELL_TOUR.sidebarToggle)}
-            onClick={value.aside.toggle}
-          >
-            <SidebarIcon class="size-4" />
-          </Button>
-        </Portal>
-      </Show>
       <div
         {...rest}
         ref={setRoot}
@@ -544,28 +538,16 @@ function Aside(props: ViewShellAsideProps) {
   );
 }
 
-/** A navigation overlay must not offer an action that closes its owning split. */
-export function ViewSidebarCloseButton(
-  props: ComponentProps<typeof SplitPanel.CloseButton>
-) {
-  const ws = useContext(ViewShellContext);
-  return (
-    <Show when={!ws?.atLayoutBreakpoint()}>
-      <SplitPanel.CloseButton {...props} />
-    </Show>
-  );
-}
+/** Keep split close available in both docked and overlay navigation. */
+export const ViewSidebarCloseButton = SplitPanel.CloseButton;
 
 /** Safe outside a shell so block preview headers can share this control. */
 export function ViewSidebarToggle(props: { action: 'collapse' | 'expand' }) {
   const ws = useContext(ViewShellContext);
-  const navigationSlot = useContext(ViewNavigationSlotContext);
-  const panel = useContext(SplitPanelContext);
   // A conditional expression as `ref` is dropped by the Solid compiler, so
   // only the expand toggle registers, from inside the callback.
   const toggleTarget = tourTarget(VIEW_SHELL_TOUR.sidebarToggle);
   const visible = () =>
-    !(navigationSlot?.() && panel) &&
     ws?.aside.canCollapse() &&
     (props.action === 'expand'
       ? ws.aside.isCollapsed() || ws.aside.isOverlay()
@@ -662,18 +644,20 @@ function Main(props: JSX.HTMLAttributes<HTMLElement>) {
 function TopBar(props: JSX.HTMLAttributes<HTMLDivElement>) {
   const [local, rest] = splitProps(props, ['children', 'class', 'ref']);
   return (
-    <div
-      {...rest}
-      ref={mergeRefs(local.ref, tourTarget(VIEW_SHELL_TOUR.topBar))}
-      class={cn(
-        '@container/split-header flex h-12 min-w-0 shrink-0 items-center gap-1 px-2 py-3 not-touch:pl-[13px] touch:hidden',
-        local.class
-      )}
-      data-view-shell-top-bar=""
-    >
-      <ViewNavigationControls />
-      {local.children}
-    </div>
+    <SplitHeaderContextMenu>
+      <div
+        {...rest}
+        ref={mergeRefs(local.ref, tourTarget(VIEW_SHELL_TOUR.topBar))}
+        class={cn(
+          '@container/split-header flex h-12 min-w-0 shrink-0 items-center gap-1 px-2 py-3 not-touch:pl-3 touch:hidden',
+          local.class
+        )}
+        data-view-shell-top-bar=""
+      >
+        <ViewNavigationControls />
+        {local.children}
+      </div>
+    </SplitHeaderContextMenu>
   );
 }
 

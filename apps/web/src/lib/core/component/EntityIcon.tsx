@@ -52,6 +52,7 @@ import PhoneCall from '@phosphor/phone-call.svg';
 import Shapes from '@phosphor/shapes.svg';
 import Sparkle from '@phosphor/sparkle.svg';
 import Stack from '@phosphor/stack.svg';
+import Table from '@phosphor/table.svg';
 import Users from '@phosphor/users.svg';
 import UsersThree from '@phosphor/users-three.svg';
 import AddressBookBold from '@phosphor-icons/core/bold/address-book-bold.svg';
@@ -92,6 +93,7 @@ import PhoneCallBold from '@phosphor-icons/core/bold/phone-call-bold.svg';
 import ShapesBold from '@phosphor-icons/core/bold/shapes-bold.svg';
 import SparkleBold from '@phosphor-icons/core/bold/sparkle-bold.svg';
 import StackBold from '@phosphor-icons/core/bold/stack-bold.svg';
+import TableBold from '@phosphor-icons/core/bold/table-bold.svg';
 import UsersBold from '@phosphor-icons/core/bold/users-bold.svg';
 import UsersThreeBold from '@phosphor-icons/core/bold/users-three-bold.svg';
 import type { PreviewItem } from '@queries/preview';
@@ -142,15 +144,15 @@ export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
   document: {
     icon: File,
     boldIcon: FileBold,
-    foreground: 'text-default',
-    background: 'bg-default/20',
+    foreground: 'text-note',
+    background: 'bg-note/20',
     prettyName: 'Document',
   },
   call: {
     icon: PhoneCall,
     boldIcon: PhoneCallBold,
-    foreground: 'text-default',
-    background: 'bg-default/20',
+    foreground: 'text-communication',
+    background: 'bg-communication/20',
     prettyName: 'Call',
   },
   calendar: {
@@ -212,8 +214,8 @@ export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
   form: {
     icon: ClipboardText,
     boldIcon: ClipboardTextBold,
-    foreground: 'text-violet',
-    background: 'bg-violet/20',
+    foreground: 'text-form',
+    background: 'bg-form/20',
     prettyName: 'Form',
   },
   html: {
@@ -226,15 +228,15 @@ export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
   channel: {
     icon: HashStraight,
     boldIcon: HashStraightBold,
-    foreground: 'text-default',
-    background: 'bg-default/20',
+    foreground: 'text-communication',
+    background: 'bg-communication/20',
     prettyName: 'Channel',
   },
   public: {
     icon: GlobeIcon,
     boldIcon: GlobeIconBold,
-    foreground: 'text-default',
-    background: 'bg-default/20',
+    foreground: 'text-communication',
+    background: 'bg-communication/20',
     prettyName: 'Public Channel',
   },
   organization: {
@@ -247,22 +249,22 @@ export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
   private: {
     icon: HashStraight,
     boldIcon: HashStraightBold,
-    foreground: 'text-default',
-    background: 'bg-default/20',
+    foreground: 'text-communication',
+    background: 'bg-communication/20',
     prettyName: 'Private Channel',
   },
   direct_message: {
     icon: Users,
     boldIcon: UsersBold,
-    foreground: 'text-default',
-    background: 'bg-default/20',
+    foreground: 'text-communication',
+    background: 'bg-communication/20',
     prettyName: 'Direct Message',
   },
   team: {
     icon: UsersThree,
     boldIcon: UsersThreeBold,
-    foreground: 'text-default',
-    background: 'bg-default/20',
+    foreground: 'text-communication',
+    background: 'bg-communication/20',
     prettyName: 'Team Channel',
   },
   email: {
@@ -380,8 +382,8 @@ export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
   emailRead: {
     icon: EmailRead,
     boldIcon: EmailReadBold,
-    foreground: 'text-default',
-    background: 'bg-default/20',
+    foreground: 'text-ink-extra-muted',
+    background: 'bg-ink-extra-muted/20',
     prettyName: 'Read Email',
   },
   emailInvite: {
@@ -443,8 +445,8 @@ export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
   initiative: {
     icon: Stack,
     boldIcon: StackBold,
-    foreground: 'text-default',
-    background: 'bg-default/20',
+    foreground: 'text-task',
+    background: 'bg-task/20',
     prettyName: 'Project',
   },
   snippet: {
@@ -482,6 +484,13 @@ export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
     background: 'bg-default/20',
     prettyName: 'Company',
   },
+  pipeline: {
+    icon: Table,
+    boldIcon: TableBold,
+    foreground: 'text-default',
+    background: 'bg-default/20',
+    prettyName: 'Pipeline',
+  },
   reminder: {
     icon: BellSimple,
     boldIcon: BellSimpleBold,
@@ -504,6 +513,7 @@ export function isArchiveType(ext: string): boolean {
 
 function validateEntity(entity: string): EntityWithValidIcon {
   if (entity === 'automation') return 'routine';
+  if (entity === 'ics') return 'calendar';
   if (entity in ENTITY_ICON_CONFIGS) {
     return entity as EntityWithValidIcon;
   } else if (isBlockAlias(entity)) {
@@ -660,6 +670,7 @@ export function getEntityIconType(entity: EntityIconData): EntityWithValidIcon {
     .with({ type: 'document' }, (e) => {
       if (e.subType?.type === 'task') return 'task';
       if (e.fileType === 'spreadsheet') return 'spreadsheet';
+      if (e.fileType === 'ics') return 'calendar';
       if (e.fileType && isArchiveType(e.fileType)) return 'archive';
       const blockName = itemToBlockName(e, true);
       return blockName === 'unknown' ? 'document' : blockName;
@@ -706,6 +717,9 @@ export function getPreviewItemIconType(item: PreviewItem): EntityWithValidIcon {
   if (item.loading || item.access !== 'access') {
     return 'default';
   }
+  // A pipeline previews like an entity but is not one.
+  const { type } = item;
+  if (type === 'crm_pipeline') return 'pipeline';
 
-  return getEntityIconType(item);
+  return getEntityIconType({ ...item, type });
 }

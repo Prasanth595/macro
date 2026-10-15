@@ -56,7 +56,7 @@ function sectionHeadingStyle(): JSX.CSSProperties {
     color: 'var(--c1)',
     'font-family': 'display',
     'font-size': mobile() ? '32px' : breakpoint() ? '38px' : '44px',
-    'font-weight': '315',
+    'font-weight': 'calc(315 + var(--cream-slab-weight-increase, 0))',
     'letter-spacing': '-0.015em',
     'line-height': 1.1,
     margin: 0,
@@ -108,7 +108,7 @@ function PlanCard(props: {
               color: 'var(--c0)',
               'font-family': 'display',
               'font-size': mobile() ? '48px' : '52px',
-              'font-weight': '315',
+              'font-weight': 'calc(315 + var(--cream-slab-weight-increase, 0))',
               'letter-spacing': '-0.015em',
               'line-height': 1,
             }}
@@ -242,7 +242,7 @@ const comparisonGroups: Array<{
     group: 'AI and agents',
     rows: [
       { label: 'AI usage', free: 'Limited', pro: 'Standard', max: '10× Pro' },
-      { label: 'AI models', free: 'Haiku', pro: 'All', max: 'All' },
+      { label: 'AI models', free: 'Gemini Flash', pro: 'All', max: 'All' },
       {
         label: 'Agents with workspace context',
         free: true,
@@ -260,7 +260,7 @@ const comparisonGroups: Array<{
         pro: 'Unlimited',
         max: 'Unlimited',
       },
-      { label: 'Storage', free: '5 GB', pro: '1 TB', max: '1 TB' },
+      { label: 'Storage', free: '5 GB', pro: '100 GB', max: '1 TB' },
       {
         label: 'Calls, recording, and transcription',
         free: false,
@@ -279,20 +279,8 @@ const comparisonGroups: Array<{
         max: 'Removed',
       },
       {
-        label: 'Auto-shared email and CRM for your team',
-        free: false,
-        pro: true,
-        max: true,
-      },
-      {
         label: 'Team-level memory for your agents',
-        free: false,
-        pro: true,
-        max: true,
-      },
-      {
-        label: 'Channel-based sharing and access control',
-        free: false,
+        free: true,
         pro: true,
         max: true,
       },
@@ -537,7 +525,7 @@ function CaseStudyVideo() {
               color: 'var(--c1)',
               'font-family': 'display',
               'font-size': compact() ? '28px' : '34px',
-              'font-weight': '315',
+              'font-weight': 'calc(315 + var(--cream-slab-weight-increase, 0))',
               'letter-spacing': '-0.01em',
               'line-height': 1.14,
               margin: '0',
@@ -873,7 +861,7 @@ function FaqSection() {
           display: flex;
           font-family: 'display';
           font-size: 20px;
-          font-weight: 410;
+          font-weight: calc(410 + var(--cream-slab-weight-increase, 0));
           gap: 16px;
           justify-content: space-between;
           letter-spacing: -0.01em;
@@ -1038,7 +1026,7 @@ export const RoutePricing: Component = () => {
           style={{
             'font-family': 'display',
             'font-size': mobile() ? 'clamp(46px, 13vw, 62px)' : '52.36px',
-            'font-weight': '315',
+            'font-weight': 'calc(315 + var(--cream-slab-weight-increase, 0))',
             'letter-spacing': '-0.012em',
             'line-height': 1.12,
             margin: 0,

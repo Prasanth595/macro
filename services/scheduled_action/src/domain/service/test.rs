@@ -1,4 +1,5 @@
 mod admission;
+mod owned_purge;
 mod user_cleanup;
 
 use super::*;
@@ -198,6 +199,28 @@ pub(crate) fn set_stored_owner(service: &TestService, id: Uuid, owner: Owner) {
         .find(|action| action.id == Some(id))
         .expect("stored action");
     action.owner = owner;
+}
+
+pub(crate) fn stored_owner(service: &TestService, id: Uuid) -> Option<Owner> {
+    let actions = service.repo.actions.lock().unwrap();
+    actions
+        .iter()
+        .find(|action| action.id == Some(id))
+        .map(|action| action.owner.clone())
+}
+
+/// The same store behind a dispatcher that has stopped.
+pub(crate) fn with_stopped_dispatcher(service: &TestService) -> Arc<TestService> {
+    let (tx, _) = tokio::sync::mpsc::channel(1);
+    Arc::new(
+        TestService::new(
+            Arc::clone(&service.repo),
+            Arc::clone(&service.executor),
+            tx,
+            Arc::clone(&service.grants),
+        )
+        .with_event_management_enabled(service.event_management_enabled),
+    )
 }
 
 pub(crate) fn grant_to(service: &TestService, user_id: &str, id: Uuid) {
@@ -496,12 +519,25 @@ async fn preparation_reauthorizes_previously_saved_selection_after_deletion_or_r
             .unwrap();
         assert!(sessions.preparations.lock().unwrap().is_empty());
         *sessions.error.lock().unwrap() = Some(denial);
-        let runner = TargetRunner::new(sessions.clone());
+        let runner = TargetRunner::new(sessions.clone(), Arc::new(UnreadEvents));
         let mut handle = ExecutionHandle::default();
         let error = runner.prepare(&created, &mut handle).await.unwrap_err();
         assert_eq!(error.downcast_ref(), Some(&denial));
         assert!(handle.resource.is_none());
         assert_eq!(sessions.preparations.lock().unwrap().len(), 1);
+    }
+}
+
+/// Preparation never reads the triggering event.
+struct UnreadEvents;
+
+impl crate::domain::ports::RoutineEventReader for UnreadEvents {
+    async fn read_event(
+        &self,
+        _: &MacroUserIdStr<'static>,
+        _: &crate::domain::event_runs::AuthorizedEventRun,
+    ) -> std::result::Result<trigger_context::RoutineEvent, rootcause::Report> {
+        panic!("preparation must not read the triggering event")
     }
 }
 

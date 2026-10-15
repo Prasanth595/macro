@@ -1,5 +1,6 @@
 import { createMediaQuery } from '@solid-primitives/media';
 import { createSignal, type JSX, onCleanup, onMount, Show } from 'solid-js';
+import { pinnedPalette } from '../../setup/sitePalette';
 import { animateDemoEntrance } from './animateDemoEntrance';
 import { HomepageDemoCarousel } from './HomepageDemoCarousel';
 import { HomepageGithub } from './HomepageGithub';
@@ -33,11 +34,12 @@ function DesktopHomepageOpenSource(props: {
       (entries) => {
         if (!entries.some((entry) => entry.isIntersecting)) return;
         nearby.disconnect();
-        // The cream homepage preview carries its palette into the workspace.
-        frame.src =
-          document.documentElement.dataset.palette === 'cream'
-            ? '/demo?embedded=true&theme=cream'
-            : '/demo?embedded=true';
+        // The sample workspace follows the OS color scheme on its own; a
+        // palette pinned with `?theme=` carries over.
+        const pinned = pinnedPalette();
+        frame.src = pinned
+          ? `/demo?embedded=true&theme=${pinned}`
+          : '/demo?embedded=true';
       },
       { rootMargin: '1250px 0px' }
     );

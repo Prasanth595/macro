@@ -45,6 +45,7 @@ use super::ports::{
 };
 use super::upload::{build_destination_map, build_root_folder};
 
+mod purge_owned;
 #[cfg(test)]
 mod tests;
 
@@ -198,6 +199,16 @@ where
             .get_projects_for_user(user_id.as_ref())
             .await
             .map_err(|error| internal_error(error, "unable to list projects"))
+    }
+
+    async fn list_accessible_projects(
+        &self,
+        user_id: MacroUserIdStr<'static>,
+    ) -> Result<Vec<Project>, ProjectError> {
+        self.repo
+            .get_accessible_projects_for_user(user_id.as_ref())
+            .await
+            .map_err(|error| internal_error(error, "unable to list accessible projects"))
     }
 
     async fn list_pending_projects(

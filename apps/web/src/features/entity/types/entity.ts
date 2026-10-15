@@ -77,6 +77,12 @@ export type GithubPullRequestEntity = ForeignEntityBase & {
     labels: GithubPullRequestLabel[];
     authorLogin?: string;
     authorId?: number;
+    /** The pull request description (body), when stored. */
+    description?: string;
+    /** The branch carrying the pull request's changes, when stored. */
+    headBranch?: string;
+    /** Whether the pull request is a draft, when known. */
+    draft?: boolean;
   };
 };
 
@@ -615,6 +621,10 @@ export const isCrmContactEntity = (
 ): entity is CrmContactEntity => {
   return entity.type === 'crm_contact';
 };
+
+/** The full-email identity shared by CRM contacts and Macro users. Plus
+ * aliases stay distinct, as in the backend's authorized contact deduplication. */
+export const crmContactEmailKey = (email: string) => email.trim().toLowerCase();
 
 export const isDocumentEntity = (
   entity: EntityData

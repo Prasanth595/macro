@@ -46,8 +46,12 @@ use connection::{
 };
 use connection_gateway_client::client::ConnectionGatewayClient;
 use documents_hex::domain::ports::{TaskPropertiesPort, task_property_edit_receipt};
+use documents_hex::domain::purge::DocumentPurger;
 use documents_hex::domain::service::DocumentServiceImpl;
 use documents_hex::inbound::axum_router::DocumentRouterState;
+use documents_hex::outbound::document_purge::{
+    LegacyDocumentPurgeRepository, RedisDocxPartReferences, SqsDocumentPurgeQueue,
+};
 use documents_hex::outbound::pg_document_repo::PgDocumentRepo;
 use documents_hex::outbound::s3_upload_url::S3UploadUrlAdapter;
 use dynamodb_client::DynamodbClient;
@@ -181,6 +185,20 @@ pub(crate) type DssEmailService = EmailServiceImpl<
 pub(crate) type DssCrmStageService = crm::domain::stages::CrmStageServiceImpl<
     crm::outbound::companies_repo::CompaniesRepositoryImpl,
     crm::outbound::stage_definitions::PropertiesStageDefinitionStore<PropertiesService>,
+>;
+
+pub(crate) type DssPipelineService = crm::domain::pipelines::PipelineServiceImpl<
+    crm::outbound::pipelines::PgPipelineRepo<
+        databases::outbound::pg_cell_store::PgCellStore<PropertiesPgRepo>,
+    >,
+    DatabasesServiceType,
+    EntityAccessService,
+    crm::outbound::stage_definitions::PropertiesStageDefinitionStore<PropertiesService>,
+>;
+pub(crate) type DssPipelineState = crm::inbound::pipelines::PipelineRouterState<
+    DssPipelineService,
+    EntityAccessService,
+    AuthorizationService,
 >;
 
 pub(crate) type DssCrmState = crm::inbound::axum_router::CrmRouterState<
@@ -348,6 +366,14 @@ pub(crate) type DocumentService = DocumentServiceImpl<
     sync_service_client::SyncServiceClient,
 >;
 
+/// Permanent document purge wired into DSS.
+pub(crate) type DssDocumentPurger = DocumentPurger<
+    LegacyDocumentPurgeRepository,
+    SqsDocumentPurgeQueue,
+    RedisDocxPartReferences,
+    DssEventBroker,
+>;
+
 /// Type alias for the authorization service.
 pub(crate) type AuthorizationService = MacroAuthorizationServiceImpl<MacroAuthJwtValidator>;
 
@@ -485,6 +511,20 @@ pub(crate) type DssChatMutationService = chat::domain::service::ChatServiceImpl<
     EntityAccessManagementService,
 >;
 
+/// Chat service for owner-checked permanent deletes. Unlike
+/// [`DssChatMutationService`] it publishes chat events, which is how search
+/// and activity learn a chat is gone.
+pub(crate) type DssChatPurgeService = chat::domain::service::ChatServiceImpl<
+    chat::outbound::postgres::PgChatRepo<PgBotsRepo>,
+    (),
+    EntityAccessManagementService,
+    DssEventBroker,
+>;
+
+/// State of `DELETE /internal/owned/{entity_type}/{entity_id}`.
+pub(crate) type DssOwnedPurgeState =
+    super::internal::OwnedPurgeState<DssDocumentPurger, DssChatPurgeService, ProjectService>;
+
 /// Concrete unified entity mutation service wired into GraphQL.
 pub(crate) type DssEntityMutationService =
     crate::service::entity_mutation::DssEntityMutationService<
@@ -532,6 +572,18 @@ pub(crate) type DatabasesServiceType =
 /// Type alias for the databases router state.
 pub(crate) type DssDatabasesState =
     DatabasesRouterState<DatabasesServiceType, EntityAccessService, AuthorizationService>;
+
+/// Webhooks insert rows through the databases domain service, so they keep its validation and events.
+pub(crate) type DatabaseWebhooksServiceType =
+    database_webhooks::wiring::PgDatabaseWebhooksService<DatabasesServiceType, EntityAccessService>;
+
+/// Webhooks use the same authentication and entity-access services as databases.
+pub(crate) type DssDatabaseWebhooksState =
+    database_webhooks::inbound::axum_router::DatabaseWebhooksRouterState<
+        DatabaseWebhooksServiceType,
+        EntityAccessService,
+        AuthorizationService,
+    >;
 
 /// Forms compose the databases domain service, so row writes retain its validation and events.
 pub(crate) type FormsServiceType = forms::wiring::PgFormsService<
@@ -787,17 +839,24 @@ pub(crate) struct ApiContext {
     pub reminders_state: DssRemindersState,
     pub slack_state: DssSlackState,
     pub initiative_state: DssInitiativeState,
+    pub graphql_crm_context: graphql_crm::CrmGraphqlContext,
     pub graphql_initiative_context: graphql_initiative::InitiativeGraphqlContext,
     pub graphql_scheduled_action_context: graphql_scheduled_action::ScheduledActionGraphqlContext,
+    pub graphql_calendar_context: graphql_calendar::CalendarGraphqlContext,
+    pub graphql_calendar_mutation_context: graphql_calendar::CalendarGraphqlMutationContext,
+    pub graphql_work_feed_context: complete_graph::WorkFeedGraphqlContext,
     pub graphql_initiative_entity_loader: graphql_initiative::InitiativeEntityLoader,
     pub graphql_agent_session_entity_loader: graphql_soup::AgentSessionEntityLoader,
+    pub graphql_soup_update_hydration_loader: graphql_soup::SoupUpdateHydrationLoader,
     pub databases_state: DssDatabasesState,
+    pub database_webhooks_state: DssDatabaseWebhooksState,
     pub forms_state: DssFormsState,
     pub database_starter_state: DssDatabaseStarterState,
     pub collab_surface_state: DssCollabSurfaceState,
     pub foreign_entity_state: DssForeignEntityState,
     pub macro_event_broker: DssEventBroker,
     pub sqs_client: Arc<sqs_client::SQS>,
+    pub document_purger: Arc<DssDocumentPurger>,
     pub contacts_ingress: Arc<SqsContactsIngress<SqsContactsQueue>>,
     pub notification_ingress_service: Arc<NotificationIngressType>,
     pub conn_gateway_client: Arc<ConnectionGatewayClient>,
@@ -835,6 +894,8 @@ pub(crate) struct ApiContext {
     pub cal_webhook_state: DssCalWebhookState,
     pub entity_access_management_service: EntityAccessManagementService,
     pub crm_state: DssCrmState,
+    pub owned_purge_state: DssOwnedPurgeState,
+    pub pipeline_state: DssPipelineState,
 }
 
 env_var! {
