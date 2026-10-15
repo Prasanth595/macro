@@ -9,11 +9,10 @@ mod test;
 use futures::future;
 use macro_user_id::user_id::MacroUserIdStr;
 use rootcause::Report;
-use std::collections::HashSet;
 
-use crate::domain::models::VoipPushTarget;
 use crate::domain::models::apple::VoipPushPayload;
 use crate::domain::models::mobile::DeviceEndpoint;
+use crate::domain::models::{NativeCallPushResult, VoipPushTarget};
 use crate::domain::ports::{NotificationRepository, VoipPushDelivery, VoipPushSender};
 
 const VOIP_PUSH_DELIVERY_CONCURRENCY: usize = 32;
@@ -45,20 +44,18 @@ where
         Ok(device_map
             .into_iter()
             .filter_map(|(recipient_id, endpoints)| {
-                let endpoints: Vec<DeviceEndpoint> = endpoints
-                    .into_iter()
-                    .filter(|endpoint| {
+                endpoints
+                    .iter()
+                    .any(|endpoint| {
                         matches!(
                             endpoint,
-                            DeviceEndpoint::IosVoip(_) | DeviceEndpoint::Android(_)
+                            DeviceEndpoint::IosVoip(_) | DeviceEndpoint::AndroidNativeCall(_)
                         )
                     })
-                    .collect();
-
-                (!endpoints.is_empty()).then_some(VoipPushTarget {
-                    recipient_id,
-                    endpoints,
-                })
+                    .then_some(VoipPushTarget {
+                        recipient_id,
+                        endpoints,
+                    })
             })
             .collect())
     }
@@ -66,7 +63,31 @@ where
     async fn send_voip_pushes(
         &self,
         pushes: Vec<(VoipPushTarget, VoipPushPayload)>,
-    ) -> HashSet<MacroUserIdStr<'static>> {
+    ) -> NativeCallPushResult {
+        let platforms: Vec<_> = pushes
+            .iter()
+            .map(|(target, _)| {
+                (
+                    target.recipient_id.clone(),
+                    target.endpoints.iter().any(|endpoint| {
+                        matches!(
+                            endpoint,
+                            DeviceEndpoint::Ios(_) | DeviceEndpoint::IosVoip(_)
+                        )
+                    }),
+                    target.endpoints.iter().any(|endpoint| {
+                        matches!(
+                            endpoint,
+                            DeviceEndpoint::Android(_) | DeviceEndpoint::AndroidNativeCall(_)
+                        )
+                    }),
+                    target
+                        .endpoints
+                        .iter()
+                        .any(|endpoint| matches!(endpoint, DeviceEndpoint::Android(_))),
+                )
+            })
+            .collect();
         let jobs: Vec<(MacroUserIdStr<'static>, DeviceEndpoint, VoipPushPayload)> = pushes
             .into_iter()
             .flat_map(|(target, payload)| {
@@ -78,19 +99,19 @@ where
             })
             .collect();
 
-        let mut delivered = HashSet::new();
+        let mut result = NativeCallPushResult::default();
         for batch in jobs.chunks(VOIP_PUSH_DELIVERY_CONCURRENCY) {
             let results = future::join_all(batch.iter().map(|(user_id, endpoint, payload)| {
                 let user_id = user_id.clone();
                 async move {
                     let mobile = &self.mobile;
-                    let (arn, suppress_apns) = match endpoint {
+                    let (arn, ios) = match endpoint {
                         DeviceEndpoint::IosVoip(arn) => (arn, true),
-                        DeviceEndpoint::Android(arn) => (arn, false),
-                        DeviceEndpoint::Ios(_) => return None,
+                        DeviceEndpoint::AndroidNativeCall(arn) => (arn, false),
+                        DeviceEndpoint::Ios(_) | DeviceEndpoint::Android(_) => return None,
                     };
                     match mobile.send_voip_push(arn, &user_id, payload).await {
-                        Ok(_) => suppress_apns.then_some(user_id),
+                        Ok(_) => Some((user_id, ios)),
                         Err(e) => {
                             tracing::error!(
                                 error=?e,
@@ -102,9 +123,24 @@ where
                 }
             }))
             .await;
-            delivered.extend(results.into_iter().flatten());
+            for (user_id, ios) in results.into_iter().flatten() {
+                if ios {
+                    result.delivered.ios.insert(user_id);
+                } else {
+                    result.delivered.android.insert(user_id);
+                }
+            }
         }
 
-        delivered
+        result.fully_delivered = platforms
+            .into_iter()
+            .filter_map(|(user_id, ios, android, legacy_android)| {
+                (!legacy_android
+                    && (!ios || result.delivered.ios.contains(&user_id))
+                    && (!android || result.delivered.android.contains(&user_id)))
+                .then_some(user_id)
+            })
+            .collect();
+        result
     }
 }

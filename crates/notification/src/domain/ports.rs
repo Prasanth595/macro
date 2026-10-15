@@ -22,8 +22,9 @@ use crate::domain::models::{NotificationStatusPayload, TaggedContent};
 use crate::domain::models::email_notification_digest::ports::{ClaimResult, DigestBatch};
 use crate::domain::models::request::{NotificationListFilters, NotificationStatus};
 use crate::domain::models::{
-    DeviceEndpoint, DisabledNotificationType, NotificationExtEmail, NotificationIdAndCollapseKey,
-    SendNotificationRequestBuilder, UserNotificationRow, VoipPushTarget,
+    DeviceEndpoint, DisabledNotificationType, NativeCallPushResult, NotificationExtEmail,
+    NotificationIdAndCollapseKey, SendNotificationRequestBuilder, UserNotificationRow,
+    VoipPushTarget,
     android::FCMMessage,
     apple::{APNSPushNotification, VoipPushPayload},
     mobile::MessageAttributes,
@@ -219,6 +220,7 @@ pub trait NotificationRepository: Send + Sync + 'static {
         device_token: &str,
         device_endpoint: &str,
         device_type: &DeviceType,
+        native_call_capable: bool,
     ) -> impl Future<Output = Result<(), Report>> + Send;
 
     /// Delete all of the user's device registrations matching the given token
@@ -562,14 +564,13 @@ pub trait VoipPushSender: Send + Sync + 'static {
 
     /// Send recipient-specific payloads to already-resolved VoIP endpoints.
     ///
-    /// Errors are logged but do not propagate. The returned set contains users
-    /// that received at least one successful iOS VoIP push delivery. Only these
-    /// users may skip the regular iOS APNS fallback; Android delivery must not
-    /// suppress a notification on their iOS devices.
+    /// Errors are logged but do not propagate. Successful deliveries suppress
+    /// ordinary alerts only on the corresponding platform. Users whose mobile
+    /// platforms are all handled natively need no fallback notification row.
     fn send_voip_pushes(
         &self,
         pushes: Vec<(VoipPushTarget, VoipPushPayload)>,
-    ) -> impl std::future::Future<Output = HashSet<MacroUserIdStr<'static>>> + Send;
+    ) -> impl std::future::Future<Output = NativeCallPushResult> + Send;
 }
 
 impl VoipPushSender for () {
@@ -583,8 +584,8 @@ impl VoipPushSender for () {
     async fn send_voip_pushes(
         &self,
         _: Vec<(VoipPushTarget, VoipPushPayload)>,
-    ) -> HashSet<MacroUserIdStr<'static>> {
-        HashSet::new()
+    ) -> NativeCallPushResult {
+        NativeCallPushResult::default()
     }
 }
 
@@ -603,11 +604,11 @@ impl<V: VoipPushSender> VoipPushSender for Option<V> {
     async fn send_voip_pushes(
         &self,
         pushes: Vec<(VoipPushTarget, VoipPushPayload)>,
-    ) -> HashSet<MacroUserIdStr<'static>> {
+    ) -> NativeCallPushResult {
         if let Some(inner) = self {
             inner.send_voip_pushes(pushes).await
         } else {
-            HashSet::new()
+            NativeCallPushResult::default()
         }
     }
 }

@@ -906,8 +906,16 @@ Native calls require Android 8/API 26 or newer and an installed binary that
 advertises the call-kit plugin. Android 7 and older installed binaries keep the
 browser call controls, including when they receive a newer frontend OTA bundle.
 
-The existing Android push registration supplies the FCM endpoint. Call pushes
-are data-only, high priority, have a 60-second TTL, and include a recipient-specific
+The existing Android push registration supplies the FCM endpoint and advertises
+`nativeCallCapable` only when the installed binary and OS support native calls.
+Existing registrations default to false and keep ordinary call alerts until a
+capable app re-registers. Deploy the device-capability migration before services;
+deploy the notification ingress and call-producing services before enabling the
+new client registration. Native delivery suppresses ordinary alerts only for the
+platform and capable Android endpoints it handles, so another device can still
+receive its fallback alert.
+
+Call pushes are data-only, high priority, have a 60-second TTL, and include a recipient-specific
 LiveKit token and HTTPS ring-status URL. The receiver checks the registered
 account and message age. Tokens are kept in memory and never logged or persisted.
 While ringing, the native coordinator polls the existing ring-status endpoint;

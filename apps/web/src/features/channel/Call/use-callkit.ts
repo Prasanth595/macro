@@ -2,7 +2,7 @@ import { whenSplitManagerReady } from '@app/signal/splitLayout';
 import { registerPushRegistrationLifecycle } from '@core/auth/push-registration-lifecycle';
 import { ENABLE_CALLKIT } from '@core/constant/featureFlags';
 import { useChannelsContext } from '@core/context/channels';
-import { isPlatform, isTauri } from '@core/util/platform';
+import { isPlatform } from '@core/util/platform';
 import { useUserNamesQuery } from '@queries/auth';
 import { invalidateActiveCallQueries } from '@queries/call/call';
 import type { UserName } from '@service-auth/generated/schemas/userName';
@@ -12,15 +12,16 @@ import { raceTimeout } from '@solid-primitives/promise';
 import { addPluginListener, Channel, invoke } from '@tauri-apps/api/core';
 import { createEffect, createMemo, on, onCleanup, onMount } from 'solid-js';
 import { joinChannelCall } from './join-channel-call';
+import { isNativeCallEnabled } from './native-call-platform';
 import {
   type NativeCallSnapshot,
   type NativeCallState,
   useNativeCallState,
 } from './native-call-state';
 import { openChannelCallTab } from './open-channel-call-tab';
-import { isNativeCallEnabled } from './native-call-platform';
-export { isNativeCallEnabled } from './native-call-platform';
 import { useCallKitThemeSync } from './use-callkit-theme-sync';
+
+export { isNativeCallEnabled } from './native-call-platform';
 
 // The 'iosvoip' variant exists in the backend but the generated schema has not been
 // regenerated to include it yet. Cast until a regeneration picks it up.
