@@ -55,7 +55,10 @@ import {
   useEntityMention,
   useEntityMentionFromList,
 } from './hooks/useEntityMention';
-import { useUsersMention } from './hooks/useUsersMention';
+import {
+  type UserItemWithChannelStatus,
+  useUsersMention,
+} from './hooks/useUsersMention';
 import type { BucketConfig, MentionBucketId } from './MentionsMenuController';
 import { useMentionsMenuController } from './MentionsMenuController';
 import { createItemHandler } from './utils/mentionHandlers';
@@ -110,6 +113,17 @@ type MentionsMenuProps = {
   includeContacts?: boolean;
   /** Repeated cell editing opens immediately instead of animating each picker. */
   animate?: boolean;
+  /**
+   * IDs of users who are members of the current channel. When provided,
+   * all workspace users are shown but non-members are marked as "Not in channel"
+   * and slightly deprioritized in search results.
+   */
+  channelParticipantIds?: Accessor<string[]>;
+  /**
+   * Callback invoked when a user not in the channel is mentioned.
+   * Can be used to prompt adding the user to the channel.
+   */
+  onMentionNonChannelMember?: (user: IUser) => void;
 } & (
   | { editor: LexicalEditor; onPick?: never }
   | { editor?: never; anchor: HTMLElement; onPick: (item: MentionItem) => void }
@@ -157,6 +171,7 @@ function MentionsMenuInner(props: MentionsMenuProps) {
     users: props.users,
     searchTerm,
     isChannelBlock: props.block === 'channel',
+    channelParticipantIds: props.channelParticipantIds,
   });
 
   const customDocs = props.entities
@@ -494,6 +509,16 @@ function MentionsMenuInner(props: MentionsMenuProps) {
 
   const itemAction = async (item: MentionItem) => {
     analytics.track('mentions_menu_use', { itemType: item.kind });
+
+    // Check if a non-channel-member user was mentioned
+    if (
+      item.kind === 'user' &&
+      (item as UserItemWithChannelStatus).notInChannel &&
+      props.onMentionNonChannelMember
+    ) {
+      props.onMentionNonChannelMember(item.data);
+    }
+
     if (props.onPick) props.onPick(item);
     else await itemActionHandler?.(item);
   };

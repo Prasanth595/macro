@@ -8,11 +8,18 @@ import { cn } from '@ui';
 import { createEffect, type JSX, Show } from 'solid-js';
 import { match } from 'ts-pattern';
 import type { MentionItem } from '../../../../utils/mentionsUtils';
+import type { UserItemWithChannelStatus } from '../hooks/useUsersMention';
 import { isBotMentionItem } from '../utils/botMention';
 import {
   getBlockNameFromEntity,
   getMentionItemName,
 } from '../utils/entityUtils';
+
+function isUserWithChannelStatus(
+  item: MentionItem
+): item is UserItemWithChannelStatus {
+  return item.kind === 'user' && 'notInChannel' in item;
+}
 
 export function MentionsMenuItem(props: {
   item: MentionItem;
@@ -135,6 +142,13 @@ export function MentionsMenuItem(props: {
           </span>
         </Show>
       </div>
+      <Show
+        when={isUserWithChannelStatus(props.item) && props.item.notInChannel}
+      >
+        <span class="ml-2 inline-flex shrink-0 items-center text-[10px] font-medium leading-none text-ink-extra-muted">
+          Not in channel
+        </span>
+      </Show>
       {props.actions}
     </div>
   );
