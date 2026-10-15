@@ -366,8 +366,6 @@ jobs:
     steps:
     - name: Checkout Repo
       uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
-      with:
-        fetch-depth: '0'
     - id: native-filter
       name: Detect native iOS changes
       uses: dorny/paths-filter@d1c1ffe0248fe513906c8e24db8ea791d46f8590
@@ -407,8 +405,13 @@ jobs:
         bun-version: '1.3.13'
     - name: Verify iOS release numbers were bumped
       if: steps.native-filter.outputs.ios_native == 'true' && steps.labels.outputs.skip != 'true'
-      run: bun scripts/ios-verify-native-bump.mjs
+      run: |
+        set -euo pipefail
+        git fetch --depth=1 origin "$BASE_BRANCH"
+        bun scripts/ios-verify-native-bump.mjs
+      shell: bash
       env:
+        BASE_BRANCH: ${{ github.base_ref }}
         BASE_REF: origin/${{ github.base_ref }}
       working-directory: apps/web
     - name: Fetch App Store Connect credentials from Doppler
@@ -508,7 +511,8 @@ jobs:
         echo "build: ${{ needs.build.result }}"
         echo "ios-native-check: ${{ needs.ios-native-check.result }}"
 
-        # Fail if any job failed (skipped and success are both OK)
+        # Fail if any job failed (skipped and success are both OK). The iOS
+        # gate is the merge gate, so a cancelled gate is not OK either.
         if [[ "${{ needs.path-check.result }}" == "failure" ]] || \
            [[ "${{ needs.typescript.result }}" == "failure" ]] || \
            [[ "${{ needs.generated-code.result }}" == "failure" ]] || \
@@ -516,7 +520,8 @@ jobs:
            [[ "${{ needs.test.result }}" == "failure" ]] || \
            [[ "${{ needs.cycles.result }}" == "failure" ]] || \
            [[ "${{ needs.build.result }}" == "failure" ]] || \
-           [[ "${{ needs.ios-native-check.result }}" == "failure" ]]; then
+           [[ "${{ needs.ios-native-check.result }}" == "failure" ]] || \
+           [[ "${{ needs.ios-native-check.result }}" == "cancelled" ]]; then
           echo "One or more jobs failed"
           exit 1
         fi

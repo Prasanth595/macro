@@ -3,17 +3,31 @@ set -euo pipefail
 # $HEAD_SHA (waiting for that run to finish first: a run in progress saw the
 # labels as they were when it started). GitHub re-runs the dependent
 # `Web App Status Check` with it.
+# A push after the label event starts a fresh run that reads the labels
+# itself, and would also have cancelled this head's run (the web suite
+# cancels in-progress runs per PR): nothing to re-run then.
+current=$(gh pr view "$PR_NUMBER" --repo "$GH_REPO" --json headRefOid --jq '.headRefOid')
+if [[ "$current" != "$HEAD_SHA" ]]; then
+  echo "PR head moved from ${HEAD_SHA:0:10} to ${current:0:10}; its run reads the labels itself. Nothing to re-run."
+  exit 0
+fi
 deadline=$(( $(date +%s) + 25 * 60 ))
 while true; do
   run=$(gh run list --repo "$GH_REPO" --workflow web-app-check-main.yml --commit "$HEAD_SHA" \
-    --json databaseId,status --limit 1 --jq '.[0] // empty')
+    --json databaseId,status,conclusion --limit 1 --jq '.[0] // empty')
   if [[ -z "$run" ]]; then
     echo "No Web App Pr Checks run for ${HEAD_SHA:0:10} yet; nothing to re-run (the next push runs the gate with the current labels)."
     exit 0
   fi
   run_id=$(jq -r '.databaseId' <<<"$run")
   status=$(jq -r '.status' <<<"$run")
-  [[ "$status" == "completed" ]] && break
+  if [[ "$status" == "completed" ]]; then
+    if [[ "$(jq -r '.conclusion' <<<"$run")" == "cancelled" ]]; then
+      echo "Run ${run_id} was cancelled (superseded); nothing to re-run."
+      exit 0
+    fi
+    break
+  fi
   if (( $(date +%s) > deadline )); then
     echo "Run ${run_id} is still ${status}; giving up. Re-run the iOS Native Check job by hand." >&2
     exit 1

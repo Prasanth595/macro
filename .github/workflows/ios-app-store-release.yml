@@ -106,7 +106,8 @@ jobs:
 
         # Web App Status Check aggregates the gate, so it is red whenever the gate is;
         # its other inputs (Typecheck, Test, Build, ...) are separate checks and stay.
-        ours='^(iOS Native Check|iOS Native Check Label|Web App Status Check|iOS App Store Release|iOS Release Drift)'
+        # (`gh pr checks` names are job names, not workflow names.)
+        ours='^(iOS Native Check|Re-run the iOS Native Check|Web App Status Check|iOS App Store Release|iOS Release Drift)'
         deadline=$(( $(date +%s) + WAIT_MINUTES * 60 ))
         while true; do
           checks=$(gh pr checks "$PR_NUMBER" --repo "$GH_REPO" --json name,bucket \

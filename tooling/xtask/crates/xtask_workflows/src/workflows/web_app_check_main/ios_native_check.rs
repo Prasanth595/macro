@@ -55,8 +55,9 @@ pub(super) fn job() -> Job {
     Job::default()
         .name(JOB_NAME)
         .runs_on(runners::Runner::TinyNoCache.to_string())
-        // Full history so the bump check can diff against the base branch.
-        .add_step(super::checkout("Checkout Repo", true))
+        // Shallow: the path filter uses the API, and the bump check fetches
+        // the base branch itself, only when it runs.
+        .add_step(super::checkout("Checkout Repo", false))
         .add_step(paths_filter())
         .add_step(read_labels())
         .add_step(setup_bun())
@@ -131,9 +132,15 @@ fn setup_bun() -> Step<Use> {
 
 fn verify_bump() -> Step<Run> {
     Step::new("Verify iOS release numbers were bumped")
-        .run("bun scripts/ios-verify-native-bump.mjs")
+        .run(indoc::indoc! {r#"
+            set -euo pipefail
+            git fetch --depth=1 origin "$BASE_BRANCH"
+            bun scripts/ios-verify-native-bump.mjs
+        "#})
         .if_condition(gated())
+        .shell("bash")
         .working_directory(xtask_paths::repo_dir!("apps/web"))
+        .add_env(("BASE_BRANCH", "${{ github.base_ref }}"))
         .add_env(("BASE_REF", "origin/${{ github.base_ref }}"))
 }
 

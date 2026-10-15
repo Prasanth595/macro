@@ -61,10 +61,11 @@ checked-in `min-native-build.json` enforce this end to end.
    App Store Connect whether the version + build at the PR head is live and,
    when it is, re-runs the PR's failed `iOS Native Check` job and comments. The
    gate turns green on its own and the PR merges if auto-merge is on.
-   (Re-running the check by hand works too. The watcher stops after two
-   automatic re-runs so a check failing for another reason doesn't retry
-   forever, and GitHub refuses to re-run runs older than 30 days — after a
-   review that long, push a commit to get a fresh run.)
+   (Re-running the job by hand works too. The watcher stops after two
+   automatic re-runs — counted by its own comments on the PR — so a check
+   failing for another reason doesn't retry forever, and GitHub refuses to
+   re-run runs older than 30 days: after a review that long, push a commit to
+   get a fresh run.)
 5. The next prod web deploy (`just build-prod`) reads both platform floors
    from `min-native-build.json` into `MIN_NATIVE_BUILD_ANDROID` /
    `MIN_NATIVE_BUILD_IOS`, so `dist/bundle-manifest.json` carries
@@ -84,7 +85,9 @@ If the tauri change doesn't break the native/web contract (comments, dev-only
 tooling, desktop-only config), add the **`skip-ios-update`** label instead;
 the **`iOS Native Check Label`** workflow re-runs just the gate job (and the
 status check that depends on it) when that label is added or removed, so the
-gate passes without a release and without re-running the whole web suite. For a non-breaking change you still want
+gate passes without a release and without re-running the whole web suite.
+That workflow is not a required check: it waits for the web suite run to
+finish first (up to 25 minutes), and the release preconditions ignore it. For a non-breaking change you still want
 to ship to the App Store, `just ios-bump --no-min` bumps the versions without
 raising the floor.
 

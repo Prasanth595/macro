@@ -446,7 +446,8 @@ fn check_job_results() -> Step<Run> {
         echo "build: ${{ needs.build.result }}"
         echo "ios-native-check: ${{ needs.ios-native-check.result }}"
 
-        # Fail if any job failed (skipped and success are both OK)
+        # Fail if any job failed (skipped and success are both OK). The iOS
+        # gate is the merge gate, so a cancelled gate is not OK either.
         if [[ "${{ needs.path-check.result }}" == "failure" ]] || \
            [[ "${{ needs.typescript.result }}" == "failure" ]] || \
            [[ "${{ needs.generated-code.result }}" == "failure" ]] || \
@@ -454,7 +455,8 @@ fn check_job_results() -> Step<Run> {
            [[ "${{ needs.test.result }}" == "failure" ]] || \
            [[ "${{ needs.cycles.result }}" == "failure" ]] || \
            [[ "${{ needs.build.result }}" == "failure" ]] || \
-           [[ "${{ needs.ios-native-check.result }}" == "failure" ]]; then
+           [[ "${{ needs.ios-native-check.result }}" == "failure" ]] || \
+           [[ "${{ needs.ios-native-check.result }}" == "cancelled" ]]; then
           echo "One or more jobs failed"
           exit 1
         fi

@@ -160,7 +160,7 @@ jobs:
         conf_path="apps/web/tauri/src-tauri/tauri.ios.conf.json"
 
         check_pr() {
-          local pr=$1 number sha merge conf version build native_tree run run_id status attempt run_url job conclusion job_id
+          local pr=$1 number sha merge conf version build native_tree run run_id status run_url job conclusion job_id reruns
           number=$(jq -r '.number' <<<"$pr")
           sha=$(jq -r '.sha' <<<"$pr")
           merge=$(jq -r '.merge // empty' <<<"$pr")
@@ -185,14 +185,13 @@ jobs:
           echo "  live on the App Store"
 
           run=$(gh run list --workflow web-app-check-main.yml --commit "$sha" \
-            --json databaseId,status,attempt,url --limit 1 --jq '.[0] // empty')
+            --json databaseId,status,url --limit 1 --jq '.[0] // empty')
           if [[ -z "$run" ]]; then
             echo "  no Web App Pr Checks run for this commit; skipping"
             return 0
           fi
           run_id=$(jq -r '.databaseId' <<<"$run")
           status=$(jq -r '.status' <<<"$run")
-          attempt=$(jq -r '.attempt' <<<"$run")
           run_url=$(jq -r '.url' <<<"$run")
           if [[ "$status" != "completed" ]]; then
             echo "  Web App Pr Checks run ${run_id} is ${status}; skipping"
@@ -214,14 +213,17 @@ jobs:
             echo "  iOS Native Check job concluded ${conclusion}; leaving it alone"
             return 0
           fi
-          # Attempt 1 is the original run that failed while waiting on Apple. If our
-          # re-run also fails something else is wrong (the job's log says what), so
-          # stop re-running rather than retrying every half hour forever.
-          if (( attempt >= 3 )); then
-            echo "  iOS Native Check still failing after ${attempt} attempts; not re-running again — see ${run_url}"
+          # If our re-run also fails something else is wrong (the job's log says
+          # what), so stop after two rather than retrying every half hour forever.
+          # Counted by our own comments: the run's attempt number is shared with
+          # label re-runs and "re-run failed jobs" clicks for flaky tests.
+          reruns=$(gh pr view "$number" --json comments \
+            --jq '[.comments[].body | select(contains("Re-ran the **iOS Native Check**"))] | length')
+          if (( reruns >= 2 )); then
+            echo "  iOS Native Check already re-run ${reruns} times and still failing; not re-running again — see ${run_url}"
             return 0
           fi
-          echo "  re-running iOS Native Check (job ${job_id} of run ${run_id}, attempt ${attempt} failed)"
+          echo "  re-running iOS Native Check (job ${job_id} of run ${run_id}; ${reruns} automatic re-runs so far)"
           gh run rerun --job "$job_id"
           gh pr comment "$number" --body "📱 iOS ${version} (build ${build}) is live on the App Store. Re-ran the **iOS Native Check** ([run](${run_url})); this PR can merge once it passes."
         }
