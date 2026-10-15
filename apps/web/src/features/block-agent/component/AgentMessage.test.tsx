@@ -23,6 +23,13 @@ vi.mock('../context/AgentSessionContext', () => ({
 // The layer under test is how a message lays its parts out — which calls fold
 // into a group and at what index — so every part renderer and ui primitive
 // is a marker. The per-part components have their own tests.
+const openedOrigins = vi.hoisted(() => [] as unknown[]);
+vi.mock('../open-prompt-origin', () => ({
+  useOpenPromptOrigin: () => (destination: unknown) => {
+    openedOrigins.push(destination);
+  },
+}));
+
 vi.mock('@core/util/message-send-motion', () => ({
   messageSendMotion: () => {},
 }));
@@ -785,5 +792,52 @@ describe('Message failed turns', () => {
       'https://www.cursor.com/dashboard?tab=settings'
     );
     expect(view.queryByTestId('action-line')).toBeNull();
+  });
+});
+
+describe('Message prompt origin', () => {
+  const context = (xml: string) =>
+    `<m-agent-context>${JSON.stringify({ version: 1, text: xml }).replace(/</g, '\\u003c')}</m-agent-context>\nWork on the assigned task.`;
+
+  it('says under the prompt what started it, and goes there on click', () => {
+    openedOrigins.length = 0;
+    const view = render(() => (
+      <Message
+        message={{
+          ...message([
+            text(
+              context(
+                '<trigger kind="task_assigned" discussion="d1"><assigned by="Julia" by_id="macro|julia@example.com"/><task id="task-1" title="Fix calendar popover scroll" status="Todo"/></trigger>'
+              )
+            ),
+          ]),
+          author: { kind: 'user', userId: 'macro|me@macro.com' },
+        }}
+        inFlight={false}
+      />
+    ));
+
+    const line = view.getByRole('button', {
+      name: 'via task Fix calendar popover scroll from Julia',
+    });
+    line.click();
+    expect(openedOrigins).toEqual([{ kind: 'task', taskId: 'task-1' }]);
+  });
+
+  it('adds nothing under a prompt typed in the session', () => {
+    const view = render(() => (
+      <Message
+        message={{
+          ...message([
+            text(
+              context('<session owner="Me" owner_id="macro|me@macro.com"/>')
+            ),
+          ]),
+          author: { kind: 'user', userId: 'macro|me@macro.com' },
+        }}
+        inFlight={false}
+      />
+    ));
+    expect(view.queryByTestId('prompt-origin')).toBeNull();
   });
 });
