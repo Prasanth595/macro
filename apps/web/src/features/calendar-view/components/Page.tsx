@@ -233,11 +233,10 @@ export function Page(props: {
   });
   const teamOoo = useTeamOooEvents({
     range,
-    isSourceVisible: isRenderedSourceVisible,
     refetchOnWindowFocus: isActive,
   });
   const visibleEvents = createMemo(() =>
-    mergeCalendarOverlays(data.visibleEvents(), teamOoo.visibleEvents())
+    mergeCalendarOverlays(data.visibleEvents(), teamOoo.events())
   );
   const eventsById = createMemo(
     () => new Map(visibleEvents().map((event) => [event.id, event]))
@@ -355,7 +354,7 @@ export function Page(props: {
           <CalendarPageHost
             id={props.id}
             data={data}
-            teamEvents={teamOoo.visibleEvents}
+            teamEvents={teamOoo.events}
             eventsById={eventsById}
             grid={grid}
             onLoadingBlockingChange={setLoadingDecorationBlocking}

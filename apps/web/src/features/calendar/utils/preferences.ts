@@ -5,10 +5,11 @@ import {
   CALENDAR_PREFERENCES_KEY,
   getPreferredCalendarPeriodView,
 } from '../calendar-preferences';
-import type {
-  CalendarPeriodView,
-  CalendarTimeFormat,
-  CalendarWeekStart,
+import {
+  type CalendarPeriodView,
+  type CalendarTimeFormat,
+  type CalendarWeekStart,
+  TEAM_OOO_SOURCE_ID,
 } from '../types';
 import { getDefaultCalendarTimeFormat } from './time-format';
 
@@ -37,10 +38,18 @@ export const useCalendarPreferences = createSharedRoot(() => {
     createStore<CalendarPreferences>(defaultPreferences),
     {
       name: CALENDAR_PREFERENCES_KEY,
-      deserialize: (value) => ({
-        ...defaultPreferences,
-        ...(JSON.parse(value) as Partial<CalendarPreferences>),
-      }),
+      deserialize: (value) => {
+        const stored = JSON.parse(value) as Partial<CalendarPreferences>;
+        return {
+          ...defaultPreferences,
+          ...stored,
+          // Team out of office has no off switch; an older saved hide would
+          // otherwise keep it off for good.
+          hiddenSourceIds: (stored.hiddenSourceIds ?? []).filter(
+            (id) => id !== TEAM_OOO_SOURCE_ID
+          ),
+        };
+      },
     }
   );
   return [preferences, setPreferences] as const;

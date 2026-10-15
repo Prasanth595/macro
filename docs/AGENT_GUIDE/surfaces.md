@@ -1468,8 +1468,8 @@ Collapsible `Upcoming events` and `Calendars` sections follow; calendar
 account rows use Drive-style trailing disclosure buttons and animated nested
 branches. Their 14px visibility checkboxes precede the swatch and label, with
 separate account and individual-calendar visibility controls. `Team out of office`
-is feature-gated and lists teammates with 24px avatars; its section switch
-toggles the entire grid overlay. Clicking a teammate's row navigates to that
+is feature-gated and lists teammates with 24px avatars; it is a plain
+collapsible section, and the grid overlay always shows. Clicking a teammate's row navigates to that
 date, opens read-only event details, and marks the row active. The icon-only
 `Calendar settings` control fills the sidebar footer.
 An account checkbox toggles its calendars together in one update. The checkbox
@@ -1702,8 +1702,8 @@ touch devices — and is hidden when you are the only guest.
 With the `enable-calendar-team-ooo` flag on, teammates' Google Calendar out-of-office events
 overlay the grid as read-only chips titled `<name>: <event title>`. The sidebar's
 `Team out of office` section (shown only when the user belongs to a team with other members)
-has a checkbox in its header row toggling the whole overlay on or off — all teammates or
-none — and lists the next 90 days of teammate absences; clicking a row navigates the grid to
+is a collapsible list of the next 90 days of teammate absences, with no switch: the overlay
+always shows; clicking a row navigates the grid to
 that date. Coverage depends on each teammate having connected their own calendar and using
 Google's out-of-office event type.
 
