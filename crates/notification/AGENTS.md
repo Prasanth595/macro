@@ -55,9 +55,11 @@ through the same service.
 
 ## Checks
 
-- `cargo test -p notification` (`SQLX_OFFLINE` unset; needs local MacroDB).
-- `cargo test -p notification --features redis-tests` for the Redis-backed
-  preference paths.
+- `cargo test -p notification --all-features` (`SQLX_OFFLINE` unset; needs local
+  MacroDB and Redis).
+- For test edits, also run `RUSTFLAGS=-Dwarnings cargo check -p notification
+  --all-features --tests` against the live schema. Ordinary clippy does not
+  compile test-only code, while CI rejects its warnings.
 
 ## Gotchas
 

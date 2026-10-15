@@ -20,9 +20,7 @@ impl NotificationRealtimePublisher for Publisher {
         let NotificationStatusPayload::NotificationForUsers { users, update } = payload else {
             panic!("expected recipient-scoped deletion");
         };
-        let NotificationDelete::Delete { id } = **update else {
-            panic!("expected deletion");
-        };
+        let NotificationDelete::Delete { id } = **update;
         self.attempts
             .lock()
             .expect("attempts")
