@@ -19,8 +19,10 @@ a failed background refresh must not restore the revoked document.
 
 In **People with access**, a non-owner can use **Request access** beneath the
 owner to request a supported upgrade (**Comment** or **Edit**). PDFs offer
-Comment; view-only email sharing has no upgrade. Pending requests can be changed
-or canceled. After a denial, the requester must wait 24 hours to request again.
+Comment; view-only email sharing has no upgrade. Requests can be sent or changed
+once per minute; cancellation stays available immediately. Approval allows a
+further upgrade immediately. After a denial, the requester must wait 24 hours
+to request again.
 This workflow also applies to the existing chat, folder, project, database, call,
 and agent-session Share menus, using the access levels that each supports.
 

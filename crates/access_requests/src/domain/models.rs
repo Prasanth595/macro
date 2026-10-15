@@ -86,7 +86,8 @@ pub struct AccessRequest {
     pub resolved_at: Option<DateTime<Utc>>,
     /// Level selected by the reviewer.
     pub granted_level: Option<AccessLevel>,
-    /// A denied requester must wait until this instant.
+    /// Earliest next submission or level change; cancellation preserves this deadline.
+    /// Submissions wait one minute, denials wait 24 hours, and approval clears it.
     pub retry_after: Option<DateTime<Utc>>,
 }
 /// A direct user grant; inherited grants are deliberately not editable here.

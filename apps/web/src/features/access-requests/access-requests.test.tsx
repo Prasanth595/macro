@@ -5,6 +5,7 @@ import { DocumentAccessDenied } from './access-requests';
 import type { SharingSource } from './context/contracts';
 import { fakeSharingSource } from './tests/source';
 import { PermissionRequestsView } from './views/PermissionRequestsView';
+import { RequestAccessView } from './views/RequestAccessView';
 
 vi.mock('@core/auth', () => ({ useIsAuthenticated: () => () => true }));
 vi.mock('@core/component/AccessErrorViews/Unauthorized', () => ({
@@ -38,6 +39,48 @@ vi.mock('./components/AccessLevelSelect', () => ({
 let source: SharingSource;
 vi.mock('./queries/source', () => ({ createSharingSource: () => source }));
 afterEach(cleanup);
+
+it.each(['pending', 'cancelled', 'denied'] as const)(
+  'labels the %s retry deadline without misreporting a denial',
+  (status) => {
+    const mine = {
+      id: 'request',
+      requesterId: 'requester',
+      requestedLevel: 'edit' as const,
+      status,
+      revision: 1,
+      createdAt: '2026-10-15T00:00:00Z',
+      updatedAt: '2026-10-15T00:00:00Z',
+      retryAfter: new Date(Date.now() + 60_000).toISOString(),
+    };
+    const { source } = fakeSharingSource({ mine });
+    const view = render(() => (
+      <RequestAccessView
+        source={source}
+        allowedLevels={['view', 'comment', 'edit']}
+      />
+    ));
+    if (status === 'denied')
+      expect(view.getByText(/Request denied/)).toBeTruthy();
+    else {
+      expect(view.queryByText(/Request denied/)).toBeNull();
+      expect(view.getByText(/You can send another request/)).toBeTruthy();
+    }
+    expect(
+      view
+        .getByRole('button', {
+          name: status === 'pending' ? 'Request sent' : 'Request access',
+        })
+        .hasAttribute('disabled')
+    ).toBe(true);
+    if (status === 'pending')
+      expect(
+        view
+          .getByRole('button', { name: 'Cancel request' })
+          .hasAttribute('disabled')
+      ).toBe(false);
+  }
+);
 
 it('lets a reviewer approve a request from the denied document screen without opening the file', () => {
   const request = {

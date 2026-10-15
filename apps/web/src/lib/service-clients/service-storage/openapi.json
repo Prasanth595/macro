@@ -18406,7 +18406,7 @@
           "retryAfter": {
             "type": ["string", "null"],
             "format": "date-time",
-            "description": "A denied requester must wait until this instant."
+            "description": "Earliest next submission or level change; cancellation preserves this deadline.\nSubmissions wait one minute, denials wait 24 hours, and approval clears it."
           },
           "revision": {
             "type": "integer",

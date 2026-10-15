@@ -26,7 +26,8 @@ export interface AccessRequest {
   requesterId: string;
   /** When the request stopped being pending. */
   resolvedAt?: AccessRequestResolvedAt;
-  /** A denied requester must wait until this instant. */
+  /** Earliest next submission or level change; cancellation preserves this deadline.
+Submissions wait one minute, denials wait 24 hours, and approval clears it. */
   retryAfter?: AccessRequestRetryAfter;
   /** Optimistic concurrency token. */
   revision: number;

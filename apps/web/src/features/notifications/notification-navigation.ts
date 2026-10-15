@@ -24,6 +24,7 @@ import { COMMENT_LINK_PARAM } from '@core/messages/comment-link';
 import type { NotificationType } from '@core/types';
 import { catchToResult } from '@core/util/result';
 import { openExternalUrl } from '@core/util/url';
+import { Telemetry } from '@macro-inc/observability';
 import { getNotificationById } from '@queries/notification/user-notifications';
 import { errAsync, ResultAsync } from 'neverthrow';
 import { match, P } from 'ts-pattern';
@@ -250,73 +251,117 @@ function getSupportedHandler(
           notification.entity_id
         );
         if (!target) return null;
-        return async (lm: SplitManager, newSplit = false) => {
-          try {
-            const [{ fetchAccessRequestState }, { openShareModal }] =
-              await Promise.all([
-                import('@queries/access-requests/requests'),
-                import('@core/component/TopBar/shareModal'),
-              ]);
-            const state = await fetchAccessRequestState(target);
-            const metadata =
-              target.entityType === 'document' && state.accessLevel != null
-                ? await catchToResult(async () =>
-                    (
-                      await import('@queries/storage/document-metadata')
-                    ).fetchDocumentMetadata(target.entityId)
-                  )
-                : undefined;
-            const document = metadata?.isOk() ? metadata.value : undefined;
-            const block =
-              target.entityType === 'initiative'
-                ? 'initiative'
-                : itemToBlockName({
-                    type:
+        return async (lm: SplitManager, newSplit = false) =>
+          Telemetry.span('access_requests.notification.open', async (span) => {
+            span.setAttr('entity.id', target.entityId);
+            span.setAttr('entity.type', target.entityType);
+            span.setAttr('notification.id', notification.id);
+            span.setAttr('notification.type', meta.tag);
+            span.setAttr('access_request.id', meta.content.requestId);
+            try {
+              const [{ fetchAccessRequestState }, { openShareModal }] =
+                await Promise.all([
+                  import('@queries/access-requests/requests'),
+                  import('@core/component/TopBar/shareModal'),
+                ]);
+              const state = await span.span(
+                'access_requests.notification.state',
+                async (phase) => {
+                  try {
+                    const state = await fetchAccessRequestState(target);
+                    phase.setAttr('access_requests.outcome', 'loaded');
+                    return state;
+                  } catch (error) {
+                    phase.setAttr('access_requests.outcome', 'error');
+                    phase.error('Access-request state could not be loaded');
+                    throw error;
+                  }
+                }
+              );
+              const document =
+                target.entityType === 'document'
+                  ? await span.span(
+                      'access_requests.notification.metadata',
+                      async (phase) => {
+                        if (state.accessLevel == null) {
+                          phase.setAttr(
+                            'access_requests.outcome',
+                            'skipped_no_access'
+                          );
+                          return;
+                        }
+                        const result = await catchToResult(async () =>
+                          (
+                            await import('@queries/storage/document-metadata')
+                          ).fetchDocumentMetadata(target.entityId)
+                        );
+                        phase.setAttr(
+                          'access_requests.outcome',
+                          result.isOk() ? 'loaded' : 'fallback'
+                        );
+                        if (result.isErr()) {
+                          phase.error(
+                            'Document metadata unavailable; using notification routing'
+                          );
+                          return;
+                        }
+                        return result.value;
+                      }
+                    )
+                  : undefined;
+              const block =
+                target.entityType === 'initiative'
+                  ? 'initiative'
+                  : itemToBlockName({
+                      type:
+                        target.entityType === 'email_thread'
+                          ? 'email'
+                          : target.entityType,
+                      fileType:
+                        document?.fileType ??
+                        entity?.fileType ??
+                        meta.content.fileType ??
+                        undefined,
+                      subType:
+                        document?.subType &&
+                        document.subType !== 'initiative_description'
+                          ? { type: document.subType }
+                          : undefined,
+                    });
+              const applied = () => {
+                onApplied?.();
+                if (meta.tag === 'entity_access_requested')
+                  openShareModal({
+                    id: target.entityId,
+                    itemType:
                       target.entityType === 'email_thread'
                         ? 'email'
                         : target.entityType,
-                    fileType:
-                      document?.fileType ??
-                      entity?.fileType ??
-                      meta.content.fileType ??
-                      undefined,
-                    subType:
-                      document?.subType &&
-                      document.subType !== 'initiative_description'
-                        ? { type: document.subType }
-                        : undefined,
+                    blockAlias: block,
+                    name: meta.content.entityName,
+                    owner: state.owner ?? undefined,
+                    userPermissions: getPermissions(
+                      state.accessLevel ?? undefined
+                    ),
                   });
-            const applied = () => {
-              onApplied?.();
-              if (meta.tag === 'entity_access_requested')
-                openShareModal({
-                  id: target.entityId,
-                  itemType:
-                    target.entityType === 'email_thread'
-                      ? 'email'
-                      : target.entityType,
-                  blockAlias: block,
-                  name: meta.content.entityName,
-                  owner: state.owner ?? undefined,
-                  userPermissions: getPermissions(
-                    state.accessLevel ?? undefined
-                  ),
-                });
-            };
-            openSplitIfNotOpen(
-              lm,
-              block === 'initiative' ? 'component' : block,
-              block === 'initiative'
-                ? projectRouteId({ id: target.entityId, section: 'overview' })
-                : target.entityId,
-              { newSplit, sourceHandle, onApplied: applied }
-            );
-          } catch {
-            toast.failure(
-              'Could not open sharing. You may no longer have access.'
-            );
-          }
-        };
+              };
+              span.setAttr('access_requests.outcome', 'navigation_requested');
+              openSplitIfNotOpen(
+                lm,
+                block === 'initiative' ? 'component' : block,
+                block === 'initiative'
+                  ? projectRouteId({ id: target.entityId, section: 'overview' })
+                  : target.entityId,
+                { newSplit, sourceHandle, onApplied: applied }
+              );
+            } catch {
+              span.setAttr('access_requests.outcome', 'error');
+              span.error('Access-request notification could not be opened');
+              toast.failure(
+                'Could not open sharing. You may no longer have access.'
+              );
+            }
+          });
       })
       .with('invite_to_team', () => null)
       .with(

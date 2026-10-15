@@ -34,3 +34,7 @@ the durable notification/realtime dispatcher.
   when changing retry or supersession behavior.
 - Request grants only upgrade. Explicit owner changes may lower/remove a direct
   grant while preserving inherited, channel, and team access.
+- Submissions and level changes are limited to one per minute for each requester
+  and entity. Identical pending replays are harmless; cancellation stays available
+  and preserves the deadline. Approval clears it for a further upgrade, while
+  denial replaces it with the 24-hour cooldown.

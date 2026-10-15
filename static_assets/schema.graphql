@@ -3592,6 +3592,9 @@ type GraphqlEntity {
 	entityType: GraphqlEntityType!
 }
 
+"""
+Metadata for an approved access request and its granted permission.
+"""
 type GraphqlEntityAccessGrantedMetadata {
 	"""
 	Stable access request id.
@@ -3637,6 +3640,9 @@ enum GraphqlEntityAccessLevel {
 	OWNER
 }
 
+"""
+Metadata for a request to view, comment on, or edit a shared item.
+"""
 type GraphqlEntityAccessRequestedMetadata {
 	"""
 	Stable access request id.

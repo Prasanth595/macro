@@ -109,7 +109,7 @@ async fn upgrades_and_private_state(pool: PgPool) {
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS", fixtures("document"))]
 async fn initial_access_requires_owner_approval_and_supports_cancellation(pool: PgPool) {
-    let (s, _) = setup(pool);
+    let (s, clock) = setup(pool);
     let first = s
         .submit(user("outsider"), entity(), ask(AccessLevel::View, None))
         .await
@@ -157,6 +157,7 @@ async fn initial_access_requires_owner_approval_and_supports_cancellation(pool: 
         .mine
         .unwrap();
     assert_eq!(cancelled.status, RequestStatus::Cancelled);
+    clock.0.fetch_add(60, Ordering::SeqCst);
     let request = s
         .submit(
             user("outsider"),
@@ -189,7 +190,7 @@ async fn initial_access_requires_owner_approval_and_supports_cancellation(pool: 
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS", fixtures("document"))]
 async fn edits_cancel_and_stale_reviews(pool: PgPool) {
-    let (s, _) = setup(pool);
+    let (s, clock) = setup(pool);
     let first = s
         .submit(user("reader"), entity(), ask(AccessLevel::Comment, None))
         .await
@@ -199,6 +200,7 @@ async fn edits_cancel_and_stale_reviews(pool: PgPool) {
         .await
         .unwrap();
     assert_eq!(first.revision, replay.revision);
+    clock.0.fetch_add(60, Ordering::SeqCst);
     let changed = s
         .submit(
             user("reader"),
@@ -300,6 +302,113 @@ async fn denial_cooldown_applies_to_both_levels(pool: PgPool) {
         .await
         .is_ok()
     );
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS", fixtures("document"))]
+async fn requester_cannot_repeat_notifications_by_changing_levels_or_cancelling(pool: PgPool) {
+    let (service, clock) = setup(pool);
+    let first = service
+        .submit(user("outsider"), entity(), ask(AccessLevel::View, None))
+        .await
+        .unwrap();
+    let deadline = clock.now() + chrono::Duration::seconds(60);
+    assert_eq!(first.retry_after, Some(deadline));
+    let replay = service
+        .submit(user("outsider"), entity(), ask(AccessLevel::View, None))
+        .await
+        .unwrap();
+    assert_eq!(replay.revision, first.revision);
+    assert_eq!(replay.retry_after, Some(deadline));
+    for level in [AccessLevel::Comment, AccessLevel::Edit] {
+        assert!(matches!(
+            service.submit(user("outsider"), entity(), ask(level, Some(first.revision))).await,
+            Err(RequestError::Cooldown(until)) if until == deadline
+        ));
+    }
+
+    service
+        .cancel(user("outsider"), entity(), first.revision)
+        .await
+        .unwrap();
+    let cancelled = service
+        .state(user("outsider"), entity(), 0)
+        .await
+        .unwrap()
+        .mine
+        .unwrap();
+    assert_eq!(cancelled.status, RequestStatus::Cancelled);
+    assert_eq!(cancelled.retry_after, Some(deadline));
+    clock.0.fetch_add(59, Ordering::SeqCst);
+    assert!(matches!(
+        service.submit(user("outsider"), entity(), ask(AccessLevel::View, Some(cancelled.revision))).await,
+        Err(RequestError::Cooldown(until)) if until == deadline
+    ));
+    clock.0.fetch_add(1, Ordering::SeqCst);
+    let resubmitted = service
+        .submit(
+            user("outsider"),
+            entity(),
+            ask(AccessLevel::Comment, Some(cancelled.revision)),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resubmitted.id, first.id);
+    assert_eq!(
+        resubmitted.retry_after,
+        Some(deadline + chrono::Duration::seconds(60))
+    );
+    assert!(matches!(
+        service
+            .submit(
+                user("outsider"),
+                entity(),
+                ask(AccessLevel::Edit, Some(resubmitted.revision))
+            )
+            .await,
+        Err(RequestError::Cooldown(_))
+    ));
+    let events = service.repository.claim_events().await.unwrap();
+    assert_eq!(events.len(), 3);
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| event.request.as_ref().unwrap().status == RequestStatus::Pending)
+            .count(),
+        2
+    );
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS", fixtures("document"))]
+async fn approval_allows_an_immediate_further_upgrade(pool: PgPool) {
+    let (service, _) = setup(pool);
+    let first = service
+        .submit(user("outsider"), entity(), ask(AccessLevel::View, None))
+        .await
+        .unwrap();
+    let granted = service
+        .resolve(
+            user("owner"),
+            entity(),
+            first.id,
+            ResolveRequest {
+                revision: first.revision,
+                granted_level: Some(AccessLevel::View),
+            },
+        )
+        .await
+        .unwrap();
+    assert!(granted.retry_after.is_none());
+    let upgraded = service
+        .submit(
+            user("outsider"),
+            entity(),
+            ask(AccessLevel::Edit, Some(granted.revision)),
+        )
+        .await
+        .unwrap();
+    assert_eq!(upgraded.requested_level, AccessLevel::Edit);
+    assert_eq!(upgraded.status, RequestStatus::Pending);
+    assert!(upgraded.retry_after.is_some());
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS", fixtures("document"))]
@@ -575,11 +684,12 @@ async fn request_workflow_does_not_acquire_a_second_pool_connection(pool: PgPool
 async fn notification_supersession_follows_revisions_when_transaction_times_are_reordered(
     pool: PgPool,
 ) {
-    let (service, _) = setup(pool.clone());
+    let (service, clock) = setup(pool.clone());
     let first = service
         .submit(user("reader"), entity(), ask(AccessLevel::Comment, None))
         .await
         .unwrap();
+    clock.0.fetch_add(60, Ordering::SeqCst);
     let second = service
         .submit(
             user("reader"),

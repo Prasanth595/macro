@@ -15,6 +15,7 @@ use uuid::Uuid;
 mod test;
 
 const PAGE_SIZE: u32 = 50;
+const REQUEST_COOLDOWN_SECONDS: i64 = 60;
 const DENIAL_COOLDOWN_HOURS: i64 = 24;
 
 /// Cross-entity request workflow over injected authorization and persistence.
@@ -253,7 +254,7 @@ impl<R: RequestRepository, A: EntityAccessService, C: Clock> AccessRequestServic
             updated_at: now,
             resolved_at: None,
             granted_level: None,
-            retry_after: None,
+            retry_after: Some(now + Duration::seconds(REQUEST_COOLDOWN_SECONDS)),
         };
         tx.save(&request).await?;
         let event = self.event(
@@ -314,6 +315,7 @@ impl<R: RequestRepository, A: EntityAccessService, C: Clock> AccessRequestServic
             tx.grant(&request.requester_id, Some(level), true).await?;
             request.status = RequestStatus::Granted;
             request.granted_level = Some(level);
+            request.retry_after = None;
         } else {
             request.status = RequestStatus::Denied;
             request.retry_after = Some(self.clock.now() + Duration::hours(DENIAL_COOLDOWN_HOURS));

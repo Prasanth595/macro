@@ -1391,6 +1391,8 @@ impl From<NotifEvent> for GraphqlNotifEvent {
 
 /// Shared entity access notification metadata.
 pub struct GraphqlEntityAccessRequestedMetadata(model_notifications::EntityAccessRequestedMetadata);
+
+/// Metadata for a request to view, comment on, or edit a shared item.
 #[Object]
 impl GraphqlEntityAccessRequestedMetadata {
     /// Stable access request id.
@@ -1421,6 +1423,8 @@ impl GraphqlEntityAccessRequestedMetadata {
 
 /// Shared entity access notification metadata.
 pub struct GraphqlEntityAccessGrantedMetadata(model_notifications::EntityAccessGrantedMetadata);
+
+/// Metadata for an approved access request and its granted permission.
 #[Object]
 impl GraphqlEntityAccessGrantedMetadata {
     /// Stable access request id.

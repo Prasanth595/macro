@@ -63,9 +63,67 @@ vi.mock('../notification-resolvers', () => ({
 
 import { openNotification } from '../notification-navigation';
 
+type RecordedSpan = {
+  name: string;
+  parent?: string;
+  attrs: Record<string, unknown>;
+  errors: unknown[];
+  finished: boolean;
+};
+type ObservedSpan = {
+  setAttr(key: string, value: unknown): void;
+  error(error: unknown): void;
+  run<T>(operation: () => T): T;
+  span<T>(
+    name: string,
+    operation: (span: ObservedSpan) => Promise<T>
+  ): Promise<T>;
+};
+const traces = vi.hoisted(() => {
+  const spans: RecordedSpan[] = [];
+  return spans;
+});
+vi.mock('@macro-inc/observability', () => {
+  async function runSpan<T>(
+    name: string,
+    parent: string | undefined,
+    operation: (span: ObservedSpan) => Promise<T>
+  ): Promise<T> {
+    const record: RecordedSpan = {
+      name,
+      parent,
+      attrs: {},
+      errors: [],
+      finished: false,
+    };
+    traces.push(record);
+    try {
+      return await operation({
+        setAttr: (key, value) => {
+          record.attrs[key] = value;
+        },
+        error: (error) => {
+          record.errors.push(error);
+        },
+        run: (operation) => operation(),
+        span: (child, operation) => runSpan(child, name, operation),
+      });
+    } finally {
+      record.finished = true;
+    }
+  }
+  return {
+    Telemetry: {
+      span: <T>(name: string, operation: (span: ObservedSpan) => Promise<T>) =>
+        runSpan(name, undefined, operation),
+    },
+  };
+});
+
 it.each([null, 'view'] as const)(
   'opens request review with stored document metadata when file access is %s',
   async (accessLevel) => {
+    traces.splice(0);
     vi.mocked(openShareModal).mockClear();
     vi.mocked(fetchDocumentMetadata)
       .mockReset()
@@ -118,6 +176,30 @@ it.each([null, 'view'] as const)(
     expect(fetchDocumentMetadata).toHaveBeenCalledTimes(
       accessLevel === null ? 0 : 1
     );
+    expect(traces.map(({ name, parent }) => ({ name, parent }))).toEqual([
+      { name: 'access_requests.notification.open', parent: undefined },
+      {
+        name: 'access_requests.notification.state',
+        parent: 'access_requests.notification.open',
+      },
+      {
+        name: 'access_requests.notification.metadata',
+        parent: 'access_requests.notification.open',
+      },
+    ]);
+    expect(traces[0].attrs).toMatchObject({
+      'entity.id': id,
+      'notification.id': 'notification',
+      'access_request.id': 'request',
+      'access_requests.outcome': 'navigation_requested',
+    });
+    expect(traces[2].attrs['access_requests.outcome']).toBe(
+      accessLevel === null ? 'skipped_no_access' : 'fallback'
+    );
+    expect(traces[2].errors).toHaveLength(accessLevel === null ? 0 : 1);
+    expect(traces.every((span) => span.finished)).toBe(true);
+    expect(JSON.stringify(traces)).not.toContain('Private document');
+    expect(JSON.stringify(traces)).not.toContain('macro|owner@macro.com');
   }
 );
 

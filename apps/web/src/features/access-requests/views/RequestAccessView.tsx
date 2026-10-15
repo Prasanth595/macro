@@ -39,7 +39,9 @@ export function RequestAccessView(props: {
           </span>
           <Show when={composer.coolingDown()}>
             <span class="text-xs text-ink-muted">
-              Request denied. You can request again{' '}
+              {props.source.state()?.mine?.status === 'denied'
+                ? 'Request denied. You can request again after '
+                : 'You can send another request after '}
               {new Date(composer.retryAfter()!).toLocaleString()}.
             </span>
           </Show>

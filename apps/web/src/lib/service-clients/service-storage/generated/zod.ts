@@ -18236,7 +18236,9 @@ export const accessRequestsStateResponse = zod
             retryAfter: zod.iso
               .datetime({})
               .nullish()
-              .describe('A denied requester must wait until this instant.'),
+              .describe(
+                'Earliest next submission or level change; cancellation preserves this deadline.\nSubmissions wait one minute, denials wait 24 hours, and approval clears it.'
+              ),
             revision: zod.number().describe('Optimistic concurrency token.'),
             status: zod
               .enum(['pending', 'granted', 'denied', 'cancelled'])
@@ -18291,7 +18293,9 @@ export const accessRequestsStateResponse = zod
             retryAfter: zod.iso
               .datetime({})
               .nullish()
-              .describe('A denied requester must wait until this instant.'),
+              .describe(
+                'Earliest next submission or level change; cancellation preserves this deadline.\nSubmissions wait one minute, denials wait 24 hours, and approval clears it.'
+              ),
             revision: zod.number().describe('Optimistic concurrency token.'),
             status: zod
               .enum(['pending', 'granted', 'denied', 'cancelled'])
@@ -18367,7 +18371,9 @@ export const accessRequestsSubmitResponse = zod
     retryAfter: zod.iso
       .datetime({})
       .nullish()
-      .describe('A denied requester must wait until this instant.'),
+      .describe(
+        'Earliest next submission or level change; cancellation preserves this deadline.\nSubmissions wait one minute, denials wait 24 hours, and approval clears it.'
+      ),
     revision: zod.number().describe('Optimistic concurrency token.'),
     status: zod
       .enum(['pending', 'granted', 'denied', 'cancelled'])
@@ -18456,7 +18462,9 @@ export const accessRequestsResolveResponse = zod
     retryAfter: zod.iso
       .datetime({})
       .nullish()
-      .describe('A denied requester must wait until this instant.'),
+      .describe(
+        'Earliest next submission or level change; cancellation preserves this deadline.\nSubmissions wait one minute, denials wait 24 hours, and approval clears it.'
+      ),
     revision: zod.number().describe('Optimistic concurrency token.'),
     status: zod
       .enum(['pending', 'granted', 'denied', 'cancelled'])
