@@ -860,7 +860,7 @@ the documented Nix workflow, and run affected package tests from the repository
 root with `SQLX_OFFLINE` unset. Packages will include `email`, `email_api_client`,
 `email_service`, `authentication_service`, and the touched auth/storage/client
 crates. Run `just check`, `just check full`, and the relevant frontend tests as
-appropriate to each slice. Update the [app agent guide](../AGENT_GUIDE/README.md)
+appropriate to each slice. Update the [app agent guide](../agent-guide/README.md)
 with changed connect/composer flows and exercise them in the browser/native shell.
 
 Ship additive schema first, then provider-aware readers/workers, then enable

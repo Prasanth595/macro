@@ -58,6 +58,7 @@ function accounts(signature: string, replySignature = true): MailAccountsQuery {
           isPrimary: true,
           needsReauth: false,
           draftIsSignal: true,
+          sendAs: [],
           settings: {
             signature,
             signatureOnRepliesForwards: replySignature,

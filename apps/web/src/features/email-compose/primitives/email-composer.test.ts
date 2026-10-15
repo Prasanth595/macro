@@ -157,7 +157,11 @@ describe('standalone compose controller', () => {
       { id: 'work', email_address: 'work@example.com', settings: {} },
     ];
     const root = mountEmailComposer(context, undefined, {
-      draft: message('existing-draft', { is_draft: true, link_id: 'work' }),
+      draft: message('existing-draft', {
+        is_draft: true,
+        link_id: 'work',
+        from: { email: 'work@example.com' },
+      }),
       initialInboxId: 'inbox',
     });
     try {
@@ -176,6 +180,59 @@ describe('standalone compose controller', () => {
       root.dispose();
     }
   });
+
+  it.each(['inbox', 'work'])(
+    'persists an alias selected in %s after any required inbox transfer',
+    async (inboxId) => {
+      const context = createComposeContext();
+      context.accounts.inboxes = () => [
+        {
+          id: 'inbox',
+          email_address: 'me@example.com',
+          sendAs: [{ email_address: 'alias@example.com' }],
+          settings: {},
+        },
+        {
+          id: 'work',
+          email_address: 'work@example.com',
+          sendAs: [{ email_address: 'alias@example.com' }],
+          settings: {},
+        },
+      ];
+      vi.mocked(context.drafts.saveDraft).mockImplementation(async () => ({
+        draftId: 'saved-draft',
+        threadId: 'saved-thread',
+        inboxId,
+      }));
+      const root = mountEmailComposer(context);
+      try {
+        root.edit('Send from my selected alias');
+        root.state.context.onSelectInbox?.(inboxId, 'alias@example.com');
+        await vi.advanceTimersByTimeAsync(0);
+        expect(context.drafts.saveDraft).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            inboxId,
+            draft: expect.objectContaining({
+              sender_email: 'alias@example.com',
+            }),
+          })
+        );
+        expect(root.state.context.fromAddress?.()).toBe('alias@example.com');
+        if (inboxId === 'inbox') {
+          expect(context.drafts.transferDraft).not.toHaveBeenCalled();
+        } else {
+          expect(context.drafts.transferDraft).toHaveBeenCalledWith(
+            expect.objectContaining({
+              sourceInboxId: 'inbox',
+              destinationInboxId: 'work',
+            })
+          );
+        }
+      } finally {
+        root.dispose();
+      }
+    }
+  );
 
   it('saves a composed draft after debounce and preserves the recipients and HTML', async () => {
     const context = createComposeContext();

@@ -233,6 +233,15 @@ impl EmailService for MockEmail {
         Err(EmailErr::RepoErr(anyhow::anyhow!("unused test capability")))
     }
 
+    async fn send_message_for_user(
+        &self,
+        _user: MacroUserIdStr<'static>,
+        _link: Option<uuid::Uuid>,
+        _input: email::domain::models::CreateDraftInput,
+    ) -> Result<email::domain::models::CreatedDraft, EmailErr> {
+        Err(EmailErr::SendAsUnavailable)
+    }
+
     async fn set_thread_archived(
         &self,
         _user: MacroUserIdStr<'static>,
@@ -716,6 +725,15 @@ impl EmailService for MockEmailLinkResult {
         _request: email::domain::models::mailbox_operation::MessageResolutionRequest,
     ) -> Result<Uuid, EmailErr> {
         Err(EmailErr::RepoErr(anyhow::anyhow!("unused test capability")))
+    }
+
+    async fn send_message_for_user(
+        &self,
+        _user: MacroUserIdStr<'static>,
+        _link: Option<uuid::Uuid>,
+        _input: email::domain::models::CreateDraftInput,
+    ) -> Result<email::domain::models::CreatedDraft, EmailErr> {
+        Err(EmailErr::SendAsUnavailable)
     }
 
     async fn set_thread_archived(

@@ -284,6 +284,13 @@ describe('send and schedule ordering', () => {
           { id: 'third', email_address: 'third@example.com', settings: {} },
         ],
       };
+      vi.mocked(context.drafts.saveDraft).mockImplementation(
+        async ({ draft, inboxId }) => ({
+          draftId: draft.db_id ?? 'draft',
+          threadId: draft.thread_db_id ?? 'thread',
+          inboxId: inboxId ?? 'inbox',
+        })
+      );
       const state = composer(kind, context);
       state.edit('Move this draft');
       await vi.advanceTimersByTimeAsync(600);
@@ -331,7 +338,7 @@ describe('send and schedule ordering', () => {
         identity.threadId(),
         identity.inboxId(),
       ]).toEqual(['moved', 'moved-thread', 'other']);
-      expect(context.drafts.saveDraft).toHaveBeenCalledTimes(2);
+      expect(context.drafts.saveDraft).toHaveBeenCalledTimes(3);
       expect(context.drafts.transferDraft).toHaveBeenCalledExactlyOnceWith(
         expect.objectContaining({
           sourceInboxId: 'inbox',

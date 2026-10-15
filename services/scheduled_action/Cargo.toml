@@ -31,6 +31,7 @@ activity = { path = "../../crates/activity", default-features = false }
 agent_runtime_protocol = { path = "../../crates/agent_runtime_protocol", default-features = false }
 agent_session = { path = "../../crates/agent_session", default-features = false, features = ["admission"] }
 bot_id = { path = "../../crates/bot_id" }
+call = { path = "../../crates/call", default-features = false, features = ["outbound"] }
 channel_sender = { path = "../../crates/channel_sender" }
 channels = { path = "../../crates/channels", default-features = false, features = ["outbound"] }
 crm = { path = "../../crates/crm", default-features = false, features = ["ports"] }
@@ -51,6 +52,7 @@ messages = { path = "../../crates/messages", features = ["broker", "outbound"] }
 models_properties = { path = "../../crates/models_properties" }
 properties = { path = "../../crates/properties", default-features = false, features = ["outbound"] }
 system_properties = { path = "../../crates/system_properties" }
+trigger_context = { path = "../../crates/trigger_context" }
 rdkafka = { workspace = true }
 reqwest = { workspace = true }
 rootcause = { workspace = true }

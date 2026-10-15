@@ -30,6 +30,7 @@ export function createEmailInboxSource(
       provider: inbox.provider,
       email_address: inbox.email_address,
       photo_url: inbox.photo_url,
+      sendAs: inbox.sendAs,
       displayName: displayName(inbox.email_address),
       settings: {
         signature: inbox.settings.signature,

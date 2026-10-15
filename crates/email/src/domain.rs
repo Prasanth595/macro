@@ -12,6 +12,7 @@ pub mod invitation_resolution;
 #[cfg(feature = "mailbox")]
 pub mod mailbox;
 pub mod models;
+pub mod senders;
 
 #[cfg(feature = "ports")]
 pub mod assembler;

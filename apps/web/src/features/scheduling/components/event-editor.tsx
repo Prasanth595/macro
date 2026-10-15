@@ -145,14 +145,42 @@ export function EventEditor(props: {
                     }
                   />
                 </Field>
-                <CheckField
-                  checked={draft().googleMeet}
-                  onChange={(v) => update('googleMeet', v)}
-                  label="Create a video meeting link"
-                />
+                <Field
+                  label="Video"
+                  hint={
+                    draft().macroCall
+                      ? 'A Macro call is created when someone books and added to the calendar invitation.'
+                      : draft().googleMeet
+                        ? 'A video meeting link is created when someone books.'
+                        : 'Guests only see the location you enter.'
+                  }
+                >
+                  <SelectInput
+                    label="Video"
+                    value={
+                      draft().macroCall
+                        ? 'macro'
+                        : draft().googleMeet
+                          ? 'google_meet'
+                          : 'none'
+                    }
+                    options={[
+                      { value: 'macro', label: 'Macro call' },
+                      { value: 'google_meet', label: 'Video meeting' },
+                      { value: 'none', label: 'No video link' },
+                    ]}
+                    onChange={(value) =>
+                      setDraft((current) => ({
+                        ...current,
+                        macroCall: value === 'macro',
+                        googleMeet: value === 'google_meet',
+                      }))
+                    }
+                  />
+                </Field>
                 <Field
                   label={
-                    draft().googleMeet
+                    draft().macroCall || draft().googleMeet
                       ? 'Additional location details'
                       : 'Location or meeting URL'
                   }

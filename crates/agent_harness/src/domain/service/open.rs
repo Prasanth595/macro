@@ -378,10 +378,10 @@ where
             .await?;
         self.publish_opened(&session).await;
 
-        let mcp_servers = if runtime.kind == AgentKind::CodexCloud {
-            Vec::new()
-        } else {
+        let mcp_servers = if runtime.kind.takes_egress_mcp_servers() {
             egress.sandbox.acp_servers()
+        } else {
+            Vec::new()
         };
         let container = match self
             .containers
@@ -427,6 +427,7 @@ where
             session_id,
             DeliverAction {
                 id: AgentActionId::mint(),
+                context: origin.context().cloned(),
                 action: origin.into_action(),
                 actor: Some(actor),
                 announce: Some(announcement),

@@ -198,6 +198,7 @@ where
                         action: AgentAction::prompt(prompt),
                         actor: Some(owner_user),
                         announce: None,
+                        context: None,
                     }),
                 )
                 .await
@@ -267,10 +268,10 @@ where
                 .await;
         }
 
-        let mcp_servers = if kind == AgentKind::CodexCloud {
-            Vec::new()
-        } else {
+        let mcp_servers = if kind.takes_egress_mcp_servers() {
             egress.sandbox.acp_servers()
+        } else {
+            Vec::new()
         };
         let container = match self
             .inner
@@ -352,6 +353,7 @@ where
                     action: AgentAction::prompt(raw_prompt),
                     actor: Some(owner_user),
                     announce: None,
+                    context: None,
                 }),
             )
             .await
