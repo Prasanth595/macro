@@ -15,8 +15,8 @@ checked-in `min-native-build.json` enforce this end to end.
 1. **`iOS Native Check`**, a job of the web app PR checks
    (`.github/workflows/web-app-check-main.yml`), runs on every PR against
    `main`. The required `Web App Status Check` depends on it, so no branch
-   ruleset change is needed. If the PR touches the iOS native code it
-   requires:
+   ruleset change is needed. If the PR touches the iOS native code (see
+   "What counts as native code" below) it requires:
    - the iOS release numbers to be bumped relative to `main`, and
    - that exact version + build to be **live on the App Store**.
 
@@ -91,19 +91,43 @@ finish first (up to 25 minutes), and the release preconditions ignore it. For a 
 to ship to the App Store, `just ios-bump --no-min` bumps the versions without
 raising the floor.
 
+## What counts as native code
+
+Everything that compiles into the app: `apps/web/tauri` plus every in-repo
+crate it depends on, transitively, per platform — today the GraphQL cache
+crates under `crates/client` and the filter/model crates they pull in. The
+list lives in `apps/web/native-sources.json`, generated from the Cargo
+manifests:
+
+```bash
+cd apps/web && just native-sources           # regenerate
+cd apps/web && just native-sources --check   # fail if stale
+cd apps/web && just native-sources --verify  # also cross-check with cargo metadata
+```
+
+The gate's path filter is generated from that file (`cargo x workflows`),
+the native hash reads it at run time, and the gate fails with a regenerate
+instruction when a Cargo change made it stale; the release workflow
+cross-checks it against `cargo metadata` before every build. The walk
+follows `path` dependencies in `[dependencies]`, `[build-dependencies]` and
+the `[target.'cfg(...)']` sections that hold for the platform, skipping
+dev-dependencies and optional dependencies (cargo compiles those only when a
+feature asks; the `--verify` step catches an enabled one). Within those
+trees, anything Android-only by Tauri's naming convention (a path component
+`android`, `android_*`, `android.*` or `*.android.*`), the desktop updater
+manifest and editor config are excluded. The `android` list in the same
+file is for the Android release flow.
+
 ## Several native PRs at once
 
 Version + build number alone don't identify a PR's native code: two PRs
 bumped from the same `main` get the same numbers. So the release stamps each
 uploaded build with a hash of the native code it was built from (in the
 build's TestFlight "What to Test" text), and the checks use it. "Native
-code" is everything under `apps/web/tauri` except what never reaches the iOS
-binary: anything Android-only by Tauri's naming convention (a path component
-`android`, `android_*`, `android.*` or `*.android.*` — the `android_*`
-plugins, every `android/` directory, `android.rs`, `tauri.android.conf.json`
-and so on), `desktop-release.json`, and `.helix/`. The rule is defined once,
-in `scripts/ios_native_tree.sh` next to the workflow sources, mirrored in
-`ios-app-store.mjs` and the gate's path filter. The checks:
+code" is defined above; the hash recipe is defined once, in
+`scripts/ios_native_tree.sh` next to the workflow sources, mirrored in
+`ios-app-store.mjs`, and the gate's path filter is generated from the same
+source list. The checks:
 
 - **Collision check** (release workflow, before building): the
   marketing version must be above the latest App Store release, and a

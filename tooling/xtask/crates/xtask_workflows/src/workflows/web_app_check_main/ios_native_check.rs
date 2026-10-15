@@ -5,12 +5,16 @@
 //! the App Store, so a PR whose bundle depends on new native code must not
 //! merge before that native build is actually downloadable. The gate:
 //!
-//! 1. Detects native changes with a path filter over `apps/web/tauri/**`,
-//!    minus what never reaches the iOS binary (anything Android-only by
-//!    name, the desktop updater manifest, editor config) — the same
-//!    exclusions as the native tree hash in `scripts/ios_native_tree.sh`.
-//!    The filter needs dorny's `every` quantifier: with the default `some`
-//!    a negated pattern matches every file outside it, i.e. everything.
+//! 1. Detects native changes with a path filter over the source trees that
+//!    compile into the app — `apps/web/tauri` plus every in-repo crate it
+//!    depends on, read from `apps/web/native-sources.json` (generated from
+//!    the Cargo manifests by `just native-sources`; a step checks it is
+//!    current) — minus what never reaches the iOS binary (anything
+//!    Android-only by name, the desktop updater manifest, editor config),
+//!    the same exclusions as the native tree hash in
+//!    `scripts/ios_native_tree.sh`. The filter needs dorny's `every`
+//!    quantifier: with the default `some` a negated pattern matches every
+//!    file outside it, i.e. everything.
 //! 2. Verifies the PR bumped the iOS release numbers (`just ios-bump`):
 //!    marketing version, build number, and `min-native-build.json`.
 //! 3. Asks the App Store Connect API whether exactly that version + build is
@@ -67,6 +71,7 @@ pub(super) fn job() -> Job {
         .add_step(paths_filter())
         .add_step(read_labels())
         .add_step(setup_bun())
+        .add_step(check_native_sources())
         .add_step(verify_bump())
         .add_step(fetch_credentials())
         .add_step(require_live_version())
@@ -77,7 +82,47 @@ fn gated() -> Expression {
     Expression::new(format!("{NATIVE_CHANGED} && {NOT_SKIPPED}"))
 }
 
+/// The iOS source trees from `apps/web/native-sources.json`, read when the
+/// workflows are generated (`cargo x workflows`; its `--check` fails when the
+/// file changes without regenerating).
+fn native_source_roots() -> Vec<String> {
+    let path = xtask_paths::repo_root().join("apps/web/native-sources.json");
+    let text = std::fs::read_to_string(&path)
+        .unwrap_or_else(|error| panic!("read {}: {error}", path.display()));
+    let json: serde_json::Value = serde_json::from_str(&text)
+        .unwrap_or_else(|error| panic!("parse {}: {error}", path.display()));
+    json["ios"]
+        .as_array()
+        .expect("native-sources.json: `ios` is an array")
+        .iter()
+        .map(|root| {
+            root.as_str()
+                .expect("native-sources.json: roots are strings")
+                .to_string()
+        })
+        .collect()
+}
+
 fn paths_filter() -> Step<Use> {
+    const EXCLUDED: [&str; 7] = [
+        "!**/android/**",
+        "!**/android_*",
+        "!**/android_*/**",
+        "!**/android.*",
+        "!**/*.android.*",
+        "!apps/web/tauri/desktop-release.json",
+        "!apps/web/tauri/.helix/**",
+    ];
+    // One positive pattern (brace alternation), not one per root: with the
+    // `every` quantifier a file must match every pattern, and no file is
+    // under two roots at once.
+    let mut filters = format!(
+        "ios_native:\n  - '{{{}}}/**'\n",
+        native_source_roots().join(",")
+    );
+    for pattern in EXCLUDED {
+        filters.push_str(&format!("  - '{pattern}'\n"));
+    }
     Step::new("Detect native iOS changes")
         .uses(
             "dorny",
@@ -86,20 +131,16 @@ fn paths_filter() -> Step<Use> {
         ) // v3.0.3
         .id("native-filter")
         .add_with(("predicate-quantifier", "every"))
-        .add_with((
-            "filters",
-            indoc::indoc! {"
-                ios_native:
-                  - 'apps/web/tauri/**'
-                  - '!apps/web/tauri/**/android/**'
-                  - '!apps/web/tauri/**/android_*'
-                  - '!apps/web/tauri/**/android_*/**'
-                  - '!apps/web/tauri/**/android.*'
-                  - '!apps/web/tauri/**/*.android.*'
-                  - '!apps/web/tauri/desktop-release.json'
-                  - '!apps/web/tauri/.helix/**'
-            "},
-        ))
+        .add_with(("filters", filters))
+}
+
+/// `native-sources.json` must describe today's Cargo manifests, or a crate
+/// the app newly depends on would be invisible to the gate and the hash.
+fn check_native_sources() -> Step<Run> {
+    Step::new("Check the native source list is current")
+        .run("bun scripts/native-sources.mjs --check")
+        .if_condition(gated())
+        .working_directory(xtask_paths::repo_dir!("apps/web"))
 }
 
 /// The PR's labels as they are now. `github.event.pull_request.labels` is

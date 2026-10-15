@@ -30,26 +30,33 @@ jobs:
       run: |
         # --- native tree ------------------------------------------------------------
         # Hash identifying "the iOS native code" at a commit: every tracked blob under
-        # apps/web/tauri except the paths that never reach the iOS binary. Android-only
-        # code is recognised by Tauri's naming convention — a path component that is
-        # `android`, starts with `android_` / `android.`, or contains `.android.`
-        # (the android_* plugins, every android/ directory, android.rs / android.json,
-        # android_tls.rs, tauri.android.conf.json; the Rust ones are all behind
+        # the source trees that compile into the app — apps/web/tauri plus every
+        # in-repo crate it depends on, listed per platform in
+        # apps/web/native-sources.json (generated from the Cargo manifests by
+        # `just native-sources`; the gate checks it is current) — except the paths
+        # that never reach the iOS binary. Android-only code is recognised by Tauri's
+        # naming convention — a path component that is `android`, starts with
+        # `android_` / `android.`, or contains `.android.` (the android_* plugins,
+        # every android/ directory, android.rs / android.json, android_tls.rs,
+        # tauri.android.conf.json; the Rust ones are all behind
         # cfg(target_os = "android")) — plus the desktop updater manifest and editor
-        # config. The release stamps uploaded builds
-        # with it, the merge gate compares the live build's stamp against the merge
-        # result's, and the drift / head guards compare commits with it. Must match
-        # nativeTreeHash() in apps/web/scripts/ios-app-store.mjs and the iOS Native
-        # Check path filter (web_app_check_main/ios_native_check.rs).
-        NATIVE_TREE_PATH=apps/web/tauri
-        export NATIVE_TREE_EXCLUDE='(^|/)android([_./]|$)|\.android\.|^desktop-release\.json$|^\.helix/'
+        # config. The release stamps uploaded builds with it, the merge gate compares
+        # the live build's stamp against the merge result's, and the drift / head
+        # guards compare commits with it. Must match nativeTreeHash() in
+        # apps/web/scripts/ios-app-store.mjs and the iOS Native Check path filter
+        # (web_app_check_main/ios_native_check.rs, generated from the same file).
+        NATIVE_SOURCES_FILE=apps/web/native-sources.json
+        export NATIVE_TREE_EXCLUDE='(^|/)android([_./]|$)|\.android\.|^apps/web/tauri/desktop-release\.json$|^apps/web/tauri/\.helix/'
 
-        # native_tree_hash <commit>: prints the hash, fails if the path is missing.
-        # (--full-tree: ls-tree otherwise narrows its output to the current directory,
-        # which would silently hash nothing when run from apps/web.)
+        # native_tree_hash <commit>: prints the hash, fails if the Tauri tree is
+        # missing. The source list is read from this checkout (the workflow's
+        # revision), not from <commit>. (--full-tree: ls-tree otherwise narrows its
+        # output to the current directory, which would silently hash nothing when
+        # run from apps/web.)
         native_tree_hash() {
-          git rev-parse -q --verify "$1:${NATIVE_TREE_PATH}" >/dev/null || return 1
-          git ls-tree -r --full-tree "$1:${NATIVE_TREE_PATH}" \
+          git rev-parse -q --verify "$1:apps/web/tauri" >/dev/null || return 1
+          jq -r '.ios[]' "$(git rev-parse --show-toplevel)/${NATIVE_SOURCES_FILE}" \
+            | xargs git ls-tree -r --full-tree "$1" -- \
             | awk -F'\t' '$2 !~ ENVIRON["NATIVE_TREE_EXCLUDE"]' \
             | git hash-object --stdin
         }

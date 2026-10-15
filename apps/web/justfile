@@ -70,6 +70,14 @@ ios-release *ARGS:
 ios-bump *ARGS:
     bun scripts/ios-bump-version.mjs {{ARGS}}
 
+# Regenerate native-sources.json: the source trees (apps/web/tauri + the
+# in-repo crates it depends on, per platform) that the iOS merge gate, the
+# release hash and the Android equivalents treat as native code. Derived
+# from the Cargo manifests; `--check` fails if the file is stale, `--verify`
+# also cross-checks against cargo metadata.
+native-sources *ARGS:
+    bun scripts/native-sources.mjs {{ARGS}}
+
 # iOS generated project prep. Keep native bundle metadata in sync with
 # tauri.ios.conf.json, then prepare ignored local Swift dependencies.
 ios-prepare:
