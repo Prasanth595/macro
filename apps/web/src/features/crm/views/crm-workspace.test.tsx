@@ -5,7 +5,7 @@ import {
   screen,
   within,
 } from '@solidjs/testing-library';
-import { createSignal, type JSX, type ParentProps } from 'solid-js';
+import { createSignal, For, type JSX, type ParentProps } from 'solid-js';
 import { afterEach, expect, it, vi } from 'vitest';
 import { CrmWorkspaceView } from './crm-workspace';
 
@@ -129,13 +129,13 @@ vi.mock('../components/pipeline-sidebar', () => ({
     pipelines: { id: string; name: string }[];
     onSelect: (id: string) => void;
   }) => (
-    <>
-      {props.pipelines.map((pipeline) => (
+    <For each={props.pipelines}>
+      {(pipeline) => (
         <button type="button" onClick={() => props.onSelect(pipeline.id)}>
           {pipeline.name}
         </button>
-      ))}
-    </>
+      )}
+    </For>
   ),
 }));
 vi.mock('../components/pipeline-dialog', () => ({
@@ -238,7 +238,7 @@ function setup(initialTab = 'active') {
       pipelineRequest,
     },
     source: {},
-    queryFilters: { state: { include: {} } },
+    queryFilters: { state: { include: {} }, replace: vi.fn() },
   };
   render(() => (
     <CrmWorkspaceView>{() => <div>Record list</div>}</CrmWorkspaceView>
