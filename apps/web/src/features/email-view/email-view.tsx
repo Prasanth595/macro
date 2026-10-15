@@ -1,4 +1,8 @@
-import { ViewBreadcrumbs, ViewShell } from '@app/components/view-shell';
+import {
+  useViewShell,
+  ViewBreadcrumbs,
+  ViewShell,
+} from '@app/components/view-shell';
 import { ViewTour } from '@app/features/tours/ViewTour';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { SplitRouter } from '@app/lib/split-router';
@@ -9,10 +13,17 @@ import { SplitPanel } from '@components/app/split-panel';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { enableReminders } from '@core/constant/featureFlags';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import { ListEntityMetadataQueryProvider } from '@entity';
+import {
+  ListEntityMetadataQueryProvider,
+  type NarrowLayoutVariant,
+} from '@entity';
+import EnvelopeSimpleOpenIcon from '@phosphor/envelope-simple-open.svg';
 import SpinnerIcon from '@phosphor/spinner.svg';
 import {
+  createEffect,
   createSignal,
+  type JSX,
+  on,
   onMount,
   type ParentProps,
   Show,
@@ -25,6 +36,7 @@ import {
   EmailViewBreadcrumbItem,
 } from './components/EmailHeader';
 import { EmailList } from './components/EmailList';
+import { EmailPreviewSidebar } from './components/EmailPreviewSidebar';
 import { EmailSidebar } from './components/EmailSidebar';
 import { EMAIL_TABS } from './constants';
 import { EmailViewProvider, useEmailView } from './email-view-context';
@@ -64,32 +76,129 @@ function EmailListFallback() {
   );
 }
 
-function EmailDesktopLayout(
-  props: ParentProps<{ onSearchEscape: () => void }>
-) {
-  const list = () => (
-    <>
-      <EmailTopBar />
-      <ViewShell.Header>
-        <EmailHeader onSearchEscape={props.onSearchEscape} />
-      </ViewShell.Header>
-      <ViewTour tour={emailTour} />
-      <ViewShell.Content>{props.children}</ViewShell.Content>
-    </>
+type EmailListOptions = {
+  /** Whether the list owns the split's keyboard; see `EmailList`. */
+  keyboardEnabled?: () => boolean;
+  narrowLayout?: NarrowLayoutVariant;
+};
+
+type RenderEmailList = (options?: EmailListOptions) => JSX.Element;
+
+/** The Preview layout gives its sidebar a reading-list width. */
+const PREVIEW_ASIDE_LAYOUT = { width: 400, min: 320, max: 560 };
+const LIST_ASIDE_LAYOUT = { preserveDuringResize: false };
+const LIST_MAIN_LAYOUT = { preferredWidth: 640 };
+
+/**
+ * Whether the Preview layout's list sits in the sidebar. A hidden or overlaid
+ * sidebar can't hold it, so the list falls back to the main area, as in
+ * List, until the docked sidebar returns.
+ */
+function useListInSidebar() {
+  const shell = useViewShell();
+  const { layout } = useEmailView();
+  return () =>
+    layout() === 'preview' &&
+    !shell.aside.isCollapsed() &&
+    !shell.breakpoints.narrow?.();
+}
+
+function EmailDesktopAside(props: {
+  list: RenderEmailList;
+  focusList: () => void;
+}) {
+  const { selectedThread } = useEmailView();
+  const listInSidebar = useListInSidebar();
+
+  // Leaving a thread unmounts what held focus; hand it back to the list.
+  createEffect(
+    on(
+      selectedThread,
+      (thread, previous) => {
+        if (thread || !previous || !listInSidebar()) return;
+        queueMicrotask(() => {
+          const active = document.activeElement;
+          if (!active || active === document.body) props.focusList();
+        });
+      },
+      { defer: true }
+    )
   );
+
+  return (
+    <Show when={listInSidebar()} fallback={<EmailSidebar />}>
+      <EmailPreviewSidebar
+        list={props.list({
+          keyboardEnabled: () => !selectedThread(),
+          narrowLayout: 'inbox',
+        })}
+        onSearchEscape={props.focusList}
+      />
+    </Show>
+  );
+}
+
+/** Main's content while no thread is open. */
+function EmailDesktopListArea(props: {
+  list: RenderEmailList;
+  onSearchEscape: () => void;
+}) {
+  const listInSidebar = useListInSidebar();
+
+  return (
+    <Show
+      when={listInSidebar()}
+      fallback={
+        <>
+          <EmailTopBar />
+          <ViewShell.Header>
+            <EmailHeader onSearchEscape={props.onSearchEscape} />
+          </ViewShell.Header>
+          <ViewTour tour={emailTour} />
+          <ViewShell.Content>{props.list()}</ViewShell.Content>
+        </>
+      }
+    >
+      <EmailTopBar />
+      <div class="grid min-h-0 flex-1 place-items-center px-6">
+        <div class="flex flex-col items-center gap-2 text-center text-sm text-ink-muted">
+          <EnvelopeSimpleOpenIcon
+            aria-hidden="true"
+            class="size-8 text-ink-extra-muted"
+          />
+          <p>No conversation selected</p>
+        </div>
+      </div>
+    </Show>
+  );
+}
+
+function EmailDesktopLayout(props: {
+  list: RenderEmailList;
+  focusList: () => void;
+}) {
+  const { layout } = useEmailView();
+  const preview = () => layout() === 'preview';
 
   return (
     <ViewShell.Root
       asidePreferenceKey="email"
       resizable
-      aside={{ preserveDuringResize: false }}
-      main={{ preferredWidth: 640 }}
+      aside={preview() ? PREVIEW_ASIDE_LAYOUT : LIST_ASIDE_LAYOUT}
+      main={preview() ? undefined : LIST_MAIN_LAYOUT}
     >
       <ViewShell.Aside>
-        <EmailSidebar />
+        <EmailDesktopAside list={props.list} focusList={props.focusList} />
       </ViewShell.Aside>
       <ViewShell.Main>
-        <SplitRouter.Outlet fallback={list} />
+        <SplitRouter.Outlet
+          fallback={() => (
+            <EmailDesktopListArea
+              list={props.list}
+              onSearchEscape={props.focusList}
+            />
+          )}
+        />
       </ViewShell.Main>
     </ViewShell.Root>
   );
@@ -143,9 +252,13 @@ function EmailViewRoot() {
 
   onMount(() => panel.handle.setDisplayName('Email'));
 
-  const list = () => (
+  const list: RenderEmailList = (options) => (
     <Suspense fallback={<EmailListFallback />}>
-      <EmailList ref={setListElement} />
+      <EmailList
+        ref={setListElement}
+        keyboardEnabled={options?.keyboardEnabled}
+        narrowLayout={options?.narrowLayout}
+      />
     </Suspense>
   );
 
@@ -156,9 +269,10 @@ function EmailViewRoot() {
           <Show
             when={isTouchDevice()}
             fallback={
-              <EmailDesktopLayout onSearchEscape={() => listElement()?.focus()}>
-                {list()}
-              </EmailDesktopLayout>
+              <EmailDesktopLayout
+                list={list}
+                focusList={() => listElement()?.focus()}
+              />
             }
           >
             <EmailMobileLayout>{list()}</EmailMobileLayout>

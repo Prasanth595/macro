@@ -189,3 +189,19 @@ it('normalizes restored and route-driven Reminders when the rollout is disabled'
   view.setTab('reminders');
   expect(view.state.tab).toBe('important');
 });
+
+it('defaults to the List layout and remembers a Preview choice', () => {
+  const key = 'macro:pref:email:view-layout';
+  localStorage.removeItem(key);
+  try {
+    const first = mount();
+    expect(first.view.layout()).toBe('list');
+    first.view.setLayout('preview');
+    cleanup();
+
+    const second = mount();
+    expect(second.view.layout()).toBe('preview');
+  } finally {
+    localStorage.removeItem(key);
+  }
+});

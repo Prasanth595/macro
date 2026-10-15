@@ -191,6 +191,7 @@ export function ListEntity(props: ListEntityProps) {
   const usesCondensedNarrowLayout = () => !isWide() && isCondensedVariant();
   const isSingleLineVariant = () =>
     listLayout?.narrowLayout() === 'single-line';
+  const isInboxVariant = () => listLayout?.narrowLayout() === 'inbox';
 
   const mobileStacks = createMemo(() => {
     if (!isTouchDevice()) return [];
@@ -272,7 +273,7 @@ export function ListEntity(props: ListEntityProps) {
         </Match>
         <Match
           when={
-            isTouchDevice() &&
+            (isTouchDevice() || isInboxVariant()) &&
             ((isChannelEntity(props.entity) && !isCondensedVariant()) ||
               isEmailEntity(props.entity) ||
               props.showUnrollNotifications)

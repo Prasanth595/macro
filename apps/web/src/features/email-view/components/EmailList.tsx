@@ -24,6 +24,7 @@ import {
   EntitySelectionToolbar,
   ListEntity,
   ListLayoutProvider,
+  type NarrowLayoutVariant,
   type WithNotification,
 } from '@entity';
 import CaretDownIcon from '@phosphor/caret-down.svg';
@@ -73,6 +74,13 @@ type EmailActionRow = {
 export type EmailListProps = {
   /** The focusable list root, for callers that hand keyboard focus back. */
   ref?: (element: HTMLDivElement) => void;
+  /**
+   * Whether the list owns the split's keyboard. The Preview layout hands it to
+   * the open thread beside the list. Defaults to on.
+   */
+  keyboardEnabled?: () => boolean;
+  /** Row layout below the wide breakpoint; the sidebar list stacks like mail. */
+  narrowLayout?: NarrowLayoutVariant;
 };
 
 export function EmailList(props: EmailListProps) {
@@ -85,6 +93,8 @@ export function EmailList(props: EmailListProps) {
     filterByTag,
   } = useEmailView();
   const panel = useSplitPanelOrThrow();
+  const keyboardActive = () =>
+    panel.isPanelActive() && (props.keyboardEnabled?.() ?? true);
 
   function openEntity(
     entity: EntityData,
@@ -239,7 +249,7 @@ export function EmailList(props: EmailListProps) {
     controller: list,
     scopeId: panel.splitHotkeyScope,
     scrollHandle: virtualizer,
-    enabled: panel.isPanelActive,
+    enabled: keyboardActive,
     navigation: {
       onNavigate: (event) => {
         if (event.kind !== 'move' || event.direction !== 1) return;
@@ -274,12 +284,12 @@ export function EmailList(props: EmailListProps) {
     restoreFocus: () => grid()?.focus(),
     viewContext: entityActionViewContext,
     splitHandle: panel.handle,
-    condition: panel.isPanelActive,
+    condition: keyboardActive,
   });
 
   useEmailListHotkeys({
     scopeId: panel.splitHotkeyScope,
-    enabled: panel.isPanelActive,
+    enabled: keyboardActive,
     selectedEntities,
     clearSelection: listInteractions.selection.clear,
   });
@@ -452,7 +462,7 @@ export function EmailList(props: EmailListProps) {
           onRefresh={pullRefresh}
         />
 
-        <ListLayoutProvider ref={grid}>
+        <ListLayoutProvider ref={grid} narrowLayout={props.narrowLayout}>
           <SwipableRowProvider
             container={viewport}
             setCollapseEntity={setCollapseEntity}
