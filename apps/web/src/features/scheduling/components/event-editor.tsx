@@ -1,4 +1,5 @@
 import { Popover } from '@kobalte/core/popover';
+import ArrowCounterClockwise from '@phosphor/arrow-counter-clockwise.svg';
 import PencilSimple from '@phosphor/pencil-simple.svg';
 import Plus from '@phosphor/plus.svg';
 import Trash from '@phosphor/trash.svg';
@@ -31,8 +32,8 @@ import type {
   SchedulingMember,
 } from '../core/types';
 import { BookingDurationInput } from './booking-duration-input';
-import { BookingEditorSection } from './booking-editor-section';
 import { BookingFieldInfo } from './booking-field-info';
+import { BookingHostSelector } from './booking-host-selector';
 import { BookingRules as BookingRuleSliders } from './booking-rules';
 import { BookingValueSlider } from './booking-value-slider';
 import {
@@ -59,6 +60,7 @@ export type EventEditorProps = {
   isNew: boolean;
   createActive: boolean;
   details: EventDetail[];
+  canResetTeamSettings: boolean;
   step: EventEditorStep;
   stepMenuOpen: boolean;
   onStepMenuOpenChange: (open: boolean) => void;
@@ -563,112 +565,96 @@ export function EventEditor(props: EventEditorProps) {
                 </Show>
               </section>
               <Show when={props.team}>
-                <BookingEditorSection
-                  label="Team hosts"
-                  description="People who host the meeting"
-                  summary={`${props.draft.hosts.length} host${props.draft.hosts.length === 1 ? '' : 's'} · ${props.draft.mode === 'roundRobin' ? 'Round robin' : 'Collective'}`}
-                  disabled={props.saving}
-                  invalid={!!error('hosts')}
-                >
-                  <Field
-                    label="Scheduling type"
-                    class="text-base"
-                    labelClass="text-sm font-normal text-ink-muted"
-                  >
-                    <SelectInput
-                      label="Scheduling type"
-                      value={props.draft.mode}
-                      class="h-9 rounded-lg px-3 text-sm"
-                      disabled={props.saving || props.step !== 'location'}
-                      options={[
-                        {
-                          value: 'collective',
-                          label: 'Collective · all hosts attend',
-                        },
-                        {
-                          value: 'roundRobin',
-                          label: 'Round robin · one available host',
-                        },
-                      ]}
-                      onChange={(value) =>
-                        props.onUpdate(
-                          'mode',
-                          value === 'roundRobin' ? 'roundRobin' : 'collective'
-                        )
+                <section class="flex min-w-0 flex-col gap-2">
+                  <div class="flex items-center justify-between gap-2">
+                    <h4 class="text-sm font-normal tracking-wide text-ink-muted">
+                      Team scheduling
+                    </h4>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      label="Reset team settings"
+                      disabled={
+                        props.saving ||
+                        props.step !== 'location' ||
+                        !props.canResetTeamSettings
                       }
-                    />
-                  </Field>
-                  <div
-                    role="group"
-                    aria-label="Team hosts"
-                    tabindex="-1"
-                    aria-invalid={error('hosts') ? true : undefined}
-                    aria-describedby={error('hosts') ? hostsErrorId : undefined}
-                    class="flex flex-col gap-3 rounded-lg outline-none aria-invalid:ring-2 aria-invalid:ring-failure/30"
-                  >
-                    <For each={props.members}>
-                      {(member) => (
-                        <div class="py-2">
-                          <CheckField
-                            checked={props.draft.hosts.includes(member.id)}
-                            label={member.name || member.email}
-                            disabled={props.saving}
-                            onChange={(checked) =>
-                              props.onUpdate(
-                                'hosts',
-                                checked
-                                  ? [...props.draft.hosts, member.id]
-                                  : props.draft.hosts.filter(
-                                      (id) => id !== member.id
-                                    )
-                              )
-                            }
-                          />
-                          <Show when={member.name}>
-                            <p class="ml-7 mt-1 text-xs text-ink-muted">
-                              {member.email}
-                            </p>
-                          </Show>
-                        </div>
-                      )}
-                    </For>
-                    <For each={missingHosts()}>
-                      {(id) => (
-                        <div class="rounded-lg bg-warning-bg p-3">
-                          <CheckField
-                            checked
-                            label="Former team member"
-                            disabled={props.saving}
-                            onChange={(checked) =>
-                              !checked &&
-                              props.onUpdate(
-                                'hosts',
-                                props.draft.hosts.filter((host) => host !== id)
-                              )
-                            }
-                          />
-                          <p class="mt-2 text-xs text-ink-muted">
-                            Remove this former team member before saving.
-                          </p>
-                        </div>
-                      )}
-                    </For>
-                    <FieldError id={hostsErrorId} message={error('hosts')} />
+                      onClick={() => props.onRemoveDetail('hosts')}
+                    >
+                      <ArrowCounterClockwise
+                        class="size-3.5"
+                        aria-hidden="true"
+                      />
+                    </Button>
                   </div>
-                  <p class="text-xs text-ink-muted">
-                    Hosts need a connected calendar. Round robin assigns one
-                    available host; collective meetings include all selected
-                    hosts.
-                  </p>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => props.onRemoveDetail('hosts')}
-                  >
-                    Reset team hosts
-                  </Button>
-                </BookingEditorSection>
+                  <div class="flex min-w-0 flex-col gap-3">
+                    <div
+                      role="group"
+                      aria-label="Scheduling type"
+                      class="flex flex-wrap gap-2"
+                    >
+                      <For
+                        each={
+                          [
+                            { value: 'collective', label: 'Collective' },
+                            { value: 'roundRobin', label: 'Round robin' },
+                          ] as const
+                        }
+                      >
+                        {(option) => (
+                          <Button
+                            type="button"
+                            size="md"
+                            variant="ghost"
+                            disabled={props.saving || props.step !== 'location'}
+                            aria-pressed={props.draft.mode === option.value}
+                            class={`rounded-full border px-4 ${
+                              props.draft.mode === option.value
+                                ? 'border-accent/30 bg-accent/10 text-accent not-touch:not-disabled:hover:bg-accent/15 not-touch:not-disabled:hover:text-accent'
+                                : 'border-edge-frame text-ink-muted not-touch:not-disabled:hover:text-ink-muted'
+                            }`}
+                            onClick={() => props.onUpdate('mode', option.value)}
+                          >
+                            {option.label}
+                          </Button>
+                        )}
+                      </For>
+                    </div>
+                    <div class="flex w-72 max-w-full min-w-0 flex-col gap-2">
+                      <div class="flex min-w-0 items-center gap-2">
+                        <div class="min-w-0 flex-1">
+                          <BookingHostSelector
+                            members={props.members}
+                            value={props.draft.hosts}
+                            disabled={props.saving || props.step !== 'location'}
+                            invalid={!!error('hosts')}
+                            descriptionId={
+                              error('hosts') ? hostsErrorId : undefined
+                            }
+                            onChange={(hosts) => props.onUpdate('hosts', hosts)}
+                          />
+                        </div>
+                        <BookingFieldInfo
+                          label="Team hosts"
+                          description="Hosts need a connected calendar."
+                        >
+                          <Warning
+                            class="size-3.5 text-warning"
+                            aria-hidden="true"
+                          />
+                        </BookingFieldInfo>
+                      </div>
+                      <FieldError id={hostsErrorId} message={error('hosts')} />
+                      <Show when={missingHosts().length && !error('hosts')}>
+                        <p class="text-xs text-warning">
+                          Remove former team members from the selected hosts
+                          before saving.
+                        </p>
+                      </Show>
+                    </div>
+                  </div>
+                </section>
               </Show>
             </fieldset>
           </Stepper.Step>

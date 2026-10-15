@@ -88,6 +88,7 @@ export function EventEditor(props: EventEditorViewProps) {
       isNew={editor.isNew()}
       createActive={props.createActive ?? false}
       details={editor.details()}
+      canResetTeamSettings={editor.canResetTeamSettings()}
       step={editor.step()}
       stepMenuOpen={stepMenuOpen()}
       onStepMenuOpenChange={setStepMenuOpen}

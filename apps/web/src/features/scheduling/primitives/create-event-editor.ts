@@ -41,6 +41,20 @@ export function createEventEditor(options: {
     ],
   });
   let previousDailyLimit = initial.dailyLimit ?? 5;
+  const defaultHosts = () =>
+    options.defaultHosts?.() ?? initial.hosts.slice(0, 1);
+  const defaultMode = () =>
+    options.defaultMode?.() ??
+    (initial.mode === 'individual' ? 'individual' : 'collective');
+  const canResetTeamSettings = () => {
+    const current = draft();
+    const hosts = defaultHosts();
+    return (
+      current.mode !== defaultMode() ||
+      current.hosts.length !== hosts.length ||
+      current.hosts.some((host) => !hosts.includes(host))
+    );
+  };
   const [customSlug, setCustomSlug] = createSignal(
     !!initial.slug.trim() && initial.slug !== slugify(initial.title)
   );
@@ -133,9 +147,8 @@ export function createEventEditor(options: {
       const next = resetEventDetail(
         current,
         detail,
-        options.defaultHosts?.() ?? initial.hosts.slice(0, 1),
-        options.defaultMode?.() ??
-          (initial.mode === 'individual' ? 'individual' : 'collective')
+        defaultHosts(),
+        defaultMode()
       );
       return detail === 'link' ? { ...next, slug: automaticSlug(next) } : next;
     });
@@ -257,6 +270,7 @@ export function createEventEditor(options: {
     slug,
     canGoToStep,
     hasChanges,
+    canResetTeamSettings,
     goToStep,
     next,
     back,
