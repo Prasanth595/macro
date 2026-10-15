@@ -83,9 +83,7 @@ export function useChannelEntity(
     // A pending read suspends, and a revalidation must not blank what it feeds.
     if (!queryReadyGate(query))
       return previous?.id === id ? previous : undefined;
-    return query.data.entities.find(
-      (entity): entity is ChannelEntity =>
-        entity.type === 'channel' && entity.id === id
-    );
+    const entity = query.data.entities.find((entity) => entity.id === id);
+    return entity?.type === 'channel' ? entity : undefined;
   });
 }
