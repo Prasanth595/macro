@@ -124,12 +124,22 @@ if (!buildOnly) {
     );
     exit(1);
   }
-  if (info && !info.versionReleased) {
+  // A higher version already on the store (a hand release) makes the
+  // committed string unusable even if it never shipped: App Store Connect
+  // refuses version strings at or below the latest release.
+  const higherShipped = info && compareVersions(info.highestVersion, iosConf.version) > 0;
+  if (info && !info.versionReleased && !higherShipped) {
     console.log(
       `Version ${iosConf.version} has not been released to the App Store ` +
         `(${info.versionState ?? "no App Store record"}); keeping it.`,
     );
   } else {
+    if (info && !info.versionReleased && higherShipped) {
+      console.log(
+        `Version ${iosConf.version} was never released, but App Store Connect already ` +
+          `has ${info.highestVersion} above it.`,
+      );
+    }
     // Released (or unknown): next patch above both the committed version and
     // the highest version App Store Connect has (a hand release that was
     // never committed).

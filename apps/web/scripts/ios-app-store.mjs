@@ -55,8 +55,9 @@
 //
 // Provenance: version + build number alone don't identify a PR's native code
 // (two PRs bumped from the same base get the same numbers), so wait-build
-// stamps each uploaded build with the hash of the native tree it was built
-// from (`git rev-parse HEAD:apps/web/tauri`, or --native-tree) in its
+// stamps each uploaded build with the hash of the native code it was built
+// from (nativeTreeHash(): the filtered `git ls-tree` of apps/web/tauri, or
+// --native-tree) in its
 // TestFlight "What to Test" text. status's collision check (with
 // --require-unused-build, before the release builds) fails when a build at
 // or above ours exists with a different stamp — another PR or a hand release — and
@@ -669,6 +670,10 @@ function versionState(record) {
 
 async function waitBuild() {
   const timeoutMinutes = Number(args["timeout-minutes"] ?? 30);
+  if (!Number.isFinite(timeoutMinutes) || timeoutMinutes <= 0) {
+    console.error(`--timeout-minutes must be a positive number, got ${args["timeout-minutes"]}.`);
+    exit(2);
+  }
   const deadline = Date.now() + timeoutMinutes * 60_000;
   let buildRecord = null;
   while (true) {
@@ -703,6 +708,10 @@ async function waitBuild() {
   }
   console.log(`Build ${version} (${build}) processed successfully.`);
 
+  // Stamp before anything else can fail: a retry then recognises the upload
+  // as ours (uploaded=true) instead of demanding a re-bump.
+  await stampBuild(buildRecord);
+
   const compliance = buildRecord.attributes.usesNonExemptEncryption;
   if (compliance === null || compliance === undefined) {
     console.error(
@@ -713,8 +722,6 @@ async function waitBuild() {
     exit(1);
   }
   console.log(`Export compliance resolved (usesNonExemptEncryption=${compliance}).`);
-
-  await stampBuild(buildRecord);
   console.log(`Build is ready for TestFlight: ${testflightUrl}`);
 }
 
@@ -727,6 +734,9 @@ async function explainVersionInFlight() {
     .filter(isInFlight)
     .map((record) => `${record.attributes.versionString} (${versionState(record)})`);
   if (inFlight.length === 0) {
+    console.error(`Could not create App Store version ${version}, and no other version is in flight.
+If this followed a retried request the record may already exist: remove and re-add
+the ios-update label to pick it up.\n${distributionUrl}`);
     return;
   }
   console.error(`Could not create App Store version ${version}: App Store Connect allows one iOS
@@ -1005,6 +1015,13 @@ ${distributionUrl}`);
     return;
   }
 
+  if (RETIRED_STATES.has(state)) {
+    fail(
+      `App Store version ${version} was live but has been superseded (state ${state}), ` +
+        "so the store build may lack this PR's native code. Bump (`just ios-bump` moves " +
+        "the version), commit, and re-add the ios-update label to release again.",
+    );
+  }
   if (!LIVE_STATES.has(state)) {
     fail(`App Store version ${version} is not live yet (state ${state}).`);
   }
