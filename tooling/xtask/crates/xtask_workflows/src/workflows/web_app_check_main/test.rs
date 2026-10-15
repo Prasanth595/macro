@@ -8,9 +8,13 @@ fn android_version_is_an_unconditional_required_merge_check() {
         !android.contains("if:"),
         "native enforcement must always run"
     );
-    assert!(android.contains("fetch-depth: '0'"));
+    assert!(
+        !android.contains("fetch-depth"),
+        "shallow checkout; the base commit is fetched by the step: {android}"
+    );
     assert!(android.contains("github.event.pull_request.base.sha"));
-    assert!(android.contains("node apps/web/scripts/android-version-check.mjs"));
+    assert!(android.contains("git fetch -q --depth=1 origin \"$BASE_SHA\""));
+    assert!(android.contains("bun scripts/android-version-check.mjs"));
     let status = yaml
         .split("\n  status-check:\n")
         .nth(1)

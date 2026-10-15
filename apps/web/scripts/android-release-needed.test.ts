@@ -69,7 +69,7 @@ describe('PR Android version enforcement', () => {
     write('apps/web/src/index.tsx', '// frontend');
     write('services/example/src/lib.rs', '// backend');
     commit();
-    expect(checkAndroidVersion({ cwd, base })).toContain('No Tauri changes');
+    expect(checkAndroidVersion({ cwd, base })).toContain('No Android native changes');
   });
 
   it.each(['modify', 'add', 'delete', 'rename'])(
@@ -142,7 +142,60 @@ describe('PR Android version enforcement', () => {
     commit();
     const base = git('rev-parse', 'HEAD');
     git('merge', '--no-ff', 'pr', '-m', 'PR merge result');
-    expect(checkAndroidVersion({ cwd, base })).toContain('No Tauri changes');
+    expect(checkAndroidVersion({ cwd, base })).toContain('No Android native changes');
+  });
+
+  it.each([
+    'apps/web/tauri/src-tauri/gen/apple/project.yml',
+    'apps/web/tauri/src-tauri/Info.ios.plist',
+    'apps/web/tauri/callkit_plugin/ios/Sources/CallKitPlugin.swift',
+    'apps/web/tauri/src-tauri/icons/macos/Macro.icon/icon.json',
+    'apps/web/tauri/src-tauri/tauri.macos.conf.json',
+    'apps/web/tauri/src-tauri/src/linux_notification.rs',
+    'apps/web/tauri/desktop-release.json',
+  ])('ignores the iOS/desktop-only path %s', (path) => {
+    const base = git('rev-parse', 'HEAD');
+    write(path, 'changed');
+    commit();
+    expect(checkAndroidVersion({ cwd, base })).toContain(
+      'No Android native changes'
+    );
+  });
+
+  it('requires a bump when the client cache wasm version moves', () => {
+    write(
+      'crates/client/cache-wasm/Cargo.toml',
+      '[package]\nname = "cache-wasm"\nversion = "0.6.1"\n'
+    );
+    commit();
+    const base = git('rev-parse', 'HEAD');
+    write(
+      'crates/client/cache-wasm/Cargo.toml',
+      '[package]\nname = "cache-wasm"\nversion = "0.6.2"\n'
+    );
+    write('crates/client/cache-core/src/lib.rs', '// cache change');
+    commit();
+    expect(() => checkAndroidVersion({ cwd, base })).toThrow(
+      /cache wasm version moved \(0\.6\.1 → 0\.6\.2\).*just android-bump/
+    );
+    version(2);
+    commit();
+    expect(checkAndroidVersion({ cwd, base })).toContain('from 1 to 2');
+  });
+
+  it('does not require a bump for client cache edits without a version bump', () => {
+    write(
+      'crates/client/cache-wasm/Cargo.toml',
+      '[package]\nname = "cache-wasm"\nversion = "0.6.1"\n'
+    );
+    commit();
+    const base = git('rev-parse', 'HEAD');
+    write('crates/client/cache-core/src/lib.rs', '// cache change');
+    write('crates/client/cache-wasm/Cargo.toml', '[package]\nname = "cache-wasm"\nversion = "0.6.1"\n[dependencies]\nx = "1"\n');
+    commit();
+    expect(checkAndroidVersion({ cwd, base })).toContain(
+      'No Android native changes'
+    );
   });
 
   it('fails closed if the base commit is unavailable', () => {
@@ -213,7 +266,7 @@ describe('native release detection', () => {
     expect(androidReleaseDecision({ cwd, releases: [baseline] })).toEqual({
       build: true,
       summary: expect.stringContaining(
-        'the client cache wasm version moved since v2026.10.1 (0.6.1 → 0.6.2)'
+        'the client cache wasm version moved (0.6.1 → 0.6.2) since v2026.10.1'
       ),
     });
   });

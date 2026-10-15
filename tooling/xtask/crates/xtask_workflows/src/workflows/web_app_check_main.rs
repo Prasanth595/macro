@@ -65,15 +65,29 @@ pub fn web_app_check_main() -> Workflow {
 fn android_version() -> Job {
     Job::default()
         .name("Android Version Code")
-        .runs_on("ubuntu-24.04")
+        .runs_on(runners::Runner::TinyNoCache.to_string())
         .permissions(Permissions::default().contents(Level::Read))
+        // Shallow: only the merge result and the base commit are needed.
+        .add_step(checkout("Checkout PR merge commit", false))
         .add_step(
-            checkout("Checkout PR merge commit", true).add_with(("persist-credentials", false)),
+            Step::new("Setup Bun")
+                .uses(
+                    "oven-sh",
+                    "setup-bun",
+                    "0c5077e51419868618aeaa5fe8019c62421857d6",
+                ) // v2.2.0
+                .add_with(("bun-version", "1.3.13")),
         )
         .add_step(
-            Step::new("Require an Android version bump for Tauri changes")
-                .add_env(("BASE_SHA", "${{ github.event.pull_request.base.sha }}"))
-                .run("node apps/web/scripts/android-version-check.mjs \"$BASE_SHA\""),
+            Step::new("Require an Android version bump for native changes")
+                .run(indoc::indoc! {r#"
+                    set -euo pipefail
+                    git fetch -q --depth=1 origin "$BASE_SHA"
+                    bun scripts/android-version-check.mjs "$BASE_SHA"
+                "#})
+                .shell("bash")
+                .working_directory(xtask_paths::repo_dir!("apps/web"))
+                .add_env(("BASE_SHA", "${{ github.event.pull_request.base.sha }}")),
         )
 }
 
