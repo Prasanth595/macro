@@ -13,3 +13,9 @@ export const calendarTeamKeys = createQueryKeys('calendar-team', {
     identity,
   ],
 });
+
+/** Saves of the viewer's own settings; a refresh waits for them to settle. */
+export const calendarTeamMutationKeys = {
+  sharing: ['calendar-team', 'set-sharing'],
+  availabilityCalendar: ['calendar-team', 'set-availability-calendar'],
+};

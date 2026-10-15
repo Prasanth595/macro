@@ -8,7 +8,11 @@ import { type QueryKey, useMutation, useQuery } from '@tanstack/solid-query';
 import type { Accessor } from 'solid-js';
 import { queryClient } from '../client';
 import { ensureTeamCalendarExpiry } from './team-cache';
-import { type CalendarTeamIdentity, calendarTeamKeys } from './team-keys';
+import {
+  type CalendarTeamIdentity,
+  calendarTeamKeys,
+  calendarTeamMutationKeys,
+} from './team-keys';
 
 const REFRESH_INTERVAL = 30_000;
 const freshness = {
@@ -81,7 +85,7 @@ async function replaceCachedQuery<T>(
 const isLastPendingSave = (mutationKey: QueryKey) =>
   queryClient.isMutating({ mutationKey }) === 1;
 
-const teamSharingMutationKey = ['calendar-team', 'set-sharing'];
+const teamSharingMutationKey = calendarTeamMutationKeys.sharing;
 
 interface TeamSharingChange {
   identity: CalendarTeamIdentity;
@@ -126,10 +130,8 @@ export function useSetTeamCalendarSharingMutation() {
   return useMutation(() => teamSharingMutationOptions);
 }
 
-const availabilityCalendarMutationKey = [
-  'calendar-team',
-  'set-availability-calendar',
-];
+const availabilityCalendarMutationKey =
+  calendarTeamMutationKeys.availabilityCalendar;
 
 interface AvailabilityCalendarChange {
   identity: CalendarTeamIdentity;

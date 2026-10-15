@@ -7,6 +7,7 @@ import {
   useSetAvailabilityCalendarMutation,
   useSetTeamCalendarSharingMutation,
 } from '../team';
+import { refreshTeamCalendarQueries } from '../team-cache';
 import { calendarTeamKeys } from '../team-keys';
 
 const setTeamCalendarSharing = vi.hoisted(() => vi.fn());
@@ -114,6 +115,33 @@ describe('team sharing changes', () => {
     expect(testQueryClient.getQueryData(sharingKey)).toEqual({
       sharing: 'busy_only',
     });
+  });
+
+  it('leaves a saving choice to its save when a sharing push arrives', async () => {
+    testQueryClient.setQueryData(sharingKey, { sharing: 'busy_only' });
+    let finish!: (value: unknown) => void;
+    setTeamCalendarSharing.mockReturnValue(
+      new Promise((res) => {
+        finish = res;
+      })
+    );
+    const mutation = renderHook(() => useSetTeamCalendarSharingMutation());
+
+    const saving = mutation.mutateAsync({ identity, sharing: 'all' });
+    await vi.waitFor(() =>
+      expect(setTeamCalendarSharing).toHaveBeenCalledTimes(1)
+    );
+    await refreshTeamCalendarQueries();
+    expect(testQueryClient.getQueryState(sharingKey)?.isInvalidated).toBe(
+      false
+    );
+    expect(testQueryClient.getQueryData(sharingKey)).toEqual({
+      sharing: 'all',
+    });
+
+    finish(ok({ sharing: 'all' }));
+    await saving;
+    expect(testQueryClient.getQueryState(sharingKey)?.isInvalidated).toBe(true);
   });
 
   it('sends quick changes in order and keeps the newest choice when an earlier one fails', async () => {
