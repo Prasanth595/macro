@@ -91,7 +91,14 @@ let
         h = 4;
       };
       targets = [ (instant "A" expr) ];
-      description = "Selected queries within the bounded collected statement set. Missing data is not replaced by zero.";
+      description = "Selected queries within the bounded collected statement set. Missing data is not replaced by zero. These summaries are not health thresholds.";
+      fieldConfig.defaults = {
+        unit = unitName;
+        color = {
+          mode = "fixed";
+          fixedColor = "blue";
+        };
+      };
       options = {
         colorMode = "value";
         graphMode = "none";
