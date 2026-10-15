@@ -10,7 +10,7 @@
 # with it, the merge gate compares the live build's stamp against the merge
 # result's, and the drift / head guards compare commits with it. Must match
 # nativeTreeHash() in apps/web/scripts/ios-app-store.mjs and the iOS Native
-# Check path filter (ios_native_check.rs).
+# Check path filter (web_app_check_main/ios_native_check.rs).
 NATIVE_TREE_PATH=apps/web/tauri
 export NATIVE_TREE_EXCLUDE='(^|/)android([_./]|$)|\.android\.|^desktop-release\.json$|^\.helix/'
 

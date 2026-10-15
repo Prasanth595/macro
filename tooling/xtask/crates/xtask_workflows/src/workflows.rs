@@ -37,7 +37,7 @@ mod deploy_web_app;
 mod deploy_website;
 mod ensure_daytona_snapshot;
 mod ios_app_store_release;
-mod ios_native_check;
+mod ios_native_check_label;
 mod ios_preview;
 mod ios_release_drift;
 mod ios_release_watch;
@@ -290,9 +290,9 @@ const WORKFLOWS: &[WorkflowFile] = &[
         render_yaml: || render_gh_workflow(ios_app_store_release::ios_app_store_release)(),
     },
     WorkflowFile {
-        slug: "ios_native_check",
-        file_name: "ios-native-check.yml",
-        render_yaml: || render_gh_workflow(ios_native_check::ios_native_check)(),
+        slug: "ios_native_check_label",
+        file_name: "ios-native-check-label.yml",
+        render_yaml: || render_gh_workflow(ios_native_check_label::ios_native_check_label)(),
     },
     WorkflowFile {
         slug: "ios_release_drift",

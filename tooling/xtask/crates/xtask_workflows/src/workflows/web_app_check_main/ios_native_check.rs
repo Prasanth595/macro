@@ -1,7 +1,9 @@
 //! `iOS Native Check` — merge gate for PRs that change native iOS (Tauri)
-//! code. Web bundles ship over the air, but native changes only reach users
-//! through the App Store, so a PR whose bundle depends on new native code must
-//! not merge before that native build is actually downloadable. The gate:
+//! code, as a job of the web app PR checks so that `Web App Status Check`
+//! (the required status check) covers it without a ruleset change. Web
+//! bundles ship over the air, but native changes only reach users through
+//! the App Store, so a PR whose bundle depends on new native code must not
+//! merge before that native build is actually downloadable. The gate:
 //!
 //! 1. Detects native changes with a path filter over `apps/web/tauri/**`,
 //!    minus what never reaches the iOS binary (anything Android-only by
@@ -16,51 +18,39 @@
 //!    result has (the checkout is the PR's merge ref, so native code that
 //!    landed on main after the release also fails it: the shipped build
 //!    lacks it), and fails with instructions otherwise — add the
-//!    `ios-update` label to run the [`super::ios_app_store_release`] workflow
-//!    and wait for Apple's approval; [`super::ios_release_watch`] re-runs this
-//!    check once the release is live.
+//!    `ios-update` label to run the `iOS App Store Release` workflow and
+//!    wait for Apple's approval; `iOS Release Watch` re-runs this job once
+//!    the release is live.
 //!
 //! The App Store Connect key comes from Doppler (`ios-release/prd` via the
 //! `IOS_RELEASE_DOPPLER_TOKEN` secret), shared with the release workflow.
 //!
 //! The `skip-ios-update` label bypasses the gate for tauri changes that don't
-//! break the native/web contract (label changes re-trigger the check). The job
-//! name must stay stable: branch protection references `iOS Native Check`.
+//! break the native/web contract; the `iOS Native Check Label` workflow
+//! re-runs this job when that label is added or removed. The job name must
+//! stay stable: the release workflow, the watcher and that label workflow
+//! find the job by it.
 
-use gh_workflow::{Event, Expression, Job, PullRequest, PullRequestType, Run, Step, Use, Workflow};
+use gh_workflow::{Expression, Job, Run, Step, Use};
 
-use crate::workflows::{runners, steps, vars};
+use crate::workflows::{runners, vars};
+
+/// The job's id in the web app check workflow.
+pub(super) const JOB_ID: &str = "ios-native-check";
+/// The job's display name (a check run name).
+pub(super) const JOB_NAME: &str = "iOS Native Check";
 
 /// The path filter matched native iOS code.
-const NATIVE_CHANGED: &str = "steps.filter.outputs.ios_native == 'true'";
+const NATIVE_CHANGED: &str = "steps.native-filter.outputs.ios_native == 'true'";
 /// The PR opted out of the gate via the `skip-ios-update` label.
 const SKIP_LABEL: &str = "contains(github.event.pull_request.labels.*.name, 'skip-ios-update')";
 
-/// Build the workflow.
-pub fn ios_native_check() -> Workflow {
-    Workflow::new("iOS Native Check")
-        .on(Event::default().pull_request(
-            PullRequest::default()
-                .add_branch("main")
-                .add_type(PullRequestType::Opened)
-                // A retarget (base branch change) changes the merge result.
-                .add_type(PullRequestType::Edited)
-                .add_type(PullRequestType::Synchronize)
-                .add_type(PullRequestType::Reopened)
-                .add_type(PullRequestType::ReadyForReview)
-                .add_type(PullRequestType::Labeled)
-                .add_type(PullRequestType::Unlabeled),
-        ))
-        .concurrency(vars::concurrency("ios-native-check"))
-        .add_job("ios-native-check", check_job())
-}
-
-fn check_job() -> Job {
+pub(super) fn job() -> Job {
     Job::default()
-        .name("iOS Native Check")
+        .name(JOB_NAME)
         .runs_on(runners::Runner::TinyNoCache.to_string())
         // Full history so the bump check can diff against the base branch.
-        .add_step(steps::checkout(true, false))
+        .add_step(super::checkout("Checkout Repo", true))
         .add_step(paths_filter())
         .add_step(setup_bun())
         .add_step(verify_bump())
@@ -80,7 +70,7 @@ fn paths_filter() -> Step<Use> {
             "paths-filter",
             "d1c1ffe0248fe513906c8e24db8ea791d46f8590",
         ) // v3.0.3
-        .id("filter")
+        .id("native-filter")
         .add_with(("predicate-quantifier", "every"))
         .add_with((
             "filters",
@@ -121,7 +111,9 @@ fn verify_bump() -> Step<Run> {
 /// the `.p8` where `ios-app-store.mjs` looks for it by default.
 fn fetch_credentials() -> Step<Run> {
     Step::new("Fetch App Store Connect credentials from Doppler")
-        .run(include_str!("scripts/ios_app_store_connect_credentials.sh"))
+        .run(include_str!(
+            "../scripts/ios_app_store_connect_credentials.sh"
+        ))
         .shell("bash")
         .if_condition(gated())
         .add_env(("DOPPLER_TOKEN", vars::IOS_RELEASE_DOPPLER_TOKEN))

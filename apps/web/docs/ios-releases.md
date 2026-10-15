@@ -7,13 +7,16 @@ depends on new native code must therefore never be deployed before the
 matching native build is downloadable, and users on older native builds must
 be pushed to update before they receive that bundle.
 
-Four generated workflows plus a checked-in `min-native-build.json` enforce
-this end to end.
+Four generated workflows (plus a gate job in the web app PR checks) and a
+checked-in `min-native-build.json` enforce this end to end.
 
 ## The flow for a PR with breaking native changes
 
-1. **`iOS Native Check`** (`.github/workflows/ios-native-check.yml`) runs on
-   every PR against `main`. If the PR touches `apps/web/tauri/**` it requires:
+1. **`iOS Native Check`**, a job of the web app PR checks
+   (`.github/workflows/web-app-check-main.yml`), runs on every PR against
+   `main`. The required `Web App Status Check` depends on it, so no branch
+   ruleset change is needed. If the PR touches the iOS native code it
+   requires:
    - the iOS release numbers to be bumped relative to `main`, and
    - that exact version + build to be **live on the App Store**.
 
@@ -56,7 +59,7 @@ this end to end.
    **`iOS Release Watch`** workflow (`.github/workflows/ios-release-watch.yml`,
    every 30 minutes) notices: for each open PR labeled `ios-update` it asks
    App Store Connect whether the version + build at the PR head is live and,
-   when it is, re-runs the PR's failed `iOS Native Check` and comments. The
+   when it is, re-runs the PR's failed `iOS Native Check` job and comments. The
    gate turns green on its own and the PR merges if auto-merge is on.
    (Re-running the check by hand works too. The watcher stops after two
    automatic re-runs so a check failing for another reason doesn't retry
@@ -79,7 +82,9 @@ a CI-pushed bump commit would wedge the PR.
 
 If the tauri change doesn't break the native/web contract (comments, dev-only
 tooling, desktop-only config), add the **`skip-ios-update`** label instead;
-the gate passes without a release. For a non-breaking change you still want
+the **`iOS Native Check Label`** workflow re-runs just the gate job (and the
+status check that depends on it) when that label is added or removed, so the
+gate passes without a release and without re-running the whole web suite. For a non-breaking change you still want
 to ship to the App Store, `just ios-bump --no-min` bumps the versions without
 raising the floor.
 
@@ -165,8 +170,9 @@ ios-release --config prd -- just ios-release` covers them), and
 ## One-time repository setup
 
 - **Labels**: create `ios-update` and `skip-ios-update`.
-- **Branch protection**: add `iOS Native Check` to the required status checks
-  for `main`.
+- **Branch protection**: nothing to do — the gate is a job of the web app PR
+  checks, and the already-required `Web App Status Check` fails when it
+  fails.
 - **Doppler project `ios-release`, config `prd`** (same shape as
   `macos-release/prd`, which the desktop notarization uses; that key has only
   the Developer role, which cannot submit for review, hence a separate key):

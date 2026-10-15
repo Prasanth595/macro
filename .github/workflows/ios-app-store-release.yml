@@ -53,7 +53,7 @@ jobs:
         # with it, the merge gate compares the live build's stamp against the merge
         # result's, and the drift / head guards compare commits with it. Must match
         # nativeTreeHash() in apps/web/scripts/ios-app-store.mjs and the iOS Native
-        # Check path filter (ios_native_check.rs).
+        # Check path filter (web_app_check_main/ios_native_check.rs).
         NATIVE_TREE_PATH=apps/web/tauri
         export NATIVE_TREE_EXCLUDE='(^|/)android([_./]|$)|\.android\.|^desktop-release\.json$|^\.helix/'
 
@@ -104,7 +104,9 @@ jobs:
           echo "PR #${PR_NUMBER} moved to ${head_sha:0:10} since this run started, but its native code is unchanged; continuing."
         fi
 
-        ours='^(iOS Native Check|iOS App Store Release|iOS Release Drift)'
+        # Web App Status Check aggregates the gate, so it is red whenever the gate is;
+        # its other inputs (Typecheck, Test, Build, ...) are separate checks and stay.
+        ours='^(iOS Native Check|iOS Native Check Label|Web App Status Check|iOS App Store Release|iOS Release Drift)'
         deadline=$(( $(date +%s) + WAIT_MINUTES * 60 ))
         while true; do
           checks=$(gh pr checks "$PR_NUMBER" --repo "$GH_REPO" --json name,bucket \
@@ -291,7 +293,7 @@ jobs:
         # with it, the merge gate compares the live build's stamp against the merge
         # result's, and the drift / head guards compare commits with it. Must match
         # nativeTreeHash() in apps/web/scripts/ios-app-store.mjs and the iOS Native
-        # Check path filter (ios_native_check.rs).
+        # Check path filter (web_app_check_main/ios_native_check.rs).
         NATIVE_TREE_PATH=apps/web/tauri
         export NATIVE_TREE_EXCLUDE='(^|/)android([_./]|$)|\.android\.|^desktop-release\.json$|^\.helix/'
 

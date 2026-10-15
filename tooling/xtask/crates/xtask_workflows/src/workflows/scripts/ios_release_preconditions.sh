@@ -23,7 +23,9 @@ if [[ "$head_sha" != "$HEAD_SHA" ]]; then
   echo "PR #${PR_NUMBER} moved to ${head_sha:0:10} since this run started, but its native code is unchanged; continuing."
 fi
 
-ours='^(iOS Native Check|iOS App Store Release|iOS Release Drift)'
+# Web App Status Check aggregates the gate, so it is red whenever the gate is;
+# its other inputs (Typecheck, Test, Build, ...) are separate checks and stay.
+ours='^(iOS Native Check|iOS Native Check Label|Web App Status Check|iOS App Store Release|iOS Release Drift)'
 deadline=$(( $(date +%s) + WAIT_MINUTES * 60 ))
 while true; do
   checks=$(gh pr checks "$PR_NUMBER" --repo "$GH_REPO" --json name,bucket \

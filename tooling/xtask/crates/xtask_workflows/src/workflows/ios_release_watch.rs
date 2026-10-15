@@ -1,5 +1,5 @@
 //! `iOS Release Watch` — half-hourly cron closing the loop of the
-//! [`super::ios_native_check`] gate: that check fails on a PR with breaking
+//! the `iOS Native Check` job of [`super::web_app_check_main`] gate: that check fails on a PR with breaking
 //! native changes until the matching iOS version is live on the App Store,
 //! and nothing on GitHub's side notices when Apple releases it. This
 //! workflow looks at every open PR labeled `ios-update` (the label that

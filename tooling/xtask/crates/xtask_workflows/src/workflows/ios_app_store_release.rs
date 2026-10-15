@@ -1,7 +1,7 @@
 //! `iOS App Store Release` — add the `ios-update` label to a PR with breaking
 //! native (Tauri) changes and this workflow builds the iOS app from the PR
 //! head, uploads it to TestFlight, and submits it for App Review — the release
-//! the [`super::ios_native_check`] merge gate then waits on
+//! the `iOS Native Check` merge gate (a job of [`super::web_app_check_main`]) then waits on
 //! ([`super::ios_release_watch`] re-runs the gate once Apple releases it).
 //! The success comment tells the author to enable GitHub auto-merge on the
 //! PR if they want it merged the moment Apple approves. The workflow does not
