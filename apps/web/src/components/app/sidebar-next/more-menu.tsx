@@ -48,7 +48,7 @@ export function MoreMenu(props: MoreMenuProps) {
   const preloadItem = (item: SidebarNextNavItem) =>
     layout.preloadContent(sidebarContent(item.id, item.params));
   const hiddenItems = () => moreMenuItems(props.gates);
-  
+
   // Capture shift key before onSelect fires (which omits the event)
   let shiftHeld = false;
   const captureSplitIntent = (event: PointerEvent | KeyboardEvent) => {
@@ -82,7 +82,12 @@ export function MoreMenu(props: MoreMenuProps) {
                     onPointerDown={captureSplitIntent}
                     onKeyDown={captureSplitIntent}
                     onSelect={() =>
-                      navigateToItem(item, layout.openWithSplit, analytics, shiftHeld)
+                      navigateToItem(
+                        item,
+                        layout.openWithSplit,
+                        analytics,
+                        shiftHeld
+                      )
                     }
                   >
                     <Dynamic
