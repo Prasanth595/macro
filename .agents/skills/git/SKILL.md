@@ -43,6 +43,10 @@ cargo x workflows --check                 # workflow generators changed
 cargo x kafka-topics --check              # macro_event_topics changed
 ```
 
+GitHub Actions workflows are generated from Rust: edit
+`tooling/xtask/crates/xtask_workflows`, never the YAML (see the
+[workflows rule](../../rules/infra/github-workflows.md)).
+
 Run the `audit` skill before handing off; it covers tests and area checks.
 
 ## PR description
