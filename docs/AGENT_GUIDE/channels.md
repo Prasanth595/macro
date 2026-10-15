@@ -30,6 +30,29 @@ Choosing an agent removes other recipients. Reopening the same persona returns
 to your existing private channel. Team ownership of an agent does not share
 your DM with teammates. Calls and additional participants are unavailable.
 
+With the backend rollout switch enabled, the backing context stays out of the
+standalone **Agents** and **Home** session lists, including earlier contexts
+and contexts started fresh through the API.
+The DM remains in Channels/DMs. Opening its session by ID still works for an
+authorized reader, including streaming, questions, approvals, and Stop. Verify
+that an ordinary standalone session still appears in Agents/Home, the DM stays
+available in Channels, and reopening the DM resumes the same context.
+
+DM session hiding has a separate backend rollout switch, initially disabled.
+Deploy the warm-marker migration and all updated harness replicas first; once
+no old warm reapers remain, set `HIDE_AGENT_DM_SESSIONS=true` for
+agent-harness-service and redeploy.
+New contexts are hidden immediately; a bounded startup/60-second backfill also
+hides existing contexts, including ones created by a replica still running with
+the switch off. The frontend discovery flag alone does not gate existing DMs
+or API callers. Until this backend switch is enabled, DM contexts retain their
+previous visibility. Before rolling back to code with the old warm predicate,
+restore DM visibility by reverting the migration before starting old service
+code; merely disabling the switch does not unhide existing contexts.
+Updated claim and cleanup require `for_warming` as well as hidden/unthreaded
+state, and exclude conversation reservations; genuine
+speculative sessions still expire normally.
+
 Send normally: no `@` mention is needed. Attachments, references, and quoted
 messages use the channel composer. While the agent works, a typing row with its
 avatar sits under the newest message: `<name> is thinking`, `is typing`,

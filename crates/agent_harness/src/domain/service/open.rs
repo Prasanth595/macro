@@ -2,7 +2,7 @@
 //! external runtime that dials in. Each creates the row, provisions egress
 //! where there is a sandbox to give it to, and attaches the runtime.
 
-use crate::domain::model::{is_coding_agent, with_coding_preferences};
+use crate::domain::model::{ReplyPlacement, is_coding_agent, with_coding_preferences};
 use agent_session::domain::model::session_owner_user;
 use agent_session::domain::repository_branch::RepositoryBranch;
 use model_owner::Owner;
@@ -104,7 +104,7 @@ where
             .inner
             .sessions
             .create_session(CreateAgentSessionParams {
-                warm: false,
+                purpose: agent_session::domain::model::SessionPurpose::Standalone,
                 repo_branch: None,
                 id: request.id.unwrap_or_else(AgentSessionId::new),
                 owner_id: request.owner,
@@ -408,7 +408,11 @@ where
         let session = self
             .sessions
             .create_session(CreateAgentSessionParams {
-                warm: false,
+                purpose: if announcement.reply_placement == ReplyPlacement::Timeline {
+                    agent_session::domain::model::SessionPurpose::AgentDm
+                } else {
+                    agent_session::domain::model::SessionPurpose::Standalone
+                },
                 repo_branch: None,
                 id: session_id,
                 owner_id: Owner::User(actor.clone()),

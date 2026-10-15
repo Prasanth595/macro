@@ -10,6 +10,9 @@ pub type Result<T, E = AgentSessionError> = std::result::Result<T, E>;
 
 #[derive(Error, Debug)]
 pub enum AgentSessionError {
+    /// Speculative sessions cannot belong to a conversation or a message.
+    #[error("a warm session cannot have conversation or message provenance")]
+    InvalidSessionPurpose,
     /// No session has been created under this identity yet.
     #[error("agent session {0} was not found")]
     NotFound(AgentSessionId),

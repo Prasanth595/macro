@@ -748,6 +748,10 @@ where
     Namer: AgentSessionNameGenerator + Clone,
 {
     async fn create_session(&self, params: CreateAgentSessionParams) -> Result<AgentSession> {
+        params.purpose.for_creation(
+            false,
+            params.thread_id.is_some() || params.originating_message_id.is_some(),
+        )?;
         AgentSessionRepo::create(&self.repo, params).await
     }
 

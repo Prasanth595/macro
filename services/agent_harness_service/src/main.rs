@@ -268,7 +268,12 @@ async fn run() -> anyhow::Result<()> {
     // it happen.
     let session_registrar =
         OwnedEntityRegistrar::new(OwnerGrantPolicy::new(PgBotsRepo::new(pool.clone())));
-    let session_repo = PgAgentSessionRepo::new(pool.clone(), session_registrar.clone());
+    let session_list_policy = agent_session::domain::list_visibility::SessionListPolicy {
+        hide_agent_dms: config.hide_agent_dm_sessions,
+    };
+    let session_repo = PgAgentSessionRepo::new(pool.clone(), session_registrar.clone())
+        .with_list_policy(session_list_policy);
+    session_list_policy.reconcile(&session_repo).await?;
     let entity_access = Arc::new(
         entity_access::domain::service::EntityAccessServiceImpl::new(
             entity_access::outbound::PgAccessRepository::new(pool.clone()),
@@ -1080,11 +1085,18 @@ async fn run() -> anyhow::Result<()> {
         .with_warm_sessions(Arc::new(session_repo.clone()), tool_catalog),
     );
     let warm_cleanup = Arc::clone(&harness);
+    let session_visibility_repo = session_repo.clone();
     tokio::spawn(async move {
         let mut ticks = tokio::time::interval(std::time::Duration::from_secs(60));
         loop {
             ticks.tick().await;
             warm_cleanup.reap_warm_sessions().await;
+            if let Err(error) = session_list_policy
+                .reconcile(&session_visibility_repo)
+                .await
+            {
+                tracing::warn!(?error, "could not reconcile agent DM session visibility");
+            }
         }
     });
     let model_probe_timeout = std::time::Duration::from_secs(10);

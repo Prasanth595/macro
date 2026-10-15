@@ -42,3 +42,6 @@ pub mod recovery;
 
 /// Warm session promotion and expiry.
 pub mod warm;
+
+/// Visibility policy for standalone session lists.
+pub mod list_visibility;
