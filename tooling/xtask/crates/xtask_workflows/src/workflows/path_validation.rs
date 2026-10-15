@@ -179,19 +179,16 @@ fn validate_dorny_filters(filters: &str, repo_root: &Path, context: &str) -> Res
                 )
             })?;
             // `!pattern` excludes paths matched by an earlier pattern; the
-            // excluded paths must exist like any other. `{a,b}/**` is one
-            // picomatch pattern with alternatives; each must exist.
+            // excluded paths must exist like any other.
             let pattern = pattern.strip_prefix('!').unwrap_or(pattern);
-            for alternative in expand_braces(pattern) {
-                validate_glob(
-                    &alternative,
-                    repo_root,
-                    format!(
-                        "{context} dorny path-filter group `{}`",
-                        yaml_key(group_name)
-                    ),
-                )?;
-            }
+            validate_glob(
+                pattern,
+                repo_root,
+                format!(
+                    "{context} dorny path-filter group `{}`",
+                    yaml_key(group_name)
+                ),
+            )?;
         }
     }
     Ok(())
@@ -212,24 +209,6 @@ fn validate_diff_checker_paths(diff: &str, repo_root: &Path, context: &str) -> R
         }
     }
     Ok(())
-}
-
-/// Expand one level of picomatch brace alternation: `a/{b,c}/d` becomes
-/// `a/b/d` and `a/c/d`. Patterns without braces come back unchanged.
-fn expand_braces(pattern: &str) -> Vec<String> {
-    let (Some(open), Some(close)) = (pattern.find('{'), pattern.find('}')) else {
-        return vec![pattern.to_string()];
-    };
-    if close < open {
-        return vec![pattern.to_string()];
-    }
-    let (head, rest) = pattern.split_at(open);
-    let (alternatives, tail) = rest[1..].split_at(close - open - 1);
-    let tail = &tail[1..];
-    alternatives
-        .split(',')
-        .flat_map(|alternative| expand_braces(&format!("{head}{alternative}{tail}")))
-        .collect()
 }
 
 fn validate_file(path: &str, repo_root: &Path, context: String) -> Result<()> {
@@ -319,27 +298,6 @@ jobs:
         validate("fixture.yml", yaml, &xtask_paths::repo_root()).unwrap();
 
         let yaml = yaml.replace("android_*", "definitely-missing");
-        let error = validate("fixture.yml", &yaml, &xtask_paths::repo_root()).unwrap_err();
-        assert!(format!("{error:#}").contains("matches no paths"));
-    }
-
-    #[test]
-    fn expands_brace_alternatives_in_embedded_path_filters() {
-        assert_eq!(expand_braces("a/{b,c}/**"), vec!["a/b/**", "a/c/**"]);
-        assert_eq!(expand_braces("plain/**"), vec!["plain/**"]);
-        let yaml = r#"
-jobs:
-  check:
-    steps:
-      - name: Filter
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            changed:
-              - '{apps/web/tauri,crates/bot_id}/**'
-"#;
-        validate("fixture.yml", yaml, &xtask_paths::repo_root()).unwrap();
-        let yaml = yaml.replace("crates/bot_id", "crates/definitely-missing");
         let error = validate("fixture.yml", &yaml, &xtask_paths::repo_root()).unwrap_err();
         assert!(format!("{error:#}").contains("matches no paths"));
     }

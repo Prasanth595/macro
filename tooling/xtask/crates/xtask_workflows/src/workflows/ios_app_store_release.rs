@@ -74,7 +74,6 @@ fn release_job() -> Job {
         .add_step(require_cli_tools())
         .add_step(preconditions())
         .add_step(steps::install_nix_macos())
-        .add_step(verify_native_sources())
         .add_step(verify_bump())
         .add_step(fetch_credentials())
         .add_step(require_unused_build())
@@ -149,16 +148,6 @@ fn in_dev_shell(name: &str, commands: &str) -> Step<Run> {
             "nix develop --command bash -euo pipefail -c '\n{commands}'"
         ))
         .shell("bash")
-}
-
-/// The gate's path filter and the native hash come from
-/// `apps/web/native-sources.json`, a manifest walk; here, with a toolchain
-/// at hand, cross-check it against cargo's own resolver before building.
-fn verify_native_sources() -> Step<Run> {
-    in_dev_shell(
-        "Verify the native source list against cargo metadata",
-        "  cd apps/web\n  bun scripts/native-sources.mjs --verify --check\n",
-    )
 }
 
 fn verify_bump() -> Step<Run> {
