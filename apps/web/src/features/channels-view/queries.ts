@@ -141,7 +141,12 @@ export function channelsByIdsQueryArgs(
 export function useChannelsByIdsQuery(channelIds: Accessor<readonly string[]>) {
   const query = useSoupAstItemsQuery(
     () => channelsByIdsQueryArgs(channelIds()),
-    () => ({ enabled: channelIds().length > 0, staleTime: 30_000 })
+    // Rail rows need only bounded unread evidence, like the channel lists.
+    () => ({
+      enabled: channelIds().length > 0,
+      staleTime: 30_000,
+      graphqlProjection: 'channel-list',
+    })
   );
   // Drive the external paginated query until all requested matches are loaded.
   createEffect(() => {

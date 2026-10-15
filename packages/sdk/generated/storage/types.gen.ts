@@ -759,6 +759,7 @@ export type ApiEntityFilterAst = {
      * the filters that should be applied to the channel entity
      */
     chanf?: unknown;
+    crma?: null | CrmAssociation;
     /**
      * Opt-in filters for viewer-accessible CRM contacts (wire key `crmf`).
      */
@@ -1920,6 +1921,12 @@ export type CallRecord = {
      */
     transcript: Array<CallRecordTranscriptSegment>;
     userAccessLevel?: null | AccessLevel;
+    /**
+     * Whether the authenticated viewer has declined this call on any device.
+     * Set on the single-record read so clients that missed `call_declined`
+     * can still stop ringing via reconciliation; `false` in list contexts.
+     */
+    viewerHasDeclined?: boolean;
 };
 
 /**
@@ -2594,6 +2601,20 @@ export type ChannelParticipantRemovedMetadata = {
 };
 
 /**
+ * Metadata for a channel picture update, including removals.
+ */
+export type ChannelPictureChangedMetadata = {
+    /**
+     * User who changed the picture.
+     */
+    actor: MacroUserIdStr;
+    /**
+     * Channel whose picture changed.
+     */
+    channel_id: string;
+};
+
+/**
  * Preview entry for a single channel id.
  */
 export type ChannelPreview = (ChannelPreviewData & {
@@ -2671,6 +2692,12 @@ export type ChannelThreadFilters = {
  * Events that can be published to [`MacroChannelsTopic`].
  */
 export type ChannelTopicEvent = {
+    event_type: 'channel.picture_changed';
+    /**
+     * A channel's profile picture changed.
+     */
+    metadata: ChannelPictureChangedMetadata;
+} | {
     event_type: 'channel.created';
     /**
      * A channel was created.
@@ -3038,6 +3065,12 @@ export type ColumnChange = {
      */
     option: string;
 } | {
+    /**
+     * The formula, over the table's other columns.
+     */
+    formula: Formula;
+    kind: 'set_formula';
+} | {
     kind: 'delete_option';
     /**
      * The option.
@@ -3048,10 +3081,10 @@ export type ColumnChange = {
 /**
  * How a change touched a column.
  */
-export type ColumnChangeKind = 'create' | 'rename' | 'change_type' | 'delete' | 'add_options' | 'update_option' | 'delete_option' | 'reorder' | 'infer_type' | 'related';
+export type ColumnChangeKind = 'create' | 'rename' | 'change_type' | 'set_formula' | 'delete' | 'add_options' | 'update_option' | 'delete_option' | 'reorder' | 'infer_type' | 'related';
 
 /**
- * A relation column: its cells reference rows of another table.
+ * Column-kind specific configuration stored on the placement.
  */
 export type ColumnConfig = {
     /**
@@ -3063,6 +3096,12 @@ export type ColumnConfig = {
      * Target table.
      */
     table_id: string;
+} | {
+    /**
+     * How its cells are computed.
+     */
+    formula: Formula;
+    kind: 'derived';
 };
 
 /**
@@ -3205,6 +3244,8 @@ export type ColumnResult = {
     kind: 'option_updated';
 } | {
     kind: 'option_deleted';
+} | {
+    kind: 'formula_set';
 };
 
 /**
@@ -3740,6 +3781,16 @@ export type CreateDatabaseRequest = {
      * Display name.
      */
     name: string;
+};
+
+/**
+ * Which table a new webhook inserts rows into.
+ */
+export type CreateDatabaseWebhookRequest = {
+    /**
+     * A table of the database.
+     */
+    tableId: string;
 };
 
 export type CreateDocumentRequest = {
@@ -4316,6 +4367,21 @@ export type CreateWebhookResponse = {
 };
 
 /**
+ * A new webhook, with the token its URL carries. The token is shown only
+ * here.
+ */
+export type CreatedDatabaseWebhookResponse = {
+    /**
+     * The secret: `POST /databases/webhooks/{token}` inserts rows.
+     */
+    token: string;
+    /**
+     * The webhook.
+     */
+    webhook: DatabaseWebhookResponse;
+};
+
+/**
  * A pairing the daemon created, including its claim credential.
  *
  * `device_secret` is returned exactly once and never stored raw; the daemon
@@ -4364,6 +4430,21 @@ export type CreatedUserApiKey = {
      * User-facing name.
      */
     name: string;
+};
+
+/**
+ * The CRM record an association filter names.
+ */
+export type CrmAssociation = {
+    /**
+     * Items associated with the company or with any of its contacts.
+     */
+    company: string;
+} | {
+    /**
+     * Items associated with the contact.
+     */
+    contact: string;
 };
 
 /**
@@ -4772,6 +4853,72 @@ export type DatabaseView = {
      * When it last changed.
      */
     updatedAt: string;
+};
+
+/**
+ * The rows a webhook call inserted.
+ */
+export type DatabaseWebhookDeliveryResponse = {
+    /**
+     * The database.
+     */
+    databaseId: string;
+    /**
+     * The new rows, in the order the payload sent them.
+     */
+    rows: Array<string>;
+    /**
+     * The table.
+     */
+    tableId: string;
+};
+
+/**
+ * One thing wrong with a webhook payload.
+ */
+export type DatabaseWebhookPayloadProblem = {
+    /**
+     * The key at fault, when one is.
+     */
+    field: string | null;
+    /**
+     * What is wrong.
+     */
+    message: string;
+    /**
+     * The row's index, when the payload is an array of rows.
+     */
+    row: number | null;
+};
+
+/**
+ * A webhook of a database. Its token is never shown again after creation.
+ */
+export type DatabaseWebhookResponse = {
+    /**
+     * Creation time.
+     */
+    createdAt: string;
+    /**
+     * Who created it; its calls write with their access.
+     */
+    createdBy: string;
+    /**
+     * The database.
+     */
+    databaseId: string;
+    /**
+     * Identifier.
+     */
+    id: string;
+    /**
+     * The table its calls insert rows into.
+     */
+    tableId: string;
+    /**
+     * The token's first characters, to tell webhooks apart.
+     */
+    tokenPrefix: string;
 };
 
 /**
@@ -5992,7 +6139,7 @@ export type EventStatus = 'confirmed' | 'tentative' | 'cancelled';
  */
 export type EventTime = {
     /**
-     * Exclusive end instant.
+     * Exclusive end instant; equal to the start for an imported point event.
      */
     endsAt: string;
     kind: 'timed';
@@ -6771,6 +6918,43 @@ export type FormTally = {
      * layout order.
      */
     questions: Array<QuestionTally>;
+};
+
+/**
+ * An expression over one row's cells.
+ */
+export type Formula = {
+    /**
+     * The column placement.
+     */
+    column: string;
+    kind: 'column';
+} | {
+    kind: 'number';
+    /**
+     * The value; finite.
+     */
+    value: number;
+} | {
+    kind: 'binary';
+    /**
+     * The left operand.
+     */
+    left: Formula;
+    /**
+     * How.
+     */
+    operator: Operator;
+    /**
+     * The right operand.
+     */
+    right: Formula;
+} | {
+    kind: 'negate';
+    /**
+     * The expression negated; a number.
+     */
+    operand: Formula;
 };
 
 export type GenericErrorResponse = {
@@ -8133,6 +8317,20 @@ export type InputReceivedMetadata = {
 export type InteractionReason = 'edited' | 'first_join' | 'last_leave';
 
 /**
+ * Why a payload was refused. Nothing was written.
+ */
+export type InvalidDatabaseWebhookPayloadResponse = {
+    /**
+     * A summary.
+     */
+    message: string;
+    /**
+     * Every problem found.
+     */
+    problems: Array<DatabaseWebhookPayloadProblem>;
+};
+
+/**
  * A single email recipient for a call invitation.
  */
 export type InviteMeetingRequest = {
@@ -8285,6 +8483,16 @@ export type LeaveCallResponse = {
  * Defines who can access an item through its share link.
  */
 export type LinkShare = 'PUBLIC' | 'TEAM';
+
+/**
+ * A database's webhooks.
+ */
+export type ListDatabaseWebhooksResponse = {
+    /**
+     * Oldest first.
+     */
+    webhooks: Array<DatabaseWebhookResponse>;
+};
 
 /**
  * Webhooks visible to the caller across their personal and team workspaces.
@@ -8714,11 +8922,11 @@ export type MessageChange = {
  */
 export type MessageCursor = {
     /**
-     * Last root creation time.
+     * Last message creation time or activity occurrence time.
      */
     created_at: string;
     /**
-     * Last root UUID, used to break timestamp ties.
+     * Last entry UUID, used to break timestamp ties across both sources.
      */
     id: string;
 };
@@ -9051,6 +9259,36 @@ export type MessageThreadPreview = {
 };
 
 /**
+ * One chronological entry in a parent's timeline.
+ */
+export type MessageTimelineEntry = {
+    /**
+     * The message and thread state.
+     */
+    message: MessageListItem;
+    type: 'message';
+} | {
+    /**
+     * The recorded activity.
+     */
+    activity: TimelineActivity;
+    type: 'activity';
+};
+
+/**
+ * A bounded, newest-first window of a parent's messages and activity, ordered
+ * by the server on one `(timestamp, id)` keyset.
+ */
+export type MessageTimelinePage = {
+    /**
+     * Messages and activity, newest first.
+     */
+    entries: Array<MessageTimelineEntry>;
+    next_cursor?: null | MessageCursor;
+    previous_cursor?: null | MessageCursor;
+};
+
+/**
  * Root selection shared by channel timelines and document discussions.
  */
 export type MessageTimelineQuery = {
@@ -9199,6 +9437,17 @@ export type NewColumn = {
      * caller can see.
      */
     type: ColumnKind;
+} | {
+    /**
+     * How its cells are computed: arithmetic over the table's number,
+     * date and other derived columns.
+     */
+    formula: Formula;
+    /**
+     * The column's name, unique within the table ignoring case.
+     */
+    name: string;
+    source: 'derived';
 } | {
     /**
      * The property's definition.
@@ -9463,6 +9712,11 @@ export type OpResult = {
      */
     tables: Array<VersionedTable>;
 };
+
+/**
+ * An arithmetic operator.
+ */
+export type Operator = 'add' | 'subtract' | 'multiply' | 'divide';
 
 /**
  * A select option, by its id or by its label.
@@ -10451,7 +10705,7 @@ export type ResponseSummary = {
  * Per-user status of an incoming-call ring, as reported by the
  * ring-status endpoint while a native client is ringing.
  */
-export type RingStatus = 'ringing' | 'answered' | 'ended';
+export type RingStatus = 'ringing' | 'answered' | 'declined' | 'ended';
 
 /**
  * Response body for `GET /call/ring-status/{call_id}`.
@@ -13048,6 +13302,126 @@ export type TaskFilters = {
 };
 
 /**
+ * Disjoint busy/detail shapes prevent new event fields leaking by default.
+ */
+export type TeamCalendarContent = {
+    kind: 'busy';
+} | {
+    /**
+     * Detail projection.
+     */
+    details: TeamCalendarDetails;
+    kind: 'details';
+};
+
+/**
+ * Whether a member's calendar projection can establish availability.
+ */
+export type TeamCalendarCoverage = 'ready' | 'unavailable' | 'hidden';
+
+/**
+ * Safe details from a single authorized source.
+ */
+export type TeamCalendarDetails = {
+    /**
+     * Attendees; self flags are relative to the requesting viewer.
+     */
+    attendees: Array<CalendarAttendee>;
+    /**
+     * Source calendar name, shown only with details.
+     */
+    calendarName: string;
+    /**
+     * Join URL, if supplied by this source.
+     */
+    conferenceUrl?: string | null;
+    /**
+     * Body, if supplied by this source.
+     */
+    description?: string | null;
+    /**
+     * Location, if supplied by this source.
+     */
+    location?: string | null;
+    /**
+     * Organizer address from this source.
+     */
+    organizerEmail?: string | null;
+    /**
+     * Organizer name from this source.
+     */
+    organizerName?: string | null;
+    /**
+     * Display title.
+     */
+    title: string;
+};
+
+/**
+ * A read-only team calendar occurrence.
+ */
+export type TeamCalendarItem = TeamCalendarContent & {
+    /**
+     * Whether this occurrence blocks the sharer's personal availability.
+     * A subscribed calendar's block can be shared without occupying the sharer.
+     */
+    contributesToAvailability: boolean;
+    /**
+     * Stable opaque projection identity, never an event entity id.
+     */
+    id: string;
+    /**
+     * The person sharing access to the source.
+     */
+    ownerId: string;
+    /**
+     * Occurrence interval.
+     */
+    time: EventTime;
+};
+
+/**
+ * A current member of the requester's team.
+ */
+export type TeamCalendarMember = {
+    /**
+     * Coverage available for a trustworthy calculation.
+     */
+    coverage: TeamCalendarCoverage;
+    /**
+     * Current team-sharing policy.
+     */
+    sharing: TeamCalendarSharing;
+    /**
+     * Macro user identifier.
+     */
+    userId: string;
+};
+
+/**
+ * A bounded page of team calendar projections.
+ */
+export type TeamCalendarPage = {
+    /**
+     * Authorized read-only projections.
+     */
+    items: Array<TeamCalendarItem>;
+    /**
+     * Current membership and sharing policies.
+     */
+    members: Array<TeamCalendarMember>;
+    /**
+     * Opaque continuation token; null after the last source occurrence.
+     */
+    nextCursor?: string | null;
+};
+
+/**
+ * What a user exposes through their team membership.
+ */
+export type TeamCalendarSharing = 'all' | 'busy_only' | 'none';
+
+/**
  * One teammate's out-of-office occurrence.
  */
 export type TeamOutOfOfficeItem = {
@@ -13068,7 +13442,7 @@ export type TeamOutOfOfficeItem = {
      */
     time: EventTime;
     /**
-     * Event title, absent when the event's visibility withholds details.
+     * Event title, absent unless the teammate shares event details.
      */
     title?: string | null;
 };
@@ -13233,6 +13607,32 @@ export type ThreadState = {
      * User who owns this discussion, including imported discussions.
      */
     user_id: string;
+};
+
+/**
+ * A displayable fact returned together with a message page.
+ */
+export type TimelineActivity = {
+    /**
+     * Durable action tag. Unknown tags remain representable during rollouts.
+     */
+    action: string;
+    /**
+     * Principal who performed the action.
+     */
+    actor_id: string;
+    /**
+     * Stable activity identity, independent of message ids.
+     */
+    id: string;
+    /**
+     * Immutable chronological position.
+     */
+    occurred_at: string;
+    /**
+     * The action's stored payload.
+     */
+    payload?: unknown;
 };
 
 /**
@@ -14678,6 +15078,36 @@ export type MentionPreviewsResponses = {
 
 export type MentionPreviewsResponse = MentionPreviewsResponses[keyof MentionPreviewsResponses];
 
+export type ListTeamCalendarData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Inclusive instant.
+         */
+        start: string;
+        /**
+         * Exclusive instant.
+         */
+        end: string;
+        /**
+         * Continuation returned by the preceding page.
+         */
+        cursor?: string | null;
+        /**
+         * Maximum source occurrences, at most 2,000. Zero returns the roster only.
+         */
+        limit?: number | null;
+    };
+    url: '/calendar-events/team';
+};
+
+export type ListTeamCalendarResponses = {
+    200: TeamCalendarPage;
+};
+
+export type ListTeamCalendarResponse = ListTeamCalendarResponses[keyof ListTeamCalendarResponses];
+
 export type ListTeamOutOfOfficeData = {
     body?: never;
     path?: never;
@@ -15226,6 +15656,38 @@ export type EditCallRecordResponses = {
 
 export type EditCallRecordResponse = EditCallRecordResponses[keyof EditCallRecordResponses];
 
+export type DeclineCallData = {
+    body?: never;
+    path: {
+        /**
+         * Call ID
+         */
+        call_id: string;
+    };
+    query?: never;
+    url: '/call/record/{call_id}/decline';
+};
+
+export type DeclineCallErrors = {
+    401: ErrorResponse;
+    /**
+     * The call is no longer active
+     */
+    404: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type DeclineCallError = DeclineCallErrors[keyof DeclineCallErrors];
+
+export type DeclineCallResponses = {
+    /**
+     * Decline recorded
+     */
+    204: void;
+};
+
+export type DeclineCallResponse = DeclineCallResponses[keyof DeclineCallResponses];
+
 export type MeetingShareData = {
     body?: never;
     path: {
@@ -15340,6 +15802,41 @@ export type GetRingStatusResponses = {
 };
 
 export type GetRingStatusResponse = GetRingStatusResponses[keyof GetRingStatusResponses];
+
+export type DeclineRingData = {
+    body?: never;
+    path: {
+        /**
+         * Call ID
+         */
+        call_id: string;
+    };
+    query?: never;
+    url: '/call/ring-status/{call_id}/decline';
+};
+
+export type DeclineRingErrors = {
+    /**
+     * Missing or invalid bearer token
+     */
+    401: ErrorResponse;
+    /**
+     * The call is no longer ringing
+     */
+    404: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type DeclineRingError = DeclineRingErrors[keyof DeclineRingErrors];
+
+export type DeclineRingResponses = {
+    /**
+     * Decline recorded
+     */
+    204: void;
+};
+
+export type DeclineRingResponse = DeclineRingResponses[keyof DeclineRingResponses];
 
 export type CallWebhookData = {
     body?: never;
@@ -16813,6 +17310,36 @@ export type ApplyCrmPipelineOpsResponses = {
 
 export type ApplyCrmPipelineOpsResponse = ApplyCrmPipelineOpsResponses[keyof ApplyCrmPipelineOpsResponses];
 
+export type GetCrmPipelinePermissionsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/crm/pipelines/{id}/permissions';
+};
+
+export type GetCrmPipelinePermissionsResponses = {
+    200: SharePermissionV2;
+};
+
+export type GetCrmPipelinePermissionsResponse = GetCrmPipelinePermissionsResponses[keyof GetCrmPipelinePermissionsResponses];
+
+export type UpdateCrmPipelinePermissionsData = {
+    body: UpdateSharePermissionRequestV2;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/crm/pipelines/{id}/permissions';
+};
+
+export type UpdateCrmPipelinePermissionsResponses = {
+    200: SharePermissionV2;
+};
+
+export type UpdateCrmPipelinePermissionsResponse = UpdateCrmPipelinePermissionsResponses[keyof UpdateCrmPipelinePermissionsResponses];
+
 export type GetCrmPipelineRowsData = {
     body?: never;
     path: {
@@ -17111,6 +17638,45 @@ export type EnsureStarterHandlerResponses = {
 };
 
 export type EnsureStarterHandlerResponse = EnsureStarterHandlerResponses[keyof EnsureStarterHandlerResponses];
+
+export type DeliverDatabaseWebhookData = {
+    /**
+     * A row, or an array of rows
+     */
+    body: unknown;
+    path: {
+        /**
+         * The webhook's secret token
+         */
+        token: string;
+    };
+    query?: never;
+    url: '/databases/webhooks/{token}';
+};
+
+export type DeliverDatabaseWebhookErrors = {
+    /**
+     * The payload does not fit the table; nothing was written
+     */
+    400: InvalidDatabaseWebhookPayloadResponse;
+    /**
+     * The webhook's creator can no longer edit the database
+     */
+    403: ErrorResponse;
+    /**
+     * No such webhook
+     */
+    404: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type DeliverDatabaseWebhookError = DeliverDatabaseWebhookErrors[keyof DeliverDatabaseWebhookErrors];
+
+export type DeliverDatabaseWebhookResponses = {
+    201: DatabaseWebhookDeliveryResponse;
+};
+
+export type DeliverDatabaseWebhookResponse = DeliverDatabaseWebhookResponses[keyof DeliverDatabaseWebhookResponses];
 
 export type GetDatabaseData = {
     body?: never;
@@ -17551,6 +18117,111 @@ export type GetDatabaseViewPositionsResponses = {
 };
 
 export type GetDatabaseViewPositionsResponse = GetDatabaseViewPositionsResponses[keyof GetDatabaseViewPositionsResponses];
+
+export type ListDatabaseWebhooksData = {
+    body?: never;
+    path: {
+        /**
+         * Database id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/databases/{id}/webhooks';
+};
+
+export type ListDatabaseWebhooksErrors = {
+    /**
+     * Missing or invalid credentials
+     */
+    401: ErrorResponse;
+    /**
+     * No edit access to the database
+     */
+    403: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type ListDatabaseWebhooksError = ListDatabaseWebhooksErrors[keyof ListDatabaseWebhooksErrors];
+
+export type ListDatabaseWebhooksResponses = {
+    200: ListDatabaseWebhooksResponse;
+};
+
+export type ListDatabaseWebhooksResponse2 = ListDatabaseWebhooksResponses[keyof ListDatabaseWebhooksResponses];
+
+export type CreateDatabaseWebhookData = {
+    body: CreateDatabaseWebhookRequest;
+    path: {
+        /**
+         * Database id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/databases/{id}/webhooks';
+};
+
+export type CreateDatabaseWebhookErrors = {
+    /**
+     * Missing or invalid credentials
+     */
+    401: ErrorResponse;
+    /**
+     * No edit access to the database
+     */
+    403: ErrorResponse;
+    /**
+     * No such table in the database
+     */
+    404: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type CreateDatabaseWebhookError = CreateDatabaseWebhookErrors[keyof CreateDatabaseWebhookErrors];
+
+export type CreateDatabaseWebhookResponses = {
+    201: CreatedDatabaseWebhookResponse;
+};
+
+export type CreateDatabaseWebhookResponse = CreateDatabaseWebhookResponses[keyof CreateDatabaseWebhookResponses];
+
+export type DeleteDatabaseWebhookData = {
+    body?: never;
+    path: {
+        /**
+         * Database id
+         */
+        id: string;
+        /**
+         * Webhook id
+         */
+        webhook_id: string;
+    };
+    query?: never;
+    url: '/databases/{id}/webhooks/{webhook_id}';
+};
+
+export type DeleteDatabaseWebhookErrors = {
+    /**
+     * Missing or invalid credentials
+     */
+    401: ErrorResponse;
+    /**
+     * No edit access to the database
+     */
+    403: ErrorResponse;
+    404: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type DeleteDatabaseWebhookError = DeleteDatabaseWebhookErrors[keyof DeleteDatabaseWebhookErrors];
+
+export type DeleteDatabaseWebhookResponses = {
+    204: void;
+};
+
+export type DeleteDatabaseWebhookResponse = DeleteDatabaseWebhookResponses[keyof DeleteDatabaseWebhookResponses];
 
 export type TranscribeDictationData = {
     /**
@@ -19943,6 +20614,10 @@ export type PostItemsSoupAstErrors = {
      * CRM-scoped queries require team membership, or requesting hidden CRM companies requires admin/owner team role
      */
     403: ErrorResponse;
+    /**
+     * The CRM record named by `crma` or a document `crm` literal is not visible to the caller
+     */
+    404: ErrorResponse;
     500: ErrorResponse;
 };
 
@@ -19971,6 +20646,10 @@ export type PostItemsSoupAstGroupedErrors = {
      * CRM-scoped queries require team membership, or requesting hidden CRM companies requires admin/owner team role
      */
     403: ErrorResponse;
+    /**
+     * The CRM record named by `crma` or a document `crm` literal is not visible to the caller
+     */
+    404: ErrorResponse;
     500: ErrorResponse;
 };
 
@@ -20169,6 +20848,27 @@ export type EntityMessagePatchThreadResponses = {
 };
 
 export type EntityMessagePatchThreadResponse = EntityMessagePatchThreadResponses[keyof EntityMessagePatchThreadResponses];
+
+export type MessageTimelineEntriesData = {
+    body?: never;
+    path: {
+        parent_type: string;
+        parent_id: string;
+    };
+    query?: {
+        /**
+         * Serialized MessageTimelineQuery; absent selects the latest roots.
+         */
+        selection?: string | null;
+    };
+    url: '/messages/{parent_type}/{parent_id}/timeline';
+};
+
+export type MessageTimelineEntriesResponses = {
+    200: MessageTimelinePage;
+};
+
+export type MessageTimelineEntriesResponse = MessageTimelineEntriesResponses[keyof MessageTimelineEntriesResponses];
 
 export type EntityMessageTypingData = {
     body: TypingInput;

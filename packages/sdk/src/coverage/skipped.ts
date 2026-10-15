@@ -59,7 +59,6 @@ export const authExcluded = [
   'createMergeRequest',
   'createPortalSession',
   'createTeam',
-  'createUser',
   'deleteCursorApiKey',
   'deleteGithubLink',
   'deleteTeam',
@@ -72,10 +71,13 @@ export const authExcluded = [
   'getAiBillingSummary',
   'getCodexConnection',
   'getCursorApiKey',
+  'getGithubPullRequestMergeability',
   'getGtmInviteOffer',
   'getLegacyUserPermissions',
   'getPermissions',
   'getReferralCode',
+  // Renewal and scheduled-plan details are part of the app's billing settings.
+  'getSubscriptionStatus',
   'getTeamInvites',
   'getUserInvites',
   'getUserLinkExists',
@@ -123,6 +125,7 @@ export const authExcluded = [
   'sendReferralCode',
   'sessionCreation',
   'sessionLogin',
+  'setGithubPullRequestDraft',
   'ssoLogin',
   'startCodexLogin',
   'toggleTeamAutoJoinDomain',
@@ -143,8 +146,13 @@ export const calendarExcluded = [
   'healthHandler',
 ] as const satisfies readonly (keyof CalendarSdk)[];
 
-export const calendarBacklog =
-  [] as const satisfies readonly (keyof CalendarSdk)[];
+export const calendarBacklog = [
+  // Team sharing and availability preferences use the generated client for now.
+  'getAvailabilityCalendars',
+  'getTeamSharing',
+  'setAvailabilityCalendar',
+  'setTeamSharing',
+] as const satisfies readonly (keyof CalendarSdk)[];
 
 export const cognitionExcluded = [
   'addMcpServer',
@@ -314,6 +322,9 @@ export const storageExcluded = [
   'createCollabSurfaceToken',
   'createInstructionsHandler',
   'createViewHandler',
+  // Declining a ringing call is a live-device session flow, like leaving.
+  'declineCall',
+  'declineRing',
   'deleteCollabSurface',
   'ensureCollabSurface',
   // First-run sample content is provisioned by the app's feature-gated onboarding.
@@ -321,6 +332,9 @@ export const storageExcluded = [
   'deleteHistoryHandler',
   'deleteUserDocumentViewLocation',
   'deleteViewHandler',
+  // Called by third parties holding a webhook's URL; its token, not the
+  // SDK's credentials, authenticates it.
+  'deliverDatabaseWebhook',
   // Old numeric comment links resolve inside the web app only.
   'entityMessageLegacy',
   'excludeDefaultViewHandler',
@@ -397,6 +411,7 @@ export const storageBacklog = [
   'createCrmPipeline',
   'applyCrmPipelineOps',
   'getCrmPipeline',
+  'getCrmPipelinePermissions',
   'getCrmPipelineRows',
   'queryCrmPipelineRows',
   'getCrmPipelineTable',
@@ -404,6 +419,7 @@ export const storageBacklog = [
   'renameCrmPipeline',
   'shareCrmPipeline',
   'trashCrmPipeline',
+  'updateCrmPipelinePermissions',
   'approveHarnessPairing',
   'claimHarnessPairing',
   'createAgent',
@@ -445,6 +461,8 @@ export const storageBacklog = [
   'listHarnesses',
   'listInitiatives',
   'listOccurrences',
+  // Read-only team projections use the generated client for now.
+  'listTeamCalendar',
   'listTeamOutOfOffice',
   'listUserApiKeys',
   // Meeting management uses the generated client.
@@ -458,6 +476,8 @@ export const storageBacklog = [
   'meetingLookup',
   'meetingShare',
   'meetingUpdate',
+  // Mixed message and activity timelines; Channel.messages() reads messages only.
+  'messageTimelineEntries',
   'postActivity',
   'presaveDocumentHandler',
   'saveDocumentHandler',

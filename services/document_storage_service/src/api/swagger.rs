@@ -218,6 +218,7 @@ use utoipa::OpenApi;
         calendar_events::inbound::axum_router::list_occurrences,
         calendar_events::inbound::axum_router::mention_previews,
         calendar_events::inbound::axum_router::list_team_out_of_office,
+        calendar_events::inbound::team_router::list_team_calendar,
 
         // annotations
         annotations::get::get_document_anchors_handler,
@@ -291,6 +292,7 @@ use utoipa::OpenApi;
 
         // messages (channels and documents)
         messages::inbound::axum_router::timeline,
+        messages::inbound::axum_router::timeline_entries,
         messages::inbound::axum_router::create,
         messages::inbound::axum_router::get_message,
         messages::inbound::axum_router::edit,
@@ -370,6 +372,7 @@ use utoipa::OpenApi;
         call::inbound::axum_router::check_active_call_handler,
         call::inbound::axum_router::get_active_calls_handler,
         call::inbound::axum_router::leave_or_end_call_handler,
+        call::inbound::axum_router::decline_call_handler,
         call::inbound::axum_router::get_call_record_handler,
         call::inbound::axum_router::edit_call_record_handler,
         call::inbound::axum_router::edit_call_transcript_handler,
@@ -385,6 +388,7 @@ use utoipa::OpenApi;
         webhook::inbound::axum_router::validate_webhook,
         webhook::inbound::stream_router::stream_events,
         call::inbound::axum_router::ring_status_handler,
+        call::inbound::axum_router::decline_ring_handler,
         call::inbound::axum_router::transcript_handler,
 
         // pins
@@ -510,6 +514,8 @@ use utoipa::OpenApi;
         crm::inbound::pipelines::apply_ops,
         crm::inbound::pipelines::rename,
         crm::inbound::pipelines::share,
+        crm::inbound::pipelines::permissions,
+        crm::inbound::pipelines::update_permissions,
         crm::inbound::pipelines::trash,
         crm::inbound::axum_router::set_email_sync::handler,
         crm::inbound::axum_router::set_company_hidden::handler,
@@ -613,6 +619,13 @@ use utoipa::OpenApi;
             calendar_events::inbound::axum_router::CalendarMentionPreviewKind,
             calendar_events::inbound::axum_router::TeamOutOfOfficeItem,
             calendar_events::inbound::axum_router::TeamOutOfOfficeResponse,
+            calendar_events::domain::team::TeamCalendarPage,
+            calendar_events::domain::team::TeamCalendarItem,
+            calendar_events::domain::team::TeamCalendarContent,
+            calendar_events::domain::team::TeamCalendarDetails,
+            calendar_events::domain::team::TeamCalendarMember,
+            calendar_events::domain::team::TeamCalendarSharing,
+            calendar_events::domain::team::TeamCalendarCoverage,
             calendar_events::domain::models::CalendarMentionEvent,
             calendar_events::domain::models::CalendarSyncStatus,
             SoupItemWithProperties,
@@ -790,6 +803,8 @@ use utoipa::OpenApi;
             messages::domain::ports::MessageDirection,
             messages::domain::ports::MessageTimelineQuery,
             messages::domain::ports::MessagePage,
+            messages::domain::ports::MessageTimelinePage,
+            messages::domain::ports::MessageTimelineEntry,
             messages::domain::ports::MessagePatch,
             messages::domain::ports::AttachmentChange,
             messages::domain::ports::MessageEvent,
@@ -998,6 +1013,7 @@ struct FormsApiAddon;
 impl utoipa::Modify for FormsApiAddon {
     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
         openapi.merge(forms::inbound::axum_router::FormsApi::openapi());
+        openapi.merge(database_webhooks::inbound::axum_router::DatabaseWebhooksApi::openapi());
     }
 }
 

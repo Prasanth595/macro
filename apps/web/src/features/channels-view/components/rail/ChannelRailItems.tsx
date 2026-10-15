@@ -130,6 +130,7 @@ export function IncomingCallActions(props: {
   class?: string;
   layout?: 'compact' | 'wide';
 }) {
+  const userId = useUserId();
   const isWide = () => props.layout === 'wide';
 
   return (
@@ -154,7 +155,7 @@ export function IncomingCallActions(props: {
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
-              dismissIncomingCallEverywhere(callId());
+              dismissIncomingCallEverywhere(callId(), userId());
             }}
           >
             <XIcon class="size-3" />

@@ -1,4 +1,4 @@
-import { createRoot } from 'solid-js';
+import { type Accessor, createRoot, createSignal } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { TasksTabSearchParams } from '../tasks-tab-search';
@@ -17,6 +17,7 @@ function setup(
     search?: Partial<TasksTabSearchParams>;
     scopedTab?: TasksTab;
     enabled?: boolean;
+    nonListLayoutsEnabled?: Accessor<boolean>;
   } = {}
 ) {
   return createRoot((dispose) => {
@@ -50,6 +51,7 @@ function setup(
       setSearch: writeSearch,
       tab: () => options.scopedTab ?? search.tab,
       enabled: options.enabled ?? true,
+      nonListLayoutsEnabled: options.nonListLayoutsEnabled,
     });
 
     return { state, search, setSearch, writeSearch, ...controls };
@@ -138,4 +140,69 @@ it('leaves embedded entry state and the parent URL untouched without a URL capab
   expect(view.state.sort).toEqual([{ id: 'viewed_at', reversed: false }]);
   expect(view.writeSearch).not.toHaveBeenCalled();
   expect(view.search.sort).toBe('created_at');
+});
+
+it.each(['board', 'gantt'] as const)(
+  'replaces mobile %s URLs with list while preserving task controls and entry state',
+  (layout) => {
+    const view = setup({
+      nonListLayoutsEnabled: () => false,
+      search: {
+        layout,
+        groupBy: 'date',
+        sort: 'created_at',
+        sortReversed: 'true',
+      },
+    });
+
+    expect(view.writeSearch).toHaveBeenCalledExactlyOnceWith(
+      { layout: 'list' },
+      { history: 'replace' }
+    );
+    expect(view.state.layout).toBe('list');
+    expect(view.search).toMatchObject({
+      layout: 'list',
+      groupBy: 'date',
+      sort: 'created_at',
+      sortReversed: 'true',
+    });
+    expect(view.state.groupBy).toBe('date');
+    expect(view.state.search).toBe('keep this search');
+    expect(view.state.facets).toEqual({ priority: ['high'] });
+    expect(view.state.collapsedGroupIds).toEqual(['collapsed']);
+
+    view.setSearch('layout', layout);
+    expect(view.state.layout).toBe('list');
+    expect(view.search.layout).toBe('list');
+    view.setState('layout', layout);
+    expect(view.state.layout).toBe('list');
+    expect(view.search.layout).toBe('list');
+  }
+);
+
+it('falls back from restored board entries and from desktop boards when mobile activates', () => {
+  const restored = setup({
+    state: { layout: 'board' },
+    nonListLayoutsEnabled: () => false,
+    scopedTab: 'team-tasks',
+  });
+  expect(restored.state.layout).toBe('list');
+  expect(restored.state.tab).toBe('team-tasks');
+  expect(restored.writeSearch).toHaveBeenCalledExactlyOnceWith(
+    { layout: 'list' },
+    { history: 'replace' }
+  );
+
+  const [nonListLayoutsEnabled, setNonListLayoutsEnabled] = createSignal(true);
+  const desktop = setup({ search: { layout: 'board' }, nonListLayoutsEnabled });
+  expect(desktop.state.layout).toBe('board');
+  expect(desktop.writeSearch).not.toHaveBeenCalled();
+
+  setNonListLayoutsEnabled(false);
+  expect(desktop.state.layout).toBe('list');
+  expect(desktop.search.layout).toBe('list');
+  setNonListLayoutsEnabled(true);
+  expect(desktop.state.layout).toBe('list');
+  desktop.setState('layout', 'board');
+  expect(desktop.state.layout).toBe('board');
 });
