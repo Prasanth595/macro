@@ -240,7 +240,28 @@ async fn edits_cancel_and_stale_reviews(pool: PgPool) {
                 .is_some_and(|r| r.status == RequestStatus::Cancelled)
         })
         .unwrap();
-    assert_eq!(cancel.superseded.len(), 2);
+    assert_eq!(cancel.superseded.len(), 1);
+    let edited = events
+        .iter()
+        .find(|event| {
+            event.request.as_ref().is_some_and(|r| {
+                r.status == RequestStatus::Pending && r.revision == changed.revision
+            })
+        })
+        .unwrap();
+    let initial = events
+        .iter()
+        .find(|event| {
+            event
+                .request
+                .as_ref()
+                .is_some_and(|r| r.status == RequestStatus::Pending && r.revision == first.revision)
+        })
+        .unwrap();
+    assert_eq!(cancel.superseded[0].0, edited.id);
+    assert_eq!(edited.superseded.len(), 1);
+    assert_eq!(edited.superseded[0].0, initial.id);
+    assert!(initial.superseded.is_empty());
 }
 
 #[sqlx::test(migrator = "MACRO_DB_MIGRATIONS", fixtures("document"))]
@@ -440,5 +461,157 @@ async fn folder_grants_propagate_without_overwriting_direct_child_access(pool: P
             .unwrap()
             .access_level,
         Some(AccessLevel::View)
+    );
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS", fixtures("document"))]
+async fn bot_sponsor_can_review_without_a_separate_user_grant(pool: PgPool) {
+    sqlx::query!("INSERT INTO bots (id, kind, owner_user_id, name, handle) VALUES ('00000000-0000-0000-0000-000000000020', 'owned', 'macro|owner@requests.test', 'Owner bot', 'request-owner')")
+        .execute(&pool).await.unwrap();
+    sqlx::query!(r#"UPDATE "Document" SET owner = 'bot|00000000-0000-0000-0000-000000000020' WHERE id = '00000000-0000-0000-0000-000000000010'"#)
+        .execute(&pool).await.unwrap();
+    sqlx::query!("DELETE FROM entity_access WHERE source_id = 'macro|owner@requests.test'")
+        .execute(&pool)
+        .await
+        .unwrap();
+    let (service, _) = setup(pool);
+    let state = service.state(user("owner"), entity(), 0).await.unwrap();
+    assert!(state.can_review);
+    assert!(state.access_level.is_none());
+    let request = service
+        .submit(user("outsider"), entity(), ask(AccessLevel::View, None))
+        .await
+        .unwrap();
+    let approved = service
+        .resolve(
+            user("owner"),
+            entity(),
+            request.id,
+            ResolveRequest {
+                revision: request.revision,
+                granted_level: Some(AccessLevel::View),
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(approved.status, RequestStatus::Granted);
+    assert_eq!(
+        service
+            .direct_access(user("owner"), entity())
+            .await
+            .unwrap()
+            .len(),
+        2
+    );
+    service
+        .set_direct_access(user("owner"), entity(), user("outsider"), None)
+        .await
+        .unwrap();
+    assert!(
+        service
+            .state(user("outsider"), entity(), 0)
+            .await
+            .unwrap()
+            .access_level
+            .is_none()
+    );
+    assert!(matches!(
+        service
+            .set_direct_access(
+                user("reader"),
+                entity(),
+                user("outsider"),
+                Some(AccessLevel::Edit)
+            )
+            .await,
+        Err(RequestError::Forbidden)
+    ));
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS", fixtures("document"))]
+async fn request_workflow_does_not_acquire_a_second_pool_connection(pool: PgPool) {
+    let single = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(1)
+        .acquire_timeout(std::time::Duration::from_secs(2))
+        .connect_with((*pool.connect_options()).clone())
+        .await
+        .unwrap();
+    let (service, _) = setup(single);
+    assert_eq!(
+        service
+            .state(user("reader"), entity(), 0)
+            .await
+            .unwrap()
+            .access_level,
+        Some(AccessLevel::View)
+    );
+    let request = service
+        .submit(user("reader"), entity(), ask(AccessLevel::Comment, None))
+        .await
+        .unwrap();
+    service
+        .resolve(
+            user("owner"),
+            entity(),
+            request.id,
+            ResolveRequest {
+                revision: request.revision,
+                granted_level: Some(AccessLevel::Comment),
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        service
+            .direct_access(user("reader"), entity())
+            .await
+            .unwrap()[0]
+            .access_level,
+        AccessLevel::Comment
+    );
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS", fixtures("document"))]
+async fn notification_supersession_follows_revisions_when_transaction_times_are_reordered(
+    pool: PgPool,
+) {
+    let (service, _) = setup(pool.clone());
+    let first = service
+        .submit(user("reader"), entity(), ask(AccessLevel::Comment, None))
+        .await
+        .unwrap();
+    let second = service
+        .submit(
+            user("reader"),
+            entity(),
+            ask(AccessLevel::Edit, Some(first.revision)),
+        )
+        .await
+        .unwrap();
+
+    // PostgreSQL now() captures transaction start. Guard acquisition can occur
+    // in the opposite order, so timestamps need not follow request revisions.
+    sqlx::query!(
+        "UPDATE entity_access_request_event SET created_at = CASE WHEN (payload->'request'->>'revision')::integer = 1 THEN '2001-01-01'::timestamptz ELSE '2000-01-01'::timestamptz END WHERE request_id = $1",
+        first.id,
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let pending_events = service.repository.claim_events().await.unwrap();
+    let second_event = pending_events
+        .iter()
+        .find(|event| event.request.as_ref().unwrap().revision == second.revision)
+        .unwrap();
+
+    service
+        .cancel(user("reader"), entity(), second.revision)
+        .await
+        .unwrap();
+    let cancelled_events = service.repository.claim_events().await.unwrap();
+    assert_eq!(cancelled_events.len(), 1);
+    assert_eq!(
+        cancelled_events[0].superseded,
+        vec![(second_event.id, vec![user("owner")])]
     );
 }

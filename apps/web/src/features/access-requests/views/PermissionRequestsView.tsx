@@ -68,8 +68,18 @@ export function PermissionRequestsView(props: { source: SharingSource }) {
         <h3 class="font-medium mb-2">
           Permission requests ({props.source.state()?.pendingCount})
         </h3>
-        <For each={props.source.state()?.requests}>
-          {(request) => <ReviewRow request={request} source={props.source} />}
+        <For each={props.source.state()?.requests.map((request) => request.id)}>
+          {(id) => (
+            <Show
+              when={props.source
+                .state()
+                ?.requests.find((request) => request.id === id)}
+            >
+              {(request) => (
+                <ReviewRow request={request()} source={props.source} />
+              )}
+            </Show>
+          )}
         </For>
         <Show
           when={

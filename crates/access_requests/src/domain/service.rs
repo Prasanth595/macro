@@ -78,22 +78,24 @@ impl<R: RequestRepository, A: EntityAccessService, C: Clock> AccessRequestServic
         &self,
         user: &MacroUserIdStr<'static>,
         entity: ShareEntity,
-    ) -> Result<(R::Transaction, AccessLevel), RequestError> {
-        self.access
+    ) -> Result<R::Transaction, RequestError> {
+        // Do not hold a transaction connection while the access service needs
+        // another connection from the same pool.
+        let access = self
+            .access
             .generate_entity_access_receipt::<ViewAccessLevel>(
                 user,
                 None,
                 &entity.entity_id.to_string(),
                 entity.entity_type.into(),
             )
-            .await
-            .map_err(|_| RequestError::Forbidden)?;
+            .await;
         let tx = self.repository.begin(entity).await?;
-        let level = self
-            .level(user, entity)
-            .await?
-            .ok_or(RequestError::Forbidden)?;
-        Ok((tx, level))
+        // Recorded owners and bot sponsors can review without a separate user grant.
+        if !reviewers(tx.facts()).contains(user) && access.is_err() {
+            return Err(RequestError::Forbidden);
+        }
+        Ok(tx)
     }
     async fn level(
         &self,
@@ -117,8 +119,8 @@ impl<R: RequestRepository, A: EntityAccessService, C: Clock> AccessRequestServic
         user: &MacroUserIdStr<'static>,
         entity: ShareEntity,
     ) -> Result<(R::Transaction, Option<AccessLevel>), RequestError> {
-        let tx = self.repository.begin(entity).await?;
         let level = self.level(user, entity).await?;
+        let tx = self.repository.begin(entity).await?;
         Ok((tx, level))
     }
     fn require_reviewer(
@@ -155,10 +157,12 @@ impl<R: RequestRepository, A: EntityAccessService, C: Clock> AccessRequestServic
             reviewers,
             affected_users,
             superseded: Vec::new(),
+            trace_context: Default::default(),
         }
     }
 
     /// Read current request state; non-reviewers never receive other people's requests.
+    #[tracing::instrument(name = "access_requests.state", skip_all, fields(entity_id = %entity.entity_id, entity_type = ?entity.entity_type), err)]
     pub async fn state(
         &self,
         user: MacroUserIdStr<'static>,
@@ -173,7 +177,7 @@ impl<R: RequestRepository, A: EntityAccessService, C: Clock> AccessRequestServic
         } else {
             supported_levels(entity.entity_type, tx.facts().file_type.as_deref())
         };
-        let owner = access_level.map(|_| tx.facts().owner.principal_id());
+        let owner = (access_level.is_some() || can_review).then(|| tx.facts().owner.principal_id());
         let mine = tx.mine(&user).await?;
         let (requests, pending_count) = if can_review {
             tx.pending(offset, PAGE_SIZE).await?
@@ -200,6 +204,7 @@ impl<R: RequestRepository, A: EntityAccessService, C: Clock> AccessRequestServic
     }
 
     /// Submit or change one pending access request. Identical pending replays are harmless.
+    #[tracing::instrument(name = "access_requests.submit", skip_all, fields(entity_id = %entity.entity_id, entity_type = ?entity.entity_type), err)]
     pub async fn submit(
         &self,
         user: MacroUserIdStr<'static>,
@@ -224,8 +229,10 @@ impl<R: RequestRepository, A: EntityAccessService, C: Clock> AccessRequestServic
             {
                 return Ok(previous.clone());
             }
-            if previous.retry_after.is_some_and(|until| now < until) {
-                return Err(RequestError::Cooldown(previous.retry_after.unwrap()));
+            if let Some(until) = previous.retry_after
+                && now < until
+            {
+                return Err(RequestError::Cooldown(until));
             }
             if args.revision != Some(previous.revision) {
                 return Err(RequestError::Conflict);
@@ -262,6 +269,7 @@ impl<R: RequestRepository, A: EntityAccessService, C: Clock> AccessRequestServic
     }
 
     /// Cancel only the caller's current revision.
+    #[tracing::instrument(name = "access_requests.cancel", skip_all, fields(entity_id = %entity.entity_id, entity_type = ?entity.entity_type), err)]
     pub async fn cancel(
         &self,
         user: MacroUserIdStr<'static>,
@@ -285,6 +293,7 @@ impl<R: RequestRepository, A: EntityAccessService, C: Clock> AccessRequestServic
     }
 
     /// Resolve a pending revision and atomically grant access or begin the denial cooldown.
+    #[tracing::instrument(name = "access_requests.resolve", skip_all, fields(entity_id = %entity.entity_id, entity_type = ?entity.entity_type), err)]
     pub async fn resolve(
         &self,
         user: MacroUserIdStr<'static>,
@@ -292,7 +301,7 @@ impl<R: RequestRepository, A: EntityAccessService, C: Clock> AccessRequestServic
         id: Uuid,
         args: ResolveRequest,
     ) -> Result<AccessRequest, RequestError> {
-        let (mut tx, _) = self.begin(&user, entity).await?;
+        let mut tx = self.begin(&user, entity).await?;
         self.require_reviewer(tx.facts(), &user)?;
         let mut request = tx.request(id).await?.ok_or(RequestError::NotFound)?;
         ensure_pending(&request, args.revision)?;
@@ -326,12 +335,13 @@ impl<R: RequestRepository, A: EntityAccessService, C: Clock> AccessRequestServic
     }
 
     /// Direct grants are visible to reviewers and their recipient only.
+    #[tracing::instrument(name = "access_requests.direct_access", skip_all, fields(entity_id = %entity.entity_id, entity_type = ?entity.entity_type), err)]
     pub async fn direct_access(
         &self,
         user: MacroUserIdStr<'static>,
         entity: ShareEntity,
     ) -> Result<Vec<DirectAccess>, RequestError> {
-        let (mut tx, _) = self.begin(&user, entity).await?;
+        let mut tx = self.begin(&user, entity).await?;
         let can_review = reviewers(tx.facts()).contains(&user);
         let mut grants = tx.direct_access().await?;
         if !can_review {
@@ -342,6 +352,7 @@ impl<R: RequestRepository, A: EntityAccessService, C: Clock> AccessRequestServic
     }
 
     /// Explicit owner management can reduce a direct grant, preserving other access paths.
+    #[tracing::instrument(name = "access_requests.set_direct_access", skip_all, fields(entity_id = %entity.entity_id, entity_type = ?entity.entity_type), err)]
     pub async fn set_direct_access(
         &self,
         user: MacroUserIdStr<'static>,
@@ -349,13 +360,12 @@ impl<R: RequestRepository, A: EntityAccessService, C: Clock> AccessRequestServic
         recipient: MacroUserIdStr<'static>,
         level: Option<AccessLevel>,
     ) -> Result<(), RequestError> {
-        let (mut tx, _) = self.begin(&user, entity).await?;
+        let mut tx = self.begin(&user, entity).await?;
         self.require_reviewer(tx.facts(), &user)?;
         if reviewers(tx.facts()).contains(&recipient) {
             return Err(RequestError::Forbidden);
         }
         if let Some(level) = level
-            && level != AccessLevel::View
             && !supported_levels(entity.entity_type, tx.facts().file_type.as_deref())
                 .contains(&level)
         {

@@ -115,6 +115,13 @@ describe('Share request trigger', () => {
     expect(count()).toBe(0);
   });
 
+  it('keeps the loaded request count through a background refresh error', async () => {
+    const { update, count, settle } = setup(3);
+    await settle();
+    update('isSuccess', false);
+    expect(count()).toBe(3);
+  });
+
   it('ignores cached pending requests that are resolved in the fresh snapshot', async () => {
     const { update, open, settle } = setup(1);
     update('data', 'pendingCount', 0);

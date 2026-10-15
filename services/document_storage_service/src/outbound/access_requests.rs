@@ -32,6 +32,7 @@ impl<
     W: notification::domain::ports::NotificationWithdrawal,
 > RequestEventSink for AccessRequestDelivery<I, N, C, W>
 {
+    #[tracing::instrument(name = "access_requests.notify", skip_all, fields(event_id = %event.id, entity_id = %event.entity.entity_id), err)]
     async fn deliver(&self, event: &RequestEvent) -> Result<(), rootcause::Report> {
         if let Some(request) = &event.request {
             let level = request.granted_level.unwrap_or(request.requested_level);

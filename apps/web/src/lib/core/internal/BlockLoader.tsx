@@ -70,8 +70,34 @@ export function BlockLoader<
   const analytics = useAnalytics();
   const currentSharedAccess = useSharedAccessUpdates(
     () => shareEntity(blockNameToItemType(props.definition.name), props.id),
-    setUserAccess
+    (level) => {
+      if (level === null) {
+        clearLoadedDocument();
+        setError('UNAUTHORIZED');
+      } else if (
+        (blockDataSignal.get() != null &&
+          blockUserAccessSignal.get() !== level) ||
+        blockErrorSignal.get() === 'UNAUTHORIZED'
+      ) {
+        clearLoadedDocument();
+        setError(undefined);
+        blockLoadRetrySignal.set((count) => (count ?? 0) + 1);
+      }
+    }
   );
+
+  function clearLoadedDocument() {
+    untrack(syncSource)?.cleanup();
+    setData(undefined);
+    setFile(undefined);
+    setText(undefined);
+    setUserAccess(undefined);
+    setDocumentMetadata(undefined);
+    setSyncSourceSignal(undefined);
+    setLoroManagerSignal(undefined);
+    setSourceSignal(undefined);
+    setHandle(undefined);
+  }
 
   setLiveTrackingEnabled(props.definition.liveTrackingEnabled ?? false);
   setEditPermissionEnabled(props.definition.editPermissionEnabled ?? false);
@@ -115,6 +141,15 @@ Check that the load function does not return a preload source when the intent is
 
   createEffect(() => {
     const result = getResult();
+
+    // An earlier in-flight load must not restore a document after revocation.
+    if (untrack(currentSharedAccess) === null) {
+      if (result?.isOk() && 'syncSource' in result.value)
+        result.value.syncSource.cleanup();
+      clearLoadedDocument();
+      setError('UNAUTHORIZED');
+      return;
+    }
 
     if (!result) {
       setData(undefined);
@@ -171,10 +206,8 @@ Check that the load function does not return a preload source when the intent is
     setData(() => data);
     setFile(() => (data && 'dssFile' in data ? data.dssFile : undefined));
     setText((text) => (data && 'text' in data ? data.text : text));
-    setUserAccess<UserAccessLevel>(
-      () =>
-        untrack(currentSharedAccess) ??
-        (data && 'userAccessLevel' in data ? data.userAccessLevel : 'view')
+    setUserAccess<UserAccessLevel>(() =>
+      data && 'userAccessLevel' in data ? data.userAccessLevel : 'view'
     );
     setDocumentMetadata(() => {
       if (data && 'projectMetadata' in data) {

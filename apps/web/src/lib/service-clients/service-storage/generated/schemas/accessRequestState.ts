@@ -25,7 +25,7 @@ export interface AccessRequestState {
    * @minimum 0
    */
   nextOffset?: AccessRequestStateNextOffset;
-  /** Recorded owner principal, hidden from callers without access. */
+  /** Recorded owner principal, visible to reviewers and callers with access. */
   owner?: AccessRequestStateOwner;
   /** Total outstanding requests, for the Share badge. */
   pendingCount: number;

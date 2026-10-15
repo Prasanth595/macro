@@ -15,7 +15,10 @@ vi.mock('../notification-stacking', () => ({
 }));
 
 import type { SplitManager } from '@components/app/split-layout/layoutManager';
+import { openShareModal } from '@core/component/TopBar/shareModal';
 import { isFeatureEnabled } from '@core/constant/featureFlags';
+import { fetchAccessRequestState } from '@queries/access-requests/requests';
+import { fetchDocumentMetadata } from '@queries/storage/document-metadata';
 import { expect, it, vi } from 'vitest';
 import type { UnifiedNotification } from '../types';
 
@@ -45,11 +48,78 @@ vi.mock('@queries/notification/user-notifications', () => ({
   getNotificationById: vi.fn(),
 }));
 vi.mock('@queries/reminders/reminders', () => ({ getReminderById: vi.fn() }));
+vi.mock('@core/component/TopBar/shareModal', () => ({
+  openShareModal: vi.fn(),
+}));
+vi.mock('@queries/access-requests/requests', () => ({
+  fetchAccessRequestState: vi.fn(),
+}));
+vi.mock('@queries/storage/document-metadata', () => ({
+  fetchDocumentMetadata: vi.fn(),
+}));
 vi.mock('../notification-resolvers', () => ({
   DefaultNotificationBlockNameResolver: vi.fn(),
 }));
 
 import { openNotification } from '../notification-navigation';
+
+it.each([null, 'view'] as const)(
+  'opens request review with stored document metadata when file access is %s',
+  async (accessLevel) => {
+    vi.mocked(openShareModal).mockClear();
+    vi.mocked(fetchDocumentMetadata)
+      .mockReset()
+      .mockRejectedValue(new Error('403 Forbidden'));
+    vi.mocked(fetchAccessRequestState).mockResolvedValue({
+      canReview: true,
+      accessLevel,
+      owner: 'macro|owner@macro.com',
+      supportedLevels: ['view', 'comment', 'edit'],
+      requests: [],
+      pendingCount: 1,
+    });
+    const activate = vi.fn();
+    const layout = { getSplitByContent: vi.fn(() => ({ activate })) };
+    const id = '01a140ad-06d5-7791-8b68-bc128654bbba';
+    const notification: UnifiedNotification = {
+      id: 'notification',
+      entity_id: id,
+      entity_type: 'document',
+      created_at: '2026-10-15T00:00:00Z',
+      updated_at: '2026-10-15T00:00:00Z',
+      notification_event_type: 'entity_access_requested',
+      state: 'unseen',
+      sent: true,
+      notification_metadata: {
+        tag: 'entity_access_requested',
+        content: {
+          requestId: 'request',
+          revision: 1,
+          entityName: 'Private document',
+          fileType: 'md',
+          accessLevel: 'view',
+        },
+      },
+    };
+    const result = await openNotification(
+      notification,
+      layout as unknown as SplitManager
+    );
+    expect(result.isOk()).toBe(true);
+    expect(layout.getSplitByContent).toHaveBeenCalledWith('md', id);
+    expect(activate).toHaveBeenCalledOnce();
+    expect(openShareModal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id,
+        blockAlias: 'md',
+        name: 'Private document',
+      })
+    );
+    expect(fetchDocumentMetadata).toHaveBeenCalledTimes(
+      accessLevel === null ? 0 : 1
+    );
+  }
+);
 
 it.each([
   'commented_on_document',

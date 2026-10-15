@@ -8,6 +8,9 @@ use models_permissions::{
 };
 use sqlx::{Postgres, Transaction};
 
+#[cfg(test)]
+mod test;
+
 /// Load the live sharing target, locking its owning row through the transaction.
 /// Unknown kinds fail closed. This is a facts reader; reviewer policy is a domain concern.
 pub async fn facts(
@@ -27,7 +30,7 @@ pub async fn facts(
             .fetch_optional(tx.as_mut()).await?.map(|r| (r.owner_id, r.name, None)),
         EntityType::Initiative => sqlx::query!("SELECT owner_user_id, name FROM initiative WHERE id = $1 FOR SHARE", id)
             .fetch_optional(tx.as_mut()).await?.map(|r| (r.owner_user_id, r.name, None)),
-        EntityType::Database => sqlx::query!("SELECT owner_id, name FROM databases WHERE id = $1 AND trashed_at IS NULL FOR SHARE", id)
+        EntityType::Database => sqlx::query!("SELECT user_id AS owner_id, name FROM database_entities WHERE database_id = $1 AND trashed_at IS NULL FOR SHARE", id)
             .fetch_optional(tx.as_mut()).await?.map(|r| (r.owner_id, r.name, None)),
         EntityType::EmailThread => sqlx::query!("SELECT l.macro_id FROM email_threads t JOIN email_links l ON l.id = t.link_id WHERE t.id = $1 FOR SHARE OF t, l", id)
             .fetch_optional(tx.as_mut()).await?.map(|r| (r.macro_id, "Email thread".into(), None)),
@@ -112,7 +115,10 @@ pub async fn set(
             if child.entity_id == project_id && child.entity_type == "project" {
                 continue;
             }
-            let child_id = child.entity_id.parse::<macro_uuid::Uuid>()?;
+            // Legacy documents inherit through their project at read time.
+            let Ok(child_id) = child.entity_id.parse::<macro_uuid::Uuid>() else {
+                continue;
+            };
             sqlx::query!(r#"INSERT INTO entity_access(entity_id, entity_type, source_id, source_type, access_level, granted_from_project_id)
                 VALUES ($1, $2, $3, 'user', $4, $5)
                 ON CONFLICT (entity_id, entity_type, source_id, source_type, granted_from_project_id) WHERE granted_from_project_id IS NOT NULL

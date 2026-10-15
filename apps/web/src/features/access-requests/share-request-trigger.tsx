@@ -64,7 +64,7 @@ export function useShareRequestTrigger(props: {
   return {
     ref: setElement,
     count: () =>
-      query.isSuccess && query.data.canReview ? query.data.pendingCount : 0,
+      !query.isPending && query.data?.canReview ? query.data.pendingCount : 0,
     open() {
       visit?.claim(entityKey());
       props.open();

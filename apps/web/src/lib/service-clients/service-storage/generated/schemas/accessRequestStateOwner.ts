@@ -6,6 +6,6 @@
  */
 
 /**
- * Recorded owner principal, hidden from callers without access.
+ * Recorded owner principal, visible to reviewers and callers with access.
  */
 export type AccessRequestStateOwner = string | null;

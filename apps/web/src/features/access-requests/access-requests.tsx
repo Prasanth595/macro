@@ -5,6 +5,7 @@ import { type Accessor, createEffect, on, Show } from 'solid-js';
 import type { SharingSource } from './context/contracts';
 import { type ShareEntity, shareEntity } from './core/types';
 import { createSharingSource } from './queries/source';
+import { PermissionRequestsView } from './views/PermissionRequestsView';
 import { RequestAccessView } from './views/RequestAccessView';
 
 export { DirectAccessView } from './views/DirectAccessView';
@@ -68,6 +69,7 @@ export function DocumentAccessDenied(props: {
             source={source}
             allowedLevels={['view', 'comment', 'edit']}
           />
+          <PermissionRequestsView source={source} />
           <AccessRequestError source={source} />
         </div>
       </Show>

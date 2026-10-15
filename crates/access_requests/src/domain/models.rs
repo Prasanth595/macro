@@ -102,7 +102,7 @@ pub struct DirectAccess {
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct AccessRequestState {
-    /// Recorded owner principal, hidden from callers without access.
+    /// Recorded owner principal, visible to reviewers and callers with access.
     pub owner: Option<String>,
     /// Whether this viewer can resolve requests and manage direct grants.
     pub can_review: bool,
@@ -163,6 +163,9 @@ pub struct RequestEvent {
     pub reviewers: Vec<MacroUserIdStr<'static>>,
     /// Everyone whose sharing/access caches changed.
     pub affected_users: Vec<MacroUserIdStr<'static>>,
+    /// W3C trace context captured by the persistence adapter for durable delivery.
+    #[serde(default, skip_serializing_if = "std::collections::HashMap::is_empty")]
+    pub trace_context: std::collections::HashMap<String, String>,
     /// Previous requested notifications and their recipients to complete.
     pub superseded: Vec<(Uuid, Vec<MacroUserIdStr<'static>>)>,
 }

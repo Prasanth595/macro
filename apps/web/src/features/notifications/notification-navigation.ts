@@ -1,6 +1,5 @@
 import { openCalendarView } from '@app/features/calendar-view/calendar-navigation';
 import { createCalendarRange } from '@app/features/calendar-view/calendar-range';
-import { openReminderDetail } from '@app/features/reminders/reminder-navigation';
 import {
   getChannelParams,
   navigateToChannelMessage,
@@ -23,6 +22,7 @@ import {
 } from '@core/constant/featureFlags';
 import { COMMENT_LINK_PARAM } from '@core/messages/comment-link';
 import type { NotificationType } from '@core/types';
+import { catchToResult } from '@core/util/result';
 import { openExternalUrl } from '@core/util/url';
 import { getNotificationById } from '@queries/notification/user-notifications';
 import { errAsync, ResultAsync } from 'neverthrow';
@@ -258,12 +258,15 @@ function getSupportedHandler(
                 import('@core/component/TopBar/shareModal'),
               ]);
             const state = await fetchAccessRequestState(target);
-            const document =
-              target.entityType === 'document'
-                ? await (
-                    await import('@queries/storage/document-metadata')
-                  ).fetchDocumentMetadata(target.entityId)
+            const metadata =
+              target.entityType === 'document' && state.accessLevel != null
+                ? await catchToResult(async () =>
+                    (
+                      await import('@queries/storage/document-metadata')
+                    ).fetchDocumentMetadata(target.entityId)
+                  )
                 : undefined;
+            const document = metadata?.isOk() ? metadata.value : undefined;
             const block =
               target.entityType === 'initiative'
                 ? 'initiative'
@@ -436,12 +439,12 @@ function getSupportedHandler(
         }
       )
       .with('reminder', () => {
+        if (notification.entity_type !== 'email_thread') return null;
         return async (lm: SplitManager, newSplit: boolean = false) => {
-          openReminderDetail(notification.entity_id, {
-            manager: lm,
-            handle: sourceHandle,
-            openInNewSplit: newSplit,
-            ...(onApplied ? { onApplied } : {}),
+          openSplitIfNotOpen(lm, 'email', notification.entity_id, {
+            newSplit,
+            sourceHandle,
+            onApplied,
           });
         };
       })

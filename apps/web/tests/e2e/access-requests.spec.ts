@@ -1,10 +1,28 @@
 import { expect, test } from '@playwright/test';
 
-test('request and approve initial View access', async ({ page }) => {
+test('request and approve initial View access', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/tests/e2e/fixtures/access-requests.html?no-access');
   await page.getByRole('button', { name: 'Share', exact: true }).click();
   await expect(page.getByLabel('Requested access level')).toHaveText('View');
+  if (testInfo.project.name === 'mobile-touch') {
+    expect(await page.evaluate(() => navigator.maxTouchPoints)).toBeGreaterThan(
+      0
+    );
+    expect(await page.evaluate(() => innerWidth)).toBe(390);
+    await expect(page.locator('html')).toHaveAttribute(
+      'data-touch-device',
+      'true'
+    );
+    expect(
+      await page
+        .getByLabel('Requested access level')
+        .evaluate((button) => button.getBoundingClientRect().height)
+    ).toBeGreaterThanOrEqual(36);
+    await page.screenshot({
+      path: testInfo.outputPath('request-access-touch.png'),
+    });
+  }
   await page
     .getByRole('button', { name: 'Request access', exact: true })
     .click();

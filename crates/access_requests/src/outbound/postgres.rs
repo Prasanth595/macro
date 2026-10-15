@@ -5,15 +5,13 @@ use macro_user_id::user_id::MacroUserIdStr;
 use models_permissions::{share_permission::access_level::AccessLevel, sharing::SharingFacts};
 use rootcause::prelude::IntoRootcause;
 use sqlx::{PgPool, Postgres, Transaction, types::Json};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 use uuid::Uuid;
 
 impl From<sqlx::Error> for RequestError {
     fn from(value: sqlx::Error) -> Self {
         Self::Internal(value.into())
     }
-}
-fn dependency(error: anyhow::Error) -> RequestError {
-    RequestError::Internal(error.into_rootcause())
 }
 
 /// Postgres request store. Clone shares the pool, never an open transaction.
@@ -79,6 +77,11 @@ impl RequestRepository for PgRequestRepository {
     type Transaction = PgRequestTransaction;
     async fn begin(&self, entity: ShareEntity) -> Result<Self::Transaction, RequestError> {
         let mut tx = self.pool.begin().await?;
+        // Folder grant propagation and topology changes must read the same
+        // serialized snapshot. Acquire the global guard before entity/row locks.
+        if entity.entity_type == ShareEntityType::Project {
+            entity_access_db_utils::team_share::acquire_guard(&mut tx).await?;
+        }
         // Stable PostgreSQL hash: serialize first creation as well as existing rows.
         let kind = model_entity::EntityType::from(entity.entity_type);
         let lock_key = format!("access-request:{}:{}", kind.as_ref(), entity.entity_id);
@@ -90,7 +93,7 @@ impl RequestRepository for PgRequestRepository {
         .await?;
         let facts = entity_access_db_utils::direct_share::facts(&mut tx, &entity.entity_id, kind)
             .await
-            .map_err(dependency)?
+            .map_err(|error| RequestError::Internal(error.into_rootcause()))?
             .ok_or(RequestError::NotFound)?;
         Ok(PgRequestTransaction { tx, entity, facts })
     }
@@ -181,7 +184,7 @@ impl RequestTransaction for PgRequestTransaction {
             self.entity.entity_type.into(),
         )
         .await
-        .map_err(dependency)?
+        .map_err(|error| RequestError::Internal(error.into_rootcause()))?
         .into_iter()
         .map(|(user_id, access_level)| DirectAccess {
             user_id,
@@ -204,21 +207,31 @@ impl RequestTransaction for PgRequestTransaction {
             upgrade_only,
         )
         .await
-        .map_err(dependency)
+        .map_err(|error| RequestError::Internal(error.into_rootcause()))
     }
     async fn enqueue(&mut self, mut event: RequestEvent) -> Result<(), RequestError> {
+        opentelemetry::global::get_text_map_propagator(|propagator| {
+            propagator.inject_context(
+                &tracing::Span::current().context(),
+                &mut event.trace_context,
+            );
+        });
         let request_id = event.request.as_ref().map(|r| r.id);
         if let Some(id) = request_id {
-            let previous = sqlx::query_scalar!(r#"SELECT payload AS "payload!: Json<RequestEvent>" FROM entity_access_request_event WHERE request_id = $1 ORDER BY created_at, id"#, id).fetch_all(self.tx.as_mut()).await?;
+            // Each durable event withdraws its immediate predecessor. Chaining
+            // those withdrawals also handles delivery in reverse order without
+            // copying the entire notification history into every new payload.
+            let previous_revision = event.request.as_ref().map(|request| request.revision - 1);
+            let previous = sqlx::query_scalar!(r#"SELECT payload AS "payload!: Json<RequestEvent>" FROM entity_access_request_event WHERE request_id = $1 AND (payload->'request'->>'revision')::int = $2 LIMIT 1"#, id, previous_revision)
+                .fetch_optional(self.tx.as_mut()).await?;
             event.superseded = previous
-                .into_iter()
                 .filter(|e| {
                     e.0.request
                         .as_ref()
                         .is_some_and(|r| r.status == RequestStatus::Pending)
                 })
-                .map(|e| (e.0.id, e.0.reviewers))
-                .collect();
+                .map(|e| vec![(e.0.id, e.0.reviewers)])
+                .unwrap_or_default();
         }
         sqlx::query!(
             "INSERT INTO entity_access_request_event(id, request_id, payload) VALUES ($1,$2,$3)",

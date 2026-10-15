@@ -11,6 +11,7 @@ import type {
 import { DirectAccessView } from '../../../src/features/access-requests/views/DirectAccessView';
 import { PermissionRequestsView } from '../../../src/features/access-requests/views/PermissionRequestsView';
 import { RequestAccessView } from '../../../src/features/access-requests/views/RequestAccessView';
+import { isTouchDevice } from '../../../src/lib/core/mobile/isTouchDevice';
 import '../../../src/index.css';
 
 // Real Share controls with an injected deterministic source. Authorization,
@@ -131,4 +132,7 @@ function Fixture() {
     </main>
   );
 }
+document.documentElement.dataset.touchDevice = isTouchDevice()
+  ? 'true'
+  : 'false';
 render(() => <Fixture />, document.getElementById('root')!);

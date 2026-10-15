@@ -4,7 +4,10 @@
 //! is what the domain asked of it and when.
 
 use super::*;
-use crate::domain::model::{ReplyOutcome, ResolvedReply, TaskAssignmentOrigin};
+mod conversations;
+use crate::domain::model::{
+    HeldToolCall, ReplyOutcome, ResolvedReply, TaskAssignmentOrigin, ToolApprovalChange,
+};
 use crate::domain::notifications::PlannedNotification;
 
 /// A mention of a bot whose sessions the in-memory runtime serves.
@@ -22,6 +25,7 @@ fn assignment_open_command() -> OpenSession {
         discussion_id: macro_uuid::generate_uuid_v7(),
         actor: sender(),
         prompt: "Private assignment instructions".to_owned(),
+        context: None,
     });
     command
 }
@@ -51,8 +55,7 @@ async fn assignment_instructions_reach_system_and_prompt_only_runtimes() {
             calls[0].1.as_deref(),
             kind.folds_instructions().then_some(instructions.as_str())
         );
-        assert_eq!(calls[0].2, Some(ConversationContext::default()));
-        assert_eq!(*composer.parents.lock().unwrap(), vec![None]);
+        assert_eq!(calls[0].2, None);
         assert!(!context.authorized().is_empty());
     }
 }
@@ -140,6 +143,50 @@ fn says(agent: &FakeAgent, text: &str) {
                     "sessionUpdate": "agent_message_chunk",
                     "content": {"type": "text", "text": text}
                 }
+            }),
+        )
+        .expect("notification params are an object"),
+    );
+}
+
+/// Wait until `condition` holds; signals reach the harness asynchronously.
+async fn eventually(what: &str, condition: impl Fn() -> bool) {
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        while !condition() {
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap_or_else(|_| panic!("timed out waiting until {what}"));
+}
+
+fn runs(agent: &FakeAgent, id: &str, status: &str, command: &str) {
+    agent.sends_raw(
+        RawJsonRpcMessage::notification(
+            "session/update".to_owned(),
+            serde_json::json!({
+                "sessionId": "acp-test",
+                "update": {
+                    "sessionUpdate": "tool_call",
+                    "toolCallId": id,
+                    "title": "Bash",
+                    "kind": "execute",
+                    "status": status,
+                    "rawInput": {"command": command}
+                }
+            }),
+        )
+        .expect("notification params are an object"),
+    );
+}
+
+fn finishes(agent: &FakeAgent, id: &str) {
+    agent.sends_raw(
+        RawJsonRpcMessage::notification(
+            "session/update".to_owned(),
+            serde_json::json!({
+                "sessionId": "acp-test",
+                "update": {"sessionUpdate": "tool_call_update", "toolCallId": id, "status": "completed"}
             }),
         )
         .expect("notification params are an object"),
@@ -459,6 +506,7 @@ mod elicitation {
                     ),
                     action_id: None,
                     actor: Some(sender()),
+                    context: None,
                 })),
             )
             .await
@@ -482,6 +530,104 @@ mod elicitation {
             ReplyOutcome::Answered("Sent from your primary inbox.".to_owned())
         );
     }
+}
+
+/// Tool calls held for the owner's approval: the reply names the oldest one
+/// waiting, says nothing new while a later one joins it, moves on to the
+/// next when the oldest settles, and is pending again once none wait.
+#[tokio::test]
+async fn held_tool_calls_are_told_in_the_thread_until_none_wait() {
+    let ((service, _, containers, announcer, _), turns) =
+        harness_with_signals(PromptContextMock::default(), PromptComposerMock::default());
+    let id = AgentSessionId::new();
+    let container = chat_session_with_a_running_turn(&service, &containers, id).await;
+    let agent = container.agent();
+    let pending = announcer.announced_messages()[0].message_id;
+    let list_entities = HeldToolCall {
+        approval_id: "approval-1".to_owned(),
+        server_slug: "macro".to_owned(),
+        server_name: "Macro".to_owned(),
+        tool_name: "ListEntities".to_owned(),
+    };
+    let create_issue = HeldToolCall {
+        approval_id: "approval-2".to_owned(),
+        server_slug: "linear".to_owned(),
+        server_name: "Linear".to_owned(),
+        tool_name: "create_issue".to_owned(),
+    };
+
+    for change in [
+        ToolApprovalChange::Held(list_entities.clone()),
+        ToolApprovalChange::Held(create_issue.clone()),
+        ToolApprovalChange::Settled {
+            approval_id: "approval-1".to_owned(),
+        },
+        ToolApprovalChange::Settled {
+            approval_id: "approval-2".to_owned(),
+        },
+    ] {
+        service
+            .execute(id, HarnessCommand::ToolApproval(change))
+            .await
+            .expect("a held call change is handled");
+    }
+
+    let resolved = announcer.resolved();
+    assert_eq!(
+        resolved
+            .iter()
+            .map(|reply| (reply.message_id, reply.outcome.clone()))
+            .collect::<Vec<_>>(),
+        [
+            (pending, ReplyOutcome::AwaitingApproval(list_entities)),
+            (pending, ReplyOutcome::AwaitingApproval(create_issue)),
+            (pending, ReplyOutcome::Resumed),
+        ]
+    );
+    assert!(
+        turns.notifier.notified().is_empty(),
+        "{:#?}",
+        turns.notifier.notified()
+    );
+
+    says(&agent, "Here are your files.");
+    agent.completes_prompt().await;
+    turns.lifecycle_published(4).await;
+    let resolved = announcer.resolved();
+    assert_eq!(resolved.len(), 4, "{resolved:#?}");
+    assert_eq!(
+        resolved[3].outcome,
+        ReplyOutcome::Answered("Here are your files.".to_owned())
+    );
+}
+
+/// A call settled after its turn ended - the release on turn end - has no
+/// reply left to change.
+#[tokio::test]
+async fn a_held_call_settled_after_its_turn_changes_nothing() {
+    let ((service, _, containers, announcer, _), turns) =
+        harness_with_signals(PromptContextMock::default(), PromptComposerMock::default());
+    let id = AgentSessionId::new();
+    let container = chat_session_with_a_running_turn(&service, &containers, id).await;
+    let agent = container.agent();
+    says(&agent, "Done.");
+    agent.completes_prompt().await;
+    turns.lifecycle_published(4).await;
+
+    service
+        .execute(
+            id,
+            HarnessCommand::ToolApproval(ToolApprovalChange::Settled {
+                approval_id: "approval-1".to_owned(),
+            }),
+        )
+        .await
+        .expect("a late settle is handled");
+
+    assert_eq!(
+        one_resolved(&announcer).outcome,
+        ReplyOutcome::Answered("Done.".to_owned())
+    );
 }
 
 #[tokio::test]
@@ -531,4 +677,70 @@ async fn task_assignment_links_the_session_without_copying_its_answer_to_discuss
         one_resolved(&announcer).outcome,
         ReplyOutcome::Answered("Here is the requested summary.".to_owned())
     );
+}
+
+#[tokio::test]
+async fn a_thread_reply_grows_in_place_with_its_steps_and_resolves_with_them() {
+    use agent_fold::domain::model::SegmentKind;
+    let ((service, _, containers, announcer, _), turns) =
+        harness_with_signals(PromptContextMock::default(), PromptComposerMock::default());
+    let id = AgentSessionId::new();
+    let container = chat_session_with_a_running_turn(&service, &containers, id).await;
+    let agent = container.agent();
+    let pending = announcer.announced_messages()[0].message_id;
+
+    says(&agent, "Looking into it.");
+    runs(&agent, "t1", "in_progress", "rg TODO");
+    eventually("the pending reply shows the passage and its steps", || {
+        announcer
+            .presented()
+            .iter()
+            .any(|reply| reply.segments.len() == 2)
+    })
+    .await;
+    assert!(
+        announcer
+            .presented()
+            .iter()
+            .all(|reply| !reply.segments.is_empty()),
+        "the pending reply is not rewritten before there is something to add"
+    );
+    let grown = announcer.presented().last().unwrap().clone();
+    assert_eq!(grown.message_id, pending, "the thread reply grows in place");
+    assert!(grown.pending && grown.link && !grown.notify);
+    assert_eq!(
+        grown
+            .segments
+            .iter()
+            .map(|s| s.segment.kind)
+            .collect::<Vec<_>>(),
+        [SegmentKind::Prose, SegmentKind::Activity]
+    );
+    assert!(
+        announcer
+            .typed()
+            .iter()
+            .any(|typing| typing.active && typing.thread_id.is_some()),
+        "the bot types in the thread"
+    );
+
+    finishes(&agent, "t1");
+    says(&agent, "Found three.");
+    agent.completes_prompt().await;
+    turns.lifecycle_published(4).await;
+    let resolved = one_resolved(&announcer);
+    assert_eq!(resolved.message_id, pending);
+    assert_eq!(
+        resolved
+            .segments
+            .iter()
+            .map(|s| (s.segment.kind, s.text.as_deref()))
+            .collect::<Vec<_>>(),
+        [
+            (SegmentKind::Prose, Some("Looking into it.")),
+            (SegmentKind::Activity, None),
+            (SegmentKind::Prose, Some("Found three.")),
+        ]
+    );
+    assert!(matches!(announcer.typed().last(), Some(typing) if !typing.active));
 }

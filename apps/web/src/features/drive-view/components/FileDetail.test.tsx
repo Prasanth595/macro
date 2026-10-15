@@ -1,5 +1,6 @@
 import { ThrownResultError } from '@core/util/result';
-import type { JSX } from 'solid-js';
+import type { AccessLevel } from '@service-storage/generated/schemas/accessLevel';
+import { type Accessor, createSignal, type JSX, onCleanup } from 'solid-js';
 import { render } from 'solid-js/web';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -17,7 +18,19 @@ vi.mock('@core/component/AccessErrorViews/Gone', () => ({
   default: () => null,
 }));
 vi.mock('@core/component/LoadingBlock', () => ({ LoadingBlock: () => null }));
+let notifyAccess: ((level: AccessLevel | null) => void) | undefined;
 vi.mock('@app/features/access-requests/access-requests', () => ({
+  useSharedAccessUpdates: (
+    _entity: unknown,
+    apply: (level: AccessLevel | null) => void
+  ): Accessor<AccessLevel | null | undefined> => {
+    const [access, setAccess] = createSignal<AccessLevel | null>();
+    notifyAccess = (level) => {
+      setAccess(level);
+      apply(level);
+    };
+    return access;
+  },
   DocumentAccessDenied: (props: {
     documentId: string;
     onAccessGranted: () => void;
@@ -41,7 +54,8 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-function mount(load: () => Promise<object>) {
+type Loaded = { userAccessLevel: AccessLevel };
+function mount(load: () => Promise<Loaded>, cleanupEditor?: () => void) {
   const container = document.createElement('div');
   document.body.appendChild(container);
   dispose = render(
@@ -51,7 +65,10 @@ function mount(load: () => Promise<object>) {
         label="document"
         load={load}
       >
-        {() => <div>Document content</div>}
+        {(data) => {
+          onCleanup(() => cleanupEditor?.());
+          return <div>Document content: {data.userAccessLevel}</div>;
+        }}
       </FileDetailLoadGate>
     ),
     container
@@ -64,11 +81,11 @@ describe('file access errors', () => {
     'offers a request for %s and reloads after a grant',
     async (code) => {
       const load = vi
-        .fn<() => Promise<object>>()
+        .fn<() => Promise<Loaded>>()
         .mockRejectedValueOnce(
           new ThrownResultError([{ code, message: 'Unauthorized access' }])
         )
-        .mockResolvedValue({});
+        .mockResolvedValue({ userAccessLevel: 'view' });
       const container = mount(load);
       await vi.waitFor(() =>
         expect(container.textContent).toContain('Request access')
@@ -85,6 +102,36 @@ describe('file access errors', () => {
       expect(load).toHaveBeenCalledTimes(2);
     }
   );
+
+  it('reloads an open document after an upgrade and disposes revoked content before regrant', async () => {
+    const cleanupEditor = vi.fn();
+    const load = vi
+      .fn<() => Promise<Loaded>>()
+      .mockResolvedValueOnce({ userAccessLevel: 'view' })
+      .mockResolvedValueOnce({ userAccessLevel: 'edit' })
+      .mockResolvedValue({ userAccessLevel: 'view' });
+    const container = mount(load, cleanupEditor);
+    await vi.waitFor(() =>
+      expect(container.textContent).toContain('Document content: view')
+    );
+    notifyAccess?.('view');
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(cleanupEditor).not.toHaveBeenCalled();
+    notifyAccess?.('edit');
+    expect(cleanupEditor).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() =>
+      expect(container.textContent).toContain('Document content: edit')
+    );
+    notifyAccess?.(null);
+    expect(container.textContent).toContain('Request access');
+    expect(container.textContent).not.toContain('Document content');
+    expect(cleanupEditor).toHaveBeenCalledTimes(2);
+    notifyAccess?.('view');
+    await vi.waitFor(() =>
+      expect(container.textContent).toContain('Document content: view')
+    );
+    expect(load).toHaveBeenCalledTimes(3);
+  });
 
   it.each(['NETWORK_ERROR', 'NOT_FOUND', 'GONE'])(
     'keeps %s separate from denied access',
