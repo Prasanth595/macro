@@ -7,6 +7,7 @@ import {
 } from '@core/component/ContextMenu';
 import { ContextMenu } from '@kobalte/core/context-menu';
 import External from '@phosphor/arrow-square-out.svg';
+import ArrowsClockwise from '@phosphor/arrows-clockwise.svg';
 import Copy from '@phosphor/copy.svg';
 import Dots from '@phosphor/dots-three.svg';
 import Globe from '@phosphor/globe-simple.svg';
@@ -14,9 +15,12 @@ import Link from '@phosphor/link.svg';
 import Pencil from '@phosphor/pencil-simple.svg';
 import Timer from '@phosphor/timer.svg';
 import Trash from '@phosphor/trash.svg';
+import User from '@phosphor/user.svg';
+import Users from '@phosphor/users.svg';
 import { propertyPillClasses } from '@property/extractors/property-pill-classes';
 import { Badge, Button, cn, Dropdown, ToggleSwitch } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
+import { match } from 'ts-pattern';
 import type { EventType, SchedulingScope } from '../core/types';
 
 export function EventTypesPanel(props: {
@@ -182,7 +186,7 @@ export function EventTypesPanel(props: {
                         </p>
                       </Show>
                     </button>
-                    <div class="col-start-2 flex min-w-0 items-center justify-end gap-2 @min-[36rem]/booking-links:col-start-auto">
+                    <div class="col-start-2 flex min-w-0 flex-wrap items-center justify-end gap-2 @min-[36rem]/booking-links:col-start-auto">
                       <Dropdown>
                         <Dropdown.Trigger
                           as="button"
@@ -233,6 +237,39 @@ export function EventTypesPanel(props: {
                       >
                         <Timer aria-hidden="true" class="size-3" />
                         {event.durationMinutes}m
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        size="md"
+                        class={propertyPillClasses({
+                          variant: 'outline',
+                          size: 'md',
+                          readOnly: true,
+                        })}
+                      >
+                        {match(event.mode)
+                          .with('individual', () => (
+                            <>
+                              <User aria-hidden="true" class="size-3" />
+                              Individual
+                            </>
+                          ))
+                          .with('collective', () => (
+                            <>
+                              <Users aria-hidden="true" class="size-3" />
+                              Collective
+                            </>
+                          ))
+                          .with('roundRobin', () => (
+                            <>
+                              <ArrowsClockwise
+                                aria-hidden="true"
+                                class="size-3"
+                              />
+                              Round robin
+                            </>
+                          ))
+                          .exhaustive()}
                       </Badge>
                       <Dropdown>
                         <Dropdown.Trigger
