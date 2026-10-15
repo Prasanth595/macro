@@ -115,6 +115,44 @@ describe('team sharing changes', () => {
       sharing: 'busy_only',
     });
   });
+
+  it('sends quick changes in order and keeps the newest choice when an earlier one fails', async () => {
+    testQueryClient.setQueryData(sharingKey, { sharing: 'busy_only' });
+    let failFirst!: (value: unknown) => void;
+    setTeamCalendarSharing
+      .mockReturnValueOnce(
+        new Promise((res) => {
+          failFirst = res;
+        })
+      )
+      .mockResolvedValueOnce(ok({ sharing: 'none' }));
+    const mutation = renderHook(() => useSetTeamCalendarSharingMutation());
+
+    const first = mutation.mutateAsync({ identity, sharing: 'all' });
+    await vi.waitFor(() =>
+      expect(setTeamCalendarSharing).toHaveBeenCalledTimes(1)
+    );
+    const second = mutation.mutateAsync({ identity, sharing: 'none' });
+    await vi.waitFor(() =>
+      expect(testQueryClient.getQueryData(sharingKey)).toEqual({
+        sharing: 'none',
+      })
+    );
+    expect(setTeamCalendarSharing).toHaveBeenCalledTimes(1);
+
+    failFirst(failure());
+    await expect(first).rejects.toBeDefined();
+    expect(testQueryClient.getQueryData(sharingKey)).toEqual({
+      sharing: 'none',
+    });
+    await second;
+    expect(setTeamCalendarSharing).toHaveBeenLastCalledWith({
+      sharing: 'none',
+    });
+    expect(testQueryClient.getQueryData(sharingKey)).toEqual({
+      sharing: 'none',
+    });
+  });
 });
 
 describe('availability calendar changes', () => {
@@ -163,21 +201,55 @@ describe('availability calendar changes', () => {
     expect(included()).toEqual([false, false, true]);
   });
 
-  it('restores every calendar when part of a group change fails', async () => {
+  it('waits for every save and restores only the calendars that failed', async () => {
+    testQueryClient.setQueryData(calendarsKey, calendars);
+    let finishPrimary!: (value: unknown) => void;
+    setAvailabilityCalendar
+      .mockReturnValueOnce(
+        new Promise((res) => {
+          finishPrimary = res;
+        })
+      )
+      .mockResolvedValueOnce(failure());
+    const mutation = renderHook(() => useSetAvailabilityCalendarMutation());
+
+    let settled = false;
+    const saving = mutation
+      .mutateAsync({
+        identity,
+        calendarIds: ['primary', 'holidays'],
+        contributesToAvailability: false,
+      })
+      .finally(() => {
+        settled = true;
+      });
+    await vi.waitFor(() =>
+      expect(setAvailabilityCalendar).toHaveBeenCalledTimes(2)
+    );
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    finishPrimary(ok({}));
+    await expect(saving).rejects.toBeDefined();
+
+    expect(included()).toEqual([false, false, true]);
+  });
+
+  it('restores a failed calendar to its previous value', async () => {
     testQueryClient.setQueryData(calendarsKey, calendars);
     setAvailabilityCalendar
-      .mockResolvedValueOnce(ok({}))
-      .mockResolvedValueOnce(failure());
+      .mockResolvedValueOnce(failure())
+      .mockResolvedValueOnce(ok({}));
     const mutation = renderHook(() => useSetAvailabilityCalendarMutation());
 
     await expect(
       mutation.mutateAsync({
         identity,
-        calendarIds: ['primary', 'holidays'],
-        contributesToAvailability: true,
+        calendarIds: ['primary', 'other-account'],
+        contributesToAvailability: false,
       })
     ).rejects.toBeDefined();
 
-    expect(included()).toEqual([true, false, true]);
+    expect(included()).toEqual([true, false, false]);
   });
 });

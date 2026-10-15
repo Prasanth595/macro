@@ -73,13 +73,15 @@ async function replaceCachedQuery<T>(
   return { previous };
 }
 
-function restoreCachedQuery<T>(
-  queryKey: QueryKey,
-  snapshot: CachedQuerySnapshot<T> | undefined
-) {
-  if (snapshot?.previous !== undefined)
-    queryClient.setQueryData<T>(queryKey, snapshot.previous);
-}
+/**
+ * Saves of one setting share a scope, so their requests reach the server in
+ * order. Only the last pending save rolls back or refetches; an earlier one
+ * would overwrite the newer optimistic choice.
+ */
+const isLastPendingSave = (mutationKey: QueryKey) =>
+  queryClient.isMutating({ mutationKey }) === 1;
+
+const teamSharingMutationKey = ['calendar-team', 'set-sharing'];
 
 interface TeamSharingChange {
   identity: CalendarTeamIdentity;
@@ -87,6 +89,8 @@ interface TeamSharingChange {
 }
 
 const teamSharingMutationOptions = {
+  mutationKey: teamSharingMutationKey,
+  scope: { id: 'calendar-team-sharing' },
   mutationFn: ({ sharing }: TeamSharingChange) =>
     throwOnErr(() => emailClient.setTeamCalendarSharing({ sharing })),
   onMutate: ({ identity, sharing }: TeamSharingChange) =>
@@ -98,16 +102,23 @@ const teamSharingMutationOptions = {
     _error: unknown,
     { identity }: TeamSharingChange,
     snapshot: CachedQuerySnapshot<TeamCalendarSharingBody> | undefined
-  ) =>
-    restoreCachedQuery(calendarTeamKeys.sharing(identity).queryKey, snapshot),
+  ) => {
+    if (snapshot?.previous && isLastPendingSave(teamSharingMutationKey))
+      queryClient.setQueryData(
+        calendarTeamKeys.sharing(identity).queryKey,
+        snapshot.previous
+      );
+  },
   onSettled: (
     _data: unknown,
     _error: unknown,
     { identity }: TeamSharingChange
   ) =>
-    queryClient.invalidateQueries({
-      queryKey: calendarTeamKeys.sharing(identity).queryKey,
-    }),
+    isLastPendingSave(teamSharingMutationKey)
+      ? queryClient.invalidateQueries({
+          queryKey: calendarTeamKeys.sharing(identity).queryKey,
+        })
+      : undefined,
 };
 
 /** The viewer's own sharing never changes what they can read, so nothing else resets. */
@@ -115,18 +126,34 @@ export function useSetTeamCalendarSharingMutation() {
   return useMutation(() => teamSharingMutationOptions);
 }
 
+const availabilityCalendarMutationKey = [
+  'calendar-team',
+  'set-availability-calendar',
+];
+
 interface AvailabilityCalendarChange {
   identity: CalendarTeamIdentity;
   calendarIds: string[];
   contributesToAvailability: boolean;
 }
 
+/** Part of a group change saved; these calendars did not. */
+class AvailabilityCalendarSaveError extends Error {
+  constructor(readonly failedCalendarIds: string[]) {
+    super('Could not update availability calendars');
+  }
+}
+
 const availabilityCalendarMutationOptions = {
-  mutationFn: ({
+  mutationKey: availabilityCalendarMutationKey,
+  scope: { id: 'calendar-team-availability-calendar' },
+  mutationFn: async ({
     calendarIds,
     contributesToAvailability,
-  }: AvailabilityCalendarChange) =>
-    Promise.all(
+  }: AvailabilityCalendarChange) => {
+    // Settle every request before reconciling, so no save can land after the
+    // refetch that follows a failure.
+    const results = await Promise.allSettled(
       calendarIds.map((calendarId) =>
         throwOnErr(() =>
           emailClient.setAvailabilityCalendar(calendarId, {
@@ -134,7 +161,12 @@ const availabilityCalendarMutationOptions = {
           })
         )
       )
-    ),
+    );
+    const failed = calendarIds.filter(
+      (_, index) => results[index].status === 'rejected'
+    );
+    if (failed.length > 0) throw new AvailabilityCalendarSaveError(failed);
+  },
   onMutate: ({
     identity,
     calendarIds,
@@ -151,22 +183,43 @@ const availabilityCalendarMutationOptions = {
       })
     ),
   onError: (
-    _error: unknown,
-    { identity }: AvailabilityCalendarChange,
+    error: unknown,
+    { identity, calendarIds }: AvailabilityCalendarChange,
     snapshot: CachedQuerySnapshot<AvailabilityCalendarsResponse> | undefined
-  ) =>
-    restoreCachedQuery(
+  ) => {
+    const previous = snapshot?.previous;
+    if (!previous || !isLastPendingSave(availabilityCalendarMutationKey))
+      return;
+    const failed = new Set(
+      error instanceof AvailabilityCalendarSaveError
+        ? error.failedCalendarIds
+        : calendarIds
+    );
+    const before = new Map(
+      previous.calendars.map((calendar) => [calendar.calendarId, calendar])
+    );
+    queryClient.setQueryData<AvailabilityCalendarsResponse>(
       calendarTeamKeys.availabilityCalendars(identity).queryKey,
-      snapshot
-    ),
+      (current) =>
+        current && {
+          calendars: current.calendars.map((calendar) =>
+            failed.has(calendar.calendarId)
+              ? (before.get(calendar.calendarId) ?? calendar)
+              : calendar
+          ),
+        }
+    );
+  },
   onSettled: (
     _data: unknown,
     _error: unknown,
     { identity }: AvailabilityCalendarChange
   ) =>
-    queryClient.invalidateQueries({
-      queryKey: calendarTeamKeys.availabilityCalendars(identity).queryKey,
-    }),
+    isLastPendingSave(availabilityCalendarMutationKey)
+      ? queryClient.invalidateQueries({
+          queryKey: calendarTeamKeys.availabilityCalendars(identity).queryKey,
+        })
+      : undefined,
 };
 
 /** Group changes save every calendar of an account in one optimistic step. */
