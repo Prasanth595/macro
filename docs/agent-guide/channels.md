@@ -1029,7 +1029,7 @@ and name, the same inset tab strip, live viewer avatars, and the `Call` and
 `Ask Macro` buttons. In Chat an ellipsis follows the name and opens the same
 entity actions as right-clicking the conversation's rail row — `Open in new
 split`, `Rename`, `Set channel picture`, `Remove channel picture` (only when the
-channel has one), `Favorite`/`Unfavorite`, `Snooze notifications…`, `Mute
+channel has one), `Favorite`/`Unfavorite`, `Remind me`, `Snooze notifications…`, `Mute
 notifications`, `Copy Link`, `Copy ID` — so a channel can be favorited or given
 a picture without finding its row. A channel inlined in
 another view's detail stack has no such menu. The split's own title `...` menu
