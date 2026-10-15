@@ -63,9 +63,6 @@ async fn invisible_records_do_not_resolve(pool: PgPool) {
         CrmAssociation::Contact(id(1003)),
         // Hidden from a plain member of team 12.
         CrmAssociation::Contact(id(1007)),
-        // Team 13 has CRM disabled.
-        CrmAssociation::Company(id(103)),
-        CrmAssociation::Contact(id(1009)),
         // Unknown ids.
         CrmAssociation::Company(id(999)),
         CrmAssociation::Contact(id(9999)),
@@ -133,17 +130,42 @@ async fn team_scope_is_restricted_to_its_team(pool: PgPool) {
         resolve(&repo, team(true), CrmAssociation::Company(id(101))).await,
         None
     );
-    // A CRM-disabled team's own records do not resolve either.
-    let disabled = || CrmContactListScope::Team {
-        team_id: id(13),
-        include_hidden: true,
-    };
-    assert_eq!(
-        resolve(&repo, disabled(), CrmAssociation::Company(id(103))).await,
-        None
-    );
-    assert_eq!(
-        resolve(&repo, disabled(), CrmAssociation::Contact(id(1009))).await,
-        None
-    );
+}
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures("fixtures/contact_listing.sql")
+)]
+async fn legacy_email_settings_do_not_hide_associated_records(pool: PgPool) {
+    let repo = CompaniesRepositoryImpl::new(pool.clone());
+    for remove_settings in [false, true] {
+        if remove_settings {
+            sqlx::query!("DELETE FROM team_crm_settings WHERE team_id = $1", id(13))
+                .execute(&pool)
+                .await
+                .unwrap();
+        }
+        // Team 13's legacy flag is false, then its settings row is absent.
+        // Neither state requires a mailbox or email contribution consent.
+        for team_scope in [false, true] {
+            let scope = || {
+                if team_scope {
+                    CrmContactListScope::Team {
+                        team_id: id(13),
+                        include_hidden: false,
+                    }
+                } else {
+                    CrmContactListScope::Viewer(VIEWER)
+                }
+            };
+            assert_eq!(
+                resolve(&repo, scope(), CrmAssociation::Company(id(103))).await,
+                Some(CrmRecordAssociation::company(id(103), vec![id(1009)]))
+            );
+            assert_eq!(
+                resolve(&repo, scope(), CrmAssociation::Contact(id(1009))).await,
+                Some(CrmRecordAssociation::contact(id(1009)))
+            );
+        }
+    }
 }

@@ -153,6 +153,7 @@ vi.mock('./record-detail', () => ({
 }));
 vi.mock('./export-companies', () => ({ CrmExport: () => null }));
 vi.mock('./import-companies', () => ({ CrmImport: () => null }));
+vi.mock('./email-privacy', () => ({ CrmEmailOptInBanner: () => null }));
 vi.mock('./pipeline', () => ({
   PipelineView: (props: {
     pipeline: { name: string };
@@ -191,7 +192,7 @@ vi.mock('../context/crm-context', () => ({
 vi.mock('./use-crm', () => ({
   useCurrentTeamQuery: () => ({
     isSuccess: true,
-    data: { team: { id: 'team', crm_enabled: true } },
+    data: { team: { id: 'team', crm_enabled: false } },
   }),
   useCrmLists: () => ({
     lists: () => [
