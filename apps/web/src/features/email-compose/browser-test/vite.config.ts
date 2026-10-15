@@ -33,6 +33,20 @@ export default defineConfig({
   cacheDir: `${directory}/.vite`,
   plugins: [
     stubSplitPanel,
+    {
+      name: 'sender-fixture-context',
+      enforce: 'pre',
+      resolveId(source, importer) {
+        if (
+          importer?.endsWith('/email-view/components/EmailInboxSelector.tsx') &&
+          source === '../email-view-context'
+        )
+          return fileURLToPath(
+            new URL('./sender-adapters.tsx', import.meta.url)
+          );
+      },
+    },
+
     solidPlugin(),
     solidSvg({ defaultAsComponent: true }),
     tsconfigPaths({ projects: [`${webDirectory}/tsconfig.json`] }),
@@ -46,6 +60,19 @@ export default defineConfig({
         find: /^@ui$/,
         replacement: fileURLToPath(new URL('./ui-shim.ts', import.meta.url)),
       },
+      ...[
+        '@core/component/UserIcon',
+        '@core/component/inboxIcon',
+        '@queries/email/mail-accounts',
+        '@app/lib/analytics/posthog',
+        '@core/email-link',
+        '@app/components/view-shell',
+      ].map((name) => ({
+        find: name,
+        replacement: fileURLToPath(
+          new URL('./sender-adapters.tsx', import.meta.url)
+        ),
+      })),
       { find: /^loro-crdt$/, replacement: 'loro-crdt/base64' },
     ],
   },

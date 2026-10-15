@@ -1,4 +1,4 @@
-import { ContentLoading } from '@components/app/ContentLoading';
+
 import { useAndroidBackNavigation } from '@core/mobile/androidBack';
 import {
   type Accessor,
@@ -110,7 +110,7 @@ export function MobileSplitContainer(props: MobileSplitContainerProps) {
                         motion.handleTransitionEnd(e, isFront())
                       }
                     >
-                      <Suspense fallback={<ContentLoading />}>
+                      <Suspense>
                         <SplitPanel
                           split={current().split}
                           handle={current().handle}
