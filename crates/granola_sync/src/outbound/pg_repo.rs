@@ -94,6 +94,29 @@ impl SyncRepository for PgSyncRepository {
         })
         .transpose()
     }
+    async fn states(&self) -> Result<Vec<SyncState>> {
+        let rows = sqlx::query!(
+            r#"SELECT id, user_id, account_id, scope, enabled, endpoint_id IS NOT NULL AS "has_endpoint!",
+                started_at, last_error
+            FROM granola_sync_connections"#
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        rows.into_iter()
+            .map(|row| {
+                Ok(SyncState {
+                    id: row.id,
+                    user_id: MacroUserIdStr::parse_from_str(&row.user_id)?.into_owned(),
+                    account_id: row.account_id,
+                    scope: serde_json::from_value(serde_json::Value::String(row.scope))?,
+                    enabled: row.enabled,
+                    has_endpoint: row.has_endpoint,
+                    started_at: row.started_at,
+                    last_error: row.last_error,
+                })
+            })
+            .collect()
+    }
     async fn reserve(&self, connection: &Connection) -> Result<bool> {
         let mut tx = self.pool.begin().await?;
         let row = sqlx::query!(
@@ -120,22 +143,27 @@ impl SyncRepository for PgSyncRepository {
         tx.commit().await?;
         Ok(row.is_some())
     }
-    async fn activate(&self, id: Uuid, webhook: Webhook) -> Result<bool> {
+    async fn activate(&self, id: Uuid, webhook: Webhook, scope: Scope) -> Result<bool> {
         let encrypted = self.encrypt(id, webhook.secret)?;
         let changed = sqlx::query!(
-            "UPDATE granola_sync_connections SET enabled = true, endpoint_id = $2, signing_secret = $3
+            "UPDATE granola_sync_connections SET enabled = true, endpoint_id = $2, signing_secret = $3, scope = $4
              WHERE id = $1 AND last_error IS NULL AND endpoint_id IS NULL",
-            id, webhook.id, encrypted
+            id, webhook.id, encrypted, scope.as_str()
         ).execute(&self.pool).await?.rows_affected();
         Ok(changed == 1)
     }
     async fn stop(&self, id: Uuid) -> Result<()> {
-        sqlx::query!("UPDATE granola_sync_connections SET enabled = false, last_error = 'Sync stopped' WHERE id = $1", id)
-            .execute(&self.pool).await?;
+        sqlx::query!(
+            "UPDATE granola_sync_connections SET enabled = false, last_error = $2 WHERE id = $1",
+            id,
+            STOPPED
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
     async fn failed_setup(&self, id: Uuid) -> Result<()> {
-        sqlx::query!("UPDATE granola_sync_connections SET enabled = false, last_error = 'Could not register webhook. Check your Granola key scope and plan, then retry.' WHERE id = $1", id)
+        sqlx::query!("UPDATE granola_sync_connections SET enabled = false, last_error = 'Could not register Granola webhook' WHERE id = $1", id)
             .execute(&self.pool).await?;
         Ok(())
     }

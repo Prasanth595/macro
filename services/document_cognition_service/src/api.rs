@@ -157,12 +157,6 @@ fn api_router(api_context: ApiContext) -> Router {
         .merge(pipedream_mcp::inbound::pipedream_mcp_router(
             api_context.pipedream_state.clone(),
         ))
-        .merge(granola_sync::inbound::router(
-            granola_sync::inbound::SyncRouterState {
-                service: api_context.granola_sync.clone(),
-                authorization_state: api_context.authorization_state.clone(),
-            },
-        ))
         .with_state(api_context.clone());
 
     // Pipedream calls this one itself, so it sits outside the authenticated

@@ -1,48 +1,15 @@
 use crate::domain::{models::*, service::SyncService};
 use axum::{
-    Json, Router,
+    Router,
     body::Bytes,
-    extract::{DefaultBodyLimit, FromRef, Path, State},
+    extract::{DefaultBodyLimit, Path, State},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
-    routing::{get, post},
+    routing::post,
 };
-use macro_authorization::{
-    MacroAuthorizationExtractor, MacroAuthorizationService, MacroAuthorizationState, UserOrInternal,
-};
-use serde::Deserialize;
 use std::sync::Arc;
 use uuid::Uuid;
 
-pub struct SyncRouterState<Auth> {
-    pub service: Option<Arc<dyn SyncService>>,
-    pub authorization_state: MacroAuthorizationState<Auth>,
-}
-impl<Auth> Clone for SyncRouterState<Auth> {
-    fn clone(&self) -> Self {
-        Self {
-            service: self.service.clone(),
-            authorization_state: self.authorization_state.clone(),
-        }
-    }
-}
-impl<Auth> FromRef<SyncRouterState<Auth>> for MacroAuthorizationState<Auth> {
-    fn from_ref(state: &SyncRouterState<Auth>) -> Self {
-        state.authorization_state.clone()
-    }
-}
-pub fn router<Auth: MacroAuthorizationService, S: Send + Sync>(
-    state: SyncRouterState<Auth>,
-) -> Router<S> {
-    Router::new()
-        .route(
-            "/integrations/granola",
-            get(status::<Auth>).post(start::<Auth>).delete(stop::<Auth>),
-        )
-        .route("/integrations/granola/meetings", get(meetings::<Auth>))
-        .route("/integrations/granola/meetings/{id}", get(meeting::<Auth>))
-        .with_state(state)
-}
 pub fn webhook_router<S: Send + Sync>(service: Option<Arc<dyn SyncService>>) -> Router<S> {
     Router::new()
         .route("/integrations/granola/webhooks/{id}", post(webhook))
@@ -51,7 +18,7 @@ pub fn webhook_router<S: Send + Sync>(service: Option<Arc<dyn SyncService>>) -> 
 }
 fn error(error: SyncError) -> Response {
     let status = match error {
-        SyncError::NotConnected | SyncError::Conflict => StatusCode::CONFLICT,
+        SyncError::Conflict => StatusCode::CONFLICT,
         SyncError::InvalidDelivery => StatusCode::UNAUTHORIZED,
         SyncError::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
         SyncError::Internal(ref error) => {
@@ -59,85 +26,8 @@ fn error(error: SyncError) -> Response {
             StatusCode::BAD_GATEWAY
         }
     };
-    // Provider bodies can contain secrets; never reflect them to the browser.
+    // Provider bodies can contain secrets; never reflect them to the caller.
     (status, "Granola sync request could not be completed").into_response()
-}
-type User<Auth> = MacroAuthorizationExtractor<Auth, UserOrInternal>;
-async fn status<Auth: MacroAuthorizationService>(
-    State(state): State<SyncRouterState<Auth>>,
-    user: User<Auth>,
-) -> Response {
-    let Some(service) = state.service else {
-        return error(SyncError::Unavailable);
-    };
-    match service.status(user.authorization.user.macro_user_id).await {
-        Ok(value) => Json(value).into_response(),
-        Err(e) => error(e),
-    }
-}
-#[derive(Deserialize)]
-struct StartRequest {
-    scope: Scope,
-}
-async fn start<Auth: MacroAuthorizationService>(
-    State(state): State<SyncRouterState<Auth>>,
-    user: User<Auth>,
-    Json(request): Json<StartRequest>,
-) -> Response {
-    let Some(service) = state.service else {
-        return error(SyncError::Unavailable);
-    };
-    match service
-        .start(user.authorization.user.macro_user_id, request.scope)
-        .await
-    {
-        Ok(()) => StatusCode::NO_CONTENT.into_response(),
-        Err(e) => error(e),
-    }
-}
-async fn stop<Auth: MacroAuthorizationService>(
-    State(state): State<SyncRouterState<Auth>>,
-    user: User<Auth>,
-) -> Response {
-    let Some(service) = state.service else {
-        return error(SyncError::Unavailable);
-    };
-    match service.stop(user.authorization.user.macro_user_id).await {
-        Ok(()) => StatusCode::NO_CONTENT.into_response(),
-        Err(e) => error(e),
-    }
-}
-async fn meetings<Auth: MacroAuthorizationService>(
-    State(state): State<SyncRouterState<Auth>>,
-    user: User<Auth>,
-) -> Response {
-    let Some(service) = state.service else {
-        return error(SyncError::Unavailable);
-    };
-    match service
-        .meetings(user.authorization.user.macro_user_id)
-        .await
-    {
-        Ok(value) => Json(value).into_response(),
-        Err(e) => error(e.into()),
-    }
-}
-async fn meeting<Auth: MacroAuthorizationService>(
-    State(state): State<SyncRouterState<Auth>>,
-    user: User<Auth>,
-    Path(id): Path<Uuid>,
-) -> Response {
-    let Some(service) = state.service else {
-        return error(SyncError::Unavailable);
-    };
-    match service
-        .meeting(user.authorization.user.macro_user_id, id)
-        .await
-    {
-        Ok(Some(value)) => Json(value).into_response(),
-        Ok(None) => StatusCode::NOT_FOUND.into_response(),
-        Err(e) => error(e.into()),
-    }
 }
 async fn webhook(
     State(service): State<Option<Arc<dyn SyncService>>>,
@@ -168,7 +58,20 @@ async fn webhook(
 
 /// Restart-safe work is in Postgres; multiple DCS instances can run this loop.
 pub async fn run_worker(service: Arc<dyn SyncService>) {
+    const RECONCILE_EVERY: std::time::Duration = std::time::Duration::from_secs(30);
+    let mut next_reconcile = tokio::time::Instant::now();
     loop {
+        if tokio::time::Instant::now() >= next_reconcile {
+            next_reconcile = tokio::time::Instant::now() + RECONCILE_EVERY;
+            match tokio::time::timeout(std::time::Duration::from_secs(120), service.reconcile())
+                .await
+            {
+                Ok(Ok(())) => {}
+                other => {
+                    tracing::warn!(error = ?other, "Granola sync reconcile failed; will retry")
+                }
+            }
+        }
         let result =
             tokio::time::timeout(std::time::Duration::from_secs(300), service.tick()).await;
         match result {

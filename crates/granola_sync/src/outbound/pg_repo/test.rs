@@ -42,7 +42,8 @@ async fn durable_deduplication_leases_and_stop(pool: PgPool) {
             Webhook {
                 id: "whe_test".into(),
                 secret: SigningSecret("secret".into())
-            }
+            },
+            Scope::All,
         )
         .await
         .unwrap()
@@ -126,15 +127,27 @@ impl Accounts for Account {
     async fn account(&self, _: &MacroUserIdStr<'static>) -> Result<Option<String>> {
         Ok(self.0.load(Ordering::SeqCst).then(|| "apn_test".into()))
     }
+    async fn connected(&self) -> Result<Vec<(MacroUserIdStr<'static>, String)>> {
+        Ok(self
+            .0
+            .load(Ordering::SeqCst)
+            .then(|| (connection().user_id, "apn_test".to_string()))
+            .into_iter()
+            .collect())
+    }
 }
+/// A personal key: Granola rejects the workspace scope.
 struct Provider;
 #[async_trait]
 impl Granola for Provider {
-    async fn register(&self, _: &Connection, _: &str) -> Result<Webhook> {
-        Ok(Webhook {
+    async fn register(&self, _: &Connection, _: &str, scope: Scope) -> Result<Registration> {
+        if scope == Scope::Workspace {
+            return Ok(Registration::ScopeRejected);
+        }
+        Ok(Registration::Registered(Webhook {
             id: "whe_test".into(),
             secret: SigningSecret("whsec_c2VjcmV0".into()),
-        })
+        }))
     }
     async fn unregister(&self, _: &Connection) -> Result<()> {
         Ok(())
@@ -161,7 +174,9 @@ impl CallImportService for Calls {
     migrator = "MACRO_DB_MIGRATIONS",
     fixtures(path = "../../../fixtures", scripts("users"))
 )]
-async fn registration_races_clock_skew_and_disconnect_do_not_lose_or_leak_deliveries(pool: PgPool) {
+async fn connecting_starts_sync_and_disconnecting_stops_it_without_leaking_deliveries(
+    pool: PgPool,
+) {
     use base64::Engine;
     use hmac::{Hmac, Mac};
     let enabled = Arc::new(AtomicBool::new(true));
@@ -173,8 +188,18 @@ async fn registration_races_clock_skew_and_disconnect_do_not_lose_or_leak_delive
         calls: Arc::new(Calls),
         public_url: "https://macro.test".into(),
     };
-    let connection = connection();
-    service.repo.reserve(&connection).await.unwrap();
+    let user = connection().user_id;
+    // Connecting the account is enough; no user action starts sync.
+    service.reconcile().await.unwrap();
+    let connection = service.repo.by_user(&user).await.unwrap().unwrap();
+    assert!(connection.enabled);
+    assert_eq!(connection.scope, Scope::All);
+    service.reconcile().await.unwrap();
+    assert_eq!(
+        service.repo.by_user(&user).await.unwrap().unwrap().id,
+        connection.id,
+        "an active sync is not re-registered"
+    );
     let id = macro_uuid::generate_uuid_v7().to_string();
     let timestamp = chrono::Utc::now().timestamp().to_string();
     let body = serde_json::to_vec(&serde_json::json!({
@@ -195,22 +220,6 @@ async fn registration_races_clock_skew_and_disconnect_do_not_lose_or_leak_delive
         signature: &signature,
         body: &body,
     };
-    assert!(matches!(
-        service.receive(connection.id, delivery()).await,
-        Err(SyncError::Unavailable)
-    ));
-    service
-        .repo
-        .activate(
-            connection.id,
-            service
-                .granola
-                .register(&connection, "https://macro.test")
-                .await
-                .unwrap(),
-        )
-        .await
-        .unwrap();
     service.receive(connection.id, delivery()).await.unwrap();
     let job = service.repo.claim().await.unwrap().unwrap();
     assert_eq!(job.event.event_id.to_string(), id); // accepted despite provider clock skew
@@ -223,32 +232,14 @@ async fn registration_races_clock_skew_and_disconnect_do_not_lose_or_leak_delive
         service.receive(connection.id, invalid).await,
         Err(SyncError::InvalidDelivery)
     ));
+    // Disconnecting stops sync; reconnecting restarts it with the same namespace.
     enabled.store(false, Ordering::SeqCst);
-    assert!(
-        !service
-            .status(connection.user_id.clone())
-            .await
-            .unwrap()
-            .enabled
-    );
-    assert!(matches!(
-        service
-            .start(connection.user_id.clone(), Scope::Personal)
-            .await,
-        Err(SyncError::NotConnected)
-    ));
-    service.stop(connection.user_id.clone()).await.unwrap();
+    service.reconcile().await.unwrap();
+    assert!(!service.repo.by_user(&user).await.unwrap().unwrap().enabled);
     enabled.store(true, Ordering::SeqCst);
-    service
-        .start(connection.user_id.clone(), Scope::All)
-        .await
-        .unwrap();
-    let renewed = service
-        .repo
-        .by_user(&connection.user_id)
-        .await
-        .unwrap()
-        .unwrap();
+    service.reconcile().await.unwrap();
+    let renewed = service.repo.by_user(&user).await.unwrap().unwrap();
+    assert!(renewed.enabled);
     assert_ne!(renewed.id, connection.id);
     assert_eq!(renewed.namespace, connection.namespace);
     assert!(matches!(

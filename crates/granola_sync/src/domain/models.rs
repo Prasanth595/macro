@@ -3,7 +3,9 @@ use macro_user_id::user_id::MacroUserIdStr;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-/// Granola key access selected by the user. Workspace keys have a distinct scope.
+/// Webhook access scope. Sync always asks for the widest scope the key accepts:
+/// `All` for personal keys, `Workspace` for workspace keys. `Personal` and
+/// `Public` remain readable for connections stored before that policy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Scope {
@@ -50,18 +52,6 @@ pub struct Connection {
     pub endpoint_id: Option<String>,
     pub secret: Option<SigningSecret>,
     pub started_at: DateTime<Utc>,
-    pub last_synced_at: Option<DateTime<Utc>>,
-    pub last_error: Option<String>,
-}
-
-/// Safe status shown in Settings; credentials and signing secrets are excluded.
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SyncStatus {
-    pub enabled: bool,
-    pub connected: bool,
-    pub scope: Option<Scope>,
-    pub started_at: Option<DateTime<Utc>>,
     pub last_synced_at: Option<DateTime<Utc>>,
     pub last_error: Option<String>,
 }
@@ -131,6 +121,29 @@ pub struct Job {
     pub attempts: i32,
 }
 
+/// Marks a sync stopped because its account went away; a reconnect restarts it
+/// at once, unlike a failed setup, which waits for the retry delay.
+pub const STOPPED: &str = "Sync stopped";
+
+/// Reconciliation view of a connection row.
+pub struct SyncState {
+    pub id: Uuid,
+    pub user_id: MacroUserIdStr<'static>,
+    pub account_id: String,
+    pub scope: Scope,
+    pub enabled: bool,
+    pub has_endpoint: bool,
+    pub started_at: DateTime<Utc>,
+    pub last_error: Option<String>,
+}
+
+/// Outcome of registering a webhook with one scope.
+pub enum Registration {
+    Registered(Webhook),
+    /// Granola rejected the scope for this kind of key; try the next one.
+    ScopeRejected,
+}
+
 /// Registration response; deliberately not Debug.
 pub struct Webhook {
     pub id: String,
@@ -147,9 +160,7 @@ pub struct Delivery<'a> {
 
 #[derive(Debug, thiserror::Error)]
 pub enum SyncError {
-    #[error("Connect an enabled Granola account first")]
-    NotConnected,
-    #[error("Sync setup is already running; try again shortly")]
+    #[error("Sync setup is already running")]
     Conflict,
     #[error("Invalid webhook signature or payload")]
     InvalidDelivery,

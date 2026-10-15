@@ -12,7 +12,6 @@ base64.workspace = true
 call = { path = "../call", default-features = false, features = ["ports"] }
 chrono.workspace = true
 hmac.workspace = true
-macro_authorization = { path = "../macro_authorization", default-features = false, features = ["axum"] }
 macro_user_id = { path = "../macro_user_id" }
 macro_uuid = { path = "../macro_uuid" }
 pipedream_mcp = { path = "../pipedream_mcp" }

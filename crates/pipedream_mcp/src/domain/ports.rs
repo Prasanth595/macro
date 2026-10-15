@@ -35,6 +35,15 @@ pub trait ApiProxy: Send + Sync {
     ) -> impl Future<Output = anyhow::Result<ProxyResponse>> + Send;
 }
 
+/// Cross-user lookup for background integrations that follow a connected app.
+pub trait AppConnections: Send + Sync + 'static {
+    /// Every user's enabled connection to `app_slug`.
+    fn list_enabled_for_app(
+        &self,
+        app_slug: &str,
+    ) -> impl Future<Output = anyhow::Result<Vec<PipedreamConnection>>> + Send;
+}
+
 /// Port for persisting Pipedream-connected apps, keyed by user and app slug.
 pub trait ConnectionStore: Send + Sync + 'static {
     /// Error type for store operations.

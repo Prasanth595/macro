@@ -8,7 +8,7 @@ use call::domain::{imports::ImportedCall, records::*};
 use chrono::{DateTime, Utc};
 use pipedream_mcp::domain::{
     models::PipedreamConnection,
-    ports::{ApiProxy, ProxyMethod},
+    ports::{ApiProxy, ProxyMethod, ProxyResponse},
 };
 use rootcause::prelude::IntoRootcause;
 use serde::Deserialize;
@@ -18,13 +18,13 @@ use std::{collections::HashSet, sync::Arc};
 pub struct GranolaApi<P>(pub Arc<P>);
 
 impl<P: ApiProxy> GranolaApi<P> {
-    async fn request(
+    async fn send(
         &self,
         connection: &Connection,
         method: ProxyMethod,
         path: &str,
         body: Option<Value>,
-    ) -> Result<Option<Value>> {
+    ) -> Result<ProxyResponse> {
         let account = PipedreamConnection {
             user_id: connection.user_id.clone(),
             app_slug: "granola".into(),
@@ -32,8 +32,7 @@ impl<P: ApiProxy> GranolaApi<P> {
             account_id: connection.account_id.clone(),
             enabled: true,
         };
-        let response = self
-            .0
+        self.0
             .proxy(
                 &account,
                 method,
@@ -41,42 +40,99 @@ impl<P: ApiProxy> GranolaApi<P> {
                 body,
             )
             .await
-            .into_rootcause()?;
-        match response.status {
-            200..=299 => Ok(Some(response.body)),
-            404 => Ok(None),
-            status => Err(rootcause::report!("Granola API returned HTTP {status}")),
-        }
+            .into_rootcause()
     }
+
+    async fn request(
+        &self,
+        connection: &Connection,
+        method: ProxyMethod,
+        path: &str,
+        body: Option<Value>,
+    ) -> Result<Option<Value>> {
+        let response = self.send(connection, method, path, body).await?;
+        checked(response)
+    }
+}
+
+fn checked(response: ProxyResponse) -> Result<Option<Value>> {
+    match response.status {
+        200..=299 => Ok(Some(response.body)),
+        404 => Ok(None),
+        status => Err(rootcause::report!(
+            "Granola API returned HTTP {status}: {}",
+            error_reason(&response.body)
+        )),
+    }
+}
+
+/// Granola reports a key-type mismatch as a validation error on `scopes`.
+fn scope_rejected(body: &Value) -> bool {
+    body["code"] == "VALIDATION_ERROR"
+        && body["details"]
+            .as_array()
+            .is_some_and(|details| details.iter().any(|d| d["field"] == "scopes"))
+}
+
+/// Granola error bodies carry a code and field issues, never credentials;
+/// only those fields are surfaced so success payloads cannot leak into logs.
+fn error_reason(body: &Value) -> String {
+    let issues: Vec<String> = body["details"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|d| {
+            Some(format!(
+                "{}: {}",
+                d["field"].as_str()?,
+                d["issue"].as_str()?
+            ))
+        })
+        .collect();
+    format!(
+        "{} {}",
+        body["code"].as_str().unwrap_or("unknown error"),
+        issues.join("; ")
+    )
+    .trim_end()
+    .to_string()
 }
 
 #[async_trait]
 impl<P: ApiProxy> Granola for GranolaApi<P> {
-    async fn register(&self, connection: &Connection, url: &str) -> Result<Webhook> {
-        let body = self
-            .request(
+    async fn register(
+        &self,
+        connection: &Connection,
+        url: &str,
+        scope: Scope,
+    ) -> Result<Registration> {
+        let response = self
+            .send(
                 connection,
                 ProxyMethod::Post,
                 "/webhook-endpoints",
                 Some(json!({
-                    "url": url, "scopes": connection.scope.scopes(),
+                    "url": url, "scopes": scope.scopes(),
                     "events": ["note.generated", "note.edited", "note.access_granted"]
                 })),
             )
-            .await?
-            .ok_or_else(|| {
-                rootcause::report!("Granola webhooks are unavailable for this account")
-            })?;
+            .await?;
+        if response.status == 400 && scope_rejected(&response.body) {
+            return Ok(Registration::ScopeRejected);
+        }
+        let body = checked(response)?.ok_or_else(|| {
+            rootcause::report!("Granola webhooks are unavailable for this account")
+        })?;
         #[derive(Deserialize)]
-        struct Registration {
+        struct Created {
             id: String,
             signing_secret: String,
         }
-        let result: Registration = serde_json::from_value(body)?;
-        Ok(Webhook {
+        let result: Created = serde_json::from_value(body)?;
+        Ok(Registration::Registered(Webhook {
             id: result.id,
             secret: SigningSecret(result.signing_secret),
-        })
+        }))
     }
     async fn unregister(&self, connection: &Connection) -> Result<()> {
         if let Some(id) = &connection.endpoint_id {
