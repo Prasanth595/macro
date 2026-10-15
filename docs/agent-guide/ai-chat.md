@@ -425,7 +425,7 @@ the shimmer.
   with the repository bar below the input on desktop and above it on mobile.
   The plus attachment button stays at the far left: before the
   text in the compact row, and on the bottom control row when expanded. The editor sits above the controls, with attachments
-  on the left and the agent/model and Send on the right. A full-width inset bar holds Chat/Code in both modes, with rounded outer corners
+  on the left and the agent/model and Send on the right. An inset bar, 8 px narrower on each side than the input, holds Chat/Code in both modes, with rounded outer corners
   and a subtle border, with a darker surface in dark mode.
   Selecting Chat hides the repository controls and keeps the mode switch in
   the inset bar, without remounting the editor or losing the draft. Reduced-motion
