@@ -2,10 +2,15 @@ import { useQuickAccessEntities } from '@property/editors/selectors/entityUtils'
 import { PropertyEntitySelector } from '@property/editors/selectors/PropertyEntitySelector';
 import { Suspense } from 'solid-js';
 import { match } from 'ts-pattern';
+import {
+  callEventScopeLabel,
+  type RoutineEventName,
+} from './core/routine-triggers';
 
 type ScopeProps = {
   kind: 'CHANNEL' | 'DOCUMENT' | 'TASK' | 'THREAD' | 'CALL_RECORD';
   ids?: string[];
+  events?: readonly RoutineEventName[];
 };
 
 function entityLabel(kind: ScopeProps['kind']) {
@@ -24,7 +29,7 @@ export function RoutineEventScopeLabel(props: ScopeProps) {
     const singular = entityLabel(props.kind);
     if (props.kind === 'THREAD' && props.ids === undefined) return 'Your inbox';
     if (props.kind === 'CALL_RECORD' && props.ids === undefined)
-      return 'Calls you join';
+      return callEventScopeLabel(props.events ?? ['call.ended']);
     if (props.ids === undefined) return `Any ${singular}`;
     if (!props.ids.length) return `Choose ${singular}s`;
     if (props.ids.length > 1) return `${props.ids.length} ${singular}s`;

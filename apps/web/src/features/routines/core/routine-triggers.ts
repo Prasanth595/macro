@@ -34,6 +34,7 @@ export const routineTriggerSchema = z.discriminatedUnion('kind', [
           'channel.mentioned',
           'channel.message_patched',
           'channel.message_attachment_created',
+          'call.started',
           'call.ended',
         ])
       )
@@ -125,6 +126,13 @@ export const routineEvents: {
       'New mail arrives in your inbox. Excludes spam, trash, drafts and historical imports.',
   },
   {
+    value: 'call.started',
+    label: 'Call started',
+    group: 'Calls',
+    description:
+      'A call you start begins. The routine gets the call and who has joined so far.',
+  },
+  {
     value: 'call.ended',
     label: 'Call ended',
     group: 'Calls',
@@ -169,8 +177,18 @@ export function isGlobalEvent(events: readonly RoutineEventName[]) {
     (event) =>
       event.endsWith('.created') ||
       event === 'email.message_received' ||
+      event === 'call.started' ||
       event === 'call.ended'
   );
+}
+
+/** Chip label for a call trigger's global scope. */
+export function callEventScopeLabel(events: readonly RoutineEventName[]) {
+  const started = events.includes('call.started');
+  const ended = events.includes('call.ended');
+  if (started && ended) return 'Your calls';
+  if (started) return 'Calls you start';
+  return 'Calls you join';
 }
 
 export function eventTriggerLabel(trigger: EventTriggerDraft) {
