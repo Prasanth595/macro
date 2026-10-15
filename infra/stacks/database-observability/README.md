@@ -54,7 +54,7 @@ separately before expanding it.
 5. Build the pinned collector image:
    `nix build ./infra/stacks/observability#database-collector --out-link result-database-collector`.
    Publish with
-   `python3 infra/stacks/observability/nixos/publish-image.py result-database-collector VIRGINIA_PRIVATE_IMAGE_BUCKET --region us-east-1 --name-prefix macro-database-collector`.
+   `python3 infra/stacks/observability/nixos/publish-image.py result-database-collector macro-observability-images-569036502058-us-east-1 --region us-east-1 --name-prefix macro-database-collector --role macro-observability-vmimport`.
    The image is fixed; EC2 user data carries validated nonsecret settings only.
    AMI registration inherits the imported snapshot's minimum root volume size;
    the collector stack expands it to 12 GiB at launch.
