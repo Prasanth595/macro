@@ -1351,8 +1351,10 @@ through an info tooltip rather than a separate large header. Booking links uses 
 shared ViewShell search bar below the topbar, with **New** on the same
 row at the far right. Link rows use the full pane width with the same rounded
 list-hover treatment as Drive and Email: acceptance switch, link icon, name,
-description, then larger task-style URL-path and duration pills with matching
-surfaces and globe/timer icons. Row content has no hover tooltips. Paused links
+description, then larger task-style URL-path, duration, and scheduling-type pills
+with matching surfaces. Scheduling type reflects the saved link mode: Individual,
+Collective, or Round robin, with a corresponding icon. Pills wrap on narrow panes.
+Row content has no hover tooltips. Paused links
 appear dimmed but remain editable. The URL pill offers Copy link and Open in new
 tab. The More and right-click context menus share Copy link, Preview, Edit,
 Duplicate, and Delete, with editing actions available to every team member.
@@ -1435,20 +1437,27 @@ Booking status filters use the same segmented control as the CRM sidebar.
 In Availability, the main topbar reads **Availability**; its info tooltip explains
 schedule hours instead of repeating a description below the heading. **New schedule**
 opens **Create schedule**. Selecting a schedule opens **Edit schedule**. Both views
-put **Back to availability** in the topbar. The calendar sits on the left, with a
-**Schedule details** panel on the right for the schedule name, time zone, selected
-range details, editing fields, and stamp review. Narrow panes stack the panel below
-the calendar; the content scrolls without moving **Save schedule** and **Cancel**
-in the separate footer. Back and Cancel discard the schedule draft.
-The calendar is month-only, with six Sunday–Saturday rows. Its week rows fit the
-available height instead of expanding with the column width, so the entire month
-stays visible in normal-height editors. Its rounded frame clips the grid at the
-corners; very short views can scroll, and narrow panes still scroll horizontally
-without stretching the page. Previous/next arrows move one month. The month picker
-jumps directly to another month or **Today**. The toolbar's **12h / 24h** display
-toggle initially follows the browser/system locale, using the same default as
-Calendar. The schedule-wide time zone lives in the details panel. The display
-toggle changes calendar, details, and template times without changing
+put **Back to availability** in the topbar, with extra space above the two sections.
+Unboxed **Schedule details** sit on the left, with general controls beside the
+availability inputs on wider panes. The schedule name is a larger, transparent,
+directly editable title with its icon vertically centered. Larger subheadings
+match the field icons in a narrow leading column, like the calendar event details
+popover. **Add availability** follows the selection hint or active editor in the
+hours-editor column and uses the shared Button component; **Clear availability**
+stays with general controls.
+The calendar sits on the right, with **Date overrides** below it. Narrow panes
+stack general controls, the hours editor, and the calendar. Content scrolls
+without moving **Save schedule** and **Cancel** in the separate footer. Back and
+Cancel discard the schedule draft.
+The calendar is month-only, with six Sunday–Saturday rows in a compact section
+capped at 48rem wide. The day grid keeps a 7:6 aspect ratio so its cells stay square
+rather than stretching to fill the editor. Its rounded frame clips the grid at the
+corners; very short views can scroll, and narrow panes scroll horizontally without
+stretching the page. Previous/next arrows move one month. The month picker
+jumps directly to another month or **Today**. The **12h / 24h** display toggle in
+general details initially follows the browser/system locale, using the same
+default as Calendar. The schedule-wide time zone lives in general details. The
+display toggle changes calendar, details, and template times without changing
 stored hours. Bars show only their time range or **All day**: the key and solid
 accent/gray colors distinguish Available and Unavailable. Hours in neither set are
 Unset: blank, non-bookable, and conflict-free. Date overrides replace both interval
@@ -1456,51 +1465,73 @@ sets, including explicitly blank dates; they never fall back to weekly hours.
 The calendar highlights the current date in the schedule time zone without a
 Today label and exposes it as `aria-current="date"`.
 
-Click an empty date, or focus it and press Enter, to open the form in the details panel.
-Drag across dates, including across rows, to select an inclusive date range and
-review one time template before applying it to those dates. The panel describes
-selected dates as readable ranges, for example **October 23 to October 25**, rather
-than a raw date list. Separate ranges stay separate, including selections spanning
-months or years. A live time bar spans adjacent selected dates, wrapping at week
-boundaries and stopping at unselected gaps. Available previews use accent;
-Unavailable previews use gray. Conflicting
-preview segments retain a failure-colored outline. Pending time edits update the
-spanning bar; stamp dragging keeps previously selected dates visible. Escape and
-Cancel remove the preview without changing hours. The empty range section shows
-only a full-width **Add availability** button. Selecting dates or opening the
-button reveals **Available / Unavailable** pills in the range editor. Available
-adds bookable hours; Unavailable blocks time. The editor uses those pills
-to change the selected item's type, followed by a Date field with **All day** to
-its right. Exact start and end times appear only when All day is unchecked. **Add to schedule** uses accent.
-Single-date additions of either type can **Repeat every week**; multi-date changes
-are date-only. Select a saved bar for details, then Edit, **Clear range**, or stamp its hours.
-Icon actions have tooltips, and Edit stays inside the same details panel.
+Click a date, or focus it and press Enter or Space, to edit its hours immediately.
+Keyboard selection moves focus into the hours editor; dismissal restores the date.
+Drag across dates, including across rows, to edit an inclusive date range. The
+**Edit hours** section opens without a separate inspection step. Matching values
+prefill one list of time ranges. Different values leave that list empty without a
+Mixed hours banner or an assumed time range. For a multi-date selection,
+**Dates to edit** switches between all selected dates and an individual date while
+the fields are unchanged. Date ranges use natural language, including selections
+spanning months or years. A single **Add hours** action adds a range; each row has
+its own **Available / Unavailable** choice, exact times, **All day**, and remove
+action. Changing a row's type or times keeps its position while editing. Turning
+**All day** off restores its timed values. Removing a row moves focus to a remaining
+row's selected type, or **Add hours** when no rows remain. Apply is explicit.
+Opening the editor does not change hours or create calendar previews.
+Applying replaces both complete interval sets on the target dates, including blank
+hours, using date overrides; weekly rules and other dates remain unchanged.
+Validation rejects invalid, overlapping, or excessive ranges before changing any
+selected date. Apply closes the selection. Cancel, Close, and Escape dismiss it
+without changing hours. Changed fields protect the draft from a new selection or
+month navigation; reverting the fields unlocks selection again. **Clear selected
+hours** clears both full-day interval sets on the dates being edited, leaving
+explicit blank overrides.
+
+The hours-editor column offers **Add availability** for explicitly adding a
+single range.
+Its **Available / Unavailable** pills choose bookable hours or time off.
+Single-date forms retain the Date field and can **Repeat every week**. **All day**
+hides the exact times. Selecting a saved bar opens its editor immediately without
+changing its Available or Unavailable state. **Clear range**, **Use weekly hours**,
+and **Apply to other days** remain available while its fields are unchanged.
+Icon actions have tooltips, and editing stays inside the same details panel.
 **Apply to other days** starts stamp mode: click or drag dates to build the selection,
-review its highlighted preview, then Apply explicitly. Preview never changes the
-schedule. **Clear selection**, **Exit stamp mode**, and Escape clear pending stamp
+review its highlighted preview, then Apply explicitly. In stamp mode, a live time
+bar spans adjacent selected dates, wraps at week boundaries, and stops at unselected
+gaps. Available previews use accent, Unavailable previews use gray, and conflicts
+have a failure-colored outline. Preview never changes the schedule. **Clear selection**,
+**Exit stamp mode**, and Escape clear pending stamp
 selection without applying it. Template edits and selection changes invalidate
 previous conflict approval. Apply validates every selected destination before
 changing any destination, including mixed selections containing already-off days.
 Date drawing auto-scrolls at viewport edges and continues while the pointer remains
-outside the window. Release, Escape, pointer cancellation, and leaving the editor
-stop auto-scrolling. Enter or Space toggles a focused date in stamp mode.
+outside the window. On narrow panes, vertical dragging scrolls the outer content
+to reach off-screen dates. Release, Escape, pointer cancellation, and leaving the
+editor stop auto-scrolling. Enter or Space toggles a focused date in stamp mode.
 
-**Add availability** opens the panel form without selecting dates. The form
-stays open until Apply, Cancel, Close, Escape, or month navigation. Clicking outside
-it does not dismiss pending work. If no form fields have changed, selecting another
-date, saved bar, weekday, or date override switches the panel directly. Changing a
+**Add availability** inserts a new range form beneath the **Availability** heading
+and selection hint instead of switching to **Edit availability**. Adding a range
+keeps the section in place; successful Apply returns to its empty state so another
+range can be added. The form stays open until Apply, Cancel, Escape, or month
+navigation. Clicking outside it does not dismiss pending work. If no form fields
+have changed, selecting another date, saved bar, weekday, or date override switches
+the panel directly. Changing a
 field locks selection until Apply or Cancel; restoring all original field values
-unlocks selection again. Escape closes range details and restores focus to the
-selected day.
+unlocks selection again. Cancel, Escape, and successful addition restore focus to
+**Add availability**; closing a saved range's details restores focus to its day.
 Weekday header buttons open recurring hours in the details panel instead of toggling
 them. **Available / Unavailable / Unset** select bookable hours, all-day time off,
 or a blank day. Weekly changes leave date overrides unchanged. **Clear range** and
-**Clear these hours** (trash icon) clear both types within the selected interval without inventing
-time off or removing a date override.
+**Clear selected hours** inside the single-range editor clear both types only within
+that time interval, preserving surrounding hours without inventing time off or
+removing a date override.
 Available additions extend effective hours and preserve sibling ranges. Matching
-ranges merge automatically. Opposite-type changes show a compact overlap notice
-with intersecting hours: choose **Cancel** to keep existing hours, or **Replace hours**
-to approve the selected type. The info icon explains how the selected hours apply.
+ranges merge automatically. Opposite-type changes show a sentence describing the
+overlap, listing each distinct time range once rather than repeating it for every
+date. Choose **Cancel** to keep existing hours, or **Replace hours** to approve the
+selected type. Stamp review uses the same summary and still requires **Replace
+conflicting hours** approval. The info icon explains how the selected hours apply.
 Converting an Available range to a shorter Unavailable range preserves the available
 hours on either side, both in the preview and after approval. Partial time-off edits
 replace the selected range; converting time off to Available excludes that range from
@@ -1509,21 +1540,25 @@ them available requires approval.
 Its details offer **Make available** or **Use weekly hours**. Custom available gaps
 do not invent time-off bars.
 **Use weekly hours** removes the override. The panel's **Date overrides** section
-starts collapsed and displays its count. Expand it to jump to an override's month
-and view its details, or remove it. During stamp mode, jumping keeps the current
-template; removing an override updates conflicts and invalidates stale approval.
+starts collapsed and displays its count. Override entries and range details spell
+out the weekday, month, day, and year instead of showing numeric dates. Expand the
+section to jump to an override's month and view its details, or remove it. During
+stamp mode, jumping keeps the current template; removing an override updates
+conflicts and invalidates stale approval.
 Override actions wait until changed range fields are applied or canceled.
 Schedule-card Details also offers **Copy schedule**, which opens
 a new draft without changing the original. The time zone belongs to the schedule,
 not each bar; use another schedule for booking links in another time zone.
 Invalid or overnight ranges, excessive ranges or overrides, invalid dates, and stale
 edit origins are rejected. All changes remain drafts until **Save schedule**.
-**Clear availability** clears both weekly interval sets, date overrides, and pending
-range/stamp work from the schedule draft. The calendar clears
-immediately and new ranges do not conflict with the removed hours. Nothing changes
+**Clear availability**, in the general controls, clears
+both weekly interval sets, date overrides, and pending range/stamp work from the
+schedule draft. The calendar clears immediately and new ranges do not conflict
+with the removed hours. Nothing changes
 in the saved schedule until **Save schedule**; Back or Cancel restores the original
 schedule. Clearing keeps the schedule name and time zone.
-Apply or cancel a range edit or stamp selection before saving; disabled Save never
+Apply or cancel an hours edit, range edit, or stamp selection before saving; plain
+date selection does not block Save. Disabled Save never
 dismisses pending work. Leave the editor to discard verification drafts instead of
 modifying hosted data.
 Ownership badges identify Personal or Team · team name on links and availability.
@@ -1573,7 +1608,8 @@ Only the switch appears below the heading; its accessible label is Enabled.
 Pausing or reactivating changes only the draft until Save changes. The control disables while
 saving. New links retain their active default; duplicates retain their paused default.
 Use automatic confirmation updates a legacy link's draft without saving or leaving
-Review. Reset team hosts changes only the host draft and stays on Location.
+Review. Reset team settings restores the default hosts and scheduling type in the
+draft and stays on Location & availability.
 The footer primary action is Next until Review, then Create link (Save changes
 for existing links), with a plus icon for Create link. Save draft is not available.
 Cancel, Escape, and clicking outside request closing. If saved values differ from
@@ -1622,7 +1658,20 @@ schedule picker without an extra Availability schedule heading. The selected sch
 weekly hours and timezone appear directly beneath the picker. This summary does not show
 live calendar free/busy or date overrides. First-time links use the default draft schedule
 until saved. Calendar busy-time exclusions appear in the help popover beside
-Availability. Team-host settings remain in the location step.
+Availability. Team links group Scheduling type and Team hosts under Team scheduling
+in Location & availability. Collective and Round robin use pill selectors above
+Team hosts. The header's icon-only Reset team
+settings action restores the default mode and hosts, and is disabled at those defaults.
+A warning icon to the right of Team hosts opens the connected-calendar requirement.
+Collective requires all selected hosts; Round robin assigns one available host.
+Team hosts uses a compact searchable, virtualized multi-select that opens downward
+outside the dialog so its bounds do not clip the options, with avatars and selected
+checkboxes. Selected hosts appear first when the dropdown opens; toggling hosts
+keeps the current row order. Search matches names and emails; selections stay in
+the draft until saved. Escape closes only the host dropdown and restores its
+trigger focus.
+Selected former members remain visible for removal, and validation requires at
+least one current host. Personal links remain Individual and omit team controls.
 New links show two optional question fields immediately; existing questions keep
 their values and Required options. Blank or whitespace-only rows never block
 navigation and are omitted from Review and saved configuration. The name/email
@@ -1709,13 +1758,28 @@ Team membership remains in team settings. Team-host selection and collective
 or round-robin assignment live in the link dialog. Booking-page identity is
 configured in the Scheduling workspace's Booking page tab. `Bookings` uses the
 shared view search bar and redesigned meeting cards grouped by date in the selected
-display time zone. Cards span the pane and keep weekday, date, and year in a left-hand
-column alongside the meeting time and duration. Borderless status tabs show Upcoming,
-Unconfirmed, Past, Cancelled, and Needs attention when calendar synchronization needs help. Filter by booking link or change the display
-time zone beside the tabs. The main card column shows the meeting/status and guest,
-with host/location metadata below. Status and duration reuse the same property
-pills as Booking links. Join meeting or Confirm appears on the card when permitted;
-other actions stay in More and the context menu. Cancelled cards are dimmed. Click a
+display time zone. Cards span the pane. Their left column stacks status above
+weekday, date, and year. The right-hand details group includes a clock icon with
+the time range, a timer icon with duration, and host/location metadata. Metadata
+items wrap as whole groups before their text wraps; long values wrap only when
+wider than the available row.
+Time ranges keep each clock value intact and wrap only between endpoints on narrow
+cards. A shared timezone stays beside the range when space allows; overnight bookings
+show an explicit end date, and daylight-saving changes retain both timezone labels. Borderless
+status tabs show Upcoming, Unconfirmed, Past, Cancelled, and Needs attention when
+calendar synchronization needs help. The booking-link filter, display-timezone
+selector, and date range sit together beside the tabs, using shared outlined
+control styling. The main card column gives the larger title a text-align-left
+icon, followed by the guest name with a person icon and an icon-free email aligned
+under the name. The name and email have a compact 4px gap; other detail groups use
+consistent 16px gaps, independent of the date column's height. Card status uses
+a colored dot and label without a pill outline or padding;
+details keep the property-style badge. More sits immediately to the left of
+Join meeting or Confirm, aligned with the metadata row on wide cards. Actions
+retain their full size; narrow cards place them on one row below the metadata.
+More matches the adjacent action's height, including on touch screens. Other
+actions stay in More and the context menu.
+Cancelled cards are dimmed. Click a
 card's main content to open Booking details, including host names,
 location, the guest's time zone, and question responses. Status sits beside the meeting
 title. Permitted footer actions stay grouped in Cancel/Decline, Reschedule, and
