@@ -226,8 +226,10 @@ Run from the repository root with local PostgreSQL and `SQLX_OFFLINE` unset:
 
 ```bash
 cargo test -p kafka_util -p macro_entrypoint -p notification -p notification_retention_handler -- --test-threads=8
+# Only if notification SQL or schema changed:
 nix develop --command just prepare_db
 just check
+just clippy
 \cd infra
 bun test stacks/notification-service/retention.test.ts
 bun test stacks/monitoring/monitors/notification-retention.test.ts
@@ -238,3 +240,8 @@ Tests cover cutoff boundaries, parent-vs-recipient age, all states, cascades,
 read-only previews, deterministic bounded ordering, retry behavior, skipped locks,
 transaction advisory locking, timeout rollback, non-UTC sessions, byte-bounded
 multi-recipient delete events, invocation caps, and fail-closed event parsing.
+Observability tests also cover warm-invocation trace flushing and exporter
+failures, a real librdkafka mock broker without offset commits, stale/partial
+consumer statistics, broker disconnects, reporter cancellation, and the Pulumi
+collector/secret/monitor configuration. Hosted Datadog query validation and
+trace delivery still require an authenticated preview and approved deployment.

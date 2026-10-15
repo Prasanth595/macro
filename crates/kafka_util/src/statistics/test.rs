@@ -77,7 +77,13 @@ async fn ungrouped_consumer_reports_application_offsets_without_commits() {
         };
         if partition.app_offset == 1 && partition.hi_offset >= 1 {
             if let Some(sender) = sender.lock().expect("sender mutex").take() {
-                sender.send(partition.clone()).expect("live receiver");
+                let broker_connected = stats
+                    .brokers
+                    .values()
+                    .any(|broker| broker.nodeid == partition.broker && broker.state == "UP");
+                sender
+                    .send((partition.clone(), broker_connected))
+                    .expect("live receiver");
             }
         }
     });
@@ -115,16 +121,25 @@ async fn ungrouped_consumer_reports_application_offsets_without_commits() {
     );
 
     // Polling services callbacks even while no records are being published.
-    let sample = tokio::time::timeout(std::time::Duration::from_secs(5), async {
-        tokio::select! {
-            sample = receive => sample.expect("statistics callback"),
-            _ = consumer.recv() => panic!("no second record was published"),
-        }
-    })
-    .await
-    .expect("statistics deadline");
+    let (sample, broker_connected) =
+        tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            tokio::select! {
+                sample = receive => sample.expect("statistics callback"),
+                _ = consumer.recv() => panic!("no second record was published"),
+            }
+        })
+        .await
+        .expect("statistics deadline");
     assert_eq!(sample.app_offset, 1);
     assert_eq!(sample.hi_offset, 1);
+    assert!(
+        sample.desired,
+        "manual assignments must appear in health snapshots"
+    );
+    assert!(
+        broker_connected,
+        "the snapshot must identify its active broker"
+    );
     assert!(
         sample.committed_offset < 0,
         "no durable offset was committed"
