@@ -26,10 +26,23 @@ function DesktopHomepageOpenSource(props: {
       scroller = scroller.parentElement;
     }
     onCleanup(animateDemoEntrance(section, scroller));
-    // The cream homepage preview carries its palette into the sample workspace.
-    if (document.documentElement.dataset.palette === 'cream') {
-      frame.src = '/demo?embedded=true&theme=cream';
-    }
+    // Load the workspace as it nears the viewport. Not loading="lazy": WebKit
+    // ignores history.replaceState in lazy frames, so the router throws on boot
+    // and Safari is left with the unstyled prerendered page.
+    const nearby = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        nearby.disconnect();
+        // The cream homepage preview carries its palette into the workspace.
+        frame.src =
+          document.documentElement.dataset.palette === 'cream'
+            ? '/demo?embedded=true&theme=cream'
+            : '/demo?embedded=true';
+      },
+      { rootMargin: '1250px 0px' }
+    );
+    nearby.observe(section);
+    onCleanup(() => nearby.disconnect());
     if (!props.showSidebarBreakdown) return;
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     const card = connection.querySelector<HTMLElement>(
@@ -109,10 +122,9 @@ function DesktopHomepageOpenSource(props: {
                 </Show>
                 <iframe
                   ref={frame}
-                  src="/demo?embedded=true"
-                  loading="lazy"
                   title="Embedded Macro sample workspace"
-                  onLoad={() => setLoaded(true)}
+                  // Ignore the initial about:blank load before src is set.
+                  onLoad={() => frame.src && setLoaded(true)}
                 />
               </div>
             </div>
