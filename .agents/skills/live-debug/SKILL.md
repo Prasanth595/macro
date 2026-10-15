@@ -154,8 +154,8 @@ request's `traceparent`) is `docs/agent-guide/`.
 
 ## Write tracing code that is debuggable
 
-The conventions are the always-on
-[observability rule](../../rules/observability.md) and CS-22 in
+How to add spans is the `instrumentation` skill; the conventions are the
+always-on [observability rule](../../rules/observability.md) and CS-22 in
 [`rust/code.md`](../../rules/rust/code.md). Use the queries above to verify new
 instrumentation live: run the code path and confirm the span shows up in Tempo,
 connected to its parent trace, with the fields you expect. Unverified

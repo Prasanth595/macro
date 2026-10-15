@@ -9,6 +9,10 @@ Every new or changed flow must be debuggable from its trace alone: one trace fro
 the user's action through every service it touches, with the timing and IDs needed
 to answer "what happened to this request and where did the time go". Reviewers
 treat missing instrumentation on a new flow as a defect, like a missing test.
+New flows and hot paths are instrumented in the same change, frontend and
+backend. The document open lifecycle (`doc.open`) and agent editing
+(`edit.session`) are the reference examples; the `instrumentation` skill walks
+through them and the per-runtime APIs.
 
 ## Correlate across hops
 
