@@ -33,6 +33,7 @@ function ContactRow(props: {
       tabIndex={0}
       onClick={props.onOpen}
       onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
         if (event.key !== 'Enter' && event.key !== ' ') return;
         event.preventDefault();
         event.currentTarget.click();

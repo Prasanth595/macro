@@ -10,13 +10,22 @@ vi.mock('@entity', () => ({
     entity: { name: string };
     icon: JSX.Element;
     titleTrailing: JSX.Element;
-    onClick: JSX.EventHandler<HTMLButtonElement, MouseEvent>;
+    onClick: JSX.EventHandler<HTMLDivElement, MouseEvent>;
+    onKeyDown: JSX.EventHandler<HTMLDivElement, KeyboardEvent>;
   }) => (
-    <button type="button" onClick={props.onClick}>
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={props.onClick}
+      onKeyDown={props.onKeyDown}
+    >
       {props.icon}
       {props.entity.name}
       {props.titleTrailing}
-    </button>
+      <button type="button" onClick={(event) => event.stopPropagation()}>
+        Select contact
+      </button>
+    </div>
   ),
   ListEntityMetadataQueryProvider: (props: ParentProps) => props.children,
   ListLayoutProvider: (props: ParentProps) => props.children,
@@ -99,4 +108,30 @@ it('filters by email and keeps the search available with no results', () => {
   fireEvent.input(search, { target: { value: 'missing' } });
   screen.getByText('No matching contacts.');
   expect(screen.getByRole('textbox', { name: 'Search team' })).toBe(search);
+});
+
+it('opens the focused row with the keyboard without intercepting nested controls', () => {
+  const open = vi.fn();
+  render(() => (
+    <CompanyContactsSection
+      company={{ id: 'co' } as CrmCompanyEntity}
+      contacts={contacts}
+      onOpenContact={open}
+    />
+  ));
+  const row = screen.getByRole('button', { name: /Avery Chen/ });
+  const selection = screen.getAllByRole('button', {
+    name: 'Select contact',
+  })[0];
+
+  for (const key of ['Enter', ' ']) {
+    expect(fireEvent.keyDown(selection, { key })).toBe(true);
+    expect(open).not.toHaveBeenCalled();
+  }
+
+  for (const key of ['Enter', ' ']) {
+    expect(fireEvent.keyDown(row, { key })).toBe(false);
+  }
+  expect(open).toHaveBeenCalledTimes(2);
+  expect(open).toHaveBeenLastCalledWith(contacts[0]);
 });
