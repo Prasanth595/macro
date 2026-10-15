@@ -72,12 +72,14 @@ export const ListNav = (props: ListNavProps) => {
     analytics.track('sidebar_click', { view: props.item.id });
 
     const split = globalSplitManager()?.activeSplit();
-    if (isActive() && !event.shiftKey) {
+    const selected = isActive();
+    if (!event.shiftKey) {
       const pane = router.panes().find((pane) => pane.toString() === split?.id);
-      // Cancelling keeps the entry identity, filters, nested detail, and
-      // split-owned state intact. An idle repeat remains a no-op.
+      // A later ordinary press also supersedes a pending Shift-open from this
+      // pane. Cancelling preserves the current entry and split-owned state.
       if (pane) void router.cancelNavigation(pane);
-    } else {
+    }
+    if (!selected || event.shiftKey) {
       navigateToSidebarView({
         viewId: props.item.id,
         params: props.item.params,

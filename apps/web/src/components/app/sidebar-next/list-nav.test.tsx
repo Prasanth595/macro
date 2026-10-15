@@ -120,10 +120,9 @@ function setup(initial = '/home', agentsPreload?: () => Promise<void>) {
           : root?.id;
       return id ? { type: 'component', id } : undefined;
     };
-    mocks.navigate.mockImplementation(({ viewId }: { viewId: string }) => {
-      void router.navigatePane(
-        focusedPane(),
-        {
+    mocks.navigate.mockImplementation(
+      async ({ viewId, shiftKey }: { viewId: string; shiftKey: boolean }) => {
+        const target = {
           location: {
             route: {
               matches: [
@@ -132,10 +131,20 @@ function setup(initial = '/home', agentsPreload?: () => Promise<void>) {
               ],
             },
           },
-        },
-        { allowDuplicate: true }
-      );
-    });
+        } satisfies Parameters<typeof router.navigatePane>[1];
+        const result = await (shiftKey
+          ? router.open(
+              target,
+              { newPane: true, source: focusedPane() },
+              { allowDuplicate: true }
+            )
+          : router.navigatePane(focusedPane(), target, {
+              allowDuplicate: true,
+            }));
+        if (shiftKey && result.status === 'committed')
+          setFocusedPane(result.pane);
+      }
+    );
     onCleanup(() => router.dispose());
     return (
       <SplitRouter.Root router={router}>
@@ -211,6 +220,68 @@ describe('ListNav', () => {
     expect(
       router.entry(router.panes()[0]!)?.location.route.matches.at(-1)?.id
     ).toBe('home');
+    expectSelection('Home');
+  });
+
+  it('opens and selects a Shift destination when no later press supersedes it', async () => {
+    const { router, history } = setup();
+    fireEvent.mouseDown(screen.getByRole('button', { name: 'Agents' }), {
+      button: 0,
+      shiftKey: true,
+    });
+    await router.settled();
+
+    expect(router.panes()).toHaveLength(2);
+    expect(history.read().path).toBe('/home/~/agents');
+    expectSelection('Agents');
+  });
+
+  it.each(['Home', 'Calendar'])(
+    'cancels a pending Shift-open when %s is pressed afterward',
+    async (label) => {
+      let finishPreload!: () => void;
+      const preload = new Promise<void>((resolve) => {
+        finishPreload = resolve;
+      });
+      const { router, history } = setup('/home', () => preload);
+      const original = router.panes()[0]!;
+      fireEvent.mouseDown(screen.getByRole('button', { name: 'Agents' }), {
+        button: 0,
+        shiftKey: true,
+      });
+      expect(router.panes()).toEqual([original]);
+      expectSelection('Home');
+
+      press(label);
+      finishPreload();
+      await router.settled();
+
+      expect(router.panes()).toEqual([original]);
+      expect(history.read().path).toBe(
+        label === 'Home' ? '/home' : '/calendar'
+      );
+      expectSelection(label);
+    }
+  );
+
+  it('preserves a pending new pane requested from another split', async () => {
+    let finishPreload!: () => void;
+    const preload = new Promise<void>((resolve) => {
+      finishPreload = resolve;
+    });
+    const { router, history } = setup('/home/~/settings', () => preload);
+    const [first, second] = router.panes();
+    const original = router.entry(first!);
+    const opening = router.open('/agents', { newPane: true, source: second! });
+
+    press('Home');
+    finishPreload();
+    await opening;
+    await router.settled();
+
+    expect(router.panes()).toHaveLength(3);
+    expect(router.entry(first!)).toBe(original);
+    expect(history.read().path).toBe('/home/~/settings/~/agents');
     expectSelection('Home');
   });
 

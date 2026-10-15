@@ -371,6 +371,9 @@ when navigation commits; a pending preload or a refused leave guard does not
 select a destination that is not shown. Pressing the current workspace preserves
 its filters and nested detail; during a pending navigation, the same press
 cancels that navigation without adding a duplicate history step.
+A later ordinary rail press also cancels a new split still preloading from the
+active split's earlier Shift-press. Already-open splits and pending work from
+other splits remain intact.
 Verify rapid app presses, returning to the currently shown app while another app
 loads, split focus changes, closing a split, and split Back/Forward. The last
 requested destination must win, and a later return to an earlier view must not
