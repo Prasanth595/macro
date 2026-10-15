@@ -90,9 +90,12 @@ bumped from the same `main` get the same numbers. So the release stamps each
 uploaded build with a hash of the native code it was built from (in the
 build's TestFlight "What to Test" text), and the checks use it. "Native
 code" is everything under `apps/web/tauri` except what never reaches the iOS
-binary: the `android_*` plugins, `desktop-release.json`, and `.helix/`
-(defined once, in `scripts/ios_native_tree.sh` next to the workflow sources,
-mirrored in `ios-app-store.mjs` and the gate's path filter). The checks:
+binary: anything Android-only by Tauri's naming convention (a path component
+`android`, `android_*`, `android.*` or `*.android.*` — the `android_*`
+plugins, every `android/` directory, `android.rs`, `tauri.android.conf.json`
+and so on), `desktop-release.json`, and `.helix/`. The rule is defined once,
+in `scripts/ios_native_tree.sh` next to the workflow sources, mirrored in
+`ios-app-store.mjs` and the gate's path filter. The checks:
 
 - **Collision check** (release workflow, before building): the
   marketing version must be above the latest App Store release, and a

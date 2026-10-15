@@ -124,12 +124,13 @@ const WITHDRAWABLE_SUBMISSION_STATES = new Set([
 const BOOLEAN_FLAGS = new Set(["require-live", "require-unused-build"]);
 
 /// "The native code": every tracked blob under this directory except what
-/// never reaches the iOS binary (Android-only plugins, the desktop updater
-/// manifest, editor config). Must match `native_tree_hash` in
-/// tooling/xtask/.../workflows/scripts/ios_native_tree.sh and the iOS Native
-/// Check path filter.
+/// never reaches the iOS binary — anything Android-only by Tauri's naming
+/// convention (a path component `android`, `android_*`, `android.*` or
+/// `*.android.*`), the desktop updater manifest, editor config. Must match
+/// `native_tree_hash` in tooling/xtask/.../workflows/scripts/ios_native_tree.sh
+/// and the iOS Native Check path filter.
 const NATIVE_TREE_PATH = "apps/web/tauri";
-const NATIVE_TREE_EXCLUDE = /^(android_[^/]*\/|desktop-release\.json$|\.helix\/)/;
+const NATIVE_TREE_EXCLUDE = /(^|\/)android([_.\/]|$)|\.android\.|^desktop-release\.json$|^\.helix\//;
 const STAMP_RE = /native tree ([0-9a-f]{40})/;
 const STAMP_PR_RE = /for PR #(\d+)/;
 

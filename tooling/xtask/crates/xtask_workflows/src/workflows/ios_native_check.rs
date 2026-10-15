@@ -4,9 +4,11 @@
 //! not merge before that native build is actually downloadable. The gate:
 //!
 //! 1. Detects native changes with a path filter over `apps/web/tauri/**`,
-//!    minus what never reaches the iOS binary (Android-only plugins, the
-//!    desktop updater manifest, editor config) — the same exclusions as the
-//!    native tree hash in `scripts/ios_native_tree.sh`.
+//!    minus what never reaches the iOS binary (anything Android-only by
+//!    name, the desktop updater manifest, editor config) — the same
+//!    exclusions as the native tree hash in `scripts/ios_native_tree.sh`.
+//!    The filter needs dorny's `every` quantifier: with the default `some`
+//!    a negated pattern matches every file outside it, i.e. everything.
 //! 2. Verifies the PR bumped the iOS release numbers (`just ios-bump`):
 //!    marketing version, build number, and `min-native-build.json`.
 //! 3. Asks the App Store Connect API whether exactly that version + build is
@@ -79,12 +81,17 @@ fn paths_filter() -> Step<Use> {
             "d1c1ffe0248fe513906c8e24db8ea791d46f8590",
         ) // v3.0.3
         .id("filter")
+        .add_with(("predicate-quantifier", "every"))
         .add_with((
             "filters",
             indoc::indoc! {"
                 ios_native:
                   - 'apps/web/tauri/**'
-                  - '!apps/web/tauri/android_*/**'
+                  - '!apps/web/tauri/**/android/**'
+                  - '!apps/web/tauri/**/android_*'
+                  - '!apps/web/tauri/**/android_*/**'
+                  - '!apps/web/tauri/**/android.*'
+                  - '!apps/web/tauri/**/*.android.*'
                   - '!apps/web/tauri/desktop-release.json'
                   - '!apps/web/tauri/.helix/**'
             "},
