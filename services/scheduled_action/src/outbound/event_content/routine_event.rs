@@ -226,14 +226,16 @@ fn call_started_snapshot(call_id: Uuid, record: CallRecord) -> Result<CallStarte
     if record.call_id != call_id {
         return Err(mismatch(EventName::CallStarted));
     }
+    let started_by = principal(&record.created_by);
+    let participants = call_participants(&record);
     Ok(CallStartedSnapshot {
         id: record.call_id,
         title: record.custom_name,
         channel_id: record.channel_id,
         channel_name: record.channel_name,
         started_at: record.started_at,
-        started_by: principal(&record.created_by),
-        participants: call_participants(&record),
+        started_by,
+        participants,
     })
 }
 
