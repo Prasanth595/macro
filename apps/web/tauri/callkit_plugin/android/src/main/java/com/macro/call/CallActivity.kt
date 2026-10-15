@@ -244,7 +244,9 @@ class CallActivity : Activity() {
                 Calls.scope.launch { runCatching { Calls.microphone(Calls.muted) }.onSuccess { Calls.error = null; render() }.onFailure { Calls.error = "Could not change microphone"; render() } }
             }, if (Calls.muted) "Unmute" else "Mute")
             control(icon("video", if (Calls.video) "Video off" else "Video on", Calls.video, !Calls.video) {
-                permission(Manifest.permission.CAMERA) { Calls.scope.launch { runCatching { Calls.camera(this@CallActivity, !Calls.video) }.onSuccess { Calls.error = null; render() }.onFailure { Calls.error = "Could not change camera"; render() } } }
+                val cameraRoom = media ?: return@icon
+                val enabled = !Calls.video
+                permission(Manifest.permission.CAMERA) { Calls.scope.launch { runCatching { Calls.camera(this@CallActivity, enabled, expectedRoom = cameraRoom) }.onSuccess { Calls.error = null; render() }.onFailure { Calls.error = "Could not change camera"; render() } } }
             }, "Video")
         }
         drawer.addView(controls, LinearLayout.LayoutParams(-1, -2))

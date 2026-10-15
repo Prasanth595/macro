@@ -976,7 +976,7 @@ record Android version, APK revision, permissions, route/accessory and results:
 | Ring coordination | Caller cancels, answer on another device, duplicate/delayed push, logout/account switch while ringing |
 | Audio | Microphone denied/revoked, earpiece/speaker, wired headset, Bluetooth connect/disconnect, cellular-call interruption |
 | Lifecycle | Wi-Fi/cellular transitions, temporary offline/reconnect, navigation, WebView reload, foreground resume, no duplicate participant |
-| Video | Camera denial, front/back switch, remote video, supported PiP, PiP dismissal, background without PiP, end and reopen |
+| Video | Camera denial, front/back switch, remote video, supported PiP, PiP dismissal, background without PiP, end and reopen; granting camera permission for an ended call must not enable video on a replacement call |
 
 A local build or JVM/shared-state test does not prove this hardware matrix. Play
 installation/distribution regression belongs to release workstream 07.
