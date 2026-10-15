@@ -1,6 +1,6 @@
 import Calendar from '@phosphor/calendar-blank.svg';
 import { Button, Tabs } from '@ui';
-import { For, Show } from 'solid-js';
+import { For, type JSX, Show } from 'solid-js';
 import type { BookingDateGroup, BookingTab } from '../core/booking-list';
 import type { Booking, SchedulingMember } from '../core/types';
 import { BookingCard } from './booking-card';
@@ -21,6 +21,7 @@ export function BookingsPanel(props: {
   eventOptions: { value: string; label: string }[];
   timeZone: string;
   count: number;
+  dateRange?: JSX.Element;
   loading?: boolean;
   error?: string;
   canManageBookings: boolean;
@@ -73,7 +74,7 @@ export function BookingsPanel(props: {
               value={props.eventId}
               options={props.eventOptions}
               onChange={props.onEvent}
-              class="h-8 border-transparent bg-transparent text-sm font-normal text-ink-muted"
+              class="text-sm touch:h-9"
             />
           </div>
           <div class="w-48 max-w-full">
@@ -81,9 +82,9 @@ export function BookingsPanel(props: {
               value={props.timeZone}
               onChange={props.onTimeZone}
               options={TIME_ZONES}
-              class="h-8 border-transparent bg-transparent text-ink-muted"
             />
           </div>
+          {props.dateRange}
         </div>
       </div>
       <Show when={props.tab === 'Needs attention'}>

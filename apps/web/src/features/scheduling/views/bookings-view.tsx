@@ -1,5 +1,5 @@
 import { SearchBar } from '@app/components/view-shell';
-import { Show } from 'solid-js';
+import { type JSX, Show } from 'solid-js';
 import { BookingDetailsDialog } from '../components/booking-details-dialog';
 import { BookingsPanel } from '../components/bookings-panel';
 import type { Booking, EventType, SchedulingMember } from '../core/types';
@@ -14,6 +14,7 @@ export function BookingsView(props: {
   currentUserId: string;
   search?: string;
   onSearchChange?: (value: string) => void;
+  dateRange?: JSX.Element;
   loading?: boolean;
   error?: string;
   onApprove: (id: string) => void;
@@ -53,6 +54,7 @@ export function BookingsView(props: {
         eventId={state.eventId()}
         eventOptions={state.eventOptions()}
         timeZone={state.timeZone()}
+        dateRange={props.dateRange}
         count={state.visible().length}
         loading={props.loading}
         error={props.error}

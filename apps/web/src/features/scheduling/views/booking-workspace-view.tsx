@@ -364,18 +364,6 @@ export function BookingWorkspaceView(props: {
                   onValueChange={setBookingsSearch}
                   class="max-w-md flex-1 basis-48"
                 />
-                <div class="ml-auto min-w-0 max-w-full">
-                  <BookingsDateRange
-                    from={from()}
-                    to={to()}
-                    onChange={(start, end) =>
-                      batch(() => {
-                        setFrom(start);
-                        setTo(end);
-                      })
-                    }
-                  />
-                </div>
               </Show>
             </div>
           </ViewShell.Header>
@@ -446,6 +434,18 @@ export function BookingWorkspaceView(props: {
                     owner={current}
                     search={bookingsSearch()}
                     onSearchChange={setBookingsSearch}
+                    dateRange={
+                      <BookingsDateRange
+                        from={from()}
+                        to={to()}
+                        onChange={(start, end) =>
+                          batch(() => {
+                            setFrom(start);
+                            setTo(end);
+                          })
+                        }
+                      />
+                    }
                   />
                 </Show>
                 <Show when={search.tab === 'insights' && owner() === current}>

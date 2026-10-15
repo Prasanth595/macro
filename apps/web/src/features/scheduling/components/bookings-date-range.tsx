@@ -1,7 +1,7 @@
 import { Popover } from '@kobalte/core/popover';
 import Calendar from '@phosphor/calendar-blank.svg';
 import CaretDown from '@phosphor/caret-down.svg';
-import { Button, DatePicker } from '@ui';
+import { Button, DatePicker, selectTriggerClasses } from '@ui';
 import { createSignal, Show } from 'solid-js';
 import { Field } from './fields';
 
@@ -38,13 +38,11 @@ export function BookingsDateRange(props: {
       modal={false}
     >
       <Popover.Trigger
-        as={Button}
         type="button"
-        variant="ghost"
-        size="md"
         aria-label="Bookings date range"
-        tooltipDisabled
-        class="min-w-0 max-w-full gap-2 font-normal text-ink-muted"
+        class={selectTriggerClasses(
+          'w-auto min-w-0 max-w-full text-sm font-normal touch:h-9'
+        )}
       >
         <Calendar aria-hidden="true" class="size-4 shrink-0" />
         <span class="truncate">

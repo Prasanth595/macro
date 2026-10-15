@@ -1,7 +1,14 @@
 import ArrowSquareOut from '@phosphor/arrow-square-out.svg';
 import Copy from '@phosphor/copy.svg';
 import { ButtonGroup, CopyButton, Tooltip } from '@ui';
-import { createSignal, Match, onCleanup, Show, Switch } from 'solid-js';
+import {
+  createSignal,
+  type JSX,
+  Match,
+  onCleanup,
+  Show,
+  Switch,
+} from 'solid-js';
 import { AvailabilityPanel } from '../components/availability-panel';
 import { BookingPageEditor } from '../components/booking-page-editor';
 import { EventTypesPanel } from '../components/event-types-panel';
@@ -18,6 +25,7 @@ export function OwnerSettingsSection(props: {
   owner: SchedulingOwner;
   search?: string;
   onSearchChange?: (value: string) => void;
+  dateRange?: JSX.Element;
   scheduleTopBarOwned?: boolean;
 }) {
   const capabilities = useScheduling();
@@ -324,6 +332,7 @@ export function OwnerSettingsSection(props: {
               <BookingsView
                 search={props.search}
                 onSearchChange={props.onSearchChange}
+                dateRange={props.dateRange}
                 loading={source.loading()}
                 error={owner.error() || source.error()}
                 bookings={source.bookings()}
