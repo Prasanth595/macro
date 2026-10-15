@@ -1,3 +1,4 @@
+import { ThrownResultError } from '@core/util/result';
 import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
 import { err, ok } from 'neverthrow';
 import type { JSX } from 'solid-js';
@@ -242,15 +243,18 @@ describe('availability calendar changes', () => {
     const mutation = renderHook(() => useSetAvailabilityCalendarMutation());
 
     let settled = false;
-    const saving = mutation
-      .mutateAsync({
-        identity,
-        calendarIds: ['primary', 'holidays'],
-        contributesToAvailability: false,
-      })
-      .finally(() => {
+    const save = async () => {
+      try {
+        await mutation.mutateAsync({
+          identity,
+          calendarIds: ['primary', 'holidays'],
+          contributesToAvailability: false,
+        });
+      } finally {
         settled = true;
-      });
+      }
+    };
+    const saving = save();
     await vi.waitFor(() =>
       expect(setAvailabilityCalendar).toHaveBeenCalledTimes(2)
     );
@@ -258,7 +262,8 @@ describe('availability calendar changes', () => {
     expect(settled).toBe(false);
 
     finishPrimary(ok({}));
-    await expect(saving).rejects.toBeDefined();
+    // The client's own error keeps the codes retry and auth handling read.
+    await expect(saving).rejects.toBeInstanceOf(ThrownResultError);
 
     expect(included()).toEqual([false, false, true]);
   });

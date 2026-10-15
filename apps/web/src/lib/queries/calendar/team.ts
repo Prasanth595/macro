@@ -139,35 +139,38 @@ interface AvailabilityCalendarChange {
   contributesToAvailability: boolean;
 }
 
-/** Part of a group change saved; these calendars did not. */
-class AvailabilityCalendarSaveError extends Error {
-  constructor(readonly failedCalendarIds: string[]) {
-    super('Could not update availability calendars');
-  }
-}
+/**
+ * Calendars whose save failed in a group change. The mutation rethrows the
+ * client's own error so retry and auth handling still read its codes.
+ */
+const failedCalendarIds = new WeakMap<AvailabilityCalendarChange, string[]>();
 
 const availabilityCalendarMutationOptions = {
   mutationKey: availabilityCalendarMutationKey,
   scope: { id: 'calendar-team-availability-calendar' },
-  mutationFn: async ({
-    calendarIds,
-    contributesToAvailability,
-  }: AvailabilityCalendarChange) => {
+  mutationFn: async (change: AvailabilityCalendarChange) => {
     // Settle every request before reconciling, so no save can land after the
     // refetch that follows a failure.
     const results = await Promise.allSettled(
-      calendarIds.map((calendarId) =>
+      change.calendarIds.map((calendarId) =>
         throwOnErr(() =>
           emailClient.setAvailabilityCalendar(calendarId, {
-            contributesToAvailability,
+            contributesToAvailability: change.contributesToAvailability,
           })
         )
       )
     );
-    const failed = calendarIds.filter(
-      (_, index) => results[index].status === 'rejected'
+    const failures = results.flatMap((result, index) =>
+      result.status === 'rejected'
+        ? [{ calendarId: change.calendarIds[index], reason: result.reason }]
+        : []
     );
-    if (failed.length > 0) throw new AvailabilityCalendarSaveError(failed);
+    if (failures.length === 0) return;
+    failedCalendarIds.set(
+      change,
+      failures.map((failure) => failure.calendarId)
+    );
+    throw failures[0].reason;
   },
   onMutate: ({
     identity,
@@ -185,23 +188,19 @@ const availabilityCalendarMutationOptions = {
       })
     ),
   onError: (
-    error: unknown,
-    { identity, calendarIds }: AvailabilityCalendarChange,
+    _error: unknown,
+    change: AvailabilityCalendarChange,
     snapshot: CachedQuerySnapshot<AvailabilityCalendarsResponse> | undefined
   ) => {
     const previous = snapshot?.previous;
     if (!previous || !isLastPendingSave(availabilityCalendarMutationKey))
       return;
-    const failed = new Set(
-      error instanceof AvailabilityCalendarSaveError
-        ? error.failedCalendarIds
-        : calendarIds
-    );
+    const failed = new Set(failedCalendarIds.get(change) ?? change.calendarIds);
     const before = new Map(
       previous.calendars.map((calendar) => [calendar.calendarId, calendar])
     );
     queryClient.setQueryData<AvailabilityCalendarsResponse>(
-      calendarTeamKeys.availabilityCalendars(identity).queryKey,
+      calendarTeamKeys.availabilityCalendars(change.identity).queryKey,
       (current) =>
         current && {
           calendars: current.calendars.map((calendar) =>
