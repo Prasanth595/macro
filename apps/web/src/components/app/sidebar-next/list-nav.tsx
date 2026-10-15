@@ -1,5 +1,6 @@
 import { parseAgentsRoute } from '@app/features/agents-view/core/route';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
+import { useSplitRouter } from '@app/lib/split-router';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import {
   navigateToSidebarView,
@@ -42,6 +43,7 @@ export const ListNav = (props: ListNavProps) => {
   const { hideSidebarItem } = useSidebarPrefs();
   const analytics = useAnalytics();
   const layout = useSplitLayout();
+  const router = useSplitRouter();
 
   const content = () => sidebarContent(props.item.id, props.item.params);
   const preload = () => layout.preloadContent(content());
@@ -69,15 +71,21 @@ export const ListNav = (props: ListNavProps) => {
     event.preventDefault();
     analytics.track('sidebar_click', { view: props.item.id });
 
-    // Let split-router handle unchanged destinations and supersede pending
-    // navigation. A content-only no-op check cannot see guards or preloads.
-    navigateToSidebarView({
-      viewId: props.item.id,
-      params: props.item.params,
-      shiftKey: event.shiftKey,
-      openWithSplit: layout.openWithSplit,
-      referredFrom: 'sidebar',
-    });
+    const split = globalSplitManager()?.activeSplit();
+    if (isActive() && !event.shiftKey) {
+      const pane = router.panes().find((pane) => pane.toString() === split?.id);
+      // Cancelling keeps the entry identity, filters, nested detail, and
+      // split-owned state intact. An idle repeat remains a no-op.
+      if (pane) void router.cancelNavigation(pane);
+    } else {
+      navigateToSidebarView({
+        viewId: props.item.id,
+        params: props.item.params,
+        shiftKey: event.shiftKey,
+        openWithSplit: layout.openWithSplit,
+        referredFrom: 'sidebar',
+      });
+    }
     globalSplitManager()?.returnFocus();
   };
 

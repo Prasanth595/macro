@@ -4,6 +4,7 @@ import {
   createSplitRouter,
   defineRoute,
   type PaneId,
+  SplitRouter,
   type SplitRouterOptions,
 } from '@app/lib/split-router';
 import { createTestPolicy } from '@app/lib/split-router/tests/fixtures';
@@ -22,6 +23,7 @@ import { SidebarPrefsProvider } from './use-sidebar-prefs';
 
 const mocks = vi.hoisted(() => ({
   activeContent: (): { type: 'component'; id: string } | undefined => undefined,
+  activePane: (): PaneId | undefined => undefined,
   navigate: vi.fn(),
 }));
 
@@ -30,7 +32,10 @@ vi.mock('@app/lib/analytics/analytics-context', () => ({
 }));
 vi.mock('@app/signal/splitLayout', () => ({
   globalSplitManager: () => ({
-    activeSplit: () => ({ content: mocks.activeContent }),
+    activeSplit: () => ({
+      id: mocks.activePane(),
+      content: mocks.activeContent,
+    }),
     returnFocus: vi.fn(),
   }),
 }));
@@ -69,11 +74,24 @@ function setup(initial = '/home', agentsPreload?: () => Promise<void>) {
           defineRoute({
             id: 'app',
             children: [
-              defineRoute({ id: 'home', path: 'home' }),
+              defineRoute({
+                id: 'home',
+                path: 'home',
+                search: '*',
+                children: [
+                  defineRoute({ id: 'home-detail', path: 'detail/:id' }),
+                ],
+              }),
+              defineRoute({ id: 'calendar', path: 'calendar', search: '*' }),
               defineRoute({
                 id: 'agents',
                 path: 'agents',
                 preload: agentsPreload,
+              }),
+              defineRoute({
+                id: 'agent-detail',
+                path: 'agents/:id',
+                search: '*',
               }),
               defineRoute({ id: 'settings', path: 'settings' }),
             ],
@@ -92,22 +110,45 @@ function setup(initial = '/home', agentsPreload?: () => Promise<void>) {
     } satisfies SplitRouterOptions);
     const [focusedPane, setFocusedPane] = createSignal(router.panes()[0]!);
     focus = setFocusedPane;
+    mocks.activePane = focusedPane;
     mocks.activeContent = () => {
       const entry = router.entry(focusedPane());
-      const id = entry?.location.route.matches.at(-1)?.id;
+      const root = entry?.location.route.matches[1];
+      const id =
+        root?.id === 'agent-detail'
+          ? `agents-session~agents~${root.params.id}`
+          : root?.id;
       return id ? { type: 'component', id } : undefined;
     };
     mocks.navigate.mockImplementation(({ viewId }: { viewId: string }) => {
-      void router.navigatePane(focusedPane(), `/${viewId}`, {
-        allowDuplicate: true,
-      });
+      void router.navigatePane(
+        focusedPane(),
+        {
+          location: {
+            route: {
+              matches: [
+                { id: 'app', params: {} },
+                { id: viewId, params: {} },
+              ],
+            },
+          },
+        },
+        { allowDuplicate: true }
+      );
     });
     onCleanup(() => router.dispose());
     return (
-      <SidebarPrefsProvider>
-        <ListNav item={home} />
-        <ListNav item={agents} />
-      </SidebarPrefsProvider>
+      <SplitRouter.Root router={router}>
+        <SidebarPrefsProvider>
+          <ListNav item={home} />
+          <ListNav item={agents} />
+          <ListNav
+            item={
+              SIDEBAR_NEXT_NAV_ITEMS.find((item) => item.id === 'calendar')!
+            }
+          />
+        </SidebarPrefsProvider>
+      </SplitRouter.Root>
     );
   });
   return { router, history, focus };
@@ -173,6 +214,93 @@ describe('ListNav', () => {
     expectSelection('Home');
   });
 
+  it('preserves a selected nested detail and its search on an idle repeat', () => {
+    const { router, history } = setup(
+      '/home/detail/document?s0.home.tab=signal'
+    );
+    const pane = router.panes()[0]!;
+    const entry = router.entry(pane);
+    const before = router.history(pane);
+
+    press('Home');
+
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(router.entry(pane)).toBe(entry);
+    expect(router.history(pane)).toEqual(before);
+    expect(history.read().path).toBe('/home/detail/document');
+    expect(history.read().search).toBe('?s0.home.tab=signal');
+    expectSelection('Home');
+  });
+
+  it('preserves the selected Agents conversation instead of opening a new conversation', () => {
+    const { router, history } = setup(
+      '/agents/conversation?s0.agents.tab=changes'
+    );
+    const pane = router.panes()[0]!;
+    const entry = router.entry(pane);
+    expectSelection('Agents');
+
+    press('Agents');
+
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(router.entry(pane)).toBe(entry);
+    expect(history.read().path).toBe('/agents/conversation');
+    expect(history.read().search).toBe('?s0.agents.tab=changes');
+    expectSelection('Agents');
+  });
+
+  it.each([
+    ['/home/detail/document?s0.home.tab=signal', 'Home'],
+    ['/calendar?s0.calendar.event=meeting', 'Calendar'],
+  ])(
+    'preserves %s when a selected %s press supersedes a preload',
+    async (initial, label) => {
+      let finishPreload!: () => void;
+      const preload = new Promise<void>((resolve) => {
+        finishPreload = resolve;
+      });
+      const { router, history } = setup(initial, () => preload);
+      const pane = router.panes()[0]!;
+      const originalEntry = router.entry(pane);
+      const count = router.history(pane)?.entries.length;
+      press('Agents');
+      expect(router.pending(pane)).toBeDefined();
+      expectSelection(label);
+
+      press(label);
+      finishPreload();
+      await router.settled();
+
+      expect(router.entry(pane)).toBe(originalEntry);
+      expect(router.history(pane)?.entries).toHaveLength(count!);
+      expect(router.pending(pane)).toBeUndefined();
+      expect(`${history.read().path}${history.read().search}`).toBe(initial);
+      expectSelection(label);
+    }
+  );
+
+  it('cancels a pending leave guard when the shown workspace is pressed', async () => {
+    const { router, history } = setup(
+      '/home/detail/document?s0.home.tab=signal'
+    );
+    const pane = router.panes()[0]!;
+    let allowLeave!: (allowed: boolean) => void;
+    const guard = new Promise<boolean>((resolve) => {
+      allowLeave = resolve;
+    });
+    router.registerGuard(pane, 1, () => guard);
+    press('Agents');
+    expect(router.pending(pane)).toBeDefined();
+
+    press('Home');
+    allowLeave(true);
+    await router.settled();
+
+    expect(history.read().path).toBe('/home/detail/document');
+    expect(history.read().search).toBe('?s0.home.tab=signal');
+    expectSelection('Home');
+  });
+
   it('keeps the current view selected when a leave guard refuses navigation', () => {
     const { router, history } = setup();
     const pane = router.panes()[0]!;
@@ -229,6 +357,50 @@ describe('ListNav', () => {
     expect(history.read().path).toBe('/agents/~/home');
     expectSelection('Agents');
     focus(second!);
+    expectSelection('Home');
+  });
+
+  it('leaves another split navigation alone when the shown workspace is pressed', async () => {
+    let finishPreload!: () => void;
+    const preload = new Promise<void>((resolve) => {
+      finishPreload = resolve;
+    });
+    const { router, history } = setup(
+      '/home/detail/document/~/settings?s0.home.tab=signal',
+      () => preload
+    );
+    const [first, second] = router.panes();
+    const entry = router.entry(first!);
+    void router.navigatePane(second!, '/agents');
+    expect(router.pending(second!)).toBeDefined();
+
+    press('Home');
+    finishPreload();
+    await router.settled();
+
+    expect(router.entry(first!)).toBe(entry);
+    expect(router.entry(second!)?.location.route.matches.at(-1)?.id).toBe(
+      'agents'
+    );
+    expect(history.read().search).toBe('?s0.home.tab=signal');
+    expectSelection('Home');
+  });
+
+  it('handles a pointer press once and still accepts a keyboard-only click', () => {
+    const { router, history } = setup();
+    const agentsButton = screen.getByRole('button', { name: 'Agents' });
+    fireEvent.mouseDown(agentsButton, { button: 0 });
+    fireEvent.click(agentsButton, { button: 0, detail: 1 });
+    expect(mocks.navigate).toHaveBeenCalledOnce();
+    expectSelection('Agents');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Home' }), {
+      button: 0,
+      detail: 0,
+    });
+    expect(mocks.navigate).toHaveBeenCalledTimes(2);
+    expect(history.read().path).toBe('/home');
+    expect(router.history(router.panes()[0]!)?.entries).toHaveLength(3);
     expectSelection('Home');
   });
 

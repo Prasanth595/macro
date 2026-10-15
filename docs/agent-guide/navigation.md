@@ -368,10 +368,13 @@ The rail highlights the workspace shown by the **active split**, not every app
 named in the multi-split URL. Nested details keep their owning workspace selected
 (for example, a thread under Email or a document under Home). Selection changes
 when navigation commits; a pending preload or a refused leave guard does not
-select a destination that is not shown. Verify rapid app presses, returning to
-the currently shown app while another app loads, split focus changes, closing a
-split, and split Back/Forward. The last requested destination must win, and a
-later return to an earlier view must not revive an old highlight.
+select a destination that is not shown. Pressing the current workspace preserves
+its filters and nested detail; during a pending navigation, the same press
+cancels that navigation without adding a duplicate history step.
+Verify rapid app presses, returning to the currently shown app while another app
+loads, split focus changes, closing a split, and split Back/Forward. The last
+requested destination must win, and a later return to an earlier view must not
+revive an old highlight.
 
 Start a new AI chat from the Agents workspace; the rail has no separate
 new-chat-in-a-new-split button. Its tooltips

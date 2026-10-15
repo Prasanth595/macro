@@ -128,6 +128,9 @@ export function createSplitRouter(options: SplitRouterOptions) {
     panes: panes.ids,
     navigate: urlNavigation.navigate,
     navigatePane: paneNavigation.navigate,
+    /** Cancels pending navigation without replacing the pane's current entry. */
+    cancelNavigation: (pane: PaneId) =>
+      runner.act(undefined, () => runner.abort(pane)),
     updateSearch: paneNavigation.updateSearch,
     goBackTo: paneNavigation.goBackTo,
     removeEntries: paneNavigation.removeEntries,
