@@ -44,7 +44,9 @@ pub(crate) async fn handle<R: NotificationRetentionRepository>(
         tracing::warn!("not enough invocation time for notification retention; skipping");
         return Ok(());
     }
-    service.run(event.payload.mode(), budget).await?;
+    // Also bound stalls outside SQL execution (pool acquisition/network I/O).
+    // Dropping an in-flight repository future rolls back its transaction.
+    tokio::time::timeout(budget, service.run(event.payload.mode(), budget)).await??;
     Ok(())
 }
 

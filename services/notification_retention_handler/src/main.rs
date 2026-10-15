@@ -26,7 +26,11 @@ async fn main() -> Result<(), Error> {
     // process, and reserved Lambda concurrency of one, isolate foreground work.
     let options = PgConnectOptions::from_str(database_url.as_ref())?
         .application_name("notification_retention_handler")
-        .options([("statement_timeout", "5000"), ("lock_timeout", "1000")]);
+        .options([
+            ("statement_timeout", "5000"),
+            ("lock_timeout", "1000"),
+            ("idle_in_transaction_session_timeout", "10000"),
+        ]);
     let pool = PgPoolOptions::new()
         .max_connections(1)
         .acquire_timeout(Duration::from_secs(5))
