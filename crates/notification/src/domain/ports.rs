@@ -608,3 +608,12 @@ impl<V: VoipPushSender> VoipPushSender for Option<V> {
         }
     }
 }
+
+/// Permanently suppress a superseded notification, including delayed queue delivery.
+pub trait NotificationWithdrawal: Send + Sync + 'static {
+    /// Record withdrawal before completing any existing recipient notifications.
+    fn withdraw(
+        &self,
+        notification_id: Uuid,
+    ) -> impl Future<Output = Result<(), rootcause::Report>> + Send;
+}

@@ -6,6 +6,7 @@
 mod test;
 
 pub mod channel_share;
+pub mod direct_share;
 pub mod team_share;
 
 pub use channel_share::get_direct_channel_grants;

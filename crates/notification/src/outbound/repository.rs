@@ -686,6 +686,12 @@ impl NotificationDbOps for PgPool {
         let sender_id = request.sender_id.as_ref().map(|id| id.to_string());
         let typename = request.notification.tag.as_ref();
 
+        super::withdrawal::lock_notification(&mut tx, notification_id).await?;
+        let withdrawn = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM notification_withdrawal WHERE notification_id = $1) AS \"exists!\"", notification_id).fetch_one(tx.as_mut()).await?;
+        if withdrawn {
+            return Ok(None);
+        }
+
         // Insert notification
         let result = sqlx::query!(
             r#"

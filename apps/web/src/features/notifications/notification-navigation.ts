@@ -12,7 +12,9 @@ import type {
   SplitManager,
 } from '@components/app/split-layout/layoutManager';
 import type { BlockAlias, BlockName } from '@core/block';
-import { resolveBlockAlias } from '@core/constant/allBlocks';
+import { getPermissions } from '@core/component/SharePermissions';
+import { toast } from '@core/component/Toast/Toast';
+import { itemToBlockName, resolveBlockAlias } from '@core/constant/allBlocks';
 import {
   enableCalendarUi,
   enableProjects,
@@ -25,6 +27,7 @@ import { openExternalUrl } from '@core/util/url';
 import { getNotificationById } from '@queries/notification/user-notifications';
 import { errAsync, ResultAsync } from 'neverthrow';
 import { match, P } from 'ts-pattern';
+import { shareEntity } from '../access-requests/core/types';
 import { projectRouteId } from '../projects/core/route';
 import {
   getDocumentCommentLocation,
@@ -235,6 +238,83 @@ function getSupportedHandler(
               onApplied,
             })
       )
+      .with('entity_access_requested', 'entity_access_granted', () => {
+        const meta = notification.notification_metadata;
+        if (
+          meta.tag !== 'entity_access_requested' &&
+          meta.tag !== 'entity_access_granted'
+        )
+          return null;
+        const target = shareEntity(
+          notification.entity_type,
+          notification.entity_id
+        );
+        if (!target) return null;
+        return async (lm: SplitManager, newSplit = false) => {
+          try {
+            const [{ fetchAccessRequestState }, { openShareModal }] =
+              await Promise.all([
+                import('@queries/access-requests/requests'),
+                import('@core/component/TopBar/shareModal'),
+              ]);
+            const state = await fetchAccessRequestState(target);
+            const document =
+              target.entityType === 'document'
+                ? await (
+                    await import('@queries/storage/document-metadata')
+                  ).fetchDocumentMetadata(target.entityId)
+                : undefined;
+            const block =
+              target.entityType === 'initiative'
+                ? 'initiative'
+                : itemToBlockName({
+                    type:
+                      target.entityType === 'email_thread'
+                        ? 'email'
+                        : target.entityType,
+                    fileType:
+                      document?.fileType ??
+                      entity?.fileType ??
+                      meta.content.fileType ??
+                      undefined,
+                    subType:
+                      document?.subType &&
+                      document.subType !== 'initiative_description'
+                        ? { type: document.subType }
+                        : undefined,
+                  });
+            const applied = () => {
+              onApplied?.();
+              if (meta.tag === 'entity_access_requested')
+                openShareModal({
+                  id: target.entityId,
+                  itemType:
+                    target.entityType === 'email_thread'
+                      ? 'email'
+                      : target.entityType,
+                  blockAlias: block,
+                  name: meta.content.entityName,
+                  owner: state.owner ?? undefined,
+                  userPermissions: getPermissions(
+                    state.accessLevel ?? undefined
+                  ),
+                });
+            };
+            openSplitIfNotOpen(
+              lm,
+              block === 'initiative' ? 'component' : block,
+              block === 'initiative'
+                ? projectRouteId({ id: target.entityId, section: 'overview' })
+                : target.entityId,
+              { newSplit, sourceHandle, onApplied: applied }
+            );
+          } catch {
+            toast.failure(
+              'Could not open sharing. You may no longer have access.'
+            );
+          }
+        };
+      })
       .with('invite_to_team', () => null)
       .with(
         'call_started',

@@ -1,4 +1,5 @@
 import { ROUTER_BASE, ROUTER_BASE_CONCAT } from '@app/constants/routerBase';
+import { useAccessRequestInvalidations } from '@app/features/access-requests/use-access-request-invalidations';
 import { usePendingInviteRedemption } from '@app/features/gtm-invite/usePendingInviteRedemption';
 import { HomePreferencesProvider } from '@app/features/home/home-prefs';
 import { GlobalShareInboxConflictDialog } from '@app/features/inbox/ShareInboxConflictDialog';
@@ -194,6 +195,7 @@ function ConfiguredGlobalAppStateProvider(props: ParentProps) {
     onNotification
   );
   useNotificationUpdates(notificationSource);
+  useAccessRequestInvalidations();
   useReminderAlerts(notificationSource);
 
   const blockOrchestrator = createBlockOrchestrator();

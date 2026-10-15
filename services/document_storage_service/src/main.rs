@@ -525,6 +525,26 @@ async fn run() -> anyhow::Result<()> {
 
     let connection_gateway = Arc::new(ConnectionGatewayImpl::new(conn_gateway_client.clone()));
 
+    let access_requests_repo =
+        Arc::new(access_requests::outbound::postgres::PgRequestRepository::new(db.clone()));
+    let access_requests_service =
+        Arc::new(access_requests::domain::service::AccessRequestService::new(
+            access_requests_repo.clone(),
+            entity_access_service.clone(),
+            access_requests::domain::ports::SystemClock,
+        ));
+    tokio::spawn(access_requests::inbound::dispatch::run(
+        access_requests_repo,
+        crate::outbound::access_requests::AccessRequestDelivery {
+            withdrawal: Arc::new(
+                notification::outbound::withdrawal::PgNotificationWithdrawal(db.clone()),
+            ),
+            ingress: notification_ingress_service.clone(),
+            reader: graphql_notification_reader.clone(),
+            connection: connection_gateway.clone(),
+        },
+    ));
+
     let connection_service =
         ConnectionServiceImpl::new(entity_access_service.clone(), connection_gateway.clone());
 
@@ -1826,6 +1846,10 @@ async fn run() -> anyhow::Result<()> {
             entity_access_service.clone(),
             authorization_state.clone(),
         ),
+        access_requests_state: access_requests::inbound::axum_router::AccessRequestsRouterState {
+            service: access_requests_service,
+            authorization_state: authorization_state.clone(),
+        },
         graphql_initiative_entity_loader: graphql_initiative::InitiativeEntityLoader(
             graphql_soup::soup_item_loader(initiative_entity_soup, Arc::new(email_service.clone())),
         ),

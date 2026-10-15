@@ -1,7 +1,9 @@
+import { DocumentAccessDenied } from '@app/features/access-requests/access-requests';
 import {
   DocumentFileSidePanelSections,
   SidePanel,
 } from '@components/app/side-panel';
+import { toEntityLoadError } from '@core/component/EntityLoadGate';
 import {
   getPermissions,
   hasPermissions,
@@ -96,10 +98,20 @@ export function FileDetailLoadGate<T extends object>(props: {
     () => props.documentId,
     props.load
   );
+  const accessDenied = () => {
+    const error = toEntityLoadError(document.error);
+    return error === 'UNAUTHORIZED' || error === 'FORBIDDEN';
+  };
 
   return (
     <Suspense fallback={<FileDetailBodyState label={props.label} />}>
       <Switch>
+        <Match when={accessDenied()}>
+          <DocumentAccessDenied
+            documentId={props.documentId}
+            onAccessGranted={() => void refetch()}
+          />
+        </Match>
         <Match when={document.error}>
           {(error) => (
             <FileDetailBodyState

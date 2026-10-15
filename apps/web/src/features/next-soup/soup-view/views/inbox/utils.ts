@@ -60,6 +60,8 @@ const NOTIFICATION_CONTENT_FIELD: Partial<
   mentioned_in_document_comment: 'text',
   replied_to_document_comment_thread: 'text',
   commented_on_document: 'text',
+  entity_access_requested: 'text',
+  entity_access_granted: 'text',
   new_email: 'snippet',
   ai_response: 'summary',
   github_pr_comment: 'commentSnippet',
