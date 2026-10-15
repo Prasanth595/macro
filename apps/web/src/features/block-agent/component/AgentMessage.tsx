@@ -43,7 +43,7 @@ import {
   WorkingLine,
 } from '../ui';
 import { LiveToolGroup } from '../views/LiveToolGroup';
-import { PromptOrigin } from './PromptOrigin';
+import { PromptFooter } from './PromptFooter';
 import { AttachmentPart } from './parts/AttachmentPart';
 import { ControlPart } from './parts/ControlPart';
 import { ElicitationPart } from './parts/ElicitationPart';
@@ -262,8 +262,8 @@ function promptAuthorName(
  * A prompt, in the chat block's user-bubble treatment
  * (`@core/component/AI/component/message/UserMessage.tsx`): right-aligned,
  * rounded, filled surface shared with production chat. A prompt another
- * participant sent carries their name above the bubble, and one the harness
- * delivered from elsewhere says where under it.
+ * participant sent carries their name above the bubble; under it, when it was
+ * posted and, when the harness delivered it from elsewhere, where from.
  */
 function UserMessage(props: { message: FoldedMessage }) {
   const userId = useUserId();
@@ -310,20 +310,19 @@ function UserMessage(props: { message: FoldedMessage }) {
           )}
         </For>
       </UserMessageBubble>
-      <Show when={origin()}>
-        {(origin) => (
-          <PromptOrigin
-            origin={origin()}
-            onOpen={
-              origin().destination
-                ? () => {
-                    const destination = origin().destination;
-                    if (destination) openOrigin(destination);
-                  }
-                : undefined
-            }
-          />
-        )}
+      <Show when={origin() || props.message.postedAt}>
+        <PromptFooter
+          origin={origin()}
+          postedAt={props.message.postedAt ?? undefined}
+          onOpen={
+            origin()?.destination
+              ? () => {
+                  const destination = origin()?.destination;
+                  if (destination) openOrigin(destination);
+                }
+              : undefined
+          }
+        />
       </Show>
     </div>
   );

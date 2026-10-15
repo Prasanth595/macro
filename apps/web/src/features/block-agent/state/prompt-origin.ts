@@ -44,8 +44,6 @@ export type PromptOrigin = {
   lead: string;
   place: string | undefined;
   tail: string | undefined;
-  /** RFC 3339; when the triggering thing happened. */
-  at: string | undefined;
   destination: OriginDestination | undefined;
 };
 
@@ -100,7 +98,6 @@ function markedMessage(element: Element): Element | undefined {
 type Discussion = {
   /** Where, as a reader names it: `#eng`, `a comment on Launch plan`. */
   place: string;
-  at: string | undefined;
   destination: OriginDestination | undefined;
 };
 
@@ -108,7 +105,6 @@ type Discussion = {
 function readDiscussion(discussion: Element): Discussion | undefined {
   const message = markedMessage(discussion);
   const messageId = attribute(message, 'id');
-  const at = attribute(message, 'at');
   const sender = attribute(child(discussion, 'sender'), 'name');
   const surface = [...discussion.children].find((element) =>
     [
@@ -138,7 +134,6 @@ function readDiscussion(discussion: Element): Discussion | undefined {
           : sender
             ? `a DM with ${sender}`
             : 'a direct message',
-        at,
         destination: {
           kind: 'channel_message' as const,
           channelId: id,
@@ -149,7 +144,6 @@ function readDiscussion(discussion: Element): Discussion | undefined {
     })
     .with('document', () => ({
       place: commentOn(name),
-      at,
       destination: {
         kind: 'document' as const,
         documentId: id,
@@ -158,7 +152,6 @@ function readDiscussion(discussion: Element): Discussion | undefined {
     }))
     .with('project', () => ({
       place: commentOn(name),
-      at,
       destination: {
         kind: 'project' as const,
         projectId: id,
@@ -167,7 +160,6 @@ function readDiscussion(discussion: Element): Discussion | undefined {
     }))
     .with('crm_company', () => ({
       place: commentOn(name),
-      at,
       destination: {
         kind: 'crm_company' as const,
         companyId: id,
@@ -176,7 +168,6 @@ function readDiscussion(discussion: Element): Discussion | undefined {
     }))
     .with('crm_contact', () => ({
       place: commentOn(name),
-      at,
       destination: {
         kind: 'crm_contact' as const,
         contactId: id,
@@ -185,7 +176,6 @@ function readDiscussion(discussion: Element): Discussion | undefined {
     }))
     .with('call', () => ({
       place: `${attribute(surface, 'title') ?? 'a call'} call chat`,
-      at,
       destination: { kind: 'call' as const, callId: id },
     }))
     .otherwise(() => undefined);
@@ -200,7 +190,6 @@ function repoName(url: string): string {
 /** Why a routine ran, after its name: `every weekday at 9:00`. */
 type Firing = {
   tail: string | undefined;
-  at: string | undefined;
   destination: OriginDestination | undefined;
 };
 
@@ -210,7 +199,6 @@ function readFiring(trigger: Element): Firing {
     const schedule = attribute(scheduled, 'schedule');
     return {
       tail: schedule ? `· ${lowerFirst(schedule)}` : undefined,
-      at: attribute(scheduled, 'for'),
       destination: undefined,
     };
   }
@@ -218,11 +206,10 @@ function readFiring(trigger: Element): Firing {
   if (manual)
     return {
       tail: '· run by hand',
-      at: attribute(manual, 'requested_at'),
       destination: undefined,
     };
   const event = child(trigger, 'event');
-  if (!event) return { tail: undefined, at: undefined, destination: undefined };
+  if (!event) return { tail: undefined, destination: undefined };
 
   const task = child(event, 'task');
   const taskTitle = attribute(task, 'title') ?? 'a task';
@@ -251,38 +238,31 @@ function readFiring(trigger: Element): Firing {
   const email = child(event, 'email');
   const channel = child(event, 'channel');
 
-  const none = { at: undefined };
   return match(attribute(event, 'type'))
     .with('document_created', () => ({
-      ...none,
       tail: `· ${documentName} created`,
       destination: documentDestination,
     }))
     .with('document_updated', () => ({
-      ...none,
       tail: `· ${documentName} edited`,
       destination: documentDestination,
     }))
     .with('document_deleted', () => ({
-      ...none,
       tail: `· ${documentName} deleted`,
       destination: undefined,
     }))
     .with('task_created', () => ({
-      ...none,
       tail: `· ${taskTitle} created`,
       destination: taskDestination,
     }))
     .with(P.union('task_status_changed', 'task_priority_changed'), () => {
       const to = attribute(child(event, 'change'), 'to');
       return {
-        ...none,
         tail: to ? `· ${taskTitle} moved to ${to}` : `· ${taskTitle} changed`,
         destination: taskDestination,
       };
     })
     .with('task_property_changed', () => ({
-      ...none,
       tail: `· ${taskTitle} changed`,
       destination: taskDestination,
     }))
@@ -290,7 +270,6 @@ function readFiring(trigger: Element): Firing {
       const from = attribute(email, 'from');
       return {
         tail: from ? `· email from ${senderName(from)}` : '· email received',
-        at: attribute(email, 'received_at'),
         destination: email
           ? {
               kind: 'email_thread' as const,
@@ -302,7 +281,6 @@ function readFiring(trigger: Element): Firing {
     .with('channel_created', () => {
       const name = attribute(channel, 'name');
       return {
-        ...none,
         tail: name ? `· #${name} created` : '· channel created',
         destination: channel
           ? {
@@ -328,27 +306,23 @@ function readFiring(trigger: Element): Firing {
           .exhaustive();
         return {
           tail: read ? `· ${what} in ${read.place}` : `· ${what}`,
-          at: read?.at,
           destination: read?.destination,
         };
       }
     )
     .with('channel_message_attachment_created', () => ({
       tail: sender ? `· file from ${sender}` : '· file shared',
-      at: read?.at,
       destination: read?.destination,
     }))
     .with('call_started', () => ({
       tail: `· ${callTitle} started`,
-      at: attribute(call, 'started_at'),
       destination: callDestination,
     }))
     .with('call_ended', () => ({
       tail: `· ${callTitle} ended`,
-      at: attribute(call, 'ended_at'),
       destination: callDestination,
     }))
-    .otherwise(() => ({ ...none, tail: undefined, destination: undefined }));
+    .otherwise(() => ({ tail: undefined, destination: undefined }));
 }
 
 /** `Acme Billing` from `Acme Billing <billing@acme.test>`. */
@@ -380,7 +354,6 @@ export function promptOrigin(contextText: string): PromptOrigin | undefined {
       lead,
       place: read?.place,
       tail,
-      at: read?.at,
       destination: read?.destination,
     };
   };
@@ -402,7 +375,6 @@ export function promptOrigin(contextText: string): PromptOrigin | undefined {
         lead: 'via task',
         place: attribute(task, 'title'),
         tail: by ? `from ${by}` : undefined,
-        at: attribute(assigned, 'at'),
         destination: task
           ? { kind: 'task' as const, taskId: attribute(task, 'id') ?? '' }
           : undefined,
@@ -415,7 +387,6 @@ export function promptOrigin(contextText: string): PromptOrigin | undefined {
         lead: repo ? 'via composer in' : 'via composer',
         place: repo ? repoName(repo) : undefined,
         tail: undefined,
-        at: attribute(requested, 'at'),
         destination: repo
           ? { kind: 'external' as const, url: repo }
           : undefined,
@@ -429,7 +400,6 @@ export function promptOrigin(contextText: string): PromptOrigin | undefined {
         lead: 'via handoff from',
         place: 'another agent',
         tail: by ? `for ${by}` : undefined,
-        at: attribute(dispatched, 'at'),
         destination: session
           ? { kind: 'agent_session' as const, sessionId: session }
           : undefined,
@@ -443,7 +413,6 @@ export function promptOrigin(contextText: string): PromptOrigin | undefined {
         lead: 'via routine',
         place: attribute(routine, 'name'),
         tail: firing.tail,
-        at: firing.at,
         destination:
           firing.destination ??
           (routineId ? { kind: 'routine' as const, routineId } : undefined),

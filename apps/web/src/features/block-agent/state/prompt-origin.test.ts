@@ -78,7 +78,6 @@ describe('promptOrigin', () => {
       lead: 'via @mention in',
       place: '#eng',
       tail: undefined,
-      at: '2026-10-15T14:02:00Z',
       destination: {
         kind: 'channel_message',
         channelId: 'c1',
@@ -122,7 +121,6 @@ describe('promptOrigin', () => {
       lead: 'via @mention in',
       place: 'a DM with Teo',
       tail: undefined,
-      at: '2026-10-15T11:40:00Z',
       destination: {
         kind: 'channel_message',
         channelId: 'c2',
@@ -164,7 +162,6 @@ describe('promptOrigin', () => {
       lead: 'via @mention in',
       place: 'a comment on Launch plan',
       tail: undefined,
-      at: '2026-10-15T14:02:00Z',
       destination: { kind: 'document', documentId: 'doc-1', commentId: 'm2' },
     });
   });
@@ -304,7 +301,6 @@ describe('promptOrigin', () => {
       lead: 'via task',
       place: 'Fix calendar popover scroll',
       tail: 'from Julia',
-      at: '2026-10-15T14:02:00Z',
       destination: { kind: 'task', taskId: 'task-1' },
     });
   });
@@ -324,7 +320,6 @@ describe('promptOrigin', () => {
       lead: 'via composer in',
       place: 'macro-inc/macro',
       tail: undefined,
-      at: '2026-10-15T14:02:00Z',
       destination: {
         kind: 'external',
         url: 'https://github.com/macro-inc/macro',
@@ -348,7 +343,6 @@ describe('promptOrigin', () => {
       lead: 'via handoff from',
       place: 'another agent',
       tail: 'for Julia',
-      at: '2026-10-15T14:02:00Z',
       destination: { kind: 'agent_session', sessionId: 's-1' },
     });
   });
@@ -377,7 +371,6 @@ describe('promptOrigin', () => {
       lead: 'via routine',
       place: 'Morning triage',
       tail: '· every weekday at 9:00',
-      at: '2026-10-15T09:00:00Z',
       destination: { kind: 'routine', routineId: 'r-1' },
     });
   });
@@ -419,7 +412,6 @@ describe('promptOrigin', () => {
       lead: 'via routine',
       place: 'Watcher',
       tail: '· Renew SSL cert moved to Blocked',
-      at: undefined,
       destination: { kind: 'task', taskId: 'task-2' },
     });
 
@@ -442,7 +434,6 @@ describe('promptOrigin', () => {
       lead: 'via routine',
       place: 'Watcher',
       tail: '· email from Acme Billing',
-      at: '2026-10-15T08:15:00Z',
       destination: { kind: 'email_thread', threadId: 'e-1' },
     });
 
@@ -481,7 +472,6 @@ describe('promptOrigin', () => {
       lead: 'via routine',
       place: 'Watcher',
       tail: '· file from Teo',
-      at: '2026-10-15T10:05:00Z',
       destination: {
         kind: 'channel_message',
         channelId: 'c2',
@@ -509,7 +499,6 @@ describe('promptOrigin', () => {
       lead: 'via routine',
       place: 'Watcher',
       tail: '· Acme renewal ended',
-      at: '2026-10-15T14:30:00Z',
       destination: { kind: 'call', callId: 'call-1' },
     });
   });

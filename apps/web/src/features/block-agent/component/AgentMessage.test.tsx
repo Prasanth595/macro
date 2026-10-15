@@ -169,6 +169,7 @@ const message = (
   agentSessionId: 'session',
   requestId: null,
   pending: false,
+  postedAt: null,
   segments: [],
   phase: null,
   turn: 0,
@@ -795,7 +796,7 @@ describe('Message failed turns', () => {
   });
 });
 
-describe('Message prompt origin', () => {
+describe('Message prompt footer', () => {
   const context = (xml: string) =>
     `<m-agent-context>${JSON.stringify({ version: 1, text: xml }).replace(/</g, '\\u003c')}</m-agent-context>\nWork on the assigned task.`;
 
@@ -824,7 +825,7 @@ describe('Message prompt origin', () => {
     expect(openedOrigins).toEqual([{ kind: 'task', taskId: 'task-1' }]);
   });
 
-  it('adds nothing under a prompt typed in the session', () => {
+  it('shows only when a prompt typed in the session was posted', () => {
     const view = render(() => (
       <Message
         message={{
@@ -834,10 +835,29 @@ describe('Message prompt origin', () => {
             ),
           ]),
           author: { kind: 'user', userId: 'macro|me@macro.com' },
+          postedAt: '2026-10-15T14:02:00+00:00',
         }}
         inFlight={false}
       />
     ));
-    expect(view.queryByTestId('prompt-origin')).toBeNull();
+    const footer = view.getByTestId('prompt-footer');
+    expect(footer.querySelector('button')).toBeNull();
+    expect(footer.querySelector('time')?.dateTime).toBe(
+      '2026-10-15T14:02:00+00:00'
+    );
+  });
+
+  it('adds nothing under a prompt the log has not confirmed', () => {
+    const view = render(() => (
+      <Message
+        message={{
+          ...message([text('Do the thing.')]),
+          author: { kind: 'user', userId: 'macro|me@macro.com' },
+          pending: true,
+        }}
+        inFlight={false}
+      />
+    ));
+    expect(view.queryByTestId('prompt-footer')).toBeNull();
   });
 });
