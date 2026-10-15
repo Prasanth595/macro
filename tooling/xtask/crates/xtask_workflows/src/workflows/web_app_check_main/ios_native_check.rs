@@ -31,7 +31,7 @@
 //! `IOS_RELEASE_DOPPLER_TOKEN` secret), shared with the release workflow.
 //!
 //! The `skip-ios-update` label bypasses the gate for tauri changes that don't
-//! break the native/web contract; the `iOS Native Check Label` workflow
+//! break the native/web contract; the `Native Check Label` workflow
 //! re-runs this job when that label is added or removed. The labels are read
 //! through the API at run time, not from `github.event`: a re-run keeps the
 //! payload of the event that started the run, so the event's label list is

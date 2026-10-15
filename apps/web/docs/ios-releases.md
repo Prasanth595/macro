@@ -1,5 +1,8 @@
 # iOS releases and breaking Tauri changes
 
+(The Android counterpart — `android-update`, `Android Native Check`, Google
+Play as the source of truth — is described in `docs/development/android.md`.)
+
 Web bundles ship to installed apps over the air (see
 `tauri/macro_bundle_updater_plugin`), but native code — anything under
 `apps/web/tauri/` — only reaches users through the App Store. A bundle that
