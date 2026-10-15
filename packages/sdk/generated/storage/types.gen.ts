@@ -759,6 +759,7 @@ export type ApiEntityFilterAst = {
      * the filters that should be applied to the channel entity
      */
     chanf?: unknown;
+    crma?: null | CrmAssociation;
     /**
      * Opt-in filters for viewer-accessible CRM contacts (wire key `crmf`).
      */
@@ -4429,6 +4430,21 @@ export type CreatedUserApiKey = {
      * User-facing name.
      */
     name: string;
+};
+
+/**
+ * The CRM record an association filter names.
+ */
+export type CrmAssociation = {
+    /**
+     * Items associated with the company or with any of its contacts.
+     */
+    company: string;
+} | {
+    /**
+     * Items associated with the contact.
+     */
+    contact: string;
 };
 
 /**
@@ -17294,6 +17310,36 @@ export type ApplyCrmPipelineOpsResponses = {
 
 export type ApplyCrmPipelineOpsResponse = ApplyCrmPipelineOpsResponses[keyof ApplyCrmPipelineOpsResponses];
 
+export type GetCrmPipelinePermissionsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/crm/pipelines/{id}/permissions';
+};
+
+export type GetCrmPipelinePermissionsResponses = {
+    200: SharePermissionV2;
+};
+
+export type GetCrmPipelinePermissionsResponse = GetCrmPipelinePermissionsResponses[keyof GetCrmPipelinePermissionsResponses];
+
+export type UpdateCrmPipelinePermissionsData = {
+    body: UpdateSharePermissionRequestV2;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/crm/pipelines/{id}/permissions';
+};
+
+export type UpdateCrmPipelinePermissionsResponses = {
+    200: SharePermissionV2;
+};
+
+export type UpdateCrmPipelinePermissionsResponse = UpdateCrmPipelinePermissionsResponses[keyof UpdateCrmPipelinePermissionsResponses];
+
 export type GetCrmPipelineRowsData = {
     body?: never;
     path: {
@@ -20568,6 +20614,10 @@ export type PostItemsSoupAstErrors = {
      * CRM-scoped queries require team membership, or requesting hidden CRM companies requires admin/owner team role
      */
     403: ErrorResponse;
+    /**
+     * The CRM record named by `crma` or a document `crm` literal is not visible to the caller
+     */
+    404: ErrorResponse;
     500: ErrorResponse;
 };
 
@@ -20596,6 +20646,10 @@ export type PostItemsSoupAstGroupedErrors = {
      * CRM-scoped queries require team membership, or requesting hidden CRM companies requires admin/owner team role
      */
     403: ErrorResponse;
+    /**
+     * The CRM record named by `crma` or a document `crm` literal is not visible to the caller
+     */
+    404: ErrorResponse;
     500: ErrorResponse;
 };
 

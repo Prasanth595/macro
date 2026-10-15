@@ -2101,6 +2101,32 @@ mention opens the right project, rename the project and reload to see the name
 update, and delete the mention. Discard unsent test drafts rather than sending
 them.
 
+## CRM pipeline mentions
+
+Pipelines are not in the `@` menu or the command menu. Pasting a pipeline link
+into an editor or composer inserts a document mention with a table icon and the
+pipeline's current name: the pipeline's copy-link action
+(`/app/companies?crmView=…` whose view is that pipeline) and
+`/app/pipeline/<id>` both work. Copied Customers links for other views
+(Companies, People, lists) stay plain links. A pipeline you cannot read shows
+**No Access**; a trashed one shows **Deleted**.
+
+Clicking the mention, or pressing Enter on it, opens Customers on the pipeline
+(on touch devices too). If Customers is already open in a split, that split
+switches to the pipeline instead of a second one opening. The request travels
+as the Customers pane search `crm.pipeline` (with a `crm.seek` that makes a
+repeat click a new request), which Customers drops once you leave the
+pipeline.
+
+The mention is stored as
+`<m-document-mention>{"documentId":"<pipeline id>","blockName":"pipeline",…}</m-document-mention>`.
+Like a project mention, it is never a channel-message reference, so mentioning
+a pipeline in a channel does not share it with the channel's members.
+
+To verify, copy a pipeline's link in Customers, paste it into a document,
+check the chip's name, click it with Customers closed and again with Customers
+open on Companies, and open `/app/pipeline/<id>` directly.
+
 ## CRM associations
 
 With CRM enabled, any task, document or call can point at CRM records through the
@@ -2307,7 +2333,7 @@ Document comments are messages read and written through
 message components, as channels do.
 
 Below the editor, expand `Discussion` to see comments without a text anchor.
-Its `Leave a comment...` composer is the channel composer: `Attach files`,
+Its `Leave a comment...` composer is the channel composer: the `+` (`Add`) menu,
 formatting, mentions, and `Send message` (Enter also submits). Confirm
 completion by the new message appearing above the composer; a failed send
 retains the draft. The timeline initially loads a bounded page with up to three
