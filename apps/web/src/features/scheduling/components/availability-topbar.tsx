@@ -1,6 +1,5 @@
 import ArrowLeft from '@phosphor/arrow-left.svg';
 import Info from '@phosphor/info.svg';
-import Plus from '@phosphor/plus.svg';
 import { Button } from '@ui';
 import { Show } from 'solid-js';
 
@@ -8,12 +7,10 @@ export function AvailabilityTopBar(props: {
   editing: boolean;
   creating: boolean;
   disabled: boolean;
-  canCreate: boolean;
   onBack: () => void;
-  onCreate: (opener: HTMLElement) => void;
 }) {
   return (
-    <div class="flex min-w-0 flex-1 items-center gap-2">
+    <div class="flex min-w-0 items-center gap-2">
       <Show when={props.editing}>
         <Button
           variant="ghost"
@@ -44,20 +41,6 @@ export function AvailabilityTopBar(props: {
           </Button>
         </Show>
       </div>
-      <Show when={!props.editing}>
-        <Show when={props.canCreate}>
-          <Button
-            class="ml-auto"
-            variant="strong"
-            size="sm"
-            disabled={props.disabled}
-            onClick={(event) => props.onCreate(event.currentTarget)}
-          >
-            <Plus class="size-4" />
-            New schedule
-          </Button>
-        </Show>
-      </Show>
     </div>
   );
 }

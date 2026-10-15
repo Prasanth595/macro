@@ -62,8 +62,11 @@ export function createSchedulingOwner(
     setCreateActive(false);
     setEvent(next);
   };
-  const editSchedule = (next: AvailabilitySchedule) => {
-    scheduleOpener = focusedElement();
+  const editSchedule = (
+    next: AvailabilitySchedule,
+    opener = focusedElement()
+  ) => {
+    scheduleOpener = opener;
     setSchedule(next);
   };
   const closeEventEditor = () => {
@@ -158,9 +161,9 @@ export function createSchedulingOwner(
   const createSchedule = (opener?: HTMLElement) => {
     if (scope().canEdit && !source.saving()) {
       editSchedule(
-        newSchedule(Intl.DateTimeFormat().resolvedOptions().timeZone)
+        newSchedule(Intl.DateTimeFormat().resolvedOptions().timeZone),
+        opener
       );
-      scheduleOpener = opener ?? scheduleOpener;
     }
   };
   const duplicate = (item: EventType, opener?: HTMLElement) => {

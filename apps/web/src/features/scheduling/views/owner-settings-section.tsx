@@ -183,46 +183,44 @@ export function OwnerSettingsSection(props: {
               role="group"
               aria-label={`${scope().name} ${props.kind === 'page' ? 'booking page' : props.kind}`}
             >
-              <Show
-                when={!schedule()}
-                fallback={
-                  <Show when={schedule()} keyed>
-                    {(value) => (
-                      <ScheduleEditor
-                        schedule={value}
-                        topBarOwned={props.scheduleTopBarOwned}
-                        creating={
-                          !p().schedules.some(
-                            (schedule) => schedule.id === value.id
-                          )
-                        }
-                        saving={source.saving()}
-                        onCancel={closeScheduleEditor}
-                        onSave={async (next) => {
-                          const exists = p().schedules.some(
-                            (s) => s.id === next.id
-                          );
-                          await save({
-                            ...p(),
-                            defaultScheduleId:
-                              p().defaultScheduleId ??
-                              p().schedules[0]?.id ??
-                              next.id,
-                            schedules: exists
-                              ? p().schedules.map((s) =>
-                                  s.id === next.id ? next : s
-                                )
-                              : [...p().schedules, next],
-                          });
-                          if (schedule()?.id === next.id) closeScheduleEditor();
-                        }}
-                      />
-                    )}
-                  </Show>
-                }
-              >
+              <Show when={schedule()} keyed>
+                {(value) => (
+                  <ScheduleEditor
+                    schedule={value}
+                    topBarOwned={props.scheduleTopBarOwned}
+                    creating={
+                      !p().schedules.some(
+                        (schedule) => schedule.id === value.id
+                      )
+                    }
+                    saving={source.saving()}
+                    onCancel={closeScheduleEditor}
+                    onSave={async (next) => {
+                      const exists = p().schedules.some(
+                        (s) => s.id === next.id
+                      );
+                      await save({
+                        ...p(),
+                        defaultScheduleId:
+                          p().defaultScheduleId ??
+                          p().schedules[0]?.id ??
+                          next.id,
+                        schedules: exists
+                          ? p().schedules.map((s) =>
+                              s.id === next.id ? next : s
+                            )
+                          : [...p().schedules, next],
+                      });
+                      if (schedule()?.id === next.id) closeScheduleEditor();
+                    }}
+                  />
+                )}
+              </Show>
+              {/* Keep card openers mounted for focus restoration after editing. */}
+              <div hidden={!!schedule()}>
                 <AvailabilityPanel
                   profile={p()}
+                  search={props.search}
                   canEdit={scope().canEdit}
                   saving={source.saving()}
                   onEdit={owner.editSchedule}
@@ -249,7 +247,7 @@ export function OwnerSettingsSection(props: {
                     })
                   }
                 />
-              </Show>
+              </div>
             </div>
           </Match>
           <Match when={props.kind === 'page'}>

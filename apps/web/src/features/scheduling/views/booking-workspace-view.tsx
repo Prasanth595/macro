@@ -84,6 +84,7 @@ export function BookingWorkspaceView(props: {
   const [to, setTo] = createSignal(shiftReportDate(today, 30));
   const [query, setQuery] = createSignal('');
   const [bookingsSearch, setBookingsSearch] = createSignal('');
+  const [availabilitySearch, setAvailabilitySearch] = createSignal('');
   const scopes = createMemo(() => {
     const available = capabilities.scopes();
     return [
@@ -311,23 +312,36 @@ export function BookingWorkspaceView(props: {
               </div>
             }
           >
-            <AvailabilityTopBar
-              editing={editingSchedule()}
-              creating={
-                !owner()
-                  ?.source.profile()
-                  ?.schedules.some(
-                    (schedule) => schedule.id === owner()?.schedule()?.id
-                  )
-              }
-              disabled={isSaving() || !owner()?.source.profile()}
-              canCreate={!!owner()?.scope().canEdit}
-              onBack={() => owner()?.closeScheduleEditor()}
-              onCreate={create}
-            />
+            <div class="flex min-w-0 flex-1 items-center gap-2">
+              <AvailabilityTopBar
+                editing={editingSchedule()}
+                creating={
+                  !owner()
+                    ?.source.profile()
+                    ?.schedules.some(
+                      (schedule) => schedule.id === owner()?.schedule()?.id
+                    )
+                }
+                disabled={isSaving() || !owner()?.source.profile()}
+                onBack={() => owner()?.closeScheduleEditor()}
+              />
+              <Show when={!editingSchedule() && owner()}>
+                {(current) => (
+                  <div class="hidden min-w-0 sm:block">
+                    <OwnerBadge scope={current().scope()} />
+                  </div>
+                )}
+              </Show>
+            </div>
           </Show>
         </ViewShell.TopBar>
-        <Show when={search.tab === 'links' || search.tab === 'bookings'}>
+        <Show
+          when={
+            search.tab === 'links' ||
+            search.tab === 'bookings' ||
+            (search.tab === 'availability' && !editingSchedule())
+          }
+        >
           <ViewShell.Header>
             <div class="flex min-w-0 flex-wrap items-center gap-3">
               <Show when={search.tab === 'links'}>
@@ -348,6 +362,30 @@ export function BookingWorkspaceView(props: {
                       disabled={
                         !owner()?.source.profile() || owner()?.source.saving()
                       }
+                      onClick={(event) => create(event.currentTarget)}
+                    >
+                      <PlusIcon class="size-4" />
+                      <span>New</span>
+                    </Button>
+                  </div>
+                </Show>
+              </Show>
+              <Show when={search.tab === 'availability'}>
+                <SearchBar
+                  label="Search schedules"
+                  placeholder="Search schedules…"
+                  value={availabilitySearch()}
+                  onValueChange={setAvailabilitySearch}
+                  class="max-w-md flex-1"
+                />
+                <Show when={owner()?.scope().canEdit}>
+                  <div class="ml-auto shrink-0">
+                    <Button
+                      label="New schedule"
+                      tooltip="New schedule"
+                      variant="strong"
+                      size="md"
+                      disabled={isSaving() || !owner()?.source.profile()}
                       onClick={(event) => create(event.currentTarget)}
                     >
                       <PlusIcon class="size-4" />
@@ -425,6 +463,7 @@ export function BookingWorkspaceView(props: {
                   <OwnerSettingsSection
                     kind="availability"
                     owner={current}
+                    search={availabilitySearch()}
                     scheduleTopBarOwned
                   />
                 </Show>
