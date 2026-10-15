@@ -1,9 +1,12 @@
 import {
   type AvailabilityChange,
   type AvailabilityResult,
+  type AvailabilityTarget,
+  minuteTime,
   rangeOverlaps,
   targetUnavailableWindows,
   targetWindows,
+  timeMinutes,
   validAvailabilityDate,
   windowsIssue,
 } from './availability';
@@ -57,6 +60,29 @@ export function availabilityHoursFromRanges(
   };
 }
 
+/** Append a full hour without wrapping overnight or overlapping an all-day range. */
+export function nextAvailabilityHourRange(
+  ranges: AvailabilityHourRange[]
+): AvailabilityHourRange | undefined {
+  if (
+    ranges.some((range) => range.allDay) ||
+    ranges.length >= 8 + MAX_UNAVAILABLE_WINDOWS
+  )
+    return;
+  const last = ranges.at(-1);
+  if (last && windowsIssue([last])) return;
+  const start = last ? timeMinutes(last.end) : 9 * 60;
+  if (start + 60 > 1439) return;
+  return {
+    mode:
+      ranges.filter((range) => range.mode === 'available').length < 8
+        ? 'available'
+        : 'unavailable',
+    start: minuteTime(start),
+    end: minuteTime(start + 60),
+  };
+}
+
 export type AvailabilitySelectedDate = {
   date: string;
   hours: AvailabilityHours;
@@ -81,6 +107,27 @@ export function normalizeAvailabilityHours(
   };
 }
 
+/** Edit stored hours, not the implicit gaps around a legacy timed override. */
+export function availabilityRuleHours(
+  schedule: AvailabilitySchedule,
+  target: AvailabilityTarget
+): AvailabilityHours {
+  const override =
+    target.kind === 'date'
+      ? schedule.overrides.find((entry) => entry.date === target.date)
+      : undefined;
+  const legacyTimedOverride =
+    override &&
+    override.windows.length > 0 &&
+    override.unavailableWindows == null;
+  return {
+    windows: targetWindows(schedule, target),
+    // A legacy empty override still means all-day time off, not a blank date.
+    unavailableWindows: legacyTimedOverride
+      ? []
+      : targetUnavailableWindows(schedule, target),
+  };
+}
 export function availabilitySelectedDates(
   schedule: AvailabilitySchedule,
   dates: string[]
@@ -89,10 +136,9 @@ export function availabilitySelectedDates(
     const target = { kind: 'date' as const, date };
     return {
       date,
-      hours: normalizeAvailabilityHours({
-        windows: targetWindows(schedule, target),
-        unavailableWindows: targetUnavailableWindows(schedule, target),
-      }),
+      hours: normalizeAvailabilityHours(
+        availabilityRuleHours(schedule, target)
+      ),
       overridden: schedule.overrides.some((override) => override.date === date),
     };
   });

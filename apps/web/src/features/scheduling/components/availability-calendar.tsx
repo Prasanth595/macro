@@ -1,33 +1,18 @@
 import { createMemo, createSignal, For, Index, onMount, Show } from 'solid-js';
 import { createPointerAutoScroll } from '../../../components/drag-drop/create-pointer-auto-scroll';
+import { type AvailabilityState, mergeWindows } from '../core/availability';
 import {
-  type AvailabilityChange,
-  type AvailabilityState,
-  dateWeekday,
-  windowsIssue,
-} from '../core/availability';
-import { availabilityBars } from '../core/availability-bars';
-import {
-  type AvailabilityMonthRun,
   type AvailabilityTimeFormat,
   availabilityDateRange,
-  availabilityMonthRuns,
   availabilityTimeLabel,
 } from '../core/availability-month';
 import { type TimeWindow, WEEKDAYS } from '../core/types';
-import { AvailabilitySelectionBar } from './availability-selection-bar';
 
 export type AvailabilityColumn = {
   target: { kind: 'date'; date: string };
-  label: string;
-  dateLabel?: string;
-  inherited: boolean;
   overridden: boolean;
   windows: TimeWindow[];
-  weeklyWindows: TimeWindow[];
-  weeklyEnabled: boolean;
   unavailable: TimeWindow[];
-  draft?: AvailabilityChange;
 };
 
 export function AvailabilityCalendar(props: {
@@ -36,23 +21,16 @@ export function AvailabilityCalendar(props: {
   today: string;
   disabled: boolean;
   timeFormat: AvailabilityTimeFormat;
-  stamping: boolean;
   selectedDates: string[];
-  selectionPreview?: Pick<AvailabilityChange, 'mode' | 'window' | 'allDay'>;
   getBoundary?: () => HTMLElement;
   onCancelSelection: () => void;
   onCancelReady: (cancel: () => void) => void;
   onDates: (
     dates: string[],
     anchor: HTMLElement,
-    toggle: boolean,
     interaction?: 'keyboard'
   ) => void;
-  onSelect: (
-    change: AvailabilityChange,
-    anchor: HTMLElement,
-    date: string
-  ) => void;
+  onSelect: (date: string, anchor: HTMLElement) => void;
   weekdayStates: AvailabilityState[];
   selectedWeekday?: number;
   onSelectWeekday: (day: number, anchor: HTMLElement) => void;
@@ -67,55 +45,8 @@ export function AvailabilityCalendar(props: {
     const current = drag();
     if (!current) return props.selectedDates;
     const dates = availabilityDateRange(current.first, current.last);
-    return props.stamping
-      ? [...new Set([...props.selectedDates, ...dates])]
-      : dates;
+    return dates;
   });
-  const preview = () => {
-    const change = props.selectionPreview;
-    if (!change) return;
-    if (!drag() && !props.stamping && selected().length < 2) return;
-    if (!change.allDay && windowsIssue([change.window])) return;
-    return change;
-  };
-  const previewHours = () => {
-    const change = preview();
-    return change?.allDay
-      ? 'All day'
-      : change
-        ? availabilityTimeLabel(change.window, props.timeFormat)
-        : '';
-  };
-  const runs = createMemo(() =>
-    preview()
-      ? availabilityMonthRuns(
-          props.columns.map((column) => column.target.date),
-          selected()
-        )
-      : []
-  );
-  const conflicting = (run: AvailabilityMonthRun) =>
-    props.columns
-      .slice(run.startIndex, run.startIndex + run.dates.length)
-      .some((column) => {
-        const change = props.selectionPreview;
-        if (!change) return false;
-        const bars = availabilityBars(
-          column.windows,
-          column.unavailable,
-          {
-            ...change,
-            target: column.target,
-            window: change.allDay
-              ? { start: '00:00', end: '23:59' }
-              : change.window,
-          },
-          column.overridden || column.weeklyEnabled
-        );
-        return bars[change.mode].some(
-          (bar) => bar.draft && bar.overlaps.length
-        );
-      });
   let scroll!: HTMLDivElement;
   let header!: HTMLDivElement;
   let pointer: { x: number; y: number } | undefined;
@@ -214,7 +145,7 @@ export function AvailabilityCalendar(props: {
                 classList={{ 'bg-accent/10': props.selectedWeekday === day() }}
                 aria-label={`${label}: ${props.weekdayStates[day()]}. Edit recurring hours`}
                 aria-expanded={props.selectedWeekday === day()}
-                disabled={props.disabled || props.stamping}
+                disabled={props.disabled}
                 onClick={(event) =>
                   props.onSelectWeekday(day(), event.currentTarget)
                 }
@@ -240,49 +171,10 @@ export function AvailabilityCalendar(props: {
           <Index each={props.columns}>
             {(column, index) => {
               const date = () => column().target.date;
-              const run = () =>
-                runs().find((run) => run.dates.includes(date()));
-              const tallPreview = () =>
-                run()?.dates.length === 1 &&
-                props.timeFormat === '12h' &&
-                previewHours() !== 'All day';
-              const active = () =>
-                column().overridden || column().weeklyEnabled;
-              const bars = createMemo(() =>
-                availabilityBars(
-                  column().windows,
-                  column().unavailable,
-                  run() ? undefined : column().draft,
-                  active()
-                )
-              );
-              const coveredByPreview = (
-                mode: AvailabilityChange['mode'],
-                window: TimeWindow
-              ) => {
-                const selection = preview();
-                return (
-                  !!run() &&
-                  !!selection &&
-                  mode === selection.mode &&
-                  (selection.allDay ||
-                    (window.start >= selection.window.start &&
-                      window.end <= selection.window.end))
-                );
-              };
-              const change = (
-                mode: AvailabilityChange['mode'],
-                window: TimeWindow,
-                index?: number
-              ): AvailabilityChange => ({
-                target: column().inherited
-                  ? { kind: 'weekly', day: dateWeekday(date()) }
-                  : column().target,
-                mode,
-                window,
-                index,
-                allDay: window.start === '00:00' && window.end === '23:59',
-              });
+              const bars = createMemo(() => ({
+                available: mergeWindows(column().windows),
+                unavailable: mergeWindows(column().unavailable),
+              }));
               return (
                 <div
                   role="group"
@@ -309,12 +201,7 @@ export function AvailabilityCalendar(props: {
                       return;
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault();
-                      props.onDates(
-                        [date()],
-                        event.currentTarget,
-                        true,
-                        'keyboard'
-                      );
+                      props.onDates([date()], event.currentTarget, 'keyboard');
                     }
                   }}
                   onPointerDown={(event) => {
@@ -324,7 +211,6 @@ export function AvailabilityCalendar(props: {
                     }
                     if (props.disabled || drag() || event.button !== 0) return;
                     if (
-                      !props.stamping &&
                       (event.target as Element).closest(
                         '[data-availability-item]'
                       )
@@ -362,12 +248,7 @@ export function AvailabilityCalendar(props: {
                     suppressedClick = true;
                     cancel();
                     event.preventDefault();
-                    if (dates.length)
-                      props.onDates(
-                        dates,
-                        event.currentTarget,
-                        dates.length === 1
-                      );
+                    if (dates.length) props.onDates(dates, event.currentTarget);
                   }}
                   onPointerCancel={(event) => {
                     if (drag()?.pointerId === event.pointerId) cancel();
@@ -399,71 +280,36 @@ export function AvailabilityCalendar(props: {
                       </span>
                     </Show>
                   </div>
-                  <div
-                    class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto"
-                    classList={{
-                      'pt-7': !!run() && !tallPreview(),
-                      'pt-9': tallPreview(),
-                    }}
-                  >
+                  <div class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
                     <For each={['available', 'unavailable'] as const}>
                       {(mode) => (
-                        <For
-                          each={bars()[mode].filter(
-                            (bar) => !coveredByPreview(mode, bar.window)
-                          )}
-                        >
-                          {(bar) => {
+                        <For each={bars()[mode]}>
+                          {(window) => {
                             const hours = () =>
-                              availabilityTimeLabel(
-                                bar.window,
-                                props.timeFormat
-                              );
+                              availabilityTimeLabel(window, props.timeFormat);
                             return (
                               <button
                                 type="button"
                                 data-availability-item
                                 data-mode={mode}
-                                data-availability-preview={
-                                  bar.draft ? 'true' : undefined
-                                }
                                 aria-label={`${dateLabel(date())}, ${mode}, ${hours()}`}
-                                disabled={props.disabled || bar.draft}
+                                disabled={props.disabled}
                                 class="min-w-0 shrink-0 rounded px-1 py-1 text-left text-[10px] leading-tight outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-100"
                                 classList={{
-                                  'bg-accent text-panel':
-                                    mode === 'available' &&
-                                    (active() || bar.draft),
-                                  'bg-edge text-ink':
-                                    mode === 'unavailable' ||
-                                    (!active() && !bar.draft),
-                                  'ring-1 ring-failure': !!bar.overlaps.length,
+                                  'bg-accent text-panel': mode === 'available',
+                                  'bg-edge text-ink': mode === 'unavailable',
                                 }}
                                 onPointerDown={(event) => {
                                   suppressedClick = event.defaultPrevented;
                                 }}
                                 onClick={(event) => {
                                   if (event.detail && suppressedClick) return;
-                                  if (props.stamping)
-                                    props.onDates(
-                                      [date()],
-                                      event.currentTarget,
-                                      true
-                                    );
-                                  else
-                                    props.onSelect(
-                                      change(mode, bar.window, bar.index),
-                                      event.currentTarget,
-                                      date()
-                                    );
+                                  props.onSelect(date(), event.currentTarget);
                                 }}
                               >
                                 <span class="block tabular-nums">
                                   {hours()}
                                 </span>
-                                <Show when={bar.overlaps.length}>
-                                  <span class="block text-[9px]">Overlap</span>
-                                </Show>
                               </button>
                             );
                           }}
@@ -475,20 +321,6 @@ export function AvailabilityCalendar(props: {
               );
             }}
           </Index>
-          <Show when={preview()}>
-            {(selectionPreview) => (
-              <For each={runs()}>
-                {(run) => (
-                  <AvailabilitySelectionBar
-                    run={run}
-                    preview={selectionPreview()}
-                    timeFormat={props.timeFormat}
-                    conflicting={conflicting(run)}
-                  />
-                )}
-              </For>
-            )}
-          </Show>
         </div>
       </div>
     </div>

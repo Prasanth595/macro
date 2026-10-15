@@ -1,46 +1,38 @@
+import ArrowsClockwise from '@phosphor/arrows-clockwise.svg';
+import CalendarBlank from '@phosphor/calendar-blank.svg';
 import ArrowLeft from '@phosphor/caret-left.svg';
 import ArrowRight from '@phosphor/caret-right.svg';
+import Globe from '@phosphor/globe.svg';
+import Pencil from '@phosphor/pencil-simple.svg';
 import Plus from '@phosphor/plus.svg';
-import { Button } from '@ui';
-import { batch, createSignal, Show } from 'solid-js';
+import Trash from '@phosphor/trash.svg';
+import { Button, Tabs } from '@ui';
+import { createSignal, For, Show } from 'solid-js';
 import { getDefaultCalendarTimeFormat } from '../../calendar/utils/time-format';
 import {
   AvailabilityCalendar,
   type AvailabilityColumn,
 } from '../components/availability-calendar';
-import { AvailabilityDateOverrides } from '../components/availability-date-overrides';
-import { AvailabilityDayDetails } from '../components/availability-day-details';
-import {
-  AvailabilityGeneralDetails,
-  AvailabilityScheduleTitle,
-} from '../components/availability-general-details';
+import { AvailabilityExceptionDialog } from '../components/availability-exception-dialog';
+import { AvailabilityFieldRow } from '../components/availability-field-row';
+import { AvailabilityScheduleTitle } from '../components/availability-general-details';
+import { AvailabilityHoursEditor } from '../components/availability-hours-editor';
+import { AvailabilityHoursSummary } from '../components/availability-hours-summary';
 import { AvailabilityMonthPicker } from '../components/availability-month-picker';
-import { AvailabilityMonthReview } from '../components/availability-month-review';
-import { AvailabilityRangeDetails } from '../components/availability-range-details';
-import { AvailabilityRangeEditor } from '../components/availability-range-editor';
-import { AvailabilitySelectionDetails } from '../components/availability-selection-details';
-import {
-  type AvailabilityChange,
-  type AvailabilityTarget,
-  availabilityState,
-  dateWeekday,
-  targetUnavailableWindows,
-  targetWindows,
-  windowsIssue,
-} from '../core/availability';
+import { TimeZoneInput } from '../components/fields';
+import { availabilityState, validAvailabilityDate } from '../core/availability';
 import {
   type AvailabilityTimeFormat,
   availabilityMonth,
   formatAvailabilityDate,
   shiftAvailabilityMonth,
 } from '../core/availability-month';
+import { availabilityRuleHours } from '../core/availability-selection';
 import { reportDate } from '../core/insights';
 import { type AvailabilitySchedule, WEEKDAYS } from '../core/types';
-import { createAvailabilityEditor } from '../primitives/create-availability-editor';
-import { createAvailabilityMonthEditor } from '../primitives/create-availability-month-editor';
-import { createAvailabilitySelection } from '../primitives/create-availability-selection';
+import { createAvailabilityRules } from '../primitives/create-availability-rules';
 
-/** Shared availability controls used by settings and AI review. */
+/** Edit weekly rules and date exceptions, with a calendar preview of both. */
 export function ScheduleFields(props: {
   schedule: AvailabilitySchedule;
   disabled?: boolean;
@@ -55,395 +47,121 @@ export function ScheduleFields(props: {
   const [timeFormat, setTimeFormat] = createSignal<AvailabilityTimeFormat>(
     getDefaultCalendarTimeFormat() === '24-hour' ? '24h' : '12h'
   );
-  let dateSelection!: ReturnType<typeof createAvailabilitySelection>;
-  let stamp!: ReturnType<typeof createAvailabilityMonthEditor>;
-  const editor = createAvailabilityEditor({
-    schedule: () => props.schedule,
-    disabled: () => !!props.disabled,
-    onEditingChange: (editing) =>
-      props.onEditingChange?.(
-        editing || !!stamp?.template() || !!dateSelection?.draft()
-      ),
-    onChange: props.onChange,
-  });
-  stamp = createAvailabilityMonthEditor({
-    schedule: () => props.schedule,
-    disabled: () => !!props.disabled,
-    unavailable: editor.displayUnavailableWindows,
-    copy: editor.copy,
-    onEditingChange: (editing) =>
-      props.onEditingChange?.(
-        editing || !!editor.selection() || !!dateSelection?.draft()
-      ),
-  });
-  dateSelection = createAvailabilitySelection({
+  const editor = createAvailabilityRules({
     schedule: () => props.schedule,
     disabled: () => !!props.disabled,
     onChange: props.onChange,
-    onEditingChange: (editing) =>
-      props.onEditingChange?.(
-        editing || !!editor.selection() || !!stamp.template()
-      ),
+    onEditingChange: props.onEditingChange,
   });
-  const hasChanges = () => editor.hasChanges() || dateSelection.hasChanges();
-  let selectionAnchor: HTMLElement | undefined;
-  const dismissSelection = () => {
-    dateSelection.close();
-    queueMicrotask(() => {
-      if (selectionAnchor?.isConnected)
-        selectionAnchor.focus({ preventScroll: true });
-    });
-  };
-  let root!: HTMLDivElement;
   let viewport!: HTMLDivElement;
+  let weeklySection!: HTMLElement;
+  let exceptionsSection!: HTMLElement;
+  let anchor: HTMLElement | undefined;
+  let anchorDate: string | undefined;
+  let addExceptionButton!: HTMLButtonElement;
   let cancelCalendarDrag = () => {};
-  const [drawingMode, setDrawingMode] =
-    createSignal<AvailabilityChange['mode']>('available');
-  const drawingPreview = () => ({
-    mode: drawingMode(),
-    window: { start: '09:00', end: '17:00' },
-  });
-  const [selectedRange, setSelectedRange] = createSignal<{
-    change: AvailabilityChange;
-    anchor: HTMLElement;
-    drawn: boolean;
-    date: string;
-  }>();
-  const [selectedDay, setSelectedDay] = createSignal<{
-    target: AvailabilityTarget;
-    date: string;
-    anchor: HTMLElement;
-  }>();
-  const selectedWeekday = () => {
-    const target = selectedDay()?.target ?? selectedRange()?.change.target;
-    return target?.kind === 'weekly' ? target.day : undefined;
+  const locked = () => !!props.disabled || editor.hasChanges();
+  const weeklyDraft = () => {
+    const draft = editor.draft();
+    return draft?.kind === 'weekly' ? draft : undefined;
   };
-  const dismissDay = () => {
-    const selected = selectedDay();
-    setSelectedDay(undefined);
-    queueMicrotask(
-      () => selected?.anchor.isConnected && selected.anchor.focus()
-    );
+  const dateDraft = () => {
+    const draft = editor.draft();
+    return draft?.kind === 'dates' ? draft : undefined;
   };
-  const openDay = (
-    target: AvailabilityTarget,
-    date: string,
-    anchor: HTMLElement
-  ) => {
-    closeRange();
-    dateSelection.close();
-    setSelectedDay({ target, date, anchor });
-    queueMicrotask(() =>
-      root
-        .querySelector<HTMLButtonElement>(
-          '[aria-label="Day availability state"] button[aria-pressed="true"]'
-        )
-        ?.focus()
-    );
-  };
-  const closeRange = () => {
+  const focusEditor = (section: HTMLElement) =>
+    queueMicrotask(() => {
+      const content = section.querySelector('[data-rule-editor]');
+      const control =
+        content?.querySelector<HTMLElement>(
+          'input:not(:disabled):not([type="hidden"]):not([aria-hidden="true"]):not([tabindex="-1"])'
+        ) ?? content?.querySelector<HTMLElement>('button:not(:disabled)');
+      control?.focus({ preventScroll: true });
+      content?.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+    });
+  const restoreFocus = () =>
+    queueMicrotask(() => {
+      const savedRow = Array.from(
+        exceptionsSection.querySelectorAll<HTMLElement>('[data-exception-date]')
+      ).find((row) => row.dataset.exceptionDate === anchorDate);
+      const fallback =
+        savedRow?.querySelector<HTMLButtonElement>('button') ??
+        addExceptionButton;
+      (anchor?.isConnected ? anchor : fallback).focus({ preventScroll: true });
+    });
+  const close = () => {
+    const wasDateDraft = !!dateDraft();
+    cancelCalendarDrag();
     editor.close();
-    setSelectedRange(undefined);
+    if (!wasDateDraft) restoreFocus();
   };
-  const openRange = (
-    change: AvailabilityChange,
-    anchor: HTMLElement,
-    drawn = false,
-    date = change.target.kind === 'date' ? change.target.date : monthDate()
-  ) => {
-    setDrawingMode(change.mode);
-    dateSelection.close();
-    setSelectedDay(undefined);
-    closeRange();
-    setSelectedRange({
-      change,
-      anchor: anchor.closest<HTMLElement>('[data-availability-date]') ?? anchor,
-      drawn,
-      date,
-    });
-    if (drawn) {
-      editor.open(change);
-      queueMicrotask(() =>
-        root
-          .querySelector<HTMLInputElement>(
-            '[aria-label="Availability start time"]'
-          )
-          ?.focus()
-      );
-    } else editRange();
+  const apply = () => {
+    const wasDateDraft = !!dateDraft();
+    if (editor.apply() && !wasDateDraft) restoreFocus();
   };
-  const editRange = () => {
-    const selected = selectedRange();
-    if (!selected) return;
-    const change = selected.change;
-    editor.open({
-      ...change,
-      origin: { mode: change.mode, window: { ...change.window } },
-    });
+  const openWeekday = (day: number, source: HTMLElement) => {
+    if (locked()) return;
+    anchor = source;
+    editor.openWeekday(day);
+    focusEditor(weeklySection);
   };
-  const updateRange = (
-    update: (current: AvailabilityChange) => AvailabilityChange
-  ) => {
-    editor.updateSelection(update);
-    const selection = editor.selection();
-    if (selection) setDrawingMode(selection.mode);
-  };
-  const apply = (replaceConflicts = false) => {
-    const draft = editor.selection();
-    if (!draft) return;
-    editor.apply(replaceConflicts);
-    if (editor.selection()) return;
-    if (selectedRange()?.drawn) {
-      dismissRange();
-      return;
-    }
-    const windows = targetWindows(props.schedule, draft.target);
-    const savedWindow = draft.allDay
-      ? { start: '00:00', end: '23:59' }
-      : draft.window;
-    const index = windows.findIndex(
-      (window) =>
-        window.start <= savedWindow.start && window.end >= savedWindow.end
+  const openDates = (dates: string[], source: HTMLElement) => {
+    if (locked()) return;
+    const calendarAnchor = source.closest<HTMLElement>(
+      '[data-availability-date]'
     );
-    setSelectedRange(
-      (current) =>
-        current && {
-          ...current,
-          drawn: false,
-          change:
-            draft.mode === 'available' && index >= 0
-              ? { ...draft, origin: undefined, window: windows[index], index }
-              : {
-                  ...draft,
-                  origin: undefined,
-                  index: undefined,
-                  window:
-                    draft.target.kind === 'date'
-                      ? (editor
-                          .displayUnavailableWindows(draft.target.date)
-                          .find(
-                            (window) =>
-                              window.start < savedWindow.end &&
-                              window.end > savedWindow.start
-                          ) ?? savedWindow)
-                      : savedWindow,
-                },
-        }
-    );
+    anchor = calendarAnchor ?? source;
+    anchorDate = dates[0];
+    editor.openDates(dates);
+    if (!calendarAnchor && dates.length === 1) setMonthDate(dates[0]);
   };
-  const clearSelectedHours = () => {
-    const change = editor.selection() ?? selectedRange()?.change;
-    if (!change) return;
-    if (
-      editor.clearRanges(
-        [change.target],
-        change.allDay ? { start: '00:00', end: '23:59' } : change.window
-      )
-    )
-      dismissRange();
-  };
-  // Capture the selected range before closing its details.
-  const removeAction = (change: AvailabilityChange) => () => {
-    if (change.index !== undefined) editor.remove(change.target, change.index);
-  };
-  const restoreAction = (change: AvailabilityChange) => () => {
-    if (change.target.kind === 'date') editor.restoreDate(change.target.date);
-  };
-  const selectedColumn = () =>
-    columns().find((column) => column.target.date === selectedDate());
-  const selectedDate = () => {
-    const target = editor.selection()?.target;
-    return target?.kind === 'date'
-      ? target.date
-      : (selectedRange()?.date ?? monthDate());
-  };
-  const dates = () => availabilityMonth(monthDate());
-  const previewForDate = (date: string, overridden: boolean) => {
-    const stamped = stamp.dates().includes(date) ? stamp.template() : undefined;
-    const change =
-      stamped ??
-      (selectedRange()?.drawn || editor.hasChanges()
-        ? editor.selection()
-        : undefined);
-    if (!change || (!change.allDay && windowsIssue([change.window]))) return;
-    if (
-      !stamped &&
-      (change.target.kind === 'date'
-        ? change.target.date !== date
-        : overridden || dateWeekday(date) !== change.target.day)
-    )
-      return;
-    return {
-      ...change,
-      ...(stamped
-        ? {
-            target: { kind: 'date' as const, date },
-            origin: undefined,
-            index: undefined,
-          }
-        : {}),
-      window: change.allDay ? { start: '00:00', end: '23:59' } : change.window,
-    };
-  };
-  const selectDates = (
-    dates: string[],
-    anchor: HTMLElement,
-    toggle: boolean,
-    interaction?: 'keyboard'
-  ) => {
-    if (stamp.template()) {
-      stamp.select(dates, toggle);
-      return;
-    }
-    if (hasChanges()) return;
-    closeRange();
-    setSelectedDay(undefined);
-    selectionAnchor =
-      anchor.closest<HTMLElement>('[data-availability-date]') ?? anchor;
-    dateSelection.select(dates);
-    if (interaction === 'keyboard') {
-      queueMicrotask(() => {
-        const content = root.querySelector<HTMLElement>(
-          '[aria-label="Edit selected availability"]'
-        );
-        const control =
-          content?.querySelector<HTMLElement>(
-            'input:not([type="hidden"]):not(:disabled)'
-          ) ?? content?.querySelector<HTMLElement>('button:not(:disabled)');
-        control?.focus();
-      });
-    }
-  };
-  const dateLabel = (date: string) =>
-    new Intl.DateTimeFormat('en', {
-      month: 'short',
-      day: 'numeric',
-      timeZone: 'UTC',
-    }).format(new Date(`${date}T00:00:00Z`));
+  const hoursFor = (
+    target: { kind: 'weekly'; day: number } | { kind: 'date'; date: string }
+  ) => availabilityRuleHours(props.schedule, target);
   const columns = (): AvailabilityColumn[] =>
-    dates().map((date) => {
+    availabilityMonth(monthDate()).map((date) => {
       const overridden = props.schedule.overrides.some(
-        (override) => override.date === date
+        (entry) => entry.date === date
       );
-      const day = dateWeekday(date);
-      const weeklyWindows = editor.displayWeeklyWindows(day);
+      const hours = hoursFor({ kind: 'date', date });
       return {
         target: { kind: 'date', date },
-        label: WEEKDAYS[dateWeekday(date)],
-        dateLabel: dateLabel(date),
-        inherited: !overridden,
         overridden,
-        windows: overridden
-          ? targetWindows(props.schedule, { kind: 'date', date })
-          : weeklyWindows,
-        weeklyWindows,
-        weeklyEnabled: !!targetWindows(props.schedule, { kind: 'weekly', day })
-          .length,
-        unavailable: editor.displayUnavailableWindows(date),
-        draft: previewForDate(date, overridden),
+        windows: hours.windows,
+        unavailable: hours.unavailableWindows,
       };
     });
-  const invalidDays = () =>
-    [...props.schedule.weekly, ...props.schedule.overrides].filter((day) =>
-      windowsIssue(day.windows)
-    );
-  const hasOverlaps = () =>
-    invalidDays().some((day) => windowsIssue(day.windows)?.mergeable);
-  const dismissRange = () => {
-    const current = selectedRange();
-    closeRange();
-    if (!current) return;
-    queueMicrotask(() => {
-      const fallback = Array.from(
-        root.querySelectorAll<HTMLElement>('[data-availability-date]')
-      ).find((element) => element.dataset.availabilityDate === current.date);
-      (current.anchor.isConnected ? current.anchor : fallback)?.focus({
-        preventScroll: true,
-      });
-    });
-  };
-  const clearAvailability = () => {
-    if (props.disabled) return;
+  const changeMonth = (date: string) => {
+    if (locked()) return;
     cancelCalendarDrag();
-    batch(() => {
-      stamp.exit();
-      closeRange();
-      dateSelection.close();
-      setSelectedDay(undefined);
-      setDrawingMode('available');
-      editor.clear();
-    });
-  };
-  const selectOverride = (date: string, anchor: HTMLElement) => {
-    const override = props.schedule.overrides.find(
-      (override) => override.date === date
-    );
-    if (!override) return;
+    editor.close();
     setMonthDate(date);
-    if (stamp.template()) return;
-    const window = override.windows[0];
-    const timeOff = targetUnavailableWindows(props.schedule, {
-      kind: 'date',
-      date,
-    });
-    if (!window && !timeOff.length) {
-      openDay({ kind: 'date', date }, date, anchor);
-      return;
-    }
-    openRange(
-      {
-        target: { kind: 'date', date },
-        mode: window ? 'available' : 'unavailable',
-        window: window ?? timeOff[0],
-        index: window ? 0 : undefined,
-        allDay:
-          (window ?? timeOff[0]).start === '00:00' &&
-          (window ?? timeOff[0]).end === '23:59',
-      },
-      anchor,
-      false,
-      date
-    );
   };
 
   return (
     <div
-      ref={root}
-      class="portal-scope @container/availability relative flex min-h-0 min-w-0 flex-1 flex-col pt-6"
+      ref={viewport}
+      class="portal-scope @container/availability flex min-h-0 min-w-0 flex-1 flex-col gap-8 overflow-y-auto pt-6 pb-4"
       onKeyDown={(event) => {
+        if (event.key !== 'Escape' || event.defaultPrevented || !editor.draft())
+          return;
         if (
-          event.key !== 'Escape' ||
-          event.defaultPrevented ||
-          (event.target instanceof Element &&
-            event.target.closest(
-              '[role="dialog"], [aria-haspopup="dialog"][aria-expanded="true"]'
-            ))
+          event.target instanceof Element &&
+          event.target.closest(
+            '[role="dialog"], [aria-haspopup="dialog"][aria-expanded="true"]'
+          )
         )
           return;
-        if (stamp.template()) {
-          cancelCalendarDrag();
-          stamp.exit();
-        } else if (dateSelection.dates().length) {
-          cancelCalendarDrag();
-          dismissSelection();
-        } else if (selectedRange()) {
-          cancelCalendarDrag();
-          dismissRange();
-        } else if (selectedDay()) dismissDay();
-        else return;
         event.preventDefault();
+        close();
       }}
     >
-      <div
-        ref={viewport}
-        class="grid min-h-0 min-w-0 flex-1 auto-rows-max grid-cols-1 gap-8 overflow-y-auto @min-[1000px]/availability:grid-cols-2 @min-[1000px]/availability:grid-rows-[minmax(0,1fr)] @min-[1000px]/availability:overflow-hidden"
+      <header
+        aria-label="Schedule details"
+        class="flex shrink-0 flex-col gap-5"
       >
-        <aside
-          aria-label="Schedule details"
-          class="@container/availability-details min-h-0 min-w-0 @min-[1000px]/availability:h-full @min-[1000px]/availability:overflow-y-auto @min-[1000px]/availability:overscroll-contain"
-        >
-          <h2 class="sr-only">Schedule details</h2>
-          <div class="mb-6 min-w-0 pt-1 pr-1">
+        <div class="flex min-w-0 flex-wrap items-center justify-between gap-4">
+          <div class="min-w-0 flex-1 pr-1">
             <AvailabilityScheduleTitle
               name={props.schedule.name}
               disabled={!!props.disabled}
@@ -452,384 +170,334 @@ export function ScheduleFields(props: {
               }
             />
           </div>
-          <div class="grid min-w-0 grid-cols-1 gap-8 @min-[520px]/availability-details:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-            <AvailabilityGeneralDetails
-              timeZone={props.schedule.timeZone}
-              timeFormat={timeFormat()}
-              disabled={!!props.disabled}
-              timeZoneDisabled={
-                !!props.disabled ||
-                !!editor.selection() ||
-                !!stamp.template() ||
-                !!dateSelection.draft()
-              }
-              onTimeZoneChange={(timeZone) =>
-                props.onChange((schedule) => ({ ...schedule, timeZone }))
-              }
-              onTimeFormatChange={setTimeFormat}
-              onClear={clearAvailability}
-            />
-            <div
-              aria-label="Availability editor"
-              role="region"
-              class="flex min-w-0 flex-col gap-5"
-            >
-              <Show
-                when={
-                  !stamp.template() &&
-                  !dateSelection.draft() &&
-                  !selectedDay() &&
-                  (!selectedRange() || selectedRange()?.drawn)
-                }
-              >
-                <div class="flex flex-col gap-2 text-sm">
-                  <h3 class="text-base font-semibold leading-6">
-                    Availability
-                  </h3>
-                  <p class="text-xs leading-relaxed text-ink-muted">
-                    Select dates or an existing range on the calendar to edit
-                    hours.
-                  </p>
-                </div>
-              </Show>
-              <Show
-                when={stamp.template()}
-                fallback={
-                  <Show
-                    when={dateSelection.draft()}
-                    fallback={
-                      <Show
-                        keyed
-                        when={selectedRange()}
-                        fallback={
-                          <Show keyed when={selectedDay()}>
-                            {(selected) => (
-                              <AvailabilityDayDetails
-                                target={selected.target}
-                                label={
-                                  selected.target.kind === 'weekly'
-                                    ? WEEKDAYS[selected.target.day]
-                                    : formatAvailabilityDate(selected.date)
-                                }
-                                state={availabilityState(
-                                  props.schedule,
-                                  selected.target
-                                )}
-                                windows={targetWindows(
-                                  props.schedule,
-                                  selected.target
-                                )}
-                                unavailable={targetUnavailableWindows(
-                                  props.schedule,
-                                  selected.target
-                                )}
-                                timeFormat={timeFormat()}
-                                disabled={!!props.disabled}
-                                onStateChange={(state) =>
-                                  editor.setState(selected.target, state)
-                                }
-                                onSelect={(change, anchor, drawn) =>
-                                  openRange(
-                                    change,
-                                    anchor,
-                                    drawn,
-                                    selected.date
-                                  )
-                                }
-                                onClose={dismissDay}
-                              />
-                            )}
-                          </Show>
-                        }
-                      >
-                        {(selected) => {
-                          const change = () =>
-                            selectedRange()?.change ?? selected.change;
-                          return (
-                            <Show
-                              when={!selected.drawn}
-                              fallback={
-                                <Show when={editor.selection()}>
-                                  {(draft) => (
-                                    <AvailabilityRangeEditor
-                                      change={draft()}
-                                      date={selectedDate()}
-                                      timeFormat={timeFormat()}
-                                      issue={editor.issue()}
-                                      disabled={!!props.disabled}
-                                      onChange={updateRange}
-                                      onApply={apply}
-                                      onClose={dismissRange}
-                                      onClear={clearSelectedHours}
-                                    />
-                                  )}
-                                </Show>
-                              }
-                            >
-                              <AvailabilityRangeDetails
-                                change={change()}
-                                timeZone={props.schedule.timeZone}
-                                timeFormat={timeFormat()}
-                                date={selectedDate()}
-                                inherited={selectedColumn()?.inherited ?? false}
-                                overridden={
-                                  selectedColumn()?.overridden ?? false
-                                }
-                                disabled={!!props.disabled}
-                                draft={editor.selection()}
-                                hasChanges={editor.hasChanges()}
-                                issue={editor.issue()}
-                                onEdit={editRange}
-                                onChange={updateRange}
-                                onApply={apply}
-                                onClose={dismissRange}
-                                onCancelEdit={dismissRange}
-                                onRemove={removeAction(change())}
-                                onClear={clearSelectedHours}
-                                onRestore={restoreAction(change())}
-                                onStamp={() => {
-                                  const template = change();
-                                  closeRange();
-                                  stamp.begin(template);
-                                }}
-                              />
-                            </Show>
-                          );
-                        }}
-                      </Show>
+          <Button
+            variant="ghost"
+            size="sm"
+            class="text-failure not-touch:not-disabled:hover:text-failure"
+            tooltip="Clear weekly hours and date exceptions from this draft. Save to apply."
+            disabled={!!props.disabled}
+            onClick={() => {
+              cancelCalendarDrag();
+              editor.clearAll();
+            }}
+          >
+            <Trash class="size-4" />
+            Clear schedule
+          </Button>
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+          <div class="min-w-0 max-w-full">
+            <AvailabilityFieldRow icon={<Globe />} align="center">
+              <div class="flex min-w-0 flex-wrap items-center gap-3 text-sm">
+                <span class="text-ink-muted">Time zone</span>
+                <div class="min-w-0 w-64 max-w-full">
+                  <TimeZoneInput
+                    value={props.schedule.timeZone}
+                    disabled={!!props.disabled || !!editor.draft()}
+                    onChange={(timeZone) =>
+                      props.onChange((schedule) => ({ ...schedule, timeZone }))
                     }
-                  >
-                    {(draft) => (
-                      <AvailabilitySelectionDetails
-                        dates={dateSelection.dates()}
-                        draft={draft()}
-                        issue={dateSelection.issue()}
-                        disabled={!!props.disabled}
-                        hasChanges={dateSelection.hasChanges()}
-                        onEdit={dateSelection.edit}
-                        onChange={dateSelection.update}
-                        onApply={() => {
-                          if (dateSelection.apply()) dismissSelection();
-                        }}
-                        onClearHours={() => {
-                          if (dateSelection.clear()) dismissSelection();
-                        }}
-                        onClose={dismissSelection}
-                      />
-                    )}
-                  </Show>
-                }
-              >
-                {(template) => (
-                  <AvailabilityMonthReview
-                    template={template()}
-                    timeFormat={timeFormat()}
-                    dates={stamp.dates()}
-                    conflicts={stamp.conflicts()}
-                    error={stamp.error()}
-                    disabled={!!props.disabled}
-                    onClear={stamp.clear}
-                    onExit={stamp.exit}
-                    onApply={stamp.apply}
                   />
-                )}
-              </Show>
-              <Button
-                variant="ghost"
-                size="sm"
-                class="self-start"
-                disabled={
-                  !!props.disabled ||
-                  hasChanges() ||
-                  !!selectedRange()?.drawn ||
-                  !!stamp.template()
-                }
-                onClick={(event) =>
-                  openRange(
-                    {
-                      target: { kind: 'date', date: monthDate() },
-                      ...drawingPreview(),
-                    },
-                    event.currentTarget,
-                    true
-                  )
-                }
-              >
-                <Plus class="size-5" />
-                Add availability
-              </Button>
+                </div>
+              </div>
+            </AvailabilityFieldRow>
+          </div>
+          <Tabs
+            aria-label="Time format"
+            list={[
+              { value: '12h', label: '12h' },
+              { value: '24h', label: '24h' },
+            ]}
+            value={timeFormat()}
+            onChange={(value) => {
+              if (value === '12h' || value === '24h') setTimeFormat(value);
+            }}
+          />
+        </div>
+      </header>
+
+      <div class="grid min-w-0 shrink-0 grid-cols-1 items-start gap-10 @min-[1050px]/availability:grid-cols-[minmax(0,1fr)_minmax(28rem,1fr)]">
+        <section ref={weeklySection} aria-label="Weekly hours" class="min-w-0">
+          <div class="mb-5 flex items-start gap-3">
+            <ArrowsClockwise class="mt-0.5 size-5 shrink-0 text-ink-muted" />
+            <div>
+              <h3 class="text-base font-semibold">Weekly hours</h3>
+              <p class="mt-1 text-xs leading-relaxed text-ink-muted">
+                Your regular hours, repeated every week.
+              </p>
             </div>
           </div>
-        </aside>
-        <section
-          aria-label="Availability calendar and overrides"
-          class="flex min-h-0 min-w-0 w-full max-w-[48rem] flex-col justify-self-end @min-[1000px]/availability:h-full @min-[1000px]/availability:overflow-y-auto @min-[1000px]/availability:overscroll-contain"
-        >
-          <div class="flex min-h-0 min-w-0 shrink-0 flex-col @min-[1000px]/availability:max-h-full">
-            <div class="flex shrink-0 flex-wrap items-center justify-between gap-3 pb-3">
-              <div class="flex items-center gap-1.5">
+          <div class="divide-y divide-edge-muted">
+            <For each={WEEKDAYS}>
+              {(day, index) => {
+                const target = { kind: 'weekly' as const, day: index() };
+                const active = () => weeklyDraft()?.day === index();
+                const hours = () => hoursFor(target);
+                return (
+                  <div class="py-4 first:pt-0" data-weekday={index()}>
+                    <div class="flex items-start gap-3">
+                      <h4 class="w-24 shrink-0 pt-1 text-sm font-medium">
+                        {day}
+                      </h4>
+                      <div class="min-w-0 flex-1 pt-1">
+                        <AvailabilityHoursSummary
+                          hours={hours()}
+                          timeFormat={timeFormat()}
+                        />
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        label={`${hours().windows.length || hours().unavailableWindows.length ? 'Edit' : 'Add'} ${day} hours`}
+                        aria-expanded={active()}
+                        disabled={locked()}
+                        onClick={(event) =>
+                          openWeekday(index(), event.currentTarget)
+                        }
+                      >
+                        <Show
+                          when={
+                            hours().windows.length ||
+                            hours().unavailableWindows.length
+                          }
+                          fallback={<Plus class="size-4" />}
+                        >
+                          <Pencil class="size-4" />
+                        </Show>
+                      </Button>
+                    </div>
+                    <Show when={active() ? weeklyDraft() : undefined}>
+                      {(draft) => (
+                        <div
+                          data-rule-editor
+                          class="mt-4 rounded-xl border border-edge-muted bg-surface-1 p-4"
+                        >
+                          <AvailabilityHoursEditor
+                            ranges={draft().ranges}
+                            scope="weekly"
+                            issue={editor.issue()}
+                            disabled={!!props.disabled}
+                            onChange={editor.update}
+                          >
+                            <p class="shrink-0 text-xs leading-relaxed text-ink-muted">
+                              Repeats every week. Date exceptions stay
+                              unchanged.
+                            </p>
+                            <div class="flex shrink-0 flex-wrap justify-end gap-2">
+                              <Button variant="ghost" size="sm" onClick={close}>
+                                Cancel
+                              </Button>
+                              <Button
+                                variant="cta"
+                                size="sm"
+                                disabled={!draft().ranges}
+                                onClick={apply}
+                              >
+                                Apply weekly hours
+                              </Button>
+                            </div>
+                          </AvailabilityHoursEditor>
+                        </div>
+                      )}
+                    </Show>
+                  </div>
+                );
+              }}
+            </For>
+          </div>
+          <p class="mt-4 text-xs leading-relaxed text-ink-extra-muted">
+            Not set is blank and non-bookable. Add unavailable hours to mark
+            explicit time off.
+          </p>
+        </section>
+
+        <div class="flex min-w-0 flex-col gap-8">
+          <section aria-label="Calendar preview" class="min-w-0">
+            <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <CalendarBlank class="size-5 text-ink-muted" />
+                <h3 class="text-base font-semibold">Calendar preview</h3>
+              </div>
+              <div class="flex items-center gap-1">
                 <Button
                   variant="ghost"
                   size="icon-sm"
                   label="Previous month"
-                  disabled={!!props.disabled || hasChanges()}
-                  onClick={() => {
-                    closeRange();
-                    dateSelection.close();
-                    setSelectedDay(undefined);
-                    setMonthDate(shiftAvailabilityMonth(monthDate(), -1));
-                  }}
+                  disabled={locked()}
+                  onClick={() =>
+                    changeMonth(shiftAvailabilityMonth(monthDate(), -1))
+                  }
                 >
                   <ArrowLeft class="size-4" />
                 </Button>
                 <AvailabilityMonthPicker
                   date={monthDate()}
-                  disabled={!!props.disabled || hasChanges()}
-                  onChange={(date) => {
-                    closeRange();
-                    dateSelection.close();
-                    setSelectedDay(undefined);
-                    setMonthDate(date);
-                  }}
+                  disabled={locked()}
+                  onChange={changeMonth}
                 />
                 <Button
                   variant="ghost"
                   size="icon-sm"
                   label="Next month"
-                  disabled={!!props.disabled || hasChanges()}
-                  onClick={() => {
-                    closeRange();
-                    dateSelection.close();
-                    setSelectedDay(undefined);
-                    setMonthDate(shiftAvailabilityMonth(monthDate(), 1));
-                  }}
+                  disabled={locked()}
+                  onClick={() =>
+                    changeMonth(shiftAvailabilityMonth(monthDate(), 1))
+                  }
                 >
                   <ArrowRight class="size-4" />
                 </Button>
               </div>
             </div>
-            <Show when={invalidDays().length}>
-              <div
-                role="alert"
-                class="mb-3 flex shrink-0 flex-wrap items-center gap-2 rounded-lg bg-failure-bg p-3 text-xs text-failure"
-              >
-                <p class="flex-1">
-                  {invalidDays()
-                    .map(
-                      (day) =>
-                        `${'day' in day ? WEEKDAYS[day.day] : day.date}: ${windowsIssue(day.windows)?.message}`
-                    )
-                    .join(' ')}
-                </p>
-                <Show when={hasOverlaps()}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={props.disabled}
-                    onClick={editor.fixOverlaps}
-                  >
-                    Merge overlapping hours
-                  </Button>
-                </Show>
-              </div>
-            </Show>
-            <Show when={editor.actionError()}>
-              <p role="alert" class="mb-3 shrink-0 text-xs text-failure">
-                {editor.actionError()}
-              </p>
-            </Show>
             <div
-              class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-edge-muted bg-panel"
+              class="overflow-hidden rounded-xl border border-edge-muted"
               data-availability-calendar-frame
             >
               <AvailabilityCalendar
                 columns={columns()}
-                timeFormat={timeFormat()}
                 month={monthDate().slice(0, 7)}
                 today={reportDate(new Date(), props.schedule.timeZone)}
-                disabled={!!props.disabled || hasChanges()}
-                stamping={!!stamp.template()}
-                getBoundary={() => viewport}
-                selectedDates={
-                  stamp.template()
-                    ? stamp.dates()
-                    : dateSelection.dates().length
-                      ? dateSelection.dates()
-                      : selectedRange()
-                        ? [selectedDate()]
-                        : []
-                }
-                selectionPreview={stamp.template()}
-                onCancelReady={(cancel) => {
-                  cancelCalendarDrag = cancel;
-                }}
-                onCancelSelection={() => {
-                  if (stamp.template()) stamp.exit();
-                  else if (dateSelection.dates().length) dismissSelection();
-                  else if (selectedRange()) dismissRange();
-                  else dismissDay();
-                }}
-                onDates={selectDates}
-                onSelect={(change, anchor, date) =>
-                  openRange(change, anchor, false, date)
-                }
+                timeFormat={timeFormat()}
+                disabled={locked()}
+                selectedDates={dateDraft()?.dates ?? []}
+                selectedWeekday={weeklyDraft()?.day}
                 weekdayStates={WEEKDAYS.map((_, day) =>
                   availabilityState(props.schedule, { kind: 'weekly', day })
                 )}
-                selectedWeekday={selectedWeekday()}
-                onSelectWeekday={(day, anchor) =>
-                  openDay(
-                    { kind: 'weekly', day },
-                    dates().find(
-                      (date) =>
-                        date.startsWith(monthDate().slice(0, 7)) &&
-                        dateWeekday(date) === day
-                    ) ?? monthDate(),
-                    anchor
-                  )
-                }
+                getBoundary={() => viewport}
+                onCancelReady={(cancel) => {
+                  cancelCalendarDrag = cancel;
+                }}
+                onCancelSelection={close}
+                onDates={(dates, source) => openDates(dates, source)}
+                onSelect={(date, source) => openDates([date], source)}
+                onSelectWeekday={openWeekday}
               />
             </div>
-            <div class="mt-3 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-ink-extra-muted">
-              <span class="flex items-center gap-1.5">
-                <span class="size-2 rounded-sm bg-accent" />
-                Available
-              </span>
-              <span class="flex items-center gap-1.5">
-                <span class="size-2 rounded-sm bg-edge" />
-                Unavailable
-              </span>
-              <span class="ml-auto">
-                Click or drag to edit dates · select an item to edit its hours
-              </span>
+            <p class="mt-3 text-xs leading-relaxed text-ink-muted">
+              Select dates to add an exception. Select a weekday heading to edit
+              recurring hours.
+            </p>
+          </section>
+
+          <section
+            ref={exceptionsSection}
+            aria-label="Date exceptions"
+            class="min-w-0 border-t border-edge-muted pt-6"
+          >
+            <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 class="text-base font-semibold">Date exceptions</h3>
+                <p class="mt-1 text-xs leading-relaxed text-ink-muted">
+                  Different hours or time off on specific dates.
+                </p>
+              </div>
+              <Button
+                ref={addExceptionButton}
+                variant="outline"
+                size="sm"
+                disabled={locked()}
+                onClick={(event) =>
+                  openDates([monthDate()], event.currentTarget)
+                }
+              >
+                <Plus class="size-4" />
+                Add exception
+              </Button>
             </div>
-            <Show when={editor.notice()}>
-              <p role="status" class="mt-3 shrink-0 text-xs text-ink-muted">
-                {editor.notice()}
-              </p>
-            </Show>
-            <Show when={dateSelection.notice()}>
-              <p role="status" class="mt-3 shrink-0 text-xs text-ink-muted">
-                {dateSelection.notice()}
-              </p>
-            </Show>
-          </div>
-          <div class="mt-6 min-w-0 shrink-0 pb-4">
-            <AvailabilityDateOverrides
-              overrides={props.schedule.overrides}
-              disabled={!!props.disabled || hasChanges()}
-              onSelect={selectOverride}
-              onRemove={(date) => {
-                if (selectedRange() && selectedDate() === date) dismissRange();
-                if (selectedDay()?.date === date) dismissDay();
-                if (dateSelection.draft()?.dates.includes(date))
-                  dateSelection.close();
-                editor.restoreDate(date);
-              }}
-            />
-          </div>
-        </section>
+            <div class="divide-y divide-edge-muted">
+              <For
+                each={[...props.schedule.overrides].sort((a, b) =>
+                  a.date.localeCompare(b.date)
+                )}
+                fallback={
+                  <p class="py-3 text-sm text-ink-extra-muted">
+                    No exceptions. Every date follows your weekly hours.
+                  </p>
+                }
+              >
+                {(override) => (
+                  <div
+                    data-exception-date={override.date}
+                    class="flex items-start gap-3 py-4"
+                  >
+                    <div class="flex min-w-0 flex-1 flex-col gap-2">
+                      <h4 class="text-sm font-medium">
+                        {formatAvailabilityDate(override.date)}
+                      </h4>
+                      <AvailabilityHoursSummary
+                        hours={hoursFor({ kind: 'date', date: override.date })}
+                        timeFormat={timeFormat()}
+                      />
+                      <Show
+                        when={
+                          !override.windows.length &&
+                          override.unavailableWindows?.length === 0
+                        }
+                      >
+                        <span class="text-xs text-ink-muted">
+                          Weekly hours do not apply.
+                        </span>
+                      </Show>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      label={`Edit exception ${formatAvailabilityDate(override.date)}`}
+                      disabled={locked()}
+                      onClick={(event) =>
+                        openDates([override.date], event.currentTarget)
+                      }
+                    >
+                      <Pencil class="size-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      label={`Remove exception ${formatAvailabilityDate(override.date)}`}
+                      tooltip="Remove this exception and use weekly hours again"
+                      disabled={locked()}
+                      onClick={() => {
+                        editor.removeOverride(override.date);
+                        queueMicrotask(() =>
+                          addExceptionButton.focus({ preventScroll: true })
+                        );
+                      }}
+                    >
+                      <Trash class="size-4" />
+                    </Button>
+                  </div>
+                )}
+              </For>
+            </div>
+          </section>
+        </div>
       </div>
+      <AvailabilityExceptionDialog
+        open={!!dateDraft()}
+        dates={dateDraft()?.dates ?? []}
+        ranges={dateDraft()?.ranges}
+        issue={editor.issue()}
+        disabled={!!props.disabled}
+        locked={locked()}
+        onSelectDate={(date) => {
+          if (!validAvailabilityDate(date)) return;
+          editor.openDates([date]);
+          setMonthDate(date);
+        }}
+        onChange={editor.update}
+        onApply={apply}
+        onCancel={close}
+        onClear={() => editor.clearHours()}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          restoreFocus();
+        }}
+      />
+      <Show when={editor.notice()}>
+        <p role="status" class="shrink-0 text-xs text-ink-muted">
+          {editor.notice()}
+        </p>
+      </Show>
     </div>
   );
 }
