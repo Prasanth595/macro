@@ -32,7 +32,8 @@ beforeAll(async () => {
     stack: 'dev',
     CLOUD_TRAIL_SNS_TOPIC_ARN: 'arn:aws:sns:us-east-1:123456789012:alerts',
     CLOUDWATCH_KINESIS_STREAM_ROLE_ARN: 'arn:aws:iam::123456789012:role/logs',
-    DATADOG_KINESIS_FIREHOSE_STREAM_ARN: 'arn:aws:firehose:us-east-1:123456789012:logs',
+    DATADOG_KINESIS_FIREHOSE_STREAM_ARN:
+      'arn:aws:firehose:us-east-1:123456789012:logs',
   }));
   mock.module('../../packages/resources', () => ({
     DATADOG_API_KEY_SECRET_ARN: pulumi.output(secretArn),
@@ -45,7 +46,11 @@ beforeAll(async () => {
   // to the AWS configuration under test.
   mock.module('../../packages/lambda/src/source_code_hash', () => ({
     SourceCodeHash: class extends pulumi.ComponentResource {
-      constructor(name: string, args: { sourceCodeHash: string }, opts?: pulumi.ComponentResourceOptions) {
+      constructor(
+        name: string,
+        args: { sourceCodeHash: string },
+        opts?: pulumi.ComponentResourceOptions
+      ) {
         super('test:source:Hash', name, args, opts);
       }
     },
@@ -55,7 +60,11 @@ beforeAll(async () => {
     databaseUrl: pulumi.secret('test-database'),
     enabled: false,
     dryRun: true,
-    vpc: { vpcId: 'vpc-test', publicSubnetIds: [], privateSubnetIds: ['subnet-test'] },
+    vpc: {
+      vpcId: 'vpc-test',
+      publicSubnetIds: [],
+      privateSubnetIds: ['subnet-test'],
+    },
     tags: {},
   });
   await pulumi.runtime.waitForRPCs();
@@ -86,16 +95,27 @@ test('retention has a pinned OTLP collector and consistent service identity', ()
 });
 
 test('extension access is scoped to the existing Datadog key, not all secrets', () => {
-  const policy = JSON.parse(resource('aws:iam/rolePolicy:RolePolicy').inputs.policy);
+  const policy = JSON.parse(
+    resource('aws:iam/rolePolicy:RolePolicy').inputs.policy
+  );
   expect(policy.Statement).toEqual([
-    { Effect: 'Allow', Action: 'secretsmanager:GetSecretValue', Resource: secretArn },
+    {
+      Effect: 'Allow',
+      Action: 'secretsmanager:GetSecretValue',
+      Resource: secretArn,
+    },
   ]);
 });
 
 test('telemetry does not enable cleanup or duplicate the existing log path', () => {
-  expect(resource('aws:cloudwatch/eventRule:EventRule').inputs.state).toBe('DISABLED');
-  expect(JSON.parse(resource('aws:cloudwatch/eventTarget:EventTarget').inputs.input)).toEqual({ dry_run: true });
-  expect(resource('aws:cloudwatch/logSubscriptionFilter:LogSubscriptionFilter').inputs.destinationArn).toBe(
-    'arn:aws:firehose:us-east-1:123456789012:logs'
+  expect(resource('aws:cloudwatch/eventRule:EventRule').inputs.state).toBe(
+    'DISABLED'
   );
+  expect(
+    JSON.parse(resource('aws:cloudwatch/eventTarget:EventTarget').inputs.input)
+  ).toEqual({ dry_run: true });
+  expect(
+    resource('aws:cloudwatch/logSubscriptionFilter:LogSubscriptionFilter')
+      .inputs.destinationArn
+  ).toBe('arn:aws:firehose:us-east-1:123456789012:logs');
 });
