@@ -207,8 +207,8 @@ export const RouteMobileSignupSent: Component = () => {
           'max-width': '40ch',
         }}
       >
-        Macro has a mobile app, but to get started you need to complete the
-        onboarding on desktop.
+        Macro has a mobile app in alpha, but to get started you need to complete
+        the onboarding on desktop.
       </p>
 
       <div
@@ -263,7 +263,7 @@ export const RouteMobileSignupSent: Component = () => {
           }}
           style={secondaryButtonStyle}
         >
-          Download the iOS app
+          Download the iOS app (Alpha)
         </a>
 
         <p

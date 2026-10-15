@@ -2024,6 +2024,9 @@ Left nav (feature and platform gates still apply):
 - **Workspace**: Team, Tags, Integrations (personal Gmail/GitHub accounts).
 - **Developer**: Agent connections, Runtimes, MCP server, API Keys, Bots.
 
+The **Mobile App** page is titled **Mobile app (Alpha)** and offers a QR code
+and App Store link to download **Macro Alpha**.
+
 Search checks individual setting titles and keywords, tolerates common typos,
 and shows the parent page below each control result. Selecting a result opens
 that page, scrolls to its section or row, and briefly highlights it. Try
