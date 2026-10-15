@@ -24,7 +24,6 @@ import type { PromptAttachment } from '@service-agent-harness/generated/schemas'
 import { Tabs } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
 import { createMemo, createSignal, Show } from 'solid-js';
-import { EffortSlider } from '../../block-agent/component/EffortSlider';
 import {
   type EffortChoice,
   effortConfigOption,
@@ -338,19 +337,6 @@ export function NewChatPage(props: {
       onSelectEffort={selectAgent}
       onConnect={connect}
       onCreate={() => props.onOpenRoster(coding() ? 'coder' : 'agent')}
-      menuHeader={
-        <EffortSlider
-          config={effort()}
-          value={effortOverride()?.value}
-          disabled={Boolean(blocked())}
-          onChange={(choice) =>
-            setEffortSelection({
-              ...choice,
-              target: JSON.stringify(capabilityTarget()),
-            })
-          }
-        />
-      }
     />
   );
 
@@ -429,9 +415,15 @@ export function NewChatPage(props: {
           </Show>
         </div>
       }
-      corner={modeSwitch()}
-      drawer={repositoryPicker()}
-      drawerOpen={coding()}
+      drawer={
+        <div class="flex w-full min-w-0 items-center gap-2">
+          {modeSwitch()}
+          <Show when={coding()}>
+            <div class="min-w-0 flex-1">{repositoryPicker()}</div>
+          </Show>
+        </div>
+      }
+      drawerOpen
       placeholder={coding() ? 'Describe what you want to build' : undefined}
       onSend={send}
       supportsImages={

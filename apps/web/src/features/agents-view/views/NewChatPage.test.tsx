@@ -1045,47 +1045,6 @@ describe('agent-led new conversation', () => {
     expect(mocks.openSettings).toHaveBeenCalledWith('Harness');
     expect(screen.getByRole('button', { name: 'Agent' }).title).toBe(before);
   });
-  it.each([false, true])(
-    'changes effort from the model menu slider (touch=%s)',
-    async (touch) => {
-      mocks.touch = touch;
-      mocks.tier = 'premium';
-      const send = page(true, [], false, [], 'code');
-      if (touch) fireEvent.click(screen.getByRole('button', { name: 'Agent' }));
-      else openAgents();
-      if (touch) {
-        fireEvent.click(
-          await screen.findByRole('button', { name: 'Models for Cursor' })
-        );
-        fireEvent.click(await screen.findByRole('button', { name: 'GPT-5' }));
-      } else {
-        const cursor = screen.getByRole('menuitem', { name: /Cursor/ });
-        cursor.focus();
-        fireEvent.keyDown(cursor, { key: 'ArrowRight' });
-        fireEvent.keyDown(
-          await screen.findByRole('menuitem', { name: /^GPT-5/ }),
-          { key: 'Enter' }
-        );
-      }
-      if (touch) fireEvent.click(screen.getByRole('button', { name: 'Agent' }));
-      else openAgents();
-      const slider = await screen.findByRole('slider', {
-        name: 'Reasoning effort',
-      });
-      fireEvent.input(slider, { target: { value: '1' } });
-      fireEvent.change(slider, { target: { value: '1' } });
-      expect(slider.getAttribute('aria-valuetext')).toBe('Ultra');
-      fireEvent.keyDown(slider, { key: 'Escape' });
-      await waitFor(() => expect(screen.queryByRole('slider')).toBeNull());
-      fireEvent.click(screen.getByRole('button', { name: 'Send' }));
-      expect(send).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          modelOverride: 'gpt-5',
-          effortOverride: { configId: 'cursor_effort', value: 'ultra' },
-        })
-      );
-    }
-  );
   it.each(['free', 'premium', 'max'])(
     'uses the correct initial effort for %s',
     async (tier) => {
@@ -1096,15 +1055,6 @@ describe('agent-led new conversation', () => {
       fireEvent.keyDown(models.getByRole('menuitem', { name: /^GPT-5/ }), {
         key: 'Enter',
       });
-      await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
-      openAgents();
-      const slider = await screen.findByRole('slider', {
-        name: 'Reasoning effort',
-      });
-      expect(slider.getAttribute('aria-valuetext')).toBe(
-        tier === 'max' ? 'Ultra' : 'Low'
-      );
-      fireEvent.keyDown(slider, { key: 'Escape' });
       await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
       fireEvent.click(screen.getByRole('button', { name: 'Send' }));
       expect(send).toHaveBeenLastCalledWith(

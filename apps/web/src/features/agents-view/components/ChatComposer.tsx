@@ -99,6 +99,7 @@ export function ChatComposer(props: {
   });
   let container: HTMLDivElement | undefined;
   const [focused, setFocused] = createSignal(false);
+  const [hasFocused, setHasFocused] = createSignal(false);
   const collapsed = () =>
     isTouchDevice() &&
     props.collapseOnBlur &&
@@ -280,7 +281,7 @@ export function ChatComposer(props: {
           <div
             class="composer-drawer-content"
             role="group"
-            aria-label="Repository settings"
+            aria-label="Conversation settings"
           >
             {props.drawer}
           </div>
@@ -316,6 +317,7 @@ export function ChatComposer(props: {
           )
             return;
           setFocused(true);
+          setHasFocused(true);
           fireAndForget(preloadAgentFold(), 'agents-view');
         }}
         onFocusOut={(event) => {
@@ -411,7 +413,13 @@ export function ChatComposer(props: {
                   aria-label="Composer settings"
                 >
                   <div class="ml-auto flex min-w-0 max-w-full items-center gap-2 [&_.menu]:right-0 [&_.menu]:left-auto [&_.menu-anchor]:min-w-0 [&_.pill]:max-w-full">
-                    <div class="flex min-w-0 items-center gap-2">
+                    <div
+                      class={
+                        collapsed() || (isTouchDevice() && !hasFocused())
+                          ? 'hidden'
+                          : 'flex min-w-0 items-center gap-2'
+                      }
+                    >
                       {props.selector}
                       <div class={collapsed() ? 'hidden' : 'contents'}>
                         <DictationButton

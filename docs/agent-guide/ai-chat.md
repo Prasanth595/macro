@@ -161,11 +161,10 @@ The mobile Home composer is an opaque, rounded input using the same surface as
 the New button, including its glass treatment in dark mode. Send is a bare up
 arrow without a background, including when disabled. The short placeholder reads
 “Message Macro AI”.
-Its collapsed height matches New, with the model selector and Send always
-visible. Tap the input to expand across the row, hiding New and giving the draft
+Its collapsed height matches New, with Send visible and the model/provider control hidden until the input is focused. Tap the input to expand across the row, hiding New and giving the draft
 a full-width text area above the controls.
-Chat/Code moves below the text alongside attachment, microphone (when enabled),
-and model controls. Repository controls appear above the input in Code mode.
+Chat/Code stays in the inset bar above the input on phones. Repository controls
+appear alongside it in Code mode.
 Tapping outside collapses the composer and restores New.
 The editor and model picker stay mounted so collapsing preserves the draft.
 Repository and branch pickers keep the composer expanded while their search
@@ -348,8 +347,8 @@ the shimmer.
   Right-click (or long-press on mobile) opens the same entity menu as Home:
   Rename, Favorite, Copy link, Share, Archive, Delete, and the other session
   actions. Archived sessions are grouped at the bottom under **Archived**.
-- The starting page has **Chat / Code** inside the composer, beside the text on
-  desktop and below it on phones. The choice limits the offered agents and is
+- The starting page has **Chat / Code** in the composer’s inset bar, below the input on
+  desktop and above it on phones. The choice limits the offered agents and is
   remembered per user. Switching modes preserves the draft and attachments and
   clears model and effort overrides from the previous mode. It does not filter
   the conversation sidebar. Session composers start at one line and grow with
@@ -385,15 +384,15 @@ the shimmer.
   are **Sonnet 5.5**, **Opus 5.5**, and **Haiku 4.5**; older Claude versions
   (Sonnet 5, Opus 5, Fable 5.1) are not offered.
   Selecting a model here selects
-  the default runtime and applies that model to the next send, retracting the repository drawer.
+  the default runtime and applies that model to the next send, hiding the repository controls while keeping the mode bar visible.
   A model chosen from that catalog is remembered in local storage as the
   default for Macro's in-memory agent until another model entry is picked.
   The built-in Macro agent is the only agent excluded from these sections; its models remain available.
   Unavailable paired agents stay visible with a reason.
   If Macro is unavailable, its catalog stays searchable but
   model choices are disabled in every list. Model discovery uses the
-  selected runtime, including Claude Cloud. Every coding agent opens the repository
-  drawer; chat agents hide it. Repository/branch overrides are currently applied
+  selected runtime, including Claude Cloud. Every coding agent shows repository
+  controls; chat agents hide those controls but keep the mode bar. Repository/branch overrides are currently applied
   only to Cursor sessions by the create-session API.
   The most recently used supported,
   available agent is selected initially; otherwise Macro is selected.
@@ -426,12 +425,10 @@ the shimmer.
   with the repository bar below the input on desktop and above it on mobile.
   The plus attachment button stays at the far left: before the
   text in the compact row, and on the bottom control row when expanded. The editor sits above the controls, with attachments
-  on the left and the agent/model and Send on the right. A full-width repository bar
-  slides and fades in 100ms when opening or closing, with rounded outer corners
+  on the left and the agent/model and Send on the right. A full-width inset bar holds Chat/Code in both modes, with rounded outer corners
   and a subtle border, with a darker surface in dark mode.
-  Selecting Chat retracts the repository bar and keeps the mode switch inside
-  the input, without remounting
-  the editor or losing the draft. Reduced-motion
+  Selecting Chat hides the repository controls and keeps the mode switch in
+  the inset bar, without remounting the editor or losing the draft. Reduced-motion
   preferences disable the animation. The hidden drawer is inert. **Repository**
   (**Choose repository** until one is picked) opens a searchable list:
   **Choose automatically**, then the repositories the signed-in user reaches
@@ -476,13 +473,10 @@ the shimmer.
   provider icons, search, **Suggested** first, and **More models** for the
   complete provider catalog. Desktop opens a submenu; phone widths show
   the catalog in place with a Back action. Search includes every model.
-- When the selected model advertises effort choices, a compact segmented **Effort** slider
-  appears below search in the model selector. Filled segments show the level without visible text; hover or focus identifies
-  the setting. Drag to preview a level and release
-  to apply it; arrow keys also adjust it. Unsupported models have no effort bar.
+- The separate segmented effort slider has been removed from the model menu.
+  Model-specific effort choices remain available in model submenus.
   Free and Pro users start new conversations at the lowest advertised level,
-  unless they explicitly choose another. Existing sessions keep their current
-  setting and use the usual configuration action when the slider changes.
+  unless they explicitly choose another. Existing sessions keep their current setting.
 - On desktop, chat agents' empty input types tips about connectors, skills,
   mentions, and agents one character at a time, pauses to read each hint, then
   quickly erases it before typing the next. Entering a draft pauses the animation;

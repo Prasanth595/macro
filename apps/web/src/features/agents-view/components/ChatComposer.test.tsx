@@ -605,7 +605,7 @@ it('expands Home controls on focus without replacing the editor or model picker'
   const compact = () => input.closest('[data-composer-compact]');
 
   expect(compact()?.getAttribute('data-composer-compact')).toBe('true');
-  expect(model.parentElement?.classList.contains('hidden')).toBe(false);
+  expect(model.parentElement?.classList.contains('hidden')).toBe(true);
   expect(attach.parentElement?.classList.contains('hidden')).toBe(true);
   expect(repository?.getAttribute('aria-hidden')).toBe('true');
   expect(surface?.hasAttribute('data-composer-expanded')).toBe(false);
@@ -649,7 +649,7 @@ it('expands a short mobile session draft on focus and keeps the editor mounted',
   expect(editor.clear).not.toHaveBeenCalled();
 });
 
-it('keeps the collapsed model trigger in place until its click opens the selector', () => {
+it('reveals the mobile model trigger after focusing the input', () => {
   vi.mocked(isTouchDevice).mockReturnValue(true);
   const open = vi.fn();
   render(() => (
@@ -666,13 +666,13 @@ it('keeps the collapsed model trigger in place until its click opens the selecto
     .getByTestId('editor')
     .closest('[data-composer-compact]');
 
-  fireEvent.pointerDown(trigger);
-  fireEvent.mouseDown(trigger);
-  trigger.focus();
-  expect(compact?.getAttribute('data-composer-compact')).toBe('true');
+  expect(trigger.parentElement?.classList.contains('hidden')).toBe(true);
+  fireEvent.focusIn(screen.getByTestId('editor'));
+  expect(trigger.parentElement?.classList.contains('hidden')).toBe(false);
+  expect(compact?.getAttribute('data-composer-compact')).toBe('false');
   fireEvent.click(trigger);
   expect(open).toHaveBeenCalledOnce();
-  expect(preloadAgentFold).not.toHaveBeenCalled();
+  expect(preloadAgentFold).toHaveBeenCalled();
 });
 
 it.each(['Send', 'Attach files', 'Model'])(
