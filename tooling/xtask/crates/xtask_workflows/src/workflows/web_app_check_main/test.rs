@@ -377,6 +377,10 @@ native_tree_fetch HEAD
 "#
             ))
             .current_dir(repo.path())
+            // CI's BASH_ENV reloads the Nix dev shell; its library path can
+            // make the runner's host git-remote-http fail before connecting.
+            .env_remove("BASH_ENV")
+            .env_remove("LD_LIBRARY_PATH")
             .env("TEST_URL", &url)
             .env("TEST_PERSISTED", persisted.to_string())
             .env("GH_TOKEN", "test-token")
@@ -389,7 +393,10 @@ native_tree_fetch HEAD
         assert_eq!(
             receiver
                 .recv_timeout(std::time::Duration::from_secs(10))
-                .expect("Git must send an HTTP request"),
+                .unwrap_or_else(|error| panic!(
+                    "Git must send an HTTP request: {error}; stderr: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                )),
             ["AUTHORIZATION: basic eC1hY2Nlc3MtdG9rZW46dGVzdC10b2tlbg=="],
             "persisted credentials: {persisted}"
         );
