@@ -3,7 +3,7 @@ import { Badge } from '@ui';
 import { bookingIsPast } from '../core/booking-list';
 import type { Booking } from '../core/types';
 
-export function BookingStatus(props: { booking: Booking }) {
+export function BookingStatus(props: { booking: Booking; class?: string }) {
   const label = () => {
     if (props.booking.status === 'pending') return 'Unconfirmed';
     if (props.booking.status === 'failed') return 'Calendar sync failed';
@@ -22,6 +22,7 @@ export function BookingStatus(props: { booking: Booking }) {
         variant: 'outline',
         size: 'md',
         readOnly: true,
+        class: props.class,
       })}
       classList={{
         'text-success':
@@ -42,7 +43,7 @@ export function BookingStatus(props: { booking: Booking }) {
         aria-hidden="true"
         class="size-1.5 shrink-0 rounded-full bg-current"
       />
-      {label()}
+      <span class="min-w-0 break-words">{label()}</span>
     </Badge>
   );
 }

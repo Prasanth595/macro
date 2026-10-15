@@ -40,6 +40,49 @@ export function filterBookings(
     });
 }
 
+function shareTimeZone(start: Date, end: Date, timeZone: string): boolean {
+  const offset = new Intl.DateTimeFormat(undefined, {
+    timeZone,
+    timeZoneName: 'longOffset',
+  });
+  const name = (date: Date) =>
+    offset.formatToParts(date).find((part) => part.type === 'timeZoneName')
+      ?.value;
+  return name(start) === name(end);
+}
+
+/** Keep clock values and zone labels separate so cards can wrap between endpoints. */
+export function bookingTimeRangeDisplay(booking: Booking, timeZone: string) {
+  const start = new Date(booking.startsAt);
+  const end = new Date(booking.endsAt);
+  const clock = new Intl.DateTimeFormat(undefined, {
+    timeZone,
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  const zone = new Intl.DateTimeFormat(undefined, {
+    timeZone,
+    timeZoneName: 'short',
+  });
+  const date = new Intl.DateTimeFormat(undefined, {
+    timeZone,
+    dateStyle: 'medium',
+  });
+  const endpoint = (value: Date) => ({
+    time: clock.format(value),
+    timeZone: zone
+      .formatToParts(value)
+      .find((part) => part.type === 'timeZoneName')?.value,
+  });
+  return {
+    start: endpoint(start),
+    end: endpoint(end),
+    sharedTimeZone: shareTimeZone(start, end, timeZone),
+    endDate:
+      date.format(start) !== date.format(end) ? date.format(end) : undefined,
+  };
+}
+
 export function bookingTimeRange(booking: Booking, timeZone: string): string {
   const start = new Date(booking.startsAt);
   const end = new Date(booking.endsAt);
@@ -51,6 +94,9 @@ export function bookingTimeRange(booking: Booking, timeZone: string): string {
     minute: '2-digit',
     timeZoneName: 'short',
   });
+  const sharedTimeZone = shareTimeZone(start, end, timeZone);
+  // Intl range formatting can collapse distinct instants across a DST change.
+  if (!differentDays && sharedTimeZone) return time.formatRange(start, end);
   const endTime = new Intl.DateTimeFormat(undefined, {
     timeZone,
     hour: 'numeric',
@@ -58,7 +104,14 @@ export function bookingTimeRange(booking: Booking, timeZone: string): string {
     timeZoneName: 'short',
     ...(differentDays ? { month: 'short', day: 'numeric' } : {}),
   });
-  return `${time.format(start)} – ${endTime.format(end)}`;
+  const startTime = sharedTimeZone
+    ? new Intl.DateTimeFormat(undefined, {
+        timeZone,
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : time;
+  return `${startTime.format(start)} – ${endTime.format(end)}`;
 }
 
 export type BookingDateGroup = {

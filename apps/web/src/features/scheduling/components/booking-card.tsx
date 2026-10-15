@@ -10,19 +10,21 @@ import Calendar from '@phosphor/calendar-blank.svg';
 import Check from '@phosphor/check.svg';
 import Clock from '@phosphor/clock.svg';
 import Dots from '@phosphor/dots-three.svg';
+
 import Info from '@phosphor/info.svg';
 import MapPin from '@phosphor/map-pin.svg';
+import TextAlignLeft from '@phosphor/text-align-left.svg';
 import Timer from '@phosphor/timer.svg';
+import User from '@phosphor/user.svg';
 import Users from '@phosphor/users.svg';
 import X from '@phosphor/x.svg';
-import { propertyPillClasses } from '@property/extractors/property-pill-classes';
-import { Badge, Button, cn, Dropdown } from '@ui';
+import { Button, cn, Dropdown } from '@ui';
 import { buttonClasses } from '@ui/components/Button';
-import { onCleanup, Show } from 'solid-js';
+import { createMemo, onCleanup, Show } from 'solid-js';
 import {
   bookingIsPast,
   bookingMeetingUrl,
-  bookingTimeRange,
+  bookingTimeRangeDisplay,
   canManageBooking,
 } from '../core/booking-list';
 import type { Booking } from '../core/types';
@@ -76,6 +78,9 @@ export function BookingCard(props: {
       (Date.parse(props.booking.endsAt) - Date.parse(props.booking.startsAt)) /
         60000
     );
+  const time = createMemo(() =>
+    bookingTimeRangeDisplay(props.booking, props.timeZone)
+  );
   const date = (options: Intl.DateTimeFormatOptions) =>
     new Intl.DateTimeFormat(undefined, {
       timeZone: props.timeZone,
@@ -151,73 +156,114 @@ export function BookingCard(props: {
     <ContextMenu>
       <ContextMenuTrigger
         as="article"
-        class="grid min-w-0 grid-cols-[72px_minmax(0,1fr)_auto] gap-x-3 gap-y-4 rounded-xl border border-edge-frame bg-panel p-4 transition-colors hover:bg-list-hover focus-within:border-edge-focus @min-[36rem]/bookings:grid-cols-[128px_minmax(0,1fr)_auto] @min-[36rem]/bookings:gap-x-4"
+        class="grid min-w-0 grid-cols-[88px_minmax(0,1fr)] grid-rows-[auto_auto] gap-x-3 gap-y-4 rounded-xl border border-edge-frame bg-panel p-4 transition-colors hover:bg-list-hover focus-within:border-edge-focus @min-[20rem]/bookings:grid-cols-[112px_minmax(0,1fr)] @min-[36rem]/bookings:grid-cols-[144px_minmax(0,1fr)] @min-[36rem]/bookings:gap-x-4 @min-[42rem]/bookings:grid-cols-[144px_minmax(0,1fr)_auto]"
         classList={{ 'opacity-50': props.booking.status === 'cancelled' }}
       >
-        <div class="col-span-3 grid min-w-0 grid-cols-subgrid items-start">
-          <button
-            ref={opener}
-            type="button"
-            data-booking-opener={props.booking.id}
-            aria-label={`${props.booking.title} with ${props.booking.name}, ${date({ dateStyle: 'full' })}`}
-            onClick={(event) =>
-              props.onView(props.booking, event.currentTarget)
-            }
-            class="col-span-2 grid min-w-0 grid-cols-subgrid items-start rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          >
-            <div class="pt-0.5">
-              <p class="text-xs font-medium text-ink-muted">
-                {date({ weekday: 'long' })}
-              </p>
-              <p class="mt-1 text-lg font-semibold tabular-nums">
-                {date({ month: 'short', day: 'numeric' })}
-              </p>
-              <p class="mt-1 text-xs text-ink-muted">
-                {date({ year: 'numeric' })}
-              </p>
-              <div class="mt-3 flex min-w-0 flex-col items-start gap-2">
-                <span class="flex min-w-0 items-start gap-1 text-xs text-ink-muted">
-                  <Clock aria-hidden="true" class="mt-0.5 size-3 shrink-0" />
-                  <span class="min-w-0 break-words">
-                    {bookingTimeRange(props.booking, props.timeZone)}
-                  </span>
-                </span>
-                <Badge
-                  variant="outline"
-                  size="md"
-                  class={propertyPillClasses({
-                    variant: 'outline',
-                    size: 'md',
-                    readOnly: true,
-                  })}
-                >
-                  <Timer aria-hidden="true" class="size-3" />
-                  {duration()}m
-                </Badge>
-              </div>
+        <button
+          ref={opener}
+          type="button"
+          data-booking-opener={props.booking.id}
+          aria-label={`${props.booking.title} with ${props.booking.name}, ${date({ dateStyle: 'full' })}`}
+          onClick={(event) => props.onView(props.booking, event.currentTarget)}
+          class="col-start-1 col-end-3 row-start-1 row-end-3 grid min-w-0 grid-cols-subgrid grid-rows-subgrid items-start rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-accent @min-[42rem]/bookings:col-end-4"
+        >
+          <div class="col-start-1 row-start-1 row-end-3 pt-0.5">
+            <div class="mb-3 flex min-w-0">
+              <BookingStatus
+                booking={props.booking}
+                class="h-auto justify-start whitespace-normal border-0 p-0 text-xs"
+              />
             </div>
-            <div class="flex min-w-0 flex-col gap-3">
-              <div class="flex min-w-0 flex-wrap items-center gap-2">
-                <h3 class="min-w-0 break-words text-base font-medium">
-                  {props.booking.title}
-                </h3>
-                <BookingStatus booking={props.booking} />
-                <Show when={(props.booking.rescheduleCount ?? 0) > 0}>
-                  <span class="text-xs text-ink-muted">Rescheduled</span>
+            <p class="text-xs font-medium text-ink-muted">
+              {date({ weekday: 'long' })}
+            </p>
+            <p class="mt-1 text-lg font-semibold tabular-nums">
+              {date({ month: 'short', day: 'numeric' })}
+            </p>
+            <p class="mt-1 text-xs text-ink-muted">
+              {date({ year: 'numeric' })}
+            </p>
+          </div>
+          <div class="col-start-2 col-end-3 row-start-1 flex min-w-0 flex-col gap-4 @min-[42rem]/bookings:col-end-4">
+            <div class="flex min-w-0 flex-wrap items-center gap-2">
+              <h3 class="flex min-w-0 max-w-full items-start gap-1.5 text-xl font-medium">
+                <TextAlignLeft
+                  aria-hidden="true"
+                  class="mt-1.5 size-4 shrink-0 text-ink-muted"
+                />
+                <span class="min-w-0 break-words">{props.booking.title}</span>
+              </h3>
+              <Show when={(props.booking.rescheduleCount ?? 0) > 0}>
+                <span class="text-xs text-ink-muted">Rescheduled</span>
+              </Show>
+            </div>
+            <div class="flex min-w-0 flex-col gap-1 text-sm">
+              <p class="flex min-w-0 items-start gap-1.5 font-medium">
+                <User
+                  aria-hidden="true"
+                  class="mt-0.5 size-3.5 shrink-0 text-ink-muted"
+                />
+                <span class="min-w-0 break-words">{props.booking.name}</span>
+              </p>
+              <p class="break-all pl-5 text-ink-muted">{props.booking.email}</p>
+            </div>
+          </div>
+          <div class="col-start-2 row-start-2 flex min-h-8 min-w-0 flex-wrap items-center gap-4 text-xs text-ink-muted">
+            <div class="flex min-w-0 max-w-full shrink-0 items-start gap-1.5">
+              <Clock aria-hidden="true" class="mt-0.5 size-3.5 shrink-0" />
+              <div class="min-w-0">
+                <div class="flex flex-wrap gap-x-1">
+                  <span class="flex flex-wrap gap-x-1">
+                    <span class="whitespace-nowrap">{time().start.time}</span>
+                    <span class="whitespace-nowrap">
+                      <Show when={!time().sharedTimeZone}>
+                        {time().start.timeZone}{' '}
+                      </Show>
+                      –
+                    </span>
+                  </span>
+                  <span class="flex flex-wrap gap-x-1">
+                    <span class="whitespace-nowrap">{time().end.time}</span>
+                    <Show when={!time().sharedTimeZone}>
+                      <span class="whitespace-nowrap">
+                        {time().end.timeZone}
+                      </span>
+                    </Show>
+                  </span>
+                  <Show when={time().sharedTimeZone}>
+                    <span class="whitespace-nowrap">
+                      {time().start.timeZone}
+                    </span>
+                  </Show>
+                </div>
+                <Show when={time().endDate}>
+                  <span class="block">Ends {time().endDate}</span>
                 </Show>
               </div>
-              <div class="min-w-0 text-sm">
-                <p class="font-medium">{props.booking.name}</p>
-                <p class="mt-0.5 break-all text-ink-muted">
-                  {props.booking.email}
-                </p>
-              </div>
             </div>
-          </button>
+            <span class="flex items-center gap-1.5 whitespace-nowrap">
+              <Timer aria-hidden="true" class="size-3.5 shrink-0" />
+              {duration()} mins
+            </span>
+            <Show when={props.hostNames}>
+              <span class="flex min-w-0 max-w-full shrink-0 items-center gap-1.5">
+                <Users aria-hidden="true" class="size-3.5 shrink-0" />
+                <span class="min-w-0 break-words">{props.hostNames}</span>
+              </span>
+            </Show>
+            <Show when={location()}>
+              <span class="flex min-w-0 max-w-full shrink-0 items-center gap-1.5">
+                <MapPin aria-hidden="true" class="size-3.5 shrink-0" />
+                <span class="min-w-0 break-words">{location()}</span>
+              </span>
+            </Show>
+          </div>
+        </button>
+        <div class="col-start-1 col-end-3 row-start-3 flex min-w-0 items-center justify-end gap-2 self-start @min-[42rem]/bookings:col-start-3 @min-[42rem]/bookings:col-end-4 @min-[42rem]/bookings:row-start-2">
           <Dropdown>
             <Dropdown.Trigger
               variant="ghost"
-              size="icon-sm"
+              size="icon-md"
               label={`Options for ${props.booking.name}`}
               tooltipDisabled
             >
@@ -230,22 +276,6 @@ export function BookingCard(props: {
               <MenuItems />
             </Dropdown.Content>
           </Dropdown>
-        </div>
-        <div class="col-span-2 col-start-2 flex min-w-0 flex-wrap items-center justify-between gap-3">
-          <div class="flex min-w-0 flex-1 basis-full flex-wrap items-center gap-x-4 gap-y-2 text-xs text-ink-muted @min-[36rem]/bookings:basis-0">
-            <Show when={props.hostNames}>
-              <span class="flex min-w-0 items-center gap-1.5">
-                <Users aria-hidden="true" class="size-3.5 shrink-0" />
-                <span class="min-w-0 break-words">{props.hostNames}</span>
-              </span>
-            </Show>
-            <Show when={location()}>
-              <span class="flex min-w-0 items-center gap-1.5">
-                <MapPin aria-hidden="true" class="size-3.5 shrink-0" />
-                <span class="min-w-0 break-words">{location()}</span>
-              </span>
-            </Show>
-          </div>
           <Show when={join()}>
             {(url) => (
               <a
@@ -255,7 +285,6 @@ export function BookingCard(props: {
                 class={buttonClasses({
                   variant: 'outline',
                   size: 'md',
-                  class: 'ml-auto',
                 })}
               >
                 <External aria-hidden="true" class="size-3.5" />
@@ -268,8 +297,7 @@ export function BookingCard(props: {
           >
             <Button
               variant="strong"
-              size="sm"
-              class="ml-auto"
+              size="md"
               disabled={!!props.busyId}
               onClick={() => props.onApprove(props.booking.id)}
             >
@@ -278,7 +306,7 @@ export function BookingCard(props: {
           </Show>
         </div>
         <Show when={props.busyId === props.booking.id}>
-          <span role="status" class="col-span-3 text-xs text-ink-muted">
+          <span role="status" class="col-span-2 text-xs text-ink-muted">
             Updating booking…
           </span>
         </Show>
