@@ -18,9 +18,9 @@ use properties::EntityPropertyInfo;
 use rootcause::Report;
 use system_properties::SystemPropertyKey;
 use trigger_context::{
-    CallSnapshot, ChannelType, ContextMessage, ContextPerson, ContextThread, DiscussionContext,
-    DiscussionSurface, DocumentSnapshot, EmailSnapshot, ReplyTarget, RoutineEvent, TaskSnapshot,
-    TranscriptLine,
+    CallSnapshot, CallStartedSnapshot, ChannelType, ContextMessage, ContextPerson, ContextThread,
+    DiscussionContext, DiscussionSurface, DocumentSnapshot, EmailSnapshot, ReplyTarget,
+    RoutineEvent, TaskSnapshot, TranscriptLine,
 };
 
 use super::{
@@ -60,10 +60,13 @@ pub(super) fn routine_event(
             channel_event(name, event.entity_id(), channel, message)
         }
         EventContent::Call(record) => match (name, record) {
+            (EventName::CallStarted, Some(record)) => Ok(RoutineEvent::CallStarted {
+                call: call_started_snapshot(event.entity_id(), record)?,
+            }),
             (EventName::CallEnded, Some(record)) => Ok(RoutineEvent::CallEnded {
                 call: call_snapshot(event.entity_id(), record)?,
             }),
-            (EventName::CallEnded, None) => {
+            (EventName::CallStarted | EventName::CallEnded, None) => {
                 Err(rootcause::report!("the call record is no longer available"))
             }
             (name, _) => Err(mismatch(name)),
@@ -217,6 +220,21 @@ fn email_snapshot(thread_id: Uuid, message: &ParsedMessage) -> EmailSnapshot {
             .unwrap_or(message.created_at),
         body: email_body(message).unwrap_or_default(),
     }
+}
+
+fn call_started_snapshot(call_id: Uuid, record: CallRecord) -> Result<CallStartedSnapshot, Report> {
+    if record.call_id != call_id {
+        return Err(mismatch(EventName::CallStarted));
+    }
+    Ok(CallStartedSnapshot {
+        id: record.call_id,
+        title: record.custom_name,
+        channel_id: record.channel_id,
+        channel_name: record.channel_name,
+        started_at: record.started_at,
+        started_by: principal(&record.created_by),
+        participants: call_participants(&record),
+    })
 }
 
 fn call_snapshot(call_id: Uuid, record: CallRecord) -> Result<CallSnapshot, Report> {

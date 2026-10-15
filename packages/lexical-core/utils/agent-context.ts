@@ -221,7 +221,21 @@ export type RoutineEvent =
       entity_type: string;
       entity_id: string;
     }
+  | { event: 'call_started'; call: CallStartedSnapshot }
   | { event: 'call_ended'; call: CallSnapshot };
+
+/** A call that just started, read under the routine owner's access. */
+export type CallStartedSnapshot = {
+  id: string;
+  title?: string;
+  /** Absent for meetings outside a channel. */
+  channel_id?: string;
+  channel_name?: string;
+  started_at: string;
+  started_by: ContextPerson;
+  /** People and guests who have joined so far. */
+  participants: ContextPerson[];
+};
 
 /** An ended call, read under the routine owner's access. */
 export type CallSnapshot = {
@@ -1011,6 +1025,26 @@ function transcriptNode(call: CallSnapshot): FxpNode {
   );
 }
 
+function callStartedNode(call: CallStartedSnapshot): FxpNode {
+  return el(
+    'call',
+    [
+      personNode('started_by', call.started_by),
+      el(
+        'participants',
+        call.participants.map((person) => personNode('participant', person))
+      ),
+    ],
+    present({
+      id: call.id,
+      title: call.title,
+      channel: call.channel_name,
+      channel_id: call.channel_id,
+      started_at: call.started_at,
+    })
+  );
+}
+
 function callNode(call: CallSnapshot): FxpNode {
   return el(
     'call',
@@ -1212,6 +1246,7 @@ function routineEventChildren(event: RoutineEvent): FxpNode[] {
         discussionNode(discussion, routineDiscussion),
       ]
     )
+    .with({ event: 'call_started' }, ({ call }) => [callStartedNode(call)])
     .with({ event: 'call_ended' }, ({ call }) => [callNode(call)])
     .exhaustive();
 }

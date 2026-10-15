@@ -579,6 +579,24 @@ fn call_event(event_type: &str, participants: &[&str]) -> IncomingEvent {
 }
 
 #[test]
+fn started_calls_keep_only_ids_and_belong_to_who_created_them() {
+    let event = call_event("call.started", &[]);
+    let normalized = event.normalize().unwrap();
+    assert_eq!(normalized.event_name(), EventName::CallStarted);
+    assert_eq!(normalized.entity_type(), EventEntityType::Call);
+    assert_eq!(normalized.entity_id().to_string(), ENTITY_ID);
+    assert_eq!(normalized.message_id(), None);
+    let stored = serde_json::to_string(&normalized).unwrap();
+    assert!(!stored.contains("example.com"));
+    assert!(!stored.contains(OTHER_ID));
+
+    assert!(event.is_for_owner(&MacroUserIdStr::parse_from_str(HUMAN).unwrap()));
+    assert!(
+        !event.is_for_owner(&MacroUserIdStr::parse_from_str("macro|other@example.com").unwrap())
+    );
+}
+
+#[test]
 fn ended_calls_keep_only_ids_and_belong_to_the_people_who_joined() {
     let event = call_event("call.record_archived", &[HUMAN, "macro|guest@example.com"]);
     let normalized = event.normalize().unwrap();
@@ -598,11 +616,7 @@ fn ended_calls_keep_only_ids_and_belong_to_the_people_who_joined() {
         call_event("call.record_archived", &[]).normalize(),
         Err(EventRejection::UnsafeAttribution)
     );
-    for name in [
-        "call.started",
-        "call.record_summarized",
-        "call.recording_ready",
-    ] {
+    for name in ["call.record_summarized", "call.recording_ready"] {
         assert_eq!(
             call_event(name, &[HUMAN]).normalize(),
             Err(EventRejection::UnsupportedEvent)

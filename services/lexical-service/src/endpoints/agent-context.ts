@@ -214,6 +214,16 @@ const emailSnapshot = z.object({
   body: z.string(),
 });
 
+const callStartedSnapshot = z.object({
+  id: z.string().min(1),
+  title: z.string().optional(),
+  channel_id: z.string().min(1).optional(),
+  channel_name: z.string().optional(),
+  started_at: z.string().min(1),
+  started_by: triggerPerson,
+  participants: z.array(triggerPerson),
+});
+
 const callSnapshot = z.object({
   id: z.string().min(1),
   title: z.string().optional(),
@@ -277,6 +287,7 @@ const routineEvent = z.discriminatedUnion('event', [
     entity_type: z.string().min(1),
     entity_id: z.string().min(1),
   }),
+  z.object({ event: z.literal('call_started'), call: callStartedSnapshot }),
   z.object({ event: z.literal('call_ended'), call: callSnapshot }),
 ]);
 

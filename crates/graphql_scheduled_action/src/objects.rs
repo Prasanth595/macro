@@ -123,6 +123,8 @@ pub(crate) enum GraphqlScheduledActionEventName {
     ChannelMessagePatched,
     /// A channel message attachment was created.
     ChannelMessageAttachmentCreated,
+    /// A call the routine's owner started began.
+    CallStarted,
     /// A call the routine's owner joined ended.
     CallEnded,
 }
@@ -143,6 +145,7 @@ impl From<EventName> for GraphqlScheduledActionEventName {
             EventName::ChannelMentioned => Self::ChannelMentioned,
             EventName::ChannelMessagePatched => Self::ChannelMessagePatched,
             EventName::ChannelMessageAttachmentCreated => Self::ChannelMessageAttachmentCreated,
+            EventName::CallStarted => Self::CallStarted,
             EventName::CallEnded => Self::CallEnded,
         }
     }

@@ -1,8 +1,8 @@
 //! Routine-owned event eligibility and exact selector matching.
 //!
 //! Adapters strip the broker envelope into [`IncomingEvent`]. Only explicitly
-//! allowlisted human actions, inbound emails and ended calls become compact
-//! [`EventReference`]s.
+//! allowlisted human actions, inbound emails and call lifecycle events become
+//! compact [`EventReference`]s.
 
 use activity::Actor;
 use call::domain::events::CallTopicEvent;
@@ -35,7 +35,7 @@ mod test;
 
 /// Limits apply before deduplication, including repeated values.
 pub const MAX_FILTERS: usize = 32;
-pub const MAX_EVENTS_PER_FILTER: usize = 14;
+pub const MAX_EVENTS_PER_FILTER: usize = 15;
 pub const MAX_IDS_PER_FILTER: usize = 100;
 
 /// A routine may run on one trigger or any of several schedules and Macro events.
@@ -182,6 +182,8 @@ pub enum EventName {
     ChannelMessagePatched,
     #[serde(rename = "channel.message_attachment_created")]
     ChannelMessageAttachmentCreated,
+    #[serde(rename = "call.started")]
+    CallStarted,
     #[serde(rename = "call.ended")]
     CallEnded,
 }
@@ -202,6 +204,7 @@ impl EventName {
             Self::ChannelMentioned => "channel.mentioned",
             Self::ChannelMessagePatched => "channel.message_patched",
             Self::ChannelMessageAttachmentCreated => "channel.message_attachment_created",
+            Self::CallStarted => "call.started",
             Self::CallEnded => "call.ended",
         }
     }
@@ -216,7 +219,7 @@ impl EventName {
             | Self::TaskPriorityChanged
             | Self::TaskPropertyChanged => EventEntityType::Document,
             Self::EmailMessageReceived => EventEntityType::EmailThread,
-            Self::CallEnded => EventEntityType::Call,
+            Self::CallStarted | Self::CallEnded => EventEntityType::Call,
             Self::ChannelCreated
             | Self::ChannelMessagePosted
             | Self::ChannelMentioned
@@ -259,7 +262,7 @@ pub enum EventEntityType {
 pub enum FilterValidationError {
     #[error("expected between 1 and 32 filters")]
     FilterCount,
-    #[error("expected between 1 and 14 event names per filter")]
+    #[error("expected between 1 and 15 event names per filter")]
     EventCount,
     #[error("expected at most 100 entity IDs per filter")]
     IdCount,
@@ -602,15 +605,16 @@ fn document_actor(
 
 impl IncomingEvent {
     /// Mentions belong to the mentioned user, inbound mail to its inbox owner,
-    /// and an ended call to the people who joined it. Entity access is checked
-    /// separately at admission and dispatch. These audience restrictions never
-    /// turn an event into an access grant.
+    /// a started call to who created it, and an ended call to who joined it.
+    /// Entity access is checked separately at admission and dispatch. These
+    /// audience restrictions never turn an event into an access grant.
     pub fn is_for_owner(&self, owner: &MacroUserIdStr<'static>) -> bool {
         match &self.payload {
             EventPayload::Message(MessageFact::Mentioned(data)) => {
                 data.mentioned.entity_type == "user" && data.mentioned.entity_id == owner.as_ref()
             }
             EventPayload::Email(EmailTopicEvent::MessageReceived(data)) => &data.owner == owner,
+            EventPayload::Call(CallTopicEvent::Started(data)) => &data.created_by == owner,
             EventPayload::Call(CallTopicEvent::RecordArchived(data)) => {
                 data.participants.contains(owner)
             }
@@ -730,6 +734,10 @@ impl IncomingEvent {
                 )
             }
             EventPayload::Email(_) => return Err(EventRejection::UnsupportedEvent),
+            EventPayload::Call(CallTopicEvent::Started(data)) => {
+                // The creator is always a Macro account; the call is theirs.
+                (EventName::CallStarted, data.call_id, None)
+            }
             EventPayload::Call(CallTopicEvent::RecordArchived(data)) => {
                 // A call ends when its people leave, not by anyone's action;
                 // it is theirs only if a Macro account joined it.

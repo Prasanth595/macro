@@ -485,11 +485,38 @@ pub enum RoutineEvent {
         /// Its id.
         entity_id: String,
     },
+    /// A call the routine's owner started began.
+    CallStarted {
+        /// The call as it stands at the start.
+        call: CallStartedSnapshot,
+    },
     /// A call the routine's owner joined ended.
     CallEnded {
         /// The call.
         call: CallSnapshot,
     },
+}
+
+/// A call that just started, read under the routine owner's access.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CallStartedSnapshot {
+    /// Call id.
+    pub id: Uuid,
+    /// The call's name, when it has one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    /// The channel the call is in; absent for meetings outside one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub channel_id: Option<Uuid>,
+    /// That channel's name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub channel_name: Option<String>,
+    /// When it started.
+    pub started_at: DateTime<Utc>,
+    /// Who started it.
+    pub started_by: ContextPerson,
+    /// Everyone who has joined so far, people and guests.
+    pub participants: Vec<ContextPerson>,
 }
 
 /// An ended call, read under the routine owner's access.

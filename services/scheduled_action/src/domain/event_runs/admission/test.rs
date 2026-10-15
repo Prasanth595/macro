@@ -128,7 +128,12 @@ async fn denied_and_mismatched_receipts_skip_but_unavailable_access_defers_intak
 #[tokio::test]
 async fn mentions_mail_and_calls_only_admit_their_recipient_even_when_others_have_access() {
     use crate::domain::event_trigger::{EventPayload, MessageFact};
-    for name in ["channel.mentioned", "email.message_received", "call.ended"] {
+    for name in [
+        "channel.mentioned",
+        "email.message_received",
+        "call.started",
+        "call.ended",
+    ] {
         let owner = user();
         let mut subscribed = configuration();
         subscribed.filters = serde_json::from_value(json!([{"events":[name]}])).unwrap();
@@ -153,6 +158,12 @@ async fn mentions_mail_and_calls_only_admit_their_recipient_even_when_others_hav
                     "link_id": id, "owner": owner, "message_id": id, "thread_id": id,
                     "provider_message_id": "message", "provider_thread_id": "thread",
                     "is_new_thread": true, "to_emails": [], "attachment_count": 0, "is_spam_or_trash": false
+                }
+            })).unwrap()),
+            "call.started" => EventPayload::Call(serde_json::from_value(json!({
+                "event_type":"call.started", "metadata": {
+                    "call_id": id, "channel_id": null, "created_by": owner,
+                    "created_at": Utc::now(), "recording_enabled": false
                 }
             })).unwrap()),
             "call.ended" => EventPayload::Call(serde_json::from_value(json!({

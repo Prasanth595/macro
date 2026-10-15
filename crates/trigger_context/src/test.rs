@@ -90,6 +90,51 @@ fn a_channel_follow_up_has_a_stable_wire_shape() {
 }
 
 #[test]
+fn a_started_call_has_a_stable_wire_shape() {
+    let event = RoutineEvent::CallStarted {
+        call: CallStartedSnapshot {
+            id: Uuid::parse_str("00000000-0000-0000-0000-0000000000ca").unwrap(),
+            title: Some("Standup".to_owned()),
+            channel_id: Some(Uuid::parse_str("00000000-0000-0000-0000-0000000000c1").unwrap()),
+            channel_name: Some("eng".to_owned()),
+            started_at: Utc.with_ymd_and_hms(2026, 10, 8, 14, 0, 0).unwrap(),
+            started_by: ContextPerson {
+                id: "macro|julia@example.com".to_owned(),
+                name: "julia@example.com".to_owned(),
+                email: Some("julia@example.com".to_owned()),
+            },
+            participants: vec![ContextPerson {
+                id: "macro|julia@example.com".to_owned(),
+                name: "julia@example.com".to_owned(),
+                email: Some("julia@example.com".to_owned()),
+            }],
+        },
+    };
+
+    let wire = json!({
+        "event": "call_started",
+        "call": {
+            "id": "00000000-0000-0000-0000-0000000000ca",
+            "title": "Standup",
+            "channel_id": "00000000-0000-0000-0000-0000000000c1",
+            "channel_name": "eng",
+            "started_at": "2026-10-08T14:00:00Z",
+            "started_by": {
+                "id": "macro|julia@example.com",
+                "name": "julia@example.com",
+                "email": "julia@example.com"
+            },
+            "participants": [
+                {"id": "macro|julia@example.com", "name": "julia@example.com", "email": "julia@example.com"}
+            ]
+        }
+    });
+
+    assert_eq!(serde_json::to_value(&event).unwrap(), wire);
+    assert_eq!(serde_json::from_value::<RoutineEvent>(wire).unwrap(), event);
+}
+
+#[test]
 fn an_ended_call_has_a_stable_wire_shape() {
     let event = RoutineEvent::CallEnded {
         call: CallSnapshot {

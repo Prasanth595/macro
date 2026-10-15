@@ -20,8 +20,9 @@ use properties::{EntityPropertyInfo, PropertyOptionInfo};
 use serde_json::json;
 use system_properties::SystemPropertyKey;
 use trigger_context::{
-    CallSnapshot, ChannelType, ContextMessage, ContextPerson, ContextThread, DiscussionContext,
-    DiscussionSurface, EmailSnapshot, ReplyTarget, RoutineEvent, TaskSnapshot, TranscriptLine,
+    CallSnapshot, CallStartedSnapshot, ChannelType, ContextMessage, ContextPerson, ContextThread,
+    DiscussionContext, DiscussionSurface, EmailSnapshot, ReplyTarget, RoutineEvent, TaskSnapshot,
+    TranscriptLine,
 };
 
 use super::super::{ChannelMessage, EventContent, MAX_TRANSCRIPT_CHARS};
@@ -29,6 +30,16 @@ use super::{call_transcript, routine_event};
 use crate::domain::event_trigger::EventReference;
 
 const CALL_ID: &str = "01928f3e-6a2b-7c3d-8e4f-0000000ca11e";
+
+fn call_started() -> EventReference {
+    serde_json::from_value(json!({
+        "event_id": "01928f3e-6a2b-7c3d-8e4f-0123456789cd",
+        "event_name": "call.started",
+        "entity_id": CALL_ID,
+        "message_id": null,
+    }))
+    .unwrap()
+}
 
 fn call_ended() -> EventReference {
     serde_json::from_value(json!({
@@ -89,6 +100,39 @@ fn ended_call(transcript: Vec<CallRecordTranscriptSegment>) -> CallRecord {
         guests: Vec::new(),
         transcript,
     }
+}
+
+#[test]
+fn a_started_call_carries_who_started_it_and_who_has_joined() {
+    let mut record = ended_call(Vec::new());
+    record.ended_at = None;
+    record.duration_ms = None;
+    record.is_active = true;
+    record.participants[0].left_at = None;
+    record.custom_name = Some("Standup".into());
+
+    assert_eq!(
+        routine_event(&call_started(), EventContent::Call(Some(record))).unwrap(),
+        RoutineEvent::CallStarted {
+            call: CallStartedSnapshot {
+                id: Uuid::parse_str(CALL_ID).unwrap(),
+                title: Some("Standup".into()),
+                channel_id: Some(Uuid::parse_str("01928f3e-6a2b-7c3d-8e4f-0000000c4a77").unwrap()),
+                channel_name: Some("eng".into()),
+                started_at: at(0),
+                started_by: ContextPerson {
+                    id: "macro|ana@example.com".into(),
+                    name: "ana@example.com".into(),
+                    email: Some("ana@example.com".into()),
+                },
+                participants: vec![ContextPerson {
+                    id: "macro|ana@example.com".into(),
+                    name: "ana@example.com".into(),
+                    email: Some("ana@example.com".into()),
+                }],
+            },
+        }
+    );
 }
 
 #[test]
@@ -167,9 +211,11 @@ fn a_long_transcript_is_cut_mid_speech_and_says_so() {
 
 #[test]
 fn a_deleted_call_or_another_calls_record_does_not_become_the_event() {
+    assert!(routine_event(&call_started(), EventContent::Call(None)).is_err());
     assert!(routine_event(&call_ended(), EventContent::Call(None)).is_err());
     let mut other = ended_call(Vec::new());
     other.call_id = macro_uuid::generate_uuid_v7();
+    assert!(routine_event(&call_started(), EventContent::Call(Some(other.clone()))).is_err());
     assert!(routine_event(&call_ended(), EventContent::Call(Some(other))).is_err());
 }
 

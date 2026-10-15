@@ -548,6 +548,70 @@ describe('composeAgentContextPrompt with a trigger', () => {
     );
   });
 
+  it('renders a routine fired by a started call with who started it', () => {
+    const markdown = composeAgentContextPrompt({
+      promptMarkdown: 'Prepare notes.',
+      trigger: {
+        kind: 'routine',
+        routine_id: 'r-4',
+        name: 'Call prep',
+        owner: {
+          id: 'macro|julia@example.com',
+          name: 'Julia',
+          email: 'julia@example.com',
+        },
+        instructions: 'Draft talking points for this call.',
+        triggers: [{ type: 'events', events: ['call.started'] }],
+        firing: {
+          type: 'event',
+          event: {
+            event: 'call_started',
+            call: {
+              id: 'call-0',
+              title: 'Standup',
+              channel_id: 'c1',
+              channel_name: 'eng',
+              started_at: '2026-10-08T14:00:00Z',
+              started_by: {
+                id: 'macro|julia@example.com',
+                name: 'julia@example.com',
+                email: 'julia@example.com',
+              },
+              participants: [
+                {
+                  id: 'macro|julia@example.com',
+                  name: 'julia@example.com',
+                  email: 'julia@example.com',
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+
+    expect(hiddenContext(markdown)).toBe(
+      [
+        '<trigger kind="routine">',
+        '  <note>The routine Call prep, owned by Julia, fired. The prompt is what the routine asks you to do.</note>',
+        '  <routine id="r-4" name="Call prep" owner="Julia" owner_email="julia@example.com" owner_id="macro|julia@example.com"/>',
+        '  <instructions>Draft talking points for this call.</instructions>',
+        '  <triggers>',
+        '    <events names="call.started"/>',
+        '  </triggers>',
+        '  <event type="call_started">',
+        '    <call id="call-0" title="Standup" channel="eng" channel_id="c1" started_at="2026-10-08T14:00:00Z">',
+        '      <started_by name="julia@example.com" email="julia@example.com" id="macro|julia@example.com"/>',
+        '      <participants>',
+        '        <participant name="julia@example.com" email="julia@example.com" id="macro|julia@example.com"/>',
+        '      </participants>',
+        '    </call>',
+        '  </event>',
+        '</trigger>',
+      ].join('\n')
+    );
+  });
+
   it('renders a routine fired by an ended call with its people and a cut transcript', () => {
     const markdown = composeAgentContextPrompt({
       promptMarkdown: 'Post the recap.',
