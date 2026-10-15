@@ -27,9 +27,11 @@
 //!
 //! The `skip-ios-update` label bypasses the gate for tauri changes that don't
 //! break the native/web contract; the `iOS Native Check Label` workflow
-//! re-runs this job when that label is added or removed. The job name must
-//! stay stable: the release workflow, the watcher and that label workflow
-//! find the job by it.
+//! re-runs this job when that label is added or removed. The labels are read
+//! through the API at run time, not from `github.event`: a re-run keeps the
+//! payload of the event that started the run, so the event's label list is
+//! stale by then. The job name must stay stable: the release workflow, the
+//! watcher and that label workflow find the job by it.
 
 use gh_workflow::{Expression, Job, Run, Step, Use};
 
@@ -42,8 +44,9 @@ pub(super) const JOB_NAME: &str = "iOS Native Check";
 
 /// The path filter matched native iOS code.
 const NATIVE_CHANGED: &str = "steps.native-filter.outputs.ios_native == 'true'";
-/// The PR opted out of the gate via the `skip-ios-update` label.
-const SKIP_LABEL: &str = "contains(github.event.pull_request.labels.*.name, 'skip-ios-update')";
+/// The PR opted out of the gate via the `skip-ios-update` label (as read at
+/// run time, see [`read_labels`]).
+const SKIP_LABEL: &str = "steps.labels.outputs.skip == 'true'";
 
 pub(super) fn job() -> Job {
     Job::default()
@@ -52,6 +55,7 @@ pub(super) fn job() -> Job {
         // Full history so the bump check can diff against the base branch.
         .add_step(super::checkout("Checkout Repo", true))
         .add_step(paths_filter())
+        .add_step(read_labels())
         .add_step(setup_bun())
         .add_step(verify_bump())
         .add_step(fetch_credentials())
@@ -86,6 +90,29 @@ fn paths_filter() -> Step<Use> {
                   - '!apps/web/tauri/.helix/**'
             "},
         ))
+}
+
+/// The PR's labels as they are now. `github.event.pull_request.labels` is
+/// frozen at the event that started the run, so after the label workflow
+/// re-runs this job it would still describe the old label set.
+fn read_labels() -> Step<Run> {
+    Step::new("Read the PR's current labels")
+        .run(indoc::indoc! {r#"
+            set -euo pipefail
+            labels=$(gh pr view "$PR_NUMBER" --repo "$GH_REPO" --json labels --jq '[.labels[].name] | join(",")')
+            echo "labels: ${labels:-<none>}"
+            if [[ ",${labels}," == *",skip-ios-update,"* ]]; then
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "skip=false" >> "$GITHUB_OUTPUT"
+            fi
+        "#})
+        .id("labels")
+        .if_condition(Expression::new(NATIVE_CHANGED))
+        .shell("bash")
+        .add_env(("GH_TOKEN", "${{ github.token }}"))
+        .add_env(("GH_REPO", "${{ github.repository }}"))
+        .add_env(("PR_NUMBER", "${{ github.event.pull_request.number }}"))
 }
 
 fn setup_bun() -> Step<Use> {
