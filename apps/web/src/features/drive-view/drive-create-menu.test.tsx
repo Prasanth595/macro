@@ -6,7 +6,7 @@ import { DriveCreateMenu } from './drive-create-menu';
 const host = vi.hoisted(() => ({
   runCreateAction: vi.fn(),
   selectFolder: vi.fn(),
-  openCreatedDocument: vi.fn(),
+  openCreated: vi.fn(),
 }));
 
 const [projectId, setProjectId] = createSignal<string | undefined>('child');
@@ -44,7 +44,7 @@ vi.mock('./context/drive-context', () => ({
     actions: {
       uploadFiles: vi.fn(),
       uploadFolder: vi.fn(),
-      openCreatedDocument: host.openCreatedDocument,
+      openCreated: host.openCreated,
     },
   }),
 }));
@@ -84,7 +84,7 @@ it('creates files inside the open folder and opens them there', async () => {
     projectId: 'child',
     source: 'drive',
     destination: 'Wireframes',
-    openCreated: host.openCreatedDocument,
+    openCreated: host.openCreated,
   });
 });
 
@@ -97,7 +97,7 @@ it('opens a folder composer inside the current folder', async () => {
     projectId: 'child',
     source: 'drive',
     destination: 'Wireframes',
-    openCreated: host.openCreatedDocument,
+    openCreated: host.openCreated,
   });
 });
 
@@ -118,7 +118,7 @@ it('offers the same menu from the list header toolbar', async () => {
     projectId: 'child',
     source: 'drive',
     destination: 'Wireframes',
-    openCreated: host.openCreatedDocument,
+    openCreated: host.openCreated,
   });
 });
 
@@ -137,6 +137,6 @@ it('opens a folder composer at the Drive root outside a folder', async () => {
     projectId: undefined,
     source: 'drive',
     destination: 'Drive',
-    openCreated: host.openCreatedDocument,
+    openCreated: host.openCreated,
   });
 });

@@ -1,5 +1,6 @@
 import { MemoryRouter, Route } from '@solidjs/router';
 import { cleanup, fireEvent, render } from '@solidjs/testing-library';
+import { ok } from 'neverthrow';
 import { createSignal } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
@@ -8,6 +9,8 @@ const host = vi.hoisted(() => ({
   openWithSplit: vi.fn(),
   createFolder: vi.fn(),
   createSpreadsheet: vi.fn(async () => 'sheet-1' as string | undefined),
+  createDatabase: vi.fn(),
+  createForm: vi.fn(),
   projectFlag: (): boolean | undefined => true,
   carouselFlag: (): boolean | undefined => undefined,
 }));
@@ -18,6 +21,10 @@ vi.mock('@components/app/split-layout/layout', () => ({
 vi.mock('@queries/storage/projects', () => ({
   createProject: host.createFolder,
 }));
+vi.mock('@queries/storage/databases', () => ({
+  createDatabase: host.createDatabase,
+}));
+vi.mock('@queries/storage/forms', () => ({ createForm: host.createForm }));
 
 // Other creation flows are independent of the native project composer.
 vi.mock('@app/features/agents-view/primitives/open-composer', () => ({}));
@@ -50,7 +57,9 @@ vi.mock('@app/lib/analytics/posthog', () => ({
 vi.mock('@core/constant/featureFlags', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@core/constant/featureFlags')>()),
   isFeatureEnabled: (flag: { key: string }) =>
-    flag.key === 'enable-projects' && host.projectFlag() === true,
+    flag.key === 'enable-databases' ||
+    flag.key === 'enable-forms' ||
+    (flag.key === 'enable-projects' && host.projectFlag() === true),
 }));
 vi.mock('@block-md/observability', () => ({}));
 vi.mock('@channel/CreateChannelModal', () => ({}));
@@ -236,6 +245,33 @@ it('lets the requesting surface keep its content and open the new document itsel
   });
   expect(host.openWithSplit).not.toHaveBeenCalled();
 });
+
+it.each([
+  {
+    blockName: 'database',
+    arrange: () => host.createDatabase.mockResolvedValueOnce(ok('db-1')),
+    id: 'db-1',
+  },
+  {
+    blockName: 'form',
+    arrange: () =>
+      host.createForm.mockResolvedValueOnce(ok({ form: { id: 'form-1' } })),
+    id: 'form-1',
+  },
+] as const)(
+  'lets the requesting surface open a new $blockName the same way',
+  async ({ blockName, arrange, id }) => {
+    arrange();
+    const openCreated = vi.fn(() => true);
+
+    runCreateAction(blockName, { source: 'drive', openCreated });
+
+    await vi.waitFor(() =>
+      expect(openCreated).toHaveBeenCalledExactlyOnceWith({ blockName, id })
+    );
+    expect(host.openWithSplit).not.toHaveBeenCalled();
+  }
+);
 
 it('opens the new document in a split when the requesting surface declines it', async () => {
   const openCreated = vi.fn(() => false);

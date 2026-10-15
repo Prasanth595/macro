@@ -1,4 +1,7 @@
-import { entityDetailTarget } from '@app/components/entity-detail/entity-detail-target';
+import {
+  type EntityDetailTarget,
+  entityDetailTarget,
+} from '@app/components/entity-detail/entity-detail-target';
 import { makeShareAction } from '@app/features/next-soup/actions';
 import {
   markCalendarNotificationSeenOnOpen,
@@ -20,11 +23,31 @@ import {
   openFilePicker,
   openFolderPicker,
 } from '@core/util/upload';
+import type { EntityData } from '@entity';
 import type { Accessor } from 'solid-js';
 import type { DriveHostActions } from './context/drive-context';
 import { useDriveDetailNavigation } from './drive-detail-navigation';
-import { documentTargetFromRoute } from './primitives/drive-detail-trail';
+import { detailTargetFromRoute } from './primitives/drive-detail-trail';
 import { driveDocumentFromContent } from './primitives/drive-route';
+
+function inlineDetailTarget(
+  entity: EntityData
+): EntityDetailTarget | undefined {
+  if (entity.type === 'document') {
+    return entityDetailTarget.document({
+      id: entity.id,
+      fileType: entity.fileType,
+      subType: entity.subType,
+      fallbackName: entity.name,
+    });
+  }
+  if (entity.type === 'database' || entity.type === 'form') {
+    return entityDetailTarget.fromSelection(
+      { type: entity.type, id: entity.id },
+      entity.name
+    );
+  }
+}
 
 /** App-specific navigation, upload and sharing adapters for the Drive workspace. */
 export function createDriveHostActions(options: {
@@ -73,16 +96,9 @@ export function createDriveHostActions(options: {
 
       markCalendarNotificationSeenOnOpen(entity, notificationSource);
 
-      if (entity.type === 'document' && !openInNewSplit && !location) {
-        const target = entityDetailTarget.document({
-          id: entity.id,
-          fileType: entity.fileType,
-          subType: entity.subType,
-          fallbackName: entity.name,
-        });
-
-        if (navigation.openRoot(target, { event })) return;
-      }
+      const target =
+        openInNewSplit || location ? undefined : inlineDetailTarget(entity);
+      if (target && navigation.openRoot(target, { event })) return;
 
       void openEntityInSplitFromUnifiedList(entity, {
         splitHandle: panel.handle,
@@ -128,6 +144,19 @@ export function createDriveHostActions(options: {
           return;
       }
 
+      if (
+        (favorite.entityType === 'database' ||
+          favorite.entityType === 'form') &&
+        navigation.openRoot(
+          entityDetailTarget.fromSelection(
+            { type: favorite.entityType, id: favorite.entityId },
+            name
+          ),
+          { event, location: { kind: 'tab', tab: 'owned' } }
+        )
+      )
+        return;
+
       const result = layout.openWithSplit(favoriteSplitContent(favorite), {
         referredFrom: 'sidebar',
         preferNewSplit: event.shiftKey,
@@ -137,10 +166,13 @@ export function createDriveHostActions(options: {
       }
     },
 
-    openCreatedDocument({ blockName, id }) {
-      const target = documentTargetFromRoute(
-        driveDocumentFromContent({ type: blockName, id })
-      );
+    openCreated({ blockName, id }) {
+      const target =
+        blockName === 'database' || blockName === 'form'
+          ? { type: blockName, id }
+          : detailTargetFromRoute(
+              driveDocumentFromContent({ type: blockName, id })
+            );
 
       return target !== undefined && navigation.openRoot(target);
     },

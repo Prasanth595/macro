@@ -91,11 +91,7 @@ import {
 } from './core/launcher-history';
 import { createCallCommand } from './create-call-command';
 import { MobileCreateSheet } from './mobile/MobileCreateSheet';
-import type {
-  CreatableBlock,
-  CreatableName,
-  OpenCreatedDocument,
-} from './types';
+import type { CreatableBlock, CreatableName, OpenCreatedItem } from './types';
 
 const LAUNCHER_FRECENCY_STORE = 'launcher-frecency-v1';
 const LAUNCHER_SEARCH_MODE_STORE = 'launcher-search-mode-v1';
@@ -154,7 +150,7 @@ const createBlock = async (spec: {
   createFn: () => Promise<string | undefined>;
   loading?: boolean;
   shouldInsert?: boolean;
-  openCreated?: OpenCreatedDocument;
+  openCreated?: OpenCreatedItem;
   /** Active creation span; registered by document id after creation. */
   span?: Span;
 }) => {
@@ -263,8 +259,8 @@ export function runCreateAction(
     source?: string;
     projectId?: string;
     destination?: string;
-    /** Applies to documents; other creatables open as they otherwise would. */
-    openCreated?: OpenCreatedDocument;
+    /** Creatables that open a composer instead ignore it. */
+    openCreated?: OpenCreatedItem;
   } = {}
 ) {
   const shouldInsert = options.shouldInsert ?? false;
@@ -438,6 +434,7 @@ export function runCreateAction(
           return result.chatId;
         },
         shouldInsert,
+        openCreated,
       });
       return;
     case 'project':
@@ -468,6 +465,7 @@ export function runCreateAction(
           return created.value;
         },
         shouldInsert,
+        openCreated,
       });
       return;
     case 'form':
@@ -487,6 +485,7 @@ export function runCreateAction(
           return created.value.form.id;
         },
         shouldInsert,
+        openCreated,
       });
       return;
     case 'code':

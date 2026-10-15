@@ -5,10 +5,10 @@ import type { HotkeyRegistrationOptions } from '@core/hotkey/types';
 export type CreatableName = BlockName | BlockAlias | 'initiative';
 
 /**
- * Shows a document in the surface that asked to create it, which stays mounted
- * while the document is created. Returning false opens it in a split instead.
+ * Shows a created item in the surface that asked to create it, which stays
+ * mounted while the item is created. Returning false opens it in a split.
  */
-export type OpenCreatedDocument = (document: {
+export type OpenCreatedItem = (item: {
   blockName: BlockName | BlockAlias;
   id: string;
 }) => boolean;
