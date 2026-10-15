@@ -95,7 +95,7 @@ fn preconditions() -> Step<Run> {
         ))
         .shell("bash")
         .add_env(("HEAD_SHA", "${{ github.event.pull_request.head.sha }}"))
-        .add_env(("WAIT_MINUTES", "20"))
+        .add_env(("WAIT_MINUTES", "30"))
 }
 
 /// The pre-build steps run outside the Nix dev shell (it isn't installed

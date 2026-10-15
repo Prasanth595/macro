@@ -1,14 +1,20 @@
-//! `iOS Release Watch` — half-hourly cron closing the loop of the
-//! the `iOS Native Check` job of [`super::web_app_check_main`] gate: that check fails on a PR with breaking
-//! native changes until the matching iOS version is live on the App Store,
-//! and nothing on GitHub's side notices when Apple releases it. This
-//! workflow looks at every open PR labeled `ios-update` (the label that
-//! started the [`super::ios_app_store_release`] run), asks App Store Connect
-//! whether the version + build committed at the PR head is live (built from
-//! the native tree of the PR's merge result, like the gate checks), and when
-//! it is, re-runs the PR's failed `iOS Native Check` run so the gate turns green
-//! on its own. Re-running an existing run is how this stays within GitHub's
-//! rule that events created with the workflow token never start workflows.
+//! `iOS Release Watch` — half-hourly cron closing the loop of the `iOS
+//! Native Check` gate (a job of [`super::web_app_check_main`]): that check
+//! fails on a PR with breaking native changes until the matching iOS version
+//! is live on the App Store, and nothing on GitHub's side notices when Apple
+//! releases it. This workflow looks at every open PR labeled `ios-update`
+//! (the label that started the [`super::ios_app_store_release`] run), asks
+//! App Store Connect whether the version + build committed at the PR head is
+//! live (built from the native tree of the PR's merge result, like the gate
+//! checks), and when it is, re-runs the PR's failed `iOS Native Check` job so
+//! the gate turns green on its own. Re-running an existing job is how this
+//! stays within GitHub's rule that events created with the workflow token
+//! never start workflows.
+//!
+//! It also backs up [`super::ios_release_drift`]: GitHub does not run
+//! pull_request workflows on a PR that conflicts with main, so a native push
+//! to such a PR is only noticed here — the in-flight build's stamp is
+//! compared with the head's native code and a stale submission withdrawn.
 //!
 //! Credentials come from Doppler like the other two iOS workflows; the
 //! common case (no labeled PRs) exits before fetching anything.

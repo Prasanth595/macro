@@ -132,7 +132,7 @@ jobs:
       shell: bash
       env:
         HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        WAIT_MINUTES: '20'
+        WAIT_MINUTES: '30'
     - name: Install Nix
       run: |
         set -euo pipefail

@@ -44,7 +44,7 @@ checked-in `min-native-build.json` enforce this end to end.
 3. Add the **`ios-update`** label to the PR — once it is ready to merge: the
    **`iOS App Store Release`** workflow
    (`.github/workflows/ios-app-store-release.yml`) first refuses drafts and
-   PRs with failing checks (pending ones are waited on), then builds the app from
+   PRs with failing checks (pending ones are waited on, up to 30 minutes), then builds the app from
    the PR head on the Namespace macOS runner inside the Nix dev shell (like
    the `ios-preview` label), uploads it to TestFlight, waits for App Store
    Connect processing + export compliance, and submits it for App Review
@@ -112,7 +112,9 @@ in `scripts/ios_native_tree.sh` next to the workflow sources, mirrored in
   version, same stamp) is a retry: the release skips the build and goes
   straight to submit.
 - **Live check** (the gate): the live build's stamp must equal the native
-  tree of the PR's **merge result** (the gate checks out the merge ref).
+  tree of the PR's **current merge result** (fetched through the API, so a
+  re-run of the job evaluates today's `main`, not the one the run started
+  with).
   Native commits pushed after the release, native code that landed on main
   since (merge main into the PR), or another PR's build that shares the
   numbers, all fail with "bump and re-release": the floor the merge would
@@ -147,7 +149,11 @@ release only starts on a PR that is ready to merge. Pushes afterwards:
   runs on every push to a labeled PR and, when `apps/web/tauri` changed,
   cancels any release run still building, withdraws the PR's submission from
   review (the API equivalent of "Remove from Review"), removes the
-  `ios-update` label, and comments. The release itself also refuses to
+  `ios-update` label, and comments. GitHub does not run `pull_request`
+  workflows on a PR that conflicts with `main`, so a native push to such a
+  PR is caught by the watcher instead, within half an hour: it compares the
+  in-flight build's stamp with the head's native code and does the same
+  withdrawal. The release itself also refuses to
   submit if the native tree moved while it was building. To continue: bump
   (the marketing version stays, the build number moves), commit, push, and
   re-add the label; `submit` takes the withdrawn version record over, so no
@@ -155,6 +161,15 @@ release only starts on a PR that is ready to merge. Pushes afterwards:
   build (with automatic release that means it is live or minutes away),
   nothing can be withdrawn: the comment says so, and the follow-up release
   should ship as soon as possible.
+
+## Credentials note
+
+The gate and the watcher run `ios-app-store.mjs` from the PR's own merge
+result with the same App Manager key the release uses, on every same-repo
+PR with native changes (fork PRs get no secrets and fail the gate closed).
+A collaborator branch could therefore drive App Store Connect with that
+key. If that matters, give the gate a second, Developer-role key in Doppler
+(reads suffice for `status`); the watcher's `withdraw` needs App Manager.
 
 ## Manual / TestFlight-only releases
 

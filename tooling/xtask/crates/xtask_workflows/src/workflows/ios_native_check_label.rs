@@ -38,7 +38,11 @@ fn rerun_job() -> Job {
         ))
         .runs_on(runners::Runner::TinyNoCache.to_string())
         .timeout_minutes(30u32)
-        .permissions(Permissions::default().actions(Level::Write))
+        .permissions(
+            Permissions::default()
+                .actions(Level::Write)
+                .pull_requests(Level::Read),
+        )
         .add_env(("GH_TOKEN", "${{ github.token }}"))
         .add_env(("GH_REPO", "${{ github.repository }}"))
         .add_env(("HEAD_SHA", "${{ github.event.pull_request.head.sha }}"))

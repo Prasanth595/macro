@@ -17,8 +17,9 @@
 //
 //   status       Report the App Store state of a version. With --require-live
 //                it exits non-zero unless exactly this version+build is live
-//                on the App Store — this is the gate the `iOS Native Check`
-//                CI workflow runs on PRs with native iOS changes.
+//                on the App Store, built from --native-tree (or this checkout's
+//                native code) — the gate the `iOS Native Check` job runs on
+//                PRs with native iOS changes.
 //
 // Auth (same values as ios-release.sh):
 //   APPLE_API_KEY       App Store Connect API Key ID
@@ -597,7 +598,7 @@ async function inFlightVersionForPr(pr) {
     if (!attached.data) continue;
     const stamp = await buildStamp(attached.data.id);
     if (stamp?.pr === String(pr)) {
-      return { record, buildNumber: attached.data.attributes.version };
+      return { record, buildNumber: attached.data.attributes.version, tree: stamp.tree };
     }
   }
   return null;
@@ -621,6 +622,14 @@ async function withdraw() {
       `PR #${pr}'s App Store version ${mine.record.attributes.versionString} ` +
         `(build ${mine.buildNumber}) is ${state}.`,
     );
+    // --unless-tree <hash>: only withdraw a build that no longer matches the
+    // PR's native code (the watcher's drift check for PRs the drift workflow
+    // cannot see).
+    if (args["unless-tree"] && mine.tree === args["unless-tree"]) {
+      console.log(`Its build was built from native tree ${mine.tree}, which is still the PR's; nothing to withdraw.`);
+      setGitHubOutput("withdrawn", "false");
+      return;
+    }
     const withdrawn = await cancelOpenSubmission();
     setGitHubOutput("withdrawn", withdrawn ? "true" : "false");
     if (!withdrawn) {

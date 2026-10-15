@@ -14,10 +14,10 @@
 //! 2. Verifies the PR bumped the iOS release numbers (`just ios-bump`):
 //!    marketing version, build number, and `min-native-build.json`.
 //! 3. Asks the App Store Connect API whether exactly that version + build is
-//!    live on the App Store, built from the native tree this PR's merge
-//!    result has (the checkout is the PR's merge ref, so native code that
-//!    landed on main after the release also fails it: the shipped build
-//!    lacks it), and fails with instructions otherwise — add the
+//!    live on the App Store, built from the native tree this PR's current
+//!    merge result has (fetched through the API, so native code that landed
+//!    on main after the release also fails it, even on a re-run: the
+//!    shipped build lacks it), and fails with instructions otherwise — add the
 //!    `ios-update` label to run the `iOS App Store Release` workflow and
 //!    wait for Apple's approval; `iOS Release Watch` re-runs this job once
 //!    the release is live.
@@ -156,14 +156,24 @@ fn fetch_credentials() -> Step<Run> {
         .add_env(("DOPPLER_TOKEN", vars::IOS_RELEASE_DOPPLER_TOKEN))
 }
 
-/// The checkout is the PR's merge ref, so `status` compares the live build's
-/// stamp against the native tree the merge would produce — exactly what the
-/// floor derived from this build claims ships.
+/// Compares the live build's stamp against the native tree of the PR's
+/// *current* merge result — exactly what the floor derived from this build
+/// claims ships. Asked through the API rather than taken from the checkout:
+/// a re-run (the watcher's, the label workflow's, a human's) checks out the
+/// merge commit as of the run's original event, which may predate native
+/// code landing on main.
 fn require_live_version() -> Step<Run> {
     Step::new("Require the App Store release to be live")
-        .run("bun scripts/ios-app-store.mjs status --require-live")
+        .run(concat!(
+            include_str!("../scripts/ios_native_tree.sh"),
+            include_str!("../scripts/ios_native_check_live.sh")
+        ))
         .if_condition(gated())
+        .shell("bash")
         .working_directory(xtask_paths::repo_dir!("apps/web"))
+        .add_env(("GH_TOKEN", "${{ github.token }}"))
+        .add_env(("GH_REPO", "${{ github.repository }}"))
+        .add_env(("PR_NUMBER", "${{ github.event.pull_request.number }}"))
 }
 
 fn skip_notice() -> Step<Run> {
