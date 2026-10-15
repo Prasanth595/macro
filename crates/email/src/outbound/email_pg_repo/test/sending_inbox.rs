@@ -37,6 +37,9 @@ fn service(
         entity_access_management_service: (),
         macro_event_broker: NoopMacroEventBroker,
         sent_undo_delay_secs: 0,
+        sender_provider: std::sync::Arc::new(
+            crate::domain::senders::UnavailableEmailSenderProvider,
+        ),
     }
 }
 
@@ -59,6 +62,7 @@ fn reply_input(replying_to_id: Uuid) -> CreateDraftInput {
         provider_thread_id: None,
         thread_db_id: None,
         subject: "Re: Hello alt".to_owned(),
+        sender_email: None,
         to: vec![crate::domain::models::ContactInfo {
             email: "alice@example.com".to_owned(),
             name: None,

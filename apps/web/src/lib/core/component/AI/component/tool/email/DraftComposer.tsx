@@ -12,6 +12,7 @@ import { SignaturePreview } from '@app/features/email-compose/components/signatu
 import { ComposeProvider } from '@app/features/email-compose/context/compose-context';
 import { decodeBase64Utf8 } from '@app/features/email-compose/core/decode-base64';
 import type { EmailRecipient } from '@app/features/email-compose/core/email-recipient';
+import { fromInboxOptions } from '@app/features/email-compose/core/email-sender';
 import { convertContactInfoToEmailRecipient } from '@app/features/email-compose/core/recipient-conversion';
 import { createComposeBodyActions } from '@app/features/email-compose/editor-adapter';
 import type {
@@ -355,7 +356,7 @@ export function EmailDraftComposer(props: EmailDraftComposerProps) {
     ],
     validationError: (type) => validationErrors().find((e) => e.type === type),
     fromAddress,
-    fromInboxes: inboxes,
+    fromInboxes: () => fromInboxOptions(inboxes()),
     selectedInboxId: () => sendingLink()?.id,
     onSelectInbox: (inboxId) => {
       if (uiDisabled()) return;
