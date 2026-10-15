@@ -59,6 +59,7 @@ Real files live in `.agents/`; tool-specific directories only symlink to it.
 | Giving the user a local preview link | `local-preview` skill |
 | Working inside Cursor Cloud | [Cursor Cloud](docs/development/cursor-cloud.md) |
 | Driving the app through a browser | [App agent guide](docs/agent-guide/README.md) |
+| Adding or changing SDK methods | [SDK rule](.agents/rules/sdk.md), `add-sdk-endpoint` skill |
 | SDK version bumps and npm publishing | [SDK release guide](packages/sdk/RELEASING.md), [release-sdk skill](.agents/skills/release-sdk/SKILL.md) |
 | Adding a service, worker, or Pulumi stack | [New service guide](docs/guides/new-service.md) |
 | Infrastructure, Pulumi, or deploys | [Infrastructure guide](docs/development/infrastructure.md) |

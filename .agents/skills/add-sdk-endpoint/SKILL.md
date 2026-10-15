@@ -41,12 +41,9 @@ To skip: add the method name, alphabetically, to `<camelService>Excluded` in
    - create/list/search/lookup → the namespace
    - new noun → new `src/entities/<noun>/` pair, registered in `src/macro.ts`
    - cross-entity capability → a base in `src/entities/entity.ts`
-3. **Never take or return a raw id.** Wherever the generated endpoint takes an id,
-   the SDK takes the entity handle and reads `.id` off it internally; wherever it
-   returns an id, the SDK returns a handle. If the id refers to a noun that has no
-   entity class yet, build that entity (and its namespace) as part of this change —
-   do not fall back to a `string` parameter. The one exception is a `static byId`,
-   which is how handles are minted in the first place.
+3. **Never take or return a raw id** (the [SDK rule](../../rules/sdk.md)). Take
+   the entity handle and return handles; if the noun has no entity class yet,
+   build it in this change rather than accepting a `string`.
 4. **Match the conventions:**
    - `static byId(client, id)`; detail via `Lazy` + `protected fetch()`, exposed with
      `this.field(...)` / `this.mappedField(...)`
