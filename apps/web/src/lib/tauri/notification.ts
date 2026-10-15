@@ -10,13 +10,9 @@ import {
 } from '@tauri-apps/plugin-notification';
 import { type as osType } from '@tauri-apps/plugin-os';
 import { showLinuxNotification } from './linux-notification';
+import { MacOSNotificationUpdateRequiredError } from './notification-errors';
 
-export class MacOSNotificationUpdateRequiredError extends Error {
-  constructor(cause: unknown) {
-    super('Update Macro to receive desktop notifications.', { cause });
-    this.name = 'MacOSNotificationUpdateRequiredError';
-  }
-}
+export { MacOSNotificationUpdateRequiredError } from './notification-errors';
 
 export function createTauriNotificationInterface(
   setDisabled: () => Promise<void>,

@@ -1,4 +1,5 @@
 import { Channel, invoke } from '@tauri-apps/api/core';
+import { MacOSNotificationUpdateRequiredError } from './notification-errors';
 
 type NotificationEvent = 'click' | 'dismissed';
 
@@ -36,9 +37,7 @@ export async function showLinuxNotification(
     });
   } catch (error) {
     if (error === 'Command send_linux_notification not found') {
-      throw new Error('Update Macro to receive desktop notifications.', {
-        cause: error,
-      });
+      throw new MacOSNotificationUpdateRequiredError(error);
     }
     throw error;
   }

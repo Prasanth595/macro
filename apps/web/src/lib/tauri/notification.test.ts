@@ -145,9 +145,14 @@ describe('desktop notification delivery', () => {
       .mockRejectedValueOnce(missingCommand);
     const adapter = createTauriNotificationInterface(vi.fn());
 
-    await expect(adapter.showNotification(notification)).rejects.toEqual(
-      new MacOSNotificationUpdateRequiredError(missingCommand)
+    const delivery = adapter.showNotification(notification);
+    await expect(delivery).rejects.toBeInstanceOf(
+      MacOSNotificationUpdateRequiredError
     );
+    await expect(delivery).rejects.toMatchObject({
+      message: 'Update Macro to receive desktop notifications.',
+      cause: missingCommand,
+    });
     expect(mocks.sendNotification).not.toHaveBeenCalled();
   });
 
@@ -336,13 +341,18 @@ describe('desktop notification delivery', () => {
       expect(mocks.invoke).not.toHaveBeenCalled();
     });
 
-    it('reports missing native support instead of silently sending unclickable notifications', async () => {
-      mocks.invoke.mockRejectedValue(
-        'Command send_linux_notification not found'
+    it('uses the error class recognized by AppProviders when native support is missing', async () => {
+      const missingCommand = 'Command send_linux_notification not found';
+      mocks.invoke.mockRejectedValue(missingCommand);
+      const delivery = show();
+      // AppProviders imports this class from the existing notification export.
+      await expect(delivery).rejects.toBeInstanceOf(
+        MacOSNotificationUpdateRequiredError
       );
-      await expect(show()).rejects.toThrow(
-        'Update Macro to receive desktop notifications.'
-      );
+      await expect(delivery).rejects.toMatchObject({
+        message: 'Update Macro to receive desktop notifications.',
+        cause: missingCommand,
+      });
       expect(mocks.sendNotification).not.toHaveBeenCalled();
     });
 
