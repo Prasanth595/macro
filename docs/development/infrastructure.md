@@ -108,12 +108,14 @@ specifically:
   endpoints) into Doppler with a Pulumi `doppler.Secret`, as
   `infra/stacks/preview-gateway` does. Plain `environment:` is for `ENVIRONMENT`,
   `DD_*`, and values read through `macro_env_var` or `OVERRIDE_*`.
-- **Pulumi config holds secret names, never secret values.** Resolve names to ARNs
-  with `aws.secretsmanager.getSecretVersionOutput(...)` and grant the task role
-  access to those ARNs. Use `secure:` config only for the few values that must live
-  in Pulumi itself.
-- Never resolve `secretString` into a plaintext env var. Older Lambda stacks still
-  do; don't copy them.
+- **Secrets go in Doppler, not Secrets Manager.** Add the value to the service's
+  Doppler project; it reaches the task through `DopplerEcsEnvironment` and the
+  `/doppler-sync/` sync. Creating standalone Secrets Manager secrets, putting their
+  names in Pulumi config, and resolving them with
+  `aws.secretsmanager.getSecretVersionOutput(...)` is the old pattern; older stacks
+  still do it, don't copy them. Use `secure:` config only for the few values that
+  must live in Pulumi itself.
+- Never resolve `secretString` into a plaintext env var.
 
 ## Other resources
 
