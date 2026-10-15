@@ -911,14 +911,43 @@ async function submit() {
     `/v1/reviewSubmissions?filter[app]=${app.id}&filter[platform]=IOS` +
       `&filter[state]=READY_FOR_REVIEW,WAITING_FOR_REVIEW,IN_REVIEW,UNRESOLVED_ISSUES&limit=25`,
   );
-  let submission = openSubmissions.data[0] ?? null;
-  if (submission && submission.attributes.state !== "READY_FOR_REVIEW") {
-    console.error(
-      `A review submission is already in progress (state ${submission.attributes.state}) ` +
-        `and it does not contain version ${version}. Resolve it in App Store Connect first:` +
-        `\n${distributionUrl}`,
+  // Reuse the open submission that already holds our version (a retry after
+  // a lost response, or a version whose review raised issues); otherwise an
+  // in-progress submission for something else blocks us, and a draft one
+  // (READY_FOR_REVIEW) is reused.
+  const holdsOurVersion = async (candidate) => {
+    const items = await api(`/v1/reviewSubmissions/${candidate.id}/items?limit=50`);
+    return items.data.some(
+      (item) => item.relationships?.appStoreVersion?.data?.id === versionRecord.id,
     );
-    exit(1);
+  };
+  let submission = null;
+  for (const candidate of openSubmissions.data) {
+    if (await holdsOurVersion(candidate)) {
+      if (candidate.attributes.state !== "READY_FOR_REVIEW") {
+        console.log(
+          `App Store version ${version} (${build}) is already in a review submission ` +
+            `(state ${candidate.attributes.state}); nothing to do.\n${distributionUrl}`,
+        );
+        return;
+      }
+      submission = candidate;
+      break;
+    }
+  }
+  if (!submission) {
+    const blocking = openSubmissions.data.find(
+      (candidate) => candidate.attributes.state !== "READY_FOR_REVIEW",
+    );
+    if (blocking) {
+      console.error(
+        `A review submission is already in progress (state ${blocking.attributes.state}) ` +
+          `and it does not contain version ${version}. Resolve it in App Store Connect first:` +
+          `\n${distributionUrl}`,
+      );
+      exit(1);
+    }
+    submission = openSubmissions.data[0] ?? null;
   }
   if (!submission) {
     submission = (

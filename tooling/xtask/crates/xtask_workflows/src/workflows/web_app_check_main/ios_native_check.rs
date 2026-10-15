@@ -33,7 +33,7 @@
 //! stale by then. The job name must stay stable: the release workflow, the
 //! watcher and that label workflow find the job by it.
 
-use gh_workflow::{Expression, Job, Run, Step, Use};
+use gh_workflow::{Expression, Job, Level, Permissions, Run, Step, Use};
 
 use crate::workflows::{runners, vars};
 
@@ -55,6 +55,12 @@ pub(super) fn job() -> Job {
     Job::default()
         .name(JOB_NAME)
         .runs_on(runners::Runner::TinyNoCache.to_string())
+        // Reads only: the PR's labels and merge commit, and a base-branch fetch.
+        .permissions(
+            Permissions::default()
+                .contents(Level::Read)
+                .pull_requests(Level::Read),
+        )
         // Shallow: the path filter uses the API, and the bump check fetches
         // the base branch itself, only when it runs.
         .add_step(super::checkout("Checkout Repo", false))
