@@ -42,8 +42,6 @@ export const PIPEDREAM_BROWSE_HIDDEN_SLUGS: ReadonlySet<string> = new Set([
   'cursor',
 ]);
 
-export const availableStarters = () => EMPTY_STARTERS;
-
 export function isPipedreamBrowseHidden(appSlug: string): boolean {
   return PIPEDREAM_BROWSE_HIDDEN_SLUGS.has(appSlug);
 }

@@ -1,6 +1,6 @@
-// Production catalog verified 2026-10-12: new authorizations use slack_v2.
-// Keep the legacy slug as an identity alias for existing accounts.
+// Match the backend's selection order for existing Slack connections.
 export const SLACK_PIPEDREAM_SLUGS = ['slack', 'slack_v2'] as const;
+// Pipedream's OAuth Slack connector; `slack` remains a legacy connection alias.
 export const SLACK_CONNECT_SLUG = 'slack_v2';
 
 export function isSlackPipedreamSlug(slug: string): boolean {
