@@ -159,7 +159,7 @@ export type {
   SelectTriggerProps,
   SelectValueProps,
 } from './components/Select';
-export { Select } from './components/Select';
+export { Select, selectTriggerClasses } from './components/Select';
 export type { SendButtonProps } from './components/SendButton';
 export { SendButton } from './components/SendButton';
 export { SideNav } from './components/SideNav';
