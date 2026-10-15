@@ -38,11 +38,16 @@ export function AvailabilityCalendar(props: {
   timeFormat: AvailabilityTimeFormat;
   stamping: boolean;
   selectedDates: string[];
-  selectionPreview: Pick<AvailabilityChange, 'mode' | 'window' | 'allDay'>;
+  selectionPreview?: Pick<AvailabilityChange, 'mode' | 'window' | 'allDay'>;
   getBoundary?: () => HTMLElement;
   onCancelSelection: () => void;
   onCancelReady: (cancel: () => void) => void;
-  onDates: (dates: string[], anchor: HTMLElement, toggle: boolean) => void;
+  onDates: (
+    dates: string[],
+    anchor: HTMLElement,
+    toggle: boolean,
+    interaction?: 'keyboard'
+  ) => void;
   onSelect: (
     change: AvailabilityChange,
     anchor: HTMLElement,
@@ -68,14 +73,19 @@ export function AvailabilityCalendar(props: {
   });
   const preview = () => {
     const change = props.selectionPreview;
+    if (!change) return;
     if (!drag() && !props.stamping && selected().length < 2) return;
     if (!change.allDay && windowsIssue([change.window])) return;
     return change;
   };
-  const previewHours = () =>
-    preview()?.allDay
+  const previewHours = () => {
+    const change = preview();
+    return change?.allDay
       ? 'All day'
-      : availabilityTimeLabel(props.selectionPreview.window, props.timeFormat);
+      : change
+        ? availabilityTimeLabel(change.window, props.timeFormat)
+        : '';
+  };
   const runs = createMemo(() =>
     preview()
       ? availabilityMonthRuns(
@@ -89,6 +99,7 @@ export function AvailabilityCalendar(props: {
       .slice(run.startIndex, run.startIndex + run.dates.length)
       .some((column) => {
         const change = props.selectionPreview;
+        if (!change) return false;
         const bars = availabilityBars(
           column.windows,
           column.unavailable,
@@ -148,8 +159,20 @@ export function AvailabilityCalendar(props: {
     allowOutside: true,
     onScroll: updateDate,
   });
+  const outerAutoScroll = createPointerAutoScroll({
+    getViewport: () =>
+      scroll.scrollHeight <= scroll.clientHeight
+        ? props.getBoundary?.()
+        : undefined,
+    getPointer: () => (drag() ? pointer : undefined),
+    getBounds: visibleBounds,
+    axis: 'y',
+    allowOutside: true,
+    onScroll: updateDate,
+  });
   const cancel = () => {
     autoScroll.stop();
+    outerAutoScroll.stop();
     pointer = undefined;
     const current = drag();
     setDrag(undefined);
@@ -178,7 +201,7 @@ export function AvailabilityCalendar(props: {
         event.preventDefault();
       }}
     >
-      <div class="flex h-full min-h-96 min-w-[560px] flex-col">
+      <div class="flex min-w-[28rem] flex-col">
         <div
           ref={header}
           class="sticky top-0 z-20 grid h-12 shrink-0 grid-cols-7 border-b border-edge-muted bg-panel"
@@ -213,7 +236,7 @@ export function AvailabilityCalendar(props: {
             )}
           </For>
         </div>
-        <div class="grid min-h-0 flex-1 grid-cols-7 grid-rows-6">
+        <div class="grid aspect-[7/6] min-h-0 grid-cols-7 grid-rows-6">
           <Index each={props.columns}>
             {(column, index) => {
               const date = () => column().target.date;
@@ -263,7 +286,7 @@ export function AvailabilityCalendar(props: {
               return (
                 <div
                   role="group"
-                  aria-label={`${dateLabel(date())}. Click to add availability or drag across days.`}
+                  aria-label={`${dateLabel(date())}. Click or drag to select dates.`}
                   aria-current={date() === props.today ? 'date' : undefined}
                   data-availability-day
                   data-availability-date={date()}
@@ -275,7 +298,7 @@ export function AvailabilityCalendar(props: {
                     'grid-row': Math.floor(index / 7) + 1,
                     'grid-column': (index % 7) + 1,
                   }}
-                  class="flex min-h-0 touch-none select-none flex-col gap-1 overflow-hidden border-r border-b border-edge-muted p-1.5 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+                  class="flex min-h-0 touch-none select-none flex-col gap-1 overflow-hidden border-r border-b border-edge-muted p-1 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
                   classList={{
                     'bg-surface-1': !date().startsWith(props.month),
                     'bg-accent/10 ring-2 ring-inset ring-accent':
@@ -286,7 +309,12 @@ export function AvailabilityCalendar(props: {
                       return;
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault();
-                      props.onDates([date()], event.currentTarget, true);
+                      props.onDates(
+                        [date()],
+                        event.currentTarget,
+                        true,
+                        'keyboard'
+                      );
                     }
                   }}
                   onPointerDown={(event) => {
@@ -319,6 +347,7 @@ export function AvailabilityCalendar(props: {
                     pointer = { x: event.clientX, y: event.clientY };
                     updateDate();
                     autoScroll.start();
+                    outerAutoScroll.start();
                   }}
                   onPointerUp={(event) => {
                     const current = drag();
@@ -400,7 +429,7 @@ export function AvailabilityCalendar(props: {
                                 }
                                 aria-label={`${dateLabel(date())}, ${mode}, ${hours()}`}
                                 disabled={props.disabled || bar.draft}
-                                class="min-w-0 shrink-0 rounded px-1.5 py-1 text-left text-[10px] leading-tight outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-100"
+                                class="min-w-0 shrink-0 rounded px-1 py-1 text-left text-[10px] leading-tight outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-100"
                                 classList={{
                                   'bg-accent text-panel':
                                     mode === 'available' &&
@@ -446,16 +475,20 @@ export function AvailabilityCalendar(props: {
               );
             }}
           </Index>
-          <For each={runs()}>
-            {(run) => (
-              <AvailabilitySelectionBar
-                run={run}
-                preview={props.selectionPreview}
-                timeFormat={props.timeFormat}
-                conflicting={conflicting(run)}
-              />
+          <Show when={preview()}>
+            {(selectionPreview) => (
+              <For each={runs()}>
+                {(run) => (
+                  <AvailabilitySelectionBar
+                    run={run}
+                    preview={selectionPreview()}
+                    timeFormat={props.timeFormat}
+                    conflicting={conflicting(run)}
+                  />
+                )}
+              </For>
             )}
-          </For>
+          </Show>
         </div>
       </div>
     </div>

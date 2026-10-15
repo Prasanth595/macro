@@ -1,3 +1,6 @@
+import CalendarBlank from '@phosphor/calendar-blank.svg';
+import Clock from '@phosphor/clock.svg';
+import Repeat from '@phosphor/repeat.svg';
 import Trash from '@phosphor/trash.svg';
 import WarningCircle from '@phosphor/warning-circle.svg';
 import { Button, DatePicker } from '@ui';
@@ -10,9 +13,9 @@ import {
 } from '../core/availability';
 import {
   type AvailabilityTimeFormat,
-  availabilityTimeLabel,
-  formatAvailabilityDateRanges,
+  availabilityOverlapSummary,
 } from '../core/availability-month';
+import { AvailabilityFieldRow } from './availability-field-row';
 import { AvailabilityTypePicker } from './availability-type-picker';
 import { BookingFieldInfo } from './booking-field-info';
 import { CheckField, Field, TextInput } from './fields';
@@ -21,7 +24,6 @@ export function AvailabilityRangeEditor(props: {
   change: AvailabilityChange;
   date: string;
   timeFormat: AvailabilityTimeFormat;
-  dates?: string[];
   issue?: AvailabilityIssue;
   disabled: boolean;
   onChange: (
@@ -34,7 +36,6 @@ export function AvailabilityRangeEditor(props: {
   const [weeklyDate, setWeeklyDate] = createSignal(props.date);
   const editing = () =>
     props.change.index !== undefined || props.change.origin !== undefined;
-  const bulk = () => (props.dates?.length ?? 0) > 1;
   const conflicting = () => !!props.issue?.overlaps?.length;
   const fixedDate = props.change.target.kind === 'date' && editing();
   const date = () =>
@@ -54,95 +55,92 @@ export function AvailabilityRangeEditor(props: {
           <BookingFieldInfo
             label="these hours"
             description={
-              bulk()
-                ? 'Applies to the selected dates only. Matching hours merge; replacing opposite hours requires approval.'
-                : props.change.target.kind === 'weekly'
-                  ? 'Repeats weekly. Date overrides stay unchanged.'
-                  : props.change.mode === 'unavailable'
-                    ? 'Time off applies to this date only. Replacing available hours requires approval.'
-                    : 'Applies to this date only. Matching hours merge; replacing time off requires approval.'
+              props.change.target.kind === 'weekly'
+                ? 'Repeats weekly. Date overrides stay unchanged.'
+                : props.change.mode === 'unavailable'
+                  ? 'Time off applies to this date only. Replacing available hours requires approval.'
+                  : 'Applies to this date only. Matching hours merge; replacing time off requires approval.'
             }
           />
         </div>
-        <Show when={bulk()}>
-          <p class="text-sm font-medium">
-            {formatAvailabilityDateRanges(props.dates ?? [])}
-          </p>
-        </Show>
-        <div class="flex items-end gap-4">
-          <Field label="Date" class="flex-1 gap-2 text-xs [&_label]:gap-2">
-            <DatePicker
-              aria-label="Availability date"
-              class="h-9 w-full text-xs"
-              value={date()}
-              required
-              disabled={props.disabled || editing() || bulk()}
-              onChange={(value) => {
-                setWeeklyDate(value);
-                props.onChange((change) => ({
-                  ...change,
-                  target:
-                    change.target.kind === 'weekly'
-                      ? { kind: 'weekly', day: dateWeekday(value) }
-                      : { kind: 'date', date: value },
-                }));
-              }}
-            />
-          </Field>
-          <div class="flex h-9 shrink-0 items-center">
-            <CheckField
-              label="All day"
-              class="text-xs"
-              checked={!!props.change.allDay}
-              onChange={(allDay) =>
-                props.onChange((change) => ({ ...change, allDay }))
-              }
-            />
+        <AvailabilityFieldRow icon={<CalendarBlank />}>
+          <div class="flex items-end gap-4">
+            <Field label="Date" class="flex-1" labelClass="text-base leading-6">
+              <DatePicker
+                aria-label="Availability date"
+                class="h-9 w-full text-xs"
+                value={date()}
+                required
+                disabled={props.disabled || editing()}
+                onChange={(value) => {
+                  setWeeklyDate(value);
+                  props.onChange((change) => ({
+                    ...change,
+                    target:
+                      change.target.kind === 'weekly'
+                        ? { kind: 'weekly', day: dateWeekday(value) }
+                        : { kind: 'date', date: value },
+                  }));
+                }}
+              />
+            </Field>
+            <div class="flex h-9 shrink-0 items-center">
+              <CheckField
+                label="All day"
+                class="text-xs"
+                checked={!!props.change.allDay}
+                onChange={(allDay) =>
+                  props.onChange((change) => ({ ...change, allDay }))
+                }
+              />
+            </div>
           </div>
-        </div>
+        </AvailabilityFieldRow>
         <Show when={!props.change.allDay}>
-          <div class="grid grid-cols-2 gap-4">
-            <Field label="Start time" class="gap-2 text-xs [&_label]:gap-2">
-              <TextInput
-                type="time"
-                step={AVAILABILITY_STEP_MINUTES * 60}
-                aria-label="Availability start time"
-                class="h-9 w-full text-xs"
-                value={props.change.window.start}
-                aria-invalid={!!props.issue}
-                onInput={(event) =>
-                  props.onChange((change) => ({
-                    ...change,
-                    window: {
-                      ...change.window,
-                      start: event.currentTarget.value,
-                    },
-                  }))
-                }
-              />
-            </Field>
-            <Field label="End time" class="gap-2 text-xs [&_label]:gap-2">
-              <TextInput
-                type="time"
-                step={AVAILABILITY_STEP_MINUTES * 60}
-                aria-label="Availability end time"
-                class="h-9 w-full text-xs"
-                value={props.change.window.end}
-                aria-invalid={!!props.issue}
-                onInput={(event) =>
-                  props.onChange((change) => ({
-                    ...change,
-                    window: {
-                      ...change.window,
-                      end: event.currentTarget.value,
-                    },
-                  }))
-                }
-              />
-            </Field>
-          </div>
+          <AvailabilityFieldRow icon={<Clock />}>
+            <div class="grid grid-cols-2 gap-4">
+              <Field label="Start time" labelClass="text-base leading-6">
+                <TextInput
+                  type="time"
+                  step={AVAILABILITY_STEP_MINUTES * 60}
+                  aria-label="Availability start time"
+                  class="h-9 w-full text-xs"
+                  value={props.change.window.start}
+                  aria-invalid={!!props.issue}
+                  onInput={(event) =>
+                    props.onChange((change) => ({
+                      ...change,
+                      window: {
+                        ...change.window,
+                        start: event.currentTarget.value,
+                      },
+                    }))
+                  }
+                />
+              </Field>
+              <Field label="End time" labelClass="text-base leading-6">
+                <TextInput
+                  type="time"
+                  step={AVAILABILITY_STEP_MINUTES * 60}
+                  aria-label="Availability end time"
+                  class="h-9 w-full text-xs"
+                  value={props.change.window.end}
+                  aria-invalid={!!props.issue}
+                  onInput={(event) =>
+                    props.onChange((change) => ({
+                      ...change,
+                      window: {
+                        ...change.window,
+                        end: event.currentTarget.value,
+                      },
+                    }))
+                  }
+                />
+              </Field>
+            </div>
+          </AvailabilityFieldRow>
         </Show>
-        <Show when={!bulk()}>
+        <AvailabilityFieldRow icon={<Repeat />}>
           <CheckField
             label="Repeat every week"
             class="text-xs"
@@ -157,7 +155,7 @@ export function AvailabilityRangeEditor(props: {
               }))
             }
           />
-        </Show>
+        </AvailabilityFieldRow>
         <Show when={props.issue}>
           {(issue) => (
             <div
@@ -166,18 +164,19 @@ export function AvailabilityRangeEditor(props: {
             >
               <WarningCircle class="mt-0.5 size-3.5 shrink-0" />
               <div class="min-w-0">
-                <p class="font-medium">
+                <p class="leading-relaxed">
                   {conflicting()
-                    ? `Overlaps ${props.change.mode === 'available' ? 'unavailable' : 'available'} hours`
+                    ? availabilityOverlapSummary(
+                        props.change.mode,
+                        issue().overlaps ?? [],
+                        props.timeFormat
+                      )
                     : issue().message}
                 </p>
                 <Show when={conflicting()}>
-                  <p class="mt-1 max-h-16 overflow-y-auto leading-relaxed tabular-nums">
-                    {issue()
-                      .overlaps?.map((window) =>
-                        availabilityTimeLabel(window, props.timeFormat)
-                      )
-                      .join(' · ')}
+                  <p class="mt-1 leading-relaxed">
+                    Choose Replace hours to make this selection{' '}
+                    {props.change.mode}.
                   </p>
                 </Show>
               </div>
@@ -188,12 +187,12 @@ export function AvailabilityRangeEditor(props: {
           <div class="mr-auto">
             <Button
               variant="ghost"
-              size="icon-sm"
-              label="Clear these hours"
+              size="sm"
               tooltip="Leave these hours blank and non-bookable, without time off"
               onClick={props.onClear}
             >
               <Trash class="size-4" />
+              Clear selected hours
             </Button>
           </div>
           <Button
@@ -220,11 +219,9 @@ export function AvailabilityRangeEditor(props: {
           >
             {conflicting()
               ? 'Replace hours'
-              : bulk()
-                ? `Apply to ${props.dates?.length} days`
-                : editing()
-                  ? 'Update hours'
-                  : 'Add to schedule'}
+              : editing()
+                ? 'Update hours'
+                : 'Add to schedule'}
           </Button>
         </div>
       </fieldset>

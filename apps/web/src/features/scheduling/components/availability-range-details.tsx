@@ -13,12 +13,11 @@ import type {
   AvailabilityChange,
   AvailabilityIssue,
 } from '../core/availability';
-import { dateWeekday } from '../core/availability';
 import {
   type AvailabilityTimeFormat,
   availabilityTimeLabel,
+  formatAvailabilityDate,
 } from '../core/availability-month';
-import { WEEKDAYS } from '../core/types';
 import { AvailabilityRangeEditor } from './availability-range-editor';
 
 export function AvailabilityRangeDetails(props: {
@@ -26,12 +25,12 @@ export function AvailabilityRangeDetails(props: {
   timeZone: string;
   timeFormat: AvailabilityTimeFormat;
   date: string;
-  dates?: string[];
   inherited: boolean;
   overridden: boolean;
   inactive?: boolean;
   disabled: boolean;
   draft?: AvailabilityChange;
+  hasChanges: boolean;
   issue?: AvailabilityIssue;
   onEdit: () => void;
   onRemove: () => void;
@@ -63,7 +62,7 @@ export function AvailabilityRangeDetails(props: {
       if (!content.isConnected) return;
       content
         .querySelector<HTMLButtonElement>(
-          '[aria-label="Edit availability"], [aria-label="Edit time off"], [aria-label="Make available"]'
+          '[aria-label="Edit availability"], [aria-label="Edit time off"]'
         )
         ?.focus();
     });
@@ -73,9 +72,11 @@ export function AvailabilityRangeDetails(props: {
   });
   const unavailable = () => props.change.mode === 'unavailable';
   const targetLabel = () =>
-    props.change.target.kind === 'weekly'
-      ? `${WEEKDAYS[props.change.target.day]}, ${props.date}`
-      : `${WEEKDAYS[dateWeekday(props.change.target.date)]}, ${props.change.target.date}`;
+    formatAvailabilityDate(
+      props.change.target.kind === 'weekly'
+        ? props.date
+        : props.change.target.date
+    );
   const timeLabel = () =>
     props.change.allDay
       ? 'All day'
@@ -92,7 +93,7 @@ export function AvailabilityRangeDetails(props: {
       class="flex min-h-0 min-w-0 w-full flex-col text-ink"
     >
       <div class="flex shrink-0 items-center justify-between gap-2 pb-3">
-        <h3 class="min-w-0 text-sm font-semibold">
+        <h3 class="min-w-0 text-base font-semibold leading-6">
           {props.draft
             ? 'Edit availability'
             : unavailable()
@@ -100,7 +101,12 @@ export function AvailabilityRangeDetails(props: {
               : 'Available'}
         </h3>
         <div class="flex shrink-0 items-center gap-1">
-          <Show when={!props.draft && !props.disabled}>
+          <Show
+            when={
+              !props.disabled &&
+              (!props.draft || (props.draft.origin && !props.hasChanges))
+            }
+          >
             <Show when={!props.inactive}>
               <Button
                 label="Apply to other days"
@@ -113,15 +119,9 @@ export function AvailabilityRangeDetails(props: {
                 <Copy />
               </Button>
             </Show>
-            <Show when={!props.inactive}>
+            <Show when={!props.inactive && !props.draft}>
               <Button
-                label={
-                  unavailable()
-                    ? props.change.allDay
-                      ? 'Make available'
-                      : 'Edit time off'
-                    : 'Edit availability'
-                }
+                label={unavailable() ? 'Edit time off' : 'Edit availability'}
                 variant="ghost"
                 size="icon-sm"
                 depth={3}
@@ -215,7 +215,6 @@ export function AvailabilityRangeDetails(props: {
               change={draft()}
               timeFormat={props.timeFormat}
               date={props.date}
-              dates={props.dates}
               issue={props.issue}
               disabled={props.disabled}
               onChange={props.onChange}

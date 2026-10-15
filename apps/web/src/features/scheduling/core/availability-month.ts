@@ -32,6 +32,15 @@ export function availabilityDateRange(anchor: string, end: string): string[] {
   );
 }
 
+/** Spell out a date without shifting it into the viewer's time zone. */
+export function formatAvailabilityDate(date: string): string {
+  if (!validAvailabilityDate(date)) return date;
+  return new Intl.DateTimeFormat('en', {
+    dateStyle: 'full',
+    timeZone: 'UTC',
+  }).format(new Date(`${date}T00:00:00Z`));
+}
+
 /** Describe consecutive dates as readable ranges, without week-boundary splits. */
 export function formatAvailabilityDateRanges(dates: string[]): string {
   const selected = [...new Set(dates.filter(validAvailabilityDate))].sort();
@@ -98,4 +107,28 @@ export function availabilityTimeLabel(
 ): string {
   if (window.start === '00:00' && window.end === '23:59') return 'All day';
   return `${formatAvailabilityTime(window.start, format)}–${formatAvailabilityTime(window.end, format)}`;
+}
+
+/** Describe repeated conflicts once, even when the same hours occur on many dates. */
+export function availabilityOverlapSummary(
+  mode: 'available' | 'unavailable',
+  overlaps: TimeWindow[],
+  format: AvailabilityTimeFormat
+): string {
+  const unique = overlaps
+    .filter(
+      (window, index) =>
+        overlaps.findIndex(
+          (other) => other.start === window.start && other.end === window.end
+        ) === index
+    )
+    .sort(
+      (a, b) => a.start.localeCompare(b.start) || a.end.localeCompare(b.end)
+    );
+  const hours = new Intl.ListFormat('en', {
+    style: 'long',
+    type: 'conjunction',
+  }).format(unique.map((window) => availabilityTimeLabel(window, format)));
+  const opposite = mode === 'available' ? 'unavailable' : 'available';
+  return `This selection overlaps ${opposite} hours (${hours}).`;
 }

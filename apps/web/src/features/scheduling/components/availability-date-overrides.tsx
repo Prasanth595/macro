@@ -1,9 +1,11 @@
 import { Collapsible } from '@kobalte/core/collapsible';
+import CalendarBlank from '@phosphor/calendar-blank.svg';
 import CaretDown from '@phosphor/caret-down.svg';
 import X from '@phosphor/x.svg';
 import { Button } from '@ui';
 import { For } from 'solid-js';
 import { validAvailabilityDate } from '../core/availability';
+import { formatAvailabilityDate } from '../core/availability-month';
 import type { AvailabilitySchedule } from '../core/types';
 
 export function AvailabilityDateOverrides(props: {
@@ -15,6 +17,10 @@ export function AvailabilityDateOverrides(props: {
   return (
     <Collapsible class="min-w-0 border-t border-edge-muted pt-4">
       <Collapsible.Trigger class="group flex min-h-9 w-full items-center gap-2 rounded-md text-left text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-accent">
+        <CalendarBlank
+          class="size-4 shrink-0 text-ink-extra-muted"
+          aria-hidden="true"
+        />
         <span class="flex-1">Date overrides</span>
         <span class="text-xs tabular-nums text-ink-muted">
           {props.overrides.length}
@@ -42,7 +48,7 @@ export function AvailabilityDateOverrides(props: {
                 <Button
                   variant="ghost"
                   size="sm"
-                  class="min-w-0 flex-1 justify-start text-left"
+                  class="h-auto min-w-0 flex-1 flex-col items-start gap-0.5 py-2 text-left"
                   disabled={
                     props.disabled || !validAvailabilityDate(override.date)
                   }
@@ -50,8 +56,10 @@ export function AvailabilityDateOverrides(props: {
                     props.onSelect(override.date, event.currentTarget)
                   }
                 >
-                  <span class="min-w-0 truncate">
-                    {override.date || 'Choose a date'} ·{' '}
+                  <span class="whitespace-normal text-xs">
+                    {formatAvailabilityDate(override.date) || 'Choose a date'}
+                  </span>
+                  <span class="text-xs text-ink-muted">
                     {override.windows.length
                       ? `${override.windows.length} ${override.windows.length === 1 ? 'range' : 'ranges'}`
                       : override.unavailableWindows?.length === 0
@@ -62,7 +70,7 @@ export function AvailabilityDateOverrides(props: {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  label={`Remove override ${override.date}`}
+                  label={`Remove override ${formatAvailabilityDate(override.date)}`}
                   disabled={props.disabled}
                   onClick={() => props.onRemove(override.date)}
                 >

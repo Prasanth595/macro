@@ -1,11 +1,12 @@
 import { Button } from '@ui';
-import { createSignal, For, Show } from 'solid-js';
+import { createSignal, Show } from 'solid-js';
 import type {
   AvailabilityChange,
   AvailabilityIssue,
 } from '../core/availability';
 import {
   type AvailabilityTimeFormat,
+  availabilityOverlapSummary,
   availabilityTimeLabel,
   formatAvailabilityDateRanges,
 } from '../core/availability-month';
@@ -39,7 +40,7 @@ export function AvailabilityMonthReview(props: {
     >
       <div class="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 class="text-sm font-semibold">Apply to other days</h3>
+          <h3 class="text-base font-semibold leading-6">Apply to other days</h3>
           <p class="mt-1 text-xs text-ink-muted">
             {props.template.mode === 'available' ? 'Available' : 'Unavailable'}{' '}
             ·{' '}
@@ -73,13 +74,13 @@ export function AvailabilityMonthReview(props: {
           role="alert"
           class="mt-3 max-h-20 overflow-y-auto text-xs text-failure"
         >
-          <For each={props.conflicts}>
-            {(conflict) => (
-              <p>
-                {conflict.date}: {conflict.issue.message}
-              </p>
+          <p class="leading-relaxed">
+            {availabilityOverlapSummary(
+              props.template.mode,
+              props.conflicts.flatMap(({ issue }) => issue.overlaps ?? []),
+              props.timeFormat
             )}
-          </For>
+          </p>
         </div>
         <div class="mt-3">
           <CheckField
