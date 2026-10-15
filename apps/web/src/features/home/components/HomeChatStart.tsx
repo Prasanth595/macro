@@ -4,28 +4,19 @@ import {
   ViewSidebar,
 } from '@app/components/view-shell';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
-import { rememberBootShell } from '@components/app/boot-shell';
 import { DragDropWrapper } from '@core/component/AI/component/DragDrop';
 import { ChatInputProvider } from '@core/component/AI/context';
 import { enableChatV3Agents } from '@core/constant/featureFlags';
-import { createEffect, Show } from 'solid-js';
+import { Show } from 'solid-js';
 import { HomeChatInput } from '../home-chat-input';
-import { HomeGettingStartedLink } from '../home-getting-started-link';
-import { useHomePreferences } from '../home-prefs';
 import { HomeRecommendedActions } from './home-recommended-actions';
 
 /** Desktop Home's idle pane uses the single-line chat composer and send flow. */
 export function HomeChatStart() {
   const shell = useViewShell();
   const agents = useFeatureFlag(enableChatV3Agents);
-  const preferences = useHomePreferences();
   const showHomeTopBar = () =>
     shell.aside.isCollapsed() || shell.aside.isOverlay();
-  // The next load's boot shell draws this greeting and composer layout.
-  createEffect(() => {
-    if (agents().loading) return;
-    rememberBootShell({ homeComposer: agents().enabled ? 'agents' : 'legacy' });
-  });
   return (
     <ChatInputProvider>
       <Show when={showHomeTopBar()}>
@@ -74,7 +65,6 @@ export function HomeChatStart() {
               autoFocusOnMount={false}
             />
             <div class="min-h-0 min-w-0 pb-8">
-              <HomeGettingStartedLink preferences={preferences} />
               <HomeRecommendedActions />
             </div>
           </div>
