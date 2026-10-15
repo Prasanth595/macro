@@ -56,6 +56,12 @@ order, and drop any that would be empty:
 The problem or goal, with the evidence: the bug and how it shows up, numbers
 measured, the user request. Link issues.
 
+## How it works
+
+A short high-level explanation of the approach, plus an ASCII diagram of the
+flow, data shape, or before/after when one helps (cross-service flows, state
+machines, pipelines). Drop it for small or mechanical changes.
+
 ## What
 
 - One bullet per meaningful change, in reading order. Name files or modules
