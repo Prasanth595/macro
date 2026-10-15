@@ -73,7 +73,7 @@ checked-in `min-native-build.json` enforce this end to end.
    native builds stop applying OTA bundles and show the "update from the
    App Store" prompt instead (`NativeUpdateRequired` in
    `src/lib/tauri/TauriProvider.tsx`). The Android floor is independent; see
-   `docs/ANDROID_DEVELOPMENT.md`.
+   `docs/development/android.md`.
 
 The bump is deliberately a local command rather than something the label
 workflow pushes: a `GITHUB_TOKEN` push never re-triggers required checks, so
