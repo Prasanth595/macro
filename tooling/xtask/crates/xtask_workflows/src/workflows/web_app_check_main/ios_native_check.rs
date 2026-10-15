@@ -45,8 +45,11 @@ pub(super) const JOB_NAME: &str = "iOS Native Check";
 /// The path filter matched native iOS code.
 const NATIVE_CHANGED: &str = "steps.native-filter.outputs.ios_native == 'true'";
 /// The PR opted out of the gate via the `skip-ios-update` label (as read at
-/// run time, see [`read_labels`]).
+/// run time, see [`read_labels`]), and its negation. Spelled out rather than
+/// `!SKIP_LABEL`: in GitHub expressions `!` binds tighter than `==`, so
+/// `!a == 'true'` is `(!a) == 'true'`, false whatever `a` is.
 const SKIP_LABEL: &str = "steps.labels.outputs.skip == 'true'";
+const NOT_SKIPPED: &str = "steps.labels.outputs.skip != 'true'";
 
 pub(super) fn job() -> Job {
     Job::default()
@@ -64,7 +67,7 @@ pub(super) fn job() -> Job {
 }
 
 fn gated() -> Expression {
-    Expression::new(format!("{NATIVE_CHANGED} && !{SKIP_LABEL}"))
+    Expression::new(format!("{NATIVE_CHANGED} && {NOT_SKIPPED}"))
 }
 
 fn paths_filter() -> Step<Use> {

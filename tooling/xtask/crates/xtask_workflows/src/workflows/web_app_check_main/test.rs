@@ -48,6 +48,16 @@ fn status_check_requires_the_ios_native_check() {
         gate.contains("predicate-quantifier: every"),
         "negated path filters need the `every` quantifier: {gate}"
     );
+    // `!` binds tighter than `==` in GitHub expressions: `!x == 'true'` is
+    // always false, which silently skipped every gated step.
+    assert!(
+        !gate.contains("!steps.labels"),
+        "never negate a comparison with a leading `!`: {gate}"
+    );
+    assert!(
+        gate.contains("steps.labels.outputs.skip != 'true'"),
+        "gated steps run when the skip label is absent: {gate}"
+    );
     let status = yaml
         .split("\n  status-check:\n")
         .nth(1)
