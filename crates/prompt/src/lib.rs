@@ -291,6 +291,24 @@ mod tests {
     }
 
     #[test]
+    fn mentions_and_document_content_links_share_the_github_pr_mention_tag() {
+        // GitHub PRs are mentioned by URL in-app and over MCP alike; the two
+        // sections must hand the model the same tag shape.
+        const TAG: &str = r#"<m-pr-mention>{"url":"https://github.com/{owner}/{repo}/pull/{number}","label":""}</m-pr-mention>"#;
+        assert!(mentions::PROMPT.instructions.contains(TAG));
+        assert!(document_content_links::PROMPT.instructions.contains(TAG));
+        assert!(mcp_instructions("https://macro.com").contains(TAG));
+    }
+
+    #[test]
+    fn mentions_and_document_content_links_share_the_booking_link_mention_tag() {
+        const TAG: &str = r#"<m-booking-link-mention>{"profileId":"{profile_id}","slug":"{slug}","url":"https://macro.com/app/book/{profile_id}/{slug}","label":""}</m-booking-link-mention>"#;
+        assert!(mentions::PROMPT.instructions.contains(TAG));
+        assert!(document_content_links::PROMPT.instructions.contains(TAG));
+        assert!(mcp_instructions("https://macro.com").contains(TAG));
+    }
+
+    #[test]
     fn agent_session_preamble_tells_the_model_to_emit_mention_tags() {
         let preamble = agent_session::PROMPT.to_string();
         assert!(preamble.contains("XML mention tag"));
@@ -315,6 +333,7 @@ mod tests {
         assert!(instructions.contains("\"expanded\":true"));
         assert!(instructions.contains("\"blockName\":\"skill\""));
         assert!(instructions.contains("\"blockName\":\"initiative\""));
+        assert!(instructions.contains("\"blockName\":\"pipeline\""));
     }
 
     #[test]
