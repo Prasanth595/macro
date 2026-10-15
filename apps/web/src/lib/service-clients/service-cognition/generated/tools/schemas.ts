@@ -498,6 +498,7 @@ export const SpreadsheetResponse = z.any().superRefine((x, ctx) => {
                               z.literal('general'),
                               z.literal('number'),
                               z.literal('currency'),
+                              z.literal('accounting'),
                               z.literal('percent'),
                               z.literal('date'),
                               z.literal('time'),
@@ -1762,6 +1763,7 @@ export const CreateBookingLink = z
             description: z.string(),
             durationMinutes: z.number().int().gte(0).lte(65535),
             location: z.string(),
+            macroCall: z.boolean().optional(),
             googleMeet: z.boolean(),
             enabled: z.boolean(),
             mode: z.any().superRefine((x, ctx) => {
@@ -1847,6 +1849,7 @@ export const BookingLinkResult = z.object({
           description: z.string(),
           durationMinutes: z.number().int().gte(0).lte(65535),
           location: z.string(),
+          macroCall: z.boolean().optional(),
           googleMeet: z.boolean(),
           enabled: z.boolean(),
           mode: z.any().superRefine((x, ctx) => {
@@ -4493,6 +4496,7 @@ export const EditBookingLink = z
             description: z.string(),
             durationMinutes: z.number().int().gte(0).lte(65535),
             location: z.string(),
+            macroCall: z.boolean().optional(),
             googleMeet: z.boolean(),
             enabled: z.boolean(),
             mode: z.any().superRefine((x, ctx) => {
@@ -8016,6 +8020,7 @@ export const EditSpreadsheet = z.object({
                         z.literal('general'),
                         z.literal('number'),
                         z.literal('currency'),
+                        z.literal('accounting'),
                         z.literal('percent'),
                         z.literal('date'),
                         z.literal('time'),
@@ -8917,6 +8922,7 @@ export const ListBookingLinksResult = z.object({
               description: z.string(),
               durationMinutes: z.number().int().gte(0).lte(65535),
               location: z.string(),
+              macroCall: z.boolean().optional(),
               googleMeet: z.boolean(),
               enabled: z.boolean(),
               mode: z.any().superRefine((x, ctx) => {
@@ -11003,6 +11009,7 @@ export const BookingSettingsResult = z.object({
         description: z.string(),
         durationMinutes: z.number().int().gte(0).lte(65535),
         location: z.string(),
+        macroCall: z.boolean().optional(),
         googleMeet: z.boolean(),
         enabled: z.boolean(),
         scheduleId: z.string().uuid(),
@@ -14711,6 +14718,7 @@ export const UpdateBookingSettings = z
           description: z.string(),
           durationMinutes: z.number().int().gte(0).lte(65535),
           location: z.string(),
+          macroCall: z.boolean().optional(),
           googleMeet: z.boolean(),
           enabled: z.boolean(),
           scheduleId: z.string().uuid(),
