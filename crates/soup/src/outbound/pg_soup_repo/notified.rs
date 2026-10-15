@@ -43,7 +43,7 @@ use crate::outbound::pg_soup_repo::type_err;
 
 /// The candidate row's entity id, as the gates see it: the `notified` CTE's
 /// derived key (thread root for thread-scoped channel notifications).
-const ID_SQL: &str = "nc.entity_id";
+pub(super) const ID_SQL: &str = "nc.entity_id";
 
 /// Folds a calendar filter into SQL over the `event` alias. Only the literals
 /// [`calendar_filter_supported_by_notified`] admits have a fold; anything
@@ -72,7 +72,7 @@ fn build_calendar_event_filter(tree: Option<&Expr<CalendarEventLiteral>>) -> Str
 /// Calendar events are owner- or delegation-scoped, never `entity_access`
 /// rows: visible iff the caller owns the event or is delegated the inbox it
 /// was synced from. Mirrors the calendar by-ids hydration's access check.
-fn calendar_event_gate(filter: Option<&EntityFilterAst>) -> String {
+pub(super) fn calendar_event_gate(filter: Option<&EntityFilterAst>) -> String {
     let calendar_filter = filter.and_then(|f| f.calendar_event_filter.as_deref());
     let props_filter = filter.and_then(|f| f.properties_filter.as_deref());
     uuid_guarded(
@@ -103,7 +103,7 @@ fn calendar_event_gate(filter: Option<&EntityFilterAst>) -> String {
 /// parallel id / auth-entity arrays of those sources). The foreign-entity
 /// tree folds in its own crate, which hydration applies in full; the
 /// notification-state conjuncts it implies are pre-applied here.
-fn foreign_entity_gate(filter: Option<&EntityFilterAst>) -> String {
+pub(super) fn foreign_entity_gate(filter: Option<&EntityFilterAst>) -> String {
     let implied = implied_conjuncts_sql(
         filter.and_then(|f| f.foreign_entity_filter.as_deref()),
         |literal| match literal {
@@ -133,7 +133,21 @@ fn foreign_entity_gate(filter: Option<&EntityFilterAst>) -> String {
 /// Agent sessions are authorized through `entity_access`, whose sources are
 /// the same user / channel / team ids the query's `user_source_ids` CTE
 /// already collects - the predicate the agent-session leg's own queries use.
-fn agent_session_gate() -> String {
+pub(super) fn agent_session_gate(filter: Option<&EntityFilterAst>) -> String {
+    // IDs come from the typed UUID AST, never raw request text. `only` is an
+    // internal refresh constraint and deliberately does not bypass visibility.
+    let named = filter
+        .and_then(|filter| filter.agent_session_filter.as_deref())
+        .map(super::agent_session::explicitly_named_ids)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|id| format!("{ID_SQL}::uuid = '{id}'::uuid"))
+        .collect::<Vec<_>>();
+    let named = if named.is_empty() {
+        "FALSE".to_owned()
+    } else {
+        named.join(" OR ")
+    };
     uuid_guarded(
         ID_SQL,
         format!(
@@ -142,6 +156,11 @@ fn agent_session_gate() -> String {
                 WHERE ea.entity_id = {ID_SQL}::uuid
                 AND ea.entity_type = 'agent_session'
                 AND ea.source_id IN (SELECT source_id FROM user_source_ids)
+            ) AND (
+                ({named}) OR NOT EXISTS (
+                    SELECT 1 FROM agent_session s
+                    WHERE s.id = {ID_SQL}::uuid AND s.list_hidden
+                )
             )"#
         ),
     )
@@ -174,7 +193,7 @@ fn foreign_entity_filter_is_impossible(tree: Option<&Expr<ForeignEntityLiteral>>
 /// their own filter can never match or an active properties filter can never
 /// match them; domain-hydrated types additionally need their leg to be
 /// active for the request.
-fn included_types(req: &NotifiedSoupRequest<'_>) -> Vec<&'static str> {
+pub(super) fn included_types(req: &NotifiedSoupRequest<'_>) -> Vec<&'static str> {
     let props = req.filter.and_then(|f| f.properties_filter.as_deref());
     let propertyless_ok = props.is_none_or(properties_filter_matches_propertyless);
     let mut types = Vec::with_capacity(8);
@@ -239,7 +258,7 @@ fn build_query(filter: Option<&EntityFilterAst>) -> String {
         email_gate = email_gate(ID_SQL, filter),
         calendar_event_gate = calendar_event_gate(filter),
         foreign_entity_gate = foreign_entity_gate(filter),
-        agent_session_gate = agent_session_gate(),
+        agent_session_gate = agent_session_gate(filter),
     )
 }
 

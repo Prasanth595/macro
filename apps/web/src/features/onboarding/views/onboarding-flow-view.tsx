@@ -51,7 +51,7 @@ export function OnboardingFlowView(props: {
       const accounts = emailAccounts.accounts();
       return {
         emails_connected: accounts.t === 'ready' ? accounts.value.length : 0,
-        connectors_connected: [...(connectedTools() ?? [])],
+        connectors_connected: [...connectedTools.connected()],
       };
     },
   });
@@ -142,7 +142,7 @@ export function OnboardingFlowView(props: {
           )}
         </Show>
       }
-      explainerLabel={showPlanOffer() ? 'Continue with Free' : undefined}
+      explainerLabel={showPlanOffer() ? 'See more' : undefined}
       explainer={
         showPlanOffer() ? (
           <PlanComparisonView

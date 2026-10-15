@@ -71,7 +71,7 @@ pub enum PushType {
 }
 
 /// A device endpoint for push notifications.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DeviceEndpoint {
     /// Android device endpoint (FCM).
     Android(String),
@@ -80,3 +80,11 @@ pub enum DeviceEndpoint {
     /// iOS VoIP device endpoint (APNS_VOIP / PushKit).
     IosVoip(String),
 }
+
+/// Report context for a push rejected because its endpoint is disabled or no longer exists.
+///
+/// Retrying cannot succeed until the device registers again, so the device registration
+/// for that endpoint should be removed.
+#[derive(Debug, thiserror::Error)]
+#[error("push endpoint is disabled or no longer exists")]
+pub struct PushEndpointUnavailable;

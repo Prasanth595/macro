@@ -44,8 +44,8 @@ pub struct NotificationIdAndCollapseKey {
 pub struct VoipPushTarget {
     /// Recipient whose VoIP-capable endpoints were resolved.
     pub recipient_id: MacroUserIdStr<'static>,
-    /// SNS endpoints registered for APNS_VOIP delivery.
-    pub endpoint_arns: Vec<String>,
+    /// Native call endpoints, preserving the platform for fallback decisions.
+    pub endpoints: Vec<DeviceEndpoint>,
 }
 
 /// A compact patch describing user notification status fields that changed.

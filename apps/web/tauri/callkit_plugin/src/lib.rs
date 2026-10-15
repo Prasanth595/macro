@@ -24,26 +24,28 @@ mod android;
 pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
     let builder = tauri::plugin::Builder::new("call-kit");
     #[cfg(target_os = "android")]
-    let builder = builder.invoke_handler(tauri::generate_handler![
-        android::get_voip_token,
-        android::end_active_call,
-        android::get_pending_answered_call,
-        android::watch_call_answered,
-        android::watch_call_ended,
-        android::watch_connection_state,
-        android::watch_drawer_opened,
-        android::watch_participant_identities,
-        android::get_active_call_state,
-        android::start_outgoing_call,
-        android::prepare_join,
-        android::abort_join,
-        android::set_video_enabled,
-        android::set_video_overlay_mode,
-        android::set_call_drawer_channel_title,
-        android::set_call_drawer_theme,
-        android::set_participant_display_name,
-        android::switch_camera
-    ]);
+    let builder = builder
+        .invoke_handler(tauri::generate_handler![
+            android::get_voip_token,
+            android::end_active_call,
+            android::get_pending_answered_call,
+            android::watch_call_answered,
+            android::watch_call_ended,
+            android::watch_connection_state,
+            android::watch_drawer_opened,
+            android::watch_participant_identities,
+            android::get_active_call_state,
+            android::start_outgoing_call,
+            android::prepare_join,
+            android::abort_join,
+            android::set_video_enabled,
+            android::set_video_overlay_mode,
+            android::set_call_drawer_channel_title,
+            android::set_call_drawer_theme,
+            android::set_participant_display_name,
+            android::switch_camera
+        ])
+        .js_init_script(include_str!("android-init.js"));
     builder
         .setup(|_app, _api| {
             #[cfg(target_os = "ios")]

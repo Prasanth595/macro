@@ -26,6 +26,7 @@
     "call-kit:allow-set-call-drawer-channel-title",
     "call-kit:allow-set-call-drawer-theme",
     "call-kit:allow-set-participant-display-name",
-    "call-kit:allow-switch-camera"
+    "call-kit:allow-switch-camera",
+    "network-status:allow-watch-status"
   ]
 }

@@ -563,7 +563,9 @@ pub trait VoipPushSender: Send + Sync + 'static {
     /// Send recipient-specific payloads to already-resolved VoIP endpoints.
     ///
     /// Errors are logged but do not propagate. The returned set contains users
-    /// that received at least one successful VoIP push delivery.
+    /// that received at least one successful iOS VoIP push delivery. Only these
+    /// users may skip the regular iOS APNS fallback; Android delivery must not
+    /// suppress a notification on their iOS devices.
     fn send_voip_pushes(
         &self,
         pushes: Vec<(VoipPushTarget, VoipPushPayload)>,

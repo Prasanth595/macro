@@ -45,17 +45,19 @@ where
         Ok(device_map
             .into_iter()
             .filter_map(|(recipient_id, endpoints)| {
-                let endpoint_arns: Vec<String> = endpoints
+                let endpoints: Vec<DeviceEndpoint> = endpoints
                     .into_iter()
-                    .filter_map(|endpoint| match endpoint {
-                        DeviceEndpoint::IosVoip(arn) | DeviceEndpoint::Android(arn) => Some(arn),
-                        _ => None,
+                    .filter(|endpoint| {
+                        matches!(
+                            endpoint,
+                            DeviceEndpoint::IosVoip(_) | DeviceEndpoint::Android(_)
+                        )
                     })
                     .collect();
 
-                (!endpoint_arns.is_empty()).then_some(VoipPushTarget {
+                (!endpoints.is_empty()).then_some(VoipPushTarget {
                     recipient_id,
-                    endpoint_arns,
+                    endpoints,
                 })
             })
             .collect())
@@ -65,25 +67,30 @@ where
         &self,
         pushes: Vec<(VoipPushTarget, VoipPushPayload)>,
     ) -> HashSet<MacroUserIdStr<'static>> {
-        let jobs: Vec<(MacroUserIdStr<'static>, String, VoipPushPayload)> = pushes
+        let jobs: Vec<(MacroUserIdStr<'static>, DeviceEndpoint, VoipPushPayload)> = pushes
             .into_iter()
             .flat_map(|(target, payload)| {
                 let recipient_id = target.recipient_id;
                 target
-                    .endpoint_arns
+                    .endpoints
                     .into_iter()
-                    .map(move |arn| (recipient_id.clone(), arn, payload.clone()))
+                    .map(move |endpoint| (recipient_id.clone(), endpoint, payload.clone()))
             })
             .collect();
 
         let mut delivered = HashSet::new();
         for batch in jobs.chunks(VOIP_PUSH_DELIVERY_CONCURRENCY) {
-            let results = future::join_all(batch.iter().map(|(user_id, arn, payload)| {
+            let results = future::join_all(batch.iter().map(|(user_id, endpoint, payload)| {
                 let user_id = user_id.clone();
                 async move {
                     let mobile = &self.mobile;
+                    let (arn, suppress_apns) = match endpoint {
+                        DeviceEndpoint::IosVoip(arn) => (arn, true),
+                        DeviceEndpoint::Android(arn) => (arn, false),
+                        DeviceEndpoint::Ios(_) => return None,
+                    };
                     match mobile.send_voip_push(arn, &user_id, payload).await {
-                        Ok(_) => Some(user_id),
+                        Ok(_) => suppress_apns.then_some(user_id),
                         Err(e) => {
                             tracing::error!(
                                 error=?e,

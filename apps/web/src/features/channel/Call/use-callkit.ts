@@ -18,6 +18,8 @@ import {
   useNativeCallState,
 } from './native-call-state';
 import { openChannelCallTab } from './open-channel-call-tab';
+import { isNativeCallEnabled } from './native-call-platform';
+export { isNativeCallEnabled } from './native-call-platform';
 import { useCallKitThemeSync } from './use-callkit-theme-sync';
 
 // The 'iosvoip' variant exists in the backend but the generated schema has not been
@@ -200,12 +202,6 @@ export function registerCallKitCallEndedHandler(
 
 function getActiveCallEndedHandler(): CallEndedHandler | undefined {
   return callEndedHandlers[callEndedHandlers.length - 1];
-}
-
-export function isNativeCallEnabled(): boolean {
-  return (
-    ENABLE_CALLKIT && isTauri() && (isPlatform('ios') || isPlatform('android'))
-  );
 }
 
 export function isNativeIosCallKitEnabled(): boolean {

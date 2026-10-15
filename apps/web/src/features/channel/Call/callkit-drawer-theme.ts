@@ -1,10 +1,10 @@
-import { ENABLE_CALLKIT } from '@core/constant/featureFlags';
-import { isPlatform, isTauri } from '@core/util/platform';
+import { isPlatform } from '@core/util/platform';
 import { createLazyMemo } from '@solid-primitives/memo';
 import { invoke } from '@tauri-apps/api/core';
 import { resolvedThemeColors } from '@theme/signals/themeSignals';
 import Color from 'colorjs.io';
 import type { Accessor } from 'solid-js';
+import { isNativeCallEnabled } from './native-call-platform';
 
 export type RgbaColor = {
   red: number;
@@ -39,12 +39,7 @@ export function createCallKitDrawerTheme(): Accessor<CallKitDrawerTheme> {
 export async function setNativeCallKitDrawerTheme(
   theme: CallKitDrawerTheme
 ): Promise<void> {
-  if (
-    !ENABLE_CALLKIT ||
-    !isTauri() ||
-    (!isPlatform('ios') && !isPlatform('android'))
-  )
-    return;
+  if (!isNativeCallEnabled()) return;
   await invoke(
     'plugin:call-kit|set_call_drawer_theme',
     isPlatform('android')

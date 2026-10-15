@@ -9,6 +9,7 @@ const bridge = vi.hoisted(() => ({
   native: true,
   invoke: vi.fn(async () => {}),
 }));
+vi.mock('@tauri-apps/plugin-os', () => ({ version: () => '16' }));
 vi.mock('@core/constant/featureFlags', () => ({ ENABLE_CALLKIT: true }));
 vi.mock('@core/util/platform', () => ({
   isTauri: () => bridge.native,
@@ -32,6 +33,7 @@ const theme: CallKitDrawerTheme = {
 
 describe('native drawer theme bridge', () => {
   beforeEach(() => {
+    window.__MACRO_ANDROID_CALL_KIT__ = true;
     bridge.platform = 'android';
     bridge.native = true;
     bridge.invoke.mockClear();

@@ -19,6 +19,7 @@ vi.mock('@app/signal/splitLayout', () => ({
 vi.mock('@core/auth/push-registration-lifecycle', () => ({
   registerPushRegistrationLifecycle: () => () => {},
 }));
+vi.mock('@tauri-apps/plugin-os', () => ({ version: () => '16' }));
 vi.mock('@core/constant/featureFlags', () => ({ ENABLE_CALLKIT: true }));
 vi.mock('@core/context/channels', () => ({ useChannelsContext: vi.fn() }));
 vi.mock('@core/util/platform', () => ({
@@ -78,6 +79,7 @@ function resume() {
 }
 
 beforeEach(() => {
+  window.__MACRO_ANDROID_CALL_KIT__ = true;
   vi.useFakeTimers();
   bridge.pending = null;
   bridge.watchers.clear();
@@ -89,6 +91,7 @@ beforeEach(() => {
   );
 });
 afterEach(() => {
+  delete window.__MACRO_ANDROID_CALL_KIT__;
   bridge.cleanups.splice(0).forEach((cleanup) => cleanup());
   vi.unstubAllGlobals();
   vi.useRealTimers();

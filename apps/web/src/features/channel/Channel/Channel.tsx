@@ -1,5 +1,13 @@
+import { AgentTypingProvider } from '@app/features/agent-activity/agent-typing';
+import {
+  AgentConversationContextBoundary,
+  AgentConversationMessageStatus,
+} from '@app/features/agent-conversations/agent-conversation-message';
+import { AgentConversationsProvider } from '@app/features/agent-conversations/agent-conversations-provider';
+import { AgentDmComposer } from '@app/features/agent-dms/agent-dm-composer';
 import { openChatWithInput } from '@app/features/chat/ChatWithAgentButton';
 import { createActivityTracker } from '@channel/activity-tracker';
+import { useStartChannelCall } from '@channel/Call/use-start-channel-call';
 import { DebugSuspense } from '@channel/DebugSuspense';
 import {
   ChannelInput,
@@ -29,7 +37,9 @@ import {
 import { FindBar } from '@core/component/FindBar';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { toast } from '@core/component/Toast/Toast';
+import { ENABLE_CALLS } from '@core/constant/featureFlags';
 import {
+  useChannel,
   useChannelActivity,
   useChannelName,
   useChannelType,
@@ -45,6 +55,7 @@ import {
   buildMentionMarkdownString,
   markdownToPlainText,
 } from '@macro-inc/lexical-core';
+import { MessageNotificationIndexContext } from '@notifications/components/MarkMessageNotifications';
 import {
   invalidateChannelsActivity,
   useUpdateChannelsActivityMutation,
@@ -102,12 +113,12 @@ import { CHANNEL_TOUR } from '../tour';
 import { isUnifiedInputMode } from '../unified-input-mode';
 import { ActiveCallMessage } from './ActiveCallMessage';
 import { ChannelDropZone } from './ChannelDropZone';
-import { ChannelUnreadNotifications } from './ChannelUnreadNotifications';
 import { createChannelDragState } from './create-channel-drag-state';
 import { createChannelFindBar } from './create-channel-find-bar';
 import { createChannelHotkeys } from './create-channel-hotkeys';
 import { createChannelKeyboardHandler } from './create-channel-keyboard-handler';
 import { createChannelMessageActions } from './create-channel-message-actions';
+import { createChannelUnreadNavigation } from './create-channel-unread-navigation';
 import { createDeleteMessageConfirmation } from './create-delete-message-confirmation';
 import { createMessageEditor } from './create-message-editor';
 import { createMessageSelection } from './create-message-selection';
@@ -165,6 +176,7 @@ export type ChannelHandle = {
 export function Channel(props: ChannelProps) {
   const userId = useUserId();
   const splitPanel = useSplitPanel();
+  const channelCall = useStartChannelCall(() => props.channelId);
 
   // Full-frame mobile/tablet: the thread list spans the whole screen and messages
   // scroll behind the floating header islands (top) and the floating
@@ -260,6 +272,15 @@ export function Channel(props: ChannelProps) {
   const messageById = () => messageIndex.byId;
   // Loaded messages, oldest first; activity rows are not unread targets.
   const messages = createMemo(() => [...messageIndex.byId.values()]);
+  const unread = createChannelUnreadNavigation({
+    channelId: props.channelId,
+    messages,
+    activities: () => messageIndex.activityByKey,
+    scrollState: threadListScrollState,
+    container: threadListContainerEl,
+    insets: threadListScrollInsets,
+    onDestinationsChanged: () => threadListNavigation()?.requestLayoutUpdate(),
+  });
   const participants = useChannelParticipants(() => props.channelId);
   const channelBotMentionUsers = useMessageBotMentionUsers(() => ({
     type: 'channel',
@@ -365,6 +386,7 @@ export function Channel(props: ChannelProps) {
   });
 
   const channelName = useChannelName(props.channelId);
+  const channel = useChannel(props.channelId);
   const channelType = useChannelType(props.channelId);
   const { popoverSplit } = useSplitLayout();
 
@@ -373,6 +395,7 @@ export function Channel(props: ChannelProps) {
   const inputPlaceholderName = () => {
     const name = channelName();
     if (!name) return undefined;
+    if (channel()?.agent_dm) return name;
     if (channelType() !== ChannelTypeEnum.DirectMessage) return `#${name}`;
     const parts = name.split(' ');
     return parts.length === 2 && !parts[0]?.endsWith(',') ? parts[0] : name;
@@ -380,6 +403,7 @@ export function Channel(props: ChannelProps) {
 
   const inputPlaceholder = () => {
     const name = inputPlaceholderName();
+    if (channel()?.agent_dm) return `Message ${name ?? 'agent'}`;
     return name ? `Type @ to share with ${name}` : 'Type @ to share';
   };
 
@@ -691,53 +715,58 @@ export function Channel(props: ChannelProps) {
   });
 
   return (
-    <EntityLoadGate
-      result={messagesLoadResult}
-      loadErrorTitle="Unable to load this channel"
-      onRetry={() => void messagesQuery.refetch()}
+    <AgentConversationsProvider
+      channelId={props.channelId}
+      // Only an agent DM has a conversing agent so far.
+      hasAgents={!!channel()?.agent_dm}
     >
-      <DebugSuspense name="Channel.root">
-        <deleteConfirmation.ConfirmationDialog />
-        <StaticMarkdownContext host="channel">
-          <SearchHighlightTermsProvider
-            value={findBar.getSearchTermsForMessage}
-          >
-            <MaybeMessageActionDrawerManager>
-              <ChannelDropZone dragState={dragState}>
-                <div
-                  class="ph-no-capture relative flex-1 min-h-0 outline-none flex flex-col"
-                  ref={(element) => {
-                    attachMessageListRef(element);
-                    messagesTarget(element);
-                  }}
-                  tabIndex={-1}
-                  data-channel-message-list
-                >
-                  <Show when={findBar.isOpen()}>
-                    <FindBar
-                      class="absolute top-2 right-3 z-10 w-80 max-w-[calc(100%-1.5rem)] touch:top-[calc(var(--mobile-content-inset-top,0)+0.5rem)]"
-                      controller={findBar}
-                      direction="desc"
-                    />
-                  </Show>
-                  <Show when={messageIndex.entryKeys.length > 0}>
-                    <div
-                      class="relative flex-1 min-h-0"
-                      ref={setThreadListContainerEl}
-                    >
-                      <ChannelUnreadNotifications
-                        channelId={props.channelId}
-                        messages={messages}
-                        activities={() => messageIndex.activityByKey}
-                        scrollState={threadListScrollState}
-                        container={threadListContainerEl}
-                        insets={threadListScrollInsets}
+      <EntityLoadGate
+        result={messagesLoadResult}
+        loadErrorTitle="Unable to load this channel"
+        onRetry={() => void messagesQuery.refetch()}
+      >
+        <DebugSuspense name="Channel.root">
+          <deleteConfirmation.ConfirmationDialog />
+          <StaticMarkdownContext host="channel">
+            <SearchHighlightTermsProvider
+              value={findBar.getSearchTermsForMessage}
+            >
+              <MaybeMessageActionDrawerManager>
+                <ChannelDropZone dragState={dragState}>
+                  <div
+                    class="ph-no-capture relative flex-1 min-h-0 outline-none flex flex-col"
+                    ref={(element) => {
+                      attachMessageListRef(element);
+                      messagesTarget(element);
+                    }}
+                    tabIndex={-1}
+                    data-channel-message-list
+                  >
+                    <Show when={findBar.isOpen()}>
+                      <FindBar
+                        class="absolute top-2 right-3 z-10 w-80 max-w-[calc(100%-1.5rem)] touch:top-[calc(var(--mobile-content-inset-top,0)+0.5rem)]"
+                        controller={findBar}
+                        direction="desc"
+                      />
+                    </Show>
+                    <Show when={messageIndex.entryKeys.length > 0}>
+                      <div
+                        class="relative flex-1 min-h-0"
+                        ref={setThreadListContainerEl}
                       >
-                        {(unreadChip) => (
-                          <>
-                            <SwipableRowProvider
-                              container={threadListContainerEl}
-                              triggerBehavior="spring-back"
+                        <MessageNotificationIndexContext.Provider
+                          value={unread.unreadByMessage}
+                        >
+                          <SwipableRowProvider
+                            container={threadListContainerEl}
+                            triggerBehavior="spring-back"
+                          >
+                            {/* The newest row shows the agents typing. Their
+                                rows are made once, here, so a live turn moves
+                                with that row instead of starting over in it. */}
+                            <AgentTypingProvider
+                              parent={{ type: 'channel', id: props.channelId }}
+                              threadId={null}
                             >
                               <ThreadList
                                 keys={() => messageIndex.entryKeys}
@@ -816,6 +845,19 @@ export function Channel(props: ChannelProps) {
                                             );
                                           return (
                                             <ChannelThread
+                                              beforeMessage={
+                                                <AgentConversationContextBoundary
+                                                  messageId={item.id}
+                                                />
+                                              }
+                                              afterMessage={
+                                                <AgentConversationMessageStatus
+                                                  messageId={item.id}
+                                                />
+                                              }
+                                              hideTriggeredBy={
+                                                !!channel()?.agent_dm
+                                              }
                                               data={m}
                                               parent={() => ({
                                                 type: 'channel',
@@ -865,6 +907,15 @@ export function Channel(props: ChannelProps) {
                                                   : 'inline'
                                               }
                                               unifiedReplyTarget={unifiedInput.replyTarget()}
+                                              onMessageMount={
+                                                unread.onMessageMount
+                                              }
+                                              onDisclosureMount={
+                                                unread.onDisclosureMount
+                                              }
+                                              unreadMessageIds={unread
+                                                .unreadByThread()
+                                                .get(item.id)}
                                               isExpanded={state.isExpanded}
                                               setIsExpanded={
                                                 state.setIsExpanded
@@ -918,157 +969,172 @@ export function Channel(props: ChannelProps) {
                                   );
                                 }}
                               </ThreadList>
-                            </SwipableRowProvider>
+                            </AgentTypingProvider>
+                          </SwipableRowProvider>
 
-                            <Show when={!findBar.isOpen()}>
-                              <Show when={unreadChip()}>
-                                {(chip) => (
-                                  <UnreadNotificationsOverlay
-                                    direction={chip().direction}
-                                    count={chip().count}
-                                    onClick={() => goToUnread(chip().thread)}
-                                    bottomInset={threadListScrollInsets().end}
-                                  />
-                                )}
-                              </Show>
-                              <Show when={unreadChip()?.direction !== 'above'}>
-                                <ScrollToBottomOverlay
-                                  scrollState={threadListScrollState}
-                                  onScrollToBottom={goToLatest}
-                                  class="touch:top-[calc(var(--mobile-content-inset-top,0)+1rem)]"
+                          <Show when={!findBar.isOpen()}>
+                            <Show when={unread.chip()}>
+                              {(chip) => (
+                                <UnreadNotificationsOverlay
+                                  direction={chip().direction}
+                                  count={chip().count}
+                                  onClick={() => goToUnread(chip().thread)}
+                                  bottomInset={threadListScrollInsets().end}
                                 />
-                              </Show>
-                            </Show>
-                          </>
-                        )}
-                      </ChannelUnreadNotifications>
-                    </div>
-                  </Show>
-                  <DebugSuspense name="Channel.active-call">
-                    <ActiveCallMessage channelId={props.channelId} />
-                  </DebugSuspense>
-                </div>
-                <DebugSuspense name="Channel.input">
-                  <FloatRegionOrInline region="accessory">
-                    <ChannelInputContainer
-                      ref={(el) => {
-                        attachInputRef(el);
-                        composerTarget(el);
-                      }}
-                    >
-                      <Switch>
-                        <Match
-                          when={
-                            isUnifiedInputMode() &&
-                            messageEditor.state()?.messageId
-                          }
-                          keyed
-                        >
-                          {(_messageId) => (
-                            <UnifiedEditInput
-                              channelId={props.channelId}
-                              messageEditor={messageEditor}
-                              onNavigateToMessage={(message) =>
-                                goToMessage(
-                                  message.thread_id ?? message.id,
-                                  message.thread_id ? message.id : undefined
-                                )
-                              }
-                            />
-                          )}
-                        </Match>
-                        <Match
-                          when={
-                            isUnifiedInputMode() &&
-                            unifiedInput.replyTarget()?.threadId
-                          }
-                          keyed
-                        >
-                          {(threadId) => (
-                            <UnifiedReplyInput
-                              channelId={props.channelId}
-                              threadId={threadId}
-                              state={threadManager.getOrCreateThreadState(
-                                threadId
                               )}
-                              getTargetMessage={() => {
-                                const target = unifiedInput.replyTarget();
-                                if (target?.message) return target.message;
-                                // A restored referenced reply has no resolvable
-                                // message (messageById only indexes thread
-                                // roots) — don't misattribute it to the root.
-                                if (target?.replyId) return undefined;
-                                return messageById().get(threadId);
-                              }}
-                              threadHasReplies={() =>
-                                (messageById().get(threadId)?.thread
-                                  .reply_count ?? 0) > 0
-                              }
-                              onNavigateToTarget={() =>
-                                goToMessage(
-                                  threadId,
-                                  unifiedInput.replyTarget()?.replyId
-                                )
-                              }
-                              onExit={unifiedInput.closeReply}
-                            />
-                          )}
-                        </Match>
-                        <Match when={true}>
-                          <ChannelInput
-                            autofocus={props.autofocus}
-                            collapsible
-                            input={{
-                              mode: 'channel',
-                              id: `channel-input-${props.channelId}`,
-                              placeholder: inputPlaceholder(),
-                            }}
-                            participants={participants.users}
-                            bots={channelBotMentionUsers}
-                            attachmentTracker={attachmentTracker}
-                            persistenceKey={makeInputValuePersistenceKey({
-                              channelId: props.channelId,
-                            })}
-                            onReady={(handle) => {
-                              dragState.setAttachFilesToChannel(
-                                handle.attachFiles
-                              );
-                              dragState.setEntityMentionInputHandlers(handle);
-                              setChannelInputHandle(handle);
-                            }}
-                            onChange={(snapshot) =>
-                              void setChannelInputSnapshot(snapshot)
+                            </Show>
+                            <Show when={unread.chip()?.direction !== 'above'}>
+                              <ScrollToBottomOverlay
+                                scrollState={threadListScrollState}
+                                onScrollToBottom={goToLatest}
+                                class="touch:top-[calc(var(--mobile-content-inset-top,0)+1rem)]"
+                              />
+                            </Show>
+                          </Show>
+                        </MessageNotificationIndexContext.Provider>
+                      </div>
+                    </Show>
+                    <DebugSuspense name="Channel.active-call">
+                      <ActiveCallMessage channelId={props.channelId} />
+                    </DebugSuspense>
+                  </div>
+                  <DebugSuspense name="Channel.input">
+                    <FloatRegionOrInline region="accessory">
+                      <ChannelInputContainer
+                        ref={(el) => {
+                          attachInputRef(el);
+                          composerTarget(el);
+                        }}
+                      >
+                        <Switch>
+                          <Match
+                            when={
+                              isUnifiedInputMode() &&
+                              messageEditor.state()?.messageId
                             }
-                            onSend={onSend}
-                            onStartTyping={() =>
-                              typingMutation.mutate({
-                                parent: {
-                                  type: 'channel',
-                                  id: props.channelId,
-                                },
-                                action: 'start',
-                              })
+                            keyed
+                          >
+                            {(_messageId) => (
+                              <UnifiedEditInput
+                                channelId={props.channelId}
+                                messageEditor={messageEditor}
+                                onNavigateToMessage={(message) =>
+                                  goToMessage(
+                                    message.thread_id ?? message.id,
+                                    message.thread_id ? message.id : undefined
+                                  )
+                                }
+                              />
+                            )}
+                          </Match>
+                          <Match
+                            when={
+                              isUnifiedInputMode() &&
+                              unifiedInput.replyTarget()?.threadId
                             }
-                            onStopTyping={() =>
-                              typingMutation.mutate({
-                                parent: {
-                                  type: 'channel',
-                                  id: props.channelId,
-                                },
-                                action: 'stop',
-                              })
-                            }
-                          />
-                        </Match>
-                      </Switch>
-                    </ChannelInputContainer>
-                  </FloatRegionOrInline>
-                </DebugSuspense>
-              </ChannelDropZone>
-            </MaybeMessageActionDrawerManager>
-          </SearchHighlightTermsProvider>
-        </StaticMarkdownContext>
-      </DebugSuspense>
-    </EntityLoadGate>
+                            keyed
+                          >
+                            {(threadId) => (
+                              <UnifiedReplyInput
+                                channelId={props.channelId}
+                                threadId={threadId}
+                                state={threadManager.getOrCreateThreadState(
+                                  threadId
+                                )}
+                                getTargetMessage={() => {
+                                  const target = unifiedInput.replyTarget();
+                                  if (target?.message) return target.message;
+                                  // A restored referenced reply has no resolvable
+                                  // message (messageById only indexes thread
+                                  // roots) — don't misattribute it to the root.
+                                  if (target?.replyId) return undefined;
+                                  return messageById().get(threadId);
+                                }}
+                                threadHasReplies={() =>
+                                  (messageById().get(threadId)?.thread
+                                    .reply_count ?? 0) > 0
+                                }
+                                onNavigateToTarget={() =>
+                                  goToMessage(
+                                    threadId,
+                                    unifiedInput.replyTarget()?.replyId
+                                  )
+                                }
+                                onExit={unifiedInput.closeReply}
+                              />
+                            )}
+                          </Match>
+                          <Match when={true}>
+                            {/* An agent DM gates only a new message on its
+                                agent: editing and thread replies stay open. */}
+                            <AgentDmComposer
+                              channelId={props.channelId}
+                              botId={channel()?.agent_dm?.bot_id}
+                            >
+                              <ChannelInput
+                                autofocus={props.autofocus}
+                                collapsible
+                                input={{
+                                  mode: 'channel',
+                                  id: `channel-input-${props.channelId}`,
+                                  placeholder: inputPlaceholder(),
+                                }}
+                                participants={participants.users}
+                                bots={channelBotMentionUsers}
+                                attachmentTracker={attachmentTracker}
+                                persistenceKey={makeInputValuePersistenceKey({
+                                  channelId: props.channelId,
+                                })}
+                                onReady={(handle) => {
+                                  dragState.setAttachFilesToChannel(
+                                    handle.attachFiles
+                                  );
+                                  dragState.setEntityMentionInputHandlers(
+                                    handle
+                                  );
+                                  setChannelInputHandle(handle);
+                                }}
+                                onChange={(snapshot) =>
+                                  void setChannelInputSnapshot(snapshot)
+                                }
+                                onSend={onSend}
+                                onStartCall={
+                                  ENABLE_CALLS && !channelCall.isInThisChannel()
+                                    ? () => void channelCall.start()
+                                    : undefined
+                                }
+                                callInProgress={channelCall.isCallInProgress()}
+                                onStartTyping={() =>
+                                  typingMutation.mutate({
+                                    parent: {
+                                      type: 'channel',
+                                      id: props.channelId,
+                                    },
+                                    action: 'start',
+                                  })
+                                }
+                                onStopTyping={() =>
+                                  typingMutation.mutate({
+                                    parent: {
+                                      type: 'channel',
+                                      id: props.channelId,
+                                    },
+                                    action: 'stop',
+                                  })
+                                }
+                              />
+                            </AgentDmComposer>
+                          </Match>
+                        </Switch>
+                      </ChannelInputContainer>
+                    </FloatRegionOrInline>
+                  </DebugSuspense>
+                </ChannelDropZone>
+              </MaybeMessageActionDrawerManager>
+            </SearchHighlightTermsProvider>
+          </StaticMarkdownContext>
+        </DebugSuspense>
+      </EntityLoadGate>
+    </AgentConversationsProvider>
   );
 }
