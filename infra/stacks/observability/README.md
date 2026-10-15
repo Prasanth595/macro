@@ -2,7 +2,13 @@
 
 ## CI telemetry
 
-`.github/workflows/export-ci-telemetry.yml` observes completed workflows on its
+`tooling/xtask/crates/xtask_workflows/src/workflows/export_ci_telemetry.rs` defines
+this workflow. Run `cargo x workflows` to regenerate
+`.github/workflows/export-ci-telemetry.yml`; CI checks it for drift. The JavaScript
+preflight and shell credential reader are embedded from adjacent `scripts/` files
+at generation time, so runtime checkout is unnecessary.
+
+The generated workflow observes completed workflows on its
 explicit name list using Grafana's
 [`gha-otel-export`](https://github.com/grafana/grafana-github-actions/tree/b1c422726cc4ff4adb0838ebca67586f24babb42/gha-otel-export)
 action, pinned to that reviewed commit. It reads the triggering attempt's GitHub
