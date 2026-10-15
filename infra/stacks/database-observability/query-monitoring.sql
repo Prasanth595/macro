@@ -17,7 +17,7 @@ END $$;
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 -- Allow bounded concurrent health, statement and activity collection.
 ALTER ROLE grafana_monitor CONNECTION LIMIT 8;
--- Confirm visibility without exporting application rows or running queries.
+-- Confirm statistics visibility without reading application rows.
 SET ROLE grafana_monitor;
 SELECT count(*) AS visible_statement_groups FROM pg_stat_statements;
 SELECT count(*) AS visible_sessions FROM pg_stat_activity;

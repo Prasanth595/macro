@@ -91,8 +91,24 @@ This pilot must not be the sole database monitor.
 ## Query investigation and limits
 
 Open **Macro PostgreSQL queries**, choose an instance, then click a query ID in
-the top-queries table. The dashboard connects calls, average execution time,
-rows per call and block I/O timing to normalized SQL, sampled sessions and waits.
+the query overview. Normalized SQL appears directly beside execution time,
+workload share, call count, average duration and rows. Sort any metric column,
+filter the SQL column, select a database user, or raise the row limit to 200.
+The SQL filter searches the ranked rows currently loaded; use the SQL log panel
+and query-ID selector for other collected statements. Summary cards and query
+charts respect the selected instance, user and query ID. Identical query IDs
+across selected users are aggregated.
+
+The overview joins Prometheus counters to SQL associations observed within five
+minutes of the selected period's end. A missing SQL association does not hide an
+expensive query's counters. SQL text may be unavailable; use the SQL log panel
+to search a wider time range. Statements without interval
+execution time do not appear in the ranking. Each row links to the same dashboard
+with its query ID and the current user/time filters preserved. The wait chart
+counts emitted observations per minute; it does not represent time-weighted
+active sessions. The blocking panel shows sampled blocked PIDs and their blockers.
+
+The dashboard connects these counters to sampled sessions, waits and I/O timing.
 The health dashboard links to it, and the query dashboard links back to collection
 health. Empty panels mean missing data or no observed activity, not a healthy DB.
 
@@ -153,3 +169,28 @@ security-group rules; the WAL volume remains protected. The role may be removed
 by an administrator after its last consumer is gone. Keep Datadog running during
 all pilot work. Automatic plans, full Datadog inventory and alert-by-alert migration remain
 separate passes.
+
+## Existing PostgreSQL monitoring projects
+
+The dashboard uses Grafana's built-in mixed-source table, joins, filters, logs
+and time-series panels; no additional plugin is required. Existing projects
+provide useful alternatives, with different collection/storage requirements:
+
+- [pgwatch](https://github.com/cybertec-postgresql/pgwatch/) provides a PostgreSQL
+  collector and Grafana dashboard suite. Its dashboards expect pgwatch's metric
+  names and data model; importing them alone does not populate Alloy data.
+- [Crunchy Data pgMonitor](https://github.com/CrunchyData/pgmonitor) provides
+  PostgreSQL health dashboards, metrics and alerting resources using its own
+  collection definitions.
+- [Percona PMM](https://docs.percona.com/percona-monitoring-and-management/3/install-pmm/install-pmm-client/connect-database/aws.html)
+  supports RDS PostgreSQL query analytics using pg_stat_statements. Adopting its
+  Query Analytics application requires PMM Server and its collection components;
+  it is not a standalone panel for this Grafana instance.
+- [Grafana Cloud Database Observability](https://grafana.com/docs/grafana-cloud/observe-and-act/monitor-applications/database-observability/introduction/)
+  provides a purpose-built query investigation UI using Alloy. Those Cloud
+  dashboards/features do not arrive with the open-source collector alone.
+
+This pilot improves the existing self-hosted setup. It does not claim full
+Datadog DBM parity: automatic plans, trace correlation and time-weighted active
+session analysis remain separate work. A plan-visualization plugin cannot supply
+plans that have not been collected.
