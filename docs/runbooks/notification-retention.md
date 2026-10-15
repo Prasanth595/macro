@@ -115,7 +115,8 @@ ten seconds through normal service logs, with an opaque `consumer_instance`:
   not an exact count of outstanding business events.
 - `prefetched_messages`: records buffered locally, not just records still on the
   broker. This prevents a full fetch queue from looking caught up.
-- `known_partitions`, `unknown_partitions`, and `consumer_health`: distinguish
+- `known_partitions`, `unknown_partitions`, `disconnected_partitions`, and
+  `consumer_health`: distinguish
   valid measurements from missing offsets, disconnected brokers, and startup.
 - A separate reporter detects callbacks older than 30 seconds (including old
   snapshots delivered late), even when the consuming task is stalled. Stale or
@@ -145,8 +146,12 @@ Before the next deletion canary, after approved deployments:
 3. Confirm health logs from each running DSS instance, including healthy zero
    backlog when idle; investigate missing/unknown/stale samples rather than
    accepting an empty chart as healthy.
-4. Validate and deploy the monitoring stack separately. Its preview must show
-   nine new monitors and one dashboard, without modifying adopted resources.
+4. Validate and deploy the monitoring stack separately. Verify the incoming
+   attributes are parsed as numeric measures (`max_offset_backlog`, `deleted`)
+   and grouping attributes (`consumer_instance`, `consumer_health`) in Datadog;
+   configure missing measures/facets before relying on aggregation charts. The
+   authenticated preview must show nine new monitors and one dashboard, without
+   modifying adopted resources.
 5. Only then approve a bounded dev deletion canary and inspect DB/API health,
    publisher failures, and consumer backlog draining before considering prod.
 

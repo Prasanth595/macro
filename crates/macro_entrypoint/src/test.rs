@@ -76,6 +76,47 @@ async fn force_flush_exports_short_invocations_and_preserves_warm_provider() {
 }
 
 #[tokio::test]
+async fn force_flush_reports_export_failure_instead_of_success() {
+    use opentelemetry::trace::Tracer as _;
+    use opentelemetry_sdk::{
+        error::{OTelSdkError, OTelSdkResult},
+        trace::{BatchConfigBuilder, BatchSpanProcessor, SpanData, SpanExporter},
+    };
+
+    #[derive(Debug)]
+    struct FailingExporter;
+    impl SpanExporter for FailingExporter {
+        async fn export(&self, _batch: Vec<SpanData>) -> OTelSdkResult {
+            Err(OTelSdkError::InternalFailure(
+                "test export failure".to_owned(),
+            ))
+        }
+    }
+    let processor = BatchSpanProcessor::builder(FailingExporter)
+        .with_batch_config(
+            BatchConfigBuilder::default()
+                .with_scheduled_delay(std::time::Duration::from_secs(3600))
+                .build(),
+        )
+        .build();
+    let provider = SdkTracerProvider::builder()
+        .with_span_processor(processor)
+        .build();
+    provider
+        .tracer("test")
+        .in_span("completed-invocation", |_| {});
+    let entrypoint = InitializedEntrypoint {
+        tracer_provider: Some(provider),
+        logger_provider: None,
+    };
+    assert!(matches!(
+        entrypoint.force_flush().await,
+        Err(TelemetryFlushError::Traces(_))
+    ));
+    entrypoint.shutdown();
+}
+
+#[tokio::test]
 async fn force_flush_without_exporters_is_a_noop() {
     InitializedEntrypoint {
         tracer_provider: None,

@@ -1,18 +1,16 @@
 //! Per-process telemetry for the deliberately ungrouped notification consumer.
 //! A separate timer reports stale callbacks even if application consumption stalls.
 
-use std::{
-    sync::{Arc, Mutex},
-    time::Duration,
-};
+use std::{sync::Arc, time::Duration};
 
 use chrono::Utc;
 use kafka_util::ConsumerStatistics;
 use rdkafka::statistics::Statistics;
 use tokio::{
-    task::JoinHandle,
+    sync::watch,
     time::{Instant, MissedTickBehavior},
 };
+use tokio_util::{sync::CancellationToken, task::TaskTracker};
 use uuid::Uuid;
 
 const TOPIC: &str = "macro.notifications";
@@ -27,6 +25,7 @@ struct Backlog {
     total_offset_backlog: u64,
     prefetched_messages: u64,
     connected_brokers: usize,
+    disconnected_partitions: u32,
 }
 
 fn backlog(stats: &Statistics) -> Option<Backlog> {
@@ -44,6 +43,15 @@ fn backlog(stats: &Statistics) -> Option<Backlog> {
         .values()
         .filter(|p| p.partition >= 0 && p.desired)
     {
+        if !stats
+            .brokers
+            .values()
+            .any(|broker| broker.nodeid == partition.broker && broker.state == "UP")
+        {
+            // Another partition's healthy connection cannot make this cached
+            // high watermark trustworthy while its own broker is unavailable.
+            result.disconnected_partitions += 1;
+        }
         // app_offset is next-to-deliver, not committed_offset (which is always
         // invalid here). Before the first delivery use next-to-fetch plus the
         // prefetched queue, so an idle latest-start partition can report zero.
@@ -118,7 +126,7 @@ fn health(
             Health::Unavailable
         };
     };
-    if backlog.connected_brokers == 0 {
+    if backlog.connected_brokers == 0 || backlog.disconnected_partitions > 0 {
         return if starting {
             Health::Starting
         } else {
@@ -137,34 +145,42 @@ fn health(
 
 /// Owns the reporter's lifetime; dropping a consumer also stops its telemetry.
 pub(super) struct ConsumerHealth {
-    task: JoinHandle<()>,
+    cancellation: CancellationToken,
+    tasks: TaskTracker,
 }
 
 impl Drop for ConsumerHealth {
     fn drop(&mut self) {
-        self.task.abort();
+        self.cancellation.cancel();
+        self.tasks.close();
     }
 }
 
 impl ConsumerHealth {
     pub(super) fn start() -> (ConsumerStatistics, Self) {
-        let state = Arc::new(Mutex::new(None));
-        let observed = Arc::clone(&state);
+        let (observed, state) = watch::channel(None);
         let observer: ConsumerStatistics = Arc::new(move |stats| {
-            *observed.lock().expect("consumer telemetry mutex") = Some(Observation {
+            observed.send_replace(Some(Observation {
                 received_at: Instant::now(),
                 sampled_at: stats.time,
                 backlog: backlog(stats),
-            });
+            }));
         });
         let consumer_instance = Uuid::now_v7();
         let started_at = Instant::now();
-        let task = tokio::spawn(async move {
+        let cancellation = CancellationToken::new();
+        let stop = cancellation.clone();
+        let tasks = TaskTracker::new();
+        tasks.spawn(async move {
             let mut interval = tokio::time::interval(REPORT_INTERVAL);
             interval.set_missed_tick_behavior(MissedTickBehavior::Skip);
             loop {
-                interval.tick().await;
-                let observation = *state.lock().expect("consumer telemetry mutex");
+                tokio::select! {
+                    biased;
+                    _ = stop.cancelled() => break,
+                    _ = interval.tick() => {}
+                }
+                let observation = *state.borrow();
                 let status = health(
                     observation,
                     started_at,
@@ -181,6 +197,7 @@ impl ConsumerHealth {
                     consumer_health = status.as_ref(),
                     known_partitions = snapshot.map(|s| s.known_partitions),
                     unknown_partitions = snapshot.map(|s| s.unknown_partitions),
+                    disconnected_partitions = snapshot.map(|s| s.disconnected_partitions),
                     max_offset_backlog = known.map(|s| s.max_offset_backlog),
                     total_offset_backlog = known.map(|s| s.total_offset_backlog),
                     prefetched_messages = known.map(|s| s.prefetched_messages),
@@ -188,7 +205,13 @@ impl ConsumerHealth {
                 );
             }
         });
-        (observer, Self { task })
+        (
+            observer,
+            Self {
+                cancellation,
+                tasks,
+            },
+        )
     }
 }
 
