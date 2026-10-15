@@ -159,6 +159,11 @@ try {
   const snapshot = await call('Snapshot');
   assert.match(snapshot, /"closed":\[2,3\]/);
   assert.match(snapshot, /"sent":3/);
+  assert.match(
+    snapshot,
+    /"connections":1/,
+    'All sends must reuse one session-bus connection'
+  );
   assert.deepEqual(
     await browser.execute(() => window.notificationFixture.clicked),
     [1]

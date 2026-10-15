@@ -7,7 +7,7 @@ mod linux {
         collections::{HashMap, HashSet},
         time::Duration,
     };
-    use zbus::{object_server::SignalEmitter, zvariant::OwnedValue};
+    use zbus::{message::Header, object_server::SignalEmitter, zvariant::OwnedValue};
 
     const SERVICE: &str = "org.freedesktop.Notifications";
     const PATH: &str = "/org/freedesktop/Notifications";
@@ -17,6 +17,7 @@ mod linux {
         next_id: u32,
         closed: Vec<u32>,
         removed: HashSet<u32>,
+        senders: HashSet<String>,
     }
 
     #[derive(Debug, zbus::DBusError)]
@@ -38,7 +39,9 @@ mod linux {
             actions: Vec<String>,
             _hints: HashMap<String, OwnedValue>,
             _timeout: i32,
+            #[zbus(header)] header: Header<'_>,
         ) -> u32 {
+            self.senders.insert(header.sender().unwrap().to_string());
             assert_eq!(replaces, 0);
             assert_eq!(actions, ["default", "Open"]);
             self.next_id += 1;
@@ -54,7 +57,12 @@ mod linux {
         }
 
         fn snapshot(&self) -> String {
-            serde_json::json!({ "sent": self.next_id, "closed": self.closed }).to_string()
+            serde_json::json!({
+                "sent": self.next_id,
+                "closed": self.closed,
+                "connections": self.senders.len(),
+            })
+            .to_string()
         }
 
         async fn activate(

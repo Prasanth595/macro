@@ -9,14 +9,17 @@ use std::{
 use gtk::prelude::*;
 use serde::Serialize;
 use tauri::{Manager, Runtime, State, WebviewWindow, ipc::Channel};
-use tokio::sync::oneshot;
+use tokio::sync::{OnceCell, oneshot};
 use uuid::Uuid;
 
 mod transport;
 use transport::{Notification, Outcome};
 
 #[derive(Clone, Default)]
-pub struct LinuxNotifications(Arc<Mutex<HashMap<Uuid, Pending>>>);
+pub struct LinuxNotifications {
+    pending: Arc<Mutex<HashMap<Uuid, Pending>>>,
+    connection: Arc<OnceCell<zbus::Connection>>,
+}
 
 struct Pending {
     window: String,
@@ -33,7 +36,7 @@ pub enum NotificationEvent {
 impl LinuxNotifications {
     pub fn close_window(&self, label: &str) {
         // Dropping the senders also wakes the notification tasks for cleanup.
-        self.0
+        self.pending
             .lock()
             .unwrap()
             .retain(|_, pending| pending.window != label);
@@ -49,9 +52,14 @@ pub async fn send_linux_notification<R: Runtime>(
     icon: Option<String>,
     on_event: Channel<NotificationEvent>,
 ) -> Result<String, String> {
-    let connection = zbus::Connection::session()
+    // Share one bus connection across sends, including concurrent first sends.
+    // Failed initialization leaves the cell empty so the next send can retry.
+    let connection = state
+        .connection
+        .get_or_try_init(zbus::Connection::session)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())?
+        .clone();
     let notification = Notification::show(
         connection,
         &window.app_handle().config().identifier,
@@ -66,7 +74,7 @@ pub async fn send_linux_notification<R: Runtime>(
     let key = Uuid::new_v4();
     let (close, closed) = oneshot::channel();
     let state = state.inner().clone();
-    state.0.lock().unwrap().insert(
+    state.pending.lock().unwrap().insert(
         key,
         Pending {
             window: window.label().to_owned(),
@@ -75,7 +83,7 @@ pub async fn send_linux_notification<R: Runtime>(
     );
     tauri::async_runtime::spawn(async move {
         let outcome = notification.wait(closed).await;
-        state.0.lock().unwrap().remove(&key);
+        state.pending.lock().unwrap().remove(&key);
         match outcome {
             Ok(Outcome::Activated(token)) => {
                 // GTK calls must run on the UI thread. window.focus() in JS has
@@ -117,7 +125,7 @@ pub fn close_linux_notification<R: Runtime>(
     id: String,
 ) -> Result<(), String> {
     let key = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
-    let mut pending = state.0.lock().unwrap();
+    let mut pending = state.pending.lock().unwrap();
     if let Some(notification) = pending.get(&key) {
         if notification.window != window.label() {
             return Err("Notification belongs to a different window".into());
