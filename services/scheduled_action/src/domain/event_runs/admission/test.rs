@@ -124,3 +124,79 @@ async fn denied_and_mismatched_receipts_skip_but_unavailable_access_defers_intak
     assert!(service.ingest(&incoming()).await.is_err());
     assert!(repo.0.lock().unwrap().pending.is_empty());
 }
+
+#[tokio::test]
+async fn mentions_mail_and_calls_only_admit_their_recipient_even_when_others_have_access() {
+    use crate::domain::event_trigger::{EventPayload, MessageFact};
+    for name in [
+        "channel.mentioned",
+        "email.message_received",
+        "call.started",
+        "call.ended",
+    ] {
+        let owner = user();
+        let mut subscribed = configuration();
+        subscribed.filters = serde_json::from_value(json!([{"events":[name]}])).unwrap();
+        let mut other = subscribed.clone();
+        other.action_id = generate_uuid_v7();
+        other.owner = Owner::User(MacroUserIdStr::parse_from_str("macro|other@macro.com").unwrap());
+        let action_id = subscribed.action_id;
+        let repo = Arc::new(Repo::default());
+        repo.0.lock().unwrap().configurations = vec![subscribed, other];
+        repo.0
+            .lock()
+            .unwrap()
+            .configurations
+            .sort_by_key(|c| c.action_id);
+        let access = Arc::new(Access::default());
+        let service =
+            EventAdmissionService::new(repo.clone(), access.clone(), 10.try_into().unwrap());
+        let id = generate_uuid_v7();
+        let payload = match name {
+            "email.message_received" => EventPayload::Email(serde_json::from_value(json!({
+                "event_type":"email.message_received", "metadata": {
+                    "link_id": id, "owner": owner, "message_id": id, "thread_id": id,
+                    "provider_message_id": "message", "provider_thread_id": "thread",
+                    "is_new_thread": true, "to_emails": [], "attachment_count": 0, "is_spam_or_trash": false
+                }
+            })).unwrap()),
+            "call.started" => EventPayload::Call(serde_json::from_value(json!({
+                "event_type":"call.started", "metadata": {
+                    "call_id": id, "channel_id": null, "created_by": owner,
+                    "created_at": Utc::now(), "recording_enabled": false
+                }
+            })).unwrap()),
+            "call.ended" => EventPayload::Call(serde_json::from_value(json!({
+                "event_type":"call.record_archived", "metadata": {
+                    "call_id": id, "channel_id": null, "created_by": "macro|host@macro.com",
+                    "started_at": Utc::now(), "ended_at": Utc::now(), "duration_ms": 1_000,
+                    "participant_count": 2, "participants": ["macro|host@macro.com", owner],
+                    "has_recording": false, "archive_reason": "last_participant_left"
+                }
+            })).unwrap()),
+            _ => EventPayload::Message(MessageFact::Mentioned(
+                serde_json::from_value(json!({
+                    "parent": {"type":"channel", "id": id}, "message_id": id, "root_id": id,
+                    "sender": "macro|sender@macro.com", "content":"", "created_at": Utc::now(),
+                    "mentioned": {"entity_type":"user", "entity_id": owner}
+                }))
+                .unwrap(),
+            )),
+        };
+        let event = IncomingEvent {
+            event_id: generate_uuid_v7(),
+            schema_version: 1,
+            payload,
+        };
+        assert_eq!(
+            service.ingest(&event).await.unwrap(),
+            EventIngestionResult::Admitted { inserted: 1 }
+        );
+        assert_eq!(repo.0.lock().unwrap().pending[0].action_id, action_id);
+        assert_eq!(*access.calls.lock().unwrap(), vec![owner]);
+        assert_eq!(
+            service.ingest(&event).await.unwrap(),
+            EventIngestionResult::Admitted { inserted: 0 }
+        );
+    }
+}

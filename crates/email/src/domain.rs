@@ -3,11 +3,14 @@ pub mod activity;
 #[cfg(feature = "calendar_invitations")]
 pub mod calendar_invitation_parser;
 pub mod events;
+#[cfg(feature = "ports")]
+pub mod followup;
 #[cfg(feature = "calendar_invitations")]
 pub mod invitation_extraction;
 #[cfg(feature = "calendar_invitations")]
 pub mod invitation_resolution;
 pub mod models;
+pub mod senders;
 
 #[cfg(feature = "ports")]
 pub mod assembler;

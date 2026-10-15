@@ -115,8 +115,36 @@ async fn mints_entity_specific_receipts_for_exact_owner_and_entity() {
     let owner = MacroUserIdStr::parse_from_str("macro|owner@macro.com").unwrap();
     for (name, kind, permission) in [
         (
+            "email.message_received",
+            EntityType::EmailThread,
+            EntityPermission::AccessLevel {
+                access_level: AccessLevel::View,
+            },
+        ),
+        (
+            "document.deleted",
+            EntityType::Document,
+            EntityPermission::AccessLevel {
+                access_level: AccessLevel::View,
+            },
+        ),
+        (
             "document.updated",
             EntityType::Document,
+            EntityPermission::AccessLevel {
+                access_level: AccessLevel::View,
+            },
+        ),
+        (
+            "call.started",
+            EntityType::Call,
+            EntityPermission::AccessLevel {
+                access_level: AccessLevel::View,
+            },
+        ),
+        (
+            "call.ended",
+            EntityType::Call,
             EntityPermission::AccessLevel {
                 access_level: AccessLevel::View,
             },
@@ -139,7 +167,7 @@ async fn mints_entity_specific_receipts_for_exact_owner_and_entity() {
             calls: Arc::default(),
         };
         let adapter = EventAccessAdapter::new(service.clone());
-        let event: EventReference = serde_json::from_value(json!({"event_id":generate_uuid_v7(), "event_name":name, "entity_id":generate_uuid_v7(), "message_id":null})).unwrap();
+        let event: EventReference = serde_json::from_value(json!({"event_id":generate_uuid_v7(), "event_name":name, "entity_id":generate_uuid_v7(), "message_id": if name == "email.message_received" {Some(generate_uuid_v7())} else {None}})).unwrap();
         let receipt = adapter.authorize(&owner, &event).await.unwrap().unwrap();
         assert!(receipt.authorizes(&owner, &event));
         assert_eq!(
@@ -154,6 +182,8 @@ async fn wrong_permission_family_is_denied_not_reinterpreted() {
     let owner = MacroUserIdStr::parse_from_str("macro|owner@macro.com").unwrap();
     for (name, permission) in [
         ("document.updated", EntityPermission::ChannelViewOnly),
+        ("call.started", EntityPermission::ChannelViewOnly),
+        ("call.ended", EntityPermission::ChannelViewOnly),
         (
             "channel.created",
             EntityPermission::AccessLevel {

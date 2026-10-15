@@ -62,6 +62,26 @@ impl<S: EntityAccessService> CurrentOwnerAccess for EventAccessAdapter<S> {
                 .generate_entity_access_receipt::<ViewOnly>(owner, None, &id, EntityType::Channel)
                 .await
                 .map(EventAccessCapability::Channel),
+            EventEntityType::EmailThread => self
+                .service
+                .generate_entity_access_receipt::<ViewAccessLevel>(
+                    owner,
+                    None,
+                    &id,
+                    EntityType::EmailThread,
+                )
+                .await
+                .map(EventAccessCapability::EmailThread),
+            EventEntityType::Call => self
+                .service
+                .generate_entity_access_receipt::<ViewAccessLevel>(
+                    owner,
+                    None,
+                    &id,
+                    EntityType::Call,
+                )
+                .await
+                .map(EventAccessCapability::Call),
         };
         access_result(result)
     }

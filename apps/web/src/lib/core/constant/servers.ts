@@ -232,6 +232,14 @@ export function staticFileIdEndpoint(id: string): string {
   return `${SERVER_HOSTS['static-file']}/file/${id}`;
 }
 
+/** A static-file reference consumed by a backend, outside the browser proxy. */
+export function staticFileReferenceEndpoint(id: string): string {
+  const host = SERVER_HOSTS['static-file'];
+  const remote = directServerHostRemote['static-file'];
+  const referenceHost = host === developmentProxyUrl(remote) ? remote : host;
+  return `${referenceHost}/file/${id}`;
+}
+
 type StaticFileSize = 'small' | 'medium';
 
 const staticFileSizes: Record<StaticFileSize, number> = {
@@ -247,5 +255,8 @@ export function staticFileSizedEndpoint(
 }
 
 export function staticFileSizedUrl(url: string, size: StaticFileSize): string {
+  // Embedded and local previews are not image-service URLs. A query string
+  // changes their contents instead of requesting a resized image.
+  if (url.startsWith('data:') || url.startsWith('blob:')) return url;
   return `${url}?size=${staticFileSizes[size]}`;
 }

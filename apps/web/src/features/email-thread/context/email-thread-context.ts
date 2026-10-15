@@ -55,7 +55,6 @@ export interface EmailThreadContext {
   viewerEmail: Accessor<string | undefined>;
   viewerLoading: Accessor<boolean>;
   isTouch: Accessor<boolean>;
-  isMobile: Accessor<boolean>;
   createCommands(
     thread: Accessor<EmailThread | undefined>
   ): EmailThreadCommands;
@@ -66,6 +65,7 @@ export interface EmailThreadListNavigation {
   canNext: Accessor<boolean>;
   previous(): void;
   next(): void;
+  afterReminderSaved?(): Promise<void>;
   markDone(archiveThread: EmailThreadCommands['archiveThread']): void;
 }
 

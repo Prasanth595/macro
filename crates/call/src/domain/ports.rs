@@ -18,8 +18,8 @@ use notification::domain::models::apple::VoipPushPayload;
 use models_permissions::share_permission::team_share::TeamShareFacts;
 
 use crate::domain::models::{
-    CustomSpeakerAssignment, DeletedCallRecordStorageKeys, EditCallRecordRepoArgs,
-    EditCallRecordRequest, EditCallTranscriptRequest,
+    CallPeople, CallRecordPage, CustomSpeakerAssignment, DeletedCallRecordStorageKeys,
+    EditCallRecordRepoArgs, EditCallRecordRequest, EditCallTranscriptRequest,
 };
 
 use super::meetings::{
@@ -201,7 +201,7 @@ pub trait CallRepository: Send + Sync + 'static {
         user_id: MacroUserIdStr<'a>,
     ) -> impl Future<Output = Result<CallParticipant, AddParticipantError>> + Send;
 
-    /// Commit authenticated link participation and grant view access to this call only.
+    /// Commit authenticated link participation and grant comment access to this call only, enabling chat.
     fn add_meeting_participant<'a>(
         &self,
         call_id: &Uuid,
@@ -238,6 +238,14 @@ pub trait CallRepository: Send + Sync + 'static {
         call_id: &Uuid,
     ) -> impl Future<Output = Result<Vec<CallParticipant>, Self::Err>> + Send;
 
+    /// The people on an archived call: its Macro participants, the owner of
+    /// its meeting link, and the invitees of the calendar event carrying that
+    /// link.
+    fn get_call_record_people(
+        &self,
+        call_record_id: &Uuid,
+    ) -> impl Future<Output = Result<CallPeople, Self::Err>> + Send;
+
     /// Get the count of active attendees in a call: Macro participants plus
     /// non-account guests. Archival on room-empty keys off this reaching 0.
     fn get_participant_count(
@@ -257,6 +265,21 @@ pub trait CallRepository: Send + Sync + 'static {
 
     /// Check if a user is already a participant in a call.
     fn is_participant(
+        &self,
+        call_id: &Uuid,
+        user_id: &str,
+    ) -> impl Future<Output = Result<bool, Self::Err>> + Send;
+
+    /// Record that a user declined an active call. Idempotent: declining the
+    /// same call twice keeps the first decline.
+    fn record_decline<'a>(
+        &self,
+        call_id: &Uuid,
+        user_id: MacroUserIdStr<'a>,
+    ) -> impl Future<Output = Result<(), Self::Err>> + Send;
+
+    /// Check if a user has declined an active call on any of their devices.
+    fn has_declined(
         &self,
         call_id: &Uuid,
         user_id: &str,
@@ -413,12 +436,14 @@ pub trait CallRepository: Send + Sync + 'static {
     /// Fetch visible active and archived records, without transcripts. Status
     /// reflects the user's participation and current channel membership.
     /// Standalone calls require an individual user grant, never a group grant.
-    /// Apply `filter`, order by start time descending, and return at most `limit`.
+    /// Apply `filter`, order descending by `page`'s sort timestamp and call id,
+    /// seek past `page.after`, and return at most `limit`.
     fn get_call_records_by_user<'a>(
         &self,
         user_id: MacroUserIdStr<'a>,
         limit: u32,
         filter: &LiteralTree<CallLiteral>,
+        page: CallRecordPage,
     ) -> impl Future<Output = Result<Vec<CallRecord>, Self::Err>> + Send;
 
     /// Resolve the display name for a single channel.
@@ -884,6 +909,31 @@ pub trait CallService: Send + Sync + 'static {
         user_id: MacroUserIdStr<'a>,
     ) -> impl Future<Output = Result<LeaveCallResponse, CallError>> + Send;
 
+    /// Decline a specific active call for this user without joining it.
+    ///
+    /// Records the decline and notifies the user's other connected clients
+    /// (`call_declined`) so they stop ringing; the call itself keeps going
+    /// for everyone else. Bound to `call_id` so a stale ring for a replaced
+    /// call cannot decline the channel's newer active call. Returns
+    /// [`CallError::NotFound`] when that call is no longer active.
+    fn decline_call<'a>(
+        &self,
+        call_id: &Uuid,
+        user_id: MacroUserIdStr<'a>,
+    ) -> impl Future<Output = Result<(), CallError>> + Send;
+
+    /// Decline a ringing call from a native client, authenticated like
+    /// [`Self::get_ring_status`] with the RTC access token from its VoIP push
+    /// payload. Has the same effect as [`Self::decline_call`] for the token's
+    /// identity. Returns [`CallError::Auth`] when the token is invalid or
+    /// carries no room grant, and [`CallError::NotFound`] when the room's
+    /// active call is not the one being declined.
+    fn decline_ring(
+        &self,
+        call_id: &Uuid,
+        bearer_token: &str,
+    ) -> impl Future<Output = Result<(), CallError>> + Send;
+
     /// Report the per-user ring status for a call. The caller authenticates
     /// with the RTC access token delivered in its VoIP push payload; the
     /// token's identity determines whose participation is checked. Returns
@@ -1014,6 +1064,27 @@ pub trait CallRecordQueryService: Send + Sync + 'static {
         &self,
         req: GetCallRecordsRequest,
     ) -> impl Future<Output = Result<Vec<CallRecord>, CallError>> + Send;
+
+    /// The people on an archived call record: its Macro participants, the
+    /// owner of its meeting link, and the invitees of the calendar event
+    /// carrying that link. Empty when the record does not exist.
+    fn get_call_record_people(
+        &self,
+        call_record_id: Uuid,
+    ) -> impl Future<Output = Result<CallPeople, CallError>> + Send;
+}
+
+/// Read-only port for one call record under its reader's access, for services
+/// that react to calls rather than manage them.
+pub trait CallRecordReader: Send + Sync + 'static {
+    /// The record the receipt authorizes, with its participants, guests and
+    /// transcript, and its channel named as the receipt's user sees it. The
+    /// receipt must be for `EntityType::Call`, keyed by the call's UUID.
+    /// Returns [`CallError::NotFound`] once the record is gone.
+    fn get_call_record(
+        &self,
+        receipt: EntityAccessReceipt<ViewAccessLevel>,
+    ) -> impl Future<Output = Result<CallRecord, CallError>> + Send;
 }
 
 /// No-op implementation of [`CallRecordQueryService`] for services
@@ -1027,6 +1098,11 @@ impl CallRecordQueryService for NoOpCallRecordQueryService {
         _req: GetCallRecordsRequest,
     ) -> Result<Vec<CallRecord>, CallError> {
         Ok(Vec::new())
+    }
+
+    /// Always returns no people.
+    async fn get_call_record_people(&self, _call_record_id: Uuid) -> Result<CallPeople, CallError> {
+        Ok(CallPeople::default())
     }
 }
 
