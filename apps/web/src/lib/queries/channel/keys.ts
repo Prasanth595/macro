@@ -2,6 +2,7 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 
 export const channelKeys = createQueryKeys('channel', {
   picture: (channelId: string) => ({ queryKey: [channelId] }),
+  pictureMetadata: (pictureId: string) => ({ queryKey: [pictureId] }),
   withID: (channelID: string) => ({
     queryKey: [channelID],
   }),

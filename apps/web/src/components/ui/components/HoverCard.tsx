@@ -20,6 +20,12 @@ type HoverCardProps = ParentProps<{
   disabled?: boolean;
   /** Rich hover cards in the same group share one open nested branch. */
   chokeGroup?: string | false;
+  /** Controlled opening lets content offer explicit Save and Cancel actions. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  keepOpenOnTriggerPress?: boolean;
+  triggerTabIndex?: number;
+  triggerAriaLabel?: string;
 }>;
 
 /**
@@ -61,6 +67,11 @@ export function HoverCard(props: HoverCardProps) {
         triggerAs={props.as ?? 'div'}
         disabled={props.disabled}
         chokeGroup={props.chokeGroup}
+        open={props.open}
+        onOpenChange={props.onOpenChange}
+        keepOpenOnTriggerPress={props.keepOpenOnTriggerPress}
+        triggerTabIndex={props.triggerTabIndex}
+        triggerAriaLabel={props.triggerAriaLabel}
       />
     </Show>
   );

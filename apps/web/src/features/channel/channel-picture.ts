@@ -7,12 +7,10 @@ import {
 } from '@queries/channel/picture';
 import type { Accessor } from 'solid-js';
 
-const PICTURE_MIME_TYPES = [
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-];
+import {
+  CHANNEL_PICTURE_MIME_TYPES,
+  channelPictureFileError,
+} from './core/channel-picture';
 
 /**
  * Upload and clear channel pictures, for menus that learn their channel when
@@ -24,12 +22,9 @@ export function useChannelPictureEditor() {
 
   const save = async (channelId: string, file: File | null) => {
     if (mutation.isPending) return;
-    if (file && (!PICTURE_MIME_TYPES.includes(file.type) || file.size === 0)) {
-      toast.failure('Choose a PNG, JPG, WebP, or GIF image');
-      return;
-    }
-    if (file && file.size > 16 * 1000 * 1000) {
-      toast.failure('Choose an image smaller than 16 MB');
+    const validationError = file ? channelPictureFileError(file) : undefined;
+    if (validationError) {
+      toast.failure(validationError);
       return;
     }
     try {
@@ -46,7 +41,7 @@ export function useChannelPictureEditor() {
     if (mutation.isPending) return;
     openFilePicker(
       {
-        acceptedMimeTypes: PICTURE_MIME_TYPES,
+        acceptedMimeTypes: CHANNEL_PICTURE_MIME_TYPES,
         acceptedFileExtensions: ['jpg', 'jpeg', 'png', 'webp', 'gif'],
       },
       async (files) => {

@@ -6,7 +6,7 @@ import { storageServiceClient } from '@service-storage/client';
 import { QueryObserver } from '@tanstack/query-core';
 import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
 import { ok } from 'neverthrow';
-import { createMemo, createRoot } from 'solid-js';
+import { createMemo, createRoot, createSignal } from 'solid-js';
 import { render } from 'solid-js/web';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { previewDataLoader } from '../../preview/dataloader';
@@ -20,7 +20,8 @@ vi.mock('../../client', () => ({
   },
 }));
 vi.mock('@core/constant/servers', () => ({
-  staticFileSizedEndpoint: (id: string) => `/file/${id}`,
+  staticFileSizedEndpoint: (id: string, size: string) =>
+    size === 'small' ? `/file/${id}` : `/file/${id}?size=${size}`,
 }));
 vi.mock('../../preview/dataloader', () => ({
   previewDataLoader: { load: vi.fn() },
@@ -39,6 +40,8 @@ import {
   createCachedChannelPicture,
   handleChannelPictureChanged,
   invalidateChannelPictures,
+  useChannelPicture,
+  useChannelPictureFileName,
   useSetChannelPictureMutation,
 } from '../picture';
 
@@ -78,6 +81,116 @@ function setup(upload: (file: File) => Promise<string>) {
   );
   return mutation;
 }
+
+it('exposes picture ids and both sizes without reading metadata', async () => {
+  client.setQueryData(channelKeys.picture('channel').queryKey, 'picture-1');
+  let picture!: ReturnType<typeof useChannelPicture>;
+  function Fixture() {
+    picture = useChannelPicture(() => 'channel');
+    return null;
+  }
+  dispose = render(
+    () => (
+      <QueryClientProvider client={client}>
+        <Fixture />
+      </QueryClientProvider>
+    ),
+    document.body
+  );
+  expect(picture.pictureId()).toBe('picture-1');
+  expect(picture.url()).toBe('/file/picture-1');
+  expect(picture.largeUrl()).toBe('/file/picture-1?size=medium');
+  client.setQueryData(channelKeys.picture('channel').queryKey, null);
+  await vi.waitFor(() => expect(picture.pictureId()).toBeUndefined());
+  expect(picture.url()).toBeUndefined();
+  expect(picture.largeUrl()).toBeUndefined();
+  expect(staticFileClient.getMetadata).not.toHaveBeenCalled();
+});
+
+it('keeps picture accessors guarded while the preview loads', async () => {
+  let resolvePreview!: (
+    value: Awaited<ReturnType<typeof previewDataLoader.load>>
+  ) => void;
+  vi.mocked(previewDataLoader.load).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        resolvePreview = resolve;
+      })
+  );
+  let picture!: ReturnType<typeof useChannelPicture>;
+  function Fixture() {
+    picture = useChannelPicture(() => 'channel');
+    return null;
+  }
+  dispose = render(
+    () => (
+      <QueryClientProvider client={client}>
+        <Fixture />
+      </QueryClientProvider>
+    ),
+    document.body
+  );
+  expect(picture.pictureId()).toBeUndefined();
+  expect(picture.url()).toBeUndefined();
+  expect(picture.largeUrl()).toBeUndefined();
+  resolvePreview({
+    id: 'channel',
+    type: 'channel',
+    access: 'access',
+    loading: false,
+    name: 'Channel',
+    rawName: 'Channel',
+    profilePictureId: 'picture-1',
+  });
+  await vi.waitFor(() => expect(picture.pictureId()).toBe('picture-1'));
+  expect(staticFileClient.getMetadata).not.toHaveBeenCalled();
+});
+
+it('disables filename reads without a picture id and fetches on selection', async () => {
+  const [pictureId, setPictureId] = createSignal<string | undefined>();
+  let filename!: ReturnType<typeof useChannelPictureFileName>;
+  function Fixture() {
+    filename = useChannelPictureFileName(pictureId);
+    return null;
+  }
+  dispose = render(
+    () => (
+      <QueryClientProvider client={client}>
+        <Fixture />
+      </QueryClientProvider>
+    ),
+    document.body
+  );
+  expect(filename()).toBeUndefined();
+  expect(staticFileClient.getMetadata).not.toHaveBeenCalled();
+  setPictureId('new-picture');
+  await vi.waitFor(() => expect(filename()).toBe('picture.png'));
+  expect(staticFileClient.getMetadata).toHaveBeenCalledWith({
+    file_id: 'new-picture',
+  });
+  expect(
+    client.getQueryData(channelKeys.pictureMetadata('new-picture').queryKey)
+  ).toMatchObject({ file_name: 'picture.png' });
+  vi.mocked(staticFileClient.getMetadata).mockResolvedValueOnce(
+    ok({
+      file_id: 'other-picture',
+      owner_id: 'owner',
+      content_type: 'image/jpeg',
+      is_uploaded: true,
+      file_name: 'other.jpg',
+      s3_key: 'file/other-picture',
+    })
+  );
+  setPictureId('other-picture');
+  expect(filename()).toBeUndefined();
+  await vi.waitFor(() => expect(filename()).toBe('other.jpg'));
+  expect(staticFileClient.getMetadata).toHaveBeenCalledWith({
+    file_id: 'other-picture',
+  });
+  setPictureId(undefined);
+  expect(filename()).toBeUndefined();
+  expect(staticFileClient.getMetadata).toHaveBeenCalledTimes(2);
+});
 
 it('publishes the picture only after both upload and channel save succeed', async () => {
   const upload = vi.fn().mockResolvedValue('new-picture');
