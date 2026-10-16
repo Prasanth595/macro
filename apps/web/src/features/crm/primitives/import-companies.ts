@@ -1,4 +1,5 @@
 import { parseCsv } from '@core/util/csv';
+import { Telemetry } from '@macro-inc/observability';
 import { createSignal } from 'solid-js';
 import type { CompanyImporter } from '../context/crm-sources';
 import {
@@ -6,6 +7,7 @@ import {
   companyImportMessage,
   normalizeCompanyImport,
 } from '../core/import-companies';
+import { runConcurrently } from '../core/run-concurrently';
 
 const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 /** Concurrent creates: fast enough for thousands of rows, gentle on the service. */
@@ -30,7 +32,7 @@ export function createCompanyImport(importer: CompanyImporter) {
       return;
     }
     try {
-      const parsed = parseCsv((await file.text()).replace(/^﻿/, ''));
+      const parsed = parseCsv((await file.text()).replace(/^\uFEFF/, ''));
       if (!parsed.ok) {
         setError(parsed.error);
         return;
@@ -60,18 +62,26 @@ export function createCompanyImport(importer: CompanyImporter) {
     if (pending() || !rows().length) return;
     setPending(true);
     setError('');
-    const queue = [...rows()];
     const failed = new Set<CompanyImportRow>();
-    const worker = async () => {
-      for (let row = queue.shift(); row; row = queue.shift())
-        if (!(await importRow(row))) failed.add(row);
-    };
-    await Promise.all(Array.from({ length: IMPORT_CONCURRENCY }, worker));
-    try {
-      await importer.refresh();
-    } catch {
-      // The companies exist; listings catch up on their next read.
-    }
+    await Telemetry.span('crm.companies.import', async (span) => {
+      span.setAttr('crm.import.rows', rows().length);
+      await span.span('crm.companies.import.create', () =>
+        runConcurrently(rows(), IMPORT_CONCURRENCY, async (row) => {
+          if (!(await importRow(row))) failed.add(row);
+        })
+      );
+      span.setAttr('crm.import.created', completed());
+      span.setAttr('crm.import.existing', existing());
+      span.setAttr('crm.import.failed', failed.size);
+      try {
+        await importer.refresh();
+      } catch (cause) {
+        // The companies exist; listings catch up on their next read.
+        span.event('refresh_failed', {
+          error: cause instanceof Error ? cause.message : String(cause),
+        });
+      }
+    });
     setRows((all) => all.filter((row) => failed.has(row)));
     setPending(false);
     if (failed.size)

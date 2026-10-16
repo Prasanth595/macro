@@ -462,6 +462,10 @@ export function CrmWorkspaceView(props: {
                 <PipelineView
                   pipeline={pipeline()}
                   source={pipelines}
+                  transfer={{
+                    source: useCrmContext().createPipelineTransfer(pipeline()),
+                    downloadCsv: useCrmContext().downloadCsv,
+                  }}
                   Sharing={useCrmContext().PipelineSharing}
                   Editor={PipelineEditor}
                   onCopyLink={() =>

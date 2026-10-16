@@ -60,7 +60,8 @@ export function CrmImport(props: { onClose: () => void }) {
             </Show>
             <Show when={done()}>
               <p role="status" class="text-sm">
-                {completed().toLocaleString()} companies imported
+                {completed().toLocaleString()}{' '}
+                {completed() === 1 ? 'company' : 'companies'} imported
                 <Show when={existing()}>
                   , {existing().toLocaleString()} already in your CRM
                 </Show>

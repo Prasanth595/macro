@@ -66,6 +66,7 @@ import {
 } from './queries/contacts';
 import { fetchCrmExportCompanies } from './queries/export';
 import { useCrmLists } from './queries/lists';
+import { createPipelineTransfer } from './queries/pipeline-transfer';
 import { createPipelinesSource } from './queries/pipelines';
 import {
   recordListFailure,
@@ -175,6 +176,8 @@ export function createAppCrmContext(): CrmContext {
       storage: deps.storage,
     }),
     PipelineSharing: PipelineShare,
+    createPipelineTransfer: (pipeline) =>
+      createPipelineTransfer(deps, pipeline),
     feedback: toast,
     downloadCsv: downloadCrmCsv,
     createContactPhoto: (email) =>
