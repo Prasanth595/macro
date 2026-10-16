@@ -213,7 +213,8 @@ longer notifies the thread. Settings → notifications lists them under `AI`.
 ## Home — `/app/component/home`
 
 Greeting, example prompt buttons (`Draft a document`, `Draft an email`,
-`Search & research`), and the ubiquitous `Ask AI` composer. Finishing onboarding
+`Search & research`), and the desktop `Ask AI` composer. Mobile Home keeps its
+New action without a floating AI input. Finishing onboarding
 without a deep link lands here. The retired Getting Started page's old
 `/app/getting-started` and `/app/component/getting-started` links also open Home.
 

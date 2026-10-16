@@ -582,8 +582,9 @@ sheet on mobile, with broad, screen-scaled corners and an even 8px outer inset;
 home-indicator clearance is inside the glass. The mobile full menu is a scrollable
 list of available create actions ordered by recent usage, with a Close create menu
 button and no search field. Desktop retains search and keyboard controls. Other views
-show **+ New** for that full menu. The AI composer narrows beside this
-button; on Agents it fills the row with no duplicate create action. The row
+show **+ New** for that full menu. Only Agents has the floating AI composer,
+which fills the row with no duplicate create action. Other views keep their
+right-aligned New button without an AI input. The row
 hides during search, when a page supplies its own reply or compose controls, or
 when an editable field outside Ask AI is focused on a touch device. The AI draft
 is preserved when the row returns.

@@ -1160,8 +1160,9 @@ and admins when team settings are available. People keeps search and the compact
 `Add participants` opens a bottom sheet; Bots has its own full-height list and an
 `Invite bot` sheet. Bots uses the same search toolbar and plain rows as People;
 `Search bots` filters existing bots by name, handle, or description, with compact
-`New bot` and `Invite bot` actions beside it. The fallback AI composer and New
-button are hidden throughout this page and return when leaving it. Both sheets use the standard mobile keyboard-aware layout and
+`New bot` and `Invite bot` actions beside it. The fallback New button is hidden
+throughout this page and returns when leaving it. Channel views have no floating
+AI composer. Both sheets use the standard mobile keyboard-aware layout and
 close after a successful add. Check switching tabs, closing/reopening both sheets,
 and scrolling a long participant list above the bottom dock, with and without the
 keyboard open. An invite-bot request from the channel menu opens the Bots tab and
