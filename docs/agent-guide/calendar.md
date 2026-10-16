@@ -445,6 +445,11 @@ always shows; clicking a row navigates the grid to
 that date. Coverage depends on each teammate having connected their own calendar and using
 Google's out-of-office event type.
 
+Routine sync notifications that explicitly exclude OOO changes refresh this list
+in the background without returning to its skeleton. OOO changes, sharing changes,
+and notifications without that guarantee still clear cached rows and close open
+OOO details immediately before refetching.
+
 A calendar event mentioned in a channel message opens the calendar focused on the viewer's
 own copy of the meeting. When a person holds the event on their own calendar and posts the
 mention, it is shared read-only with the channel's current members: a member without a copy of
