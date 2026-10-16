@@ -893,7 +893,11 @@ export function SpreadsheetEditor(props: {
               ? grid.editingAddress()
               : formulaRangeReference(grid.selection())
           }
-          value={grid.editing() ? grid.draft() : cellEditValue(activeCell())}
+          value={
+            grid.editing()
+              ? grid.draft()
+              : cellEditValue(activeCell(), navigator.language)
+          }
           readonly={!editable()}
           onNavigate={(address) => {
             const parts = address.split(':');
