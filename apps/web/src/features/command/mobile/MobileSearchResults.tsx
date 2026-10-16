@@ -64,8 +64,8 @@ function MobileNameResults() {
     await Telemetry.span('mobile.search.open', async (span) => {
       span.setAttr('entity.id', item.id);
       span.setAttr('entity.type', item.bucket);
-      SearchState.close();
       if (item.kind === 'initiative') {
+        SearchState.close();
         openWithSplit({
           type: 'component',
           id: projectRouteId({ id: item.id, section: 'overview' }),
@@ -74,11 +74,13 @@ function MobileNameResults() {
         const result = await directMessage.mutateAsync({
           recipient_id: item.id,
         });
+        SearchState.close();
         openWithSplit(
           { type: 'channel', id: result.channel_id },
           { reopen: 'latest' }
         );
       } else {
+        SearchState.close();
         await openEntityInSplitFromUnifiedList(item.data, {
           splitHandle: panel.handle,
         });

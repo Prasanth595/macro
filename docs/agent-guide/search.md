@@ -37,6 +37,8 @@ Category/mode changes keep the same input mounted and focused. Enter dismisses
 the keyboard without ending search. Opening a result or **Close search** ends the
 session; reopening starts in All/name mode. Mobile query/category state is transient
 and does not modify desktop search state. The dock search row has no Ask AI button.
+If a person’s conversation lookup fails, search stays open with its query and
+category intact so the result can be retried.
 
 Verify sender-only `teo` matches with one- and two-character prefixes, then switch
 categories with the keyboard up. Select full text, edit the query, open a snippet,

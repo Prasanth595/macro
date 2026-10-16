@@ -20,6 +20,8 @@ const mocks = vi.hoisted(() => ({
   fullTextLoading: (() => false) as Accessor<boolean>,
   fullTextSettling: (() => false) as Accessor<boolean>,
   open: vi.fn(),
+  directMessage: vi.fn(),
+  failure: vi.fn(),
   loadMore: vi.fn(),
   hasMore: true,
   loadingMore: false,
@@ -54,9 +56,13 @@ vi.mock(
     }) => props.children,
   })
 );
-vi.mock('@core/component/Toast/Toast', () => ({ toast: { failure: vi.fn() } }));
+vi.mock('@core/component/Toast/Toast', () => ({
+  toast: { failure: mocks.failure },
+}));
 vi.mock('@queries/channel/get-or-create-dm', () => ({
-  useGetOrCreateDirectMessageMutation: () => ({ mutateAsync: vi.fn() }),
+  useGetOrCreateDirectMessageMutation: () => ({
+    mutateAsync: mocks.directMessage,
+  }),
 }));
 vi.mock('@queries/storage/databases', () => ({
   useDatabaseDiscoverySync: vi.fn(),
@@ -211,6 +217,51 @@ it('omits full text for Projects and ends the session on result opening', async 
   expect(mocks.open).toHaveBeenCalled();
   SearchState.open();
   expect(SearchState.mode()).toBe('name');
+  expect(SearchState.category()).toBe('all');
+});
+
+it('preserves the search after a failed person lookup and closes after a successful retry', async () => {
+  mocks.items = () => [
+    {
+      id: 'macro|teo@example.com',
+      kind: 'user',
+      bucket: 'person',
+      searchText: 'Teo',
+      sortTimestamp: 0,
+      timestamps: {},
+      data: {
+        id: 'macro|teo@example.com',
+        email: 'teo@example.com',
+        name: 'Teo',
+      },
+    },
+  ];
+  mocks.directMessage.mockRejectedValueOnce(new Error('Unavailable'));
+  mocks.directMessage.mockResolvedValueOnce({ channel_id: 'direct-message' });
+  SearchState.setQuery('teo');
+  SearchState.setCategory('people');
+  render(() => <MobileSearchResults />);
+  fireEvent.click(screen.getByRole('button', { name: 'Teo' }));
+  await waitFor(() =>
+    expect(mocks.failure).toHaveBeenCalledWith(
+      'Unable to open result. Please try again.'
+    )
+  );
+  expect(mocks.open).not.toHaveBeenCalled();
+  expect(SearchState.isOpen()).toBe(true);
+  expect(SearchState.query()).toBe('teo');
+  expect(SearchState.category()).toBe('people');
+  expect(SearchState.mode()).toBe('name');
+  fireEvent.click(screen.getByRole('button', { name: 'Teo' }));
+  expect(SearchState.isOpen()).toBe(true);
+  await waitFor(() =>
+    expect(mocks.open).toHaveBeenCalledWith(
+      { type: 'channel', id: 'direct-message' },
+      { reopen: 'latest' }
+    )
+  );
+  expect(SearchState.isOpen()).toBe(false);
+  expect(SearchState.query()).toBe('');
   expect(SearchState.category()).toBe('all');
 });
 
