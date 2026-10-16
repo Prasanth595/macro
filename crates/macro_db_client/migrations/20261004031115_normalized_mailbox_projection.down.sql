@@ -1,2 +1,1 @@
 DROP VIEW email_message_mailbox_facts;
-DROP INDEX email_messages_provider_folder;

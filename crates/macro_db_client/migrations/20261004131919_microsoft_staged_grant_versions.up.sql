@@ -1,3 +1,5 @@
+SET LOCAL lock_timeout = '1s';
+
 -- OAuth completion stages credentials; only email initialization adopts them.
 -- Keep the legacy owner/address table for older authentication adapters.
 CREATE TABLE microsoft_oauth_grant_versions

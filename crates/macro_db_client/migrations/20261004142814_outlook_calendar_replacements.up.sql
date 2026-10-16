@@ -1,3 +1,5 @@
+SET LOCAL lock_timeout = '1s';
+
 -- Retain the operation across old-event retirement. Disconnecting its calendar
 -- or deleting the actor removes snapshots and recovery records.
 CREATE TABLE calendar_event_replacements (

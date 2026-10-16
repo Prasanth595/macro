@@ -1,3 +1,6 @@
+SET LOCAL lock_timeout = '1s';
+SET LOCAL statement_timeout = '5s';
+
 ALTER TABLE calendar_event_overrides ADD COLUMN reminders JSONB, ADD COLUMN automatic_decline JSONB;
 
 -- Identity survives calendar disconnect, sync resets, and reconnecting the same

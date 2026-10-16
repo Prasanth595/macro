@@ -1,6 +1,5 @@
 -- Rollback requires Outlook calendars to have been explicitly disconnected.
 -- Keep the down migration fail-closed rather than deleting user calendar data.
-DROP INDEX calendar_event_sources_provider_idx;
 ALTER TABLE calendar_events DROP CONSTRAINT calendar_events_canonical_source_kind_check;
 ALTER TABLE calendar_events ADD CONSTRAINT calendar_events_canonical_source_kind_check CHECK(canonical_source_kind='google');
 ALTER TABLE calendar_event_sources DROP CONSTRAINT calendar_event_sources_shape;

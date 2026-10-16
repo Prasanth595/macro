@@ -1,3 +1,5 @@
+SET LOCAL lock_timeout = '1s';
+
 -- Local edits are durable independently of the latest remote message snapshot.
 -- The checkpoint contains the frozen revision and upload receipts for one attempt;
 -- later autosaves change desired_content without changing an in-flight attempt.

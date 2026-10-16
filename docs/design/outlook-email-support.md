@@ -868,6 +868,46 @@ Outlook account creation. Audit REST, GraphQL, SDK, search/index workers, refres
 handlers, and cached/native clients for exhaustive provider assumptions. Keep
 new queue payloads away from old consumers until every consumer can decode them.
 
+### Migration deployment and recovery
+
+These revisions change the checksums and ordering of the original PR migrations.
+Apply them only to a database that has not applied the earlier versions. Do not
+change `_sqlx_migrations` checksums or delete ledger rows to bypass a mismatch;
+an environment that already ran an earlier version needs its own reviewed
+forward migration.
+
+Changes to populated email/calendar tables use short metadata transactions with
+a one-second `lock_timeout` and a five-second `statement_timeout`. Check
+constraints are installed as `NOT VALID` and validated in a separate transaction
+with a fifteen-minute statement limit. A timeout fails the migration; investigate
+the blocking session or resource load before retrying. The limits do not promise
+zero interruption, and validation/index scans still consume CPU and disk I/O.
+
+The seven indexes on shared message, link, draft-attachment, event-source, and
+reminder tables are built with `CONCURRENTLY`, each in a single-statement
+`-- no-transaction` migration. Column additions commit before those builds. The
+existing attachment lookup and reminder keys remain until their replacement
+indexes are ready. New, empty Outlook runtime tables keep ordinary index builds.
+
+After an interrupted or failed concurrent build, inspect `pg_index.indisvalid`
+and `indisready` for the named index and check the migration ledger. An invalid
+index must be dropped with `DROP INDEX CONCURRENTLY` outside a transaction before
+retrying. If the index is valid but its migration was not recorded, investigate
+the interrupted ledger write before retrying. Do not use `IF NOT EXISTS` to hide
+either state: existence does not establish that an index is valid or correct.
+
+The reminder-key cutover requires a coordinated deployment: old calendar writers
+infer the keys without `method` in their `ON CONFLICT` clauses. Quiesce and drain
+those writers before applying `outlook_reminder_method_keys`, then deploy the
+provider-aware versions before resuming calendar writes. Include event sync and
+occurrence/reminder rebuilding as well as reminder delivery. The Outlook feature
+flag alone does not protect old Gmail calendar writers from this key change.
+
+The attachment-key and reminder-key cutovers have forward-only rollback guards.
+Do not delete shared attachment references or email reminder history to recreate
+the old unique keys. Roll application code back only to a version compatible with
+the deployed keys; retire these schema changes with a separate forward migration.
+
 Use separate controls for new connections, provider mutations/sending, and sync.
 Disabling new connections leaves existing inboxes operational. Pausing sync keeps
 durable work for recovery. A send kill switch still permits reconciliation of

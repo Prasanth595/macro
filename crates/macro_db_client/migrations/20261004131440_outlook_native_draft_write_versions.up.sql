@@ -1,3 +1,5 @@
+SET LOCAL lock_timeout = '1s';
+
 -- Preserve proven organization-only ETag transitions before a native draft has
 -- its first Macro content journal. The ordinary projection watermark stays separate.
 CREATE TABLE email_draft_organization_versions (

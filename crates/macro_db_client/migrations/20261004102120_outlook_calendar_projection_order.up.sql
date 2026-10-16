@@ -1,3 +1,5 @@
+SET LOCAL lock_timeout = '1s';
+
 -- Preserve an unpublished creation when its initial projection is enriched.
 CREATE OR REPLACE FUNCTION calendar_outlook_projection_changed() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE row_value calendar_events;

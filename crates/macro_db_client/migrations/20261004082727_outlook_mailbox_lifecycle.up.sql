@@ -1,3 +1,6 @@
+SET LOCAL lock_timeout = '1s';
+SET LOCAL statement_timeout = '5s';
+
 ALTER TABLE email_links ADD COLUMN disconnect_requested_at timestamptz;
 
 -- Non-secret email-owned capability projection. Authentication retains sole

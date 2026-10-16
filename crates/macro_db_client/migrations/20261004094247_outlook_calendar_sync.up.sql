@@ -1,6 +1,9 @@
+SET LOCAL lock_timeout = '1s';
+SET LOCAL statement_timeout = '5s';
+
 ALTER TABLE calendars ADD COLUMN online_meeting_providers text[] NOT NULL DEFAULT '{}';
 ALTER TABLE calendar_events DROP CONSTRAINT calendar_events_conference_provider_check;
-ALTER TABLE calendar_events ADD CONSTRAINT calendar_events_conference_provider_check CHECK(conference_provider IN ('google_meet','microsoft_teams','other'));
+ALTER TABLE calendar_events ADD CONSTRAINT calendar_events_conference_provider_check CHECK(conference_provider IN ('google_meet','microsoft_teams','other')) NOT VALID;
 CREATE TABLE calendar_outlook_work (
     id uuid PRIMARY KEY,
     account_id uuid NOT NULL REFERENCES calendar_accounts(id) ON DELETE CASCADE,

@@ -1,3 +1,5 @@
+SET LOCAL lock_timeout = '1s';
+
 -- A recovery request can arrive before the original HTTP request reaches storage.
 -- Keep cancellations independently of inbox lifetime and before any transfer exists.
 CREATE TABLE email_draft_transfer_cancellations (

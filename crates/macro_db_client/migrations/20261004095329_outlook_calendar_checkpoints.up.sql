@@ -1,3 +1,5 @@
+SET LOCAL lock_timeout = '1s';
+
 ALTER TABLE calendar_outlook_work
     ADD COLUMN scan_id uuid NOT NULL DEFAULT gen_random_uuid(),
     ADD COLUMN full_scan boolean NOT NULL DEFAULT true,

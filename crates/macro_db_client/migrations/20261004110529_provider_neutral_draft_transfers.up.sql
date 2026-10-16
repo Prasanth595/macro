@@ -1,3 +1,5 @@
+SET LOCAL lock_timeout = '1s';
+
 -- Add up migration script here
 CREATE TABLE email_draft_transfers (
     id uuid PRIMARY KEY,

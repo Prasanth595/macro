@@ -1,3 +1,5 @@
+SET LOCAL lock_timeout = '1s';
+
 ALTER TABLE email_mailbox_command_targets
     ADD COLUMN message_id uuid REFERENCES email_messages(id) ON DELETE CASCADE,
     ADD COLUMN pending jsonb NOT NULL DEFAULT '{}'::jsonb;

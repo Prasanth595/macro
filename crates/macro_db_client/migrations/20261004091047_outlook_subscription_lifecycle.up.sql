@@ -1,3 +1,5 @@
+SET LOCAL lock_timeout = '1s';
+
 ALTER TABLE email_provider_subscriptions DROP CONSTRAINT email_provider_subscriptions_pkey;
 ALTER TABLE email_provider_subscriptions ADD COLUMN id UUID NOT NULL DEFAULT gen_random_uuid();
 ALTER TABLE email_provider_subscriptions ADD PRIMARY KEY(id);

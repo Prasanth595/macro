@@ -1,3 +1,5 @@
+SET LOCAL lock_timeout = '1s';
+
 -- Provider observations remain separate from the latest accepted tag intent.
 CREATE VIEW email_effective_message_labels AS
 WITH candidates AS (

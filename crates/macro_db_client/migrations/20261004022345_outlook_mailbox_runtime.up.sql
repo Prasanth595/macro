@@ -1,17 +1,22 @@
 -- Additive: old Gmail readers/writers continue to work during deployment.
+SET LOCAL lock_timeout = '1s';
+SET LOCAL statement_timeout = '5s';
+
 ALTER TYPE email_user_provider_enum ADD VALUE 'OUTLOOK';
 
 ALTER TABLE microsoft_oauth_grants
     ADD COLUMN grant_id uuid UNIQUE,
-    ADD COLUMN generation bigint NOT NULL DEFAULT 1 CHECK (generation > 0),
-    ADD COLUMN revision bigint NOT NULL DEFAULT 0 CHECK (revision >= 0),
+    ADD COLUMN generation bigint NOT NULL DEFAULT 1,
+    ADD COLUMN revision bigint NOT NULL DEFAULT 0,
     ADD COLUMN tenant_id text,
     ADD COLUMN subject_id text,
     ADD COLUMN mailbox_id text,
     ADD COLUMN scopes text[] NOT NULL DEFAULT '{}',
     ADD COLUMN revoked_at timestamptz,
     ADD COLUMN refresh_lease_id uuid,
-    ADD COLUMN refresh_lease_until timestamptz;
+    ADD COLUMN refresh_lease_until timestamptz,
+    ADD CONSTRAINT microsoft_oauth_grants_generation_check CHECK (generation > 0) NOT VALID,
+    ADD CONSTRAINT microsoft_oauth_grants_revision_check CHECK (revision >= 0) NOT VALID;
 
 -- Old pending Google links retain their meaning. Microsoft attempts are also
 -- bound to the initiating principal, redirect, PKCE verifier, and OIDC nonce.
@@ -33,7 +38,8 @@ CREATE TABLE microsoft_link_attempts (
 ALTER TABLE email_links
     ADD COLUMN grant_id uuid,
     ADD COLUMN grant_generation bigint NOT NULL DEFAULT 0,
-    ADD COLUMN sync_generation bigint NOT NULL DEFAULT 1 CHECK (sync_generation > 0);
+    ADD COLUMN sync_generation bigint NOT NULL DEFAULT 1,
+    ADD CONSTRAINT email_links_sync_generation_check CHECK (sync_generation > 0) NOT VALID;
 
 CREATE TABLE email_mailbox_folders (
     link_id uuid NOT NULL REFERENCES email_links(id) ON DELETE CASCADE,

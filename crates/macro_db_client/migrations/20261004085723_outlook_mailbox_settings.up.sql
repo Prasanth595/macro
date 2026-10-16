@@ -1,3 +1,5 @@
+SET LOCAL lock_timeout = '1s';
+
 CREATE TABLE email_mailbox_settings_work (
     id UUID PRIMARY KEY,
     link_id UUID NOT NULL REFERENCES email_links(id) ON DELETE CASCADE,

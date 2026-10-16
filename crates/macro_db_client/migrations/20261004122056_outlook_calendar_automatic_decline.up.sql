@@ -1,3 +1,6 @@
+SET LOCAL lock_timeout = '1s';
+SET LOCAL statement_timeout = '5s';
+
 ALTER TABLE calendar_event_sources ADD COLUMN automatic_decline JSONB;
 CREATE TABLE calendar_outlook_declines (
     id UUID PRIMARY KEY,

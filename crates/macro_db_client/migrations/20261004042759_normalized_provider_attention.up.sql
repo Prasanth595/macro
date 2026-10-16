@@ -1,3 +1,5 @@
+SET LOCAL lock_timeout = '1s';
+
 -- One interpretation of organization state for Gmail labels and Outlook folders.
 -- A user category named INBOX/TRASH never becomes a folder on Outlook.
 CREATE OR REPLACE VIEW email_message_mailbox_facts AS

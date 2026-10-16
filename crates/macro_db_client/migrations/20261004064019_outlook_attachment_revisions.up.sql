@@ -1,3 +1,5 @@
+SET LOCAL lock_timeout = '1s';
+
 -- Explicit provider IDs and stable Content-IDs are separate deletion selectors.
 CREATE TABLE email_draft_attachment_removals (
     id UUID PRIMARY KEY,

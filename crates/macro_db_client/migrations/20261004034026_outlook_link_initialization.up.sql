@@ -1,9 +1,10 @@
+SET LOCAL lock_timeout = '1s';
+SET LOCAL statement_timeout = '5s';
+
 ALTER TABLE email_links
     ADD COLUMN provider_tenant_id text,
     ADD COLUMN provider_mailbox_id text;
-CREATE UNIQUE INDEX email_links_outlook_identity
-    ON email_links (provider_tenant_id,provider_mailbox_id)
-    WHERE provider = 'OUTLOOK' AND provider_tenant_id IS NOT NULL AND provider_mailbox_id IS NOT NULL;
+-- Build email_links_outlook_identity concurrently after committing these columns.
 
 -- Retain a non-secret receipt after consuming an OAuth attempt. An HTTP retry
 -- returns the same mailbox; it cannot start another import or grant access twice.

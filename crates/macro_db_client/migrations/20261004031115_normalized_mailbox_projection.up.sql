@@ -1,3 +1,6 @@
+SET LOCAL lock_timeout = '1s';
+SET LOCAL statement_timeout = '5s';
+
 -- One interpretation of organization state for Gmail labels and Outlook folders.
 -- A user category named INBOX/TRASH never becomes a folder on Outlook.
 CREATE VIEW email_message_mailbox_facts AS
@@ -21,5 +24,4 @@ CROSS JOIN LATERAL (
     WHERE ml.message_id = m.id
 ) labels;
 
-CREATE INDEX email_messages_provider_folder ON email_messages (link_id, provider_folder_id)
-    WHERE provider_folder_id IS NOT NULL;
+-- Build email_messages_provider_folder concurrently in a separate migration.
