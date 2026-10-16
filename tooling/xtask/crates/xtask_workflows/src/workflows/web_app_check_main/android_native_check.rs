@@ -10,8 +10,9 @@
 //!    `apps/web/tauri` minus iOS/desktop-only paths, plus the client cache
 //!    wasm version). This part always runs.
 //! 2. When it changed, asks Google Play whether that version code is a
-//!    completed production release built from the native code of the PR's
-//!    current merge result (the provenance stamp in the release notes),
+//!    published production release (through review and rolled out) built
+//!    from the native code of the PR's current merge result (the provenance
+//!    stamp in the release notes),
 //!    and fails with instructions otherwise — add the `android-update` label
 //!    to run [`super::super::android_play_release`];
 //!    [`super::super::android_release_watch`] re-runs this job once the
@@ -142,26 +143,9 @@ fn require_live() -> Step<Run> {
     Step::new("Require the Play release to be live")
         .run(concat!(
             include_str!("../scripts/android_git_fetch.sh"),
+            include_str!("../scripts/pr_merge_commit.sh"),
             r#"set -euo pipefail
-# GitHub computes the merge commit lazily (mergeable=UNKNOWN until it has),
-# so poll for it a little; a PR that really conflicts with main cannot merge.
-deadline=$(( $(date +%s) + 120 ))
-while true; do
-  pr_json=$(gh pr view "$PR_NUMBER" --repo "$GH_REPO" --json mergeable,potentialMergeCommit)
-  mergeable=$(jq -r '.mergeable' <<<"$pr_json")
-  merge=$(jq -r '.potentialMergeCommit.oid // empty' <<<"$pr_json")
-  [[ -n "$merge" ]] && break
-  if [[ "$mergeable" == "CONFLICTING" ]]; then
-    echo "::error::PR #${PR_NUMBER} conflicts with its base branch, so there is no merge result to check; resolve the conflicts first." >&2
-    exit 1
-  fi
-  if (( $(date +%s) > deadline )); then
-    echo "::error::GitHub has not computed PR #${PR_NUMBER}'s merge commit yet (mergeable=${mergeable}); re-run this job in a minute." >&2
-    exit 1
-  fi
-  echo "Merge commit not computed yet (mergeable=${mergeable}); waiting."
-  sleep 10
-done
+merge=$(pr_merge_commit)
 gh_fetch "$merge"
 native_hash=$(bun scripts/android-native.mjs hash "$merge")
 echo "Merge result ${merge:0:10}: Android native hash ${native_hash}"
@@ -175,8 +159,14 @@ bun scripts/android-play-status.mjs --version-code "$VERSION_CODE" --require-liv
         .add_env(("GH_TOKEN", "${{ github.token }}"))
         .add_env(("GH_REPO", "${{ github.repository }}"))
         .add_env(("PR_NUMBER", "${{ github.event.pull_request.number }}"))
-        .add_env(("VERSION_CODE", "${{ steps.android-version.outputs.version_code }}"))
-        .add_env(("GOOGLE_PLAY_ACCESS_TOKEN", "${{ steps.auth.outputs.access_token }}"))
+        .add_env((
+            "VERSION_CODE",
+            "${{ steps.android-version.outputs.version_code }}",
+        ))
+        .add_env((
+            "GOOGLE_PLAY_ACCESS_TOKEN",
+            "${{ steps.auth.outputs.access_token }}",
+        ))
 }
 
 fn skip_notice() -> Step<Run> {

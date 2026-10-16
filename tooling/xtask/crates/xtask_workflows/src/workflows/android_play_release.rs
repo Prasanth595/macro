@@ -117,6 +117,7 @@ fn preconditions() -> Step<Run> {
     Step::new("Require the PR to be ready to merge")
         .run(concat!(
             include_str!("scripts/android_git_fetch.sh"),
+            include_str!("scripts/pr_merge_commit.sh"),
             include_str!("scripts/android_release_preconditions.sh")
         ))
         .id("preconditions")
@@ -263,6 +264,7 @@ fn head_guard() -> Step<Run> {
     Step::new("Require the PR's Android native code to be unchanged since the build")
         .run(concat!(
             include_str!("scripts/android_git_fetch.sh"),
+            include_str!("scripts/pr_merge_commit.sh"),
             include_str!("scripts/android_release_head_guard.sh")
         ))
         .shell("bash")

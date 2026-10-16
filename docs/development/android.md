@@ -135,23 +135,33 @@ Android releases are driven from pull requests, like iOS (see
 deployment cycle. Three generated workflows plus the `Android Native Check`
 job of the web app PR checks enforce it:
 
-1. **`Android Native Check`** runs on every PR against `main`. It always
-   requires a `versionCode` bump when the Android native code changed (see
-   "Native release identity" above for what counts), and, when it changed,
-   asks Google Play whether that version code is a completed production
-   release built from the native code of the PR's merge result. Until both
-   hold the check fails and the required `Web App Status Check` fails with
-   it. Add **`skip-android-update`** for native changes that don't break the
-   native/web contract; the `Native Check Label` workflow re-runs just the
-   gate job when that label is added or removed.
-2. Bump and commit: `just android-bump` in `apps/web`.
-3. Add the **`android-update`** label once the PR is ready to merge. The
+**`Android Native Check`** runs on every PR against `main`. It always
+requires a `versionCode` bump when the Android native code changed (see
+"Native release identity" above for what counts), and, when it changed, asks
+Google Play whether that version code is a production release that Google
+has **published** (through review and available to users — the edit API's
+`status: completed` only describes the rollout, so the gate also reads the
+release list's `releaseLifecycleState`), built from the native code of the
+PR's merge result. Until both hold the check fails and the required
+`Web App Status Check` fails with it. Add **`skip-android-update`** for
+native changes that don't break the native/web contract; the `Native Check
+Label` workflow re-runs just the gate job when that label is added or
+removed.
+
+To release:
+
+1. Bump and commit: `just android-bump` in `apps/web`.
+2. Add the **`android-update`** label once the PR is ready to merge. The
    **`Android Play Release`** workflow (`.github/workflows/android-play-release.yml`)
    first refuses drafts, PRs with failing checks (pending ones are waited on,
-   up to 30 minutes) and PRs without a bump, then builds the signed App
-   Bundle from the PR head on a hosted Ubuntu runner (Android SDK, Nix,
-   signing and Firebase config from Doppler `android-release/prd`), verifies
-   it with bundletool, uploads it to the **internal** track with
+   up to 30 minutes), PRs without a bump, and PRs whose head lacks Android
+   native code that landed on `main` since they branched (the gate hashes
+   the merge result, so such a bundle could never pass it; merge `main`,
+   bump, re-add the label). It then builds the signed App Bundle from the PR
+   head on a hosted Ubuntu runner (Android SDK, Nix, signing and Firebase
+   config from Doppler `android-release/prd`), verifies it with bundletool,
+   checks again that neither the PR head nor `main` changed native code
+   during the build, uploads it to the **internal** track with
    `status=completed`, and promotes it to **production** as a full rollout
    (Google review applies). The bundle and R8 mapping are kept as a workflow
    artifact for 90 days. The release notes carry a provenance stamp,
@@ -159,15 +169,17 @@ job of the web app PR checks enforce it:
    The run comments the outcome on the PR; remove and re-add the label to
    retry. Click **Enable auto-merge** on the PR to merge the moment it is
    live.
-4. Wait for Google. The **`Android Release Watch`** workflow (every 30
-   minutes) notices the version code going live on production, re-runs the
-   PR's failed `Android Native Check` job, and comments; the PR merges if
+3. Wait for Google. The **`Android Release Watch`** workflow (every 30
+   minutes) notices the version code being published on production, re-runs
+   the PR's failed `Android Native Check` job, and comments; the PR merges if
    auto-merge is on.
-5. Pushes after the label: web-only commits need nothing. Native commits make
+4. Pushes after the label: web-only commits need nothing. Native commits make
    the bundle stale: **`Android Release Drift`** cancels an in-progress build,
    removes the label and comments. A Play production release cannot be
    withdrawn once submitted, so if the stale bundle was already promoted the
-   comment says so and the follow-up should ship as soon as possible.
+   comment says so and the follow-up should ship as soon as possible (after
+   a force-push the old head is gone, so drift checks Play for the new
+   head's version code instead).
 
 Play is the source of truth for what is live; nothing ties Android bundles
 to production release tags any more. `publish-android-play.yml` remains as
@@ -181,8 +193,8 @@ config, and the normal OTA-enabled release build. The GitHub Actions
 secret; CI passes this dedicated read-only service token as `DOPPLER_TOKEN`
 only during configuration retrieval. Signing files live in the runner's
 temporary directory and are removed even when the build fails. The separate
-`android-build-log` Actions artifact is retained for seven days, including
-on failed builds.
+`android-build-log` Actions artifact is retained for seven days (unlike the
+90-day `android-release` bundle artifact), including on failed builds.
 
 The Android workflows use ephemeral GitHub-hosted runners without a separate
 Nix cache mount. Do not invoke the shared `teardown-nix` cache-volume action

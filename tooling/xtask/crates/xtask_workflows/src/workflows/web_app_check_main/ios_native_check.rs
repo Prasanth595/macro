@@ -203,6 +203,7 @@ fn require_live_version() -> Step<Run> {
     Step::new("Require the App Store release to be live")
         .run(concat!(
             include_str!("../scripts/ios_native_tree.sh"),
+            include_str!("../scripts/pr_merge_commit.sh"),
             include_str!("../scripts/ios_native_check_live.sh")
         ))
         .if_condition(gated())
