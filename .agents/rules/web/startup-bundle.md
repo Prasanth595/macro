@@ -26,8 +26,7 @@ alwaysApply: false
   content. The first shell to mount dismisses it (`dismissBootShell`). Keep its
   rail width and desktop inset in step with `SidebarRail` and `SplitLayout`.
 - Do not register an asset-caching service worker. Keep `public/sw.js` at its
-  deployed URL and invalidate that URL after publishing so existing workers can
-  update, clear their shell and asset caches, and unregister; it must not
-  intercept requests.
+  deployed URL so existing workers can update, clear their shell and asset
+  caches, and unregister; it must not intercept requests.
 - The build fails if any emitted file exceeds CloudFront's 10 MB compression
   limit; split it rather than raising the limit.

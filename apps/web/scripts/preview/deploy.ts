@@ -42,8 +42,6 @@ export function previewSyncArguments(
     '--exclude',
     'index.html',
     '--exclude',
-    'sw.js',
-    '--exclude',
     '*cache_wasm_bg*.wasm',
     '--exclude',
     '*cache_wasm_bg*.wasm.br',
@@ -101,56 +99,18 @@ function build(): void {
 type PreviewCommandRunner = (
   executable: string,
   argumentsList: readonly string[]
-) => string;
+) => void;
 
 export function publishPreviewAssets(
   previewId: string,
   distPath = DIST_PATH,
   run: PreviewCommandRunner = (executable, argumentsList) => {
-    const output = execFileSync(executable, [...argumentsList], {
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'inherit'],
-    });
-    process.stdout.write(output);
-    return output;
+    execFileSync(executable, [...argumentsList], { stdio: 'inherit' });
   }
 ): void {
-  // Resolve the shared preview distribution from its origin, not a copied ID.
-  const distributionIds: unknown = JSON.parse(
-    run('aws', [
-      'cloudfront',
-      'list-distributions',
-      '--query',
-      `DistributionList.Items[?Origins.Items[?Id == '${PREVIEW_BUCKET}']].Id`,
-      '--output',
-      'json',
-    ])
-  );
-  if (
-    !Array.isArray(distributionIds) ||
-    distributionIds.length !== 1 ||
-    typeof distributionIds[0] !== 'string' ||
-    !distributionIds[0]
-  ) {
-    throw new Error(
-      'Expected one CloudFront distribution for the preview bucket'
-    );
-  }
-  const distributionId = distributionIds[0];
   const s3Prefix = `s3://${PREVIEW_BUCKET}/${previewId}/app`;
   run('bash', [CACHE_WASM_UPLOAD_SCRIPT, distPath, s3Prefix]);
   run('aws', previewSyncArguments(previewId, distPath));
-  // A stable worker URL must not inherit the immutable asset cache policy.
-  run('aws', [
-    's3',
-    'cp',
-    `${distPath}/sw.js`,
-    `${s3Prefix}/sw.js`,
-    '--content-type',
-    'application/javascript',
-    '--cache-control',
-    'no-store',
-  ]);
   run('aws', [
     's3',
     'cp',
@@ -158,31 +118,6 @@ export function publishPreviewAssets(
     `${s3Prefix}/index.html`,
     '--cache-control',
     'no-cache, no-store, must-revalidate',
-  ]);
-  const invalidationId = run('aws', [
-    'cloudfront',
-    'create-invalidation',
-    '--distribution-id',
-    distributionId,
-    '--paths',
-    '/app/sw.js',
-    `/${previewId}/app/sw.js`,
-    '--query',
-    'Invalidation.Id',
-    '--output',
-    'text',
-  ]).trim();
-  if (!invalidationId || invalidationId === 'None') {
-    throw new Error('CloudFront did not return a worker invalidation ID');
-  }
-  run('aws', [
-    'cloudfront',
-    'wait',
-    'invalidation-completed',
-    '--distribution-id',
-    distributionId,
-    '--id',
-    invalidationId,
   ]);
   run('bash', [CACHE_WASM_PRUNE_SCRIPT, distPath, s3Prefix]);
 }

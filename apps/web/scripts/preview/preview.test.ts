@@ -94,86 +94,40 @@ describe('generatePreviewId', () => {
   });
 });
 
-describe('preview asset deployment', () => {
-  it('excludes the worker and cache WASM from immutable asset sync', () => {
+describe('preview cache WASM deployment', () => {
+  it('excludes only cache WASM raw/sidecar from generic sync', () => {
     const argumentsList = previewSyncArguments('preview-id', '/tmp/dist');
-    expect(argumentsList).toContain('sw.js');
     expect(argumentsList).toContain('*cache_wasm_bg*.wasm');
     expect(argumentsList).toContain('*cache_wasm_bg*.wasm.br');
     expect(argumentsList).not.toContain('*.wasm');
     expect(argumentsList).not.toContain('*.wasm.br');
   });
 
-  it('publishes an uncached worker and waits for invalidation on every redeploy before pruning', () => {
+  it('publishes current WASM, assets, and index before pruning', () => {
     const calls: string[][] = [];
-    for (let deploy = 0; deploy < 2; deploy++) {
-      publishPreviewAssets('preview-id', '/tmp/dist', (executable, args) => {
-        calls.push([executable, ...args]);
-        if (args[1] === 'list-distributions') return '["DISTRIBUTION"]';
-        if (args[1] === 'create-invalidation') return 'INVALIDATION\n';
-        return '';
-      });
-    }
-    expect(calls).toHaveLength(16);
-    expect(calls.slice(8)).toEqual(calls.slice(0, 8));
-    expect(calls[0].slice(0, 3)).toEqual([
+    publishPreviewAssets('preview-id', '/tmp/dist', (executable, args) => {
+      calls.push([executable, ...args]);
+    });
+    expect(calls.map((call) => call[0])).toEqual([
+      'bash',
       'aws',
-      'cloudfront',
-      'list-distributions',
-    ]);
-    expect(calls[1].join(' ')).toContain('upload-brotli-to-s3.sh');
-    expect(calls[2].slice(0, 3)).toEqual(['aws', 's3', 'sync']);
-    expect(calls[3]).toEqual([
       'aws',
-      's3',
-      'cp',
-      '/tmp/dist/sw.js',
-      's3://macro-preview-assets-dev/preview-id/app/sw.js',
-      '--content-type',
-      'application/javascript',
-      '--cache-control',
-      'no-store',
+      'bash',
     ]);
-    expect(calls[4].slice(0, 3)).toEqual(['aws', 's3', 'cp']);
-    expect(calls[5]).toEqual([
-      'aws',
-      'cloudfront',
-      'create-invalidation',
-      '--distribution-id',
-      'DISTRIBUTION',
-      '--paths',
-      '/app/sw.js',
-      '/preview-id/app/sw.js',
-      '--query',
-      'Invalidation.Id',
-      '--output',
-      'text',
-    ]);
-    expect(calls[6]).toEqual([
-      'aws',
-      'cloudfront',
-      'wait',
-      'invalidation-completed',
-      '--distribution-id',
-      'DISTRIBUTION',
-      '--id',
-      'INVALIDATION',
-    ]);
-    expect(calls[7].join(' ')).toContain('prune-old-brotli-from-s3.sh');
+    expect(calls[0].join(' ')).toContain('upload-brotli-to-s3.sh');
+    expect(calls[1].slice(0, 3)).toEqual(['aws', 's3', 'sync']);
+    expect(calls[2].slice(0, 3)).toEqual(['aws', 's3', 'cp']);
+    expect(calls[3].join(' ')).toContain('prune-old-brotli-from-s3.sh');
   });
 
-  it.each([2, 3, 4, 5, 6])(
-    'does not prune when publication or invalidation step %i fails',
+  it.each([1, 2])(
+    'does not prune when publication step %i fails',
     (failedCall) => {
       const calls: string[][] = [];
       expect(() =>
         publishPreviewAssets('preview-id', '/tmp/dist', (executable, args) => {
           calls.push([executable, ...args]);
-          if (calls.length - 1 === failedCall)
-            throw new Error('publish failed');
-          if (args[1] === 'list-distributions') return '["DISTRIBUTION"]';
-          if (args[1] === 'create-invalidation') return 'INVALIDATION';
-          return '';
+          if (calls.length - 1 === failedCall) throw new Error('publish failed');
         })
       ).toThrow('publish failed');
       expect(
@@ -181,20 +135,6 @@ describe('preview asset deployment', () => {
           call.join(' ').includes('prune-old-brotli-from-s3.sh')
         )
       ).toBe(false);
-    }
-  );
-
-  it.each(['[]', '["ONE", "TWO"]'])(
-    'rejects missing or ambiguous preview distributions: %s',
-    (distributions) => {
-      const calls: string[][] = [];
-      expect(() =>
-        publishPreviewAssets('preview-id', '/tmp/dist', (executable, args) => {
-          calls.push([executable, ...args]);
-          return distributions;
-        })
-      ).toThrow('Expected one CloudFront distribution for the preview bucket');
-      expect(calls).toHaveLength(1);
     }
   );
 });
