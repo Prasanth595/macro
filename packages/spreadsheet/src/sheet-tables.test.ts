@@ -261,6 +261,58 @@ describe('filterTable', () => {
   });
 });
 
+describe('side-by-side tables', () => {
+  const left: SheetTable = {
+    name: 'Left',
+    range: 'A1:B4',
+    totalsRow: false,
+    bandedRows: true,
+  };
+  const right: SheetTable = {
+    name: 'Right',
+    range: 'D1:E4',
+    totalsRow: false,
+    bandedRows: true,
+    filters: { 0: { values: ['keep'] } },
+  };
+  const shown: Record<string, string> = {
+    A2: 'a',
+    A3: 'b',
+    A4: 'c',
+    D2: 'keep',
+    D3: 'drop',
+    D4: 'keep',
+  };
+  const display = (row: number, column: number) =>
+    shown[`${String.fromCharCode(65 + column)}${row + 1}`] ?? '';
+
+  it('keep rows the other table hides when one filters or stops being a table', () => {
+    const metadata = { tables: [left, right], hiddenRows: [2] };
+    expect(
+      filterTable({
+        metadata,
+        name: 'Left',
+        filters: { 0: { values: ['a', 'b'] } },
+        display,
+      }).hiddenRows
+    ).toEqual([2, 3]);
+    expect(
+      filterTable({ metadata, name: 'Left', filters: {}, display }).hiddenRows
+    ).toEqual([2]);
+    const filtered = {
+      tables: [{ ...left, filters: {} }, right],
+      hiddenRows: [2],
+    };
+    expect(
+      convertTableToRange(
+        [{ id: 'sheet1', name: 'Data', cells: {}, metadata: filtered }],
+        'sheet1',
+        'Left'
+      )[0].metadata?.hiddenRows
+    ).toEqual([2]);
+  });
+});
+
 describe('workbook table operations', () => {
   const sheets = [
     {

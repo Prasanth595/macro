@@ -382,7 +382,7 @@ function importFormula(
   if (resolved === undefined) return;
   if (resolved !== stripped)
     context.warnings.add(
-      'Excel tables without a header row are imported as ordinary cells; formulas refer to their cell ranges.'
+      'Excel tables without a header row, or beyond Macro’s sheet size or table limit, are imported as ordinary cells; formulas refer to their cell ranges.'
     );
   const shown = displayStructuredReferences(
     resolved,

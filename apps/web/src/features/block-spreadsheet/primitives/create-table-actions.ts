@@ -8,6 +8,7 @@ import {
   convertTableToRange,
   createTable,
   filterTable,
+  keepsHiddenRow,
   nextTableName,
   renameTable,
   type SheetChanges,
@@ -316,12 +317,15 @@ export function createTableActions(options: {
       return;
     }
     const metadata = store.activeSheet().metadata;
+    const keeps = keepsHiddenRow(metadata, name);
     const hidden = new Set(metadata?.hiddenRows ?? []);
-    const next = new Set(
-      [...hidden].filter((row) => row < first || row > last)
-    );
+    const next = new Set([...hidden].filter(keeps));
     for (const copy of copies)
-      if (copy.from.column === left && hidden.has(copy.from.row))
+      if (
+        copy.from.column === left &&
+        hidden.has(copy.from.row) &&
+        !keeps(copy.from.row)
+      )
         next.add(copy.to.row);
     const { hiddenRows: _hidden, ...rest } = metadata ?? {};
     apply(() => [

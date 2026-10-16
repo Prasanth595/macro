@@ -226,7 +226,9 @@ reorders the data rows like range sorting and keeps filter-hidden rows hidden wi
 their values. A filter stores the values it shows, as Excel does, and hides the
 other data rows through the sheet's `hiddenRows` in the same change, so
 `SUBTOTAL(101–111)` leaves them out and Excel downloads keep them hidden. Filters
-apply when chosen, not on every later edit. A total row's cells offer an aggregate
+apply when chosen, not on every later edit. Hidden rows a side-by-side table's
+filter may have hidden stay hidden, and in place, when another table filters,
+sorts or becomes a range. A total row's cells offer an aggregate
 picker in the cell dropdown, which writes `=SUBTOTAL(109,[Amount])` and the like.
 
 Typing one value directly below a table without a total row, or directly to its

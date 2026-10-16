@@ -593,8 +593,28 @@ export function tableFilterHiddenRows(
 }
 
 /**
+ * Whether a hidden row stays hidden when table `name` filters, sorts or
+ * stops being a table: it is outside the table's data rows, or in the data
+ * rows of another filtered table, whose filter may hide it.
+ */
+export function keepsHiddenRow(
+  metadata: WorkbookSheetMetadata | undefined,
+  name: string
+): (row: number) => boolean {
+  const own = tableDataRows(findTable(metadata, name));
+  const others = (metadata?.tables ?? [])
+    .filter((table) => table.name !== name && table.filters)
+    .map(tableDataRows);
+  return (row) =>
+    row < own.first ||
+    row > own.last ||
+    others.some(({ first, last }) => row >= first && row <= last);
+}
+
+/**
  * Set a table's filters and hide the data rows they leave out. Rows of the
- * table's data the filters keep are shown again.
+ * table's data the filters keep are shown again, unless another table's
+ * filter may hide them.
  */
 export function filterTable(options: {
   metadata: WorkbookSheetMetadata | undefined;
@@ -608,10 +628,9 @@ export function filterTable(options: {
     : undefined;
   const filtered: SheetTable = { ...table, filters };
   if (!filters) delete filtered.filters;
-  const { first, last } = tableDataRows(table);
   const hidden = new Set(
     (options.metadata?.hiddenRows ?? []).filter(
-      (row) => row < first || row > last
+      keepsHiddenRow(options.metadata, table.name)
     )
   );
   for (const row of tableFilterHiddenRows(filtered, options.display))
@@ -729,16 +748,14 @@ export function convertTableToRange(
       ) ?? formula
     );
   });
-  const { first, last } = tableDataRows(table);
+  const keeps = keepsHiddenRow(sheet?.metadata, name);
   return sheets.flatMap((item) => {
     const edits = formulas.get(item.id) ?? {};
     let metadata: WorkbookSheetMetadata | undefined;
     if (item.id === sheetId) {
       metadata = replaceTable(item.metadata ?? {}, name, () => undefined);
       if (table.filters && metadata.hiddenRows) {
-        const hiddenRows = metadata.hiddenRows.filter(
-          (row) => row < first || row > last
-        );
+        const hiddenRows = metadata.hiddenRows.filter(keeps);
         if (hiddenRows.length) metadata.hiddenRows = hiddenRows;
         else delete metadata.hiddenRows;
       }

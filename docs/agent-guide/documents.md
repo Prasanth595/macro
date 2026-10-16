@@ -213,8 +213,10 @@ menu) opens **Table options**: **Table name** (renames every formula that uses
 it), **Total row**, **Banded rows**, **Banded columns**, and **Convert to range**,
 which removes the table and rewrites its references as cell ranges. Agents create
 tables with `EditSpreadsheet`'s `create_table` operation, and `ReadSpreadsheet`
-lists each sheet's tables with their columns. Excel tables import with their
-names, styles, totals and filters and download as Excel tables.
+lists each sheet's tables with their columns. Excel tables with a header row
+import with their names, styles, totals and filters and download as Excel
+tables; a table without a header row imports as ordinary cells, with its
+references converted to cell ranges.
 
 Images and charts (column, bar, line and area, each clustered, stacked or
 100% stacked, plus pie, doughnut, scatter, combo, radar, bubble, stock and

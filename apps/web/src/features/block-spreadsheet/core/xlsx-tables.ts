@@ -137,6 +137,20 @@ export function readXlsxTables(
   return tables;
 }
 
+/** Text for an XML attribute. Parsers turn line breaks and tabs there into
+ * spaces, so control characters use OOXML's `_xHHHH_` escape, as Excel
+ * writes column names. */
+function attribute(value: string) {
+  return escapeXml(
+    value.replace(/_(x[0-9a-f]{4}_)/gi, '_x005F_$1').replace(
+      // Control characters: everything below the space.
+      /[^ -\uffff]/g,
+      (character) =>
+        `_x${character.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')}_`
+    )
+  );
+}
+
 /** Text Excel would read as something other than text, such as a number. */
 const NOT_TEXT =
   /^(?:[=+@'#-]|[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$|(?:true|false)$)/i;
@@ -210,9 +224,9 @@ export function xlsxTablePart(options: {
           )
         )}</totalsRowFormula>`;
       } else if (value)
-        totals = ` totalsRowLabel="${escapeXml(value.replace(/^'/, ''))}"`;
+        totals = ` totalsRowLabel="${attribute(value.replace(/^'/, ''))}"`;
     }
-    const open = `<tableColumn id="${offset + 1}" name="${escapeXml(name)}"${totals}`;
+    const open = `<tableColumn id="${offset + 1}" name="${attribute(name)}"${totals}`;
     return formula ? `${open}>${formula}</tableColumn>` : `${open}/>`;
   });
   const filterRange = `${formatCellAddress(bounds.top, bounds.left)}:${formatCellAddress(bounds.bottom - (table.totalsRow ? 1 : 0), bounds.right)}`;
@@ -221,7 +235,7 @@ export function xlsxTablePart(options: {
     .map(
       ([offset, filter]) =>
         `<filterColumn colId="${offset}"><filters${filter.blanks ? ' blank="1"' : ''}>${filter.values
-          .map((value) => `<filter val="${escapeXml(value)}"/>`)
+          .map((value) => `<filter val="${attribute(value)}"/>`)
           .join('')}</filters></filterColumn>`
     )
     .join('');

@@ -102,7 +102,7 @@ exports[`real-world XLSX corpus > ironcalc-tables-structured-references.x… 1`]
   "styledCells": 327,
   "warnings": [
     "Excel table filters other than lists of values are imported as hidden rows.",
-    "Excel tables without a header row are imported as ordinary cells; formulas refer to their cell ranges.",
+    "Excel tables without a header row, or beyond Macro’s sheet size or table limit, are imported as ordinary cells; formulas refer to their cell ranges.",
   ],
 }
 `;

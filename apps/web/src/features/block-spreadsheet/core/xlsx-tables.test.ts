@@ -83,6 +83,38 @@ describe('Excel tables', () => {
     expect(imported.warnings.join(' ')).not.toMatch(/table/i);
   });
 
+  it('write line breaks in column names as Excel does so they match their headers', async () => {
+    const sheet: WorkbookFileSheet = {
+      name: 'Prices',
+      cells: {
+        A1: { value: 'Unit\nPrice' },
+        B1: { value: 'Code_x0041_' },
+        A2: { value: '4' },
+        B2: { value: 'x' },
+      },
+      rowCount: 200,
+      columnWidths: {},
+      metadata: {
+        tables: [
+          {
+            name: 'Prices',
+            range: 'A1:B2',
+            totalsRow: false,
+            bandedRows: true,
+            filters: { 0: { values: ['4\t'] } },
+          },
+        ],
+      },
+    };
+    const bytes = (await encodeXlsx({ sheets: [sheet] })).bytes;
+    const part = strFromU8(unzipSync(bytes)['xl/tables/table1.xml']);
+    expect(part).toContain('name="Unit_x000A_Price"');
+    expect(part).toContain('name="Code_x005F_x0041_"');
+    expect(part).toContain('<filter val="4_x0009_"/>');
+    const [imported] = (await decodeXlsx(bytes)).sheets;
+    expect(imported.metadata?.tables).toEqual(sheet.metadata?.tables);
+  });
+
   it('turn tables without a header row into cells and their references into ranges', async () => {
     const files = unzipSync((await encodeXlsx({ sheets: [orders] })).bytes);
     files['xl/tables/table1.xml'] = strToU8(
@@ -97,7 +129,7 @@ describe('Excel tables', () => {
     expect(sales.cells.D2.value).toBe('=$B2*$C2');
     expect(sales.cells.F1.value).toBe('=SUM($D$1:$D$3)');
     expect(imported.warnings).toContain(
-      'Excel tables without a header row are imported as ordinary cells; formulas refer to their cell ranges.'
+      'Excel tables without a header row, or beyond Macro’s sheet size or table limit, are imported as ordinary cells; formulas refer to their cell ranges.'
     );
   });
 });

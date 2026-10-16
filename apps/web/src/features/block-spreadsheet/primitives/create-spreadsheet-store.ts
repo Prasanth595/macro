@@ -504,14 +504,13 @@ export function createSpreadsheetStore(options: {
     const grown =
       sheet &&
       expandTables({ metadata: sheet.metadata, cells: sheet.cells, edits });
-    if (!grown) {
+    const encoded = grown && JSON.stringify(grown.metadata);
+    if (!grown || !encoded || !parseWorkbookMetadata(encoded)) {
       writeSpreadsheetCells(doc, edits, sheetId);
       return;
     }
     writeSpreadsheetCells(doc, { ...edits, ...grown.edits }, sheetId, false);
-    doc
-      .getMap('spreadsheetSheetMetadata')
-      .set(sheetId, JSON.stringify(grown.metadata));
+    doc.getMap('spreadsheetSheetMetadata').set(sheetId, encoded);
     doc.commit({ origin: 'spreadsheet-edit' });
   }
 
