@@ -192,9 +192,7 @@ test('reads typed partial dates as dates and restyles them from Date formats', a
     });
     await editor.fill(value);
     await editor.press('Enter');
-    await expect(page.locator(`[data-address="${address}"]`)).toHaveText(
-      shown
-    );
+    await expect(page.locator(`[data-address="${address}"]`)).toHaveText(shown);
   }
   const saved = await page.evaluate(
     () => window.spreadsheetFixture.snapshot()[0].cells
@@ -210,18 +208,29 @@ test('reads typed partial dates as dates and restyles them from Date formats', a
   ).toHaveText('1/1/2026');
 
   await page.locator('[data-address="F4"]').click({ modifiers: ['Shift'] });
-  await page.getByRole('button', { name: 'Number format', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Date formats', exact: true }).click();
   await page
-    .getByRole('menuitem', { name: 'Thursday, September 17, 2026', exact: true })
+    .getByRole('button', { name: 'Number format', exact: true })
+    .click();
+  await page
+    .getByRole('menuitem', { name: 'Date formats', exact: true })
+    .click();
+  await page
+    .getByRole('menuitem', {
+      name: 'Thursday, September 17, 2026',
+      exact: true,
+    })
     .click();
   await expect(page.getByRole('grid', { name: 'Spreadsheet' })).toBeFocused();
   await expect(page.locator('[data-address="F3"]')).toHaveText(
     'Thursday, January 1, 2026'
   );
 
-  await page.getByRole('button', { name: 'Number format', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Date formats', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Number format', exact: true })
+    .click();
+  await page
+    .getByRole('menuitem', { name: 'Date formats', exact: true })
+    .click();
   await page
     .getByRole('menuitem', { name: 'Custom date and time…', exact: true })
     .click();
@@ -236,9 +245,8 @@ test('reads typed partial dates as dates and restyles them from Date formats', a
       '1 January 2026'
     );
   expect(
-    (
-      await page.evaluate(() => window.spreadsheetFixture.snapshot()[0].cells)
-    ).F4
+    (await page.evaluate(() => window.spreadsheetFixture.snapshot()[0].cells))
+      .F4
   ).toEqual({ value: '46023', format: 'date', numberFormat: 'd mmmm yyyy' });
 });
 
