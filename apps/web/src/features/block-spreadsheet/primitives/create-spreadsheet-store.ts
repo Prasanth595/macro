@@ -3,6 +3,10 @@ import {
   validImageUrl,
 } from '@macro-inc/spreadsheet/sheet-drawings';
 import {
+  expandTables,
+  type SheetChanges,
+} from '@macro-inc/spreadsheet/sheet-tables';
+import {
   readSpreadsheetSheets,
   type SpreadsheetSheet,
 } from '@macro-inc/spreadsheet/spreadsheet-sheet-registry';
@@ -489,6 +493,28 @@ export function createSpreadsheetStore(options: {
     options.source.status() === 'local' ||
     options.source.status() === 'connected';
 
+  /** Write a sheet's cells as one change. A value typed directly below or
+   * right of a table extends the table in the same change. */
+  function writeCells(
+    doc: LoroDoc,
+    sheetId: string,
+    edits: SpreadsheetCellEdits
+  ) {
+    const sheet = workbook().find((item) => item.id === sheetId);
+    const grown =
+      sheet &&
+      expandTables({ metadata: sheet.metadata, cells: sheet.cells, edits });
+    if (!grown) {
+      writeSpreadsheetCells(doc, edits, sheetId);
+      return;
+    }
+    writeSpreadsheetCells(doc, { ...edits, ...grown.edits }, sheetId, false);
+    doc
+      .getMap('spreadsheetSheetMetadata')
+      .set(sheetId, JSON.stringify(grown.metadata));
+    doc.commit({ origin: 'spreadsheet-edit' });
+  }
+
   function setActiveSheet(id: string) {
     if (!workbook().some((sheet) => sheet.id === id)) return;
     publishSelection.clear();
@@ -785,13 +811,38 @@ export function createSpreadsheetStore(options: {
       const doc = options.source.doc();
       if (!doc || !editable() || !workbook().some((sheet) => sheet.id === id))
         return;
-      writeSpreadsheetCells(doc, edits, id);
+      writeCells(doc, id, edits);
       refresh();
     },
     setCells(edits: SpreadsheetCellEdits) {
       const doc = options.source.doc();
       if (!doc || !editable()) return;
-      writeSpreadsheetCells(doc, edits, activeSheetId());
+      writeCells(doc, activeSheetId(), edits);
+      refresh();
+    },
+    /** Write cells and metadata of several sheets as one change, such as a
+     * table rename and the formulas that refer to it. */
+    editSheets(changes: SheetChanges) {
+      const doc = options.source.doc();
+      if (!doc || !editable() || !changes.length) return;
+      for (const change of changes) {
+        if (!workbook().some((sheet) => sheet.id === change.sheetId))
+          throw new Error('This sheet no longer exists.');
+        validateSpreadsheetCellEdits(change.edits);
+        if (
+          change.metadata &&
+          !parseWorkbookMetadata(JSON.stringify(change.metadata))
+        )
+          throw new Error('Invalid sheet layout.');
+      }
+      for (const change of changes) {
+        writeSpreadsheetCells(doc, change.edits, change.sheetId, false);
+        if (change.metadata)
+          doc
+            .getMap('spreadsheetSheetMetadata')
+            .set(change.sheetId, JSON.stringify(change.metadata));
+      }
+      doc.commit({ origin: 'spreadsheet-table' });
       refresh();
     },
     undo() {
