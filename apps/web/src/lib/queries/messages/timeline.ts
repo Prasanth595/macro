@@ -1,7 +1,7 @@
 import { analytics } from '@app/lib/analytics';
+import { deepEqual } from '@core/util/compareUtils';
 import { compareTimelinePositions } from '@core/util/message-timeline';
 import { ThrownResultError, thrownResultErrorHasCode } from '@core/util/result';
-import type { ApiChannelWithLatest } from '@service-storage/channel-list-types';
 import type {
   Message as EntityMessage,
   MessageListItem,
@@ -22,7 +22,6 @@ import {
 } from '@tanstack/solid-query';
 import { type Accessor, createEffect, on } from 'solid-js';
 import { createStore, reconcile } from 'solid-js/store';
-import { channelKeys } from '../channel/keys';
 import { queryClient } from '../client';
 import { messageKeys } from './keys';
 import {
@@ -108,13 +107,10 @@ export function fetchResolvedChannelMessage(
 }
 
 export type MessageTimelineLoadReason =
-  | 'watermark'
-  | 'list_ahead'
   | 'no_cache'
   | 'cache_not_at_latest'
   | 'load_around'
-  | 'delta_overflow'
-  | 'catch_up_error';
+  | 'revalidate';
 
 export type MessageTimelineWatermark =
   | { kind: 'no_cache' }
@@ -123,7 +119,6 @@ export type MessageTimelineWatermark =
       kind: 'ready';
       after: MessageCursor;
       firstPage: MessageTimelinePage;
-      listAhead: boolean;
     };
 
 function newestRoot(items: MessageListItem[]): MessageListItem | null {
@@ -143,8 +138,8 @@ function newestRoot(items: MessageListItem[]): MessageListItem | null {
 }
 
 /**
- * Describes what a reconnecting timeline can reuse. A cache sitting at the
- * bottom of the conversation only needs the roots newer than its newest one.
+ * Describes the cached latest page. Channels revalidate it; other parents may
+ * use its newest root as a catch-up cursor.
  */
 export function readMessageTimelineWatermark(
   parent: MessageParent
@@ -164,20 +159,10 @@ export function readMessageTimelineWatermark(
   if (!newest) {
     return { kind: 'no_cache' };
   }
-  const cachedIds = new Set(messages.map((item) => item.id));
-  const list =
-    parent.type === 'channel'
-      ? queryClient.getQueryData<ApiChannelWithLatest[]>(
-          channelKeys.listChannels.queryKey
-        )
-      : undefined;
-  const latestId = list?.find((channel) => channel.id === parent.id)
-    ?.latest_non_thread_message?.message_id;
   return {
     kind: 'ready',
     after: { created_at: newest.created_at, id: newest.id },
     firstPage,
-    listAhead: latestId != null && !cachedIds.has(latestId),
   };
 }
 
@@ -192,12 +177,40 @@ export function mergeCatchUpPage(
   };
 }
 
+/** Keep only changes made during the request, not the stale rows it replaces. */
+function mergeRevalidatedPage(
+  page: MessageTimelinePage,
+  before: MessageTimelinePage,
+  current: MessageTimelinePage | undefined
+): MessageTimelinePage {
+  if (!current || current === before) return page;
+  const previous = new Map(
+    before.entries.map((entry) => [timelineEntryKey(entry), entry])
+  );
+  const live = new Map(
+    current.entries.map((entry) => [timelineEntryKey(entry), entry])
+  );
+  return {
+    ...page,
+    entries: reconcileTimelineEntries(
+      page.entries.filter((entry) => {
+        const key = timelineEntryKey(entry);
+        return !previous.has(key) || live.has(key);
+      }),
+      current.entries.filter(
+        (entry) =>
+          !deepEqual(previous.get(timelineEntryKey(entry)), entry) &&
+          pageIndexForEntry([page], entry) !== -1
+      )
+    ),
+  };
+}
+
 function trackMessageTimelineLoad(
   parent: MessageParent,
   payload: {
-    path: 'catch_up' | 'full';
+    path: 'full';
     reason: MessageTimelineLoadReason;
-    after?: string;
   }
 ) {
   if (parent.type !== 'channel') return;
@@ -264,6 +277,19 @@ export function messageTimelineQueryOptions(
         });
         return page;
       }
+      if (parent.type === 'channel') {
+        // Replies, reactions, edits and deletions do not advance a root's
+        // created-at cursor. Revalidate its preview even when no root is new.
+        const page = await fetchMessageTimelinePage(parent, null, null);
+        const current = queryClient.getQueryData<MessageTimelineData>(
+          getMessageTimelineQueryKey(parent, null)
+        )?.pages[0];
+        trackMessageTimelineLoad(parent, {
+          path: 'full',
+          reason: 'revalidate',
+        });
+        return mergeRevalidatedPage(page, watermark.firstPage, current);
+      }
       try {
         const delta = normalizeMessageTimelinePageSenders(
           await entityMessagesClient.timeline(parent, {
@@ -275,11 +301,6 @@ export function messageTimelineQueryOptions(
         );
         if (delta.previous_cursor) {
           const page = await fetchMessageTimelinePage(parent, null, null);
-          trackMessageTimelineLoad(parent, {
-            path: 'full',
-            reason: 'delta_overflow',
-            after: watermark.after.created_at,
-          });
           return page;
         }
         const liveFirstPage = queryClient.getQueryData<MessageTimelineData>(
@@ -289,11 +310,6 @@ export function messageTimelineQueryOptions(
           delta,
           liveFirstPage ?? watermark.firstPage
         );
-        trackMessageTimelineLoad(parent, {
-          path: 'catch_up',
-          reason: watermark.listAhead ? 'list_ahead' : 'watermark',
-          after: watermark.after.created_at,
-        });
         return merged;
       } catch (error) {
         if (
@@ -303,11 +319,6 @@ export function messageTimelineQueryOptions(
           throw error;
         }
         const page = await fetchMessageTimelinePage(parent, null, null);
-        trackMessageTimelineLoad(parent, {
-          path: 'full',
-          reason: 'catch_up_error',
-          after: watermark.after.created_at,
-        });
         return page;
       }
     },
