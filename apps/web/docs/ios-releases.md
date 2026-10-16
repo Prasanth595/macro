@@ -10,6 +10,10 @@ be pushed to update before they receive that bundle.
 Four generated workflows (plus a gate job in the web app PR checks) and a
 checked-in `min-native-build.json` enforce this end to end.
 
+Keep the iOS app named `macro` and retain its unbadged icon assets in
+`tauri/src-tauri/gen/apple/Assets.xcassets/AppIcon.appiconset`; the Alpha
+icon and app-name branding are Android-only.
+
 ## The flow for a PR with breaking native changes
 
 1. **`iOS Native Check`**, a job of the web app PR checks
