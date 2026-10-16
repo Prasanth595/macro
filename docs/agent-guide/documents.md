@@ -668,7 +668,7 @@ drafts after checking. Also check that the file picker still attaches files.
 Use an actual Finder drag for this check: synthetic browser events bypass
 Tauri's native interception and cannot verify the desktop window configuration.
 The setting and native rebuild requirement are documented in the
-[Tauri README](../../apps/web/tauri/src-tauri/README.md#desktop-file-drops).
+[web agent guide](../../apps/web/AGENTS.md#desktop-file-drops).
 
 ## Folder uploads
 

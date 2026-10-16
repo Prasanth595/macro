@@ -98,10 +98,19 @@ the startup bundle, and Lexical nodes.
 - `src/features/block-pdf`
 
 ## Notes
-- Desktop file uploads use browser drag-and-drop events; keep Tauri's native
-  `dragDropEnabled` false. See [desktop file drops](tauri/src-tauri/README.md#desktop-file-drops)
-  for the native rebuild requirement.
 - Don't shy away from pulling good examples into context. In the case of solid-primtiives/kobalte try reading documentation, or just temp clone into /tmp to reference
+
+## Desktop file drops
+
+Keep `app.windows[].dragDropEnabled` false in `tauri/src-tauri/tauri.macos.conf.json`.
+Markdown editors and attachment inputs use browser events through `fileFolderDrop`
+and `fileDrop`; Tauri's native handler intercepts Finder drops before those handlers
+receive them. This config change requires a rebuilt macOS app; a frontend bundle
+update alone does not apply it.
+
+Tauri replaces arrays when merging platform configuration. Keep the other macOS
+window settings aligned with `tauri/src-tauri/tauri.conf.json` when changing the
+shared window. Verify with the [Finder-drop walkthrough](../../docs/agent-guide/documents.md#desktop-file-drops).
 
 ## Subscription offers
 

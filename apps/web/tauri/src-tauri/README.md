@@ -5,18 +5,6 @@ single Vite build that runs identically for web, desktop, iOS, and Android — t
 platform is detected at runtime via `getPlatform()` rather than baked into the
 bundle.
 
-## Desktop file drops
-
-Keep `app.windows[].dragDropEnabled` false in `tauri.conf.json`. Markdown
-editors and attachment inputs use the shared web client's HTML drag-and-drop
-handlers (`fileFolderDrop` and `fileDrop`). Tauri's native handler intercepts
-Finder drops on macOS before those handlers can receive them; disabling it
-lets WKWebView deliver the browser events and file data.
-
-This setting requires a rebuilt desktop shell; a frontend bundle update alone
-does not change the window configuration. Verify with the
-[file-drop walkthrough](../../../../docs/agent-guide/documents.md#desktop-file-drops).
-
 ## macOS app icon
 
 The macOS icon reuses the iOS marketing artwork through the Icon Composer source
