@@ -678,6 +678,39 @@ export function moveWorkbookRange(
         .filter((part) => part.length)
         .map((part) => ({ ...rule, range: boundsSqref(part) }));
     });
+  /** The moved sheet's cell ranges, notes and rules after the move. */
+  const placeMetadata = (metadata: WorkbookSheetMetadata) => {
+    const result = { ...metadata };
+    if (result.merges)
+      result.merges = result.merges.flatMap(
+        (range) => placeRange(range, 'a merged cell') ?? []
+      );
+    if (result.arrayFormulas)
+      result.arrayFormulas = Object.fromEntries(
+        Object.values(result.arrayFormulas).flatMap((range) => {
+          const next = placeRange(range, 'an array formula');
+          return next ? [[next.split(':')[0], next]] : [];
+        })
+      );
+    if (result.pivotTables) {
+      result.pivotTables = result.pivotTables.flatMap((pivot) => {
+        const location = placeRange(pivot.location, 'a pivot table');
+        return location ? [{ ...pivot, location }] : [];
+      });
+      if (!result.pivotTables.length) delete result.pivotTables;
+    }
+    if (result.notes)
+      result.notes = Object.fromEntries(
+        Object.entries(result.notes).flatMap(([address, note]) => {
+          const next = place(address);
+          return next ? [[next, note]] : [];
+        })
+      );
+    if (result.validations) result.validations = placeRules(result.validations);
+    if (result.conditionalFormats)
+      result.conditionalFormats = placeRules(result.conditionalFormats);
+    return result;
+  };
   return sheets.map((sheet, index) => {
     const cells: SpreadsheetCells = {};
     for (const [address, cell] of Object.entries(sheet.cells)) {
@@ -698,39 +731,10 @@ export function moveWorkbookRange(
         )
       );
     if (index !== target) return { ...sheet, cells, metadata };
-    if (metadata?.merges)
-      metadata.merges = metadata.merges.flatMap(
-        (range) => placeRange(range, 'a merged cell') ?? []
-      );
-    if (metadata?.arrayFormulas)
-      metadata.arrayFormulas = Object.fromEntries(
-        Object.values(metadata.arrayFormulas).flatMap((range) => {
-          const next = placeRange(range, 'an array formula');
-          return next ? [[next.split(':')[0], next]] : [];
-        })
-      );
-    if (metadata?.pivotTables) {
-      metadata.pivotTables = metadata.pivotTables.flatMap((pivot) => {
-        const location = placeRange(pivot.location, 'a pivot table');
-        return location ? [{ ...pivot, location }] : [];
-      });
-      if (!metadata.pivotTables.length) delete metadata.pivotTables;
-    }
-    if (metadata?.notes)
-      metadata.notes = Object.fromEntries(
-        Object.entries(metadata.notes).flatMap(([address, note]) => {
-          const next = place(address);
-          return next ? [[next, note]] : [];
-        })
-      );
-    if (metadata?.validations)
-      metadata.validations = placeRules(metadata.validations);
-    if (metadata?.conditionalFormats)
-      metadata.conditionalFormats = placeRules(metadata.conditionalFormats);
     return {
       ...sheet,
       cells,
-      metadata,
+      metadata: metadata && placeMetadata(metadata),
       layout: {
         ...sheet.layout,
         rowCount: Math.max(sheet.layout.rowCount, destination.bottom + 1),
