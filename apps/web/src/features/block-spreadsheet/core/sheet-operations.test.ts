@@ -76,6 +76,31 @@ describe('spreadsheet range operations', () => {
     });
   });
 
+  it('indents empty cells in a selection up to a full column, and only held cells past it', () => {
+    expect(
+      indentEdits(
+        {},
+        { anchor: { row: 0, column: 0 }, focus: { row: 1, column: 0 } },
+        1
+      )
+    ).toEqual({ A1: { indent: 1 }, A2: { indent: 1 } });
+
+    const cells = {
+      A1: { value: 'Revenue', indent: 1 },
+      Z100000: { value: 'Last' },
+      AA1: { value: 'Outside' },
+    };
+    const sheet = {
+      anchor: { row: 0, column: 0 },
+      focus: { row: 99_999, column: 25 },
+    };
+    expect(indentEdits(cells, sheet, 1)).toEqual({
+      A1: { indent: 2 },
+      Z100000: { indent: 1 },
+    });
+    expect(indentEdits(cells, sheet, -1)).toEqual({ A1: { indent: 0 } });
+  });
+
   it('sorts whole selected rows by the anchor column, retaining styles and stable ties', () => {
     const cells = {
       A1: { value: '=B1*2', italic: true },
