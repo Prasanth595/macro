@@ -47,7 +47,7 @@ export function TableColumnMenu(props: {
           size="icon-xs"
           label={`Sort and filter ${props.column}`}
           tabIndex={-1}
-          class="size-full min-h-0 min-w-0 rounded-sm bg-panel p-0 text-ink-muted hover:text-ink touch:min-h-0 touch:min-w-0"
+          class="size-full min-h-0 min-w-0 rounded-sm border border-edge-muted bg-panel p-0 text-ink-muted hover:text-ink touch:min-h-0 touch:min-w-0"
         >
           <Show when={props.filtered} fallback={<CaretDown class="size-3" />}>
             <Funnel class="size-3 text-accent" />
