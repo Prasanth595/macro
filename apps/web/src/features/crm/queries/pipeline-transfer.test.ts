@@ -46,7 +46,11 @@ function setup(recordType: Pipeline['recordType'] = 'company') {
         ? err([{ code: 'BAD_REQUEST', message: 'generic domain' }])
         : ok({ id: `${domain}-id` });
     }),
-    getContactByEmail: vi.fn(async () => ok({ contact: null })),
+    getContactByEmail: vi.fn(async ({ email }: { email: string }) =>
+      email === 'down@acme.com'
+        ? err([{ code: 'SERVER_ERROR', message: 'unavailable' }])
+        : ok({ contact: null })
+    ),
     createContact: vi.fn(async ({ email }: { email: string }) =>
       ok({ id: `${email}-id` })
     ),
@@ -98,11 +102,14 @@ describe('pipeline transfer', () => {
         { name: 'Jane', key: 'jane@beta.io' },
         { name: 'Raj', key: 'raj@beta.io' },
         { name: 'Ana', key: 'ana@acme.com' },
+        { name: 'Down', key: 'down@acme.com' },
       ],
       new AbortController().signal,
       () => {}
     );
     expect(ids.size).toBe(3);
+    expect(ids.has('down@acme.com')).toBe(false);
+    expect(storage.createContact).toHaveBeenCalledTimes(3);
     expect(storage.createCompany.mock.calls.map(([input]) => input)).toEqual([
       { name: 'beta.io', domain: 'beta.io' },
     ]);

@@ -52,7 +52,9 @@ export function createPipelineTransfer(
     record: PipelineCsvRecord
   ) {
     const found = await storage.getContactByEmail({ email: record.key });
-    if (found.isOk() && found.value.contact) return found.value.contact.id;
+    // A failed lookup is not a missing contact; creating one could duplicate it.
+    if (found.isErr()) return undefined;
+    if (found.value.contact) return found.value.contact.id;
     const domain = importedDomain(record.key);
     if (!domain) return undefined;
     const company = await companyId(

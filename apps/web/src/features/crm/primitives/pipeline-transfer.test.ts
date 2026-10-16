@@ -133,4 +133,19 @@ describe('pipeline import', () => {
     );
     dispose();
   });
+
+  it('keeps two deals for one new company as two entries', async () => {
+    const { transfer, inserted } = fakeTransfer([]);
+    const { state, dispose } = createRoot((dispose) => ({
+      state: createPipelineImport(pipeline, transfer),
+      dispose,
+    }));
+    await state.read(
+      file('Company,Domain,Stage\nBeta,beta.io,Lead\nBeta,beta.io,Won\n')
+    );
+    await state.run();
+    expect(state.result()).toEqual({ added: 2, present: 0, unresolved: 0 });
+    expect(inserted).toHaveLength(2);
+    dispose();
+  });
 });

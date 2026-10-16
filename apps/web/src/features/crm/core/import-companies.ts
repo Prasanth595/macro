@@ -21,7 +21,8 @@ const DOMAIN = /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/;
 /** A CSV cell as typed, without the quote CSV exports put before formula characters. */
 export function importedText(value: string | undefined): string {
   const text = (value ?? '').trim();
-  return /^'[=+\-@]/.test(text) ? text.slice(1) : text;
+  // Exports quote values that start with one after spaces too.
+  return /^'\s*[=+\-@]/.test(text) ? text.slice(1).trim() : text;
 }
 
 /** The bare domain of a domain, URL, or email address. */

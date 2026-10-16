@@ -89,7 +89,7 @@ describe('pipeline CSV', () => {
         { cells: { company: 'missing-id', stage: null } },
       ],
       record: (id) =>
-        id === 'acme-id' ? { name: '=Acme', key: 'acme.com' } : undefined,
+        id === 'acme-id' ? { name: ' =Acme', key: 'acme.com' } : undefined,
     });
     expect(csv.split('\n')[0]).toBe(
       'Company,Domain,Stage,Owner,Revenue,Close date,Tags,Proposal'

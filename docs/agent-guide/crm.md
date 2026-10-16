@@ -221,8 +221,9 @@ CSV** reads the same shape, so an export imports into another team's pipeline.
 Rows match companies by domain and contacts by email, creating missing ones
 (personal domains such as gmail.com cannot be created); other headers fill the
 pipeline columns of the same name, adding missing select options. A record
-already in the pipeline is not added again, so retrying an interrupted import
-adds only what is missing. Relation and non-person entity columns are skipped,
+the pipeline already had is not added again, so retrying an interrupted import
+adds only what is missing; several rows for one new record add separate entries
+(deals), as an export of such a pipeline lists them. Relation and non-person entity columns are skipped,
 and a value that does not fit its column is left empty.
 
 CRM lists are currently disabled by `enableCrmLists` (default `false`). The sidebar
