@@ -90,7 +90,11 @@ it('defers saved thread message eviction until leaving the thread', async () => 
     queryKey: emailKeys.previews._def,
   });
   expect(mocks.refetch).toHaveBeenCalledWith('saved-thread', 'emailThread');
-  expect(mocks.remove).not.toHaveBeenCalled();
+  expect(mocks.remove).toHaveBeenCalledExactlyOnceWith({
+    queryKey: emailKeys.threadMessages('saved-thread').queryKey,
+    type: 'inactive',
+  });
+  mocks.remove.mockClear();
   clearSavedDraftThreadCache('saved-thread');
   expect(mocks.remove).toHaveBeenCalledExactlyOnceWith({
     queryKey: emailKeys.threadMessages('saved-thread').queryKey,
