@@ -2,7 +2,7 @@
 
 A native Macro document with multiple worksheets of up to 100,000 rows and
 16,384 columns (A–XFD), Excel-style formulas, keyboard navigation, rectangular selection, formula-aware copying and
-fill, resizable columns, added rows, rich cell formatting, Excel workbook
+fill, dragging a selection to move it, resizable columns, added rows, rich cell formatting, Excel workbook
 import/export, CSV import/value export, find and replace, range sorting, local
 undo/redo, and live collaboration. Existing uploaded `.xlsx` files are not
 automatically converted; open **Import and export** at the bottom right of a native
@@ -125,6 +125,24 @@ only while connected, so an offline coordinate shift cannot merge later over
 collaborators' edits. Rows and columns have no stable identities: an edit that a
 collaborator commits to old coordinates after the shift arrives still lands at
 those coordinates.
+
+Dragging the selection's border (`components/SelectionMoveHandle.tsx`, mouse or
+pen only) moves its cells the same way: `moveWorkbookRange` in
+`packages/spreadsheet/src/workbook-structure.ts` runs in the calculation worker,
+and `primitives/create-range-move.ts` commits the result as one revision-checked
+structural change, so it is one undo step, needs a connection in saved
+workbooks, and is cancelled by a collaborator's edit made meanwhile. It follows
+Excel's cut and paste: values, formats, notes, merges, legacy arrays, pivot
+table locations and data validation and conditional formatting ranges go with
+the cells (a rule that only partly moves is split in two), and replace what was
+at the destination after a confirmation when that held values. References to
+the moved cells from every sheet's formulas, names, rules, charts and pivot
+sources follow them; a range follows only when all of it moves. References
+inside moved formulas keep their cells, and references to replaced cells become
+`#REF!`. Moving part of a merge, array or pivot table is refused. Drawings,
+row heights and column widths stay, and comments stay on their addresses.
+While dragging, the grid scrolls near or past its edges and the cells land at
+the last visible row or column.
 
 ### Workbook sheets
 
@@ -333,8 +351,8 @@ compare formula, error, and formatting behavior before replacing it.
 - **Format and data → Goal Seek…** finds the number that makes a formula cell
   reach a typed value, then writes it when confirmed. The search runs on a copy
   of the calculated workbook, so cancel leaves every cell as it was.
-- Filters, editing named ranges, automatic spill expansion, and drag
-  auto-scroll remain future work.
+- Filters, editing named ranges, automatic spill expansion, and auto-scroll
+  while drag-selecting or filling remain future work.
 - CSV import writes a validated rectangle at the active cell, appending rows when
   needed. It preserves existing cell styles and supports quoted multiline fields.
   CSV exports values and drops formatting. XLSX import/export converts supported
@@ -514,7 +532,7 @@ production transport.
 
 The [browser fixture](browser-test/README.md) runs the composed editor with real
 calculation and Excel workers. Its Playwright suite covers formula autocomplete
-and range picking, menu/dialog focus, sheet navigation, read-only transitions,
+and range picking, dragging a selection to move it, menu/dialog focus, sheet navigation, read-only transitions,
 Excel round trips, imported conditional formatting, data validation and notes,
 imported charts and images (following edits, Delete and undo, and download),
 radar, bubble, stock and contour charts, shapes, SmartArt and EMF images,
