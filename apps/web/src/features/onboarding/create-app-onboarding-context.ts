@@ -9,6 +9,7 @@ import {
   useAiBillingPlansQuery,
   useCreateCheckoutSessionMutation,
   useGithubLinkStatusQuery,
+  useTrialEligibilityQuery,
 } from '@queries/auth';
 import { useCompleteTutorialMutation } from '@queries/auth/tutorial';
 import { type UserInfoData, useUserInfoQuery } from '@queries/auth/user-info';
@@ -225,6 +226,18 @@ export function createAppOnboardingContext(): OnboardingContext {
     createInviteOffer: () => {
       const query = useGtmInviteOfferQuery({ enabled: needsOnboarding });
       return () => loadableQuery(query, (offer) => offer ?? null);
+    },
+    createTrialEligibility: () => {
+      const query = useTrialEligibilityQuery({ enabled: needsOnboarding });
+      return {
+        eligibility: () =>
+          loadableQuery(query, (data) => data.eligible, {
+            retainDataOnError: false,
+          }),
+        retry: () => {
+          void query.refetch();
+        },
+      };
     },
     createPlanCatalog: () => {
       const query = useAiBillingPlansQuery();

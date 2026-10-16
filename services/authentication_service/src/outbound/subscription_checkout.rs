@@ -272,6 +272,7 @@ fn trial_session_matches(session: &stripe::CheckoutSession, request: &CheckoutRe
         })
 }
 
+#[tracing::instrument(skip_all, fields(stripe_customer_id = %customer), err, ret)]
 async fn subscription_history(
     stripe_client: &stripe::Client,
     customer: &stripe::CustomerId,

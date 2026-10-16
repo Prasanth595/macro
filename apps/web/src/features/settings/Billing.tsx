@@ -11,6 +11,7 @@ import {
   useChangePlanMutation,
   useCreateCheckoutSessionMutation,
   useSubscriptionStatusQuery,
+  useTrialEligibilityQuery,
 } from '@queries/auth';
 import { queryReadyGate } from '@queries/gate';
 import { useCurrentTeamQuery } from '@queries/team/teams';
@@ -53,6 +54,9 @@ function LiveBilling(props: { controls?: JSX.Element }) {
   const checkout = useCreateCheckoutSessionMutation();
   const effectiveHasPaid = () =>
     hasPaid() || (summary.isSuccess && summary.data.tier !== 'free');
+  const trialEligibility = useTrialEligibilityQuery({
+    enabled: () => !effectiveHasPaid(),
+  });
 
   const subscriptionStatus = useSubscriptionStatusQuery({
     enabled: effectiveHasPaid,
@@ -99,11 +103,19 @@ function LiveBilling(props: { controls?: JSX.Element }) {
         : undefined,
       aiUsageEnabled: aiUsageBilling().enabled,
       pending: checkout.isPending || changePlan.isPending,
+      trialEligible:
+        trialEligibility.isSuccess && queryReadyGate(trialEligibility)
+          ? trialEligibility.data.eligible
+          : undefined,
     });
 
   const handleCheckout = async (plan: PaidPlan) => {
+    const eligible = state().trialEligible;
+    if (plan === 'premium' && eligible === undefined) return;
     try {
-      const url = await checkout.mutateAsync(getFreePlanCheckoutRequest(plan));
+      const url = await checkout.mutateAsync(
+        getFreePlanCheckoutRequest(plan, eligible === true)
+      );
       analytics.track('subscription_start', { type: plan });
       window.location.href = url;
     } catch (error) {
@@ -161,6 +173,8 @@ function LiveBilling(props: { controls?: JSX.Element }) {
       }
       subscriptionStatusFailed={subscriptionStatus.isError}
       onRefreshStatus={() => void subscriptionStatus.refetch()}
+      trialEligibilityFailed={!effectiveHasPaid() && trialEligibility.isError}
+      onRefreshTrialEligibility={() => void trialEligibility.refetch()}
       onKeepPlan={(plan) => void handleChangePlan(plan)}
       onManage={() => void handleManage()}
       onSelectPlan={(plan) =>

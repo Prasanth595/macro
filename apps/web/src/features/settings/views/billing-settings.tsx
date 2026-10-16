@@ -6,6 +6,7 @@ export const BillingSettingsView = (props: { context: BillingContext }) => (
     state={{
       tier: props.context.tier(),
       hasPaid: props.context.hasPaid(),
+      trialEligible: props.context.trialEligible?.(),
       aiUsageEnabled: props.context.aiUsageBilling(),
       teamRole: props.context.teamRole(),
       billedThroughTeam: props.context.billedThroughTeam(),

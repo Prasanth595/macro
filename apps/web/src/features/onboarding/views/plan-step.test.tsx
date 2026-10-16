@@ -195,3 +195,27 @@ describe('live trial checkout', () => {
     expect(guest).toHaveBeenCalledOnce();
   });
 });
+
+it('offers paid Pro without trial copy to an ineligible returning customer', () => {
+  const { checkout } = setup(undefined, { trialEligible: false });
+  expect(screen.queryByText(/Free Claude & GPT/)).toBeNull();
+  expect(screen.queryByText(/first 30 days/)).toBeNull();
+  expect(
+    screen.queryByRole('button', { name: 'Start 30 day trial' })
+  ).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Get Pro' }));
+  expect(checkout).toHaveBeenCalledWith('premium', 'standard');
+});
+
+it('offers a retry without advertising a trial or starting checkout when eligibility fails', () => {
+  const { checkout, fake } = setup(undefined, {
+    failures: { trialEligibility: 'offline' },
+  });
+  expect(screen.queryByText(/Free Claude & GPT/)).toBeNull();
+  const button = screen.getByRole('button', { name: 'Get Pro' });
+  expect(button.hasAttribute('disabled')).toBe(true);
+  fireEvent.click(button);
+  expect(checkout).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+  expect(fake.calls()).toContain('retryTrialEligibility');
+});

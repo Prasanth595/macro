@@ -120,6 +120,10 @@ export type OnboardingContext = {
   joinTeam(inviteId: string): Promise<void>;
   /** The invite promotion the account holds; null when it has none. */
   createInviteOffer(): Accessor<Loadable<InviteOffer | null>>;
+  createTrialEligibility(): {
+    eligibility: Accessor<Loadable<boolean>>;
+    retry(): void;
+  };
   createPlanCatalog(): {
     catalog: Accessor<Loadable<AiPlanCatalog>>;
     retry(): void;

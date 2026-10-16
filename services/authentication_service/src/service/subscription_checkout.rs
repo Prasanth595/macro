@@ -21,6 +21,19 @@ pub struct SubscriptionHistory {
     pub has_previous_subscription: bool,
 }
 
+impl SubscriptionHistory {
+    fn trial_eligible(self) -> bool {
+        !self.has_active_subscription && !self.has_previous_subscription
+    }
+}
+
+/// Whether the authenticated customer can receive the introductory Pro trial.
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+pub struct TrialEligibility {
+    /// Confirmed against the same subscription history used during checkout.
+    pub eligible: bool,
+}
+
 /// Authenticated purchase intent; the caller cannot choose a customer or price ID.
 pub struct CheckoutRequest<'a> {
     /// Identity established by the authentication boundary.
@@ -129,6 +142,28 @@ impl<G: CheckoutGateway> CheckoutService<G> {
         Self { gateway }
     }
 
+    /// Read eligibility without creating a checkout or granting an offer.
+    #[tracing::instrument(skip_all, err)]
+    pub async fn trial_eligibility(
+        &self,
+        user: &MacroUserIdStr<'_>,
+    ) -> Result<TrialEligibility, CheckoutError<G::Error>> {
+        let customer = self
+            .gateway
+            .customer(user)
+            .await
+            .map_err(CheckoutError::Gateway)?
+            .ok_or(CheckoutError::MissingCustomer)?;
+        let history = self
+            .gateway
+            .history(&customer)
+            .await
+            .map_err(CheckoutError::Gateway)?;
+        Ok(TrialEligibility {
+            eligible: history.trial_eligible(),
+        })
+    }
+
     /// Create a paid checkout or a code-free first-subscription trial.
     pub async fn create(
         &self,
@@ -152,7 +187,7 @@ impl<G: CheckoutGateway> CheckoutService<G> {
             return Err(CheckoutError::AlreadySubscribed);
         }
         let terms = if request.onboarding_trial {
-            if request.plan != SeatPlan::Premium || history.has_previous_subscription {
+            if request.plan != SeatPlan::Premium || !history.trial_eligible() {
                 return Err(CheckoutError::TrialUnavailable);
             }
             CheckoutTerms::Trial

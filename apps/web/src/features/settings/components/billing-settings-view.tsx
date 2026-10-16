@@ -15,6 +15,8 @@ export function BillingSettingsView(props: {
   scheduledChange?: { plan: 'free' | 'premium' | 'max'; effectiveAt: string };
   subscriptionStatusFailed?: boolean;
   onRefreshStatus?: () => void;
+  trialEligibilityFailed?: boolean;
+  onRefreshTrialEligibility?: () => void;
   onKeepPlan?: (plan: PaidPlanTier) => void;
   teamSeatDescription?: string;
   onManage: () => void;
@@ -206,6 +208,21 @@ export function BillingSettingsView(props: {
               ? 'Need more AI?'
               : 'Upgrade'}
           </h2>
+          <Show when={props.trialEligibilityFailed}>
+            <div
+              role="alert"
+              class="flex flex-wrap items-center gap-3 text-sm text-ink-muted"
+            >
+              <p>Couldn't confirm your Pro offer. Please try again.</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={props.onRefreshTrialEligibility}
+              >
+                Try again
+              </Button>
+            </div>
+          </Show>
           <div
             class="grid grid-cols-1 gap-6"
             classList={{

@@ -23,10 +23,11 @@ key issuance, and account merge/link flows.
 
 - Owns: FusionAuth-backed login/session issuance, JWT minting, signup
   allowlisting, OAuth/OAuth2 account linking, GTM invite links, shared-mailbox
-  relocation signup, Cursor/Codex API key endpoints.
+  relocation signup, Cursor/Codex API key endpoints, introductory trial
+  eligibility and subscription checkout.
 - Not here: authorization/permission decisions on other entities →
-  `crates/macro_authorization`; subscription/billing logic itself →
-  `crates/ai_billing`, `crates/initiative`.
+  `crates/macro_authorization`; metered AI credits → `crates/ai_billing`;
+  team lifecycle and seats → `crates/teams`.
 
 ## Recipes
 
@@ -44,6 +45,18 @@ key issuance, and account merge/link flows.
 - Signup-policy changes specifically:
   `env -u DATABASE_URL cargo test -p authentication_service --bin authentication_service config::test`
   and `cargo run -p authentication_service --bin authentication_service_doppler_config`.
+
+## Subscription checkout
+
+- `src/service/subscription_checkout.rs` owns introductory eligibility and
+  checkout terms; its Stripe adapter reads every subscription status and page.
+- `GET /user/stripe/trial_eligibility` reads the authenticated customer's
+  eligibility without creating checkout. Any prior subscription disqualifies
+  the first-subscription trial, including canceled or incomplete subscriptions.
+- Keep eligibility reads and checkout validation on the same policy; the legacy
+  `hasTrialed` flag tracks trials only and cannot identify paid-only customers.
+- Deploy the eligibility endpoint before web clients that require it; otherwise
+  the clients keep Pro checkout disabled until the lookup can succeed.
 
 ## Gotchas
 

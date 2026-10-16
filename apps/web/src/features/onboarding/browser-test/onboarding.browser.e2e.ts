@@ -681,3 +681,28 @@ test('enables an existing native tool without reconnecting', async ({
   expect((await fakeWorld(page)).connectedTools).toEqual([]);
   expect((await fakeWorld(page)).nativeTools[0].enabled).toBe(true);
 });
+
+for (const width of [1280, 390]) {
+  test(`returning customer buys Pro without a trial at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openFixture(page, '/?view=flow', { trialEligible: false });
+    await page.evaluate(() => {
+      sessionStorage.setItem(
+        'onboarding-flow-step',
+        JSON.stringify({ user: 'macro|ada@acme.com', step: 'plan' })
+      );
+    });
+    await page.reload();
+    await expect(heading(page, 'Get more with Pro.')).toBeVisible();
+    await expect(page.getByText('Free Claude & GPT for 30 days.')).toHaveCount(
+      0
+    );
+    await expect(
+      page.getByRole('button', { name: 'Start 30 day trial' })
+    ).toHaveCount(0);
+    await page.getByRole('button', { name: 'Get Pro', exact: true }).click();
+    await expectLanded(page, 'Entered Macro at /home');
+  });
+}
