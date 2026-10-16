@@ -907,9 +907,7 @@ describe('spreadsheet presentation', () => {
       { zoom: 150 }
     );
     const cell = (address: string) =>
-      view.container.querySelector<HTMLElement>(
-        `[data-address="${address}"]`
-      )!;
+      view.container.querySelector<HTMLElement>(`[data-address="${address}"]`)!;
     // 10 pt is 13⅓ px; three spaces are 10 px per level, zoomed by 150%.
     expect(cell('A1').style.paddingLeft).toBe('30px');
     expect(cell('A1').style.paddingRight).toBe('');

@@ -233,7 +233,11 @@ test('indents line items from their aligned edge and keeps nested levels apart',
   );
   expect(saved.A2).toEqual({ value: 'Design', indent: 1 });
   expect(saved.A3).toEqual({ value: 'Engineering', indent: 2 });
-  expect(saved.B3).toEqual({ value: '20', horizontalAlign: 'right', indent: 1 });
+  expect(saved.B3).toEqual({
+    value: '20',
+    horizontalAlign: 'right',
+    indent: 1,
+  });
 
   await page.locator('[data-address="A2"]').click();
   await page.locator('[data-address="A3"]').click({ modifiers: ['Shift'] });

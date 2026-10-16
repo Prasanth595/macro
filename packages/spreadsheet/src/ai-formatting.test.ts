@@ -185,7 +185,12 @@ describe('AI formatting preserves spreadsheet values', () => {
             action: 'edit',
             expectedRevision: 'v',
             operations: [
-              { type: 'format_cells', sheetId: 'sheet1', range: 'A2:A3', style },
+              {
+                type: 'format_cells',
+                sheetId: 'sheet1',
+                range: 'A2:A3',
+                style,
+              },
             ],
           },
           calculator

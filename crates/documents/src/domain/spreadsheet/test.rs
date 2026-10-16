@@ -292,7 +292,10 @@ fn indented_cells_read_back_with_their_level() {
         panic!("expected a read response");
     };
     assert_eq!(
-        ranges[0].cells[0].style.as_ref().and_then(|style| style.indent),
+        ranges[0].cells[0]
+            .style
+            .as_ref()
+            .and_then(|style| style.indent),
         Some(2)
     );
     let operation: SpreadsheetOperation = serde_json::from_value(serde_json::json!({
