@@ -22,6 +22,11 @@ export type NumberUnitInputProps = ComponentProps<
 >;
 const ReadOnlyContext = createContext<Accessor<boolean>>();
 
+/**
+ * @do Give the input an accessible name and keep unit conversions in the caller.
+ * @do Put the number and unit inside Frame, with optional Controls outside it.
+ * @dont Use the unit label as the input's only accessible name.
+ */
 function Root(props: NumberUnitInputProps) {
   const [local, rest] = splitProps(props, ['class']);
   return (

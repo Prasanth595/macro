@@ -59,7 +59,12 @@ function Thumb(props: SliderThumbProps) {
   );
 }
 
-/** Kobalte owns pointer, keyboard, form, and multi-thumb accessibility semantics. */
+/**
+ * Kobalte owns pointer, keyboard, form, and multi-thumb accessibility semantics.
+ * @do Give each thumb an accessible name and include its Slider.Input.
+ * @do Pair sliders with exact inputs when users need precise values.
+ * @dont Rely on track color alone to communicate the selected value.
+ */
 export const Slider = Object.assign(Root, {
   Root,
   Track,

@@ -62,6 +62,12 @@ export default defineDoc({
   description:
     'Keyboard and pointer range selection with one or multiple thumbs. Compose labels, inputs, and track segments as slots.',
   exports: ['Slider'],
+  propTypes: [
+    'SliderRootProps',
+    'SliderTrackProps',
+    'SliderFillProps',
+    'SliderThumbProps',
+  ],
   import: "import { Slider } from '@ui';",
   demos: [
     { id: 'single', title: 'Single value', render: SingleDemo },
