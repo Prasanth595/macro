@@ -150,7 +150,8 @@ export function SplitPanel(props: SplitPanelProps) {
       !(
         isTouchDevice() &&
         content.type === 'component' &&
-        content.id === LIST_VIEW_ID.search
+        (content.id === LIST_VIEW_ID.search ||
+          content.id === LIST_VIEW_ID.channels)
       )
     );
   };

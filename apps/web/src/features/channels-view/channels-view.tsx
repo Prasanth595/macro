@@ -51,21 +51,18 @@ export type ChannelsViewProps = {
 // Mounted inside the mobile list's Suspense boundary.
 function MobileChannelsList(props: { sources: ChannelsSources }) {
   const agentDms = useAgentDmSearchPool();
-  const { state, setMobileTab } = useChannelsView();
   const mobileSearchText = () => '';
   const mobileSearchSource = createChannelSearchSource({
     additionalLocalChannels: agentDms,
     text: mobileSearchText,
-    scope: () => state.mobileTab,
-    source: () => props.sources[state.mobileTab],
+    scope: () => 'recents',
+    source: () => props.sources.recents,
   });
   return (
     <ChannelsMobileView
       source={mobileSearchSource}
       searchQuery={mobileSearchText()}
       onClearSearch={() => SearchState.setQuery('')}
-      tab={state.mobileTab}
-      onTabChange={setMobileTab}
     />
   );
 }
@@ -130,8 +127,7 @@ function ChannelsViewRoot() {
 
   const sources = useChannelsSources(
     (scope) => {
-      if (mobileLayout())
-        return scope !== 'search' && state.mobileTab === scope;
+      if (mobileLayout()) return scope === 'recents';
       if (railSearchOpen()) return scope === 'search';
       if (scope === 'search') return false;
       if (scope === 'recents') return tab() === 'recents';

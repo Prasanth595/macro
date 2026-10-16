@@ -202,8 +202,8 @@ and breadcrumb nesting remain in the path. Home, Email, Tasks, Channels, and
 Customers store the selected tab under `sN.home.tab`, `sN.mail.tab`,
 `sN.tasks.tab`, `sN.channels.tab`, and `sN.crm.tab`. Customers uses `people`,
 `pipeline:<uuid>`, `list:<uuid>`, or `hidden`. Companies is the default and
-omits the key. Channels also stores the phone list selection as
-`sN.channels.mobileTab`. Omitted tab keys mean each view's default.
+omits the key. Omitted tab keys mean each view's default. Mobile Channels always opens its
+Recent conversation feed and ignores legacy mobile-tab selections.
 Changing tabs updates the URL, and browser Back and Forward restore the
 selection independently in each pane. Inline detail links preserve these keys. Desktop panes expose Close when available and omit
 split-history back/forward buttons. Mobile content panes retain their back button.
