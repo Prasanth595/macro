@@ -657,7 +657,40 @@ describe('spreadsheet drag auto-scroll', () => {
 
     mouse(window, 'pointermove', 1010, 1000, 0);
     vi.advanceTimersToNextFrame();
+    mouse(window, 'pointermove', 400, 500);
+    vi.advanceTimersToNextFrame();
     expect(view.element.scrollLeft).toBe(10);
+    expect(view.controller.selection().focus).toEqual({ row: 29, column: 9 });
+  });
+
+  it('cancels a fill whose release the window missed instead of applying it to the next drag', () => {
+    const onFill = vi.fn();
+    const view = renderGrid({}, { onFill });
+    mouse(
+      view.getByRole('button', { name: 'Drag to fill selection' }),
+      'pointerdown',
+      146,
+      45
+    );
+    mouse(window, 'pointermove', 146, 80);
+    fireEvent(
+      view.getByRole('gridcell', { name: 'A3' }),
+      new MouseEvent('pointerenter', { buttons: 1 })
+    );
+    // Released outside the window: the next move arrives without the button.
+    mouse(window, 'pointermove', 146, 80, 0);
+
+    mouse(view.getByRole('gridcell', { name: 'B2' }), 'pointerdown', 196, 55);
+    fireEvent(
+      view.getByRole('gridcell', { name: 'B3' }),
+      new MouseEvent('pointerenter', { buttons: 1 })
+    );
+    mouse(window, 'pointerup', 196, 76);
+    expect(onFill).not.toHaveBeenCalled();
+    expect(view.controller.selection()).toEqual({
+      anchor: { row: 1, column: 1 },
+      focus: { row: 2, column: 1 },
+    });
   });
 });
 

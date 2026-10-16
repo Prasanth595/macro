@@ -30,6 +30,8 @@ export function createDragAutoScroll(options: {
   axis: () => 'x' | 'y' | undefined;
   /** Each frame the pointer is in an edge zone, after scrolling. */
   onEdge: (x: number, y: number) => void;
+  /** The followed pointer moved without its button; the window missed its release. */
+  onLostRelease: () => void;
 }) {
   let pointer:
     | {
@@ -94,9 +96,10 @@ export function createDragAutoScroll(options: {
     },
     move(event: PointerEvent) {
       if (!pointer || pointer.id !== event.pointerId) return;
-      // The button was released where this window could not see it.
-      if (!(event.buttons & 1)) stop();
-      else if (
+      if (!(event.buttons & 1)) {
+        stop();
+        options.onLostRelease();
+      } else if (
         frame !== undefined ||
         Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y) >
           DRAG_SLOP

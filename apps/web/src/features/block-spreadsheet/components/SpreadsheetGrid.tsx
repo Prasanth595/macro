@@ -876,6 +876,8 @@ export function SpreadsheetGrid(props: {
       setScrollTop(grid.scrollTop);
       dragTo(positionAtPoint(x, y));
     },
+    // Ending would apply a fill or reference whose release point is unknown.
+    onLostRelease: cancelPointer,
   });
 
   function followPointer(event: PointerEvent, moved?: boolean) {

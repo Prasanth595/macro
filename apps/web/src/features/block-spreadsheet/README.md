@@ -263,6 +263,8 @@ pointer to a cell and extends whichever drag is in progress. The sticky headers 
 starts at their inner edges and never selects a cell hidden beneath them. The
 grid does not draw imported frozen panes, so the headers are its only fixed area.
 A press scrolls only after it moves 8 pixels, so a click beside an edge does not.
+When the window misses a drag's release (the pointer next moves without its
+button), the drag is cancelled rather than finished, so no fill is applied.
 
 Selection does not recalculate the workbook. A bounded row window mounts visible
 rows and a small buffer, keeping the active editor mounted while scrolling. Shared
