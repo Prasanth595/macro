@@ -270,7 +270,8 @@ function getSurfacedNestedCommands(commands: CommandWithInfo[]) {
  * out because their conditions check the soup's selection state.
  */
 function useCommandsList(
-  commandScopeCommands: Accessor<CommandWithInfo[]>
+  commandScopeCommands: Accessor<CommandWithInfo[]>,
+  entityActionMode: Accessor<boolean>
 ): () => CommandItem[] {
   const projectsFlag = useFeatureFlag(enableProjects);
   const availableItems = (
@@ -311,7 +312,7 @@ function useCommandsList(
     }
 
     // If in entity action mode, filter to only show selection modification commands
-    if (CommandState.isEntityActionMode()) {
+    if (entityActionMode()) {
       const selectionCommands = capturedCommands.filter((command) =>
         command.tags?.includes(HotkeyTags.SelectionModification)
       );
@@ -379,15 +380,13 @@ function useQuickAccessCategory(
   categoryFilter: Accessor<CategoryFilter>,
   commandScopeCommands: Accessor<CommandWithInfo[]>,
   searchTerm: Accessor<string>,
-  enabled: Accessor<boolean>
+  enabled: Accessor<boolean>,
+  commands: Accessor<CommandItem[]>,
+  entityActionMode: Accessor<boolean>
 ) {
   const quickAccess = useQuickAccess();
-  const commands = useCommandsList(commandScopeCommands);
   const activeList = createMemo(() => {
-    if (
-      commandScopeCommands().length > 0 ||
-      CommandState.isEntityActionMode()
-    ) {
+    if (commandScopeCommands().length > 0 || entityActionMode()) {
       return undefined;
     }
     const buckets = QUICK_ACCESS_BUCKETS_BY_CATEGORY[categoryFilter()];
@@ -398,7 +397,7 @@ function useQuickAccessCategory(
   const items = createMemo((): CommandMenuItem[] => {
     if (
       commandScopeCommands().length > 0 ||
-      CommandState.isEntityActionMode() ||
+      entityActionMode() ||
       categoryFilter() === 'commands'
     ) {
       return commands();
@@ -434,6 +433,10 @@ export function useCommandItems(
   categoryFilter: () => CategoryFilter,
   options?: {
     showSearchRow?: boolean;
+    /** Embedded search can omit the menu's registered commands. */
+    includeCommands?: boolean;
+    /** Instance-owned action mode; defaults to the desktop menu for existing hosts. */
+    entityActionMode?: Accessor<boolean>;
     /**
      * Source of multi-stage command-scope commands. Defaults to the desktop
      * command menu state; mobile search passes its own scope state.
@@ -449,27 +452,35 @@ export function useCommandItems(
   }
 ) {
   const showSearchRow = options?.showSearchRow ?? true;
+  const entityActionMode =
+    options?.entityActionMode ?? CommandState.isEntityActionMode;
   const commandScopeCommands =
     options?.commandScopeCommands ?? CommandState.commandScopeCommands;
   const quickAccess = useQuickAccess();
   const searchActive = () => options?.searchActive?.() === true;
   const scopedSearchTerm = () => (searchActive() ? query() : '');
+  const commands =
+    options?.includeCommands === false
+      ? () => []
+      : useCommandsList(commandScopeCommands, entityActionMode);
   const category = useQuickAccessCategory(
     categoryFilter,
     commandScopeCommands,
     scopedSearchTerm,
-    searchActive
+    searchActive,
+    commands,
+    entityActionMode
   );
   const projectEnabled = () =>
     searchActive() &&
     commandScopeCommands().length === 0 &&
-    !CommandState.isEntityActionMode() &&
+    !entityActionMode() &&
     (categoryFilter() === 'all' || categoryFilter() === 'projects');
   const projects = useProjectCommandItems(scopedSearchTerm, projectEnabled);
   const contactsActive = () =>
     searchActive() &&
     commandScopeCommands().length === 0 &&
-    !CommandState.isEntityActionMode() &&
+    !entityActionMode() &&
     CONTACT_CATEGORIES.has(categoryFilter()) &&
     query().trim().length > 0;
   const contacts = options?.contactDiscovery?.(
@@ -532,7 +543,7 @@ export function useCommandItems(
     if (!showSearchRow) return false;
     if (!q.trim()) return false;
     if (commandScopeCommands().length > 0) return false;
-    if (CommandState.isEntityActionMode()) return false;
+    if (entityActionMode()) return false;
     return SEARCHABLE_CATEGORIES.has(categoryFilter());
   };
 
@@ -544,7 +555,7 @@ export function useCommandItems(
       q.trim().length <= 3 &&
       categoryFilter() === 'all' &&
       commandScopeCommands().length === 0 &&
-      !CommandState.isEntityActionMode()
+      !entityActionMode()
     ) {
       const trimmedQuery = q.trim();
       const ranked = rankItems(items, q);

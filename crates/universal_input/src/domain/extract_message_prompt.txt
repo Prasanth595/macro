@@ -1,0 +1,1 @@
+Separate the addressing instruction from the outgoing body. A leading DM/person/channel line supplies recipients; following lines are body, copied verbatim. For inline 'DM John that I am late', recipients is ["John"] and body is "I am late". People mentioned only inside the body are not extra recipients.

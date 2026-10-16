@@ -408,20 +408,111 @@ show the other participant's avatar instead of a glyph.
 
 ### Experimental universal input on desktop Home
 
-The starting pane contains a blank input with accessible name **Your input**.
-Type directly; after a short pause it recognizes AI, global Macro search, email,
+Universal Input is enabled by default in development and local builds. In
+production, availability follows the PostHog flag **enable-universal-input**.
+Without the flag (including while it is loading), Home keeps its usual agent or
+classic chat composer and suggestions. Flagged users see a **God Mode**
+switch in the Home header. The usual mode is the default; the switch takes effect
+immediately and its choice is remembered locally per signed-in user. Switching
+back preserves the Universal Input draft. Revoking the flag hides the switch and
+returns to the usual composer regardless of the stored preference. Universal
+Input and its inference requests mount only while that mode is selected.
+`VITE_ENABLE_UNIVERSAL_INPUT=true` or `false` overrides these defaults and the
+remote flag.
+
+The starting pane contains a single-line input with accessible name **Your input**.
+Its empty box matches the usual Home input's compact height (48.75px), including
+at narrow desktop widths, and grows as text wraps or adds newlines.
+It shares the usual Home composer's vertical placement when God Mode is toggled.
+It uses the same fixed corner radius as channel composers as it grows for
+explicit newlines or wrapped text.
+A placeholder demonstrates events, email, tasks, notes, and search by quickly
+deleting and typing each example after a fixed “try:” prefix. It pauses during
+typing, respects reduced motion, and disappears when typing starts. The editor grows for multiline input.
+The Lexical input supports rich text and **@** mentions; there are no formatting
+or mention instruction cues and no Suggestions list beneath it.
+Type directly; predictions refresh while typing, at most once every 200 ms with
+separate classification and field-extraction queues. Each queue keeps one request
+in flight and coalesces updates to the latest text; field extraction never blocks
+type prediction. Clear email/message addressing immediately reveals a form with
+recipient suggestions and the outgoing body, before inference completes. It recognizes AI, global Macro search, email,
 Markdown note, task, calendar event, or message/DM. The main editor keeps focus
 while editable fields appear below it. **Content type** defaults to **Auto**;
-ambiguous text offers choices. Choosing a type or editing a field locks the type.
+the strongest candidate starts a draft even when the scores are close. Field
+extraction uses Nemotron with reasoning disabled and a schema specific to the
+selected type; only complete, valid suggestions enter the editable form.
+Bug reports and prioritized problems count as tasks. **Cmd/Ctrl+Shift+Right** cycles through
+types in likelihood order; **Cmd/Ctrl+Shift+Left** cycles backward. The icon and
+type pill opens **Content type**; there is no Next type button. Choosing a type, cycling, or editing a field locks the type.
+Email/chat addressing and search prefixes provide an immediate shape. A completed
+prediction can refine an ambiguous prefix: “Email notifications not working” or
+“Find and fix notification bug” can become tasks. Manual type choices and field
+edits still lock the type. Addressing distinguishes the channel from actionable text
+in its body. For example, “email julia” followed by “can we reschedule the thing
+tomorrow? let the investors know” prepares an email to Julia with that outgoing
+body. “Remind me to email Julia tomorrow” prepares a task instead.
+Email mode offers **Save as draft** beside **Send email**. Typing and prediction
+only retain the Universal Input locally; they do not create email-service drafts.
+**Save as draft** explicitly saves the visible email without sending it, including
+unfinished emails with no subject, body, or recipients. Any supplied recipient
+must resolve to an email address, and a connected inbox is required. A successful
+save clears and refocuses the input and offers **Open** for the saved draft; a
+failed save preserves the input. **Cmd/Ctrl+Enter** continues to send the email.
+Search results appear live below **Search for**, using Command K's search sources,
+ranking, result rows, and pagination. The same **Search for “…”** row appears
+above matching items and opens full Search. With no matches, the shared **Ask AI
+about “…”** fallback starts an agent session. The first **Down** selects the
+first actual match, as in Command K; **Up** can reach the full-search row.
+Explicit “find …”, “search for …”, and “look
+for …” inputs start searching immediately; search queries do not wait for model
+field extraction. Editing **Search for** overrides the query derived from typing.
+Click a result to open it, or use **Up/Down** and then **Enter**. **Shift+Enter**
+opens the selected result in another split. **Escape** exits result navigation;
+ordinary Enter inserts a newline before browsing results. **Cmd/Ctrl+Enter** or
+**Search Macro** opens the full Search view. Embedded search has its own query
+and selection; it does not change the Command K menu's state.
+Search navigation and type cycling use the app's scoped hotkey manager. Search
+arrows and confirmation apply to the text inputs; the type selector and buttons
+keep their native keyboard behavior. Inline editor menus take precedence.
+Notes use the document composer's rich title, **Note body**, slash commands,
+and tag picker below the main input. Note creation saves the visible body and
+selected tags; manual edits, formatting, and tags survive later predictions and reload.
+Messages use the channel composer's rich editor and recipient chips. There is
+no formatting button or toolbar row; keyboard formatting remains available. Choose existing people or one channel; external email addresses are for
+email mode. Authored mentions are included when sending a message.
+AI uses the existing agent/model picker, including connection and agent creation
+entries; the main Universal Input remains its prompt.
+Task extraction waits for the field catalog before sending available names/options;
+classification continues independently while it loads. Task creation uses those
+definitions to retain all selected assignees. Explicit priority,
+status, assignees, project, and other supported task properties populate their
+pills rather than remaining as metadata lines in the description. For example,
+“notification click not going to target … priority urgent” displays **Urgent**.
+Unresolved or ambiguous values require a choice; manual property edits survive
+later predictions. Task fields stay in sync as typing continues.
 Select **Auto** to resume detection; manually edited fields remain yours.
 
 **Enter** inserts a newline. **Cmd/Ctrl+Enter** or the labeled action button
 submits only the currently displayed, complete action. There is no queued send
 while inference is pending. Email and message modes show their outgoing body
-and resolved recipients. Ambiguous names require a specific selection. Calendar
+and resolved recipients. Email uses the Email Composer's inbox picker, recipient
+chips with address completion, subject control, rich Markdown editor, and HTML
+preparation for delivery. Task creation uses the task composer's rich title,
+Markdown description, and editable property pills, including Due date.
+Calendar uses the event composer's date/time popovers and calendar, guest, and
+location pills. All these controls preserve manual edits during inference.
+The submit shortcut is shown beside the
+action label in its button. Ambiguous names require a specific selection. Calendar
 shows the absolute date, time, timezone, calendar, and invitees. For example,
 “Call John at 3pm tomorrow” becomes a one-hour event at 3 PM tomorrow with no
 invitation; inviting John requires an explicit invitation request or guest edit.
+Bare hours use a reasonable default (1–7 PM, 8–11 AM, 12 noon). For example,
+“call with Julia tomorrow at 7” becomes 7 PM tomorrow for one hour. An assumption
+cue beneath the date/time range draws attention to the inferred AM/PM; editing the start
+time removes that cue. Explicit AM/PM and day parts take precedence.
+Relative starts such as “in 30 minutes” do not set the event's duration;
+“in 30 minutes for 15 minutes” creates a 15-minute event. An ISO date such as
+“2026-10-10 at 7pm” still uses the default one-hour duration.
 
 Drafts persist locally per signed-in user. Failed inference allows manual type
 selection and field entry; failed submission keeps the draft. Successful writes
@@ -429,6 +520,17 @@ show **Open**, while AI and search navigate immediately. Attached AI context
 must be removed before submitting another type. Dedicated Agents and mobile Home
 keep their existing layouts. Browser fixture tests use recording-only writes;
 real email/message buttons send to the displayed recipients.
+If email has no connected account or Event has no writable calendar, **Connect
+Google** opens Google's consent flow for Gmail and calendar access together.
+The draft survives the redirect and is restored on return. Complete consent in
+the Google browser page, then review the outgoing email or event before submitting.
+After a successful action that keeps Home open, the cleared input regains focus,
+including sending a message with the action button.
+Clicking **Home** in the outer sidebar clears the draft, edited fields, attached
+context, and previous result, then focuses a blank universal input in the
+selected split, including when Home is already open or opened with Shift-click.
+The **g h** shortcut also clears and focuses the input, whether returning from
+another view or already on Home.
 
 ## List-row dragging
 

@@ -5,9 +5,12 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { InputIntent } from './inputIntent';
+import type { InputPropertyDefinition } from './inputPropertyDefinition';
 
 export interface ExtractInputRequest {
   intent: InputIntent;
+  /** Available task fields and display values, never authorized entity IDs. */
+  property_definitions?: InputPropertyDefinition[];
   reference_time: string;
   /** @minimum 0 */
   revision: number;

@@ -28,6 +28,9 @@ const extraction = z.object({
     due_date: text,
     location: text,
     guests: z.array(z.string()),
+    properties: z
+      .array(z.object({ name: z.string(), values: z.array(z.string()) }))
+      .default([]),
   }),
 });
 
@@ -58,7 +61,12 @@ export const universalInputClient = {
       { text, revision } satisfies ClassifyInputRequest,
       classification
     ),
-  extract: (text: string, selected: z.infer<typeof intent>, revision: number) =>
+  extract: (
+    text: string,
+    selected: z.infer<typeof intent>,
+    revision: number,
+    properties: { name: string; options: string[] }[] = []
+  ) =>
     request(
       'extract',
       {
@@ -67,6 +75,7 @@ export const universalInputClient = {
         revision,
         reference_time: new Date().toISOString(),
         time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        property_definitions: selected === 'task' ? properties : [],
       } satisfies ExtractInputRequest,
       extraction
     ),

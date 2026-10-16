@@ -198,3 +198,33 @@ describe('command menu database categories', () => {
     }
   });
 });
+
+it('keeps embedded search independent of modal scopes and excludes command/fallback rows', () => {
+  const { setItems, setEntityMode, setScope } = setup();
+  setItems([entity]);
+  setEntityMode(true);
+  setScope([
+    {
+      scopeId: 'nested',
+      description: 'Nested',
+      runWithInputFocused: true,
+      scopeLevel: 0,
+      hotkeyIsShadowed: false,
+    },
+  ]);
+  createRoot((cleanup) => {
+    const [query, setQuery] = createSignal('Document');
+    const embedded = useCommandItems(query, () => 'all', {
+      includeCommands: false,
+      showSearchRow: false,
+      commandScopeCommands: () => [],
+      entityActionMode: () => false,
+      searchActive: () => true,
+    });
+    expect(embedded.items()).toEqual([entity]);
+    setItems([]);
+    setQuery('unmatched');
+    expect(embedded.items()).toEqual([]);
+    cleanup();
+  });
+});

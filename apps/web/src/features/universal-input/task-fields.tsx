@@ -1,54 +1,53 @@
 import { InlinePropertyValue } from '@app/features/block-md/component/InlinePropertyValue';
-import {
-  createTaskComposerProperties,
-  defaultTaskPropertyValues,
-} from '@app/features/block-md/util/taskComposerProperties';
+import { createTaskComposerProperties } from '@app/features/block-md/util/taskComposerProperties';
 import { Modals } from '@property/component/modal';
-import { SYSTEM_PROPERTY_IDS } from '@property/constants';
 import { PropertiesProvider } from '@property/context/PropertiesContext';
+import type { PropertyApiValues } from '@property/types';
+import { EntityComposer } from '@ui';
 import { For } from 'solid-js';
-import { unwrap } from 'solid-js/store';
 import { parseTaskProperties } from './queries/task-properties';
 
 export function TaskFields(props: {
+  disabled?: boolean;
   value: string;
-  userId: string;
+  values: Record<string, PropertyApiValues>;
   onChange: (value: string) => void;
 }) {
   const state = createTaskComposerProperties({
-    initialValues: {
-      ...defaultTaskPropertyValues([props.userId]),
-      ...parseTaskProperties(props.value),
-    },
+    initialValues: {},
+    values: () => props.values,
+    additionalPropertyIds: () => Object.keys(props.values),
   });
   const saveHandler: typeof state.saveHandler = {
     async saveProperty(property, value) {
-      await state.saveHandler.saveProperty(property, value);
-      props.onChange(JSON.stringify(unwrap(state.propertyValues)));
+      props.onChange(
+        JSON.stringify({
+          ...parseTaskProperties(props.value),
+          [property.propertyDefinitionId]: value,
+        })
+      );
     },
     async saveDate(property, value) {
-      await state.saveHandler.saveDate(property, value);
-      props.onChange(JSON.stringify(unwrap(state.propertyValues)));
+      props.onChange(
+        JSON.stringify({
+          ...parseTaskProperties(props.value),
+          [property.propertyDefinitionId]: { valueType: 'DATE', value },
+        })
+      );
     },
   };
   return (
     <PropertiesProvider
       entityType="TASK"
-      canEdit={true}
+      canEdit={!props.disabled}
       properties={state.properties}
       onRefresh={() => {}}
       onPropertyAdded={() => {}}
       onPropertyDeleted={() => {}}
       saveHandler={saveHandler}
     >
-      <div class="flex flex-wrap gap-2">
-        <For
-          each={state
-            .properties()
-            .filter(
-              (p) => p.propertyDefinitionId !== SYSTEM_PROPERTY_IDS.DUE_DATE
-            )}
-        >
+      <EntityComposer.Properties>
+        <For each={state.properties()}>
           {(property) => (
             <InlinePropertyValue
               property={property}
@@ -56,7 +55,7 @@ export function TaskFields(props: {
             />
           )}
         </For>
-      </div>
+      </EntityComposer.Properties>
       <Modals />
     </PropertiesProvider>
   );

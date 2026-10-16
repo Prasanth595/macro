@@ -1,6 +1,16 @@
+import { SYSTEM_PROPERTY_IDS } from '@property/constants';
+import type { PropertyApiValues } from '@property/types';
+import type { PropertyDefinition } from '@service-properties/generated/schemas/propertyDefinition';
+import {
+  $createParagraphNode,
+  $createTextNode,
+  $getRoot,
+  createEditor,
+} from 'lexical';
 import { ok } from 'neverthrow';
 import { createRoot } from 'solid-js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { decodeBase64Utf8 } from '../email-compose/core/decode-base64';
 import { createInputActions } from './actions';
 import { fieldsSchema, type Submission } from './core/input';
 
@@ -13,9 +23,13 @@ const mocks = vi.hoisted(() => ({
   history: vi.fn(),
   note: vi.fn(),
   task: vi.fn(),
+  taskSnapshot: vi.fn(),
+  taskValues: {} as Record<string, PropertyApiValues>,
+  taskDefinitions: new Map<string, PropertyDefinition>(),
   chat: vi.fn(),
   saveEmail: vi.fn(),
   sendEmail: vi.fn(),
+  connectGoogle: vi.fn(),
   event: vi.fn(),
   dm: vi.fn(),
   group: vi.fn(),
@@ -24,8 +38,30 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@app/lib/analytics/posthog', () => ({
   useFeatureFlag: () => () => ({ enabled: mocks.agents }),
 }));
-vi.mock('@core/constant/featureFlags', () => ({ enableChatV3Agents: {} }));
+vi.mock('@core/constant/featureFlags', () => ({
+  enableChatV3Agents: {},
+  enableProjects: {},
+}));
+vi.mock('@property/tags', () => ({ useLocalDocTags: vi.fn() }));
+vi.mock('@queries/properties/definitions', () => ({}));
+vi.mock('@queries/properties/tags', () => ({}));
+vi.mock('@queries/properties/entity', () => ({
+  fetchEntityProperties: vi.fn(),
+}));
+vi.mock('@core/constant/SettingsState', () => ({
+  useSettingsState: () => ({ openSettings: vi.fn() }),
+}));
+vi.mock('@app/features/block-md/util/documentComposerProperties', () => ({
+  createDocumentComposerTags: () => ({
+    composerTags: {},
+    createDefinitions: () => new Map(),
+  }),
+}));
 vi.mock('@core/auth', () => ({ useHasPaidAccess: () => () => false }));
+vi.mock('@core/email-link', () => ({
+  useAddInboxFlow: () => mocks.connectGoogle,
+}));
+vi.mock('@core/component/Toast/Toast', () => ({ toast: { failure: vi.fn() } }));
 vi.mock('@app/features/block-agent/context/pending-session', () => ({
   startPendingSession: mocks.session,
 }));
@@ -69,7 +105,9 @@ vi.mock('@core/signal/useCombinedRecipient', () => ({
         data: { name: 'John Adams', email: 'john@example.com' },
       },
     ],
-    channels: () => [{ id: 'team-channel', data: { name: 'engineering' } }],
+    channels: () => [
+      { kind: 'channel', id: 'team-channel', data: { name: 'engineering' } },
+    ],
   }),
 }));
 vi.mock('@app/features/block-md/queries/create-document-with-tags', () => ({
@@ -79,11 +117,22 @@ vi.mock('@app/features/block-md/util/taskComposerProperties', () => ({
   createTaskWithProperties: mocks.task,
   defaultTaskPropertyValues: () => ({}),
 }));
+vi.mock('./queries/task-field-source', () => ({
+  createTaskFieldSource: () => ({
+    definitions: async () => [],
+    createDefinitions: async () => mocks.taskDefinitions,
+    values: () => ({ values: mocks.taskValues, unresolved: [] }),
+  }),
+}));
+vi.mock('@core/util/create', () => ({
+  createTaskWithInitialSnapshot: mocks.taskSnapshot,
+}));
 vi.mock('@app/features/email-compose/compose-adapter', () => ({
   createEmailComposeContext: () => ({
     accounts: {
       inboxes: () => [{ id: 'inbox', email_address: 'me@example.com' }],
       primaryId: () => 'inbox',
+      loading: () => false,
     },
     drafts: { saveDraft: mocks.saveEmail },
     delivery: { sendMessage: mocks.sendEmail },
@@ -160,6 +209,9 @@ beforeEach(() => {
   mocks.attachments = [];
   mocks.note.mockResolvedValue({ documentId: 'note' });
   mocks.task.mockResolvedValue({ documentId: 'task' });
+  mocks.taskSnapshot.mockResolvedValue({ documentId: 'task' });
+  mocks.taskValues = {};
+  mocks.taskDefinitions = new Map();
   mocks.chat.mockResolvedValue(ok({ id: 'chat' }));
   mocks.session.mockReturnValue('session');
   mocks.saveEmail.mockResolvedValue({
@@ -174,6 +226,22 @@ beforeEach(() => {
 });
 
 describe('destination adapters', () => {
+  it('requests Gmail and calendar consent for the selected Google account', async () => {
+    await createRoot(async (dispose) => {
+      try {
+        await createInputActions(
+          () => input('email').fields,
+          'macro|me@example.com'
+        ).connectGoogle();
+        expect(mocks.connectGoogle).toHaveBeenCalledWith({
+          scopes: 'gmail_and_calendar',
+          emailAddress: 'me@example.com',
+        });
+      } finally {
+        dispose();
+      }
+    });
+  });
   it('starts legacy AI with the original text and attachments', async () => {
     await execute(input('ai'));
     expect(mocks.pending).toHaveBeenCalledWith(
@@ -205,7 +273,9 @@ describe('destination adapters', () => {
     });
   });
   it('preserves complete Markdown in notes', async () => {
-    const result = await execute(input('note'));
+    const result = await execute(
+      input('note', { body: 'Original **Markdown**' })
+    );
     expect(mocks.note.mock.calls[0].slice(0, 2)).toEqual([
       'Title',
       'Original **Markdown**',
@@ -215,7 +285,20 @@ describe('destination adapters', () => {
       next: { type: 'md', id: 'note' },
     });
   });
+  it.each(['# Reviewed note\n\n- Keep **this** detail', ''])(
+    'creates a note from the visible body %j instead of the source draft',
+    async (body) => {
+      await execute(input('note', { body }));
+      expect(mocks.note.mock.calls[0].slice(0, 2)).toEqual(['Title', body]);
+    }
+  );
   it('creates tasks through the shared property-aware mutation', async () => {
+    mocks.taskValues = {
+      [SYSTEM_PROPERTY_IDS.DUE_DATE]: {
+        valueType: 'DATE',
+        value: new Date('2026-10-12T12:00:00'),
+      },
+    };
     await execute(input('task', { due_date: '2026-10-12' }));
     expect(mocks.task.mock.calls[0].slice(0, 2)).toEqual([
       'Title',
@@ -225,6 +308,45 @@ describe('destination adapters', () => {
       expect.arrayContaining([expect.objectContaining({ valueType: 'DATE' })]),
     ]);
   });
+  it.each([{ ids: ['julia'] }, { ids: ['julia', 'alex'] }])(
+    'preserves all selected assignees in the final task creation payload: $ids',
+    async ({ ids }) => {
+      const refs = ids.map((entity_id) => ({
+        entity_id,
+        entity_type: 'USER' as const,
+      }));
+      mocks.taskValues = {
+        [SYSTEM_PROPERTY_IDS.ASSIGNEES]: { valueType: 'ENTITY', refs },
+      };
+      mocks.taskDefinitions.set(SYSTEM_PROPERTY_IDS.ASSIGNEES, {
+        id: SYSTEM_PROPERTY_IDS.ASSIGNEES,
+        display_name: 'Assignees',
+        data_type: 'ENTITY',
+        is_multi_select: true,
+        specific_entity_type: 'USER',
+        is_metadata: false,
+        is_system: true,
+        owner: { scope: 'system' },
+        created_at: '',
+        updated_at: '',
+      });
+      const real = await vi.importActual<
+        typeof import('@app/features/block-md/util/taskComposerProperties')
+      >('@app/features/block-md/util/taskComposerProperties');
+      mocks.task.mockImplementationOnce(real.createTaskWithProperties);
+      await execute(input('task'));
+      expect(mocks.taskSnapshot).toHaveBeenCalledWith(
+        expect.objectContaining({
+          propertyValues: [
+            {
+              propertyId: SYSTEM_PROPERTY_IDS.ASSIGNEES,
+              value: { type: 'multi_entity_reference', references: refs },
+            },
+          ],
+        })
+      );
+    }
+  );
   it('saves then sends email through the shared delivery lifecycle', async () => {
     await execute(input('email'));
     expect(mocks.saveEmail).toHaveBeenCalledWith(
@@ -245,6 +367,92 @@ describe('destination adapters', () => {
         }),
       })
     );
+  });
+  it('explicitly saves an unfinished email through the shared draft adapter without delivery', async () => {
+    await createRoot(async (dispose) => {
+      try {
+        const submission = input('email', {
+          recipients: '',
+          subject: '',
+          body: 'Still thinking…',
+        });
+        const actions = createInputActions(
+          () => submission.fields,
+          'macro|me@example.com'
+        );
+        expect(mocks.saveEmail).not.toHaveBeenCalled();
+        expect(actions.validateEmailDraft(submission)).toBeUndefined();
+        const result = await actions.saveEmailDraft(submission);
+        expect(mocks.saveEmail).toHaveBeenCalledWith(
+          expect.objectContaining({
+            inboxId: 'inbox',
+            draft: expect.objectContaining({
+              subject: '',
+              to: [],
+              body_text: 'Still thinking…',
+            }),
+          })
+        );
+        expect(mocks.sendEmail).not.toHaveBeenCalled();
+        expect(result.message).toBe('Email draft saved');
+        result.open?.();
+        expect(mocks.replace).toHaveBeenCalledWith({
+          next: { type: 'email', id: 'thread' },
+        });
+      } finally {
+        dispose();
+      }
+    });
+  });
+  it('sends escaped HTML with Unicode and line breaks matching the visible body', async () => {
+    const body = 'Hi José 👋\nBring <notes> & coffee';
+    await execute(input('email', { body }));
+    const draft = mocks.saveEmail.mock.calls[0][0].draft;
+    const html = decodeBase64Utf8(draft.body_html);
+    const parsed = new DOMParser().parseFromString(html, 'text/html');
+    expect(parsed.body.textContent).toBe('Hi José 👋Bring <notes> & coffee');
+    expect(parsed.querySelector('br')).not.toBeNull();
+    expect(parsed.querySelector('notes')).toBeNull();
+    expect(draft.body_text).toBe(body);
+    expect(mocks.sendEmail.mock.calls[0][0].message.body_html).toBe(
+      draft.body_html
+    );
+  });
+  it('sends the shared editor’s rich HTML through the existing email preparation pipeline', async () => {
+    const editor = createEditor();
+    editor.update(
+      () => {
+        $getRoot().append(
+          $createParagraphNode().append(
+            $createTextNode('Hello José').toggleFormat('bold')
+          )
+        );
+      },
+      { discrete: true }
+    );
+    await createRoot(async (dispose) => {
+      try {
+        const submission = input('email', { body: '**Hello José**' });
+        const actions = createInputActions(
+          () => submission.fields,
+          'macro|me@example.com'
+        );
+        actions.captureEmailEditor(editor);
+        await actions.submit(submission);
+        const draft = mocks.saveEmail.mock.calls[0][0].draft;
+        const parsed = new DOMParser().parseFromString(
+          decodeBase64Utf8(draft.body_html),
+          'text/html'
+        );
+        expect(parsed.querySelector('strong, b')?.textContent).toBe(
+          'Hello José'
+        );
+        expect(draft.body_text).toBe('Hello José');
+        expect(draft.body_macro).toBe('**Hello José**');
+      } finally {
+        dispose();
+      }
+    });
   });
   it('creates a timed event with retry identity and no inferred invitation', async () => {
     await execute(input('calendar'));
@@ -269,8 +477,59 @@ describe('destination adapters', () => {
       expect.objectContaining({
         parent: { type: 'channel', id: 'dm' },
         optimisticId: 'retry-id',
-        message: { content: 'Hello John' },
+        message: { content: 'Hello John', mentions: [] },
       })
+    );
+  });
+  it('preserves authored mentions using the channel payload adapter', async () => {
+    const snapshot = input('message');
+    await createRoot(async (dispose) => {
+      try {
+        const actions = createInputActions(
+          () => snapshot.fields,
+          'macro|me@example.com'
+        );
+        actions.captureMessageMentions(() => [
+          { itemType: 'user', itemId: 'macro|john@example.com' },
+        ]);
+        await actions.submit(snapshot);
+      } finally {
+        dispose();
+      }
+    });
+    expect(mocks.message).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: {
+          content: 'Hello John',
+          mentions: [
+            { entity_type: 'user', entity_id: 'macro|john@example.com' },
+          ],
+        },
+      })
+    );
+  });
+  it('saves selected note tags alongside the visible body', async () => {
+    await execute(
+      input('note', {
+        noteTags: JSON.stringify({
+          'tag-definition': {
+            valueType: 'SELECT_STRING',
+            values: ['tag-option'],
+          },
+        }),
+      })
+    );
+    expect(mocks.note).toHaveBeenCalledWith(
+      'Title',
+      'Hello John',
+      [
+        [
+          'tag-definition',
+          { valueType: 'SELECT_STRING', values: ['tag-option'] },
+        ],
+      ],
+      expect.any(Map),
+      expect.any(Function)
     );
   });
   it('posts to an existing channel without creating a DM', async () => {

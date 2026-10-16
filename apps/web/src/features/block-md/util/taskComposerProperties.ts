@@ -20,6 +20,7 @@ import { fetchEntityProperties } from '@queries/properties/entity';
 import { useTagsQuery } from '@queries/properties/tags';
 import type { PropertyDefinition } from '@service-properties/generated/schemas/propertyDefinition';
 import type { PropertyDefinitionDetailResponse } from '@service-properties/generated/schemas/propertyDefinitionDetailResponse';
+import type { Accessor } from 'solid-js';
 import { createStore, reconcile, type Store, unwrap } from 'solid-js/store';
 
 /**
@@ -213,6 +214,8 @@ function extractPropertyValue(
  */
 export function createTaskComposerProperties(args: {
   initialValues: Record<string, PropertyApiValues>;
+  values?: Accessor<Record<string, PropertyApiValues>>;
+  additionalPropertyIds?: Accessor<string[]>;
 }) {
   const [propertyValues, setPropertyValues] = createStore<
     Record<string, PropertyApiValues>
@@ -263,24 +266,36 @@ export function createTaskComposerProperties(args: {
   const projects = useFeatureFlag(enableProjects);
 
   const properties = (): Property[] => {
-    return filterMap(COMPOSER_PROPERTIES, (id) => {
-      if (id === SYSTEM_PROPERTY_IDS.PROJECT && !projects().enabled) return;
-      const definition = definitions().get(id);
-      if (!definition) return;
-      return {
-        propertyId: `compose-${definition.display_name}`,
-        propertyDefinitionId: definition.id,
-        displayName: definition.display_name,
-        isMultiSelect: definition.is_multi_select,
-        owner: definition.owner,
-        specificEntityType: definition.specific_entity_type ?? null,
-        updatedAt: new Date(0),
-        createdAt: new Date(0),
-        valueType: definition.data_type,
-        value: extractPropertyValue(definition, propertyValues, options()),
-        options: options().get(definition.id),
-      } as Property;
-    });
+    return filterMap(
+      [
+        ...new Set([
+          ...COMPOSER_PROPERTIES,
+          ...(args.additionalPropertyIds?.() ?? []),
+        ]),
+      ],
+      (id) => {
+        if (id === SYSTEM_PROPERTY_IDS.PROJECT && !projects().enabled) return;
+        const definition = definitions().get(id);
+        if (!definition) return;
+        return {
+          propertyId: `compose-${definition.display_name}`,
+          propertyDefinitionId: definition.id,
+          displayName: definition.display_name,
+          isMultiSelect: definition.is_multi_select,
+          owner: definition.owner,
+          specificEntityType: definition.specific_entity_type ?? null,
+          updatedAt: new Date(0),
+          createdAt: new Date(0),
+          valueType: definition.data_type,
+          value: extractPropertyValue(
+            definition,
+            args.values?.() ?? propertyValues,
+            options()
+          ),
+          options: options().get(definition.id),
+        } as Property;
+      }
+    );
   };
 
   const saveHandler: PropertySaveHandler = {

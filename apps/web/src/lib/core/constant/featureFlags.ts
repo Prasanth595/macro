@@ -745,6 +745,13 @@ export const enableChatV3Agents = defineFlag({
   default: onInDev,
 });
 
+/** Offers the Home switch by default in dev/local; production follows PostHog. */
+export const enableUniversalInput = defineFlag({
+  key: 'enable-universal-input',
+  env: 'ENABLE_UNIVERSAL_INPUT',
+  default: DEV_MODE_ENV || import.meta.env.DEV || undefined,
+});
+
 // The built-in @cursor mention, using the mentioning user's own Cursor account.
 // Account setup is checked after the mention; this flag controls discovery.
 // Override with VITE_ENABLE_CURSOR_AGENTS.

@@ -1,0 +1,4 @@
+Extract subject, body and recipients for the selected EMAIL intent only. A leading email/addressing line supplies recipients; copy every following line verbatim into body. For inline instructions, remove only the addressing wrapper. Suggest a short subject from the outgoing body.
+Questions, deadlines, requests, priorities, bugs and dates INSIDE the email body remain unchanged in that body. Do not interpret them as task properties or events. People mentioned only inside the body are not additional recipients. Never borrow body text from examples or invent an address.
+Always include each explicitly addressed recipient. An addressing line is ONLY the first line; body is ALL remaining lines, not just the last line. A nonempty body always gets a short subject.
+Example: draft "email Maria\nServer broken. priority urgent" => {"subject":"Server broken","body":"Server broken. priority urgent","recipients":["Maria"]}. Copy the actual draft's body, not the example's body.

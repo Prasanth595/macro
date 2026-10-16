@@ -23,7 +23,9 @@ impl From<InputError> for InputApiError {
 impl IntoResponse for InputApiError {
     fn into_response(self) -> Response {
         let status = match &self.0 {
-            InputError::InvalidText | InputError::InvalidTimeZone => StatusCode::BAD_REQUEST,
+            InputError::InvalidText
+            | InputError::InvalidTimeZone
+            | InputError::InvalidProperties => StatusCode::BAD_REQUEST,
             InputError::Unavailable | InputError::Extraction => StatusCode::SERVICE_UNAVAILABLE,
             InputError::Admission(error) => return (*error).into_response(),
         };

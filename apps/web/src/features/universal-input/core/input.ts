@@ -43,6 +43,8 @@ export const fieldsSchema = z.object({
   calendarId: z.string().default(''),
   inboxId: z.string().default(''),
   taskProperties: z.string().default(''),
+  noteTags: z.string().default(''),
+  properties: z.string().default(''),
   botId: z.string().default(''),
   model: z.string().default(''),
 });
@@ -63,6 +65,9 @@ export const suggestionsSchema = z.object({
   due_date: z.string().nullish(),
   location: z.string().nullish(),
   guests: z.array(z.string()).default([]),
+  properties: z
+    .array(z.object({ name: z.string(), values: z.array(z.string()) }))
+    .optional(),
 });
 export type Suggestions = z.infer<typeof suggestionsSchema>;
 
@@ -71,12 +76,7 @@ export function rankIntents(scores: Scores): Scores {
 }
 
 export function inferIntent(scores: Scores): Intent | undefined {
-  const [first, second] = rankIntents(scores);
-  return first &&
-    first.score >= 0.8 &&
-    first.score - (second?.score ?? 0) >= 0.2 - Number.EPSILON
-    ? first.intent
-    : undefined;
+  return rankIntents(scores)[0]?.intent;
 }
 
 export const draftSchema = z.object({
@@ -114,13 +114,18 @@ export function emptyDraft(): Draft {
 export function applySuggestions(
   fields: Partial<InputFields>,
   edited: Field[],
-  suggestions: Suggestions
+  suggestions: Partial<Suggestions>
 ): Partial<InputFields> {
   const next = { ...fields };
   for (const key of Object.keys(suggestions) as (keyof Suggestions)[]) {
     if (edited.includes(key)) continue;
     const value = suggestions[key];
-    next[key] = Array.isArray(value) ? value.join(', ') : (value ?? '');
+    next[key] =
+      key === 'properties'
+        ? JSON.stringify(value ?? [])
+        : Array.isArray(value)
+          ? value.join(', ')
+          : (value ?? '');
   }
   return next;
 }

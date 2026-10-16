@@ -1,18 +1,10 @@
 import { isListViewID } from '@app/constants/list-views';
-import { openChatWithMessage } from '@app/features/chat/ChatWithAgentButton';
 import { useCrmContactDiscovery } from '@app/features/crm/record-adapter';
-import { getViewPreset } from '@app/features/next-soup/sidebar/soup-filter-presets';
-import { getSearchSplit } from '@app/features/next-soup/soup-view/search-controllers';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { useSplitLayout } from '@components/app/split-layout/layout';
-import { toast } from '@core/component/Toast/Toast';
-import { itemToBlockName } from '@core/constant/allBlocks';
-import {
-  enableProjects,
-  USE_MACRO_PR_SUMMARY_BLOCK,
-} from '@core/constant/featureFlags';
+import { enableProjects } from '@core/constant/featureFlags';
 import { getActiveCommandsFromScope } from '@core/hotkey/getCommands';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import {
@@ -24,16 +16,13 @@ import { TOKENS } from '@core/hotkey/tokens';
 import type { HotkeyCommand, RegisterHotkeyReturn } from '@core/hotkey/types';
 import { runCommand } from '@core/hotkey/utils';
 import { debouncedDependent } from '@core/util/debounce';
-import { openExternalUrl } from '@core/util/url';
-import { type EntityData, isGithubPrEntity } from '@entity';
+import type { EntityData } from '@entity';
 import { EntitySelectionBadge } from '@entity/components/EntitySelectionBadge';
 import Macro from '@icon/macro-logo.svg';
 import ArrowLeft from '@phosphor/arrow-left.svg';
-import { useGetOrCreateDirectMessageMutation } from '@queries/channel/get-or-create-dm';
 import { useDatabaseDiscoverySync } from '@queries/storage/databases';
 import {
   Badge,
-  CommandMenuEmptyState,
   CommandMenuHotkeyHint,
   CommandMenuSearchInput,
   CommandMenuShell,
@@ -46,7 +35,6 @@ import {
 import {
   createEffect,
   createMemo,
-  createSelector,
   createSignal,
   For,
   Match,
@@ -56,10 +44,8 @@ import {
   Show,
   Switch,
 } from 'solid-js';
-import { type VirtualizerHandle, VList } from 'virtua/solid';
-import { projectRouteId } from '../projects/core/route';
-import { CommandItem } from './CommandItem';
-import { getCategorySearchFilters } from './category-search-filters';
+import { defaultCommandResultIndex } from './core/default-result-index';
+import { createCommandResultOpener } from './open-command-result';
 import { trackCommandUsage } from './recency';
 import { CommandState } from './state';
 import type { CategoryFilter } from './types';
@@ -70,9 +56,9 @@ import {
   isEntityItem,
   isSearchItem,
   isUserItem,
-  type PaginationControls,
   useCommandItems,
 } from './useCommandItems';
+import { CommandResults } from './views/command-results';
 
 const CATEGORIES: { id: CategoryFilter; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -84,12 +70,6 @@ const CATEGORIES: { id: CategoryFilter; label: string }[] = [
   { id: 'channels', label: 'Channels' },
   { id: 'dms', label: 'People' },
 ];
-
-const VIRTUAL_ITEM_HEIGHT = 40; // tailwind h-10
-const LIST_PADDING = 16; // p-2 = 8px top + 8px bottom
-const MAX_LIST_HEIGHT = VIRTUAL_ITEM_HEIGHT * 8 + LIST_PADDING;
-const LOAD_MORE_THRESHOLD = VIRTUAL_ITEM_HEIGHT * 3;
-const EMPTY_STATE_HEIGHT = VIRTUAL_ITEM_HEIGHT * 1.5 + LIST_PADDING;
 
 export function CommandMenu() {
   const splitManager = globalSplitManager();
@@ -176,7 +156,7 @@ export function CommandMenuInner(props: {
       ? 'all'
       : CommandState.categoryFilter();
 
-  const { openWithSplit, popoverSplit } = useSplitLayout();
+  const { popoverSplit } = useSplitLayout();
 
   const canOpenInNewSplit = () =>
     globalSplitManager()?.canAppendSplit() ?? false;
@@ -214,12 +194,8 @@ export function CommandMenuInner(props: {
   // Skip past the search row only onto a real result — when the query has
   // no results the rows below are fallbacks (ask AI), and the search row
   // should stay the default.
-  const resultFollowsSearchRow = () => {
-    const items = filteredItems();
-    return Boolean(
-      items[0] && isSearchItem(items[0]) && items[1] && !isAskAiItem(items[1])
-    );
-  };
+  const resultFollowsSearchRow = () =>
+    defaultCommandResultIndex(filteredItems()) === 1;
   createEffect(
     on([query, categoryFilter], () => {
       listController.setSelectedIndex(resultFollowsSearchRow() ? 1 : 0);
@@ -283,28 +259,7 @@ export function CommandMenuInner(props: {
     return item && isAskAiItem(item);
   };
 
-  const getOrCreateDirectMessage = useGetOrCreateDirectMessageMutation();
-  // A person without a conversation yet: open one, as the user card does.
-  const openDirectMessage = async (
-    recipientId: string,
-    openInNewSplit: boolean
-  ) => {
-    try {
-      const { channel_id } = await getOrCreateDirectMessage.mutateAsync({
-        recipient_id: recipientId,
-      });
-      openWithSplit(
-        { type: 'channel', id: channel_id },
-        {
-          referredFrom: 'kommand-menu',
-          preferNewSplit: openInNewSplit,
-          reopen: 'latest',
-        }
-      );
-    } catch {
-      toast.failure('Unable to open conversation. Please try again.');
-    }
-  };
+  const openResult = createCommandResultOpener();
 
   function handleItemAction(item: CommandMenuItem, openInNewSplit = false) {
     if (!item) return;
@@ -377,131 +332,7 @@ export function CommandMenuInner(props: {
       return;
     }
 
-    if (item.kind === 'initiative') {
-      openWithSplit(
-        {
-          type: 'component',
-          id: projectRouteId({ id: item.id, section: 'overview' }),
-        },
-        { preferNewSplit: openInNewSplit }
-      );
-      CommandState.close();
-      CommandState.setQuery('');
-      return;
-    }
-
-    // Handle entity items (documents, channels, chats, etc.)
-    if (isEntityItem(item)) {
-      if (isGithubPrEntity(item.data)) {
-        if (USE_MACRO_PR_SUMMARY_BLOCK) {
-          const result = openWithSplit(
-            { type: 'pr', id: item.data.id },
-            {
-              referredFrom: 'kommand-menu',
-              preferNewSplit: openInNewSplit,
-            }
-          );
-          if (
-            result.status === 'reused' &&
-            result.owner !== result.sourceOwner
-          ) {
-            toast.alert('Content already open');
-          }
-        } else {
-          openExternalUrl(item.data.metadata.url);
-        }
-        CommandState.close();
-        CommandState.setQuery('');
-        return;
-      }
-
-      if (item.data.type !== 'foreign') {
-        const blockName = itemToBlockName(item.data);
-        if (blockName) {
-          const result = openWithSplit(
-            { type: blockName, id: item.id },
-            {
-              referredFrom: 'kommand-menu',
-              preferNewSplit: openInNewSplit,
-              reopen: blockName === 'channel' ? 'latest' : undefined,
-            }
-          );
-          if (
-            result.status === 'reused' &&
-            result.owner !== result.sourceOwner
-          ) {
-            toast.alert('Content already open');
-          }
-        }
-      }
-      CommandState.close();
-      CommandState.setQuery('');
-      return;
-    }
-
-    if (isUserItem(item)) {
-      void openDirectMessage(item.id, openInNewSplit);
-      CommandState.close();
-      CommandState.setQuery('');
-      return;
-    }
-
-    if (isAskAiItem(item)) {
-      // Opens a new agent session and sends the query when ready.
-      void openChatWithMessage(item.query);
-      CommandState.close();
-      CommandState.setQuery('');
-      return;
-    }
-
-    if (isSearchItem(item)) {
-      // Fall back to the search preset (not `{}`) so uncategorized searches
-      // keep the search view's baseline exclusions (foreign entities, CRM).
-      const preset = getViewPreset('search');
-      const overrides = getCategorySearchFilters(item.category);
-      const filters = overrides?.filters ?? preset?.filters ?? {};
-      const clientFilters =
-        overrides?.clientFilters ?? preset?.clientFilters ?? {};
-      const splitManager = globalSplitManager();
-      const active = splitManager?.activeSplit();
-      const activeContent = active?.content();
-      const activeIsSearch =
-        activeContent?.type === 'component' && activeContent.id === 'search';
-
-      if (!openInNewSplit && activeIsSearch && active) {
-        const controller = getSearchSplit(active.id);
-        if (controller) {
-          controller.applyOverrides({
-            query: item.query,
-            filters,
-            clientFilters,
-          });
-          active.activate();
-          CommandState.close();
-          CommandState.setQuery('');
-          return;
-        }
-      }
-
-      openWithSplit(
-        {
-          type: 'component',
-          id: 'search',
-          // Opening search into an existing split otherwise drops these params
-          // and the field mounts empty. Entry state still wins on back/forward.
-          preserveParams: true,
-          params: {
-            initialQuery: item.query,
-            initialFilters: filters,
-            initialClientFilters: clientFilters,
-          },
-        },
-        {
-          referredFrom: 'kommand-menu',
-          preferNewSplit: openInNewSplit,
-          allowDuplicate: true,
-        }
-      );
+    if (openResult(item, openInNewSplit)) {
       CommandState.close();
       CommandState.setQuery('');
       return;
@@ -698,15 +529,6 @@ export function CommandMenuInner(props: {
     setActiveScope(hotkeyScope);
   };
 
-  const resultsHeight = () => {
-    const count = filteredItems().length;
-    if (count === 0) return EMPTY_STATE_HEIGHT;
-    return Math.min(
-      MAX_LIST_HEIGHT,
-      count * VIRTUAL_ITEM_HEIGHT + LIST_PADDING
-    );
-  };
-
   const categoryTabs = () =>
     categories().map((c) => ({
       value: c.id,
@@ -797,30 +619,15 @@ export function CommandMenuInner(props: {
       </Show>
 
       <CommandMenuShell.Body>
-        <div
-          class="overflow-hidden transition-[height] duration-60 ease-out p-2"
-          style={{ height: `${resultsHeight()}px` }}
-        >
-          <Show
-            when={filteredItems().length > 0}
-            fallback={
-              <CommandMenuEmptyState>
-                <Show when={!isLoadingEntities()}>No results found</Show>
-              </CommandMenuEmptyState>
-            }
-          >
-            <VirtualizedCommandList
-              items={filteredItems()}
-              selectedIndex={CommandState.selectedIndex()}
-              onSelect={(item, openInNewSplit) =>
-                handleItemAction(item, openInNewSplit)
-              }
-              onItemMouseMove={listController.setSelectedIndexFromPointer}
-              scrollSelectedIntoView={listController.shouldScrollSelectedIntoView()}
-              pagination={pagination}
-            />
-          </Show>
-        </div>
+        <CommandResults
+          items={filteredItems()}
+          selectedIndex={CommandState.selectedIndex()}
+          onSelect={handleItemAction}
+          onItemMouseMove={listController.setSelectedIndexFromPointer}
+          scrollSelectedIntoView={listController.shouldScrollSelectedIntoView()}
+          pagination={pagination}
+          loading={isLoadingEntities()}
+        />
       </CommandMenuShell.Body>
 
       <CommandMenuShell.Footer class="bg-transparent">
@@ -895,80 +702,6 @@ function EntityActionPreview(props: { entities: EntityData[] }) {
         <Badge size="sm">+{remainingCount()} more</Badge>
       </Show>
     </>
-  );
-}
-
-/** Virtualized command list component */
-function VirtualizedCommandList(props: {
-  items: CommandMenuItem[];
-  selectedIndex: number;
-  onSelect: (item: CommandMenuItem, openInNewSplit: boolean) => void;
-  onItemMouseMove: (index: number) => void;
-  scrollSelectedIntoView: boolean;
-  pagination?: PaginationControls;
-}) {
-  let virtualizerHandle: VirtualizerHandle | undefined;
-
-  const loadMoreNearEnd = () => {
-    const pagination = props.pagination;
-    if (
-      !virtualizerHandle ||
-      !pagination?.hasMore() ||
-      pagination.isLoadingMore()
-    )
-      return;
-    const remaining =
-      virtualizerHandle.scrollSize -
-      virtualizerHandle.scrollOffset -
-      virtualizerHandle.viewportSize;
-    if (remaining <= LOAD_MORE_THRESHOLD) void pagination.loadMore();
-  };
-
-  createEffect(() => {
-    const index = props.selectedIndex;
-    if (
-      !props.scrollSelectedIntoView ||
-      index < 0 ||
-      index >= props.items.length ||
-      !virtualizerHandle
-    ) {
-      return;
-    }
-    // Skip when all items fit: scrolling would be a no-op at the final
-    // container size, but during the height transition the container is
-    // briefly clipped and scrollToIndex shifts scrollTop, hiding the search
-    // row across category switches.
-    if (props.items.length * VIRTUAL_ITEM_HEIGHT <= MAX_LIST_HEIGHT) {
-      return;
-    }
-    virtualizerHandle.scrollToIndex(index, { align: 'nearest' });
-  });
-
-  const selector = createSelector(
-    () => props.selectedIndex,
-    (ndx, selected) => ndx === selected
-  );
-
-  return (
-    <VList
-      ref={(handle) => {
-        virtualizerHandle = handle;
-      }}
-      data={props.items}
-      style={{ height: '100%' }}
-      class="scrollbar-hidden"
-      onScroll={loadMoreNearEnd}
-    >
-      {(item, index) => (
-        <CommandItem
-          item={item}
-          index={index()}
-          selected={selector(index())}
-          onSelect={props.onSelect}
-          onMouseMove={props.onItemMouseMove}
-        />
-      )}
-    </VList>
   );
 }
 

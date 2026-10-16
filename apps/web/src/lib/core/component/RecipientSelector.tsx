@@ -323,7 +323,7 @@ function RecipientComboboxItem(props: RecipientComboboxItemProps): JSX.Element {
   );
 }
 
-type RecipientSelectorProps<K extends CombinedRecipientKind> = {
+export type RecipientSelectorProps<K extends CombinedRecipientKind> = {
   options: Accessor<CombinedRecipientItem<K>[]>;
   selectedOptions: WithCustomUserInput<K>[];
   setSelectedOptions: (next: WithCustomUserInput<K>[]) => void;
@@ -350,6 +350,8 @@ type RecipientSelectorProps<K extends CombinedRecipientKind> = {
   portalScope?: 'local';
   /** Show an invite action for a complete email outside the known recipients. */
   inviteExternalEmails?: boolean;
+  /** Messages can target only existing users or channels. Defaults to true. */
+  allowCustomRecipients?: boolean;
 };
 
 export function RecipientSelector<K extends CombinedRecipientKind>(
@@ -604,6 +606,7 @@ export function RecipientSelector<K extends CombinedRecipientKind>(
 
     // Only add custom input if it doesn't match an existing email
     if (
+      props.allowCustomRecipients !== false &&
       currentUserInput &&
       !hasExactEmailMatch &&
       EmailValidator.validate(currentUserInput)

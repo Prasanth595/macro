@@ -3315,6 +3315,13 @@
           "intent": {
             "$ref": "#/components/schemas/InputIntent"
           },
+          "property_definitions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InputPropertyDefinition"
+            },
+            "description": "Available task fields and display values, never authorized entity IDs."
+          },
           "reference_time": {
             "type": "string",
             "format": "date-time"
@@ -4067,6 +4074,37 @@
         "description": "A destination the composer can prepare, but never execute through inference.",
         "enum": ["ai", "search", "email", "note", "task", "calendar", "message"]
       },
+      "InputPropertyDefinition": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "InputPropertySuggestion": {
+        "type": "object",
+        "required": ["name", "values"],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
       "InputSuggestions": {
         "type": "object",
         "description": "Suggestions are text, never authorized recipient, channel or calendar IDs.",
@@ -4089,6 +4127,13 @@
           },
           "location": {
             "type": ["string", "null"]
+          },
+          "properties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InputPropertySuggestion"
+            },
+            "description": "Display names/values that the client resolves against available task fields."
           },
           "query": {
             "type": ["string", "null"]

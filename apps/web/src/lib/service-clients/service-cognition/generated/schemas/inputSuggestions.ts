@@ -4,6 +4,8 @@
  * Document Cognition Service
  * OpenAPI spec version: 1.0.0
  */
+
+import type { InputPropertySuggestion } from './inputPropertySuggestion';
 import type { InputSuggestionsBody } from './inputSuggestionsBody';
 import type { InputSuggestionsDueDate } from './inputSuggestionsDueDate';
 import type { InputSuggestionsEnd } from './inputSuggestionsEnd';
@@ -23,6 +25,8 @@ export interface InputSuggestions {
   /** Only populated when an invitation was explicitly requested. */
   guests?: string[];
   location?: InputSuggestionsLocation;
+  /** Display names/values that the client resolves against available task fields. */
+  properties?: InputPropertySuggestion[];
   query?: InputSuggestionsQuery;
   recipients?: string[];
   /** Local wall-clock values, interpreted in the request's IANA timezone. */

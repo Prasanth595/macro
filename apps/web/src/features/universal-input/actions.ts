@@ -4,13 +4,14 @@ import { createAgentRosterSource } from '@app/features/agents-view/queries/agent
 import { createComposerModels } from '@app/features/agents-view/queries/composer-models';
 import { startPendingSession } from '@app/features/block-agent/context/pending-session';
 import { createDocumentWithTags } from '@app/features/block-md/queries/create-document-with-tags';
-import {
-  createTaskWithProperties,
-  defaultTaskPropertyValues,
-} from '@app/features/block-md/util/taskComposerProperties';
+import { createDocumentComposerTags } from '@app/features/block-md/util/documentComposerProperties';
+import { createTaskWithProperties } from '@app/features/block-md/util/taskComposerProperties';
 import { calendarViewContent } from '@app/features/calendar-view/calendar-navigation';
 import { createEmailComposeContext } from '@app/features/email-compose/compose-adapter';
+import { plainTextToHtml } from '@app/features/email-compose/core/plain-text-to-html';
+import { prepareEmailBody } from '@app/features/email-compose/primitives/prepare-email-body';
 import { buildHomeAgentPrompt } from '@app/features/home/queries/home-agent-prompt';
+import { parsePropertyDraft } from '@app/features/property/utils/parse-property-draft';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { useHasPaidAccess } from '@core/auth';
@@ -22,9 +23,13 @@ import {
 } from '@core/component/AI/constant';
 import { useChatInputContext } from '@core/component/AI/context';
 import { setPendingSendData } from '@core/component/AI/signal/pendingSend';
+import type { ItemMention } from '@core/component/LexicalMarkdown/plugins';
+import { toast } from '@core/component/Toast/Toast';
 import { enableChatV3Agents } from '@core/constant/featureFlags';
+import { useSettingsState } from '@core/constant/SettingsState';
+import { useAddInboxFlow } from '@core/email-link';
 import { useCombinedRecipients } from '@core/signal/useCombinedRecipient';
-import { SYSTEM_PROPERTY_IDS } from '@property/constants';
+import { encodeBase64UrlUtf8 } from '@core/util/base64';
 import { useVisibleCalendarsQuery } from '@queries/calendar/calendars';
 import { useCreateCalendarEventMutation } from '@queries/calendar/mutations';
 import {
@@ -33,20 +38,25 @@ import {
 } from '@queries/channel/get-or-create-dm';
 import { useUpsertToHistoryMutation } from '@queries/history/history';
 import { useSendMessageMutation } from '@queries/messages/mutations';
-import type { Accessor } from 'solid-js';
+import type { LexicalEditor } from 'lexical';
+import { type Accessor, createSignal } from 'solid-js';
 import { match } from 'ts-pattern';
+import type { RosterAgent } from '../agents-view/core/roster';
+import { authoredMentions } from '../channel/Input/message-payload';
 import type { InputCapabilities } from './context/capabilities';
-import type { InputFields } from './core/input';
+import type { InputFields, Submission } from './core/input';
 import { type Recipient, resolveRecipients } from './core/recipients';
 import { createInputChat } from './queries/create-chat';
-import { parseTaskProperties } from './queries/task-properties';
+import { createTaskFieldSource } from './queries/task-field-source';
 
 /** Production adapters reuse each destination's mutation and permission boundary. */
 export function createInputActions(
   fields: Accessor<InputFields>,
-  userId: string
+  userId: string,
+  onNoteTagsChange: (value: string) => void = () => {}
 ) {
   const panel = useSplitPanelOrThrow();
+  const { openSettings } = useSettingsState();
   const chat = useChatInputContext();
   const agents = useFeatureFlag(enableChatV3Agents);
   const paid = useHasPaidAccess();
@@ -55,6 +65,8 @@ export function createInputActions(
     roster.roster().find((agent) => agent.id === (fields().botId || 'macro'));
   const catalog = createComposerModels(selectedAgent);
   const email = createEmailComposeContext();
+  const startGoogleConnection = useAddInboxFlow();
+  const [connectingGoogle, setConnectingGoogle] = createSignal(false);
   const calendarsQuery = useVisibleCalendarsQuery();
   const createEvent = useCreateCalendarEventMutation();
   const dm = useGetOrCreateDirectMessageMutation();
@@ -62,6 +74,14 @@ export function createInputActions(
   const sendMessage = useSendMessageMutation();
   const history = useUpsertToHistoryMutation();
   const combined = useCombinedRecipients();
+  const taskFields = createTaskFieldSource(userId);
+  const noteTags = createDocumentComposerTags(
+    {},
+    {
+      values: () => parsePropertyDraft(fields().noteTags),
+      onChange: (values) => onNoteTagsChange(JSON.stringify(values)),
+    }
+  );
   const people = (): Recipient[] =>
     combined.users().map((p) => ({
       id: p.id,
@@ -69,16 +89,19 @@ export function createInputActions(
       email: p.data.email ?? undefined,
       kind: 'user',
     }));
-  const destinations = (): Recipient[] => [
-    ...people(),
-    ...combined.channels().map(
-      (p): Recipient => ({
-        id: p.id,
-        label: p.data.name ?? 'Channel',
-        kind: 'channel',
-      })
-    ),
+  const messageRecipients = () => [
+    ...combined.users().filter((option) => option.kind === 'user'),
+    ...combined.channels(),
   ];
+  const destinations = (): Recipient[] =>
+    messageRecipients().map((option) => ({
+      id: option.id,
+      label:
+        option.data.name ??
+        (option.kind === 'user' ? option.data.email : 'Channel'),
+      email: option.kind === 'user' ? option.data.email : undefined,
+      kind: option.kind,
+    }));
   const calendars = () =>
     calendarsQuery.isSuccess
       ? calendarsQuery.data.filter((c) => c.isWritable)
@@ -93,6 +116,20 @@ export function createInputActions(
       .inboxes()
       .find((a) => a.id === (f.inboxId || email.accounts.primaryId())) ??
     (!f.inboxId ? email.accounts.inboxes()[0] : undefined);
+  const connectGoogle = async () => {
+    if (connectingGoogle()) return;
+    setConnectingGoogle(true);
+    try {
+      await startGoogleConnection({
+        scopes: 'gmail_and_calendar',
+        emailAddress: selectedInbox(fields())?.email_address,
+      });
+    } catch {
+      toast.failure('Could not connect Google. Please try again.');
+    } finally {
+      setConnectingGoogle(false);
+    }
+  };
   const recipients = (f: InputFields, message = false) =>
     resolveRecipients(
       f.recipients,
@@ -113,7 +150,24 @@ export function createInputActions(
         ? DEFAULT_MODEL
         : FREE_DEFAULT_MODEL);
   const attachmentCount = () => chat.attachments.attached().length;
+  const validateEmailDraft: InputCapabilities['validateEmailDraft'] = (
+    input
+  ) => {
+    if (input.intent !== 'email') return 'Choose Email';
+    if (attachmentCount())
+      return 'Attached context is supported for AI. Remove it or choose AI.';
+    if (!selectedInbox(input.fields))
+      return 'Connect or choose an email account';
+    const unresolved = recipients(input.fields).unresolved;
+    if (unresolved.length)
+      return `Choose a specific recipient for ${unresolved.join(', ')}`;
+  };
   const validate: InputCapabilities['validate'] = (input) => {
+    if (input.intent === 'task') {
+      const unresolved = taskFields.values(input.fields).unresolved;
+      if (unresolved.length)
+        return `Choose a value for ${unresolved.join(', ')}`;
+    }
     if (attachmentCount() && input.intent !== 'ai')
       return 'Attached context is supported for AI. Remove it or choose AI.';
     if (input.intent === 'calendar') {
@@ -124,10 +178,9 @@ export function createInputActions(
       )
         return 'Choose an email address for each guest';
     }
-    if (input.intent === 'email' && !selectedInbox(input.fields))
-      return 'Connect or choose an email account';
-    if (input.intent === 'email' || input.intent === 'message') {
-      const resolved = recipients(input.fields, input.intent === 'message');
+    if (input.intent === 'email') return validateEmailDraft(input);
+    if (input.intent === 'message') {
+      const resolved = recipients(input.fields, true);
       if (resolved.unresolved.length)
         return `Choose a specific recipient for ${resolved.unresolved.join(', ')}`;
       if (
@@ -148,6 +201,45 @@ export function createInputActions(
     string,
     { draftId?: string; threadId?: string }
   >();
+  let emailEditor: LexicalEditor | undefined;
+  let messageMentions: (() => ItemMention[]) | undefined;
+  const emailMessage = (input: Submission) => {
+    const body = prepareEmailBody(emailEditor);
+    const prior = emailDrafts.get(input.id);
+    return {
+      subject: input.fields.subject,
+      to: recipients(input.fields).recipients.map((p) => ({
+        email: p.email!,
+        name: p.label,
+      })),
+      body_text: body?.bodyText ?? input.fields.body,
+      body_html:
+        body?.bodyHtml ??
+        encodeBase64UrlUtf8(plainTextToHtml(input.fields.body)),
+      body_macro: input.fields.body,
+      db_id: prior?.draftId,
+      thread_db_id: prior?.threadId,
+    };
+  };
+  const saveEmailDraft: InputCapabilities['saveEmailDraft'] = async (input) => {
+    const problem = validateEmailDraft(input);
+    if (problem) throw new Error(problem);
+    const inboxId = selectedInbox(input.fields)!.id;
+    const saved = await email.drafts.saveDraft({
+      draft: emailMessage(input),
+      inboxId,
+    });
+    emailDrafts.delete(input.id);
+    return {
+      message: 'Email draft saved',
+      open: saved.threadId
+        ? () =>
+            panel.handle.replace({
+              next: { type: 'email', id: saved.threadId! },
+            })
+        : undefined,
+    };
+  };
   const openDocument = (id: string) => () =>
     panel.handle.replace({ next: { type: 'md', id } });
   const submit: InputCapabilities['submit'] = async (input) => {
@@ -211,9 +303,9 @@ export function createInputActions(
       .with('note', async () => {
         const created = await createDocumentWithTags(
           f.title,
-          input.text,
-          [],
-          new Map(),
+          f.body,
+          Object.entries(parsePropertyDraft(f.noteTags)),
+          noteTags.createDefinitions(),
           (p) => history.mutate(p)
         );
         if (!created) throw new Error('Could not create the note');
@@ -223,20 +315,13 @@ export function createInputActions(
         };
       })
       .with('task', async () => {
-        const properties = {
-          ...defaultTaskPropertyValues([userId]),
-          ...parseTaskProperties(f.taskProperties),
-        };
-        if (f.due_date && !properties[SYSTEM_PROPERTY_IDS.DUE_DATE])
-          properties[SYSTEM_PROPERTY_IDS.DUE_DATE] = {
-            valueType: 'DATE',
-            value: new Date(`${f.due_date}T12:00:00`),
-          };
+        const definitions = await taskFields.createDefinitions();
+        const properties = taskFields.values(f).values;
         const created = await createTaskWithProperties(
           f.title,
           f.body,
           Object.entries(properties),
-          new Map(),
+          definitions,
           (p) => history.mutate(p)
         );
         if (!created) throw new Error('Could not create the task');
@@ -247,18 +332,7 @@ export function createInputActions(
       })
       .with('email', async () => {
         const inboxId = selectedInbox(f)!.id;
-        const prior = emailDrafts.get(input.id);
-        const message = {
-          subject: f.subject,
-          to: recipients(f).recipients.map((p) => ({
-            email: p.email!,
-            name: p.label,
-          })),
-          body_text: f.body,
-          body_macro: f.body,
-          db_id: prior?.draftId,
-          thread_db_id: prior?.threadId,
-        };
+        const message = emailMessage(input);
         const saved = await email.drafts.saveDraft({ draft: message, inboxId });
         emailDrafts.set(input.id, saved);
         const sent = await email.delivery.sendMessage({
@@ -307,6 +381,7 @@ export function createInputActions(
         };
       })
       .with('message', async () => {
+        const mentions = authoredMentions(messageMentions?.() ?? []);
         const targets = recipients(f, true).recipients;
         const first = targets[0];
         const channelId =
@@ -323,7 +398,10 @@ export function createInputActions(
           parent: { type: 'channel', id: channelId },
           senderId: userId,
           optimisticId: input.id,
-          message: { content: f.body },
+          message: {
+            content: f.body,
+            mentions,
+          },
         });
         return {
           message: 'Message sent',
@@ -334,8 +412,20 @@ export function createInputActions(
       .exhaustive();
   };
   return {
+    noteTags,
+    captureMessageMentions: (read: (() => ItemMention[]) | undefined) => {
+      messageMentions = read;
+    },
+    messageRecipients,
+    captureEmailEditor: (editor: LexicalEditor | undefined) => {
+      emailEditor = editor;
+    },
+    taskDefinitions: taskFields.definitions,
+    taskValues: taskFields.values,
     submit,
+    saveEmailDraft,
     validate,
+    validateEmailDraft,
     people,
     destinations,
     recipients,
@@ -343,7 +433,27 @@ export function createInputActions(
     selectedCalendar,
     selectedInbox,
     inboxes: email.accounts.inboxes,
+    connectGoogle,
+    connectingGoogle: () =>
+      connectingGoogle() ||
+      email.accounts.loading() ||
+      calendarsQuery.isPending,
     roster: roster.roster,
+    rosterLoading: roster.loading,
+    connectAgent: (agent: RosterAgent) => {
+      if (agent.harness === 'cursor') openSettings('Harness');
+    },
+    createAgent: () =>
+      panel.handle.replace({
+        next: {
+          type: 'component',
+          id: 'agents',
+          params: {
+            agentPage: 'agents',
+            agentPageRequest: crypto.randomUUID(),
+          },
+        },
+      }),
     agentsEnabled: () => agents().enabled,
     models,
     model,

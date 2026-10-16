@@ -6,7 +6,7 @@ import { Calendar } from '@ui/components/Calendar';
 import { Layer } from '@ui/components/Layer';
 import { ToggleSwitch } from '@ui/components/ToggleSwitch';
 import { cn } from '@ui/utils/classname';
-import { createSignal, createUniqueId } from 'solid-js';
+import { createSignal, createUniqueId, Show } from 'solid-js';
 import { formatLocalDate, parseLocalDate } from '../../utils/calendar-date';
 import { EventComposerPopoverPortal } from './EventComposerPopoverPortal';
 import { dateLabelFormatter, EventTimeInput } from './EventDateTimeInputs';
@@ -176,7 +176,7 @@ export interface EventDateTimeRangeFieldsProps {
   allDay: boolean;
   onStartChange: (value: string) => void;
   onEndChange: (value: string) => void;
-  onAllDayChange: (allDay: boolean) => void;
+  onAllDayChange?: (allDay: boolean) => void;
   startDisabled?: boolean;
   endDisabled?: boolean;
   allDayDisabled?: boolean;
@@ -232,15 +232,17 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
           placement="bottom-end"
         />
       </div>
-      <ToggleSwitch
-        checked={props.allDay}
-        disabled={props.allDayDisabled}
-        onChange={props.onAllDayChange}
-        size="sm"
-        label="All day"
-        labelClass="whitespace-nowrap text-xs text-ink-muted"
-        class="shrink-0"
-      />
+      <Show when={props.onAllDayChange}>
+        <ToggleSwitch
+          checked={props.allDay}
+          disabled={props.allDayDisabled}
+          onChange={(value) => props.onAllDayChange?.(value)}
+          size="sm"
+          label="All day"
+          labelClass="whitespace-nowrap text-xs text-ink-muted"
+          class="shrink-0"
+        />
+      </Show>
     </div>
   );
 }

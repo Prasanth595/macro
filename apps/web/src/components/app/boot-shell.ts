@@ -21,7 +21,7 @@ export type BootShellHint = {
   rail?: string[];
   /** Whether the rail shows the Get-the-mobile-app button. */
   mobileApp?: boolean;
-  /** Home's composer: the Agents new-chat layout or the legacy greeting. */
+  /** Home's selected composer: agent chat, classic chat, or Universal Input. */
   homeComposer?: 'agents' | 'legacy' | 'universal';
 };
 

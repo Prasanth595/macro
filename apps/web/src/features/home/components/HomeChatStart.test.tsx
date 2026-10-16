@@ -28,9 +28,15 @@ vi.mock('@app/components/view-shell', () => ({
   },
 }));
 vi.mock('@app/lib/analytics/posthog', () => ({
-  useFeatureFlag: () => () => ({ enabled: mocks.agentsEnabled }),
+  useFeatureFlag: (flag: { key: string }) => () => ({
+    enabled: flag.key === 'agents' && mocks.agentsEnabled,
+  }),
 }));
-vi.mock('@core/constant/featureFlags', () => ({ enableChatV3Agents: {} }));
+vi.mock('@core/constant/featureFlags', () => ({
+  enableChatV3Agents: { key: 'agents' },
+  enableUniversalInput: { key: 'universal' },
+}));
+vi.mock('@core/context/user', () => ({ useUserId: () => () => 'alice' }));
 vi.mock('@core/component/AI/component/DragDrop', () => ({
   DragDropWrapper: (props: ChildrenProps & { class?: string }) => (
     <div data-testid="home-composer-frame" class={props.class}>
@@ -40,6 +46,9 @@ vi.mock('@core/component/AI/component/DragDrop', () => ({
 }));
 vi.mock('@core/component/AI/context', () => ({
   ChatInputProvider: (props: ChildrenProps) => props.children,
+}));
+vi.mock('../home-chat-input', () => ({
+  HomeChatInput: () => <div data-testid="usual-input" />,
 }));
 vi.mock('../../universal-input/universal-input', () => ({
   UniversalInput: () => <div data-testid="universal-input" />,
@@ -59,10 +68,10 @@ function renderHome() {
   return render(() => <HomeChatStart />);
 }
 
-describe('Home universal composer', () => {
+describe('Home composer', () => {
   it('starts without an AI greeting', () => {
     renderHome();
-    expect(screen.getByTestId('universal-input')).toBeTruthy();
+    expect(screen.getByTestId('usual-input')).toBeTruthy();
     expect(document.querySelector('h1')).toBeNull();
     expect(document.querySelector('[data-testid="home-topbar"]')).toBeNull();
   });
@@ -70,12 +79,12 @@ describe('Home universal composer', () => {
     mocks.asideCollapsed = true;
     renderHome();
     expect(screen.getByTestId('home-topbar')).toBeTruthy();
-    expect(screen.getByTestId('universal-input')).toBeTruthy();
+    expect(screen.getByTestId('usual-input')).toBeTruthy();
   });
-  it('also replaces the legacy composer when agents are disabled', () => {
+  it('keeps the legacy composer when agents are disabled', () => {
     mocks.agentsEnabled = false;
     renderHome();
-    expect(screen.getByTestId('universal-input')).toBeTruthy();
-    expect(screen.queryByText('What should we get done in Macro?')).toBeNull();
+    expect(screen.getByTestId('usual-input')).toBeTruthy();
+    expect(screen.getByText('What should we get done in Macro?')).toBeTruthy();
   });
 });

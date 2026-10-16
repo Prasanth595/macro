@@ -3,11 +3,21 @@ import type { InputCapabilities } from './context/capabilities';
 import { type Draft, draftSchema } from './core/input';
 
 export function createInferenceSource(
-  userId: string
+  userId: string,
+  properties: () => Promise<
+    { name: string; options: string[] }[]
+  > = async () => []
 ): Pick<InputCapabilities, 'classify' | 'extract' | 'readDraft' | 'saveDraft'> {
   const key = `macro:universal-input:${userId}`;
   return {
     ...universalInputClient,
+    extract: async (text, intent, revision) =>
+      universalInputClient.extract(
+        text,
+        intent,
+        revision,
+        intent === 'task' ? await properties() : []
+      ),
     readDraft() {
       try {
         const value = localStorage.getItem(key);

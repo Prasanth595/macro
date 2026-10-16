@@ -9,20 +9,21 @@ import {
 import { resolveRecipients } from './recipients';
 
 describe('inference decisions', () => {
-  it('requires a high score and a clear margin without normalizing independent scores', () => {
+  it('starts with the strongest candidate even with low or closely matched scores', () => {
     expect(
       inferIntent([
         { intent: 'task', score: 0.8 },
         { intent: 'note', score: 0.6 },
       ])
     ).toBe('task');
-    expect(inferIntent([{ intent: 'task', score: 0.79 }])).toBeUndefined();
+    expect(inferIntent([{ intent: 'task', score: 0.39 }])).toBe('task');
     expect(
       inferIntent([
         { intent: 'task', score: 0.95 },
         { intent: 'calendar', score: 0.9 },
       ])
-    ).toBeUndefined();
+    ).toBe('task');
+    expect(inferIntent([])).toBeUndefined();
   });
   it('clears old machine suggestions but preserves manually cleared fields', () => {
     expect(

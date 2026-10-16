@@ -1,0 +1,6 @@
+Extract a task title, description body, optional due_date and explicitly supplied properties.
+The FIRST draft line is the title. Copy ALL subsequent problem-description lines into body. Separately labeled metadata lines are excluded from body after being extracted. If no problem prose follows the title, body is null.
+Use only fields listed in property_definitions. Match their exact names and options. Extract only values actually supplied in the draft. Missing fields are OMITTED, never filled with defaults or empty values. People/projects stay names or supplied emails; multiple values remain separate strings.
+If the draft has NO deadline, due_date MUST be null. For an explicit deadline, resolve it against reference_local_time in time_zone and return YYYY-MM-DD. An urgent priority is NOT a deadline. Do not put due_date in properties.
+If the draft has NO status, do not add a Status property. If it has NO assignee/project, do not add those properties.
+Example: draft "Fix login\nButtons do not respond\nPriority: High" => {"title":"Fix login","body":"Buttons do not respond","due_date":null,"properties":[{"name":"Priority","values":["High"]}]}. Copy values from the ACTUAL draft, not the example. Priority, Status, Assignees, Project, Story Points and due-date metadata must not remain in body.

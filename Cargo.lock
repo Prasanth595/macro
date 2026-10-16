@@ -20168,6 +20168,7 @@ dependencies = [
  "chrono-tz",
  "jev",
  "macro_user_id",
+ "regex",
  "serde",
  "serde_json",
  "thiserror 2.0.18",

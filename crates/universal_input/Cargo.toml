@@ -12,6 +12,7 @@ chrono = { workspace = true }
 chrono-tz = { workspace = true }
 jev = { path = "../jev" }
 macro_user_id = { path = "../macro_user_id" }
+regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

@@ -1,4 +1,4 @@
-import { For, type JSX } from 'solid-js';
+import { createUniqueId, Show } from 'solid-js';
 
 export function FieldInput(props: {
   label: string;
@@ -8,20 +8,32 @@ export function FieldInput(props: {
   list?: string;
   multiline?: boolean;
   disabled?: boolean;
+  hint?: string;
+  prominent?: boolean;
 }) {
+  const hintId = createUniqueId();
   return (
-    <label class="flex min-w-0 flex-col gap-1 text-xs text-ink-muted">
-      <span>{props.label}</span>
+    <label class="flex min-w-0 flex-col gap-1.5 text-xs text-ink-muted">
+      <span class="font-medium" classList={{ 'sr-only': props.prominent }}>
+        {props.label}
+      </span>
       {props.multiline ? (
         <textarea
-          class="min-h-24 w-full resize-y rounded-md border border-edge-muted bg-input px-3 py-2 text-sm text-ink outline-none focus:border-edge"
+          aria-label={props.label}
+          aria-describedby={props.hint ? hintId : undefined}
+          class="min-h-24 w-full resize-y rounded-lg border border-transparent bg-hover/40 px-3 py-2.5 text-sm leading-relaxed text-ink outline-none transition-colors focus:border-edge focus:bg-panel"
           value={props.value}
           disabled={props.disabled}
           onInput={(e) => props.onChange(e.currentTarget.value)}
         />
       ) : (
         <input
-          class="h-9 min-w-0 w-full rounded-md border border-edge-muted bg-input px-3 text-sm text-ink outline-none focus:border-edge"
+          aria-label={props.label}
+          aria-describedby={props.hint ? hintId : undefined}
+          class="h-10 min-w-0 w-full rounded-lg border border-transparent bg-hover/40 px-3 text-sm text-ink outline-none transition-colors focus:border-edge focus:bg-panel"
+          classList={{
+            'bg-transparent! px-0! text-xl! font-medium': props.prominent,
+          }}
           type={props.type ?? 'text'}
           list={props.list}
           value={props.value}
@@ -29,43 +41,14 @@ export function FieldInput(props: {
           onInput={(e) => props.onChange(e.currentTarget.value)}
         />
       )}
+      <Show when={props.hint}>
+        <span
+          id={hintId}
+          class="rounded-md bg-accent/8 px-2.5 py-2 text-xs leading-relaxed text-ink"
+        >
+          {props.hint}
+        </span>
+      </Show>
     </label>
-  );
-}
-
-export function FieldSelect(props: {
-  label: string;
-  value: string;
-  options: { id: string; label: string; disabled?: boolean }[];
-  onChange: (value: string) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <label class="flex min-w-0 flex-col gap-1 text-xs text-ink-muted">
-      <span>{props.label}</span>
-      <select
-        class="h-9 rounded-md border border-edge-muted bg-input px-2 text-sm text-ink"
-        value={props.value}
-        disabled={props.disabled}
-        onChange={(e) => props.onChange(e.currentTarget.value)}
-      >
-        <option value="">
-          {props.options.length ? 'Default' : 'None available'}
-        </option>
-        <For each={props.options}>
-          {(option) => (
-            <option value={option.id} disabled={option.disabled}>
-              {option.label}
-            </option>
-          )}
-        </For>
-      </select>
-    </label>
-  );
-}
-
-export function FieldGrid(props: { children: JSX.Element }) {
-  return (
-    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">{props.children}</div>
   );
 }
