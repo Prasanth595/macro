@@ -397,10 +397,21 @@ it('keeps full-text rows mounted during same-query refreshes but clears them for
   expect(screen.getByRole('button', { name: 'Weekly update snippet' })).toBe(
     row
   );
+  // Service page selection rematerializes existing entities when it appends.
+  setItems([
+    { ...email, name: 'Updated subject' },
+    { ...email, id: 'next', name: 'Next page' },
+  ]);
+  expect(screen.getByRole('button', { name: 'Updated subject snippet' })).toBe(
+    row
+  );
+  expect(
+    screen.getByRole('button', { name: 'Next page snippet' })
+  ).toBeTruthy();
   // The real source keeps old rows briefly while the new query debounces.
   setSettling(true);
   SearchState.setQuery('different');
   expect(
-    screen.queryByRole('button', { name: 'Weekly update snippet' })
+    screen.queryByRole('button', { name: 'Updated subject snippet' })
   ).toBeNull();
 });

@@ -48,7 +48,9 @@ to the end to verify additional pages load automatically without a fixed Load mo
 Search starts below the status-bar safe area without reserving space for the
 hidden view/filter header; check both name and full-text results with the keyboard
 open and dismissed. Same-query full-text refreshes keep the current rows visible
-so paging does not collapse the list and reset its scroll position.
+so paging does not collapse the list and reset its scroll position. Appending a
+page preserves existing row elements, including when the service rematerializes
+their data; scroll through multiple pages to check that the position stays put.
 
 Search snippets carry their target in the destination pane's route search. Channel
 messages open Chat at the message (replies open their parent thread); email snippets

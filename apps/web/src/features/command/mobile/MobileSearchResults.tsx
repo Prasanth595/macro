@@ -1,6 +1,7 @@
 import { useCrmContactDiscovery } from '@app/features/crm/record-adapter';
 import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
 import { projectRouteId } from '@app/features/projects/core/route';
+import { createSoupRowStore } from '@app/features/soup/collection/row-store';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
@@ -166,6 +167,8 @@ function MobileFullTextResults() {
     }
     return { query, category: scope, items };
   });
+  // Page selection rematerializes entities; retain row identity as pages append.
+  const rows = createSoupRowStore(() => results().items);
   const loadMoreNearEnd = createSearchPagination({
     items: () => results().items,
     container,
@@ -207,7 +210,7 @@ function MobileFullTextResults() {
       <ListEntityMetadataQueryProvider>
         <ListLayoutProvider ref={container}>
           <StaticMarkdownContext>
-            <For each={results().items}>
+            <For each={rows()}>
               {(entity) => (
                 <ListEntity
                   entity={entity}
