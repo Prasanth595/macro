@@ -70,6 +70,7 @@ Then trigger the interaction and read `window.__inst.log`. `'1,2,3' → '' → '
 - Reserve only the safe-area inset above mobile Search; its hidden split header must not leave a blank strip or extend the top fade.
 - Mount the mobile search input before focusing it inside the dock tap; keep navigation in that handler so focus does not trigger a second navigation or lose iOS keyboard activation.
 - Preserve focused chrome editors during deferred split insertion/removal autofocus; explicit return-focus commands may still focus the pane.
+- Reconcile global focus when focused DOM subtrees are removed; iOS can omit blur events, otherwise floating creation actions stay hidden after search or editor teardown.
 - Mount the floating mobile AI composer only on the Agents view; other views keep their New action or their own reply/comment composer.
 - All API/network calls live in service-clients.
 - Shared server-state queries and mutations live in `src/lib/queries`; keep

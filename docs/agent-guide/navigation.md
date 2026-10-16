@@ -589,6 +589,9 @@ hides during search, when a page supplies its own reply or compose controls, or
 when an editable field outside Ask AI is focused on a touch device. The AI draft
 is preserved when the row returns.
 The New button also hides while the software keyboard is open.
+After closing mobile search with the keyboard open or leaving a focused editor,
+verify that the current view’s New action returns once the keyboard closes.
+Removing the focused editor must not leave the action hidden on subsequent views.
 
 Mobile drawers and floating dialogs share this inset glass sheet treatment,
 including filters, task/event creation, file/message actions, sharing, and model

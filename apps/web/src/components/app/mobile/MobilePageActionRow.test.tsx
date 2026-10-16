@@ -376,6 +376,39 @@ describe('Mobile page action row', () => {
       expect(mocks.send).not.toHaveBeenCalled();
     }
   );
+  it.each(['input', 'textarea', 'contenteditable'] as const)(
+    'restores New when a focused %s is removed without a blur event',
+    async (kind) => {
+      render(() => <MobilePageActionRow />);
+      const ancestor = document.createElement('div');
+      const wrapper = document.createElement('div');
+      const editor = document.createElement(
+        kind === 'contenteditable' ? 'div' : kind
+      );
+      if (kind === 'contenteditable') {
+        editor.setAttribute('contenteditable', 'true');
+        editor.tabIndex = 0;
+      }
+      wrapper.append(editor);
+      ancestor.append(wrapper);
+      document.body.append(ancestor);
+      editor.focus();
+      setVirtualKeyboardVisible(true);
+      expect(screen.queryByRole('button', { name: 'New email' })).toBeNull();
+      // Removing a focused subtree need not dispatch focusout (including iOS
+      // search teardown and navigation away from an editor).
+      const focusout = vi.fn();
+      editor.addEventListener('focusout', focusout);
+      ancestor.remove();
+      expect(focusout).not.toHaveBeenCalled();
+      expect(document.activeElement).toBe(document.body);
+      setVirtualKeyboardVisible(false);
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'New email' })).toBeTruthy()
+      );
+    }
+  );
+
   it('hides the non-AI page action while the keyboard is visible', () => {
     render(() => <MobilePageActionRow />);
     expect(screen.getByRole('button', { name: 'New email' })).toBeTruthy();
