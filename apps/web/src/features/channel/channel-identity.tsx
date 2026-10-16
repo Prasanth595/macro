@@ -88,8 +88,14 @@ export function ChannelTitleHoverCard(
       }
       content={
         <Suspense>
-          <Show when={open()}>
-            <ChannelIdentitySession {...props} onClose={() => setOpen(false)} />
+          <Show when={open() ? props.channelId : undefined} keyed>
+            {(channelId) => (
+              <ChannelIdentitySession
+                {...props}
+                channelId={channelId}
+                onClose={() => setOpen(false)}
+              />
+            )}
           </Show>
         </Suspense>
       }
@@ -136,8 +142,10 @@ export function ChannelIdentityDialog(
 ) {
   return (
     <Suspense>
-      <Show when={props.open}>
-        <ChannelIdentitySession {...props} dialog />
+      <Show when={props.open ? props.channelId : undefined} keyed>
+        {(channelId) => (
+          <ChannelIdentitySession {...props} channelId={channelId} dialog />
+        )}
       </Show>
     </Suspense>
   );

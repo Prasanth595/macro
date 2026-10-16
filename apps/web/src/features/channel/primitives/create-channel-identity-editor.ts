@@ -40,55 +40,60 @@ export function createChannelIdentityEditor(options: {
     if (!pending()) options.onClose();
   }
 
+  function failSave(message: string) {
+    if (!disposed) {
+      setError(message);
+      setPending(false);
+    }
+    return false;
+  }
+
   async function save() {
     if (!canSave()) return;
+    const nextPicture = picture();
+    const nextName = name().trim();
+    const nameChanged = nextName !== savedName();
     setPending(true);
     setError(undefined);
-    const nextPicture = picture();
     let pictureSaved = false;
 
+    // A submitted save belongs to this channel even if its editor unmounts.
+    // Complete the captured changes, but never update a replacement editor.
     if (nextPicture !== undefined) {
       const result = await options.writer.savePicture(nextPicture);
-      if (disposed) return;
       if (result.isErr()) {
-        setError(
+        return failSave(
           'Could not save the channel picture. Your changes are still here. Try again.'
         );
-        setPending(false);
-        return;
       }
-      setPicture(undefined);
+      if (!disposed) setPicture(undefined);
       pictureSaved = true;
     }
 
-    if (!options.canEdit()) {
-      setError(
-        pictureSaved
-          ? 'The picture was saved, but you no longer have permission to change the channel name.'
-          : 'You no longer have permission to edit this channel.'
-      );
-      setPending(false);
-      return;
-    }
-
-    const nextName = name().trim();
-    if (nextName !== savedName()) {
+    if (nameChanged) {
+      if (!disposed && !options.canEdit()) {
+        return failSave(
+          pictureSaved
+            ? 'The picture was saved, but you no longer have permission to change the channel name.'
+            : 'You no longer have permission to edit this channel.'
+        );
+      }
       const result = await options.writer.saveName(nextName);
-      if (disposed) return;
       if (result.isErr()) {
-        setError(
+        return failSave(
           pictureSaved
             ? 'The picture was saved, but the channel name was not. Try saving again.'
             : 'Could not save the channel name. Your changes are still here. Try again.'
         );
-        setPending(false);
-        return;
       }
-      setSavedName(nextName);
+      if (!disposed) setSavedName(nextName);
     }
 
-    setPending(false);
-    options.onClose();
+    if (!disposed) {
+      setPending(false);
+      options.onClose();
+    }
+    return true;
   }
 
   return {

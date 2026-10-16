@@ -1,5 +1,6 @@
 import { scrollToFocusedInput } from '@components/app/mobile/MobileDrawer';
 import { useHoldParentHoverCardOpen } from '@core/component/HoverCard';
+import { toast } from '@core/component/Toast/Toast';
 import { isMobile } from '@core/mobile/isMobile';
 import { Telemetry } from '@macro-inc/observability';
 import XIcon from '@phosphor/x.svg';
@@ -31,6 +32,10 @@ function ChannelIdentityEditor(
     canEdit: () => props.canEdit,
     writer: props.writer,
     onClose: props.onClose,
+  });
+  let disposed = false;
+  onCleanup(() => {
+    disposed = true;
   });
   const [focused, setFocused] = createSignal(false);
   const [picking, setPicking] = createSignal(false);
@@ -68,8 +73,15 @@ function ChannelIdentityEditor(
         'channel.identity.name_changed',
         state.name().trim() !== props.name
       );
-      await state.save();
-      if (state.error()) span.error('Channel identity save failed');
+      const saved = await state.save();
+      if (saved === false) {
+        span.error('Channel identity save failed');
+        if (disposed) {
+          toast.failure(
+            'Some channel changes could not be saved. Reopen the channel to retry.'
+          );
+        }
+      }
     });
   }
   const fields = () => (

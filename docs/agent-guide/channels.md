@@ -1229,7 +1229,10 @@ GIF files up to 16 MB are supported. Selecting a file, clearing the picture, or
 changing the name only updates the draft. `Save` persists the changes; `Cancel`
 discards them. The card stays open while editing. Failed saves retain remaining
 changes for retry; if the picture saved but renaming failed, the card says so and
-retrying does not upload the picture again.
+retrying does not upload the picture again. Switching channels starts a fresh
+editor draft for the newly selected channel. A save already in progress finishes
+its submitted changes for the previous channel without closing the new editor;
+a background failure reports a toast so the user can reopen the channel to retry.
 
 The Chat title ellipsis and the split title `...` menu offer `Edit channel` instead
 of separate rename/picture actions. On phones, use `Edit channel` in the existing
