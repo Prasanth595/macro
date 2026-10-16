@@ -282,8 +282,8 @@ formula awaits a reference keeps its draft, even when the formula's row is past
 the other sheet's last row, and every tab change scrolls to that sheet's own
 selection.
 
-Dragging a range, row or column headers, the fill handle, a formula reference, or
-a touch selection handle scrolls the grid while the pointer is within 24 pixels
+Dragging a range, row or column headers, the fill handle, a selection's move
+border, a formula reference, or a touch selection handle scrolls the grid while the pointer is within 24 pixels
 of an edge of the cells or past it, and extends the drag to the cell under the
 pointer or the nearest one in view. Speed grows with the pointer's depth into
 that edge (20 pixels per second per pixel), and a header drag scrolls only along
