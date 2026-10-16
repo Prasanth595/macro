@@ -98,6 +98,9 @@ the startup bundle, and Lexical nodes.
 - `src/features/block-pdf`
 
 ## Notes
+- Desktop file uploads use browser drag-and-drop events; keep Tauri's native
+  `dragDropEnabled` false. See [desktop file drops](tauri/src-tauri/README.md#desktop-file-drops)
+  for the native rebuild requirement.
 - Don't shy away from pulling good examples into context. In the case of solid-primtiives/kobalte try reading documentation, or just temp clone into /tmp to reference
 
 ## Subscription offers
