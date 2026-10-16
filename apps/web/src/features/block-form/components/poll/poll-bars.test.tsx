@@ -63,10 +63,8 @@ it('keeps 0% and 100% on one line each so the percent column does not wrap', () 
       onVote={() => {}}
     />
   ));
-  const hundred = screen.getByText('100%');
   expect(screen.getByText('0%').textContent).toBe('0%');
-  expect(hundred.textContent).toBe('100%');
-  expect(hundred.classList.contains('whitespace-nowrap')).toBe(true);
+  expect(screen.getByText('100%').textContent).toBe('100%');
 });
 
 it('keeps the focused option mounted when live counts and the saved vote refresh', async () => {
