@@ -95,6 +95,25 @@ export function readNumberFormat(format: string): SpreadsheetCellStyle {
   return style;
 }
 
+function xlsxAlignment(
+  style: Required<SpreadsheetCellStyle>
+): XlsxCellStyle['alignment'] {
+  // Excel indents only left- and right-aligned text.
+  const horizontal =
+    style.horizontalAlign !== 'auto'
+      ? style.horizontalAlign
+      : style.indent > 0
+        ? 'left'
+        : undefined;
+  return {
+    ...(horizontal && { horizontal }),
+    ...(style.indent > 0 &&
+      horizontal !== 'center' && { indent: style.indent }),
+    vertical: style.verticalAlign === 'middle' ? 'center' : style.verticalAlign,
+    wrapText: style.wrap,
+  };
+}
+
 /** Excel style parts for a cell. Font properties the cell does not set come
  * from the sheet's imported default font, else Macro's default. */
 export function xlsxCellStyle(
@@ -115,13 +134,6 @@ export function xlsxCellStyle(
       color: style[`${key}Color`]?.slice(1).toUpperCase() || '808080',
     };
   }
-  // Excel indents only left- and right-aligned text.
-  const horizontal =
-    style.horizontalAlign !== 'auto'
-      ? style.horizontalAlign
-      : style.indent > 0
-        ? 'left'
-        : undefined;
   return {
     numFmt: style.numberFormat || numberFormatCode(style),
     font: {
@@ -139,14 +151,7 @@ export function xlsxCellStyle(
         color: style.textColor.slice(1).toUpperCase(),
       }),
     },
-    alignment: {
-      ...(horizontal && { horizontal }),
-      ...(style.indent > 0 &&
-        horizontal !== 'center' && { indent: style.indent }),
-      vertical:
-        style.verticalAlign === 'middle' ? 'center' : style.verticalAlign,
-      wrapText: style.wrap,
-    },
+    alignment: xlsxAlignment(style),
     ...(style.fillColor && { fill: style.fillColor.slice(1).toUpperCase() }),
     border,
   };

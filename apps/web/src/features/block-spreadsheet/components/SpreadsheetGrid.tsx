@@ -1649,7 +1649,13 @@ export function SpreadsheetGrid(props: {
                             ? 'right'
                             : 'left';
                       };
-                      const indent = () => indentWidth(cell()) * scale();
+                      const indentPadding = (side: 'left' | 'right') => {
+                        const width = indentWidth(cell()) * scale();
+                        return width > 0 &&
+                          (horizontalAlign() === 'right') === (side === 'right')
+                          ? `${width}px`
+                          : undefined;
+                      };
                       const pending = () =>
                         !!props.pendingFormulas &&
                         !value() &&
@@ -1748,14 +1754,8 @@ export function SpreadsheetGrid(props: {
                                   : 'center',
                             'padding-block':
                               'var(--spreadsheet-cell-padding-y)',
-                            'padding-left':
-                              indent() > 0 && horizontalAlign() !== 'right'
-                                ? `${indent()}px`
-                                : undefined,
-                            'padding-right':
-                              indent() > 0 && horizontalAlign() === 'right'
-                                ? `${indent()}px`
-                                : undefined,
+                            'padding-left': indentPadding('left'),
+                            'padding-right': indentPadding('right'),
                             'line-height': CELL_LINE_HEIGHT,
                           }}
                           class="absolute top-0 bottom-0 flex flex-col border-b border-r border-edge-muted bg-panel text-ink select-none"
