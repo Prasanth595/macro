@@ -137,7 +137,8 @@ table locations and data validation and conditional formatting ranges go with
 the cells (a rule that only partly moves is split in two), and replace what was
 at the destination after a confirmation when that held values. References to
 the moved cells from every sheet's formulas, names, rules, charts and pivot
-sources follow them; a range follows only when all of it moves. References
+sources follow them; a range follows only when all of it moves, and moving
+whole rows or columns of the sheet also moves references like `1:2` or `A:A`. References
 inside moved formulas keep their cells, and references to replaced cells become
 `#REF!`. Moving part of a merge, array or pivot table is refused. Drawings,
 row heights and column widths stay, and comments stay on their addresses.
