@@ -4,6 +4,38 @@ The document header has separate Share, Copy Share Link, and Side Panel buttons.
 They are borderless with a soft rounded background on hover. Share opens the
 sharing dialog; copying a link is a separate action.
 
+Opening a private file link while signed in shows **You don't have access to
+this file**, the signed-in email, and **Request access**. View is selected by
+default; choose View, Comment, or Edit where supported, submit, then verify
+**Request sent** and **Cancel request**.
+On touch devices, document links open the full-page document route; the same
+request controls appear there, including at phone widths.
+The document stays unavailable until its owner approves. The open denied view
+reloads when it receives the grant update. Signed-out visitors are prompted to
+sign in first; ordinary load failures retain **Try again**.
+An already-open document reloads after a permission upgrade on desktop and touch
+devices. Removing its last grant closes the editor and returns to Request access;
+a failed background refresh must not restore the revoked document.
+
+In **People with access**, a non-owner can use **Request access** beneath the
+owner to request a supported upgrade (**Comment** or **Edit**). PDFs offer
+Comment; view-only email sharing has no upgrade. Requests can be sent or changed
+once per minute; cancellation stays available immediately. Approval allows a
+further upgrade immediately. After a denial, the requester must wait 24 hours
+to request again.
+This workflow also applies to the existing chat, folder, project, database, call,
+and agent-session Share menus, using the access levels that each supports.
+
+Reviewers see a pending count on **Share**. Entering an item with pending requests
+opens Share once for that visit; requests arriving during the visit update the
+badge. On mobile, review requests in the **People** tab. **Permission requests**
+lets a reviewer choose an access level and **Grant access**, or **Deny**. Team
+owners/admins and the human responsible for a bot-owned item review on its behalf.
+Only the first review of a request succeeds. Grants notify the requester; denials
+do not. Approved users appear in People with access, with controls to change or
+remove their direct grant. Opening a permission-request notification navigates
+to its item and opens Share.
+
 Both **Edit with AI** and selected-text AI edits open the shared usage-limit dialog
 when the backend refuses a request with a usage-limit code. Free users can choose
 **View plans**; paid users can choose **Open usage settings** to add credits. The
@@ -434,10 +466,17 @@ or use the formula bar to edit link text. AI `set_cells` accepts Macro URLs or t
 same `<m-user-mention>` / `<m-document-mention>` / `<m-date-mention>` encoding as docs.
 Formula references to mention cells use literal labels, never execute a label as a formula.
 
-Dates: `@tomorrow`, `@next friday` or `@sep 28` offer a **Dates** bucket and insert
-the same clock chip as docs; hover it for the full date, and edit the cell to change
-it. A cell holding only a date chip is a date value: `=A1+7` produces a date, and
-Excel export writes a dated number rather than the label. Typing a date stores it
+Dates: `@today`, `@tomorrow`, `@next friday` or `@sep 28` offer a **Dates** bucket.
+Choosing one enters the date as text such as `10/16/2026` (in the browser locale's
+day/month order), not a chip, so a cell holding only that date becomes a date value
+like any typed date; around other text it stays text. Typing `@date` shows a
+calendar (`[data-cell-date-picker]`) in place of the menu, starting at today: arrow
+keys and Page Up/Down move the highlighted day, Enter or a click enters it, Escape
+closes it, and the cell editor keeps focus throughout. Date chips written earlier,
+or by AI `set_cells`, still show as clock chips; hover one for the full date, and
+edit the cell to change it. A cell holding only a date chip is a date value:
+`=A1+7` produces a date, and Excel export writes a dated number rather than the
+label. Typing a date stores it
 as a date in a matching format: `01/2026` or `Jan 2026` shows `Jan 2026`,
 `Jan 01 2026` shows `Jan 01, 2026`, `2026-01-01` stays ISO and `1/1/26` shows
 `1/1/2026` (day first in day-first browser locales). The snapshot value is the
