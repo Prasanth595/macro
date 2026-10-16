@@ -10,6 +10,7 @@ import wasm from 'vite-plugin-wasm';
 import tsconfigpaths from 'vite-tsconfig-paths';
 // @ts-ignore
 import { version } from './package.json';
+import { devCompression } from './scripts/dev-compression';
 import { devHttps } from './scripts/dev-https';
 import { hostedDevProxy } from './scripts/hosted-dev-proxy';
 import { keepImportMetaDev } from './scripts/keep-import-meta-dev';
@@ -318,6 +319,7 @@ export const createAppViteConfig = (): UserConfigFn => {
       },
       plugins: [
         devHttps(),
+        devCompression(),
         hostedDevProxy(),
         // solidDevtools({ autoname: true }),
         pureGeneratedZodSchemas(),
