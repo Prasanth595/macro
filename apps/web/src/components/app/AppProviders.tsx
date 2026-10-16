@@ -1,3 +1,4 @@
+import { useAccessRequestInvalidations } from '@app/features/access-requests/use-access-request-invalidations';
 import { IncomingMeetingInvitationsProvider } from '@app/features/meetings/incoming-meeting-invitations';
 import { usePendingNotificationNavigationEffect } from '@app/features/notifications/PendingNotificationNavigationEffect';
 import { SearchProvider } from '@app/features/soup/search/context';
@@ -29,6 +30,7 @@ import {
   useReopenTrackedEntitiesOnReconnect,
 } from '@service-connection/client';
 import { ws as connectionGatewayWebsocket } from '@service-connection/websocket';
+import { ImperativeDialogHost } from '@ui';
 import type { ParentProps } from 'solid-js';
 
 function ConfiguredGlobalAppStateProvider(props: ParentProps) {
@@ -69,6 +71,7 @@ function ConfiguredGlobalAppStateProvider(props: ParentProps) {
     (notification) => void deliverNotification(notification)
   );
   useNotificationUpdates(notificationSource);
+  useAccessRequestInvalidations();
   useReactiveFavicon(notificationSource);
 
   const blockOrchestrator = createBlockOrchestrator();
@@ -101,6 +104,8 @@ export function AppProviders(props: ParentProps) {
         <MutationUndoProvider>
           <SearchProvider>
             <IncomingMeetingInvitationsProvider>
+              {/* Ownerless dialogs inherit app state, not a transient menu owner. */}
+              <ImperativeDialogHost />
               {props.children}
             </IncomingMeetingInvitationsProvider>
           </SearchProvider>
