@@ -304,6 +304,12 @@ test('indents line items from their aligned edge and keeps nested levels apart',
     horizontalAlign: 'right',
     indent: 1,
   });
+  // Editing keeps the text where it is shown: 3 px of cell padding plus the indent.
+  await page.locator('[data-address="A3"]').dblclick();
+  const editor = page.getByRole('textbox', { name: 'Edit A3', exact: true });
+  await expect(editor).toBeFocused();
+  await expect(editor).toHaveCSS('padding-left', '23px');
+  await editor.press('Escape');
 
   await page.locator('[data-address="A2"]').click();
   await page.locator('[data-address="A3"]').click({ modifiers: ['Shift'] });

@@ -1784,6 +1784,10 @@ export function SpreadsheetGrid(props: {
                               'var(--spreadsheet-cell-padding-y)',
                             'padding-left': indentPadding('left'),
                             'padding-right': indentPadding('right'),
+                            '--spreadsheet-cell-indent-left':
+                              indentPadding('left'),
+                            '--spreadsheet-cell-indent-right':
+                              indentPadding('right'),
                             'line-height': CELL_LINE_HEIGHT,
                           }}
                           class="absolute top-0 bottom-0 flex flex-col border-b border-r border-ink/12 bg-panel text-ink select-none"
@@ -1950,9 +1954,9 @@ export function SpreadsheetGrid(props: {
                                 (isTouchDevice() && !!props.referenceSelection)
                               }
                               onSelectionChange={props.onTextSelection}
-                              // Inherits the cell's fill, font and color; automatic
-                              // alignment edits from the left, as in Excel.
-                              class={`absolute inset-0 size-full resize-none overflow-hidden bg-inherit px-[var(--spreadsheet-cell-padding)] py-[var(--spreadsheet-cell-padding-y)] [text-decoration-line:inherit] outline-none select-text ${
+                              // Inherits the cell's fill, font, color and indent;
+                              // automatic alignment edits from the left, as in Excel.
+                              class={`absolute inset-0 size-full resize-none overflow-hidden bg-inherit pl-[calc(var(--spreadsheet-cell-padding)_+_var(--spreadsheet-cell-indent-left,0px))] pr-[calc(var(--spreadsheet-cell-padding)_+_var(--spreadsheet-cell-indent-right,0px))] py-[var(--spreadsheet-cell-padding-y)] [text-decoration-line:inherit] outline-none select-text ${
                                 cell()?.horizontalAlign === 'center'
                                   ? 'text-center'
                                   : cell()?.horizontalAlign === 'right'
