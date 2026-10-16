@@ -25,8 +25,8 @@ import {
   handleTimelineActivity,
 } from '../sync';
 import {
-  messageTimelineQueryOptions,
   type MessageTimelineData,
+  messageTimelineQueryOptions,
 } from '../timeline';
 import { timelineMessages } from '../timeline-entries';
 
@@ -119,8 +119,15 @@ it.each(['reaction', 'reply'] as const)(
           ? {
               type: 'reaction_changed',
               message: { ...root, reactions: refreshed.reactions },
+              added: true,
+              emoji: '❤️',
             }
-          : { type: 'posted', message: liveReply },
+          : {
+              type: 'posted',
+              message: liveReply,
+              mentions: [],
+              notification_policy: 'Default',
+            },
     });
     const finalFetch = queryClient
       .getQueryCache()
@@ -235,11 +242,19 @@ it.each(['root', 'reply', 'edit', 'delete', 'thread', 'activity'] as const)(
         actor: 'user-2',
         change:
           change === 'root' || change === 'reply'
-            ? { type: 'posted', message: change === 'root' ? live : liveReply }
+            ? {
+                type: 'posted',
+                message: change === 'root' ? live : liveReply,
+                mentions: [],
+                notification_policy: 'Default',
+              }
             : change === 'edit'
               ? {
                   type: 'edited',
                   message: { ...older, content: 'Live edit on older page' },
+                  previous_attachments: [],
+                  mentions: [],
+                  notification_policy: 'Default',
                 }
               : {
                   type: 'message_deleted',
@@ -270,6 +285,88 @@ it.each(['root', 'reply', 'edit', 'delete', 'thread', 'activity'] as const)(
   }
 );
 
+it.each(['older', 'newer'] as const)(
+  'preserves pending %s pagination when a live edit restarts its request',
+  async (direction) => {
+    const cursor = { id: root.id, created_at: root.created_at };
+    const options = messageTimelineQueryOptions(parent, null);
+    queryClient.setQueryData<MessageTimelineData>(options.queryKey, {
+      pages: [
+        {
+          entries: [{ type: 'message', message: root }],
+          next_cursor: direction === 'older' ? cursor : null,
+          previous_cursor: direction === 'newer' ? cursor : null,
+        },
+      ],
+      pageParams: [null],
+    });
+    const observer = new InfiniteQueryObserver(queryClient, options);
+    disposers.push(observer.subscribe(() => {}));
+    const delayed = Promise.withResolvers<MessageTimelinePage>();
+    const next = {
+      ...root,
+      id: direction,
+      created_at:
+        direction === 'older' ? '2026-10-15T14:00:00Z' : '2026-10-15T14:32:00Z',
+    };
+    const page: MessageTimelinePage = {
+      entries: [{ type: 'message', message: next }],
+      next_cursor: null,
+      previous_cursor: null,
+    };
+    mocks.timeline
+      .mockReturnValueOnce(delayed.promise)
+      .mockResolvedValueOnce(page);
+
+    const firstFetch =
+      direction === 'older'
+        ? observer.fetchNextPage()
+        : observer.fetchPreviousPage();
+    handleMessageEvent({
+      parent,
+      actor: 'user-2',
+      change: {
+        type: 'edited',
+        message: { ...root, content: 'Live edit' },
+        mentions: [],
+        notification_policy: 'Default',
+        previous_attachments: [],
+      },
+    });
+    const finalFetch = queryClient
+      .getQueryCache()
+      .find({ queryKey: options.queryKey })?.promise;
+    delayed.resolve(page);
+    await Promise.all([firstFetch, finalFetch]);
+
+    expect(mocks.timeline).toHaveBeenCalledTimes(2);
+    for (const call of mocks.timeline.mock.calls) {
+      expect(call).toEqual([
+        parent,
+        {
+          limit: 100,
+          cursor,
+          direction,
+          around: null,
+          include_deleted_threads: false,
+        },
+      ]);
+    }
+    const data = queryClient.getQueryData<MessageTimelineData>(
+      options.queryKey
+    );
+    expect(data?.pages).toHaveLength(2);
+    expect(
+      data?.pages.flatMap(timelineMessages).map((message) => message.id)
+    ).toEqual(direction === 'older' ? ['root', 'older'] : ['newer', 'root']);
+    expect(
+      data?.pages
+        .flatMap(timelineMessages)
+        .find((message) => message.id === root.id)?.content
+    ).toBe('Live edit');
+  }
+);
+
 it('does not fetch idle channels for ordinary live updates', () => {
   const options = messageTimelineQueryOptions(parent, null);
   queryClient.setQueryData<MessageTimelineData>(options.queryKey, {
@@ -288,7 +385,12 @@ it('does not fetch idle channels for ordinary live updates', () => {
   handleMessageEvent({
     parent,
     actor: 'user-2',
-    change: { type: 'posted', message: liveReply },
+    change: {
+      type: 'posted',
+      message: liveReply,
+      mentions: [],
+      notification_policy: 'Default',
+    },
   });
 
   expect(mocks.timeline).not.toHaveBeenCalled();
