@@ -23,7 +23,7 @@ export type PipelineCsvRow = {
 };
 
 /** A CSV row to add: the record it is for and the cells it starts with. */
-export type PipelineImportRow = {
+type PipelineImportRow = {
   record: PipelineCsvRecord;
   cells: CellWrite[];
 };

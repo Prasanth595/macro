@@ -82,8 +82,8 @@ export function PipelineImport(props: {
                   </Show>
                   <Show when={done().unresolved}>
                     , {done().unresolved.toLocaleString()} {records()} could not
-                    be added to your CRM (personal email domains such as
-                    gmail.com aren't supported)
+                    be found or added to your CRM, such as personal domains like
+                    gmail.com. Import again to retry them
                   </Show>
                   .
                 </p>

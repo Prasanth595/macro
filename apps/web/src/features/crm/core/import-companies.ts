@@ -11,7 +11,7 @@ export type CompanyImportFailure =
   | { kind: 'no-companies' }
   | { kind: 'too-many-rows' };
 
-export const MAX_COMPANY_IMPORT_ROWS = 10_000;
+const MAX_COMPANY_IMPORT_ROWS = 10_000;
 
 // Our own export writes `Company` and `Domains`.
 const NAME_HEADERS = ['name', 'company', 'company name'];

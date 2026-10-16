@@ -30,7 +30,7 @@ function recordIds(pipeline: Pipeline, rows: readonly PipelineCsvRow[]) {
   );
 }
 
-export function pipelineCsvFilename(name: string, now: Date) {
+function pipelineCsvFilename(name: string, now: Date) {
   const slug =
     name
       .toLowerCase()
