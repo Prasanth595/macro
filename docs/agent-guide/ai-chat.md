@@ -473,7 +473,7 @@ the shimmer.
   provider icons, search, **Suggested** first, and **More models** for the
   complete provider catalog. Desktop opens a submenu; phone widths show
   the catalog in place with a Back action. Search includes every model.
-- The separate segmented effort slider has been removed from the model menu.
+- An **Effort · Low** row beneath search opens named choices with a checkmark: a compact popover on desktop, or a list within the current sheet on mobile. It is hidden when the model has fewer than two effort choices.
   Model-specific effort choices remain available in model submenus.
   Free and Pro users start new conversations at the lowest advertised level,
   unless they explicitly choose another. Existing sessions keep their current setting.

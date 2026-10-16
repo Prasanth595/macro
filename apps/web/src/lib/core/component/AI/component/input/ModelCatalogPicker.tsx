@@ -138,7 +138,9 @@ function keepSearchFocused(input: () => HTMLInputElement | undefined) {
   const onNavigate = (event: Event) => {
     if (
       event.target instanceof Element &&
-      event.target.closest('[role="menuitem"], input[type="range"]')
+      event.target.closest(
+        '[role="menuitem"], input[type="range"], [data-effort-selector]'
+      )
     ) {
       navigating = true;
     }

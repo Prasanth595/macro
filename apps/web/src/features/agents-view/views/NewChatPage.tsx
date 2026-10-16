@@ -24,6 +24,7 @@ import type { PromptAttachment } from '@service-agent-harness/generated/schemas'
 import { Tabs } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
 import { createMemo, createSignal, Show } from 'solid-js';
+import { EffortSelector } from '../../block-agent/component/EffortSelector';
 import {
   type EffortChoice,
   effortConfigOption,
@@ -331,6 +332,19 @@ export function NewChatPage(props: {
       loading={props.rosterLoading}
       effortLabel={
         selectedEffort()?.name ?? effortLabel(effort(), effortOverride()?.value)
+      }
+      menuHeader={
+        <EffortSelector
+          config={effort()}
+          value={effortOverride()?.value}
+          disabled={Boolean(blocked())}
+          onChange={(choice) =>
+            setEffortSelection({
+              ...choice,
+              target: JSON.stringify(capabilityTarget()),
+            })
+          }
+        />
       }
       effortSelection={effortOverride()}
       onSelect={selectAgent}

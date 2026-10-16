@@ -48,6 +48,7 @@ import {
 } from '../ui';
 import type { AgentModelSelectorProps } from '../ui/AgentModelSelector';
 import { AgentModelMenuItem } from './AgentModelMenuItem';
+import { EffortSelector } from './EffortSelector';
 import { PermissionRequest } from './PermissionRequest';
 import { promptActionOf } from './prompt-action';
 import { ToolApprovalRequest } from './ToolApprovalRequest';
@@ -378,6 +379,25 @@ export function AgentComposer(props: {
         modelControl={
           <div class="flex min-w-0 items-center gap-1">
             <ModelSelector
+              menuHeader={
+                <EffortSelector
+                  config={effort()}
+                  value={changingEffort()}
+                  disabled={
+                    loadFailed() ||
+                    readOnly() ||
+                    pending() ||
+                    configuring() ||
+                    changingEffort() !== undefined ||
+                    changingModel(messages(), metadata()?.model ?? null) !==
+                      undefined
+                  }
+                  onChange={(choice) => {
+                    const model = metadata()?.model;
+                    if (model) void chooseModel(model, choice);
+                  }}
+                />
+              }
               model={metadata()?.model ?? null}
               changingTo={changingModel(messages(), metadata()?.model ?? null)}
               options={metadata()?.supportedModels ?? []}
