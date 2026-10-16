@@ -235,8 +235,10 @@ new datadog.SoftwareCatalog('service_v3', {
   entity: JSON.stringify(datadogEntity),
 });
 
-if (stack === 'prod') {
-  // invalidate cloudfront cache
+if (stack === 'prod' || stack === 'dev') {
+  // Retire installed workers even when the previous script is cached at the edge.
+  // Keep production's existing full app invalidation; dev only needs the worker.
+  const paths = stack === 'prod' ? '"/app" "/app/*"' : '"/app/sw.js"';
   const macroWebsiteStack = new pulumi.StackReference('website-infra', {
     name: `macro-inc/website-infra/${stack}`,
   });
@@ -246,7 +248,7 @@ if (stack === 'prod') {
   new command.local.Command(
     'invalidate-cache',
     {
-      create: pulumi.interpolate`aws cloudfront create-invalidation --distribution-id ${macroWebsiteCdnId} --paths "/app" "/app/*"`,
+      create: pulumi.interpolate`invalidation_id=$(aws cloudfront create-invalidation --distribution-id ${macroWebsiteCdnId} --paths ${paths} --query Invalidation.Id --output text) && aws cloudfront wait invalidation-completed --distribution-id ${macroWebsiteCdnId} --id "$invalidation_id"`,
       triggers: [Date.now()],
     },
     {

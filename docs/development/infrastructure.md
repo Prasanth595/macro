@@ -174,5 +174,4 @@ local resources.
 - `web-app` and `website` pin `@pulumi/aws` v6 and are excluded from `tsc`.
 
 Stale docs to treat with suspicion: `SLACK_IMPORT_ROLLOUT.md` (the worker is on
-and receives `APP_SECRETS_JSON` now), `web-app/README.md` (`yarn`),
-`fusion-auth/README.md`.
+and receives `APP_SECRETS_JSON` now) and `fusion-auth/README.md`.
