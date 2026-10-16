@@ -828,6 +828,57 @@
           '';
         };
 
+      # Rust and C/C++ compiler cache (RUSTC_WRAPPER plus the compiler shims in
+      # $out/shims). kache needs a newer rustc than rust-toolchain.toml pins and
+      # isn't in our nixpkgs yet, so this takes the static release binaries.
+      kache =
+        let
+          version = "1.2.2";
+          asset =
+            {
+              x86_64-linux = {
+                target = "x86_64-unknown-linux-musl";
+                hash = "sha256-8vZVXe5QlFwqkKf7eTwghKAMxkWdCKwjBtONkFBkMhs=";
+              };
+              aarch64-linux = {
+                target = "aarch64-unknown-linux-musl";
+                hash = "sha256-OIVs7mE/buDsV5CZ/JIFuECgtFu3Y/S4+ngtJdk8GO8=";
+              };
+              x86_64-darwin = {
+                target = "x86_64-apple-darwin";
+                hash = "sha256-mhw+zInPNrI1Eqk4aCJhQNRvH3DPbLZIv+CO6vslo2g=";
+              };
+              aarch64-darwin = {
+                target = "aarch64-apple-darwin";
+                hash = "sha256-ENCeFGhSqN+Hls9kLKWIchB6fzkbdkfsjMJTzyia8Kk=";
+              };
+            }
+            .${system};
+        in
+        pkgs.stdenvNoCC.mkDerivation {
+          pname = "kache";
+          inherit version;
+          src = pkgs.fetchurl {
+            url = "https://github.com/kunobi-ninja/kache/releases/download/v${version}/kache-${asset.target}.tar.gz";
+            inherit (asset) hash;
+          };
+          sourceRoot = ".";
+          # Mirrors upstream's packaging/nix/package.nix: one symlink per
+          # wrapped tool, plus the marker that tells another kache on PATH to
+          # skip this farm.
+          installPhase = ''
+            runHook preInstall
+            install -Dm755 kache $out/bin/kache
+            mkdir -p $out/lib/kache
+            for name in cc c++ gcc g++ clang clang++ cargo rustdoc; do
+              ln -s $out/bin/kache $out/lib/kache/$name
+            done
+            touch $out/lib/kache/.kache-shims
+            ln -s lib/kache $out/shims
+            runHook postInstall
+          '';
+        };
+
       # The Daytona CLI (sandbox snapshots for crates/agent_harness) is not in
       # nixpkgs and is only published as prebuilt release binaries, so this
       # installs the asset rather than building from source. Pinned instead of
@@ -947,7 +998,7 @@
           # TEMP: nixpkgs stripe-cli 1.43.2 checkPhase fails in the sandbox
           # (TestResolvePluginForInstallSucceedsForGAPluginWhenNotLoggedIn).
           # stripe-cli
-          sccache
+          kache
           rustToolchain
           python3
         ]
@@ -1062,18 +1113,86 @@
               # cmake-build feature, so no system librdkafka.pc is needed here.
               PKG_CONFIG_PATH_FOR_TARGET = pkgConfigPath;
               LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
-              RUSTC_WRAPPER = "${pkgs.sccache}/bin/sccache";
-              # Local dev shells favor reusable sccache artifacts across JJ
-              # workspaces. CI derivations do not inherit devShell attributes.
+              RUSTC_WRAPPER = "${kache}/bin/kache";
+              # Local dev shells favor reusable cache artifacts across
+              # worktrees. CI derivations do not inherit devShell attributes.
               CARGO_INCREMENTAL = "0";
-              SCCACHE_CACHE_SIZE = "30G";
+              # The kache shims go first on PATH so the C/C++ that build scripts
+              # compile (aws-lc, librdkafka, ...) is cached too; they forward to
+              # the real compiler later on PATH. CI points KACHE_CACHE_DIR at its
+              # cache volume before entering the shell.
+              #
               # Namespace CI runners preserve Cargo's ignored target directory.
               # A flake update can change the Nix C compiler while leaving CMake
               # configure state behind; CMake then drops its command-line cache
               # entries while switching compilers, breaking aws-lc and librdkafka.
               # Remove only caches configured by another compiler so ordinary
               # shell entry keeps reusable native build state.
-              shellHook = pkgs.lib.optionalString isLinux ''
+              #
+              # aws-lc builds its C with -ggdb, which kache passes through
+              # uncached, and the debug info records OUT_DIR and ~/.cargo. The
+              # resulting archive is hashed into every dependent crate's key, so
+              # without the prefix maps no two checkouts or machines share them.
+              # KACHE_BASE_DIR makes kache key the `<checkout>=.` map the same
+              # in every checkout. macOS compiles host C with Apple clang (see
+              # CC below), outside the Nix wrapper, so it takes CFLAGS instead.
+              shellHook = ''
+                export PATH="${kache}/shims:$PATH"
+                export KACHE_CACHE_DIR="''${KACHE_CACHE_DIR:-$HOME/macro-kache}"
+                export KACHE_MAX_SIZE="''${KACHE_MAX_SIZE:-256GiB}"
+                # CI re-enters the shell in every bash process through BASH_ENV,
+                # the Nix compiler wrapper included. Inside target/ (a separate
+                # cache-volume mount there) git cannot see the checkout and the
+                # fallback would make each build directory its own base, so the
+                # enclosing shell's value wins while we are still inside it.
+                case "$PWD/" in
+                  "''${KACHE_BASE_DIR:-/nonexistent}"/*) ;;
+                  *) KACHE_BASE_DIR="$(git rev-parse --show-toplevel 2>/dev/null || pwd)" ;;
+                esac
+                export KACHE_BASE_DIR
+                # Registry dependencies compile from ~/.cargo, outside the
+                # checkout, where kache's walk-up never finds .kache.toml.
+                if [ -z "''${KACHE_CONFIG-}" ] && [ -f "$KACHE_BASE_DIR/.kache.toml" ]; then
+                  export KACHE_CONFIG="$KACHE_BASE_DIR/.kache.toml"
+                fi
+                # Credentials for the shared R2 remote in .kache.toml. Without
+                # them kache keeps caching locally.
+                r2_credentials="''${XDG_CONFIG_HOME:-$HOME/.config}/macro-kache/r2.env"
+                if [ -z "''${KACHE_S3_ACCESS_KEY-}" ] && [ -f "$r2_credentials" ]; then
+                  . "$r2_credentials"
+                fi
+                prefix_maps="-ffile-prefix-map=$KACHE_BASE_DIR=."
+                prefix_maps+=" -ffile-prefix-map=''${CARGO_HOME:-$HOME/.cargo}=/cargo"
+                if [ -n "''${CARGO_TARGET_DIR-}" ]; then
+                  prefix_maps+=" -ffile-prefix-map=$CARGO_TARGET_DIR=/target"
+                fi
+                # Changing any flag below changes compiler output kache cannot
+                # see: bump key_salt in .kache.toml with it.
+                #
+                # kache keys every unit on the set of path roots it remaps, and
+                # adds rustup's only when that directory exists: it does on CI
+                # runners and not on NixOS laptops, so no key matched between them.
+                mkdir -p "''${RUSTUP_HOME:-$HOME/.rustup}"
+              ''
+              + (
+                if isDarwin then
+                  ''
+                    export CFLAGS="''${CFLAGS:+$CFLAGS }$prefix_maps"
+                    export CXXFLAGS="''${CXXFLAGS:+$CXXFLAGS }$prefix_maps"
+                  ''
+                else
+                  # GCC otherwise records its command line, prefix maps and
+                  # all, in debug info, and the stdenv hook seeds -frandom-seed
+                  # from $out, a path in the checkout. Later flags win.
+                  ''
+                    export NIX_CFLAGS_COMPILE="''${NIX_CFLAGS_COMPILE-} $prefix_maps -gno-record-gcc-switches -frandom-seed=macro"
+                    # stdenv adds `-rpath $out/lib`, a path inside the checkout,
+                    # to every link; it would make each proc macro, build script
+                    # and test binary differ per checkout.
+                    export NIX_LDFLAGS="''${NIX_LDFLAGS//"-rpath $out/lib"/}"
+                  ''
+              )
+              + pkgs.lib.optionalString isLinux ''
                 target_dir="''${CARGO_TARGET_DIR:-target}"
                 current_cc="$(type -P "''${CC:-cc}" || true)"
                 if [ -n "$current_cc" ] && [ -d "$target_dir" ]; then
@@ -1132,6 +1251,11 @@
             // pkgs.lib.optionalAttrs isLinux {
               LD_LIBRARY_PATH = "${pkgs.lib.makeLibraryPath libraries}";
               BINDGEN_EXTRA_CLANG_ARGS = "-I${pkgs.glibc.dev}/include -I${pkgs.gcc.cc}/lib/gcc/${pkgs.stdenv.hostPlatform.config}/${pkgs.gcc.version}/include";
+              # Link with mold, exactly as CI's Rust jobs do (vars::RUSTFLAGS in
+              # xtask_workflows): rustflags are part of every kache key, so a
+              # mismatch would make no laptop build a CI hit. Target-scoped so
+              # wasm builds keep .cargo/config.toml's own rustflags.
+              CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS = "-C link-arg=-fuse-ld=mold";
             }
           );
 
@@ -1146,10 +1270,10 @@
             pkgs.cmake
             pkgs.perl
             pkgs.pkg-config
-            pkgs.sccache
+            kache
             nsc
           ];
-          RUSTC_WRAPPER = "${pkgs.sccache}/bin/sccache";
+          RUSTC_WRAPPER = "${kache}/bin/kache";
           CARGO_INCREMENTAL = "0";
           AWS_LC_SYS_CMAKE_BUILDER = "1";
         };

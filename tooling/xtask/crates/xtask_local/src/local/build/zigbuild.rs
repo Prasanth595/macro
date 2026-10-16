@@ -161,7 +161,9 @@ fn base_command(ws: &Path, zig_cache: &Path, jobs: &str, target: Target) -> Comm
         .env("OPENSSL_NO_VENDOR", "0")
         .env("ZIG_GLOBAL_CACHE_DIR", zig_cache)
         .env("ZIG_LOCAL_CACHE_DIR", zig_cache)
-        .env("RUSTC_WRAPPER", "sccache")
+        .env("RUSTC_WRAPPER", "kache")
+        // The dev shell links host builds with mold; zig links these itself.
+        .env("CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS", "")
         .env("XDG_CACHE_HOME", zig_cache);
     // No CFLAGS here. The dev shell already exports target-scoped
     // `CFLAGS_<triple>`/`CXXFLAGS_<triple>` pointing at curl.dev for exactly

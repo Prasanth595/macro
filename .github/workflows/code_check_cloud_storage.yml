@@ -4,8 +4,6 @@ name: cloud storage code check
 env:
   CARGO_INCREMENTAL: '0'
   CARGO_TERM_COLOR: always
-  CARGO_PROFILE_DEV_DEBUG: limited
-  CARGO_PROFILE_TEST_DEBUG: limited
   RUST_BACKTRACE: '1'
   RUSTFLAGS: '-C link-arg=-fuse-ld=lld'
 'on':
@@ -35,7 +33,6 @@ jobs:
     - name: Setup Rust
       uses: './.github/actions/setup-rust'
       with:
-        sccache: 'false'
         rust-cache: 'false'
     - id: filter
       name: Filter changed paths
@@ -62,7 +59,7 @@ jobs:
             - '.github/actions/setup-nix/**'
             - '.github/actions/setup-nix-dev-shell/**'
             - '.github/actions/teardown-nix/**'
-            - '.github/actions/setup-sccache/**'
+            - '.kache.toml'
             - '.github/services-config.json'
             - .github/workflows/code_check_cloud_storage.yml
           doppler_candidates:
@@ -235,7 +232,7 @@ jobs:
     if: needs.path-check.outputs.should_run == 'true' && github.event.pull_request.draft == false
     runs-on: namespace-profile-linux-rust-ci;overrides.cache-tag=sccache-ci
     env:
-      RUSTFLAGS: '-Dwarnings -Dclippy::disallowed_methods -C link-arg=-fuse-ld=mold'
+      RUSTFLAGS: '-C link-arg=-fuse-ld=mold'
       RUSTDOCFLAGS: '-Dwarnings'
       SQLX_OFFLINE: 'true'
     steps:
@@ -248,40 +245,44 @@ jobs:
       uses: namespacelabs/nscloud-cache-action@15799a6b54e5765f85b2aac25b3f0df43ed571c0
       with:
         cache: rust
-        path: /nix
+        path: |-
+          /nix
+          /home/runner/.cache/kache
       continue-on-error: true
     - name: Setup Nix
       uses: './.github/actions/setup-nix'
     - name: Setup Nix dev shell
       uses: './.github/actions/setup-nix-dev-shell'
-    - name: Configure Namespace remote sccache
-      if: (github.event_name != 'pull_request' && github.event_name != 'pull_request_target') || github.event.pull_request.head.repo.full_name == github.repository
-      run: |-
+    - name: Configure kache
+      run: |
         set -euo pipefail
-        env_file="$(mktemp "$RUNNER_TEMP/namespace-sccache.XXXXXX")"
-        trap 'rm -f "$env_file"' EXIT
-        if nsc cache sccache setup --cache_name sccache-ci > "$env_file"; then
-          # Register credential values as masked BEFORE exporting: GitHub only
-          # masks `secrets.*`, so without this SCCACHE_WEBDAV_TOKEN — a broad,
-          # ~24h Namespace workspace token (registry + cache write) — printed
-          # verbatim in every subsequent step's env dump. Masking is selective by
-          # key name: masking non-secrets like the endpoint URL or key prefix
-          # would redact those strings everywhere in the logs.
-          while IFS= read -r line; do
-            k="${line%%=*}"
-            v="${line#*=}"
-            [ -n "$v" ] && [ "$k" != "$line" ] || continue
-            case "$k" in
-              *TOKEN*|*SECRET*|*PASSWORD*) echo "::add-mask::$v" ;;
-            esac
-          done < "$env_file"
-          cat "$env_file" >> "$GITHUB_ENV"
-          # Force the next compiler invocation to start a server with the new remote
-          # backend even if a setup hook happened to launch one already.
-          sccache --stop-server >/dev/null 2>&1 || true
+        {
+          echo "KACHE_CACHE_DIR=$KACHE_VOLUME_DIR"
+          echo "KACHE_MAX_SIZE=$KACHE_VOLUME_MAX_SIZE"
+          echo "KACHE_RUNTIME_DIR=$RUNNER_TEMP/kache"
+        } >> "$GITHUB_ENV"
+        if [ "$TRUSTED" != true ]; then
+          echo "KACHE_LOCAL_ONLY=1" >> "$GITHUB_ENV"
+        elif [ -z "$R2_ACCESS_KEY" ] || [ -z "$R2_SECRET_KEY" ]; then
+          echo "::warning::KACHE_R2_* secrets are not set; kache uses only the volume store"
+          echo "KACHE_LOCAL_ONLY=1" >> "$GITHUB_ENV"
         else
-          echo "::warning::Namespace remote sccache setup failed; using local cache fallback"
+          # Listing lets the daemon prefetch from the key index before rustc
+          # asks; test binaries alone exceed the default 2 GiB plan.
+          {
+            echo "KACHE_S3_ACCESS_KEY=$R2_ACCESS_KEY"
+            echo "KACHE_S3_SECRET_KEY=$R2_SECRET_KEY"
+            echo "KACHE_REMOTE_KEY_LISTING=1"
+            echo "KACHE_PREFETCH_MAX_BYTES=16GiB"
+          } >> "$GITHUB_ENV"
         fi
+      shell: bash
+      env:
+        KACHE_VOLUME_DIR: /home/runner/.cache/kache
+        KACHE_VOLUME_MAX_SIZE: '30GiB'
+        TRUSTED: ${{ (github.event_name != 'pull_request' && github.event_name != 'pull_request_target') || github.event.pull_request.head.repo.full_name == github.repository }}
+        R2_ACCESS_KEY: ${{ secrets.KACHE_R2_ACCESS_KEY_ID }}
+        R2_SECRET_KEY: ${{ secrets.KACHE_R2_SECRET_ACCESS_KEY }}
     - name: fmt
       run: cargo fmt --check
     - name: clippy
@@ -294,14 +295,30 @@ jobs:
 
         packages="${RUST_PACKAGES:-}"
 
+        # Warnings fail the run here rather than through -Dwarnings (including clippy's
+        # disallowed_methods, a warning by default): a lint level is part of every
+        # crate's kache key, and laptops build without one. kache replays a cached
+        # crate's warnings, so a hit still reports them.
+        deny_warnings() {
+          local log status=0
+          log="$(mktemp)"
+          { "$@" 2>&1 1>&3 3>&- | tee "$log" >&2; } 3>&1 || status=$?
+          if grep -qE 'generated [0-9]+ warnings?' "$log"; then
+            echo "error: Rust warnings are not allowed; fix the warnings above" >&2
+            [ "$status" -ne 0 ] || status=1
+          fi
+          rm -f "$log"
+          return "$status"
+        }
+
         clippy_sync_service() {
-          cargo clippy -p sync_service -- \
+          deny_warnings cargo clippy -p sync_service -- \
             -A clippy::unnecessary_map_or \
             -A clippy::collapsible_if
         }
 
         if [ -z "$packages" ] || [ "$packages" = "all" ]; then
-          cargo clippy --workspace --all-features --exclude sync_service
+          deny_warnings cargo clippy --workspace --all-features --exclude sync_service
           clippy_sync_service
           exit 0
         fi
@@ -322,7 +339,7 @@ jobs:
         done
 
         if [ "${#pkg_args[@]}" -gt 0 ]; then
-          cargo clippy --all-features "${pkg_args[@]}"
+          deny_warnings cargo clippy --all-features "${pkg_args[@]}"
         fi
 
         if [ "$sync" = true ]; then
@@ -330,9 +347,23 @@ jobs:
         fi
       env:
         RUST_PACKAGES: ${{ needs.path-check.outputs.rust_packages }}
-    - name: show sccache stats
+    - name: Report kache stats
       if: always()
-      run: sccache --show-stats || true
+      run: |
+        kache stats || true
+
+        # Which crates compiled instead of coming from the cache, costliest first.
+        # The key prefix matches `kache explain`'s, so a miss can be compared with
+        # the key a developer machine published for the same crate.
+        events="${KACHE_RUNTIME_DIR:-$KACHE_CACHE_DIR${KACHE_TRUST_DOMAIN:+/$KACHE_TRUST_DOMAIN}}/events.jsonl"
+        if [ -f "$events" ]; then
+          echo "Costliest kache misses (compile ms, crate, key):"
+          jq -r 'select(.result == "miss") | "\(.compile_time_ms // 0)\t\(.crate_name)\t\(.cache_key[0:12])"' \
+            "$events" | sort -rn | head -60 || true
+        fi
+
+        kache daemon stop || true
+      shell: bash
     - name: Teardown Nix
       if: always()
       uses: './.github/actions/teardown-nix'
@@ -342,7 +373,7 @@ jobs:
     if: needs.path-check.outputs.should_run == 'true' && github.event.pull_request.draft == false && needs.path-check.outputs.doppler_candidates == 'true'
     runs-on: namespace-profile-linux-rust-ci;overrides.cache-tag=sccache-ci
     env:
-      RUSTFLAGS: '-Dwarnings -Dclippy::disallowed_methods -C link-arg=-fuse-ld=mold'
+      RUSTFLAGS: '-C link-arg=-fuse-ld=mold'
       RUSTDOCFLAGS: '-Dwarnings'
       SQLX_OFFLINE: 'true'
     steps:
@@ -396,40 +427,44 @@ jobs:
       uses: namespacelabs/nscloud-cache-action@15799a6b54e5765f85b2aac25b3f0df43ed571c0
       with:
         cache: rust
-        path: /nix
+        path: |-
+          /nix
+          /home/runner/.cache/kache
       continue-on-error: true
     - name: Setup Nix
       uses: './.github/actions/setup-nix'
     - name: Setup Nix dev shell
       uses: './.github/actions/setup-nix-dev-shell'
-    - name: Configure Namespace remote sccache
-      if: (github.event_name != 'pull_request' && github.event_name != 'pull_request_target') || github.event.pull_request.head.repo.full_name == github.repository
-      run: |-
+    - name: Configure kache
+      run: |
         set -euo pipefail
-        env_file="$(mktemp "$RUNNER_TEMP/namespace-sccache.XXXXXX")"
-        trap 'rm -f "$env_file"' EXIT
-        if nsc cache sccache setup --cache_name sccache-ci > "$env_file"; then
-          # Register credential values as masked BEFORE exporting: GitHub only
-          # masks `secrets.*`, so without this SCCACHE_WEBDAV_TOKEN — a broad,
-          # ~24h Namespace workspace token (registry + cache write) — printed
-          # verbatim in every subsequent step's env dump. Masking is selective by
-          # key name: masking non-secrets like the endpoint URL or key prefix
-          # would redact those strings everywhere in the logs.
-          while IFS= read -r line; do
-            k="${line%%=*}"
-            v="${line#*=}"
-            [ -n "$v" ] && [ "$k" != "$line" ] || continue
-            case "$k" in
-              *TOKEN*|*SECRET*|*PASSWORD*) echo "::add-mask::$v" ;;
-            esac
-          done < "$env_file"
-          cat "$env_file" >> "$GITHUB_ENV"
-          # Force the next compiler invocation to start a server with the new remote
-          # backend even if a setup hook happened to launch one already.
-          sccache --stop-server >/dev/null 2>&1 || true
+        {
+          echo "KACHE_CACHE_DIR=$KACHE_VOLUME_DIR"
+          echo "KACHE_MAX_SIZE=$KACHE_VOLUME_MAX_SIZE"
+          echo "KACHE_RUNTIME_DIR=$RUNNER_TEMP/kache"
+        } >> "$GITHUB_ENV"
+        if [ "$TRUSTED" != true ]; then
+          echo "KACHE_LOCAL_ONLY=1" >> "$GITHUB_ENV"
+        elif [ -z "$R2_ACCESS_KEY" ] || [ -z "$R2_SECRET_KEY" ]; then
+          echo "::warning::KACHE_R2_* secrets are not set; kache uses only the volume store"
+          echo "KACHE_LOCAL_ONLY=1" >> "$GITHUB_ENV"
         else
-          echo "::warning::Namespace remote sccache setup failed; using local cache fallback"
+          # Listing lets the daemon prefetch from the key index before rustc
+          # asks; test binaries alone exceed the default 2 GiB plan.
+          {
+            echo "KACHE_S3_ACCESS_KEY=$R2_ACCESS_KEY"
+            echo "KACHE_S3_SECRET_KEY=$R2_SECRET_KEY"
+            echo "KACHE_REMOTE_KEY_LISTING=1"
+            echo "KACHE_PREFETCH_MAX_BYTES=16GiB"
+          } >> "$GITHUB_ENV"
         fi
+      shell: bash
+      env:
+        KACHE_VOLUME_DIR: /home/runner/.cache/kache
+        KACHE_VOLUME_MAX_SIZE: '30GiB'
+        TRUSTED: ${{ (github.event_name != 'pull_request' && github.event_name != 'pull_request_target') || github.event.pull_request.head.repo.full_name == github.repository }}
+        R2_ACCESS_KEY: ${{ secrets.KACHE_R2_ACCESS_KEY_ID }}
+        R2_SECRET_KEY: ${{ secrets.KACHE_R2_SECRET_ACCESS_KEY }}
     - id: doppler-bins
       name: compute affected Doppler config bins
       run: |
@@ -455,7 +490,7 @@ jobs:
         fi
 
         if [ -z "${RUSTC_WRAPPER:-}" ]; then
-          echo "RUSTC_WRAPPER is required so Doppler config binaries build through sccache" >&2
+          echo "RUSTC_WRAPPER is required so Doppler config binaries build through kache" >&2
           exit 1
         fi
 
@@ -485,9 +520,23 @@ jobs:
       env:
         DOPPLER_CONFIG_BINS: ${{ steps.doppler-bins.outputs.doppler_config_bins }}
         DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
-    - name: show sccache stats
+    - name: Report kache stats
       if: always()
-      run: sccache --show-stats || true
+      run: |
+        kache stats || true
+
+        # Which crates compiled instead of coming from the cache, costliest first.
+        # The key prefix matches `kache explain`'s, so a miss can be compared with
+        # the key a developer machine published for the same crate.
+        events="${KACHE_RUNTIME_DIR:-$KACHE_CACHE_DIR${KACHE_TRUST_DOMAIN:+/$KACHE_TRUST_DOMAIN}}/events.jsonl"
+        if [ -f "$events" ]; then
+          echo "Costliest kache misses (compile ms, crate, key):"
+          jq -r 'select(.result == "miss") | "\(.compile_time_ms // 0)\t\(.crate_name)\t\(.cache_key[0:12])"' \
+            "$events" | sort -rn | head -60 || true
+        fi
+
+        kache daemon stop || true
+      shell: bash
     - name: Teardown Nix
       if: always()
       uses: './.github/actions/teardown-nix'
@@ -499,8 +548,7 @@ jobs:
     env:
       RUST_PACKAGES: ${{ needs.path-check.outputs.rust_packages }}
       NEXTEST_TEST_THREADS: '32'
-      RUSTFLAGS: '-Dwarnings -C link-arg=-fuse-ld=mold'
-      SCCACHE_IDLE_TIMEOUT: '0'
+      RUSTFLAGS: '-C link-arg=-fuse-ld=mold'
     services:
       postgres:
         image: pgvector/pgvector:pg14
@@ -526,42 +574,44 @@ jobs:
       uses: namespacelabs/nscloud-cache-action@15799a6b54e5765f85b2aac25b3f0df43ed571c0
       with:
         cache: rust
-        path: /nix
+        path: |-
+          /nix
+          /home/runner/.cache/kache
       continue-on-error: true
     - name: Setup Nix
       uses: './.github/actions/setup-nix'
     - name: Setup Nix dev shell
       uses: './.github/actions/setup-nix-dev-shell'
-    - name: Configure Namespace remote sccache
-      if: (github.event_name != 'pull_request' && github.event_name != 'pull_request_target') || github.event.pull_request.head.repo.full_name == github.repository
-      run: |-
+    - name: Configure kache
+      run: |
         set -euo pipefail
-        env_file="$(mktemp "$RUNNER_TEMP/namespace-sccache.XXXXXX")"
-        trap 'rm -f "$env_file"' EXIT
-        if nsc cache sccache setup --cache_name sccache-ci > "$env_file"; then
-          # Register credential values as masked BEFORE exporting: GitHub only
-          # masks `secrets.*`, so without this SCCACHE_WEBDAV_TOKEN — a broad,
-          # ~24h Namespace workspace token (registry + cache write) — printed
-          # verbatim in every subsequent step's env dump. Masking is selective by
-          # key name: masking non-secrets like the endpoint URL or key prefix
-          # would redact those strings everywhere in the logs.
-          while IFS= read -r line; do
-            k="${line%%=*}"
-            v="${line#*=}"
-            [ -n "$v" ] && [ "$k" != "$line" ] || continue
-            case "$k" in
-              *TOKEN*|*SECRET*|*PASSWORD*) echo "::add-mask::$v" ;;
-            esac
-          done < "$env_file"
-          cat "$env_file" >> "$GITHUB_ENV"
-          # Force the next compiler invocation to start a server with the new remote
-          # backend even if a setup hook happened to launch one already.
-          sccache --stop-server >/dev/null 2>&1 || true
+        {
+          echo "KACHE_CACHE_DIR=$KACHE_VOLUME_DIR"
+          echo "KACHE_MAX_SIZE=$KACHE_VOLUME_MAX_SIZE"
+          echo "KACHE_RUNTIME_DIR=$RUNNER_TEMP/kache"
+        } >> "$GITHUB_ENV"
+        if [ "$TRUSTED" != true ]; then
+          echo "KACHE_LOCAL_ONLY=1" >> "$GITHUB_ENV"
+        elif [ -z "$R2_ACCESS_KEY" ] || [ -z "$R2_SECRET_KEY" ]; then
+          echo "::warning::KACHE_R2_* secrets are not set; kache uses only the volume store"
+          echo "KACHE_LOCAL_ONLY=1" >> "$GITHUB_ENV"
         else
-          echo "::warning::Namespace remote sccache setup failed; using local cache fallback"
+          # Listing lets the daemon prefetch from the key index before rustc
+          # asks; test binaries alone exceed the default 2 GiB plan.
+          {
+            echo "KACHE_S3_ACCESS_KEY=$R2_ACCESS_KEY"
+            echo "KACHE_S3_SECRET_KEY=$R2_SECRET_KEY"
+            echo "KACHE_REMOTE_KEY_LISTING=1"
+            echo "KACHE_PREFETCH_MAX_BYTES=16GiB"
+          } >> "$GITHUB_ENV"
         fi
-    - name: Start sccache server
-      run: sccache --start-server
+      shell: bash
+      env:
+        KACHE_VOLUME_DIR: /home/runner/.cache/kache
+        KACHE_VOLUME_MAX_SIZE: '30GiB'
+        TRUSTED: ${{ (github.event_name != 'pull_request' && github.event_name != 'pull_request_target') || github.event.pull_request.head.repo.full_name == github.repository }}
+        R2_ACCESS_KEY: ${{ secrets.KACHE_R2_ACCESS_KEY_ID }}
+        R2_SECRET_KEY: ${{ secrets.KACHE_R2_SECRET_ACCESS_KEY }}
     - name: configure postgres for concurrent tests
       run: |
         postgres_container="$(docker ps --format '{{.ID}} {{.Image}}' | awk '$2 == "pgvector/pgvector:pg14" { print $1; exit }')"
@@ -605,16 +655,30 @@ jobs:
         # Unconstrained `-p` still runs that package's tests.
 
         : "${RUST_PACKAGES:?RUST_PACKAGES is required}"
-        # Dependencies build without debug info, which cuts compile, link and disk cost.
-        # Workspace crates keep CARGO_PROFILE_*_DEBUG=limited, so backtraces still carry
-        # line numbers in our own code.
-        common=(
-          --config 'profile.dev.package."*".debug=false'
-          --all-features --no-tests=pass --test-threads "$NEXTEST_TEST_THREADS"
-        )
+        # NEXTEST_NO_RUN=1 builds the test binaries without running them, which is how
+        # `just ci-prebuild` fills kache with exactly what this job compiles.
+        common=(--all-features --no-tests=pass --test-threads "$NEXTEST_TEST_THREADS")
+        if [ "${NEXTEST_NO_RUN:-}" = 1 ]; then
+          common+=(--no-run)
+        fi
+
+        # Warnings fail the run here rather than through -Dwarnings: a lint level is
+        # part of every crate's kache key, and laptops build without one. kache replays
+        # a cached crate's warnings, so a hit still reports them.
+        deny_warnings() {
+          local log status=0
+          log="$(mktemp)"
+          { "$@" 2>&1 1>&3 3>&- | tee "$log" >&2; } 3>&1 || status=$?
+          if grep -qE 'generated [0-9]+ warnings?' "$log"; then
+            echo "error: Rust warnings are not allowed; fix the warnings above" >&2
+            [ "$status" -ne 0 ] || status=1
+          fi
+          rm -f "$log"
+          return "$status"
+        }
 
         if [ "$RUST_PACKAGES" = "all" ]; then
-          cargo nextest run --workspace --exclude sync_service --lib --bins --tests "${common[@]}"
+          deny_warnings cargo nextest run --workspace --exclude sync_service --lib --bins --tests "${common[@]}"
           exit 0
         fi
 
@@ -628,10 +692,24 @@ jobs:
           exit 0
         fi
 
-        cargo nextest run "${common[@]}" "${pkg_args[@]}"
-    - name: show sccache stats
+        deny_warnings cargo nextest run "${common[@]}" "${pkg_args[@]}"
+    - name: Report kache stats
       if: always()
-      run: sccache --show-stats || true
+      run: |
+        kache stats || true
+
+        # Which crates compiled instead of coming from the cache, costliest first.
+        # The key prefix matches `kache explain`'s, so a miss can be compared with
+        # the key a developer machine published for the same crate.
+        events="${KACHE_RUNTIME_DIR:-$KACHE_CACHE_DIR${KACHE_TRUST_DOMAIN:+/$KACHE_TRUST_DOMAIN}}/events.jsonl"
+        if [ -f "$events" ]; then
+          echo "Costliest kache misses (compile ms, crate, key):"
+          jq -r 'select(.result == "miss") | "\(.compile_time_ms // 0)\t\(.crate_name)\t\(.cache_key[0:12])"' \
+            "$events" | sort -rn | head -60 || true
+        fi
+
+        kache daemon stop || true
+      shell: bash
     - name: Teardown Nix
       if: always()
       uses: './.github/actions/teardown-nix'

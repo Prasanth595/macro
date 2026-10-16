@@ -45,50 +45,65 @@ jobs:
           /home/runner/.cargo/registry
           /home/runner/.cargo/git
           /home/runner/.cache/.wasm-pack
+          /home/runner/.cache/kache
       continue-on-error: true
     - name: Setup Nix
       uses: './.github/actions/setup-nix'
     - name: Setup
       uses: './.github/actions/setup-reqs-web'
-    - name: Configure Namespace remote sccache
-      if: (github.event_name != 'pull_request' && github.event_name != 'pull_request_target') || github.event.pull_request.head.repo.full_name == github.repository
-      run: |-
+    - name: Configure kache
+      run: |
         set -euo pipefail
-        env_file="$(mktemp "$RUNNER_TEMP/namespace-sccache.XXXXXX")"
-        trap 'rm -f "$env_file"' EXIT
-        if nsc cache sccache setup --cache_name web-ci > "$env_file"; then
-          # Register credential values as masked BEFORE exporting: GitHub only
-          # masks `secrets.*`, so without this SCCACHE_WEBDAV_TOKEN — a broad,
-          # ~24h Namespace workspace token (registry + cache write) — printed
-          # verbatim in every subsequent step's env dump. Masking is selective by
-          # key name: masking non-secrets like the endpoint URL or key prefix
-          # would redact those strings everywhere in the logs.
-          while IFS= read -r line; do
-            k="${line%%=*}"
-            v="${line#*=}"
-            [ -n "$v" ] && [ "$k" != "$line" ] || continue
-            case "$k" in
-              *TOKEN*|*SECRET*|*PASSWORD*) echo "::add-mask::$v" ;;
-            esac
-          done < "$env_file"
-          cat "$env_file" >> "$GITHUB_ENV"
-          # Force the next compiler invocation to start a server with the new remote
-          # backend even if a setup hook happened to launch one already.
-          sccache --stop-server >/dev/null 2>&1 || true
+        {
+          echo "KACHE_CACHE_DIR=$KACHE_VOLUME_DIR"
+          echo "KACHE_MAX_SIZE=$KACHE_VOLUME_MAX_SIZE"
+          echo "KACHE_RUNTIME_DIR=$RUNNER_TEMP/kache"
+        } >> "$GITHUB_ENV"
+        if [ "$TRUSTED" != true ]; then
+          echo "KACHE_LOCAL_ONLY=1" >> "$GITHUB_ENV"
+        elif [ -z "$R2_ACCESS_KEY" ] || [ -z "$R2_SECRET_KEY" ]; then
+          echo "::warning::KACHE_R2_* secrets are not set; kache uses only the volume store"
+          echo "KACHE_LOCAL_ONLY=1" >> "$GITHUB_ENV"
         else
-          echo "::warning::Namespace remote sccache setup failed; using local cache fallback"
+          # Listing lets the daemon prefetch from the key index before rustc
+          # asks; test binaries alone exceed the default 2 GiB plan.
+          {
+            echo "KACHE_S3_ACCESS_KEY=$R2_ACCESS_KEY"
+            echo "KACHE_S3_SECRET_KEY=$R2_SECRET_KEY"
+            echo "KACHE_REMOTE_KEY_LISTING=1"
+            echo "KACHE_PREFETCH_MAX_BYTES=16GiB"
+          } >> "$GITHUB_ENV"
         fi
-    - name: Start sccache server
-      run: sccache --start-server
+      shell: bash
+      env:
+        KACHE_VOLUME_DIR: /home/runner/.cache/kache
+        KACHE_VOLUME_MAX_SIZE: '30GiB'
+        TRUSTED: ${{ (github.event_name != 'pull_request' && github.event_name != 'pull_request_target') || github.event.pull_request.head.repo.full_name == github.repository }}
+        R2_ACCESS_KEY: ${{ secrets.KACHE_R2_ACCESS_KEY_ID }}
+        R2_SECRET_KEY: ${{ secrets.KACHE_R2_SECRET_ACCESS_KEY }}
     - name: Build
       run: just build-dev
       env:
         VITE_SEGMENT_WRITE_KEY: ${{ secrets.SEGMENT_WRITE_KEY_PRODUCTION }}
         VITE_POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
       working-directory: apps/web
-    - name: show sccache stats
+    - name: Report kache stats
       if: always()
-      run: sccache --show-stats || true
+      run: |
+        kache stats || true
+
+        # Which crates compiled instead of coming from the cache, costliest first.
+        # The key prefix matches `kache explain`'s, so a miss can be compared with
+        # the key a developer machine published for the same crate.
+        events="${KACHE_RUNTIME_DIR:-$KACHE_CACHE_DIR${KACHE_TRUST_DOMAIN:+/$KACHE_TRUST_DOMAIN}}/events.jsonl"
+        if [ -f "$events" ]; then
+          echo "Costliest kache misses (compile ms, crate, key):"
+          jq -r 'select(.result == "miss") | "\(.compile_time_ms // 0)\t\(.crate_name)\t\(.cache_key[0:12])"' \
+            "$events" | sort -rn | head -60 || true
+        fi
+
+        kache daemon stop || true
+      shell: bash
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@e7f100cf4c008499ea8adda475de1042d6975c7b
       with:

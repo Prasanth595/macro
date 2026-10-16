@@ -57,10 +57,6 @@ pub const NEXTEST_TEST_THREADS: u32 = 32;
 /// retained so the existing warm volume is not invalidated.
 pub const CI_CACHE_TAG: &str = "sccache-ci";
 
-/// Namespace remote sccache shared by the cloud-storage compile/test jobs and
-/// the workspace dependency checks.
-pub const CI_SCCACHE_NAME: &str = "sccache-ci";
-
 /// Namespace cache tag for the web-app jobs (PR checks + preview deploys).
 /// Cache volumes are keyed workspace-wide by tag alone, so a dedicated tag
 /// gives the frontend its own volume — isolated both from the Rust CI volume
@@ -68,10 +64,25 @@ pub const CI_SCCACHE_NAME: &str = "sccache-ci";
 /// `linux-mid` volume.
 pub const WEB_CI_CACHE_TAG: &str = "web-ci";
 
-/// Namespace remote sccache used when the web checks compile Rust API schema
-/// generators. Kept separate from [`CI_SCCACHE_NAME`] because these jobs have
-/// a different workload and runner profile.
-pub const WEB_SCCACHE_NAME: &str = "web-ci";
+/// kache's store on each job's Namespace cache volume, listed in every volume
+/// mount that compiles Rust. kache's own default on Linux, spelled out because
+/// the dev shell otherwise points it at `~/macro-kache`.
+pub const KACHE_VOLUME_DIR: &str = "/home/runner/.cache/kache";
+
+/// `RUSTFLAGS` for the jobs that compile the cloud-storage workspace. The dev
+/// shell passes the same flag (as `CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS`,
+/// so wasm builds keep `.cargo/config.toml`'s flags), and rustflags are part of
+/// every kache key: anything else here and no laptop build is ever a CI hit.
+pub const RUSTFLAGS: &str = "-C link-arg=-fuse-ld=mold";
+
+/// S3 credentials for the shared `ci-cache` R2 bucket (`.kache.toml`), scoped
+/// to object read/write on that bucket. GitHub withholds both from fork PRs.
+pub const KACHE_R2_ACCESS_KEY_ID: &str = "${{ secrets.KACHE_R2_ACCESS_KEY_ID }}";
+pub const KACHE_R2_SECRET_ACCESS_KEY: &str = "${{ secrets.KACHE_R2_SECRET_ACCESS_KEY }}";
+
+/// Store budget on a cache volume. kache's default (5% of the disk) is sized
+/// for a laptop's root disk, not a dedicated volume.
+pub const KACHE_VOLUME_MAX_SIZE: &str = "30GiB";
 
 /// Namespace cache tag for `path-check`, which keeps its release
 /// `xtask_nextest_filter` binary on the volume. Without a fixed tag the small
@@ -107,8 +118,6 @@ pub fn with_global_env(workflow: Workflow) -> Workflow {
     workflow
         .add_env(("CARGO_INCREMENTAL", "0"))
         .add_env(("CARGO_TERM_COLOR", "always"))
-        .add_env(("CARGO_PROFILE_DEV_DEBUG", "limited"))
-        .add_env(("CARGO_PROFILE_TEST_DEBUG", "limited"))
         .add_env(("RUST_BACKTRACE", "1"))
         .add_env(("RUSTFLAGS", "-C link-arg=-fuse-ld=lld"))
 }

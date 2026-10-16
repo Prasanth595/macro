@@ -209,34 +209,37 @@ fn missing_merge_base_deepens_before_falling_back() {
 
 #[test]
 fn tests_build_dependencies_without_debug_info() {
+    let manifest = include_str!("../../../../../../../Cargo.toml");
+    assert!(
+        manifest.contains("[profile.dev.package.\"*\"]\ndebug = false"),
+        "the workspace profile, shared by laptops and CI, must drop dependency debug info"
+    );
     let script = include_str!("../scripts/run_tests.sh");
     assert!(
-        script.contains(r#"--config 'profile.dev.package."*".debug=false'"#),
-        "the test build must drop dependency debug info: {script}"
+        !script.contains("--config"),
+        "a CI-only profile override would make laptop builds miss CI's kache keys: {script}"
     );
 }
 
 #[test]
-fn test_job_keeps_one_sccache_server_for_the_whole_run() {
+fn test_job_configures_kache_before_compiling_and_reports_after() {
     let job = serde_json::to_value(test()).unwrap();
-    assert_eq!(job["env"]["SCCACHE_IDLE_TIMEOUT"], "0");
     let step_names: Vec<&str> = job["steps"]
         .as_array()
         .unwrap()
         .iter()
         .filter_map(|step| step["name"].as_str())
         .collect();
-    let start = step_names
-        .iter()
-        .position(|name| *name == "Start sccache server")
-        .expect("test job must start the sccache server explicitly");
-    let configure = step_names
-        .iter()
-        .position(|name| *name == "Configure Namespace remote sccache")
-        .unwrap();
-    let run = step_names
-        .iter()
-        .position(|name| *name == "run tests")
-        .unwrap();
-    assert!(configure < start && start < run, "{step_names:?}");
+    let position = |wanted: &str| {
+        step_names
+            .iter()
+            .position(|name| *name == wanted)
+            .unwrap_or_else(|| panic!("missing step {wanted}: {step_names:?}"))
+    };
+    assert!(
+        position("Setup Nix dev shell") < position("Configure kache")
+            && position("Configure kache") < position("run tests")
+            && position("run tests") < position("Report kache stats"),
+        "{step_names:?}"
+    );
 }
