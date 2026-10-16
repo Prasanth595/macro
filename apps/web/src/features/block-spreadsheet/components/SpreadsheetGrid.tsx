@@ -56,6 +56,7 @@ import type { SpreadsheetCursor } from '../core/spreadsheet-presence';
 import type { CompleteFormula } from '../primitives/create-formula-assistance';
 import { CellDatePicker, datePickerKeyDay } from './CellDatePicker';
 import { CellListMenu } from './CellListMenu';
+import { ChoiceChip } from './ChoiceChip';
 import { ConditionalIcon } from './ConditionalIcon';
 import {
   cellBackground,
@@ -87,6 +88,8 @@ const ROW_HEADER_WIDTH = 46;
 const CELL_PADDING_X = 3;
 const CELL_PADDING_Y = 2;
 const CELL_LINE_HEIGHT = 1.2;
+/** Excel indents each level by three spaces of the workbook's default font. */
+const INDENT_EMS = 0.75;
 const MAX_ROW_HEIGHT = 160;
 
 export function renderedSelectionCell(
@@ -204,8 +207,11 @@ export function SpreadsheetGrid(props: {
   /** The active cell offers a calendar while it is edited; `date` is its day. */
   datePicker?: { date?: Date };
   onPickDate?: (day: Date) => void;
-  /** Ranges (Excel sqrefs) whose cells show a dropdown arrow. */
-  dropdownRanges?: string[];
+  /**
+   * Dropdown rules: their ranges (Excel sqrefs), whose cells show an arrow,
+   * and their choice colors by lowercase text.
+   */
+  dropdowns?: { range: string; colors?: Map<string, string> }[];
   /** Images and charts over the sheet. */
   drawings?: SheetDrawing[];
   image?: (key: string) => string | undefined;
@@ -266,6 +272,11 @@ export function SpreadsheetGrid(props: {
   const hiddenColumns = createMemo(() => new Set(props.hiddenColumns));
   const hiddenRows = createMemo(() => new Set(props.hiddenRows));
   const defaultFontSize = () => props.defaultFont?.size ?? 10;
+  /** Unzoomed pixels a cell's indent takes from its content. */
+  const indentWidth = (cell?: SpreadsheetCell) =>
+    cell?.indent && cell.horizontalAlign !== 'center'
+      ? cell.indent * fontPixels(undefined, defaultFontSize()) * INDENT_EMS
+      : 0;
   const [fillTarget, setFillTarget] = createSignal<CellSelection>();
   // The cell whose list is open; moving the selection closes it.
   const [listOpenAt, setListOpenAt] = createSignal<string>();
@@ -295,21 +306,26 @@ export function SpreadsheetGrid(props: {
   createEffect(() => {
     if (!props.editing) setPickerOpen(false);
   });
-  const dropdownBounds = createMemo(() =>
-    (props.dropdownRanges ?? []).flatMap(sqrefBounds)
+  const dropdownAreas = createMemo(() =>
+    (props.dropdowns ?? []).map((dropdown) => ({
+      bounds: sqrefBounds(dropdown.range),
+      colors: dropdown.colors,
+    }))
   );
-  const hasDropdown = (row: number, column: number) =>
-    dropdownBounds().some(
-      (bounds) =>
-        row >= bounds.top &&
-        row <= bounds.bottom &&
-        column >= bounds.left &&
-        column <= bounds.right
+  const dropdownAt = (row: number, column: number) =>
+    dropdownAreas().find((area) =>
+      area.bounds.some(
+        (bounds) =>
+          row >= bounds.top &&
+          row <= bounds.bottom &&
+          column >= bounds.left &&
+          column <= bounds.right
+      )
     );
   const opensListOnPress = (position: CellPosition) =>
     listOpenAt() !== undefined &&
     listOpenAt() !== cellAddress(position) &&
-    hasDropdown(position.row, position.column);
+    dropdownAt(position.row, position.column) !== undefined;
   /** Pressing a cell closes an open list, or opens that dropdown cell's list. */
   function closeOrMoveList(position: CellPosition, extend = false) {
     const opens = !extend && opensListOnPress(position);
@@ -444,7 +460,10 @@ export function SpreadsheetGrid(props: {
           context.font = `${cell.italic ? 'italic ' : ''}${cell.bold ? 600 : 400} ${pixels}px ${fontFamily(cell)}`;
         lines = wrappedLines(
           display(address),
-          columnWidth(position.column) - CELL_PADDING_X * 2 - borderInset,
+          columnWidth(position.column) -
+            CELL_PADDING_X * 2 -
+            borderInset -
+            indentWidth(cell),
           (text) =>
             context?.measureText(text).width ?? text.length * pixels * 0.6,
           Math.ceil((MAX_ROW_HEIGHT - verticalInset) / lineHeight)
@@ -827,7 +846,10 @@ export function SpreadsheetGrid(props: {
       for (const line of text.split('\n'))
         measured = Math.max(
           measured,
-          context.measureText(line).width + CELL_PADDING_X * 2 + 1 / scale()
+          context.measureText(line).width +
+            CELL_PADDING_X * 2 +
+            indentWidth(cell) +
+            1 / scale()
         );
     }
     props.onResizeColumn?.(
@@ -1713,9 +1735,11 @@ export function SpreadsheetGrid(props: {
                           : literalNumber(cell()) !== undefined;
                       const horizontalAlign = () => {
                         const align = cell()?.horizontalAlign;
+                        // Indenting an automatic cell aligns it left, as in Excel.
                         return align && align !== 'auto'
                           ? align
                           : numeric() &&
+                              !cell()?.indent &&
                               !(
                                 props.showFormulas &&
                                 cell()?.value.startsWith('=')
@@ -1723,12 +1747,24 @@ export function SpreadsheetGrid(props: {
                             ? 'right'
                             : 'left';
                       };
+                      const indentPadding = (side: 'left' | 'right') => {
+                        const width = indentWidth(cell()) * scale();
+                        return width > 0 &&
+                          (horizontalAlign() === 'right') === (side === 'right')
+                          ? `${width}px`
+                          : undefined;
+                      };
                       const pending = () =>
                         !!props.pendingFormulas &&
                         !value() &&
                         !props.showFormulas &&
                         !!cell()?.value.startsWith('=') &&
                         cell()?.format !== 'text';
+                      const dropdown = () => dropdownAt(row, column);
+                      const chipColor = () =>
+                        dropdown()?.colors?.get(
+                          display(address).trim().toLowerCase()
+                        );
                       const decorated = () =>
                         !!props.mentions &&
                         !(
@@ -1821,6 +1857,12 @@ export function SpreadsheetGrid(props: {
                                   : 'center',
                             'padding-block':
                               'var(--spreadsheet-cell-padding-y)',
+                            'padding-left': indentPadding('left'),
+                            'padding-right': indentPadding('right'),
+                            '--spreadsheet-cell-indent-left':
+                              indentPadding('left'),
+                            '--spreadsheet-cell-indent-right':
+                              indentPadding('right'),
                             'line-height': CELL_LINE_HEIGHT,
                           }}
                           class="absolute top-0 bottom-0 flex flex-col border-b border-r border-ink/12 bg-panel text-ink select-none"
@@ -1907,7 +1949,10 @@ export function SpreadsheetGrid(props: {
                             fallback={
                               <div
                                 class="relative w-full min-h-0 overflow-hidden text-ellipsis px-[var(--spreadsheet-cell-padding)]"
-                                classList={{ 'pl-5': !!look()?.icon }}
+                                classList={{
+                                  'pl-5': !!look()?.icon,
+                                  'pr-5': !!dropdown(),
+                                }}
                                 style={{
                                   'white-space': cell()?.wrap
                                     ? 'pre-wrap'
@@ -1936,6 +1981,10 @@ export function SpreadsheetGrid(props: {
                                 >
                                   {look()?.showValue === false ? (
                                     ''
+                                  ) : chipColor() ? (
+                                    <ChoiceChip color={chipColor()!}>
+                                      {display(address)}
+                                    </ChoiceChip>
                                   ) : decorated() ? (
                                     props.mentions!.renderText(
                                       cell()!.value.replace(/^'/, '')
@@ -1980,9 +2029,9 @@ export function SpreadsheetGrid(props: {
                                 (isTouchDevice() && !!props.referenceSelection)
                               }
                               onSelectionChange={props.onTextSelection}
-                              // Inherits the cell's fill, font and color; automatic
-                              // alignment edits from the left, as in Excel.
-                              class={`absolute inset-0 size-full resize-none overflow-hidden bg-inherit px-[var(--spreadsheet-cell-padding)] py-[var(--spreadsheet-cell-padding-y)] [text-decoration-line:inherit] outline-none select-text ${
+                              // Inherits the cell's fill, font, color and indent;
+                              // automatic alignment edits from the left, as in Excel.
+                              class={`absolute inset-0 size-full resize-none overflow-hidden bg-inherit pl-[calc(var(--spreadsheet-cell-padding)_+_var(--spreadsheet-cell-indent-left,0px))] pr-[calc(var(--spreadsheet-cell-padding)_+_var(--spreadsheet-cell-indent-right,0px))] py-[var(--spreadsheet-cell-padding-y)] [text-decoration-line:inherit] outline-none select-text ${
                                 cell()?.horizontalAlign === 'center'
                                   ? 'text-center'
                                   : cell()?.horizontalAlign === 'right'
@@ -2009,7 +2058,7 @@ export function SpreadsheetGrid(props: {
                           </Show>
                           <Show
                             when={
-                              hasDropdown(row, column) &&
+                              dropdown() &&
                               !(active() && listButtonShown()) &&
                               !(active() && props.editing)
                             }
@@ -2188,6 +2237,12 @@ export function SpreadsheetGrid(props: {
                   <CellListMenu
                     address={address()}
                     items={items()}
+                    colors={
+                      dropdownAt(
+                        props.selection.anchor.row,
+                        props.selection.anchor.column
+                      )?.colors
+                    }
                     open={listOpenAt() === address()}
                     onOpenChange={(open) =>
                       setListOpenAt(open ? address() : undefined)

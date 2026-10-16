@@ -34,7 +34,8 @@ without a calculation-status flash or grid remount. Further regressions cover
 immediate typing after the workbook loads (without taking focus from a control
 reached while loading) and after adding or duplicating sheets, returning focus from toolbar
 fields, range formatting/sorting, and footer controls down to a 360-pixel panel.
-Dropdowns added, used and removed from the toolbar and cell menus, open lists
+Dropdowns added, used and removed from the toolbar and cell menus (with
+choice colors drawn as chips in cells and in the open list), open lists
 kept clear of their cell (above it near the bottom edge) and moved to another
 dropdown cell with one click,
 date calendars on typed, imported and date-validated cells (keys, clicks and
@@ -114,4 +115,4 @@ explicit test document/socket query parameters are supplied.
 
 ## Editor interaction regressions
 
-`editor-interactions.browser.e2e.ts` mounts the real global hotkey listener to verify that selected-cell typing and arrows beat app navigation shortcuts. It also exercises multi-header drag/Shift selection, drags that scroll the grid past its bottom and right edges and back over the sticky headers to reach off-screen cells (including a fill-handle drag down to the last row), persistent row resizing and auto-fit, cross-sheet formula reference picking (including after comparison operators, from a row past the other sheet's end), and numeric/month-end date fill with undo. `formatting.browser.e2e.ts` checks mixed whole-column formatting, style persistence, viewport stability, a styled cell's pixels staying the same when selected, in a range and edited, and percentage entry through both editors against the real calculation worker.
+`editor-interactions.browser.e2e.ts` mounts the real global hotkey listener to verify that selected-cell typing and arrows beat app navigation shortcuts. It also exercises multi-header drag/Shift selection, drags that scroll the grid past its bottom and right edges and back over the sticky headers to reach off-screen cells (including a fill-handle drag down to the last row), persistent row resizing and auto-fit, cross-sheet formula reference picking (including after comparison operators, from a row past the other sheet's end), and numeric/month-end date fill with undo. `formatting.browser.e2e.ts` checks mixed whole-column formatting, style persistence, viewport stability, a styled cell's pixels staying the same when selected, in a range and edited, percentage entry through both editors against the real calculation worker, the accounting layout, and indented line items measured from their aligned edge.
