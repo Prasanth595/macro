@@ -73,11 +73,11 @@ jobs:
       name: Require an Android version bump for native changes
       run: |
         set -euo pipefail
-        git fetch -q --depth=1 origin "$BASE_SHA"
-        bun scripts/android-version-check.mjs "$BASE_SHA"
+        base=$(git cat-file -p HEAD | sed -n 's/^parent //p' | head -1)
+        echo "Comparing the merge result with its base ${base:0:10}"
+        git fetch -q --depth=1 origin "$base"
+        bun scripts/android-version-check.mjs "$base"
       shell: bash
-      env:
-        BASE_SHA: ${{ github.event.pull_request.base.sha }}
       working-directory: apps/web
     - id: labels
       name: Read the PR's current labels
@@ -493,10 +493,15 @@ jobs:
         set -euo pipefail
         manifest=crates/client/cache-wasm/Cargo.toml
         version() { git show "$1:$manifest" 2>/dev/null | sed -n 's/^version *= *"\([^"]*\)".*/\1/p' | head -1 | grep . || echo none; }
-        git fetch -q --depth=1 origin "$BASE_BRANCH"
-        base=$(version "origin/$BASE_BRANCH")
+        # The merge commit's first parent is the main this merge result was
+        # built on; a fresh fetch of main could be newer and misattribute
+        # its bumps to the PR.
+        base_sha=$(git cat-file -p HEAD | sed -n 's/^parent //p' | head -1)
+        git fetch -q --depth=1 origin "$base_sha"
+        echo "base_sha=${base_sha}" >> "$GITHUB_OUTPUT"
+        base=$(version "$base_sha")
         head=$(version HEAD)
-        echo "cache-wasm version: base ${base}, merge result ${head}"
+        echo "cache-wasm version: base ${base} (${base_sha:0:10}), merge result ${head}"
         if [[ "$base" != "$head" ]]; then
           echo "bumped=true" >> "$GITHUB_OUTPUT"
           echo "The client cache wasm version moved; the native app compiles that cache, so this counts as a native change."
@@ -504,8 +509,6 @@ jobs:
           echo "bumped=false" >> "$GITHUB_OUTPUT"
         fi
       shell: bash
-      env:
-        BASE_BRANCH: ${{ github.base_ref }}
     - id: labels
       name: Read the PR's current labels
       if: (steps.native-filter.outputs.ios_native == 'true' || steps.cache-wasm.outputs.bumped == 'true')
@@ -530,14 +533,9 @@ jobs:
         bun-version: '1.3.13'
     - name: Verify iOS release numbers were bumped
       if: (steps.native-filter.outputs.ios_native == 'true' || steps.cache-wasm.outputs.bumped == 'true') && steps.labels.outputs.skip != 'true'
-      run: |
-        set -euo pipefail
-        git fetch --depth=1 origin "$BASE_BRANCH"
-        bun scripts/ios-verify-native-bump.mjs
-      shell: bash
+      run: bun scripts/ios-verify-native-bump.mjs
       env:
-        BASE_BRANCH: ${{ github.base_ref }}
-        BASE_REF: origin/${{ github.base_ref }}
+        BASE_REF: ${{ steps.cache-wasm.outputs.base_sha }}
       working-directory: apps/web
     - name: Fetch App Store Connect credentials from Doppler
       if: (steps.native-filter.outputs.ios_native == 'true' || steps.cache-wasm.outputs.bumped == 'true') && steps.labels.outputs.skip != 'true'

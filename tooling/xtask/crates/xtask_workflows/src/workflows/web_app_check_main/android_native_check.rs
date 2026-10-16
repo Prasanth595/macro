@@ -71,17 +71,24 @@ fn setup_bun() -> Step<Use> {
 
 /// Always runs: the version code must exceed the base whenever the Android
 /// native code changed. Outputs `changed` and `version_code`.
+///
+/// The base is the merge commit's first parent — the main the merge result
+/// was actually built on — not the event payload's `base.sha`: GitHub can
+/// compute the merge against a newer main than the payload names, and then
+/// main's own native changes would be blamed on the PR. (`cat-file` because a
+/// shallow checkout grafts the parents away for `rev-parse HEAD^1`.)
 fn version_check() -> Step<Run> {
     Step::new("Require an Android version bump for native changes")
         .run(indoc::indoc! {r#"
             set -euo pipefail
-            git fetch -q --depth=1 origin "$BASE_SHA"
-            bun scripts/android-version-check.mjs "$BASE_SHA"
+            base=$(git cat-file -p HEAD | sed -n 's/^parent //p' | head -1)
+            echo "Comparing the merge result with its base ${base:0:10}"
+            git fetch -q --depth=1 origin "$base"
+            bun scripts/android-version-check.mjs "$base"
         "#})
         .id("android-version")
         .shell("bash")
         .working_directory(xtask_paths::repo_dir!("apps/web"))
-        .add_env(("BASE_SHA", "${{ github.event.pull_request.base.sha }}"))
 }
 
 fn read_labels() -> Step<Run> {

@@ -12,7 +12,11 @@ fn android_native_check_is_an_unconditional_required_merge_check() {
         !android.contains("fetch-depth"),
         "shallow checkout; the base commit is fetched by the step: {android}"
     );
-    assert!(android.contains("github.event.pull_request.base.sha"));
+    assert!(
+        android.contains("git cat-file -p HEAD | sed -n 's/^parent //p' | head -1")
+            && !android.contains("github.event.pull_request.base.sha"),
+        "the base is the merge commit's first parent, not the event payload: {android}"
+    );
     assert!(android.contains("bun scripts/android-version-check.mjs"));
     assert!(android.contains("bun scripts/android-play-status.mjs --version-code"));
     assert!(android.contains("id-token: write"));
