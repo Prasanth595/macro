@@ -544,8 +544,9 @@ The shared toolbar contains **Search schedules** (name or time zone) and **New**
 Schedule cards show the default badge, time zone, a Monday-first
 week preview, grouped hours, and booking-link/date-exception counts. **Preview**
 uses an eye icon and opens all weekly hours and date exceptions without editing,
-including for read-only users. Blank hours say **Not set**; explicit time off says
-**Unavailable**. The actions menu offers **Set as default**, **Copy schedule**, and
+including for read-only users. Empty weekly hours say **Not set**; empty date
+exceptions say **Unavailable**. Unsaved time-off annotations appear in the draft
+only. The actions menu offers **Set as default**, **Copy schedule**, and
 **Delete**. On touch devices, hold a schedule card to open these actions in a
 drawer; the desktop More button is hidden. Shift+F10 or the Menu key on the
 schedule name opens the same actions. The drawer uses the schedule name as its
@@ -587,9 +588,9 @@ another Remove action.
 
 The **Calendar preview** stays on the right at wide sizes; narrow layouts stack it
 below weekly hours. It has square date cells, month navigation, and a current-date
-highlight without a Today label. Available hours use accent bars and explicit time
-off uses gray bars. Hours in neither set remain blank and non-bookable. The weekday
-headings open weekly hours. Clicking a date or any of its bars opens that date's
+highlight without a Today label. Available hours use accent bars and draft time
+off uses gray bars. Only available windows persist; all other times are non-bookable.
+The weekday headings open weekly hours. Clicking a date or any of its bars opens that date's
 complete hours in the date-exception dialog without expanding the calendar layout.
 Dragging across dates selects an inclusive range. Keyboard users focus a date and
 press Enter or Space; focus moves into the dialog and returns on Apply, Cancel, or
@@ -606,18 +607,19 @@ invent defaults. Only the range list scrolls; the dialog heading, date controls,
 **Clear selected hours** on the left and **Cancel** / **Apply** on the right
 (wrapping on narrow screens). Add hours explicitly sets
 a replacement for every selected date, or choose an individual date with
-**Dates to edit**. **Apply exception** / **Apply to N dates** replaces both complete
-interval sets atomically. Invalid times, overnight ranges, overlapping
+**Dates to edit**. **Apply exception** / **Apply to N dates** replaces the complete
+day's draft hours atomically. Invalid times, overnight ranges, overlapping
 available/time-off ranges, and excessive intervals
 or dates are rejected before changing the draft schedule.
 
 Date exceptions replace weekly hours, rather than adding to them. **Clear selected
-hours** creates explicit blank exceptions: these dates remain non-bookable and do
-not inherit weekly hours. Exception rows spell out the date and all saved hours.
+hours** creates an empty exception: that date remains non-bookable and does not
+inherit weekly hours. Exception rows spell out the date and saved available hours.
 Their Remove action removes the entire exception and restores weekly inheritance.
-Legacy timed exceptions without time-off metadata show only their stored available
-hours; implicit gaps do not become editable time-off ranges. Legacy empty exceptions
-still represent all-day time off. Explicit empty time-off arrays remain blank.
+Saving sends only available windows using the existing backend contract. Time-off
+annotations are local to the draft and disappear after saving/reloading; unset and
+explicit time off are not stored as separate states. Timed exceptions show only
+their stored available hours in the editor; empty exceptions show all-day unavailability.
 There is no separate stamp mode or single-range conflict-replacement flow; edit
 whole-day rules directly instead.
 

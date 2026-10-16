@@ -3,11 +3,13 @@ export type TimeWindow = { start: string; end: string };
 export type WeeklyDay = {
   day: number;
   windows: TimeWindow[];
+  /** Editor-only time-off annotations; omitted from API requests. */
   unavailableWindows?: TimeWindow[] | null;
 };
 export type DateOverride = {
   date: string;
   windows: TimeWindow[];
+  /** Editor-only time-off annotations; omitted from API requests. */
   unavailableWindows?: TimeWindow[] | null;
 };
 /** Legacy gap inference can materialize more fragments than the bookable ranges. */
@@ -87,6 +89,21 @@ export type SchedulingProfile = {
   eventTypes: EventType[];
   revision: number;
 };
+
+/** Persist bookable windows only; time-off annotations belong to the local draft. */
+export function schedulingProfileForSave(profile: SchedulingProfile) {
+  return {
+    ...profile,
+    schedules: profile.schedules.map((schedule) => ({
+      ...schedule,
+      weekly: schedule.weekly.map(({ day, windows }) => ({ day, windows })),
+      overrides: schedule.overrides.map(({ date, windows }) => ({
+        date,
+        windows,
+      })),
+    })),
+  };
+}
 export type SchedulingScope = {
   id: string;
   name: string;

@@ -4,6 +4,7 @@ import {
   meetingPlaceLabel,
   newEventType,
   newSchedule,
+  schedulingProfileForSave,
   validateEvent,
   validateSchedule,
 } from './types';
@@ -50,6 +51,55 @@ describe('scheduling form validation', () => {
       })
     ).toBe('Studio 4');
   });
+});
+
+it('saves bookable windows without draft time-off annotations', () => {
+  const schedule = newSchedule('UTC');
+  schedule.weekly[1] = {
+    day: 1,
+    windows: [{ start: '09:00', end: '12:00' }],
+    unavailableWindows: [{ start: '12:00', end: '17:00' }],
+  };
+  schedule.overrides = [
+    { date: '2026-10-20', windows: [], unavailableWindows: [] },
+    {
+      date: '2026-10-21',
+      windows: [{ start: '10:00', end: '11:00' }],
+      unavailableWindows: [{ start: '11:00', end: '17:00' }],
+    },
+  ];
+  const profile = {
+    id: 'profile',
+    name: 'Booking page',
+    description: '',
+    schedules: [schedule],
+    defaultScheduleId: schedule.id,
+    eventTypes: [newEventType(schedule.id, ['host'], false)],
+    revision: 3,
+  };
+  const original = structuredClone(profile);
+
+  const saved = schedulingProfileForSave(profile);
+
+  expect(saved).toEqual({
+    ...profile,
+    schedules: [
+      {
+        ...schedule,
+        weekly: schedule.weekly.map(({ day, windows }) => ({ day, windows })),
+        overrides: [
+          { date: '2026-10-20', windows: [] },
+          { date: '2026-10-21', windows: [{ start: '10:00', end: '11:00' }] },
+        ],
+      },
+    ],
+  });
+  expect(saved.schedules[0].weekly[1]).toEqual({
+    day: 1,
+    windows: [{ start: '09:00', end: '12:00' }],
+  });
+  expect(JSON.stringify(saved)).not.toContain('unavailableWindows');
+  expect(profile).toEqual(original);
 });
 
 describe('availability card summaries', () => {

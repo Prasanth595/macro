@@ -13,7 +13,6 @@ fn schedule() -> Schedule {
                     start: "09:00".into(),
                     end: "12:00".into(),
                 }],
-                unavailable_windows: None,
             })
             .collect(),
         overrides: vec![],
@@ -119,7 +118,6 @@ fn empty_override_blocks_an_otherwise_available_day() {
     s.overrides.push(DateOverride {
         date: day,
         windows: vec![],
-        unavailable_windows: None,
     });
     assert!(
         slots_for_date(
@@ -207,7 +205,6 @@ fn personal_hours_respect_overrides_and_repeated_dst_hour() {
     s.overrides.push(DateOverride {
         date: start.with_timezone(&s.time_zone).date_naive(),
         windows: vec![],
-        unavailable_windows: None,
     });
     assert!(!schedule_contains(&s, start, start + Duration::minutes(10)).unwrap());
 }

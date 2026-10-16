@@ -1830,12 +1830,6 @@ export const CreateBookingLink = z
                 windows: z.array(
                   z.object({ start: z.string(), end: z.string() })
                 ),
-                unavailableWindows: z
-                  .union([
-                    z.array(z.object({ start: z.string(), end: z.string() })),
-                    z.null(),
-                  ])
-                  .optional(),
               })
             ),
             overrides: z.array(
@@ -1844,12 +1838,6 @@ export const CreateBookingLink = z
                 windows: z.array(
                   z.object({ start: z.string(), end: z.string() })
                 ),
-                unavailableWindows: z
-                  .union([
-                    z.array(z.object({ start: z.string(), end: z.string() })),
-                    z.null(),
-                  ])
-                  .optional(),
               })
             ),
           })
@@ -1928,12 +1916,6 @@ export const BookingLinkResult = z.object({
               windows: z.array(
                 z.object({ start: z.string(), end: z.string() })
               ),
-              unavailableWindows: z
-                .union([
-                  z.array(z.object({ start: z.string(), end: z.string() })),
-                  z.null(),
-                ])
-                .optional(),
             })
           ),
           overrides: z.array(
@@ -1942,12 +1924,6 @@ export const BookingLinkResult = z.object({
               windows: z.array(
                 z.object({ start: z.string(), end: z.string() })
               ),
-              unavailableWindows: z
-                .union([
-                  z.array(z.object({ start: z.string(), end: z.string() })),
-                  z.null(),
-                ])
-                .optional(),
             })
           ),
         })
@@ -4596,12 +4572,6 @@ export const EditBookingLink = z
                 windows: z.array(
                   z.object({ start: z.string(), end: z.string() })
                 ),
-                unavailableWindows: z
-                  .union([
-                    z.array(z.object({ start: z.string(), end: z.string() })),
-                    z.null(),
-                  ])
-                  .optional(),
               })
             ),
             overrides: z.array(
@@ -4610,12 +4580,6 @@ export const EditBookingLink = z
                 windows: z.array(
                   z.object({ start: z.string(), end: z.string() })
                 ),
-                unavailableWindows: z
-                  .union([
-                    z.array(z.object({ start: z.string(), end: z.string() })),
-                    z.null(),
-                  ])
-                  .optional(),
               })
             ),
           })
@@ -8988,24 +8952,12 @@ export const ListBookingLinksResult = z.object({
         z.object({
           day: z.number().int().gte(0).lte(255),
           windows: z.array(z.object({ start: z.string(), end: z.string() })),
-          unavailableWindows: z
-            .union([
-              z.array(z.object({ start: z.string(), end: z.string() })),
-              z.null(),
-            ])
-            .optional(),
         })
       ),
       overrides: z.array(
         z.object({
           date: z.string().date(),
           windows: z.array(z.object({ start: z.string(), end: z.string() })),
-          unavailableWindows: z
-            .union([
-              z.array(z.object({ start: z.string(), end: z.string() })),
-              z.null(),
-            ])
-            .optional(),
         })
       ),
     })
@@ -9079,12 +9031,6 @@ export const ListBookingLinksResult = z.object({
                   windows: z.array(
                     z.object({ start: z.string(), end: z.string() })
                   ),
-                  unavailableWindows: z
-                    .union([
-                      z.array(z.object({ start: z.string(), end: z.string() })),
-                      z.null(),
-                    ])
-                    .optional(),
                 })
               ),
               overrides: z.array(
@@ -9093,12 +9039,6 @@ export const ListBookingLinksResult = z.object({
                   windows: z.array(
                     z.object({ start: z.string(), end: z.string() })
                   ),
-                  unavailableWindows: z
-                    .union([
-                      z.array(z.object({ start: z.string(), end: z.string() })),
-                      z.null(),
-                    ])
-                    .optional(),
                 })
               ),
             })
@@ -11104,24 +11044,12 @@ export const BookingSettingsResult = z.object({
           z.object({
             day: z.number().int().gte(0).lte(255),
             windows: z.array(z.object({ start: z.string(), end: z.string() })),
-            unavailableWindows: z
-              .union([
-                z.array(z.object({ start: z.string(), end: z.string() })),
-                z.null(),
-              ])
-              .optional(),
           })
         ),
         overrides: z.array(
           z.object({
             date: z.string().date(),
             windows: z.array(z.object({ start: z.string(), end: z.string() })),
-            unavailableWindows: z
-              .union([
-                z.array(z.object({ start: z.string(), end: z.string() })),
-                z.null(),
-              ])
-              .optional(),
           })
         ),
       })
@@ -14854,12 +14782,6 @@ export const UpdateBookingSettings = z
               windows: z.array(
                 z.object({ start: z.string(), end: z.string() })
               ),
-              unavailableWindows: z
-                .union([
-                  z.array(z.object({ start: z.string(), end: z.string() })),
-                  z.null(),
-                ])
-                .optional(),
             })
           ),
           overrides: z.array(
@@ -14868,12 +14790,6 @@ export const UpdateBookingSettings = z
               windows: z.array(
                 z.object({ start: z.string(), end: z.string() })
               ),
-              unavailableWindows: z
-                .union([
-                  z.array(z.object({ start: z.string(), end: z.string() })),
-                  z.null(),
-                ])
-                .optional(),
             })
           ),
         })

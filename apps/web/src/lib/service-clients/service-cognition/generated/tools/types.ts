@@ -6425,11 +6425,6 @@ export interface WeeklyDay {
    * Non-overlapping local windows.
    */
   windows: TimeWindow[];
-  /**
-   * Optional time-off metadata. None preserves legacy hours; Some(empty) explicitly has no time-off rules.
-   * Bookability is determined only by `windows`.
-   */
-  unavailableWindows?: TimeWindow[] | null;
 }
 /**
  * A wall-clock window in an availability schedule.
@@ -6456,11 +6451,6 @@ export interface DateOverride {
    * Empty means unavailable all day.
    */
   windows: TimeWindow[];
-  /**
-   * Optional time-off metadata. None preserves legacy hours; Some(empty) explicitly has no time-off rules.
-   * This override replaces weekly hours even when `windows` is empty.
-   */
-  unavailableWindows?: TimeWindow[] | null;
 }
 /**
  * Saved link and shareable URL. Paused links remain discoverable but do not accept bookings.

@@ -1,4 +1,8 @@
-import { newEventType, newSchedule } from '@app/features/scheduling/core/types';
+import {
+  newEventType,
+  newSchedule,
+  schedulingProfileForSave,
+} from '@app/features/scheduling/core/types';
 import {
   deserializeToolCall,
   deserializeToolResponse,
@@ -65,7 +69,10 @@ it('shows the actual saved URL and paused state after execution', () => {
 
 it('keeps historical booking results readable without inventing confirmation', () => {
   const { id: _eventId, scheduleId: _scheduleId, ...event } = draft.event;
-  const { id: _id, ...schedule } = draft.schedule;
+  const { id: _id, ...schedule } = {
+    ...draft.schedule,
+    weekly: draft.schedule.weekly.map(({ day, windows }) => ({ day, windows })),
+  };
   const oldDraft = { event, schedule };
   const call = deserializeToolCall({
     id: 'old',
@@ -92,7 +99,7 @@ it('keeps historical booking results readable without inventing confirmation', (
   if (response.isOk()) expect(response.value.data).toEqual(saved);
 });
 
-it('preserves explicit blank hours and time off when parsing booking settings', () => {
+it('ignores draft-only time-off annotations when parsing booking settings', () => {
   const profile = {
     id: crypto.randomUUID(),
     name: 'Booking page',
@@ -125,6 +132,7 @@ it('preserves explicit blank hours and time off when parsing booking settings', 
       },
     ],
   };
+  const savedProfile = schedulingProfileForSave(profile);
   const call = deserializeToolCall({
     id: 'update-settings',
     name: 'UpdateBookingSettings',
@@ -133,7 +141,7 @@ it('preserves explicit blank hours and time off when parsing booking settings', 
   expect(call.isOk()).toBe(true);
   if (call.isOk())
     expect(call.value.data).toEqual({
-      profile,
+      profile: savedProfile,
       userConfirmation: 'Save these hours.',
     });
   const response = deserializeToolResponse({
@@ -142,5 +150,6 @@ it('preserves explicit blank hours and time off when parsing booking settings', 
     json: { profile, pageUrl: 'https://macro.com/app/book/profile' },
   });
   expect(response.isOk()).toBe(true);
-  if (response.isOk()) expect(response.value.data).toMatchObject({ profile });
+  if (response.isOk())
+    expect(response.value.data).toMatchObject({ profile: savedProfile });
 });

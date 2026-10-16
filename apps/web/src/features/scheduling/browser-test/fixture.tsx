@@ -31,6 +31,7 @@ import {
   newSchedule,
   type PublicProfile,
   type SchedulingProfile,
+  schedulingProfileForSave,
 } from '../core/types';
 import { BookingWorkspaceView } from '../views/booking-workspace-view';
 import { PublicBookingView } from '../views/public-booking-view';
@@ -320,7 +321,10 @@ function Fixture() {
           if (!scope().canEdit) throw new Error('Forbidden');
           setProfiles({
             ...profiles(),
-            [scope().id]: { ...p, revision: p.revision + 1 },
+            [scope().id]: {
+              ...schedulingProfileForSave(p),
+              revision: p.revision + 1,
+            },
           });
           setActive(scope().id);
         },

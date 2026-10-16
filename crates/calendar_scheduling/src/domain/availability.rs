@@ -2,8 +2,6 @@
 use super::models::*;
 use chrono::{DateTime, Datelike, Duration, NaiveDate, NaiveTime, Offset, TimeZone, Utc};
 use std::collections::HashSet;
-// Legacy materialized time-off fragments can exceed the eight bookable ranges per day.
-const MAX_UNAVAILABLE_RANGES: usize = 32;
 
 /// Validate all persisted scheduling rules before accepting configuration.
 pub fn validate_profile(profile: &Profile, team: bool) -> Result<(), Error> {
@@ -30,14 +28,14 @@ pub fn validate_profile(profile: &Profile, team: bool) -> Result<(), Error> {
             if day.day > 6 || !days.insert(day.day) {
                 return invalid("Each weekday must appear exactly once");
             }
-            validate_day_windows(&day.windows, day.unavailable_windows.as_deref())?;
+            validate_windows(&day.windows)?;
         }
         let mut dates = HashSet::new();
         for date in &schedule.overrides {
             if !dates.insert(date.date) {
                 return invalid("Only one override is allowed per date");
             }
-            validate_day_windows(&date.windows, date.unavailable_windows.as_deref())?;
+            validate_windows(&date.windows)?;
         }
     }
     if profile
@@ -119,34 +117,9 @@ fn parse_time(value: &str) -> Result<NaiveTime, Error> {
     }
     NaiveTime::parse_from_str(value, "%H:%M").map_err(|_| Error::Invalid("Invalid time".into()))
 }
-fn validate_day_windows(
-    windows: &[TimeWindow],
-    unavailable_windows: Option<&[TimeWindow]>,
-) -> Result<(), Error> {
-    let available = validate_windows(windows, 8, "At most eight time ranges are allowed per day")?;
-    if let Some(unavailable_windows) = unavailable_windows {
-        let unavailable = validate_windows(
-            unavailable_windows,
-            MAX_UNAVAILABLE_RANGES,
-            "At most 32 unavailable time ranges are allowed per day",
-        )?;
-        if available.iter().any(|(start, end)| {
-            unavailable
-                .iter()
-                .any(|(off_start, off_end)| start < off_end && off_start < end)
-        }) {
-            return invalid("Available and unavailable time ranges cannot overlap");
-        }
-    }
-    Ok(())
-}
-fn validate_windows(
-    windows: &[TimeWindow],
-    limit: usize,
-    limit_message: &str,
-) -> Result<Vec<(NaiveTime, NaiveTime)>, Error> {
-    if windows.len() > limit {
-        return invalid(limit_message);
+fn validate_windows(windows: &[TimeWindow]) -> Result<(), Error> {
+    if windows.len() > 8 {
+        return invalid("At most eight time ranges are allowed per day");
     }
     let mut intervals = windows
         .iter()
@@ -158,7 +131,7 @@ fn validate_windows(
             return invalid("Time ranges must be positive and cannot overlap");
         }
     }
-    Ok(intervals)
+    Ok(())
 }
 
 fn windows_for_date(schedule: &Schedule, date: NaiveDate) -> Option<&[TimeWindow]> {

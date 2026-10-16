@@ -22,14 +22,6 @@ pub struct WeeklyDay {
     pub day: u8,
     /// Non-overlapping local windows.
     pub windows: Vec<TimeWindow>,
-    /// Optional time-off metadata. None preserves legacy hours; Some(empty) explicitly has no time-off rules.
-    /// Bookability is determined only by `windows`.
-    #[serde(
-        default,
-        rename = "unavailableWindows",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub unavailable_windows: Option<Vec<TimeWindow>>,
 }
 /// Replacement availability for one date.
 #[cfg_attr(feature = "ai_tools", derive(schemars::JsonSchema))]
@@ -39,14 +31,6 @@ pub struct DateOverride {
     pub date: NaiveDate,
     /// Empty means unavailable all day.
     pub windows: Vec<TimeWindow>,
-    /// Optional time-off metadata. None preserves legacy hours; Some(empty) explicitly has no time-off rules.
-    /// This override replaces weekly hours even when `windows` is empty.
-    #[serde(
-        default,
-        rename = "unavailableWindows",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub unavailable_windows: Option<Vec<TimeWindow>>,
 }
 /// Reusable hours, with DST interpreted in an IANA zone.
 #[cfg_attr(feature = "ai_tools", derive(schemars::JsonSchema))]
