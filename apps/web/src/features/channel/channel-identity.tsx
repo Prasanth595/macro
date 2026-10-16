@@ -1,9 +1,11 @@
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { createStaticFile } from '@core/util/create';
 import {
   useChannelPicture,
   useChannelPictureFileName,
 } from '@queries/channel/picture';
-import { HoverCard } from '@ui';
+import { Button } from '@ui/components/Button';
+import { HoverCard } from '@ui/components/HoverCard';
 import { createSignal, type ParentProps, Show, Suspense } from 'solid-js';
 import { createChannelIdentityWriter } from './queries/channel-identity';
 import {
@@ -77,6 +79,8 @@ export function ChannelTitleHoverCard(
       open={open()}
       onOpenChange={setOpen}
       keepOpenOnTriggerPress
+      // Draft editors must not be replaced by unrelated rich previews.
+      chokeGroup={false}
       disabled={props.disabled}
       triggerTabIndex={0}
       triggerAriaLabel={
@@ -92,6 +96,35 @@ export function ChannelTitleHoverCard(
     >
       {props.children}
     </HoverCard>
+  );
+}
+
+/** Inline headers have no split-title drawer, so their touch title opens the editor. */
+export function ChannelIdentityTitle(props: ParentProps<ChannelIdentityProps>) {
+  const [open, setOpen] = createSignal(false);
+  return (
+    <>
+      <Show
+        when={isTouchDevice()}
+        fallback={<ChannelTitleHoverCard {...props} />}
+      >
+        <Show when={props.canEdit && !props.disabled} fallback={props.children}>
+          <Button
+            variant="ghost"
+            size="sm"
+            class="min-w-0 px-0"
+            onClick={() => setOpen(true)}
+          >
+            {props.children}
+          </Button>
+        </Show>
+      </Show>
+      <ChannelIdentityDialog
+        {...props}
+        open={open()}
+        onClose={() => setOpen(false)}
+      />
+    </>
   );
 }
 

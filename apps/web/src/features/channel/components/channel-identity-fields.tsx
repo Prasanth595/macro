@@ -130,24 +130,22 @@ export function ChannelIdentityFields(props: {
           {props.error}
         </p>
       </Show>
-      <Show
-        when={props.canEdit}
-        fallback={
-          <p class="text-xs text-ink-muted">
-            Join this channel to edit its name and picture.
-          </p>
-        }
-      >
-        <div class="flex justify-end gap-2 border-t border-edge-muted pt-4 mobile:pt-5">
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={props.pending}
-            onClick={props.onCancel}
-            class="mobile:flex-1"
-          >
-            Cancel
-          </Button>
+      <Show when={!props.canEdit}>
+        <p class="text-xs text-ink-muted">
+          Join this channel to edit its name and picture.
+        </p>
+      </Show>
+      <div class="flex justify-end gap-2 border-t border-edge-muted pt-4 mobile:pt-5">
+        <Button
+          type="button"
+          variant="ghost"
+          disabled={props.pending}
+          onClick={props.onCancel}
+          class="mobile:flex-1"
+        >
+          {props.canEdit ? 'Cancel' : 'Close'}
+        </Button>
+        <Show when={props.canEdit}>
           <Button
             type="submit"
             variant="strong"
@@ -156,8 +154,8 @@ export function ChannelIdentityFields(props: {
           >
             {props.pending ? 'Saving…' : 'Save'}
           </Button>
-        </div>
-      </Show>
+        </Show>
+      </div>
     </form>
   );
 }

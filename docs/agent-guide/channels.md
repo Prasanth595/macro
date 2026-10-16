@@ -1234,8 +1234,9 @@ retrying does not upload the picture again.
 The Chat title ellipsis and the split title `...` menu offer `Edit channel` instead
 of separate rename/picture actions. On phones, use `Edit channel` in the existing
 channel-options drawer to open a mobile editor with the same fields and explicit
-`Cancel`/`Save` actions. Touch devices do not require hover. A team channel the
-viewer has not joined shows its picture without editing controls.
+`Cancel`/`Save` actions. In inline details without an options menu, tap the
+channel name to open the editor directly. Touch devices do not require hover.
+A team channel the viewer has not joined shows its picture without editing controls.
 
 The channel's rail context menu retains its immediate `Rename`, `Set channel
 picture`, and `Remove channel picture` actions. Picture uploads finish before the

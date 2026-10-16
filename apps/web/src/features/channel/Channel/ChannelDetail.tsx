@@ -10,7 +10,7 @@ import { ChannelCallTab } from '@channel/Call/ChannelCallTab';
 import { getCallJoinTab } from '@channel/Call/call-tabs';
 import { useCall } from '@channel/Call/use-call';
 import { ChannelCallsTab } from '@channel/Calls/ChannelCallsTab';
-import { ChannelTitleHoverCard } from '@channel/channel-identity';
+import { ChannelIdentityTitle } from '@channel/channel-identity';
 import { ChannelInviteButton } from '@channel/channel-invite-button';
 import { ChannelTopIcon } from '@channel/components/ChannelTopIcon';
 import { DebugSuspense } from '@channel/DebugSuspense';
@@ -117,7 +117,7 @@ export function ChannelDetailTitle(props: ChannelDetailHeaderProps) {
         channelType={channelType()}
         participants={participants()}
       />
-      <ChannelTitleHoverCard
+      <ChannelIdentityTitle
         channelId={props.channelId}
         name={channelName() ?? 'New Channel'}
         canEdit={canEditIdentity()}
@@ -126,7 +126,7 @@ export function ChannelDetailTitle(props: ChannelDetailHeaderProps) {
         <span class="truncate text-sm font-semibold">
           {channelName() ?? 'New Channel'}
         </span>
-      </ChannelTitleHoverCard>
+      </ChannelIdentityTitle>
     </div>
   );
 }
