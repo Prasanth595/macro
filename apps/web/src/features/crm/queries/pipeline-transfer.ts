@@ -26,20 +26,29 @@ export function createPipelineTransfer(
   const { storage } = deps;
   const companies = (signal: AbortSignal) =>
     fetchCrmExportCompanies(storage, signal, () => {});
-  async function companyId(
-    domains: Map<string, string>,
+  /**
+   * The company for a domain, created when the team lacks it. Contacts at one
+   * new domain share a single creation rather than racing to a conflict.
+   */
+  function companyId(
+    domains: Map<string, Promise<string | undefined>>,
     record: PipelineCsvRecord,
     domain: string
   ) {
     const known = domains.get(domain);
     if (known) return known;
-    const created = await storage.createCompany({ name: record.name, domain });
-    if (created.isErr()) return undefined;
-    domains.set(domain, created.value.id);
-    return created.value.id;
+    const created = (async () => {
+      const company = await storage.createCompany({
+        name: record.name,
+        domain,
+      });
+      return company.isOk() ? company.value.id : undefined;
+    })();
+    domains.set(domain, created);
+    return created;
   }
   async function contactId(
-    domains: Map<string, string>,
+    domains: Map<string, Promise<string | undefined>>,
     record: PipelineCsvRecord
   ) {
     const found = await storage.getContactByEmail({ email: record.key });
@@ -119,10 +128,10 @@ export function createPipelineTransfer(
       return records;
     },
     async resolveRecords(records, signal, progress) {
-      const domains = new Map<string, string>();
+      const domains = new Map<string, Promise<string | undefined>>();
       for (const company of await companies(signal))
         for (const { domain } of company.domains)
-          domains.set(domain.toLowerCase(), company.id);
+          domains.set(domain.toLowerCase(), Promise.resolve(company.id));
       const ids = new Map<string, string>();
       // A record named on several rows takes its first row's name.
       const seen = new Set<string>();
