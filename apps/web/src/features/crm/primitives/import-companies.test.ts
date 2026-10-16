@@ -1,9 +1,17 @@
+import type { CellWrite } from '@core/database-sql/generated/types';
 import { createRoot } from 'solid-js';
 import { describe, expect, it, vi } from 'vitest';
+import type { DatabaseViewColumn } from '../../database/core/database-view';
+import type { PipelineTransfer } from '../context/pipelines';
 import { createCrmCsv } from '../core/export';
+import type { Pipeline } from '../core/pipeline';
 import { createCompanyImport } from './import-companies';
 
-const file = (text: string) => ({ size: text.length, text: async () => text });
+const file = (text: string, name = 'companies.csv') => ({
+  name,
+  size: text.length,
+  text: async () => text,
+});
 
 function setup(
   create: (row: {
@@ -117,6 +125,176 @@ describe('company import', () => {
     await state.run();
     expect(create).not.toHaveBeenCalled();
     expect(state.rows()).toEqual([]);
+    dispose();
+  });
+
+  it('puts Stage and Owner on rows of a new pipeline, once', async () => {
+    const created: Pipeline[] = [];
+    const inserted: CellWrite[][] = [];
+    let failInsert = true;
+    const columns: DatabaseViewColumn[] = [
+      {
+        id: 'company',
+        name: 'Company',
+        dataType: 'ENTITY',
+        specificEntityType: 'COMPANY',
+        isMultiSelect: false,
+        options: [],
+        writable: true,
+      },
+      {
+        id: 'stage',
+        name: 'Stage',
+        dataType: 'SELECT_STRING',
+        isMultiSelect: false,
+        options: [{ id: 'lead', label: 'Lead', color: null }],
+        writable: true,
+      },
+      {
+        id: 'owner',
+        name: 'Owner',
+        dataType: 'ENTITY',
+        specificEntityType: 'USER',
+        isMultiSelect: false,
+        options: [],
+        writable: true,
+      },
+    ];
+    const transfer: PipelineTransfer = {
+      readTable: async () => ({
+        columns,
+        rows: inserted.map((cells) => ({
+          cells: {
+            company:
+              cells[0]?.value.type === 'entities'
+                ? cells[0].value.value[0].entityId
+                : null,
+          },
+        })),
+      }),
+      describeRecords: async () => new Map(),
+      resolveRecords: async (records) =>
+        new Map(records.map((record) => [record.key, `${record.key}-id`])),
+      insertRows: async (rows) => {
+        if (failInsert) throw new Error('offline');
+        inserted.push(...rows);
+      },
+      refresh: async () => {},
+    };
+    const create = vi.fn(async () => 'created' as const);
+    const { state, dispose } = createRoot((dispose) => ({
+      state: createCompanyImport(
+        { create, refresh: async () => {} },
+        {
+          create: async (name) => {
+            const pipeline: Pipeline = {
+              id: 'pipeline',
+              teamId: 'team',
+              name,
+              userId: 'macro|owner@macro.com',
+              recordType: 'company',
+              databaseId: 'database',
+              tableId: 'table',
+              primaryColumnId: 'company',
+              sharing: 'team',
+              grant: 'owner',
+              createdAt: '2026-10-16T00:00:00Z',
+              trashedAt: null,
+            };
+            created.push(pipeline);
+            return pipeline;
+          },
+          transfer: () => transfer,
+        }
+      ),
+      dispose,
+    }));
+    await state.read(
+      file(
+        createCrmCsv(
+          [
+            { id: 'name', label: 'Company' },
+            { id: 'domains', label: 'Domains' },
+            { id: 'stage', label: 'Stage' },
+            { id: 'owner', label: 'Owner' },
+          ],
+          [
+            { name: 'Acme', domains: 'acme.com', stage: 'Churned', owner: '' },
+            { name: 'Beta', domains: 'beta.io', stage: '', owner: '' },
+            {
+              name: 'Gamma',
+              domains: 'gamma.dev',
+              stage: '',
+              owner: 'jane@macro.com',
+            },
+          ]
+        ),
+        'Macro Customers Oct 16 2026.csv'
+      )
+    );
+    expect(state.pipelineData()?.fields).toEqual(['Stage', 'Owner']);
+    expect(state.pipelineData()?.csv.rows).toHaveLength(2);
+    await state.run();
+    expect(state.completed()).toBe(3);
+    expect(state.error()).toContain('Could not add Stage, Owner');
+    expect(state.runnable()).toBe(true);
+    failInsert = false;
+    await state.run();
+    expect(state.error()).toBe('');
+    expect(create).toHaveBeenCalledTimes(3);
+    expect(created.map((pipeline) => pipeline.name)).toEqual([
+      'Macro Customers Oct 16 2026',
+    ]);
+    expect(state.pipeline()?.added).toBe(2);
+    expect(inserted).toEqual([
+      [
+        {
+          column: 'company',
+          value: {
+            type: 'entities',
+            value: [{ entityType: 'COMPANY', entityId: 'acme.com-id' }],
+          },
+        },
+        {
+          column: 'stage',
+          value: { type: 'options', value: [{ label: 'Churned' }] },
+        },
+      ],
+      [
+        {
+          column: 'company',
+          value: {
+            type: 'entities',
+            value: [{ entityType: 'COMPANY', entityId: 'gamma.dev-id' }],
+          },
+        },
+        {
+          column: 'owner',
+          value: {
+            type: 'entities',
+            value: [{ entityType: 'USER', entityId: 'macro|jane@macro.com' }],
+          },
+        },
+      ],
+    ]);
+    expect(state.runnable()).toBe(false);
+    dispose();
+  });
+
+  it('imports companies without a pipeline when the file has no pipeline fields', async () => {
+    const createPipeline = vi.fn();
+    const { state, dispose } = createRoot((dispose) => ({
+      state: createCompanyImport(
+        { create: async () => 'created', refresh: async () => {} },
+        { create: createPipeline, transfer: vi.fn() }
+      ),
+      dispose,
+    }));
+    await state.read(file('Company,Domains,Stage\nAcme,acme.com,\n'));
+    expect(state.pipelineData()).toBeUndefined();
+    await state.run();
+    expect(createPipeline).not.toHaveBeenCalled();
+    expect(state.completed()).toBe(1);
     dispose();
   });
 });

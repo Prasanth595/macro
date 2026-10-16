@@ -281,3 +281,30 @@ export function pipelineRecordCell(
     },
   };
 }
+
+/** Company fields that pipeline rows hold now, rather than companies. */
+const COMPANY_PIPELINE_FIELDS = ['stage', 'owner', 'revenue'];
+
+/**
+ * The part of a companies CSV that belongs on pipeline rows: the rows with a
+ * Stage, Owner, or Revenue value, and which of those headers have one.
+ * Undefined when no row has any.
+ */
+export function companyPipelineCsv(
+  csv: DatabaseCsv
+): { csv: DatabaseCsv; fields: string[] } | undefined {
+  const fields = csv.columns.flatMap((name, index) =>
+    COMPANY_PIPELINE_FIELDS.includes(name.trim().toLowerCase()) &&
+    csv.rows.some((row) => importedText(row[index]))
+      ? [index]
+      : []
+  );
+  const rows = csv.rows.filter((row) =>
+    fields.some((index) => importedText(row[index]))
+  );
+  if (!rows.length) return undefined;
+  return {
+    csv: { columns: csv.columns, rows },
+    fields: fields.map((index) => csv.columns[index].trim()),
+  };
+}

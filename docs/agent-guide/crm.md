@@ -248,7 +248,13 @@ column, such as a Companies export (up to 10,000 rows, at most 5 MB). Each row
 takes its first valid domain; rows without one or repeating an earlier domain are
 skipped. The explicit Import button writes the previewed companies four at a
 time; domains the team already tracks count as already in the CRM. Partial
-failures retain only failed rows for retry. Use preview
+failures retain only failed rows for retry. Stage, Owner, and Revenue live on
+pipeline rows, not companies: when the file has values in those columns and
+pipelines are available, the import creates a team company pipeline named after
+the file and adds one row per company with a value (missing Stage options are
+added; owners match by email). The dialog says so before importing and offers
+**Open pipeline** after. If that step fails, importing again reuses the same
+pipeline and adds only missing rows. Use preview
 and cancel for browser checks against hosted dev data. `CRM settings` opens the existing
 settings panel. Requires a team with CRM enabled.
 

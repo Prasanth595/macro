@@ -98,6 +98,44 @@ export type PipelineImportResult = {
 };
 
 /**
+ * Adds a planned CSV's rows to a pipeline, creating the records the team
+ * lacks. Rows for records the pipeline already has are skipped, so running
+ * it again after a failure adds only what is still missing.
+ */
+export async function addPipelineRows(input: {
+  span: Span;
+  pipeline: Pipeline;
+  transfer: PipelineTransfer;
+  plan: PipelineImportPlan;
+  table: PipelineTable;
+  signal: AbortSignal;
+  progress: (count: number) => void;
+}): Promise<PipelineImportResult> {
+  const { span, pipeline, transfer, plan, table } = input;
+  const ids = await span.span('crm.pipeline.resolve_records', () =>
+    transfer.resolveRecords(
+      plan.rows.map((row) => row.record),
+      input.signal,
+      input.progress
+    )
+  );
+  const present = recordIds(pipeline, table.rows);
+  const rows: CellWrite[][] = [];
+  const outcome: PipelineImportResult = { added: 0, present: 0, unresolved: 0 };
+  for (const row of plan.rows) {
+    const id = ids.get(row.record.key);
+    if (!id) outcome.unresolved++;
+    else if (present.has(id)) outcome.present++;
+    else rows.push([pipelineRecordCell(pipeline, id), ...row.cells]);
+  }
+  await span.span('crm.pipeline.insert_rows', () =>
+    transfer.insertRows(rows, table.columns)
+  );
+  outcome.added = rows.length;
+  return outcome;
+}
+
+/**
  * A CSV's rows added to a pipeline. Records missing from the CRM are created;
  * a record already in the pipeline is not added again, so a retry after a
  * failure adds only what is still missing.
@@ -143,38 +181,6 @@ export function createPipelineImport(
       setReading(false);
     }
   }
-  async function addRows(
-    span: Span,
-    current: PipelineImportPlan,
-    table: PipelineTable,
-    signal: AbortSignal
-  ) {
-    const ids = await span.span('crm.pipeline.resolve_records', () =>
-      transfer.resolveRecords(
-        current.rows.map((row) => row.record),
-        signal,
-        setResolved
-      )
-    );
-    const present = recordIds(pipeline, table.rows);
-    const rows: CellWrite[][] = [];
-    const outcome: PipelineImportResult = {
-      added: 0,
-      present: 0,
-      unresolved: 0,
-    };
-    for (const row of current.rows) {
-      const id = ids.get(row.record.key);
-      if (!id) outcome.unresolved++;
-      else if (present.has(id)) outcome.present++;
-      else rows.push([pipelineRecordCell(pipeline, id), ...row.cells]);
-    }
-    await span.span('crm.pipeline.insert_rows', () =>
-      transfer.insertRows(rows, table.columns)
-    );
-    outcome.added = rows.length;
-    return outcome;
-  }
   async function run() {
     const current = plan();
     if (!current || pending()) return;
@@ -191,7 +197,15 @@ export function createPipelineImport(
       const table = await span.span('crm.pipeline.read_table', () =>
         transfer.readTable(signal)
       );
-      const outcome = await addRows(span, current, table, signal);
+      const outcome = await addPipelineRows({
+        span,
+        pipeline,
+        transfer,
+        plan: current,
+        table,
+        signal,
+        progress: setResolved,
+      });
       span.setAttr('crm.import.added', outcome.added);
       span.setAttr('crm.import.present', outcome.present);
       span.setAttr('crm.import.unresolved', outcome.unresolved);

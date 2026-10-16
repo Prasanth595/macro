@@ -1,14 +1,31 @@
 import { Button, Dialog, Panel } from '@ui';
 import { For, Show } from 'solid-js';
+import type { CompanyImportPipelines } from '../context/pipelines';
 import { createCompanyImport } from '../primitives/import-companies';
 import { useCompanyImporter } from './use-crm';
 
 /** The preview lists this many rows; the import takes them all. */
 const PREVIEW_ROWS = 100;
 
-export function CrmImport(props: { onClose: () => void }) {
-  const { rows, skipped, error, pending, completed, existing, read, run } =
-    createCompanyImport(useCompanyImporter());
+export function CrmImport(props: {
+  onClose: () => void;
+  /** Where Stage, Owner, and Revenue go; absent while pipelines are unavailable. */
+  pipelines?: CompanyImportPipelines;
+  onOpenPipeline: (id: string) => void;
+}) {
+  const {
+    rows,
+    skipped,
+    error,
+    pending,
+    completed,
+    existing,
+    pipelineData,
+    pipeline,
+    runnable,
+    read,
+    run,
+  } = createCompanyImport(useCompanyImporter(), props.pipelines);
   const done = () => completed() + existing();
   return (
     <Dialog
@@ -58,6 +75,21 @@ export function CrmImport(props: { onClose: () => void }) {
                 acme.com, or a domain listed earlier in the file.
               </p>
             </Show>
+            <Show when={!pipeline() && pipelineData()}>
+              {(data) => (
+                <p class="text-sm text-ink-muted">
+                  <Show
+                    when={props.pipelines}
+                    fallback={`${data().fields.join(', ')} won't be imported: pipelines aren't available for your team.`}
+                  >
+                    {data().fields.join(', ')} go into a new team pipeline, “
+                    {data().name}”, for the{' '}
+                    {data().csv.rows.length.toLocaleString()} companies that
+                    have them.
+                  </Show>
+                </p>
+              )}
+            </Show>
             <Show when={done()}>
               <p role="status" class="text-sm">
                 {completed().toLocaleString()}{' '}
@@ -67,6 +99,24 @@ export function CrmImport(props: { onClose: () => void }) {
                 </Show>
                 .
               </p>
+            </Show>
+            <Show when={pipeline()}>
+              {(added) => (
+                <p
+                  role="status"
+                  class="flex flex-wrap items-center gap-1 text-sm"
+                >
+                  {added().added.toLocaleString()} rows added to{' '}
+                  {added().pipeline.name}.
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => props.onOpenPipeline(added().pipeline.id)}
+                  >
+                    Open pipeline
+                  </Button>
+                </p>
+              )}
             </Show>
             <Show when={error()}>
               <p role="alert" class="text-sm text-failure">
@@ -83,12 +133,14 @@ export function CrmImport(props: { onClose: () => void }) {
               </Button>
               <Button
                 variant="strong"
-                disabled={pending() || !rows().length}
+                disabled={pending() || !runnable()}
                 onClick={() => void run()}
               >
                 {pending()
                   ? `Importing… ${done().toLocaleString()} of ${rows().length.toLocaleString()}`
-                  : `Import ${rows().length ? rows().length.toLocaleString() : ''} companies`}
+                  : rows().length || !runnable()
+                    ? `Import ${rows().length ? rows().length.toLocaleString() : ''} companies`
+                    : 'Add to pipeline'}
               </Button>
             </div>
           </div>

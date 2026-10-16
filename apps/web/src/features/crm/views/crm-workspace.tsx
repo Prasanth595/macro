@@ -636,7 +636,26 @@ export function CrmWorkspaceView(props: {
         />
       </Show>
       <Show when={importing()}>
-        <CrmImport onClose={() => setImporting(false)} />
+        <CrmImport
+          onClose={() => setImporting(false)}
+          pipelines={
+            canCreatePipeline()
+              ? {
+                  create: (name) =>
+                    pipelines.create({
+                      name,
+                      recordType: 'company',
+                      sharing: 'team',
+                    }),
+                  transfer: useCrmContext().createPipelineTransfer,
+                }
+              : undefined
+          }
+          onOpenPipeline={(id) => {
+            setImporting(false);
+            selectPipeline(id);
+          }}
+        />
       </Show>
     </ViewShell.Root>
   );

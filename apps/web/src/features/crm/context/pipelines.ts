@@ -45,6 +45,12 @@ export type PipelineTransfer = {
   refresh(): Promise<void>;
 };
 
+/** Where a company import puts Stage, Owner, and Revenue: a new company pipeline. */
+export type CompanyImportPipelines = {
+  create(name: string): Promise<Pipeline>;
+  transfer(pipeline: Pipeline): PipelineTransfer;
+};
+
 export type PipelineEditor = Component<{
   pipeline: Pipeline;
   /** Compact host actions placed alongside the editor's record controls. */
