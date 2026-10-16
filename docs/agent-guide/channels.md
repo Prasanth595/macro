@@ -1222,7 +1222,8 @@ named channel can edit its name and picture. Direct messages support neither;
 one-to-one direct messages continue to show the other person's user picture.
 
 On desktop, hover or focus the channel name in either the split topbar or an
-inline detail topbar to open its editor. The card shows a larger circular picture,
+inline detail topbar to open its editor. The editor loads on demand and may briefly
+show `Loading channel details…`. The card shows a larger circular picture,
 the image filename when available, `Edit` and `Clear` buttons, and a channel-name
 input. Clicking the picture or `Edit` opens the file chooser. PNG, JPG, WebP, and
 GIF files up to 16 MB are supported. Selecting a file, clearing the picture, or

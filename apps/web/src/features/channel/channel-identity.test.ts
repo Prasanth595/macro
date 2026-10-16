@@ -164,7 +164,7 @@ describe('channel title editing', () => {
       });
       fireEvent.input(firstInput, { target: { value: 'Unsubmitted design' } });
       setChannel({ id: 'marketing', name: 'Marketing' });
-      const input = screen.getByRole<HTMLInputElement>('textbox', {
+      const input = await screen.findByRole<HTMLInputElement>('textbox', {
         name: 'Channel name',
       });
       expect(input.value).toBe('Marketing');
@@ -214,8 +214,11 @@ describe('channel title editing', () => {
     await testState.saveName.mock.results[0].value;
     expect(onClose).not.toHaveBeenCalled();
     expect(
-      screen.getByRole<HTMLInputElement>('textbox', { name: 'Channel name' })
-        .value
+      (
+        await screen.findByRole<HTMLInputElement>('textbox', {
+          name: 'Channel name',
+        })
+      ).value
     ).toBe('Marketing');
   });
 
@@ -253,8 +256,11 @@ describe('channel title editing', () => {
     await reported.promise;
     expect(testState.failure).toHaveBeenCalledOnce();
     expect(
-      screen.getByRole<HTMLInputElement>('textbox', { name: 'Channel name' })
-        .value
+      (
+        await screen.findByRole<HTMLInputElement>('textbox', {
+          name: 'Channel name',
+        })
+      ).value
     ).toBe('Marketing');
   });
 
@@ -289,8 +295,11 @@ describe('channel title editing', () => {
     await pending.promise;
     expect(onClose).not.toHaveBeenCalled();
     expect(
-      screen.getByRole<HTMLInputElement>('textbox', { name: 'Channel name' })
-        .value
+      (
+        await screen.findByRole<HTMLInputElement>('textbox', {
+          name: 'Channel name',
+        })
+      ).value
     ).toBe('Marketing');
   });
 });

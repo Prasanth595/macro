@@ -1,70 +1,16 @@
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import { createStaticFile } from '@core/util/create';
-import {
-  useChannelPicture,
-  useChannelPictureFileName,
-} from '@queries/channel/picture';
 import { Button } from '@ui/components/Button';
 import { HoverCard } from '@ui/components/HoverCard';
-import { createSignal, type ParentProps, Show, Suspense } from 'solid-js';
-import { createChannelIdentityWriter } from './queries/channel-identity';
-import {
-  ChannelIdentityCard,
-  ChannelIdentityModal,
-} from './views/channel-identity-editor';
+import { createSignal, lazy, type ParentProps, Show, Suspense } from 'solid-js';
 
-type ChannelIdentityProps = {
+const ChannelIdentitySession = lazy(() => import('./channel-identity-session'));
+
+export type ChannelIdentityProps = {
   channelId: string;
   name: string;
   canEdit: boolean;
   disabled?: boolean;
 };
-
-function ChannelIdentitySession(
-  props: ChannelIdentityProps & {
-    onClose: () => void;
-    dialog?: boolean;
-  }
-) {
-  const picture = useChannelPicture(() => props.channelId);
-  const fileName = useChannelPictureFileName(picture.pictureId);
-  const writer = createChannelIdentityWriter({
-    channelId: props.channelId,
-    name: props.name,
-    upload: createStaticFile,
-  });
-  const editorProps = {
-    get name() {
-      return props.name;
-    },
-    get pictureUrl() {
-      return picture.largeUrl();
-    },
-    get channelId() {
-      return props.channelId;
-    },
-    get fileName() {
-      return fileName();
-    },
-    get pictureLoading() {
-      return picture.isLoading();
-    },
-    get canEdit() {
-      return props.canEdit;
-    },
-    writer,
-    onClose: props.onClose,
-  };
-
-  return (
-    <Show
-      when={props.dialog}
-      fallback={<ChannelIdentityCard {...editorProps} />}
-    >
-      <ChannelIdentityModal {...editorProps} />
-    </Show>
-  );
-}
 
 export function ChannelTitleHoverCard(
   props: ParentProps<ChannelIdentityProps>
@@ -87,7 +33,11 @@ export function ChannelTitleHoverCard(
         props.canEdit ? 'Edit channel details' : 'Channel details'
       }
       content={
-        <Suspense>
+        <Suspense
+          fallback={
+            <span class="text-sm text-ink-muted">Loading channel details…</span>
+          }
+        >
           <Show when={open() ? props.channelId : undefined} keyed>
             {(channelId) => (
               <ChannelIdentitySession
