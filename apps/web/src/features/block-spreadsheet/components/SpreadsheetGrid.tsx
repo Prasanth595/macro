@@ -12,6 +12,11 @@ import type {
   SheetDrawing,
 } from '@macro-inc/spreadsheet/sheet-drawings';
 import { sqrefBounds } from '@macro-inc/spreadsheet/sheet-rules';
+import {
+  type SheetTable,
+  tableAt,
+  tableBounds,
+} from '@macro-inc/spreadsheet/sheet-tables';
 import CaretDown from '@phosphor/caret-down.svg';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import {
@@ -54,6 +59,7 @@ import {
 } from '../core/spreadsheet-document';
 import type { SpreadsheetCursor } from '../core/spreadsheet-presence';
 import type { CompleteFormula } from '../primitives/create-formula-assistance';
+import type { TableFilterChoice } from '../primitives/create-table-actions';
 import { CellListMenu } from './CellListMenu';
 import { ConditionalIcon } from './ConditionalIcon';
 import {
@@ -69,6 +75,8 @@ import {
   type HeaderAction,
   SpreadsheetHeaderMenu,
 } from './SpreadsheetHeaderMenu';
+import { TableColumnMenu } from './TableColumnMenu';
+import { tableCellLook } from './table-appearance';
 
 export type GridValue = {
   display: string;
@@ -202,6 +210,19 @@ export function SpreadsheetGrid(props: {
   onPickListItem?: (item: string) => void;
   /** Ranges (Excel sqrefs) whose cells show a dropdown arrow. */
   dropdownRanges?: string[];
+  /** Tables, drawn with their style; editable headers sort and filter. */
+  tables?: SheetTable[];
+  tableColumnChoices?: (table: string, column: number) => TableFilterChoice[];
+  onSortTableColumn?: (
+    table: string,
+    column: number,
+    descending: boolean
+  ) => void;
+  onFilterTableColumn?: (
+    table: string,
+    column: number,
+    shown: string[] | undefined
+  ) => void;
   /** Images and charts over the sheet. */
   drawings?: SheetDrawing[];
   image?: (key: string) => string | undefined;
@@ -1173,6 +1194,13 @@ export function SpreadsheetGrid(props: {
         selectionBounds(props.selection).right >
         selectionBounds(props.selection).left
       }
+      inTable={
+        !!tableAt(
+          props.tables,
+          props.selection.anchor.row,
+          props.selection.anchor.column
+        )
+      }
       onRestoreFocus={focusGrid}
       onAction={cellAction}
     >
@@ -1577,9 +1605,13 @@ export function SpreadsheetGrid(props: {
                       const selected = () => selectedCell(position);
                       const value = () => props.values[address];
                       const cell = () => props.cells[address];
-                      // Conditional formatting draws over the cell's style.
+                      // Conditional formatting draws over the cell's style,
+                      // and the cell's style over its table's.
                       const look = () => value()?.conditional;
                       const fill = () => look()?.fillColor ?? cell()?.fillColor;
+                      const table = () =>
+                        tableCellLook(props.tables, row, column);
+                      const header = () => table()?.header;
                       const border = (
                         edge: 'Top' | 'Right' | 'Bottom' | 'Left'
                       ) => {
@@ -1695,17 +1727,21 @@ export function SpreadsheetGrid(props: {
                             left: `${columnOffsets()[column]}px`,
                             'scroll-margin-top': `${headerHeight()}px`,
                             'scroll-margin-left': `${headerWidth()}px`,
-                            'border-top': border('Top'),
+                            'border-top': border('Top') ?? table()?.borderTop,
                             'border-right':
                               border('Right') ?? gridline('Right'),
                             'border-bottom':
-                              border('Bottom') ?? gridline('Bottom'),
+                              border('Bottom') ??
+                              table()?.borderBottom ??
+                              gridline('Bottom'),
                             'border-left': border('Left'),
-                            'background-color': cellBackground(fill()),
-                            color: cellForeground(
-                              look()?.textColor ?? cell()?.textColor,
-                              fill()
-                            ),
+                            'background-color':
+                              cellBackground(fill()) ?? table()?.background,
+                            color:
+                              cellForeground(
+                                look()?.textColor ?? cell()?.textColor,
+                                fill()
+                              ) ?? (fill() ? undefined : table()?.color),
                             'font-family': fontFamily(cell()),
                             'font-size': `${fontPixels(cell(), defaultFontSize()) * scale()}px`,
                             'font-style':
@@ -1736,7 +1772,8 @@ export function SpreadsheetGrid(props: {
                           }}
                           class="absolute top-0 bottom-0 flex flex-col border-b border-r border-edge-muted bg-panel text-ink select-none"
                           classList={{
-                            'font-semibold': look()?.bold ?? cell()?.bold,
+                            'font-semibold':
+                              look()?.bold ?? cell()?.bold ?? table()?.bold,
                             'tabular-nums': numeric(),
                             'text-failure': !!value()?.error,
                           }}
@@ -1952,6 +1989,48 @@ export function SpreadsheetGrid(props: {
                                 <CaretDown class="size-3" />
                               </button>
                             </Show>
+                          </Show>
+                          <Show
+                            when={
+                              !props.readonly &&
+                              props.tableColumnChoices &&
+                              !(active() && props.editing) &&
+                              header()
+                            }
+                          >
+                            {(header) => {
+                              const offset = () =>
+                                column - tableBounds(header()).left;
+                              return (
+                                <TableColumnMenu
+                                  column={
+                                    display(address) || `Column${offset() + 1}`
+                                  }
+                                  filtered={!!header().filters?.[offset()]}
+                                  choices={() =>
+                                    props.tableColumnChoices?.(
+                                      header().name,
+                                      column
+                                    ) ?? []
+                                  }
+                                  onSort={(descending) =>
+                                    props.onSortTableColumn?.(
+                                      header().name,
+                                      column,
+                                      descending
+                                    )
+                                  }
+                                  onFilter={(shown) =>
+                                    props.onFilterTableColumn?.(
+                                      header().name,
+                                      column,
+                                      shown
+                                    )
+                                  }
+                                  onRestoreFocus={focusGrid}
+                                />
+                              );
+                            }}
                           </Show>
                           <Show when={props.comments?.hasComment(address)}>
                             <button

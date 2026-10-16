@@ -43,6 +43,7 @@ import {
   SpreadsheetImportDialog,
   SpreadsheetSheetDialog,
 } from '../components/SpreadsheetWorkbookDialogs';
+import { TableDialog } from '../components/TableDialog';
 import type { SpreadsheetCommentsCapability } from '../context/spreadsheet-comments';
 import type { SpreadsheetMentions } from '../context/spreadsheet-mentions';
 import { cellEditValue } from '../core/cell-input';
@@ -79,6 +80,7 @@ import { createGoalSeek } from '../primitives/create-goal-seek';
 import { createGridController } from '../primitives/create-grid-controller';
 import { createSheetActions } from '../primitives/create-sheet-actions';
 import type { SpreadsheetStore } from '../primitives/create-spreadsheet-store';
+import { createTableActions } from '../primitives/create-table-actions';
 import { createWorkbookActions } from '../primitives/create-workbook-actions';
 
 export function SpreadsheetEditor(props: {
@@ -174,6 +176,15 @@ export function SpreadsheetEditor(props: {
       ),
   });
   const values = calculation.values;
+  const tableActions = createTableActions({
+    store: props.store,
+    canEdit: editable,
+    selection: grid.selection,
+    values,
+    calculating: () => calculation.busy() || !!calculation.error(),
+    copyCells: calculation.copy,
+    setNotice: (message) => actions.setNotice(message),
+  });
   const activeValidation = createMemo(() =>
     validationAt(
       props.store.activeSheet().metadata?.validations,
@@ -181,6 +192,9 @@ export function SpreadsheetEditor(props: {
     )
   );
   const activeList = createMemo(() => {
+    // A table's total row offers its aggregates, as Excel does.
+    const totals = tableActions.totalChoices();
+    if (totals) return totals;
     const rule = activeValidation();
     if (rule?.type !== 'list' || rule.dropdown === false) return;
     const sheetId = props.store.activeSheetId();
@@ -396,7 +410,8 @@ export function SpreadsheetEditor(props: {
       goalSeek.open() ||
       workbookActions.preview() ||
       workbookActions.sheetDialog() ||
-      dropdownDialog()
+      dropdownDialog() ||
+      tableActions.dialog()
     )
       return;
     if (grid.editing() === 'cell') {
@@ -415,7 +430,11 @@ export function SpreadsheetEditor(props: {
   };
   const menuCommand = (action: SpreadsheetCommand) => {
     // Create a new focus owner only after the menu's focus trap has closed.
-    if (action.startsWith('insert-') || action === 'dropdown')
+    if (
+      action.startsWith('insert-') ||
+      action === 'dropdown' ||
+      action === 'table'
+    )
       pendingMenuAction = action;
     else command(action);
   };
@@ -535,6 +554,7 @@ export function SpreadsheetEditor(props: {
       })
       .with('trim-whitespace', actions.trimWhitespace)
       .with('dropdown', openDropdownDialog)
+      .with('table', tableActions.openDialog)
       .with('border-all', () => actions.borders('all'))
       .with('border-outer', () => actions.borders('outer'))
       .with('border-none', () => actions.borders('none'))
@@ -815,6 +835,7 @@ export function SpreadsheetEditor(props: {
           ...activeCell(),
           ...selectionToggleStyles(props.store.cells(), grid.selection()),
         }}
+        inTable={!!tableActions.activeTable()}
         zoom={zoom()}
         showGridlines={showGridlines()}
         showFormulaBar={showFormulaBar()}
@@ -981,9 +1002,16 @@ export function SpreadsheetEditor(props: {
           inputMessage={inputMessage()}
           listItems={activeList()}
           dropdownRanges={dropdownRanges()}
+          tables={props.store.activeSheet().metadata?.tables}
+          tableColumnChoices={tableActions.columnChoices}
+          onSortTableColumn={(table, column, descending) => {
+            void tableActions.sortColumn(table, column, descending);
+          }}
+          onFilterTableColumn={tableActions.filterColumn}
           onPickListItem={(item) => {
             if (!editable()) return;
             grid.commit();
+            if (tableActions.pickTotal(item)) return;
             // A choice is literal text, even one that starts like a formula.
             props.store.setCells({
               [grid.activeAddress()]: {
@@ -1274,6 +1302,14 @@ export function SpreadsheetEditor(props: {
         onSave={changeDropdown}
         onRemove={() => changeDropdown()}
         onClose={() => setDropdownDialog(undefined)}
+        onRestoreFocus={focusGrid}
+      />
+      <TableDialog
+        dialog={tableActions.dialog()}
+        error={tableActions.error()}
+        onSave={tableActions.save}
+        onConvertToRange={tableActions.convertToRange}
+        onClose={tableActions.closeDialog}
         onRestoreFocus={focusGrid}
       />
       <SpreadsheetSheetDialog
