@@ -9,10 +9,7 @@ import {
   Show,
 } from 'solid-js';
 import { type CellPosition, cellAddress } from '../core/grid-selection';
-
-/** Distance from the grid's edges, in pixels, where dragging scrolls it. */
-const SCROLL_EDGE = 24;
-const MAX_SCROLL_STEP = 40;
+import { createDragAutoScroll } from './drag-auto-scroll';
 
 /**
  * The selection's border, which drags the selected cells to another place.
@@ -42,11 +39,8 @@ export function SelectionMoveHandle(props: {
         pointerId: number;
         /** The grabbed cell, from the selection's top-left cell. */
         grab: CellPosition;
-        x: number;
-        y: number;
       }
     | undefined;
-  let frame: number | undefined;
 
   const destination = () => {
     const moved = offset();
@@ -62,8 +56,6 @@ export function SelectionMoveHandle(props: {
 
   function follow(x: number, y: number) {
     if (!drag) return;
-    drag.x = x;
-    drag.y = y;
     // Past an edge, the cells land at the last visible row or column.
     const rect = props.scroller.getBoundingClientRect();
     const position = props.positionAtPoint(
@@ -96,35 +88,15 @@ export function SelectionMoveHandle(props: {
     if (offset() || moved.rows || moved.columns) setOffset(moved);
   }
 
-  function scroll() {
-    if (!drag) return;
-    frame = requestAnimationFrame(scroll);
-    // Pressing the border near an edge must not scroll before a drag starts.
-    if (!offset()) return;
-    const rect = props.scroller.getBoundingClientRect();
-    const step = (point: number, start: number, end: number) => {
-      const before = start + SCROLL_EDGE - point;
-      const after = point - end + SCROLL_EDGE;
-      if (before > 0) return -Math.min(MAX_SCROLL_STEP, Math.ceil(before / 2));
-      if (after > 0) return Math.min(MAX_SCROLL_STEP, Math.ceil(after / 2));
-      return 0;
-    };
-    const x = step(
-      drag.x,
-      rect.left + props.headerWidth,
-      rect.left + props.scroller.clientWidth
-    );
-    const y = step(
-      drag.y,
-      rect.top + props.headerHeight,
-      rect.top + props.scroller.clientHeight
-    );
-    if (x || y) {
-      props.scroller.scrollLeft += x;
-      props.scroller.scrollTop += y;
-      follow(drag.x, drag.y);
-    }
-  }
+  // Scrolls only once the pointer has moved, so pressing the border near an
+  // edge does not scroll before a drag starts.
+  const autoScroll = createDragAutoScroll({
+    element: () => props.scroller,
+    inset: () => ({ left: props.headerWidth, top: props.headerHeight }),
+    axis: () => undefined,
+    onEdge: follow,
+    onLostRelease: end,
+  });
 
   function cancelOnEscape(event: KeyboardEvent) {
     if (event.key !== 'Escape') return;
@@ -137,8 +109,7 @@ export function SelectionMoveHandle(props: {
     const current = drag;
     drag = undefined;
     setOffset(undefined);
-    if (frame !== undefined) cancelAnimationFrame(frame);
-    frame = undefined;
+    autoScroll.stop();
     window.removeEventListener('keydown', cancelOnEscape, true);
     if (current?.element.hasPointerCapture(current.pointerId))
       current.element.releasePointerCapture(current.pointerId);
@@ -188,16 +159,15 @@ export function SelectionMoveHandle(props: {
                     column:
                       Math.max(left, Math.min(right, position.column)) - left,
                   },
-                  x: event.clientX,
-                  y: event.clientY,
                 };
                 event.currentTarget.setPointerCapture(event.pointerId);
                 window.addEventListener('keydown', cancelOnEscape, true);
-                frame = requestAnimationFrame(scroll);
+                autoScroll.follow(event);
               }}
               onPointerMove={(event) => {
-                if (drag?.pointerId === event.pointerId)
-                  follow(event.clientX, event.clientY);
+                if (drag?.pointerId !== event.pointerId) return;
+                follow(event.clientX, event.clientY);
+                autoScroll.move(event);
               }}
               onPointerUp={(event) => {
                 if (drag?.pointerId !== event.pointerId) return;

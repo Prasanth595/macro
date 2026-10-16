@@ -185,7 +185,11 @@ current choices. Agents add the same dropdowns with `EditSpreadsheet`'s
 Every cell with a dropdown (from the dialog, an agent, or an Excel list rule) shows
 a small arrow at its right edge; clicking it selects the cell and opens its
 choices. The selected cell's arrow sits just outside its right edge (**Choose a
-value for B2**); click it or press Alt+Down. Typing a value the rule does not allow
+value for B2**); click it or press Alt+Down. The list opens below the cell, or
+above or beside it when there is no room, without covering the cell or dimming the
+sheet. Up/Down and Enter pick a choice and Escape closes it. While a list is open,
+one click or tap on another dropdown cell opens that cell's list; any other cell
+closes it. Typing a value the rule does not allow
 shows the rule's message in the footer, and a "stop" rule keeps the previous value.
 A red corner marks a cell with a note; selecting the cell shows the note, and any
 input message, beside it.
@@ -225,6 +229,12 @@ that read a kept pivot table calculate from its cells, so editing a value in the
 Deleting a sheet whose data a chart on another sheet reads keeps the chart: it
 shows the values it had, which no longer change.
 
+Drag across cells to select a range. Holding the pointer near or past an edge of
+the grid (including over the row numbers or column letters) scrolls it, faster
+the farther out it is, so one drag reaches off-screen cells; the fill handle,
+header drags, formula reference picking, and phone selection handles scroll the
+same way.
+
 Select a cell to inspect its address and input in the formula bar. Double-click
 a cell, start typing, or use the formula bar to edit its value. Formulas begin
 with `=` and may refer to cells or ranges, for example `=SUM(B2:B5)`. Check both
@@ -258,10 +268,12 @@ to `=SUM(B4:B7` without committing or moving the active cell. A dashed outline s
 the referenced range. Release, type `)`, and press Enter to calculate. This works
 in both the cell editor and formula bar, including reverse drags, replacement of
 an existing reference, and subsequent arguments after a comma or operator. To reference another sheet,
-click its tab while the formula is awaiting a reference, then click or drag the
-source cells. The draft stays in the formula bar; Enter commits it to the original
-sheet and cell. Names with spaces are quoted automatically. Escape cancels and
-returns to the original sheet.
+click its tab while the formula is awaiting a reference (for example after
+`=IF(D2 <`), then click or drag the source cells. The other sheet opens at its
+own selection, even when the formula's row is past that sheet's last row. The
+draft stays in the formula bar; Enter commits it to the original sheet and cell.
+Names with spaces are quoted automatically. Escape cancels and returns to the
+original sheet.
 While a formula is being edited, each cell or range it refers to, including whole
 columns or rows such as `D:D`, is outlined in its own color on the grid, and the
 reference text in both editors uses the same color. A repeated reference keeps
@@ -276,9 +288,12 @@ Drag across row/column headers or Shift-click a second header to select multiple
 whole rows/columns. Arrow keys then move from the selection's active cell. The
 focused grid owns typing and navigation; app navigation shortcuts do not run while
 it has focus.
-The active cell keeps a complete border while editing; a range has a shaded
-fill and an outer border. Verify selection in both drag directions and after
-scrolling, including near the last row and column.
+The active cell keeps a complete border while editing; a range has a translucent
+tint over its cells' own fills and an outer border. The active cell is never
+tinted: selected or being edited, it keeps its fill, font, text color, and
+explicit alignment (automatic alignment edits from the left, as in Excel).
+Verify selection in both drag directions and after scrolling, including near
+the last row and column.
 Only nearby rows are mounted. Use **Go to cell** or keyboard navigation to reach
 off-screen cells; verify the target is visible below the sticky column header.
 
@@ -316,9 +331,12 @@ and row additions save collaboratively and can be undone.
 
 The document title and Share button sit above a compact formatting ribbon:
 undo/redo, paste, zoom and view options, currency/percent/decimals/number format,
-font and size, text styles, text/fill color, borders, alignment, wrapping,
-functions, format/data actions, and find. Icon controls expose accessible button
-names and tooltips. **Number format → Accounting** shows Excel's accounting layout:
+font and size, text styles, text/fill color, borders, alignment, **Decrease
+indent**/**Increase indent**, wrapping, functions, format/data actions, and find.
+Icon controls expose accessible button names and tooltips. The indent buttons move
+each selected cell one level (three spaces) from its own level, from the cell's
+right edge when it is right-aligned and its left edge otherwise; indenting a
+centered cell aligns it left. **Number format → Accounting** shows Excel's accounting layout:
 `$` at the cell's left edge, the amount at the right, negatives in parentheses and
 zero as a dash; the cell's accessible name reads like `B2: $(1,234.50)`.
 **Paste special** offers **Paste** and **Paste values only**.
@@ -333,8 +351,10 @@ Excel black text and borders on unfilled cells follow the app's foreground color
 so imported sheets remain readable in dark mode. Explicit text/fill color pairs
 remain unchanged; theme changes never alter saved or exported workbook colors.
 
-**View options** directly toggles gridlines, the formula bar, and formula display;
-these settings and zoom are local to the editor. **Go to cell** accepts ranges such
+**View options** directly toggles gridlines, the formula bar, and formula display.
+Gridlines are saved with the active sheet, undo like an edit, export as Excel's
+`showGridLines`, and are disabled for viewers; the formula bar, formula display,
+and zoom are local to the editor. **Go to cell** accepts ranges such
 as `A3:E7`.
 Escape from the address or font-size field returns keyboard navigation to the grid.
 **Functions** starts an editable formula: for a selected range it proposes
@@ -379,10 +399,20 @@ Formula references to mention cells use literal labels, never execute a label as
 Dates: `@tomorrow`, `@next friday` or `@sep 28` offer a **Dates** bucket and insert
 the same clock chip as docs; hover it for the full date, and edit the cell to change
 it. A cell holding only a date chip is a date value: `=A1+7` produces a date, and
-Excel export writes a dated number rather than the label. Typed dates such as
-`9/28/2026` or `2026-09-28`, `=DATE(...)`, and arithmetic on date cells display as
-dates without choosing the Date number format. A difference of two dates stays a
-plain day count, and an explicit number format from the toolbar always wins.
+Excel export writes a dated number rather than the label. Typing a date stores it
+as a date in a matching format: `01/2026` or `Jan 2026` shows `Jan 2026`,
+`Jan 01 2026` shows `Jan 01, 2026`, `2026-01-01` stays ISO and `1/1/26` shows
+`1/1/2026` (day first in day-first browser locales). The snapshot value is the
+serial (`46023`) with `format: 'date'` and a `numberFormat` such as `mmm yyyy`;
+the formula bar and cell editor show `1/1/2026`. A cell already formatted as a
+date keeps its format, and text without a year (`Jan 26`, `1/2`) stays text.
+`=DATE(...)` and arithmetic on date cells display as dates without choosing the
+Date number format. A difference of two dates stays a plain day count, and an
+explicit number format from the toolbar always wins. **Number format → Date
+formats** lists presets (`Sep 2026`, `Sep 17, 2026`, `09/17/2026`, `17/09/2026`,
+`2026-09-17`, `17 Sep 2026`, `Thursday, September 17, 2026`) and **Custom date and
+time…**, a dialog with a **Format code** field, a live `Preview:` status of the
+active cell, and **Apply** (disabled for codes that are not dates or times).
 
 CSV imports a file up to 20 MB into the selection, adding rows if needed within the
 100,000 × 16,384 limit. Existing cells in that rectangle
@@ -536,6 +566,8 @@ formulas, typed results, errors, and formatting. **CalculateSpreadsheet** evalua
 scratch formulas and what-if inputs without changing the workbook.
 **EditSpreadsheet** applies a validated batch of cell/formula/format edits, fill,
 row additions, column resizing, and sheet creation/rename/duplication/deletion.
+`format_cells` shows dates in any Excel date code with
+`{ "format": "date", "numberFormat": "mmm yyyy" }`.
 Edits require a revision from a fresh read; a concurrent change rejects the entire
 batch so the AI can reread. Tool rows expand to show the actual results and warnings.
 
