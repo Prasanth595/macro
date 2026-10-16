@@ -441,7 +441,10 @@ export function Account() {
           </Show>
 
           <Row label="Email">
-            <span class="ph-no-capture text-sm text-ink-muted">
+            <span
+              class="ph-no-capture min-w-0 truncate text-sm text-ink-muted"
+              title={email() ?? undefined}
+            >
               {email() ?? ''}
             </span>
           </Row>
@@ -697,8 +700,16 @@ function IrreversibleWarning() {
   );
 }
 
+// Every row's control starts at the same left edge, so values line up down the
+// card instead of each hugging the right side at its own width.
 function Row(props: { label: string; children?: JSX.Element }) {
-  return <SettingsRow label={props.label}>{props.children}</SettingsRow>;
+  return (
+    <SettingsRow label={props.label}>
+      <div class="flex w-80 max-w-[55cqw] min-w-0 items-center justify-start text-left">
+        {props.children}
+      </div>
+    </SettingsRow>
+  );
 }
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
@@ -753,7 +764,7 @@ function NameInput(props: {
   };
 
   return (
-    <div class="ph-no-capture group relative flex items-center gap-1.5 rounded-lg h-9 px-3 border text-sm bg-transparent text-ink-muted border-edge-muted hover:text-ink focus-within:text-ink focus-within:border-accent">
+    <div class="ph-no-capture group relative flex w-full items-center gap-1.5 rounded-lg h-9 px-3 border text-sm bg-transparent text-ink-muted border-edge-muted hover:text-ink focus-within:text-ink focus-within:border-accent">
       <input
         type="text"
         class="flex-1 min-w-0 bg-transparent outline-none border-0 p-0 text-sm placeholder:text-ink-placeholder"
