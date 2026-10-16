@@ -27,8 +27,10 @@ it('shows each colored choice as a chip of its color', async () => {
         open={open()}
         onOpenChange={setOpen}
         style={{}}
+        buttonSize={16}
         onPick={onPick}
         onRestoreFocus={() => {}}
+        onPointerDownOutside={() => {}}
       />
     );
   });

@@ -293,7 +293,7 @@ export function SpreadsheetGrid(props: {
   const opensListOnPress = (position: CellPosition) =>
     listOpenAt() !== undefined &&
     listOpenAt() !== cellAddress(position) &&
-    hasDropdown(position.row, position.column);
+    dropdownAt(position.row, position.column) !== undefined;
   /** Pressing a cell closes an open list, or opens that dropdown cell's list. */
   function closeOrMoveList(position: CellPosition, extend = false) {
     const opens = !extend && opensListOnPress(position);
