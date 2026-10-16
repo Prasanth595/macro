@@ -72,7 +72,8 @@ test('a date cell opens a calendar below its editor; keys move and pick days', a
   await page.keyboard.press('Enter');
   await expect(picker(page)).toBeHidden();
   await expect(cell(page, 'C2')).toHaveText('10/24/2026');
-  expect(await value(page, 0, 'C2')).toBe('10/24/2026');
+  // A typed date is stored as its serial number shown as a date.
+  expect(await value(page, 0, 'C2')).toBe('46319');
   await expect(address).toHaveValue('C3');
   await expect(grid).toBeFocused();
 
@@ -131,15 +132,15 @@ test('a picked date is written the way the cell already stores it', async ({
   page,
 }) => {
   await enter(page, 'C2', '2026-01-31');
-  await expect(cell(page, 'C2')).toHaveText('1/31/2026');
+  await expect(cell(page, 'C2')).toHaveText('2026-01-31');
   await cell(page, 'C2').click();
   await page.keyboard.press('Enter');
   // A month later than the 31st is the month's last day.
   await page.keyboard.press('PageDown');
   await expect(pickerDay(page, 'active')).toHaveText('28');
   await page.keyboard.press('Enter');
-  await expect(cell(page, 'C2')).toHaveText('2/28/2026');
-  expect(await value(page, 0, 'C2')).toBe('2026-02-28');
+  await expect(cell(page, 'C2')).toHaveText('2026-02-28');
+  expect(await value(page, 0, 'C2')).toBe('46081');
 
   const chooser = page.waitForEvent('filechooser');
   await page
