@@ -91,3 +91,56 @@ it('keeps historical booking results readable without inventing confirmation', (
   expect(response.isOk()).toBe(true);
   if (response.isOk()) expect(response.value.data).toEqual(saved);
 });
+
+it('preserves explicit blank hours and time off when parsing booking settings', () => {
+  const profile = {
+    id: crypto.randomUUID(),
+    name: 'Booking page',
+    description: '',
+    revision: 1,
+    eventTypes: [],
+    schedules: [
+      {
+        ...schedule,
+        weekly: [
+          { day: 0, windows: [], unavailableWindows: [] },
+          {
+            day: 1,
+            windows: [],
+            unavailableWindows: [{ start: '09:00', end: '17:00' }],
+          },
+          { day: 2, windows: [], unavailableWindows: null },
+          { day: 3, windows: [] },
+        ],
+        overrides: [
+          { date: '2026-10-20', windows: [], unavailableWindows: [] },
+          {
+            date: '2026-10-21',
+            windows: [],
+            unavailableWindows: [{ start: '09:00', end: '17:00' }],
+          },
+          { date: '2026-10-22', windows: [], unavailableWindows: null },
+          { date: '2026-10-23', windows: [] },
+        ],
+      },
+    ],
+  };
+  const call = deserializeToolCall({
+    id: 'update-settings',
+    name: 'UpdateBookingSettings',
+    json: { profile, userConfirmation: 'Save these hours.' },
+  });
+  expect(call.isOk()).toBe(true);
+  if (call.isOk())
+    expect(call.value.data).toEqual({
+      profile,
+      userConfirmation: 'Save these hours.',
+    });
+  const response = deserializeToolResponse({
+    id: 'read-settings',
+    name: 'ReadBookingSettings',
+    json: { profile, pageUrl: 'https://macro.com/app/book/profile' },
+  });
+  expect(response.isOk()).toBe(true);
+  if (response.isOk()) expect(response.value.data).toMatchObject({ profile });
+});
