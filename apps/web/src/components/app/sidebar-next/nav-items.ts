@@ -15,6 +15,7 @@ import PhoneCallIcon from '@phosphor/phone-call.svg';
 import AgentIcon from '@phosphor/sparkle.svg';
 import BuildingsFillIcon from '@phosphor-fill/buildings-fill.svg';
 import CalendarBlankFillIcon from '@phosphor-fill/calendar-blank-fill.svg';
+import CalendarCheckFillIcon from '@phosphor-fill/calendar-check-fill.svg';
 import ChatsCircleFillIcon from '@phosphor-fill/chats-circle-fill.svg';
 import EnvelopeFillIcon from '@phosphor-fill/envelope-fill.svg';
 import FolderSimpleFillIcon from '@phosphor-fill/folder-simple-fill.svg';
@@ -31,7 +32,9 @@ import type { SidebarPrefs } from './use-sidebar-prefs';
  * the button switches to while its view is active. Both are required here,
  * unlike `SidebarItem['icon']` — a rail button is nothing but its glyph.
  */
-export type SidebarNextNavItem = SidebarItem & {
+export type SidebarNextNavItem = Omit<SidebarItem, 'hotkeyToken'> & {
+  /** Only destinations with a registered GoTo shortcut expose a key hint. */
+  hotkeyToken?: SidebarItem['hotkeyToken'];
   icon: NavIcon;
   /** Phosphor `fill` weight of `icon`, shown while the view is active. */
   iconActive: NavIcon;
@@ -145,6 +148,13 @@ export const SIDEBAR_NEXT_NAV_ITEMS = [
     hotkey: 'v',
     hotkeyToken: TOKENS.sidebar.goTo.reviews,
   },
+  {
+    id: 'booking-links',
+    label: 'Scheduling',
+    href: '/scheduling',
+    icon: CalendarCheckIcon,
+    iconActive: CalendarCheckFillIcon,
+  },
 ] satisfies SidebarNextNavItem[];
 
 /** Feature flag gates for sidebar destinations. */
@@ -164,6 +174,7 @@ export const isNavItemAvailable = (
   gates: NavItemGates
 ): boolean => {
   if (item.id === 'calendar') return gates.showCalendar;
+  if (item.id === 'booking-links') return gates.showScheduling;
   if (item.id === 'companies') return gates.showCustomers;
   if (item.id === 'calls') return gates.showCalls;
   if (item.id === 'reviews') return gates.showReviews;
@@ -218,24 +229,11 @@ export const customizableNavItems = (
     gates.prefs.order
   );
 
-/**
- * Hidden rail items and Scheduling, available for quick open in the More menu.
- */
-export const moreMenuItems = (gates: NavItemGates): SidebarNextMenuItem[] => [
-  ...customizableNavItems(gates).filter(
+/** Hidden rail items, available for quick open in the More menu. */
+export const moreMenuItems = (gates: NavItemGates): SidebarNextMenuItem[] =>
+  customizableNavItems(gates).filter(
     (item) => item.id !== 'home' && gates.prefs.hidden.has(item.id)
-  ),
-  ...(gates.showScheduling
-    ? [
-        {
-          id: 'booking-links',
-          label: 'Scheduling',
-          href: '/scheduling',
-          icon: CalendarCheckIcon,
-        },
-      ]
-    : []),
-];
+  );
 
 /**
  * The nav buttons currently on the outer rail.
