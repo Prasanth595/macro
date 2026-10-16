@@ -10,6 +10,7 @@ mod test;
 
 pub mod ai_operations;
 mod build_context;
+pub mod crm_csv_files;
 mod deferred;
 mod display_results;
 pub mod email_attachments;
@@ -75,25 +76,26 @@ pub use tool_context::{
     ToolCalendarToolContext, ToolCallRecordQueryService, ToolCallService, ToolCallToolContext,
     ToolChannelEventDispatcher, ToolChannelMediaUploadToolContext, ToolChannelMessagesService,
     ToolChannelToolContext, ToolChatService, ToolChatToolContext, ToolCodingAgentToolContext,
-    ToolCommsService, ToolCrmService, ToolCrmToolContext, ToolDatabasesService,
-    ToolDatabasesSqlToolContext, ToolDatabasesToolContext, ToolDocumentService,
-    ToolDocumentToolContext, ToolEmailService, ToolEmailToolContext,
-    ToolEntityAccessManagementService, ToolEntityAccessService, ToolEntityCreator,
-    ToolFavoritesService, ToolFavoritesToolContext, ToolForeignEntityService, ToolFormsToolContext,
-    ToolFrecencyService, ToolGithubPullRequestService, ToolImageGenerationToolContext,
-    ToolImportService, ToolImportToolContext, ToolInitiativeToolContext,
-    ToolItemNotificationPreferenceToolContext, ToolMcpSelector, ToolNotificationQueue,
-    ToolNotificationService, ToolNotificationToolContext, ToolPipedreamConnection,
-    ToolPipelineService, ToolPipelineToolContext, ToolPipelineWorkflows, ToolProjectService,
-    ToolProjectToolContext, ToolPropertiesService, ToolPropertiesToolContext, ToolServiceContext,
-    ToolSkillService, ToolSkillToolContext, ToolSoupService, ToolSystemPropertiesService,
-    ToolTableEventPublisher, ToolTeamCalendarService, ToolTeamCalendarToolContext, ToolTeamService,
-    ToolTeamToolContext, ToolUserEmailService, ToolViewOnlyDatabasesSqlToolContext,
-    build_activity_tool_context, build_booking_link_tool_context,
-    build_booking_management_tool_context, build_bot_tool_context, build_calendar_tool_context,
-    build_channel_media_upload_tool_context, build_channel_tool_context_with_dispatcher,
-    build_channel_tool_context_with_side_effects, build_channel_tool_context_without_side_effects,
-    build_coding_agent_tool_context, build_crm_tool_context, build_databases_sql_tool_context,
+    ToolCommsService, ToolCrmService, ToolCrmToolContext, ToolCrmTransferService,
+    ToolCrmTransferToolContext, ToolDatabasesService, ToolDatabasesSqlToolContext,
+    ToolDatabasesToolContext, ToolDocumentService, ToolDocumentToolContext, ToolEmailService,
+    ToolEmailToolContext, ToolEntityAccessManagementService, ToolEntityAccessService,
+    ToolEntityCreator, ToolFavoritesService, ToolFavoritesToolContext, ToolForeignEntityService,
+    ToolFormsToolContext, ToolFrecencyService, ToolGithubPullRequestService,
+    ToolImageGenerationToolContext, ToolImportService, ToolImportToolContext,
+    ToolInitiativeToolContext, ToolItemNotificationPreferenceToolContext, ToolMcpSelector,
+    ToolNotificationQueue, ToolNotificationService, ToolNotificationToolContext,
+    ToolPipedreamConnection, ToolPipelineService, ToolPipelineToolContext, ToolPipelineWorkflows,
+    ToolProjectService, ToolProjectToolContext, ToolPropertiesService, ToolPropertiesToolContext,
+    ToolServiceContext, ToolSkillService, ToolSkillToolContext, ToolSoupService,
+    ToolSystemPropertiesService, ToolTableEventPublisher, ToolTeamCalendarService,
+    ToolTeamCalendarToolContext, ToolTeamService, ToolTeamToolContext, ToolUserEmailService,
+    ToolViewOnlyDatabasesSqlToolContext, build_activity_tool_context,
+    build_booking_link_tool_context, build_booking_management_tool_context, build_bot_tool_context,
+    build_calendar_tool_context, build_channel_media_upload_tool_context,
+    build_channel_tool_context_with_dispatcher, build_channel_tool_context_with_side_effects,
+    build_channel_tool_context_without_side_effects, build_coding_agent_tool_context,
+    build_crm_tool_context, build_crm_transfer_tool_context, build_databases_sql_tool_context,
     build_databases_tool_context, build_favorites_service, build_favorites_tool_context,
     build_forms_tool_context, build_image_generation_tool_context, build_initiative_tool_context,
     build_item_notification_preference_tool_context, build_message_service_with_side_effects,
@@ -168,6 +170,9 @@ pub(crate) fn subagent_toolset() -> AiToolSet {
         .add_subtoolset::<ToolTeamToolContext>(team_toolset())
         .add_subtoolset::<ToolCrmToolContext>(crm_toolset())
         .add_subtoolset::<ToolPipelineToolContext>(pipeline_toolset())
+        .add_subtoolset::<ToolCrmTransferToolContext>(
+            crm::inbound::toolset::transfer::crm_transfer_toolset(),
+        )
         .add_subtoolset::<ToolDatabasesToolContext>(databases_toolset())
         .add_subtoolset::<ToolFormsToolContext>(forms::inbound::toolset::authoring_toolset())
         .add_subtoolset::<ToolDatabasesSqlToolContext>(databases_sql_toolset())
