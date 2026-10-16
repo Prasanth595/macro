@@ -55,6 +55,7 @@ import {
 import type { SpreadsheetCursor } from '../core/spreadsheet-presence';
 import type { CompleteFormula } from '../primitives/create-formula-assistance';
 import { CellListMenu } from './CellListMenu';
+import { ChoiceChip } from './ChoiceChip';
 import { ConditionalIcon } from './ConditionalIcon';
 import {
   cellBackground,
@@ -200,8 +201,11 @@ export function SpreadsheetGrid(props: {
   /** The active cell's list of allowed values, offered in a dropdown. */
   listItems?: string[];
   onPickListItem?: (item: string) => void;
-  /** Ranges (Excel sqrefs) whose cells show a dropdown arrow. */
-  dropdownRanges?: string[];
+  /**
+   * Dropdown rules: their ranges (Excel sqrefs), whose cells show an arrow,
+   * and their choice colors by lowercase text.
+   */
+  dropdowns?: { range: string; colors?: Map<string, string> }[];
   /** Images and charts over the sheet. */
   drawings?: SheetDrawing[];
   image?: (key: string) => string | undefined;
@@ -270,16 +274,21 @@ export function SpreadsheetGrid(props: {
     !props.editing &&
     !props.formulaEditing &&
     !!props.listItems?.length;
-  const dropdownBounds = createMemo(() =>
-    (props.dropdownRanges ?? []).flatMap(sqrefBounds)
+  const dropdownAreas = createMemo(() =>
+    (props.dropdowns ?? []).map((dropdown) => ({
+      bounds: sqrefBounds(dropdown.range),
+      colors: dropdown.colors,
+    }))
   );
-  const hasDropdown = (row: number, column: number) =>
-    dropdownBounds().some(
-      (bounds) =>
-        row >= bounds.top &&
-        row <= bounds.bottom &&
-        column >= bounds.left &&
-        column <= bounds.right
+  const dropdownAt = (row: number, column: number) =>
+    dropdownAreas().find((area) =>
+      area.bounds.some(
+        (bounds) =>
+          row >= bounds.top &&
+          row <= bounds.bottom &&
+          column >= bounds.left &&
+          column <= bounds.right
+      )
     );
   const [selectedDrawing, setSelectedDrawing] = createSignal<string>();
   const [resizing, setResizing] = createSignal<{
@@ -1640,6 +1649,11 @@ export function SpreadsheetGrid(props: {
                         !props.showFormulas &&
                         !!cell()?.value.startsWith('=') &&
                         cell()?.format !== 'text';
+                      const dropdown = () => dropdownAt(row, column);
+                      const chipColor = () =>
+                        dropdown()?.colors?.get(
+                          display(address).trim().toLowerCase()
+                        );
                       const decorated = () =>
                         !!props.mentions &&
                         !(
@@ -1824,7 +1838,10 @@ export function SpreadsheetGrid(props: {
                             fallback={
                               <div
                                 class="relative w-full min-h-0 overflow-hidden text-ellipsis px-[var(--spreadsheet-cell-padding)]"
-                                classList={{ 'pl-5': !!look()?.icon }}
+                                classList={{
+                                  'pl-5': !!look()?.icon,
+                                  'pr-5': !!dropdown(),
+                                }}
                                 style={{
                                   'white-space': cell()?.wrap
                                     ? 'pre-wrap'
@@ -1853,6 +1870,10 @@ export function SpreadsheetGrid(props: {
                                 >
                                   {look()?.showValue === false ? (
                                     ''
+                                  ) : chipColor() ? (
+                                    <ChoiceChip color={chipColor()!}>
+                                      {display(address)}
+                                    </ChoiceChip>
                                   ) : decorated() ? (
                                     props.mentions!.renderText(
                                       cell()!.value.replace(/^'/, '')
@@ -1915,7 +1936,7 @@ export function SpreadsheetGrid(props: {
                           </Show>
                           <Show
                             when={
-                              hasDropdown(row, column) &&
+                              dropdown() &&
                               !(active() && listButtonShown()) &&
                               !(active() && props.editing)
                             }
@@ -2094,6 +2115,12 @@ export function SpreadsheetGrid(props: {
                   <CellListMenu
                     address={address()}
                     items={items()}
+                    colors={
+                      dropdownAt(
+                        props.selection.anchor.row,
+                        props.selection.anchor.column
+                      )?.colors
+                    }
                     open={listOpenAt() === address()}
                     onOpenChange={(open) =>
                       setListOpenAt(open ? address() : undefined)
