@@ -20,6 +20,7 @@ export type XlsxCellStyle = {
   };
   alignment: {
     horizontal?: 'left' | 'center' | 'right';
+    indent?: number;
     vertical: 'top' | 'center' | 'bottom';
     wrapText: boolean;
   };
@@ -114,6 +115,13 @@ export function xlsxCellStyle(
       color: style[`${key}Color`]?.slice(1).toUpperCase() || '808080',
     };
   }
+  // Excel indents only left- and right-aligned text.
+  const horizontal =
+    style.horizontalAlign !== 'auto'
+      ? style.horizontalAlign
+      : style.indent > 0
+        ? 'left'
+        : undefined;
   return {
     numFmt: style.numberFormat || numberFormatCode(style),
     font: {
@@ -132,9 +140,9 @@ export function xlsxCellStyle(
       }),
     },
     alignment: {
-      ...(style.horizontalAlign !== 'auto' && {
-        horizontal: style.horizontalAlign,
-      }),
+      ...(horizontal && { horizontal }),
+      ...(style.indent > 0 &&
+        horizontal !== 'center' && { indent: style.indent }),
       vertical:
         style.verticalAlign === 'middle' ? 'center' : style.verticalAlign,
       wrapText: style.wrap,
