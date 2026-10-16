@@ -28,6 +28,10 @@ replies. It returns one row per thread and never matches only a snippet or body.
 Coverage is existing cached mail: automatic backfill includes 90 days of signal
 mail and 30 days of noise mail, plus other cached threads. Use full-text search
 for uncached older mail. No new backfill or server name-search fallback is added.
+Email name results require the existing normalized GraphQL cache rollout. When
+verifying a local iOS build without PostHog configuration, enable that path with
+the build-time `VITE_ENABLE_GRAPHQL_SOUP=true` override; see the
+[cache guide](../../apps/web/docs/graphql-normalized-cache-plan.md#cached-email-quick-access).
 
 Category/mode changes keep the same input mounted and focused. Enter dismisses
 the keyboard without ending search. Opening a result or **Close search** ends the
@@ -38,6 +42,9 @@ Verify sender-only `teo` matches with one- and two-character prefixes, then swit
 categories with the keyboard up. Select full text, edit the query, open a snippet,
 reopen search, and check All/name reset. Clear with whitespace and check category
 retention; select Projects from full-text mode and confirm it shows name results.
+Repeat opening with a large recent list: results are virtualized, so transferring
+keyboard focus should not mount every cached row. Scroll through later results
+and use Load more to verify additional pages remain accessible.
 
 Search snippets carry their target in the destination pane's route search. Channel
 messages open Chat at the message (replies open their parent thread); email snippets

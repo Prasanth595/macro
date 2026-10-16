@@ -748,6 +748,13 @@ with `EmailQuickAccessFields` and uses the projection text for ranking and pendi
 query filtering; cache hydration, visibility, and deletion changes refresh rows.
 Desktop Command K explicitly excludes the email bucket; mobile Search includes it.
 
+Email Quick Access requires the existing `enable-graphql-soup` rollout and a healthy
+normalized cache; the legacy REST sources do not supply email Quick Access rows.
+Quick Access observes flag loading reactively so a cold launch can attach the cache
+after PostHog responds. For a local native preview without PostHog configuration,
+build with `VITE_ENABLE_GRAPHQL_SOUP=true` to exercise this path; do not change the
+remote rollout or backfill to make a test pass.
+
 Opening an older cache rebuilds search documents through the existing projection
 version mechanism, preserving normalized records, pending mutations, and storage
 generation. This does not expand hydration: automatic backfill remains 90 days of

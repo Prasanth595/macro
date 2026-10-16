@@ -17,6 +17,7 @@ import { useGetOrCreateDirectMessageMutation } from '@queries/channel/get-or-cre
 import { useDatabaseDiscoverySync } from '@queries/storage/databases';
 import { Button, CommandMenuListItem } from '@ui';
 import { createMemo, createSignal, For, Show, Suspense } from 'solid-js';
+import { VList } from 'virtua/solid';
 import { ItemDisplay } from '../CommandItem';
 import {
   type EntitySearchItem,
@@ -72,7 +73,7 @@ function MobileNameResults() {
     }
   };
   return (
-    <div class="h-full overflow-y-auto overscroll-none px-3 mobile:pt-(--mobile-content-inset-top) mobile:pb-(--mobile-content-inset-bottom)">
+    <div class="flex h-full min-h-0 flex-col px-3 mobile:pt-(--mobile-content-inset-top) mobile:pb-(--mobile-content-inset-bottom)">
       <Show when={SearchState.query().trim() && category() !== 'projects'}>
         <div
           data-keep-keyboard
@@ -89,16 +90,18 @@ function MobileNameResults() {
           </CommandMenuListItem>
         </div>
       </Show>
-      <For each={items()}>
-        {(item) => (
-          <CommandMenuListItem
-            class="min-h-11"
-            onClick={() => void select(item)}
-          >
-            <ItemDisplay item={item} />
-          </CommandMenuListItem>
-        )}
-      </For>
+      <Show when={items().length > 0}>
+        <VList data={items()} class="min-h-0 flex-1 overscroll-none">
+          {(item) => (
+            <CommandMenuListItem
+              class="min-h-11"
+              onClick={() => void select(item)}
+            >
+              <ItemDisplay item={item} />
+            </CommandMenuListItem>
+          )}
+        </VList>
+      </Show>
       <Show when={source.isLoadingEntities()}>
         <p role="status" class="p-3 text-ink-muted">
           Loading…

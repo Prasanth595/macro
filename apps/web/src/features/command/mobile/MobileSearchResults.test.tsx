@@ -101,6 +101,31 @@ vi.mock('../queries/mobile-full-text-search', () => ({
   },
 }));
 beforeEach(() => {
+  vi.spyOn(HTMLElement.prototype, 'offsetParent', 'get').mockReturnValue(
+    document.body
+  );
+  vi.stubGlobal(
+    'ResizeObserver',
+    class implements ResizeObserver {
+      constructor(private callback: ResizeObserverCallback) {}
+      observe(target: Element) {
+        this.callback(
+          [
+            {
+              target,
+              contentRect: new DOMRect(0, 0, 400, 400),
+              borderBoxSize: [],
+              contentBoxSize: [],
+              devicePixelContentBoxSize: [],
+            },
+          ],
+          this
+        );
+      }
+      unobserve() {}
+      disconnect() {}
+    }
+  );
   mocks.items = () => [];
   mocks.fullTextItems = [];
   SearchState.open();
@@ -109,6 +134,8 @@ afterEach(() => {
   cleanup();
   SearchState.close();
   vi.clearAllMocks();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 it('offers full text above empty results, only mounts it explicitly, and keeps the input during mode changes', () => {
@@ -196,4 +223,22 @@ it('opens the selected full-text message and resets the session', () => {
   expect(SearchState.isOpen()).toBe(false);
   expect(SearchState.query()).toBe('');
   expect(SearchState.category()).toBe('all');
+});
+
+it('bounds mounted recent rows while keeping the first result usable', () => {
+  mocks.items = () =>
+    Array.from({ length: 2000 }, (_, index) => ({
+      id: `project-${index}`,
+      kind: 'initiative',
+      bucket: 'initiative',
+      name: `Project ${index}`,
+      searchText: `Project ${index}`,
+      sortTimestamp: 0,
+      timestamps: {},
+    }));
+  render(() => <MobileSearchResults />);
+  expect(screen.getAllByRole('button').length).toBeLessThan(50);
+  fireEvent.click(screen.getByRole('button', { name: 'Project 0' }));
+  expect(mocks.open).toHaveBeenCalled();
+  expect(SearchState.isOpen()).toBe(false);
 });
