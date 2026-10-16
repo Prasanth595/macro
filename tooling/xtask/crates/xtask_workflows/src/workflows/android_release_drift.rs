@@ -144,7 +144,8 @@ fn play_auth() -> Step<Use> {
         .add_with(("export_environment_variables", false))
 }
 
-/// Was the stale bundle already promoted? Nothing can withdraw it then.
+/// Was the stale bundle already promoted to production (in review or
+/// published)? Nothing can withdraw it then.
 fn play_status() -> Step<Run> {
     Step::new("Check whether the stale version code is already on Play")
         .run(indoc::indoc! {r#"
@@ -182,7 +183,7 @@ fn comment() -> Step<Run> {
         .run(indoc::indoc! {r#"
             set -euo pipefail
             bump='cd apps/web && just android-bump'
-            if [[ "$LIVE" == "true" ]]; then
+            if [[ "$PROMOTED" == "true" ]]; then
               body="🚨 Android native changes were pushed to this PR after version code ${VERSION_CODE} had already been promoted to Google Play production, so that bundle is (or is about to be) live with native code this PR no longer matches. A Play release cannot be withdrawn: bump (\`${bump}\`), commit, re-add the \`android-update\` label, and ship the follow-up as soon as possible. The label was removed."
             else
               body="🤖 Android native code changed after this PR's Play release started, so the release was stopped: any in-progress build was cancelled and the \`android-update\` label removed. If a bundle already reached the internal track it stays there (internal testers only). When the PR is ready again, bump (\`${bump}\`), commit, push, and re-add \`android-update\`."
@@ -191,6 +192,6 @@ fn comment() -> Step<Run> {
         "#})
         .if_condition(after_detect())
         .shell("bash")
-        .add_env(("LIVE", "${{ steps.status.outputs.live }}"))
+        .add_env(("PROMOTED", "${{ steps.status.outputs.promoted }}"))
         .add_env(("VERSION_CODE", "${{ steps.detect.outputs.version_code }}"))
 }
