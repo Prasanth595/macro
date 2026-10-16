@@ -22,6 +22,11 @@ const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
 const IMPORT_CONCURRENCY = 4;
 const MAX_PIPELINE_NAME = 200;
 
+/** Where the import puts Stage, Owner, and Revenue. */
+export type ImportDestination =
+  | { kind: 'new'; sharing: Pipeline['sharing'] }
+  | { kind: 'existing'; id: string };
+
 /** A pipeline named after the imported file. */
 function importedPipelineName(fileName: string) {
   return (
@@ -34,7 +39,9 @@ function importedPipelineName(fileName: string) {
 
 /**
  * Companies from a CSV. Stage, Owner, and Revenue now live on pipeline rows,
- * so when the file has them they go into a new team pipeline, one row per
+ * so when the file has them they go into a pipeline the viewer picks: a new
+ * one, private or shared with the team, or an existing company pipeline, one
+ * row per
  * company that has a value. Running again reuses that pipeline and adds only
  * the rows it lacks.
  */
@@ -56,7 +63,31 @@ export function createCompanyImport(
   const [pipeline, setPipeline] = createSignal<
     { pipeline: Pipeline } & PipelineImportResult
   >();
+  const [destination, setDestinationSignal] = createSignal<ImportDestination>({
+    kind: 'new',
+    sharing: 'private',
+  });
   let target: Pipeline | undefined;
+  /** A new choice applies to the next run, so a pipeline made earlier is forgotten. */
+  const setDestination = (next: ImportDestination) => {
+    target = undefined;
+    setPipeline(undefined);
+    setDestinationSignal(next);
+  };
+  const targetPipeline = async (span: Span, name: string) => {
+    const chosen = destination();
+    if (chosen.kind === 'existing') {
+      const existing = pipelines
+        ?.existing()
+        .find((pipeline) => pipeline.id === chosen.id);
+      if (!existing) throw new Error('The chosen pipeline is unavailable.');
+      return existing;
+    }
+    return span.span('crm.companies.import.create_pipeline', async () => {
+      if (!pipelines) throw new Error('Pipelines are unavailable.');
+      return pipelines.create(name, chosen.sharing);
+    });
+  };
   let controller: AbortController | undefined;
   onCleanup(() => controller?.abort());
   /** Whether running again has anything left to do. */
@@ -117,9 +148,7 @@ export function createCompanyImport(
     const data = pipelineData();
     if (!pipelines || !data) return true;
     try {
-      target ??= await span.span('crm.companies.import.create_pipeline', () =>
-        pipelines.create(data.name)
-      );
+      target ??= await targetPipeline(span, data.name);
       span.setAttr('crm.pipeline_id', target.id);
       const transfer = pipelines.transfer(target);
       const table = await span.span('crm.pipeline.read_table', () =>
@@ -206,6 +235,8 @@ export function createCompanyImport(
     existing,
     pipelineData,
     pipeline,
+    destination,
+    setDestination,
     runnable,
     read,
     run,

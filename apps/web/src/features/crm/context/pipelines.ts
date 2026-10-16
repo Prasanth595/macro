@@ -47,7 +47,9 @@ export type PipelineTransfer = {
 
 /** Where a company import puts Stage, Owner, and Revenue: a new company pipeline. */
 export type CompanyImportPipelines = {
-  create(name: string): Promise<Pipeline>;
+  /** Company pipelines the viewer can edit, which the import can fill instead. */
+  existing: Accessor<Pipeline[]>;
+  create(name: string, sharing: Pipeline['sharing']): Promise<Pipeline>;
   transfer(pipeline: Pipeline): PipelineTransfer;
 };
 

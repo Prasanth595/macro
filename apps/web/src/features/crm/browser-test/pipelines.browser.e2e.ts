@@ -102,7 +102,7 @@ test('export a pipeline and import a CSV into it', async ({ page }) => {
   );
   const path = await download.path();
   const { readFile } = await import('node:fs/promises');
-  expect((await readFile(path, 'utf8')).replace(/^﻿/, '')).toBe(
+  expect((await readFile(path, 'utf8')).replace(/^\uFEFF/, '')).toBe(
     'Company,Domain,Stage\nacme.com,acme.com,Lead'
   );
 

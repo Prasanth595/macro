@@ -1,7 +1,10 @@
-import { Button, Dialog, Panel } from '@ui';
+import { Button, Dialog, Panel, Select } from '@ui';
 import { For, Show } from 'solid-js';
 import type { CompanyImportPipelines } from '../context/pipelines';
-import { createCompanyImport } from '../primitives/import-companies';
+import {
+  createCompanyImport,
+  type ImportDestination,
+} from '../primitives/import-companies';
 import { useCompanyImporter } from './use-crm';
 
 /** The preview lists this many rows; the import takes them all. */
@@ -22,10 +25,44 @@ export function CrmImport(props: {
     existing,
     pipelineData,
     pipeline,
+    destination,
+    setDestination,
     runnable,
     read,
     run,
   } = createCompanyImport(useCompanyImporter(), props.pipelines);
+  type Choice = {
+    value: string;
+    label: string;
+    destination: ImportDestination;
+  };
+  const choices = (): Choice[] => [
+    {
+      value: 'new:private',
+      label: 'New private pipeline',
+      destination: { kind: 'new', sharing: 'private' },
+    },
+    {
+      value: 'new:team',
+      label: 'New team pipeline',
+      destination: { kind: 'new', sharing: 'team' },
+    },
+    ...(props.pipelines?.existing() ?? []).map(
+      (existing): Choice => ({
+        value: `existing:${existing.id}`,
+        label: existing.name,
+        destination: { kind: 'existing', id: existing.id },
+      })
+    ),
+  ];
+  const chosen = () => {
+    const current = destination();
+    return choices().find((choice) =>
+      current.kind === 'existing'
+        ? choice.value === `existing:${current.id}`
+        : choice.value === `new:${current.sharing}`
+    );
+  };
   const done = () => completed() + existing();
   return (
     <Dialog
@@ -82,13 +119,43 @@ export function CrmImport(props: {
                     when={props.pipelines}
                     fallback={`${data().fields.join(', ')} won't be imported: pipelines aren't available for your team.`}
                   >
-                    {data().fields.join(', ')} go into a new team pipeline, “
-                    {data().name}”, for the{' '}
+                    {data().fields.join(', ')} for the{' '}
                     {data().csv.rows.length.toLocaleString()} companies that
-                    have them.
+                    have them go into
+                    <Show when={destination().kind === 'new'}>
+                      {' '}
+                      a pipeline named “{data().name}”
+                    </Show>
+                    :
                   </Show>
                 </p>
               )}
+            </Show>
+            <Show when={props.pipelines && !pipeline() && pipelineData()}>
+              <Select<Choice>
+                options={choices()}
+                optionValue="value"
+                optionTextValue="label"
+                value={chosen()}
+                onChange={(choice) =>
+                  choice && setDestination(choice.destination)
+                }
+                disabled={pending()}
+                modal={false}
+              >
+                <Select.Trigger
+                  aria-label="Pipeline for Stage and Owner"
+                  class="h-10 w-full min-w-0 rounded-lg border border-edge bg-surface-2 px-3 text-sm text-ink outline-none focus-visible:ring-2 focus-visible:ring-ink/20 disabled:opacity-50"
+                >
+                  <Select.Value<Choice>>
+                    {(state) => state.selectedOption()?.label}
+                  </Select.Value>
+                  <Select.Icon />
+                </Select.Trigger>
+                <Select.Content>
+                  <Select.Listbox />
+                </Select.Content>
+              </Select>
             </Show>
             <Show when={done()}>
               <p role="status" class="text-sm">

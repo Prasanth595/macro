@@ -641,11 +641,20 @@ export function CrmWorkspaceView(props: {
           pipelines={
             canCreatePipeline()
               ? {
-                  create: (name) =>
+                  existing: () =>
+                    pipelines
+                      .pipelines()
+                      .filter(
+                        (pipeline) =>
+                          pipeline.recordType === 'company' &&
+                          (pipeline.grant === 'owner' ||
+                            pipeline.grant === 'edit')
+                      ),
+                  create: (name, sharing) =>
                     pipelines.create({
                       name,
                       recordType: 'company',
-                      sharing: 'team',
+                      sharing,
                     }),
                   transfer: useCrmContext().createPipelineTransfer,
                 }

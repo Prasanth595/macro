@@ -186,7 +186,8 @@ describe('company import', () => {
       state: createCompanyImport(
         { create, refresh: async () => {} },
         {
-          create: async (name) => {
+          existing: () => [],
+          create: async (name, sharing) => {
             const pipeline: Pipeline = {
               id: 'pipeline',
               teamId: 'team',
@@ -196,7 +197,7 @@ describe('company import', () => {
               databaseId: 'database',
               tableId: 'table',
               primaryColumnId: 'company',
-              sharing: 'team',
+              sharing,
               grant: 'owner',
               createdAt: '2026-10-16T00:00:00Z',
               trashedAt: null,
@@ -242,9 +243,9 @@ describe('company import', () => {
     await state.run();
     expect(state.error()).toBe('');
     expect(create).toHaveBeenCalledTimes(3);
-    expect(created.map((pipeline) => pipeline.name)).toEqual([
-      'Macro Customers Oct 16 2026',
-    ]);
+    expect(
+      created.map((pipeline) => [pipeline.name, pipeline.sharing])
+    ).toEqual([['Macro Customers Oct 16 2026', 'private']]);
     expect(state.pipeline()?.added).toBe(2);
     expect(inserted).toEqual([
       [
@@ -286,7 +287,7 @@ describe('company import', () => {
     const { state, dispose } = createRoot((dispose) => ({
       state: createCompanyImport(
         { create: async () => 'created', refresh: async () => {} },
-        { create: createPipeline, transfer: vi.fn() }
+        { existing: () => [], create: createPipeline, transfer: vi.fn() }
       ),
       dispose,
     }));
@@ -295,6 +296,77 @@ describe('company import', () => {
     await state.run();
     expect(createPipeline).not.toHaveBeenCalled();
     expect(state.completed()).toBe(1);
+    dispose();
+  });
+
+  it('fills an existing pipeline the viewer picks instead of making one', async () => {
+    const deals: Pipeline = {
+      id: 'deals',
+      teamId: 'team',
+      name: 'Deals',
+      userId: 'macro|owner@macro.com',
+      recordType: 'company',
+      databaseId: 'database',
+      tableId: 'table',
+      primaryColumnId: 'company',
+      sharing: 'team',
+      grant: 'edit',
+      createdAt: '2026-10-01T00:00:00Z',
+      trashedAt: null,
+    };
+    const inserted: CellWrite[][] = [];
+    const transferFor = vi.fn(
+      (): PipelineTransfer => ({
+        readTable: async () => ({
+          columns: [
+            {
+              id: 'company',
+              name: 'Company',
+              dataType: 'ENTITY',
+              specificEntityType: 'COMPANY',
+              isMultiSelect: false,
+              options: [],
+              writable: true,
+            },
+            {
+              id: 'stage',
+              name: 'Stage',
+              dataType: 'SELECT_STRING',
+              isMultiSelect: false,
+              options: [{ id: 'lead', label: 'Lead', color: null }],
+              writable: true,
+            },
+          ],
+          rows: [],
+        }),
+        describeRecords: async () => new Map(),
+        resolveRecords: async (records) =>
+          new Map(records.map((record) => [record.key, `${record.key}-id`])),
+        insertRows: async (rows) => {
+          inserted.push(...rows);
+        },
+        refresh: async () => {},
+      })
+    );
+    const createPipeline = vi.fn();
+    const { state, dispose } = createRoot((dispose) => ({
+      state: createCompanyImport(
+        { create: async () => 'created', refresh: async () => {} },
+        {
+          existing: () => [deals],
+          create: createPipeline,
+          transfer: transferFor,
+        }
+      ),
+      dispose,
+    }));
+    await state.read(file('Company,Domains,Stage\nAcme,acme.com,Lead\n'));
+    state.setDestination({ kind: 'existing', id: 'deals' });
+    await state.run();
+    expect(createPipeline).not.toHaveBeenCalled();
+    expect(transferFor).toHaveBeenCalledWith(deals);
+    expect(state.pipeline()?.pipeline.id).toBe('deals');
+    expect(inserted).toHaveLength(1);
     dispose();
   });
 });
