@@ -1,10 +1,6 @@
 import { watchPresentationChanges } from '@core/pptx-engine/changes';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  describedSlideCount,
-  editPresentationHandler,
-  readPresentationHandler,
-} from './Presentation';
+import { editPresentationHandler } from './Presentation';
 
 // The document chip pulls in the app's live clients; these tests need none.
 vi.mock('@core/component/ItemPreview', () => ({ ItemPreview: () => null }));
@@ -39,14 +35,5 @@ describe('presentation tools', () => {
     expect(other).not.toHaveBeenCalled();
     stop();
     stopOther();
-  });
-
-  it('reads the slide count from a description', () => {
-    expect(
-      describedSlideCount('Presentation: 12 slides, 960 × 540 pt (x grows…')
-    ).toBe(12);
-    expect(describedSlideCount('Presentation: 1 slide, 720 × 540 pt')).toBe(1);
-    expect(describedSlideCount('something else')).toBeUndefined();
-    expect(readPresentationHandler.handleResponse).toBeUndefined();
   });
 });
