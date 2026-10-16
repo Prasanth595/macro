@@ -1,3 +1,7 @@
+import { format as formatExcelNumber, is_date } from 'ssf';
+import type { SpreadsheetCellStyle } from './spreadsheet-document';
+import { readNumberFormat } from './xlsx-styles';
+
 const DAY_MILLISECONDS = 86_400_000;
 const SERIAL_EPOCH = Date.UTC(1899, 11, 30);
 /** 1 March 1900: earlier serials count Excel's fictitious 29 February 1900. */
@@ -205,5 +209,22 @@ export function typedDateText(
       return `${day}/${month}/${year}`;
     case 'mdy':
       return `${month}/${day}/${year}`;
+  }
+}
+
+/**
+ * The cell style for an Excel date or time format code, or undefined when the
+ * code is not one Macro can display.
+ */
+export function dateFormatStyle(
+  code: string
+): SpreadsheetCellStyle | undefined {
+  try {
+    if (!is_date(code)) return;
+    formatExcelNumber(code, 0);
+    const style = readNumberFormat(code);
+    return { ...style, format: style.format === 'time' ? 'time' : 'date' };
+  } catch {
+    return;
   }
 }

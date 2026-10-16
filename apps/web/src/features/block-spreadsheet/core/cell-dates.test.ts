@@ -1,6 +1,7 @@
 import { format as formatExcelNumber } from 'ssf';
 import { describe, expect, it } from 'vitest';
-import { parseTypedDate, typedDateText } from './cell-dates';
+import { dateFormatStyle, parseTypedDate, typedDateText } from './cell-dates';
+import { SPREADSHEET_DATE_FORMATS } from './toolbar-types';
 
 const isoDate = (serial: number) => formatExcelNumber('yyyy-mm-dd', serial);
 
@@ -102,5 +103,43 @@ describe('typed dates', () => {
     expect(typedDateText(46023.5, 'en-US')).toBeUndefined();
     expect(typedDateText(60, 'en-US')).toBeUndefined();
     expect(typedDateText(2_958_466, 'en-US')).toBeUndefined();
+  });
+});
+
+describe('date format codes', () => {
+  it('maps date and time codes to cell styles', () => {
+    expect(dateFormatStyle('mmm yyyy')).toEqual({
+      format: 'date',
+      numberFormat: 'mmm yyyy',
+    });
+    expect(dateFormatStyle('mmmm')).toEqual({
+      format: 'date',
+      numberFormat: 'mmmm',
+    });
+    expect(dateFormatStyle('m/d/yyyy')).toEqual({ format: 'date' });
+    expect(dateFormatStyle('h:mm')).toEqual({
+      format: 'time',
+      numberFormat: 'h:mm',
+    });
+    expect(dateFormatStyle('h:mm:ss AM/PM')).toEqual({ format: 'time' });
+  });
+
+  it.each(['', 'General', '0.00', '$#,##0', '@', `${'d'.repeat(513)}`])(
+    'rejects %j, which is not a date or time code',
+    (code) => {
+      expect(dateFormatStyle(code)).toBeUndefined();
+    }
+  );
+
+  it('shows each preset as its menu example', () => {
+    for (const preset of SPREADSHEET_DATE_FORMATS) {
+      expect(formatExcelNumber(preset.numberFormat, 46_282)).toBe(
+        preset.example
+      );
+      expect(dateFormatStyle(preset.numberFormat)).toEqual({
+        format: 'date',
+        numberFormat: preset.numberFormat,
+      });
+    }
   });
 });
