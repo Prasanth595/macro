@@ -57,6 +57,7 @@ test('checkboxes inserted from the menu toggle by click and Space and feed formu
   // Shift+click on a box extends the selection without toggling it. Space
   // then checks the whole selection, and unchecks it once all are checked.
   await cell(page, 'C2').click(edge);
+  await expect(box(page, 'C2')).toHaveAttribute('aria-checked', 'false');
   await box(page, 'C4').click({ modifiers: ['Shift'] });
   for (const address of ['C2', 'C3', 'C4'])
     await expect(cell(page, address)).toHaveAttribute('aria-selected', 'true');

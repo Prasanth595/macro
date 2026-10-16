@@ -10,6 +10,7 @@ import Copy from '@phosphor/copy.svg?component-solid';
 import Eraser from '@phosphor/eraser.svg?component-solid';
 import Scissors from '@phosphor/scissors.svg?component-solid';
 import Trash from '@phosphor/trash.svg?component-solid';
+import XSquare from '@phosphor/x-square.svg?component-solid';
 import { type Component, type JSX, Show } from 'solid-js';
 import type { SpreadsheetCommand } from '../core/toolbar-types';
 
@@ -117,7 +118,7 @@ export function SpreadsheetCellMenu(props: {
           {item('Dropdown…', 'dropdown', CaretCircleDown)}
           {item('Insert checkbox', 'insert-checkbox', CheckSquare)}
           <Show when={props.hasCheckboxes()}>
-            {item('Remove checkbox', 'remove-checkbox', CheckSquare)}
+            {item('Remove checkbox', 'remove-checkbox', XSquare)}
           </Show>
           <Show when={props.hasComments}>
             <ContextMenu.Separator class="my-1 border-t border-edge-muted" />
