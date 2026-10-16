@@ -258,7 +258,8 @@ or tabbing through an empty row does not save an empty record.
 Click a cell to edit, or focus it with the arrow keys and start typing. Enter
 saves and immediately edits the same column in the next row, including the empty
 new-record row. Typing there starts the next record without waiting for the
-previous save. Shift+Enter moves up. The active cell has one subtle outline,
+previous save. Shift+Enter moves up. Both place the typing cursor at the end of
+the destination cell's text, ready to type. The active cell has one subtle outline,
 with no additional border around its editor. Arrow keys inside a text editor keep their native cursor
 behavior. Escape cancels. Tab saves and immediately edits the next writable cell;
 Shift+Tab moves backward, and both wrap between rows. Read-only columns are

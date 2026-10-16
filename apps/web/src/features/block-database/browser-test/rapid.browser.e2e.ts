@@ -16,11 +16,31 @@ test('Enter moves down immediately before any pending save completes', async ({
   const editor = page.getByRole('textbox', { name: 'Edit Name' });
   await expect(editor).toBeFocused();
   await expect(editor).toHaveText('');
+  expect(
+    await editor.evaluate((element) => {
+      const selection = document.getSelection();
+      return selection?.isCollapsed && element.contains(selection.anchorNode);
+    })
+  ).toBe(true);
   await expect(page.getByLabel('Stored name')).toHaveText('First record');
   await page.keyboard.type('Saved second');
   await page.keyboard.press('Enter');
   await expect(editor).toBeFocused();
   await expect(editor).toHaveText('');
+  await page.keyboard.press('Shift+Enter');
+  await expect(editor).toHaveText('Saved second');
+  expect(
+    await editor.evaluate((element) => {
+      const selection = document.getSelection();
+      return (
+        selection?.isCollapsed &&
+        element.contains(selection.anchorNode) &&
+        selection.anchorOffset === 'Saved second'.length
+      );
+    })
+  ).toBe(true);
+  await page.keyboard.type('!');
+  await page.keyboard.press('Enter');
   expect(
     JSON.parse(await page.getByLabel('Stored records').innerText())
   ).toHaveLength(1);
@@ -31,7 +51,7 @@ test('Enter moves down immediately before any pending save completes', async ({
         (row: { cells: Record<string, string> }) => row.cells.name
       )
     )
-    .toEqual(['Saved first', 'Saved second']);
+    .toEqual(['Saved first', 'Saved second!']);
 });
 
 test('a column inference response keeps the current draft focused and Tab saves into the same column', async ({

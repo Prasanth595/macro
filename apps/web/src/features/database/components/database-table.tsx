@@ -177,15 +177,18 @@ export function DatabaseTable(props: DatabaseTableProps) {
     }
   };
   const controls = new Map<string, Map<string, GridCellControl>>();
-  let pendingEdit: { rowId: string; columnId: string } | undefined;
+  let pendingEdit:
+    | { rowId: string; columnId: string; selectAll?: boolean }
+    | undefined;
   const control = (rowId: string, columnId: string) =>
     controls.get(rowId)?.get(columnId);
   const editRequestedCell = () => {
     if (!pendingEdit || !props.canEdit) return;
     const editor = control(pendingEdit.rowId, pendingEdit.columnId);
     if (!editor) return;
+    const { selectAll } = pendingEdit;
     pendingEdit = undefined;
-    editor.edit();
+    editor.edit(undefined, { selectAll });
   };
   props.controlsRef?.({
     editCell: (rowId, columnId) => {
@@ -241,7 +244,7 @@ export function DatabaseTable(props: DatabaseTableProps) {
     const rowIndex = rows().findIndex((row) => row.id === rowId);
     const row = rows()[rowIndex + direction];
     if (rowIndex < 0 || !row || !column || !canEditCell(column)) return false;
-    pendingEdit = { rowId: row.id, columnId };
+    pendingEdit = { rowId: row.id, columnId, selectAll: false };
     editRequestedCell();
     return true;
   };

@@ -187,7 +187,7 @@ export function GridCell(props: GridCellProps) {
       ? { width: `${size.width}px`, height: `${size.height}px` }
       : undefined;
   };
-  const updateEditor = (seed?: string) => {
+  const updateEditor = (seed?: string, selectAll = true) => {
     if (!editable()) return;
     setSelectedMention(undefined);
     if (isEntity()) {
@@ -198,7 +198,7 @@ export function GridCell(props: GridCellProps) {
       setMentionOpen(true);
       return;
     }
-    setSelectAll(seed === undefined);
+    setSelectAll(seed === undefined && selectAll);
     setDraft(
       seed !== undefined
         ? seed
@@ -216,13 +216,13 @@ export function GridCell(props: GridCellProps) {
       setMentionOpen(true);
     }
   };
-  const beginEdit = (seed?: string, event?: Event) => {
+  const beginEdit = (seed?: string, event?: Event, selectAll = true) => {
     if (!editable()) return;
     if (props.preserveSize && !editing() && trigger) {
       const { width, height } = trigger.getBoundingClientRect();
       setEditorSize({ width, height });
     }
-    opening.measure(() => updateEditor(seed), event, !editing());
+    opening.measure(() => updateEditor(seed, selectAll), event, !editing());
   };
   const updateDraft = (value: string) => {
     setDraft(value);
@@ -284,12 +284,12 @@ export function GridCell(props: GridCellProps) {
         else if (isBoolean() && !editable()) booleanWrapper?.focus();
         else trigger?.focus();
       },
-      edit: (seed) => {
+      edit: (seed, options) => {
         if (!editable()) return;
         if (hasPopupEditor()) popupControl?.edit(seed);
         else if (props.column.dataType === 'BOOLEAN') trigger?.focus();
         else if (editing()) focusEditor?.();
-        else beginEdit(seed);
+        else beginEdit(seed, undefined, options?.selectAll);
       },
     })
   );
@@ -938,7 +938,9 @@ function SelectCell(props: GridCellProps) {
     edit: (event) => edit(undefined, event),
     close: () => setOpen(false),
   });
-  onMount(() => props.onReady?.({ focus: keys.focus, edit }));
+  onMount(() =>
+    props.onReady?.({ focus: keys.focus, edit: (seed) => edit(seed) })
+  );
   onCleanup(() => props.onReady?.(undefined));
   function tabAway(event: KeyboardEvent, chosen: string | undefined) {
     if (event.key !== 'Tab' || !props.onNavigate) return;
@@ -1114,7 +1116,9 @@ function DateCell(props: GridCellProps) {
     edit: (event) => edit(undefined, event),
     close: () => setOpen(false),
   });
-  onMount(() => props.onReady?.({ focus: keys.focus, edit }));
+  onMount(() =>
+    props.onReady?.({ focus: keys.focus, edit: (seed) => edit(seed) })
+  );
   onCleanup(() => props.onReady?.(undefined));
   const trigger = {
     'data-cell-display': '',
