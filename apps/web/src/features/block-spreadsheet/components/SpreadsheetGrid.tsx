@@ -281,6 +281,16 @@ export function SpreadsheetGrid(props: {
         column >= bounds.left &&
         column <= bounds.right
     );
+  const opensListOnPress = (position: CellPosition) =>
+    listOpenAt() !== undefined &&
+    listOpenAt() !== cellAddress(position) &&
+    hasDropdown(position.row, position.column);
+  /** Pressing a cell closes an open list, or opens that dropdown cell's list. */
+  function closeOrMoveList(position: CellPosition, extend = false) {
+    const opens = !extend && opensListOnPress(position);
+    setListOpenAt(undefined);
+    if (opens) queueMicrotask(() => setListOpenAt(cellAddress(position)));
+  }
   const [selectedDrawing, setSelectedDrawing] = createSignal<string>();
   const [resizing, setResizing] = createSignal<{
     column: number;
@@ -628,6 +638,19 @@ export function SpreadsheetGrid(props: {
     width: width(props.selection.anchor.column),
     height: `${rowHeights()[props.selection.anchor.row]}px`,
   });
+  // As in Excel, the active cell shows its own fill: the range's tint has a
+  // hole there, and the active outline draws that edge.
+  const rangeClip = () => {
+    const area = bounds();
+    const { row, column } = props.selection.anchor;
+    const columns = columnOffsets();
+    const rows = rowOffsets();
+    const left = columns[column] - columns[area.left];
+    const right = columns[column + 1] - columns[area.left];
+    const top = rows[row] - rows[area.top];
+    const bottom = rows[row + 1] - rows[area.top];
+    return `polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, ${left}px ${top}px, ${right}px ${top}px, ${right}px ${bottom}px, ${left}px ${bottom}px, ${left}px ${top}px)`;
+  };
 
   function stopTouchGesture() {
     if (autoScrollFrame !== undefined) cancelAnimationFrame(autoScrollFrame);
@@ -644,6 +667,7 @@ export function SpreadsheetGrid(props: {
         time - lastTap.time <= 500 &&
         cellAddress(props.selection.anchor) === address &&
         cellAddress(props.selection.focus) === address;
+      closeOrMoveList(position);
       props.onSelect(position);
       if (repeat && !props.readonly) {
         props.onEdit();
@@ -1309,7 +1333,7 @@ export function SpreadsheetGrid(props: {
               <div
                 role="columnheader"
                 aria-label="Select all cells"
-                class="sticky left-0 z-30 shrink-0 border-b border-r border-edge bg-panel"
+                class="sticky left-0 z-30 shrink-0 border-b border-r border-ink/12 bg-panel"
                 style={{ width: `${headerWidth()}px` }}
               >
                 <button
@@ -1336,7 +1360,7 @@ export function SpreadsheetGrid(props: {
                       width: width(column),
                       left: `${columnOffsets()[column]}px`,
                     }}
-                    class="absolute top-0 bottom-0 border-b border-r border-edge-muted"
+                    class="absolute top-0 bottom-0 border-b border-r border-ink/12"
                     classList={{
                       'bg-accent-bg text-accent':
                         column >= bounds().left && column <= bounds().right,
@@ -1461,7 +1485,7 @@ export function SpreadsheetGrid(props: {
                 >
                   <div
                     role="rowheader"
-                    class="sticky left-0 z-10 shrink-0 border-b border-r border-edge-muted bg-panel text-center text-ink-muted select-none"
+                    class="sticky left-0 z-10 shrink-0 border-b border-r border-ink/12 bg-panel text-center text-ink-muted select-none"
                     style={{
                       width: `${headerWidth()}px`,
                       'font-size': `${11 * scale()}px`,
@@ -1601,8 +1625,9 @@ export function SpreadsheetGrid(props: {
                                 : 'solid';
                         return `${width}px ${line} ${cellBorderColor(cell()?.[`border${edge}Color`], fill())}`;
                       };
-                      // A fill covers the gridlines around its cell, as in
-                      // Excel; the right and bottom lines are drawn here.
+                      // A fill covers the gridlines around its cell and a
+                      // border replaces the gridline it lies on, as in Excel;
+                      // the right and bottom lines are drawn here.
                       const gridline = (edge: 'Right' | 'Bottom') => {
                         const next = cellAddress(
                           edge === 'Right'
@@ -1612,7 +1637,10 @@ export function SpreadsheetGrid(props: {
                         return props.showGridlines === false ||
                           fill() ||
                           props.values[next]?.conditional?.fillColor ||
-                          props.cells[next]?.fillColor
+                          props.cells[next]?.fillColor ||
+                          props.cells[next]?.[
+                            edge === 'Right' ? 'borderLeft' : 'borderTop'
+                          ]
                           ? '1px solid transparent'
                           : undefined;
                       };
@@ -1734,7 +1762,7 @@ export function SpreadsheetGrid(props: {
                               'var(--spreadsheet-cell-padding-y)',
                             'line-height': CELL_LINE_HEIGHT,
                           }}
-                          class="absolute top-0 bottom-0 flex flex-col border-b border-r border-edge-muted bg-panel text-ink select-none"
+                          class="absolute top-0 bottom-0 flex flex-col border-b border-r border-ink/12 bg-panel text-ink select-none"
                           classList={{
                             'font-semibold': look()?.bold ?? cell()?.bold,
                             'tabular-nums': numeric(),
@@ -1775,6 +1803,7 @@ export function SpreadsheetGrid(props: {
                               false;
                             if (keepReferenceFocus) return;
                             dragging = true;
+                            closeOrMoveList({ row, column }, event.shiftKey);
                             props.onSelect({ row, column }, event.shiftKey);
                             focusGrid();
                           }}
@@ -1897,7 +1926,15 @@ export function SpreadsheetGrid(props: {
                                 (isTouchDevice() && !!props.referenceSelection)
                               }
                               onSelectionChange={props.onTextSelection}
-                              class="absolute inset-0 size-full resize-none overflow-hidden bg-panel px-[var(--spreadsheet-cell-padding)] py-[var(--spreadsheet-cell-padding-y)] font-normal text-left text-ink outline-none select-text"
+                              // Inherits the cell's fill, font and color; automatic
+                              // alignment edits from the left, as in Excel.
+                              class={`absolute inset-0 size-full resize-none overflow-hidden bg-inherit px-[var(--spreadsheet-cell-padding)] py-[var(--spreadsheet-cell-padding-y)] [text-decoration-line:inherit] outline-none select-text ${
+                                cell()?.horizontalAlign === 'center'
+                                  ? 'text-center'
+                                  : cell()?.horizontalAlign === 'right'
+                                    ? 'text-right'
+                                    : 'text-left'
+                              }`}
                               value={props.draft}
                               onInput={props.onDraft}
                               onKeyDown={editKeyDown}
@@ -2074,7 +2111,7 @@ export function SpreadsheetGrid(props: {
               aria-hidden="true"
               data-selection-range
               class="pointer-events-none absolute z-[1] border border-accent bg-accent/10"
-              style={rangeStyle()}
+              style={{ ...rangeStyle(), 'clip-path': rangeClip() }}
             />
             <div
               aria-hidden="true"
@@ -2099,10 +2136,28 @@ export function SpreadsheetGrid(props: {
                       setListOpenAt(open ? address() : undefined)
                     }
                     style={{
-                      left: `${columnOffsets()[props.selection.anchor.column + 1] + 1}px`,
-                      top: `${rowOffsets()[props.selection.anchor.row + 1] - size()}px`,
-                      width: `${size()}px`,
-                      height: `${size()}px`,
+                      left: `${columnOffsets()[props.selection.anchor.column]}px`,
+                      top: `${rowOffsets()[props.selection.anchor.row]}px`,
+                      width: `${columnOffsets()[props.selection.anchor.column + 1] - columnOffsets()[props.selection.anchor.column] + 1 + size()}px`,
+                      height: `${rowHeights()[props.selection.anchor.row]}px`,
+                    }}
+                    buttonSize={size()}
+                    onPointerDownOutside={(event) => {
+                      const cell =
+                        event.target instanceof Element
+                          ? event.target.closest<HTMLElement>('[data-address]')
+                          : null;
+                      const position =
+                        cell && grid.contains(cell)
+                          ? parseCellAddress(cell.dataset.address ?? '')
+                          : undefined;
+                      // That cell's press handler opens its list instead.
+                      if (
+                        position &&
+                        !event.detail.isContextMenu &&
+                        opensListOnPress(position)
+                      )
+                        event.preventDefault();
                     }}
                     onPick={(item) => props.onPickListItem?.(item)}
                     onRestoreFocus={focusGrid}
