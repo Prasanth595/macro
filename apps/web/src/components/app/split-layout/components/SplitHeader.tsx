@@ -33,7 +33,7 @@ import {
 } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { match, P } from 'ts-pattern';
-import { splitBackInterceptor } from '../back-interceptor';
+import { runSplitBack } from '../back-interceptor';
 import { SplitLayoutContext, SplitPanelContext } from '../context';
 import type { SplitContent } from '../layoutManager';
 import {
@@ -132,18 +132,21 @@ function SplitBackButton() {
         !context.handle.canGoBack() &&
         !hasAgentsBackFallback(context.handle.content())
       }
-      onClick={() => {
-        if (splitBackInterceptor()?.()) return;
-        if (
-          !context.handle.canGoBack() &&
-          hasAgentsBackFallback(context.handle.content())
-        ) {
-          context.handle.replace({
-            next: { type: 'component', id: 'agents' },
-            mergeHistory: true,
-          });
-        } else context.handle.goBack();
-      }}
+      onClick={() =>
+        runSplitBack({
+          canGoBack: () =>
+            context.handle.canGoBack() ||
+            hasAgentsBackFallback(context.handle.content()),
+          goBack: () => {
+            if (!context.handle.canGoBack()) {
+              context.handle.replace({
+                next: { type: 'component', id: 'agents' },
+                mergeHistory: true,
+              });
+            } else context.handle.goBack();
+          },
+        })
+      }
     >
       <CaretLeft />
     </Button>
@@ -366,6 +369,14 @@ export function SplitHeader(props: {
     throw new Error('<SplitHeader> must be used within a <SplitLayout>');
   }
 
+  const hideMobileBack = () => {
+    const content = panel.handle.content();
+    return (
+      isListViewID(content.id) ||
+      (content.type === 'component' && content.id === 'booking-links')
+    );
+  };
+
   const droppableId = `split-header-${panel.handle.id}`;
   const droppable = createDroppable(droppableId, {
     type: 'split-header',
@@ -452,19 +463,17 @@ export function SplitHeader(props: {
               </div>
             }
           >
-            {/* Mobile back island. List views never render the back button
-                (their header hosts the filter pills instead), so the island
-                hides for them even when history allows going back. */}
+            {/* List views and Scheduling use navigation islands instead of Back. */}
             <HeaderIsland
               class={cn(
                 'relative gap-0 px-1',
                 ((!panel.handle.canGoBack() &&
                   !hasAgentsBackFallback(panel.handle.content())) ||
-                  isListViewID(panel.handle.content().id)) &&
+                  hideMobileBack()) &&
                   'hidden'
               )}
             >
-              <Show when={!isListViewID(panel.handle.content().id)}>
+              <Show when={!hideMobileBack()}>
                 <SplitBackButton />
               </Show>
             </HeaderIsland>

@@ -32,12 +32,17 @@ mod deploy_cla_worker;
 mod deploy_fusionauth_instance;
 mod deploy_on_push;
 mod deploy_preview;
+mod deploy_sdk_docs;
 mod deploy_sync_service;
 mod deploy_web_app;
 mod deploy_website;
 mod ensure_daytona_snapshot;
 mod export_ci_telemetry;
+mod ios_app_store_release;
+mod ios_native_check_label;
 mod ios_preview;
+mod ios_release_drift;
+mod ios_release_watch;
 mod path_validation;
 mod publish_sdk;
 mod pulumi_preview_pr;
@@ -219,6 +224,11 @@ const WORKFLOWS: &[WorkflowFile] = &[
         render_yaml: || render_gh_workflow(deploy_cla_worker::deploy_cla_worker)(),
     },
     WorkflowFile {
+        slug: "deploy_sdk_docs",
+        file_name: "deploy_sdk_docs.yml",
+        render_yaml: || render_gh_workflow(deploy_sdk_docs::deploy_sdk_docs)(),
+    },
+    WorkflowFile {
         slug: "deploy_on_push",
         file_name: "deploy_on_push.yml",
         render_yaml: || {
@@ -285,6 +295,26 @@ const WORKFLOWS: &[WorkflowFile] = &[
         slug: "release_sdk",
         file_name: "release-sdk.yml",
         render_yaml: || render_gh_workflow(release_sdk::release_sdk)(),
+    },
+    WorkflowFile {
+        slug: "ios_app_store_release",
+        file_name: "ios-app-store-release.yml",
+        render_yaml: || render_gh_workflow(ios_app_store_release::ios_app_store_release)(),
+    },
+    WorkflowFile {
+        slug: "ios_native_check_label",
+        file_name: "ios-native-check-label.yml",
+        render_yaml: || render_gh_workflow(ios_native_check_label::ios_native_check_label)(),
+    },
+    WorkflowFile {
+        slug: "ios_release_drift",
+        file_name: "ios-release-drift.yml",
+        render_yaml: || render_gh_workflow(ios_release_drift::ios_release_drift)(),
+    },
+    WorkflowFile {
+        slug: "ios_release_watch",
+        file_name: "ios-release-watch.yml",
+        render_yaml: || render_gh_workflow(ios_release_watch::ios_release_watch)(),
     },
     WorkflowFile {
         slug: "pulumi_preview_pr",

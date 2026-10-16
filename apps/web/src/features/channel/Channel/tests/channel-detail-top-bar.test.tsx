@@ -94,6 +94,7 @@ vi.mock('@core/constant/allBlocks', () => ({
   resolveBlockAlias: (type: string) => type,
 }));
 vi.mock('@core/context/channels', () => ({
+  useChannel: () => () => ({ agent_dm: false }),
   useChannelName: () => () => 'Design',
   useChannelType: () => () => 'private',
 }));

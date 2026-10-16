@@ -7,7 +7,7 @@
 3. For a team channel, click `Create`. For a private channel, select `Private — only specific people` and click `Create`. Creation navigates to the channel (as a split pane: `.../channel/<uuid>`); a system row `Channel <name> created` appears.
 4. Step 3 of 3 is an optional invite dialog for either channel type. The recipient combobox searches people and saved agents by name; it also accepts complete email addresses. Select a suggestion or press **Enter** to tokenize it. An unknown complete email appears as **Invite** with a paper airplane icon. Raw text left in the input is not submitted. Click `Add` when recipients are selected, or `Skip for now` to finish without invitees. Selected agents are added through the channel's agent membership endpoint. For team channels, `Automatically add teammates` defaults on; turning it off leaves the channel discoverable without automatically adding current or future teammates. The switch choice is applied when the invite dialog is finished or closed.
 
-Team channels are always discoverable to the team. Private channels can only be viewed or joined by invitation. A DM is a channel between two users.
+Team channels are always discoverable to the team. Private channels can only be viewed or joined by invitation. A DM is a private conversation between two people, or between one person and an agent persona.
 An external email can be selected as a channel participant. For an unregistered recipient, clicking `Add` sends an email invite.
 
 The first message in a DM to an unregistered recipient sends an email saying
@@ -16,6 +16,99 @@ button leading to signup. It must not invite the recipient to `#<their own name>
 Named-channel invites still show `#<channel name>` and **Join channel**.
 Verify both emails in local Mailpit using distinct, unregistered test addresses;
 repeat with a plus-addressed DM recipient to check the email-name fallback.
+
+## Private conversations with an agent
+
+Agent DM discovery is enabled with the local/environment flag
+`VITE_ENABLE_AGENT_DMS=true`; it defaults off and has no PostHog flag. Set it
+before starting Vite or building the frontend. Disabling discovery does not
+delete existing conversations or cancel their work.
+
+Choose an agent in **Create → Message**, or click **Message** in its settings or
+bot profile. The picker offers your agents, eligible team agents, and Macro.
+Choosing an agent removes other recipients. Reopening the same persona returns
+to your existing private channel. Team ownership of an agent does not share
+your DM with teammates. Calls and additional participants are unavailable.
+
+With the backend rollout switch enabled, the backing context stays out of the
+standalone **Agents** and **Home** session lists, including earlier contexts
+and contexts started fresh through the API.
+The DM remains in Channels/DMs. Opening its session by ID still works for an
+authorized reader, including streaming, questions, approvals, and Stop. Verify
+that an ordinary standalone session still appears in Agents/Home, the DM stays
+available in Channels, and reopening the DM resumes the same context.
+
+DM session hiding has a separate backend rollout switch, initially disabled.
+Deploy the warm-marker migration and all updated harness replicas first; once
+no old warm reapers remain, set `HIDE_AGENT_DM_SESSIONS=true` for
+agent-harness-service and redeploy.
+New contexts are hidden immediately; a bounded startup/60-second backfill also
+hides existing contexts, including ones created by a replica still running with
+the switch off. The frontend discovery flag alone does not gate existing DMs
+or API callers. Until this backend switch is enabled, DM contexts retain their
+previous visibility. Before rolling back to code with the old warm predicate,
+restore DM visibility by reverting the migration before starting old service
+code; merely disabling the switch does not unhide existing contexts.
+Updated claim and cleanup require `for_warming` as well as hidden/unthreaded
+state, and exclude conversation reservations; genuine
+speculative sessions still expire normally.
+
+Send normally: no `@` mention is needed. Attachments, references, and quoted
+messages use the channel composer. While the agent works, a typing row with its
+avatar sits under the newest message: `<name> is thinking`, `is typing`,
+`is working`, or `is waiting for an answer`. Below that row, the owner sees the
+passage being written as it streams. They also see any live question or
+permission request and **Stop**, which cancels the active turn. Answer those
+controls to continue. If **Stop** fails, a failure toast appears and the control
+becomes available again so you can retry.
+
+The reply is posted as ordinary messages while the turn runs. Each finished
+passage becomes a message. The steps taken between passages show inside the
+message as compact rows: a status icon (spinner, check, cross, or warning for
+interrupted), a label such as `Ran`, `Read`, `Edited`, or `Searching`, and a
+short detail like the command or file name for readers with session access.
+Stored activity snapshots keep the status and label but omit commands and tool
+input details, in both shared threads and DMs. A long run shows its latest six
+steps behind an `N earlier steps` control. Rows tick live while the run is
+open, then freeze
+into the snapshot saved in the message. Readers without session access always
+see that snapshot. Only the turn's last message notifies. Previews and search
+quote the passages, not the steps. Typing refreshes every 3 seconds and clears
+on its own if the agent's replica dies. Follow-up messages queue in order, and
+the bar above the composer counts them (`1 queued`). Editing a sent message
+does not invoke the agent again. A reply inside a thread is not part of the
+conversation: the agent answers it only when mentioned there, in the thread,
+as in any channel.
+
+Each failed, stopped, or interrupted source message has its own **Retry message**
+action in the current context. Retry is explicit because an interrupted attempt
+may already have performed an external action. Refreshing or reopening the
+channel does not rerun completed messages. A disconnected live display offers
+**Reconnect** without issuing another prompt.
+
+The conversation has no control for resetting the agent's context; it
+continues in one context. A context keeps the persona instructions, model,
+tools, and permission choice it started with, across reconnects; later persona
+edits do not reach it. A
+harness operator can still revoke permission bypass. Contexts started earlier
+through the API stay marked by a divider before their first message.
+
+If access to the persona is revoked or the persona is deleted, the transcript
+remains readable and the composer explains that the agent is unavailable. New
+prompts, retries, and answers to pending approvals require current access.
+
+For rollout verification, cover a private persona, a team persona as two
+different users, simultaneous opens, queued follow-ups, reload during a turn
+(the typing row and live steps return without a duplicate reply), a multi-step
+turn whose steps tick from running to done, attachments, an inline question,
+an approval, and Stop/Retry.
+Check both desktop and a narrow viewport. Search the Channels view by persona
+name to reopen older DMs, including ones outside the currently loaded page.
+Harness traces use `macro.event.type=agent_trigger.conversation_message` and
+`agent.session.id`; the durable turn journal distinguishes queued, running,
+succeeded, failed, stopped, and interrupted attempts. Check completion latency,
+failed/interrupted turns, queue age, and duplicate source admissions during
+internal rollout. Model usage continues through the existing session metering.
 
 ## Imported Slack history
 
@@ -1028,15 +1121,15 @@ conversation renders an inline detail whose top bar holds the channel avatar
 and name, the same inset tab strip, live viewer avatars, and the `Call` and
 `Ask Macro` buttons. An ellipsis follows the name — after the breadcrumb where
 the host supplies one, as in Home — and opens the same entity actions as
-right-clicking the conversation's rail row: `Rename`, `Favorite`/`Unfavorite`,
-`Snooze notifications…`, `Mute notifications`, `Remind me`, `Copy Link`,
-`Copy ID`. A channel can therefore be favorited
-without finding its row, from Chat and from every view that opens one inline.
-The menu appears once the conversation itself has loaded, reusing a cached
-conversation without another activation fetch. Opening the conversation still
-refreshes its unread notifications. Channel-picture
-actions are not in it: they belong to the split's own title `...` menu, so open
-the channel as a split (shift-click a rail row) to reach them.
+right-clicking the conversation's rail row: `Rename`, `Set channel picture`,
+`Remove channel picture` (only when the channel has one),
+`Favorite`/`Unfavorite`, `Snooze notifications…`, `Mute notifications`,
+`Remind me`, `Copy Link`, `Copy ID`. A channel can therefore be favorited or
+given a picture without finding its row, from Chat and from every view that
+opens one inline. The menu appears once the conversation itself has loaded,
+reusing a cached conversation without another activation fetch. Opening the
+conversation still refreshes its unread notifications. The split's own title
+`...` menu offers the same picture actions.
 
 `Calls` tab: recordings, transcriptions, and summaries for this channel. Click a
 row to open the call. The search field above the list matches call names and
@@ -1128,18 +1221,21 @@ message or acknowledgement and verify that it does not pull you to latest.
 
 ## Channel pictures
 
-Channels and group chats can have a custom picture. Any active participant can
-`Rename` a named channel from the title menu. Direct messages cannot be renamed.
-Only admins and owners also get `Set channel picture` and `Remove channel
-picture`. Choose `Set channel picture` to add or replace a picture. Select a PNG, JPG,
-WebP, or GIF up to 16 MB. The upload must finish before the picture is saved;
-the server accepts only supported images uploaded by the person setting the
-picture. An error leaves the previous picture in place. When a picture is set, the menu also offers
-`Remove channel picture` to restore the standard channel icon. The picture
+Channels and group chats can have a custom picture. Anyone who can `Rename` a
+channel can also set its picture: any active participant of a named channel,
+from the channel's rail context menu, the Chat title ellipsis, or the split's
+own title `...` menu. Direct messages can be neither renamed nor given a
+picture. Choose `Set channel picture` to add or replace a picture. Select a PNG,
+JPG, WebP, or GIF up to 16 MB. The upload must finish before the picture is
+saved; the server accepts only supported images uploaded by the person setting
+the picture. An error leaves the previous picture in place. When a picture is
+set, the menu also offers `Remove channel picture` to restore the standard
+channel icon. The picture
 beside the title is display-only and also appears in shared channel rows.
 Picture changes refresh other participants' open sessions, including after
 reconnecting.
-Members see the picture without editing controls. One-to-one direct messages
+A team channel the viewer has not joined shows its picture without editing
+controls. One-to-one direct messages
 continue to show the other person's user picture.
 
 Opening the slash menu with `/` lists Normal Text, headings, and the other

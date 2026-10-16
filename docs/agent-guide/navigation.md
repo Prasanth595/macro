@@ -51,9 +51,12 @@ Switching tabs or navigating an in-app route is not a back/forward-cache restore
 ## Android system navigation and sharing
 
 In the Android app, Back first hides the keyboard, then dismisses the active
-menu/drawer, then returns through mobile pane history. Root Back backgrounds the
-app. Check that a canceled predictive Back gesture leaves the current screen and
-draft untouched. After changing orientation or window size, focused inputs and
+menu/drawer, then offers the press to the active view, then returns through
+mobile pane history. Root Back backgrounds the app. A view that claims Back gets
+it before history: in the mobile email composer, Back on an edited draft opens
+**Draft options** with **Delete Draft** and **Save Draft** rather than leaving,
+exactly as the pane's back button does. Check that a canceled predictive Back
+gesture leaves the current screen and draft untouched. After changing orientation or window size, focused inputs and
 sheet actions should stay above the keyboard without an extra blank keyboard-sized
 gap. Font-size and display-size changes should retain the active draft and update
 safe areas. Also change display size with the keyboard hidden: bottom composers
@@ -121,6 +124,7 @@ successfully rather than hashing the empty JavaScript placeholder.
 | `/app/companies` | Customers (CRM; needs a team). The selected tab is `sN.crm.tab` |
 | `/app/activity` | Activity heatmap + feed |
 | `/app/calendar/<month-or-week-or-day>` | Calendar; the focused event, its occurrence, and the locator range use `sN.calendar.*` |
+| `/app/scheduling` | Scheduling workspace: booking links, availability, bookings, insights, and booking page |
 | `/app/<document-type>/<uuid>` | Legacy document URL (including `md`, `pdf`, `canvas`, `spreadsheet`, and the other Drive document types); redirects to `/app/drive/<document-type>/<uuid>` |
 | `/app/database/<uuid>` | A database with table and board views (requires the Databases flag). Links and opens outside Drive stay at this URL; opened from Drive, it shows inline at `/app/drive/database/<uuid>` |
 | `/app/documents`, `/app/files` | Legacy Files views; redirect to `/app/drive` |
@@ -202,8 +206,12 @@ Customers store the selected tab under `sN.home.tab`, `sN.mail.tab`,
 omits the key. Channels also stores the phone list selection as
 `sN.channels.mobileTab`. Omitted tab keys mean each view's default.
 Changing tabs updates the URL, and browser Back and Forward restore the
-selection independently in each pane. Inline detail links preserve these keys. Desktop panes expose Close when available and omit
-split-history back/forward buttons. Mobile content panes retain their back button.
+selection independently in each pane. Inline detail links preserve these keys.
+Desktop panes expose Close when available and omit split-history back/forward
+buttons. Mobile content panes retain their back button; Scheduling omits it in
+favor of its owner and view-navigation islands, except while creating or editing
+a schedule: a separate **Back to availability** pill sits beside the editor
+title, matching other mobile routes.
 
 Projects are enabled by default in development; production uses the PostHog
 `enable-projects` flag. `VITE_ENABLE_PROJECTS` overrides either environment.
@@ -346,6 +354,10 @@ cannot be hidden. Verify that hovering within a destination row keeps the drag
 preview stable, dropping saves the order, and reopening retains it. In short
 desktop windows, the app list scrolls while More and the footer remain reachable.
 Touch devices retain the flag-gated Reviews tab in Tasks.
+Scheduling appears in Customize sidebar only when the calendar-scheduling flag is
+on. It starts hidden in More, including for existing sidebar preferences. Enable
+its checkbox to place it on the rail, then reorder or hide it like other apps.
+Showing Scheduling removes its duplicate from More; the choice survives reload.
 
 - Top: buttons `Create` and `Search`. Clicking `Search` opens a menu
   with `Command Menu` (⌘K on Mac / Ctrl+K elsewhere) and `Search everything`
@@ -359,7 +371,22 @@ Touch devices retain the flag-gated Reviews tab in Tasks.
 - Bottom: `Settings` (`Ctrl ;`) — a gear with the signed-in account's profile
   photo as a badge in its corner. It opens Settings directly in the active
   split (Shift-click for a new split); there is no account menu. Log out lives
-  at the bottom of the Settings sidebar, and the command menu is `Ctrl K`.
+  on **Settings → Account**, and the command menu is `Ctrl K`.
+
+The rail highlights the workspace shown by the **active split**, not every app
+named in the multi-split URL. Nested details keep their owning workspace selected
+(for example, a thread under Email or a document under Home). Selection changes
+when navigation commits; a pending preload or a refused leave guard does not
+select a destination that is not shown. Pressing the current workspace preserves
+its filters and nested detail; during a pending navigation, the same press
+cancels that navigation without adding a duplicate history step.
+A later ordinary rail press also cancels a new split still preloading from the
+active split's earlier Shift-press. Already-open splits and pending work from
+other splits remain intact.
+Verify rapid app presses, returning to the currently shown app while another app
+loads, split focus changes, closing a split, and split Back/Forward. The last
+requested destination must win, and a later return to an earlier view must not
+revive an old highlight.
 
 Start a new AI chat from the Agents workspace; the rail has no separate
 new-chat-in-a-new-split button. Its tooltips
@@ -421,8 +448,11 @@ Home's inner rail starts with a full-width **New chat** plus button that returns
 to Home's starting pane without creating a chat. Email and Tasks use the same
 pill styling and top placement for **New email** and **New task**, replacing
 the sidebar title bars. When multiple desktop splits are open, a **Close** (X)
-button appears beside each sidebar's New button and closes that split. The last
-logical split has no sidebar close button; mobile chrome is unchanged.
+button appears beside each sidebar's New button and closes that split, including
+when the sidebar is an overlay in a narrow split. Verify with three splits:
+open **Show navigation**, then use the sidebar's **Close** button without first
+hiding navigation; only its owning split closes. The last logical split has no
+sidebar close button; mobile chrome is unchanged.
 A lone non-list content split still shows a header X labeled **Return to list**,
 which returns that split to the most recent list in its history, preserving
 that list’s state. If there is no prior list, it replaces the current entry with
@@ -499,8 +529,8 @@ changes the button shortcut to Shift+Enter; clicking while holding Shift uses
 the same new-split behavior where supported.
 
 The **Search mode** toggle (or **/**) switches between direct entity shortcuts
-shown beside each choice and the standard create search input. The preference
-persists across opens. Search filters both Recents and categories. Up/Down moves
+shown beside each choice and the standard create search input. Search mode is
+the default; the preference persists across opens. Search filters both Recents and categories. Up/Down moves
 through the displayed order and scrolls the selected row into view; Left/Right
 edits the search input. Enter creates the selected item, Shift+Enter opens it in a
 new split where supported, and Escape closes the launcher. Typing in search mode
@@ -524,6 +554,10 @@ reverse order. More and the separate bottom-right Search button always retain
 their space. Search opens the search input and scope pills.
 Once every view fits, the navigation island stops growing; Search stays aligned
 to the right edge.
+Scheduling is a drawer-only destination in **More views** when the
+calendar-scheduling feature flag is enabled; it does not add a search-scope pill or
+a fixed dock button. It opens `/app/scheduling`, highlights while Scheduling is
+active, and uses header islands for its section and Personal/team owner drawers.
 
 Primary dock navigation buttons, including Search, give haptic feedback on
 pointer down and activate on click/release. Holding a button only shows its
@@ -653,11 +687,14 @@ The event menu groups Macro activity triggers by surface:
 - **Documents:** **Document created** and **Document deleted**. Tasks are separate.
 - **Tasks:** **Task created**, **Status changed**, **Priority changed**, and **Any property changed**.
 - **Email:** **New email received** in the routine owner's inbox, excluding spam, trash, drafts, and historical imports.
+- **Calls:** **Call started**, for calls the routine owner starts (receives the call and who has joined so far); and **Call ended**, for channel calls and meetings the owner joined (receives participants and transcript, cut short for long calls).
 
 For messages, mentions, deletion, and task changes, choose specific accessible
 channels/documents/tasks or any accessible item in the same panel. Creation
-triggers cover newly created accessible items; email covers the owner's inbox.
-Mentions match only @ mentions of the routine owner. **Any property changed**
+triggers cover newly created accessible items; email covers the owner's inbox;
+**Call started** shows **Calls you start** and **Call ended** shows **Calls you
+join** — neither has an item picker. Calls the owner did not start never trigger
+**Call started**; calls they did not join never trigger **Call ended**. Mentions match only @ mentions of the routine owner. **Any property changed**
 also includes status and priority; overlapping selectors start only one run for
 the same event. These are Macro events, not incoming HTTP webhooks. Bot-authored
 or delegated changes do not retrigger routines. Saved legacy selectors remain
@@ -666,7 +703,7 @@ editable but are no longer offered in the new-trigger menu.
 When `enable-routine-conditions` is on, every activity trigger panel has an
 **Only run if** box for an optional yes/no question about each event, such as
 **Is this email an invoice or a receipt?** Before a run starts, the event's
-content (the email, channel message, document, or task, read as the routine
+content (the email, channel message, document, task, or call, read as the routine
 owner) is checked against it, and events answered no are skipped. The chip
 shows the question after **· if**. Saving a condition fails with "trigger
 conditions are not enabled" while the scheduled-action service has no
