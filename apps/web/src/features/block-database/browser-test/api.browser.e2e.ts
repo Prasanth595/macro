@@ -1,6 +1,55 @@
 import { expect, test } from '@playwright/test';
 import { openFixture } from './open-fixture';
 
+test('holding a column type menu item never starts a column drag', async ({
+  page,
+}) => {
+  await page.route('https://**', (route) => route.abort());
+  await page.route('**/__macro_dev/**', (route) => route.abort());
+  await openFixture(page, '/src/features/block-database/browser-test/api.html');
+  await page
+    .getByRole('button', { name: 'Name column menu', exact: true })
+    .click();
+  await page.getByRole('menuitem', { name: 'Change type' }).hover();
+  const checkbox = page.getByRole('menuitem', {
+    name: 'Checkbox',
+    exact: true,
+  });
+  await expect(checkbox).toBeVisible();
+  await checkbox.hover();
+  await page.mouse.down();
+  const destination = await page
+    .getByRole('columnheader', { name: 'Status', exact: true })
+    .boundingBox();
+  if (!destination) throw new Error('Missing destination column');
+  await page.mouse.move(
+    destination.x + destination.width - 10,
+    destination.y + 15,
+    { steps: 8 }
+  );
+  await expect(page.locator('[data-column-drag-preview]')).toHaveCount(0);
+  await expect(page.locator('[data-column-drop-indicator]')).toHaveCount(0);
+  await page.mouse.up();
+  await expect(page.getByLabel('API writes')).toHaveText('0');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  // The header itself remains draggable.
+  await page
+    .getByRole('columnheader', { name: 'Name', exact: true })
+    .getByText('Name', { exact: true })
+    .hover();
+  await page.mouse.down();
+  await page.mouse.move(
+    destination.x + destination.width - 10,
+    destination.y + 15,
+    { steps: 8 }
+  );
+  await expect(page.locator('[data-column-drag-preview]')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+  await expect(page.getByLabel('API writes')).toHaveText('0');
+});
+
 test('database titles stay static until Rename is requested and save without entering the grid', async ({
   page,
 }) => {

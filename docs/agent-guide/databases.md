@@ -188,6 +188,8 @@ is refused ("Total's formula uses Quantity; change that formula first").
 **Delete column** opens a confirmation;
 it removes this table’s column and values while preserving other tables.
 Drag a column header left or right to reorder it, or use **Move left / Move right**.
+Holding or dragging a column menu item, including a type choice, does not move
+the column; a drag must start on the header itself.
 To add a column next to another, right-click its header and choose **Insert left** or
 **Insert right**: a Text column appears on that side with its name selected for
 editing, and its type is inferred from what you type.
