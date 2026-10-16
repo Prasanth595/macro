@@ -38,7 +38,6 @@ ID; deletions leave gaps and new rules take the next free number. A rule line re
 | [`web/ui-primitives.md`](../../.agents/rules/web/ui-primitives.md) | | `apps/web/src/components/ui` |
 | [`web/startup-bundle.md`](../../.agents/rules/web/startup-bundle.md) | | `apps/web/src` |
 | [`web/lexical-nodes.md`](../../.agents/rules/web/lexical-nodes.md) | | Lexical nodes and decorators |
-| [`web/feature-flags.md`](../../.agents/rules/web/feature-flags.md) | FE 56 | The web flag registry |
 | [`infra/pulumi.md`](../../.agents/rules/infra/pulumi.md) | | `infra/`, deploy config |
 
 To find a rule by ID: `rg 'CS-30' .agents/rules`. To add one, use the

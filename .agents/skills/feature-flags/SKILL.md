@@ -15,7 +15,7 @@ section 5. A flag is never an authorization check.
 | Source of truth | PostHog in deployed envs | `default`, optionally overridden by env |
 | Discriminator | `key` present | no `key` |
 | `env` | optional local override | optional override of `default` |
-| `default` | `onInDev` for a new flag (FE-56); omit / `undefined` to fall through to PostHog | required: `DEV_MODE_ENV` for a new flag (FE-56) |
+| `default` | omit / `undefined` to fall through to PostHog | required |
 | Readers | `useFeatureFlag`, `ShowFeatureFlag`, `isFeatureEnabled` | `isFeatureEnabled` only |
 
 Most product rollouts are **remote**. Use **env-only** when there is no PostHog
@@ -23,7 +23,7 @@ flag and never will be (compile-time / local kill switch).
 
 Ask before assuming. If the user said "flag it" and did not mention PostHog,
 prefer remote and confirm. The answer decides where the flag lives, not who
-sees it: either way a new flag is on in dev (FE-56).
+sees it: either way a new flag is usually on in dev (see `default` below).
 
 ## 2. Define it
 
@@ -34,10 +34,11 @@ Add one `defineFlag` next to its neighbors. Do not add `ENABLE_*_FLAG` /
   `disable-browser-turso-cache`). Export the object in matching camelCase
   (`enableFoo`).
 - `env`: the name after `VITE_`, e.g. `'ENABLE_FOO'` → `VITE_ENABLE_FOO`.
-- `default`: used when env is unset. A new flag is on in dev (FE-56):
+- `default`: used when env is unset. Turn a new flag on in dev:
   `DEV_MODE_ENV` on an env-only flag; on a remote flag `onInDev`
-  (`DEV_MODE_ENV || undefined`), not the boolean itself. On a remote flag,
-  `false` is a real override and **skips PostHog**. On-in-local only is
+  (`DEV_MODE_ENV || undefined`), not the boolean itself. If it must stay off in
+  dev, say why in a comment above it. On a remote flag, `false` is a real
+  override and **skips PostHog**. On-in-local only is
   `LOCAL_ONLY || undefined`.
 - Never invert on the flag object. If the product question is "disable X",
   invert at the call site (`!isFeatureEnabled(disableX)`).

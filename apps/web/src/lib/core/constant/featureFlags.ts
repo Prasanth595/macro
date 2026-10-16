@@ -69,10 +69,10 @@ function envOverride(env: string | undefined): boolean | undefined {
  * Define a feature flag. Pass `key` for PostHog, or `env` (and no `key`)
  * for env-only. `env` is the name after `VITE_`, e.g. `'ENABLE_REMINDERS'`.
  *
- * `default` is used when env is unset. A new flag is on in dev (FE-56):
+ * `default` is used when env is unset. A new flag is usually on in dev:
  * `DEV_MODE_ENV` for env-only, `onInDev` (`DEV_MODE_ENV || undefined`) for
- * remote. Omitted, an env-only flag is `false` and a remote flag defers to
- * PostHog.
+ * remote. One that stays off in dev says why in a comment. Omitted, an
+ * env-only flag is `false` and a remote flag defers to PostHog.
  *
  * Remote: `useFeatureFlag(flag)` or `isFeatureEnabled(flag)`.
  * Env-only: `isFeatureEnabled(flag)` only.
