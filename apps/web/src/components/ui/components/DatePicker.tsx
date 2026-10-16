@@ -157,6 +157,13 @@ export function DatePicker(props: DatePickerProps) {
           ref={content}
           data-date-picker-content
           class="menu-surface z-action-menu w-64 touch:w-72 max-w-[min(var(--kb-popper-content-available-width),calc(100vw-1rem))] max-h-[var(--kb-popper-content-available-height)] overflow-y-auto p-3 outline-none"
+          on:keydown={(event: KeyboardEvent) => {
+            if (event.key !== 'Escape') return;
+            // Corvu drawers and Kobalte popovers have separate dismissal stacks.
+            event.preventDefault();
+            event.stopPropagation();
+            setOpen(false);
+          }}
           onOpenAutoFocus={(event) => {
             // Start arrow-key navigation on the selected (or nearest allowed) day.
             const day = content?.querySelector<HTMLElement>(

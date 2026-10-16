@@ -90,6 +90,8 @@ function HostListbox(props: {
               {(item) => (
                 <Combobox.Item
                   item={item}
+                  // Keep virtual focus in the search input inside parent popovers.
+                  on:mousedown={(event: MouseEvent) => event.preventDefault()}
                   class="group rounded-lg w-full flex items-center gap-1.5 p-1.5 px-2 text-left text-sm font-normal data-highlighted:bg-ink/5 cursor-default outline-none"
                 >
                   {props.renderAvatar?.(item.rawValue) ?? (

@@ -5,6 +5,7 @@ import { createMemo, createSignal, For, type JSX, Show } from 'solid-js';
 import {
   type InsightHostOption,
   insightHostOptions,
+  insightHostSelection,
 } from '../core/insight-host-options';
 import { insightOutcomes } from '../core/insight-outcomes';
 import {
@@ -20,8 +21,10 @@ import { EventOutcomesChart } from './event-outcomes-chart';
 import { SelectInput } from './fields';
 import { hourLabel, hourPlot, trendPlot } from './insight-chart-options';
 import { InsightPlot } from './insight-plot';
-import { InsightsHostFilter } from './insights-host-filter';
+import { InsightHostAvatar, InsightsHostFilter } from './insights-host-filter';
 import { InsightsRangeSelector } from './insights-range-selector';
+import { SchedulingFilterSection } from './scheduling-filter-section';
+import { SchedulingFilters } from './scheduling-filters';
 
 const SERIES: { key: InsightMetric; label: string; color: string }[] = [
   { key: 'total', label: 'Scheduled', color: 'var(--color-purple)' },
@@ -412,45 +415,89 @@ export function InsightsPanel(props: {
       class="@container/insights flex w-full min-w-0 flex-col gap-5"
       aria-busy={props.loading}
     >
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="flex min-w-0 flex-wrap items-center gap-2">
         {props.scopeSelector}
-        <div class="w-44">
-          <SelectInput
-            label="Filter event types"
-            class="text-sm touch:h-9"
-            value={eventId()}
-            options={eventOptions()}
-            onChange={setEventId}
-          />
+        <div class="ml-auto flex min-w-0 items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={download}
+            disabled={
+              props.loading || !!props.error || !current().bookings.length
+            }
+          >
+            <DownloadIcon class="size-4" />
+            Download
+          </Button>
+          <SchedulingFilters
+            title="Insights filters"
+            activeCount={
+              Number(eventId() !== 'all') + Number(hostId() !== 'all')
+            }
+            onClear={() => {
+              setEventId('all');
+              setHostId('all');
+            }}
+            mobileChildren={
+              <>
+                <SchedulingFilterSection
+                  value="booking-links"
+                  label="Booking links"
+                  selected={eventId()}
+                  options={eventOptions()}
+                  onChange={setEventId}
+                />
+                <SchedulingFilterSection
+                  value="hosts"
+                  label="Hosts"
+                  selected={hostId()}
+                  options={
+                    hostOptions().some((option) => option.value === hostId())
+                      ? hostOptions()
+                      : [
+                          ...hostOptions(),
+                          insightHostSelection(hostOptions(), hostId()),
+                        ]
+                  }
+                  onChange={setHostId}
+                  renderIcon={(option) =>
+                    props.renderHostAvatar?.(option) ?? (
+                      <InsightHostAvatar host={option} />
+                    )
+                  }
+                />
+                <InsightsRangeSelector
+                  inline
+                  from={props.from}
+                  to={props.to}
+                  timeZone={props.timeZone}
+                  now={now}
+                  onChange={props.onRangeChange}
+                />
+              </>
+            }
+          >
+            <SelectInput
+              label="Filter event types"
+              class="w-full text-sm touch:h-9"
+              value={eventId()}
+              options={eventOptions()}
+              onChange={setEventId}
+            />
+            <InsightsHostFilter
+              value={hostId()}
+              options={hostOptions()}
+              onChange={setHostId}
+              renderAvatar={props.renderHostAvatar}
+            />
+            <InsightsRangeSelector
+              from={props.from}
+              to={props.to}
+              timeZone={props.timeZone}
+              now={now}
+              onChange={props.onRangeChange}
+            />
+          </SchedulingFilters>
         </div>
-        <div class="w-40">
-          <InsightsHostFilter
-            value={hostId()}
-            options={hostOptions()}
-            onChange={setHostId}
-            renderAvatar={props.renderHostAvatar}
-          />
-        </div>
-        <div class="w-40">
-          <InsightsRangeSelector
-            from={props.from}
-            to={props.to}
-            timeZone={props.timeZone}
-            now={now}
-            onChange={props.onRangeChange}
-          />
-        </div>
-        <div class="hidden flex-1 sm:block" />
-        <Button
-          variant="outline"
-          onClick={download}
-          disabled={
-            props.loading || !!props.error || !current().bookings.length
-          }
-        >
-          <DownloadIcon class="size-4" />
-          Download
-        </Button>
       </div>
       <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-muted">
         <p>

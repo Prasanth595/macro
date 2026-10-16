@@ -41,6 +41,8 @@ const VirtualizedListbox = () => {
             {(item) => (
               <Combobox.Item
                 item={item}
+                // Keep virtual focus in the search input inside parent popovers.
+                on:mousedown={(event: MouseEvent) => event.preventDefault()}
                 class="group flex w-full cursor-default items-center gap-1.5 rounded-lg p-1.5 px-2 text-left text-sm data-highlighted:bg-ink/5"
               >
                 <span class="flex size-3.5 shrink-0 items-center justify-center text-accent">

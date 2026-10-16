@@ -1,16 +1,9 @@
 import Calendar from '@phosphor/calendar-blank.svg';
 import { Button, Tabs } from '@ui';
-import { For, type JSX, Show } from 'solid-js';
+import { For, Show } from 'solid-js';
 import type { BookingDateGroup, BookingTab } from '../core/booking-list';
 import type { Booking, SchedulingMember } from '../core/types';
 import { BookingCard } from './booking-card';
-import { SelectInput } from './fields';
-import { TimezoneSelect } from './TimezoneSelect';
-
-const TIME_ZONES = Intl.supportedValuesOf('timeZone').map((value) => ({
-  value,
-  label: value.replaceAll('_', ' '),
-}));
 
 export function BookingsPanel(props: {
   groups: BookingDateGroup[];
@@ -18,10 +11,8 @@ export function BookingsPanel(props: {
   tab: BookingTab;
   search: string;
   eventId: string;
-  eventOptions: { value: string; label: string }[];
   timeZone: string;
   count: number;
-  dateRange?: JSX.Element;
   loading?: boolean;
   error?: string;
   canManageBookings: boolean;
@@ -29,8 +20,6 @@ export function BookingsPanel(props: {
   members: SchedulingMember[];
   busyId: string;
   onTab: (tab: BookingTab) => void;
-  onEvent: (id: string) => void;
-  onTimeZone: (zone: string) => void;
   onClear: () => void;
   onView: (
     booking: Booking,
@@ -43,7 +32,7 @@ export function BookingsPanel(props: {
   const filtered = () => !!props.search.trim() || props.eventId !== 'all';
   return (
     <div class="@container/bookings flex min-w-0 flex-col gap-5">
-      <div class="flex min-w-0 flex-wrap items-center gap-3">
+      <div class="flex min-w-0 items-center gap-3">
         <div class="max-w-full overflow-x-auto pb-1">
           <Tabs
             aria-label="Booking status"
@@ -66,25 +55,6 @@ export function BookingsPanel(props: {
               if (tab) props.onTab(tab.value);
             }}
           />
-        </div>
-        <div class="ml-auto flex min-w-0 max-w-full flex-wrap items-center gap-2">
-          <div class="w-44 max-w-full">
-            <SelectInput
-              label="Filter bookings by event type"
-              value={props.eventId}
-              options={props.eventOptions}
-              onChange={props.onEvent}
-              class="text-sm touch:h-9"
-            />
-          </div>
-          <div class="w-48 max-w-full">
-            <TimezoneSelect
-              value={props.timeZone}
-              onChange={props.onTimeZone}
-              options={TIME_ZONES}
-            />
-          </div>
-          {props.dateRange}
         </div>
       </div>
       <Show when={props.tab === 'Needs attention'}>

@@ -1,9 +1,19 @@
 import { SearchBar } from '@app/components/view-shell';
+import { MobileFilterDrawer } from '@app/components/view-shell/MobileFilterDrawer';
 import { type JSX, Show } from 'solid-js';
 import { BookingDetailsDialog } from '../components/booking-details-dialog';
 import { BookingsPanel } from '../components/bookings-panel';
+import { SelectInput } from '../components/fields';
+import { SchedulingFilterSection } from '../components/scheduling-filter-section';
+import { SchedulingFilters } from '../components/scheduling-filters';
+import { TimezoneSelect } from '../components/TimezoneSelect';
 import type { Booking, EventType, SchedulingMember } from '../core/types';
 import { createBookingsView } from '../primitives/create-bookings-view';
+
+const TIME_ZONES = Intl.supportedValuesOf('timeZone').map((value) => ({
+  value,
+  label: value.replaceAll('_', ' '),
+}));
 
 export function BookingsView(props: {
   bookings: Booking[];
@@ -36,15 +46,74 @@ export function BookingsView(props: {
       class="min-w-0 outline-none"
       aria-label="Bookings list"
     >
-      <Show when={props.search === undefined}>
+      <div class="mb-5 flex min-w-0 items-center gap-2">
         <SearchBar
           label="Search bookings"
           placeholder="Search bookings…"
           value={state.search()}
           onValueChange={state.setSearch}
-          class="mb-5 max-w-md"
+          class="max-w-md min-w-0 flex-1"
         />
-      </Show>
+        <SchedulingFilters
+          title="Booking filters"
+          activeCount={state.eventId() === 'all' ? 0 : 1}
+          onClear={state.clearFilters}
+          mobileChildren={
+            <>
+              <SchedulingFilterSection
+                value="booking-links"
+                label="Booking links"
+                selected={state.eventId()}
+                options={state.eventOptions()}
+                onChange={state.setEventId}
+              />
+              <SchedulingFilterSection
+                value="time-zone"
+                label="Time zone"
+                selected={state.timeZone()}
+                options={
+                  TIME_ZONES.some((option) => option.value === state.timeZone())
+                    ? TIME_ZONES
+                    : [
+                        {
+                          value: state.timeZone(),
+                          label: state.timeZone().replaceAll('_', ' '),
+                        },
+                        ...TIME_ZONES,
+                      ]
+                }
+                onChange={state.setTimeZone}
+                activeCount={0}
+              />
+              <MobileFilterDrawer.Section
+                value="date-range"
+                label="Date range"
+                activeCount={0}
+              >
+                {props.dateRange}
+              </MobileFilterDrawer.Section>
+            </>
+          }
+        >
+          <div class="min-w-0">
+            <SelectInput
+              label="Filter bookings by event type"
+              value={state.eventId()}
+              options={state.eventOptions()}
+              onChange={state.setEventId}
+              class="w-full text-sm touch:h-9"
+            />
+          </div>
+          <TimezoneSelect
+            value={state.timeZone()}
+            onChange={state.setTimeZone}
+            options={TIME_ZONES}
+            class="w-full"
+            portalScope="local"
+          />
+          {props.dateRange}
+        </SchedulingFilters>
+      </div>
       <BookingsPanel
         members={props.members}
         groups={state.groups()}
@@ -52,9 +121,7 @@ export function BookingsView(props: {
         tab={state.tab()}
         search={state.search()}
         eventId={state.eventId()}
-        eventOptions={state.eventOptions()}
         timeZone={state.timeZone()}
-        dateRange={props.dateRange}
         count={state.visible().length}
         loading={props.loading}
         error={props.error}
@@ -62,8 +129,6 @@ export function BookingsView(props: {
         currentUserId={props.currentUserId}
         busyId={props.busyId}
         onTab={state.setTab}
-        onEvent={state.setEventId}
-        onTimeZone={state.setTimeZone}
         onClear={state.clearFilters}
         onView={state.openDetails}
         onApprove={props.onApprove}
