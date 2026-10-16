@@ -1,7 +1,24 @@
 //! Custom URL parsers for services that embed document titles in their URLs
-//! rather than in their HTML metadata.
+//! rather than in their HTML metadata, and for services that support
+//! iframe-embeddable content (video players, etc.).
 
 use url::Url;
+
+/// The type of embeddable content.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EmbedType {
+    /// Video content (Loom, Supercut).
+    Video,
+}
+
+/// Information about embeddable content for a URL.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EmbedInfo {
+    /// The type of embeddable content.
+    pub embed_type: EmbedType,
+    /// The URL to use in an iframe for embedding.
+    pub embed_url: String,
+}
 
 /// Parses Notion URLs to extract document titles
 /// Supports formats like:
@@ -104,6 +121,86 @@ pub fn parse_linear_title(url: &str) -> Option<String> {
     None
 }
 
+/// Parses Supercut share URLs to generate embed URLs.
+///
+/// Supercut share URLs follow the pattern:
+/// - `supercut.ai/share/{workspace}/{video_id}`
+///
+/// The embed URL uses the format:
+/// - `supercut.ai/embed/{workspace}/{video_id}`
+pub fn parse_supercut_embed(url: &str) -> Option<EmbedInfo> {
+    let parsed_url = Url::parse(url).ok()?;
+    let host = parsed_url.host_str()?;
+
+    if !host.contains("supercut.ai") {
+        return None;
+    }
+
+    let path = parsed_url.path();
+    let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+
+    // Match /share/{workspace}/{video_id}
+    if segments.len() >= 3 && segments[0] == "share" {
+        let workspace = segments[1];
+        let video_id = segments[2];
+
+        let embed_url = format!("https://supercut.ai/embed/{}/{}", workspace, video_id);
+        return Some(EmbedInfo {
+            embed_type: EmbedType::Video,
+            embed_url,
+        });
+    }
+
+    None
+}
+
+/// Parses Loom share URLs to generate embed URLs.
+///
+/// Loom share URLs follow the pattern:
+/// - `loom.com/share/{video_id}`
+/// - `www.loom.com/share/{video_id}`
+///
+/// The embed URL uses the format:
+/// - `loom.com/embed/{video_id}`
+pub fn parse_loom_embed(url: &str) -> Option<EmbedInfo> {
+    let parsed_url = Url::parse(url).ok()?;
+    let host = parsed_url.host_str()?;
+
+    if !host.contains("loom.com") {
+        return None;
+    }
+
+    let path = parsed_url.path();
+    let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+
+    // Match /share/{video_id}
+    if segments.len() >= 2 && segments[0] == "share" {
+        let video_id = segments[1];
+
+        let embed_url = format!("https://www.loom.com/embed/{}", video_id);
+        return Some(EmbedInfo {
+            embed_type: EmbedType::Video,
+            embed_url,
+        });
+    }
+
+    None
+}
+
+/// Attempts to parse embed information from the URL for services that support
+/// iframe embedding (Loom, Supercut, etc.).
+pub fn parse_embed_info(url: &str) -> Option<EmbedInfo> {
+    if let Some(info) = parse_supercut_embed(url) {
+        return Some(info);
+    }
+
+    if let Some(info) = parse_loom_embed(url) {
+        return Some(info);
+    }
+
+    None
+}
+
 /// Attempts to parse a title from the URL using custom parsers for known services.
 /// Returns the service name as fallback if parsing fails on a recognized host.
 pub fn parse_custom_title(url: &str) -> Option<String> {
@@ -129,6 +226,15 @@ pub fn parse_custom_title(url: &str) -> Option<String> {
             return Some(title);
         }
         return Some("Linear".to_string());
+    }
+
+    // For video services, return a fallback title.
+    if host.contains("supercut.ai") {
+        return Some("Supercut".to_string());
+    }
+
+    if host.contains("loom.com") {
+        return Some("Loom".to_string());
     }
 
     None
@@ -214,6 +320,90 @@ mod tests {
             parse_custom_title("https://linear.app"),
             Some("Linear".to_string())
         );
+        assert_eq!(
+            parse_custom_title("https://supercut.ai"),
+            Some("Supercut".to_string())
+        );
+        assert_eq!(
+            parse_custom_title("https://www.loom.com"),
+            Some("Loom".to_string())
+        );
         assert_eq!(parse_custom_title("https://google.com"), None);
+    }
+
+    #[test]
+    fn test_supercut_embed_parsing() {
+        // Standard share URL
+        let url1 = "https://supercut.ai/share/onsteroids/zvAqfSVFnB7vUh71Sfqhq4";
+        let result1 = parse_supercut_embed(url1);
+        assert!(result1.is_some());
+        let info1 = result1.unwrap();
+        assert_eq!(info1.embed_type, EmbedType::Video);
+        assert_eq!(
+            info1.embed_url,
+            "https://supercut.ai/embed/onsteroids/zvAqfSVFnB7vUh71Sfqhq4"
+        );
+
+        // Another workspace
+        let url2 = "https://supercut.ai/share/float-labs/tOgpqhASaBW3FwM5v8NKTb";
+        let result2 = parse_supercut_embed(url2);
+        assert!(result2.is_some());
+        let info2 = result2.unwrap();
+        assert_eq!(
+            info2.embed_url,
+            "https://supercut.ai/embed/float-labs/tOgpqhASaBW3FwM5v8NKTb"
+        );
+
+        // Non-share URL should return None
+        assert!(parse_supercut_embed("https://supercut.ai").is_none());
+        assert!(parse_supercut_embed("https://supercut.ai/about").is_none());
+
+        // Non-Supercut URL should return None
+        assert!(parse_supercut_embed("https://google.com/share/abc/def").is_none());
+    }
+
+    #[test]
+    fn test_loom_embed_parsing() {
+        // Standard share URL
+        let url1 = "https://www.loom.com/share/e5b8c04bca094dd8a5507925ab887002";
+        let result1 = parse_loom_embed(url1);
+        assert!(result1.is_some());
+        let info1 = result1.unwrap();
+        assert_eq!(info1.embed_type, EmbedType::Video);
+        assert_eq!(
+            info1.embed_url,
+            "https://www.loom.com/embed/e5b8c04bca094dd8a5507925ab887002"
+        );
+
+        // Without www
+        let url2 = "https://loom.com/share/abc123def456";
+        let result2 = parse_loom_embed(url2);
+        assert!(result2.is_some());
+        let info2 = result2.unwrap();
+        assert_eq!(info2.embed_url, "https://www.loom.com/embed/abc123def456");
+
+        // Non-share URL should return None
+        assert!(parse_loom_embed("https://www.loom.com").is_none());
+        assert!(parse_loom_embed("https://www.loom.com/about").is_none());
+
+        // Non-Loom URL should return None
+        assert!(parse_loom_embed("https://google.com/share/abc").is_none());
+    }
+
+    #[test]
+    fn test_parse_embed_info() {
+        // Supercut
+        let supercut_result = parse_embed_info("https://supercut.ai/share/workspace/video123");
+        assert!(supercut_result.is_some());
+        assert_eq!(supercut_result.unwrap().embed_type, EmbedType::Video);
+
+        // Loom
+        let loom_result = parse_embed_info("https://www.loom.com/share/video456");
+        assert!(loom_result.is_some());
+        assert_eq!(loom_result.unwrap().embed_type, EmbedType::Video);
+
+        // Non-embeddable URL
+        assert!(parse_embed_info("https://google.com").is_none());
+        assert!(parse_embed_info("https://www.notion.so/page").is_none());
     }
 }
