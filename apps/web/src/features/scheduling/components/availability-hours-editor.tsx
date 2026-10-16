@@ -67,6 +67,9 @@ export function AvailabilityHoursEditor(props: {
           ref={scrollBody}
           data-availability-hours-body
           class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain"
+          classList={{
+            'max-h-[min(24rem,50dvh)] flex-none': props.scope === 'weekly',
+          }}
         >
           <ul
             aria-label="Hours"
@@ -183,14 +186,10 @@ export function AvailabilityHoursEditor(props: {
                 '[data-availability-range]'
               )[ranges.length - 1];
               if (!row) return;
-              if (props.scope === 'weekly') {
-                row.scrollIntoView({ block: 'nearest' });
-              } else {
-                // Scroll only the hours body, never the dialog's fixed chrome.
-                scrollBody.scrollTop +=
-                  row.getBoundingClientRect().top -
-                  scrollBody.getBoundingClientRect().top;
-              }
+              // Scroll only the hours list; keep Add hours and actions in place.
+              scrollBody.scrollTop +=
+                row.getBoundingClientRect().top -
+                scrollBody.getBoundingClientRect().top;
             });
           }}
         >
