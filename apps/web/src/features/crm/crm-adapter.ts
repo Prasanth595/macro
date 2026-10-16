@@ -49,6 +49,7 @@ import {
   createCrmPermissions,
 } from './primitives/team-config';
 import {
+  createCompanyImporter,
   useCompanyQuery,
   useCreateCompanyMutation,
   useCreateContactMutation,
@@ -274,6 +275,7 @@ export function createAppCrmContext(): CrmContext {
     createTeamViews: () => useTeamCrmViews(deps, userId, createSettings()),
     createLists: (teamId) => useCrmLists(deps, teamId),
     createCompany: (...args) => useCreateCompanyMutation(deps, ...args),
+    createCompanyImporter: () => createCompanyImporter(deps),
     createContact: (...args) => useCreateContactMutation(deps, ...args),
     renameCompany: (...args) => useSetCompanyNameMutation(deps, ...args),
     renameContact: (...args) => useSetContactNameMutation(deps, ...args),

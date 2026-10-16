@@ -11,6 +11,7 @@ import type {
 } from '../core/display-options';
 import type { CrmRecordScope } from '../core/record';
 import type {
+  CompanyImporter,
   CompanySource,
   ContactSource,
   CrmCapabilities,
@@ -134,6 +135,7 @@ export type CrmContext = {
     { name: string; domain: string },
     { id: string }
   >;
+  createCompanyImporter(): CompanyImporter;
   createContact(): CrmMutation<
     { companyId: string; name: string; email: string },
     { id: string }
