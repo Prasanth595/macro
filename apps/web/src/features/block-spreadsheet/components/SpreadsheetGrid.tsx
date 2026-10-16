@@ -63,6 +63,7 @@ import {
   dataBarBackground,
 } from './cell-colors';
 import { FormulaInput } from './FormulaInput';
+import { SelectionMoveHandle } from './SelectionMoveHandle';
 import { type DrawingRect, SheetDrawingLayer } from './SheetDrawingLayer';
 import { type CellAction, SpreadsheetCellMenu } from './SpreadsheetCellMenu';
 import {
@@ -192,6 +193,12 @@ export function SpreadsheetGrid(props: {
     target: CellSelection
   ) => void | Promise<void>;
   onCopyMetadata?: (cut?: boolean) => string;
+  /** Drag the selection's border to move its cells by rows and columns. */
+  onMoveSelection?: (
+    selection: CellSelection,
+    rows: number,
+    columns: number
+  ) => void;
   values: Record<string, GridValue>;
   /** Excel notes by address, marked in their cells. */
   notes?: Record<string, string>;
@@ -2082,6 +2089,37 @@ export function SpreadsheetGrid(props: {
               class="pointer-events-none absolute z-[2] border-2 border-accent"
               style={activeStyle()}
             />
+            <Show
+              when={
+                !touchMode() &&
+                !props.readonly &&
+                !props.editing &&
+                !props.formulaEditing &&
+                props.onMoveSelection
+              }
+            >
+              {(onMoveSelection) => (
+                <SelectionMoveHandle
+                  bounds={selectionBounds(props.selection)}
+                  rowCount={rowCount()}
+                  columnCount={columnCount()}
+                  rangeStyle={rangeStyle}
+                  positionAtPoint={positionAtPoint}
+                  scroller={grid}
+                  headerWidth={headerWidth()}
+                  headerHeight={headerHeight()}
+                  sheetId={props.sheetId}
+                  onClick={(position, extend) => {
+                    props.onSelect(position, extend);
+                    focusGrid();
+                  }}
+                  onMove={(rows, columns) => {
+                    focusGrid();
+                    onMoveSelection()(props.selection, rows, columns);
+                  }}
+                />
+              )}
+            </Show>
             <Show when={listButtonShown() && props.listItems}>
               {(items) => {
                 const address = () => cellAddress(props.selection.anchor);
