@@ -1,4 +1,5 @@
 import { SearchBar, ViewShell, ViewSidebar } from '@app/components/view-shell';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import PageIcon from '@phosphor/browser.svg';
 import CalendarIcon from '@phosphor/calendar-blank.svg';
 import ChartIcon from '@phosphor/chart-bar.svg';
@@ -7,6 +8,7 @@ import ClockIcon from '@phosphor/clock.svg';
 import InfoIcon from '@phosphor/info.svg';
 import LinkIcon from '@phosphor/link.svg';
 import PlusIcon from '@phosphor/plus.svg';
+import SparkleIcon from '@phosphor/sparkle.svg';
 import UserIcon from '@phosphor/user.svg';
 import UsersIcon from '@phosphor/users.svg';
 import { Button, cn, pressHandlers } from '@ui';
@@ -31,6 +33,7 @@ import { reportDate, shiftReportDate } from '../core/insights';
 import { createBookingPageLeave } from '../primitives/create-booking-page-leave';
 import { createSchedulingOwner } from '../primitives/create-scheduling-owner';
 import { OwnerSettingsSection } from './owner-settings-section';
+import { SchedulingMobileHeader } from './scheduling-mobile-header';
 
 const TABS = [
   {
@@ -85,6 +88,7 @@ export function BookingWorkspaceView(props: {
   const [query, setQuery] = createSignal('');
   const [bookingsSearch, setBookingsSearch] = createSignal('');
   const [availabilitySearch, setAvailabilitySearch] = createSignal('');
+  const [startingAgent, setStartingAgent] = createSignal(false);
   const scopes = createMemo(() => {
     const available = capabilities.scopes();
     return [
@@ -201,10 +205,38 @@ export function BookingWorkspaceView(props: {
       void current.action(() => current.createEvent(opener));
     }
   };
+  const createWithAgent = async () => {
+    const current = owner();
+    if (
+      !current?.scope().canEdit ||
+      !current.source.profile() ||
+      current.source.saving() ||
+      startingAgent()
+    )
+      return;
+    setStartingAgent(true);
+    try {
+      const allowed = pageLeave.requestLeave();
+      if (!(typeof allowed === 'boolean' ? allowed : await allowed)) return;
+      if (
+        owner() !== current ||
+        !current.scope().canEdit ||
+        !current.source.profile() ||
+        current.source.saving()
+      )
+        return;
+      await current.action(() =>
+        capabilities.createBookingLinkWithAgent(current.scope())
+      );
+    } finally {
+      setStartingAgent(false);
+    }
+  };
   return (
     <ViewShell.Root
       asidePreferenceKey="booking-links"
-      resizable
+      aside={isTouchDevice() ? false : undefined}
+      resizable={!isTouchDevice()}
       main={{ preferredWidth: 720 }}
     >
       <BookingPageLeaveDialog
@@ -283,8 +315,59 @@ export function BookingWorkspaceView(props: {
           </ViewSidebar.Content>
         </ViewSidebar.Root>
       </ViewShell.Aside>
-      <ViewShell.Main>
-        <ViewShell.TopBar class="touch:flex touch:px-(--mobile-chrome-gutter)">
+      <ViewShell.Main class="touch:pt-[calc(var(--safe-top,0px)+3.75rem)] touch:pb-(--mobile-content-inset-bottom)">
+        <Show when={isTouchDevice()}>
+          <SchedulingMobileHeader
+            tabs={TABS}
+            tab={search.tab}
+            scopes={scopes()}
+            ownerId={selectedOwnerId()}
+            disabled={isSaving()}
+            editorTitle={
+              editingSchedule()
+                ? owner()
+                    ?.source.profile()
+                    ?.schedules.some(
+                      (schedule) => schedule.id === owner()?.schedule()?.id
+                    )
+                  ? 'Edit schedule'
+                  : 'Create schedule'
+                : undefined
+            }
+            createLabel={
+              owner()?.scope().canEdit &&
+              (search.tab === 'links' || search.tab === 'availability')
+                ? search.tab === 'links'
+                  ? 'New booking link'
+                  : 'New schedule'
+                : undefined
+            }
+            createDisabled={
+              isSaving() || startingAgent() || !owner()?.source.profile()
+            }
+            createAgentAction={
+              <Show when={search.tab === 'links' && owner()?.scope().canEdit}>
+                <Button
+                  variant="ghost"
+                  size="icon-md"
+                  class="size-10 rounded-full"
+                  label="Create with agent"
+                  disabled={
+                    isSaving() || startingAgent() || !owner()?.source.profile()
+                  }
+                  onClick={() => void createWithAgent()}
+                >
+                  <SparkleIcon class="size-5" />
+                </Button>
+              </Show>
+            }
+            onTab={selectTab}
+            onOwner={selectOwner}
+            onBack={() => owner()?.closeScheduleEditor()}
+            onCreate={create}
+          />
+        </Show>
+        <ViewShell.TopBar>
           <Show
             when={search.tab === 'availability'}
             fallback={
@@ -338,11 +421,10 @@ export function BookingWorkspaceView(props: {
         <Show
           when={
             search.tab === 'links' ||
-            search.tab === 'bookings' ||
             (search.tab === 'availability' && !editingSchedule())
           }
         >
-          <ViewShell.Header>
+          <ViewShell.Header class="touch:pt-0">
             <div class="flex min-w-0 flex-wrap items-center gap-3">
               <Show when={search.tab === 'links'}>
                 <SearchBar
@@ -353,14 +435,31 @@ export function BookingWorkspaceView(props: {
                   class="max-w-md flex-1"
                 />
                 <Show when={owner()?.scope().canEdit}>
-                  <div class="ml-auto shrink-0">
+                  <div class="ml-auto flex shrink-0 items-center gap-2 touch:hidden">
+                    <Button
+                      label="Create with agent"
+                      tooltipDisabled
+                      variant="outline"
+                      size="md"
+                      disabled={
+                        !owner()?.source.profile() ||
+                        owner()?.source.saving() ||
+                        startingAgent()
+                      }
+                      onClick={() => void createWithAgent()}
+                    >
+                      <SparkleIcon class="size-4" />
+                      <span>Create with agent</span>
+                    </Button>
                     <Button
                       label="New booking link"
-                      tooltip="New booking link"
+                      tooltipDisabled
                       variant="strong"
                       size="md"
                       disabled={
-                        !owner()?.source.profile() || owner()?.source.saving()
+                        !owner()?.source.profile() ||
+                        owner()?.source.saving() ||
+                        startingAgent()
                       }
                       onClick={(event) => create(event.currentTarget)}
                     >
@@ -379,7 +478,7 @@ export function BookingWorkspaceView(props: {
                   class="max-w-md flex-1"
                 />
                 <Show when={owner()?.scope().canEdit}>
-                  <div class="ml-auto shrink-0">
+                  <div class="ml-auto shrink-0 touch:hidden">
                     <Button
                       label="New schedule"
                       tooltip="New schedule"
@@ -393,15 +492,6 @@ export function BookingWorkspaceView(props: {
                     </Button>
                   </div>
                 </Show>
-              </Show>
-              <Show when={search.tab === 'bookings'}>
-                <SearchBar
-                  label="Search bookings"
-                  placeholder="Search bookings…"
-                  value={bookingsSearch()}
-                  onValueChange={setBookingsSearch}
-                  class="max-w-md flex-1 basis-48"
-                />
               </Show>
             </div>
           </ViewShell.Header>
@@ -475,6 +565,7 @@ export function BookingWorkspaceView(props: {
                     onSearchChange={setBookingsSearch}
                     dateRange={
                       <BookingsDateRange
+                        inline={isTouchDevice()}
                         from={from()}
                         to={to()}
                         onChange={(start, end) =>

@@ -1,3 +1,4 @@
+import { openChatWithInput } from '@app/features/chat/ChatWithAgentButton';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { createSearchParams, useBeforeLeave } from '@app/lib/split-router';
 import { useSplitDisplayName } from '@components/app/split-layout/layoutUtils';
@@ -14,6 +15,7 @@ import { useNavigate } from '@solidjs/router';
 import { type ParentProps, Show, Suspense } from 'solid-js';
 import { bookingLinksSearch } from './booking-links-search';
 import { SchedulingProvider } from './context/scheduling-context';
+import { bookingLinkAgentSeed } from './core/booking-agent';
 import type { SchedulingProfile, SchedulingScope } from './core/types';
 import {
   createSchedulingSource,
@@ -88,6 +90,12 @@ function SchedulingHost(props: ParentProps) {
         scopes,
         members,
         userId: () => user.userId() ?? '',
+        createBookingLinkWithAgent: async (scope) => {
+          const seed = bookingLinkAgentSeed(scope);
+          await openChatWithInput(seed.input, {
+            instructions: seed.instructions,
+          });
+        },
         createSource: createSchedulingSource,
         link: schedulingLink,
         openTeamSettings: () => settings.openSettings('Team'),

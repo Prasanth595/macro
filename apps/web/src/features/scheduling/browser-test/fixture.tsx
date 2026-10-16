@@ -23,6 +23,7 @@ import {
   type SchedulingCapabilities,
   SchedulingProvider,
 } from '../context/scheduling-context';
+import { bookingLinkAgentSeed } from '../core/booking-agent';
 import {
   type Booking,
   type BookingReceipt,
@@ -274,6 +275,9 @@ function Fixture() {
       }
     },
     openTeamSettings: () => setNotice('Macro team settings shortcut selected'),
+    createBookingLinkWithAgent: async (scope) => {
+      setNotice(`Agent draft (not sent): ${bookingLinkAgentSeed(scope).input}`);
+    },
     createSource: (scope, range) => {
       return {
         profile: () => profiles()[scope().id],

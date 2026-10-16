@@ -1,3 +1,4 @@
+import { queryClient } from '@queries/client';
 import {
   cleanup,
   fireEvent,
@@ -6,6 +7,7 @@ import {
   waitFor,
   within,
 } from '@solidjs/testing-library';
+import { QueryObserver } from '@tanstack/solid-query';
 import { createSignal, type JSX, type ParentProps } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -15,15 +17,21 @@ import {
   SchedulingProvider,
   type SchedulingSource,
 } from '../context/scheduling-context';
+import { bookingLinkAgentSeed } from '../core/booking-agent';
 import {
   type Booking,
   newEventType,
   newSchedule,
   type SchedulingProfile,
 } from '../core/types';
+import { refreshBookingLinkResult } from '../queries/agent-sync';
+import { schedulingKeys } from '../queries/keys';
 import { BookingWorkspaceView } from './booking-workspace-view';
 
 vi.mock('./insights-view', () => ({ InsightsView: () => <div>Insights</div> }));
+vi.mock('./scheduling-mobile-header', () => ({
+  SchedulingMobileHeader: () => null,
+}));
 vi.mock('./event-editor-view', () => ({
   EventEditor: (props: {
     event: SchedulingProfile['eventTypes'][number];
@@ -124,6 +132,7 @@ const teammateBooking: Booking = {
 function fixture(team = { canEdit: true, canManageBookings: true }) {
   const sources = new Map<string, SchedulingSource>();
   const saves = vi.fn();
+  const createBookingLinkWithAgent = vi.fn(async () => {});
   let leave!: (signal: AbortSignal) => boolean | Promise<boolean>;
   const createSource: SchedulingCapabilities['createSource'] = (scope) => {
     const schedule = { ...newSchedule('UTC'), id: 'same-schedule-id' };
@@ -203,6 +212,7 @@ function fixture(team = { canEdit: true, canManageBookings: true }) {
         link: (p, slug) => `/book/${p.id}/${slug ?? ''}`,
         openTeamSettings: () => {},
         manageBooking: async () => {},
+        createBookingLinkWithAgent,
       }}
     >
       <BookingWorkspaceView
@@ -217,11 +227,109 @@ function fixture(team = { canEdit: true, canManageBookings: true }) {
   return {
     sources,
     saves,
+    createBookingLinkWithAgent,
     search,
     setSearch,
     leave: (signal = new AbortController().signal) => leave(signal),
   };
 }
+
+it('keeps agent creation scoped to the selected editable owner', async () => {
+  const { createBookingLinkWithAgent } = fixture();
+  const openAgentCreation = () =>
+    fireEvent.click(screen.getByRole('button', { name: 'Create with agent' }));
+  await openAgentCreation();
+  expect(createBookingLinkWithAgent).toHaveBeenLastCalledWith(
+    expect.objectContaining({ id: 'personal', name: 'Personal' })
+  );
+  const owners = await screen.findByRole('navigation', {
+    name: 'Booking calendar owner',
+  });
+  fireEvent.click(within(owners).getByRole('button', { name: 'Design' }));
+  await openAgentCreation();
+  expect(createBookingLinkWithAgent).toHaveBeenLastCalledWith(
+    expect.objectContaining({ id: 'team', teamId: 'team' })
+  );
+  const seed = bookingLinkAgentSeed({ name: 'Design', teamId: 'team' });
+  expect(seed.input).toContain('Design');
+  expect(seed.instructions).toContain('"teamId":"team"');
+  expect(seed.instructions).toContain('wait for explicit approval');
+  expect(bookingLinkAgentSeed({ name: 'Personal' }).instructions).toContain(
+    '"type":"personal"'
+  );
+});
+
+it('does not offer agent creation for a read-only owner', () => {
+  fixture({ canEdit: false, canManageBookings: false });
+  const owners = screen.getByRole('navigation', {
+    name: 'Booking calendar owner',
+  });
+  fireEvent.click(within(owners).getByRole('button', { name: 'Design' }));
+  expect(
+    screen.queryByRole('button', { name: 'Create with agent' })
+  ).toBeNull();
+});
+
+it('resolves retained page drafts before starting an agent session', async () => {
+  const { createBookingLinkWithAgent, setSearch } = fixture();
+  setSearch({ tab: 'page' });
+  fireEvent.input(screen.getByRole('textbox', { name: 'Display name' }), {
+    target: { value: 'Retained draft' },
+  });
+  // Same-view history can reveal Booking links while retaining a page draft.
+  setSearch({ tab: 'links' });
+  fireEvent.click(screen.getByRole('button', { name: 'Create with agent' }));
+  let dialog = await screen.findByRole('dialog', {
+    name: 'Save booking page changes?',
+  });
+  expect(createBookingLinkWithAgent).not.toHaveBeenCalled();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Keep editing' }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', { name: 'Create with agent' })
+    ).toHaveProperty('disabled', false)
+  );
+  expect(createBookingLinkWithAgent).not.toHaveBeenCalled();
+  setSearch({ tab: 'page' });
+  expect(screen.getByRole('textbox', { name: 'Display name' })).toHaveProperty(
+    'value',
+    'Retained draft'
+  );
+  setSearch({ tab: 'links' });
+  fireEvent.click(screen.getByRole('button', { name: 'Create with agent' }));
+  dialog = await screen.findByRole('dialog', {
+    name: 'Save booking page changes?',
+  });
+  expect(createBookingLinkWithAgent).not.toHaveBeenCalled();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Discard' }));
+  await waitFor(() =>
+    expect(createBookingLinkWithAgent).toHaveBeenCalledOnce()
+  );
+});
+
+it('waits for a successful draft save before starting an agent session', async () => {
+  const { createBookingLinkWithAgent, saves, sources, setSearch } = fixture();
+  setSearch({ tab: 'page' });
+  fireEvent.input(screen.getByRole('textbox', { name: 'Display name' }), {
+    target: { value: 'Saved before agent' },
+  });
+  setSearch({ tab: 'links' });
+  saves.mockRejectedValueOnce(new Error('Offline'));
+  fireEvent.click(screen.getByRole('button', { name: 'Create with agent' }));
+  const dialog = await screen.findByRole('dialog', {
+    name: 'Save booking page changes?',
+  });
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+  expect((await within(dialog).findByRole('alert')).textContent).toBe(
+    'Offline'
+  );
+  expect(createBookingLinkWithAgent).not.toHaveBeenCalled();
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+  await waitFor(() =>
+    expect(createBookingLinkWithAgent).toHaveBeenCalledOnce()
+  );
+  expect(sources.get('personal')?.profile()?.name).toBe('Saved before agent');
+});
 
 it('switches owners and keeps link actions and editing within their owner', async () => {
   const { sources, saves } = fixture();
@@ -508,3 +616,82 @@ it('lets a team member edit booking links and manage only the meetings they host
     within(dialog).getByRole('button', { name: 'Reschedule' })
   ).toBeTruthy();
 });
+
+it('refreshes only the matching profile behind an agent result and skips old history', async () => {
+  const personal = schedulingKeys.settings('agent-personal').queryKey;
+  const team = schedulingKeys.settings('agent-team').queryKey;
+  const profile: SchedulingProfile = {
+    id: 'profile-personal',
+    revision: 4,
+    name: 'Personal',
+    description: '',
+    schedules: [],
+    eventTypes: [],
+  };
+  try {
+    queryClient.setQueryData(personal, profile);
+    queryClient.setQueryData(team, { ...profile, id: 'profile-team' });
+    await refreshBookingLinkResult({ profileId: profile.id, revision: 5 });
+    expect(queryClient.getQueryState(personal)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(team)?.isInvalidated).toBe(false);
+    queryClient.setQueryData(personal, { ...profile, revision: 5 });
+    await refreshBookingLinkResult({ profileId: profile.id, revision: 5 });
+    await refreshBookingLinkResult({ profileId: profile.id, revision: 3 });
+    expect(queryClient.getQueryState(personal)?.isInvalidated).toBe(false);
+  } finally {
+    queryClient.removeQueries({ queryKey: personal, exact: true });
+    queryClient.removeQueries({ queryKey: team, exact: true });
+  }
+});
+
+it.each([undefined, 4, 5, 6])(
+  'supersedes pre-mutation reads without duplicate refreshes (cached revision: %s)',
+  async (cachedRevision) => {
+    const queryKey = schedulingKeys.settings('agent-in-flight').queryKey;
+    const profile: SchedulingProfile = {
+      id: 'profile-in-flight',
+      revision: 4,
+      name: 'Personal',
+      description: '',
+      schedules: [],
+      eventTypes: [],
+    };
+    const latestRevision = Math.max(cachedRevision ?? 0, 5);
+    let finishOldRead!: (profile: SchedulingProfile) => void;
+    const oldRead = new Promise<SchedulingProfile>((resolve) => {
+      finishOldRead = resolve;
+    });
+    const read = vi
+      .fn()
+      .mockImplementationOnce(() => oldRead)
+      .mockResolvedValue({ ...profile, revision: latestRevision });
+    if (cachedRevision !== undefined)
+      queryClient.setQueryData(queryKey, {
+        ...profile,
+        revision: cachedRevision,
+      });
+    const observer = new QueryObserver(queryClient, {
+      queryKey,
+      queryFn: read,
+      staleTime: 0,
+    });
+    const unsubscribe = observer.subscribe(() => {});
+    try {
+      expect(read).toHaveBeenCalledTimes(1);
+      const result = { profileId: profile.id, revision: 5 };
+      await Promise.all([
+        refreshBookingLinkResult(result),
+        refreshBookingLinkResult(result),
+      ]);
+      finishOldRead(profile);
+      await oldRead;
+      expect(read).toHaveBeenCalledTimes(2);
+      expect(
+        queryClient.getQueryData<SchedulingProfile>(queryKey)?.revision
+      ).toBe(latestRevision);
+    } finally {
+      unsubscribe();
+      queryClient.removeQueries({ queryKey, exact: true });
+    }
+  }
+);

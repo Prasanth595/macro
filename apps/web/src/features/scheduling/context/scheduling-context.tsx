@@ -38,6 +38,7 @@ export type SchedulingCapabilities = {
   link: (profile: SchedulingProfile, slug?: string) => string;
   openTeamSettings: () => void;
   manageBooking: (id: string) => Promise<void>;
+  createBookingLinkWithAgent: (scope: SchedulingScope) => Promise<void>;
 };
 const Context = createContext<SchedulingCapabilities>();
 export function SchedulingProvider(
