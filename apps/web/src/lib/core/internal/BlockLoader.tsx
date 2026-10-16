@@ -72,25 +72,28 @@ export function BlockLoader<
     () => shareEntity(blockNameToItemType(props.definition.name), props.id),
     (level, previous) => {
       const data = blockDataSignal.get();
+      const hasLoadedPermissions =
+        data != null && typeof data === 'object' && 'userAccessLevel' in data;
       // Lightweight loaders (e.g. email) supply no permissions. Their initial
       // fallback is not a confirmed access change that requires a remount.
-      const loadedAccess =
-        data != null && typeof data === 'object' && 'userAccessLevel' in data
-          ? blockUserAccessSignal.get()
-          : previous;
+      const accessChanged = hasLoadedPermissions
+        ? blockUserAccessSignal.get() !== level
+        : previous !== undefined && previous !== level;
       if (level === null) {
         clearLoadedDocument();
         setError('UNAUTHORIZED');
       } else if (
-        (data != null &&
-          loadedAccess !== undefined &&
-          loadedAccess !== level) ||
+        (data != null && accessChanged) ||
         blockErrorSignal.get() === 'UNAUTHORIZED'
       ) {
         clearLoadedDocument();
         setError(undefined);
         blockLoadRetrySignal.set((count) => (count ?? 0) + 1);
-      } else {
+      } else if (
+        data != null &&
+        !hasLoadedPermissions &&
+        !blockErrorSignal.get()
+      ) {
         setUserAccess(level);
       }
     }

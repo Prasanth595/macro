@@ -1,6 +1,6 @@
 import type { AccessLevel } from '@service-storage/generated/schemas/accessLevel';
-import { cleanup, render } from '@solidjs/testing-library';
-import { ok } from 'neverthrow';
+import { cleanup, fireEvent, render } from '@solidjs/testing-library';
+import { err, ok } from 'neverthrow';
 import { createEffect, createSignal, on, Show } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
@@ -91,7 +91,8 @@ it('preserves an open email disclosure on initial and unchanged access confirmat
   });
   await loaded.promise;
   const disclosure = view.container.querySelector('details')!;
-  disclosure.open = true;
+  fireEvent.click(view.getByText('View original email'));
+  expect(disclosure.open).toBe(true);
   const data = blockDataSignal.get();
 
   notifyAccess('owner');
@@ -144,23 +145,17 @@ it('retains access confirmed before a lightweight loader finishes', async () => 
   expect(blockDataSignal.get()).toMatchObject({ id: 'email' });
 });
 
-it('reloads loader-provided permissions when the first confirmation differs', async () => {
+it('keeps document permissions unavailable until its pending load finishes', async () => {
+  const pending = Promise.withResolvers<void>();
   const loaded = Promise.withResolvers<void>();
-  const reloaded = Promise.withResolvers<void>();
-  const cleanupSource = vi.fn();
-  const load = vi
-    .fn()
-    .mockResolvedValueOnce(
-      ok({ userAccessLevel: 'view', syncSource: { cleanup: cleanupSource } })
-    )
-    .mockResolvedValue(ok({ userAccessLevel: 'owner' }));
+  const load = vi.fn(async () => {
+    await pending.promise;
+    return ok({ userAccessLevel: 'owner' as const });
+  });
   render(() => {
     createEffect(
       on(blockDataSignal.get, (data) => {
-        if (data) {
-          if (load.mock.calls.length === 1) loaded.resolve();
-          else reloaded.resolve();
-        }
+        if (data) loaded.resolve();
       })
     );
     return (
@@ -168,7 +163,7 @@ it('reloads loader-provided permissions when the first confirmation differs', as
         id="01a140ad-06d5-7791-8b68-bc128654bbba"
         source={{ type: 'dss', id: '01a140ad-06d5-7791-8b68-bc128654bbba' }}
         definition={{
-          name: 'md',
+          name: 'write',
           description: 'Document',
           accepted: {},
           component: () => null,
@@ -177,14 +172,96 @@ it('reloads loader-provided permissions when the first confirmation differs', as
       />
     );
   });
-  await loaded.promise;
+
   notifyAccess('owner');
-  expect(cleanupSource).toHaveBeenCalledTimes(1);
   expect(blockDataSignal.get()).toBeUndefined();
-  await reloaded.promise;
-  expect(load).toHaveBeenCalledTimes(2);
+  expect(blockUserAccessSignal.get()).toBeUndefined();
+  pending.resolve();
+  await loaded.promise;
   expect(blockUserAccessSignal.get()).toBe('owner');
+  notifyAccess('owner');
+  expect(load).toHaveBeenCalledTimes(1);
 });
+
+it.each(['MISSING', 'GONE', 'INVALID'] as const)(
+  'keeps document permissions unavailable after a %s load failure',
+  async (code) => {
+    const failed = Promise.withResolvers<void>();
+    const load = vi.fn(async () => err([{ code, message: 'Load failed' }]));
+    render(() => {
+      createEffect(
+        on(blockErrorSignal.get, (error) => {
+          if (error === code) failed.resolve();
+        })
+      );
+      return (
+        <BlockLoader
+          id="01a140ad-06d5-7791-8b68-bc128654bbba"
+          source={{ type: 'dss', id: '01a140ad-06d5-7791-8b68-bc128654bbba' }}
+          definition={{
+            name: 'write',
+            description: 'Document',
+            accepted: {},
+            component: () => null,
+            load,
+          }}
+        />
+      );
+    });
+    await failed.promise;
+
+    notifyAccess('owner');
+    expect(blockDataSignal.get()).toBeUndefined();
+    expect(blockUserAccessSignal.get()).toBeUndefined();
+    expect(blockErrorSignal.get()).toBe(code);
+    expect(load).toHaveBeenCalledTimes(1);
+  }
+);
+
+it.each(['view', undefined] as const)(
+  'reloads a loader-provided %s permission when the first confirmation differs',
+  async (userAccessLevel) => {
+    const loaded = Promise.withResolvers<void>();
+    const reloaded = Promise.withResolvers<void>();
+    const cleanupSource = vi.fn();
+    const load = vi
+      .fn()
+      .mockResolvedValueOnce(
+        ok({ userAccessLevel, syncSource: { cleanup: cleanupSource } })
+      )
+      .mockResolvedValue(ok({ userAccessLevel: 'owner' }));
+    render(() => {
+      createEffect(
+        on(blockDataSignal.get, (data) => {
+          if (data) {
+            if (load.mock.calls.length === 1) loaded.resolve();
+            else reloaded.resolve();
+          }
+        })
+      );
+      return (
+        <BlockLoader
+          id="01a140ad-06d5-7791-8b68-bc128654bbba"
+          source={{ type: 'dss', id: '01a140ad-06d5-7791-8b68-bc128654bbba' }}
+          definition={{
+            name: 'md',
+            description: 'Document',
+            accepted: {},
+            component: () => null,
+            load,
+          }}
+        />
+      );
+    });
+    await loaded.promise;
+    notifyAccess('owner');
+    expect(cleanupSource).toHaveBeenCalledTimes(1);
+    expect(blockDataSignal.get()).toBeUndefined();
+    await reloaded.promise;
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(blockUserAccessSignal.get()).toBe('owner');
+  }
+);
 
 it('reconciles a stale permission-bearing load on a later unchanged confirmation', async () => {
   const pending = Promise.withResolvers<void>();
