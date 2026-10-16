@@ -464,13 +464,17 @@ export function createGridController(source: GridSource) {
     );
   }
 
-  function format(patch: Partial<SpreadsheetCell>) {
+  /** Styles `target`, by default the current selection. */
+  function format(
+    patch: Partial<SpreadsheetCell>,
+    target: CellSelection = selection()
+  ) {
     commit();
     if (!source.canEdit()) return;
     cancelPendingCopy();
     source.setCells(
       Object.fromEntries(
-        selectionAddresses(selection()).map((address) => [address, patch])
+        selectionAddresses(target).map((address) => [address, patch])
       )
     );
   }

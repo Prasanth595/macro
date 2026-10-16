@@ -54,6 +54,7 @@ import { chartData, createChartReader } from '../core/chart-data';
 import { encodeCsv } from '../core/csv-export';
 import { formulaRangeReference } from '../core/formula-reference';
 import {
+  type CellSelection,
   cellAddress,
   positionFromAddress,
   selectionBounds,
@@ -264,14 +265,17 @@ export function SpreadsheetEditor(props: {
       );
     }
   }
+  // The dialog styles the cells it names, even if the selection moves while
+  // it is open (comment links can select a range).
   const [dateFormatDialog, setDateFormatDialog] = createSignal<
-    DateFormatDialogState & { sheetId: string }
+    DateFormatDialogState & { sheetId: string; selection: CellSelection }
   >();
   function openDateFormatDialog() {
     if (!editable()) return;
     const cell = activeCell();
     setDateFormatDialog({
       sheetId: props.store.activeSheetId(),
+      selection: grid.selection(),
       range: selectionRange(),
       numberFormat:
         cell?.format === 'date' || cell?.format === 'time'
@@ -283,7 +287,8 @@ export function SpreadsheetEditor(props: {
   function changeDateFormat(style: SpreadsheetCellStyle) {
     const dialog = dateFormatDialog();
     setDateFormatDialog(undefined);
-    if (dialog?.sheetId === props.store.activeSheetId()) grid.format(style);
+    if (dialog?.sheetId === props.store.activeSheetId())
+      grid.format(style, dialog.selection);
   }
   const workbookActions = createWorkbookActions({
     store: props.store,
