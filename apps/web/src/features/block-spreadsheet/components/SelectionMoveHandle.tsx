@@ -109,8 +109,16 @@ export function SelectionMoveHandle(props: {
       if (after > 0) return Math.min(MAX_SCROLL_STEP, Math.ceil(after / 2));
       return 0;
     };
-    const x = step(drag.x, rect.left + props.headerWidth, rect.right);
-    const y = step(drag.y, rect.top + props.headerHeight, rect.bottom);
+    const x = step(
+      drag.x,
+      rect.left + props.headerWidth,
+      rect.left + props.scroller.clientWidth
+    );
+    const y = step(
+      drag.y,
+      rect.top + props.headerHeight,
+      rect.top + props.scroller.clientHeight
+    );
     if (x || y) {
       props.scroller.scrollLeft += x;
       props.scroller.scrollTop += y;
