@@ -190,6 +190,32 @@ shows the rule's message in the footer, and a "stop" rule keeps the previous val
 A red corner marks a cell with a note; selecting the cell shows the note, and any
 input message, beside it.
 
+To make a table, select the records with their header row and choose **Format
+and data → Convert to table…** (or **Convert to table…** in the cell menu). The
+**Convert to table** dialog shows the **Range** and a **Table name** (`Table1`,
+`Table2`…), with an optional **Total row** (the row below must be empty); **Create
+table** applies it. Blank or repeated headers are renamed (`Column3`,
+`Amount2`). The table draws a filled header, banded rows and a bold total row
+under the cells' own formatting. Each header cell has a button (**Sort and filter
+Region**) whose menu sorts the data rows (**Sort A → Z**, **Sort Z → A**) and
+filters them: each value checkbox under **Show rows with** applies at once and
+hides whole sheet rows, a filtered header shows a funnel, and **Clear filter**
+shows them again. Selecting a total row cell shows its arrow (**Choose a value for
+B5**) listing **None**, **Sum**, **Average**, **Count**, **Count numbers**,
+**Max**, **Min**, **Standard deviation** and **Variance**; totals use
+`SUBTOTAL(109,[Amount])` and the like, so filtered rows are left out. Typing a
+value directly below the table (without a total row) or directly to its right
+grows the table, naming a new column `ColumnN`. Formulas use structured
+references such as `=SUM(Table1[Amount])` and `=[@Qty]*[@Price]`; renaming a
+header renames its column, and references to a missing table or column show
+`#REF!`. In a table cell, **Format and data → Table options…** (also in the cell
+menu) opens **Table options**: **Table name** (renames every formula that uses
+it), **Total row**, **Banded rows**, **Banded columns**, and **Convert to range**,
+which removes the table and rewrites its references as cell ranges. Agents create
+tables with `EditSpreadsheet`'s `create_table` operation, and `ReadSpreadsheet`
+lists each sheet's tables with their columns. Excel tables import with their
+names, styles, totals and filters and download as Excel tables.
+
 Images and charts (column, bar, line and area, each clustered, stacked or
 100% stacked, plus pie, doughnut, scatter, combo, radar, bubble, stock and
 surface, drawn as a contour) are drawn over their cells and move with them;
@@ -518,11 +544,12 @@ waits for acknowledgement. A failed save leaves the draft editable and supports
 retry, without opening an empty chat. This path needs the updated native-document
 backend, just like Share.
 
-The AI can use **ReadSpreadsheet** to inspect sheet names, used ranges, raw inputs,
-formulas, typed results, errors, and formatting. **CalculateSpreadsheet** evaluates
-scratch formulas and what-if inputs without changing the workbook.
+The AI can use **ReadSpreadsheet** to inspect sheet names, used ranges, tables,
+raw inputs, formulas, typed results, errors, and formatting. **CalculateSpreadsheet**
+evaluates scratch formulas and what-if inputs without changing the workbook.
 **EditSpreadsheet** applies a validated batch of cell/formula/format edits, fill,
-row additions, column resizing, and sheet creation/rename/duplication/deletion.
+row additions, column resizing, dropdowns, table creation, and sheet
+creation/rename/duplication/deletion.
 Edits require a revision from a fresh read; a concurrent change rejects the entire
 batch so the AI can reread. Tool rows expand to show the actual results and warnings.
 
