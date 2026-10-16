@@ -185,7 +185,11 @@ current choices. Agents add the same dropdowns with `EditSpreadsheet`'s
 Every cell with a dropdown (from the dialog, an agent, or an Excel list rule) shows
 a small arrow at its right edge; clicking it selects the cell and opens its
 choices. The selected cell's arrow sits just outside its right edge (**Choose a
-value for B2**); click it or press Alt+Down. Typing a value the rule does not allow
+value for B2**); click it or press Alt+Down. The list opens below the cell, or
+above or beside it when there is no room, without covering the cell or dimming the
+sheet. Up/Down and Enter pick a choice and Escape closes it. While a list is open,
+one click or tap on another dropdown cell opens that cell's list; any other cell
+closes it. Typing a value the rule does not allow
 shows the rule's message in the footer, and a "stop" rule keeps the previous value.
 A red corner marks a cell with a note; selecting the cell shows the note, and any
 input message, beside it.
@@ -276,9 +280,12 @@ Drag across row/column headers or Shift-click a second header to select multiple
 whole rows/columns. Arrow keys then move from the selection's active cell. The
 focused grid owns typing and navigation; app navigation shortcuts do not run while
 it has focus.
-The active cell keeps a complete border while editing; a range has a shaded
-fill and an outer border. Verify selection in both drag directions and after
-scrolling, including near the last row and column.
+The active cell keeps a complete border while editing; a range has a translucent
+tint over its cells' own fills and an outer border. The active cell is never
+tinted: selected or being edited, it keeps its fill, font, text color, and
+explicit alignment (automatic alignment edits from the left, as in Excel).
+Verify selection in both drag directions and after scrolling, including near
+the last row and column.
 Only nearby rows are mounted. Use **Go to cell** or keyboard navigation to reach
 off-screen cells; verify the target is visible below the sticky column header.
 
@@ -323,8 +330,10 @@ Excel black text and borders on unfilled cells follow the app's foreground color
 so imported sheets remain readable in dark mode. Explicit text/fill color pairs
 remain unchanged; theme changes never alter saved or exported workbook colors.
 
-**View options** directly toggles gridlines, the formula bar, and formula display;
-these settings and zoom are local to the editor. **Go to cell** accepts ranges such
+**View options** directly toggles gridlines, the formula bar, and formula display.
+Gridlines are saved with the active sheet, undo like an edit, export as Excel's
+`showGridLines`, and are disabled for viewers; the formula bar, formula display,
+and zoom are local to the editor. **Go to cell** accepts ranges such
 as `A3:E7`.
 Escape from the address or font-size field returns keyboard navigation to the grid.
 **Functions** starts an editable formula: for a selected range it proposes

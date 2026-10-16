@@ -10,7 +10,12 @@ spreadsheet, then choose **Import…**.
 
 The document title sits above a compact formatting ribbon. **Paste special** offers
 paste and values-only paste; **View options** toggles gridlines, the formula bar,
-and formula display. **Functions** inserts formulas, while **Format and data**
+and formula display. Gridlines are saved with each sheet (`metadata.gridlines`,
+Excel's `showGridLines`), so only editors change them; the formula bar and
+formula display are local. Gridlines are the app's ink at 12% over the cell
+background (Google Sheets' `#e2e3e3` on white), in every theme. A fill hides the
+gridlines around its cell, and a border replaces the gridline it lies on.
+**Functions** inserts formulas, while **Format and data**
 contains sorting, whitespace trimming, Goal Seek, fill, and clear actions. **Find and replace**
 is a direct ribbon button. The footer's **Import and export** button also contains
 Excel and CSV downloads and stays visible beside horizontally scrolling sheet tabs.
@@ -257,9 +262,11 @@ Selection does not recalculate the workbook. A bounded row window mounts visible
 rows and a small buffer, keeping the active editor mounted while scrolling. Shared
 row offsets account for wrapped text, font size, and zoom. Two overlays
 draw the selected range and active cell, while Solid selectors update only
-changed cell selection attributes. Footer aggregates run outside urgent pointer
-updates, and collaborator presence is limited to ten updates per second with a
-trailing update for the final selection.
+changed cell selection attributes. The range's tint has a hole at the active
+cell, and the in-cell editor inherits the cell's fill, font and color, so a
+styled cell looks the same selected, editing and unselected. Footer aggregates
+run outside urgent pointer updates, and collaborator presence is limited to ten
+updates per second with a trailing update for the final selection.
 
 IronCalc handles formula parsing, ranges, relative and absolute references,
 dependency evaluation, functions, circular references, Excel errors, and array
@@ -383,6 +390,9 @@ Import keeps what Excel calculates and shows:
   rejects the entry, warnings and information accept it, and each shows the
   rule's message in the footer. List rules offer their values in a dropdown on the
   active cell (Alt+Down), and every cell they cover shows an arrow that opens it.
+  `components/CellListMenu.tsx` anchors the non-modal list to the cell: below it,
+  or above or beside it when there is no room, never over it. While a list is
+  open, pressing another dropdown cell opens that cell's list instead.
   `components/DropdownDialog.tsx` (Format and data → Dropdown…, or the cell menu)
   adds, edits and removes list rules on the selection through
   `packages/spreadsheet/src/data-validation.ts`, which the AI `set_dropdown` and
