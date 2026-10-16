@@ -1,6 +1,5 @@
-import ArrowSquareOut from '@phosphor/arrow-square-out.svg';
 import Copy from '@phosphor/copy.svg';
-import { ButtonGroup, CopyButton, Tooltip } from '@ui';
+import { CopyButton } from '@ui';
 import {
   createSignal,
   type JSX,
@@ -257,42 +256,21 @@ export function OwnerSettingsSection(props: {
               aria-label={`${scope().name} ${props.kind === 'page' ? 'booking page' : props.kind}`}
             >
               <div class="mb-4 flex shrink-0 flex-wrap items-center justify-end gap-3">
-                <ButtonGroup class="min-w-0 max-w-full">
-                  <Tooltip
-                    label={
-                      p().revision
-                        ? capabilities.link(p())
-                        : 'Save your booking page before sharing'
-                    }
-                    class="min-w-0 flex-1 self-stretch"
-                  >
-                    <a
-                      aria-label="Preview page"
-                      aria-disabled={!p().revision}
-                      tabindex={p().revision ? undefined : -1}
-                      class="flex min-w-0 flex-1 items-center gap-2 self-stretch px-3 text-sm text-ink-muted hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent aria-disabled:opacity-50"
-                      href={p().revision ? capabilities.link(p()) : undefined}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <span class="truncate">{capabilities.link(p())}</span>
-                      <ArrowSquareOut
-                        aria-hidden="true"
-                        class="size-3.5 shrink-0"
-                      />
-                    </a>
-                  </Tooltip>
-                  <ButtonGroup.Divider />
-                  <CopyButton
-                    variant="ghost"
-                    size="icon-md"
-                    label="Copy page link"
-                    disabled={!p().revision}
-                    onClick={copyPageLink}
-                  >
-                    <Copy aria-hidden="true" class="size-4" />
-                  </CopyButton>
-                </ButtonGroup>
+                <CopyButton
+                  variant="outline"
+                  size="md"
+                  label="Copy link"
+                  tooltip={
+                    p().revision
+                      ? undefined
+                      : 'Save your booking page before sharing'
+                  }
+                  disabled={!p().revision}
+                  onClick={copyPageLink}
+                >
+                  <Copy aria-hidden="true" class="size-4" />
+                  Copy link
+                </CopyButton>
               </div>
               <BookingPageEditor
                 profile={{

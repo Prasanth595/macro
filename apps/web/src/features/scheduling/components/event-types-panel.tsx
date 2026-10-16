@@ -1,10 +1,13 @@
 import { SearchBar } from '@app/components/view-shell';
+import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import {
   ContextMenuContent,
   ContextMenuTrigger,
   MENU_ITEM_CLASS,
   MenuGroup,
 } from '@core/component/ContextMenu';
+import { touchHandler } from '@core/directive/touchHandler';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { ContextMenu } from '@kobalte/core/context-menu';
 import External from '@phosphor/arrow-square-out.svg';
 import ArrowsClockwise from '@phosphor/arrows-clockwise.svg';
@@ -19,9 +22,10 @@ import User from '@phosphor/user.svg';
 import Users from '@phosphor/users.svg';
 import { propertyPillClasses } from '@property/extractors/property-pill-classes';
 import { Badge, Button, cn, Dropdown, ToggleSwitch } from '@ui';
-import { createSignal, For, Show } from 'solid-js';
+import { batch, createSignal, For, type JSX, Show } from 'solid-js';
 import { match } from 'ts-pattern';
 import type { EventType, SchedulingScope } from '../core/types';
+import { SchedulingDrawerHeader } from './scheduling-drawer-header';
 
 export function EventTypesPanel(props: {
   events: EventType[];
@@ -40,6 +44,35 @@ export function EventTypesPanel(props: {
   const [localSearch, setSearch] = createSignal('');
   const search = () => (props.search ?? localSearch()).trim();
   const [removing, setRemoving] = createSignal<string>();
+  const [drawerSelection, setDrawerSelection] = createSignal<{
+    id: string;
+    opener?: HTMLElement;
+  }>();
+  const [drawerOpen, setDrawerOpen] = createSignal(false);
+  let drawerAction: (() => void) | undefined;
+  const drawerEvent = () =>
+    props.events.find((event) => event.id === drawerSelection()?.id);
+  const openDrawer = (event: EventType, opener?: HTMLElement) => {
+    if (props.saving) return;
+    drawerAction = undefined;
+    batch(() => {
+      setDrawerSelection({ id: event.id, opener });
+      setDrawerOpen(true);
+    });
+  };
+  const finishDrawerClose = (present: boolean) => {
+    if (present || drawerOpen()) return;
+    // Let Corvu finish its presence update before disposing the drawer.
+    queueMicrotask(() => {
+      if (drawerOpen()) return;
+      const opener = drawerSelection()?.opener;
+      const action = drawerAction;
+      drawerAction = undefined;
+      setDrawerSelection(undefined);
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
+      if (action) queueMicrotask(action);
+    });
+  };
   const filtered = () =>
     props.events.filter((e) =>
       `${e.title} ${e.description} ${e.slug} ${props.owner?.name ?? ''} ${props.owner?.teamId ? 'team' : 'personal'}`
@@ -50,9 +83,35 @@ export function EventTypesPanel(props: {
     event: EventType;
     opener?: HTMLElement;
     context?: boolean;
+    drawer?: boolean;
+    onClose?: () => void;
+    onEditorAction?: (action: () => void) => void;
   }) {
-    const Item = menu.context ? ContextMenu.Item : Dropdown.Item;
-    const Group = menu.context ? MenuGroup : Dropdown.Group;
+    const MenuItem = menu.context ? ContextMenu.Item : Dropdown.Item;
+    const Group = menu.drawer
+      ? MobileDrawer.Section
+      : menu.context
+        ? MenuGroup
+        : Dropdown.Group;
+    const Item = (item: {
+      children: JSX.Element;
+      onSelect: () => void;
+      disabled?: boolean;
+      class?: string;
+    }) => (
+      <Show when={menu.drawer} fallback={<MenuItem {...item} />}>
+        <MobileDrawer.Item
+          disabled={item.disabled}
+          class={item.class}
+          onClick={() => {
+            item.onSelect();
+            menu.onClose?.();
+          }}
+        >
+          {item.children}
+        </MobileDrawer.Item>
+      </Show>
+    );
     return (
       <>
         <Group>
@@ -83,7 +142,11 @@ export function EventTypesPanel(props: {
             <Item
               class={menu.context ? MENU_ITEM_CLASS : undefined}
               disabled={props.saving}
-              onSelect={() => props.onEdit(menu.event, menu.opener)}
+              onSelect={() => {
+                const edit = () => props.onEdit(menu.event, menu.opener);
+                if (menu.onEditorAction) menu.onEditorAction(edit);
+                else edit();
+              }}
             >
               <Pencil class="size-4" />
               Edit
@@ -91,7 +154,12 @@ export function EventTypesPanel(props: {
             <Item
               class={menu.context ? MENU_ITEM_CLASS : undefined}
               disabled={props.saving}
-              onSelect={() => props.onDuplicate(menu.event, menu.opener)}
+              onSelect={() => {
+                const duplicate = () =>
+                  props.onDuplicate(menu.event, menu.opener);
+                if (menu.onEditorAction) menu.onEditorAction(duplicate);
+                else duplicate();
+              }}
             >
               <Copy class="size-4" />
               Duplicate
@@ -143,15 +211,37 @@ export function EventTypesPanel(props: {
         >
           {(event) => {
             let rowButton: HTMLButtonElement | undefined;
+            let menuAction: (() => void) | undefined;
+            const finishMenuClose = (event: Event) => {
+              if (!menuAction) return;
+              event.preventDefault();
+              const action = menuAction;
+              menuAction = undefined;
+              queueMicrotask(() => {
+                rowButton?.focus({ preventScroll: true });
+                action();
+              });
+            };
             return (
               <ContextMenu>
                 <ContextMenuTrigger
                   as="article"
-                  disabled={props.saving}
+                  disabled={props.saving || isTouchDevice()}
+                  ref={(element: HTMLElement) => {
+                    touchHandler(element, () => ({
+                      onLongPress: () => openDrawer(event, rowButton),
+                    }));
+                  }}
+                  onContextMenu={(contextEvent) => {
+                    if (!isTouchDevice()) return;
+                    contextEvent.preventDefault();
+                    contextEvent.stopPropagation();
+                    openDrawer(event, rowButton);
+                  }}
                   class="min-h-10 min-w-0 rounded-xl px-2 py-1 transition-opacity hover:bg-list-hover focus-within:bg-list-hover"
                   classList={{ 'opacity-50': !event.enabled }}
                 >
-                  <div class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 @min-[36rem]/booking-links:grid-cols-[auto_minmax(0,1fr)_auto]">
+                  <div class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 not-touch:@min-[36rem]/booking-links:grid-cols-[auto_minmax(0,1fr)_auto]">
                     <ToggleSwitch
                       checked={event.enabled}
                       disabled={!props.canEdit || props.saving}
@@ -168,6 +258,31 @@ export function EventTypesPanel(props: {
                       ref={rowButton}
                       type="button"
                       aria-label={event.title}
+                      aria-keyshortcuts="Shift+F10"
+                      onKeyDown={(keyEvent) => {
+                        if (
+                          keyEvent.key !== 'ContextMenu' &&
+                          !(keyEvent.shiftKey && keyEvent.key === 'F10')
+                        )
+                          return;
+                        keyEvent.preventDefault();
+                        keyEvent.stopPropagation();
+                        if (props.saving) return;
+                        if (isTouchDevice()) {
+                          openDrawer(event, keyEvent.currentTarget);
+                          return;
+                        }
+                        const bounds =
+                          keyEvent.currentTarget.getBoundingClientRect();
+                        keyEvent.currentTarget.dispatchEvent(
+                          new MouseEvent('contextmenu', {
+                            bubbles: true,
+                            cancelable: true,
+                            clientX: bounds.left,
+                            clientY: bounds.bottom,
+                          })
+                        );
+                      }}
                       onClick={(click) =>
                         props.onView(event, click.currentTarget)
                       }
@@ -186,7 +301,7 @@ export function EventTypesPanel(props: {
                         </p>
                       </Show>
                     </button>
-                    <div class="col-start-2 flex min-w-0 flex-wrap items-center justify-end gap-2 @min-[36rem]/booking-links:col-start-auto">
+                    <div class="col-start-2 flex min-w-0 flex-wrap items-center justify-end gap-2 touch:justify-start touch:pl-6 not-touch:@min-[36rem]/booking-links:col-start-auto">
                       <Dropdown>
                         <Dropdown.Trigger
                           as="button"
@@ -276,14 +391,23 @@ export function EventTypesPanel(props: {
                           variant="ghost"
                           size="icon-sm"
                           label={`Options for ${event.title}`}
-                          class="shrink-0"
+                          class="shrink-0 touch:hidden"
                           disabled={props.saving}
                           tooltipDisabled
                         >
                           <Dots class="size-4" />
                         </Dropdown.Trigger>
-                        <Dropdown.Content class="min-w-40">
-                          <MenuItems event={event} opener={rowButton} />
+                        <Dropdown.Content
+                          class="min-w-40"
+                          onCloseAutoFocus={finishMenuClose}
+                        >
+                          <MenuItems
+                            event={event}
+                            opener={rowButton}
+                            onEditorAction={(action) => {
+                              menuAction = action;
+                            }}
+                          />
                         </Dropdown.Content>
                       </Dropdown>
                     </div>
@@ -310,8 +434,18 @@ export function EventTypesPanel(props: {
                   </Show>
                 </ContextMenuTrigger>
                 <ContextMenu.Portal>
-                  <ContextMenuContent class="min-w-40">
-                    <MenuItems event={event} opener={rowButton} context />
+                  <ContextMenuContent
+                    class="min-w-40"
+                    onCloseAutoFocus={finishMenuClose}
+                  >
+                    <MenuItems
+                      event={event}
+                      opener={rowButton}
+                      context
+                      onEditorAction={(action) => {
+                        menuAction = action;
+                      }}
+                    />
                   </ContextMenuContent>
                 </ContextMenu.Portal>
               </ContextMenu>
@@ -319,6 +453,48 @@ export function EventTypesPanel(props: {
           }}
         </For>
       </div>
+      <Show when={drawerSelection()}>
+        <MobileDrawer
+          side="bottom"
+          open={drawerOpen()}
+          onOpenChange={setDrawerOpen}
+          onContentPresentChange={finishDrawerClose}
+          closeOnOutsidePointerStrategy="pointerdown"
+          preventScroll={false}
+          preventScrollbarShift={false}
+          restoreFocus={false}
+        >
+          <MobileDrawer.Portal>
+            <MobileDrawer.Overlay />
+            <MobileDrawer.Content aria-label="Booking link actions">
+              <MobileDrawer.Handle class="pb-1" />
+              <SchedulingDrawerHeader
+                title={drawerEvent()?.title ?? 'Booking link'}
+                closeLabel="Close booking link actions"
+                onClose={() => setDrawerOpen(false)}
+              />
+              <MobileDrawer.ScrollBody
+                data-corvu-no-drag
+                class="touch-pan-y overscroll-contain gap-3"
+              >
+                <Show when={drawerEvent()}>
+                  {(event) => (
+                    <MenuItems
+                      event={event()}
+                      opener={drawerSelection()?.opener}
+                      drawer
+                      onClose={() => setDrawerOpen(false)}
+                      onEditorAction={(action) => {
+                        drawerAction = action;
+                      }}
+                    />
+                  )}
+                </Show>
+              </MobileDrawer.ScrollBody>
+            </MobileDrawer.Content>
+          </MobileDrawer.Portal>
+        </MobileDrawer>
+      </Show>
     </div>
   );
 }

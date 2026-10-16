@@ -1,3 +1,6 @@
+import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
+import { touchHandler } from '@core/directive/touchHandler';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { Popover } from '@kobalte/core/popover';
 import Calendar from '@phosphor/calendar-blank.svg';
 import CalendarCheck from '@phosphor/calendar-check.svg';
@@ -11,7 +14,15 @@ import Link from '@phosphor/link.svg';
 import Pencil from '@phosphor/pencil-simple.svg';
 import Trash from '@phosphor/trash.svg';
 import { Badge, Button, ConfirmDialog, Dropdown, Tooltip } from '@ui';
-import { createMemo, createSignal, For, Show } from 'solid-js';
+import {
+  batch,
+  createMemo,
+  createSignal,
+  For,
+  type JSX,
+  onCleanup,
+  Show,
+} from 'solid-js';
 import { unwrap } from 'solid-js/store';
 import { getDefaultCalendarTimeFormat } from '../../calendar/utils/time-format';
 import {
@@ -30,6 +41,7 @@ import {
 import type { AvailabilitySchedule, SchedulingProfile } from '../core/types';
 import { WEEKDAYS } from '../core/types';
 import { AvailabilityHoursSummary } from './availability-hours-summary';
+import { SchedulingDrawerHeader } from './scheduling-drawer-header';
 
 function dayGroupLabel(days: number[]) {
   const shortName = (day: number) => WEEKDAYS[day].slice(0, 3);
@@ -66,6 +78,50 @@ export function AvailabilityPanel(props: {
   const [remove, setRemove] = createSignal<string>();
   let panel: HTMLDivElement | undefined;
   let dialogOpener: HTMLButtonElement | undefined;
+  const [drawerSelection, setDrawerSelection] = createSignal<{
+    id: string;
+    opener?: HTMLButtonElement;
+  }>();
+  const [drawerOpen, setDrawerOpen] = createSignal(false);
+  let drawerAction: (() => void) | undefined;
+  let disposed = false;
+  onCleanup(() => {
+    disposed = true;
+  });
+  const drawerSchedule = () =>
+    props.profile.schedules.find(
+      (schedule) => schedule.id === drawerSelection()?.id
+    );
+  const drawerIsOpen = () => props.canEdit && drawerOpen();
+  const openDrawer = (
+    schedule: AvailabilitySchedule,
+    opener?: HTMLButtonElement
+  ) => {
+    if (!props.canEdit || props.saving) return;
+    drawerAction = undefined;
+    batch(() => {
+      setDrawerSelection({ id: schedule.id, opener });
+      setDrawerOpen(true);
+    });
+  };
+  const finishDrawerClose = (present: boolean) => {
+    if (present || drawerIsOpen()) return;
+    // Release the drawer's modal lock before opening an editor or confirmation.
+    queueMicrotask(() => {
+      if (disposed || drawerIsOpen()) return;
+      const opener = drawerSelection()?.opener;
+      const action = drawerAction;
+      const canRun = props.canEdit && !props.saving && !!drawerSchedule();
+      drawerAction = undefined;
+      setDrawerSelection(undefined);
+      const target = opener?.isConnected && !opener.disabled ? opener : panel;
+      target?.focus({ preventScroll: true });
+      if (action && canRun)
+        queueMicrotask(() => {
+          if (!disposed) action();
+        });
+    });
+  };
   const timeFormat: AvailabilityTimeFormat =
     getDefaultCalendarTimeFormat() === '24-hour' ? '24h' : '12h';
   const defaultId = () =>
@@ -83,6 +139,86 @@ export function AvailabilityPanel(props: {
   const removing = () =>
     props.profile.schedules.find((schedule) => schedule.id === remove());
   const removalBlocked = () => !!usedBy(remove() ?? '').length;
+  function MenuItems(menu: {
+    schedule: AvailabilitySchedule;
+    opener?: HTMLButtonElement;
+    drawer?: boolean;
+  }) {
+    const Group = menu.drawer ? MobileDrawer.Section : Dropdown.Group;
+    const Item = (item: {
+      children: JSX.Element;
+      onSelect: (
+        schedule: AvailabilitySchedule,
+        opener?: HTMLButtonElement
+      ) => void;
+      class?: string;
+    }) => (
+      <Show
+        when={menu.drawer}
+        fallback={
+          <Dropdown.Item
+            class={item.class}
+            disabled={props.saving}
+            onSelect={() => item.onSelect(menu.schedule, menu.opener)}
+          >
+            {item.children}
+          </Dropdown.Item>
+        }
+      >
+        <MobileDrawer.Item
+          class={item.class}
+          disabled={props.saving}
+          onClick={() => {
+            const schedule = menu.schedule;
+            const opener = menu.opener;
+            drawerAction = () => item.onSelect(schedule, opener);
+            setDrawerOpen(false);
+          }}
+        >
+          {item.children}
+        </MobileDrawer.Item>
+      </Show>
+    );
+    return (
+      <>
+        <Group>
+          <Show when={defaultId() !== menu.schedule.id}>
+            <Item onSelect={(schedule) => props.onDefault(schedule)}>
+              <Check class="size-4" />
+              Set as default
+            </Item>
+          </Show>
+          <Item
+            onSelect={(schedule, opener) =>
+              props.onEdit(
+                {
+                  ...structuredClone(unwrap(schedule)),
+                  id: crypto.randomUUID(),
+                  name: `${schedule.name.slice(0, 93)} (copy)`,
+                },
+                opener
+              )
+            }
+          >
+            <Copy class="size-4" />
+            Copy schedule
+          </Item>
+        </Group>
+        <Group>
+          <Item
+            class="text-failure"
+            onSelect={(schedule, opener) => {
+              dialogOpener = opener;
+              setRemove(schedule.id);
+            }}
+          >
+            <Trash class="size-4" />
+            Delete
+          </Item>
+        </Group>
+      </>
+    );
+  }
   return (
     <div
       ref={panel}
@@ -112,6 +248,7 @@ export function AvailabilityPanel(props: {
         >
           {(schedule) => {
             let actionsButton: HTMLButtonElement | undefined;
+            let nameButton: HTMLButtonElement | undefined;
             const groups = createMemo(() => availabilityWeekGroups(schedule));
             const week = () =>
               groups().flatMap((group) =>
@@ -120,6 +257,17 @@ export function AvailabilityPanel(props: {
             const links = () => usedBy(schedule.id);
             return (
               <article
+                ref={(element) => {
+                  touchHandler(element, () => ({
+                    onLongPress: () => openDrawer(schedule, nameButton),
+                  }));
+                }}
+                onContextMenu={(event) => {
+                  if (!isTouchDevice()) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  openDrawer(schedule, nameButton);
+                }}
                 aria-label={schedule.name}
                 class="flex min-w-0 flex-col rounded-2xl border border-edge-muted bg-panel transition-colors hover:border-edge"
               >
@@ -136,6 +284,19 @@ export function AvailabilityPanel(props: {
                             class="min-w-0 max-w-full"
                           >
                             <button
+                              ref={nameButton}
+                              aria-keyshortcuts="Shift+F10"
+                              onKeyDown={(event) => {
+                                if (
+                                  !isTouchDevice() ||
+                                  (event.key !== 'ContextMenu' &&
+                                    !(event.shiftKey && event.key === 'F10'))
+                                )
+                                  return;
+                                event.preventDefault();
+                                event.stopPropagation();
+                                openDrawer(schedule, event.currentTarget);
+                              }}
                               type="button"
                               class="line-clamp-2 max-w-full rounded-sm text-left wrap-anywhere outline-none focus-visible:ring-2 focus-visible:ring-accent"
                               disabled={!props.canEdit || props.saving}
@@ -172,51 +333,15 @@ export function AvailabilityPanel(props: {
                           size="icon-sm"
                           label={`Actions for ${schedule.name}`}
                           disabled={props.saving}
-                          class="shrink-0"
+                          class="shrink-0 touch:hidden"
                         >
                           <Dots class="size-5" />
                         </Dropdown.Trigger>
                         <Dropdown.Content>
-                          <Dropdown.Group>
-                            <Show when={defaultId() !== schedule.id}>
-                              <Dropdown.Item
-                                disabled={props.saving}
-                                onSelect={() => props.onDefault(schedule)}
-                              >
-                                <Check class="size-4" />
-                                Set as default
-                              </Dropdown.Item>
-                            </Show>
-                            <Dropdown.Item
-                              disabled={props.saving}
-                              onSelect={() =>
-                                props.onEdit(
-                                  {
-                                    ...structuredClone(unwrap(schedule)),
-                                    id: crypto.randomUUID(),
-                                    name: `${schedule.name.slice(0, 93)} (copy)`,
-                                  },
-                                  actionsButton
-                                )
-                              }
-                            >
-                              <Copy class="size-4" />
-                              Copy schedule
-                            </Dropdown.Item>
-                          </Dropdown.Group>
-                          <Dropdown.Group>
-                            <Dropdown.Item
-                              class="text-failure"
-                              disabled={props.saving}
-                              onSelect={() => {
-                                dialogOpener = actionsButton;
-                                setRemove(schedule.id);
-                              }}
-                            >
-                              <Trash class="size-4" />
-                              Delete
-                            </Dropdown.Item>
-                          </Dropdown.Group>
+                          <MenuItems
+                            schedule={schedule}
+                            opener={actionsButton}
+                          />
                         </Dropdown.Content>
                       </Dropdown>
                     </Show>
@@ -331,6 +456,44 @@ export function AvailabilityPanel(props: {
           }}
         </For>
       </div>
+      <Show when={drawerSelection()}>
+        <MobileDrawer
+          side="bottom"
+          open={drawerIsOpen()}
+          onOpenChange={setDrawerOpen}
+          onContentPresentChange={finishDrawerClose}
+          closeOnOutsidePointerStrategy="pointerdown"
+          preventScroll={false}
+          preventScrollbarShift={false}
+          restoreFocus={false}
+        >
+          <MobileDrawer.Portal>
+            <MobileDrawer.Overlay />
+            <MobileDrawer.Content aria-label="Schedule actions">
+              <MobileDrawer.Handle class="pb-1" />
+              <SchedulingDrawerHeader
+                title={drawerSchedule()?.name ?? 'Schedule'}
+                closeLabel="Close schedule actions"
+                onClose={() => setDrawerOpen(false)}
+              />
+              <MobileDrawer.ScrollBody
+                data-corvu-no-drag
+                class="touch-pan-y overscroll-contain gap-3"
+              >
+                <Show when={drawerSchedule()}>
+                  {(schedule) => (
+                    <MenuItems
+                      schedule={schedule()}
+                      opener={drawerSelection()?.opener}
+                      drawer
+                    />
+                  )}
+                </Show>
+              </MobileDrawer.ScrollBody>
+            </MobileDrawer.Content>
+          </MobileDrawer.Portal>
+        </MobileDrawer>
+      </Show>
       <ConfirmDialog
         open={props.canEdit && !!removing()}
         title={removalBlocked() ? 'Schedule is in use' : 'Delete schedule?'}
