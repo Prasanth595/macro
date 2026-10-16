@@ -6,16 +6,6 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   root: fileURLToPath(new URL('../../..', import.meta.url)),
-  resolve: {
-    alias: {
-      'solid-transition-group': fileURLToPath(
-        new URL(
-          '../../../../../node_modules/solid-transition-group/dist/index.js',
-          import.meta.url
-        )
-      ),
-    },
-  },
   plugins: [
     tsconfigPaths(),
     solidPlugin(),
