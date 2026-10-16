@@ -563,12 +563,14 @@ function movedReferences(
     const prefix = body.slice(0, body.lastIndexOf('!') + 1);
     let replacement: string;
     if (containsBounds(move.source, area)) {
-      // Whole rows keep their syntax; whole columns are never inside a sheet.
-      const wholeRows = /^\$?\d+:\$?\d+$/.test(body.slice(prefix.length));
-      const bound = (point: typeof left) =>
-        wholeRows
-          ? `${point.absolute_row ? '$' : ''}${point.row + rows}`
-          : `${point.absolute_column ? '$' : ''}${columnName(point.column - 1 + columns)}${point.absolute_row ? '$' : ''}${point.row + rows}`;
+      const reference = body.slice(prefix.length);
+      const wholeRows = /^\$?\d+:\$?\d+$/.test(reference);
+      const wholeColumns = /^\$?[A-Z]+:\$?[A-Z]+$/i.test(reference);
+      const bound = (point: typeof left) => {
+        const row = `${point.absolute_row ? '$' : ''}${point.row + rows}`;
+        const column = `${point.absolute_column ? '$' : ''}${columnName(point.column - 1 + columns)}`;
+        return wholeRows ? row : wholeColumns ? column : `${column}${row}`;
+      };
       replacement = `${prefix}${bound(left)}${'Range' in token ? `:${bound(right)}` : ''}`;
     } else if (containsBounds(move.destination, area)) replacement = '#REF!';
     else continue;
@@ -622,11 +624,29 @@ export function moveWorkbookRange(
     destination.right >= SPREADSHEET_MAX_COLUMNS
   )
     throw new Error('Invalid cell range.');
+  const { name: sheetName, layout } = sheets[target];
+  // Moving every row or column of the sheet's cells moves whole-row and
+  // whole-column references too.
+  const referenced = (area: CellBounds) => ({
+    ...area,
+    bottom:
+      source.top === 0 && source.bottom >= layout.rowCount - 1
+        ? Number.POSITIVE_INFINITY
+        : area.bottom,
+    right:
+      source.left === 0 && source.right >= layout.columnCount - 1
+        ? Number.POSITIVE_INFINITY
+        : area.right,
+  });
   const rewrite = (formula: string, currentSheet: string) =>
     movedReferences(
       formula,
       currentSheet,
-      { sheet: sheets[target].name, source, destination },
+      {
+        sheet: sheetName,
+        source: referenced(source),
+        destination: referenced(destination),
+      },
       rows,
       columns
     );

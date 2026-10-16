@@ -568,7 +568,7 @@ describe('moving a range of cells', () => {
     expect(JSON.stringify(sheets)).toBe(before);
   });
 
-  it('keeps whole-row syntax when whole rows move and grows the sheet to fit', () => {
+  it('moves whole-row references with rows selected by their headers and grows the sheet to fit', () => {
     const sheets = workbook();
     sheets[0].cells = {
       A1: { value: '1' },
@@ -577,7 +577,7 @@ describe('moving a range of cells', () => {
     sheets[0].metadata = undefined;
     const next = moveWorkbookRange(sheets, {
       sheetId: 'one',
-      source: { top: 0, left: 0, bottom: 1, right: 16_383 },
+      source: { top: 0, left: 0, bottom: 1, right: 25 },
       rows: 250,
       columns: 0,
     });
@@ -585,7 +585,36 @@ describe('moving a range of cells', () => {
     expect(next[0].cells.A10.value).toBe(
       '=SUM(251:252)+SUM($251:$251)+SUM(A:A)'
     );
-    expect(next[0].layout.rowCount).toBe(252);
+    expect(next[0].layout).toMatchObject({ rowCount: 252, columnCount: 26 });
+  });
+
+  it('moves whole-column references with columns selected by their headers', () => {
+    const sheets = workbook();
+    sheets[0].cells = {
+      A1: { value: '1' },
+      D1: { value: '=SUM(A:A)+SUM($A:$A)+SUM(1:1)+SUM(A1:B1)' },
+    };
+    sheets[0].metadata = undefined;
+    const next = moveWorkbookRange(sheets, {
+      sheetId: 'one',
+      source: { top: 0, left: 0, bottom: 199, right: 0 },
+      rows: 0,
+      columns: 2,
+    });
+    expect(next[0].cells.C1).toEqual({ value: '1' });
+    expect(next[0].cells.D1.value).toBe(
+      '=SUM(C:C)+SUM($C:$C)+SUM(1:1)+SUM(A1:B1)'
+    );
+    // A column that is not the whole sheet height leaves A:A where it is.
+    const partial = moveWorkbookRange(sheets, {
+      sheetId: 'one',
+      source: { top: 0, left: 0, bottom: 198, right: 0 },
+      rows: 0,
+      columns: 2,
+    });
+    expect(partial[0].cells.D1.value).toBe(
+      '=SUM(A:A)+SUM($A:$A)+SUM(1:1)+SUM(A1:B1)'
+    );
   });
 
   it.each([
