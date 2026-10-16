@@ -603,9 +603,14 @@ export function moveWorkbookRange(
   const target = sheets.findIndex((sheet) => sheet.id === move.sheetId);
   if (
     target < 0 ||
-    ![source.top, source.left, source.bottom, source.right, rows, columns].every(
-      Number.isInteger
-    ) ||
+    ![
+      source.top,
+      source.left,
+      source.bottom,
+      source.right,
+      rows,
+      columns,
+    ].every(Number.isInteger) ||
     (!rows && !columns) ||
     source.top < 0 ||
     source.left < 0 ||
@@ -729,10 +734,7 @@ export function moveWorkbookRange(
       layout: {
         ...sheet.layout,
         rowCount: Math.max(sheet.layout.rowCount, destination.bottom + 1),
-        columnCount: Math.max(
-          sheet.layout.columnCount,
-          destination.right + 1
-        ),
+        columnCount: Math.max(sheet.layout.columnCount, destination.right + 1),
       },
     };
   });

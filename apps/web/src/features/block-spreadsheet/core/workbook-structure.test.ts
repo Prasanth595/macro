@@ -534,9 +534,7 @@ describe('moving a range of cells', () => {
         { range: 'A3:A10', formulas: ['"Yes,No"'] },
         { range: 'C1:C2', formulas: ['"Yes,No"'] },
       ],
-      conditionalFormats: [
-        { range: 'D1:D2', formulas: ['$D1>$C$2'] },
-      ],
+      conditionalFormats: [{ range: 'D1:D2', formulas: ['$D1>$C$2'] }],
       drawings: [
         {
           from: { row: 4, column: 2 },
@@ -584,7 +582,9 @@ describe('moving a range of cells', () => {
       columns: 0,
     });
     expect(next[0].cells.A251).toEqual({ value: '1' });
-    expect(next[0].cells.A10.value).toBe('=SUM(251:252)+SUM($251:$251)+SUM(A:A)');
+    expect(next[0].cells.A10.value).toBe(
+      '=SUM(251:252)+SUM($251:$251)+SUM(A:A)'
+    );
     expect(next[0].layout.rowCount).toBe(252);
   });
 

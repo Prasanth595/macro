@@ -453,7 +453,8 @@ export function createCalculation(
     },
     async moveRange(sheets: SpreadsheetWorkbookSheet[], move: RangeMove) {
       const result = await copier.run({ type: 'move-range', sheets, move });
-      if (result.type !== 'move-range') throw new Error('Unable to move cells.');
+      if (result.type !== 'move-range')
+        throw new Error('Unable to move cells.');
       return result.sheets;
     },
     async copy(copies: CellCopy[]) {
