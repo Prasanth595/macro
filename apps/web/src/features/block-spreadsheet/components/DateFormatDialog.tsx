@@ -1,4 +1,5 @@
 import { Button } from '@ui/components/Button';
+import { Result } from 'neverthrow';
 import { createMemo, createSignal, For, Show } from 'solid-js';
 import { format as formatExcelNumber } from 'ssf';
 import { dateFormatStyle } from '../core/cell-dates';
@@ -7,6 +8,10 @@ import { SpreadsheetDialog } from './SpreadsheetDialog';
 
 /** Thursday, 17 September 2026, 2:30 PM. */
 const SAMPLE_DATE = 46_282 + 14.5 / 24;
+const formatSample = Result.fromThrowable(
+  (code: string, sample: number) => formatExcelNumber(code, sample),
+  () => 'unsupported format' as const
+);
 
 const CODES = [
   ['d  dd', 'Day: 7, 07'],
@@ -59,17 +64,14 @@ function DateFormatForm(props: {
 }) {
   const [code, setCode] = createSignal(props.dialog.numberFormat);
   const style = createMemo(() => dateFormatStyle(code().trim()));
-  const preview = createMemo(() => {
-    if (!style()) return;
-    try {
-      return formatExcelNumber(
-        code().trim(),
-        props.dialog.sample ?? SAMPLE_DATE
-      );
-    } catch {
-      return;
-    }
-  });
+  const preview = createMemo(() =>
+    style()
+      ? formatSample(
+          code().trim(),
+          props.dialog.sample ?? SAMPLE_DATE
+        ).unwrapOr(undefined)
+      : undefined
+  );
   return (
     <form
       class="flex flex-col gap-3 p-5 text-sm"

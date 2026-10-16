@@ -1,3 +1,4 @@
+import { Result } from 'neverthrow';
 import { format as formatExcelNumber, is_date } from 'ssf';
 import type { SpreadsheetCellStyle } from './spreadsheet-document';
 import { readNumberFormat } from './xlsx-styles';
@@ -43,19 +44,21 @@ const dayMonthYear = new RegExp(
  * way it was typed; without one it shows as Macro's default m/d/yyyy. */
 export type TypedDate = { serial: number; numberFormat?: string };
 
+const localeDateParts = Result.fromThrowable(
+  (locale: string) =>
+    new Intl.DateTimeFormat(locale, { timeZone: 'UTC' })
+      .formatToParts(0)
+      .map((part) => part.type),
+  () => 'unknown locale' as const
+);
+
 /** The order of day, month and year in the locale's numeric dates. */
 function dateOrder(locale: string): 'dmy' | 'mdy' | 'ymd' {
-  let parts: string[];
-  try {
-    parts = new Intl.DateTimeFormat(locale, { timeZone: 'UTC' })
-      .formatToParts(0)
-      .map((part) => part.type);
-  } catch {
-    return 'mdy';
-  }
-  const day = parts.indexOf('day');
-  const month = parts.indexOf('month');
-  if (parts.indexOf('year') < Math.min(day, month)) return 'ymd';
+  const parts = localeDateParts(locale);
+  if (parts.isErr()) return 'mdy';
+  const day = parts.value.indexOf('day');
+  const month = parts.value.indexOf('month');
+  if (parts.value.indexOf('year') < Math.min(day, month)) return 'ymd';
   return day < month ? 'dmy' : 'mdy';
 }
 
@@ -73,6 +76,12 @@ function fullYear(text: string) {
   return year < 30 ? 2000 + year : 1900 + year;
 }
 
+/** The leading weekday of a date code, as long as the typed one. */
+function weekdayCode(weekday: string | undefined) {
+  if (weekday === undefined) return '';
+  return nameIndex(WEEKDAYS, weekday)?.full ? 'dddd, ' : 'ddd, ';
+}
+
 function typedDate(
   year: number,
   month: number,
@@ -88,27 +97,18 @@ function typedDate(
     date.getUTCDate() !== day
   )
     return;
-  if (weekday !== undefined) {
-    const named = nameIndex(WEEKDAYS, weekday);
-    if (named?.index !== date.getUTCDay()) return;
-  }
+  if (
+    weekday !== undefined &&
+    nameIndex(WEEKDAYS, weekday)?.index !== date.getUTCDay()
+  )
+    return;
   const serial = (time - SERIAL_EPOCH) / DAY_MILLISECONDS;
   if (serial < FIRST_SERIAL) return;
   return numberFormat === undefined ? { serial } : { serial, numberFormat };
 }
 
-/**
- * A date typed into a cell, such as `01/2026`, `Jan 2026`, `Jan 01 2026`,
- * `1 January 2026`, `2026-01-01` or `1/1/26`. All-numeric dates read day and
- * month in the locale's order; names are English. Text that is not a whole
- * date, a day that does not exist, or a weekday that does not match it is
- * undefined, as are dates before March 1900.
- */
-export function parseTypedDate(
-  input: string,
-  locale: string
-): TypedDate | undefined {
-  const text = input.trim().toLowerCase().replace(/\s+/g, ' ');
+/** `2026-01-01`, `1/1/26` or `01/2026`. */
+function numericDate(text: string, locale: string) {
   let match = /^(\d{4})([-/.])(\d{1,2})\2(\d{1,2})$/.exec(text);
   if (match) {
     const [, year, separator, month, day] = match;
@@ -136,7 +136,11 @@ export function parseTypedDate(
   match = /^(\d{1,2})[-/.](\d{4})$/.exec(text);
   if (match)
     return typedDate(Number(match[2]), Number(match[1]), 1, 'mmm yyyy');
-  match = monthYear.exec(text);
+}
+
+/** `Jan 2026`, `Thursday, January 1, 2026` or `1 Jan 2026`. */
+function namedDate(text: string) {
+  let match = monthYear.exec(text);
   if (match) {
     const month = nameIndex(MONTHS, match[1]);
     return (
@@ -153,16 +157,13 @@ export function parseTypedDate(
   if (match) {
     const [, weekday, name, day, year] = match;
     const month = nameIndex(MONTHS, name);
-    const weekdayCode = weekday
-      ? `${nameIndex(WEEKDAYS, weekday)?.full ? 'dddd' : 'ddd'}, `
-      : '';
     return (
       month &&
       typedDate(
         fullYear(year),
         month.index + 1,
         Number(day),
-        `${weekdayCode}${month.full ? 'mmmm' : 'mmm'} ${day.length === 2 ? 'dd' : 'd'}, yyyy`,
+        `${weekdayCode(weekday)}${month.full ? 'mmmm' : 'mmm'} ${day.length === 2 ? 'dd' : 'd'}, yyyy`,
         weekday
       )
     );
@@ -171,20 +172,32 @@ export function parseTypedDate(
   if (match) {
     const [, weekday, day, separator, name, year] = match;
     const month = nameIndex(MONTHS, name);
-    const weekdayCode = weekday
-      ? `${nameIndex(WEEKDAYS, weekday)?.full ? 'dddd' : 'ddd'}, `
-      : '';
     return (
       month &&
       typedDate(
         fullYear(year),
         month.index + 1,
         Number(day),
-        `${weekdayCode}${day.length === 2 ? 'dd' : 'd'}${separator}${month.full ? 'mmmm' : 'mmm'}${separator}yyyy`,
+        `${weekdayCode(weekday)}${day.length === 2 ? 'dd' : 'd'}${separator}${month.full ? 'mmmm' : 'mmm'}${separator}yyyy`,
         weekday
       )
     );
   }
+}
+
+/**
+ * A date typed into a cell, such as `01/2026`, `Jan 2026`, `Jan 01 2026`,
+ * `1 January 2026`, `2026-01-01` or `1/1/26`. All-numeric dates read day and
+ * month in the locale's order; names are English. Text that is not a whole
+ * date, a day that does not exist, or a weekday that does not match it is
+ * undefined, as are dates before March 1900.
+ */
+export function parseTypedDate(
+  input: string,
+  locale: string
+): TypedDate | undefined {
+  const text = input.trim().toLowerCase().replace(/\s+/g, ' ');
+  return numericDate(text, locale) ?? namedDate(text);
 }
 
 /**
@@ -212,6 +225,16 @@ export function typedDateText(
   }
 }
 
+const readDateFormat = Result.fromThrowable(
+  (code: string): SpreadsheetCellStyle | undefined => {
+    if (!is_date(code)) return;
+    formatExcelNumber(code, 0);
+    const style = readNumberFormat(code);
+    return { ...style, format: style.format === 'time' ? 'time' : 'date' };
+  },
+  () => 'unsupported format' as const
+);
+
 /**
  * The cell style for an Excel date or time format code, or undefined when the
  * code is not one Macro can display.
@@ -219,12 +242,5 @@ export function typedDateText(
 export function dateFormatStyle(
   code: string
 ): SpreadsheetCellStyle | undefined {
-  try {
-    if (!is_date(code)) return;
-    formatExcelNumber(code, 0);
-    const style = readNumberFormat(code);
-    return { ...style, format: style.format === 'time' ? 'time' : 'date' };
-  } catch {
-    return;
-  }
+  return readDateFormat(code).unwrapOr(undefined);
 }
