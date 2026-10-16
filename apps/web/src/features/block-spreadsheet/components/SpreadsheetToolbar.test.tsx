@@ -82,6 +82,18 @@ describe('spreadsheet toolbar', () => {
     expect(view.onCommand).toHaveBeenCalledWith('undo');
   });
 
+  it('indents the selection and returns focus to the sheet', () => {
+    const onRestoreFocus = vi.fn();
+    const view = toolbar({ onRestoreFocus });
+    fireEvent.click(view.getByRole('button', { name: 'Increase indent' }));
+    fireEvent.click(view.getByRole('button', { name: 'Decrease indent' }));
+    expect(view.onCommand.mock.calls).toEqual([
+      ['indent-increase'],
+      ['indent-decrease'],
+    ]);
+    expect(onRestoreFocus).toHaveBeenCalledTimes(2);
+  });
+
   it('cancels a font size draft and restores keyboard focus without applying it', () => {
     const editor = document.createElement('textarea');
     document.body.append(editor);
@@ -240,6 +252,30 @@ describe('spreadsheet toolbar', () => {
   });
 
   it.each([
+    ['Sep 2026', { style: { format: 'date', numberFormat: 'mmm yyyy' } }],
+    [
+      'Thursday, September 17, 2026',
+      { style: { format: 'date', numberFormat: 'dddd, mmmm d, yyyy' } },
+    ],
+    ['Custom date and time…', { command: 'custom-date-format' }],
+  ])('offers %s under Number format → Date formats', async (item, expected) => {
+    const view = toolbar();
+    fireEvent.keyDown(view.getByRole('button', { name: 'Number format' }), {
+      key: 'ArrowDown',
+    });
+    fireEvent.keyDown(
+      await screen.findByRole('menuitem', { name: 'Date formats' }),
+      { key: 'ArrowRight' }
+    );
+    fireEvent.keyDown(await screen.findByRole('menuitem', { name: item }), {
+      key: 'Enter',
+    });
+    if ('style' in expected)
+      expect(view.onStyle).toHaveBeenCalledWith(expected.style);
+    else expect(view.onCommand).toHaveBeenCalledWith(expected.command);
+  });
+
+  it.each([
     {
       role: 'button',
       trigger: 'Functions',
@@ -285,6 +321,8 @@ describe('spreadsheet toolbar', () => {
       'Italic',
       'Fill color',
       'Number format',
+      'Increase indent',
+      'Decrease indent',
       'Functions',
       'Undo',
       'Paste special',
