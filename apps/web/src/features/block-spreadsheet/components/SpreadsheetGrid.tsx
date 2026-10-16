@@ -1219,8 +1219,13 @@ export function SpreadsheetGrid(props: {
           onContextMenu={(event) => {
             if (isInput(event.target)) return;
             const cell = event.target.closest<HTMLElement>('[data-address]');
-            if (!cell || !grid.contains(cell)) return;
-            const parsed = parseCellAddress(cell.dataset.address ?? '');
+            // The selection's move border opens the menu for the selection.
+            const parsed =
+              cell && grid.contains(cell)
+                ? parseCellAddress(cell.dataset.address ?? '')
+                : event.target.closest('[data-selection-move]')
+                  ? props.selection.anchor
+                  : undefined;
             if (!parsed) return;
             event.preventDefault();
             event.stopPropagation();

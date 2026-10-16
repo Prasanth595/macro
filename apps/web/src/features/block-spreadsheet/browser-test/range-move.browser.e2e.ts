@@ -113,6 +113,31 @@ test('scrolls the grid while dragging past its bottom edge', async ({
   await expect(page.locator(`[data-address="${moved?.[0]}"]`)).toBeInViewport();
 });
 
+test('right-clicking the border opens the menu for the selection, and clicking selects a cell', async ({
+  page,
+}) => {
+  const address = page.getByRole('textbox', { name: 'Go to cell' });
+  await page.locator('[data-address="B2"]').click();
+  await page.locator('[data-address="B3"]').click({ modifiers: ['Shift'] });
+  const border = await page
+    .locator('[data-selection-move="bottom"]')
+    .boundingBox();
+  const b3 = await page.locator('[data-address="B3"]').boundingBox();
+  if (!border || !b3) throw new Error('Selection border must be visible');
+  const x = b3.x + b3.width / 2;
+  const y = border.y + border.height / 2;
+  await page.mouse.click(x, y, { button: 'right' });
+  await expect(page.getByRole('menu')).toBeVisible();
+  await expect(
+    page.getByRole('menuitem', { name: 'Fill down', exact: true })
+  ).toBeEnabled();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  await expect(address).toHaveValue('B2:B3');
+  await page.mouse.click(x, y);
+  await expect(address).toHaveValue(/^B[34]$/);
+});
+
 test('Escape cancels a drag without moving cells', async ({ page }) => {
   await page.locator('[data-address="A3"]').click();
   await grabBorder(page, 'top', 'A3');
