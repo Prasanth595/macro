@@ -1,4 +1,4 @@
-import type { DataValidation } from './sheet-rules';
+import type { DataValidation, DropdownColor } from './sheet-rules';
 import type { SpreadsheetCellStyle } from './spreadsheet-document';
 
 export type SpreadsheetCellInput = { address: string; value: string };
@@ -43,6 +43,7 @@ export type SpreadsheetOperation =
       items?: string[];
       source?: string;
       rejectInvalid?: boolean;
+      colors?: DropdownColor[];
     }
   | { type: 'clear_validation'; sheetId: string; range: string }
   | { type: 'insert_checkboxes'; sheetId: string; range: string };
@@ -105,6 +106,8 @@ export type SpreadsheetReadValidation = {
   dropdown?: boolean;
   /** Whether entries breaking the rule are rejected. */
   rejectInvalid: boolean;
+  /** A dropdown's choice colors. */
+  colors?: DropdownColor[];
 };
 export type SpreadsheetReadRange = {
   sheetId: string;

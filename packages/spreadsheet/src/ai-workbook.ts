@@ -246,6 +246,7 @@ function readValidations(
         ...(rule.type === 'list' && { dropdown: rule.dropdown !== false }),
         rejectInvalid:
           !!rule.showError && (rule.errorStyle ?? 'stop') === 'stop',
+        ...(rule.colors && { colors: rule.colors }),
       };
     });
 }
@@ -590,6 +591,7 @@ export function prepareSpreadsheetEdit(
                 ? { range: operation.source ?? '' }
                 : { items: operation.items }),
               rejectInvalid: operation.rejectInvalid,
+              colors: operation.colors,
             });
             setSpreadsheetValidations(
               fork,
