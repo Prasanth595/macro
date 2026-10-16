@@ -326,7 +326,10 @@ disables Pro checkout without showing a trial offer; a failed lookup adds
 the server rejection rather than silently switching to an immediate charge.
 Returning to the tab or reconnecting refreshes the offer. Accounts with an
 existing recoverable subscription see `Manage` and payment-management guidance
-instead of new checkout cards, even when their access is Free. Retries reuse the
+instead of new checkout cards, even when their access is Free. A failed background
+eligibility refresh preserves known subscription management but hides trial
+claims. Management remains available if team lookup fails; plan changes wait for
+team data. Checkout rejection clears the offer until eligibility refreshes. Retries reuse the
 same open offer; changing plans invalidates the old link first. Competing tabs
 can show a retryable checkout conflict without creating two payable sessions.
 Reference captures from the isolated billing fixture: [returning customer](media/billing/returning-customer.png)

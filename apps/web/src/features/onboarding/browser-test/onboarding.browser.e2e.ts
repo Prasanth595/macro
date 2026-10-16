@@ -713,13 +713,14 @@ for (const width of [1280, 390]) {
 test.describe('subscription recovery', () => {
   test.use({ hasTouch: true });
   for (const width of [1280, 390]) {
-    test(`existing subscription opens management without replacement at ${width}px`, async ({
+    test(`existing subscription opens management without replacement at ${width}px${width === 390 ? ' after eligibility fails' : ''}`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: 900 });
       await openFixture(page, '/?view=flow', {
         trialEligible: false,
         existingSubscription: true,
+        failures: width === 390 ? { trialEligibility: 'offline' } : {},
       });
       await page.evaluate(() =>
         sessionStorage.setItem(

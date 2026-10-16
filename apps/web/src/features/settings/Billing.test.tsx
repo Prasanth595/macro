@@ -5,6 +5,7 @@ import { BillingSettingsView } from './components/billing-settings-view';
 import { getBillingState } from './core/billing-state';
 
 const mocks = vi.hoisted(() => ({
+  teamReady: true,
   eligibility: {
     isSuccess: true,
     isPending: false,
@@ -30,7 +31,11 @@ vi.mock('@core/context/user', () => ({
   useUserId: () => () => 'macro|returning@example.com',
 }));
 vi.mock('@queries/team/teams', () => ({
-  useCurrentTeamQuery: () => ({ isSuccess: true, data: undefined }),
+  useCurrentTeamQuery: () => ({
+    isSuccess: mocks.teamReady,
+    isPending: false,
+    data: undefined,
+  }),
 }));
 vi.mock('@queries/auth', () => ({
   useAiBillingSummaryQuery: () => ({
@@ -50,6 +55,7 @@ vi.mock('@core/component/Toast/Toast', () => ({ toast: { failure: vi.fn() } }));
 
 beforeEach(() => {
   mocks.checkout.mockClear();
+  mocks.teamReady = true;
   Object.assign(mocks.eligibility, {
     isSuccess: true,
     isPending: false,
@@ -126,4 +132,58 @@ it('keeps Max upgrades available after paid access recovers while eligibility da
   ));
   fireEvent.click(screen.getByRole('button', { name: 'Upgrade to Max' }));
   expect(select).toHaveBeenCalledWith('max');
+});
+
+it('keeps known subscription management available after a failed eligibility refresh', () => {
+  Object.assign(mocks.eligibility, {
+    isSuccess: false,
+    isPending: false,
+    isError: true,
+    data: { eligible: false, existingSubscription: true },
+  });
+  render(() => <Billing />);
+  expect(screen.getByRole('button', { name: 'Manage' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Get Pro' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Get Max' })).toBeNull();
+});
+
+it('keeps management available when team lookup fails without enabling plan changes', () => {
+  mocks.teamReady = false;
+  mocks.eligibility.data.existingSubscription = true;
+  render(() => <Billing />);
+  expect(screen.getByRole('button', { name: 'Manage' })).toBeTruthy();
+  expect(screen.getByText(/Use Manage to review/)).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Get Pro' })).toBeNull();
+});
+
+it('does not direct a user without billing permission to a hidden Manage action', () => {
+  render(() => (
+    <BillingSettingsView
+      state={getBillingState({
+        hasPaid: false,
+        canManageSubscription: false,
+        aiUsageEnabled: false,
+        pending: false,
+        existingSubscription: true,
+      })}
+      onManage={() => {}}
+      onSelectPlan={() => {}}
+    />
+  ));
+  expect(screen.queryByRole('button', { name: 'Manage' })).toBeNull();
+  expect(screen.queryByText(/Use Manage to review/)).toBeNull();
+});
+
+it('hides a previously confirmed trial after its background refresh fails', () => {
+  Object.assign(mocks.eligibility, {
+    isSuccess: false,
+    isPending: false,
+    isError: true,
+    data: { eligible: true, existingSubscription: false },
+  });
+  render(() => <Billing />);
+  expect(screen.queryByText('Free for one month!')).toBeNull();
+  expect(
+    screen.getByRole('button', { name: 'Get Pro' }).hasAttribute('disabled')
+  ).toBe(true);
 });

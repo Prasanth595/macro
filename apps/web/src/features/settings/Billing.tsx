@@ -67,7 +67,7 @@ function LiveBilling(props: { controls?: JSX.Element }) {
   });
 
   const userTeam = createMemo(() => {
-    const currentTeam = team.isSuccess ? team.data : undefined;
+    const currentTeam = queryReadyGate(team) ? team.data : undefined;
     const uid = userId();
     if (!currentTeam || !uid) return;
 
@@ -86,7 +86,8 @@ function LiveBilling(props: { controls?: JSX.Element }) {
   const state = () =>
     getBillingState({
       hasPaid: effectiveHasPaid(),
-      canManageSubscription: team.isSuccess && canManageSubscription() === true,
+      canManageSubscription: canManageSubscription() === true,
+      teamReady: team.isSuccess,
       teamRole: teamRole(),
       teamPlans: team.isSuccess
         ? team.data?.members.map((member) =>
@@ -103,10 +104,9 @@ function LiveBilling(props: { controls?: JSX.Element }) {
         : undefined,
       aiUsageEnabled: aiUsageBilling().enabled,
       pending: checkout.isPending || changePlan.isPending,
-      existingSubscription:
-        trialEligibility.isSuccess && queryReadyGate(trialEligibility)
-          ? trialEligibility.data.existingSubscription
-          : false,
+      existingSubscription: queryReadyGate(trialEligibility)
+        ? trialEligibility.data.existingSubscription
+        : false,
       trialEligible:
         trialEligibility.isSuccess && queryReadyGate(trialEligibility)
           ? trialEligibility.data.eligible

@@ -45,9 +45,9 @@ export function useCreateCheckoutSessionMutation() {
       return url;
     },
     onError: () => {
-      // Another tab may have subscribed since the offer was shown. Refresh the
-      // offer, but never retry an advertised trial as an immediate charge.
-      void queryClient.invalidateQueries({
+      // The rejected offer is no longer confirmed. Clear it before refetching,
+      // and never retry an advertised trial as an immediate charge.
+      void queryClient.resetQueries({
         queryKey: authKeys.trialEligibility.queryKey,
       });
     },

@@ -110,6 +110,7 @@ export function PlanStep(props: {
             props.finishing ||
             trial.managing() ||
             (plan.state().t === 'offer' &&
+              !trial.existingSubscription() &&
               (offer().t === 'loading' || trial.eligibility().t !== 'ready'))
           }
           onClick={() =>
@@ -135,7 +136,11 @@ export function PlanStep(props: {
         </p>
       </Show>
       <Show
-        when={plan.state().t === 'offer' && trial.eligibility().t === 'error'}
+        when={
+          plan.state().t === 'offer' &&
+          !trial.existingSubscription() &&
+          trial.eligibility().t === 'error'
+        }
       >
         <div role="alert" class="mt-4 text-center text-sm text-ink-muted">
           <p>Couldn't confirm your Pro offer.</p>

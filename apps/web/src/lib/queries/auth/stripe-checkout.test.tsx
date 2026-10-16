@@ -46,7 +46,11 @@ function setup() {
       });
       return value.t === 'ready' ? (value.value ? 'trial' : 'paid') : value.t;
     };
-    return <div>{label()}</div>;
+    return (
+      <button disabled={label() === 'loading' || label() === 'error'}>
+        {label()}
+      </button>
+    );
   }
   return {
     ...render(() => (
@@ -95,10 +99,17 @@ it.each(['focus', 'reconnect'])(
 it('refreshes the real eligibility query after a checkout conflict without a paid retry', async () => {
   const view = setup();
   await vi.advanceTimersByTimeAsync(1);
+  const paidEligibility = ok({ eligible: false, existingSubscription: false });
+  const refreshed = Promise.withResolvers<typeof paidEligibility>();
+  mocks.eligibility.mockReturnValueOnce(refreshed.promise);
   mocks.checkout.mockRejectedValue(new Error('Trial no longer available'));
   await expect(
     view.checkout()?.mutateAsync({ plan: 'premium', onboardingTrial: true })
   ).rejects.toThrow('Trial no longer available');
+  await vi.advanceTimersByTimeAsync(1);
+  expect(view.container.textContent).toBe('loading');
+  expect(view.container.querySelector('button')?.disabled).toBe(true);
+  refreshed.resolve(paidEligibility);
   await vi.advanceTimersByTimeAsync(1);
   expect(view.container.textContent).toBe('paid');
   expect(mocks.checkout).toHaveBeenCalledTimes(1);

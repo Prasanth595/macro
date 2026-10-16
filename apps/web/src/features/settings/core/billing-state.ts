@@ -3,6 +3,7 @@ import type { PaidPlanTier, PlanTier } from '@app/features/paywall/plans';
 export type BillingInput = {
   hasPaid: boolean;
   canManageSubscription: boolean;
+  teamReady?: boolean;
   teamRole?: 'owner' | 'member';
   teamPlans?: readonly PaidPlanTier[];
   summary?: { tier: PlanTier; canManageBilling: boolean };
@@ -33,7 +34,9 @@ export function getBillingState(input: BillingInput) {
     ...input,
     tier,
     billedThroughTeam,
-    canChangePlan: input.canManageSubscription && isOwnerOrSolo,
+    canManageBilling: input.canManageSubscription && isOwnerOrSolo,
+    canChangePlan:
+      input.teamReady !== false && input.canManageSubscription && isOwnerOrSolo,
   };
 }
 

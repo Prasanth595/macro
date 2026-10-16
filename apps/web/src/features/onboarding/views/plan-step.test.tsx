@@ -232,6 +232,20 @@ it('routes an existing subscription to management without starting a replacement
   expect(checkout).not.toHaveBeenCalled();
 });
 
+it('keeps known subscription management available when eligibility refresh fails', () => {
+  const { checkout, fake } = setup(undefined, {
+    trialEligible: false,
+    existingSubscription: true,
+    failures: { trialEligibility: 'offline' },
+  });
+  const manage = screen.getByRole('button', { name: 'Manage subscription' });
+  expect(manage.hasAttribute('disabled')).toBe(false);
+  expect(screen.queryByText("Couldn't confirm your Pro offer.")).toBeNull();
+  fireEvent.click(manage);
+  expect(fake.calls()).toContain('manageSubscription');
+  expect(checkout).not.toHaveBeenCalled();
+});
+
 it('does not expose an invite checkout when eligibility fails', () => {
   const { checkout } = setup(undefined, {
     inviteOffer: {
@@ -254,8 +268,11 @@ it('does not expose an invite checkout when eligibility fails', () => {
 });
 
 it('does not advertise a trial in the comparison to a returning customer', () => {
-  setupComparison({ trialEligible: false });
+  const { back, checkout } = setupComparison({ trialEligible: false });
   expect(screen.queryByText(/30 days free/)).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Continue with Pro' }));
+  expect(back).toHaveBeenCalledOnce();
+  expect(checkout).not.toHaveBeenCalled();
 });
 
 it('prevents replacement purchases from the comparison for an existing subscription', () => {

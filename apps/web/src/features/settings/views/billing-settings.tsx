@@ -11,6 +11,8 @@ export const BillingSettingsView = (props: { context: BillingContext }) => (
       teamRole: props.context.teamRole(),
       billedThroughTeam: props.context.billedThroughTeam(),
       canManageSubscription: props.context.canManageSubscription(),
+      canManageBilling:
+        props.context.canManageSubscription() && props.context.isOwnerOrSolo(),
       canChangePlan: props.context.canChangePlan(),
       pending: props.context.changingPlan(),
     }}

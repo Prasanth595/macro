@@ -237,9 +237,7 @@ export function createAppOnboardingContext(): OnboardingContext {
             retainDataOnError: false,
           }),
         existingSubscription: () =>
-          query.isSuccess &&
-          queryReadyGate(query) &&
-          query.data.existingSubscription,
+          queryReadyGate(query) && query.data.existingSubscription,
         managing: () => billingPortal.isPending,
         manage: async () => {
           try {

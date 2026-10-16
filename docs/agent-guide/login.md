@@ -189,7 +189,9 @@ a background session refresh overlaps it.
 
 The final screen shows “Free Claude & GPT for 30 days” and the trial button
 only after the server confirms first-subscription eligibility. Returning
-customers see “Get more with Pro.” and `Get Pro` with paid monthly terms. The “See more” scroll cue opens the pricing grid
+customers without an existing subscription see “Get more with Pro.” and
+`Get Pro` with paid monthly terms. Existing subscribers see `Manage subscription`
+to review their subscription and payment details. The “See more” scroll cue opens the pricing grid
 below, comparing Free, Pro, and Max. The grid loads monthly subscription prices
 from the billing catalog and describes Max as 10× Pro usage, without displaying
 dollar-denominated included AI allowances. Monthly prices use the compact

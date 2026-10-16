@@ -133,7 +133,7 @@ export function BillingSettingsView(props: {
 
               <Show
                 when={
-                  props.state.canChangePlan &&
+                  props.state.canManageBilling &&
                   (props.state.hasPaid || props.state.existingSubscription)
                 }
               >
@@ -149,7 +149,11 @@ export function BillingSettingsView(props: {
               </Show>
             </header>
             <Show
-              when={props.state.existingSubscription && !props.state.hasPaid}
+              when={
+                props.state.canManageBilling &&
+                props.state.existingSubscription &&
+                !props.state.hasPaid
+              }
             >
               <p role="status" class="text-sm text-ink-muted">
                 You have an existing subscription. Use Manage to review your
