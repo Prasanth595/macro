@@ -491,19 +491,18 @@ export function Account() {
         <AccountPlanCard />
       </Show>
 
-      <SettingsSection>
-        <SettingsCard>
-          <SettingsRow
-            label="Log out"
-            description="Sign out of Macro on this device."
-          >
-            <Button variant="outline" depth={3} onClick={() => logout()}>
-              <SignOutIcon class="size-4" />
-              Log out
-            </Button>
-          </SettingsRow>
-        </SettingsCard>
-      </SettingsSection>
+      {/* A bare card like the plan card above, so the two match in height. */}
+      <SettingsCard>
+        <SettingsRow
+          label="Log out"
+          description="Sign out of Macro on this device."
+        >
+          <Button variant="outline" depth={3} onClick={() => logout()}>
+            <SignOutIcon class="size-4" />
+            Log out
+          </Button>
+        </SettingsRow>
+      </SettingsCard>
 
       {/* Deliberately quiet and outside a card, so it isn't mistaken for
           Log out. */}
