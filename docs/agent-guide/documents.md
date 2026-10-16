@@ -533,6 +533,8 @@ formulas, typed results, errors, and formatting. **CalculateSpreadsheet** evalua
 scratch formulas and what-if inputs without changing the workbook.
 **EditSpreadsheet** applies a validated batch of cell/formula/format edits, fill,
 row additions, column resizing, and sheet creation/rename/duplication/deletion.
+`format_cells` shows dates in any Excel date code with
+`{ "format": "date", "numberFormat": "mmm yyyy" }`.
 Edits require a revision from a fresh read; a concurrent change rejects the entire
 batch so the AI can reread. Tool rows expand to show the actual results and warnings.
 
