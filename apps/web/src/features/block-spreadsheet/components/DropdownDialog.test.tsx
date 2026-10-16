@@ -132,18 +132,39 @@ describe('dropdown dialog colors', () => {
         current: {
           range: 'A2:A4',
           rejectInvalid: false,
-          colors: [{ item: 'Engineering', color: '#fecaca' }],
+          colors: [
+            { item: 'Engineering', color: '#fecaca' },
+            { item: 'Marketing', color: '#fed7aa' },
+          ],
         },
       },
-      (range) => (range === 'A2:A4' ? ['Design', 'Engineering'] : undefined)
+      (range) =>
+        range === 'A2:A4' || range === 'A2:A3'
+          ? ['Design', 'Engineering']
+          : undefined
     );
     await screen.findByRole('textbox', { name: 'Range of choices' });
     expect(swatch('Design')).toBe('#bfdbfe');
     expect(swatch('Engineering')).toBe('#fecaca');
     await pickColor('Design', 'Teal');
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    expect(onSave).toHaveBeenCalledWith({
+    // Marketing is not in the range now, such as a cleared source cell, but
+    // keeps its color while the dropdown reads the same range.
+    expect(onSave).toHaveBeenLastCalledWith({
       range: 'A2:A4',
+      rejectInvalid: false,
+      colors: [
+        { item: 'Design', color: '#99f6e4' },
+        { item: 'Engineering', color: '#fecaca' },
+        { item: 'Marketing', color: '#fed7aa' },
+      ],
+    });
+    fireEvent.input(screen.getByRole('textbox', { name: 'Range of choices' }), {
+      target: { value: 'A2:A3' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSave).toHaveBeenLastCalledWith({
+      range: 'A2:A3',
       rejectInvalid: false,
       colors: [
         { item: 'Design', color: '#99f6e4' },

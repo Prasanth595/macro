@@ -181,15 +181,22 @@ function DropdownForm(props: {
           });
           return;
         }
+        // A value missing from the range for now, such as a cleared cell,
+        // keeps its color while the dropdown reads the same range.
+        const kept =
+          current && 'range' in current && current.range === range().trim()
+            ? (current.colors ?? [])
+            : [];
         props.onSave({
           range: range().trim(),
           rejectInvalid: rejectInvalid(),
-          colors: uniqueColors(
-            rangeItems().map((item, index) => ({
+          colors: uniqueColors([
+            ...rangeItems().map((item, index) => ({
               item,
               color: rangeColor(item, index),
-            }))
-          ),
+            })),
+            ...kept,
+          ]),
         });
       }}
       onKeyDown={(event) => event.stopPropagation()}
