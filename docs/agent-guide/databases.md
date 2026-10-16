@@ -143,7 +143,9 @@ Use **Add column** immediately after the table’s headers. It creates an **Unna
 Text column (**Unnamed 2**, and so on if that name exists), selects its name in the
 header, and lets you type immediately while creation saves in the background.
 Renaming or editing the new column waits for creation to finish; a refused
-creation removes the preview and shows an error. Enter saves; Escape keeps the default name.
+creation removes the preview and shows an error. Enter saves the name and immediately
+puts the typing cursor in that column's first cell, without waiting for creation
+or renaming to finish. Escape keeps the default name.
 There is no creation dialog. Double-click a header, press F2 while it is focused,
 or choose **Rename column** from its arrow or right-click menu to rename it later.
 Its type icon stays in place while editing. SQL refers to tables and columns by

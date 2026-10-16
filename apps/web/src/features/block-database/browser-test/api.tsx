@@ -21,6 +21,10 @@ function ApiFixture() {
   let editTitle: (() => void) | undefined;
   const [editable, setEditable] = createSignal(true);
   const [writes, setWrites] = createSignal(0);
+  let releaseColumnWrites!: () => void;
+  const columnWriteGate = new Promise<void>((resolve) => {
+    releaseColumnWrites = resolve;
+  });
   const [view, setView] = createSignal<DatabaseViewState>({
     query: { filter: null },
     layout: { kind: 'table', columns: [] },
@@ -71,14 +75,16 @@ function ApiFixture() {
     applyOps: ({ ops }) =>
       ResultAsync.fromSafePromise(
         ops.some((op) => op.kind === 'column' && op.change.kind === 'create')
-          ? new Promise<void>((resolve) =>
-              setTimeout(
-                resolve,
-                Number(
-                  new URLSearchParams(location.search).get('columnDelay') ?? 0
+          ? new URLSearchParams(location.search).has('holdColumnWrites')
+            ? columnWriteGate
+            : new Promise<void>((resolve) =>
+                setTimeout(
+                  resolve,
+                  Number(
+                    new URLSearchParams(location.search).get('columnDelay') ?? 0
+                  )
                 )
               )
-            )
           : Promise.resolve()
       ).andThen(() => {
         const results: OpResult[] = [];
@@ -210,6 +216,13 @@ function ApiFixture() {
             Show board
           </button>
           <output aria-label="API writes">{writes()}</output>
+          <button
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={releaseColumnWrites}
+          >
+            Release column saves
+          </button>
         </div>
         <DatabaseProvider
           api={api}

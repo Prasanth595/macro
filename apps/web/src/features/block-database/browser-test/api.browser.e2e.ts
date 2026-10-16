@@ -39,7 +39,7 @@ test('adds a column and starts naming it while creation is still saving', async 
   await page.route('**/__macro_dev/**', (route) => route.abort());
   await openFixture(
     page,
-    '/src/features/block-database/browser-test/api.html?columnDelay=1500'
+    '/src/features/block-database/browser-test/api.html?holdColumnWrites'
   );
   await page.getByRole('button', { name: 'Add column', exact: true }).click();
   const name = page.getByRole('textbox', { name: 'Column name', exact: true });
@@ -47,10 +47,26 @@ test('adds a column and starts naming it while creation is still saving', async 
   await expect(page.getByLabel('API writes')).toHaveText('0');
   await name.fill('Tasks');
   await name.press('Enter');
+  await expect(name).toHaveCount(0);
   await expect(
     page.getByRole('columnheader', { name: 'Tasks', exact: true })
   ).toBeVisible();
-  await expect(page.getByLabel('API writes')).toHaveText('2');
+  // The schema may still show its previous name while the rename is queued.
+  const editor = page.getByRole('textbox', { name: /^Edit (Unnamed|Tasks)$/ });
+  await expect(editor).toBeFocused();
+  await expect(page.getByLabel('API writes')).toHaveText('0');
+  await editor.fill('First task');
+  await editor.press('Enter');
+  await expect(editor).toBeFocused();
+  await expect(page.getByLabel('API writes')).toHaveText('0');
+  await page.getByRole('button', { name: 'Release column saves' }).click();
+  await expect(
+    page.getByRole('columnheader', { name: 'Tasks', exact: true })
+  ).toBeVisible();
+  await expect(page.getByLabel('API writes')).toHaveText('3');
+  await expect(
+    page.getByRole('button', { name: /^Tasks: First task\./ })
+  ).toBeVisible();
 });
 
 test('an API-only host pages rows, writes cells and creates columns through the shared controller', async ({

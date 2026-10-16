@@ -560,6 +560,16 @@ export function DatabaseTable(props: DatabaseTableProps) {
                 const column = () => header().column.columnDef.meta!;
                 return (
                   <DraggableColumnHeader
+                    onEnter={() => {
+                      const row = rows()[0];
+                      if (!row || !canEditCell(column())) return;
+                      pendingEdit = {
+                        rowId: row.id,
+                        columnId: column().id,
+                        selectAll: false,
+                      };
+                      editRequestedCell();
+                    }}
                     registerRename={(rename) => {
                       if (rename) headerRenames.set(column().id, rename);
                       else headerRenames.delete(column().id);
