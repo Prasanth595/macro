@@ -24,15 +24,17 @@ afterEach(() => {
   for (const dispose of cleanups.splice(0)) dispose();
 });
 
-function setup() {
-  const doc = new LoroDoc();
-  cleanups.push(() => doc.free());
-  writeSpreadsheetCells(doc, {
+function setup(
+  cells: Parameters<typeof writeSpreadsheetCells>[1] = {
     A1: { value: '10', bold: true },
     A2: { value: '20' },
     B1: { value: '=SUM(A1:A2)' },
     C1: { value: 'Taken' },
-  });
+  }
+) {
+  const doc = new LoroDoc();
+  cleanups.push(() => doc.free());
+  writeSpreadsheetCells(doc, cells);
   return createRoot((dispose) => {
     cleanups.unshift(dispose);
     const store = createSpreadsheetStore({
@@ -103,6 +105,23 @@ describe('moving selected cells', () => {
     expect(store.cells().A1).toBeUndefined();
     expect(store.cells().C1).toEqual({ value: '10', bold: true });
     expect(store.cells().B1.value).toBe('=SUM(C1:C2)');
+  });
+
+  it('moves whole-row references with rows selected by their headers', async () => {
+    const { store, rangeMove } = setup({
+      A1: { value: '10' },
+      B2: { value: '20' },
+      A10: { value: '=SUM(1:2)+SUM($1:$2)+SUM(A1:B2)' },
+    });
+    // A row-header selection ends at the sheet's last column.
+    const rows = {
+      anchor: { row: 0, column: 0 },
+      focus: { row: 1, column: store.columnCount() - 1 },
+    };
+    await rangeMove.move(rows, 3, 0);
+    expect(store.cells().A4).toEqual({ value: '10' });
+    expect(store.cells().B5).toEqual({ value: '20' });
+    expect(store.cells().A10.value).toBe('=SUM(4:5)+SUM($4:$5)+SUM(A4:B5)');
   });
 
   it("cancels a confirmed move after a collaborator's edit and keeps both", async () => {
