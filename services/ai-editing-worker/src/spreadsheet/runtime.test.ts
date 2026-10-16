@@ -393,6 +393,30 @@ it('accepts the accounting number format in AI edits', () => {
   expect(edit('ledger')).toBe(false);
 });
 
+it('accepts indent levels up to Excel’s limit in AI edits', () => {
+  const edit = (indent: number) =>
+    spreadsheetBodySchema.safeParse({
+      documentId: crypto.randomUUID(),
+      documentToken: 'token',
+      request: {
+        action: 'edit',
+        expectedRevision: 'rev',
+        operations: [
+          {
+            type: 'format_cells',
+            sheetId: 'sheet1',
+            range: 'A2:A9',
+            style: { indent, horizontalAlign: 'left' },
+          },
+        ],
+      },
+    }).success;
+  expect(edit(0)).toBe(true);
+  expect(edit(250)).toBe(true);
+  expect(edit(251)).toBe(false);
+  expect(edit(1.5)).toBe(false);
+});
+
 it('accepts dropdown operations and rejects unknown dropdown fields', () => {
   const edit = (operation: Record<string, unknown>) =>
     spreadsheetBodySchema.safeParse({
@@ -413,4 +437,12 @@ it('accepts dropdown operations and rejects unknown dropdown fields', () => {
   expect(edit({ type: 'set_dropdown', items: ['a'], formula: '=1' })).toBe(
     false
   );
+  const colored = (colors: unknown) =>
+    edit({ type: 'set_dropdown', items: ['Open', 'Done'], colors });
+  expect(colored([{ item: 'Done', color: '#B7E1CD' }])).toBe(true);
+  expect(colored([{ item: 'Done', color: 'green' }])).toBe(false);
+  expect(colored([{ item: 'Done', color: '#b7e1cd', text: '#000' }])).toBe(
+    false
+  );
+  expect(colored({ Done: '#b7e1cd' })).toBe(false);
 });

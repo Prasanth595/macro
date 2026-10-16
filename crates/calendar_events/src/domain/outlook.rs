@@ -190,7 +190,7 @@ impl<
         result.map_err(|error| rootcause::report!(error))?;
         if lease.target.is_none() {
             self.notifier
-                .calendar_changed(&lease.owner_id, lease.binding.link_id)
+                .calendar_changed(&lease.owner_id, lease.binding.link_id, true)
                 .await;
         }
         Ok(true)
@@ -362,7 +362,7 @@ impl<
             .map_err(|e| rootcause::report!(e))?
             .map_err(|e| rootcause::report!(e))?;
         self.notifier
-            .calendar_changed(&lease.event.metadata().owner_id, lease.link_id)
+            .calendar_changed(&lease.event.metadata().owner_id, lease.link_id, true)
             .await;
         self.repository.complete_projection(&lease).await?;
         Ok(true)

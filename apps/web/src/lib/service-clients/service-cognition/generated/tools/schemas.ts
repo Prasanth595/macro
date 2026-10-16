@@ -454,6 +454,9 @@ export const SpreadsheetResponse = z.any().superRefine((x, ctx) => {
                           z.null(),
                         ])
                         .optional(),
+                      indent: z
+                        .union([z.number().int().gte(0).lte(255), z.null()])
+                        .optional(),
                       verticalAlign: z
                         .union([
                           z.any().superRefine((x, ctx) => {
@@ -572,6 +575,14 @@ export const SpreadsheetResponse = z.any().superRefine((x, ctx) => {
                 formulas: z.union([z.array(z.string()), z.null()]).optional(),
                 dropdown: z.union([z.boolean(), z.null()]).optional(),
                 rejectInvalid: z.boolean(),
+                colors: z
+                  .union([
+                    z.array(
+                      z.object({ item: z.string(), color: z.string() }).strict()
+                    ),
+                    z.null(),
+                  ])
+                  .optional(),
               })
             )
             .optional(),
@@ -7977,6 +7988,9 @@ export const EditSpreadsheet = z.object({
                     z.null(),
                   ])
                   .optional(),
+                indent: z
+                  .union([z.number().int().gte(0).lte(255), z.null()])
+                  .optional(),
                 verticalAlign: z
                   .union([
                     z.any().superRefine((x, ctx) => {
@@ -8114,6 +8128,14 @@ export const EditSpreadsheet = z.object({
             items: z.union([z.array(z.string()), z.null()]).optional(),
             source: z.union([z.string(), z.null()]).optional(),
             rejectInvalid: z.union([z.boolean(), z.null()]).optional(),
+            colors: z
+              .union([
+                z.array(
+                  z.object({ item: z.string(), color: z.string() }).strict()
+                ),
+                z.null(),
+              ])
+              .optional(),
             type: z.literal('set_dropdown'),
           })
           .strict(),
@@ -14088,6 +14110,37 @@ export const SendChannelMessage = z.object({
   content: z.string(),
   channel_id: z.string().uuid(),
   thread_id: z.union([z.string().uuid(), z.null()]).optional(),
+  attachments: z
+    .array(
+      z.object({
+        id: z.string(),
+        kind: z.any().superRefine((x, ctx) => {
+          const schemas = [
+            z.literal('image'),
+            z.literal('video'),
+            z.literal('document'),
+          ];
+          const errors = schemas.reduce<z.ZodError[]>(
+            (errors, schema) =>
+              ((result) => (result.error ? [...errors, result.error] : errors))(
+                schema.safeParse(x)
+              ),
+            []
+          );
+          if (schemas.length - errors.length !== 1) {
+            ctx.addIssue({
+              path: ctx.path,
+              code: 'invalid_union',
+              unionErrors: errors,
+              message: 'Invalid input: Should pass single schema',
+            });
+          }
+        }),
+        width: z.union([z.number().int(), z.null()]).optional(),
+        height: z.union([z.number().int(), z.null()]).optional(),
+      })
+    )
+    .optional(),
 });
 
 export const SendChannelMessageResponse = z.object({

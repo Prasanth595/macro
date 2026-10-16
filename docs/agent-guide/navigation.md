@@ -362,7 +362,22 @@ Touch devices retain the flag-gated Reviews tab in Tasks.
 - Bottom: `Settings` (`Ctrl ;`) — a gear with the signed-in account's profile
   photo as a badge in its corner. It opens Settings directly in the active
   split (Shift-click for a new split); there is no account menu. Log out lives
-  at the bottom of the Settings sidebar, and the command menu is `Ctrl K`.
+  on **Settings → Account**, and the command menu is `Ctrl K`.
+
+The rail highlights the workspace shown by the **active split**, not every app
+named in the multi-split URL. Nested details keep their owning workspace selected
+(for example, a thread under Email or a document under Home). Selection changes
+when navigation commits; a pending preload or a refused leave guard does not
+select a destination that is not shown. Pressing the current workspace preserves
+its filters and nested detail; during a pending navigation, the same press
+cancels that navigation without adding a duplicate history step.
+A later ordinary rail press also cancels a new split still preloading from the
+active split's earlier Shift-press. Already-open splits and pending work from
+other splits remain intact.
+Verify rapid app presses, returning to the currently shown app while another app
+loads, split focus changes, closing a split, and split Back/Forward. The last
+requested destination must win, and a later return to an earlier view must not
+revive an old highlight.
 
 Start a new AI chat from the Agents workspace; the rail has no separate
 new-chat-in-a-new-split button. Its tooltips

@@ -359,7 +359,7 @@ impl OutlookCalendarRepository for PgCalendarRepository {
         let range = OccurrenceRange::maintenance_horizon(Utc::now());
         for calendar in calendars {
             observed.push(calendar.calendar.provider_calendar_id.clone());
-            let c = upsert_calendar_tx(
+            let (c, _) = upsert_calendar_tx(
                 &mut tx,
                 &mut log,
                 lease.binding.link_id,

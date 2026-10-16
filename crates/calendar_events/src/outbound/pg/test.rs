@@ -3,6 +3,7 @@ mod outlook;
 use super::*;
 mod point_events;
 mod snapshot_coverage;
+mod team_refresh;
 mod team_sharing;
 mod team_sync_coverage;
 use crate::domain::models::{

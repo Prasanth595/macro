@@ -243,6 +243,7 @@ impl PgCalendarRepository {
         let mut log = ChangeLogBatch::default();
         let id = upsert_calendar_tx(&mut tx, &mut log, email_link_id, account_id, calendar, None)
             .await?
+            .0
             .id;
         log.commit(tx).await?;
         Ok(id)
@@ -857,6 +858,22 @@ impl CalendarRepository for PgCalendarRepository {
         .fetch_optional(&mut *tx)
         .await
         .map_err(report)?;
+        // The old source matters too: changing OOO to a regular event withdraws
+        // a status teammates may already have cached. Unknown legacy payloads
+        // cannot certify an unrelated update.
+        let team_ooo_changed = upsert.event.event_type == EventType::OutOfOffice
+            || existing.as_ref().is_some_and(|row| {
+                row.normalized_payload
+                    .get("event")
+                    .and_then(serde_json::Value::as_object)
+                    .is_none_or(|event| {
+                        // Regular events omit eventType in stored projections.
+                        event.get("eventType").is_some_and(|kind| {
+                            serde_json::from_value::<EventType>(kind.clone())
+                                .map_or(true, |kind| kind == EventType::OutOfOffice)
+                        })
+                    })
+            });
         if let Some(row) = &existing {
             let incoming =
                 serde_json::to_value(StoredSourceProjection::from(&upsert)).map_err(report)?;
@@ -867,6 +884,7 @@ impl CalendarRepository for PgCalendarRepository {
                     event_id: row.event_id,
                     owner_id: upsert.event.owner_id.clone(),
                     change: CalendarEventChange::Unchanged,
+                    team_ooo_changed: false,
                 });
             }
         }
@@ -968,6 +986,7 @@ impl CalendarRepository for PgCalendarRepository {
                 event_id,
                 owner_id: upsert.event.owner_id.clone(),
                 change: CalendarEventChange::Unchanged,
+                team_ooo_changed: false,
             });
         };
         if provider_sync {
@@ -1024,6 +1043,7 @@ impl CalendarRepository for PgCalendarRepository {
             } else {
                 CalendarEventChange::Updated
             },
+            team_ooo_changed,
         })
     }
 
@@ -1406,7 +1426,7 @@ impl CalendarRepository for PgCalendarRepository {
         let mut tx = self.pool.begin().await.map_err(report)?;
         fence_google_mutation_tx(&mut tx, key, lease_token, Some(account_id)).await?;
         let mut log = ChangeLogBatch::default();
-        let calendar = upsert_calendar_tx(
+        let (calendar, team_ooo_changed) = upsert_calendar_tx(
             &mut tx,
             &mut log,
             key.email_link_id,
@@ -1416,7 +1436,7 @@ impl CalendarRepository for PgCalendarRepository {
         )
         .await?;
         log.commit(tx).await?;
-        stored_google_calendar(calendar)
+        stored_google_calendar(calendar, team_ooo_changed)
     }
 
     #[tracing::instrument(skip(self, sync), fields(job_id = %key.job_id), err)]
@@ -2492,7 +2512,7 @@ async fn upsert_calendar_tx(
     account_id: Uuid,
     calendar: ProviderCalendar,
     provider_sync: Option<CalendarProvider>,
-) -> Result<StoredCalendarRow, Report> {
+) -> Result<(StoredCalendarRow, bool), Report> {
     // Snapshot the reminder-relevant state before the upsert: a change to the
     // default reminders or the zone that anchors all-day starts invalidates
     // the firing schedule of every event that follows this calendar.
@@ -2614,7 +2634,10 @@ async fn upsert_calendar_tx(
     if visibly_changed {
         log.record(email_link_id, CalendarChangeOp::UpsertCalendar(row.id));
     }
-    Ok(row)
+    Ok((
+        row,
+        visibly_changed || reminders_invalidated || access_changed,
+    ))
 }
 
 /// The sync error a calendar shows clients, if any, locking its row for the
@@ -2641,7 +2664,10 @@ async fn visible_calendar_sync_error_tx(
     }))
 }
 
-fn stored_google_calendar(row: StoredCalendarRow) -> Result<StoredGoogleCalendar, Report> {
+fn stored_google_calendar(
+    row: StoredCalendarRow,
+    team_ooo_changed: bool,
+) -> Result<StoredGoogleCalendar, Report> {
     let materialized_range = match (
         row.materialized_starts_at,
         row.materialized_ends_at,
@@ -2665,6 +2691,7 @@ fn stored_google_calendar(row: StoredCalendarRow) -> Result<StoredGoogleCalendar
     };
     Ok(StoredGoogleCalendar {
         id: row.id,
+        team_ooo_changed,
         sync_token: row.sync_token,
         materialized_range,
         synced_at: row.synced_at,

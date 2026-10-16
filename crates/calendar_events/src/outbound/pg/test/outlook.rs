@@ -243,7 +243,7 @@ async fn outlook_discovery_preserves_coverage_without_google_snapshot_certificat
 
     let mut tx = pool.begin().await.unwrap();
     let mut log = ChangeLogBatch::default();
-    let stored = upsert_calendar_tx(
+    let (stored, _) = upsert_calendar_tx(
         &mut tx,
         &mut log,
         link,
