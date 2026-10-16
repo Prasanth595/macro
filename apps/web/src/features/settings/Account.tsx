@@ -441,12 +441,17 @@ export function Account() {
           </Show>
 
           <Row label="Email">
-            <span
-              class="ph-no-capture min-w-0 truncate text-sm text-ink-muted"
-              title={email() ?? undefined}
+            <Tooltip
+              as="span"
+              label={email() ?? ''}
+              placement="top"
+              tabIndex={0}
+              class="min-w-0 max-w-full rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
-              {email() ?? ''}
-            </span>
+              <span class="ph-no-capture min-w-0 truncate text-sm text-ink-muted">
+                {email() ?? ''}
+              </span>
+            </Tooltip>
           </Row>
 
           <Row label="First Name">
@@ -877,7 +882,7 @@ function BundleUpdateRow() {
   const action = () => bundleUpdateAction(status());
   return (
     <Row label="App Update">
-      <div class="flex items-center gap-3">
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
         <span class="text-sm text-ink-muted">
           {formatBundleUpdateStatus(status())}
         </span>
@@ -898,7 +903,7 @@ function NativeUpdateRow() {
   return (
     <Show when={tauri && tauri.nativeUpdateStatus().status !== 'Disabled'}>
       <Row label="Desktop app update">
-        <div class="flex items-center gap-3">
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
           <span class="text-sm text-ink-muted">
             {tauri && nativeUpdateDescription(tauri.nativeUpdateStatus())}
           </span>
