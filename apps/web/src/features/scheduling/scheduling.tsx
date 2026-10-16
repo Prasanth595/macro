@@ -122,6 +122,12 @@ export function BookingLinksWorkspace() {
   const flag = useFeatureFlag(enableCalendarScheduling);
   const [search, setSearch] = createSearchParams(bookingLinksSearch);
   useSplitDisplayName(() => 'Scheduling');
+  let beforeLeave:
+    | ((signal: AbortSignal) => boolean | Promise<boolean>)
+    | undefined;
+  useBeforeLeave(({ signal }) => beforeLeave?.(signal) ?? true, {
+    search: [bookingLinksSearch.namespace],
+  });
   return (
     <Show
       when={flag().enabled}
@@ -144,11 +150,12 @@ export function BookingLinksWorkspace() {
               <BookingWorkspaceView
                 search={search}
                 onSearchChange={(patch) => setSearch(patch)}
-                registerBeforeLeave={(guard) =>
-                  useBeforeLeave(({ signal }) => guard(signal), {
-                    search: ['scheduling'],
-                  })
-                }
+                registerBeforeLeave={(guard) => {
+                  beforeLeave = guard;
+                  return () => {
+                    if (beforeLeave === guard) beforeLeave = undefined;
+                  };
+                }}
               />
             </SchedulingHost>
           </Suspense>

@@ -76,7 +76,7 @@ export function BookingWorkspaceView(props: {
   onSearchChange: (patch: Partial<BookingLinksState>) => void;
   registerBeforeLeave?: (
     guard: (signal: AbortSignal) => boolean | Promise<boolean>
-  ) => void;
+  ) => void | (() => void);
 }) {
   const capabilities = useScheduling();
   const search = props.search;
@@ -138,7 +138,10 @@ export function BookingWorkspaceView(props: {
       for (const current of dirtyOwners()) current.revertProfile();
     },
   });
-  props.registerBeforeLeave?.(pageLeave.requestLeave);
+  const unregisterBeforeLeave = props.registerBeforeLeave?.(
+    pageLeave.requestLeave
+  );
+  if (unregisterBeforeLeave) onCleanup(unregisterBeforeLeave);
   const beforeUnload = (event: BeforeUnloadEvent) => {
     if (!hasPageChanges()) return;
     event.preventDefault();
@@ -153,18 +156,12 @@ export function BookingWorkspaceView(props: {
     discardEditors();
     setSearch(patch);
   };
-  const confirmSelection = async (
-    patch: Partial<BookingLinksState>,
-    result: Promise<boolean>
-  ) => {
-    if (await result) commitSelection(patch);
-  };
-  const requestSelection = (patch: Partial<BookingLinksState>) => {
-    if (pageLeave.open()) return;
+  const requestSelection = async (patch: Partial<BookingLinksState>) => {
+    if (pageLeave.open()) return false;
     const result = pageLeave.requestLeave();
-    if (typeof result === 'boolean') {
-      if (result) commitSelection(patch);
-    } else void confirmSelection(patch, result);
+    if (!(typeof result === 'boolean' ? result : await result)) return false;
+    commitSelection(patch);
+    return true;
   };
   // Route history bypasses the UI setters. Dispose event/schedule editors,
   // but retain booking-page drafts so same-view history cannot lose edits.
@@ -185,7 +182,7 @@ export function BookingWorkspaceView(props: {
     if (isSaving()) return;
     const next = TABS.find((item) => item.value === value);
     if (!next || next.value === search.tab) return;
-    requestSelection({ tab: next.value });
+    void requestSelection({ tab: next.value });
   };
   const selectOwner = (id: string) => {
     if (
@@ -194,16 +191,19 @@ export function BookingWorkspaceView(props: {
       !scopes().some((scope) => scope.id === id)
     )
       return;
-    requestSelection({ owner: id });
+    void requestSelection({ owner: id });
   };
-  const create = (opener: HTMLElement) => {
+  const create = async (opener: HTMLElement) => {
     const current = owner();
     if (!current) return;
-    if (search.tab === 'availability') current.createSchedule(opener);
-    else {
-      setSearch({ tab: 'links' });
-      void current.action(() => current.createEvent(opener));
+    if (search.tab === 'availability') {
+      current.createSchedule(opener);
+      return;
     }
+    if (search.tab !== 'links' && !(await requestSelection({ tab: 'links' })))
+      return;
+    if (owner() !== current) return;
+    await current.action(() => current.createEvent(opener));
   };
   const createWithAgent = async () => {
     const current = owner();
@@ -364,7 +364,7 @@ export function BookingWorkspaceView(props: {
             onTab={selectTab}
             onOwner={selectOwner}
             onBack={() => owner()?.closeScheduleEditor()}
-            onCreate={create}
+            onCreate={(opener) => void create(opener)}
           />
         </Show>
         <ViewShell.TopBar>
@@ -461,7 +461,7 @@ export function BookingWorkspaceView(props: {
                         owner()?.source.saving() ||
                         startingAgent()
                       }
-                      onClick={(event) => create(event.currentTarget)}
+                      onClick={(event) => void create(event.currentTarget)}
                     >
                       <PlusIcon class="size-4" />
                       <span>New</span>
@@ -485,7 +485,7 @@ export function BookingWorkspaceView(props: {
                       variant="strong"
                       size="md"
                       disabled={isSaving() || !owner()?.source.profile()}
-                      onClick={(event) => create(event.currentTarget)}
+                      onClick={(event) => void create(event.currentTarget)}
                     >
                       <PlusIcon class="size-4" />
                       <span>New</span>

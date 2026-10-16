@@ -12,6 +12,7 @@ import { createSignal, type JSX, type ParentProps } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { BookingLinksState } from '../booking-links-search';
+import { BookingRange } from '../components/booking-range';
 import {
   type SchedulingCapabilities,
   SchedulingProvider,
@@ -193,6 +194,9 @@ function fixture(team = { canEdit: true, canManageBookings: true }) {
     tab: 'links',
     owner: '',
   });
+  const onSearchChange = vi.fn((patch: Partial<BookingLinksState>) =>
+    setSearch(patch)
+  );
   render(() => (
     <SchedulingProvider
       value={{
@@ -217,7 +221,7 @@ function fixture(team = { canEdit: true, canManageBookings: true }) {
     >
       <BookingWorkspaceView
         search={search}
-        onSearchChange={setSearch}
+        onSearchChange={onSearchChange}
         registerBeforeLeave={(guard) => {
           leave = guard;
         }}
@@ -230,9 +234,62 @@ function fixture(team = { canEdit: true, canManageBookings: true }) {
     createBookingLinkWithAgent,
     search,
     setSearch,
+    onSearchChange,
     leave: (signal = new AbortController().signal) => leave(signal),
   };
 }
+
+it('keeps out-of-scale booking horizons until the slider moves below the cap', () => {
+  const [draft, setDraft] = createStore(
+    newEventType('schedule', ['user'], false)
+  );
+  const update = vi.fn();
+  render(() => (
+    <BookingRange
+      draft={draft}
+      disabled={false}
+      onUpdate={(key, value) => {
+        update(key, value);
+        setDraft({ ...draft, [key]: value });
+      }}
+    />
+  ));
+  const thumb = screen.getByRole('slider', { name: 'Latest booking time' });
+  const exact = screen.getByRole('spinbutton', {
+    name: "What's the latest someone can book? exact value",
+  });
+  for (const key of ['ArrowUp', 'ArrowRight', 'PageUp', 'End']) {
+    fireEvent.keyDown(thumb, { key });
+    expect(draft.horizonDays).toBe(60);
+    expect(exact).toHaveProperty('value', '60');
+  }
+  expect(update).not.toHaveBeenCalled();
+  fireEvent.keyDown(thumb, { key: 'ArrowDown' });
+  expect(draft.horizonDays).toBe(29);
+  setDraft('horizonDays', 60);
+  fireEvent.keyDown(thumb, { key: 'Home' });
+  expect(draft.horizonDays).toBe(1);
+});
+
+it('opens manual creation on Booking links without a redundant navigation', async () => {
+  const { setSearch, onSearchChange } = fixture();
+  setSearch({ tab: 'page' });
+  fireEvent.input(screen.getByRole('textbox', { name: 'Display name' }), {
+    target: { value: 'Retained draft' },
+  });
+  setSearch({ tab: 'links' });
+  fireEvent.click(screen.getByRole('button', { name: 'New booking link' }));
+  expect(
+    await screen.findByRole('button', { name: 'Save test event' })
+  ).toBeTruthy();
+  expect(onSearchChange).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel test event' }));
+  setSearch({ tab: 'page' });
+  expect(screen.getByRole('textbox', { name: 'Display name' })).toHaveProperty(
+    'value',
+    'Retained draft'
+  );
+});
 
 it('keeps agent creation scoped to the selected editable owner', async () => {
   const { createBookingLinkWithAgent } = fixture();

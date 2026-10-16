@@ -765,8 +765,10 @@ measured from now, not from one another. These rules restrict meeting start time
 not when the link is active. The scale gives hours and days more room, with visible
 landmarks at 1 hour, 4 hours, 1 day, 7 days, and 14 days, ending at 30 days.
 Values above thirty days remain at the right edge without changing their exact
-stored value; the latest input accepts up to 365 days. Moving one handle changes
-only that endpoint. Earliest gestures use 15-minute steps below 2 hours,
+stored value; the latest input accepts up to 365 days. At that edge, increase keys
+and End preserve the exact value; a decrease key moves back below the displayed
+limit. Moving one handle changes only that endpoint. Earliest gestures use
+15-minute steps below 2 hours,
 30-minute steps below 4 hours, hourly steps below 1 day, and daily steps beyond.
 Ctrl enables minute-level pointer/arrow adjustments, including stationary clicks;
 latest arrows step in days. Earliest PageDown at one day returns to 23 hours.

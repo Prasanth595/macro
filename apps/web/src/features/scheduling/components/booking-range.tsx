@@ -159,7 +159,11 @@ export function BookingRange(props: {
       keyboardGesture = false;
     });
     if (notice) changeNotice(values[event.key]);
-    else changeHorizon(values[event.key]);
+    else if (
+      props.draft.horizonDays <= SLIDER_MAX_DAYS ||
+      values[event.key] < SLIDER_MAX_DAYS
+    )
+      changeHorizon(values[event.key]);
   };
   return (
     <section

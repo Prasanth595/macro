@@ -105,7 +105,7 @@ keeps the meeting link last. Start an empty form by adding a section, then its q
   On touch devices, Preview, Publish (or Open form), and Share are in the
   floating header above the editor.
 - **Add meeting link** selects an existing booking link from the
-  **Calendar → Booking links** workspace, or opens that workspace to create one.
+  **More → Scheduling** workspace, or opens that workspace to create one.
   It is always the last step. Once added, the action becomes **View meeting link**
   and focuses the existing step rather than adding a duplicate. **Change** selects another link;
   **Remove booking step** leaves the link itself intact. A form's screeners
