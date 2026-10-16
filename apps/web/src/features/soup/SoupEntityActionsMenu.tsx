@@ -21,6 +21,7 @@ interface SoupEntityActionsMenuProps {
   onSetProject?: () => void;
   /** Host-specific items shown after the entity actions. */
   extraItems?: JSX.Element;
+  onEditChannel?: () => void;
   /** A list that completes its own rows, such as Home's work feed. */
   markDoneDelegate?: () => MarkDoneDelegate | undefined;
 }
@@ -43,6 +44,7 @@ export const SoupEntityActionsMenu = (props: SoupEntityActionsMenuProps) => {
       viewedProjectId: viewedProjectIdFromContent(content),
       openTagPicker: props.onEditTags,
       openProjectPicker: props.onSetProject,
+      editChannel: props.onEditChannel,
       splitHandle: panel.handle,
     });
   };

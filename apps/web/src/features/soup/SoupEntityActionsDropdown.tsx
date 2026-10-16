@@ -14,6 +14,7 @@ type SoupEntityActionsDropdownProps = {
   viewContext: EntityActionViewContext;
   /** Host-specific items appended after the entity actions. */
   extraItems?: JSX.Element;
+  onEditChannel?: () => void;
   placement?: ComponentProps<typeof Dropdown>['placement'];
   triggerProps?: ComponentProps<typeof Dropdown.Trigger>;
   contentClass?: string;
@@ -66,6 +67,7 @@ export function SoupEntityActionsDropdown(
               onSetProject={pickers.openProjectPicker}
               onEditTags={pickers.openTagPicker()}
               extraItems={props.extraItems}
+              onEditChannel={props.onEditChannel}
             />
           </Dropdown.Group>
         </Dropdown.Content>

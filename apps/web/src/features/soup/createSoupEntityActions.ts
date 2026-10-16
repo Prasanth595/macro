@@ -70,6 +70,8 @@ type BuildActionGroups = (
     // right-clicked row.
     openTagPicker?: () => void;
     openProjectPicker?: () => void;
+    /** A detail host can replace immediate identity actions with a draft editor. */
+    editChannel?: () => void;
     /**
      * The split hosting the list. Open actions route through it so they match
      * their click/hotkey equivalents.
@@ -156,6 +158,7 @@ export function createSoupEntityActions(
       viewedProjectId,
       openTagPicker,
       openProjectPicker,
+      editChannel,
       splitHandle,
       createActionNavigationHandler,
     }
@@ -296,7 +299,17 @@ export function createSoupEntityActions(
     // Middle group: Rename, Move to folder, Duplicate, Copy Link, Copy Branch Name, Share
     const middleItems: SoupEntityActionItem[] = [];
 
-    if (canExecuteAll(renameAction.canExecute)) {
+    const editsChannel =
+      !!editChannel && entities.length === 1 && entities[0].type === 'channel';
+    if (editsChannel && channelPictureAction.canExecute(entities[0])) {
+      middleItems.push({
+        id: 'edit-channel',
+        label: 'Edit channel',
+        onClick: editChannel,
+      });
+    }
+
+    if (!editsChannel && canExecuteAll(renameAction.canExecute)) {
       middleItems.push({
         id: 'rename',
         label: 'Rename',
@@ -305,9 +318,12 @@ export function createSoupEntityActions(
       });
     }
 
-    // Sits with Rename because it edits the same channel identity, under the
-    // same participant rule. Single-entity only: one upload, one channel.
-    if (entities.length === 1 && channelPictureAction.canExecute(entities[0])) {
+    // List menus retain the immediate picture actions; detail hosts own drafts.
+    if (
+      !editsChannel &&
+      entities.length === 1 &&
+      channelPictureAction.canExecute(entities[0])
+    ) {
       middleItems.push({
         id: 'set-channel-picture',
         label: 'Set channel picture',

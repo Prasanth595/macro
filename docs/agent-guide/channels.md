@@ -1120,13 +1120,12 @@ view's detail stack (a channel mention followed from the email view, say) — th
 conversation renders an inline detail whose top bar holds the channel avatar
 and name, the same inset tab strip, live viewer avatars, and the `Call` and
 `Ask Macro` buttons. In Chat an ellipsis follows the name and opens the same
-entity actions as right-clicking the conversation's rail row — `Open in new
-split`, `Rename`, `Set channel picture`, `Remove channel picture` (only when the
-channel has one), `Favorite`/`Unfavorite`, `Remind me`, `Snooze notifications…`, `Mute
-notifications`, `Copy Link`, `Copy ID` — so a channel can be favorited or given
-a picture without finding its row. A channel inlined in
-another view's detail stack has no such menu. The split's own title `...` menu
-offers the same picture actions.
+entity actions as right-clicking the conversation's rail row, except `Edit
+channel` replaces the separate rename and picture actions. Other actions include
+`Open in new split`, `Favorite`/`Unfavorite`, `Remind me`, `Snooze notifications…`,
+`Mute notifications`, `Copy Link`, and `Copy ID`. A channel inlined in another
+view's detail stack has no such menu, but its name has the shared hover editor.
+The split's own title `...` menu also offers `Edit channel`.
 
 `Calls` tab: recordings, transcriptions, and summaries for this channel. Click a
 row to open the call. The search field above the list matches call names and
@@ -1218,22 +1217,31 @@ message or acknowledgement and verify that it does not pull you to latest.
 
 ## Channel pictures
 
-Channels and group chats can have a custom picture. Anyone who can `Rename` a
-channel can also set its picture: any active participant of a named channel,
-from the channel's rail context menu, the Chat title ellipsis, or the split's
-own title `...` menu. Direct messages can be neither renamed nor given a
-picture. Choose `Set channel picture` to add or replace a picture. Select a PNG,
-JPG, WebP, or GIF up to 16 MB. The upload must finish before the picture is
-saved; the server accepts only supported images uploaded by the person setting
-the picture. An error leaves the previous picture in place. When a picture is
-set, the menu also offers `Remove channel picture` to restore the standard
-channel icon. The picture
-beside the title is display-only and also appears in shared channel rows.
-Picture changes refresh other participants' open sessions, including after
-reconnecting.
-A team channel the viewer has not joined shows its picture without editing
-controls. One-to-one direct messages
-continue to show the other person's user picture.
+Channels and group chats can have a custom picture. Any active participant of a
+named channel can edit its name and picture. Direct messages support neither;
+one-to-one direct messages continue to show the other person's user picture.
+
+On desktop, hover or focus the channel name in either the split topbar or an
+inline detail topbar to open its editor. The card shows a larger circular picture,
+the image filename when available, `Edit` and `Clear` buttons, and a channel-name
+input. Clicking the picture or `Edit` opens the file chooser. PNG, JPG, WebP, and
+GIF files up to 16 MB are supported. Selecting a file, clearing the picture, or
+changing the name only updates the draft. `Save` persists the changes; `Cancel`
+discards them. The card stays open while editing. Failed saves retain remaining
+changes for retry; if the picture saved but renaming failed, the card says so and
+retrying does not upload the picture again.
+
+The Chat title ellipsis and the split title `...` menu offer `Edit channel` instead
+of separate rename/picture actions. On phones, use `Edit channel` in the existing
+channel-options drawer to open a mobile editor with the same fields and explicit
+`Cancel`/`Save` actions. Touch devices do not require hover. A team channel the
+viewer has not joined shows its picture without editing controls.
+
+The channel's rail context menu retains its immediate `Rename`, `Set channel
+picture`, and `Remove channel picture` actions. Picture uploads finish before the
+picture is saved; the server accepts only supported images uploaded by the person
+setting the picture. Picture changes refresh other participants' open sessions,
+including after reconnecting, and appear in shared channel rows.
 
 Opening the slash menu with `/` lists Normal Text, headings, and the other
 Markdown options before Query and Database. Typing `/query` filters to the Query

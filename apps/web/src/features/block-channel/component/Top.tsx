@@ -1,5 +1,6 @@
 import { toIconTabItems } from '@channel/Channel/channel-tab-icons';
 import type { ChannelTabId } from '@channel/Channel/channel-tabs';
+import { ChannelTitleHoverCard } from '@channel/channel-identity';
 import { ChannelTopIcon } from '@channel/components/ChannelTopIcon';
 import { CollapsibleHeaderItem } from '@components/app/split-layout/components/CollapsibleItem';
 import { HeaderIsland } from '@components/app/split-layout/components/HeaderIsland';
@@ -24,6 +25,7 @@ type TopProps = {
 
 type ChannelTopLeftProps = TopProps & {
   lockRename?: boolean;
+  canEditIdentity: boolean;
   tabs?: readonly TabItem[];
   activeTab?: ChannelTabId;
   onTabChange?: (value: ChannelTabId) => void;
@@ -51,12 +53,19 @@ export function ChannelTopLeft(props: ChannelTopLeftProps) {
             channelType={props.channelType}
             participants={props.participants}
           />
-          <SplitLabel
-            label={channelName() ?? 'New Channel'}
-            lockRename={props.lockRename}
-            renameOverrides={{ channelType: props.channelType }}
-            maxDisplayLength={48}
-          />
+          <ChannelTitleHoverCard
+            channelId={props.channelId}
+            name={channelName() ?? 'New Channel'}
+            canEdit={props.canEditIdentity}
+            disabled={props.channelType === 'direct_message'}
+          >
+            <SplitLabel
+              label={channelName() ?? 'New Channel'}
+              lockRename={props.lockRename}
+              renameOverrides={{ channelType: props.channelType }}
+              maxDisplayLength={48}
+            />
+          </ChannelTitleHoverCard>
           <div
             class="shrink-0 flex items-center h-full"
             ref={(ref) => panel.setTitleFileMenuRef(ref)}

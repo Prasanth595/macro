@@ -10,6 +10,7 @@ import { ChannelCallTab } from '@channel/Call/ChannelCallTab';
 import { getCallJoinTab } from '@channel/Call/call-tabs';
 import { useCall } from '@channel/Call/use-call';
 import { ChannelCallsTab } from '@channel/Calls/ChannelCallsTab';
+import { ChannelTitleHoverCard } from '@channel/channel-identity';
 import { ChannelInviteButton } from '@channel/channel-invite-button';
 import { ChannelTopIcon } from '@channel/components/ChannelTopIcon';
 import { DebugSuspense } from '@channel/DebugSuspense';
@@ -33,6 +34,7 @@ import {
   useChannelName,
   useChannelType,
 } from '@core/context/channels';
+import { useUserId } from '@core/context/user';
 import { createMethodRegistration } from '@core/orchestrator';
 import { useChannelParticipantsQuery } from '@queries/channel/channel-participants';
 import {
@@ -103,6 +105,10 @@ export function ChannelDetailTitle(props: ChannelDetailHeaderProps) {
   const participantsQuery = useChannelParticipantsQuery(() => props.channelId);
   const participants = () =>
     participantsQuery.isSuccess ? (participantsQuery.data ?? []) : [];
+  const userId = useUserId();
+  const canEditIdentity = () =>
+    channelType() !== 'direct_message' &&
+    participants().some((participant) => participant.user_id === userId());
 
   return (
     <div class="ph-no-capture flex min-w-0 shrink items-center gap-2">
@@ -111,9 +117,16 @@ export function ChannelDetailTitle(props: ChannelDetailHeaderProps) {
         channelType={channelType()}
         participants={participants()}
       />
-      <span class="truncate text-sm font-semibold">
-        {channelName() ?? 'New Channel'}
-      </span>
+      <ChannelTitleHoverCard
+        channelId={props.channelId}
+        name={channelName() ?? 'New Channel'}
+        canEdit={canEditIdentity()}
+        disabled={channelType() === 'direct_message'}
+      >
+        <span class="truncate text-sm font-semibold">
+          {channelName() ?? 'New Channel'}
+        </span>
+      </ChannelTitleHoverCard>
     </div>
   );
 }

@@ -4,10 +4,7 @@ import {
   ChatWithAgentIcon,
   openChatWithAgent,
 } from '@app/features/chat/ChatWithAgentButton';
-import {
-  makeRenameAction,
-  useBlockEntityCommands,
-} from '@app/features/next-soup/actions';
+import { useBlockEntityCommands } from '@app/features/next-soup/actions';
 import { createSearchParams } from '@app/lib/split-router';
 import { URL_PARAMS } from '@block-channel/constants';
 import { ChannelAttachmentsTab } from '@channel/Attachments/ChannelAttachmentsTab';
@@ -48,8 +45,8 @@ import {
   normalizeChannelTab,
   useChannelTabItems,
 } from '@channel/Channel/use-channel-tab-items';
+import { ChannelIdentityDialog } from '@channel/channel-identity';
 import { ChannelInviteButton } from '@channel/channel-invite-button';
-import { useChannelPictureActions } from '@channel/channel-picture';
 import { ChannelParticipantsTab } from '@channel/Participants/ChannelParticipantsTab';
 import { HeaderIsland } from '@components/app/split-layout/components/HeaderIsland';
 import { BlockSplitFileMenu } from '@components/app/split-layout/components/SplitFileMenu';
@@ -70,15 +67,12 @@ import {
   useChannelType,
 } from '@core/context/channels';
 import { useUserId } from '@core/context/user';
-import { TOKENS } from '@core/hotkey/tokens';
 import { isMobile } from '@core/mobile/isMobile';
 import { createMethodRegistration } from '@core/orchestrator';
 import { blockHotkeyScopeSignal } from '@core/signal/blockElement';
 import { blockHandleSignal } from '@core/signal/load';
 import { buildEntityData, canEditChannelIdentity } from '@entity';
-import PictureIcon from '@phosphor/image.svg';
 import RenameIcon from '@phosphor/pencil-line.svg';
-import TrashIcon from '@phosphor/trash.svg';
 import { useActiveCallQuery } from '@queries/call/call';
 import { useChannelParticipantsQuery } from '@queries/channel/channel-participants';
 import { useSearchParams } from '@solidjs/router';
@@ -131,7 +125,7 @@ function NewTop(props: { channelId: string }) {
   const channelType = useChannelType(props.channelId);
   const channel = useChannel(props.channelId);
   const userId = useUserId();
-  const renameAction = makeRenameAction({ userId });
+  const [editOpen, setEditOpen] = createSignal(false);
   const participantsQuery = useChannelParticipantsQuery(() => props.channelId);
   const call = useCall(() => props.channelId);
   const activeCallQuery = useActiveCallQuery(() => props.channelId);
@@ -156,13 +150,12 @@ function NewTop(props: { channelId: string }) {
     });
   };
 
-  const picture = useChannelPictureActions({
-    channelId: () => props.channelId,
-    canEdit: () => {
-      const entity = channelEntity();
-      return !!entity && canEditChannelIdentity(entity);
-    },
-  });
+  const canEditIdentity = () => {
+    const entity = channelEntity();
+    return (
+      participantsQuery.isSuccess && !!entity && canEditChannelIdentity(entity)
+    );
+  };
 
   // Seed for "Ask Macro": a new chat with this channel @mentioned, so the
   // user does not have to create an agent and mention the channel by hand.
@@ -198,6 +191,7 @@ function NewTop(props: { channelId: string }) {
         channelType={channelType()!}
         participants={participants() ?? []}
         channelName={channelName() ?? 'New Channel'}
+        canEditIdentity={canEditIdentity()}
         tabs={tabs()}
         activeTab={activeTab()}
         onTabChange={setActiveTab}
@@ -226,36 +220,21 @@ function NewTop(props: { channelId: string }) {
             },
             {
               group: 'file',
-              label: 'Rename',
+              label: 'Edit channel',
               icon: RenameIcon,
-              hotkeyToken: TOKENS.entity.action.rename,
-              action: () => {
-                const entity = channelEntity();
-                if (!entity) return;
-                void renameAction.execute([entity]);
-              },
-              condition: () => {
-                const entity = channelEntity();
-                return !!entity && renameAction.canExecute(entity);
-              },
-            },
-            {
-              group: 'file',
-              label: 'Set channel picture',
-              icon: PictureIcon,
-              action: picture.pickFile,
-              condition: picture.isAvailable,
-            },
-            {
-              group: 'file',
-              label: 'Remove channel picture',
-              icon: TrashIcon,
-              action: picture.remove,
-              condition: () => picture.isAvailable() && picture.hasPicture(),
+              action: () => setEditOpen(true),
+              condition: canEditIdentity,
             },
           ]}
         />
       </SplitTitleFileMenu>
+      <ChannelIdentityDialog
+        channelId={props.channelId}
+        name={channelName() ?? 'New Channel'}
+        canEdit={canEditIdentity()}
+        open={editOpen()}
+        onClose={() => setEditOpen(false)}
+      />
       <SplitHeaderRight>
         {/* On mobile the split header is pointer-events-none; only islands
             (glass pills) take taps. `empty:hidden` drops the pill when the
