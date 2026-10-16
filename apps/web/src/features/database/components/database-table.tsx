@@ -364,6 +364,19 @@ export function DatabaseTable(props: DatabaseTableProps) {
     const grid = cell?.closest<HTMLElement>('[data-grid]');
     if (!cell || !grid) return;
     if (
+      (event.key === 'Delete' || event.key === 'Backspace') &&
+      props.canEdit &&
+      props.onClearCells
+    ) {
+      const row = rows()[Number(cell.dataset.gridRow)];
+      const column = columns()[Number(cell.dataset.gridColumn) - 1];
+      if (!row || !column || !canEditCell(column)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      void props.onClearCells([row.id], [column.id]);
+      return;
+    }
+    if (
       event.key === 'ContextMenu' ||
       (event.shiftKey && event.key === 'F10')
     ) {
@@ -695,7 +708,7 @@ export function DatabaseTable(props: DatabaseTableProps) {
                                 )}
                                 aria-colindex={columnIndex() + 2}
                                 tabindex={-1}
-                                class="relative min-w-0 border-r border-edge-muted/40 px-0.5 py-0.5 outline-none focus-within:ring-1 focus-within:ring-inset focus-within:ring-ink/40 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ink/50"
+                                class="relative min-w-0 border-r border-edge-muted/40 px-0.5 py-0.5 outline-none focus-within:ring-1 focus-within:ring-inset focus-within:ring-ink/30 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ink/30"
                                 classList={{
                                   'bg-accent/15 ring-1 ring-inset ring-accent/50':
                                     selection.contains(index(), columnIndex()),
