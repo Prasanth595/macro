@@ -15,11 +15,38 @@ import {
 import {
   SPREADSHEET_MAX_CELL_LENGTH,
   SPREADSHEET_MAX_COLUMNS,
+  SPREADSHEET_MAX_INDENT,
   SPREADSHEET_MAX_ROWS,
   type SpreadsheetCellEdits,
   type SpreadsheetCells,
 } from './spreadsheet-document';
 import { CSV_MAX_BYTES } from './workbook-file-types';
+
+/** Excel's Increase and Decrease Indent: each cell moves one level from its
+ * own, so nested line items keep their depth relative to each other. */
+export function indentEdits(
+  cells: SpreadsheetCells,
+  selection: CellSelection,
+  change: 1 | -1
+): SpreadsheetCellEdits {
+  const edits: SpreadsheetCellEdits = {};
+  for (const address of selectionAddresses(selection)) {
+    const cell = cells[address];
+    const current = cell?.indent ?? 0;
+    const indent = Math.max(
+      0,
+      Math.min(SPREADSHEET_MAX_INDENT, current + change)
+    );
+    if (indent === current) continue;
+    edits[address] = {
+      indent,
+      // Centered text has no indent, so indenting it aligns it left.
+      ...(change > 0 &&
+        cell?.horizontalAlign === 'center' && { horizontalAlign: 'left' }),
+    };
+  }
+  return edits;
+}
 
 export function borderEdits(
   selection: CellSelection,
