@@ -537,7 +537,7 @@ The inline `/app/debug/create-menu-demo` keeps all three layouts for comparison
 without creating data. Mobile continues to use its create sheet.
 
 On mobile, the bottom dock fits fixed-width buttons in this order: Notifications,
-Calendar, Email, Channels, Files, Agents, Tasks, Calls, and CRM (when enabled). Calendar appears in the
+Calendar, Email, Channels, Agents, Files, Tasks, Calls, and CRM (when enabled). Calendar appears in the
 dock only when the calendar UI flag is enabled. Search has its own entity categories.
 Resizing the screen moves views between the dock
 and More views, which always includes Settings and lists the overflow views in
