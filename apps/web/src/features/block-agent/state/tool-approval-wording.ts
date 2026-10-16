@@ -51,6 +51,7 @@ const MACRO_TOOLS: Record<MacroToolName, Wording | null> = {
   DeleteTag: (whose) => `delete tags in ${whose} workspace`,
   DescribeDatabase: (whose) => `read ${whose} databases`,
   DiscoverConnectors: null,
+  DescribeCodeTools: null,
   DispatchCodingAgent: (whose) => `start a coding agent with ${whose} access`,
   DisplayResults: (whose) => `show results from ${whose} workspace`,
   DuplicateItem: (whose) => `duplicate items in ${whose} workspace`,
@@ -66,6 +67,10 @@ const MACRO_TOOLS: Record<MacroToolName, Wording | null> = {
   EditWordDocument: (whose) => `edit ${whose} documents`,
   ExportPipelineCsv: (whose) => `export ${whose} pipelines to CSV`,
   FindPipelineEntries: (whose) => `read ${whose} pipelines`,
+  ExecuteCode: (whose) =>
+    `run potentially sensitive tools with ${whose} access`,
+  GenerateObject: (whose) => `generate an AI answer using ${whose} allowance`,
+  Decide: (whose) => `classify information using ${whose} AI allowance`,
   GenerateImage: (whose) => `generate an image with ${whose} account`,
   GetBookingInsights: (whose) => `read ${whose} booking statistics`,
   GetBookingRescheduleSlots: (whose) =>
