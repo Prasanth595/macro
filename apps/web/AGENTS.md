@@ -67,6 +67,9 @@ Then trigger the interaction and read `window.__inst.log`. `'1,2,3' → '' → '
 
 ### General
 - All API/network calls live in service-clients.
+- Draft autosaves preserve active email thread messages; evict the legacy cache
+  on thread exit, and revalidate GraphQL thread pages only when a save cannot
+  patch the message list (missing snapshot or a move between inboxes).
 - Shared server-state queries and mutations live in `src/lib/queries`; keep
   feature-specific query orchestration with its owning feature.
 - Reactive GraphQL reads use `createLiveQuery` for a document and
