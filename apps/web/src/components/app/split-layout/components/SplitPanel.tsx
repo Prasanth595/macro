@@ -118,7 +118,10 @@ export function SplitPanel(props: SplitPanelProps) {
   createEffect(() => {
     const safeTop = isTouchDevice() ? getSafeAreaInset('top') : 0;
     const offset =
-      safeTop + (headerSize.height ?? 0) + (toolbarSize.height ?? 0);
+      safeTop +
+      (hasSplitHeader()
+        ? (headerSize.height ?? 0) + (toolbarSize.height ?? 0)
+        : 0);
     setContentOffsetTop(offset);
   });
 
@@ -139,6 +142,18 @@ export function SplitPanel(props: SplitPanelProps) {
   const usesComposableLayout = () =>
     props.split.mount.kind === 'component' &&
     props.split.mount.meta.splitPanelLayout === 'composable';
+
+  const hasSplitHeader = () => {
+    const content = props.handle.content();
+    return (
+      !usesComposableLayout() &&
+      !(
+        isTouchDevice() &&
+        content.type === 'component' &&
+        content.id === LIST_VIEW_ID.search
+      )
+    );
+  };
 
   const MountedContent = () => (
     <SplitPanelControllerProvider
@@ -232,7 +247,7 @@ export function SplitPanel(props: SplitPanelProps) {
               'relative size-full touch:isolate': !props.handle.isSpotLight(),
             }}
             style={{
-              '--split-header-height': `${headerSize.height ?? 0}px`,
+              '--split-header-height': `${hasSplitHeader() ? (headerSize.height ?? 0) : 0}px`,
               // The hard spacer for top-anchored content on full-frame
               // mobile/tablet: status bar + floating header strip.
               '--mobile-content-inset-top':
@@ -286,7 +301,7 @@ export function SplitPanel(props: SplitPanelProps) {
                 !multipleSplits()
               }
             >
-              <Show when={!usesComposableLayout()}>
+              <Show when={hasSplitHeader()}>
                 <Panel.Header
                   class={cn(
                     'relative block min-h-12 p-0 overflow-visible border-b-0!',

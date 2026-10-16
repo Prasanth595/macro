@@ -44,7 +44,11 @@ reopen search, and check All/name reset. Clear with whitespace and check categor
 retention; select Projects from full-text mode and confirm it shows name results.
 Repeat opening with a large recent list: results are virtualized, so transferring
 keyboard focus should not mount every cached row. Scroll through later results
-and use Load more to verify additional pages remain accessible.
+to the end to verify additional pages load automatically without a fixed Load more bar.
+Search starts below the status-bar safe area without reserving space for the
+hidden view/filter header; check both name and full-text results with the keyboard
+open and dismissed. Same-query full-text refreshes keep the current rows visible
+so paging does not collapse the list and reset its scroll position.
 
 Search snippets carry their target in the destination pane's route search. Channel
 messages open Chat at the message (replies open their parent thread); email snippets

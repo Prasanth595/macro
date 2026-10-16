@@ -1,5 +1,11 @@
 import type { EntityData, SearchLocation } from '@entity';
-import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@solidjs/testing-library';
 import { type Accessor, createSignal } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { EntitySearchItem } from '../queries/entity-search';
@@ -10,8 +16,14 @@ import { SearchState } from './mobileSearchState';
 const mocks = vi.hoisted(() => ({
   fullText: vi.fn(),
   fullTextItems: [] as EntityData[],
+  fullTextData: (() => []) as Accessor<EntityData[]>,
+  fullTextLoading: (() => false) as Accessor<boolean>,
+  fullTextSettling: (() => false) as Accessor<boolean>,
   open: vi.fn(),
   loadMore: vi.fn(),
+  hasMore: true,
+  loadingMore: false,
+  fetchNextPage: vi.fn(),
   items: (() => []) as Accessor<EntitySearchItem[]>,
 }));
 vi.mock('@app/lib/analytics/posthog', () => ({
@@ -83,8 +95,8 @@ vi.mock('../queries/entity-search', () => ({
     rankItems: (items: EntitySearchItem[]) => items,
     isLoadingEntities: () => false,
     pagination: {
-      hasMore: () => true,
-      isLoadingMore: () => false,
+      hasMore: () => mocks.hasMore,
+      isLoadingMore: () => mocks.loadingMore,
       loadMore: mocks.loadMore,
     },
   }),
@@ -93,10 +105,13 @@ vi.mock('../queries/mobile-full-text-search', () => ({
   createMobileFullTextSearch: (...args: unknown[]) => {
     mocks.fullText(...args);
     return {
-      data: () => mocks.fullTextItems,
-      isLoading: () => false,
+      data: () => mocks.fullTextData(),
+      isLoading: () => mocks.fullTextLoading(),
+      isSettling: () => mocks.fullTextSettling(),
       error: () => undefined,
-      hasNextPage: () => false,
+      hasNextPage: () => mocks.hasMore,
+      isFetchingNextPage: () => mocks.loadingMore,
+      fetchNextPage: mocks.fetchNextPage,
     };
   },
 }));
@@ -126,14 +141,19 @@ beforeEach(() => {
       disconnect() {}
     }
   );
+  mocks.hasMore = true;
+  mocks.loadingMore = false;
   mocks.items = () => [];
   mocks.fullTextItems = [];
+  mocks.fullTextData = () => mocks.fullTextItems;
+  mocks.fullTextLoading = () => false;
+  mocks.fullTextSettling = () => mocks.fullTextLoading();
   SearchState.open();
 });
 afterEach(() => {
   cleanup();
   SearchState.close();
-  vi.clearAllMocks();
+  vi.resetAllMocks();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -166,7 +186,7 @@ it('offers full text above empty results, only mounts it explicitly, and keeps t
   expect(screen.getByPlaceholderText('Search…')).toBe(input);
 });
 
-it('omits full text for Projects, exposes pagination, and ends the session on result opening', async () => {
+it('omits full text for Projects and ends the session on result opening', async () => {
   const [items, setItems] = createSignal<EntitySearchItem[]>([]);
   mocks.items = items;
   render(() => <MobileSearchResults />);
@@ -174,8 +194,7 @@ it('omits full text for Projects, exposes pagination, and ends the session on re
   SearchState.searchFullText();
   SearchState.setCategory('projects');
   expect(screen.queryByText(/Search full text for/)).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
-  expect(mocks.loadMore).toHaveBeenCalledOnce();
+  expect(screen.queryByRole('button', { name: 'Load more' })).toBeNull();
   setItems([
     {
       id: 'project',
@@ -241,4 +260,147 @@ it('bounds mounted recent rows while keeping the first result usable', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Project 0' }));
   expect(mocks.open).toHaveBeenCalled();
   expect(SearchState.isOpen()).toBe(false);
+});
+
+it('loads another name page near the end without a persistent paging bar', async () => {
+  mocks.items = () =>
+    Array.from({ length: 100 }, (_, index) => ({
+      id: `project-${index}`,
+      kind: 'initiative',
+      bucket: 'initiative',
+      name: `Project ${index}`,
+      searchText: `Project ${index}`,
+      sortTimestamp: 0,
+      timestamps: {},
+    }));
+  render(() => <MobileSearchResults />);
+  expect(screen.queryByRole('button', { name: 'Load more' })).toBeNull();
+  const list = screen.getByRole('region', { name: 'Search results' });
+  fireEvent.scroll(list, { target: { scrollTop: 1 } });
+  expect(mocks.loadMore).not.toHaveBeenCalled();
+  fireEvent.scroll(list, { target: { scrollTop: 100000 } });
+  await waitFor(() => expect(mocks.loadMore).toHaveBeenCalledOnce());
+  mocks.loadingMore = true;
+  fireEvent.scroll(list, { target: { scrollTop: 100001 } });
+  expect(mocks.loadMore).toHaveBeenCalledOnce();
+  mocks.loadingMore = false;
+  mocks.hasMore = false;
+  fireEvent.scroll(list, { target: { scrollTop: 100002 } });
+  expect(mocks.loadMore).toHaveBeenCalledOnce();
+});
+
+it('loads full-text pages near the end without a persistent paging bar', () => {
+  SearchState.setQuery('teo');
+  SearchState.searchFullText();
+  render(() => <MobileSearchResults />);
+  expect(screen.queryByRole('button', { name: 'Load more' })).toBeNull();
+  const list = screen.getByRole('region', { name: 'Search results' });
+  Object.defineProperties(list, {
+    scrollHeight: { value: 2000 },
+    clientHeight: { value: 400 },
+  });
+  fireEvent.scroll(list, { target: { scrollTop: 100 } });
+  expect(mocks.fetchNextPage).not.toHaveBeenCalled();
+  fireEvent.scroll(list, { target: { scrollTop: 1550 } });
+  expect(mocks.fetchNextPage).toHaveBeenCalledOnce();
+  mocks.loadingMore = true;
+  fireEvent.scroll(list, { target: { scrollTop: 1551 } });
+  expect(mocks.fetchNextPage).toHaveBeenCalledOnce();
+  mocks.loadingMore = false;
+  mocks.hasMore = false;
+  fireEvent.scroll(list, { target: { scrollTop: 1552 } });
+  expect(mocks.fetchNextPage).toHaveBeenCalledOnce();
+});
+
+it('fills an empty name page without requiring a scroll and stops once rows fill the viewport', async () => {
+  const [items, setItems] = createSignal<EntitySearchItem[]>([]);
+  mocks.items = items;
+  mocks.loadMore.mockImplementationOnce(async () => {
+    setItems([]);
+  });
+  mocks.loadMore.mockImplementationOnce(async () => {
+    setItems(
+      Array.from({ length: 100 }, (_, index) => ({
+        id: `project-${index}`,
+        kind: 'initiative',
+        bucket: 'initiative',
+        name: `Project ${index}`,
+        searchText: `Project ${index}`,
+        sortTimestamp: 0,
+        timestamps: {},
+      }))
+    );
+  });
+  render(() => <MobileSearchResults />);
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Project 0' })).toBeTruthy()
+  );
+  expect(mocks.loadMore).toHaveBeenCalledTimes(2);
+});
+
+it('does not automatically retry an unchanged empty page or fetch after closing', async () => {
+  const view = render(() => <MobileSearchResults />);
+  await waitFor(() => expect(mocks.loadMore).toHaveBeenCalledOnce());
+  view.unmount();
+  render(() => <MobileSearchResults />).unmount();
+  await Promise.resolve();
+  expect(mocks.loadMore).toHaveBeenCalledOnce();
+});
+
+it('fills empty full-text pages until pagination is exhausted', async () => {
+  const [items, setItems] = createSignal<EntityData[]>([]);
+  mocks.fullTextData = items;
+  mocks.fetchNextPage.mockImplementationOnce(async () => {
+    setItems([]);
+  });
+  mocks.fetchNextPage.mockImplementationOnce(async () => {
+    mocks.hasMore = false;
+    setItems([]);
+  });
+  SearchState.setQuery('teo');
+  SearchState.searchFullText();
+  render(() => <MobileSearchResults />);
+  await waitFor(() => expect(mocks.fetchNextPage).toHaveBeenCalledTimes(2));
+});
+
+it('keeps full-text rows mounted during same-query refreshes but clears them for a new query', () => {
+  const email: EntityData = {
+    id: 'thread',
+    type: 'email',
+    name: 'Weekly update',
+    ownerId: 'owner',
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-02T00:00:00Z',
+    isRead: true,
+    isDraft: false,
+    isImportant: false,
+    done: false,
+  };
+  const [items, setItems] = createSignal<EntityData[]>([email]);
+  const [loading, setLoading] = createSignal(false);
+  const [settling, setSettling] = createSignal(false);
+  mocks.fullTextData = items;
+  mocks.fullTextLoading = loading;
+  mocks.fullTextSettling = () => loading() || settling();
+  SearchState.setQuery('teo');
+  SearchState.searchFullText();
+  render(() => <MobileSearchResults />);
+  const row = screen.getByRole('button', { name: 'Weekly update snippet' });
+  setLoading(true);
+  setItems([]);
+  expect(screen.getByRole('button', { name: 'Weekly update snippet' })).toBe(
+    row
+  );
+  expect(screen.queryByText('Searching…')).toBeNull();
+  setItems([email]);
+  setLoading(false);
+  expect(screen.getByRole('button', { name: 'Weekly update snippet' })).toBe(
+    row
+  );
+  // The real source keeps old rows briefly while the new query debounces.
+  setSettling(true);
+  SearchState.setQuery('different');
+  expect(
+    screen.queryByRole('button', { name: 'Weekly update snippet' })
+  ).toBeNull();
 });

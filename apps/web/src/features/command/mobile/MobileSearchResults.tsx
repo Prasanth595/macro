@@ -17,17 +17,21 @@ import { useGetOrCreateDirectMessageMutation } from '@queries/channel/get-or-cre
 import { useDatabaseDiscoverySync } from '@queries/storage/databases';
 import { Button, CommandMenuListItem } from '@ui';
 import { createMemo, createSignal, For, Show, Suspense } from 'solid-js';
-import { VList } from 'virtua/solid';
+import { type VirtualizerHandle, VList } from 'virtua/solid';
 import { ItemDisplay } from '../CommandItem';
 import {
+  type EntitySearchCategory,
   type EntitySearchItem,
   useEntitySearch,
 } from '../queries/entity-search';
 import { createMobileFullTextSearch } from '../queries/mobile-full-text-search';
+import { createSearchPagination } from './create-search-pagination';
 import { SearchState } from './mobileSearchState';
 import { useMobileSearchCategory } from './use-mobile-search-category';
 
 function MobileNameResults() {
+  let virtualizer: VirtualizerHandle | undefined;
+  const [container, setContainer] = createSignal<HTMLDivElement>();
   const category = useMobileSearchCategory();
   const source = useEntitySearch(SearchState.query, category, {
     enabled: SearchState.isOpen,
@@ -37,6 +41,21 @@ function MobileNameResults() {
   const items = createMemo(() =>
     source.rankItems(source.items(), SearchState.query())
   );
+  const loadMoreNearEnd = createSearchPagination({
+    items,
+    container,
+    remaining: () =>
+      items().length === 0
+        ? 0
+        : virtualizer
+          ? virtualizer.scrollSize -
+            virtualizer.scrollOffset -
+            virtualizer.viewportSize
+          : undefined,
+    hasMore: source.pagination.hasMore,
+    busy: () => source.isLoadingEntities() || source.pagination.isLoadingMore(),
+    loadMore: source.pagination.loadMore,
+  });
   const { openWithSplit } = useSplitLayout();
   const panel = useSplitPanelOrThrow();
   const directMessage = useGetOrCreateDirectMessageMutation();
@@ -73,7 +92,10 @@ function MobileNameResults() {
     }
   };
   return (
-    <div class="flex h-full min-h-0 flex-col px-3 mobile:pt-(--mobile-content-inset-top) mobile:pb-(--mobile-content-inset-bottom)">
+    <div
+      ref={setContainer}
+      class="flex h-full min-h-0 flex-col px-3 mobile:pt-(--mobile-content-inset-top) mobile:pb-(--mobile-content-inset-bottom)"
+    >
       <Show when={SearchState.query().trim() && category() !== 'projects'}>
         <div
           data-keep-keyboard
@@ -91,7 +113,16 @@ function MobileNameResults() {
         </div>
       </Show>
       <Show when={items().length > 0}>
-        <VList data={items()} class="min-h-0 flex-1 overscroll-none">
+        <VList
+          ref={(handle) => {
+            virtualizer = handle;
+          }}
+          data={items()}
+          role="region"
+          aria-label="Search results"
+          class="min-h-0 flex-1 overscroll-none"
+          onScroll={loadMoreNearEnd}
+        >
           {(item) => (
             <CommandMenuListItem
               class="min-h-11"
@@ -110,14 +141,6 @@ function MobileNameResults() {
       <Show when={!source.isLoadingEntities() && items().length === 0}>
         <p class="p-3 text-ink-muted">No results</p>
       </Show>
-      <Show when={source.pagination.hasMore()}>
-        <Button
-          disabled={source.pagination.isLoadingMore()}
-          onClick={() => void source.pagination.loadMore()}
-        >
-          Load more
-        </Button>
-      </Show>
     </div>
   );
 }
@@ -127,6 +150,36 @@ function MobileFullTextResults() {
   const search = createMobileFullTextSearch(SearchState.query, category);
   const panel = useSplitPanelOrThrow();
   const [container, setContainer] = createSignal<HTMLDivElement>();
+  // A same-query refresh must not collapse the scroller between pages.
+  const results = createMemo<{
+    query: string;
+    category: EntitySearchCategory;
+    items: EntityData[];
+  }>((previous) => {
+    const query = SearchState.query().trim();
+    const scope = category();
+    const items = search.data();
+    if (search.isSettling()) {
+      if (previous?.query === query && previous.category === scope)
+        return previous;
+      return { query, category: scope, items: [] };
+    }
+    return { query, category: scope, items };
+  });
+  const loadMoreNearEnd = createSearchPagination({
+    items: () => results().items,
+    container,
+    remaining: () => {
+      const list = container();
+      return list
+        ? list.scrollHeight - list.scrollTop - list.clientHeight
+        : undefined;
+    },
+    hasMore: search.hasNextPage,
+    busy: () =>
+      search.isSettling() || search.isFetchingNextPage() || !!search.error(),
+    loadMore: search.fetchNextPage,
+  });
   const open = async (entity: EntityData, location?: SearchLocation) => {
     try {
       await Telemetry.span('mobile.search.open', async (span) => {
@@ -146,12 +199,15 @@ function MobileFullTextResults() {
   return (
     <div
       ref={setContainer}
+      role="region"
+      aria-label="Search results"
+      onScroll={loadMoreNearEnd}
       class="soup-list h-full overflow-y-auto overscroll-none mobile:pt-(--mobile-content-inset-top) mobile:pb-(--mobile-content-inset-bottom)"
     >
       <ListEntityMetadataQueryProvider>
         <ListLayoutProvider ref={container}>
           <StaticMarkdownContext>
-            <For each={search.data()}>
+            <For each={results().items}>
               {(entity) => (
                 <ListEntity
                   entity={entity}
@@ -168,7 +224,7 @@ function MobileFullTextResults() {
           </StaticMarkdownContext>
         </ListLayoutProvider>
       </ListEntityMetadataQueryProvider>
-      <Show when={search.isLoading()}>
+      <Show when={search.isSettling() && results().items.length === 0}>
         <p role="status" class="p-3 text-ink-muted">
           Searching…
         </p>
@@ -181,18 +237,12 @@ function MobileFullTextResults() {
       </Show>
       <Show
         when={
-          !search.isLoading() && !search.error() && search.data().length === 0
+          !search.isSettling() &&
+          !search.error() &&
+          results().items.length === 0
         }
       >
         <p class="p-3 text-ink-muted">No results</p>
-      </Show>
-      <Show when={search.hasNextPage()}>
-        <Button
-          disabled={search.isFetchingNextPage()}
-          onClick={() => void search.fetchNextPage()}
-        >
-          Load more
-        </Button>
       </Show>
     </div>
   );
