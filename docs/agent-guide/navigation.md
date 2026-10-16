@@ -538,11 +538,11 @@ without creating data. Mobile continues to use its create sheet.
 
 On mobile, the bottom dock fits fixed-width buttons in this order: Notifications,
 Calendar, Email, Channels, Files, Agents, Tasks, Calls, and CRM (when enabled). Calendar appears in the
-dock and search scope pills only when the calendar UI flag is enabled.
+dock only when the calendar UI flag is enabled. Search has its own entity categories.
 Resizing the screen moves views between the dock
 and More views, which always includes Settings and lists the overflow views in
 reverse order. More and the separate bottom-right Search button always retain
-their space. Search opens the search input and scope pills.
+their space. Search opens the persistent Search… input and entity category pills (see [Search](search.md)).
 Once every view fits, the navigation island stops growing; Search stays aligned
 to the right edge.
 
@@ -778,7 +778,7 @@ A failed local refresh keeps displayed rows and their continuation available for
 another pagination attempt. Missing items may still be uncached, but should appear
 after hydration without retyping, including channels outside the first cached
 page. Cmd+K's
-local search excludes unsupported email hits before limiting entity results;
+local search explicitly excludes email hits before limiting entity results;
 email mentions keep their separate search-service path. Text search loads only
 its requested cache buckets, so a document-only category must not read the email
 catalog. Switching categories still discovers previously unopened buckets;

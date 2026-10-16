@@ -737,3 +737,19 @@ this work does not introduce a new server subscription engine.
 Background hydration retains its existing opt-in notification contract. Soup's
 local collection source opts in; ordinary foreground queries refresh on their
 normal affected-operation notifications.
+
+## Cached email Quick Access
+
+The disposable Quick Access projection is version 3. Email rows index the thread
+subject, latest sender name/address, and embedded `senders` names/addresses, so an
+earlier sender remains searchable after another participant replies. Snippets and
+message bodies are excluded. The frontend materializes only matched thread keys
+with `EmailQuickAccessFields` and uses the projection text for ranking and pending
+query filtering; cache hydration, visibility, and deletion changes refresh rows.
+Desktop Command K explicitly excludes the email bucket; mobile Search includes it.
+
+Opening an older cache rebuilds search documents through the existing projection
+version mechanism, preserving normalized records, pending mutations, and storage
+generation. This does not expand hydration: automatic backfill remains 90 days of
+signal email and 30 days of noise email, plus any other cached threads. Explicit
+full-text search reaches older uncached mail.

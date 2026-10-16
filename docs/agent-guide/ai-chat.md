@@ -224,11 +224,10 @@ or stop.
 
 ## Ask AI entry points
 
-**Ask AI** in search (including Tab), the command menu, and mobile search opens
+**Ask AI** in desktop search (including Tab) and the command menu opens
 an agent session. A nonempty search query is sent as the first prompt once the
 session is ready; an empty search opens an empty composer. Desktop search replaces
-its current split into the Agents workspace, while command-menu and mobile
-actions open a new split.
+its current split into the Agents workspace, while command-menu actions open a new split.
 
 **Ask Macro** and **Chat with Agent** on documents, tasks, PDFs, DOCX files,
 code files, images, canvases, spreadsheets, email, channels, calls, and projects
@@ -564,7 +563,7 @@ draft or widening the pane restores the compact layout when the text fits
 beside its controls. Leaving the AI composer collapses a long draft to
 a single-line preview in the accessory row; tapping it expands the same editor
 with the full draft intact. Screens with an available composer or reply controls show those
-instead; opening mobile search shows scope pills in their place. When neither
+instead; opening mobile search shows category pills in their place. When neither
 is available, the AI composer returns with its draft intact, including in
 documents without a comment composer. Type a
 prompt, optionally choose a model or
@@ -584,10 +583,8 @@ The area behind the composer is transparent, without a bottom gradient overlay.
 The composer has one editable field. Its placeholder appears only while empty;
 placeholder updates and disabled-state changes preserve the editor and draft.
 
-The **Ask AI** button beside the mobile search field sends the typed query.
-It opens an agent session and delivers the query as the first prompt, regardless
-of `enable-chat-v3-agents`. Mobile uses the agent session surface at
-`/app/agent/<id>`; desktop uses the Agents workspace.
+Mobile search uses the dock solely for entity and explicit full-text search;
+it has no Ask AI button.
 
 Almost every list surface (Home, Agents, Files, Tasks, Customers, Email) has a bottom
 composer with placeholder **`Ask AI, @mention anything`**. Click it, `type_text` the message,

@@ -266,7 +266,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('mobile dock search wiring', () => {
-  it('filters DMs from the active dock session and restores rows on close or navigation', async () => {
+  it('keeps conversation tabs independent of the dock search session', () => {
     mocks.mobileLayout = () => true;
     mocks.mobileTab = () => 'direct_messages';
     const [open, setOpen] = createSignal(true);
@@ -286,14 +286,12 @@ describe('mobile dock search wiring', () => {
     render(() => <ChannelsView />);
     expect(screen.getByText('hutch')).toBeTruthy();
     setText('Julia');
-    await waitFor(() =>
-      expect(screen.getByText('Julia Westphal')).toBeTruthy()
-    );
-    await waitFor(() => expect(screen.queryByText('hutch')).toBeNull());
+    expect(screen.getByText('Julia Westphal')).toBeTruthy();
+    expect(screen.getByText('hutch')).toBeTruthy();
     setActive(false);
     expect(screen.getByText('hutch')).toBeTruthy();
     setActive(true);
-    await waitFor(() => expect(screen.queryByText('hutch')).toBeNull());
+    expect(screen.getByText('hutch')).toBeTruthy();
     setOpen(false);
     expect(screen.getByText('hutch')).toBeTruthy();
     expect(screen.getByTestId('mobile-channels').dataset.query).toBe('');

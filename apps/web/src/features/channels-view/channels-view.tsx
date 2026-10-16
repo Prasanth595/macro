@@ -1,7 +1,6 @@
 import { ViewShell } from '@app/components/view-shell';
 import { useAgentDmSearchPool } from '@app/features/agent-dms/queries/search-pool';
 import { SearchState } from '@app/features/command/mobile/mobileSearchState';
-import { useMobileSearchText } from '@app/features/command/mobile/use-mobile-search-text';
 import { markChannelNotificationsSeenOnOpen } from '@app/features/next-soup/utils';
 import { MaybeSoupEntityActionDrawerManager } from '@app/features/soup';
 import { withEntityNotifications } from '@app/features/soup/entity-notifications';
@@ -52,9 +51,8 @@ export type ChannelsViewProps = {
 // Mounted inside the mobile list's Suspense boundary.
 function MobileChannelsList(props: { sources: ChannelsSources }) {
   const agentDms = useAgentDmSearchPool();
-  const panel = useSplitPanelOrThrow();
   const { state, setMobileTab } = useChannelsView();
-  const mobileSearchText = useMobileSearchText(() => '', panel.handle.isActive);
+  const mobileSearchText = () => '';
   const mobileSearchSource = createChannelSearchSource({
     additionalLocalChannels: agentDms,
     text: mobileSearchText,

@@ -903,21 +903,12 @@ Channels, and DMs section headers.
 
 On touch layouts, the `Recent`, `Channels`, and `DMs` pill tabs each retain
 their own loaded pages and load more as their active list approaches the end.
-The mobile dock search filters the selected tab by conversation name as you type:
-`DMs` searches people, `Channels` searches non-DM channels, and `Recent` searches
-both. Loaded matches appear immediately; queries of at least three characters
-also search the server, including conversations beyond the loaded page. Changing
-tabs keeps the query and changes its scope. Closing search restores the ordinary
-list. Verify `Channels` → `DMs` → type a person's name with GraphQL enabled:
-unrelated rows disappear, no matches shows **No results**, and switching to
-Channels never keeps DM search hits. Changing the query resets list scroll
-without blurring the dock input. While a background browse-list refresh is still
-pending, scroll near the end of search results: the next search page should load
-without waiting for that refresh or requiring another scroll. Clearing search
-restores the browse list's own pagination and fetching state. A failed browse
-request must not show a load-error message over valid search hits or replace
-**No results**, including during debounce and short local-only queries. Search
-failures still show their own error; clearing search restores the browse error.
+The mobile dock Search button opens the independent Search route. Its Channels
+and People categories search cached channel names and people directly; the current
+Recent/Channels/DMs tab does not constrain results. Full-text search is explicit,
+and People uses the existing channel-content scope. Closing search resets its
+session; conversation tabs retain their browse pagination and filters. See
+[Search](search.md) for mode, keyboard, and session-reset checks.
 With `enable-graphql-soup` enabled, open an unread conversation from each tab
 and return to the list: all notifications on top-level messages should be seen,
 including mentions and reactions older than the global feed's loaded page.

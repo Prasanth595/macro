@@ -63,6 +63,7 @@ Then trigger the interaction and read `window.__inst.log`. `'1,2,3' → '' → '
 ## Development Patterns
 
 ### General
+- Mobile dock search owns transient category/mode state in `features/command/mobile`; reuse the shared entity source and explicit full-text adapter rather than overlaying the dock query on view tabs or saved facets. See `docs/agent-guide/search.md` at the repository root.
 - All API/network calls live in service-clients.
 - Shared server-state queries and mutations live in `src/lib/queries`; keep
   feature-specific query orchestration with its owning feature.

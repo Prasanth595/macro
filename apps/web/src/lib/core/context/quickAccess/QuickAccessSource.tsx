@@ -37,6 +37,7 @@ import {
   type CachedGraphqlChannel,
   materializeCachedGraphqlChannels,
 } from '@queries/channel/graphql';
+import { materializeCachedEmailItems } from '@queries/email/quick-access';
 import { queryReadyGate } from '@queries/gate';
 import { materializeCachedGraphqlHistoryItems } from '@queries/history/graphql';
 import { type HistoryItem, useHistoryQuery } from '@queries/history/history';
@@ -1174,11 +1175,13 @@ export function createQuickAccessValue(): QuickAccessContextValue {
                 cachedChannelItems,
                 cachedCompanies,
                 cachedContacts,
+                cachedEmails,
               ] = await Promise.all([
                 materializeCachedGraphqlHistoryItems(projectionHost, missing),
                 materializeCachedGraphqlChannels(projectionHost, missing),
                 materializeCachedGraphqlCrmCompanies(projectionHost, missing),
                 materializeCachedGraphqlCrmContacts(projectionHost, missing),
+                materializeCachedEmailItems(projectionHost, documents),
               ]);
               const historyById = new Map(
                 historyItems.map((item) => [item.id, item])
@@ -1192,8 +1195,15 @@ export function createQuickAccessValue(): QuickAccessContextValue {
               const contactsById = new Map(
                 cachedContacts.map((contact) => [contact.id, contact])
               );
+              const emailsById = new Map(
+                cachedEmails.map((item) => [item.id, item])
+              );
               return documents.flatMap((document): QuickAccessItem[] => {
                 const id = idOf(document.recordKey);
+                if (document.bucket === 'email') {
+                  const email = emailsById.get(id);
+                  return email ? [email] : [];
+                }
                 const cached = itemCache.get(id)?.item;
                 if (cached) return [cached];
                 const historyItem = historyById.get(id);

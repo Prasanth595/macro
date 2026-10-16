@@ -19,7 +19,6 @@ vi.mock('@app/lib/analytics/posthog', () => ({
   useFeatureFlag: () => () => reviewsFlag,
 }));
 vi.mock('@app/features/command/mobile/MobileSearchInput', () => ({
-  MobileAskAiButton: () => null,
   MobileSearchInput: () => null,
 }));
 vi.mock('@app/features/command/mobile/mobileSearchState', () => ({
