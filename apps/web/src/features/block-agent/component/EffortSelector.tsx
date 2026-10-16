@@ -1,9 +1,8 @@
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { Popover } from '@kobalte/core/popover';
-import CaretDownIcon from '@phosphor/caret-down.svg';
 import CheckIcon from '@phosphor/check.svg';
-import { Button } from '@ui';
+import { Button, Tooltip } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
 import type {
   EffortChoice,
@@ -27,49 +26,74 @@ export function EffortSelector(props: {
   const value = () => props.value ?? props.config?.currentValue;
   const label = () =>
     choices().find((choice) => choice.value === value())?.name ?? 'Default';
+  const angle = () => {
+    const index = choices().findIndex((choice) => choice.value === value());
+    return -70 + (Math.max(0, index) / Math.max(1, choices().length - 1)) * 140;
+  };
   const contents = () => (
-    <>
-      <span class="text-ink-muted">Effort</span>
-      <span aria-hidden="true" class="text-ink-extra-muted">
-        ·
-      </span>
-      <span>{label()}</span>
-      <CaretDownIcon
-        class="ml-auto size-3 transition-transform"
-        classList={{ 'rotate-180': open() }}
+    <svg viewBox="0 0 24 24" class="size-5" fill="none" aria-hidden="true">
+      <path
+        d="M4.5 18a9 9 0 1 1 15 0"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        opacity="0.45"
       />
-    </>
+      <path
+        d="M5.5 13H7M8 6.8l1 1.1M12 4.5V6M16 6.8l-1 1.1M18.5 13H17"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        opacity="0.65"
+      />
+      <g transform={`rotate(${angle()} 12 14)`}>
+        <path
+          d="M12 14V8"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+        />
+      </g>
+      <circle cx="12" cy="14" r="2" fill="currentColor" />
+    </svg>
   );
   const options = () => (
-    <div
-      role="group"
-      aria-label="Reasoning effort"
-      class="flex flex-col gap-0.5"
-    >
-      <For each={choices()}>
-        {(choice) => (
-          <Button
-            variant="ghost"
-            class="w-full justify-between rounded-lg px-3 touch:min-h-11"
-            aria-pressed={choice.value === value()}
-            disabled={props.disabled}
-            onClick={() => {
-              if (!props.config) return;
-              props.onChange({
-                configId: props.config.id,
-                value: choice.value,
-                name: choice.name,
-              });
-              changeOpen(false);
-            }}
-          >
-            {choice.name}
-            <Show when={choice.value === value()}>
-              <CheckIcon class="size-4" />
-            </Show>
-          </Button>
-        )}
-      </For>
+    <div>
+      <div class="mb-2 flex justify-between px-1 text-xs text-ink-muted">
+        <span>Lower effort</span>
+        <span>Higher effort</span>
+      </div>
+      <div
+        role="group"
+        aria-label="Reasoning effort"
+        class="flex gap-1 overflow-x-auto"
+      >
+        <For each={choices()}>
+          {(choice) => (
+            <Button
+              variant="ghost"
+              class="h-auto min-h-12 min-w-12 flex-1 flex-col justify-center gap-1 rounded-lg px-2 py-2 text-xs"
+              aria-pressed={choice.value === value()}
+              disabled={props.disabled}
+              onClick={() => {
+                if (!props.config) return;
+                props.onChange({
+                  configId: props.config.id,
+                  value: choice.value,
+                  name: choice.name,
+                });
+                changeOpen(false);
+              }}
+            >
+              {choice.name}
+              <CheckIcon
+                class="size-3"
+                classList={{ invisible: choice.value !== value() }}
+              />
+            </Button>
+          )}
+        </For>
+      </div>
     </div>
   );
   return (
@@ -83,19 +107,21 @@ export function EffortSelector(props: {
             placement="top-start"
             gutter={8}
           >
-            <Popover.Trigger
-              as={Button}
-              variant="ghost"
-              size="sm"
-              class="gap-1.5 rounded-full px-2 text-xs"
-              disabled={props.disabled}
-              aria-label={`Effort: ${label()}`}
-            >
-              {contents()}
-            </Popover.Trigger>
+            <Tooltip label={`Effort: ${label()}`} disabled={open()}>
+              <Popover.Trigger
+                as={Button}
+                variant="ghost"
+                size="sm"
+                class="size-8 rounded-full p-0"
+                disabled={props.disabled}
+                aria-label={`Effort: ${label()}`}
+              >
+                {contents()}
+              </Popover.Trigger>
+            </Tooltip>
             <Popover.Portal>
               <Popover.Content
-                class="menu-surface z-modal min-w-40 p-1"
+                class="menu-surface z-modal w-72 max-w-[calc(100vw-2rem)] p-3"
                 aria-label="Reasoning effort"
               >
                 {options()}
@@ -109,9 +135,10 @@ export function EffortSelector(props: {
             as={Button}
             variant="ghost"
             size="sm"
-            class="h-[34px] gap-1.5 rounded-full px-2 text-xs"
+            class="size-[34px] rounded-full p-0"
             disabled={props.disabled}
             aria-label={`Effort: ${label()}`}
+            title={`Effort: ${label()}`}
             onPointerDown={(event: PointerEvent) => event.preventDefault()}
             onMouseDown={(event: MouseEvent) => event.preventDefault()}
           >

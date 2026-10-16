@@ -92,9 +92,9 @@ an external harness result.
 
 ## Model menu interaction
 
-The selected model also has an **Effort · level** button beside its model selector
+The selected model also has a **speedometer-style effort** button beside its model selector
 in new-chat and running-session composers. It opens a compact desktop popover
-or a dedicated bottom sheet on mobile. Named choices show the current selection with
+or a dedicated bottom sheet on mobile. Its needle reflects the selected level. Choices run left to right from lower to higher effort and show the current selection with
 a checkmark; models with fewer than two choices hide the button.
 
 Effort remains available in each model’s submenu.
