@@ -603,13 +603,14 @@ describe('spreadsheet drag auto-scroll', () => {
     vi.advanceTimersToNextFrame();
     expect(view.element.scrollTop).toBe(0);
 
-    // 34px into the bottom edge zone, then 134px.
+    // 34px into the bottom edge zone for a 16ms frame is 10.88px, then 134px
+    // is 42.88px plus the carried 0.88px.
     mouse(window, 'pointermove', 196, 970);
     vi.advanceTimersToNextFrame();
-    expect(view.element.scrollTop).toBe(11);
+    expect(view.element.scrollTop).toBe(10);
     mouse(window, 'pointermove', 196, 1070);
     vi.advanceTimersToNextFrame();
-    expect(view.element.scrollTop).toBe(54);
+    expect(view.element.scrollTop).toBe(53);
     expect(view.controller.selection()).toEqual({
       anchor: { row: 44, column: 1 },
       focus: { row: 47, column: 1 },
@@ -617,7 +618,20 @@ describe('spreadsheet drag auto-scroll', () => {
 
     mouse(window, 'pointerup', 196, 1070);
     vi.advanceTimersToNextFrame();
-    expect(view.element.scrollTop).toBe(54);
+    expect(view.element.scrollTop).toBe(53);
+  });
+
+  it('keeps the scroll rate at slow speeds by carrying partial pixels between frames', () => {
+    vi.useFakeTimers();
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const view = renderGrid({}, { rowCount: 200 });
+    mouse(view.getByRole('gridcell', { name: 'B45' }), 'pointerdown', 196, 950);
+    // 1px into the bottom edge zone: 20px a second, 0.32px a 16ms frame.
+    mouse(window, 'pointermove', 196, 937);
+    for (let frame = 0; frame < 60; frame++) vi.advanceTimersToNextFrame();
+    expect(view.element.scrollTop).toBe(19);
   });
 
   it('scrolls a column header drag only across, and stops when the release was missed', () => {
@@ -635,7 +649,7 @@ describe('spreadsheet drag auto-scroll', () => {
     mouse(window, 'pointermove', 1010, 1000);
     vi.advanceTimersToNextFrame();
     expect(view.element.scrollTop).toBe(0);
-    expect(view.element.scrollLeft).toBe(11);
+    expect(view.element.scrollLeft).toBe(10);
     expect(view.controller.selection()).toEqual({
       anchor: { row: 0, column: 1 },
       focus: { row: 29, column: 9 },
@@ -643,7 +657,7 @@ describe('spreadsheet drag auto-scroll', () => {
 
     mouse(window, 'pointermove', 1010, 1000, 0);
     vi.advanceTimersToNextFrame();
-    expect(view.element.scrollLeft).toBe(11);
+    expect(view.element.scrollLeft).toBe(10);
   });
 });
 

@@ -31,7 +31,16 @@ export function createDragAutoScroll(options: {
   /** Each frame the pointer is in an edge zone, after scrolling. */
   onEdge: (x: number, y: number) => void;
 }) {
-  let pointer: { id: number; x: number; y: number; time?: number } | undefined;
+  let pointer:
+    | {
+        id: number;
+        x: number;
+        y: number;
+        time?: number;
+        carryX: number;
+        carryY: number;
+      }
+    | undefined;
   let frame: number | undefined;
 
   function scroll(time: number) {
@@ -51,11 +60,15 @@ export function createDragAutoScroll(options: {
       axis === 'x'
         ? 0
         : edgeDepth(pointer.y - rect.top, inset.top, element.clientHeight);
+    // Scroll whole pixels and carry the rest, so slow speeds keep their rate
+    // at any frame rate.
+    const distanceX = x && pointer.carryX + (x * RATE * elapsed) / 1000;
+    const distanceY = y && pointer.carryY + (y * RATE * elapsed) / 1000;
+    pointer.carryX = distanceX % 1;
+    pointer.carryY = distanceY % 1;
     if (!x && !y) return;
-    const step = (depth: number) =>
-      Math.sign(depth) * Math.ceil((Math.abs(depth) * RATE * elapsed) / 1000);
-    element.scrollLeft += step(x);
-    element.scrollTop += step(y);
+    element.scrollLeft += Math.trunc(distanceX);
+    element.scrollTop += Math.trunc(distanceY);
     options.onEdge(pointer.x, pointer.y);
   }
 
@@ -70,7 +83,13 @@ export function createDragAutoScroll(options: {
     /** Follow a drag's pointer: from its first move, or now when `moved`. */
     follow(event: PointerEvent, moved = false) {
       stop();
-      pointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
+      pointer = {
+        id: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        carryX: 0,
+        carryY: 0,
+      };
       if (moved) frame = requestAnimationFrame(scroll);
     },
     move(event: PointerEvent) {
