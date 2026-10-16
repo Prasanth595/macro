@@ -186,7 +186,7 @@ function FormulaTextarea(props: FormulaInputProps & { typed?: boolean }) {
         class={`${props.class} touch:text-[max(16px,1rem)]`}
         style={
           props.references?.length
-            ? { color: 'transparent', 'caret-color': 'var(--color-ink)' }
+            ? { '-webkit-text-fill-color': 'transparent' }
             : undefined
         }
         value={props.value}
@@ -328,8 +328,8 @@ function FormulaTextarea(props: FormulaInputProps & { typed?: boolean }) {
 
 /**
  * Draws the textarea's text over it, with references in their colors. A
- * textarea cannot style part of its text, so it keeps the caret and selection
- * while its own text is transparent.
+ * textarea cannot style part of its text, so it keeps the caret, selection and
+ * text color while its glyphs are transparent.
  */
 function ReferenceMirror(props: {
   input: HTMLTextAreaElement;
@@ -365,6 +365,7 @@ function ReferenceMirror(props: {
       fontSize: style.fontSize,
       fontWeight: style.fontWeight,
       fontStyle: style.fontStyle,
+      color: style.color,
       letterSpacing: style.letterSpacing,
       lineHeight: style.lineHeight,
       textAlign: style.textAlign,
@@ -398,7 +399,7 @@ function ReferenceMirror(props: {
       ref={mirror}
       aria-hidden="true"
       data-formula-mirror
-      class="pointer-events-none absolute box-border overflow-hidden whitespace-pre border-solid border-transparent text-ink"
+      class="pointer-events-none absolute box-border overflow-hidden whitespace-pre border-solid border-transparent"
     >
       <span ref={text} class="block">
         <For each={segments()}>
