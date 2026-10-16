@@ -7,6 +7,7 @@ import { useAddInboxFlow } from '@core/email-link';
 import { idToDisplayName, idToEmail } from '@core/user/util';
 import {
   useAiBillingPlansQuery,
+  useCreateBillingPortalMutation,
   useCreateCheckoutSessionMutation,
   useGithubLinkStatusQuery,
   useTrialEligibilityQuery,
@@ -89,6 +90,7 @@ export function createAppOnboardingContext(): OnboardingContext {
   const createTeam = useCreateTeamWithInvitesMutation();
   const joinTeam = useJoinTeamMutation();
   const checkout = useCreateCheckoutSessionMutation();
+  const billingPortal = useCreateBillingPortalMutation();
   const completeOnboarding = useCompleteOnboardingMutation();
   const completeTutorial = useCompleteTutorialMutation();
   const connectTool = createOnboardingToolConnect();
@@ -234,6 +236,23 @@ export function createAppOnboardingContext(): OnboardingContext {
           loadableQuery(query, (data) => data.eligible, {
             retainDataOnError: false,
           }),
+        existingSubscription: () =>
+          query.isSuccess &&
+          queryReadyGate(query) &&
+          query.data.existingSubscription,
+        managing: () => billingPortal.isPending,
+        manage: async () => {
+          try {
+            const result = await billingPortal.mutateAsync({
+              returnUrl: window.location.href,
+            });
+            window.location.href = result;
+          } catch {
+            toast.failure(
+              "Couldn't open billing management. Please try again."
+            );
+          }
+        },
         retry: () => {
           void query.refetch();
         },

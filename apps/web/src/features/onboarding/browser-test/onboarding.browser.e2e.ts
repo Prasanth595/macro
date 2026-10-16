@@ -702,7 +702,53 @@ for (const width of [1280, 390]) {
     await expect(
       page.getByRole('button', { name: 'Start 30 day trial' })
     ).toHaveCount(0);
+    await expect(
+      page.getByText('30 days free, then', { exact: false })
+    ).toHaveCount(0);
     await page.getByRole('button', { name: 'Get Pro', exact: true }).click();
     await expectLanded(page, 'Entered Macro at /home');
   });
 }
+
+test.describe('subscription recovery', () => {
+  test.use({ hasTouch: true });
+  for (const width of [1280, 390]) {
+    test(`existing subscription opens management without replacement at ${width}px`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await openFixture(page, '/?view=flow', {
+        trialEligible: false,
+        existingSubscription: true,
+      });
+      await page.evaluate(() =>
+        sessionStorage.setItem(
+          'onboarding-flow-step',
+          JSON.stringify({ user: 'macro|ada@acme.com', step: 'plan' })
+        )
+      );
+      await page.reload();
+      await expect(heading(page, 'Manage your subscription.')).toBeVisible();
+      await expect(
+        page.getByText('30 days free, then', { exact: false })
+      ).toHaveCount(0);
+      await expect(
+        page.getByRole('button', { name: 'Continue with Pro', exact: true })
+      ).toBeDisabled();
+      await expect(
+        page.getByRole('button', { name: 'Continue with Max', exact: true })
+      ).toBeDisabled();
+      await page
+        .getByRole('button', { name: 'Manage subscription', exact: true })
+        .tap();
+      const calls = await page.evaluate(() => window.onboardingFixture.calls());
+      expect(calls).toContain('manageSubscription');
+      expect(calls.some((call) => call.startsWith('checkout:'))).toBe(false);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth
+        )
+      ).toBe(true);
+    });
+  }
+});

@@ -219,7 +219,7 @@ with no plan header or divider. The card scrolls internally at a maximum of
 360px or half the viewport height. Entering at least 15 digits in the local
 preview input reveals expiration, security code, country, and ZIP previews;
 clearing it hides them again. Use a test number such as `4242 4242 4242 4242`.
-The primary CTA reads `Start 30 day trial`, with the billing and cancellation
+For eligible customers, the primary CTA reads `Start 30 day trial`, with the billing and cancellation
 note immediately below it. The quiet `Continue as Guest` scroll cue beneath it
 moves focus to the below-fold Guest and Pro comparison,
 using the same layout as the security details. The table includes email account

@@ -44,6 +44,7 @@ export type FakeOnboardingWorld = {
   githubStars: number | undefined;
   inviteOffer: InviteOffer | null;
   trialEligible: boolean;
+  existingSubscription: boolean;
   planCatalog: AiPlanCatalog;
   /** License refreshes left before the Stripe webhook lands; undefined when none is pending. */
   webhookPollsRemaining: number | undefined;
@@ -99,6 +100,7 @@ export function defaultFakeWorld(): FakeOnboardingWorld {
     githubStars: 12_345,
     inviteOffer: null,
     trialEligible: true,
+    existingSubscription: false,
     planCatalog: {
       plans: [
         {
@@ -323,6 +325,11 @@ export function createFakeOnboarding(
     createTrialEligibility: () => ({
       eligibility: () =>
         loadable('trialEligibility', () => world.trialEligible),
+      existingSubscription: () => world.existingSubscription,
+      managing: () => false,
+      manage: async () => {
+        call('manageSubscription');
+      },
       retry: () => call('retryTrialEligibility'),
     }),
     createPlanCatalog: () => ({

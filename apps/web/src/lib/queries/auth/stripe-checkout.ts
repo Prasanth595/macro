@@ -11,6 +11,8 @@ function trialEligibilityQueryOptions(enabled: boolean) {
     queryFn: () => throwOnErr(() => authServiceClient.getTrialEligibility()),
     enabled,
     staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
     throwOnError: false,
     retry: 1,
   };

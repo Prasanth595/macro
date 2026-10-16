@@ -1,13 +1,15 @@
 import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { Billing } from './Billing';
+import { BillingSettingsView } from './components/billing-settings-view';
+import { getBillingState } from './core/billing-state';
 
 const mocks = vi.hoisted(() => ({
   eligibility: {
     isSuccess: true,
     isPending: false,
     isError: false,
-    data: { eligible: false },
+    data: { eligible: false, existingSubscription: false },
     refetch: vi.fn(),
   },
   checkout: vi.fn(() => new Promise<string>(() => {})),
@@ -52,7 +54,7 @@ beforeEach(() => {
     isSuccess: true,
     isPending: false,
     isError: false,
-    data: { eligible: false },
+    data: { eligible: false, existingSubscription: false },
   });
 });
 afterEach(cleanup);
@@ -96,3 +98,32 @@ it.each(['loading', 'error'])(
     });
   }
 );
+
+it('shows subscription management rather than replacement plans for a recoverable subscription', () => {
+  mocks.eligibility.data.existingSubscription = true;
+  render(() => <Billing />);
+  expect(screen.getByRole('button', { name: 'Manage' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Get Pro' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Get Max' })).toBeNull();
+  expect(mocks.checkout).not.toHaveBeenCalled();
+});
+
+it('keeps Max upgrades available after paid access recovers while eligibility data is retained', () => {
+  const select = vi.fn();
+  render(() => (
+    <BillingSettingsView
+      state={getBillingState({
+        hasPaid: true,
+        canManageSubscription: true,
+        aiUsageEnabled: true,
+        pending: false,
+        existingSubscription: true,
+        summary: { tier: 'premium', canManageBilling: true },
+      })}
+      onManage={() => {}}
+      onSelectPlan={select}
+    />
+  ));
+  fireEvent.click(screen.getByRole('button', { name: 'Upgrade to Max' }));
+  expect(select).toHaveBeenCalledWith('max');
+});

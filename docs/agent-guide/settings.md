@@ -324,6 +324,15 @@ paid terms and `Get Pro` opens ordinary paid checkout. Eligibility loading
 disables Pro checkout without showing a trial offer; a failed lookup adds
 `Try again`. Checkout revalidates eligibility, and a stale trial offer reports
 the server rejection rather than silently switching to an immediate charge.
+Returning to the tab or reconnecting refreshes the offer. Accounts with an
+existing recoverable subscription see `Manage` and payment-management guidance
+instead of new checkout cards, even when their access is Free. Retries reuse the
+same open offer; changing plans invalidates the old link first. Competing tabs
+can show a retryable checkout conflict without creating two payable sessions.
+Reference captures from the isolated billing fixture: [returning customer](media/billing/returning-customer.png)
+and [subscription recovery](media/billing/subscription-recovery.png). These show
+phone-width layouts; payment-provider interactions are covered separately.
+
 `Get Max` keeps standard paid terms. Prices read `/ month` for solo users and
 `per seat / month` for team accounts. Each card puts its button beside the price when wide enough and below
 the price when narrow. Free lists 2 connected email accounts; Pro and Max list

@@ -10,6 +10,7 @@ export type BillingInput = {
   pending: boolean;
   /** Undefined until the server confirms eligibility; never advertise a trial then. */
   trialEligible?: boolean;
+  existingSubscription?: boolean;
 };
 
 /** The billing summary's tier wins; without it, paid access implies Pro. */

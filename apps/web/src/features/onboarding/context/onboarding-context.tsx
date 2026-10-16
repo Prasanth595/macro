@@ -122,6 +122,9 @@ export type OnboardingContext = {
   createInviteOffer(): Accessor<Loadable<InviteOffer | null>>;
   createTrialEligibility(): {
     eligibility: Accessor<Loadable<boolean>>;
+    existingSubscription: Accessor<boolean>;
+    managing: Accessor<boolean>;
+    manage(): Promise<void>;
     retry(): void;
   };
   createPlanCatalog(): {

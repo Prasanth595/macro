@@ -103,6 +103,10 @@ function LiveBilling(props: { controls?: JSX.Element }) {
         : undefined,
       aiUsageEnabled: aiUsageBilling().enabled,
       pending: checkout.isPending || changePlan.isPending,
+      existingSubscription:
+        trialEligibility.isSuccess && queryReadyGate(trialEligibility)
+          ? trialEligibility.data.existingSubscription
+          : false,
       trialEligible:
         trialEligibility.isSuccess && queryReadyGate(trialEligibility)
           ? trialEligibility.data.eligible
@@ -110,6 +114,7 @@ function LiveBilling(props: { controls?: JSX.Element }) {
     });
 
   const handleCheckout = async (plan: PaidPlan) => {
+    if (state().existingSubscription) return;
     const eligible = state().trialEligible;
     if (plan === 'premium' && eligible === undefined) return;
     try {
@@ -154,6 +159,7 @@ function LiveBilling(props: { controls?: JSX.Element }) {
       window.location.href = url;
     } catch (error) {
       console.error(error);
+      toast.failure("Couldn't open billing management. Please try again.");
     }
   };
 

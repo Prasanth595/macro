@@ -11,4 +11,6 @@
 export interface TrialEligibility {
   /** Confirmed against the same subscription history used during checkout. */
   eligible: boolean;
+  /** An existing subscription requires management instead of a new checkout. */
+  existingSubscription: boolean;
 }

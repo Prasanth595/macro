@@ -77,7 +77,7 @@ async fn canceled_subscription_does_not_get_another_trial_or_a_paid_fallback() {
     let service = CheckoutService::new(FakeGateway {
         history: SubscriptionHistory {
             has_previous_subscription: true,
-            has_active_subscription: false,
+            has_existing_subscription: false,
         },
         ..Default::default()
     });
@@ -93,7 +93,7 @@ async fn active_and_trialing_customers_cannot_buy_a_second_subscription() {
     let service = CheckoutService::new(FakeGateway {
         history: SubscriptionHistory {
             has_previous_subscription: true,
-            has_active_subscription: true,
+            has_existing_subscription: true,
         },
         ..Default::default()
     });
@@ -125,7 +125,7 @@ async fn ordinary_checkout_keeps_its_paid_terms_and_invite_promotion() {
         invite: true,
         history: SubscriptionHistory {
             has_previous_subscription: true,
-            has_active_subscription: false,
+            has_existing_subscription: false,
         },
         ..Default::default()
     });
@@ -219,11 +219,11 @@ async fn trial_eligibility_and_checkout_use_the_same_subscription_history() {
         SubscriptionHistory::default(),
         SubscriptionHistory {
             has_previous_subscription: true,
-            has_active_subscription: false,
+            has_existing_subscription: false,
         },
         SubscriptionHistory {
             has_previous_subscription: true,
-            has_active_subscription: true,
+            has_existing_subscription: true,
         },
     ] {
         let service = CheckoutService::new(FakeGateway {

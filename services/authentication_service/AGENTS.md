@@ -53,6 +53,21 @@ key issuance, and account merge/link flows.
 - `GET /user/stripe/trial_eligibility` reads the authenticated customer's
   eligibility without creating checkout. Any prior subscription disqualifies
   the first-subscription trial, including canceled or incomplete subscriptions.
+- Nonterminal subscriptions (including past due, unpaid, paused, and incomplete)
+  require management; only canceled and incomplete-expired subscriptions allow
+  replacement. Eligibility includes `existingSubscription` for recovery UI.
+- Share checkout idempotency generations across Pro, Max, and trial terms. Reuse
+  exact open offers; expire other open subscription sessions before replacement.
+  Never advance a generation after an ambiguous provider failure. Complete the
+  backend rollout before releasing clients that depend on these protections.
+- Stripe can cache a create failure under its idempotency key. If no session
+  becomes visible, retries deliberately retain that key: rotating it could double
+  bill after an ambiguous create. Reconcile using the opaque customer, session,
+  and idempotency fields in `billing.checkout` traces and Stripe request logs;
+  recover an existing subscription, reuse a confirmed matching checkout, or
+  expire a confirmed obsolete open session before retrying. If there is no session to reconcile, escalate to Stripe/support and
+  wait for Stripe's key retention to expire (at least 24 hours). Never invent a
+  fresh key solely to bypass a failed response.
 - Keep eligibility reads and checkout validation on the same policy; the legacy
   `hasTrialed` flag tracks trials only and cannot identify paid-only customers.
 - Deploy the eligibility endpoint before web clients that require it; otherwise
