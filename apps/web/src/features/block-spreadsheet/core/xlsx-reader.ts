@@ -3,6 +3,10 @@ import {
   MAX_NOTE_LENGTH,
   MAX_SHEET_NOTES,
 } from '@macro-inc/spreadsheet/sheet-rules';
+import {
+  resolveStructuredReferences,
+  type WorkbookTable,
+} from '@macro-inc/spreadsheet/structured-references';
 import type { WorkbookSheetMetadata } from '@macro-inc/spreadsheet/workbook-metadata';
 import {
   DEFAULT_COLUMN_WIDTH,
@@ -39,10 +43,8 @@ import {
   markImplicitIntersections,
   normalizeReferences,
   pivotTableArguments,
-  resolveStructuredReferences,
   stripFunctionPrefixes,
   translateFormula,
-  type WorkbookTable,
 } from './xlsx-formula';
 import {
   type Attributes,

@@ -20,6 +20,7 @@ import {
 } from './goal-seek';
 import { displayNumber, numericLiteral } from './number-display';
 import { type SheetPivotLayout, sheetPivotLayouts } from './pivot-layout';
+import { sheetTableLayouts } from './sheet-tables';
 import {
   formatCellAddress,
   parseCellAddress,
@@ -30,6 +31,11 @@ import {
   type SpreadsheetCellEdits,
   type SpreadsheetCells,
 } from './spreadsheet-document';
+import {
+  protectStructuredReferences,
+  resolveStructuredReferences,
+  type WorkbookTable,
+} from './structured-references';
 import type { WorkbookSheetMetadata } from './workbook-metadata';
 import { changeWorkbookAxis } from './workbook-structure';
 
@@ -56,6 +62,8 @@ export type CalculationSheet = {
   metadata?: WorkbookSheetMetadata;
   /** The layouts of its pivot tables, when `metadata` leaves them out. */
   pivots?: SheetPivotLayout[];
+  /** Its tables with their column names, when `metadata` leaves them out. */
+  tables?: WorkbookTable[];
 };
 export type WorkbookCalculation = Record<string, SpreadsheetCalculation>;
 export type CalculationContext = { sheetNames: string[]; activeSheet: number };
@@ -745,6 +753,8 @@ type EngineWorkbook = {
   sheets: CalculationSheet[];
   names: DefinedNames;
   rowCounts: Map<string, number>;
+  /** Every sheet's tables, which structured references resolve against. */
+  tables: WorkbookTable[];
   entered: EnteredSheet[];
 };
 
@@ -844,7 +854,7 @@ function enterCell(
   column: number,
   replace = false
 ) {
-  const { model, sheets, names, rowCounts } = workbook;
+  const { model, sheets, names, rowCounts, tables } = workbook;
   const sheet = sheets[sheetIndex];
   const entered = workbook.entered[sheetIndex];
   const area = {
@@ -887,8 +897,11 @@ function enterCell(
   let input = literal ? `'${value}` : value;
   if (!literal && value.startsWith('=')) {
     entered.formulas.set(address, { row, column });
+    // A table or column that no longer exists reads as Excel's #REF!.
     input = resolveNames(
-      value,
+      resolveStructuredReferences(value, tables, sheet.name, row, column, {
+        unresolved: '#REF!',
+      }) ?? value,
       sheetIndex,
       row,
       column,
@@ -1098,6 +1111,9 @@ function buildWorkbook(sheets: CalculationSheet[]): EngineWorkbook {
       names: defineNames(model, bounded),
       rowCounts: new Map(
         bounded.map((sheet) => [sheet.name.toLowerCase(), sheet.rowCount])
+      ),
+      tables: bounded.flatMap(
+        (sheet) => sheet.tables ?? sheetTableLayouts(sheet)
       ),
       entered: [],
     };
@@ -1587,7 +1603,14 @@ export function createInitializedSpreadsheetCalculator(): SpreadsheetCalculator 
           if (value.startsWith('=') && cell.format !== 'text') {
             // Use IronCalc's parser and displacement rules, including mixed
             // references, quoted strings, ranges, and sheet-qualified names.
-            model.setUserInput(sheet, from.row + 1, from.column + 1, value);
+            // Table references name columns, not cells, so they stay as written.
+            const references = protectStructuredReferences(value);
+            model.setUserInput(
+              sheet,
+              from.row + 1,
+              from.column + 1,
+              references.formula
+            );
             model.setSelectedCell(from.row + 1, from.column + 1);
             const clipboard = model.copyToClipboard();
             model.setSelectedCell(to.row + 1, to.column + 1);
@@ -1597,7 +1620,9 @@ export function createInitializedSpreadsheetCalculator(): SpreadsheetCalculator 
               clipboard.data,
               false
             );
-            value = model.getCellContent(sheet, to.row + 1, to.column + 1);
+            value = references.restore(
+              model.getCellContent(sheet, to.row + 1, to.column + 1)
+            );
           }
           edits[formatCellAddress(to.row, to.column)] = {
             ...SPREADSHEET_DEFAULT_STYLE,
