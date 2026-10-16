@@ -1,6 +1,9 @@
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { createServer as createHttpServer } from 'node:http';
+import {
+  createServer as createHttpServer,
+  request as httpRequest,
+} from 'node:http';
 import { get, request } from 'node:https';
 import type { AddressInfo, Socket } from 'node:net';
 import { createServer, resolveConfig } from 'vite';
@@ -58,96 +61,130 @@ it('maps only the dev static-file bucket without changing signed paths or querie
   expect(developmentProxyUrl(url)).toBe(url);
 });
 
-it('streams signed uploads without app credentials and rejects cross-origin or non-upload requests', async () => {
-  const uploads: {
-    path?: string;
-    body: string;
-    headers: import('node:http').IncomingHttpHeaders;
-  }[] = [];
-  const backend = createHttpServer(async (req, res) => {
-    const chunks: Buffer[] = [];
-    for await (const chunk of req) chunks.push(chunk);
-    uploads.push({
-      path: req.url,
-      body: Buffer.concat(chunks).toString(),
-      headers: req.headers,
+it.each([false, true])(
+  'streams signed uploads without app credentials (100-continue: %s)',
+  async (expectContinue) => {
+    const uploads: {
+      path?: string;
+      body: string;
+      headers: import('node:http').IncomingHttpHeaders;
+    }[] = [];
+    const backend = createHttpServer(async (req, res) => {
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) chunks.push(chunk);
+      uploads.push({
+        path: req.url,
+        body: Buffer.concat(chunks).toString(),
+        headers: req.headers,
+      });
+      res.setHeader('ETag', 'uploaded');
+      res.statusCode = 201;
+      res.end('stored');
     });
-    res.setHeader('ETag', 'uploaded');
-    res.statusCode = 201;
-    res.end('stored');
-  });
-  await new Promise<void>((resolve) => backend.listen(0, '127.0.0.1', resolve));
-  const upstream = `http://127.0.0.1:${(backend.address() as AddressInfo).port}`;
-  const vite = await createServer({
-    configFile: false,
-    appType: 'custom',
-    logLevel: 'silent',
-    plugins: [hostedDevProxy({}, { 'static-upload': upstream })],
-    optimizeDeps: { noDiscovery: true, include: [] },
-    server: { host: '127.0.0.1', port: 0 },
-  });
-  try {
-    await vite.listen();
-    const address = vite.httpServer?.address();
-    if (!address || typeof address === 'string')
-      throw new Error('No Vite listener');
-    const origin = `http://127.0.0.1:${address.port}`;
-    const path =
-      '/image%2Fname%20with%2Bsymbols.png?X-Amz-Credential=test%2Fscope&X-Amz-Signature=abc%2B123&part=1&part=2';
-    const url = `${origin}/__macro_dev/static-upload${path}`;
-    const response = await fetch(url, {
-      method: 'PUT',
-      body: 'image bytes',
-      headers: {
-        Origin: origin,
-        Cookie: 'dev-macro-access-token=fixture',
-        Authorization: 'Bearer fixture',
-        'Content-Type': 'image/png',
-        'x-amz-checksum-sha256': 'checksum',
-      },
+    await new Promise<void>((resolve) =>
+      backend.listen(0, '127.0.0.1', resolve)
+    );
+    const upstream = `http://127.0.0.1:${(backend.address() as AddressInfo).port}`;
+    const vite = await createServer({
+      configFile: false,
+      appType: 'custom',
+      logLevel: 'silent',
+      plugins: [hostedDevProxy({}, { 'static-upload': upstream })],
+      optimizeDeps: { noDiscovery: true, include: [] },
+      server: { host: '127.0.0.1', port: 0 },
     });
-    expect(response.status).toBe(201);
-    expect(response.headers.get('etag')).toBe('uploaded');
-    expect(await response.text()).toBe('stored');
-    expect(uploads).toHaveLength(1);
-    expect(uploads[0]).toMatchObject({
-      path,
-      body: 'image bytes',
-      headers: {
-        host: new URL(upstream).host,
-        'content-type': 'image/png',
-        'x-amz-checksum-sha256': 'checksum',
-      },
-    });
-    expect(uploads[0].headers.cookie).toBeUndefined();
-    expect(uploads[0].headers.authorization).toBeUndefined();
-    expect(uploads[0].headers.origin).toBeUndefined();
-    expect(
-      (
-        await fetch(url, {
-          method: 'PUT',
-          headers: { Origin: 'https://unrelated.example' },
-        })
-      ).status
-    ).toBe(403);
-    expect(
-      (
-        await fetch(url, {
-          method: 'PUT',
-          headers: { 'Sec-Fetch-Site': 'cross-site' },
-        })
-      ).status
-    ).toBe(403);
-    const getResponse = await fetch(url);
-    expect(getResponse.status).toBe(405);
-    expect(getResponse.headers.get('allow')).toBe('PUT');
-    expect(uploads).toHaveLength(1);
-  } finally {
-    await vite.close();
-    backend.closeAllConnections();
-    await new Promise<void>((resolve) => backend.close(() => resolve()));
+    try {
+      await vite.listen();
+      const address = vite.httpServer?.address();
+      if (!address || typeof address === 'string')
+        throw new Error('No Vite listener');
+      const origin = `http://127.0.0.1:${address.port}`;
+      const path =
+        '/image%2Fname%20with%2Bsymbols.png?X-Amz-Credential=test%2Fscope&X-Amz-Signature=abc%2B123&part=1&part=2';
+      const url = `${origin}/__macro_dev/static-upload${path}`;
+      const response = await new Promise<{
+        status?: number;
+        etag?: string;
+        body: string;
+      }>((resolve, reject) => {
+        const upload = httpRequest(
+          url,
+          {
+            method: 'PUT',
+            headers: {
+              Origin: origin,
+              Cookie: 'dev-macro-access-token=fixture',
+              Authorization: 'Bearer fixture',
+              'Content-Type': 'image/png',
+              'Content-Length': Buffer.byteLength('image bytes'),
+              'x-amz-checksum-sha256': 'checksum',
+              ...(expectContinue ? { Expect: '100-continue' } : {}),
+            },
+          },
+          (res) => {
+            const chunks: Buffer[] = [];
+            res.on('data', (chunk) => chunks.push(chunk));
+            res.on('error', reject);
+            res.on('end', () =>
+              resolve({
+                status: res.statusCode,
+                etag: res.headers.etag,
+                body: Buffer.concat(chunks).toString(),
+              })
+            );
+          }
+        );
+        upload.on('error', reject);
+        if (expectContinue) {
+          upload.once('continue', () => upload.end('image bytes'));
+          upload.flushHeaders();
+        } else {
+          upload.end('image bytes');
+        }
+      });
+      expect(response.status).toBe(201);
+      expect(response.etag).toBe('uploaded');
+      expect(response.body).toBe('stored');
+      expect(uploads).toHaveLength(1);
+      expect(uploads[0]).toMatchObject({
+        path,
+        body: 'image bytes',
+        headers: {
+          host: new URL(upstream).host,
+          'content-type': 'image/png',
+          'x-amz-checksum-sha256': 'checksum',
+        },
+      });
+      expect(uploads[0].headers.cookie).toBeUndefined();
+      expect(uploads[0].headers.authorization).toBeUndefined();
+      expect(uploads[0].headers.origin).toBeUndefined();
+      expect(
+        (
+          await fetch(url, {
+            method: 'PUT',
+            headers: { Origin: 'https://unrelated.example' },
+          })
+        ).status
+      ).toBe(403);
+      expect(
+        (
+          await fetch(url, {
+            method: 'PUT',
+            headers: { 'Sec-Fetch-Site': 'cross-site' },
+          })
+        ).status
+      ).toBe(403);
+      const getResponse = await fetch(url);
+      expect(getResponse.status).toBe(405);
+      expect(getResponse.headers.get('allow')).toBe('PUT');
+      expect(uploads).toHaveLength(1);
+    } finally {
+      await vite.close();
+      backend.closeAllConnections();
+      await new Promise<void>((resolve) => backend.close(() => resolve()));
+    }
   }
-});
+);
 
 it('forwards authenticated HTTP and WS over HTTPS, rewrites cookies, and rejects other origins', async () => {
   const sockets = new Set<Socket>();

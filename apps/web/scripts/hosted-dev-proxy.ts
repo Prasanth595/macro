@@ -51,11 +51,6 @@ export function hostedDevProxy(
                 configure(proxy) {
                   proxy.on('proxyReq', (request) => {
                     request.removeHeader('origin');
-                    // Presigned uploads authenticate only through the URL.
-                    if (isUpload) {
-                      request.removeHeader('cookie');
-                      request.removeHeader('authorization');
-                    }
                   });
                   proxy.on('proxyReqWs', (request, req, socket) => {
                     if (isCrossOrigin(req)) {
@@ -86,14 +81,18 @@ export function hostedDevProxy(
         }
         const uploadPrefix = `${DEVELOPMENT_PROXY_PREFIX}/static-upload`;
         const path = req.url?.split('?')[0];
-        if (
-          (path === uploadPrefix || path?.startsWith(`${uploadPrefix}/`)) &&
-          req.method !== 'PUT'
-        ) {
-          res.statusCode = 405;
-          res.setHeader('Allow', 'PUT');
-          res.end('Development upload proxy only accepts PUT requests');
-          return;
+        if (path === uploadPrefix || path?.startsWith(`${uploadPrefix}/`)) {
+          if (req.method !== 'PUT') {
+            res.statusCode = 405;
+            res.setHeader('Allow', 'PUT');
+            res.end('Development upload proxy only accepts PUT requests');
+            return;
+          }
+          // Strip before proxying: Expect: 100-continue skips proxyReq hooks.
+          // Presigned uploads authenticate only through the URL.
+          delete req.headers.cookie;
+          delete req.headers.authorization;
+          delete req.headers.origin;
         }
         next();
       });
