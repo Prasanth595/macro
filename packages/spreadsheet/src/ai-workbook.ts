@@ -10,6 +10,7 @@ import type {
   SpreadsheetReadResponse,
   SpreadsheetReadValidation,
   SpreadsheetSheetSummary,
+  SpreadsheetTableSummary,
   SpreadsheetValue,
 } from './ai-types';
 import type {
@@ -32,6 +33,7 @@ import {
   selectionBounds,
 } from './grid-selection';
 import { qualifyScratchFormula } from './scratch-formula';
+import { tableColumnNames } from './sheet-tables';
 import {
   appendSpreadsheetRows,
   formatCellAddress,
@@ -51,6 +53,7 @@ import {
 } from './spreadsheet-document';
 import {
   addSpreadsheetSheet,
+  createSpreadsheetTable,
   deleteSpreadsheetSheet,
   duplicateSpreadsheetSheet,
   readSpreadsheetWorkbook,
@@ -178,26 +181,48 @@ function usedRange(
   return bounds ? rangeName(bounds) : null;
 }
 
+function tableSummaries(
+  sheet: SpreadsheetWorkbookSheet
+): SpreadsheetTableSummary[] {
+  return (sheet.metadata?.tables ?? []).map((table) => {
+    const columns = tableColumnNames(table, sheet.cells);
+    const filteredColumns = Object.keys(table.filters ?? {}).flatMap(
+      (offset) => columns[Number(offset)] ?? []
+    );
+    return {
+      name: table.name,
+      range: table.range,
+      columns,
+      totalsRow: table.totalsRow,
+      ...(filteredColumns.length && { filteredColumns }),
+    };
+  });
+}
+
 function summaries(
   workbook: SpreadsheetWorkbookSheet[],
   results: WorkbookCalculation
 ): SpreadsheetSheetSummary[] {
-  return workbook.map((sheet) => ({
-    id: sheet.id,
-    name: sheet.name,
-    rowCount: sheet.layout.rowCount,
-    columnCount: sheet.layout.columnCount,
-    usedRange: usedRange(sheet, results[sheet.id] ?? {}),
-    populatedCells: Object.values(sheet.cells).filter(
-      (cell) => cell.value !== ''
-    ).length,
-    formulaCells: Object.values(sheet.cells).filter(
-      (cell) => cell.format !== 'text' && cell.value.startsWith('=')
-    ).length,
-    errorCells: Object.values(results[sheet.id] ?? {}).filter(
-      (cell) => cell.error
-    ).length,
-  }));
+  return workbook.map((sheet) => {
+    const tables = tableSummaries(sheet);
+    return {
+      id: sheet.id,
+      name: sheet.name,
+      rowCount: sheet.layout.rowCount,
+      columnCount: sheet.layout.columnCount,
+      usedRange: usedRange(sheet, results[sheet.id] ?? {}),
+      populatedCells: Object.values(sheet.cells).filter(
+        (cell) => cell.value !== ''
+      ).length,
+      formulaCells: Object.values(sheet.cells).filter(
+        (cell) => cell.format !== 'text' && cell.value.startsWith('=')
+      ).length,
+      errorCells: Object.values(results[sheet.id] ?? {}).filter(
+        (cell) => cell.error
+      ).length,
+      ...(tables.length && { tables }),
+    };
+  });
 }
 
 function readCell(
@@ -606,6 +631,20 @@ export function prepareSpreadsheetEdit(
               replaceValidations(sheet.metadata?.validations, range)
             );
             summary = `Removed data validation from ${range} in “${sheet.name}”.`;
+            break;
+          }
+          case 'create_table': {
+            const selection = checkedRange(operation.range, sheet);
+            const range = rangeName(selection);
+            const { left, right } = selectionBounds(selection);
+            // The header row and total row are what a conversion writes.
+            count((right - left + 1) * (operation.totalsRow ? 2 : 1));
+            const name = createSpreadsheetTable(fork, sheet.id, {
+              range,
+              name: operation.name,
+              totalsRow: operation.totalsRow,
+            });
+            summary = `Converted ${range} in “${sheet.name}” to the table “${name}”.`;
             break;
           }
         }

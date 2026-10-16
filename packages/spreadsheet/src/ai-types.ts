@@ -44,7 +44,14 @@ export type SpreadsheetOperation =
       source?: string;
       rejectInvalid?: boolean;
     }
-  | { type: 'clear_validation'; sheetId: string; range: string };
+  | { type: 'clear_validation'; sheetId: string; range: string }
+  | {
+      type: 'create_table';
+      sheetId: string;
+      range: string;
+      name?: string;
+      totalsRow?: boolean;
+    };
 
 export type SpreadsheetReadRequest = {
   action: 'read';
@@ -89,6 +96,16 @@ export type SpreadsheetSheetSummary = {
   populatedCells: number;
   formulaCells: number;
   errorCells: number;
+  tables?: SpreadsheetTableSummary[];
+};
+/** A named table, which formulas address as `Name[Column]`. */
+export type SpreadsheetTableSummary = {
+  name: string;
+  range: string;
+  columns: string[];
+  totalsRow: boolean;
+  /** Columns whose filters hide rows. */
+  filteredColumns?: string[];
 };
 /** A data validation rule overlapping a read range. */
 export type SpreadsheetReadValidation = {

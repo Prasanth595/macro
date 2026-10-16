@@ -148,6 +148,15 @@ const operation = z.discriminatedUnion('type', [
     })
     .strict(),
   z.object({ type: z.literal('clear_validation'), sheetId, range }).strict(),
+  z
+    .object({
+      type: z.literal('create_table'),
+      sheetId,
+      range,
+      name: z.string().min(1).max(255).optional(),
+      totalsRow: z.boolean().optional(),
+    })
+    .strict(),
 ]);
 
 export const spreadsheetRequestSchema = z.discriminatedUnion('action', [

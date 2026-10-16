@@ -194,6 +194,17 @@ export const SpreadsheetResponse = z.any().superRefine((x, ctx) => {
           populatedCells: z.number().int().gte(0),
           formulaCells: z.number().int().gte(0),
           errorCells: z.number().int().gte(0),
+          tables: z
+            .array(
+              z.object({
+                name: z.string(),
+                range: z.string(),
+                columns: z.array(z.string()),
+                totalsRow: z.boolean(),
+                filteredColumns: z.array(z.string()).optional(),
+              })
+            )
+            .optional(),
         })
       ),
       ranges: z.array(
@@ -641,6 +652,17 @@ export const SpreadsheetResponse = z.any().superRefine((x, ctx) => {
           populatedCells: z.number().int().gte(0),
           formulaCells: z.number().int().gte(0),
           errorCells: z.number().int().gte(0),
+          tables: z
+            .array(
+              z.object({
+                name: z.string(),
+                range: z.string(),
+                columns: z.array(z.string()),
+                totalsRow: z.boolean(),
+                filteredColumns: z.array(z.string()).optional(),
+              })
+            )
+            .optional(),
         })
       ),
       warnings: z.array(z.string()),
@@ -8122,6 +8144,15 @@ export const EditSpreadsheet = z.object({
             sheetId: z.string(),
             range: z.string(),
             type: z.literal('clear_validation'),
+          })
+          .strict(),
+        z
+          .object({
+            sheetId: z.string(),
+            range: z.string(),
+            name: z.union([z.string(), z.null()]).optional(),
+            totalsRow: z.union([z.boolean(), z.null()]).optional(),
+            type: z.literal('create_table'),
           })
           .strict(),
       ];

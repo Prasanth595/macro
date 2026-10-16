@@ -340,6 +340,21 @@ pub enum SpreadsheetOperation {
         /// A1 rectangle.
         range: String,
     },
+    /// Convert a rectangle to a named table (an Excel table). Its first row becomes the header
+    /// row; blank or repeated headers are named. Formulas can then use structured references
+    /// such as Table1[Amount] or [@Amount], and each header gets sort and filter controls.
+    CreateTable {
+        /// Stable sheet ID or exact name.
+        sheet_id: String,
+        /// A1 rectangle including the header row, for example A1:D20. Must not overlap a table.
+        range: String,
+        /// Unique table name without spaces, such as Sales; defaults to the next free TableN.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
+        /// Add a total row below the data, which must be empty. Defaults to false.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        totals_row: Option<bool>,
+    },
 }
 
 /// The deterministic spreadsheet execution request.
@@ -453,6 +468,26 @@ pub struct SpreadsheetSheetSummary {
     pub formula_cells: usize,
     /// Number of calculated errors.
     pub error_cells: usize,
+    /// Named tables on the sheet.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tables: Vec<SpreadsheetTableSummary>,
+}
+
+/// A named table (an Excel table) that formulas address with structured references.
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SpreadsheetTableSummary {
+    /// Table name, as in Sales[Amount].
+    pub name: String,
+    /// A1 rectangle from the header row through the total row, if any.
+    pub range: String,
+    /// Column names, from the header row.
+    pub columns: Vec<String>,
+    /// Whether the last row is a total row.
+    pub totals_row: bool,
+    /// Columns whose filters currently hide rows.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub filtered_columns: Vec<String>,
 }
 
 /// Addressed range with explicit truncation.
