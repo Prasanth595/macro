@@ -5012,7 +5012,10 @@ export interface SpreadsheetReadCell {
  */
 export interface SpreadsheetStyle {
   /**
-   * Exact Excel number format, up to 512 characters.
+   * Exact Excel number format, up to 512 characters; it overrides the display of `format`.
+   * Show dates with format=date and a date code such as mmm yyyy (Jan 2026), mmm dd, yyyy,
+   * mm/dd/yyyy, dd/mm/yyyy, yyyy-mm-dd, d mmm yyyy or dddd, mmmm d, yyyy; times with
+   * format=time and a code such as h:mm AM/PM.
    */
   numberFormat?: string | null;
   /**
@@ -5087,6 +5090,11 @@ export interface SpreadsheetStyle {
    * Horizontal alignment.
    */
   horizontalAlign?: SpreadsheetHorizontalAlign | null;
+  /**
+   * Indent level, 0 through 250, as Excel's Increase Indent: each level is three spaces from the
+   * left edge, or from the right edge of right-aligned cells. Centered cells ignore it.
+   */
+  indent?: number | null;
   /**
    * Vertical alignment.
    */
