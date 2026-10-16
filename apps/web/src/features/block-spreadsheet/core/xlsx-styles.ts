@@ -25,6 +25,7 @@ export type XlsxCellStyle = {
   };
   fill?: string;
   border: Partial<Record<Edge, { style: string; color: string }>>;
+  checkbox: boolean;
 };
 
 const FONT_NAMES = { sans: 'Arial', serif: 'Georgia', mono: 'Courier New' };
@@ -141,5 +142,6 @@ export function xlsxCellStyle(
     },
     ...(style.fillColor && { fill: style.fillColor.slice(1).toUpperCase() }),
     border,
+    checkbox: style.checkbox,
   };
 }
