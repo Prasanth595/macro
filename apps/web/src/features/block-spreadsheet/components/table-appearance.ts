@@ -17,10 +17,10 @@ const ACCENTS = [
 /**
  * An Excel table style's color and whether its header is filled. Each style
  * family repeats gray and the six accents, so TableStyleMedium2 (Excel's
- * default) is the first accent.
+ * default) is the first accent. A custom style draws as the default.
  */
-function styleAccent(style: string | undefined) {
-  const match = /^TableStyle(Light|Medium|Dark)(\d+)$/.exec(style ?? '');
+function styleAccent(style: string) {
+  const match = /^TableStyle(Light|Medium|Dark)(\d+)$/.exec(style);
   if (!match) return { color: ACCENTS[0], filledHeader: true };
   const offset = (Number(match[2]) - 1) % 7;
   return {
@@ -48,6 +48,7 @@ export function tableCellLook(
   const table = tableAt(tables, row, column);
   if (!table) return;
   const bounds = tableBounds(table);
+  if (!table.style) return row === bounds.top ? { header: table } : {};
   const { color, filledHeader } = styleAccent(table.style);
   if (row === bounds.top)
     return filledHeader

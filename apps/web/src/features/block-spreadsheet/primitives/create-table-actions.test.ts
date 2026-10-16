@@ -89,7 +89,13 @@ describe('table actions', () => {
     });
     expect(actions.dialog()).toBeUndefined();
     expect(store.activeSheet().metadata?.tables).toEqual([
-      { name: 'Table1', range: 'A1:B5', totalsRow: true, bandedRows: true },
+      {
+        name: 'Table1',
+        range: 'A1:B5',
+        totalsRow: true,
+        bandedRows: true,
+        style: 'TableStyleMedium2',
+      },
     ]);
     expect(store.cells().B5.value).toBe('=SUBTOTAL(109,[Amount])');
 
@@ -164,6 +170,7 @@ describe('table actions', () => {
         totalsRow: false,
         bandedRows: false,
         bandedColumns: true,
+        style: 'TableStyleMedium2',
       },
     ]);
     expect(store.cells().D1.value).toBe('=SUM(Sales[Amount])');

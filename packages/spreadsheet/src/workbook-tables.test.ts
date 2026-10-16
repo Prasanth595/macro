@@ -44,7 +44,13 @@ describe('tables in the workbook document', () => {
     doc.commit();
     validateSpreadsheetDocument(doc);
     expect(readSpreadsheetWorkbook(doc)[0].metadata?.tables).toEqual([
-      { name: 'Table1', range: 'A1:B2', totalsRow: false, bandedRows: true },
+      {
+        name: 'Table1',
+        range: 'A1:B2',
+        totalsRow: false,
+        bandedRows: true,
+        style: 'TableStyleMedium2',
+      },
     ]);
   });
 

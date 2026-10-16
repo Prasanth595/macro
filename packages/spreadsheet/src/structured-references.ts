@@ -198,7 +198,7 @@ function structuredRange(
   )
     return;
   const index = (name: string) =>
-    table.columns.findIndex((column) => column.toLowerCase() === name);
+    table.columns.findIndex((column) => column.trim().toLowerCase() === name);
   let left = table.left;
   let right = table.right;
   if (columnNames.length) {
@@ -220,7 +220,7 @@ function structuredRange(
  * Replace structured table references with equivalent A1 references, for the
  * formula in `row` and `column` of `sheet`. A reference to a table or column
  * that does not exist makes the result undefined, or becomes `unresolved`
- * when it is given. With `only`, references to other tables stay as they are.
+ * when it is given. References to tables `resolves` refuses stay as written.
  */
 export function resolveStructuredReferences(
   formula: string,
@@ -228,15 +228,17 @@ export function resolveStructuredReferences(
   sheet: string,
   row: number,
   column: number,
-  options: { unresolved?: string; only?: string } = {}
+  options: {
+    unresolved?: string;
+    resolves?: (table: WorkbookTable) => boolean;
+  } = {}
 ): string | undefined {
   if (!formula.includes('[')) return formula;
-  const { unresolved, only } = options;
+  const { unresolved, resolves } = options;
   let failed = false;
   const resolved = rewrite(formula, (reference) => {
     const table = referencedTable(reference, tables, sheet, row, column);
-    if (only !== undefined && table?.name.toLowerCase() !== only.toLowerCase())
-      return;
+    if (table && resolves && !resolves(table)) return;
     // A word before brackets that names no table is left to the engine
     // unless a replacement for unknown references is given.
     if (!table && reference.table !== undefined && unresolved === undefined)

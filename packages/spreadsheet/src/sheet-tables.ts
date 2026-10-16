@@ -37,7 +37,8 @@ export type SheetTable = {
   bandedColumns?: boolean;
   firstColumn?: boolean;
   lastColumn?: boolean;
-  /** The Excel table style, kept for export. */
+  /** The Excel table style, such as `TableStyleMedium2`; without one, a
+   * table is drawn plain, as in Excel. */
   style?: string;
   /** Filters by column position from the table's first column. */
   filters?: Record<string, TableColumnFilter>;
@@ -167,11 +168,12 @@ export function tableColumnNames(
     const text =
       !cell || (cell.value.startsWith('=') && cell.format !== 'text')
         ? ''
-        : cellPlainText(cell.value).replace(/^'/, '').trim();
-    let name = text || `Column${column - left + 1}`;
-    for (let suffix = 2; taken.has(name.toLowerCase()); suffix++)
-      name = `${text || `Column${column - left + 1}`}${suffix}`;
-    taken.add(name.toLowerCase());
+        : cellPlainText(cell.value).replace(/^'/, '');
+    const base = text.trim() ? text : `Column${column - left + 1}`;
+    let name = base;
+    for (let suffix = 2; taken.has(name.trim().toLowerCase()); suffix++)
+      name = `${base}${suffix}`;
+    taken.add(name.trim().toLowerCase());
     names.push(name);
   }
   return names;
@@ -373,7 +375,12 @@ export function createTable(options: {
   const names = tableColumnNames({ range }, headerCells);
   names.forEach((name, offset) => {
     const address = formatCellAddress(bounds.top, bounds.left + offset);
-    if (cells[address]?.value !== name)
+    const cell = cells[address];
+    const text =
+      cell && !(cell.value.startsWith('=') && cell.format !== 'text')
+        ? cellPlainText(cell.value).replace(/^'/, '')
+        : undefined;
+    if (text !== name)
       edits[address] = { value: name.startsWith('=') ? `'${name}` : name };
   });
   const table: SheetTable = {
@@ -381,6 +388,7 @@ export function createTable(options: {
     range,
     totalsRow: false,
     bandedRows: true,
+    style: 'TableStyleMedium2',
   };
   let next: WorkbookSheetMetadata = {
     ...metadata,
@@ -717,7 +725,7 @@ export function convertTableToRange(
         current.name,
         position.row,
         position.column,
-        { only: name }
+        { resolves: (layout) => layout.name === name }
       ) ?? formula
     );
   });

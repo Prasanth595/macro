@@ -41,7 +41,13 @@ describe('createTable', () => {
     expect(change.metadata).toEqual({
       hiddenColumns: [9],
       tables: [
-        { name: 'Sales', range: 'A1:D3', totalsRow: false, bandedRows: true },
+        {
+          name: 'Sales',
+          range: 'A1:D3',
+          totalsRow: false,
+          bandedRows: true,
+          style: 'TableStyleMedium2',
+        },
       ],
     });
   });
