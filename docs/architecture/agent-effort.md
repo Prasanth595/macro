@@ -92,10 +92,10 @@ an external harness result.
 
 ## Model menu interaction
 
-The selected model also has an **Effort · level** row below search in new-chat
-and running-session selectors. It opens a compact desktop popover or expands
-a list within the mobile sheet. Named choices show the current selection with
-a checkmark; models with fewer than two choices hide the row.
+The selected model also has an **Effort · level** button beside its model selector
+in new-chat and running-session composers. It opens a compact desktop popover
+or a dedicated bottom sheet on mobile. Named choices show the current selection with
+a checkmark; models with fewer than two choices hide the button.
 
 Effort remains available in each model’s submenu.
 Discovery runs when the submenu opens, scoped to that model and harness;

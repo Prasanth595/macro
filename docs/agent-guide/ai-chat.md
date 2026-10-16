@@ -425,7 +425,7 @@ the shimmer.
   with the repository bar below the input on desktop and above it on mobile.
   The plus attachment button stays at the far left: before the
   text in the compact row, and on the bottom control row when expanded. The editor sits above the controls, with attachments
-  on the left and the agent/model and Send on the right. An inset bar, 8 px narrower on each side than the input, holds Chat/Code in both modes, with rounded outer corners
+  on the left and the agent/model and Send on the right. An inset bar, 8 px narrower on each side than the input, holds Chat/Code in both modes at a stable 44 px height with 4 px vertical padding, with rounded outer corners
   and a subtle border, with a darker surface in dark mode.
   Selecting Chat hides the repository controls and keeps the mode switch in
   the inset bar, without remounting the editor or losing the draft. Reduced-motion
@@ -473,7 +473,7 @@ the shimmer.
   provider icons, search, **Suggested** first, and **More models** for the
   complete provider catalog. Desktop opens a submenu; phone widths show
   the catalog in place with a Back action. Search includes every model.
-- An **Effort · Low** row beneath search opens named choices with a checkmark: a compact popover on desktop, or a list within the current sheet on mobile. It is hidden when the model has fewer than two effort choices.
+- An **Effort · Low** button beside the model selector opens named choices with a checkmark: a compact popover on desktop, or its own bottom sheet on mobile. Mobile shows it alongside the model control after the input expands. It is hidden when the model has fewer than two effort choices.
   Model-specific effort choices remain available in model submenus.
   Free and Pro users start new conversations at the lowest advertised level,
   unless they explicitly choose another. Existing sessions keep their current setting.
@@ -1697,7 +1697,7 @@ Open the model selector and hover a model to choose its reasoning effort in the
 submenu. Keyboard users open it with Right Arrow; touch users tap the model.
 Cursor and Macro's in-memory agent load the hovered model's own advertised
 choices. The selected label includes the effort, such as `Sonnet 5.5 · High`;
-there is no separate effort control in the input box. Models without effort
+the composer also offers a separate effort button for the selected model. Models without effort
 support remain selectable through `Use <model>` (or a desktop click/Enter).
 Default keeps the model's existing behavior.
 
@@ -1939,7 +1939,7 @@ Open the model selector and hover a model to choose its reasoning effort in the
 submenu. Keyboard users open it with Right Arrow; touch users tap the model.
 Cursor and Macro's in-memory agent load the hovered model's own advertised
 choices. The selected label includes the effort, such as `Sonnet 5 · High`;
-there is no separate effort control in the input box. Models without effort
+the composer also offers a separate effort button for the selected model. Models without effort
 support remain selectable through `Use <model>` (or a desktop click/Enter).
 Default keeps the model's existing behavior.
 

@@ -102,6 +102,7 @@ export function NewChatPage(props: {
   const [agentId, setAgentId] = createSignal<string>();
   /** One-shot model from a coding agent's submenu; Macro uses {@link preferredInmem}. */
   const [modelOverride, setModelOverride] = createSignal<string>();
+  const [effortPickerOpen, setEffortPickerOpen] = createSignal(false);
   const [repositoryPickerOpen, setRepositoryPickerOpen] = createSignal(false);
   // A new conversation starts on Automatic until the caller picks a repository.
   const [repoUrl, setRepoUrl] = createSignal<string | undefined>();
@@ -333,19 +334,6 @@ export function NewChatPage(props: {
       effortLabel={
         selectedEffort()?.name ?? effortLabel(effort(), effortOverride()?.value)
       }
-      menuHeader={
-        <EffortSelector
-          config={effort()}
-          value={effortOverride()?.value}
-          disabled={Boolean(blocked())}
-          onChange={(choice) =>
-            setEffortSelection({
-              ...choice,
-              target: JSON.stringify(capabilityTarget()),
-            })
-          }
-        />
-      }
       effortSelection={effortOverride()}
       onSelect={selectAgent}
       onSelectEffort={selectAgent}
@@ -412,7 +400,7 @@ export function NewChatPage(props: {
     <ChatComposer
       autoFocus={props.autoFocus}
       collapseOnBlur={props.compact}
-      controlsOpen={repositoryPickerOpen()}
+      controlsOpen={repositoryPickerOpen() || effortPickerOpen()}
       registerFocus={props.registerFocus}
       draft={draft()}
       onDraftChange={setDraft}
@@ -420,6 +408,18 @@ export function NewChatPage(props: {
       selector={
         <div class="flex min-w-0 items-center gap-1">
           {agentSelector()}
+          <EffortSelector
+            onOpenChange={setEffortPickerOpen}
+            config={effort()}
+            value={effortOverride()?.value}
+            disabled={Boolean(blocked())}
+            onChange={(choice) =>
+              setEffortSelection({
+                ...choice,
+                target: JSON.stringify(capabilityTarget()),
+              })
+            }
+          />
           <Show
             when={['macro-inmem', 'in-memory'].includes(
               selected()?.harness ?? ''

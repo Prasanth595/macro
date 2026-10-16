@@ -1,23 +1,28 @@
+import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { Popover } from '@kobalte/core/popover';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import CheckIcon from '@phosphor/check.svg';
 import { Button } from '@ui';
-import { createSignal, createUniqueId, For, Show } from 'solid-js';
+import { createSignal, For, Show } from 'solid-js';
 import type {
   EffortChoice,
   SelectSessionConfigOption,
 } from '../state/session-config';
 
-/** Named effort choices for the selected model, within its model menu. */
+/** Effort control beside the selected model in the composer. */
 export function EffortSelector(props: {
   config?: SelectSessionConfigOption;
   value?: string;
   disabled?: boolean;
   onChange: (choice: EffortChoice) => void;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const [open, setOpen] = createSignal(false);
-  const id = createUniqueId();
+  const changeOpen = (value: boolean) => {
+    setOpen(value);
+    props.onOpenChange?.(value);
+  };
   const choices = () => props.config?.options ?? [];
   const value = () => props.value ?? props.config?.currentValue;
   const label = () =>
@@ -37,7 +42,6 @@ export function EffortSelector(props: {
   );
   const options = () => (
     <div
-      id={id}
       role="group"
       aria-label="Reasoning effort"
       class="flex flex-col gap-0.5"
@@ -56,7 +60,7 @@ export function EffortSelector(props: {
                 value: choice.value,
                 name: choice.name,
               });
-              setOpen(false);
+              changeOpen(false);
             }}
           >
             {choice.name}
@@ -70,58 +74,63 @@ export function EffortSelector(props: {
   );
   return (
     <Show when={choices().length > 1}>
-      <div
-        data-effort-selector
-        class="px-1.5 pb-1"
-        onKeyDown={(event) => {
-          if (event.key !== 'Escape') event.stopPropagation();
-        }}
-        onPointerDown={(event) => event.stopPropagation()}
-        onMouseDown={(event) => event.stopPropagation()}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <Show
-          when={isTouchDevice()}
-          fallback={
-            <Popover
-              open={open()}
-              onOpenChange={setOpen}
-              placement="bottom-start"
-              gutter={4}
+      <Show
+        when={isTouchDevice()}
+        fallback={
+          <Popover
+            open={open()}
+            onOpenChange={changeOpen}
+            placement="top-start"
+            gutter={8}
+          >
+            <Popover.Trigger
+              as={Button}
+              variant="ghost"
+              size="sm"
+              class="gap-1.5 rounded-full px-2 text-xs"
+              disabled={props.disabled}
+              aria-label={`Effort: ${label()}`}
             >
-              <Popover.Trigger
-                as={Button}
-                variant="ghost"
-                class="w-full justify-start gap-2 rounded-lg px-3 text-xs"
-                disabled={props.disabled}
-                aria-label={`Effort: ${label()}`}
-              >
-                {contents()}
-              </Popover.Trigger>
-              {/* Keep focus inside the parent model menu’s DOM boundary. */}
+              {contents()}
+            </Popover.Trigger>
+            <Popover.Portal>
               <Popover.Content
                 class="menu-surface z-modal min-w-40 p-1"
                 aria-label="Reasoning effort"
               >
                 {options()}
               </Popover.Content>
-            </Popover>
-          }
-        >
-          <Button
+            </Popover.Portal>
+          </Popover>
+        }
+      >
+        <MobileDrawer side="bottom" open={open()} onOpenChange={changeOpen}>
+          <MobileDrawer.Trigger
+            as={Button}
             variant="ghost"
-            class="w-full justify-start gap-2 rounded-lg px-3 text-sm min-h-11"
+            size="sm"
+            class="h-[34px] gap-1.5 rounded-full px-2 text-xs"
             disabled={props.disabled}
             aria-label={`Effort: ${label()}`}
-            aria-expanded={open()}
-            aria-controls={id}
-            onClick={() => setOpen(!open())}
+            onPointerDown={(event: PointerEvent) => event.preventDefault()}
+            onMouseDown={(event: MouseEvent) => event.preventDefault()}
           >
             {contents()}
-          </Button>
-          <Show when={open()}>{options()}</Show>
-        </Show>
-      </div>
+          </MobileDrawer.Trigger>
+          <MobileDrawer.Portal>
+            <MobileDrawer.Overlay />
+            <MobileDrawer.Content aria-label="Reasoning effort">
+              <MobileDrawer.Handle />
+              <MobileDrawer.Title class="px-4 pb-3 font-medium">
+                Reasoning effort
+              </MobileDrawer.Title>
+              <MobileDrawer.ScrollBody>
+                <div class="px-2 pb-3">{options()}</div>
+              </MobileDrawer.ScrollBody>
+            </MobileDrawer.Content>
+          </MobileDrawer.Portal>
+        </MobileDrawer>
+      </Show>
     </Show>
   );
 }
