@@ -20,14 +20,21 @@ pub struct EmbedInfo {
     pub embed_url: String,
 }
 
+/// Validates that the hostname matches a provider domain exactly or is a
+/// subdomain of it. Rejects lookalike domains (e.g. `loom.com.evil.example`).
+fn is_valid_provider_host(host: &str, provider_domain: &str) -> bool {
+    host == provider_domain || host.ends_with(&format!(".{}", provider_domain))
+}
+
 /// Parses Notion URLs to extract document titles
 /// Supports formats like:
 /// - notion.so/workspace/Title-With-Dashes-uuid
 /// - notion.so/Title-With-Dashes-uuid
 pub fn parse_notion_title(url: &str) -> Option<String> {
     let parsed_url = Url::parse(url).ok()?;
+    let host = parsed_url.host_str()?;
 
-    if !parsed_url.host_str()?.contains("notion.so") {
+    if !is_valid_provider_host(host, "notion.so") {
         return None;
     }
 
@@ -66,8 +73,9 @@ pub fn parse_notion_title(url: &str) -> Option<String> {
 /// - figma.com/design/file-id/Title-With-Dashes?...
 pub fn parse_figma_title(url: &str) -> Option<String> {
     let parsed_url = Url::parse(url).ok()?;
+    let host = parsed_url.host_str()?;
 
-    if !parsed_url.host_str()?.contains("figma.com") {
+    if !is_valid_provider_host(host, "figma.com") {
         return None;
     }
 
@@ -96,8 +104,9 @@ pub fn parse_figma_title(url: &str) -> Option<String> {
 /// - linear.app/team/issue/ticket-id/title-with-dashes
 pub fn parse_linear_title(url: &str) -> Option<String> {
     let parsed_url = Url::parse(url).ok()?;
+    let host = parsed_url.host_str()?;
 
-    if !parsed_url.host_str()?.contains("linear.app") {
+    if !is_valid_provider_host(host, "linear.app") {
         return None;
     }
 
@@ -132,7 +141,7 @@ pub fn parse_supercut_embed(url: &str) -> Option<EmbedInfo> {
     let parsed_url = Url::parse(url).ok()?;
     let host = parsed_url.host_str()?;
 
-    if !host.contains("supercut.ai") {
+    if !is_valid_provider_host(host, "supercut.ai") {
         return None;
     }
 
@@ -166,7 +175,7 @@ pub fn parse_loom_embed(url: &str) -> Option<EmbedInfo> {
     let parsed_url = Url::parse(url).ok()?;
     let host = parsed_url.host_str()?;
 
-    if !host.contains("loom.com") {
+    if !is_valid_provider_host(host, "loom.com") {
         return None;
     }
 
@@ -207,21 +216,21 @@ pub fn parse_custom_title(url: &str) -> Option<String> {
     let parsed_url = Url::parse(url).ok()?;
     let host = parsed_url.host_str()?;
 
-    if host.contains("notion.so") {
+    if is_valid_provider_host(host, "notion.so") {
         if let Some(title) = parse_notion_title(url) {
             return Some(title);
         }
         return Some("Notion".to_string());
     }
 
-    if host.contains("figma.com") {
+    if is_valid_provider_host(host, "figma.com") {
         if let Some(title) = parse_figma_title(url) {
             return Some(title);
         }
         return Some("Figma".to_string());
     }
 
-    if host.contains("linear.app") {
+    if is_valid_provider_host(host, "linear.app") {
         if let Some(title) = parse_linear_title(url) {
             return Some(title);
         }
@@ -229,11 +238,11 @@ pub fn parse_custom_title(url: &str) -> Option<String> {
     }
 
     // For video services, return a fallback title.
-    if host.contains("supercut.ai") {
+    if is_valid_provider_host(host, "supercut.ai") {
         return Some("Supercut".to_string());
     }
 
-    if host.contains("loom.com") {
+    if is_valid_provider_host(host, "loom.com") {
         return Some("Loom".to_string());
     }
 
@@ -405,5 +414,32 @@ mod tests {
         // Non-embeddable URL
         assert!(parse_embed_info("https://google.com").is_none());
         assert!(parse_embed_info("https://www.notion.so/page").is_none());
+    }
+
+    #[test]
+    fn test_hostname_validation_rejects_lookalikes() {
+        // Lookalike domains should be rejected (not substrings)
+        assert!(parse_supercut_embed("https://supercut.ai.evil.example/share/ws/id").is_none());
+        assert!(parse_supercut_embed("https://fake-supercut.ai/share/ws/id").is_none());
+        assert!(parse_loom_embed("https://loom.com.evil.example/share/id").is_none());
+        assert!(parse_loom_embed("https://fake-loom.com/share/id").is_none());
+
+        // Valid subdomains should still work
+        assert!(parse_supercut_embed("https://app.supercut.ai/share/ws/id").is_some());
+        assert!(parse_loom_embed("https://app.loom.com/share/id").is_some());
+
+        // Title fallbacks should also reject lookalikes
+        assert!(parse_custom_title("https://supercut.ai.evil.example").is_none());
+        assert!(parse_custom_title("https://loom.com.evil.example").is_none());
+
+        // But valid providers should work
+        assert_eq!(
+            parse_custom_title("https://supercut.ai"),
+            Some("Supercut".to_string())
+        );
+        assert_eq!(
+            parse_custom_title("https://loom.com"),
+            Some("Loom".to_string())
+        );
     }
 }
