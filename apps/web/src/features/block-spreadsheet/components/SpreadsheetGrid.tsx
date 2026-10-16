@@ -803,6 +803,8 @@ export function SpreadsheetGrid(props: {
     target instanceof HTMLTextAreaElement ||
     (target instanceof HTMLElement && !!target.closest('[contenteditable]'));
   const focusGrid = () => grid.focus({ preventScroll: true });
+  const modified = (event: MouseEvent) =>
+    event.shiftKey || event.metaKey || event.ctrlKey;
   const selectHeaderRange = (
     axis: 'row' | 'column',
     index: number,
@@ -1892,12 +1894,19 @@ export function SpreadsheetGrid(props: {
                                           props.editing ||
                                           !!props.formulaEditing,
                                       }}
+                                      // Modified clicks extend or add to the
+                                      // selection, as on any other cell.
                                       onPointerDown={(event) => {
-                                        if (event.button !== 0) return;
+                                        if (
+                                          event.button !== 0 ||
+                                          modified(event)
+                                        )
+                                          return;
                                         event.preventDefault();
                                         event.stopPropagation();
                                       }}
                                       onClick={(event) => {
+                                        if (modified(event)) return;
                                         event.stopPropagation();
                                         props.onToggleCheckbox?.(position);
                                         focusGrid();

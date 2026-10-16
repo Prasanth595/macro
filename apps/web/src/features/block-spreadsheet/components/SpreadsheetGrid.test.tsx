@@ -285,6 +285,26 @@ describe('spreadsheet checkbox cells', () => {
     expect(view.cells().B3.value).toBe('FALSE');
   });
 
+  it('extends the selection on a Shift+click over a box without toggling it', () => {
+    const view = renderGrid(cells);
+    view.controller.select({ row: 1, column: 1 });
+    const box = view.getByRole('checkbox', { name: 'B4' });
+    fireEvent(
+      box,
+      new MouseEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+        shiftKey: true,
+      })
+    );
+    fireEvent.click(box, { shiftKey: true });
+    expect(view.controller.selection()).toEqual({
+      anchor: { row: 1, column: 1 },
+      focus: { row: 3, column: 1 },
+    });
+    expect(view.cells().B4.value).toBe('');
+  });
+
   it('shows boxes that cannot be toggled in a view-only sheet', () => {
     const view = renderGrid(cells, { readonly: true });
     const box = view.getByRole('checkbox', { name: 'B2' });

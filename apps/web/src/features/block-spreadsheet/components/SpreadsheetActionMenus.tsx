@@ -98,7 +98,7 @@ export function PasteMenu(props: SpreadsheetToolbarProps) {
 export function InsertMenu(props: SpreadsheetToolbarProps) {
   return (
     <ActionMenu
-      label="Insert"
+      label="Insert chart, image or checkbox"
       icon={<ChartBar class="size-[18px]" />}
       disabled={props.readonly || !props.onInsertChart}
       onRestoreFocus={props.onRestoreFocus}
