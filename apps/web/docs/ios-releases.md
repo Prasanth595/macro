@@ -221,7 +221,16 @@ ios-release --config prd -- just ios-release` covers them), and
   - optional `APPLE_DISTRIBUTION_CERTIFICATE_BASE64` /
     `APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD` — a base64-encoded Apple
     Distribution `.p12`; without it the release workflow relies on Xcode
-    cloud signing through the API key.
+    cloud signing through the API key. With it, the runner imports the
+    identity and `prepare-signing` downloads (or creates) an App Store
+    provisioning profile for every target, including both extensions,
+    using that exact certificate. Export uses manual signing so Xcode does
+    not request a cloud certificate. The key needs access to Certificates,
+    Identifiers & Profiles. Profiles are reused until expired or invalid;
+    replacing the certificate creates matching profiles on the next run.
+    Temporary project/export settings are restored after the build, including
+    failures. For local manual signing, import the `.p12` into Keychain first
+    and set `APPLE_DISTRIBUTION_CERTIFICATE_PATH` and its password.
 - **GitHub secrets**:
   - `IOS_RELEASE_DOPPLER_TOKEN` — a Doppler service token with read access to
     `ios-release/prd`, used by the iOS workflows

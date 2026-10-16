@@ -93,6 +93,12 @@ the startup bundle, and Lexical nodes.
 ## Notes
 - Don't shy away from pulling good examples into context. In the case of solid-primtiives/kobalte try reading documentation, or just temp clone into /tmp to reference
 
+## iOS release signing
+
+Follow [`docs/ios-releases.md`](docs/ios-releases.md) for App Store signing and
+provisioning, including both extensions. The release script temporarily selects
+manual export when a distribution certificate path is supplied.
+
 ## iOS gotcha: Web Workers must be lazy
 On iOS WKWebView, eagerly constructing an ES module Web Worker (`new Worker(url, { type: 'module' })`) whose script is served via the `tauri://` custom URL scheme **deadlocks the WebContent process**. The worker thread parks in WebKit's sync module loader waiting for an IPC response that never wakes it; JS execution silently stops after that point.
 
