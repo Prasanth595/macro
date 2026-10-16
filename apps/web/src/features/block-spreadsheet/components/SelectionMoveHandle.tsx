@@ -32,6 +32,7 @@ export function SelectionMoveHandle(props: {
   /** A drag ends without moving when the sheet changes. */
   sheetId?: string;
   onClick: (position: CellPosition, extend: boolean) => void;
+  onDblClick: () => void;
   onMove: (rows: number, columns: number) => void;
 }) {
   const [offset, setOffset] = createSignal<{ rows: number; columns: number }>();
@@ -204,6 +205,7 @@ export function SelectionMoveHandle(props: {
               }}
               onPointerCancel={end}
               onLostPointerCapture={end}
+              onDblClick={() => props.onDblClick()}
             />
           )}
         </For>

@@ -2118,6 +2118,7 @@ export function SpreadsheetGrid(props: {
                     props.onSelect(position, extend);
                     focusGrid();
                   }}
+                  onDblClick={props.onEdit}
                   onMove={(rows, columns) => {
                     focusGrid();
                     onMoveSelection()(props.selection, rows, columns);

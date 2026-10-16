@@ -113,7 +113,7 @@ test('scrolls the grid while dragging past its bottom edge', async ({
   await expect(page.locator(`[data-address="${moved?.[0]}"]`)).toBeInViewport();
 });
 
-test('right-clicking the border opens the menu for the selection, and clicking selects a cell', async ({
+test('the border keeps clicks, double-clicks and the cell menu working', async ({
   page,
 }) => {
   const address = page.getByRole('textbox', { name: 'Go to cell' });
@@ -136,6 +136,15 @@ test('right-clicking the border opens the menu for the selection, and clicking s
   await expect(address).toHaveValue('B2:B3');
   await page.mouse.click(x, y);
   await expect(address).toHaveValue(/^B[34]$/);
+
+  // A double-click on the edge of the selected cell still edits it.
+  await page.locator('[data-address="C5"]').click();
+  const c5 = await page.locator('[data-address="C5"]').boundingBox();
+  if (!c5) throw new Error('C5 must be visible');
+  await page.mouse.dblclick(c5.x + c5.width / 2, c5.y + 1);
+  await expect(
+    page.getByRole('textbox', { name: 'Edit C5', exact: true })
+  ).toBeVisible();
 });
 
 test('Escape cancels a drag without moving cells', async ({ page }) => {
