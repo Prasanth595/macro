@@ -51,7 +51,7 @@ function release(tag = 'v2026.10.1') {
 }
 
 beforeEach(() => {
-  cwd = mkdtempSync(join(tmpdir(), 'android-release-needed-'));
+  cwd = mkdtempSync(join(tmpdir(), 'android-version-check-'));
   git('init', '--initial-branch=main');
   git('config', 'user.name', 'Release test');
   git('config', 'user.email', 'release@example.com');

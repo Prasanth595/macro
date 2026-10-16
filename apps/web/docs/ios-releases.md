@@ -112,9 +112,8 @@ Two things:
   bumps when a cache change must ship: a PR that moves it (compared with
   the base branch on the merge ref) is a native PR, and the version is part
   of the provenance hash, so a build is only "live" for the version it was
-  built with. The Android release workflow applies the same rule when it
-  decides whether a production release needs a new App Bundle
-  (`scripts/android-release-needed.mjs`).
+  built with. The Android gate and release apply the same rule through
+  `scripts/android-native.mjs`.
 
 The hash recipe is defined once, in `scripts/ios_native_tree.sh` next to the
 workflow sources, mirrored in `ios-app-store.mjs`; the gate's change

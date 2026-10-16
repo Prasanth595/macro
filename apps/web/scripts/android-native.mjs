@@ -1,7 +1,8 @@
-// What "the Android native code" is, shared by the PR-time version check
-// (android-version-check.mjs) and the release-time build decision
-// (android-release-needed.mjs) so the two can never disagree: a PR that
-// passes the gate must not fail the release for the same question.
+// What "the Android native code" is, shared by the PR gate
+// (android-version-check.mjs), the Play release workflow's preconditions,
+// head guard and provenance stamp, the drift check and the watcher (all
+// through the `hash` CLI below) so they can never disagree about whether a
+// change is native.
 //
 // It is every tracked file under apps/web/tauri except what never reaches
 // the Android binary — iOS, macOS, Linux, Windows and desktop-only paths by
