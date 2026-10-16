@@ -1032,7 +1032,9 @@ right-clicking the conversation's rail row: `Rename`, `Favorite`/`Unfavorite`,
 `Snooze notifications…`, `Mute notifications`, `Remind me`, `Copy Link`,
 `Copy ID`. A channel can therefore be favorited
 without finding its row, from Chat and from every view that opens one inline.
-The menu appears once the conversation itself has loaded. Channel-picture
+The menu appears once the conversation itself has loaded, reusing a cached
+conversation without another activation fetch. Opening the conversation still
+refreshes its unread notifications. Channel-picture
 actions are not in it: they belong to the split's own title `...` menu, so open
 the channel as a split (shift-click a rail row) to reach them.
 

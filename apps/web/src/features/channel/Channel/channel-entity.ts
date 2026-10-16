@@ -29,18 +29,23 @@ function channelByIdQueryArgs(channelId: string): SoupAstItemsQueryArgs {
 
 export function useChannelByIdQuery(
   channelId: Accessor<string | undefined>,
-  enabled: Accessor<boolean>
+  enabled: Accessor<boolean>,
+  options: { revalidateOnMount?: boolean } = {}
 ) {
   // Every activation needs a fresh complete unread edge for marking read.
-  // GraphQL revalidates on activation; keep the REST fallback stale too.
+  // Menu observers reuse that result; activation observers still revalidate.
   const graphqlSoup = useFeatureFlag(enableGraphqlSoup);
   const graphql = createChannelDetailQuery(
     channelId,
-    () => enabled() && graphqlSoup().enabled
+    () => enabled() && graphqlSoup().enabled,
+    options.revalidateOnMount === false ? 'cache-first' : 'cache-and-network'
   );
   const rest = useSoupAstItemsQuery(
     () => ({ ...channelByIdQueryArgs(channelId() ?? ''), transport: 'rest' }),
-    () => ({ enabled: enabled() && !graphqlSoup().enabled, staleTime: 0 })
+    () => ({
+      enabled: enabled() && !graphqlSoup().enabled,
+      staleTime: options.revalidateOnMount === false ? Infinity : 0,
+    })
   );
   const query = () => (graphqlSoup().enabled ? graphql : rest);
   return {
@@ -75,7 +80,9 @@ export function useChannelByIdQuery(
 export function useChannelEntity(
   channelId: Accessor<string | undefined>
 ): Accessor<ChannelEntity | undefined> {
-  const query = useChannelByIdQuery(channelId, () => channelId() !== undefined);
+  const query = useChannelByIdQuery(channelId, () => !!channelId(), {
+    revalidateOnMount: false,
+  });
 
   return createMemo<ChannelEntity | undefined>((previous) => {
     const id = channelId();
