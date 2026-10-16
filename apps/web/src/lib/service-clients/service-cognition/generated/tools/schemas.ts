@@ -454,6 +454,9 @@ export const SpreadsheetResponse = z.any().superRefine((x, ctx) => {
                           z.null(),
                         ])
                         .optional(),
+                      indent: z
+                        .union([z.number().int().gte(0).lte(255), z.null()])
+                        .optional(),
                       verticalAlign: z
                         .union([
                           z.any().superRefine((x, ctx) => {
@@ -7977,6 +7980,9 @@ export const EditSpreadsheet = z.object({
                     z.null(),
                   ])
                   .optional(),
+                indent: z
+                  .union([z.number().int().gte(0).lte(255), z.null()])
+                  .optional(),
                 verticalAlign: z
                   .union([
                     z.any().superRefine((x, ctx) => {
@@ -14035,6 +14041,37 @@ export const SendChannelMessage = z.object({
   content: z.string(),
   channel_id: z.string().uuid(),
   thread_id: z.union([z.string().uuid(), z.null()]).optional(),
+  attachments: z
+    .array(
+      z.object({
+        id: z.string(),
+        kind: z.any().superRefine((x, ctx) => {
+          const schemas = [
+            z.literal('image'),
+            z.literal('video'),
+            z.literal('document'),
+          ];
+          const errors = schemas.reduce<z.ZodError[]>(
+            (errors, schema) =>
+              ((result) => (result.error ? [...errors, result.error] : errors))(
+                schema.safeParse(x)
+              ),
+            []
+          );
+          if (schemas.length - errors.length !== 1) {
+            ctx.addIssue({
+              path: ctx.path,
+              code: 'invalid_union',
+              unionErrors: errors,
+              message: 'Invalid input: Should pass single schema',
+            });
+          }
+        }),
+        width: z.union([z.number().int(), z.null()]).optional(),
+        height: z.union([z.number().int(), z.null()]).optional(),
+      })
+    )
+    .optional(),
 });
 
 export const SendChannelMessageResponse = z.object({

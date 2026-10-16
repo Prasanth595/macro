@@ -54,9 +54,9 @@ pub enum SpreadsheetNumberFormat {
     Accounting,
     /// Percent.
     Percent,
-    /// Date.
+    /// Date, shown as m/d/yyyy unless numberFormat gives another date code.
     Date,
-    /// Time.
+    /// Time, shown as h:mm:ss AM/PM unless numberFormat gives another time code.
     Time,
     /// Scientific.
     Scientific,
@@ -103,7 +103,10 @@ pub enum SpreadsheetBorderStyle {
 #[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SpreadsheetStyle {
-    /// Exact Excel number format, up to 512 characters.
+    /// Exact Excel number format, up to 512 characters; it overrides the display of `format`.
+    /// Show dates with format=date and a date code such as mmm yyyy (Jan 2026), mmm dd, yyyy,
+    /// mm/dd/yyyy, dd/mm/yyyy, yyyy-mm-dd, d mmm yyyy or dddd, mmmm d, yyyy; times with
+    /// format=time and a code such as h:mm AM/PM.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub number_format: Option<String>,
     /// Exact Excel font name, up to 128 characters.
@@ -161,6 +164,10 @@ pub struct SpreadsheetStyle {
     /// Horizontal alignment.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub horizontal_align: Option<SpreadsheetHorizontalAlign>,
+    /// Indent level, 0 through 250, as Excel's Increase Indent: each level is three spaces from the
+    /// left edge, or from the right edge of right-aligned cells. Centered cells ignore it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub indent: Option<u8>,
     /// Vertical alignment.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vertical_align: Option<SpreadsheetVerticalAlign>,

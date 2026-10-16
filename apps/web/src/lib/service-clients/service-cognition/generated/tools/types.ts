@@ -4364,6 +4364,10 @@ export type LaneKey =
  */
 export type SearchSkillsMatchType = 'partial' | 'exact';
 /**
+ * How an attachment on a sent message renders.
+ */
+export type ChannelAttachmentKind = 'image' | 'video' | 'document';
+/**
  * Response from the SendEmail tool.
  */
 export type SendEmailResponse =
@@ -4997,7 +5001,10 @@ export interface SpreadsheetReadCell {
  */
 export interface SpreadsheetStyle {
   /**
-   * Exact Excel number format, up to 512 characters.
+   * Exact Excel number format, up to 512 characters; it overrides the display of `format`.
+   * Show dates with format=date and a date code such as mmm yyyy (Jan 2026), mmm dd, yyyy,
+   * mm/dd/yyyy, dd/mm/yyyy, yyyy-mm-dd, d mmm yyyy or dddd, mmmm d, yyyy; times with
+   * format=time and a code such as h:mm AM/PM.
    */
   numberFormat?: string | null;
   /**
@@ -5072,6 +5079,11 @@ export interface SpreadsheetStyle {
    * Horizontal alignment.
    */
   horizontalAlign?: SpreadsheetHorizontalAlign | null;
+  /**
+   * Indent level, 0 through 250, as Excel's Increase Indent: each level is three spaces from the
+   * left edge, or from the right edge of right-aligned cells. Centered cells ignore it.
+   */
+  indent?: number | null;
   /**
    * Vertical alignment.
    */
@@ -13359,11 +13371,11 @@ export interface SelfKnowledgeResponse {
   about: string;
 }
 /**
- * Send or reply to a channel on behalf of the user. Only use this when explicitly asked to send a message
+ * Send or reply to a channel on behalf of the user. Only use this when explicitly asked to send a message. To send an image or video, first upload it with CreateChannelMediaUpload (where available) and pass the returned attachment here; to attach a Macro document, pass its document ID.
  */
 export interface SendChannelMessage {
   /**
-   * Message content in macro markdown format. This uses the same syntax as markdown documents
+   * Message content in macro markdown format. This uses the same syntax as markdown documents. May be empty when attachments are sent.
    */
   content: string;
   /**
@@ -13374,6 +13386,28 @@ export interface SendChannelMessage {
    * An optional thread id to reply too
    */
   thread_id?: string | null;
+  /**
+   * Optional images, videos, or documents to attach, at most 10. Upload media before sending; a media attachment whose upload has not finished shows as broken.
+   */
+  attachments?: ChannelMessageAttachmentInput[];
+}
+/**
+ * An attachment to send with a channel message.
+ */
+export interface ChannelMessageAttachmentInput {
+  /**
+   * The attachmentId returned by CreateChannelMediaUpload (after its upload succeeded), or the ID of a Macro document.
+   */
+  id: string;
+  kind: ChannelAttachmentKind;
+  /**
+   * Optional pixel width of an image or video, used to lay it out before it loads.
+   */
+  width?: number | null;
+  /**
+   * Optional pixel height of an image or video.
+   */
+  height?: number | null;
 }
 export interface SendChannelMessageResponse {
   channel_id: string;

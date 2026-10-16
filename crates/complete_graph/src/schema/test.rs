@@ -1564,6 +1564,7 @@ async fn agent_session_log_appended_streams_runs_for_an_accessible_session() {
                 content: Message::ToServer(ToServerMessage::Event {
                     event: SystemEvent::AcpReady,
                 }),
+                logged_at: None,
             },
         }])
         .await
