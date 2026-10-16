@@ -64,8 +64,8 @@ export function createMobileSearchState(): IMobileSearchState {
 
   /**
    * Ends and resets the session. Passes `shouldReturnFocus: false` — the
-   * session opened from the input's own focus, so returning focus would
-   * re-raise the keyboard.
+   * dock mounts and focuses the input when opening; restoring focus during
+   * teardown could re-raise the keyboard.
    */
   function close() {
     batch(() => {

@@ -167,13 +167,13 @@ function MobileNavigationDockRow() {
           icon={SearchIcon}
           ariaLabel="Search"
           onClick={() => {
-            // Focus synchronously inside the tap so iOS lets the keyboard
-            // open; the input mounts once opening the session flips the row
-            // to the search layout.
+            // Mount the real input first, then focus it in this same user
+            // gesture. Deferring the focus transfer can lose iOS keyboard
+            // activation when reopening search.
+            SearchState.open();
             triggerFocusInput(() =>
               document.getElementById('mobile-search-input')
             );
-            SearchState.open();
             navigate('search');
           }}
         />

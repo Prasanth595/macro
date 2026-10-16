@@ -54,10 +54,6 @@ export function MobileSearchInput() {
         class="h-full min-w-0 flex-1 border-0 bg-transparent text-ink outline-none ring-0 placeholder:text-ink-placeholder focus:outline-none focus:ring-0"
         placeholder="Search…"
         value={SearchState.query()}
-        onFocus={() => {
-          if (!SearchState.isOpen()) SearchState.open();
-          if (foregroundView() !== 'search') navigate('search');
-        }}
         // Blurring never ends the session — the keyboard drops but search
         // mode stays until the X is pressed (or a result opens).
         onInput={(e) => SearchState.setQuery(e.currentTarget.value)}
