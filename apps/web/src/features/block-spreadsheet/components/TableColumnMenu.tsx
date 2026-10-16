@@ -4,7 +4,7 @@ import SortDescending from '@phosphor/sort-descending.svg';
 import Funnel from '@phosphor-fill/funnel-simple-fill.svg';
 import { Dropdown } from '@ui/components/Dropdown';
 import { createSignal, Index, Show } from 'solid-js';
-import type { TableFilterChoice } from '../primitives/create-table-actions';
+import type { TableFilterChoice } from '../core/table-types';
 
 /** Values listed at once; a column with more lists the first of them. */
 const MAX_CHOICES = 500;

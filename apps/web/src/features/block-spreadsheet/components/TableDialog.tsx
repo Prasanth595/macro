@@ -1,9 +1,6 @@
 import { Button } from '@ui/components/Button';
 import { createSignal, Show } from 'solid-js';
-import type {
-  TableDialogInput,
-  TableDialogState,
-} from '../primitives/create-table-actions';
+import type { TableDialogInput, TableDialogState } from '../core/table-types';
 import { SpreadsheetDialog } from './SpreadsheetDialog';
 
 /** Converts the selection to a table, or changes one table's options. */

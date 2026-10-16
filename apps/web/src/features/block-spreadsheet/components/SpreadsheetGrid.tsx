@@ -58,8 +58,8 @@ import {
   type SpreadsheetCells,
 } from '../core/spreadsheet-document';
 import type { SpreadsheetCursor } from '../core/spreadsheet-presence';
+import type { TableFilterChoice } from '../core/table-types';
 import type { CompleteFormula } from '../primitives/create-formula-assistance';
-import type { TableFilterChoice } from '../primitives/create-table-actions';
 import { CellListMenu } from './CellListMenu';
 import { ConditionalIcon } from './ConditionalIcon';
 import {

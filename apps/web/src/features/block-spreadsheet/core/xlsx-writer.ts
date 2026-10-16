@@ -627,8 +627,6 @@ export function writeXlsxWorkbook(
           sheet: sheet.name,
           cells: sheet.cells,
           tables: tableLayouts,
-          escape: escapeXml,
-          prefixes: addFunctionPrefixes,
         })
       );
       return relate('table', `../tables/table${number}.xml`);

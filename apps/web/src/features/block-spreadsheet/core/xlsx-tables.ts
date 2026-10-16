@@ -18,6 +18,7 @@ import {
   type SpreadsheetCells,
 } from './spreadsheet-document';
 import type { XlsxArchive } from './xlsx-archive';
+import { addFunctionPrefixes } from './xlsx-formula';
 import {
   attributes,
   parse,
@@ -25,6 +26,7 @@ import {
   relationships,
   unescapeText,
 } from './xlsx-parts';
+import { escapeXml } from './xlsx-workbook-parts';
 
 const MAIN = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
 
@@ -181,11 +183,8 @@ export function xlsxTablePart(options: {
   sheet: string;
   cells: SpreadsheetCells;
   tables: WorkbookTable[];
-  escape: (value: string) => string;
-  /** Excel's prefixes for newer functions. */
-  prefixes: (formula: string) => string;
 }): string {
-  const { table, escape } = options;
+  const { table } = options;
   const bounds = tableBounds(table);
   const names = tableColumnNames(table, options.cells);
   const columns = names.map((name, offset) => {
@@ -199,8 +198,8 @@ export function xlsxTablePart(options: {
       if (aggregate) totals = ` totalsRowFunction="${aggregate}"`;
       else if (value?.startsWith('=')) {
         totals = ' totalsRowFunction="custom"';
-        formula = `<totalsRowFormula>${escape(
-          options.prefixes(
+        formula = `<totalsRowFormula>${escapeXml(
+          addFunctionPrefixes(
             qualifyStructuredReferences(
               value.slice(1),
               options.tables,
@@ -211,9 +210,9 @@ export function xlsxTablePart(options: {
           )
         )}</totalsRowFormula>`;
       } else if (value)
-        totals = ` totalsRowLabel="${escape(value.replace(/^'/, ''))}"`;
+        totals = ` totalsRowLabel="${escapeXml(value.replace(/^'/, ''))}"`;
     }
-    const open = `<tableColumn id="${offset + 1}" name="${escape(name)}"${totals}`;
+    const open = `<tableColumn id="${offset + 1}" name="${escapeXml(name)}"${totals}`;
     return formula ? `${open}>${formula}</tableColumn>` : `${open}/>`;
   });
   const filterRange = `${formatCellAddress(bounds.top, bounds.left)}:${formatCellAddress(bounds.bottom - (table.totalsRow ? 1 : 0), bounds.right)}`;
@@ -222,11 +221,11 @@ export function xlsxTablePart(options: {
     .map(
       ([offset, filter]) =>
         `<filterColumn colId="${offset}"><filters${filter.blanks ? ' blank="1"' : ''}>${filter.values
-          .map((value) => `<filter val="${escape(value)}"/>`)
+          .map((value) => `<filter val="${escapeXml(value)}"/>`)
           .join('')}</filters></filterColumn>`
     )
     .join('');
   const flag = (value: boolean | undefined) => (value ? '1' : '0');
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<table xmlns="${MAIN}" id="${options.id}" name="${escape(table.name)}" displayName="${escape(table.name)}" ref="${table.range}"${table.totalsRow ? ' totalsRowCount="1"' : ''}><autoFilter ref="${filterRange}"${filters ? `>${filters}</autoFilter>` : '/>'}<tableColumns count="${columns.length}">${columns.join('')}</tableColumns><tableStyleInfo${table.style ? ` name="${escape(table.style)}"` : ''} showFirstColumn="${flag(table.firstColumn)}" showLastColumn="${flag(table.lastColumn)}" showRowStripes="${flag(table.bandedRows)}" showColumnStripes="${flag(table.bandedColumns)}"/></table>`;
+<table xmlns="${MAIN}" id="${options.id}" name="${escapeXml(table.name)}" displayName="${escapeXml(table.name)}" ref="${table.range}"${table.totalsRow ? ' totalsRowCount="1"' : ''}><autoFilter ref="${filterRange}"${filters ? `>${filters}</autoFilter>` : '/>'}<tableColumns count="${columns.length}">${columns.join('')}</tableColumns><tableStyleInfo${table.style ? ` name="${escapeXml(table.style)}"` : ''} showFirstColumn="${flag(table.firstColumn)}" showLastColumn="${flag(table.lastColumn)}" showRowStripes="${flag(table.bandedRows)}" showColumnStripes="${flag(table.bandedColumns)}"/></table>`;
 }
