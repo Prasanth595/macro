@@ -86,6 +86,8 @@ import type { SpreadsheetStore } from '../primitives/create-spreadsheet-store';
 import { createWorkbookActions } from '../primitives/create-workbook-actions';
 
 export function SpreadsheetEditor(props: {
+  /** A saved workbook's document, recorded on traces. */
+  documentId?: string;
   store: SpreadsheetStore;
   mentions?: SpreadsheetMentions;
   name: string;
@@ -308,6 +310,7 @@ export function SpreadsheetEditor(props: {
   );
   const canMoveCells = () => editable() && props.store.canChangeStructure();
   const rangeMove = createRangeMove({
+    documentId: props.documentId,
     store: props.store,
     canMove: canMoveCells,
     moveRange: calculation.moveRange,

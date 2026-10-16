@@ -142,7 +142,9 @@ inside moved formulas keep their cells, and references to replaced cells become
 `#REF!`. Moving part of a merge, array or pivot table is refused. Drawings,
 row heights and column widths stay, and comments stay on their addresses.
 While dragging, the grid scrolls near or past its edges and the cells land at
-the last visible row or column.
+the last visible row or column. Each move records a `spreadsheet.move_range`
+span (document, sheet, size, whether it replaced values, and any error) with
+`calculate` (the worker) and `commit` phases.
 
 ### Workbook sheets
 
