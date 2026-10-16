@@ -1,3 +1,4 @@
+import { developmentProxyUrl } from '@core/constant/developmentProxy';
 import { SERVER_HOSTS } from '@core/constant/servers';
 import {
   type FetchWithTokenErrorCode,
@@ -64,7 +65,7 @@ export const staticFileClient = {
     blob: Blob | File;
     contentType?: string;
   }) {
-    const result = await platformFetch(args.url, {
+    const result = await platformFetch(developmentProxyUrl(args.url), {
       method: 'PUT',
       body: args.blob,
       headers: args.contentType ? { 'Content-Type': args.contentType } : {},

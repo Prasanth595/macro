@@ -33,10 +33,11 @@ export function hostedDevProxy(
           proxy: Object.fromEntries(
             Object.entries(targets).map(([name, target]) => {
               const prefix = `${DEVELOPMENT_PROXY_PREFIX}/${name}`;
+              const isUpload = name === 'static-upload';
               const options: ProxyOptions = {
                 target,
                 changeOrigin: true,
-                ws: true,
+                ws: !isUpload,
                 // Hosted auth cookies have Domain=macro.com. Keep Secure and
                 // HttpOnly, but scope them to the visiting development host.
                 cookieDomainRewrite: '',
@@ -50,6 +51,11 @@ export function hostedDevProxy(
                 configure(proxy) {
                   proxy.on('proxyReq', (request) => {
                     request.removeHeader('origin');
+                    // Presigned uploads authenticate only through the URL.
+                    if (isUpload) {
+                      request.removeHeader('cookie');
+                      request.removeHeader('authorization');
+                    }
                   });
                   proxy.on('proxyReqWs', (request, req, socket) => {
                     if (isCrossOrigin(req)) {
@@ -76,6 +82,17 @@ export function hostedDevProxy(
         ) {
           res.statusCode = 403;
           res.end('Cross-origin development proxy requests are not allowed');
+          return;
+        }
+        const uploadPrefix = `${DEVELOPMENT_PROXY_PREFIX}/static-upload`;
+        const path = req.url?.split('?')[0];
+        if (
+          (path === uploadPrefix || path?.startsWith(`${uploadPrefix}/`)) &&
+          req.method !== 'PUT'
+        ) {
+          res.statusCode = 405;
+          res.setHeader('Allow', 'PUT');
+          res.end('Development upload proxy only accepts PUT requests');
           return;
         }
         next();

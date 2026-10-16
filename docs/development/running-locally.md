@@ -72,9 +72,12 @@ Vite detects your hostname and prints `https://<hostname>:3000/app/` when ready
 development CA as `just local`; trust `infra/local/certs/ca.pem` once on the
 machine running the browser. See the [certificate README](../../infra/local/certs/README.md).
 The visiting machine must resolve the hostname and reach that port. No Docker
-proxy or Tailscale is needed. Vite forwards hosted development API and WebSocket
-requests through `/__macro_dev/` on this same origin, so arbitrary machine
-hostnames do not need to be added to the deployed CORS allowlist. Authentication
+proxy or Tailscale is needed. Vite forwards hosted development API, WebSocket,
+and static-file presigned upload requests through `/__macro_dev/` on this same
+origin, so arbitrary machine hostnames do not need to be added to the deployed
+CORS allowlist. The upload proxy streams PUT requests to the fixed dev S3 bucket
+without forwarding app cookies or bearer tokens; signed paths and query strings
+stay intact. Other upload hosts are not proxied. Authentication
 cookies are scoped to the visiting hostname; sign in with an email code on that
 hostname rather than relying on an existing `.macro.com` cookie. Google/SSO
 redirects still use the hosted authentication service’s redirect allowlist, which

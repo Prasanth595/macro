@@ -1,4 +1,4 @@
-/** Fixed upstreams for the standalone Vite development proxy. */
+/** Fixed upstreams for the standalone Vite development proxy, never arbitrary URLs. */
 export const DEVELOPMENT_PROXY_TARGETS = {
   gateway: 'https://dev-gateway.macro.com',
   websocket: 'https://services-dev.macro.com',
@@ -6,6 +6,7 @@ export const DEVELOPMENT_PROXY_TARGETS = {
   pdf: 'https://pdf-service-dev.macro.com',
   sync: 'https://sync-service-dev3.macroverse.workers.dev',
   editing: 'https://ai-editing-worker-dev.macroverse.workers.dev',
+  'static-upload': 'https://static-file-storage-dev.s3.us-east-1.amazonaws.com',
 } as const;
 
 export const DEVELOPMENT_PROXY_PREFIX = '/__macro_dev';
