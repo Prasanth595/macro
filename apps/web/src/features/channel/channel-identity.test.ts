@@ -54,6 +54,51 @@ afterEach(() => {
 });
 
 describe('channel title editing', () => {
+  it.each(['hover', 'inline'] as const)(
+    'opens a single %s popup from an external Edit channel action',
+    async (surface) => {
+      const [open, setOpen] = createSignal(false);
+      const action = document.createElement('button');
+      action.textContent = 'Edit channel';
+      action.onclick = () => setOpen(true);
+      render(() => [
+        action,
+        createComponent(
+          surface === 'hover' ? ChannelTitleHoverCard : ChannelIdentityTitle,
+          {
+            channelId: 'design',
+            name: 'Design',
+            canEdit: true,
+            children: 'Design',
+            get open() {
+              return open();
+            },
+            onOpenChange: setOpen,
+          }
+        ),
+      ]);
+      fireEvent.click(screen.getByRole('button', { name: 'Edit channel' }));
+      const input = await screen.findByRole('textbox', {
+        name: 'Channel name',
+      });
+      expect(
+        screen.getAllByRole('form', { name: 'Edit channel' })
+      ).toHaveLength(1);
+      expect(screen.queryByRole('dialog')).toBeNull();
+      fireEvent.input(input, { target: { value: 'Unsaved design' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      expect(open()).toBe(false);
+      expect(testState.saveName).not.toHaveBeenCalled();
+      fireEvent.click(action);
+      expect(
+        (
+          await screen.findByRole<HTMLInputElement>('textbox', {
+            name: 'Channel name',
+          })
+        ).value
+      ).toBe('Design');
+    }
+  );
   it('retains an unsaved draft when another rich hover card opens', async () => {
     const [otherOpen, setOtherOpen] = createSignal(false);
     render(() => [

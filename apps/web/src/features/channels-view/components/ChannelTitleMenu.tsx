@@ -1,8 +1,7 @@
 import { toSingleEntityActionListState } from '@app/features/next-soup/actions';
 import { SoupEntityActionsDropdown } from '@app/features/soup/SoupEntityActionsDropdown';
 import { ChannelDetailTitle } from '@channel/Channel/ChannelDetail';
-import { ChannelIdentityDialog } from '@channel/channel-identity';
-import { type ChannelEntity, canEditChannelIdentity } from '@entity';
+import type { ChannelEntity } from '@entity';
 import DotsThreeIcon from '@phosphor/dots-three.svg';
 import { createSignal } from 'solid-js';
 import { CHANNEL_ACTION_VIEW_CONTEXT } from './rail/ChannelRailItems';
@@ -21,6 +20,8 @@ export function ChannelTitleMenu(props: { channel: ChannelEntity }) {
       <ChannelDetailTitle
         channelId={props.channel.id}
         fallbackName={props.channel.name}
+        identityOpen={editOpen()}
+        onIdentityOpenChange={setEditOpen}
       />
       <SoupEntityActionsDropdown
         entity={props.channel}
@@ -31,13 +32,6 @@ export function ChannelTitleMenu(props: { channel: ChannelEntity }) {
       >
         <DotsThreeIcon />
       </SoupEntityActionsDropdown>
-      <ChannelIdentityDialog
-        channelId={props.channel.id}
-        name={props.channel.name}
-        canEdit={canEditChannelIdentity(props.channel)}
-        open={editOpen()}
-        onClose={() => setEditOpen(false)}
-      />
     </div>
   );
 }

@@ -1125,7 +1125,8 @@ channel` replaces the separate rename and picture actions. Other actions include
 `Open in new split`, `Favorite`/`Unfavorite`, `Remind me`, `Snooze notifications…`,
 `Mute notifications`, `Copy Link`, and `Copy ID`. A channel inlined in another
 view's detail stack has no such menu, but its name has the shared hover editor.
-The split's own title `...` menu also offers `Edit channel`.
+The split's own title `...` menu also offers `Edit channel`. On desktop, both
+menus open the existing title popup, not a separate dialog.
 
 `Calls` tab: recordings, transcriptions, and summaries for this channel. Click a
 row to open the call. The search field above the list matches call names and
@@ -1236,7 +1237,8 @@ its submitted changes for the previous channel without closing the new editor;
 a background failure reports a toast so the user can reopen the channel to retry.
 
 The Chat title ellipsis and the split title `...` menu offer `Edit channel` instead
-of separate rename/picture actions. On phones, use `Edit channel` in the existing
+of separate rename/picture actions. On desktop, this opens the same title popup
+as hovering the channel name; only one editor opens. On phones, use `Edit channel` in the existing
 channel-options drawer to open a mobile editor with the same fields and explicit
 `Cancel`/`Save` actions. In inline details without an options menu, tap the
 channel name to open the editor directly. Touch devices do not require hover.

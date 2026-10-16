@@ -68,6 +68,7 @@ import {
 } from '@core/context/channels';
 import { useUserId } from '@core/context/user';
 import { isMobile } from '@core/mobile/isMobile';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { createMethodRegistration } from '@core/orchestrator';
 import { blockHotkeyScopeSignal } from '@core/signal/blockElement';
 import { blockHandleSignal } from '@core/signal/load';
@@ -192,6 +193,8 @@ function NewTop(props: { channelId: string }) {
         participants={participants() ?? []}
         channelName={channelName() ?? 'New Channel'}
         canEditIdentity={canEditIdentity()}
+        identityOpen={editOpen()}
+        onIdentityOpenChange={setEditOpen}
         tabs={tabs()}
         activeTab={activeTab()}
         onTabChange={setActiveTab}
@@ -232,7 +235,7 @@ function NewTop(props: { channelId: string }) {
         channelId={props.channelId}
         name={channelName() ?? 'New Channel'}
         canEdit={canEditIdentity()}
-        open={editOpen()}
+        open={isTouchDevice() && editOpen()}
         onClose={() => setEditOpen(false)}
       />
       <SplitHeaderRight>

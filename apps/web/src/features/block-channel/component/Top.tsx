@@ -26,6 +26,8 @@ type TopProps = {
 type ChannelTopLeftProps = TopProps & {
   lockRename?: boolean;
   canEditIdentity: boolean;
+  identityOpen?: boolean;
+  onIdentityOpenChange?: (open: boolean) => void;
   tabs?: readonly TabItem[];
   activeTab?: ChannelTabId;
   onTabChange?: (value: ChannelTabId) => void;
@@ -58,6 +60,8 @@ export function ChannelTopLeft(props: ChannelTopLeftProps) {
             name={channelName() ?? 'New Channel'}
             canEdit={props.canEditIdentity}
             disabled={props.channelType === 'direct_message'}
+            open={props.identityOpen}
+            onOpenChange={props.onIdentityOpenChange}
           >
             <SplitLabel
               label={channelName() ?? 'New Channel'}

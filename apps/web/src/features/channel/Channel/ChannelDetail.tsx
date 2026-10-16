@@ -99,7 +99,12 @@ type ChannelDetailHeaderProps = {
   fallbackName?: string;
 };
 
-export function ChannelDetailTitle(props: ChannelDetailHeaderProps) {
+export function ChannelDetailTitle(
+  props: ChannelDetailHeaderProps & {
+    identityOpen?: boolean;
+    onIdentityOpenChange?: (open: boolean) => void;
+  }
+) {
   const channelName = useChannelName(props.channelId, props.fallbackName);
   const channelType = useChannelType(props.channelId);
   const participantsQuery = useChannelParticipantsQuery(() => props.channelId);
@@ -122,6 +127,8 @@ export function ChannelDetailTitle(props: ChannelDetailHeaderProps) {
         name={channelName() ?? 'New Channel'}
         canEdit={canEditIdentity()}
         disabled={channelType() === 'direct_message'}
+        open={props.identityOpen}
+        onOpenChange={props.onIdentityOpenChange}
       >
         <span class="truncate text-sm font-semibold">
           {channelName() ?? 'New Channel'}

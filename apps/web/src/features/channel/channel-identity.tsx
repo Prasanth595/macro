@@ -12,10 +12,20 @@ export type ChannelIdentityProps = {
   disabled?: boolean;
 };
 
+type ChannelIdentityOpenProps = {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+};
+
 export function ChannelTitleHoverCard(
-  props: ParentProps<ChannelIdentityProps>
+  props: ParentProps<ChannelIdentityProps & ChannelIdentityOpenProps>
 ) {
-  const [open, setOpen] = createSignal(false);
+  const [localOpen, setLocalOpen] = createSignal(false);
+  const open = () => props.open ?? localOpen();
+  const setOpen = (value: boolean) => {
+    setLocalOpen(value);
+    props.onOpenChange?.(value);
+  };
 
   return (
     <HoverCard
@@ -56,13 +66,26 @@ export function ChannelTitleHoverCard(
 }
 
 /** Inline headers have no split-title drawer, so their touch title opens the editor. */
-export function ChannelIdentityTitle(props: ParentProps<ChannelIdentityProps>) {
-  const [open, setOpen] = createSignal(false);
+export function ChannelIdentityTitle(
+  props: ParentProps<ChannelIdentityProps & ChannelIdentityOpenProps>
+) {
+  const [localOpen, setLocalOpen] = createSignal(false);
+  const open = () => props.open ?? localOpen();
+  const setOpen = (value: boolean) => {
+    setLocalOpen(value);
+    props.onOpenChange?.(value);
+  };
   return (
     <>
       <Show
         when={isTouchDevice()}
-        fallback={<ChannelTitleHoverCard {...props} />}
+        fallback={
+          <ChannelTitleHoverCard
+            {...props}
+            open={open()}
+            onOpenChange={setOpen}
+          />
+        }
       >
         <Show when={props.canEdit && !props.disabled} fallback={props.children}>
           <Button
@@ -77,7 +100,7 @@ export function ChannelIdentityTitle(props: ParentProps<ChannelIdentityProps>) {
       </Show>
       <ChannelIdentityDialog
         {...props}
-        open={open()}
+        open={isTouchDevice() && open()}
         onClose={() => setOpen(false)}
       />
     </>
