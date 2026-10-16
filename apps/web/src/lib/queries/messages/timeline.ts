@@ -1,5 +1,4 @@
 import { analytics } from '@app/lib/analytics';
-import { deepEqual } from '@core/util/compareUtils';
 import { compareTimelinePositions } from '@core/util/message-timeline';
 import { ThrownResultError, thrownResultErrorHasCode } from '@core/util/result';
 import type {
@@ -177,35 +176,6 @@ export function mergeCatchUpPage(
   };
 }
 
-/** Keep only changes made during the request, not the stale rows it replaces. */
-function mergeRevalidatedPage(
-  page: MessageTimelinePage,
-  before: MessageTimelinePage,
-  current: MessageTimelinePage | undefined
-): MessageTimelinePage {
-  if (!current || current === before) return page;
-  const previous = new Map(
-    before.entries.map((entry) => [timelineEntryKey(entry), entry])
-  );
-  const live = new Map(
-    current.entries.map((entry) => [timelineEntryKey(entry), entry])
-  );
-  return {
-    ...page,
-    entries: reconcileTimelineEntries(
-      page.entries.filter((entry) => {
-        const key = timelineEntryKey(entry);
-        return !previous.has(key) || live.has(key);
-      }),
-      current.entries.filter(
-        (entry) =>
-          !deepEqual(previous.get(timelineEntryKey(entry)), entry) &&
-          pageIndexForEntry([page], entry) !== -1
-      )
-    ),
-  };
-}
-
 function trackMessageTimelineLoad(
   parent: MessageParent,
   payload: {
@@ -245,9 +215,13 @@ export function messageTimelineQueryOptions(
     queryKey: messageKeys.messages(parent, loadAroundMessageId).queryKey,
     queryFn: async ({
       pageParam,
+      signal,
     }: {
       pageParam: MessageTimelinePageParam | null;
+      signal?: AbortSignal;
     }) => {
+      // Observe cancellation so a restarted refetch stops paging its old result.
+      signal?.throwIfAborted();
       if (pageParam) {
         return fetchMessageTimelinePage(parent, pageParam, null);
       }
@@ -281,14 +255,11 @@ export function messageTimelineQueryOptions(
         // Replies, reactions, edits and deletions do not advance a root's
         // created-at cursor. Revalidate its preview even when no root is new.
         const page = await fetchMessageTimelinePage(parent, null, null);
-        const current = queryClient.getQueryData<MessageTimelineData>(
-          getMessageTimelineQueryKey(parent, null)
-        )?.pages[0];
         trackMessageTimelineLoad(parent, {
           path: 'full',
           reason: 'revalidate',
         });
-        return mergeRevalidatedPage(page, watermark.firstPage, current);
+        return page;
       }
       try {
         const delta = normalizeMessageTimelinePageSenders(

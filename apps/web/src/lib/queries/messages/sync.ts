@@ -31,6 +31,22 @@ import {
 } from './timeline';
 import { handleCommsTyping } from './typing';
 
+/**
+ * A refetch can have read before this committed event, including on a page that
+ * has already resolved while older pages are still loading. Restart the whole
+ * fetch after updating the visible cache so its eventual commit cannot undo the
+ * event. Idle timelines still apply live updates without making a request.
+ */
+function restartPendingChannelTimeline(parent: MessageParent) {
+  if (parent.type !== 'channel') return;
+  void queryClient.refetchQueries({
+    queryKey: getMessageTimelineQueryKeyPrefix(parent),
+    type: 'active',
+    predicate: (query) =>
+      query.state.data !== undefined && query.state.fetchStatus === 'fetching',
+  });
+}
+
 /** Committed timeline activity, delivered whole so loaded history needs no re-read. */
 export function handleTimelineActivity(event: {
   parent: MessageParent;
@@ -44,6 +60,7 @@ export function handleTimelineActivity(event: {
     { queryKey: getMessageTimelineQueryKeyPrefix(event.parent) },
     (data) => insertActivitiesIntoMessageTimeline(data, event.activities)
   );
+  restartPendingChannelTimeline(event.parent);
 }
 
 type ThreadStateListener = (
@@ -117,6 +134,7 @@ export function applyMessage(
     patchTargetMessage(parent, target, normalized);
   }
   softInvalidateTargetCaches(parent, target);
+  restartPendingChannelTimeline(parent);
   // Calls have one thread and no mounted timeline to seed its first fetch.
   // A view may still be showing the empty response when the first post arrives.
   if (
@@ -306,6 +324,7 @@ export function applyThreadState(
         : undefined
   );
   for (const listener of threadStateListeners) listener(parent, state);
+  if (!state.deleted_at) restartPendingChannelTimeline(parent);
   if (state.deleted_at) {
     // Annotation layout also reads tombstones, including roots outside loaded
     // pages. Fetch the committed state so it survives late document mounting.

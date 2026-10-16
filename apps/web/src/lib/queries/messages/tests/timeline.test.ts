@@ -504,8 +504,10 @@ describe('messageTimelineQueryOptions', () => {
     });
   });
 
-  it('channel revalidation retains a root posted while its request was in flight', async () => {
-    const cached = createMessage('msg-1', '2026-09-10T13:19:00.123456Z');
+  it('document catch-up retains a root posted while its request was in flight', async () => {
+    const cached = createMessage('msg-1', '2026-09-10T13:19:00.123456Z', {
+      parent: document,
+    });
     seedLatestCache([cached]);
     let releaseCatchUp!: () => void;
     const holdCatchUp = new Promise<void>((resolve) => {
@@ -523,12 +525,13 @@ describe('messageTimelineQueryOptions', () => {
       };
     });
 
-    const pending = messageTimelineQueryOptions(parent, null).queryFn({
+    const pending = messageTimelineQueryOptions(document, null).queryFn({
       pageParam: null,
     });
     await Promise.resolve();
     seedLatestCache([
       createMessage('msg-live', '2026-09-10T13:21:00.000000Z', {
+        parent: document,
         content: 'from websocket',
       }),
       cached,
@@ -583,25 +586,6 @@ describe('messageTimelineQueryOptions', () => {
       data?.pages.flatMap(timelineMessages).map((item) => item.content)
     ).toEqual([newest.content, 'Edited while disconnected']);
     observer.destroy();
-  });
-
-  it('keeps live edits and deletions without retaining unchanged stale roots', async () => {
-    const edited = createMessage('edited', '2026-09-10T13:20:00Z');
-    const removed = createMessage('removed', '2026-09-10T13:19:00Z');
-    const stale = createMessage('stale', '2026-09-10T13:18:00Z');
-    seedLatestCache([edited, removed, stale]);
-    const response = Promise.withResolvers<ReturnType<typeof fullPage>>();
-    mocks.timeline.mockReturnValueOnce(response.promise);
-
-    const pending = messageTimelineQueryOptions(parent, null).queryFn({
-      pageParam: null,
-    });
-    seedLatestCache([{ ...edited, content: 'Live edit' }, stale]);
-    response.resolve(fullPage([edited, removed]));
-
-    expect(timelineMessages(await pending).map((item) => item.content)).toEqual(
-      ['Live edit']
-    );
   });
 
   it.each(['INTERNAL', 'UNAUTHORIZED', 'FORBIDDEN'])(

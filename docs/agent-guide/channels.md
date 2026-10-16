@@ -619,9 +619,11 @@ from an absence past the presence window revalidates its timeline with
 `GET /dss/messages/channel/<id>/timeline?selection=<default latest-page selection>`.
 This replaces stale roots and their reply previews, reactions, and edits, and
 removes deleted roots even when no newer top-level message exists. Loaded older
-pages are also refetched using the refreshed cursors. Changes received while the
-latest-page request is in flight are retained; cached content stays visible if
-the request fails. Message links still load around the targeted message.
+pages are also refetched using the refreshed cursors. A committed live change
+restarts any in-flight channel timeline refresh, including when older pages are
+still loading, so its result cannot overwrite that change. Idle channels still
+apply live events without fetching; cached content stays visible if a refresh
+fails. Message links still load around the targeted message.
 The `channel_messages_load` event records `path: full` and `reason`
 (`revalidate`, `no_cache`, `cache_not_at_latest`, or `load_around`).
 
