@@ -61,7 +61,9 @@ test('drags a selection by its border and formulas follow the moved cells', asyn
   expect((await cells(page)).B4.value).toBe('=SUM(D6:D7)');
 
   // One undo puts the cells and the formula back.
-  await page.getByRole('grid', { name: 'Spreadsheet' }).press('ControlOrMeta+z');
+  await page
+    .getByRole('grid', { name: 'Spreadsheet' })
+    .press('ControlOrMeta+z');
   await expect(page.locator('[data-address="B2"]')).toHaveText('10');
   await expect(page.locator('[data-address="D6"]')).toHaveText('');
   expect((await cells(page)).B4.value).toBe('=SUM(B2:B3)');
@@ -108,9 +110,7 @@ test('scrolls the grid while dragging past its bottom edge', async ({
   );
   expect(moved?.[0]).toMatch(/^A\d+$/);
   expect(Number(moved?.[0].slice(1))).toBeGreaterThan(50);
-  await expect(
-    page.locator(`[data-address="${moved?.[0]}"]`)
-  ).toBeInViewport();
+  await expect(page.locator(`[data-address="${moved?.[0]}"]`)).toBeInViewport();
 });
 
 test('Escape cancels a drag without moving cells', async ({ page }) => {
