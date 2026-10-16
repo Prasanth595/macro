@@ -526,6 +526,7 @@ export const SpreadsheetResponse = z.any().superRefine((x, ctx) => {
                           z.null(),
                         ])
                         .optional(),
+                      checkbox: z.union([z.boolean(), z.null()]).optional(),
                     })
                     .strict(),
                   z.null(),
@@ -8047,6 +8048,7 @@ export const EditSpreadsheet = z.object({
                     z.null(),
                   ])
                   .optional(),
+                checkbox: z.union([z.boolean(), z.null()]).optional(),
               })
               .strict(),
             type: z.literal('format_cells'),
@@ -8122,6 +8124,13 @@ export const EditSpreadsheet = z.object({
             sheetId: z.string(),
             range: z.string(),
             type: z.literal('clear_validation'),
+          })
+          .strict(),
+        z
+          .object({
+            sheetId: z.string(),
+            range: z.string(),
+            type: z.literal('insert_checkboxes'),
           })
           .strict(),
       ];
