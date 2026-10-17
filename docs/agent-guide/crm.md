@@ -208,9 +208,11 @@ anyone who can open it, **Trash pipeline** for the owner) and **Share**. The
 toolbar below has **All records**, the pipeline's stored views and **New view**
 (Table or Board), plus Group by (boards), Filter and Sort, then **Add deal**
 (company pipelines) or **Add contact** (contact pipelines) for editors. It opens
-a **New deal in <pipeline>** (or **New contact in <pipeline>**) dialog laid out
-like the task composer: a **Find or add a company…** (or contact) search on top,
-then every pipeline field below it with the table's own cell editors. Select
+a dialog named **New deal in <pipeline>** (or **New contact in <pipeline>**)
+laid out like the create company dialog: a **Find or add a company…** (or
+contact) search in the header beside Close, then every pipeline field below a
+divider with the table's own cell editors (unset ones read **Empty**), and the
+pipeline's name in the footer beside the submit button. Select
 fields can create a new option. Choosing **Add company “…”** creates the company
 with the row: a searched domain fills the domain and the name. **Add contact “…”**
 works the same way, and a new contact's email must use a company's domain.

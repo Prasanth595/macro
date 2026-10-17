@@ -1017,7 +1017,15 @@ function SelectCell(props: GridCellProps) {
       <Show
         when={label()}
         fallback={
-          <span class="text-xs text-ink-placeholder opacity-40">—</span>
+          <span
+            class="text-ink-placeholder opacity-40"
+            classList={{
+              'text-xs': !props.emptyLabel,
+              'text-[13px] leading-5': !!props.emptyLabel,
+            }}
+          >
+            {props.emptyLabel || '—'}
+          </span>
         }
       >
         <span class="flex min-w-0 flex-wrap gap-1">

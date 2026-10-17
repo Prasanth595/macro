@@ -1,6 +1,7 @@
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import EnvelopeIcon from '@phosphor/envelope.svg';
 import GlobeIcon from '@phosphor/globe.svg';
+import TableIcon from '@phosphor/table.svg';
 import XIcon from '@phosphor/x.svg';
 import { Key } from '@solid-primitives/keyed';
 import { Button, buttonClasses, Dialog, EntityComposer, Panel } from '@ui';
@@ -208,6 +209,7 @@ export function AddPipelineRecordDialog(
   return (
     <Dialog
       open
+      class="sm:w-160"
       onOpenChange={(open) => !open && close()}
       contentRef={(element) => {
         setDialog(element);
@@ -234,10 +236,108 @@ export function AddPipelineRecordDialog(
             }}
           >
             <EntityComposer.Root>
-              <EntityComposer.Header>
-                <Dialog.Title class="min-w-0 flex-1 truncate px-2 text-xs text-ink-muted">
+              <EntityComposer.Header class="items-start">
+                <Dialog.Title class="sr-only">
                   New {noun} in {props.pipeline.name}
                 </Dialog.Title>
+                <EntityComposer.Title class="mb-0 min-h-8 min-w-0 flex-1 flex-col items-stretch justify-center gap-3">
+                  <Switch
+                    fallback={
+                      <RecordSearch
+                        recordType={props.pipeline.recordType}
+                        options={options()}
+                        loading={(contacts ?? companies).query.isLoading}
+                        mount={dialog()}
+                        onPick={(record) =>
+                          changeChoice({ kind: 'existing', record })
+                        }
+                        onCreate={(search) =>
+                          changeChoice(
+                            newRecordChoice(props.pipeline.recordType, search)
+                          )
+                        }
+                      />
+                    }
+                  >
+                    <Match when={existing()}>
+                      {(record) => (
+                        <PickedRecord
+                          recordType={props.pipeline.recordType}
+                          record={record()}
+                          disabled={pending()}
+                          onChange={() => changeChoice(undefined)}
+                        />
+                      )}
+                    </Match>
+                    <Match when={newCompany()}>
+                      {(draft) => (
+                        <NewRecordFields
+                          name={draft().name}
+                          namePlaceholder="Company name"
+                          disabled={pending()}
+                          onName={(name) => changeChoice({ ...draft(), name })}
+                          onCancel={() => changeChoice(undefined)}
+                          cancelLabel="Choose an existing company"
+                        >
+                          <GlobeIcon
+                            aria-hidden="true"
+                            class="size-4 shrink-0 text-ink-muted"
+                          />
+                          <input
+                            aria-label="Domain"
+                            placeholder="Domain, like acme.com"
+                            autocomplete="off"
+                            spellcheck={false}
+                            data-1p-ignore
+                            class="ph-no-capture w-full min-w-0 bg-transparent text-ink outline-none placeholder:text-ink-placeholder"
+                            value={draft().domain}
+                            disabled={pending()}
+                            onInput={(event) =>
+                              changeChoice({
+                                ...draft(),
+                                domain: event.currentTarget.value,
+                              })
+                            }
+                          />
+                        </NewRecordFields>
+                      )}
+                    </Match>
+                    <Match when={newContact()}>
+                      {(draft) => (
+                        <NewRecordFields
+                          name={draft().name}
+                          namePlaceholder="Contact name"
+                          disabled={pending()}
+                          onName={(name) => changeChoice({ ...draft(), name })}
+                          onCancel={() => changeChoice(undefined)}
+                          cancelLabel="Choose an existing contact"
+                        >
+                          <EnvelopeIcon
+                            aria-hidden="true"
+                            class="size-4 shrink-0 text-ink-muted"
+                          />
+                          <input
+                            aria-label="Email"
+                            placeholder="Email, like jane@acme.com"
+                            type="email"
+                            autocomplete="off"
+                            spellcheck={false}
+                            data-1p-ignore
+                            class="ph-no-capture w-full min-w-0 bg-transparent text-ink outline-none placeholder:text-ink-placeholder"
+                            value={draft().email}
+                            disabled={pending()}
+                            onInput={(event) =>
+                              changeChoice({
+                                ...draft(),
+                                email: event.currentTarget.value,
+                              })
+                            }
+                          />
+                        </NewRecordFields>
+                      )}
+                    </Match>
+                  </Switch>
+                </EntityComposer.Title>
                 <Dialog.CloseButton
                   tabIndex={-1}
                   aria-label="Close"
@@ -247,113 +347,18 @@ export function AddPipelineRecordDialog(
                   <XIcon />
                 </Dialog.CloseButton>
               </EntityComposer.Header>
-              <EntityComposer.Title class="mb-0 min-w-0 flex-col items-stretch gap-3">
-                <Switch
-                  fallback={
-                    <RecordSearch
-                      recordType={props.pipeline.recordType}
-                      options={options()}
-                      loading={(contacts ?? companies).query.isLoading}
-                      mount={dialog()}
-                      onPick={(record) =>
-                        changeChoice({ kind: 'existing', record })
-                      }
-                      onCreate={(search) =>
-                        changeChoice(
-                          newRecordChoice(props.pipeline.recordType, search)
-                        )
-                      }
-                    />
-                  }
-                >
-                  <Match when={existing()}>
-                    {(record) => (
-                      <PickedRecord
-                        recordType={props.pipeline.recordType}
-                        record={record()}
-                        disabled={pending()}
-                        onChange={() => changeChoice(undefined)}
-                      />
-                    )}
-                  </Match>
-                  <Match when={newCompany()}>
-                    {(draft) => (
-                      <NewRecordFields
-                        name={draft().name}
-                        namePlaceholder="Company name"
-                        disabled={pending()}
-                        onName={(name) => changeChoice({ ...draft(), name })}
-                        onCancel={() => changeChoice(undefined)}
-                        cancelLabel="Choose an existing company"
-                      >
-                        <GlobeIcon
-                          aria-hidden="true"
-                          class="size-4 shrink-0 text-ink-muted"
-                        />
-                        <input
-                          aria-label="Domain"
-                          placeholder="Domain, like acme.com"
-                          autocomplete="off"
-                          spellcheck={false}
-                          data-1p-ignore
-                          class="ph-no-capture w-full min-w-0 bg-transparent text-ink outline-none placeholder:text-ink-placeholder"
-                          value={draft().domain}
-                          disabled={pending()}
-                          onInput={(event) =>
-                            changeChoice({
-                              ...draft(),
-                              domain: event.currentTarget.value,
-                            })
-                          }
-                        />
-                      </NewRecordFields>
-                    )}
-                  </Match>
-                  <Match when={newContact()}>
-                    {(draft) => (
-                      <NewRecordFields
-                        name={draft().name}
-                        namePlaceholder="Contact name"
-                        disabled={pending()}
-                        onName={(name) => changeChoice({ ...draft(), name })}
-                        onCancel={() => changeChoice(undefined)}
-                        cancelLabel="Choose an existing contact"
-                      >
-                        <EnvelopeIcon
-                          aria-hidden="true"
-                          class="size-4 shrink-0 text-ink-muted"
-                        />
-                        <input
-                          aria-label="Email"
-                          placeholder="Email, like jane@acme.com"
-                          type="email"
-                          autocomplete="off"
-                          spellcheck={false}
-                          data-1p-ignore
-                          class="ph-no-capture w-full min-w-0 bg-transparent text-ink outline-none placeholder:text-ink-placeholder"
-                          value={draft().email}
-                          disabled={pending()}
-                          onInput={(event) =>
-                            changeChoice({
-                              ...draft(),
-                              email: event.currentTarget.value,
-                            })
-                          }
-                        />
-                      </NewRecordFields>
-                    )}
-                  </Match>
-                </Switch>
-              </EntityComposer.Title>
-              <EntityComposer.Main class="-mx-2 overflow-y-auto px-2">
-                <div ref={fieldList} class="flex flex-col gap-0.5 px-2">
+              <EntityComposer.Main class="-mx-2 overflow-y-auto border-t border-edge-muted/60 px-2 pt-3">
+                <div ref={fieldList} class="flex flex-col gap-0.5">
                   <Key each={fields()} by="id">
                     {(column) => (
-                      <RecordField column={column()}>
+                      <RecordField
+                        column={column()}
+                        class="grid-cols-[8.5rem_minmax(0,1fr)] pl-2"
+                      >
                         <GridCell
                           column={column()}
                           value={values()[column().id] ?? null}
-                          emptyLabel=""
+                          emptyLabel="Empty"
                           canEdit={!pending()}
                           renderTextEditor={props.renderTextEditor}
                           renderTextValue={props.renderTextValue}
@@ -382,6 +387,10 @@ export function AddPipelineRecordDialog(
                 )}
               </Show>
               <EntityComposer.Footer class="items-center">
+                <span class="flex min-w-0 items-center gap-1.5 px-2 text-xs text-ink-muted">
+                  <TableIcon class="size-4 shrink-0" />
+                  <span class="truncate">{props.pipeline.name}</span>
+                </span>
                 <EntityComposer.Submit
                   type="submit"
                   class="ml-auto"

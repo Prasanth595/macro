@@ -7,6 +7,7 @@ import XIcon from '@phosphor/x.svg';
 import { Key } from '@solid-primitives/keyed';
 import { Button, buttonClasses } from '@ui/components/Button';
 import { Dialog } from '@ui/components/Dialog';
+import { cn } from '@ui/utils/classname';
 import { type Accessor, type JSX, Show } from 'solid-js';
 import type { DatabaseViewColumn } from '../core/database-view';
 import type {
@@ -266,10 +267,16 @@ function RecordFields(
 /** One of a record's fields: its column's icon and name beside its cell. */
 export function RecordField(props: {
   column: DatabaseViewColumn;
+  class?: string;
   children: JSX.Element;
 }) {
   return (
-    <div class="grid min-h-9 grid-cols-[minmax(5rem,0.75fr)_minmax(0,1.5fr)] items-start gap-2">
+    <div
+      class={cn(
+        'grid min-h-9 grid-cols-[minmax(5rem,0.75fr)_minmax(0,1.5fr)] items-start gap-2',
+        props.class
+      )}
+    >
       <div
         class="flex min-w-0 items-center gap-2 pt-2.5 text-xs text-ink-muted"
         title={props.column.name}
