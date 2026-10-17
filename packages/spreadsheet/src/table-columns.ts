@@ -266,7 +266,8 @@ export function setTableColumnType(options: {
 /**
  * Column types a new table's data suggests, by column position: a type
  * every value of a column fits, from its formats, checkboxes, list rules and
- * values. Columns with mixed or no values stay untyped.
+ * values; text takes any other literal values. Columns with formulas or
+ * TRUE/FALSE among other values, or with no values, stay untyped.
  */
 export function detectColumnTypes(
   table: SheetTable,
@@ -282,57 +283,54 @@ export function detectColumnTypes(
       const cell = cells[formatCellAddress(row, column)];
       if (cell?.value.trim()) filled.push(cell);
     }
-    if (!filled.length) continue;
-    const every = (test: (cell: SpreadsheetCell) => boolean) =>
-      filled.every(test);
-    const numeric = (cell: SpreadsheetCell) =>
-      !cell.value.startsWith('=') && Number.isFinite(Number(cell.value));
-    const type: TableColumnType | undefined = every((cell) => !!cell.checkbox)
-      ? 'checkbox'
-      : listRuleCovering(validations, {
-            top: first,
-            bottom: last,
-            left: column,
-            right: column,
-          })
-        ? 'dropdown'
-        : every(
-              (cell) =>
-                columnTypeMismatch('person', cell, undefined) === undefined
-            )
-          ? 'person'
-          : every((cell) => cell.format === 'percent' && numeric(cell))
-            ? 'percent'
-            : every(
-                  (cell) =>
-                    (cell.format === 'currency' ||
-                      cell.format === 'accounting') &&
-                    numeric(cell)
-                )
-              ? 'currency'
-              : every(
-                    (cell) =>
-                      (cell.format === 'date' && numeric(cell)) ||
-                      !!cellDateMention(cell.value)
-                  )
-                ? filled.some((cell) => /h/i.test(cell.numberFormat ?? ''))
-                  ? 'datetime'
-                  : 'date'
-                : every((cell) => cell.format === 'time' && numeric(cell))
-                  ? 'time'
-                  : every(numeric)
-                    ? 'number'
-                    : every(
-                          (cell) =>
-                            !cell.value.startsWith('=') &&
-                            !numeric(cell) &&
-                            checkboxChecked(cell.value) === undefined
-                        )
-                      ? 'text'
-                      : undefined;
+    const listed = !!listRuleCovering(validations, {
+      top: first,
+      bottom: last,
+      left: column,
+      right: column,
+    });
+    const type = filled.length ? suggestedType(filled, listed) : undefined;
     if (type) types[String(column - bounds.left)] = type;
   }
   return types;
+}
+
+/** The type every one of a column's filled cells fits, if there is one. */
+function suggestedType(
+  filled: SpreadsheetCell[],
+  listed: boolean
+): TableColumnType | undefined {
+  const every = (test: (cell: SpreadsheetCell) => boolean) =>
+    filled.every(test);
+  const numeric = (cell: SpreadsheetCell) =>
+    !cell.value.startsWith('=') && Number.isFinite(Number(cell.value));
+  const formatted = (...formats: SpreadsheetCell['format'][]) =>
+    every((cell) => formats.includes(cell.format) && numeric(cell));
+  if (every((cell) => !!cell.checkbox)) return 'checkbox';
+  if (listed) return 'dropdown';
+  if (every((cell) => !columnTypeMismatch('person', cell, undefined)))
+    return 'person';
+  if (formatted('percent')) return 'percent';
+  if (formatted('currency', 'accounting')) return 'currency';
+  if (
+    every(
+      (cell) =>
+        (cell.format === 'date' && numeric(cell)) ||
+        !!cellDateMention(cell.value)
+    )
+  )
+    return filled.some((cell) => /h/i.test(cell.numberFormat ?? ''))
+      ? 'datetime'
+      : 'date';
+  if (formatted('time')) return 'time';
+  if (every(numeric)) return 'number';
+  if (
+    every(
+      (cell) =>
+        !cell.value.startsWith('=') && checkboxChecked(cell.value) === undefined
+    )
+  )
+    return 'text';
 }
 
 /** The style of a cell, without its value. */
