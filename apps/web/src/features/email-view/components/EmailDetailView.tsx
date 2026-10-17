@@ -180,6 +180,7 @@ export function EmailDetailView(props: {
     onEmailReminderSaved: async () => {
       await listNavigation.afterReminderSaved?.();
     },
+    extraFavoriteHotkey: { hotkey: 's', hotkeyToken: TOKENS.email.star },
   });
 
   let container: HTMLDivElement | undefined;

@@ -155,7 +155,9 @@ export const TOKENS = {
     markSenderSignal: 'email.markSenderSignal',
     markSenderNoise: 'email.markSenderNoise',
     toggleReadingPane: 'email.toggleReadingPane',
+    star: 'email.star',
     compose: {
+      new: 'email.compose.new',
       edit: {
         recipients: 'email.compose.edit.recipients',
         ccRecipients: 'email.compose.edit.ccRecipients',
