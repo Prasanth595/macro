@@ -236,15 +236,12 @@ describe('TauriWebSocketWrapper incoming messages', () => {
     ['a null payload', { type: 'Close', data: null }],
     ['no payload', { type: 'Close' }],
     ['a malformed payload', { type: 'Close', data: { code: 'x' } }],
-  ])(
-    'reports a close frame with %s as a normal closure',
-    async (_label, frame) => {
-      const { socket, events, push } = await openSocket();
-      push(frame);
-      expect(events).toEqual(['open', 'close:1000']);
-      expect(socket.readyState).toBe(socket.CLOSED);
-    }
-  );
+  ])('closes normally on a close frame with %s', async (_label, frame) => {
+    const { socket, events, push } = await openSocket();
+    push(frame);
+    expect(events).toEqual(['open', 'close:1000']);
+    expect(socket.readyState).toBe(socket.CLOSED);
+  });
 
   it('ignores ping and pong frames', async () => {
     const { socket, events, received, push } = await openSocket();
