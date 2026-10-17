@@ -449,7 +449,9 @@ export function useEmailDataSource(
     // bucketed by date.
     const result: EmailDataSourceItem[] = search.isSearching()
       ? buildFlatSoupRows(listEntities())
-      : buildGroupedSoupRows(groupEmailEntitiesByDate(listEntities()));
+      : buildGroupedSoupRows(groupEmailEntitiesByDate(listEntities()), {
+          keyByEntity: true,
+        });
 
     if (hasMore()) {
       result.push(
