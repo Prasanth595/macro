@@ -360,7 +360,7 @@ export function CrmWorkspaceView(props: {
   onMount(() => {
     if (!listsEnabled() && active().startsWith('list:')) navigate('active');
   });
-  const sidebar = (onCollapse = () => setCollapsed(true)) => (
+  const sidebar = (onCollapse: () => void = () => setCollapsed(true)) => (
     <CrmSidebar
       pipelines={
         <Show when={pipelinesEnabled()}>
