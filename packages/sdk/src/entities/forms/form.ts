@@ -494,8 +494,8 @@ export class Form extends MacroEntity<FormDetail> {
       await this.client.storage.getMyFormResponse({ path: { id: this.id } }),
     );
     const table = await this.table();
-    const answers = await Promise.all(
-      mine.answers.map(async (answer): Promise<FormAnswer> => {
+    const answered = await Promise.all(
+      mine.answers.map(async (answer): Promise<FormAnswer[]> => {
         const question = FormQuestion.byId(this, answer.question);
         const value = await match(answer.value)
           .with({ type: 'options' }, (cell) => ({
@@ -541,10 +541,11 @@ export class Form extends MacroEntity<FormDetail> {
             },
             (cell) => cell,
           )
-          .exhaustive();
-        return { question, value };
+          .exhaustive(() => undefined);
+        return value ? [{ question, value }] : [];
       }),
     );
+    const answers = answered.flat();
     const row = mine.response.row
       ? DatabaseRow.byId(table, mine.response.row)
       : undefined;
@@ -594,16 +595,22 @@ export class Form extends MacroEntity<FormDetail> {
       return {
         question,
         responses: entry.responses,
-        buckets: entry.buckets.map((bucket) => ({
-          count: bucket.count,
-          value: match(bucket.value)
-            .with({ kind: 'option' }, (value) => ({
-              kind: 'option' as const,
-              option: FormOption.byId(question, value.option),
-            }))
-            .with({ kind: 'checkbox' }, (value) => value)
-            .exhaustive(),
-        })),
+        buckets: entry.buckets.flatMap((bucket): FormQuestionTally['buckets'] =>
+          match(bucket.value)
+            .with({ kind: 'option' }, (value) => [
+              {
+                count: bucket.count,
+                value: {
+                  kind: 'option' as const,
+                  option: FormOption.byId(question, value.option),
+                },
+              },
+            ])
+            .with({ kind: 'checkbox' }, (value) => [
+              { count: bucket.count, value },
+            ])
+            .exhaustive(() => []),
+        ),
       };
     });
   }
