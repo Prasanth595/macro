@@ -28,7 +28,7 @@ Queries, caching, and where data is fetched.
 - **FE-07** Don't hardcode backend-owned config in the frontend (e.g. system bot
   config) — fetch it dynamically or generate types from the backend source of
   truth.
-- **FE-56** Never hardcode a `provider/model` id. Pick AI models from
+- **FE-57** Never hardcode a `provider/model` id. Pick AI models from
   `@core/component/AI/constant` by plan: `FREE_DEFAULT_MODEL` for AI every plan
   runs, `defaultModelForPlan`/`modelsForPlan` for user choices. `FREE_MODELS`
   is generated from the backend's `FreeTierModel` schema, and the backend 403s
