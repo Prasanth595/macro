@@ -3,6 +3,7 @@ import {
   type CellSelection,
   selectionBounds,
 } from '@macro-inc/spreadsheet/grid-selection';
+import { displayNumber } from '@macro-inc/spreadsheet/number-display';
 import {
   currentRegion,
   keepsHiddenRow,
@@ -557,6 +558,18 @@ export function createTableActions(options: {
     );
   });
 
+  /** A summary shown in the summarized column's number format. */
+  function formatSummary(value: number) {
+    const view = groupView();
+    const table = view && tableNamed(view.table);
+    const cell =
+      table &&
+      store.cells()[
+        formatCellAddress(tableDataRows(table).first, view.summaryColumn)
+      ];
+    return displayNumber(value, cell);
+  }
+
   /** Filter the grouped column to one group's value, or show every row. */
   function showGroup(value: string | undefined) {
     const view = groupView();
@@ -615,6 +628,7 @@ export function createTableActions(options: {
     },
     closeGroupBy: () => setGroupView(undefined),
     groups,
+    formatSummary,
     showGroup,
     columnNames: (name: string) => {
       const table = tableNamed(name);

@@ -253,6 +253,8 @@ describe('table actions', () => {
     const view = actions.groupView();
     actions.setGroupView({ column: 0, summary: 'sum' });
     expect(actions.groupView()).toBe(view);
+    store.setCells({ B2: { format: 'currency' } });
+    expect(actions.formatSummary(1234.5)).toBe('$1,234.50');
     actions.showGroup('West');
     expect(store.activeSheet().metadata?.hiddenRows).toEqual([3]);
     actions.showGroup(undefined);

@@ -111,6 +111,7 @@ export function SpreadsheetTableDialogs(props: {
         left={left()}
         groups={props.actions.groups()}
         readonly={props.readonly}
+        format={props.actions.formatSummary}
         onChange={props.actions.setGroupView}
         onShowGroup={props.actions.showGroup}
         onClose={props.actions.closeGroupBy}

@@ -85,6 +85,8 @@ export function TableGroupByDialog(props: {
   left: number;
   groups: { value: string; rows: number[]; cells: TableCellText[] }[];
   readonly: boolean;
+  /** A sum, average, min or max in the summarized column's format. */
+  format: (value: number) => string;
   onChange: (view: Partial<Omit<TableGroupView, 'table'>>) => void;
   onShowGroup: (value: string | undefined) => void;
   onClose: () => void;
@@ -97,7 +99,9 @@ export function TableGroupByDialog(props: {
       ? '—'
       : percentSummary(summary)
         ? percent.format(value)
-        : number.format(value);
+        : ['sum', 'average', 'min', 'max'].includes(summary)
+          ? props.format(value)
+          : number.format(value);
   return (
     <SpreadsheetDialog
       open={!!props.view}
