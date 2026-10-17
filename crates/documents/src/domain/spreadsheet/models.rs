@@ -427,7 +427,7 @@ pub enum SpreadsheetColumnType {
     Checkbox,
     /// One of a list of choices, shown as colored chips.
     Dropdown,
-    /// A mention of a person.
+    /// A mention of a person, which people type with @.
     Person,
 }
 
