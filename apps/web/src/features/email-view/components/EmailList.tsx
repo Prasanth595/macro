@@ -20,7 +20,7 @@ import { SwipableRowProvider } from '@components/app/mobile/SwipableRow';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { createSplitAutofocus } from '@components/app/split-layout/utils/createSplitAutofocus';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import { debounce } from '@core/util/debounce';
+import { debounce, debouncedDependent } from '@core/util/debounce';
 import { fireAndForget } from '@core/util/fireAndForget';
 import {
   type EntityData,
@@ -94,6 +94,7 @@ export function EmailList(props: EmailListProps) {
     openThread,
     selectedThread,
     filterByTag,
+    warmThreads,
   } = useEmailView();
   const panel = useSplitPanelOrThrow();
 
@@ -287,6 +288,27 @@ export function EmailList(props: EmailListProps) {
       grid()?.focus();
     },
   });
+
+  // The focused row and the one below it are the likeliest next opens. A
+  // pointer crosses rows on its way elsewhere, so it has to rest longer than
+  // the keyboard cursor before its row loads.
+  const [hoveredKey, setHoveredKey] = createSignal<string>();
+  const warmFrom = (index: number) => {
+    if (index < 0 || isTouchDevice()) return;
+    const ids = rows()
+      .slice(index)
+      .flatMap((row) => (row.kind === 'entity' ? [row.entity.id] : []))
+      .slice(0, 2);
+    warmThreads(ids);
+  };
+  const keyboardRest = debouncedDependent(() => list.focus.index(), 150);
+  const pointerRest = debouncedDependent(() => list.focus.index(), 500);
+  createEffect(
+    on(keyboardRest, (index) => {
+      if (list.focus.key() !== hoveredKey()) warmFrom(index);
+    })
+  );
+  createEffect(on(pointerRest, warmFrom));
 
   const listInteractions = useListInteractions({
     controller: list,
@@ -726,11 +748,12 @@ export function EmailList(props: EmailListProps) {
                                         selectedThread()?.id ===
                                           entityRow().entity.id
                                       }
-                                      onMouseMove={() =>
+                                      onMouseMove={() => {
+                                        setHoveredKey(entityRow().id);
                                         list.focus.set(entityRow().id, {
                                           reason: 'hover',
-                                        })
-                                      }
+                                        });
+                                      }}
                                       onProjectClick={(project, event) => {
                                         const openInNewSplit = event.shiftKey;
                                         openEntity(project, {

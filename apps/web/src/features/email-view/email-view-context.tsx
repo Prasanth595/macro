@@ -29,6 +29,7 @@ import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { useTagSets, useTagSetsReady } from '@property/tags/tag-sets-context';
 import { useEmailLinksQuery } from '@queries/email/link';
+import { warmThread } from '@queries/email/thread';
 import type { ContextProviderProps } from '@solid-primitives/context';
 import {
   type Accessor,
@@ -53,6 +54,7 @@ import {
 import { normalizeInboxSelection } from './inbox-selection';
 import { createEmailViewPersistence } from './persistence';
 import { createInboxSelectionReconciliation } from './primitives/inbox-selection-reconciliation';
+import { createThreadWarmer } from './primitives/thread-warmer';
 import {
   type EmailDataSource,
   type EmailDataSourceItem,
@@ -121,6 +123,8 @@ export type EmailViewContext = {
   /** Open threads beside the list instead of in its place (desktop). */
   readingPane: Accessor<boolean>;
   setReadingPane: (enabled: boolean) => void;
+  /** Loads threads the user is about to open, so opening them is instant. */
+  warmThreads: (threadIds: readonly string[]) => void;
 };
 
 export const [EmailViewProvider, useEmailView] = createAssertedContextProvider<
@@ -427,6 +431,9 @@ export const [EmailViewProvider, useEmailView] = createAssertedContextProvider<
     { default: false }
   );
 
+  const warmer = createThreadWarmer({ warm: warmThread });
+  onCleanup(warmer.dispose);
+
   const isSidebarSectionOpen = (id: string) =>
     !state.collapsedSidebarSectionIds.includes(id);
 
@@ -454,5 +461,6 @@ export const [EmailViewProvider, useEmailView] = createAssertedContextProvider<
     setSidebarSectionOpen,
     readingPane,
     setReadingPane,
+    warmThreads: warmer.warm,
   };
 });

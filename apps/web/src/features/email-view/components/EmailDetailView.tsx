@@ -120,7 +120,12 @@ export function EmailDetailView(props: {
   targetMessageId?: string;
   targetRequest?: string;
 }) {
-  const { closeThread, selectedThread } = useEmailView();
+  const {
+    closeThread,
+    selectedThread,
+    source: listSource,
+    warmThreads,
+  } = useEmailView();
   const panel = useSplitPanelOrThrow();
   // In the reading pane the thread keeps its keys in the reader's scope, and
   // Escape hands the keyboard back to the list instead of closing it.
@@ -134,6 +139,25 @@ export function EmailDetailView(props: {
     enabled: !!threadId(),
   }));
   const source = createEmailThreadSource(threadId, threadQuery);
+  // Once this thread has loaded, its neighbours are the likeliest next opens
+  // (j/k, Mark done): load them so stepping reads them from cache.
+  createEffect(() => {
+    if (!threadQuery.isSuccess) return;
+    const ids = listSource
+      .items()
+      .flatMap((row) =>
+        row.kind === 'entity' && row.entity.type === 'email'
+          ? [row.entity.id]
+          : []
+      );
+    const index = ids.indexOf(threadId());
+    if (index < 0) return;
+    warmThreads(
+      [ids[index + 1], ids[index - 1], ids[index + 2]].filter(
+        (id): id is string => id !== undefined
+      )
+    );
+  });
   const threadData = source.thread;
   const title = () => {
     const thread = threadData();
