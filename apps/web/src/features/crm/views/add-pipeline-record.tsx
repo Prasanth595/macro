@@ -206,6 +206,121 @@ export function AddPipelineRecordDialog(
     if (!pending()) props.onClose();
   }
 
+  const recordPicker = () => (
+    <Switch
+      fallback={
+        <RecordSearch
+          recordType={props.pipeline.recordType}
+          options={options()}
+          loading={(contacts ?? companies).query.isLoading}
+          mount={dialog()}
+          onPick={(record) => changeChoice({ kind: 'existing', record })}
+          onCreate={(search) =>
+            changeChoice(newRecordChoice(props.pipeline.recordType, search))
+          }
+        />
+      }
+    >
+      <Match when={existing()}>
+        {(record) => (
+          <PickedRecord
+            recordType={props.pipeline.recordType}
+            record={record()}
+            disabled={pending()}
+            onChange={() => changeChoice(undefined)}
+          />
+        )}
+      </Match>
+      <Match when={newCompany()}>
+        {(draft) => (
+          <NewRecordFields
+            name={draft().name}
+            namePlaceholder="Company name"
+            disabled={pending()}
+            onName={(name) => changeChoice({ ...draft(), name })}
+            onCancel={() => changeChoice(undefined)}
+            cancelLabel="Choose an existing company"
+          >
+            <GlobeIcon
+              aria-hidden="true"
+              class="size-4 shrink-0 text-ink-muted"
+            />
+            <input
+              aria-label="Domain"
+              placeholder="Domain, like acme.com"
+              autocomplete="off"
+              spellcheck={false}
+              data-1p-ignore
+              class="ph-no-capture w-full min-w-0 bg-transparent text-ink outline-none placeholder:text-ink-placeholder"
+              value={draft().domain}
+              disabled={pending()}
+              onInput={(event) =>
+                changeChoice({
+                  ...draft(),
+                  domain: event.currentTarget.value,
+                })
+              }
+            />
+          </NewRecordFields>
+        )}
+      </Match>
+      <Match when={newContact()}>
+        {(draft) => (
+          <NewRecordFields
+            name={draft().name}
+            namePlaceholder="Contact name"
+            disabled={pending()}
+            onName={(name) => changeChoice({ ...draft(), name })}
+            onCancel={() => changeChoice(undefined)}
+            cancelLabel="Choose an existing contact"
+          >
+            <EnvelopeIcon
+              aria-hidden="true"
+              class="size-4 shrink-0 text-ink-muted"
+            />
+            <input
+              aria-label="Email"
+              placeholder="Email, like jane@acme.com"
+              type="email"
+              autocomplete="off"
+              spellcheck={false}
+              data-1p-ignore
+              class="ph-no-capture w-full min-w-0 bg-transparent text-ink outline-none placeholder:text-ink-placeholder"
+              value={draft().email}
+              disabled={pending()}
+              onInput={(event) =>
+                changeChoice({
+                  ...draft(),
+                  email: event.currentTarget.value,
+                })
+              }
+            />
+          </NewRecordFields>
+        )}
+      </Match>
+    </Switch>
+  );
+
+  const cell = (column: () => DatabaseViewColumn) => (
+    <GridCell
+      column={column()}
+      value={values()[column().id] ?? null}
+      emptyLabel="Empty"
+      canEdit={!pending()}
+      renderTextEditor={props.renderTextEditor}
+      renderTextValue={props.renderTextValue}
+      renderMentionPicker={props.renderMentionPicker}
+      renderMentionValue={props.renderMentionValue}
+      popupMount={dialog()}
+      onMention={(mention) => write(column().id, mention.id)}
+      onWrite={(value) => write(column().id, value)}
+      onAddOption={(label, value) => {
+        setNewOption(label);
+        return write(column().id, value ?? label);
+      }}
+    />
+  );
+
   return (
     <Dialog
       open
@@ -241,102 +356,7 @@ export function AddPipelineRecordDialog(
                   New {noun} in {props.pipeline.name}
                 </Dialog.Title>
                 <EntityComposer.Title class="mb-0 min-h-8 min-w-0 flex-1 flex-col items-stretch justify-center gap-3">
-                  <Switch
-                    fallback={
-                      <RecordSearch
-                        recordType={props.pipeline.recordType}
-                        options={options()}
-                        loading={(contacts ?? companies).query.isLoading}
-                        mount={dialog()}
-                        onPick={(record) =>
-                          changeChoice({ kind: 'existing', record })
-                        }
-                        onCreate={(search) =>
-                          changeChoice(
-                            newRecordChoice(props.pipeline.recordType, search)
-                          )
-                        }
-                      />
-                    }
-                  >
-                    <Match when={existing()}>
-                      {(record) => (
-                        <PickedRecord
-                          recordType={props.pipeline.recordType}
-                          record={record()}
-                          disabled={pending()}
-                          onChange={() => changeChoice(undefined)}
-                        />
-                      )}
-                    </Match>
-                    <Match when={newCompany()}>
-                      {(draft) => (
-                        <NewRecordFields
-                          name={draft().name}
-                          namePlaceholder="Company name"
-                          disabled={pending()}
-                          onName={(name) => changeChoice({ ...draft(), name })}
-                          onCancel={() => changeChoice(undefined)}
-                          cancelLabel="Choose an existing company"
-                        >
-                          <GlobeIcon
-                            aria-hidden="true"
-                            class="size-4 shrink-0 text-ink-muted"
-                          />
-                          <input
-                            aria-label="Domain"
-                            placeholder="Domain, like acme.com"
-                            autocomplete="off"
-                            spellcheck={false}
-                            data-1p-ignore
-                            class="ph-no-capture w-full min-w-0 bg-transparent text-ink outline-none placeholder:text-ink-placeholder"
-                            value={draft().domain}
-                            disabled={pending()}
-                            onInput={(event) =>
-                              changeChoice({
-                                ...draft(),
-                                domain: event.currentTarget.value,
-                              })
-                            }
-                          />
-                        </NewRecordFields>
-                      )}
-                    </Match>
-                    <Match when={newContact()}>
-                      {(draft) => (
-                        <NewRecordFields
-                          name={draft().name}
-                          namePlaceholder="Contact name"
-                          disabled={pending()}
-                          onName={(name) => changeChoice({ ...draft(), name })}
-                          onCancel={() => changeChoice(undefined)}
-                          cancelLabel="Choose an existing contact"
-                        >
-                          <EnvelopeIcon
-                            aria-hidden="true"
-                            class="size-4 shrink-0 text-ink-muted"
-                          />
-                          <input
-                            aria-label="Email"
-                            placeholder="Email, like jane@acme.com"
-                            type="email"
-                            autocomplete="off"
-                            spellcheck={false}
-                            data-1p-ignore
-                            class="ph-no-capture w-full min-w-0 bg-transparent text-ink outline-none placeholder:text-ink-placeholder"
-                            value={draft().email}
-                            disabled={pending()}
-                            onInput={(event) =>
-                              changeChoice({
-                                ...draft(),
-                                email: event.currentTarget.value,
-                              })
-                            }
-                          />
-                        </NewRecordFields>
-                      )}
-                    </Match>
-                  </Switch>
+                  {recordPicker()}
                 </EntityComposer.Title>
                 <Dialog.CloseButton
                   tabIndex={-1}
@@ -355,25 +375,7 @@ export function AddPipelineRecordDialog(
                         column={column()}
                         class="grid-cols-[8.5rem_minmax(0,1fr)] pl-2"
                       >
-                        <GridCell
-                          column={column()}
-                          value={values()[column().id] ?? null}
-                          emptyLabel="Empty"
-                          canEdit={!pending()}
-                          renderTextEditor={props.renderTextEditor}
-                          renderTextValue={props.renderTextValue}
-                          renderMentionPicker={props.renderMentionPicker}
-                          renderMentionValue={props.renderMentionValue}
-                          popupMount={dialog()}
-                          onMention={(mention) =>
-                            write(column().id, mention.id)
-                          }
-                          onWrite={(value) => write(column().id, value)}
-                          onAddOption={(label, value) => {
-                            setNewOption(label);
-                            return write(column().id, value ?? label);
-                          }}
-                        />
+                        {cell(column)}
                       </RecordField>
                     )}
                   </Key>
