@@ -4,7 +4,14 @@ import GlobeIcon from '@phosphor/globe.svg';
 import TableIcon from '@phosphor/table.svg';
 import XIcon from '@phosphor/x.svg';
 import { Key } from '@solid-primitives/keyed';
-import { Button, buttonClasses, Dialog, EntityComposer, Panel } from '@ui';
+import {
+  Button,
+  buttonClasses,
+  Dialog,
+  EntityComposer,
+  Hotkey,
+  Panel,
+} from '@ui';
 import {
   createSignal,
   createUniqueId,
@@ -17,7 +24,7 @@ import {
   GridCell,
   type GridCellProps,
 } from '../../database/components/grid-cell';
-import { RecordField } from '../../database/components/record-panel';
+import { PropertyIcon } from '../../database/components/property-icon';
 import type {
   DatabaseCellValue,
   DatabaseViewColumn,
@@ -324,7 +331,7 @@ export function AddPipelineRecordDialog(
   return (
     <Dialog
       open
-      class="sm:w-160"
+      class="sm:w-140"
       onOpenChange={(open) => !open && close()}
       contentRef={(element) => {
         setDialog(element);
@@ -350,14 +357,15 @@ export function AddPipelineRecordDialog(
               void submit();
             }}
           >
-            <EntityComposer.Root>
-              <EntityComposer.Header class="items-start">
-                <Dialog.Title class="sr-only">
-                  New {noun} in {props.pipeline.name}
+            <EntityComposer.Root class="gap-0 p-0">
+              <EntityComposer.Header class="border-b border-edge-muted/60 px-5 py-3">
+                <Dialog.Title class="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold">
+                  {submitLabel}
+                  <span class="flex min-w-0 items-center gap-1 rounded-md bg-hover px-1.5 py-0.5 text-xs font-medium text-ink-muted">
+                    <TableIcon class="size-3.5 shrink-0" />
+                    <span class="truncate">{props.pipeline.name}</span>
+                  </span>
                 </Dialog.Title>
-                <EntityComposer.Title class="mb-0 min-h-8 min-w-0 flex-1 flex-col items-stretch justify-center gap-3">
-                  {recordPicker()}
-                </EntityComposer.Title>
                 <Dialog.CloseButton
                   tabIndex={-1}
                   aria-label="Close"
@@ -367,35 +375,43 @@ export function AddPipelineRecordDialog(
                   <XIcon />
                 </Dialog.CloseButton>
               </EntityComposer.Header>
-              <EntityComposer.Main class="-mx-2 overflow-y-auto border-t border-edge-muted/60 px-2 pt-3">
-                <div ref={fieldList} class="flex flex-col gap-0.5">
+              <EntityComposer.Main class="gap-5 overflow-y-auto px-5 py-5">
+                <StackedField column={title()}>
+                  <div
+                    class={`${FIELD_BOX} flex min-h-9 flex-col justify-center gap-2 px-2.5 py-1.5 [&_input]:text-[13px] [&_input]:font-normal [&_svg]:size-4 [&>label]:border-t [&>label]:border-edge-muted/60 [&>label]:pt-2`}
+                  >
+                    {recordPicker()}
+                  </div>
+                </StackedField>
+                <div ref={fieldList} class="flex flex-col gap-5">
                   <Key each={fields()} by="id">
                     {(column) => (
-                      <RecordField
-                        column={column()}
-                        class="grid-cols-[8.5rem_minmax(0,1fr)] pl-2"
-                      >
-                        {cell(column)}
-                      </RecordField>
+                      <StackedField column={column()}>
+                        <div class={FIELD_BOX}>{cell(column)}</div>
+                      </StackedField>
                     )}
                   </Key>
                 </div>
+                <Show when={error()}>
+                  {(message) => (
+                    <p role="alert" class="text-sm text-failure">
+                      {message()}
+                    </p>
+                  )}
+                </Show>
               </EntityComposer.Main>
-              <Show when={error()}>
-                {(message) => (
-                  <p role="alert" class="px-2 text-sm text-failure">
-                    {message()}
-                  </p>
-                )}
-              </Show>
-              <EntityComposer.Footer class="items-center">
-                <span class="flex min-w-0 items-center gap-1.5 px-2 text-xs text-ink-muted">
-                  <TableIcon class="size-4 shrink-0" />
-                  <span class="truncate">{props.pipeline.name}</span>
-                </span>
+              <EntityComposer.Footer class="items-center justify-end border-t border-edge-muted/60 px-5 py-3">
+                <Button
+                  variant="outline"
+                  class="gap-3 not-touch:h-[33.75px] not-touch:px-[15px]"
+                  disabled={pending()}
+                  onClick={close}
+                >
+                  Cancel
+                  <Hotkey shortcut="escape" theme="subtle" />
+                </Button>
                 <EntityComposer.Submit
                   type="submit"
-                  class="ml-auto"
                   hasContent={!!choice()}
                   disabled={!choice() || pending()}
                 >
@@ -410,6 +426,33 @@ export function AddPipelineRecordDialog(
   );
 }
 
+const FIELD_BOX =
+  'rounded-lg border border-edge-muted bg-control transition-colors hover:border-edge focus-within:border-ink/30 [&_[data-cell-display]]:hover:bg-transparent [&_[data-cell-text-editor]]:border-0 [&_[data-cell-text-editor]]:bg-transparent [&_[data-cell-text-editor]]:ring-0';
+
+/** A field with its label stacked above the input. */
+function StackedField(props: {
+  column: DatabaseViewColumn | undefined;
+  children: JSX.Element;
+}) {
+  return (
+    <div class="flex min-w-0 flex-col gap-1.5">
+      <Show when={props.column}>
+        {(column) => (
+          <div class="flex min-w-0 items-center gap-1.5 text-xs font-medium text-ink-muted">
+            <PropertyIcon
+              type={column().dataType}
+              relation={!!column().relation}
+              entityType={column().specificEntityType}
+            />
+            <span class="truncate">{column().name}</span>
+          </div>
+        )}
+      </Show>
+      {props.children}
+    </div>
+  );
+}
+
 function PickedRecord(props: {
   recordType: Pipeline['recordType'];
   record: RecordOption;
@@ -418,10 +461,10 @@ function PickedRecord(props: {
 }) {
   return (
     <div class="flex min-w-0 items-center gap-2">
-      <span class="min-w-0 truncate text-xl/7 font-medium">
+      <span class="min-w-0 truncate text-[13px] font-medium">
         {props.record.name}
       </span>
-      <span class="min-w-0 shrink-[2] truncate text-sm text-ink-extra-muted">
+      <span class="min-w-0 shrink-[2] truncate text-xs text-ink-extra-muted">
         {props.record.detail}
       </span>
       <Button
