@@ -116,6 +116,28 @@ describe('AddPipelineRecordDialog', () => {
     });
   });
 
+  it('keeps a field still being edited when the form submits', async () => {
+    const { onCreate } = setup();
+    await userEvent.type(
+      screen.getByRole('combobox', { name: 'Find or add a company' }),
+      'acme'
+    );
+    await userEvent.click(await screen.findByRole('option', { name: /Acme/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Amount/ }));
+    await userEvent.type(
+      screen.getByRole('textbox', { name: 'Edit Amount' }),
+      '750'
+    );
+    fireEvent.submit(screen.getByRole('form', { name: /^Add deal/ }));
+    await waitFor(() =>
+      expect(onCreate).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          values: { company: 'acme', stage: 'Won', amount: 750 },
+        })
+      )
+    );
+  });
+
   it('creates a new select option with the row', async () => {
     const { onCreate } = setup();
     await userEvent.type(

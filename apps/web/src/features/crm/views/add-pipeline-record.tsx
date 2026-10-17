@@ -167,6 +167,10 @@ export function AddPipelineRecordDialog(
   });
 
   async function submit() {
+    // A field still being edited saves its value when it loses focus.
+    const editing = document.activeElement;
+    if (editing instanceof HTMLElement && fieldList?.contains(editing))
+      editing.blur();
     const current = choice();
     const titleField = title();
     if (pending() || !current || !titleField) return;
@@ -205,7 +209,10 @@ export function AddPipelineRecordDialog(
     <Dialog
       open
       onOpenChange={(open) => !open && close()}
-      contentRef={setDialog}
+      contentRef={(element) => {
+        setDialog(element);
+        attachHotkeys(element);
+      }}
       onEscapeKeyDown={(event) => {
         // Escape in a field's editor cancels that edit, not the whole form.
         if (
@@ -219,7 +226,6 @@ export function AddPipelineRecordDialog(
       <Panel hideBorder class="bg-transparent rounded-[inherit] *:max-h-[80vh]">
         <Panel.Body>
           <form
-            ref={attachHotkeys}
             class="h-full min-h-0"
             aria-label={submitLabel}
             onSubmit={(event) => {
