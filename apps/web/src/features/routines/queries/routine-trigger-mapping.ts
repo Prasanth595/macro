@@ -43,7 +43,7 @@ export function serializeTrigger(trigger: RoutineTriggerDraft) {
     )
     .with('month', () => `0 ${minute} ${hour} ${trigger.dayOfMonth} * *`)
     .with('custom', () => trigger.cron.trim())
-    .exhaustive();
+    .exhaustive(() => trigger.cron.trim());
   return { type: 'cron' as const, schedule, timezone: trigger.timezone };
 }
 export function serializeTriggers(

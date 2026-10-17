@@ -27,7 +27,7 @@ const decodeState = (state: GraphqlWorkFeedItemState): WorkFeedItemState =>
     .with('UNSEEN', () => 'unseen' as const)
     .with('SEEN', () => 'seen' as const)
     .with('DONE', () => 'done' as const)
-    .exhaustive();
+    .exhaustive(() => 'seen' as const);
 
 const toTimestamp = (value: string | null | undefined) =>
   value ? new Date(value).getTime() : undefined;
@@ -111,7 +111,7 @@ const toGraphqlItemType = (type: WorkFeedItemType): GraphqlWorkFeedItemType =>
     .with('calendar_event', () => 'CALENDAR_EVENT' as const)
     .with('pull_request', () => 'PULL_REQUEST' as const)
     .with('agent_session', () => 'AGENT_SESSION' as const)
-    .exhaustive();
+    .exhaustive(() => 'DOCUMENT' as const);
 
 /** Encode a feed scope for the wire. */
 export function encodeWorkFeedScope(scope: WorkFeedScope): WorkFeedScopeInput {

@@ -181,7 +181,9 @@ export function installArchiveWorker(port: ArchiveWorkerPort): void {
           port.postMessage({ type: 'cancelled', sessionId: request.sessionId });
         }
       })
-      .exhaustive();
+      .exhaustive((unknown) =>
+        console.warn('slack import worker: unknown request', unknown)
+      );
   };
 }
 

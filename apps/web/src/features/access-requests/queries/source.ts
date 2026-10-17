@@ -80,7 +80,7 @@ export function createSharingSource(
             accessRequestsClient.setGrant(target, change.userId, change.level)
           )
         )
-        .exhaustive();
+        .exhaustive(() => Promise.resolve(undefined));
     },
     onSuccess: (_result, change) => {
       refreshSharedAccess(change.target);

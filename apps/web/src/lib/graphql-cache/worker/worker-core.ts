@@ -818,7 +818,10 @@ export class CacheWorkerCore {
         this.push({ kind: 'cache-changed', revision, reset: true });
         return revision;
       })
-      .exhaustive();
+      .exhaustive(async (unknown) => {
+        console.warn('graphql cache worker: unknown request', unknown);
+        return null;
+      });
   }
 
   /** Emits the latest successful snapshot without touching storage. */

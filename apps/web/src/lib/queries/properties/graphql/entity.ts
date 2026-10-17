@@ -193,7 +193,7 @@ export function toGraphqlSetPropertyValue(
     }))
     .with({ type: 'link' }, (v) => ({ link: v.url }))
     .with({ type: 'multi_link' }, (v) => ({ multiLink: v.urls }))
-    .exhaustive();
+    .exhaustive(() => null);
 }
 
 /** Maps a REST property target type onto its GraphQL enum. */

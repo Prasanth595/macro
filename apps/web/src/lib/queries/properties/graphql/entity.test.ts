@@ -48,6 +48,7 @@ import {
   entityPropertyOptimisticMutationUuid,
   mapGraphqlEntityProperties,
   refetchGraphqlInitiativeProperties,
+  toGraphqlSetPropertyValue,
 } from './entity';
 
 const NIL_ENTITY_ID = '00000000-0000-0000-0000-000000000000';
@@ -254,6 +255,14 @@ describe('entityPropertyOptimisticMutationUuid', () => {
         propertyDefinitionId: 'property:1',
       })
     );
+  });
+});
+
+describe('toGraphqlSetPropertyValue', () => {
+  it('sends no value for a value type this build does not know', () => {
+    const fromNewerBuild = JSON.parse('{"type":"color","value":"#ff0000"}');
+
+    expect(toGraphqlSetPropertyValue(fromNewerBuild)).toBeNull();
   });
 });
 
