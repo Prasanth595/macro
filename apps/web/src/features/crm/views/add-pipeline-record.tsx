@@ -4,7 +4,14 @@ import GlobeIcon from '@phosphor/globe.svg';
 import TableIcon from '@phosphor/table.svg';
 import XIcon from '@phosphor/x.svg';
 import { Key } from '@solid-primitives/keyed';
-import { Button, buttonClasses, Dialog, EntityComposer, Panel } from '@ui';
+import {
+  Button,
+  buttonClasses,
+  Dialog,
+  EntityComposer,
+  Hotkey,
+  Panel,
+} from '@ui';
 import {
   createSignal,
   createUniqueId,
@@ -17,7 +24,7 @@ import {
   GridCell,
   type GridCellProps,
 } from '../../database/components/grid-cell';
-import { RecordField } from '../../database/components/record-panel';
+import { PropertyIcon } from '../../database/components/property-icon';
 import type {
   DatabaseCellValue,
   DatabaseViewColumn,
@@ -352,10 +359,13 @@ export function AddPipelineRecordDialog(
           >
             <EntityComposer.Root>
               <EntityComposer.Header class="items-start">
-                <Dialog.Title class="sr-only">
-                  New {noun} in {props.pipeline.name}
-                </Dialog.Title>
-                <EntityComposer.Title class="mb-0 min-h-8 min-w-0 flex-1 flex-col items-stretch justify-center gap-3">
+                <EntityComposer.Title class="mb-0 min-h-8 min-w-0 flex-1 flex-col items-stretch justify-center gap-2">
+                  <Dialog.Title class="flex min-w-0 items-center gap-1.5 text-xs text-ink-muted">
+                    <TableIcon class="size-3.5 shrink-0" />
+                    <span class="truncate">
+                      New {noun} in {props.pipeline.name}
+                    </span>
+                  </Dialog.Title>
                   {recordPicker()}
                 </EntityComposer.Title>
                 <Dialog.CloseButton
@@ -367,16 +377,14 @@ export function AddPipelineRecordDialog(
                   <XIcon />
                 </Dialog.CloseButton>
               </EntityComposer.Header>
-              <EntityComposer.Main class="-mx-2 overflow-y-auto border-t border-edge-muted/60 px-2 pt-3">
-                <div ref={fieldList} class="flex flex-col gap-0.5">
+              <EntityComposer.Main class="-mx-2 overflow-y-auto px-2">
+                <div
+                  ref={fieldList}
+                  class="grid grid-cols-1 gap-1.5 sm:grid-cols-2"
+                >
                   <Key each={fields()} by="id">
                     {(column) => (
-                      <RecordField
-                        column={column()}
-                        class="grid-cols-[8.5rem_minmax(0,1fr)] pl-2"
-                      >
-                        {cell(column)}
-                      </RecordField>
+                      <FieldTile column={column()}>{cell(column)}</FieldTile>
                     )}
                   </Key>
                 </div>
@@ -389,9 +397,9 @@ export function AddPipelineRecordDialog(
                 )}
               </Show>
               <EntityComposer.Footer class="items-center">
-                <span class="flex min-w-0 items-center gap-1.5 px-2 text-xs text-ink-muted">
-                  <TableIcon class="size-4 shrink-0" />
-                  <span class="truncate">{props.pipeline.name}</span>
+                <span class="flex items-center gap-1.5 px-2 text-xs text-ink-muted">
+                  <Hotkey shortcut="escape" theme="subtle" />
+                  to cancel
                 </span>
                 <EntityComposer.Submit
                   type="submit"
@@ -410,6 +418,26 @@ export function AddPipelineRecordDialog(
   );
 }
 
+/** A field as a soft tile: its label on top, the editable value below. */
+function FieldTile(props: {
+  column: DatabaseViewColumn;
+  children: JSX.Element;
+}) {
+  return (
+    <div class="flex min-w-0 flex-col rounded-xl bg-hover/50 px-1 pt-2 pb-1 transition-colors hover:bg-hover focus-within:bg-hover [&_[data-cell-display]]:hover:bg-transparent [&_[data-cell-text-editor]]:border-0 [&_[data-cell-text-editor]]:bg-transparent [&_[data-cell-text-editor]]:ring-0">
+      <div class="flex min-w-0 items-center gap-1.5 px-2.5 text-xs text-ink-muted">
+        <PropertyIcon
+          type={props.column.dataType}
+          relation={!!props.column.relation}
+          entityType={props.column.specificEntityType}
+        />
+        <span class="truncate">{props.column.name}</span>
+      </div>
+      {props.children}
+    </div>
+  );
+}
+
 function PickedRecord(props: {
   recordType: Pipeline['recordType'];
   record: RecordOption;
@@ -421,7 +449,7 @@ function PickedRecord(props: {
       <span class="min-w-0 truncate text-xl/7 font-medium">
         {props.record.name}
       </span>
-      <span class="min-w-0 shrink-[2] truncate text-sm text-ink-extra-muted">
+      <span class="min-w-0 shrink-[2] truncate text-xs text-ink-extra-muted">
         {props.record.detail}
       </span>
       <Button
