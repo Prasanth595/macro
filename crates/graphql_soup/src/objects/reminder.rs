@@ -24,6 +24,7 @@ pub enum GraphqlReminderScheduleType {
 pub struct GraphqlSoupReminderReference(Infallible);
 
 impl GraphqlSoupReminderReference {
+    /// Any resolver's value: the type has no values, so none ever runs.
     fn never<T>(&self) -> T {
         match self.0 {}
     }
@@ -57,6 +58,7 @@ impl GraphqlSoupReminderReference {
 pub struct GraphqlSoupReminder<E: SoupEntityEdges>(pub(super) Infallible, pub(super) E);
 
 impl<E: SoupEntityEdges> GraphqlSoupReminder<E> {
+    /// Any resolver's value: the type has no values, so none ever runs.
     fn never<T>(&self) -> T {
         match self.0 {}
     }
