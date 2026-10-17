@@ -22,18 +22,21 @@ export function EntityTimestamp(props: {
       : undefined;
   const hasFileAttachment = () =>
     isEmailEntity(props.entity) && props.entity.hasFileAttachment === true;
+  const stamp = () => (
+    <Show when={scheduledSendTime()} fallback={formatTimestamp(timestamp())}>
+      {(sendTime) => <ScheduledBadge sendTime={sendTime()} />}
+    </Show>
+  );
   return (
-    <span class="inline-flex items-center gap-1 whitespace-nowrap">
-      <Show when={hasFileAttachment()}>
+    <Show when={hasFileAttachment()} fallback={stamp()}>
+      <span class="flex items-center gap-1 whitespace-nowrap">
         <PaperclipIcon
           class="size-3.5 shrink-0"
           role="img"
           aria-label="Has attachments"
         />
-      </Show>
-      <Show when={scheduledSendTime()} fallback={formatTimestamp(timestamp())}>
-        {(sendTime) => <ScheduledBadge sendTime={sendTime()} />}
-      </Show>
-    </span>
+        {stamp()}
+      </span>
+    </Show>
   );
 }
