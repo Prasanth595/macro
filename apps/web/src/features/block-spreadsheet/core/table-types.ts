@@ -47,4 +47,6 @@ export type TableGridUi = {
   totalLabel: (row: number, column: number) => string | undefined;
   /** A table's column names. */
   columnNames: (table: string) => string[];
+  /** The table whose menu is open. */
+  menuTable: () => string | undefined;
 };

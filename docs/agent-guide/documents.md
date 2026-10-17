@@ -304,33 +304,58 @@ shows the rule's message in the footer, and a "stop" rule keeps the previous val
 A red corner marks a cell with a note; selecting the cell shows the note, and any
 input message, beside it.
 
-To make a table, select the records with their header row and choose **Format
-and data → Convert to table…** (or **Convert to table…** in the cell menu). The
-**Convert to table** dialog shows the **Range** and a **Table name** (`Table1`,
-`Table2`…), with an optional **Total row** (the row below must be empty); **Create
-table** applies it. Blank or repeated headers are renamed (`Column3`,
-`Amount2`). The table draws a filled header, banded rows and a bold total row
-under the cells' own formatting. Each header cell has a button (**Sort and filter
-Region**) whose menu sorts the data rows (**Sort A → Z**, **Sort Z → A**) and
-filters them: each value checkbox under **Show rows with** applies at once and
-hides whole sheet rows, a filtered header shows a funnel, and **Clear filter**
-shows them again. Selecting a total row cell shows its arrow (**Choose a value for
-B5**) listing **None**, **Sum**, **Average**, **Count**, **Count numbers**,
-**Max**, **Min**, **Standard deviation** and **Variance**; totals use
-`SUBTOTAL(109,[Amount])` and the like, so filtered rows are left out. Typing a
-value directly below the table (without a total row) or directly to its right
-grows the table, naming a new column `ColumnN`. Formulas use structured
-references such as `=SUM(Table1[Amount])` and `=[@Qty]*[@Price]`; renaming a
-header renames its column, and references to a missing table or column show
-`#REF!`. In a table cell, **Format and data → Table options…** (also in the cell
-menu) opens **Table options**: **Table name** (renames every formula that uses
-it), **Total row**, **Banded rows**, **Banded columns**, and **Convert to range**,
-which removes the table and rewrites its references as cell ranges. Agents create
-tables with `EditSpreadsheet`'s `create_table` operation, and `ReadSpreadsheet`
-lists each sheet's tables with their columns. Excel tables with a header row
-import with their names, styles, totals and filters and download as Excel
-tables; a table without a header row imports as ordinary cells, with its
-references converted to cell ranges.
+To make a table, select a cell in the records (or the records with their header
+row) and choose **Format and data → Convert to table** (or **Convert to table**
+in the cell menu, or ⌘/Ctrl+Alt+T). It converts at once, with no dialog: one cell
+converts the block of filled cells around it, an empty cell becomes a blank table
+headed **Column1**–**Column4**, and the table is named `Table1`, `Table2`….
+Blank or repeated headers are renamed (`Column3`, `Amount2`) and columns take the
+type their values suggest. While the active cell is in a table, its name shows as
+a tab above the header row (below it for a table in row 1), a button named
+**Table Table1 menu** whose menu has **Rename table** and **Adjust table range…**
+(dialogs with **Table name** or **Range** and **Save**), a **Table color**
+radio group of ten swatches, **Formatting** checkboxes (**Alternating colors**,
+**Banded columns**, **Bold first column**, **Bold last column**, **Footer row
+with totals**), **Group by view…**, **Clear all filters** when filtered,
+**Convert to range** (cells keep the table's look) and **Delete table** (removes
+its cells too). In a table cell, **Table options** in the cell menu or **Format
+and data** opens the same menu.
+
+Each header cell has a button (**Region column menu**; a filtered column's ends
+in **, filtered** and shows a funnel) whose menu shows the column's type, a
+**Column type** submenu (**None**, **Text**, **Number**, **Percent**,
+**Currency**, **Date**, **Date time**, **Time**, **Checkbox**, **Dropdown**,
+**People**), **Sort A → Z**, **Sort Z → A**, **Filter…**, **Clear filter** when
+filtered, **Group by this column**, and **Insert column left**, **Insert column
+right** and **Delete column**. A type formats the column's data cells; checkbox
+makes blanks unchecked boxes and dropdown offers the column's values as colored
+chips. A cell whose value does not fit shows an orange corner and a tooltip such
+as "Expected a number". **Filter…** opens **Filter "Region"**: a **Condition**
+select (**Text contains**, **Greater than**, **Is between**…) with **Value** (and
+**To**) fields, and **By values** with **Search values**, **Select all**,
+**Clear** and a checkbox per value; **OK** applies it and hides whole sheet rows.
+**Group by view…** opens **Group by view · Table1** with **Group by**,
+**Summarize** and **As** selects and a table of groups with their row counts and
+summary; choosing a group filters the table to it and **Show all rows** clears
+that filter.
+
+With **Footer row with totals** on, selecting a footer cell shows its arrow
+(**Choose a value for B5**) listing **None**, **Sum**, **Average**, **Min**,
+**Max**, **Count**, **Count numbers**, **Empty**, **Unique**, **Percent
+filled**, **Percent empty**, **Percent unique**, **Standard deviation** and
+**Variance**; the cell shows the aggregate's name beside its value. Typing a value
+directly below the table (without a footer) or directly to its right grows the
+table; a new row takes the formatting, dropdowns and calculated formulas of the
+row above. Formulas use structured references such as `=SUM(Table1[Amount])`,
+`=[@Qty]*[@Price]` and `=ROWS(Table1)`; typing `Table1[` suggests its columns.
+Renaming a header rewrites formulas that use the old name, and references to a
+missing table or column show `#REF!`. Scrolling past a table's header row shows
+its column names in the column headers. Agents create tables, with optional
+`columnTypes`, through `EditSpreadsheet`'s `create_table` operation, and
+`ReadSpreadsheet` lists each sheet's tables with their columns and types. Excel
+tables with a header row import with their names, styles, totals and value or
+condition filters and download as Excel tables; a table without a header row
+imports as ordinary cells, with its references converted to cell ranges.
 
 To add checkboxes, select the cells and choose **Checkbox** in the toolbar's
 **Insert chart, image or checkbox** menu (chart icon), or **Insert checkbox** in

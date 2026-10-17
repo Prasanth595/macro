@@ -578,6 +578,24 @@ export function SpreadsheetGrid(props: {
       props.selection.anchor.column
     )
   );
+  const [hovered, setHovered] = createSignal<CellPosition>();
+  const [chipHovered, setChipHovered] = createSignal<string>();
+  /** Tables whose names show: the active cell's, the pointer's, and one
+   * whose name or menu the pointer is on. */
+  const namedTables = createMemo(() => {
+    const point = hovered();
+    const names = new Set(
+      [
+        activeTable()?.name,
+        point && tableAt(props.tables, point.row, point.column)?.name,
+        chipHovered(),
+        props.tableUi?.menuTable(),
+      ].filter((name) => name !== undefined)
+    );
+    return [...names].filter((name) =>
+      props.tables?.some((table) => table.name === name)
+    );
+  });
   /** Once the active table's header row scrolls away, the column headers
    * show its column names, as Google Sheets does. */
   const stickyNames = createMemo(() => {
@@ -1363,6 +1381,7 @@ export function SpreadsheetGrid(props: {
             '--spreadsheet-cell-padding': `${CELL_PADDING_X * scale()}px`,
             '--spreadsheet-cell-padding-y': `${CELL_PADDING_Y * scale()}px`,
           }}
+          onPointerLeave={() => setHovered(undefined)}
           onScroll={(event) => {
             setScrollTop(event.currentTarget.scrollTop);
             setScrollLeft(event.currentTarget.scrollLeft);
@@ -2022,6 +2041,7 @@ export function SpreadsheetGrid(props: {
                           }}
                           onPointerEnter={(event) => {
                             if (event.pointerType === 'touch') return;
+                            setHovered(position);
                             if (event.buttons === 1) dragTo({ row, column });
                             else dragging = false;
                           }}
@@ -2396,27 +2416,46 @@ export function SpreadsheetGrid(props: {
                 onReturnFocus={focusGrid}
               />
             </Show>
-            <Show when={props.tableUi && activeTable()}>
-              {(table) => {
-                const placement = () => {
-                  const { top, bottom } = tableBounds(table());
-                  return top > 0
-                    ? {
-                        top: `${rowOffsets()[top] - TABLE_CHIP_HEIGHT}px`,
-                        below: false,
-                      }
-                    : { top: `${rowOffsets()[bottom + 1]}px`, below: true };
-                };
-                return props.tableUi?.tableMenu(
-                  table,
-                  () => ({
-                    left: `${columnOffsets()[tableBounds(table()).left]}px`,
-                    top: placement().top,
-                    height: `${TABLE_CHIP_HEIGHT}px`,
-                  }),
-                  () => placement().below
-                );
-              }}
+            <Show when={props.tableUi}>
+              {(ui) => (
+                <For each={namedTables()}>
+                  {(name) => {
+                    const table = () =>
+                      props.tables?.find((item) => item.name === name);
+                    return (
+                      <Show when={table()}>
+                        {(current) => {
+                          const below = () => tableBounds(current()).top === 0;
+                          return (
+                            <div
+                              class="contents"
+                              onPointerEnter={() => setChipHovered(name)}
+                              onPointerLeave={() => setChipHovered(undefined)}
+                            >
+                              {ui().tableMenu(
+                                current,
+                                () => {
+                                  const { top, left, bottom } = tableBounds(
+                                    current()
+                                  );
+                                  return {
+                                    left: `${columnOffsets()[left]}px`,
+                                    top: below()
+                                      ? `${rowOffsets()[bottom + 1]}px`
+                                      : `${rowOffsets()[top] - TABLE_CHIP_HEIGHT}px`,
+                                    height: `${TABLE_CHIP_HEIGHT}px`,
+                                  };
+                                },
+                                below
+                              )}
+                            </div>
+                          );
+                        }}
+                      </Show>
+                    );
+                  }}
+                </For>
+              )}
             </Show>
             <div
               aria-hidden="true"

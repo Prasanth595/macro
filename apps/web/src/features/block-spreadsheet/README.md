@@ -3,7 +3,8 @@
 A native Macro document with multiple worksheets of up to 100,000 rows and
 16,384 columns (A–XFD), Excel-style formulas, keyboard navigation, rectangular selection, formula-aware copying and
 fill, dragging a selection to move it, resizable columns, added rows, rich cell
-formatting, named tables with filters and totals, Excel workbook import/export,
+formatting, named tables with typed columns, filters, group by views and totals,
+Excel workbook import/export,
 CSV import/value export, find and replace, range sorting, local undo/redo, and
 live collaboration. Existing uploaded `.xlsx` files are not
 automatically converted; open **Import and export** at the bottom right of a native
@@ -62,8 +63,9 @@ implementation. Three document tools expose bounded reads, scratch calculations,
 and revision-guarded edit batches. Source inputs, formulas, typed results, errors,
 and optional styles are explicit in reads. Scratch what-if overrides never write.
 The edit vocabulary includes values/formulas, range styles/clear/fill, append rows,
-column widths, dropdowns, checkboxes, table creation, and sheet lifecycle; reads
-list each sheet's tables with their columns. Whole-workbook creation still uses the normal
+column widths, dropdowns, checkboxes, table creation with column types, and sheet
+lifecycle; reads list each sheet's tables with their columns and column types.
+Whole-workbook creation still uses the normal
 native document creation flow.
 
 Rust tool adapters obtain typed View/Edit receipts, then pass them to the document
@@ -100,7 +102,8 @@ New native documents start from a versioned Loro seed
 by A1 address: `spreadsheetValues`, `spreadsheetBold`, `spreadsheetFormats`, and
 individual maps for each additional style property. Separate property maps allow a value
 edit and a formatting edit to merge independently, including when two peers first
-touch an empty cell. `spreadsheetColumnWidths` stores bounded column widths, and
+touch an empty cell. `spreadsheetTables` holds one entry per table (see Tables).
+`spreadsheetColumnWidths` stores bounded column widths, and
 `spreadsheetRowAdditions` stores independent append operations that merge
 additively. Undo cannot hide rows containing a collaborator's cells. Concurrent
 writes to the same property use Loro's conflict resolution. A cell edit is a whole
@@ -222,57 +225,90 @@ while the grid stays responsive.
 ## Tables
 
 A table is a named range with a header row, data rows and an optional total
-row, as in Excel. **Format and data → Convert to table…** (or the cell menu)
-opens `components/TableDialog.tsx`; `primitives/create-table-actions.ts` holds
-the editor's table behavior, and `packages/spreadsheet/src/sheet-tables.ts` the
-model the editor, import and AI tools share. Tables live in the sheet's metadata
-(`metadata.tables`): name, range, total row, banding, Excel style and filters.
-Column names are the header cells' text, so editing a header renames its column;
-converting writes names for blank, formula and repeated headers (`Column3`,
-`Amount2`). Table names follow Excel's rules and are unique in the workbook,
-among defined names too.
+(footer) row, with Google Sheets' table features and Excel's file format.
+**Format and data → Convert to table**, the cell menu or ⌘/Ctrl+Alt+T converts
+at once, as Google Sheets does: a single cell converts the block of filled cells
+around it (`currentRegion`), an empty cell becomes a blank four-column table,
+and each column takes the type its values suggest. `primitives/create-table-actions.ts`
+holds the editor's table behavior; `views/SpreadsheetTables.tsx` binds it to the
+grid's menus and dialogs. The model the editor, import and AI tools share is in
+`packages/spreadsheet/src`: `sheet-tables.ts` (the table, creating, resizing,
+totals, growth), `table-columns.ts` (column types, new rows, calculated columns),
+`table-filters.ts`, `table-groups.ts`, `table-styles.ts` (colors and looks) and
+`table-edits.ts` (rename, convert, delete, and what a cell edit does to tables).
+
+Each table is stored as its own entry of the `spreadsheetTables` root map, keyed
+by sheet and table id (`table-storage.ts`), and read into the sheet's
+`metadata.tables`, so collaborators can change different tables of a sheet, or
+a table and the sheet's other settings, at once. Two collaborators creating
+tables at the same moment can store overlapping tables or one name twice; every
+reader resolves them the same way, keeping the lowest id of overlapping tables
+and giving a repeated name to the lowest id while the others read as the next
+free `TableN`.
+
+Column names are the header cells' text, so editing a header renames its column
+and rewrites formulas that use the old name, on every sheet; a cleared or
+repeated header is written as Excel names it (`Column3`, `Amount2`). Table names
+follow Excel's rules, are unique in the workbook among defined names too, and
+spaces typed in a name become underscores, as Google Sheets writes them.
+
+The table's name shows above its header row while the active cell is in it
+(`components/TableMenu.tsx`), below it for a table in the first row. Its menu
+renames the table, adjusts its range, picks one of ten header colors (Excel's
+accent styles, or the table's own `color` for those Excel lacks), toggles
+alternating colors, banded columns, bold first and last columns and the footer
+row, opens the group by view, clears filters, **converts to range** (the cells
+keep the table's look as their own formatting) or **deletes the table** and its
+cells. Formulas that used a converted or deleted table get its cell ranges.
+
+Each header has a Google-style menu (`components/TableColumnMenu.tsx`): column
+type, sort, filter, group by this column, and inserting or deleting columns.
+Column types are text, number, percent, currency, date, date time, time,
+checkbox, dropdown and people. Choosing one formats the column's data cells;
+checkbox turns blanks into unchecked FALSE checkboxes and dropdown adds a list
+rule offering the column's values as colored chips. A value that does not fit
+its column's type gets a warning corner and a tooltip, as in Google Sheets.
+**Filter…** opens `components/TableFilterPanel.tsx`: a condition (text contains,
+greater than, between and the rest; numeric conditions also compare dates) and
+a searchable list of values, applied with OK. Filters hide data rows through the
+sheet's `hiddenRows` in the same change, so `SUBTOTAL` leaves them out (101–111
+always, 1–11 through IronCalc's `setFilteredRanges`), and they apply when chosen,
+not on later edits. Sorting keeps filter-hidden rows hidden with their values.
+
+The group by view (`components/TableGroupByDialog.tsx`) groups the table's rows
+by one column and summarizes another for each group with Google Sheets'
+aggregations (sum, average, count, filled, empty, unique, min, max and the
+percentages); choosing a group filters the table to it. The footer row's cells
+offer the same kinds of aggregate in the cell dropdown and show its name beside
+the value; Excel's own aggregates are written as `SUBTOTAL`, the others as
+formulas such as `=COUNTBLANK([Amount])`.
 
 Formulas address tables with structured references (`Sales[Amount]`, `[@Qty]`,
-`Sales[[#Totals],[Amount]]`). The stored formula keeps them;
-`packages/spreadsheet/src/structured-references.ts` resolves them to cell ranges
-before IronCalc sees the formula, against every sheet's tables, and a reference
-to a missing table or column calculates as `#REF!`. The calculation worker
-receives each sheet's tables with their column names, so a header edit or a
-resized table rebuilds the engine model. Formula copies, fills and row or column
-moves protect structured references while IronCalc moves the other references.
-Inserting rows or columns inside a table grows it and deleting some of its own
-shrinks it; deleting its header row removes it, deleting its total row removes
-that row, and deleting every data row is refused.
-
-`components/table-appearance.ts` draws a table's style under the cells' own
-formatting: Excel's style families map to the Office accent colors, with a filled
-header for Medium and Dark styles, banded rows or columns and a bold total row.
-New tables use `TableStyleMedium2`; a table without a style draws plain. Each
-header has a sort and filter menu (`components/TableColumnMenu.tsx`). Sorting
-reorders the data rows like range sorting and keeps filter-hidden rows hidden with
-their values. A filter stores the values it shows, as Excel does, and hides the
-other data rows through the sheet's `hiddenRows` in the same change, so
-`SUBTOTAL(101–111)` leaves them out and Excel downloads keep them hidden. Filters
-apply when chosen, not on every later edit. Hidden rows a side-by-side table's
-filter may have hidden stay hidden, and in place, when another table filters,
-sorts or becomes a range. A total row's cells offer an aggregate
-picker in the cell dropdown, which writes `=SUBTOTAL(109,[Amount])` and the like.
+`Sales[[#Totals],[Amount]]`, and a bare `Sales` for its data). The stored formula
+keeps them; `structured-references.ts` resolves them to cell ranges before
+IronCalc sees the formula, and a missing table or column calculates as `#REF!`.
+Typing `Sales[` or a table's name in a formula offers its columns and areas,
+and `[` inside a table offers the same row's columns (`tableCompletion`). Once
+the active table's header row scrolls away, the column headers show its column
+names. Formula copies, fills and row or column moves protect structured
+references while IronCalc moves the other references. Inserting rows or columns
+inside a table grows it and deleting some of its own shrinks it; deleting its
+header row removes it, deleting its total row removes that row, and deleting
+every data row is refused.
 
 Typing one value directly below a table without a total row, or directly to its
-right, extends the table in the same commit as the value; a new column's blank
-header becomes `ColumnN`. **Table options…** renames a table and every formula
-that uses it, toggles the total row and banding, and **Convert to range** removes
-the table and rewrites references to it as cell ranges, each as one undo step.
+right, extends the table in the same commit as the value. A new row takes the
+row above's formatting and lists and the formula of each calculated column (a
+column whose data cells share one formula), and typing a formula that refers to
+its own row, such as `=[@Qty]*[@Price]`, into an empty column fills the column.
 Duplicating a sheet gives its tables fresh names that the copy's formulas use; a
 sheet whose tables other sheets' formulas use cannot be deleted, and appended
 imports refuse table names the workbook already has.
 
-Limitations: the sheet's metadata is one collaborative value, so two people
-changing tables on the same sheet at once keep only the later change. Concurrent
-table creation on different sheets can produce two tables with one name;
-formulas then use the first. Renaming a header does not rewrite formulas that
-use the old name. New rows do not copy a column's formulas, and converting to a
-range does not copy the table's style into the cells.
+Limitations: concurrent edits to the same table keep the later change. Table
+colors Excel lacks export as the nearest Excel style, and a column filtered by
+both values and a condition exports its values only, as Excel holds one or the
+other.
 
 ## Calculation
 

@@ -76,7 +76,8 @@ export function createTableActions(options: {
   const { store } = options;
   const [dialog, setDialog] = createSignal<TableDialogState>();
   const [error, setError] = createSignal<string>();
-  const [menuOpen, setMenuOpen] = createSignal(false);
+  /** The table whose menu is open. */
+  const [menuOpen, setMenuOpen] = createSignal<string>();
   const [groupView, setGroupView] = createSignal<TableGroupView>();
   let operation = 0;
 
@@ -147,8 +148,9 @@ export function createTableActions(options: {
    */
   function convert() {
     if (!options.canEdit()) return;
-    if (activeTable()) {
-      setMenuOpen(true);
+    const active = activeTable();
+    if (active) {
+      setMenuOpen(active.name);
       return;
     }
     const sheet = store.activeSheet();
@@ -592,7 +594,14 @@ export function createTableActions(options: {
     openGroupBy,
     setGroupView: (view: Partial<Omit<TableGroupView, 'table'>>) => {
       const current = groupView();
-      if (current) setGroupView({ ...current, ...view });
+      const next = current && { ...current, ...view };
+      if (
+        next &&
+        (next.column !== current.column ||
+          next.summaryColumn !== current.summaryColumn ||
+          next.summary !== current.summary)
+      )
+        setGroupView(next);
     },
     closeGroupBy: () => setGroupView(undefined),
     groups,

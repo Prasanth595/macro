@@ -35,7 +35,10 @@ function Picker(props: {
       <Select<Choice>
         options={props.choices}
         value={props.choices.find((choice) => choice.value === props.value)}
-        onChange={(choice) => choice && props.onChange(choice.value)}
+        onChange={(choice) => {
+          if (choice && choice.value !== props.value)
+            props.onChange(choice.value);
+        }}
         optionValue="value"
         optionTextValue="label"
         itemComponent={(item: { item: CollectionNode<Choice> }) => (

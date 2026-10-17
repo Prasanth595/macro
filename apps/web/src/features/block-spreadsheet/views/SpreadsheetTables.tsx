@@ -54,8 +54,10 @@ export function tableGridUi(options: {
         <TableMenu
           table={table()}
           readonly={!options.editable()}
-          open={actions.menuOpen()}
-          onOpenChange={actions.setMenuOpen}
+          open={actions.menuOpen() === name()}
+          onOpenChange={(open) =>
+            actions.setMenuOpen(open ? name() : undefined)
+          }
           style={style()}
           below={below()}
           onRename={() => options.afterMenu(() => actions.openRename(name()))}
@@ -76,6 +78,7 @@ export function tableGridUi(options: {
     mismatch: actions.mismatch,
     totalLabel: actions.totalLabel,
     columnNames: actions.columnNames,
+    menuTable: actions.menuOpen,
   };
 }
 

@@ -95,7 +95,7 @@ describe('table actions', () => {
     ]);
     // Converting inside a table opens its menu instead.
     actions.convert();
-    expect(actions.menuOpen()).toBe(true);
+    expect(actions.menuOpen()).toBe('Table1');
     expect(store.activeSheet().metadata?.tables).toHaveLength(1);
   });
 
@@ -249,6 +249,10 @@ describe('table actions', () => {
       ['North', 1],
       ['West', 2],
     ]);
+    // An unchanged view is kept, so selects re-sending their value settle.
+    const view = actions.groupView();
+    actions.setGroupView({ column: 0, summary: 'count' });
+    expect(actions.groupView()).toBe(view);
     actions.showGroup('West');
     expect(store.activeSheet().metadata?.hiddenRows).toEqual([3]);
     actions.showGroup(undefined);
