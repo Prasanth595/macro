@@ -190,19 +190,19 @@ function tableSummaries(
     const filteredColumns = Object.keys(table.filters ?? {}).flatMap(
       (offset) => columns[Number(offset)] ?? []
     );
-    const columnTypes = Object.fromEntries(
-      Object.entries(table.columnTypes ?? {}).flatMap(([offset, type]) => {
+    const columnTypes = Object.entries(table.columnTypes ?? {})
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .flatMap(([offset, type]) => {
         const column = columns[Number(offset)];
-        return column === undefined ? [] : [[column, type]];
-      })
-    );
+        return column === undefined ? [] : [{ column, type }];
+      });
     return {
       name: table.name,
       range: table.range,
       columns,
       totalsRow: table.totalsRow,
       ...(filteredColumns.length && { filteredColumns }),
-      ...(Object.keys(columnTypes).length && { columnTypes }),
+      ...(columnTypes.length && { columnTypes }),
     };
   });
 }
@@ -659,13 +659,18 @@ export function prepareSpreadsheetEdit(
             // cells of the columns it types.
             count(
               (right - left + 1) * (operation.totalsRow ? 2 : 1) +
-                Object.keys(operation.columnTypes ?? {}).length * (bottom - top)
+                (operation.columnTypes?.length ?? 0) * (bottom - top)
             );
             const name = createSpreadsheetTable(fork, sheet.id, {
               range,
               name: operation.name,
               totalsRow: operation.totalsRow,
-              columnTypes: operation.columnTypes,
+              columnTypes: Object.fromEntries(
+                (operation.columnTypes ?? []).map(({ column, type }) => [
+                  column,
+                  type,
+                ])
+              ),
             });
             summary = `Converted ${range} in “${sheet.name}” to the table “${name}”.`;
             break;

@@ -434,6 +434,7 @@ describe('spreadsheet AI atomic editing', () => {
         range: 'a1:b3',
         name: 'Orders',
         totalsRow: true,
+        columnTypes: [{ column: 'region', type: 'dropdown' }],
       },
       {
         type: 'set_cells',
@@ -459,7 +460,10 @@ describe('spreadsheet AI atomic editing', () => {
         range: 'A1:B4',
         columns: ['Region', 'Qty'],
         totalsRow: true,
-        columnTypes: { Region: 'text', Qty: 'number' },
+        columnTypes: [
+          { column: 'Region', type: 'dropdown' },
+          { column: 'Qty', type: 'number' },
+        ],
       },
     ]);
     expect(

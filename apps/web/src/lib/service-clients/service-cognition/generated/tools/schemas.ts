@@ -202,6 +202,43 @@ export const SpreadsheetResponse = z.any().superRefine((x, ctx) => {
                 columns: z.array(z.string()),
                 totalsRow: z.boolean(),
                 filteredColumns: z.array(z.string()).optional(),
+                columnTypes: z
+                  .array(
+                    z.object({
+                      column: z.string(),
+                      type: z.any().superRefine((x, ctx) => {
+                        const schemas = [
+                          z.literal('text'),
+                          z.literal('number'),
+                          z.literal('percent'),
+                          z.literal('currency'),
+                          z.literal('date'),
+                          z.literal('datetime'),
+                          z.literal('time'),
+                          z.literal('checkbox'),
+                          z.literal('dropdown'),
+                          z.literal('person'),
+                        ];
+                        const errors = schemas.reduce<z.ZodError[]>(
+                          (errors, schema) =>
+                            ((result) =>
+                              result.error
+                                ? [...errors, result.error]
+                                : errors)(schema.safeParse(x)),
+                          []
+                        );
+                        if (schemas.length - errors.length !== 1) {
+                          ctx.addIssue({
+                            path: ctx.path,
+                            code: 'invalid_union',
+                            unionErrors: errors,
+                            message: 'Invalid input: Should pass single schema',
+                          });
+                        }
+                      }),
+                    })
+                  )
+                  .optional(),
               })
             )
             .optional(),
@@ -672,6 +709,43 @@ export const SpreadsheetResponse = z.any().superRefine((x, ctx) => {
                 columns: z.array(z.string()),
                 totalsRow: z.boolean(),
                 filteredColumns: z.array(z.string()).optional(),
+                columnTypes: z
+                  .array(
+                    z.object({
+                      column: z.string(),
+                      type: z.any().superRefine((x, ctx) => {
+                        const schemas = [
+                          z.literal('text'),
+                          z.literal('number'),
+                          z.literal('percent'),
+                          z.literal('currency'),
+                          z.literal('date'),
+                          z.literal('datetime'),
+                          z.literal('time'),
+                          z.literal('checkbox'),
+                          z.literal('dropdown'),
+                          z.literal('person'),
+                        ];
+                        const errors = schemas.reduce<z.ZodError[]>(
+                          (errors, schema) =>
+                            ((result) =>
+                              result.error
+                                ? [...errors, result.error]
+                                : errors)(schema.safeParse(x)),
+                          []
+                        );
+                        if (schemas.length - errors.length !== 1) {
+                          ctx.addIssue({
+                            path: ctx.path,
+                            code: 'invalid_union',
+                            unionErrors: errors,
+                            message: 'Invalid input: Should pass single schema',
+                          });
+                        }
+                      }),
+                    })
+                  )
+                  .optional(),
               })
             )
             .optional(),
@@ -8192,6 +8266,46 @@ export const EditSpreadsheet = z.object({
             range: z.string(),
             name: z.union([z.string(), z.null()]).optional(),
             totalsRow: z.union([z.boolean(), z.null()]).optional(),
+            columnTypes: z
+              .union([
+                z.array(
+                  z.object({
+                    column: z.string(),
+                    type: z.any().superRefine((x, ctx) => {
+                      const schemas = [
+                        z.literal('text'),
+                        z.literal('number'),
+                        z.literal('percent'),
+                        z.literal('currency'),
+                        z.literal('date'),
+                        z.literal('datetime'),
+                        z.literal('time'),
+                        z.literal('checkbox'),
+                        z.literal('dropdown'),
+                        z.literal('person'),
+                      ];
+                      const errors = schemas.reduce<z.ZodError[]>(
+                        (errors, schema) =>
+                          ((result) =>
+                            result.error ? [...errors, result.error] : errors)(
+                            schema.safeParse(x)
+                          ),
+                        []
+                      );
+                      if (schemas.length - errors.length !== 1) {
+                        ctx.addIssue({
+                          path: ctx.path,
+                          code: 'invalid_union',
+                          unionErrors: errors,
+                          message: 'Invalid input: Should pass single schema',
+                        });
+                      }
+                    }),
+                  })
+                ),
+                z.null(),
+              ])
+              .optional(),
             type: z.literal('create_table'),
           })
           .strict(),

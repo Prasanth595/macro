@@ -1,3 +1,4 @@
+import { TABLE_COLUMN_TYPES } from '@macro-inc/spreadsheet/sheet-tables';
 import { z } from 'zod';
 
 const sheetId = z.string().min(1).max(64);
@@ -169,6 +170,17 @@ const operation = z.discriminatedUnion('type', [
       range,
       name: z.string().min(1).max(255).optional(),
       totalsRow: z.boolean().optional(),
+      columnTypes: z
+        .array(
+          z
+            .object({
+              column: z.string().min(1).max(255),
+              type: z.enum(TABLE_COLUMN_TYPES),
+            })
+            .strict()
+        )
+        .max(500)
+        .optional(),
     })
     .strict(),
 ]);

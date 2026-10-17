@@ -56,7 +56,7 @@ export type SpreadsheetOperation =
       totalsRow?: boolean;
       /** Types by column name; other columns take the type their values
        * suggest. */
-      columnTypes?: Record<string, TableColumnType>;
+      columnTypes?: SpreadsheetTableColumnType[];
     };
 
 export type SpreadsheetReadRequest = {
@@ -112,8 +112,13 @@ export type SpreadsheetTableSummary = {
   totalsRow: boolean;
   /** Columns whose filters hide rows. */
   filteredColumns?: string[];
-  /** Column types by column name; untyped columns are left out. */
-  columnTypes?: Record<string, TableColumnType>;
+  /** Typed columns; untyped columns are left out. */
+  columnTypes?: SpreadsheetTableColumnType[];
+};
+/** A table column's type, by column name. */
+export type SpreadsheetTableColumnType = {
+  column: string;
+  type: TableColumnType;
 };
 /** A data validation rule overlapping a read range. */
 export type SpreadsheetReadValidation = {
