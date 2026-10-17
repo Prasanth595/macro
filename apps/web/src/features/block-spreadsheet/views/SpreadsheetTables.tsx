@@ -1,4 +1,5 @@
 import { tableBounds } from '@macro-inc/spreadsheet/sheet-tables';
+import type { TableGridUi } from '../components/SpreadsheetGrid';
 import {
   TableColumnMenu,
   type TableColumnStructure,
@@ -6,7 +7,6 @@ import {
 import { TableDialog } from '../components/TableDialog';
 import { TableGroupByDialog } from '../components/TableGroupByDialog';
 import { TableMenu } from '../components/TableMenu';
-import type { TableGridUi } from '../core/table-types';
 import type { TableActions } from '../primitives/create-table-actions';
 
 /**

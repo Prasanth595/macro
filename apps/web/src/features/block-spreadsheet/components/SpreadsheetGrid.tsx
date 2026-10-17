@@ -33,6 +33,7 @@ import {
   createSignal,
   createUniqueId,
   For,
+  type JSX,
   on,
   onCleanup,
   onMount,
@@ -66,7 +67,6 @@ import {
   type SpreadsheetCells,
 } from '../core/spreadsheet-document';
 import type { SpreadsheetCursor } from '../core/spreadsheet-presence';
-import type { TableGridUi } from '../core/table-types';
 import type { CompleteFormula } from '../primitives/create-formula-assistance';
 import { CellDatePicker, datePickerKeyDay } from './CellDatePicker';
 import { CellListMenu } from './CellListMenu';
@@ -87,6 +87,27 @@ import {
   type HeaderAction,
   SpreadsheetHeaderMenu,
 } from './SpreadsheetHeaderMenu';
+
+/** What the grid draws for tables beyond their style. */
+export type TableGridUi = {
+  /** The menu of a header cell of `table`, in sheet column `column`. */
+  columnMenu: (table: () => SheetTable, column: number) => JSX.Element;
+  /** A table's name and menu, placed by `style` above its header row or,
+   * for a table in the first row, compact in the column header bar. */
+  tableMenu: (
+    table: () => SheetTable,
+    style: () => JSX.CSSProperties,
+    inHeader: () => boolean
+  ) => JSX.Element;
+  /** Why a cell's value does not fit its column's type. */
+  mismatch: (row: number, column: number) => string | undefined;
+  /** The aggregate a total row cell shows, such as `Sum`. */
+  totalLabel: (row: number, column: number) => string | undefined;
+  /** A table's column names. */
+  columnNames: (table: string) => string[];
+  /** The table whose menu is open. */
+  menuTable: () => string | undefined;
+};
 
 /** The height of a table's name above its header row. */
 const TABLE_CHIP_HEIGHT = 22;
