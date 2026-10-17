@@ -18,6 +18,9 @@ pub enum AddForwardedAttachmentError {
     #[error("Attachment not found")]
     AttachmentNotFound,
 
+    #[error("Attachment not accessible")]
+    AttachmentNotAccessible,
+
     #[error("Internal error")]
     InternalError(#[from] anyhow::Error),
 }
@@ -27,6 +30,7 @@ impl IntoResponse for AddForwardedAttachmentError {
         let status_code = match &self {
             AddForwardedAttachmentError::DraftNotFound
             | AddForwardedAttachmentError::AttachmentNotFound => StatusCode::NOT_FOUND,
+            AddForwardedAttachmentError::AttachmentNotAccessible => StatusCode::FORBIDDEN,
             AddForwardedAttachmentError::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
@@ -74,6 +78,7 @@ pub struct AddForwardedAttachmentResponse {
     request_body = AddForwardedAttachmentRequest,
     responses(
         (status = 201, body = AddForwardedAttachmentResponse),
+        (status = 403, body = ErrorResponse),
         (status = 404, body = ErrorResponse),
         (status = 500, body = ErrorResponse),
     )
@@ -90,11 +95,31 @@ pub async fn handler(
         return Err(AddForwardedAttachmentError::DraftNotFound);
     }
 
-    // Verify the attachment exists in email_attachments and belongs to this link
+    // Find which link owns the attachment (from the message it belongs to)
+    let Some((_thread_id, attachment_link_id)) =
+        email_db_client::attachments::provider::get_thread_id_for_attachment(
+            &ctx.db,
+            req.attachment_id,
+        )
+        .await?
+    else {
+        return Err(AddForwardedAttachmentError::AttachmentNotFound);
+    };
+
+    // Verify the user has access to the attachment's link (either owns it or has delegation)
+    let accessible_links =
+        email_db_client::links::get::fetch_inboxes_for_macro_id(&ctx.db, link.macro_id.as_ref())
+            .await?;
+    let has_access = accessible_links.iter().any(|l| l.id == attachment_link_id);
+    if !has_access {
+        return Err(AddForwardedAttachmentError::AttachmentNotAccessible);
+    }
+
+    // Fetch the attachment metadata using its owning link
     let result = email_db_client::attachments::provider::fetch_attachment_by_id(
         &ctx.db,
         req.attachment_id,
-        link.id,
+        attachment_link_id,
     )
     .await?;
 
