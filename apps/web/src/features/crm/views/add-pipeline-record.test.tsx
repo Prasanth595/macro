@@ -36,7 +36,7 @@ const columns: DatabaseViewColumn[] = [
     id: 'company',
     name: 'Company',
     dataType: 'ENTITY',
-    entityType: 'COMPANY',
+    specificEntityType: 'COMPANY',
     isMultiSelect: false,
     options: [],
     writable: true,
@@ -125,10 +125,7 @@ describe('AddPipelineRecordDialog', () => {
     await userEvent.click(await screen.findByRole('option', { name: /Acme/ }));
     await userEvent.click(screen.getByRole('button', { name: /Stage: Won/ }));
     await userEvent.type(
-      await screen.findByRole('combobox', {
-        name: 'Search Stage options',
-        hidden: true,
-      }),
+      await screen.findByRole('combobox', { name: 'Search Stage options' }),
       'Negotiation'
     );
     await userEvent.click(await screen.findByText('Create “Negotiation”'));

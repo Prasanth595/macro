@@ -1,3 +1,4 @@
+import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import EnvelopeIcon from '@phosphor/envelope.svg';
 import GlobeIcon from '@phosphor/globe.svg';
 import XIcon from '@phosphor/x.svg';
@@ -150,6 +151,21 @@ export function AddPipelineRecordDialog(
     return id;
   }
 
+  const [attachHotkeys, hotkeyScope] = useHotkeyDOMScope(
+    'add-pipeline-record',
+    true
+  );
+  registerHotkey({
+    hotkey: 'cmd+enter',
+    scopeId: hotkeyScope,
+    description: submitLabel,
+    keyDownHandler: () => {
+      void submit();
+      return true;
+    },
+    runWithInputFocused: true,
+  });
+
   async function submit() {
     const current = choice();
     const titleField = title();
@@ -203,22 +219,12 @@ export function AddPipelineRecordDialog(
       <Panel hideBorder class="bg-transparent rounded-[inherit] *:max-h-[80vh]">
         <Panel.Body>
           <form
+            ref={attachHotkeys}
             class="h-full min-h-0"
             aria-label={submitLabel}
             onSubmit={(event) => {
               event.preventDefault();
               void submit();
-            }}
-            onKeyDown={(event) => {
-              if (
-                event.key === 'Enter' &&
-                (event.metaKey || event.ctrlKey) &&
-                !event.isComposing
-              ) {
-                event.preventDefault();
-                event.stopPropagation();
-                void submit();
-              }
             }}
           >
             <EntityComposer.Root>
@@ -347,6 +353,7 @@ export function AddPipelineRecordDialog(
                           renderTextValue={props.renderTextValue}
                           renderMentionPicker={props.renderMentionPicker}
                           renderMentionValue={props.renderMentionValue}
+                          popupMount={dialog()}
                           onMention={(mention) =>
                             write(column().id, mention.id)
                           }
