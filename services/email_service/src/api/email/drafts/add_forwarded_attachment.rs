@@ -1,39 +1,26 @@
-use crate::api::context::ApiContext;
+use crate::api::context::{ApiContext, AuthorizationService};
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
+use email::domain::forwarded_attachments::ForwardedAttachmentError;
+use macro_authorization::{MacroAuthorizationExtractor, UserOrInternal};
 use model::response::ErrorResponse;
 use models_email::service::link::Link;
-use strum_macros::AsRefStr;
-use thiserror::Error;
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
-#[derive(Debug, Error, AsRefStr)]
-pub enum AddForwardedAttachmentError {
-    #[error("Draft not found")]
-    DraftNotFound,
-
-    #[error("Attachment not found")]
-    AttachmentNotFound,
-
-    #[error("Attachment not accessible")]
-    AttachmentNotAccessible,
-
-    #[error("Internal error")]
-    InternalError(#[from] anyhow::Error),
-}
+#[derive(Debug, thiserror::Error)]
+#[error(transparent)]
+pub struct AddForwardedAttachmentError(#[from] ForwardedAttachmentError);
 
 impl IntoResponse for AddForwardedAttachmentError {
     fn into_response(self) -> Response {
-        let status_code = match &self {
-            AddForwardedAttachmentError::DraftNotFound
-            | AddForwardedAttachmentError::AttachmentNotFound => StatusCode::NOT_FOUND,
-            AddForwardedAttachmentError::AttachmentNotAccessible => StatusCode::FORBIDDEN,
-            AddForwardedAttachmentError::InternalError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        let status_code = match &self.0 {
+            ForwardedAttachmentError::DraftNotFound
+            | ForwardedAttachmentError::AttachmentNotFound => StatusCode::NOT_FOUND,
+            ForwardedAttachmentError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
-
         (
             status_code,
             Json(ErrorResponse {
@@ -78,63 +65,27 @@ pub struct AddForwardedAttachmentResponse {
     request_body = AddForwardedAttachmentRequest,
     responses(
         (status = 201, body = AddForwardedAttachmentResponse),
-        (status = 403, body = ErrorResponse),
         (status = 404, body = ErrorResponse),
         (status = 500, body = ErrorResponse),
     )
 )]
-#[tracing::instrument(skip(ctx), err)]
+#[tracing::instrument(skip(ctx, authorization, link), fields(link_id = %link.id), err)]
 pub async fn handler(
     State(ctx): State<ApiContext>,
+    authorization: MacroAuthorizationExtractor<AuthorizationService, UserOrInternal>,
     link: Extension<Link>,
     Path(PathParams { id: draft_id }): Path<PathParams>,
     Json(req): Json<AddForwardedAttachmentRequest>,
 ) -> Result<(StatusCode, Json<AddForwardedAttachmentResponse>), AddForwardedAttachmentError> {
-    // Ensure draft exists and belongs to this link
-    if !email_db_client::messages::get::draft_exists_with_id(&ctx.db, link.id, draft_id).await? {
-        return Err(AddForwardedAttachmentError::DraftNotFound);
-    }
-
-    // Find which link owns the attachment (from the message it belongs to)
-    let Some((_thread_id, attachment_link_id)) =
-        email_db_client::attachments::provider::get_thread_id_for_attachment(
-            &ctx.db,
+    let attachment = ctx
+        .forwarded_attachments
+        .add(
+            &authorization.authorization.user.macro_user_id,
+            link.id,
+            draft_id,
             req.attachment_id,
         )
-        .await?
-    else {
-        return Err(AddForwardedAttachmentError::AttachmentNotFound);
-    };
-
-    // Verify the user has access to the attachment's link (either owns it or has delegation)
-    let accessible_links =
-        email_db_client::links::get::fetch_inboxes_for_macro_id(&ctx.db, link.macro_id.as_ref())
-            .await?;
-    let has_access = accessible_links.iter().any(|l| l.id == attachment_link_id);
-    if !has_access {
-        return Err(AddForwardedAttachmentError::AttachmentNotAccessible);
-    }
-
-    // Fetch the attachment metadata using its owning link
-    let result = email_db_client::attachments::provider::fetch_attachment_by_id(
-        &ctx.db,
-        req.attachment_id,
-        attachment_link_id,
-    )
-    .await?;
-
-    let Some((attachment, _message_provider_id)) = result else {
-        return Err(AddForwardedAttachmentError::AttachmentNotFound);
-    };
-
-    // Insert the forwarded attachment link
-    email_db_client::attachments::forwarded::insert_forwarded_attachment(
-        &ctx.db,
-        link.id,
-        draft_id,
-        req.attachment_id,
-    )
-    .await?;
+        .await?;
 
     Ok((
         StatusCode::CREATED,
