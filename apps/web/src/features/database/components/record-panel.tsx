@@ -253,25 +253,35 @@ function RecordFields(
       <div class="flex flex-col gap-0.5">
         <Key each={fields()} by="id">
           {(column) => (
-            <div class="grid min-h-9 grid-cols-[minmax(5rem,0.75fr)_minmax(0,1.5fr)] items-start gap-2">
-              <div
-                class="flex min-w-0 items-center gap-2 pt-2.5 text-xs text-ink-muted"
-                title={column().name}
-              >
-                <PropertyIcon
-                  type={column().dataType}
-                  relation={!!column().relation}
-                  entityType={column().specificEntityType}
-                />
-                <span class="truncate">{column().name}</span>
-              </div>
-              <div class="min-w-0">
-                {props.renderCell(() => props.row, column, options(column))}
-              </div>
-            </div>
+            <RecordField column={column()}>
+              {props.renderCell(() => props.row, column, options(column))}
+            </RecordField>
           )}
         </Key>
       </div>
     </>
+  );
+}
+
+/** One of a record's fields: its column's icon and name beside its cell. */
+export function RecordField(props: {
+  column: DatabaseViewColumn;
+  children: JSX.Element;
+}) {
+  return (
+    <div class="grid min-h-9 grid-cols-[minmax(5rem,0.75fr)_minmax(0,1.5fr)] items-start gap-2">
+      <div
+        class="flex min-w-0 items-center gap-2 pt-2.5 text-xs text-ink-muted"
+        title={props.column.name}
+      >
+        <PropertyIcon
+          type={props.column.dataType}
+          relation={!!props.column.relation}
+          entityType={props.column.specificEntityType}
+        />
+        <span class="truncate">{props.column.name}</span>
+      </div>
+      <div class="min-w-0">{props.children}</div>
+    </div>
   );
 }
