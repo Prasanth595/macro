@@ -27,10 +27,14 @@ fn run(base: &str) -> Result<ExitCode> {
     let merge_base = git(&["merge-base", base, "HEAD"])
         .with_context(|| format!("finding the merge base with {base}; fetch it first"))?;
     let merge_base = merge_base.trim();
-    let Ok(base_sdl) = git(&["show", &format!("{merge_base}:{SCHEMA_PATH}")]) else {
+    if git(&["ls-tree", "--name-only", merge_base, "--", SCHEMA_PATH])?
+        .trim()
+        .is_empty()
+    {
         println!("{SCHEMA_PATH} does not exist at {merge_base}; nothing to compare");
         return Ok(ExitCode::SUCCESS);
-    };
+    }
+    let base_sdl = git(&["show", &format!("{merge_base}:{SCHEMA_PATH}")])?;
     let new_sdl = std::fs::read_to_string(root.join(SCHEMA_PATH))
         .with_context(|| format!("reading {SCHEMA_PATH}"))?;
 
