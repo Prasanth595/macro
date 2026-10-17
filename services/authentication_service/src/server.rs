@@ -130,12 +130,17 @@ pub async fn run() -> anyhow::Result<()> {
     // A separate KMS key from the Microsoft one by design: sharing it would
     // grant whatever decrypts Cursor keys access to the key protecting
     // everyone's mailbox credentials.
+    // Teams' provider keys share it: they are read by the same agent harness
+    // and protected by the same IAM grants.
+    let cursor_kms = cursor_api_key::cipher::AwsKmsCiphertexts::new(
+        aws_sdk_kms::Client::new(&aws_config),
+        config.cursor_api_key_kms_key_id()?,
+    );
     let cursor_api_key_cipher = Arc::new(cursor_api_key::cipher::KmsCursorApiKeyCipher::new(
-        cursor_api_key::cipher::AwsKmsCiphertexts::new(
-            aws_sdk_kms::Client::new(&aws_config),
-            config.cursor_api_key_kms_key_id()?,
-        ),
+        cursor_kms.clone(),
     )) as Arc<dyn cursor_api_key::cipher::CursorApiKeyCipher>;
+    let team_provider_keys_cipher =
+        team_provider_keys::outbound::KmsProviderKeyCipher::new(cursor_kms);
 
     let internal_api_key = config.internal_api_key.clone();
 
@@ -663,6 +668,11 @@ pub async fn run() -> anyhow::Result<()> {
         }
     });
 
+    let team_provider_keys = Arc::new(team_provider_keys::domain::TeamProviderKeyService::new(
+        team_provider_keys::outbound::PgProviderKeyRepo::new(db.clone()),
+        team_provider_keys_cipher,
+    ));
+
     let server_result = api::setup_and_serve(
         ApiContext {
             inbox_connections: Arc::new(email::domain::inbox_entitlement::InboxConnectionService(
@@ -673,6 +683,7 @@ pub async fn run() -> anyhow::Result<()> {
             auth_client: Arc::new(auth_client),
             microsoft_auth,
             cursor_api_key_cipher,
+            team_provider_keys,
             codex_connection,
             macro_cache_client: Arc::new(macro_cache_client),
             stripe_client,
