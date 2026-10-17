@@ -114,7 +114,7 @@ pub async fn fetch_and_attach_draft_attachments(
 /// from Gmail at send time rather than from S3.
 #[tracing::instrument(
     skip(email_api, sources, message_to_send),
-    fields(message_db_id = ?message_to_send.db_id), err
+    fields(message_db_id = ?message_to_send.db_id, source_count = sources.len()), err
 )]
 pub async fn fetch_and_attach_forwarded_attachments<R, T, L>(
     email_api: &EmailApiClientServiceImpl<R, T, L>,
