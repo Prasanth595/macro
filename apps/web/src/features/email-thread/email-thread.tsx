@@ -16,6 +16,7 @@ import {
 import { useCalendarPreferences } from '../calendar/utils/preferences';
 import { createEmailComposeContext } from '../email-compose/compose-adapter';
 import { createEmailComposeHost } from '../email-compose/compose-host-adapter';
+import type { EmailComposeHost } from '../email-compose/context/compose-capabilities';
 import { convertContactInfoToEmailRecipient } from '../email-compose/core/recipient-conversion';
 import { createEmailAttachmentOpener } from '../email-message/attachment-action-adapter';
 import type { CalendarInvitation } from '../email-message/core/calendar-invitation';
@@ -24,6 +25,7 @@ import { operationSettled } from '../email-message/core/message-operation';
 import { EmailMessageOperation } from '../email-message/email-message-operation';
 import { createEmailRenderingContext } from '../email-message/rendering-adapter';
 import { EmailSenderIcon } from '../email-message/sender-icon-adapter';
+import { useEmailReplyWindow } from '../email-reply-window/context';
 import {
   type CalendarInvitationOpenTarget,
   EmailCalendarInvitation,
@@ -54,6 +56,30 @@ export type EmailThreadProps = Omit<
 export function EmailThread(props: EmailThreadProps) {
   // The host's load gate already owns the live query. Reuse its source so
   // mounting the body does not start a second disk read/network request.
+  const { viewContext, rendering } = createEmailThreadComposition(props);
+  createEffect(() => {
+    const id = props.threadId();
+    onCleanup(() => clearSavedDraftThreadCache(id));
+  });
+  return (
+    <EmailThreadSurface
+      {...props}
+      context={viewContext}
+      emailRendering={rendering}
+    />
+  );
+}
+
+/**
+ * The production capabilities and rendering for one thread, shared by the
+ * thread view and the app's reply window.
+ */
+export function createEmailThreadComposition(
+  props: Pick<
+    EmailThreadProps,
+    'threadId' | 'source' | 'threadTransport' | 'openCalendar'
+  > & { composeHost?: EmailComposeHost }
+) {
   const [calendarPreferences] = useCalendarPreferences();
   const contacts = useContacts();
   const viewerEmail = useEmail();
@@ -89,7 +115,8 @@ export function EmailThread(props: EmailThreadProps) {
     },
     thread: threadContext,
     compose,
-    composeHost: createEmailComposeHost(),
+    composeHost: props.composeHost ?? createEmailComposeHost(),
+    replyWindow: useEmailReplyWindow(),
     rendering: {
       renderOrganizationStatus: (status: EmailThreadOrganizationStatus) => (
         <EmailThreadOperations
@@ -147,15 +174,5 @@ export function EmailThread(props: EmailThreadProps) {
         void source.refresh().catch(compose.notices.reportError);
     }
   );
-  createEffect(() => {
-    const id = props.threadId();
-    onCleanup(() => clearSavedDraftThreadCache(id));
-  });
-  return (
-    <EmailThreadSurface
-      {...props}
-      context={viewContext}
-      emailRendering={rendering}
-    />
-  );
+  return { viewContext, rendering };
 }

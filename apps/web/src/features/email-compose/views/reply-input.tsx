@@ -11,6 +11,7 @@ import { TOKENS } from '@core/hotkey/tokens';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { useTouchOutsideToDismissKeyboard } from '@core/mobile/useTouchOutsideToDismissKeyboard';
 import { ToggleButton as KToggleButton } from '@kobalte/core/toggle-button';
+import ArrowSquareOut from '@phosphor/arrow-square-out.svg';
 import DotsThree from '@phosphor/dots-three.svg';
 import Paperclip from '@phosphor/paperclip.svg';
 import Trash from '@phosphor/trash.svg';
@@ -23,6 +24,7 @@ import {
   createResource,
   createSignal,
   For,
+  onCleanup,
   onMount,
   Show,
 } from 'solid-js';
@@ -45,6 +47,10 @@ import { plainTextToHtml } from '../core/plain-text-to-html';
 import { registerCcBccHotkeys } from '../primitives/cc-bcc-hotkeys';
 import { createDraftSyncStatus } from '../primitives/draft-sync-status';
 import { registerToggleAppendedThread } from '../primitives/prepare-email-body';
+import {
+  createReplyMove,
+  type ReplyMoveTarget,
+} from '../primitives/reply-move';
 import { ReplyEnvelope } from './reply-envelope';
 
 false && fileFolderDrop;
@@ -79,6 +85,11 @@ type ReplyInputViewProps = Omit<
     portalMount: Accessor<HTMLDivElement | undefined>;
     onClose: () => void;
     registerClose: (handler: () => void) => void;
+  };
+  /** Lets the reply move between its thread and the app's reply window. */
+  popout?: ReplyMoveTarget & {
+    /** Lends the save-then-move to controls outside the composer. */
+    registerMove?: (move: () => Promise<void>) => () => void;
   };
 };
 export function ReplyInputView(props: ReplyInputViewProps) {
@@ -205,6 +216,16 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
     sendActionDisabled,
     toggleQuotedText,
   } = state;
+  const moveReply = createReplyMove({
+    target: () => props.popout,
+    isSending,
+    hasContent: () => collectDraft() !== null,
+    saveDraft: state.saveDraftNow,
+    reportError: composeContext.notices.reportError,
+    replyType: state.replyType,
+    threadId: () => props.session.thread()?.db_id,
+    draftId: savedDraftId,
+  });
   const sendActionHidden = () =>
     composeContext.presentation.isTouch() &&
     !state.hasBodyText() &&
@@ -389,6 +410,25 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
         hotkeyToken: TOKENS.email.cancelReply,
         displayPriority: 8,
       });
+
+      const popout = props.popout;
+      if (popout?.registerMove) onCleanup(popout.registerMove(moveReply));
+      if (popout) {
+        registerHotkey({
+          hotkey: 'shift+cmd+p',
+          scopeId: composeHotkeyScope,
+          description: popout.inWindow
+            ? 'Return reply to its thread'
+            : 'Pop out reply',
+          keyDownHandler: () => {
+            fireAndForget(moveReply(), 'email-compose');
+            return true;
+          },
+          runWithInputFocused: true,
+          hotkeyToken: TOKENS.email.popOutReply,
+          displayPriority: 7,
+        });
+      }
     }
   });
 
@@ -597,11 +637,14 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
                 ? 'max-h-none flex-1 overflow-visible px-4 pt-6 pb-4'
                 : cn(
                     'overflow-y-auto mobile:max-h-[calc(32*var(--dvh,1dvh))]',
-                    composerExpanded()
-                      ? // Cap to the thread viewport (minus composer chrome) so the
-                        // recipients row and send bar stay on screen together
-                        'max-h-[min(calc(60*var(--dvh,1dvh)),calc(var(--thread-height,9999px)-14rem))]'
-                      : 'max-h-56'
+                    props.popout?.inWindow
+                      ? // The window sizes the composer; the body takes the rest
+                        'flex-1 min-h-0'
+                      : composerExpanded()
+                        ? // Cap to the thread viewport (minus composer chrome) so the
+                          // recipients row and send bar stay on screen together
+                          'max-h-[min(calc(60*var(--dvh,1dvh)),calc(var(--thread-height,9999px)-14rem))]'
+                        : 'max-h-56'
                   )
             )}
             onScroll={(e) => {
@@ -778,6 +821,17 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
             >
               <div class="flex shrink-0 items-center gap-1">
                 <SyncStatus />
+                {/* In the window, its title bar returns the reply. */}
+                <Show when={props.popout && !props.popout.inWindow}>
+                  <Button
+                    onClick={() => fireAndForget(moveReply(), 'email-compose')}
+                    tooltip="Pop out"
+                    hotkey={TOKENS.email.popOutReply}
+                    size="icon-composer"
+                  >
+                    <ArrowSquareOut />
+                  </Button>
+                </Show>
                 <Button
                   onClick={deleteDraftAndReset}
                   tooltip={savedDraftId() ? 'Delete draft' : 'Discard'}

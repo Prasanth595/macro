@@ -17,6 +17,7 @@ import {
   contactCreation,
 } from '@app/features/crm/creation-adapter';
 import { DevStatusBar } from '@app/features/devtools/DevStatusBar';
+import { EmailReplyWindowHost } from '@app/features/email-reply-window/email-reply-window';
 import { GlobalBulkEditEntityModal } from '@app/features/entity/bulk-edit/BulkEditEntityModal';
 import {
   AddInboxDialog,
@@ -254,95 +255,100 @@ export function AppChrome(props: ParentProps) {
   );
 
   return (
-    <SidebarVisibilityContext.Provider value={sidebarVisible}>
-      <Show when={isAuthenticated() === true}>
-        <ShowFeatureFlag flag={enableDatabases}>
-          <Suspense>
-            <StarterDatabase />
-          </Suspense>
-        </ShowFeatureFlag>
-      </Show>
-      <Suspense>
-        <Show when={isAuthenticated()}>
-          <GithubReauthenticationPrompt />
-          <GmailReauthenticationPrompt />
-          <CalendarPermissionPrompt />
-          <GlobalShortcuts />
-          <Show when={!isTouchDevice()}>
-            <GoToHotkeys />
+    <EmailReplyWindowHost>
+      <SidebarVisibilityContext.Provider value={sidebarVisible}>
+        <Show when={isAuthenticated() === true}>
+          <ShowFeatureFlag flag={enableDatabases}>
             <Suspense>
-              <FavoritesCommands />
-              <CommandMenu />
+              <StarterDatabase />
             </Suspense>
-          </Show>
-          <Suspense>
-            <PropertyEditorModal />
-          </Suspense>
-          <GlobalBulkEditEntityModal />
-          <NativeShareSheet />
-          <MacroMcpSetupModal />
-          <CreateChannelModal />
-          <Show when={companyDialogUsed()}>
-            <Suspense>
-              <CreateCompanyModal />
-            </Suspense>
-          </Show>
-          <Show when={contactDialogUsed()}>
-            <Suspense>
-              <CreateContactModal />
-            </Suspense>
-          </Show>
-          <Show when={isAddInboxDialogOpen()}>
-            <AddInboxDialog />
-          </Show>
+          </ShowFeatureFlag>
         </Show>
-        <Show when={isAuthenticated() === false}>
-          <Show when={hasLoginCookie()} fallback={<Banner />}>
-            <SessionExpiredRedirect />
-          </Show>
-        </Show>
-      </Suspense>
-      <div class="min-h-0 flex-1 flex">
-        <ItemDndProvider>
-          <Show when={isSidebarVisible()}>
-            <SidebarRail />
-          </Show>
-          <PageContent>
-            {/* Route loading must not detach the chrome or mobile navigation;
-                  the route draws its own loading state. */}
-            <Suspense>{props.children}</Suspense>
-          </PageContent>
-        </ItemDndProvider>
-      </div>
-      <Show when={isTouchDevice() && isAuthenticated()}>
-        <FloatRegionHost />
         <Suspense>
-          <UserCardDrawer />
+          <Show when={isAuthenticated()}>
+            <GithubReauthenticationPrompt />
+            <GmailReauthenticationPrompt />
+            <CalendarPermissionPrompt />
+            <GlobalShortcuts />
+            <Show when={!isTouchDevice()}>
+              <GoToHotkeys />
+              <Suspense>
+                <FavoritesCommands />
+                <CommandMenu />
+              </Suspense>
+            </Show>
+            <Suspense>
+              <PropertyEditorModal />
+            </Suspense>
+            <GlobalBulkEditEntityModal />
+            <NativeShareSheet />
+            <MacroMcpSetupModal />
+            <CreateChannelModal />
+            <Show when={companyDialogUsed()}>
+              <Suspense>
+                <CreateCompanyModal />
+              </Suspense>
+            </Show>
+            <Show when={contactDialogUsed()}>
+              <Suspense>
+                <CreateContactModal />
+              </Suspense>
+            </Show>
+            <Show when={isAddInboxDialogOpen()}>
+              <AddInboxDialog />
+            </Show>
+          </Show>
+          <Show when={isAuthenticated() === false}>
+            <Show when={hasLoginCookie()} fallback={<Banner />}>
+              <SessionExpiredRedirect />
+            </Show>
+          </Show>
         </Suspense>
-        <Show when={isMobile()}>
+        <div class="min-h-0 flex-1 flex">
+          <ItemDndProvider>
+            <Show when={isSidebarVisible()}>
+              <SidebarRail />
+            </Show>
+            <PageContent>
+              {/* Route loading must not detach the chrome or mobile navigation;
+                    the route draws its own loading state. */}
+              <Suspense>{props.children}</Suspense>
+            </PageContent>
+          </ItemDndProvider>
+        </div>
+        <Show when={isTouchDevice() && isAuthenticated()}>
+          <FloatRegionHost />
           <Suspense>
-            <MobileSettings />
+            <UserCardDrawer />
           </Suspense>
+          <Show when={isMobile()}>
+            <Suspense>
+              <MobileSettings />
+            </Suspense>
+          </Show>
+          {/* Search owns its filters at the top; suppress background composers. */}
+          <FloatRegion
+            region="accessory"
+            priority={100}
+            active={SearchState.isOpen}
+          />
+          <FloatRegion
+            region="dock"
+            active={() => !virtualKeyboardVisible() || SearchState.isOpen()}
+          >
+            <MobileDockRow />
+          </FloatRegion>
         </Show>
-        {/* Search owns its filters at the top; suppress background composers. */}
-        <FloatRegion
-          region="accessory"
-          priority={100}
-          active={SearchState.isOpen}
-        />
-        <FloatRegion
-          region="dock"
-          active={() => !virtualKeyboardVisible() || SearchState.isOpen()}
-        >
-          <MobileDockRow />
-        </FloatRegion>
-      </Show>
-      <InitialInteractiveOnboardingModal />
-      <Suspense>
-        <Show when={isAuthenticated()}>
-          <Launcher open={createMenuOpen()} onOpenChange={setCreateMenuOpen} />
-        </Show>
-      </Suspense>
-    </SidebarVisibilityContext.Provider>
+        <InitialInteractiveOnboardingModal />
+        <Suspense>
+          <Show when={isAuthenticated()}>
+            <Launcher
+              open={createMenuOpen()}
+              onOpenChange={setCreateMenuOpen}
+            />
+          </Show>
+        </Suspense>
+      </SidebarVisibilityContext.Provider>
+    </EmailReplyWindowHost>
   );
 }
