@@ -125,7 +125,7 @@ export function SpreadsheetCellMenu(props: {
             {item('Remove checkbox', 'remove-checkbox', XSquare)}
           </Show>
           {item(
-            props.inTable ? 'Table options…' : 'Convert to table…',
+            props.inTable ? 'Table options' : 'Convert to table',
             'table',
             Table
           )}

@@ -1153,6 +1153,24 @@ function buildWorkbook(sheets: CalculationSheet[]): EngineWorkbook {
       )
     );
     if (pivots.length) model.setPivotTables(pivots);
+    // SUBTOTAL(1-11) leaves out the rows a table's filter hides, as Excel's.
+    const filtered = workbook.tables.flatMap((table) => {
+      const sheet = bounded.findIndex((item) => item.name === table.sheet);
+      return table.filtered && sheet >= 0
+        ? [
+            {
+              sheet,
+              range: [
+                table.top + 1,
+                table.left + 1,
+                table.bottom + 1,
+                table.right + 1,
+              ] as [number, number, number, number],
+            },
+          ]
+        : [];
+    });
+    if (filtered.length) model.setFilteredRanges(filtered);
     model.resumeEvaluation();
     model.evaluate();
     return workbook;

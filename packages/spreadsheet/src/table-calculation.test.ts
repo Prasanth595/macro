@@ -95,6 +95,56 @@ describe('table references in calculation', () => {
     expect(filtered.summary.A1.display).toBe('10');
   });
 
+  it('leaves rows a filter hides out of SUBTOTAL(1-11) too, but not rows hidden by hand', () => {
+    const sheet = (filtered: boolean): CalculationSheet[] => [
+      {
+        id: 'data',
+        name: 'Data',
+        cells: { ...cells, B5: { value: '=SUBTOTAL(9,[Qty])' } },
+        rowCount: 200,
+        metadata: {
+          tables: [
+            filtered
+              ? { ...table, filters: { 0: { values: ['Pens'] } } }
+              : table,
+          ],
+          hiddenRows: [2],
+        },
+      },
+    ];
+    expect(calculator.calculateWorkbook(sheet(false)).data.B5.display).toBe(
+      '10'
+    );
+    expect(calculator.calculateWorkbook(sheet(true)).data.B5.display).toBe('7');
+  });
+
+  it('reads a bare table name as its data and calculates every footer aggregate', () => {
+    const results = calculator.calculateWorkbook([
+      {
+        id: 'data',
+        name: 'Data',
+        cells: {
+          ...cells,
+          A4: { value: 'Pens' },
+          C4: { value: '' },
+          F1: { value: '=ROWS(Sales)' },
+          F2: { value: '=COUNTBLANK(Sales[Price])' },
+          F3: {
+            value:
+              '=SUMPRODUCT((Sales[Item]<>"")/COUNTIF(Sales[Item],Sales[Item]&""))',
+          },
+          F4: { value: '=SUBTOTAL(103,Sales[Price])/ROWS(Sales[Price])' },
+        },
+        rowCount: 200,
+        metadata: { tables: [table] },
+      },
+    ]);
+    expect(results.data.F1.display).toBe('3');
+    expect(results.data.F2.display).toBe('1');
+    expect(results.data.F3.display).toBe('2');
+    expect(Number(results.data.F4.number?.toFixed(4))).toBe(0.6667);
+  });
+
   it('copies table references as written while other references move', () => {
     expect(
       calculator.copy([

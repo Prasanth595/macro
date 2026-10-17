@@ -21,6 +21,7 @@ import {
   tableAt,
   tableBounds,
 } from '@macro-inc/spreadsheet/sheet-tables';
+import { tableCellLook } from '@macro-inc/spreadsheet/table-styles';
 import CaretDown from '@phosphor/caret-down.svg';
 import Square from '@phosphor/square.svg';
 import CheckSquare from '@phosphor-fill/check-square-fill.svg';
@@ -41,6 +42,7 @@ import type { SpreadsheetCommentsCapability } from '../context/spreadsheet-comme
 import type { SpreadsheetMentions } from '../context/spreadsheet-mentions';
 import { SPREADSHEET_CLIPBOARD_TYPE } from '../core/cell-copy';
 import type { ChartData } from '../core/chart-data';
+import type { TableReferences } from '../core/formula-completion';
 import type {
   FormulaReferenceSpan,
   FormulaTextSelection,
@@ -64,7 +66,7 @@ import {
   type SpreadsheetCells,
 } from '../core/spreadsheet-document';
 import type { SpreadsheetCursor } from '../core/spreadsheet-presence';
-import type { TableFilterChoice } from '../core/table-types';
+import type { TableGridUi } from '../core/table-types';
 import type { CompleteFormula } from '../primitives/create-formula-assistance';
 import { CellDatePicker, datePickerKeyDay } from './CellDatePicker';
 import { CellListMenu } from './CellListMenu';
@@ -85,8 +87,9 @@ import {
   type HeaderAction,
   SpreadsheetHeaderMenu,
 } from './SpreadsheetHeaderMenu';
-import { TableColumnMenu } from './TableColumnMenu';
-import { tableCellLook } from './table-appearance';
+
+/** The height of a table's name above its header row. */
+const TABLE_CHIP_HEIGHT = 22;
 
 export type GridValue = {
   display: string;
@@ -190,6 +193,8 @@ export function SpreadsheetGrid(props: {
   mentions?: SpreadsheetMentions;
   sheetId?: string;
   complete?: CompleteFormula;
+  /** Tables whose names and columns the cell editor completes. */
+  tableReferences?: () => TableReferences | undefined;
   rowCount?: number;
   columnCount?: number;
   /** The imported workbook's font for cells without their own. */
@@ -235,19 +240,10 @@ export function SpreadsheetGrid(props: {
   dropdowns?: { range: string; colors?: Map<string, string> }[];
   /** Select a checkbox cell and toggle it. */
   onToggleCheckbox?: (position: CellPosition) => void;
-  /** Tables, drawn with their style; editable headers sort and filter. */
+  /** Tables, drawn with their style. */
   tables?: SheetTable[];
-  tableColumnChoices?: (table: string, column: number) => TableFilterChoice[];
-  onSortTableColumn?: (
-    table: string,
-    column: number,
-    descending: boolean
-  ) => void;
-  onFilterTableColumn?: (
-    table: string,
-    column: number,
-    shown: string[] | undefined
-  ) => void;
+  /** Tables' menus, column types and total row labels. */
+  tableUi?: TableGridUi;
   /** Images and charts over the sheet. */
   drawings?: SheetDrawing[];
   image?: (key: string) => string | undefined;
@@ -574,6 +570,29 @@ export function SpreadsheetGrid(props: {
     return offsets;
   });
   // Only columns in view (plus the selection) are rendered, like rows.
+  /** The table holding the active cell, whose name shows above it. */
+  const activeTable = createMemo(() =>
+    tableAt(
+      props.tables,
+      props.selection.anchor.row,
+      props.selection.anchor.column
+    )
+  );
+  /** Once the active table's header row scrolls away, the column headers
+   * show its column names, as Google Sheets does. */
+  const stickyNames = createMemo(() => {
+    const table = activeTable();
+    if (!table || !props.tableUi) return;
+    const { top, left, bottom } = tableBounds(table);
+    const edge = scrollTop() + headerHeight();
+    if (rowOffsets()[top + 1] > edge || rowOffsets()[bottom + 1] <= edge)
+      return;
+    return new Map(
+      props.tableUi
+        .columnNames(table.name)
+        .map((name, offset) => [left + offset, name])
+    );
+  });
   const visibleColumns = createMemo(() => {
     const offsets = columnOffsets();
     const left = scrollLeft() - 200;
@@ -1317,13 +1336,7 @@ export function SpreadsheetGrid(props: {
         selectionBounds(props.selection).right >
         selectionBounds(props.selection).left
       }
-      inTable={
-        !!tableAt(
-          props.tables,
-          props.selection.anchor.row,
-          props.selection.anchor.column
-        )
-      }
+      inTable={!!activeTable()}
       hasCheckboxes={() =>
         selectedCheckboxes(props.cells, props.selection).length > 0
       }
@@ -1535,7 +1548,19 @@ export function SpreadsheetGrid(props: {
                             );
                         }}
                       >
-                        {columnName(column)}
+                        <Show
+                          when={stickyNames()?.get(column)}
+                          fallback={columnName(column)}
+                        >
+                          {(name) => (
+                            <span
+                              data-table-column-name
+                              class="block truncate px-1 font-semibold text-ink"
+                            >
+                              {name()}
+                            </span>
+                          )}
+                        </Show>
                       </button>
                     </SpreadsheetHeaderMenu>
                     <Show when={!props.readonly && props.onResizeColumn}>
@@ -1744,6 +1769,10 @@ export function SpreadsheetGrid(props: {
                       const table = () =>
                         tableCellLook(props.tables, row, column);
                       const header = () => table()?.header;
+                      const mismatch = () =>
+                        props.tableUi?.mismatch(row, column);
+                      const totalLabel = () =>
+                        props.tableUi?.totalLabel(row, column);
                       const border = (
                         edge: 'Top' | 'Right' | 'Bottom' | 'Left'
                       ) => {
@@ -1859,6 +1888,7 @@ export function SpreadsheetGrid(props: {
                               props.notes?.[address]
                                 ? `Note: ${props.notes[address]}`
                                 : '',
+                              mismatch() ? `Type mismatch: ${mismatch()}` : '',
                             ]
                               .filter(Boolean)
                               .join('. ') || undefined
@@ -1878,6 +1908,7 @@ export function SpreadsheetGrid(props: {
                           title={
                             value()?.error ??
                             value()?.warning ??
+                            mismatch() ??
                             (decorated()
                               ? undefined
                               : cellPlainText(
@@ -1898,7 +1929,11 @@ export function SpreadsheetGrid(props: {
                               gridline('Bottom'),
                             'border-left': border('Left'),
                             'background-color':
-                              cellBackground(fill()) ?? table()?.background,
+                              cellBackground(fill()) ??
+                              table()?.background ??
+                              // A translucent tint reads on light and dark themes alike.
+                              (table()?.stripe &&
+                                `color-mix(in srgb, ${table()?.stripe} 18%, transparent)`),
                             color:
                               cellForeground(
                                 look()?.textColor ?? cell()?.textColor,
@@ -2138,6 +2173,7 @@ export function SpreadsheetGrid(props: {
                               label={`Edit ${address}`}
                               autoFocus
                               complete={props.complete}
+                              tableReferences={props.tableReferences}
                               readonly={props.readonly}
                               selectionRequest={props.editorSelection}
                               references={props.draftReferences}
@@ -2216,44 +2252,32 @@ export function SpreadsheetGrid(props: {
                           <Show
                             when={
                               !props.readonly &&
-                              props.tableColumnChoices &&
+                              props.tableUi &&
                               !(active() && props.editing) &&
                               header()
                             }
                           >
-                            {(header) => {
-                              const offset = () =>
-                                column - tableBounds(header()).left;
-                              return (
-                                <TableColumnMenu
-                                  column={
-                                    display(address) || `Column${offset() + 1}`
-                                  }
-                                  filtered={!!header().filters?.[offset()]}
-                                  choices={() =>
-                                    props.tableColumnChoices?.(
-                                      header().name,
-                                      column
-                                    ) ?? []
-                                  }
-                                  onSort={(descending) =>
-                                    props.onSortTableColumn?.(
-                                      header().name,
-                                      column,
-                                      descending
-                                    )
-                                  }
-                                  onFilter={(shown) =>
-                                    props.onFilterTableColumn?.(
-                                      header().name,
-                                      column,
-                                      shown
-                                    )
-                                  }
-                                  onRestoreFocus={focusGrid}
-                                />
-                              );
-                            }}
+                            {(header) =>
+                              props.tableUi?.columnMenu(header, column)
+                            }
+                          </Show>
+                          <Show when={mismatch()}>
+                            <span
+                              aria-hidden="true"
+                              data-type-mismatch
+                              class="pointer-events-none absolute left-0 top-0 size-0 border-t-[6px] border-r-[6px] border-t-warning border-r-transparent"
+                            />
+                          </Show>
+                          <Show when={totalLabel()}>
+                            {(label) => (
+                              <span
+                                aria-hidden="true"
+                                data-total-label
+                                class="pointer-events-none absolute left-[var(--spreadsheet-cell-padding)] top-1/2 -translate-y-1/2 text-[0.8em] font-normal text-ink-extra-muted"
+                              >
+                                {label()}
+                              </span>
+                            )}
                           </Show>
                           <Show when={props.comments?.hasComment(address)}>
                             <button
@@ -2371,6 +2395,28 @@ export function SpreadsheetGrid(props: {
                 }}
                 onReturnFocus={focusGrid}
               />
+            </Show>
+            <Show when={props.tableUi && activeTable()}>
+              {(table) => {
+                const placement = () => {
+                  const { top, bottom } = tableBounds(table());
+                  return top > 0
+                    ? {
+                        top: `${rowOffsets()[top] - TABLE_CHIP_HEIGHT}px`,
+                        below: false,
+                      }
+                    : { top: `${rowOffsets()[bottom + 1]}px`, below: true };
+                };
+                return props.tableUi?.tableMenu(
+                  table,
+                  () => ({
+                    left: `${columnOffsets()[tableBounds(table()).left]}px`,
+                    top: placement().top,
+                    height: `${TABLE_CHIP_HEIGHT}px`,
+                  }),
+                  () => placement().below
+                );
+              }}
             </Show>
             <div
               aria-hidden="true"

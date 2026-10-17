@@ -1,8 +1,10 @@
 import { cellPlainText } from '@macro-inc/spreadsheet/cell-mentions';
 import {
+  excelTotalsFunction,
   MAX_SHEET_TABLES,
   type SheetTable,
   type TableColumnFilter,
+  type TableFilterCondition,
   tableBounds,
   tableColumnNames,
   totalsFunction,
@@ -39,7 +41,109 @@ export type XlsxTable = {
 };
 
 export const TABLE_FILTER_WARNING =
-  'Excel table filters other than lists of values are imported as hidden rows.';
+  'Excel table filters other than lists of values and conditions are imported as hidden rows.';
+
+type CustomFilter = { operator: string; value: string };
+
+/** A text condition's value as a custom filter writes it: `*` and `?` are
+ * wildcards, so they and `~` are escaped with `~`. */
+const wildcardText = (value: string) => value.replace(/[~*?]/g, '~$&');
+
+/** The condition Excel custom filters express, when Macro has one. */
+function customCondition(
+  filters: CustomFilter[],
+  and: boolean
+): TableFilterCondition | undefined {
+  const [first, second] = filters;
+  if (filters.length === 2) {
+    const range = filters.map((filter) => filter.operator).join(' ');
+    if (and && range === 'greaterThanOrEqual lessThanOrEqual')
+      return { operator: 'between', value: first.value, value2: second.value };
+    if (!and && range === 'lessThan greaterThan')
+      return {
+        operator: 'notBetween',
+        value: first.value,
+        value2: second.value,
+      };
+    return;
+  }
+  if (!first) return;
+  const text =
+    /^\*((?:[^*?~]|~[*?~])*)\*$|^((?:[^*?~]|~[*?~])*)\*$|^\*((?:[^*?~]|~[*?~])*)$/.exec(
+      first.value
+    );
+  const unescaped = (value: string) => value.replace(/~([*?~])/g, '$1');
+  if (first.operator === 'notEqual' && first.value === ' ')
+    return { operator: 'notEmpty' };
+  if (text && (first.operator === 'equal' || first.operator === 'notEqual')) {
+    if (text[1] !== undefined)
+      return {
+        operator: first.operator === 'equal' ? 'contains' : 'notContains',
+        value: unescaped(text[1]),
+      };
+    if (first.operator === 'notEqual') return;
+    return text[2] !== undefined
+      ? { operator: 'startsWith', value: unescaped(text[2]) }
+      : { operator: 'endsWith', value: unescaped(text[3]) };
+  }
+  if (/[*?]/.test(first.value.replace(/~[*?~]/g, ''))) return;
+  const operator = (
+    [
+      'equal',
+      'notEqual',
+      'greaterThan',
+      'greaterThanOrEqual',
+      'lessThan',
+      'lessThanOrEqual',
+    ] as const
+  ).find((item) => item === first.operator);
+  if (operator) return { operator, value: unescaped(first.value) };
+}
+
+/** A condition as Excel writes it in a filter column. */
+function conditionXml(condition: TableFilterCondition): string {
+  const { operator, value = '', value2 = '' } = condition;
+  const custom = (filters: CustomFilter[], and = false) =>
+    `<customFilters${and ? ' and="1"' : ''}>${filters
+      .map(
+        (filter) =>
+          `<customFilter${filter.operator === 'equal' ? '' : ` operator="${filter.operator}"`} val="${attribute(filter.value)}"/>`
+      )
+      .join('')}</customFilters>`;
+  switch (operator) {
+    case 'empty':
+      return '<filters blank="1"/>';
+    case 'notEmpty':
+      return custom([{ operator: 'notEqual', value: ' ' }]);
+    case 'contains':
+      return custom([{ operator: 'equal', value: `*${wildcardText(value)}*` }]);
+    case 'notContains':
+      return custom([
+        { operator: 'notEqual', value: `*${wildcardText(value)}*` },
+      ]);
+    case 'startsWith':
+      return custom([{ operator: 'equal', value: `${wildcardText(value)}*` }]);
+    case 'endsWith':
+      return custom([{ operator: 'equal', value: `*${wildcardText(value)}` }]);
+    case 'textEquals':
+      return custom([{ operator: 'equal', value: wildcardText(value) }]);
+    case 'between':
+      return custom(
+        [
+          { operator: 'greaterThanOrEqual', value },
+          { operator: 'lessThanOrEqual', value: value2 },
+        ],
+        true
+      );
+    case 'notBetween':
+      return custom([
+        { operator: 'lessThan', value },
+        { operator: 'greaterThan', value: value2 },
+      ]);
+    default:
+      return custom([{ operator, value: wildcardText(value) }]);
+  }
+}
 
 /** Read each worksheet's table parts. */
 export function readXlsxTables(
@@ -59,6 +163,7 @@ export function readXlsxTables(
       const filters: Record<string, TableColumnFilter> = {};
       let column: string | undefined;
       let filter: TableColumnFilter | undefined;
+      let custom: { and: boolean; filters: CustomFilter[] } | undefined;
       parse(bytes, relation.target, (parser) => {
         parser.on('opentag', (node) => {
           const value = attributes(node);
@@ -85,10 +190,19 @@ export function readXlsxTables(
               }),
             };
           else if (node.local === 'filter')
-            filter?.values.push(unescapeText(value.val ?? ''));
+            filter?.values?.push(unescapeText(value.val ?? ''));
+          else if (node.local === 'customFilters' && column !== undefined)
+            custom = {
+              and: value.and === '1' || value.and === 'true',
+              filters: [],
+            };
+          else if (node.local === 'customFilter')
+            custom?.filters.push({
+              operator: value.operator ?? 'equal',
+              value: unescapeText(value.val ?? ''),
+            });
           else if (
             [
-              'customFilters',
               'top10',
               'dynamicFilter',
               'colorFilter',
@@ -103,6 +217,16 @@ export function readXlsxTables(
           if (node.local === 'filters' && filter && column !== undefined)
             filters[column] = filter;
           if (node.local === 'filters') filter = undefined;
+          if (
+            node.local === 'customFilters' &&
+            custom &&
+            column !== undefined
+          ) {
+            const condition = customCondition(custom.filters, custom.and);
+            if (condition) filters[column] = { condition };
+            else warnings.add(TABLE_FILTER_WARNING);
+            custom = undefined;
+          }
           if (node.local === 'filterColumn') column = undefined;
         });
       });
@@ -209,7 +333,8 @@ export function xlsxTablePart(options: {
       const value =
         options.cells[formatCellAddress(bounds.bottom, column)]?.value;
       const aggregate = value && totalsFunction(value, name, table.name);
-      if (aggregate) totals = ` totalsRowFunction="${aggregate}"`;
+      if (aggregate && excelTotalsFunction(aggregate))
+        totals = ` totalsRowFunction="${aggregate}"`;
       else if (value?.startsWith('=')) {
         totals = ' totalsRowFunction="custom"';
         formula = `<totalsRowFormula>${escapeXml(
@@ -232,12 +357,18 @@ export function xlsxTablePart(options: {
   const filterRange = `${formatCellAddress(bounds.top, bounds.left)}:${formatCellAddress(bounds.bottom - (table.totalsRow ? 1 : 0), bounds.right)}`;
   const filters = Object.entries(table.filters ?? {})
     .sort(([a], [b]) => Number(a) - Number(b))
-    .map(
-      ([offset, filter]) =>
-        `<filterColumn colId="${offset}"><filters${filter.blanks ? ' blank="1"' : ''}>${filter.values
-          .map((value) => `<filter val="${attribute(value)}"/>`)
-          .join('')}</filters></filterColumn>`
-    )
+    .map(([offset, filter]) => {
+      // Excel filters a column by values or by a condition, not both.
+      const criteria =
+        filter.values || !filter.condition
+          ? `<filters${filter.blanks ? ' blank="1"' : ''}>${(
+              filter.values ?? []
+            )
+              .map((value) => `<filter val="${attribute(value)}"/>`)
+              .join('')}</filters>`
+          : conditionXml(filter.condition);
+      return `<filterColumn colId="${offset}">${criteria}</filterColumn>`;
+    })
     .join('');
   const flag = (value: boolean | undefined) => (value ? '1' : '0');
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>

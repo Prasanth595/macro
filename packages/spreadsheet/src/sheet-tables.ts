@@ -6,12 +6,7 @@ import {
   type SpreadsheetCellEdits,
   type SpreadsheetCells,
 } from './spreadsheet-document';
-import {
-  escapedColumnName,
-  renameTableReferences,
-  resolveStructuredReferences,
-  type WorkbookTable,
-} from './structured-references';
+import { escapedColumnName, type WorkbookTable } from './structured-references';
 import type { WorkbookSheetMetadata } from './workbook-metadata';
 
 export const MAX_SHEET_TABLES = 100;
@@ -19,8 +14,57 @@ const MAX_TABLE_NAME_LENGTH = 255;
 const MAX_FILTER_VALUES = 10_000;
 const MAX_FILTER_VALUE_LENGTH = 1_000;
 
-/** The values a column's filter shows, as Excel stores them. */
-export type TableColumnFilter = { values: string[]; blanks?: boolean };
+/** Conditions a column filter can test, as Google Sheets offers them. */
+export const TABLE_FILTER_OPERATORS = [
+  'empty',
+  'notEmpty',
+  'contains',
+  'notContains',
+  'startsWith',
+  'endsWith',
+  'textEquals',
+  'equal',
+  'notEqual',
+  'greaterThan',
+  'greaterThanOrEqual',
+  'lessThan',
+  'lessThanOrEqual',
+  'between',
+  'notBetween',
+] as const;
+export type TableFilterOperator = (typeof TABLE_FILTER_OPERATORS)[number];
+export type TableFilterCondition = {
+  operator: TableFilterOperator;
+  value?: string;
+  /** The upper bound of `between` and `notBetween`. */
+  value2?: string;
+};
+
+/**
+ * Which rows a column's filter shows: those whose text is one of `values`
+ * (blanks when `blanks`), and those meeting `condition`. With both, a row
+ * must pass each; a filter without `values` keeps every value.
+ */
+export type TableColumnFilter = {
+  values?: string[];
+  blanks?: boolean;
+  condition?: TableFilterCondition;
+};
+
+/** What a column holds, as Google Sheets types table columns. */
+export const TABLE_COLUMN_TYPES = [
+  'text',
+  'number',
+  'percent',
+  'currency',
+  'date',
+  'datetime',
+  'time',
+  'checkbox',
+  'dropdown',
+  'person',
+] as const;
+export type TableColumnType = (typeof TABLE_COLUMN_TYPES)[number];
 
 /**
  * A named, structured range: a header row naming its columns, data rows and
@@ -28,6 +72,8 @@ export type TableColumnFilter = { values: string[]; blanks?: boolean };
  * edit renames a column.
  */
 export type SheetTable = {
+  /** Identifies the table's stored entry; assigned when it is first saved. */
+  id?: string;
   /** Unique in the workbook, ignoring case; formulas use it. */
   name: string;
   /** Header row through the last row, the total row included. */
@@ -40,12 +86,17 @@ export type SheetTable = {
   /** The Excel table style, such as `TableStyleMedium2`; without one, a
    * table is drawn plain, as in Excel. */
   style?: string;
+  /** A #RRGGBB color drawn instead of the style's, which Excel cannot
+   * show; export keeps the style. */
+  color?: string;
   /** Filters by column position from the table's first column. */
   filters?: Record<string, TableColumnFilter>;
+  /** Column types by column position; an untyped column takes any value. */
+  columnTypes?: Record<string, TableColumnType>;
 };
 
-/** Total row aggregates and the SUBTOTAL function numbers Excel writes for
- * them, which leave rows hidden by filters out. */
+/** Excel's total row functions and the SUBTOTAL function numbers it writes
+ * for them, which leave rows hidden by filters out. */
 export const TABLE_TOTALS_FUNCTIONS = {
   sum: 109,
   average: 101,
@@ -56,7 +107,53 @@ export const TABLE_TOTALS_FUNCTIONS = {
   stdDev: 107,
   var: 110,
 } as const;
-export type TableTotalsFunction = keyof typeof TABLE_TOTALS_FUNCTIONS;
+export type ExcelTotalsFunction = keyof typeof TABLE_TOTALS_FUNCTIONS;
+/** Excel's total row functions and the counts Google Sheets adds, which
+ * count every data row, filtered or not. */
+export type TableTotalsFunction =
+  | ExcelTotalsFunction
+  | 'empty'
+  | 'unique'
+  | 'percentFilled'
+  | 'percentEmpty'
+  | 'percentUnique';
+export const TABLE_TOTALS: TableTotalsFunction[] = [
+  'sum',
+  'average',
+  'min',
+  'max',
+  'count',
+  'countNums',
+  'empty',
+  'unique',
+  'percentFilled',
+  'percentEmpty',
+  'percentUnique',
+  'stdDev',
+  'var',
+];
+
+export const TABLE_TOTALS_LABELS: Record<TableTotalsFunction, string> = {
+  sum: 'Sum',
+  average: 'Average',
+  min: 'Min',
+  max: 'Max',
+  count: 'Count',
+  countNums: 'Count numbers',
+  empty: 'Empty',
+  unique: 'Unique',
+  percentFilled: 'Percent filled',
+  percentEmpty: 'Percent empty',
+  percentUnique: 'Percent unique',
+  stdDev: 'Standard deviation',
+  var: 'Variance',
+};
+
+export function excelTotalsFunction(
+  aggregate: TableTotalsFunction
+): aggregate is ExcelTotalsFunction {
+  return aggregate in TABLE_TOTALS_FUNCTIONS;
+}
 
 export type TableBounds = {
   top: number;
@@ -88,18 +185,55 @@ export function validTableName(name: string): boolean {
   );
 }
 
+const filterText = (value: unknown) =>
+  typeof value === 'string' && value.length <= MAX_FILTER_VALUE_LENGTH;
+
+function validCondition(value: unknown): value is TableFilterCondition {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const condition = value as Record<string, unknown>;
+  return (
+    Object.keys(condition).every((key) =>
+      ['operator', 'value', 'value2'].includes(key)
+    ) &&
+    TABLE_FILTER_OPERATORS.some(
+      (operator) => operator === condition.operator
+    ) &&
+    (condition.value === undefined || filterText(condition.value)) &&
+    (condition.value2 === undefined || filterText(condition.value2))
+  );
+}
+
 function validFilter(value: unknown): value is TableColumnFilter {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const filter = value as Record<string, unknown>;
   return (
-    Object.keys(filter).every((key) => key === 'values' || key === 'blanks') &&
-    Array.isArray(filter.values) &&
-    filter.values.length <= MAX_FILTER_VALUES &&
-    filter.values.every(
-      (item) =>
-        typeof item === 'string' && item.length <= MAX_FILTER_VALUE_LENGTH
+    Object.keys(filter).every((key) =>
+      ['values', 'blanks', 'condition'].includes(key)
     ) &&
-    (filter.blanks === undefined || typeof filter.blanks === 'boolean')
+    (filter.values === undefined ||
+      (Array.isArray(filter.values) &&
+        filter.values.length <= MAX_FILTER_VALUES &&
+        filter.values.every(filterText))) &&
+    (filter.blanks === undefined || typeof filter.blanks === 'boolean') &&
+    (filter.condition === undefined || validCondition(filter.condition)) &&
+    (filter.values !== undefined || filter.condition !== undefined)
+  );
+}
+
+/** A record keyed by column position from a table's first column. */
+function validColumnRecord(
+  value: unknown,
+  width: number,
+  valid: (item: unknown) => boolean
+) {
+  return (
+    value === undefined ||
+    (!!value &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      Object.entries(value).every(
+        ([key, item]) => /^\d+$/.test(key) && Number(key) < width && valid(item)
+      ))
   );
 }
 
@@ -109,6 +243,7 @@ export function validSheetTable(value: unknown): value is SheetTable {
   if (
     !Object.keys(table).every((key) =>
       [
+        'id',
         'name',
         'range',
         'totalsRow',
@@ -117,9 +252,16 @@ export function validSheetTable(value: unknown): value is SheetTable {
         'firstColumn',
         'lastColumn',
         'style',
+        'color',
         'filters',
+        'columnTypes',
       ].includes(key)
     ) ||
+    (table.color !== undefined &&
+      (typeof table.color !== 'string' ||
+        !/^#[0-9a-f]{6}$/i.test(table.color))) ||
+    (table.id !== undefined &&
+      (typeof table.id !== 'string' || !table.id || table.id.length > 64)) ||
     typeof table.name !== 'string' ||
     !validTableName(table.name) ||
     typeof table.range !== 'string' ||
@@ -140,14 +282,10 @@ export function validSheetTable(value: unknown): value is SheetTable {
     return false;
   const width = last.column - first.column + 1;
   return (
-    table.filters === undefined ||
-    (!!table.filters &&
-      typeof table.filters === 'object' &&
-      !Array.isArray(table.filters) &&
-      Object.entries(table.filters).every(
-        ([key, filter]) =>
-          /^\d+$/.test(key) && Number(key) < width && validFilter(filter)
-      ))
+    validColumnRecord(table.filters, width, validFilter) &&
+    validColumnRecord(table.columnTypes, width, (type) =>
+      TABLE_COLUMN_TYPES.some((item) => item === type)
+    )
   );
 }
 
@@ -192,6 +330,7 @@ export function sheetTableLayouts(sheet: {
     headerRows: 1,
     totalsRows: table.totalsRow ? 1 : 0,
     columns: tableColumnNames(table, sheet.cells),
+    ...(table.filters && { filtered: true }),
   }));
 }
 
@@ -220,6 +359,56 @@ function overlaps(first: TableBounds, second: TableBounds) {
   );
 }
 
+/**
+ * The block of filled cells around `bounds`, as Excel's current region and
+ * Google Sheets' convert to table find a table's data: the range grows while
+ * a cell next to it, diagonals included, holds a value. Rows and columns are
+ * `limits` at most.
+ */
+export function currentRegion(
+  cells: SpreadsheetCells,
+  bounds: TableBounds,
+  limits: { rows: number; columns: number }
+): TableBounds {
+  const region = { ...bounds };
+  const filled = (row: number, column: number) =>
+    row >= 0 &&
+    column >= 0 &&
+    row < limits.rows &&
+    column < limits.columns &&
+    !isEmpty(cells, row, column);
+  const rowFilled = (row: number) => {
+    for (let column = region.left - 1; column <= region.right + 1; column++)
+      if (filled(row, column)) return true;
+    return false;
+  };
+  const columnFilled = (column: number) => {
+    for (let row = region.top - 1; row <= region.bottom + 1; row++)
+      if (filled(row, column)) return true;
+    return false;
+  };
+  for (let grown = true; grown; ) {
+    grown = false;
+    if (region.top > 0 && rowFilled(region.top - 1)) {
+      region.top--;
+      grown = true;
+    }
+    if (region.bottom + 1 < limits.rows && rowFilled(region.bottom + 1)) {
+      region.bottom++;
+      grown = true;
+    }
+    if (region.left > 0 && columnFilled(region.left - 1)) {
+      region.left--;
+      grown = true;
+    }
+    if (region.right + 1 < limits.columns && columnFilled(region.right + 1)) {
+      region.right++;
+      grown = true;
+    }
+  }
+  return region;
+}
+
 /** The first `Table1`, `Table2`… not among `taken`. */
 export function nextTableName(taken: Iterable<string>): string {
   const names = new Set([...taken].map((name) => name.toLowerCase()));
@@ -227,12 +416,14 @@ export function nextTableName(taken: Iterable<string>): string {
     if (!names.has(`table${index}`)) return `Table${index}`;
 }
 
-/** A valid name no other table or defined name uses, or an explanation. */
+/** A valid name no other table or defined name uses, or an explanation.
+ * Spaces become underscores, as Google Sheets writes table names in
+ * formulas. */
 export function checkTableName(name: string, taken: Iterable<string>): string {
-  const trimmed = name.trim();
-  if (!validTableName(trimmed))
+  const trimmed = name.trim().replace(/\s+/g, '_');
+  if (!validTableName(trimmed) || /^(?:true|false)$/i.test(trimmed))
     throw new Error(
-      `“${trimmed}” is not a valid table name. Start with a letter or underscore and use only letters, numbers, periods and underscores, without spaces; a name cannot look like a cell reference such as A1.`
+      `“${trimmed}” is not a valid table name. Start with a letter or underscore and use only letters, numbers, periods and underscores; a name cannot be TRUE or FALSE or look like a cell reference such as A1.`
     );
   const lower = trimmed.toLowerCase();
   if ([...taken].some((existing) => existing.toLowerCase() === lower))
@@ -247,28 +438,34 @@ export function totalsFormula(
   aggregate: TableTotalsFunction,
   column: string
 ): string {
-  return `=SUBTOTAL(${TABLE_TOTALS_FUNCTIONS[aggregate]},[${escapedColumnName(column)}])`;
+  const values = `[${escapedColumnName(column)}]`;
+  if (excelTotalsFunction(aggregate))
+    return `=SUBTOTAL(${TABLE_TOTALS_FUNCTIONS[aggregate]},${values})`;
+  const unique = `SUMPRODUCT((${values}<>"")/COUNTIF(${values},${values}&""))`;
+  return {
+    empty: `=COUNTBLANK(${values})`,
+    unique: `=${unique}`,
+    percentFilled: `=SUBTOTAL(103,${values})/ROWS(${values})`,
+    percentEmpty: `=COUNTBLANK(${values})/ROWS(${values})`,
+    percentUnique: `=${unique}/ROWS(${values})`,
+  }[aggregate];
 }
 
-/** The aggregate a total row formula computes for `column`, if it is one. */
+/** The aggregate a total row formula computes for `column`, if it is one;
+ * the formula may name `table`. */
 export function totalsFunction(
   formula: string,
   column: string,
   table?: string
 ): TableTotalsFunction | undefined {
-  const match =
-    /^=\s*SUBTOTAL\s*\(\s*(\d+)\s*,\s*([\p{L}\p{N}_.\\]*)\s*\[(.*)\]\s*\)\s*$/iu.exec(
-      formula
-    );
-  if (!match) return;
-  if (match[2] && match[2].toLowerCase() !== table?.toLowerCase()) return;
-  if (
-    match[3].replace(/'(.)/g, '$1').trim().toLowerCase() !==
-    column.toLowerCase()
-  )
-    return;
-  return (Object.keys(TABLE_TOTALS_FUNCTIONS) as TableTotalsFunction[]).find(
-    (key) => TABLE_TOTALS_FUNCTIONS[key] === Number(match[1])
+  const own = table && `${table.toLowerCase()}[`;
+  const normalize = (text: string) => {
+    const compact = text.replace(/\s+/g, '').toLowerCase();
+    return own ? compact.replaceAll(own, '[') : compact;
+  };
+  const target = normalize(formula);
+  return TABLE_TOTALS.find(
+    (aggregate) => normalize(totalsFormula(aggregate, column)) === target
   );
 }
 
@@ -321,19 +518,7 @@ export function createTable(options: {
   display?: (address: string) => string | undefined;
 }): TableChange {
   const { metadata, cells } = options;
-  const [first, last = first] = options.range
-    .split(':')
-    .map((address) => parseCellAddress(address.trim().toUpperCase()));
-  if (!first || !last || options.range.split(':').length > 2)
-    throw new Error(
-      `Invalid range “${options.range}”. Select cells such as A1:D20.`
-    );
-  const bounds: TableBounds = {
-    top: Math.min(first.row, last.row),
-    left: Math.min(first.column, last.column),
-    bottom: Math.max(first.row, last.row),
-    right: Math.max(first.column, last.column),
-  };
+  const bounds = rangeBounds(options.range);
   if (bounds.top === bounds.bottom) {
     const below = bounds.bottom + 1;
     if (below >= options.rowCount)
@@ -347,45 +532,11 @@ export function createTable(options: {
   }
   if ((metadata?.tables?.length ?? 0) >= MAX_SHEET_TABLES)
     throw new Error(`A sheet can have at most ${MAX_SHEET_TABLES} tables.`);
-  if (
-    (metadata?.tables ?? []).some((table) =>
-      overlaps(tableBounds(table), bounds)
-    )
-  )
-    throw new Error(
-      'Tables cannot overlap. Select cells outside the existing table.'
-    );
-  if (
-    (metadata?.merges ?? []).some((merge) =>
-      sqrefBounds(merge).some((area) => overlaps(area, bounds))
-    )
-  )
-    throw new Error('Unmerge the cells before converting them to a table.');
-  const edits: SpreadsheetCellEdits = {};
-  const headerCells: SpreadsheetCells = { ...cells };
-  for (let column = bounds.left; column <= bounds.right; column++) {
-    const address = formatCellAddress(bounds.top, column);
-    const cell = cells[address];
-    if (cell?.value.startsWith('=') && cell.format !== 'text') {
-      const text = options.display?.(address)?.trim() ?? '';
-      headerCells[address] = { ...cell, value: text };
-    }
-  }
-  const range = `${formatCellAddress(bounds.top, bounds.left)}:${formatCellAddress(bounds.bottom, bounds.right)}`;
-  const names = tableColumnNames({ range }, headerCells);
-  names.forEach((name, offset) => {
-    const address = formatCellAddress(bounds.top, bounds.left + offset);
-    const cell = cells[address];
-    const text =
-      cell && !(cell.value.startsWith('=') && cell.format !== 'text')
-        ? cellPlainText(cell.value).replace(/^'/, '')
-        : undefined;
-    if (text !== name)
-      edits[address] = { value: name.startsWith('=') ? `'${name}` : name };
-  });
+  checkPlacement(metadata, bounds);
+  const edits = headerNameEdits(bounds, cells, options.display);
   const table: SheetTable = {
     name: options.name,
-    range,
+    range: boundsRange(bounds),
     totalsRow: false,
     bandedRows: true,
     style: 'TableStyleMedium2',
@@ -400,13 +551,9 @@ export function createTable(options: {
   )
     delete next.autoFilter;
   if (options.totalsRow) {
-    const named: SpreadsheetCells = { ...cells };
-    for (const [address, edit] of Object.entries(edits))
-      if (edit?.value !== undefined)
-        named[address] = { ...cells[address], value: edit.value };
     const change = setTableTotalsRow({
       metadata: next,
-      cells: named,
+      cells: withEdits(cells, edits),
       name: table.name,
       totalsRow: true,
       rowCount: options.rowCount,
@@ -417,7 +564,148 @@ export function createTable(options: {
   return { metadata: next, edits };
 }
 
-function replaceTable(
+/** Cells with the values of `edits` written. */
+export function withEdits(
+  cells: SpreadsheetCells,
+  edits: SpreadsheetCellEdits
+): SpreadsheetCells {
+  const result: SpreadsheetCells = { ...cells };
+  for (const [address, edit] of Object.entries(edits))
+    if (edit?.value !== undefined)
+      result[address] = { ...cells[address], value: edit.value };
+  return result;
+}
+
+function boundsRange(bounds: TableBounds) {
+  return `${formatCellAddress(bounds.top, bounds.left)}:${formatCellAddress(bounds.bottom, bounds.right)}`;
+}
+
+/** The cells a range such as `A1:D20` covers. */
+function rangeBounds(range: string): TableBounds {
+  const [first, last = first] = range
+    .split(':')
+    .map((address) => parseCellAddress(address.trim().toUpperCase()));
+  if (!first || !last || range.split(':').length > 2)
+    throw new Error(`Invalid range “${range}”. Select cells such as A1:D20.`);
+  return {
+    top: Math.min(first.row, last.row),
+    left: Math.min(first.column, last.column),
+    bottom: Math.max(first.row, last.row),
+    right: Math.max(first.column, last.column),
+  };
+}
+
+/** Throws unless a table fits at `bounds`: clear of other tables, other
+ * than `except`, and merged cells. */
+function checkPlacement(
+  metadata: WorkbookSheetMetadata | undefined,
+  bounds: TableBounds,
+  except?: string
+) {
+  if (
+    (metadata?.tables ?? []).some(
+      (table) => table.name !== except && overlaps(tableBounds(table), bounds)
+    )
+  )
+    throw new Error(
+      'Tables cannot overlap. Select cells outside the existing table.'
+    );
+  if (
+    (metadata?.merges ?? []).some((merge) =>
+      sqrefBounds(merge).some((area) => overlaps(area, bounds))
+    )
+  )
+    throw new Error('Unmerge the cells before converting them to a table.');
+}
+
+/** Header cells written with the names Excel gives blank, formula and
+ * repeated headers. */
+function headerNameEdits(
+  bounds: TableBounds,
+  cells: SpreadsheetCells,
+  display?: (address: string) => string | undefined
+): SpreadsheetCellEdits {
+  const edits: SpreadsheetCellEdits = {};
+  const headerCells: SpreadsheetCells = { ...cells };
+  for (let column = bounds.left; column <= bounds.right; column++) {
+    const address = formatCellAddress(bounds.top, column);
+    const cell = cells[address];
+    if (cell?.value.startsWith('=') && cell.format !== 'text') {
+      const text = display?.(address)?.trim() ?? '';
+      headerCells[address] = { ...cell, value: text };
+    }
+  }
+  const names = tableColumnNames({ range: boundsRange(bounds) }, headerCells);
+  names.forEach((name, offset) => {
+    const address = formatCellAddress(bounds.top, bounds.left + offset);
+    const cell = cells[address];
+    const text =
+      cell && !(cell.value.startsWith('=') && cell.format !== 'text')
+        ? cellPlainText(cell.value).replace(/^'/, '')
+        : undefined;
+    if (text !== name)
+      edits[address] = { value: name.startsWith('=') ? `'${name}` : name };
+  });
+  return edits;
+}
+
+/** A column record moved to a table whose first column is `left`: entries
+ * of columns outside the table's `width` are dropped. */
+function movedColumns<T>(
+  record: Record<string, T> | undefined,
+  shift: number,
+  width: number
+): Record<string, T> | undefined {
+  if (!record) return;
+  const moved = Object.fromEntries(
+    Object.entries(record).flatMap(([offset, value]) => {
+      const next = Number(offset) + shift;
+      return next >= 0 && next < width ? [[String(next), value]] : [];
+    })
+  );
+  return Object.keys(moved).length ? moved : undefined;
+}
+
+/**
+ * Change the cells a table covers. The range's first row becomes the header
+ * row, its blank and repeated headers named, and with a total row its last
+ * row the total row. Filters and column types follow their columns; columns
+ * left out lose theirs.
+ */
+export function resizeTable(options: {
+  metadata: WorkbookSheetMetadata | undefined;
+  cells: SpreadsheetCells;
+  name: string;
+  range: string;
+  display?: (address: string) => string | undefined;
+}): TableChange {
+  const table = findTable(options.metadata, options.name);
+  const bounds = rangeBounds(options.range);
+  if (bounds.bottom - bounds.top < (table.totalsRow ? 2 : 1))
+    throw new Error(
+      table.totalsRow
+        ? 'A table needs a header row, a data row and its total row.'
+        : 'A table needs a header row and at least one data row.'
+    );
+  checkPlacement(options.metadata, bounds, table.name);
+  const width = bounds.right - bounds.left + 1;
+  const shift = tableBounds(table).left - bounds.left;
+  const filters = movedColumns(table.filters, shift, width);
+  const columnTypes = movedColumns(table.columnTypes, shift, width);
+  const { filters: _filters, columnTypes: _columnTypes, ...rest } = table;
+  const resized: SheetTable = {
+    ...rest,
+    range: boundsRange(bounds),
+    ...(filters && { filters }),
+    ...(columnTypes && { columnTypes }),
+  };
+  return {
+    metadata: replaceTable(options.metadata ?? {}, table.name, () => resized),
+    edits: headerNameEdits(bounds, options.cells, options.display),
+  };
+}
+
+export function replaceTable(
   metadata: WorkbookSheetMetadata,
   name: string,
   update: (table: SheetTable) => SheetTable | undefined
@@ -431,7 +719,10 @@ function replaceTable(
   return tables.length ? { ...rest, tables } : rest;
 }
 
-function findTable(metadata: WorkbookSheetMetadata | undefined, name: string) {
+export function findTable(
+  metadata: WorkbookSheetMetadata | undefined,
+  name: string
+) {
   const table = metadata?.tables?.find((item) => item.name === name);
   if (!table)
     throw new Error(`There is no table named “${name}” on this sheet.`);
@@ -566,32 +857,6 @@ export function expandTables(options: {
   }
 }
 
-/** The data rows a table's filters hide, given each cell's displayed text. */
-export function tableFilterHiddenRows(
-  table: SheetTable,
-  display: (row: number, column: number) => string
-): number[] {
-  const filters = Object.entries(table.filters ?? {}).map(
-    ([offset, filter]) => ({
-      column: tableBounds(table).left + Number(offset),
-      values: new Set(filter.values.map((value) => value.toLowerCase())),
-      blanks: !!filter.blanks,
-    })
-  );
-  if (!filters.length) return [];
-  const { first, last } = tableDataRows(table);
-  const hidden: number[] = [];
-  for (let row = first; row <= last; row++)
-    if (
-      filters.some(({ column, values, blanks }) => {
-        const text = display(row, column).trim();
-        return text === '' ? !blanks : !values.has(text.toLowerCase());
-      })
-    )
-      hidden.push(row);
-  return hidden;
-}
-
 /**
  * Whether a hidden row stays hidden when table `name` filters, sorts or
  * stops being a table: it is outside the table's data rows, or in the data
@@ -609,159 +874,4 @@ export function keepsHiddenRow(
     row < own.first ||
     row > own.last ||
     others.some(({ first, last }) => row >= first && row <= last);
-}
-
-/**
- * Set a table's filters and hide the data rows they leave out. Rows of the
- * table's data the filters keep are shown again, unless another table's
- * filter may hide them.
- */
-export function filterTable(options: {
-  metadata: WorkbookSheetMetadata | undefined;
-  name: string;
-  filters: SheetTable['filters'];
-  display: (row: number, column: number) => string;
-}): WorkbookSheetMetadata {
-  const table = findTable(options.metadata, options.name);
-  const filters = Object.keys(options.filters ?? {}).length
-    ? options.filters
-    : undefined;
-  const filtered: SheetTable = { ...table, filters };
-  if (!filters) delete filtered.filters;
-  const hidden = new Set(
-    (options.metadata?.hiddenRows ?? []).filter(
-      keepsHiddenRow(options.metadata, table.name)
-    )
-  );
-  for (const row of tableFilterHiddenRows(filtered, options.display))
-    hidden.add(row);
-  const metadata = replaceTable(
-    options.metadata ?? {},
-    table.name,
-    () => filtered
-  );
-  const { hiddenRows: _hidden, ...rest } = metadata;
-  return hidden.size
-    ? { ...rest, hiddenRows: [...hidden].sort((a, b) => a - b) }
-    : rest;
-}
-
-/** A sheet as the workbook-wide table operations read it. */
-export type TableSheet = {
-  id: string;
-  name: string;
-  cells: SpreadsheetCells;
-  metadata?: WorkbookSheetMetadata;
-};
-
-/** Cell and metadata changes for several sheets, written as one change. */
-export type SheetChanges = {
-  sheetId: string;
-  edits: SpreadsheetCellEdits;
-  metadata?: WorkbookSheetMetadata;
-}[];
-
-/** Names tables and defined names already use in the workbook. */
-export function workbookNames(sheets: TableSheet[]): string[] {
-  return sheets.flatMap((sheet) => [
-    ...(sheet.metadata?.tables ?? []).map((table) => table.name),
-    ...(sheet.metadata?.definedNames ?? []).map((entry) => entry.name),
-  ]);
-}
-
-function rewriteFormulas(
-  sheets: TableSheet[],
-  rewrite: (formula: string, sheet: TableSheet, address: string) => string
-) {
-  const changes = new Map<string, SpreadsheetCellEdits>();
-  for (const sheet of sheets) {
-    const edits: SpreadsheetCellEdits = {};
-    for (const [address, cell] of Object.entries(sheet.cells)) {
-      if (
-        !cell.value.startsWith('=') ||
-        cell.format === 'text' ||
-        !cell.value.includes('[')
-      )
-        continue;
-      const value = rewrite(cell.value, sheet, address);
-      if (value !== cell.value) edits[address] = { value };
-    }
-    changes.set(sheet.id, edits);
-  }
-  return changes;
-}
-
-/** Rename a table and every formula reference to it. */
-export function renameTable(
-  sheets: TableSheet[],
-  sheetId: string,
-  from: string,
-  to: string
-): SheetChanges {
-  const sheet = sheets.find((item) => item.id === sheetId);
-  findTable(sheet?.metadata, from);
-  if (to.trim() === from) return [];
-  const name = checkTableName(
-    to,
-    workbookNames(sheets).filter((existing) => existing !== from)
-  );
-  const formulas = rewriteFormulas(sheets, (formula) =>
-    renameTableReferences(formula, from, name)
-  );
-  return sheets.flatMap((item) => {
-    const edits = formulas.get(item.id) ?? {};
-    const metadata =
-      item.id === sheetId
-        ? replaceTable(item.metadata ?? {}, from, (table) => ({
-            ...table,
-            name,
-          }))
-        : undefined;
-    return Object.keys(edits).length || metadata
-      ? [{ sheetId: item.id, edits, ...(metadata && { metadata }) }]
-      : [];
-  });
-}
-
-/**
- * Turn a table back into ordinary cells: formulas that refer to it get the
- * cell ranges it covers, and rows its filters hid are shown.
- */
-export function convertTableToRange(
-  sheets: TableSheet[],
-  sheetId: string,
-  name: string
-): SheetChanges {
-  const sheet = sheets.find((item) => item.id === sheetId);
-  const table = findTable(sheet?.metadata, name);
-  const layouts = sheets.flatMap(sheetTableLayouts);
-  const formulas = rewriteFormulas(sheets, (formula, current, address) => {
-    const position = parseCellAddress(address)!;
-    return (
-      resolveStructuredReferences(
-        formula,
-        layouts,
-        current.name,
-        position.row,
-        position.column,
-        { resolves: (layout) => layout.name === name }
-      ) ?? formula
-    );
-  });
-  const keeps = keepsHiddenRow(sheet?.metadata, name);
-  return sheets.flatMap((item) => {
-    const edits = formulas.get(item.id) ?? {};
-    let metadata: WorkbookSheetMetadata | undefined;
-    if (item.id === sheetId) {
-      metadata = replaceTable(item.metadata ?? {}, name, () => undefined);
-      if (table.filters && metadata.hiddenRows) {
-        const hiddenRows = metadata.hiddenRows.filter(keeps);
-        if (hiddenRows.length) metadata.hiddenRows = hiddenRows;
-        else delete metadata.hiddenRows;
-      }
-    }
-    return Object.keys(edits).length || metadata
-      ? [{ sheetId: item.id, edits, ...(metadata && { metadata }) }]
-      : [];
-  });
 }

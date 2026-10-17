@@ -2,14 +2,20 @@ import {
   validImageKey,
   validImageUrl,
 } from '@macro-inc/spreadsheet/sheet-drawings';
-import {
-  expandTables,
-  type SheetChanges,
-} from '@macro-inc/spreadsheet/sheet-tables';
+import type { SheetTable } from '@macro-inc/spreadsheet/sheet-tables';
 import {
   readSpreadsheetSheets,
   type SpreadsheetSheet,
 } from '@macro-inc/spreadsheet/spreadsheet-sheet-registry';
+import {
+  type SheetChanges,
+  tableEditChanges,
+} from '@macro-inc/spreadsheet/table-edits';
+import {
+  readSheetMetadata,
+  readSpreadsheetTables,
+  writeSheetMetadata,
+} from '@macro-inc/spreadsheet/table-storage';
 import {
   parseWorkbookMetadata,
   type WorkbookSheetMetadata,
@@ -108,6 +114,8 @@ type PendingChanges = {
   cells: Map<string, Map<string, unknown>>;
   layout: Set<string>;
   metadata: Set<string>;
+  /** Any table changed; tables are read together, as names span sheets. */
+  tables: boolean;
 };
 const nothingPending = (): PendingChanges => ({
   full: false,
@@ -115,6 +123,7 @@ const nothingPending = (): PendingChanges => ({
   cells: new Map(),
   layout: new Set(),
   metadata: new Set(),
+  tables: false,
 });
 
 /** Changed cell addresses per sheet; `undefined` means every cell. */
@@ -286,7 +295,8 @@ export function createSpreadsheetStore(options: {
           pending.layout.add(splitSpreadsheetSheetKey(key).sheetId);
       } else if (root === 'spreadsheetSheetMetadata') {
         for (const key of Object.keys(updated)) pending.metadata.add(key);
-      } else if (REGISTRY_MAPS.has(root)) pending.registry = true;
+      } else if (root === 'spreadsheetTables') pending.tables = true;
+      else if (REGISTRY_MAPS.has(root)) pending.registry = true;
     }
   };
 
@@ -296,16 +306,15 @@ export function createSpreadsheetStore(options: {
   const readSheet = (
     doc: LoroDoc,
     sheet: SpreadsheetSheet,
-    readEntries: SpreadsheetEntryReader
+    readEntries: SpreadsheetEntryReader,
+    tables: SheetTable[] | undefined
   ): SpreadsheetWorkbookSheet => {
     const cells =
       imported?.get(sheet.id) ??
       readSpreadsheetCells(doc, sheet.id, readEntries);
     return {
       ...sheet,
-      metadata: parseWorkbookMetadata(
-        doc.getMap('spreadsheetSheetMetadata').get(sheet.id)
-      ),
+      metadata: readSheetMetadata(doc, sheet.id, tables),
       cells,
       layout: sheetLayout(doc, sheet.id, cells),
     };
@@ -323,16 +332,21 @@ export function createSpreadsheetStore(options: {
     const changed: SpreadsheetChanges = new Map();
     const touched = new Set<string>();
     let order = workbook().map((sheet) => sheet.id);
+    let tables: Map<string, SheetTable[]> | undefined;
     if (changes.registry) {
       const registry = readSpreadsheetSheets(doc);
       order = registry.map((sheet) => sheet.id);
+      tables = readSpreadsheetTables(doc, order);
       // Each new sheet reads from one decoding of the cell maps.
       let readEntries: SpreadsheetEntryReader | undefined;
       for (const sheet of registry) {
         const current = sheets.get(sheet.id);
         if (!current) {
           readEntries ??= createSpreadsheetEntryReader(doc);
-          sheets.set(sheet.id, readSheet(doc, sheet, readEntries));
+          sheets.set(
+            sheet.id,
+            readSheet(doc, sheet, readEntries, tables.get(sheet.id))
+          );
           changed.set(sheet.id, undefined);
         } else if (current.name !== sheet.name) {
           sheets.set(sheet.id, { ...current, name: sheet.name });
@@ -397,14 +411,20 @@ export function createSpreadsheetStore(options: {
           },
         });
     }
-    for (const id of changes.metadata) {
+    if (changes.tables) tables ??= readSpreadsheetTables(doc, order);
+    for (const id of order) {
       const sheet = sheets.get(id);
-      if (!sheet) continue;
+      if (!sheet || (!changes.metadata.has(id) && !tables)) continue;
+      const sheetTables = tables ? tables.get(id) : sheet.metadata?.tables;
+      if (
+        !changes.metadata.has(id) &&
+        JSON.stringify(sheetTables ?? []) ===
+          JSON.stringify(sheet.metadata?.tables ?? [])
+      )
+        continue;
       sheets.set(id, {
         ...sheet,
-        metadata: parseWorkbookMetadata(
-          doc.getMap('spreadsheetSheetMetadata').get(id)
-        ),
+        metadata: readSheetMetadata(doc, id, sheetTables),
       });
       touched.add(id);
     }
@@ -493,25 +513,36 @@ export function createSpreadsheetStore(options: {
     options.source.status() === 'local' ||
     options.source.status() === 'connected';
 
-  /** Write a sheet's cells as one change. A value typed directly below or
-   * right of a table extends the table in the same change. */
+  /** Write sheet changes as one change, after validating all of them. */
+  function writeSheets(doc: LoroDoc, changes: SheetChanges, origin: string) {
+    for (const change of changes) {
+      if (!workbook().some((sheet) => sheet.id === change.sheetId))
+        throw new Error('This sheet no longer exists.');
+      validateSpreadsheetCellEdits(change.edits);
+      if (
+        change.metadata &&
+        !parseWorkbookMetadata(JSON.stringify(change.metadata))
+      )
+        throw new Error('Invalid sheet layout.');
+    }
+    for (const change of changes) {
+      writeSpreadsheetCells(doc, change.edits, change.sheetId, false);
+      if (change.metadata)
+        writeSheetMetadata(doc, change.sheetId, change.metadata);
+    }
+    doc.commit({ origin });
+  }
+
+  /** Write a sheet's cells as one change, with what they do to its tables:
+   * growing one, filling a calculated column or renaming a column. */
   function writeCells(
     doc: LoroDoc,
     sheetId: string,
     edits: SpreadsheetCellEdits
   ) {
-    const sheet = workbook().find((item) => item.id === sheetId);
-    const grown =
-      sheet &&
-      expandTables({ metadata: sheet.metadata, cells: sheet.cells, edits });
-    const encoded = grown && JSON.stringify(grown.metadata);
-    if (!grown || !encoded || !parseWorkbookMetadata(encoded)) {
-      writeSpreadsheetCells(doc, edits, sheetId);
-      return;
-    }
-    writeSpreadsheetCells(doc, { ...edits, ...grown.edits }, sheetId, false);
-    doc.getMap('spreadsheetSheetMetadata').set(sheetId, encoded);
-    doc.commit({ origin: 'spreadsheet-edit' });
+    const changes = tableEditChanges(workbook(), sheetId, edits);
+    if (changes) writeSheets(doc, changes, 'spreadsheet-edit');
+    else writeSpreadsheetCells(doc, edits, sheetId);
   }
 
   function setActiveSheet(id: string) {
@@ -678,8 +709,7 @@ export function createSpreadsheetStore(options: {
     ) {
       const doc = options.source.doc();
       if (!doc || !editable()) return;
-      const encoded = JSON.stringify(metadata);
-      if (!parseWorkbookMetadata(encoded))
+      if (!parseWorkbookMetadata(JSON.stringify(metadata)))
         throw new Error('Invalid sheet layout.');
       const stored = doc.getMap('spreadsheetImages');
       for (const [key, url] of Object.entries(images)) {
@@ -687,7 +717,7 @@ export function createSpreadsheetStore(options: {
           throw new Error('This image cannot be stored.');
         if (stored.get(key) === undefined) stored.set(key, url);
       }
-      doc.getMap('spreadsheetSheetMetadata').set(activeSheetId(), encoded);
+      writeSheetMetadata(doc, activeSheetId(), metadata);
       doc.commit({ origin: 'spreadsheet-layout' });
       refresh();
     },
@@ -738,9 +768,7 @@ export function createSpreadsheetStore(options: {
         if (
           JSON.stringify(previous.metadata) !== JSON.stringify(sheet.metadata)
         )
-          doc
-            .getMap('spreadsheetSheetMetadata')
-            .set(sheet.id, JSON.stringify(sheet.metadata ?? {}));
+          writeSheetMetadata(doc, sheet.id, sheet.metadata);
         for (const key of new Set([
           ...Object.keys(previous.layout.columnWidths),
           ...Object.keys(sheet.layout.columnWidths),
@@ -824,24 +852,7 @@ export function createSpreadsheetStore(options: {
     editSheets(changes: SheetChanges) {
       const doc = options.source.doc();
       if (!doc || !editable() || !changes.length) return;
-      for (const change of changes) {
-        if (!workbook().some((sheet) => sheet.id === change.sheetId))
-          throw new Error('This sheet no longer exists.');
-        validateSpreadsheetCellEdits(change.edits);
-        if (
-          change.metadata &&
-          !parseWorkbookMetadata(JSON.stringify(change.metadata))
-        )
-          throw new Error('Invalid sheet layout.');
-      }
-      for (const change of changes) {
-        writeSpreadsheetCells(doc, change.edits, change.sheetId, false);
-        if (change.metadata)
-          doc
-            .getMap('spreadsheetSheetMetadata')
-            .set(change.sheetId, JSON.stringify(change.metadata));
-      }
-      doc.commit({ origin: 'spreadsheet-table' });
+      writeSheets(doc, changes, 'spreadsheet-table');
       refresh();
     },
     undo() {

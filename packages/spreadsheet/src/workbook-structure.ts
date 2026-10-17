@@ -1,12 +1,12 @@
 import { getTokens, Model } from '@ironcalc/wasm';
 import { type DrawingPoint, isChartLiteral } from './sheet-drawings';
-import type { SheetTable } from './sheet-tables';
 import {
   boundsSqref,
   type CellBounds,
   sqrefBounds,
   subtractBounds,
 } from './sheet-rules';
+import type { SheetTable } from './sheet-tables';
 import {
   columnName,
   formatCellAddress,
@@ -248,16 +248,23 @@ function movedTable(
     totalsRow,
     range: `${formatCellAddress(start.row, start.column)}:${formatCellAddress(end.row, end.column)}`,
   };
-  if (table.filters) {
-    const filters = Object.fromEntries(
-      Object.entries(table.filters).flatMap(([offset, filter]) => {
-        if (axis === 'row') return [[offset, filter]];
+  const movedColumns = <T>(record: Record<string, T>) =>
+    Object.fromEntries(
+      Object.entries(record).flatMap(([offset, value]) => {
+        if (axis === 'row') return [[offset, value]];
         const column = move(first + Number(offset));
-        return column === undefined ? [] : [[String(column - low), filter]];
+        return column === undefined ? [] : [[String(column - low), value]];
       })
     );
+  if (table.filters) {
+    const filters = movedColumns(table.filters);
     if (Object.keys(filters).length) moved.filters = filters;
     else delete moved.filters;
+  }
+  if (table.columnTypes) {
+    const columnTypes = movedColumns(table.columnTypes);
+    if (Object.keys(columnTypes).length) moved.columnTypes = columnTypes;
+    else delete moved.columnTypes;
   }
   return moved;
 }

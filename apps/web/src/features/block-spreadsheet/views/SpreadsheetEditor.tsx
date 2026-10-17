@@ -50,7 +50,6 @@ import {
   SpreadsheetImportDialog,
   SpreadsheetSheetDialog,
 } from '../components/SpreadsheetWorkbookDialogs';
-import { TableDialog } from '../components/TableDialog';
 import type { SpreadsheetCommentsCapability } from '../context/spreadsheet-comments';
 import type { SpreadsheetMentions } from '../context/spreadsheet-mentions';
 import { cellDateInput, serialDay } from '../core/cell-date';
@@ -95,6 +94,7 @@ import { createSheetActions } from '../primitives/create-sheet-actions';
 import type { SpreadsheetStore } from '../primitives/create-spreadsheet-store';
 import { createTableActions } from '../primitives/create-table-actions';
 import { createWorkbookActions } from '../primitives/create-workbook-actions';
+import { SpreadsheetTableDialogs, tableGridUi } from './SpreadsheetTables';
 
 export function SpreadsheetEditor(props: {
   /** A saved workbook's document, recorded on traces. */
@@ -397,6 +397,24 @@ export function SpreadsheetEditor(props: {
     actions.notice() ||
     grid.notice();
   let pendingMenuAction: SpreadsheetCommand | undefined;
+  /** A dialog a grid menu chose, opened once the menu returns focus. */
+  let pendingDialog: (() => void) | undefined;
+  const tableUi = tableGridUi({
+    actions: tableActions,
+    editable,
+    canChangeStructure: () => props.store.canChangeStructure(),
+    changeColumns: (column, action) => {
+      grid.selectRange(
+        { row: 0, column },
+        { row: props.store.rowCount() - 1, column }
+      );
+      void headerAction('column', action);
+    },
+    restoreFocus: () => restoreEditorFocus(),
+    afterMenu: (open) => {
+      pendingDialog = open;
+    },
+  });
   const focusGrid = () => gridElement?.focus({ preventScroll: true });
   const revealSelection = () =>
     gridElement
@@ -476,6 +494,12 @@ export function SpreadsheetEditor(props: {
     const pending = pendingMenuAction;
     pendingMenuAction = undefined;
     if (pending) command(pending);
+    const dialog = pendingDialog;
+    pendingDialog = undefined;
+    if (dialog) {
+      dialog();
+      return;
+    }
     // A drawing a menu just inserted keeps the focus.
     const inserted = insertedDrawing;
     insertedDrawing = undefined;
@@ -490,6 +514,7 @@ export function SpreadsheetEditor(props: {
       workbookActions.sheetDialog() ||
       dropdownDialog() ||
       tableActions.dialog() ||
+      tableActions.groupView() ||
       dateFormatDialog()
     )
       return;
@@ -640,7 +665,7 @@ export function SpreadsheetEditor(props: {
       })
       .with('trim-whitespace', actions.trimWhitespace)
       .with('dropdown', openDropdownDialog)
-      .with('table', tableActions.openDialog)
+      .with('table', tableActions.convert)
       .with('custom-date-format', openDateFormatDialog)
       .with('border-all', () => actions.borders('all'))
       .with('border-outer', () => actions.borders('outer'))
@@ -993,6 +1018,7 @@ export function SpreadsheetEditor(props: {
           mentions={props.mentions}
           editing={!!grid.editing()}
           complete={calculation.complete}
+          tableReferences={tableActions.references}
           selectionRequest={grid.editorSelection()}
           references={grid.draftReferences()}
           pickingReference={
@@ -1039,6 +1065,7 @@ export function SpreadsheetEditor(props: {
           mentions={props.mentions}
           sheetId={props.store.activeSheetId()}
           complete={calculation.complete}
+          tableReferences={tableActions.references}
           cells={props.store.cells()}
           zoom={zoom()}
           showGridlines={showGridlines()}
@@ -1112,11 +1139,7 @@ export function SpreadsheetEditor(props: {
             grid.toggleCheckboxes();
           }}
           tables={props.store.activeSheet().metadata?.tables}
-          tableColumnChoices={tableActions.columnChoices}
-          onSortTableColumn={(table, column, descending) => {
-            void tableActions.sortColumn(table, column, descending);
-          }}
-          onFilterTableColumn={tableActions.filterColumn}
+          tableUi={tableUi}
           onPickListItem={(item) => {
             if (!editable()) return;
             grid.commit();
@@ -1180,6 +1203,17 @@ export function SpreadsheetEditor(props: {
             ) {
               event.preventDefault();
               command('find');
+              return;
+            }
+            // Google Sheets' shortcut to convert to a table.
+            if (
+              (event.metaKey || event.ctrlKey) &&
+              event.altKey &&
+              event.code === 'KeyT'
+            ) {
+              event.preventDefault();
+              event.stopPropagation();
+              tableActions.convert();
               return;
             }
             if (
@@ -1417,12 +1451,9 @@ export function SpreadsheetEditor(props: {
         onClose={() => setDropdownDialog(undefined)}
         onRestoreFocus={focusGrid}
       />
-      <TableDialog
-        dialog={tableActions.dialog()}
-        error={tableActions.error()}
-        onSave={tableActions.save}
-        onConvertToRange={tableActions.convertToRange}
-        onClose={tableActions.closeDialog}
+      <SpreadsheetTableDialogs
+        actions={tableActions}
+        readonly={!editable()}
         onRestoreFocus={focusGrid}
       />
       <DateFormatDialog

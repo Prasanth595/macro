@@ -252,7 +252,7 @@ export function DataFormatMenu(props: SpreadsheetToolbarProps) {
           onSelect={() => props.onCommand('table')}
         >
           <Table class="size-4" />
-          {props.inTable ? 'Table options…' : 'Convert to table…'}
+          {props.inTable ? 'Table options' : 'Convert to table'}
         </Dropdown.Item>
         <Dropdown.Item
           closeOnSelect

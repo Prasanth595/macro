@@ -16,6 +16,8 @@ export type WorkbookTable = {
   headerRows: number;
   totalsRows: number;
   columns: string[];
+  /** Its filters hide rows, which SUBTOTAL(1-11) then leaves out. */
+  filtered?: boolean;
 };
 
 /** One structured reference: `Table1[Amount]`, or `[@Qty]` inside a table. */
@@ -27,7 +29,12 @@ type StructuredReference = {
   specifier: string;
 };
 
-function structuredReferences(pieces: FormulaPiece[]): StructuredReference[] {
+/** The structured references of a formula's pieces. A bare word naming one
+ * of `tables`, such as `=SUM(Table1)`, refers to that table's data. */
+function structuredReferences(
+  pieces: FormulaPiece[],
+  tables?: Set<string>
+): StructuredReference[] {
   const found: StructuredReference[] = [];
   for (let index = 0; index < pieces.length; index++) {
     const piece = pieces[index];
@@ -50,6 +57,21 @@ function structuredReferences(pieces: FormulaPiece[]): StructuredReference[] {
       pieces[index - 1]?.kind !== 'word'
     )
       found.push({ start: index, end: index, specifier: piece.text });
+    else if (
+      piece.kind === 'word' &&
+      tables?.has(piece.text.toLowerCase()) &&
+      next?.text !== '(' &&
+      next?.text !== '!' &&
+      next?.text !== ':' &&
+      pieces[index - 1]?.text !== '!' &&
+      pieces[index - 1]?.text !== ':'
+    )
+      found.push({
+        start: index,
+        end: index,
+        table: piece.text,
+        specifier: '',
+      });
   }
   return found;
 }
@@ -58,13 +80,18 @@ function structuredReferences(pieces: FormulaPiece[]): StructuredReference[] {
  * text or undefined to keep it. */
 function rewrite(
   formula: string,
-  replace: (reference: StructuredReference) => string | undefined
+  replace: (reference: StructuredReference) => string | undefined,
+  tables?: Set<string>
 ): string {
-  if (!formula.includes('[')) return formula;
+  if (!formula.includes('[')) {
+    const lower = formula.toLowerCase();
+    if (!tables || ![...tables].some((name) => lower.includes(name)))
+      return formula;
+  }
   const pieces = formulaPieces(formula);
   const output = pieces.map((piece) => piece.text);
   let changed = false;
-  for (const reference of structuredReferences(pieces)) {
+  for (const reference of structuredReferences(pieces, tables)) {
     const text = replace(reference);
     if (text === undefined) continue;
     output[reference.start] = text;
@@ -83,14 +110,34 @@ export function hasStructuredReference(formula: string): boolean {
   );
 }
 
-/** The table names a formula's structured references give, lowercase. */
-export function referencedTableNames(formula: string): Set<string> {
-  if (!formula.includes('[')) return new Set();
+/** Whether a formula refers to its own row of a table, as `[@Qty]` does. */
+export function hasThisRowReference(formula: string): boolean {
+  return (
+    formula.includes('[') &&
+    structuredReferences(formulaPieces(formula)).some((reference) =>
+      specifierItems(reference.specifier).some(
+        (item) => item.trim().toLowerCase() === '#this row'
+      )
+    )
+  );
+}
+
+/** The table names a formula's structured references give, lowercase;
+ * bare words count when they name one of `tables`. */
+export function referencedTableNames(
+  formula: string,
+  tables?: Iterable<string>
+): Set<string> {
+  const names = tables && lowercaseSet(tables);
   return new Set(
-    structuredReferences(formulaPieces(formula)).flatMap((reference) =>
+    structuredReferences(formulaPieces(formula), names).flatMap((reference) =>
       reference.table ? [reference.table.toLowerCase()] : []
     )
   );
+}
+
+function lowercaseSet(names: Iterable<string>) {
+  return new Set([...names].map((name) => name.toLowerCase()));
 }
 
 /** The table a reference names, or for `[@Qty]` the table holding the cell. */
@@ -233,23 +280,27 @@ export function resolveStructuredReferences(
     resolves?: (table: WorkbookTable) => boolean;
   } = {}
 ): string | undefined {
-  if (!formula.includes('[')) return formula;
+  const names = lowercaseSet(tables.map((table) => table.name));
   const { unresolved, resolves } = options;
   let failed = false;
-  const resolved = rewrite(formula, (reference) => {
-    const table = referencedTable(reference, tables, sheet, row, column);
-    if (table && resolves && !resolves(table)) return;
-    // A word before brackets that names no table is left to the engine
-    // unless a replacement for unknown references is given.
-    if (!table && reference.table !== undefined && unresolved === undefined)
-      return;
-    const range = table
-      ? structuredRange(table, reference.specifier, sheet, row)
-      : undefined;
-    if (range !== undefined) return range;
-    if (unresolved === undefined) failed = true;
-    return unresolved;
-  });
+  const resolved = rewrite(
+    formula,
+    (reference) => {
+      const table = referencedTable(reference, tables, sheet, row, column);
+      if (table && resolves && !resolves(table)) return;
+      // A word before brackets that names no table is left to the engine
+      // unless a replacement for unknown references is given.
+      if (!table && reference.table !== undefined && unresolved === undefined)
+        return;
+      const range = table
+        ? structuredRange(table, reference.specifier, sheet, row)
+        : undefined;
+      if (range !== undefined) return range;
+      if (unresolved === undefined) failed = true;
+      return unresolved;
+    },
+    names
+  );
   return failed ? undefined : resolved;
 }
 
@@ -259,11 +310,65 @@ export function renameTableReferences(
   from: string,
   to: string
 ): string {
-  return rewrite(formula, (reference) =>
-    reference.table?.toLowerCase() === from.toLowerCase()
-      ? `${to}${reference.specifier}`
-      : undefined
+  return rewrite(
+    formula,
+    (reference) =>
+      reference.table?.toLowerCase() === from.toLowerCase()
+        ? `${to}${reference.specifier}`
+        : undefined,
+    lowercaseSet([from])
   );
+}
+
+/** A specifier with column `from` named `to`, or undefined when it does not
+ * name `from`. */
+function renamedSpecifier(specifier: string, from: string, to: string) {
+  const target = from.trim().toLowerCase();
+  const escaped = escapedColumnName(to);
+  const items = (text: string) =>
+    text.replace(/\[((?:'.|[^\]])*)\]/g, (whole, item: string) =>
+      !item.trim().startsWith('#') && columnSpecifier(item) === target
+        ? `[${escaped}]`
+        : whole
+    );
+  const inner = specifier.slice(1, -1);
+  const trimmed = inner.trim();
+  let next: string | undefined;
+  if (trimmed.startsWith('[')) next = `[${items(inner)}]`;
+  else if (trimmed.startsWith('@')) {
+    const rest = trimmed.slice(1).trim();
+    if (rest.startsWith('[')) next = `[@${items(rest)}]`;
+    else if (rest && columnSpecifier(rest) === target)
+      next = /^[\p{L}_][\p{L}\p{N}_.]*$/u.test(to)
+        ? `[@${to}]`
+        : `[@[${escaped}]]`;
+  } else if (!trimmed.startsWith('#') && columnSpecifier(inner) === target)
+    next = `[${escaped}]`;
+  return next === specifier ? undefined : next;
+}
+
+/** A formula with its references to column `from` of table `table` naming
+ * `to` instead, for the formula in `row` and `column` of `sheet`. */
+export function renameColumnReferences(
+  formula: string,
+  tables: WorkbookTable[],
+  sheet: string,
+  row: number,
+  column: number,
+  rename: { table: string; from: string; to: string }
+): string {
+  return rewrite(formula, (reference) => {
+    const table = referencedTable(reference, tables, sheet, row, column);
+    if (table?.name.toLowerCase() !== rename.table.toLowerCase()) return;
+    const specifier = renamedSpecifier(
+      reference.specifier,
+      rename.from,
+      rename.to
+    );
+    return specifier === undefined
+      ? undefined
+      : `${reference.table ?? ''}${specifier}`;
+  });
 }
 
 /**
@@ -277,18 +382,23 @@ export function qualifyStructuredReferences(
   row: number,
   column: number
 ): string {
-  return rewrite(formula, (reference) => {
-    const table = referencedTable(reference, tables, sheet, row, column);
-    if (!table) return;
-    const items = specifierItems(reference.specifier);
-    const thisRow = reference.specifier.slice(1).trimStart().startsWith('@');
-    if (!thisRow) return `${table.name}${reference.specifier}`;
-    const columns = items
-      .slice(1)
-      .map((item) => (item === ':' ? ':' : `[${item}]`))
-      .join('');
-    return `${table.name}${columns ? `[[#This Row],${columns}]` : '[#This Row]'}`;
-  });
+  return rewrite(
+    formula,
+    (reference) => {
+      const table = referencedTable(reference, tables, sheet, row, column);
+      if (!table) return;
+      if (!reference.specifier) return `${table.name}[#Data]`;
+      const items = specifierItems(reference.specifier);
+      const thisRow = reference.specifier.slice(1).trimStart().startsWith('@');
+      if (!thisRow) return `${table.name}${reference.specifier}`;
+      const columns = items
+        .slice(1)
+        .map((item) => (item === ':' ? ':' : `[${item}]`))
+        .join('');
+      return `${table.name}${columns ? `[[#This Row],${columns}]` : '[#This Row]'}`;
+    },
+    lowercaseSet(tables.map((table) => table.name))
+  );
 }
 
 /**

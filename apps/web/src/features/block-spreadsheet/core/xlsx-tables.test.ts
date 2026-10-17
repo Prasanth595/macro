@@ -83,6 +83,61 @@ describe('Excel tables', () => {
     expect(imported.warnings.join(' ')).not.toMatch(/table/i);
   });
 
+  it('export condition filters and custom footer aggregates as Excel writes them', async () => {
+    const conditions = [
+      [
+        { operator: 'greaterThan', value: '2' },
+        '<customFilters><customFilter operator="greaterThan" val="2"/></customFilters>',
+      ],
+      [
+        { operator: 'contains', value: 'a*' },
+        '<customFilters><customFilter val="*a~**"/></customFilters>',
+      ],
+      [
+        { operator: 'startsWith', value: 'E' },
+        '<customFilters><customFilter val="E*"/></customFilters>',
+      ],
+      [
+        { operator: 'notContains', value: 'x' },
+        '<customFilters><customFilter operator="notEqual" val="*x*"/></customFilters>',
+      ],
+      [
+        { operator: 'notEmpty' },
+        '<customFilters><customFilter operator="notEqual" val=" "/></customFilters>',
+      ],
+      [
+        { operator: 'between', value: '1', value2: '4' },
+        '<customFilters and="1"><customFilter operator="greaterThanOrEqual" val="1"/><customFilter operator="lessThanOrEqual" val="4"/></customFilters>',
+      ],
+      [
+        { operator: 'notBetween', value: '1', value2: '4' },
+        '<customFilters><customFilter operator="lessThan" val="1"/><customFilter operator="greaterThan" val="4"/></customFilters>',
+      ],
+    ] as const;
+    for (const [condition, xml] of conditions) {
+      const [table] = orders.metadata?.tables ?? [];
+      const sheet: WorkbookFileSheet = {
+        ...orders,
+        cells: { ...orders.cells, B4: { value: '=COUNTBLANK([Qty])' } },
+        metadata: {
+          ...orders.metadata,
+          tables: [{ ...table, filters: { 1: { condition } } }],
+        },
+      };
+      const exported = await encodeXlsx({ sheets: [sheet] });
+      const part = strFromU8(unzipSync(exported.bytes)['xl/tables/table1.xml']);
+      expect(part).toContain(`<filterColumn colId="1">${xml}</filterColumn>`);
+      expect(part).toContain(
+        '<tableColumn id="2" name="Qty" totalsRowFunction="custom"><totalsRowFormula>COUNTBLANK(Orders[Qty])</totalsRowFormula></tableColumn>'
+      );
+      const imported = await decodeXlsx(exported.bytes);
+      expect(imported.sheets[0].metadata?.tables?.[0].filters).toEqual({
+        1: { condition },
+      });
+      expect(imported.warnings.join(' ')).not.toMatch(/table/i);
+    }
+  });
+
   it('write line breaks in column names as Excel does so they match their headers', async () => {
     const sheet: WorkbookFileSheet = {
       name: 'Prices',

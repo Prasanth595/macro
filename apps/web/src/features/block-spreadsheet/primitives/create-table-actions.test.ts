@@ -47,8 +47,8 @@ async function setup() {
       },
     });
     const [selection, setSelection] = createSignal<CellSelection>({
-      anchor: { row: 0, column: 0 },
-      focus: { row: 3, column: 1 },
+      anchor: { row: 1, column: 0 },
+      focus: { row: 1, column: 0 },
     });
     // Copies move cells as they are, which is what sorting plain values does.
     const copyCells = async (copies: CellCopy[]) => {
@@ -72,34 +72,52 @@ async function setup() {
   return { ...result, notices };
 }
 
+const select = (
+  setSelection: (selection: CellSelection) => void,
+  row: number,
+  column: number
+) => setSelection({ anchor: { row, column }, focus: { row, column } });
+
 describe('table actions', () => {
-  it('converts the selection with a total row, then filters and sorts it', async () => {
+  it('converts the block around the active cell and types its columns', async () => {
     const { store, actions } = await setup();
-    actions.openDialog();
-    expect(actions.dialog()).toEqual({
-      kind: 'create',
-      range: 'A1:B4',
-      name: 'Table1',
-    });
-    actions.save({
-      kind: 'create',
-      range: 'A1:B4',
-      name: 'Table1',
-      totalsRow: true,
-    });
-    expect(actions.dialog()).toBeUndefined();
+    actions.convert();
     expect(store.activeSheet().metadata?.tables).toEqual([
       {
+        id: expect.any(String),
         name: 'Table1',
-        range: 'A1:B5',
-        totalsRow: true,
+        range: 'A1:B4',
+        totalsRow: false,
         bandedRows: true,
         style: 'TableStyleMedium2',
+        columnTypes: { 0: 'text', 1: 'number' },
       },
     ]);
+    // Converting inside a table opens its menu instead.
+    actions.convert();
+    expect(actions.menuOpen()).toBe(true);
+    expect(store.activeSheet().metadata?.tables).toHaveLength(1);
+  });
+
+  it('makes an empty cell a blank table', async () => {
+    const { store, actions, setSelection } = await setup();
+    select(setSelection, 9, 4);
+    actions.convert();
+    expect(store.activeSheet().metadata?.tables?.[0]).toMatchObject({
+      name: 'Table1',
+      range: 'E10:H14',
+    });
+    expect(store.cells().E10.value).toBe('Column1');
+    expect(store.cells().H10.value).toBe('Column4');
+  });
+
+  it('filters by values and conditions, sorts, and keeps filtered rows hidden', async () => {
+    const { store, actions } = await setup();
+    actions.convert();
+    actions.setTotalsRow('Table1', true);
     expect(store.cells().B5.value).toBe('=SUBTOTAL(109,[Amount])');
 
-    actions.filterColumn('Table1', 0, ['East', 'West']);
+    actions.filterColumn('Table1', 0, { values: ['East', 'West'] });
     expect(store.activeSheet().metadata?.hiddenRows).toEqual([3]);
     expect(actions.columnChoices('Table1', 0)).toEqual([
       { value: 'East', shown: true },
@@ -114,99 +132,144 @@ describe('table actions', () => {
     expect(store.cells().B5.value).toBe('=SUBTOTAL(109,[Amount])');
     expect(store.activeSheet().metadata?.hiddenRows).toEqual([1]);
 
-    actions.filterColumn('Table1', 0, undefined);
+    actions.filterColumn('Table1', 1, {
+      condition: { operator: 'greaterThan', value: '15' },
+    });
+    expect(store.activeSheet().metadata?.hiddenRows).toEqual([1, 3]);
+    actions.clearFilters('Table1');
     expect(store.activeSheet().metadata?.hiddenRows).toBeUndefined();
   });
 
-  it('offers aggregates in the total row and writes the chosen one', async () => {
+  it('offers footer aggregates and labels the chosen one', async () => {
     const { store, actions, setSelection } = await setup();
-    actions.openDialog();
-    actions.save({
-      kind: 'create',
-      range: 'A1:B4',
-      name: 'Table1',
-      totalsRow: true,
-    });
-    setSelection({
-      anchor: { row: 4, column: 1 },
-      focus: { row: 4, column: 1 },
-    });
-    expect(actions.totalChoices()).toContain('Average');
+    actions.convert();
+    actions.setTotalsRow('Table1', true);
+    select(setSelection, 4, 1);
+    expect(actions.totalChoices()).toContain('Percent filled');
     expect(actions.pickTotal('Average')).toBe(true);
     expect(store.cells().B5.value).toBe('=SUBTOTAL(101,[Amount])');
-    setSelection({
-      anchor: { row: 2, column: 1 },
-      focus: { row: 2, column: 1 },
+    expect(actions.totalLabel(4, 1)).toBe('Average');
+    expect(actions.pickTotal('Unique')).toBe(true);
+    expect(store.cells().B5.value).toBe(
+      '=SUMPRODUCT(([Amount]<>"")/COUNTIF([Amount],[Amount]&""))'
+    );
+    expect(actions.pickTotal('Percent empty')).toBe(true);
+    expect(store.cells().B5).toMatchObject({
+      value: '=COUNTBLANK([Amount])/ROWS([Amount])',
+      format: 'percent',
     });
+    select(setSelection, 2, 1);
     expect(actions.totalChoices()).toBeUndefined();
   });
 
-  it('renames, restyles and removes a total row in one undo step', async () => {
-    const { store, actions, setSelection } = await setup();
-    actions.openDialog();
-    actions.save({
-      kind: 'create',
-      range: 'A1:B4',
+  it('renames, recolors and restyles a table', async () => {
+    const { store, actions } = await setup();
+    actions.convert();
+    actions.openRename('Table1');
+    expect(actions.dialog()).toEqual({
+      kind: 'rename',
+      table: 'Table1',
       name: 'Table1',
-      totalsRow: true,
     });
-    setSelection({
-      anchor: { row: 1, column: 0 },
-      focus: { row: 1, column: 0 },
-    });
-    actions.openDialog();
-    expect(actions.dialog()).toMatchObject({ kind: 'edit', table: 'Table1' });
-    actions.save({
-      kind: 'edit',
-      name: 'Sales',
-      totalsRow: false,
+    actions.save({ kind: 'rename', name: 'Q1 sales' });
+    expect(actions.dialog()).toBeUndefined();
+    expect(store.cells().D1.value).toBe('=SUM(Q1_sales[Amount])');
+    actions.setColor('Q1_sales', '#d93025');
+    actions.setOption('Q1_sales', 'bandedRows', false);
+    actions.setOption('Q1_sales', 'firstColumn', true);
+    expect(store.activeSheet().metadata?.tables?.[0]).toMatchObject({
+      name: 'Q1_sales',
+      style: 'TableStyleMedium3',
+      color: '#d93025',
       bandedRows: false,
-      bandedColumns: true,
+      firstColumn: true,
     });
-    expect(store.activeSheet().metadata?.tables).toEqual([
-      {
-        name: 'Sales',
-        range: 'A1:B4',
-        totalsRow: false,
-        bandedRows: false,
-        bandedColumns: true,
-        style: 'TableStyleMedium2',
-      },
-    ]);
-    expect(store.cells().D1.value).toBe('=SUM(Sales[Amount])');
-    expect(store.cells().B5).toBeUndefined();
     store.undo();
-    expect(store.activeSheet().metadata?.tables?.[0].name).toBe('Table1');
-    expect(store.cells().D1.value).toBe('=SUM(Table1[Amount])');
-    expect(store.cells().B5.value).toBe('=SUBTOTAL(109,[Amount])');
+    expect(store.activeSheet().metadata?.tables?.[0].firstColumn).toBe(
+      undefined
+    );
   });
 
-  it('turns a table back into cells whose formulas use cell ranges', async () => {
+  it('explains names that cannot be used and keeps the dialog open', async () => {
+    const { actions } = await setup();
+    actions.convert();
+    actions.openRename('Table1');
+    actions.save({ kind: 'rename', name: 'A1' });
+    expect(actions.error()).toContain('not a valid table name');
+    expect(actions.dialog()).toMatchObject({ kind: 'rename' });
+  });
+
+  it('adjusts the range, keeping filters with their columns', async () => {
     const { store, actions } = await setup();
-    actions.openDialog();
-    actions.save({
-      kind: 'create',
-      range: 'A1:B4',
-      name: 'Table1',
-      totalsRow: false,
+    actions.convert();
+    actions.filterColumn('Table1', 1, { values: ['10'] });
+    actions.openRange('Table1');
+    actions.save({ kind: 'range', range: 'A1:C4' });
+    expect(store.activeSheet().metadata?.tables?.[0]).toMatchObject({
+      range: 'A1:C4',
+      filters: { 1: { values: ['10'] } },
     });
-    actions.openDialog();
-    actions.convertToRange();
-    expect(actions.dialog()).toBeUndefined();
+    expect(store.cells().C1.value).toBe('Column3');
+  });
+
+  it('types a column, flags values that do not fit, and turns it into a dropdown', async () => {
+    const { store, actions } = await setup();
+    actions.convert();
+    actions.setColumnType('Table1', 1, 'currency');
+    expect(store.cells().B2.format).toBe('currency');
+    expect(actions.mismatch(1, 1)).toBeUndefined();
+    store.setCells({ B3: { value: 'n/a' } });
+    expect(actions.mismatch(2, 1)).toBe('Expected a number');
+    actions.setColumnType('Table1', 0, 'dropdown');
+    expect(store.activeSheet().metadata?.validations).toEqual([
+      expect.objectContaining({
+        range: 'A2:A4',
+        type: 'list',
+        formulas: ['"West,East,North"'],
+      }),
+    ]);
+    actions.setColumnType('Table1', 0, undefined);
+    expect(store.activeSheet().metadata?.validations).toBeUndefined();
+  });
+
+  it('groups rows by a column and filters to a group', async () => {
+    const { store, actions } = await setup();
+    store.setCells({ A3: { value: 'West' } });
+    actions.convert();
+    actions.openGroupBy('Table1', 0);
+    expect(actions.groupView()).toEqual({
+      table: 'Table1',
+      column: 0,
+      summaryColumn: 1,
+      summary: 'count',
+    });
+    expect(
+      actions.groups().map((group) => [group.value, group.rows.length])
+    ).toEqual([
+      ['North', 1],
+      ['West', 2],
+    ]);
+    actions.showGroup('West');
+    expect(store.activeSheet().metadata?.hiddenRows).toEqual([3]);
+    actions.showGroup(undefined);
+    expect(store.activeSheet().metadata?.hiddenRows).toBeUndefined();
+  });
+
+  it('converts to a range that keeps the look, or deletes the table and its cells', async () => {
+    const { store, actions } = await setup();
+    actions.convert();
+    actions.convertToRange('Table1');
     expect(store.activeSheet().metadata?.tables).toBeUndefined();
     expect(store.cells().D1.value).toBe('=SUM($B$2:$B$4)');
-  });
-
-  it('explains names that cannot be used', async () => {
-    const { actions } = await setup();
-    actions.openDialog();
-    actions.save({
-      kind: 'create',
-      range: 'A1:B4',
-      name: 'My table',
-      totalsRow: false,
+    expect(store.cells().A1).toMatchObject({
+      fillColor: '#4472c4',
+      textColor: '#ffffff',
+      bold: true,
     });
-    expect(actions.error()).toContain('not a valid table name');
-    expect(actions.dialog()).toMatchObject({ kind: 'create' });
+    store.undo();
+    actions.deleteTable('Table1');
+    expect(store.activeSheet().metadata?.tables).toBeUndefined();
+    expect(store.cells().A2).toBeUndefined();
+    expect(store.cells().D1.value).toBe('=SUM($B$2:$B$4)');
   });
 });

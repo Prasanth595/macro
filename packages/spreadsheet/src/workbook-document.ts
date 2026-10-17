@@ -10,16 +10,19 @@ import {
 } from './sheet-drawings';
 import { formulaReferencesSheet } from './sheet-references';
 import type { DataValidation } from './sheet-rules';
-import {
-  checkTableName,
-  createTable,
-  nextTableName,
-  workbookNames,
-} from './sheet-tables';
+import type { TableColumnType } from './sheet-tables';
+import { checkTableName, nextTableName } from './sheet-tables';
 import {
   referencedTableNames,
   renameTableReferences,
 } from './structured-references';
+import { createTypedTable } from './table-columns';
+import { workbookNames } from './table-edits';
+import {
+  readSheetMetadata,
+  readSpreadsheetTables,
+  writeSheetMetadata,
+} from './table-storage';
 import {
   parseWorkbookMetadata,
   renameSheetReferences,
@@ -86,11 +89,14 @@ export function readSpreadsheetWorkbook(
   doc: LoroDoc
 ): SpreadsheetWorkbookSheet[] {
   const readEntries = createSpreadsheetEntryReader(doc);
-  return readSpreadsheetSheets(doc).map((sheet) => ({
+  const sheets = readSpreadsheetSheets(doc);
+  const tables = readSpreadsheetTables(
+    doc,
+    sheets.map((sheet) => sheet.id)
+  );
+  return sheets.map((sheet) => ({
     ...sheet,
-    metadata: parseWorkbookMetadata(
-      doc.getMap('spreadsheetSheetMetadata').get(sheet.id)
-    ),
+    metadata: readSheetMetadata(doc, sheet.id, tables.get(sheet.id)),
     cells: readSpreadsheetCells(doc, sheet.id, readEntries),
     layout: readSpreadsheetLayout(doc, sheet.id, readEntries),
   }));
@@ -184,7 +190,7 @@ function assertTablesUnreferenced(doc: LoroDoc, sheetId: string) {
     if (current.id === sheetId) continue;
     for (const cell of Object.values(current.cells)) {
       if (cell.format === 'text' || !cell.value.startsWith('=')) continue;
-      for (const name of referencedTableNames(cell.value))
+      for (const name of referencedTableNames(cell.value, tables.values()))
         if (tables.has(name))
           throw new Error(
             `Formulas on “${current.name}” use the table “${tables.get(name)}” on this sheet. Update them before deleting it.`
@@ -395,7 +401,12 @@ export function deleteSpreadsheetSheet(
 export function createSpreadsheetTable(
   doc: LoroDoc,
   sheetId: string,
-  options: { range: string; name?: string; totalsRow?: boolean }
+  options: {
+    range: string;
+    name?: string;
+    totalsRow?: boolean;
+    columnTypes?: Record<string, TableColumnType>;
+  }
 ): string {
   const workbook = readSpreadsheetWorkbook(doc);
   const sheet = workbook.find((item) => item.id === sheetId);
@@ -405,18 +416,17 @@ export function createSpreadsheetTable(
     options.name === undefined
       ? nextTableName(taken)
       : checkTableName(options.name, taken);
-  const change = createTable({
+  const change = createTypedTable({
     metadata: sheet.metadata,
     cells: sheet.cells,
     range: options.range,
     name,
     totalsRow: options.totalsRow,
     rowCount: sheet.layout.rowCount,
+    columnTypes: options.columnTypes,
   });
   writeSpreadsheetCells(doc, change.edits, sheetId, false);
-  const encoded = JSON.stringify(change.metadata);
-  if (!parseWorkbookMetadata(encoded)) throw new Error('Invalid table.');
-  doc.getMap('spreadsheetSheetMetadata').set(sheetId, encoded);
+  writeSheetMetadata(doc, sheetId, change.metadata);
   return name;
 }
 
@@ -463,11 +473,12 @@ function validateSheetInputs(
     )
   );
   const tableNames = new Set(
-    existing.flatMap((sheet) =>
-      (parseWorkbookMetadata(metadata.get(sheet.id))?.tables ?? []).map(
-        (table) => table.name.toLowerCase()
-      )
-    )
+    [
+      ...readSpreadsheetTables(
+        doc,
+        existing.map((sheet) => sheet.id)
+      ).values(),
+    ].flatMap((tables) => tables.map((table) => table.name.toLowerCase()))
   );
   for (const sheet of inputs) {
     if (
@@ -636,10 +647,7 @@ export function registerSpreadsheetImport(
     for (const sheet of oldSheets) tombstoneSpreadsheetSheet(doc, sheet.id);
   }
   plan.sheets.forEach(({ id, input: sheet }, index) => {
-    if (sheet.metadata)
-      doc
-        .getMap('spreadsheetSheetMetadata')
-        .set(id, JSON.stringify(sheet.metadata));
+    if (sheet.metadata) writeSheetMetadata(doc, id, sheet.metadata);
     doc.getMap('spreadsheetSheetNames').set(id, sheet.name);
     doc.getMap('spreadsheetSheetOrder').set(id, order + index + 1);
     if (sheet.rowCount > SPREADSHEET_ROWS) {
@@ -760,9 +768,9 @@ export function duplicateSpreadsheetSheet(
   sheetId: string
 ): string {
   const sheet = existingSheet(doc, sheetId);
-  const metadata = parseWorkbookMetadata(
-    doc.getMap('spreadsheetSheetMetadata').get(sheetId)
-  );
+  const metadata = readSpreadsheetWorkbook(doc).find(
+    (item) => item.id === sheetId
+  )?.metadata;
   if (metadata?.definedNames)
     metadata.definedNames = metadata.definedNames.filter(
       (entry) => entry.local
@@ -772,7 +780,7 @@ export function duplicateSpreadsheetSheet(
   // and the copy's formulas use them.
   if (metadata?.tables) {
     const taken = workbookNames(readSpreadsheetWorkbook(doc));
-    metadata.tables = metadata.tables.map((table) => {
+    metadata.tables = metadata.tables.map(({ id: _id, ...table }) => {
       const name = nextTableName(taken);
       taken.push(name);
       for (const cell of Object.values(cells))

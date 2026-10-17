@@ -1,4 +1,5 @@
 import type { DataValidation, DropdownColor } from './sheet-rules';
+import type { TableColumnType } from './sheet-tables';
 import type { SpreadsheetCellStyle } from './spreadsheet-document';
 
 export type SpreadsheetCellInput = { address: string; value: string };
@@ -53,6 +54,9 @@ export type SpreadsheetOperation =
       range: string;
       name?: string;
       totalsRow?: boolean;
+      /** Types by column name; other columns take the type their values
+       * suggest. */
+      columnTypes?: Record<string, TableColumnType>;
     };
 
 export type SpreadsheetReadRequest = {
@@ -108,6 +112,8 @@ export type SpreadsheetTableSummary = {
   totalsRow: boolean;
   /** Columns whose filters hide rows. */
   filteredColumns?: string[];
+  /** Column types by column name; untyped columns are left out. */
+  columnTypes?: Record<string, TableColumnType>;
 };
 /** A data validation rule overlapping a read range. */
 export type SpreadsheetReadValidation = {

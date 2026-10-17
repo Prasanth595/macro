@@ -4,28 +4,48 @@ import {
   selectionBounds,
 } from '@macro-inc/spreadsheet/grid-selection';
 import {
-  checkTableName,
-  convertTableToRange,
-  createTable,
-  filterTable,
+  currentRegion,
   keepsHiddenRow,
   nextTableName,
-  renameTable,
-  type SheetChanges,
+  replaceTable,
+  resizeTable,
   type SheetTable,
   setTableTotalsRow,
+  sheetTableLayouts,
+  TABLE_TOTALS,
+  TABLE_TOTALS_LABELS,
   type TableColumnFilter,
+  type TableColumnType,
   type TableTotalsFunction,
   tableAt,
   tableBounds,
   tableColumnNames,
   tableDataRows,
   totalsFormula,
-  workbookNames,
+  totalsFunction,
 } from '@macro-inc/spreadsheet/sheet-tables';
-import type { WorkbookSheetMetadata } from '@macro-inc/spreadsheet/workbook-metadata';
-import { type Accessor, createSignal } from 'solid-js';
+import {
+  columnTypeMismatch,
+  createTypedTable,
+  columnChoices as listChoices,
+  setTableColumnType,
+} from '@macro-inc/spreadsheet/table-columns';
+import {
+  convertTableToRange,
+  deleteTable,
+  renameTable,
+  type SheetChanges,
+  workbookNames,
+} from '@macro-inc/spreadsheet/table-edits';
+import {
+  filterTable,
+  type TableCellText,
+} from '@macro-inc/spreadsheet/table-filters';
+import { groupTableRows } from '@macro-inc/spreadsheet/table-groups';
+import { coloredTable } from '@macro-inc/spreadsheet/table-styles';
+import { type Accessor, createMemo, createSignal } from 'solid-js';
 import type { CellCopy, SpreadsheetCalculation } from '../core/calculation';
+import type { TableReferences } from '../core/formula-completion';
 import { sortedRangeCopies } from '../core/sheet-operations';
 import {
   formatCellAddress,
@@ -35,40 +55,13 @@ import type {
   TableDialogInput,
   TableDialogState,
   TableFilterChoice,
+  TableGroupView,
+  TableOption,
 } from '../core/table-types';
 import type { SpreadsheetStore } from './create-spreadsheet-store';
 
-const TOTAL_LABELS: [string, TableTotalsFunction | undefined][] = [
-  ['None', undefined],
-  ['Sum', 'sum'],
-  ['Average', 'average'],
-  ['Count', 'count'],
-  ['Count numbers', 'countNums'],
-  ['Max', 'max'],
-  ['Min', 'min'],
-  ['Standard deviation', 'stdDev'],
-  ['Variance', 'var'],
-];
-
-/** Changes for one sheet merged into a list of sheet changes. */
-function mergeChanges(
-  changes: SheetChanges,
-  sheetId: string,
-  edits: SpreadsheetCellEdits,
-  metadata: WorkbookSheetMetadata
-): SheetChanges {
-  const own = changes.find((change) => change.sheetId === sheetId);
-  if (!own) return [...changes, { sheetId, edits, metadata }];
-  return changes.map((change) =>
-    change === own
-      ? {
-          sheetId,
-          edits: { ...edits, ...own.edits },
-          metadata: own.metadata ?? metadata,
-        }
-      : change
-  );
-}
+/** A new table on an empty cell: a header row and four blank rows. */
+const BLANK_TABLE = { rows: 5, columns: 4 };
 
 export function createTableActions(options: {
   store: SpreadsheetStore;
@@ -83,6 +76,8 @@ export function createTableActions(options: {
   const { store } = options;
   const [dialog, setDialog] = createSignal<TableDialogState>();
   const [error, setError] = createSignal<string>();
+  const [menuOpen, setMenuOpen] = createSignal(false);
+  const [groupView, setGroupView] = createSignal<TableGroupView>();
   let operation = 0;
 
   const tables = () => store.activeSheet().metadata?.tables;
@@ -90,6 +85,8 @@ export function createTableActions(options: {
     const { anchor } = options.selection();
     return tableAt(tables(), anchor.row, anchor.column);
   };
+  const tableNamed = (name: string) =>
+    tables()?.find((table) => table.name === name);
   /** What a cell shows: its calculated value, or its text before that. */
   const display = (row: number, column: number) => {
     const address = formatCellAddress(row, column);
@@ -98,8 +95,11 @@ export function createTableActions(options: {
       cellPlainText(store.cells()[address]?.value ?? '').replace(/^'/, '')
     );
   };
-  const tableNamed = (name: string) =>
-    tables()?.find((table) => table.name === name);
+  const read = (row: number, column: number): TableCellText => {
+    const number =
+      options.values()[formatCellAddress(row, column)]?.number ?? undefined;
+    return { text: display(row, column), number };
+  };
   const sheets = () =>
     store.workbook().map(({ id, name, cells, metadata }) => ({
       id,
@@ -109,6 +109,7 @@ export function createTableActions(options: {
     }));
 
   function apply(change: () => SheetChanges) {
+    if (!options.canEdit()) return false;
     try {
       store.editSheets(change());
       return true;
@@ -122,29 +123,90 @@ export function createTableActions(options: {
     }
   }
 
-  function openDialog() {
+  /** Change one table of the active sheet, keeping the sheet's other
+   * metadata; `edits` go with it. */
+  function updateTable(
+    name: string,
+    update: (table: SheetTable) => SheetTable,
+    edits: SpreadsheetCellEdits = {}
+  ) {
+    const sheet = store.activeSheet();
+    return apply(() => [
+      {
+        sheetId: sheet.id,
+        edits,
+        metadata: replaceTable(sheet.metadata ?? {}, name, update),
+      },
+    ]);
+  }
+
+  /**
+   * Convert the selection to a table, as Google Sheets does: one cell
+   * converts the block of filled cells around it, and an empty cell becomes
+   * a blank table. Columns take the types their values suggest.
+   */
+  function convert() {
     if (!options.canEdit()) return;
-    setError(undefined);
-    const table = activeTable();
-    if (table) {
-      setDialog({
-        kind: 'edit',
-        table: table.name,
-        name: table.name,
-        totalsRow: table.totalsRow,
-        bandedRows: table.bandedRows,
-        bandedColumns: !!table.bandedColumns,
-      });
+    if (activeTable()) {
+      setMenuOpen(true);
       return;
     }
-    const bounds = selectionBounds(options.selection());
-    const first = formatCellAddress(bounds.top, bounds.left);
-    const last = formatCellAddress(bounds.bottom, bounds.right);
-    setDialog({
-      kind: 'create',
-      range: first === last ? first : `${first}:${last}`,
-      name: nextTableName(workbookNames(sheets())),
+    const sheet = store.activeSheet();
+    const selected = selectionBounds(options.selection());
+    const limits = { rows: store.rowCount(), columns: store.columnCount() };
+    let bounds = selected;
+    if (selected.top === selected.bottom && selected.left === selected.right) {
+      bounds = currentRegion(sheet.cells, selected, limits);
+      const blank = {
+        ...selected,
+        bottom: selected.top + BLANK_TABLE.rows - 1,
+        right: selected.left + BLANK_TABLE.columns - 1,
+      };
+      if (
+        bounds.top === bounds.bottom &&
+        bounds.left === bounds.right &&
+        !sheet.cells[formatCellAddress(bounds.top, bounds.left)]?.value &&
+        blank.bottom < limits.rows &&
+        blank.right < limits.columns &&
+        !tables()?.some((table) => {
+          const other = tableBounds(table);
+          return (
+            other.top <= blank.bottom &&
+            other.bottom >= blank.top &&
+            other.left <= blank.right &&
+            other.right >= blank.left
+          );
+        })
+      )
+        bounds = blank;
+    }
+    const range = `${formatCellAddress(bounds.top, bounds.left)}:${formatCellAddress(bounds.bottom, bounds.right)}`;
+    apply(() => {
+      const change = createTypedTable({
+        metadata: sheet.metadata,
+        cells: sheet.cells,
+        range,
+        name: nextTableName(workbookNames(sheets())),
+        rowCount: limits.rows,
+        display: (address) => options.values()[address]?.display,
+      });
+      return [
+        { sheetId: sheet.id, edits: change.edits, metadata: change.metadata },
+      ];
     });
+  }
+
+  function openRename(name: string) {
+    if (!options.canEdit() || !tableNamed(name)) return;
+    setError(undefined);
+    setDialog({ kind: 'rename', table: name, name });
+  }
+
+  function openRange(name: string) {
+    const table = tableNamed(name);
+    if (!options.canEdit() || !table) return;
+    setError(undefined);
+    setDialog({ kind: 'range', table: name, range: table.range });
   }
 
   function save(input: TableDialogInput) {
@@ -152,57 +214,21 @@ export function createTableActions(options: {
     if (!current || !options.canEdit()) return;
     try {
       const sheet = store.activeSheet();
-      if (current.kind === 'create' && input.kind === 'create') {
-        const name = checkTableName(input.name, workbookNames(sheets()));
-        const change = createTable({
+      if (current.kind === 'rename' && input.kind === 'rename')
+        store.editSheets(
+          renameTable(sheets(), sheet.id, current.table, input.name)
+        );
+      else if (current.kind === 'range' && input.kind === 'range') {
+        const change = resizeTable({
           metadata: sheet.metadata,
           cells: sheet.cells,
+          name: current.table,
           range: input.range,
-          name,
-          totalsRow: input.totalsRow,
-          rowCount: store.rowCount(),
           display: (address) => options.values()[address]?.display,
         });
         store.editSheets([
           { sheetId: sheet.id, edits: change.edits, metadata: change.metadata },
         ]);
-      } else if (current.kind === 'edit' && input.kind === 'edit') {
-        const table = tableNamed(current.table);
-        if (!table) throw new Error('This table no longer exists.');
-        const totals = setTableTotalsRow({
-          metadata: sheet.metadata,
-          cells: sheet.cells,
-          name: table.name,
-          totalsRow: input.totalsRow,
-          rowCount: store.rowCount(),
-        });
-        const metadata: WorkbookSheetMetadata = {
-          ...totals.metadata,
-          tables: totals.metadata.tables?.map((item) => {
-            if (item.name !== table.name) return item;
-            const updated: SheetTable = {
-              ...item,
-              bandedRows: input.bandedRows,
-            };
-            if (input.bandedColumns) updated.bandedColumns = true;
-            else delete updated.bandedColumns;
-            return updated;
-          }),
-        };
-        const renamed =
-          input.name.trim() === table.name
-            ? []
-            : renameTable(
-                sheets().map((item) =>
-                  item.id === sheet.id ? { ...item, metadata } : item
-                ),
-                sheet.id,
-                table.name,
-                input.name
-              );
-        store.editSheets(
-          mergeChanges(renamed, sheet.id, totals.edits, metadata)
-        );
       }
       setDialog(undefined);
     } catch (failure) {
@@ -212,16 +238,39 @@ export function createTableActions(options: {
     }
   }
 
-  function convertToRange() {
-    const current = dialog();
-    if (current?.kind !== 'edit' || !options.canEdit()) return;
-    if (
-      apply(() =>
-        convertTableToRange(sheets(), store.activeSheetId(), current.table)
-      )
-    )
-      setDialog(undefined);
+  function setColor(name: string, color: string) {
+    updateTable(name, (table) => coloredTable(table, color));
   }
+
+  function setOption(name: string, option: TableOption, on: boolean) {
+    updateTable(name, (table) => {
+      if (option === 'bandedRows') return { ...table, bandedRows: on };
+      const { [option]: _previous, ...rest } = table;
+      return on ? { ...rest, [option]: true } : rest;
+    });
+  }
+
+  function setTotalsRow(name: string, totalsRow: boolean) {
+    const sheet = store.activeSheet();
+    apply(() => {
+      const change = setTableTotalsRow({
+        metadata: sheet.metadata,
+        cells: sheet.cells,
+        name,
+        totalsRow,
+        rowCount: store.rowCount(),
+      });
+      return [
+        { sheetId: sheet.id, edits: change.edits, metadata: change.metadata },
+      ];
+    });
+  }
+
+  const convertToRange = (name: string) =>
+    apply(() => convertTableToRange(sheets(), store.activeSheetId(), name));
+
+  const removeTable = (name: string) =>
+    apply(() => deleteTable(sheets(), store.activeSheetId(), name));
 
   /** A column's distinct shown values, numbers first, and which are shown. */
   function columnChoices(name: string, column: number): TableFilterChoice[] {
@@ -230,7 +279,8 @@ export function createTableActions(options: {
     const { left } = tableBounds(table);
     const { first, last } = tableDataRows(table);
     const filter = table.filters?.[column - left];
-    const shown = filter && new Set(filter.values.map((v) => v.toLowerCase()));
+    const shown =
+      filter?.values && new Set(filter.values.map((v) => v.toLowerCase()));
     const values = new Map<string, string>();
     for (let row = first; row <= last; row++) {
       const text = display(row, column).trim();
@@ -244,24 +294,33 @@ export function createTableActions(options: {
       .map((value) => ({
         value,
         shown:
-          !filter ||
-          (value === '' ? !!filter.blanks : !!shown?.has(value.toLowerCase())),
+          !shown ||
+          (value === '' ? !!filter?.blanks : shown.has(value.toLowerCase())),
       }));
   }
 
-  /** Show only `shown` values of a column; undefined clears its filter. */
-  function filterColumn(name: string, column: number, shown?: string[]) {
+  /** A column's filter, by its column on the sheet. */
+  const columnFilter = (name: string, column: number) => {
     const table = tableNamed(name);
-    if (!table || !options.canEdit()) return;
+    return table?.filters?.[column - tableBounds(table).left];
+  };
+
+  /** Set or, given undefined, clear a column's filter. */
+  function filterColumn(
+    name: string,
+    column: number,
+    filter: TableColumnFilter | undefined
+  ) {
+    const table = tableNamed(name);
+    if (!table) return;
     const offset = String(column - tableBounds(table).left);
     const filters = { ...table.filters };
-    if (shown) {
-      const filter: TableColumnFilter = {
-        values: shown.filter((value) => value !== ''),
-      };
-      if (shown.includes('')) filter.blanks = true;
-      filters[offset] = filter;
-    } else delete filters[offset];
+    if (filter) filters[offset] = filter;
+    else delete filters[offset];
+    setFilters(name, filters);
+  }
+
+  function setFilters(name: string, filters: SheetTable['filters']) {
     const sheet = store.activeSheet();
     apply(() => [
       {
@@ -271,7 +330,7 @@ export function createTableActions(options: {
           metadata: sheet.metadata,
           name,
           filters,
-          display,
+          read,
         }),
       },
     ]);
@@ -339,46 +398,222 @@ export function createTableActions(options: {
     ]);
   }
 
-  /** The table whose total row holds the active cell, and its column name. */
-  const activeTotal = () => {
-    const table = activeTable();
-    const { anchor } = options.selection();
-    if (!table?.totalsRow || anchor.row !== tableBounds(table).bottom) return;
-    const names = tableColumnNames(table, store.cells());
-    return { table, column: names[anchor.column - tableBounds(table).left] };
+  const columnType = (name: string, column: number) => {
+    const table = tableNamed(name);
+    return table?.columnTypes?.[column - tableBounds(table).left];
   };
 
-  /** The aggregates the active total row cell offers. */
-  const totalChoices = () =>
-    activeTotal() ? TOTAL_LABELS.map(([label]) => label) : undefined;
+  function setColumnType(
+    name: string,
+    column: number,
+    type: TableColumnType | undefined
+  ) {
+    const sheet = store.activeSheet();
+    apply(() => {
+      const change = setTableColumnType({
+        metadata: sheet.metadata,
+        cells: sheet.cells,
+        name,
+        column,
+        type,
+        display,
+      });
+      return [
+        { sheetId: sheet.id, edits: change.edits, metadata: change.metadata },
+      ];
+    });
+  }
 
-  /** Whether `label` was chosen for the active total cell. */
-  function pickTotal(label: string) {
-    const total = activeTotal();
-    if (!total || !options.canEdit()) return false;
-    const aggregate = TOTAL_LABELS.find(([item]) => item === label);
-    if (!aggregate) return false;
+  /** Each typed column's type and dropdown options, by sheet column. */
+  const typedColumns = createMemo(() => {
+    const validations = store.activeSheet().metadata?.validations;
+    return (tables() ?? []).flatMap((table) => {
+      const { left } = tableBounds(table);
+      const data = tableDataRows(table);
+      return Object.entries(table.columnTypes ?? {}).map(([offset, type]) => {
+        const column = left + Number(offset);
+        return {
+          column,
+          first: data.first,
+          last: data.last,
+          type,
+          choices:
+            type === 'dropdown'
+              ? listChoices(validations, table, column)
+              : undefined,
+        };
+      });
+    });
+  });
+
+  /** Why a cell's value does not fit its table column's type. */
+  function mismatch(row: number, column: number) {
+    const typed = typedColumns().find(
+      (item) => item.column === column && row >= item.first && row <= item.last
+    );
+    if (!typed) return;
+    const address = formatCellAddress(row, column);
+    return columnTypeMismatch(
+      typed.type,
+      store.cells()[address],
+      options.values()[address],
+      typed.choices
+    );
+  }
+
+  /** The table whose total row holds a cell, and the cell's column name. */
+  const totalAt = (row: number, column: number) => {
+    const table = tableAt(tables(), row, column);
+    if (!table?.totalsRow || row !== tableBounds(table).bottom) return;
+    const names = tableColumnNames(table, store.cells());
+    return { table, column: names[column - tableBounds(table).left] };
+  };
+
+  /** The aggregate a total row cell shows, such as `Sum`. */
+  function totalLabel(row: number, column: number) {
+    const total = totalAt(row, column);
+    const value = store.cells()[formatCellAddress(row, column)]?.value;
+    if (!total || !value?.startsWith('=')) return;
+    const aggregate = totalsFunction(value, total.column, total.table.name);
+    return aggregate && TABLE_TOTALS_LABELS[aggregate];
+  }
+
+  /** The aggregates the active total row cell offers. */
+  const totalChoices = () => {
     const { anchor } = options.selection();
+    return totalAt(anchor.row, anchor.column)
+      ? ['None', ...TABLE_TOTALS.map((key) => TABLE_TOTALS_LABELS[key])]
+      : undefined;
+  };
+
+  /** Whether `label` was chosen for the active total cell. Percentages show
+   * as such; sums and the like take the column's number format. */
+  function pickTotal(label: string) {
+    const { anchor } = options.selection();
+    const total = totalAt(anchor.row, anchor.column);
+    if (!total || !options.canEdit()) return false;
+    const aggregate: TableTotalsFunction | undefined = TABLE_TOTALS.find(
+      (key) => TABLE_TOTALS_LABELS[key] === label
+    );
+    if (!aggregate && label !== 'None') return false;
+    const above =
+      store.cells()[
+        formatCellAddress(tableDataRows(total.table).first, anchor.column)
+      ];
+    const format = aggregate?.startsWith('percent')
+      ? { format: 'percent' as const, numberFormat: '', decimals: -1 }
+      : aggregate &&
+          ['sum', 'average', 'min', 'max', 'stdDev', 'var'].includes(aggregate)
+        ? {
+            format: above?.format ?? 'general',
+            numberFormat: above?.numberFormat ?? '',
+            decimals: above?.decimals ?? -1,
+          }
+        : { format: 'general' as const, numberFormat: '', decimals: -1 };
     store.setCells({
       [formatCellAddress(anchor.row, anchor.column)]: {
-        value: aggregate[1] ? totalsFormula(aggregate[1], total.column) : '',
+        value: aggregate ? totalsFormula(aggregate, total.column) : '',
+        ...format,
       },
     });
     return true;
   }
 
+  function openGroupBy(name: string, column?: number) {
+    const table = tableNamed(name);
+    if (!table) return;
+    const { left, right } = tableBounds(table);
+    const grouped = column ?? left;
+    setGroupView({
+      table: name,
+      column: grouped,
+      summaryColumn: grouped === right ? left : right,
+      summary: 'count',
+    });
+  }
+
+  /** The groups of the group by view: values with their rows' summaries. */
+  const groups = createMemo(() => {
+    const view = groupView();
+    const table = view && tableNamed(view.table);
+    if (!view || !table) return [];
+    return groupTableRows({ table, column: view.column, read }).map(
+      (group) => ({
+        ...group,
+        cells: group.rows.map((row) => read(row, view.summaryColumn)),
+      })
+    );
+  });
+
+  /** Filter the grouped column to one group's value, or show every row. */
+  function showGroup(value: string | undefined) {
+    const view = groupView();
+    if (!view) return;
+    filterColumn(
+      view.table,
+      view.column,
+      value === undefined
+        ? undefined
+        : value
+          ? { values: [value] }
+          : { values: [], blanks: true }
+    );
+  }
+
   return {
+    table: tableNamed,
     dialog,
     error,
+    menuOpen,
+    setMenuOpen,
     activeTable,
-    openDialog,
+    convert,
+    openRename,
+    openRange,
     closeDialog: () => setDialog(undefined),
     save,
+    setColor,
+    setOption,
+    setTotalsRow,
     convertToRange,
+    deleteTable: removeTable,
     columnChoices,
+    columnFilter,
     filterColumn,
+    clearFilters: (name: string) => setFilters(name, {}),
     sortColumn,
+    columnType,
+    setColumnType,
+    mismatch,
+    totalLabel,
     totalChoices,
     pickTotal,
+    groupView,
+    openGroupBy,
+    setGroupView: (view: Partial<Omit<TableGroupView, 'table'>>) => {
+      const current = groupView();
+      if (current) setGroupView({ ...current, ...view });
+    },
+    closeGroupBy: () => setGroupView(undefined),
+    groups,
+    showGroup,
+    columnNames: (name: string) => {
+      const table = tableNamed(name);
+      return table ? tableColumnNames(table, store.cells()) : [];
+    },
+    /** Every table's name and columns, for formula completion. */
+    references: (): TableReferences => {
+      const tables = store
+        .workbook()
+        .flatMap(sheetTableLayouts)
+        .map(({ name, columns }) => ({ name, columns }));
+      const own = activeTable()?.name.toLowerCase();
+      return {
+        tables,
+        own: tables.find((table) => table.name.toLowerCase() === own),
+      };
+    },
   };
 }
+
+export type TableActions = ReturnType<typeof createTableActions>;

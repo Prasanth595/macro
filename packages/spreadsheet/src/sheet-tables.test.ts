@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  convertTableToRange,
   createTable,
   expandTables,
-  filterTable,
-  renameTable,
   type SheetTable,
   setTableTotalsRow,
   tableColumnNames,
@@ -12,6 +9,8 @@ import {
   totalsFunction,
 } from './sheet-tables';
 import type { SpreadsheetCells } from './spreadsheet-document';
+import { convertTableToRange, renameTable } from './table-edits';
+import { filterTable } from './table-filters';
 import { parseWorkbookMetadata } from './workbook-metadata';
 
 const sales: SpreadsheetCells = {
@@ -231,15 +230,16 @@ describe('filterTable', () => {
     A4: '',
     A5: 'Total',
   };
-  const display = (row: number, column: number) =>
-    shown[`${String.fromCharCode(65 + column)}${row + 1}`] ?? '';
+  const read = (row: number, column: number) => ({
+    text: shown[`${String.fromCharCode(65 + column)}${row + 1}`] ?? '',
+  });
 
   it('hides data rows the filter leaves out, never the total row', () => {
     const filtered = filterTable({
       metadata: { tables: [table], hiddenRows: [10] },
       name: 'Sales',
       filters: { 0: { values: ['east'] } },
-      display,
+      read,
     });
     expect(filtered.hiddenRows).toEqual([2, 3, 10]);
     expect(filtered.tables?.[0].filters).toEqual({ 0: { values: ['east'] } });
@@ -247,14 +247,14 @@ describe('filterTable', () => {
       metadata: filtered,
       name: 'Sales',
       filters: { 0: { values: ['West'], blanks: true } },
-      display,
+      read,
     });
     expect(blanks.hiddenRows).toEqual([1, 10]);
     const cleared = filterTable({
       metadata: blanks,
       name: 'Sales',
       filters: {},
-      display,
+      read,
     });
     expect(cleared.hiddenRows).toEqual([10]);
     expect(cleared.tables?.[0]).toEqual(table);
@@ -283,8 +283,9 @@ describe('side-by-side tables', () => {
     D3: 'drop',
     D4: 'keep',
   };
-  const display = (row: number, column: number) =>
-    shown[`${String.fromCharCode(65 + column)}${row + 1}`] ?? '';
+  const read = (row: number, column: number) => ({
+    text: shown[`${String.fromCharCode(65 + column)}${row + 1}`] ?? '',
+  });
 
   it('keep rows the other table hides when one filters or stops being a table', () => {
     const metadata = { tables: [left, right], hiddenRows: [2] };
@@ -293,11 +294,11 @@ describe('side-by-side tables', () => {
         metadata,
         name: 'Left',
         filters: { 0: { values: ['a', 'b'] } },
-        display,
+        read,
       }).hiddenRows
     ).toEqual([2, 3]);
     expect(
-      filterTable({ metadata, name: 'Left', filters: {}, display }).hiddenRows
+      filterTable({ metadata, name: 'Left', filters: {}, read }).hiddenRows
     ).toEqual([2]);
     const filtered = {
       tables: [{ ...left, filters: {} }, right],

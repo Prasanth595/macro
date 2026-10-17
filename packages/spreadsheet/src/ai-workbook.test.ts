@@ -459,6 +459,7 @@ describe('spreadsheet AI atomic editing', () => {
         range: 'A1:B4',
         columns: ['Region', 'Qty'],
         totalsRow: true,
+        columnTypes: { Region: 'text', Qty: 'number' },
       },
     ]);
     expect(
