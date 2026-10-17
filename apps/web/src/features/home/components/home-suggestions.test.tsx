@@ -73,7 +73,9 @@ describe('HomeSuggestions', () => {
       />
     ));
 
-    expect(view.getByText('Suggestions are unavailable right now.')).toBeTruthy();
+    expect(
+      view.getByText('Suggestions are unavailable right now.')
+    ).toBeTruthy();
     expect(view.queryByRole('button', { name: 'Try again' })).toBeNull();
   });
 });
