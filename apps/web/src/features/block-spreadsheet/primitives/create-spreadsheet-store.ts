@@ -701,7 +701,7 @@ export function createSpreadsheetStore(options: {
       if (!doc || !editable())
         throw new Error('This spreadsheet is view only.');
       if (!canShiftCoordinates())
-        throw new Error('Reconnect to insert or delete rows or columns.');
+        throw new Error('Reconnect to insert, delete or move cells.');
       if (
         revision() !== expectedRevision ||
         sheetLayoutChanged(workbook(), expected)

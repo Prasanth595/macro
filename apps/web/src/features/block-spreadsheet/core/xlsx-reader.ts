@@ -31,6 +31,7 @@ import {
   XLSX_MAX_SHEETS,
 } from './workbook-file-types';
 import type { XlsxArchive } from './xlsx-archive';
+import { readCheckboxComplements } from './xlsx-checkboxes';
 import {
   type DrawingImports,
   drawingImports,
@@ -1227,6 +1228,10 @@ export function readXlsxWorkbook(
   const themePath = [...rels.values()].find(
     (item) => item.type === 'theme'
   )?.target;
+  const checkboxPath = [...rels.values()].find(
+    (item) => item.type === 'FeaturePropertyBag'
+  )?.target;
+  const checkboxBytes = checkboxPath ? archive.read(checkboxPath) : undefined;
   const metadataBytes = archive.read('xl/metadata.xml');
   const theme = readXlsxTheme(
     themePath
@@ -1258,7 +1263,10 @@ export function readXlsxWorkbook(
     styles: readXlsxStylesheet(
       stylesBytes ? new TextDecoder().decode(stylesBytes) : '',
       theme,
-      warnings
+      warnings,
+      checkboxPath && checkboxBytes
+        ? readCheckboxComplements(checkboxBytes, checkboxPath)
+        : new Set()
     ),
     date1904,
     dynamicArrays:

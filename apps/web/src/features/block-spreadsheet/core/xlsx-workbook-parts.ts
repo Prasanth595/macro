@@ -1,4 +1,5 @@
 import type { SpreadsheetCell } from './spreadsheet-document';
+import { CHECKBOX_XF_EXTENSION } from './xlsx-checkboxes';
 import { differentialXml } from './xlsx-sheet-rules';
 import { type XlsxCellStyle, xlsxCellStyle } from './xlsx-styles';
 
@@ -83,7 +84,12 @@ export class StyleTable {
       underline: false,
       strike: false,
     });
-    this.xfs.set('0,0,0,0,', 0);
+    this.xfs.set('0,0,0,0,0,', 0);
+  }
+
+  /** Whether any cell format is Excel's checkbox. */
+  hasCheckboxes(): boolean {
+    return [...this.xfs.keys()].some((key) => key.split(',')[4] === '1');
   }
 
   /** The `numFmtId` of a number format code. */
@@ -151,13 +157,14 @@ export class StyleTable {
     const alignment = [
       style.alignment.horizontal &&
         `horizontal="${style.alignment.horizontal}"`,
+      style.alignment.indent && `indent="${style.alignment.indent}"`,
       style.alignment.vertical !== 'bottom' &&
         `vertical="${style.alignment.vertical}"`,
       style.alignment.wrapText && 'wrapText="1"',
     ]
       .filter(Boolean)
       .join(' ');
-    const xfKey = `${format ?? 0},${font},${fill},${border},${alignment}`;
+    const xfKey = `${format ?? 0},${font},${fill},${border},${style.checkbox ? 1 : 0},${alignment}`;
     let index = this.xfs.get(xfKey);
     if (index === undefined) {
       index = this.xfs.size;
@@ -176,9 +183,10 @@ export class StyleTable {
       .join('');
     const xfs = [...this.xfs.keys()]
       .map((key) => {
-        const [format, font, fill, border, ...rest] = key.split(',');
+        const [format, font, fill, border, checkbox, ...rest] = key.split(',');
         const alignment = rest.join(',');
-        return `<xf numFmtId="${format}" fontId="${font}" fillId="${fill}" borderId="${border}" xfId="0"${format !== '0' ? ' applyNumberFormat="1"' : ''}${font !== '0' ? ' applyFont="1"' : ''}${fill !== '0' ? ' applyFill="1"' : ''}${border !== '0' ? ' applyBorder="1"' : ''}${alignment ? ` applyAlignment="1"><alignment ${alignment}/></xf>` : '/>'}`;
+        const children = `${alignment ? `<alignment ${alignment}/>` : ''}${checkbox === '1' ? CHECKBOX_XF_EXTENSION : ''}`;
+        return `<xf numFmtId="${format}" fontId="${font}" fillId="${fill}" borderId="${border}" xfId="0"${format !== '0' ? ' applyNumberFormat="1"' : ''}${font !== '0' ? ' applyFont="1"' : ''}${fill !== '0' ? ' applyFill="1"' : ''}${border !== '0' ? ' applyBorder="1"' : ''}${alignment ? ' applyAlignment="1"' : ''}${children ? `>${children}</xf>` : '/>'}`;
       })
       .join('');
     return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>

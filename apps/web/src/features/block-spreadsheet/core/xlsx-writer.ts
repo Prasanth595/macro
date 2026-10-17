@@ -28,6 +28,12 @@ import {
   XLSX_MAX_SHEETS,
 } from './workbook-file-types';
 import {
+  CHECKBOX_BAGS,
+  CHECKBOX_CONTENT_TYPE,
+  CHECKBOX_PART,
+  CHECKBOX_RELATIONSHIP,
+} from './xlsx-checkboxes';
+import {
   type CellChartValue,
   type ChartValues,
   chartPart,
@@ -42,6 +48,7 @@ import {
 } from './xlsx-formula';
 import { connectionsPart, pivotParts, pivotTableName } from './xlsx-pivots';
 import {
+  choiceColorFormats,
   conditionalFormattingXml,
   dataValidationsXml,
   notesParts,
@@ -650,7 +657,10 @@ export function writeXlsxWorkbook(
       }<dimension ref="${dimension}"/><sheetViews><sheetView workbookViewId="0"${sheetIndex === firstVisible ? ' tabSelected="1"' : ''}${metadata.gridlines === false ? ' showGridLines="0"' : ''}${pane ? `>${pane}</sheetView>` : '/>'}</sheetViews><sheetFormatPr defaultColWidth="${DEFAULT_COLUMN_CHARACTERS}" defaultRowHeight="${defaultRowHeight}"/>${cols ? `<cols>${cols}</cols>` : ''}<sheetData>${rowXml}</sheetData>${
         metadata.autoFilter ? `<autoFilter ref="${metadata.autoFilter}"/>` : ''
       }${merges.length ? `<mergeCells count="${merges.length}">${merges.join('')}</mergeCells>` : ''}${conditionalFormattingXml(
-        metadata.conditionalFormats,
+        [
+          ...(metadata.conditionalFormats ?? []),
+          ...choiceColorFormats(metadata.validations),
+        ],
         (style) => styles.dxf(style),
         addFunctionPrefixes
       )}${dataValidationsXml(metadata.validations, addFunctionPrefixes)}<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>${drawingId ? `<drawing r:id="${drawingId}"/>` : ''}${notesId ? `<legacyDrawing r:id="${notesId}"/>` : ''}${tableIds.length ? `<tableParts count="${tableIds.length}">${tableIds.map((id) => `<tablePart r:id="${id}"/>`).join('')}</tableParts>` : ''}</worksheet>`
@@ -685,6 +695,7 @@ export function writeXlsxWorkbook(
     )
     .join('');
   const count = input.sheets.length;
+  const checkboxes = styles.hasCheckboxes();
   files['[Content_Types].xml'] = strToU8(
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>${noted.length ? '<Default Extension="vml" ContentType="application/vnd.openxmlformats-officedocument.vmlDrawing"/>' : ''}${[
@@ -733,7 +744,7 @@ export function writeXlsxWorkbook(
       )
       .join(
         ''
-      )}<Override PartName="/xl/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>${dynamicArrays ? '<Override PartName="/xl/metadata.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheetMetadata+xml"/>' : ''}<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>`
+      )}<Override PartName="/xl/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${checkboxes ? `<Override PartName="/${CHECKBOX_PART}" ContentType="${CHECKBOX_CONTENT_TYPE}"/>` : ''}<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>${dynamicArrays ? '<Override PartName="/xl/metadata.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheetMetadata+xml"/>' : ''}<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>`
   );
   files['_rels/.rels'] = strToU8(
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -780,8 +791,13 @@ export function writeXlsxWorkbook(
       connections.length
         ? `<Relationship Id="rId${count + 5 + pivotCount}" Type="${RELATIONSHIPS}/connections" Target="connections.xml"/>`
         : ''
+    }${
+      checkboxes
+        ? `<Relationship Id="rId${count + 6 + pivotCount}" Type="${CHECKBOX_RELATIONSHIP}" Target="featurePropertyBag/featurePropertyBag.xml"/>`
+        : ''
     }</Relationships>`
   );
+  if (checkboxes) files[CHECKBOX_PART] = strToU8(CHECKBOX_BAGS);
   if (connections.length)
     files['xl/connections.xml'] = strToU8(connectionsPart(connections));
   // Charts without their own colors take them from the theme they came with.
