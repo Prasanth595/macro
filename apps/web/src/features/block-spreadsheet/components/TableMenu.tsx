@@ -23,8 +23,9 @@ export function TableMenu(props: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   style: JSX.CSSProperties;
-  /** The table starts in the first row, so its name hangs below it. */
-  below: boolean;
+  /** The table starts in the first row, so its name shows as an icon in
+   * the column header bar. */
+  compact: boolean;
   onRename: () => void;
   onAdjustRange: () => void;
   onColor: (color: string) => void;
@@ -49,7 +50,8 @@ export function TableMenu(props: {
   return (
     <div
       data-table-name={props.table.name}
-      class="absolute z-[6] flex"
+      class="absolute flex"
+      classList={{ 'z-[6]': !props.compact, 'z-[25] py-0.5': props.compact }}
       style={props.style}
       onPointerDown={(event) => event.stopPropagation()}
       onDblClick={(event) => event.stopPropagation()}
@@ -60,7 +62,7 @@ export function TableMenu(props: {
           <NameChip
             name={props.table.name}
             color={color()}
-            below={props.below}
+            compact={props.compact}
           />
         }
       >
@@ -80,7 +82,7 @@ export function TableMenu(props: {
             <NameChip
               name={props.table.name}
               color={color()}
-              below={props.below}
+              compact={props.compact}
               menu
             />
           </Dropdown.Trigger>
@@ -182,24 +184,28 @@ export function TableMenu(props: {
   );
 }
 
-/** The tab showing a table's name, attached to its top or bottom edge. */
+/** The tab showing a table's name on its top edge, or just its icon in
+ * the column header bar. */
 function NameChip(props: {
   name: string;
   color: string;
-  below: boolean;
+  compact: boolean;
   menu?: boolean;
 }) {
   return (
     <span
+      title={props.name}
       class="flex h-full max-w-56 items-center gap-1 border border-edge-muted bg-panel px-1.5 text-xs font-medium text-ink shadow-sm"
       classList={{
-        'rounded-b-md border-t-0': props.below,
-        'rounded-t-md border-b-0': !props.below,
+        'rounded-md': props.compact,
+        'rounded-t-md border-b-0': !props.compact,
         'not-touch:hover:bg-hover': props.menu,
       }}
     >
       <TableIcon class="size-3.5 shrink-0" style={{ color: props.color }} />
-      <span class="truncate">{props.name}</span>
+      <span class="truncate" classList={{ 'sr-only': props.compact }}>
+        {props.name}
+      </span>
       <Show when={props.menu}>
         <CaretDown class="size-3 shrink-0 text-ink-muted" />
       </Show>

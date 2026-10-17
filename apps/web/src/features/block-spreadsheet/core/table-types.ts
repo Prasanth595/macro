@@ -34,12 +34,12 @@ export type TableOption =
 export type TableGridUi = {
   /** The menu of a header cell of `table`, in sheet column `column`. */
   columnMenu: (table: () => SheetTable, column: number) => JSX.Element;
-  /** A table's name and menu, placed by `style`, above its header row or,
-   * for a table in the first row, `below` it. */
+  /** A table's name and menu, placed by `style` above its header row or,
+   * for a table in the first row, compact in the column header bar. */
   tableMenu: (
     table: () => SheetTable,
     style: () => JSX.CSSProperties,
-    below: () => boolean
+    inHeader: () => boolean
   ) => JSX.Element;
   /** Why a cell's value does not fit its column's type. */
   mismatch: (row: number, column: number) => string | undefined;

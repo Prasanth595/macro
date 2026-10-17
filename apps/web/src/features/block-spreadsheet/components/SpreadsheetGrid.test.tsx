@@ -1604,6 +1604,10 @@ describe('tables in the grid', () => {
     const mismatch = view.getByRole('gridcell', { name: 'B3: n/a' });
     expect(mismatch.getAttribute('title')).toBe('Expected a number');
     expect(mismatch.querySelector('[data-type-mismatch]')).not.toBeNull();
+    expect(
+      view.container.querySelector('[data-address="B41"] [data-total-label]')
+        ?.textContent
+    ).toBe('Sum');
     view.controller.select({ row: 0, column: 0 });
     expect(view.queryByTestId('table-menu')).not.toBeNull();
   });

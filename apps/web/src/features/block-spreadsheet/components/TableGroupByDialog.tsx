@@ -179,6 +179,7 @@ export function TableGroupByDialog(props: {
                             >
                               <button
                                 type="button"
+                                title={`Show only rows with ${group.value || 'blanks'}`}
                                 class="max-w-full truncate text-left text-accent hover:underline"
                                 onClick={() => props.onShowGroup(group.value)}
                               >
@@ -226,7 +227,7 @@ export function TableGroupByDialog(props: {
                   </Button>
                 </Show>
                 <Button variant="strong" type="button" onClick={props.onClose}>
-                  Done
+                  Close
                 </Button>
               </div>
             </div>

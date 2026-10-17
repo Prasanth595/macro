@@ -48,7 +48,7 @@ export function tableGridUi(options: {
         />
       );
     },
-    tableMenu: (table, style, below) => {
+    tableMenu: (table, style, inHeader) => {
       const name = () => table().name;
       return (
         <TableMenu
@@ -59,7 +59,7 @@ export function tableGridUi(options: {
             actions.setMenuOpen(open ? name() : undefined)
           }
           style={style()}
-          below={below()}
+          compact={inHeader()}
           onRename={() => options.afterMenu(() => actions.openRename(name()))}
           onAdjustRange={() =>
             options.afterMenu(() => actions.openRange(name()))

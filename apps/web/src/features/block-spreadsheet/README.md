@@ -252,8 +252,9 @@ repeated header is written as Excel names it (`Column3`, `Amount2`). Table names
 follow Excel's rules, are unique in the workbook among defined names too, and
 spaces typed in a name become underscores, as Google Sheets writes them.
 
-The table's name shows above its header row while the active cell is in it
-(`components/TableMenu.tsx`), below it for a table in the first row. Its menu
+The table's name shows above its header row while the active cell or the
+pointer is in it (`components/TableMenu.tsx`); a table in the first row shows
+its icon in the column header bar instead, covering no cells. Its menu
 renames the table, adjusts its range, picks one of ten header colors (Excel's
 accent styles, or the table's own `color` for those Excel lacks), toggles
 alternating colors, banded columns, bold first and last columns and the footer

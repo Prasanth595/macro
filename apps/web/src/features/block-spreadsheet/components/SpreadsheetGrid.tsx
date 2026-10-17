@@ -2157,6 +2157,19 @@ export function SpreadsheetGrid(props: {
                                     <ChoiceChip color={chipColor()!}>
                                       {display(address)}
                                     </ChoiceChip>
+                                  ) : totalLabel() ? (
+                                    <span class="flex items-baseline justify-between gap-[0.4em]">
+                                      <span
+                                        aria-hidden="true"
+                                        data-total-label
+                                        class="min-w-0 shrink truncate text-[0.8em] font-normal text-ink-extra-muted"
+                                      >
+                                        {totalLabel()}
+                                      </span>
+                                      <span class="shrink-0">
+                                        {display(address)}
+                                      </span>
+                                    </span>
                                   ) : decorated() ? (
                                     props.mentions!.renderText(
                                       cell()!.value.replace(/^'/, '')
@@ -2288,17 +2301,6 @@ export function SpreadsheetGrid(props: {
                               class="pointer-events-none absolute left-0 top-0 size-0 border-t-[6px] border-r-[6px] border-t-warning border-r-transparent"
                             />
                           </Show>
-                          <Show when={totalLabel()}>
-                            {(label) => (
-                              <span
-                                aria-hidden="true"
-                                data-total-label
-                                class="pointer-events-none absolute left-[var(--spreadsheet-cell-padding)] top-1/2 -translate-y-1/2 text-[0.8em] font-normal text-ink-extra-muted"
-                              >
-                                {label()}
-                              </span>
-                            )}
-                          </Show>
                           <Show when={props.comments?.hasComment(address)}>
                             <button
                               type="button"
@@ -2425,7 +2427,10 @@ export function SpreadsheetGrid(props: {
                     return (
                       <Show when={table()}>
                         {(current) => {
-                          const below = () => tableBounds(current()).top === 0;
+                          // A table in the first row shows its name in the
+                          // column header bar, covering no cells.
+                          const inHeader = () =>
+                            tableBounds(current()).top === 0;
                           return (
                             <div
                               class="contents"
@@ -2435,18 +2440,16 @@ export function SpreadsheetGrid(props: {
                               {ui().tableMenu(
                                 current,
                                 () => {
-                                  const { top, left, bottom } = tableBounds(
-                                    current()
-                                  );
+                                  const { top, left } = tableBounds(current());
                                   return {
                                     left: `${columnOffsets()[left]}px`,
-                                    top: below()
-                                      ? `${rowOffsets()[bottom + 1]}px`
+                                    top: inHeader()
+                                      ? '0px'
                                       : `${rowOffsets()[top] - TABLE_CHIP_HEIGHT}px`,
-                                    height: `${TABLE_CHIP_HEIGHT}px`,
+                                    height: `${inHeader() ? headerHeight() : TABLE_CHIP_HEIGHT}px`,
                                   };
                                 },
-                                below
+                                inHeader
                               )}
                             </div>
                           );

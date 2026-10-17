@@ -168,7 +168,7 @@ test('a block converts to a table with Google Sheets features', async ({
   await groups.getByRole('button', { name: 'Design' }).click();
   await expect(cell(page, 'A2')).toHaveCount(0);
   await groups.getByRole('button', { name: 'Show all rows' }).click();
-  await groups.getByRole('button', { name: 'Done' }).click();
+  await groups.getByRole('button', { name: 'Close' }).click();
   await expect(cell(page, 'A2')).toHaveText('Engineering');
 
   // Converting to a range keeps the look and the results, with cell ranges.

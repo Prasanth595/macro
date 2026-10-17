@@ -310,8 +310,9 @@ in the cell menu, or ⌘/Ctrl+Alt+T). It converts at once, with no dialog: one c
 converts the block of filled cells around it, an empty cell becomes a blank table
 headed **Column1**–**Column4**, and the table is named `Table1`, `Table2`….
 Blank or repeated headers are renamed (`Column3`, `Amount2`) and columns take the
-type their values suggest. While the active cell is in a table, its name shows as
-a tab above the header row (below it for a table in row 1), a button named
+type their values suggest. While the active cell or the pointer is in a table,
+its name shows as a tab above the header row (as an icon in the column header
+bar for a table in row 1), a button named
 **Table Table1 menu** whose menu has **Rename table** and **Adjust table range…**
 (dialogs with **Table name** or **Range** and **Save**), a **Table color**
 radio group of ten swatches, **Formatting** checkboxes (**Alternating colors**,
