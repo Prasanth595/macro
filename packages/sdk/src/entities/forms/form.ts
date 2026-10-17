@@ -494,8 +494,8 @@ export class Form extends MacroEntity<FormDetail> {
       await this.client.storage.getMyFormResponse({ path: { id: this.id } }),
     );
     const table = await this.table();
-    const answered = await Promise.all(
-      mine.answers.map(async (answer): Promise<FormAnswer[]> => {
+    const answers = await Promise.all(
+      mine.answers.map(async (answer): Promise<FormAnswer> => {
         const question = FormQuestion.byId(this, answer.question);
         const value = await match(answer.value)
           .with({ type: 'options' }, (cell) => ({
@@ -541,11 +541,14 @@ export class Form extends MacroEntity<FormDetail> {
             },
             (cell) => cell,
           )
-          .exhaustive(() => undefined);
-        return value ? [{ question, value }] : [];
+          .exhaustive(() => {
+            throw new MacroError(
+              `answer to question ${question.id} has a type this SDK doesn't know`,
+            );
+          });
+        return { question, value };
       }),
     );
-    const answers = answered.flat();
     const row = mine.response.row
       ? DatabaseRow.byId(table, mine.response.row)
       : undefined;
@@ -609,7 +612,10 @@ export class Form extends MacroEntity<FormDetail> {
             .with({ kind: 'checkbox' }, (value) => [
               { count: bucket.count, value },
             ])
-            .exhaustive(() => []),
+            .exhaustive((unknown) => {
+              console.warn('macro sdk: unknown form tally bucket', unknown);
+              return [];
+            }),
         ),
       };
     });
