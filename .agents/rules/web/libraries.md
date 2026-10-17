@@ -21,9 +21,12 @@ under `services/` throw and validate with zod; elsewhere in `apps/web` and
   shape it doesn't know). When such a payload is typed by a closed union you
   still want checked (a generated service enum, a message union, persisted
   data), use `.exhaustive((unknown) => fallback)` instead: it keeps the
-  compile-time check and returns the fallback rather than throwing. Bare
-  `.exhaustive()` is for closed, client-built values; parse anything else into
-  one first (`stringToItemType`, `parseEntityType`). Enforced in wire adapters,
+  compile-time check and returns the fallback rather than throwing. Read paths
+  fall back to an empty or unknown value; write paths and request handlers fail
+  the operation (`err`, a rejected mutation, an `ok: false` reply) instead of
+  sending or reporting a default. Bare `.exhaustive()` is for closed,
+  client-built values; parse anything else into one first
+  (`stringToItemType`, `parseEntityType`). Enforced in wire adapters,
   service clients, transports, workers, and SDK event hydrators by ast-grep
   `ts-exhaustive-boundary-fallback` + `tsx-exhaustive-boundary-fallback`, CI
   error. Never hand-write `switch` on a discriminant; a `switch` over
