@@ -206,9 +206,20 @@ tabs. Its header shows the name, edited in place by editors, a **Pipeline
 actions** menu (**Rename** and **Import CSV** for editors, **Export CSV** for
 anyone who can open it, **Trash pipeline** for the owner) and **Share**. The
 toolbar below has **All records**, the pipeline's stored views and **New view**
-(Table or Board), plus Group by (boards), Filter and Sort, then **Add company**
-or **Add contact** (by the pipeline's record type) for editors, which starts a
-row whose reference cell picks the record.
+(Table or Board), plus Group by (boards), Filter and Sort, then **Add deal**
+(company pipelines) or **Add contact** (contact pipelines) for editors. It opens
+a **New deal in <pipeline>** (or **New contact in <pipeline>**) dialog laid out
+like the task composer: a **Find or add a company…** (or contact) search on top,
+then every pipeline field below it with the table's own cell editors. Select
+fields can create a new option. Choosing **Add company “…”** creates the company
+with the row: a searched domain fills the domain and the name. **Add contact “…”**
+works the same way, and a new contact's email must use a company's domain.
+**Add deal** stays disabled until a record is chosen, and Command-Enter submits.
+The form makes one row with every value set. A board lane's **New record** opens
+the same dialog with the lane's stage filled in. The table's blank row at the
+bottom still adds a row inline. On mobile the dialog is a bottom drawer. To verify
+the person picker, choose an **Owner** in the dialog: its menu must accept the
+click.
 Stored views are everyone's and are written through the pipeline, so changing one
 changes it for all viewers; All records is each viewer's own. A board can move a
 card to another group from its card menu or by dragging, which sets the row's
