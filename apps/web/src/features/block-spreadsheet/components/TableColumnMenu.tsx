@@ -115,6 +115,9 @@ export function TableColumnMenu(props: {
                     <Dropdown.RadioItem value="none" closeOnSelect>
                       <TableColumnTypeIcon type={undefined} class="size-4" />
                       None
+                      <Dropdown.ItemIndicator class="ml-auto text-accent">
+                        ●
+                      </Dropdown.ItemIndicator>
                     </Dropdown.RadioItem>
                     <For each={TABLE_COLUMN_TYPES}>
                       {(type) => (

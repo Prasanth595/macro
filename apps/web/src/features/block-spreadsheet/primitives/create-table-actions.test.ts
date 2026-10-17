@@ -241,7 +241,7 @@ describe('table actions', () => {
       table: 'Table1',
       column: 0,
       summaryColumn: 1,
-      summary: 'count',
+      summary: 'sum',
     });
     expect(
       actions.groups().map((group) => [group.value, group.rows.length])
@@ -251,7 +251,7 @@ describe('table actions', () => {
     ]);
     // An unchanged view is kept, so selects re-sending their value settle.
     const view = actions.groupView();
-    actions.setGroupView({ column: 0, summary: 'count' });
+    actions.setGroupView({ column: 0, summary: 'sum' });
     expect(actions.groupView()).toBe(view);
     actions.showGroup('West');
     expect(store.activeSheet().metadata?.hiddenRows).toEqual([3]);

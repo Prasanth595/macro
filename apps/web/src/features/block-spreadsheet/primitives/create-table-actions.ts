@@ -521,16 +521,26 @@ export function createTableActions(options: {
     return true;
   }
 
+  /** Open the group by view, summing the first number column, or counting
+   * rows when the table has none. */
   function openGroupBy(name: string, column?: number) {
     const table = tableNamed(name);
     if (!table) return;
-    const { left, right } = tableBounds(table);
+    const { left } = tableBounds(table);
     const grouped = column ?? left;
+    const numeric = Object.entries(table.columnTypes ?? {})
+      .filter(
+        ([offset, type]) =>
+          left + Number(offset) !== grouped &&
+          (type === 'number' || type === 'currency' || type === 'percent')
+      )
+      .map(([offset]) => left + Number(offset))
+      .sort((a, b) => a - b)[0];
     setGroupView({
       table: name,
       column: grouped,
-      summaryColumn: grouped === right ? left : right,
-      summary: 'count',
+      summaryColumn: numeric ?? grouped,
+      summary: numeric === undefined ? 'count' : 'sum',
     });
   }
 
