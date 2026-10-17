@@ -25,7 +25,7 @@ import {
   setTableColumnType,
 } from './table-columns';
 import { tableEditChanges } from './table-edits';
-import { conditionMatches, filterTable } from './table-filters';
+import { conditionMatches, filterSummary, filterTable } from './table-filters';
 import { groupTableRows, summarize } from './table-groups';
 import { coloredTable, tableLookEdits } from './table-styles';
 
@@ -457,5 +457,20 @@ describe('filters and groups', () => {
     expect(summarize(cellsOf, 'unique')).toBe(2);
     expect(summarize(cellsOf, 'percentEmpty')).toBe(0.25);
     expect(summarize([{ text: 'a' }], 'average')).toBeUndefined();
+  });
+});
+
+describe('filter summaries', () => {
+  it('describes values and conditions as the column menu shows them', () => {
+    expect(filterSummary({ values: ['a'] })).toBe('1 value');
+    expect(filterSummary({ values: ['a'], blanks: true })).toBe('2 values');
+    expect(
+      filterSummary({
+        condition: { operator: 'between', value: '1', value2: '5' },
+      })
+    ).toBe('Is between 1 and 5');
+    expect(filterSummary({ condition: { operator: 'notEmpty' } })).toBe(
+      'Is not empty'
+    );
   });
 });

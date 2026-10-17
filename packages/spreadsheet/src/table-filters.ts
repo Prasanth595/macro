@@ -147,10 +147,10 @@ export function filterTable(options: {
 /** Text describing a column's filter, such as `Greater than 5`. */
 export function filterSummary(filter: TableColumnFilter): string {
   const parts: string[] = [];
-  if (filter.values)
-    parts.push(
-      `${filter.values.length + (filter.blanks ? 1 : 0)} value${filter.values.length + (filter.blanks ? 1 : 0) === 1 ? '' : 's'}`
-    );
+  if (filter.values) {
+    const count = filter.values.length + (filter.blanks ? 1 : 0);
+    parts.push(`${count} value${count === 1 ? '' : 's'}`);
+  }
   if (filter.condition) {
     const { operator, value = '', value2 = '' } = filter.condition;
     parts.push(
