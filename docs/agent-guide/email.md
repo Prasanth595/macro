@@ -319,7 +319,8 @@ desktop, and select a different account in From (already visible on mobile).
 Forwarded files must remain attached after switching to an owned or delegated
 inbox, saving, and reopening the draft. Send must fetch the original files from
 the receiving inbox while using the selected From inbox for delivery. A scheduled
-forward must not download a source whose inbox access was revoked after saving.
+cross-inbox forward must not download a source whose inbox access was revoked
+after saving.
 When checking draft autosave, edit the body of a draft with uploaded or forwarded
 attachments, wait for the save, and reopen it; the attachments should remain visible.
 In a long thread, scroll away from the bottom while a draft save is pending.
