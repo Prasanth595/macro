@@ -879,7 +879,9 @@ export function buildSingleEntityFilter(
     .with('crmContact', () => {
       throw new Error('CRM contacts are read through GraphQL Soup only');
     })
-    .exhaustive(() => base);
+    .exhaustive(() => {
+      throw new Error(`Unknown soup entity type: ${entityType}`);
+    });
 }
 
 /**

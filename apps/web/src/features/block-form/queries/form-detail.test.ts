@@ -206,6 +206,16 @@ describe('the booking step', () => {
     ]);
   });
 
+  it('does not report an outcome from a newer server as a submission', () => {
+    const fromNewerServer = JSON.parse('{"outcome":"queued","response":"r-1"}');
+
+    expect(toSubmitOutcome(fromNewerServer)).toEqual({
+      kind: 'stopped',
+      sectionId: '',
+      message: 'Update Macro to see whether your response was submitted.',
+    });
+  });
+
   it('unlocks the booking step only from an accepted submission or a passing saved response', () => {
     expect(
       toSubmitOutcome({

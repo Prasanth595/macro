@@ -92,7 +92,9 @@ function openSource(wasm: WasmModule, source: Source): WasmDocxDocument {
       wasm.DocxDocument.fromCollab(state, seed)
     )
     .with({ kind: 'v1' }, ({ state }) => wasm.DocxDocument.fromV1(state))
-    .exhaustive(() => new wasm.DocxDocument(new Uint8Array()));
+    .exhaustive(() => {
+      throw new Error('Unknown document source');
+    });
 }
 
 /**
@@ -121,7 +123,9 @@ async function recover() {
             doc.setExternalUndo(external)
           )
           .with({ kind: 'setAuthor' }, ({ author }) => doc.setAuthor(author))
-          .exhaustive(() => undefined);
+          .exhaustive(() => {
+            throw new Error('Unknown change log entry');
+          });
       }
       open.doc = doc;
     } catch {

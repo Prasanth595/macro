@@ -97,7 +97,7 @@ export function answerProblem(
       { type: 'clear' },
       () => undefined
     )
-    .exhaustive(() => undefined);
+    .exhaustive(() => 'Update Macro to answer this question.');
 }
 
 /** Every problem with a section's answers, in question order. */

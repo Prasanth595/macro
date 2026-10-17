@@ -1334,8 +1334,7 @@ describe('CacheWorkerCore', () => {
     expect(messages.at(-1)).toEqual({ id: 2, ok: true, result: variants });
   });
 
-  it('answers a request kind from a newer page with null instead of throwing', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  it('fails a request kind from a newer page instead of answering it', async () => {
     const messages: unknown[] = [];
     const port = { postMessage: (message: unknown) => messages.push(message) };
     const core = new CacheWorkerCore();
@@ -1343,12 +1342,7 @@ describe('CacheWorkerCore', () => {
 
     await core.handleRequest(port, fromNewerPage);
 
-    expect(messages).toEqual([{ id: 1, ok: true, result: null }]);
-    expect(warn).toHaveBeenCalledWith(
-      'graphql cache worker: unknown request',
-      fromNewerPage
-    );
-    warn.mockRestore();
+    expect(messages).toEqual([expect.objectContaining({ id: 1, ok: false })]);
   });
 
   it('pushes cache changes even without affected operations', async () => {

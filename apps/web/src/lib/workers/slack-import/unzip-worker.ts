@@ -1,4 +1,4 @@
-import { match } from 'ts-pattern';
+import { match, P } from 'ts-pattern';
 import {
   ArchiveError,
   DEFAULT_ARCHIVE_LIMITS,
@@ -182,7 +182,13 @@ export function installArchiveWorker(port: ArchiveWorkerPort): void {
         }
       })
       .exhaustive((unknown) =>
-        console.warn('slack import worker: unknown request', unknown)
+        match(unknown)
+          .with({ sessionId: P.string }, ({ sessionId }) =>
+            reportError(sessionId, new ArchiveError('invalid_state'))
+          )
+          .otherwise(() =>
+            console.warn('slack import worker: unknown request', unknown)
+          )
       );
   };
 }

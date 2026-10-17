@@ -231,19 +231,9 @@ export function toLayoutDocument(layout: FormLayout): WireFormLayout {
             widget: question.widget,
           })),
         }))
-        .exhaustive(() => ({
-          kind: 'questions',
-          id: section.id,
-          title: section.title,
-          description: section.description,
-          questions: section.questions.map((question) => ({
-            id: question.id,
-            column: question.columnId,
-            helpText: question.helpText,
-            required: question.required,
-            widget: question.widget,
-          })),
-        }))
+        .exhaustive(() => {
+          throw new Error(`Section “${section.id}” has an unknown kind`);
+        })
     ),
   };
 }
@@ -273,7 +263,11 @@ export function toSubmitOutcome(outcome: SubmissionOutcome): SubmitOutcome {
       sectionId: section,
       message,
     }))
-    .exhaustive(() => ({ kind: 'submitted', responseId: '', booking: null }));
+    .exhaustive(() => ({
+      kind: 'stopped',
+      sectionId: '',
+      message: 'Update Macro to see whether your response was submitted.',
+    }));
 }
 
 export function toMyResponse(mine: WireMyResponse): MyResponse {

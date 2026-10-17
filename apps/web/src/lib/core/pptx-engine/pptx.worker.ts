@@ -112,7 +112,9 @@ async function recover() {
           .with({ kind: 'applyCollab' }, ({ changes }) =>
             doc.applyCollab(changes)
           )
-          .exhaustive(() => undefined);
+          .exhaustive(() => {
+            throw new Error('Unknown change log entry');
+          });
       }
       open.doc = doc;
     } catch {

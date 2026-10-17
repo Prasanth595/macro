@@ -259,10 +259,12 @@ describe('entityPropertyOptimisticMutationUuid', () => {
 });
 
 describe('toGraphqlSetPropertyValue', () => {
-  it('sends no value for a value type this build does not know', () => {
+  it('refuses to send a value type this build does not know', () => {
     const fromNewerBuild = JSON.parse('{"type":"color","value":"#ff0000"}');
 
-    expect(toGraphqlSetPropertyValue(fromNewerBuild)).toBeNull();
+    expect(() => toGraphqlSetPropertyValue(fromNewerBuild)).toThrow(
+      'Unsupported property value type: color'
+    );
   });
 });
 
