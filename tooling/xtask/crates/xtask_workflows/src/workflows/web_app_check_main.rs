@@ -370,12 +370,11 @@ fn check_types() -> Step<Run> {
         .working_directory(xtask_paths::repo_dir!("apps/web"))
 }
 
-/// Type-aware oxlint `no-floating-promises`, ratcheted per file against
-/// `apps/web/floating-promises-baseline.json` so the count only goes down.
+/// Type-aware oxlint over all of `apps/web`. Existing `no-floating-promises`
+/// violations are bulk-suppressed in `apps/web/oxlint-suppressions.json`;
+/// oxlint fails on new ones and on suppressions that no longer occur.
 fn check_floating_promises() -> Step<Run> {
-    Step::new("Check Floating Promises")
-        .run("bun scripts/check-floating-promises.ts")
-        .working_directory(xtask_paths::repo_dir!("apps/web"))
+    Step::new("Check Floating Promises").run("bun run lint:oxlint --quiet")
 }
 
 fn check_functional_test_types() -> Step<Run> {

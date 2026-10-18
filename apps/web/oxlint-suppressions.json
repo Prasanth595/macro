@@ -1,0 +1,1147 @@
+{
+  "scripts/git-check.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "scripts/preview/get-or-create-id.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "scripts/preview/post-comment.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "scripts/write-bundle-manifest.test.mjs": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/components/app/GlobalHotkeys.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/components/app/sidebar-next/list-nav.test.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/components/app/split-layout/tests/stacked-panes.test.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/auth/EmailAuth.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/auth/GithubReauthenticationPrompt.test.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 6
+    }
+  },
+  "src/features/block-agent/context/create-queue-controller.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/block-ai/queries/create-ai.ts": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/features/block-canvas/component/TopBar.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/features/block-chat/component/Chat.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 4
+    }
+  },
+  "src/features/block-code/component/TopBar.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/block-database/browser-test/document.browser.e2e.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/block-database/views/database-page-actions.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/block-email/component/useEmailThreadTools.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/features/block-fig/queries/create-fig.ts": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/features/block-fig/views/fig-viewer.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/features/block-image/component/TopBar.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/block-md/component/ComposeSkill.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/features/block-md/component/ComposeTask.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/features/block-md/component/DispatchAgentMenu.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/features/block-md/component/FindAndReplace.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/block-md/component/InstructionsEditor.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/block-md/component/MarkdownEditor.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/block-md/component/MediaSelector.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/block-md/component/useMarkdownDocumentDownload.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/features/block-md/component/useTaskBranchNameHotkey.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/block-md/queries/create-document-with-tags.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/block-pdf/PdfViewer/InternalPDFViewer.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/block-pdf/PdfViewer/index.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/features/block-pdf/component/DefinitionLookup/index.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/block-pdf/component/Document.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 4
+    }
+  },
+  "src/features/block-pdf/component/PageNumberInput.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/block-pdf/component/PageOverlay.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/features/block-pdf/component/Placeable.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/block-pdf/signal/search.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/block-pdf/signal/tab.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/block-pdf/store/comments/commentEffect.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/block-pdf/store/comments/commentOperations.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/block-project/component/Block.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/features/block-project/component/ProjectCreateMenu.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/block-psd/queries/create-psd.ts": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/features/block-spreadsheet/primitives/create-grid-controller.test.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/block-spreadsheet/primitives/create-grid-controller.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/block-spreadsheet/primitives/create-range-move.test.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/features/block-spreadsheet/queries/create-spreadsheet.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/features/block-unknown/component/Block.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/block-unknown/component/TopBar.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/calendar-view/calendar-target-request.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/calendar-view/calendar-view.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/calendar/components/CalendarSettingsDropdown.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/channel/Call/CallContext.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/channel/Call/LivekitJsCallController.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/features/channel/Channel/Channel.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/channel/Channel/ChannelDropZone.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/channel/Channel/create-channel-find-bar.ts": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/features/channel/Channel/create-channel-hotkeys.ts": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/features/channel/Channel/tests/create-channel-message-actions.test.ts": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/features/channel/Input/DropZone.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/channel/Input/create-input-commands.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/features/channel/Input/create-input-view.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/channel/StandaloneThread/Replies.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/channel/Thread/create-thread-hotkeys.ts": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/features/channels-view/channels-view-context.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/features/command/Launcher.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 16
+    }
+  },
+  "src/features/drive-view/drive-detail-navigation.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 4
+    }
+  },
+  "src/features/drive-view/primitives/drive-route-state.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/drive-view/queries/folder-creation.ts": {
+    "typescript/no-floating-promises": {
+      "count": 4
+    }
+  },
+  "src/features/drive-view/views/CanvasDetail.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/drive-view/views/CodeDetail.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/drive-view/views/ImageDetail.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/drive-view/views/UnknownDetail.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/email-compose/compose-adapter.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/email-compose/editor-adapter.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/email-compose/primitives/attachment-persistence.test.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/features/email-compose/primitives/send-schedule.test.ts": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/features/email-compose/undo-send.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/email-compose/views/reply-input.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 4
+    }
+  },
+  "src/features/email-message/attachment-action-adapter.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/email-thread/thread-action-adapter.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/features/email-thread/thread-completion-adapter.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/email-view/email-view-context.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 10
+    }
+  },
+  "src/features/entity/bulk-edit/BulkMoveToProjectView.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/entity/extractors-notification/notification-actions.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/features/entity/extractors-notification/notification-content.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/entity/extractors-notification/notification-row.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/features/entity/extractors-notification/notification-stacks.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/entity/extractors/entity-email-participants.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/entity/queries/dss.ts": {
+    "typescript/no-floating-promises": {
+      "count": 9
+    }
+  },
+  "src/features/home/home-calendar-preview.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/home/home-view-context.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/features/integrations/import-linear/ImportLinear.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/next-soup/actions/make-delete-action.ts": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/features/next-soup/actions/make-move-to-project-action.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/features/next-soup/actions/make-remove-from-project-action.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/next-soup/actions/make-rename-action.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/features/next-soup/actions/use-block-entity-commands.ts": {
+    "typescript/no-floating-promises": {
+      "count": 10
+    }
+  },
+  "src/features/next-soup/actions/use-entity-action-hotkeys.ts": {
+    "typescript/no-floating-promises": {
+      "count": 15
+    }
+  },
+  "src/features/next-soup/search-navigation-readers.test.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/features/next-soup/soup-view/FolderDropZone.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/next-soup/soup-view/search-ask-ai-button.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/next-soup/soup-view/soup-view-file-dropzone.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/next-soup/soup-view/soup-view.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 6
+    }
+  },
+  "src/features/next-soup/soup-view/use-soup-navigation-hotkeys.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/features/next-soup/soup-view/use-soup-view-hotkeys.ts": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/features/next-soup/utils.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/notifications/components/Playground.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/features/notifications/notification-navigation.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/notifications/notification-source.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/notifications/use-notification-updates.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/projects/project-detail.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/property/editor/PropertyEditorModal.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/property/editors/inline/InlineLinkEditor.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/features/property/editors/inline/InlineNumberEditor.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/property/editors/inline/InlineTextEditor.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/property/editors/popover/DateEditor.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/property/editors/selectors/PropertyOptionSelector.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/property/tags/TagPicker.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/features/reviews-view/reviews-view.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 4
+    }
+  },
+  "src/features/scheduling/calendar-actions.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/settings/Settings.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/sharing/native-share-sheet/NativeShareSheet.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/features/tasks-view/components/TasksSidebar.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/tasks-view/route-views.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/features/tasks-view/tasks-view-context.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 4
+    }
+  },
+  "src/features/tasks-view/tasks-view.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/features/team-invitations/invite-modal.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/features/theme/utils/themeUtils.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/index.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/analytics/posthog.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/comments/discussion/DiscussionInput.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/lib/core/component/AI/component/debug/Attachment.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/lib/core/component/AI/component/debug/HttpStream.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/lib/core/component/AI/component/input/ChatInput.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/lib/core/component/AI/component/message/AssistantMessage.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/component/AI/component/tool/calendar/open-tool-event.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/component/AI/util/instructions.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/component/DocumentPreview.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 4
+    }
+  },
+  "src/lib/core/component/ItemPreview.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/component/LexicalMarkdown/builder/MarkdownShell.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/component/LexicalMarkdown/builder/buildHandleFromConfig.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/component/LexicalMarkdown/collaboration/CollabProvider.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/lib/core/component/LexicalMarkdown/component/core/BlockLink.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/lib/core/component/LexicalMarkdown/component/decorator/ChannelMessageThreadCard.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/component/LexicalMarkdown/component/decorator/DocumentCard.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/component/LexicalMarkdown/component/decorator/DocumentMention.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/component/LexicalMarkdown/component/decorator/MarkdownImage.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/component/LexicalMarkdown/component/decorator/MarkdownVideo.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/component/LexicalMarkdown/component/decorator/paste/usePasteNode.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/component/LexicalMarkdown/component/menu/FloatingLinkMenu.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/component/LexicalMarkdown/component/menu/MentionsMenu/MentionsMenu.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/component/LexicalMarkdown/directive/floatWithSelection.ts": {
+    "typescript/no-floating-promises": {
+      "count": 5
+    }
+  },
+  "src/lib/core/component/LexicalMarkdown/editing/entityDrop.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/component/LexicalMarkdown/editing/registerMarkdownEditing.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/component/LexicalMarkdown/plugins/checkbox-to-task/checkboxToTaskPlugin.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/component/LexicalMarkdown/plugins/media/mediaPlugin.ts": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/lib/core/component/LexicalMarkdown/plugins/mentions/mentionsPlugin.ts": {
+    "typescript/no-floating-promises": {
+      "count": 7
+    }
+  },
+  "src/lib/core/component/LexicalMarkdown/utils/fileUploadUtils.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/lib/core/component/References.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/component/TopBar/ShareButton.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 13
+    }
+  },
+  "src/lib/core/constant/SettingsState.test.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/lib/core/context/quickAccess/QuickAccessSource.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 6
+    }
+  },
+  "src/lib/core/cross-tab/tab-leader.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/heic/workerPool.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/internal/BlockLoader.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/internal/trackBlockOpened.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/messages/create-message-composer.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/signal/mention.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/lib/core/util/cache.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/core/util/channels.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/lib/core/util/create.ts": {
+    "typescript/no-floating-promises": {
+      "count": 18
+    }
+  },
+  "src/lib/core/util/upload.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/lib/core/util/uploadFile.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/graphql-cache/exchange/inspection.test.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/queries/agent-session/mention-batcher.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/queries/auth/github-link.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/queries/bots/profiles.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/queries/calendar/mention-preview.ts": {
+    "typescript/no-floating-promises": {
+      "count": 4
+    }
+  },
+  "src/lib/queries/calendar/sync.ts": {
+    "typescript/no-floating-promises": {
+      "count": 4
+    }
+  },
+  "src/lib/queries/call/call.ts": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/lib/queries/channel/activity.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/queries/channel/channel-attachments.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/queries/channel/participants.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/lib/queries/chat.ts": {
+    "typescript/no-floating-promises": {
+      "count": 7
+    }
+  },
+  "src/lib/queries/email/backfill.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/queries/email/link.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/lib/queries/email/thread.ts": {
+    "typescript/no-floating-promises": {
+      "count": 9
+    }
+  },
+  "src/lib/queries/gtm-invite/links.ts": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/lib/queries/history/history.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/lib/queries/messages/mutations.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/queries/messages/thread-replies.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/queries/messages/timeline.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/lib/queries/notification/user-notifications.ts": {
+    "typescript/no-floating-promises": {
+      "count": 4
+    }
+  },
+  "src/lib/queries/preview/dataloader.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/queries/preview/preview.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/queries/preview/tests/preview.test.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/queries/preview/wakeup.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/queries/properties/definitions.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/queries/properties/options.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/queries/properties/tags.ts": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/lib/queries/soup/normalized-cache/grouped-operations.ts": {
+    "typescript/no-floating-promises": {
+      "count": 4
+    }
+  },
+  "src/lib/queries/soup/normalized-cache/operations.cancellation.test.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/lib/queries/soup/normalized-cache/operations.ts": {
+    "typescript/no-floating-promises": {
+      "count": 19
+    }
+  },
+  "src/lib/queries/storage/projects.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/lib/queries/storage/task-duplicates.ts": {
+    "typescript/no-floating-promises": {
+      "count": 3
+    }
+  },
+  "src/lib/queries/sync/use-query-sync.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/queries/team/invitations.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/lib/queries/team/invites.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/lib/queries/team/members.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/lib/queries/team/teams.ts": {
+    "typescript/no-floating-promises": {
+      "count": 5
+    }
+  },
+  "src/lib/service-clients/service-agent-harness/client.test.ts": {
+    "typescript/no-floating-promises": {
+      "count": 5
+    }
+  },
+  "src/lib/service-clients/service-storage/graphql-channel-list-updates.test.ts": {
+    "typescript/no-floating-promises": {
+      "count": 10
+    }
+  },
+  "src/lib/service-clients/service-storage/util/refetchResources.ts": {
+    "typescript/no-floating-promises": {
+      "count": 5
+    }
+  },
+  "src/lib/service-clients/service-storage/util/upload.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/service-clients/service-storage/util/websocketPromiseChain.ts": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/lib/split-router/history/solid-router.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/split-router/router/runner.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/split-router/tests/history.test.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/split-router/tests/router.test.ts": {
+    "typescript/no-floating-promises": {
+      "count": 59
+    }
+  },
+  "src/lib/split-router/tests/solid.test.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 6
+    }
+  },
+  "src/lib/tauri/TauriProvider.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 2
+    }
+  },
+  "src/lib/tauri/navigation.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/lib/utils/handleFileUpload.ts": {
+    "typescript/no-floating-promises": {
+      "count": 4
+    }
+  },
+  "src/lib/workers/folder-upload/zip-worker.js": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "src/routes/Root.tsx": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "tests/native/android/smoke.mjs": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  },
+  "vite.base.ts": {
+    "typescript/no-floating-promises": {
+      "count": 1
+    }
+  }
+}

@@ -2,13 +2,16 @@
   // oxlint runs ALONGSIDE Biome, scoped to rules Biome cannot express.
   // Enforces FE-12 and FE-13 from docs/development/style-guide.md.
   //
-  // Run: bun run lint:oxlint (from the repository root), or `bunx oxlint` from apps/web.
+  // Run: bun run lint:oxlint (from the repository root).
   //
-  // typescript/no-floating-promises needs type information, so plain runs skip
-  // it. `bun scripts/check-floating-promises.ts` (from apps/web) runs it with
-  // `--type-aware` against floating-promises-baseline.json, a per-file ratchet:
-  // a file may not gain violations, and the baseline must be lowered when
-  // violations are fixed.
+  // typescript/no-floating-promises needs type information, so always run with
+  // `--type-aware` and oxlint-tsgolint. Existing violations are bulk-suppressed
+  // in oxlint-suppressions.json: oxlint fails on violations it does not cover
+  // and on suppressions that no longer occur. A run without `--type-aware`
+  // fails on the latter, since the rule never runs. After fixing violations,
+  // run `bun run lint:oxlint --prune-suppressions`. `typeAware` is a CLI flag
+  // rather than `options.typeAware` because `just check` also lints
+  // apps/marketing with this config, and tsgolint rejects its tsconfig.
   "plugins": ["promise", "typescript"],
   "categories": {
     "correctness": "off"
