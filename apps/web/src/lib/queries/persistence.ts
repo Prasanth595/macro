@@ -113,16 +113,57 @@ async function handleRestore(
 }
 
 /**
- * Drops every query's data and cancels its fetch. A mounted observer stays
- * bound to its query object, so a removed query would strand it showing the
- * previous account's last result; observed queries reset in place instead.
+ * Drops account data and rebinds mounted observers to fresh queries. Resetting
+ * a query would restore its old initialData; removing it alone would strand
+ * observers on the retired query instead of delivering the next account's data.
  */
 function clearQueryMemory(queryClient: QueryClient): void {
   const queryCache = queryClient.getQueryCache();
   notifyManager.batch(() => {
     for (const query of queryCache.getAll()) {
-      if (query.getObserversCount() > 0) query.reset();
-      else queryCache.remove(query);
+      const observers = query.observers.map((observer) => ({
+        observer,
+        options: {
+          ...observer.options,
+          initialData: undefined,
+          initialDataUpdatedAt: undefined,
+          placeholderData: undefined,
+        },
+      }));
+      for (const { observer, options } of observers) {
+        observer.setOptions(options);
+      }
+      // Observers also retain the last query with data for keepPreviousData.
+      // Empty that retired object, and fence its in-flight response first.
+      void query.cancel({ silent: true });
+      query.setState({
+        data: undefined,
+        dataUpdatedAt: 0,
+        error: null,
+        errorUpdatedAt: 0,
+        status: 'pending',
+        fetchStatus: 'idle',
+      });
+      queryCache.remove(query);
+
+      let rebinding = true;
+      for (const { observer, options } of observers) {
+        observer.setOptions({
+          ...options,
+          enabled: (current) =>
+            !rebinding &&
+            (typeof options.enabled === 'function'
+              ? options.enabled(current)
+              : options.enabled !== false),
+        });
+      }
+      // Restore the original enabled policy without starting a fetch while
+      // auth is being cleared. The prior callback now resolves the same way.
+      rebinding = false;
+      for (const { observer, options } of observers) {
+        observer.setOptions(options);
+        observer.onQueryUpdate();
+      }
     }
   });
   queryClient.getMutationCache().clear();

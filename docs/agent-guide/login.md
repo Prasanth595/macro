@@ -44,8 +44,9 @@ authenticated user info; unrelated mutations can continue draining.
 Verify expiry followed by signing into a different account without reloading:
 the new account's lists must load and receive live updates, and the previous
 account's cached data must be absent. Logout wipes local caches before retiring
-their clients. Mounted user-info observers must receive the next account's data
-after the wipe rather than retaining the old query object.
+their clients. Mounted query observers must receive the next account's data
+after the wipe. Previous account data must not return through initial data,
+placeholder data, or a later query reset.
 
 ## Hosted-dev proxy SSO
 
