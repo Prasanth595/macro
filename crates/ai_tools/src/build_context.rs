@@ -50,6 +50,7 @@ use notification::domain::service::{NotificationReaderService, PlatformArnConfig
 use notification::outbound::queue::SqsQueue;
 use notification::outbound::repository::DbNotificationRepository;
 use readonly_pool::ReadOnlyPool;
+use rootcause::compat::anyhow1::IntoAnyhow;
 use search_service_client::SearchServiceClient;
 use secretsmanager_client::{SecretManager, SecretsManager};
 use soup::domain::service::SoupImpl;
@@ -102,6 +103,20 @@ pub fn build_image_generator_from_env() -> Arc<dyn ImageGenerator> {
             Arc::new(UnconfiguredImageGenerator)
         }
     }
+}
+
+/// Compose shared AI generation and decisions using existing service credentials.
+/// The cognition service owns admission, model access, and usage recording.
+pub fn build_cognition_tool_context() -> anyhow::Result<crate::ToolCognitionToolContext> {
+    let client = cognition::outbound::CognitionClient::new(
+        macro_service_urls::DocumentCognitionServiceUrl::new()?.as_ref(),
+        &macro_auth::InternalApiKey::new()?,
+        chat::domain::models::FREE_MODEL,
+    )
+    .map_err(rootcause::Report::into_anyhow)?;
+    Ok(crate::ToolCognitionToolContext {
+        service: Some(Arc::new(client)),
+    })
 }
 
 /// Builds a [`ToolServiceContext`] by reading the required environment
@@ -269,17 +284,21 @@ pub async fn build_tool_service_context_from_env(
         ForeignEntityServiceImpl::new(PgForeignEntityRepo::new(pool.clone())),
         PgGithubPullRequestRepo::new(pool.clone()),
     );
-    let soup_service = Arc::new(SoupImpl::new(
-        PgSoupRepo::new(ReadOnlyPool(pool.clone())),
-        frecency_service,
-        ReadonlyEmailPreviewAdapter(email_service),
-        channels_service,
-        call::domain::service::CallRecordQueryServiceImpl::new(
-            call::outbound::pg_call_repo::PgCallRepo::new(pool.clone()),
-        ),
-        crm::domain::service::NoOpCrmService,
-        github_pull_request_service,
-    ));
+    let favorites_service = crate::tool_context::build_favorites_service(pool.clone());
+    let soup_service = Arc::new(
+        SoupImpl::new(
+            PgSoupRepo::new(ReadOnlyPool(pool.clone())),
+            frecency_service,
+            ReadonlyEmailPreviewAdapter(email_service),
+            channels_service,
+            call::domain::service::CallRecordQueryServiceImpl::new(
+                call::outbound::pg_call_repo::PgCallRepo::new(pool.clone()),
+            ),
+            crm::domain::service::NoOpCrmService,
+            github_pull_request_service,
+        )
+        .with_favorites(favorites_service.clone()),
+    );
 
     let s3_client = macro_aws_config::s3_client().await;
     let document_files = documents::outbound::s3_document_files::S3DocumentFiles::new(
@@ -506,6 +525,17 @@ pub async fn build_tool_service_context_from_env(
         soup_service.clone(),
         pool.clone(),
     );
+    let crm_tool_context = crate::tool_context::build_crm_tool_context(pool.clone());
+    let pipeline_tool_context = crate::tool_context::build_pipeline_tool_context(
+        pool.clone(),
+        &databases_tool_context,
+        &crm_tool_context,
+    );
+    let crm_transfer_tool_context = crate::tool_context::build_crm_transfer_tool_context(
+        &pipeline_tool_context,
+        &crm_tool_context,
+        &document_tool_context,
+    );
 
     let forms_tool_context = crate::tool_context::build_forms_tool_context(
         pool.clone(),
@@ -597,6 +627,7 @@ pub async fn build_tool_service_context_from_env(
             build_image_generator_from_env(),
             recorder.clone(),
         )?,
+        cognition_tool_context: build_cognition_tool_context()?,
         document_tool_context,
         properties_tool_context,
         email_tool_context,
@@ -608,17 +639,25 @@ pub async fn build_tool_service_context_from_env(
                 .and_then(|value| value.parse::<bool>().ok())
                 .unwrap_or(false),
         ),
+        booking_management_tool_context: crate::tool_context::build_booking_management_tool_context(
+            CalendarServiceUrl::new()?,
+            env.internal_api_key.to_string(),
+            environment,
+        ),
         booking_link_tool_context: crate::tool_context::build_booking_link_tool_context(
             pool.clone(),
             environment,
         ),
         notification_tool_context,
+        item_notification_preference_tool_context:
+            crate::tool_context::build_item_notification_preference_tool_context(pool.clone()),
         databases_tool_context,
         forms_tool_context,
         databases_sql_tool_context,
         import_tool_context,
         chat_tool_context,
         channel_tool_context,
+        channel_media_upload_tool_context: crate::build_channel_media_upload_tool_context()?,
         bot_tool_context: crate::tool_context::build_bot_tool_context(
             pool.clone(),
             crate::tool_context::MaybeToolEventBroker::Real(macro_event_broker.clone()),
@@ -631,9 +670,15 @@ pub async fn build_tool_service_context_from_env(
             env.internal_api_key.to_string(),
         )?,
         project_tool_context,
+        favorites_tool_context: crate::tool_context::build_favorites_tool_context(
+            favorites_service,
+            entity_access_service.clone(),
+        ),
         initiative_tool_context,
         team_tool_context: crate::tool_context::build_team_tool_context(pool.clone()),
-        crm_tool_context: crate::tool_context::build_crm_tool_context(pool.clone()),
+        crm_tool_context,
+        pipeline_tool_context,
+        crm_transfer_tool_context,
         skill_tool_context,
         schedule_tool_context: crate::build_routine_tool_context()?,
         anthropic_tool_context,
