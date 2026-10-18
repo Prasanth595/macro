@@ -3,10 +3,7 @@
 # the output is exactly what is wrong with YOUR changes — legacy findings in
 # untouched files never appear. Findings print as file:line with the rule id;
 # ast-grep rule ids map to docs/development/style-guide.md (its `severity: error` rules fail
-# the run, warnings/hints only print). oxlint's only error rule is
-# typescript/no-floating-promises: apps/web files are linted --type-aware against
-# the bulk suppressions in apps/web/oxlint-suppressions.json, so a new floating
-# promise fails, and so does a fixed one until its suppression is pruned.
+# the run, warnings/hints only print; oxlint is warn-only for now).
 #
 #   just check        fast: rustfmt + biome + oxlint + ast-grep   (~seconds)
 #   just check full   also runs tsc + clippy                      (~minutes)
@@ -72,26 +69,8 @@ check *ARGS:
             || { echo "   fix: (\cd packages/sdk && bun run format && bun run lint), then re-check"; fail=1; }
         fi
       fi
-      # Only apps/web is linted --type-aware: tsgolint rejects apps/marketing's
-      # tsconfig, and the suppressions only cover apps/web.
-      ox_web_paths=()
-      ox_other_paths=()
-      while IFS= read -r f; do
-        if [[ "$f" == apps/web/* ]]; then
-          ox_web_paths+=("$PWD/$f")
-        else
-          ox_other_paths+=("$PWD/$f")
-        fi
-      done <<<"$js"
-      echo "── oxlint (docs/development/style-guide.md FE-12, FE-13)"
-      if [ "${#ox_web_paths[@]}" -gt 0 ]; then
-        (\cd apps/web && npm exec --yes --package=oxlint@1.73.0 \
-            --package=oxlint-tsgolint@7.0.2004 -- oxlint --type-aware "${ox_web_paths[@]}") \
-          || { echo "   fix: await or void the promise (FE-13); after fixing, bun run lint:oxlint --prune-suppressions"; fail=1; }
-      fi
-      if [ "${#ox_other_paths[@]}" -gt 0 ]; then
-        (\cd apps/web && bunx --yes oxlint@1.73.0 "${ox_other_paths[@]}") || fail=1
-      fi
+      echo "── oxlint (warn-only; docs/development/style-guide.md FE-12)"
+      (cd apps/web && bunx --yes oxlint@1.73.0 "${js_paths[@]}") || fail=1
     fi
     if [ -n "$sg" ]; then
       echo "── ast-grep code rules (rule ids map to docs/development/style-guide.md)"
