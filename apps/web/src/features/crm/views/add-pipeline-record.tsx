@@ -428,7 +428,7 @@ export function AddPipelineRecordDialog(
 }
 
 const FIELD_BOX =
-  'rounded-lg border border-edge-muted bg-control transition-colors hover:border-edge focus-within:border-ink/30 [&_[data-cell-display]]:hover:bg-transparent [&_[data-cell-text-editor]]:border-0 [&_[data-cell-text-editor]]:bg-transparent [&_[data-cell-text-editor]]:ring-0';
+  'rounded-lg border border-edge-frame bg-control transition-[border-color,box-shadow] duration-120 focus-within:border-ink/40 focus-within:ring-2 focus-within:ring-ink/10 motion-reduce:transition-none [&_[data-cell-display]]:hover:bg-transparent [&_[data-cell-display]]:focus-visible:ring-0 [&_[data-cell-text-editor]]:border-0 [&_[data-cell-text-editor]]:bg-transparent [&_[data-cell-text-editor]]:ring-0';
 
 /** A field with its label stacked above the input. */
 function StackedField(props: {
