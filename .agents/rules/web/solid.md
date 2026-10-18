@@ -29,9 +29,10 @@ State ownership, reactivity, and async error handling.
 - **FE-13** Extract multi-step async coordination into named helper functions,
   and make intentionally-unawaited promises explicit with `void` — no bare
   floating promises. Enforced by type-aware oxlint
-  `typescript/no-floating-promises` in `just check` and CI, ratcheted against
-  `apps/web/floating-promises-baseline.json`; after fixing violations, lower it
-  with `bun scripts/check-floating-promises.ts --update` from `apps/web`.
+  `typescript/no-floating-promises` in `just check` and CI, with existing
+  violations bulk-suppressed in `apps/web/oxlint-suppressions.json`; after
+  fixing violations, run `bun run lint:oxlint --prune-suppressions` from the
+  repository root.
 - **FE-14** Keep neverthrow `Result`/`ResultAsync` intact end-to-end — use the
   existing helpers (`ResultAsync`, `throwOnErr` in `queryFn`, `catchToResult`)
   instead of ad hoc `Promise <-> Result` conversions.
