@@ -17,7 +17,7 @@ import Trash from '@phosphor/trash.svg';
 import { isIOS } from '@solid-primitives/platform';
 import { Button, cn, SendButton, Surface, Tooltip } from '@ui';
 import type { LexicalEditor } from 'lexical';
-import { $getRoot } from 'lexical';
+import { $getRoot, COMMAND_PRIORITY_LOW, KEY_ESCAPE_COMMAND } from 'lexical';
 import { createResource, createSignal, For, onMount, Show } from 'solid-js';
 import { createAttachmentViewer } from '../components/attachment-viewer';
 import { DraftSyncStatus } from '../components/draft-sync-status';
@@ -165,7 +165,6 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
     savedDraftId,
     handleEditorConnect,
     isSending,
-    collectDraft,
     scheduleDraftSave,
     persistDraftOnSenderSwitch,
     hasPaidAccess,
@@ -200,6 +199,10 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
     isMobileDrawer() ? signatureHtml() : undefined;
   const footerSignatureHtml = () =>
     isMobileDrawer() ? undefined : signatureHtml();
+  // Escape in a field leaves the reply, not the thread: focus moves to the
+  // message it answers and the reply stays open with its draft.
+  const leaveReply = () =>
+    ctx.exitToThread('reply') || ctx.exitToThread('last');
   // File sharing and editor plugin wiring belong to this view. The controller only
   // needs to know when editor content has changed and requires another save.
   const editorConfig = buildConfig('markdown')
@@ -222,6 +225,15 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
     .withSelectionData()
     .withFloatingFormatMenu()
     .use(registerToggleAppendedThread)
+    // Below the editor's menus, above rich text's default blur, which would
+    // leave focus on <body> with nothing to receive the next Escape.
+    .use((lexical) =>
+      lexical.registerCommand(
+        KEY_ESCAPE_COMMAND,
+        () => !composeContext.presentation.isTouch() && leaveReply(),
+        COMMAND_PRIORITY_LOW
+      )
+    )
     .onChange(state.onContentChange)
     .withFilePaste({
       onPasteFilesAndDirs: (files, directories) => {
@@ -320,29 +332,6 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
           return ctx.exitToThread('last');
         },
         hotkeyToken: TOKENS.email.previousMessage,
-      });
-
-      registerHotkey({
-        hotkey: 'escape',
-        scopeId: composeHotkeyScope,
-        description: 'Close reply',
-        keyDownHandler: () => {
-          const draft = collectDraft();
-          const isEmpty = draft === null;
-
-          if (isEmpty) {
-            // Delete draft and close reply
-            deleteDraftAndReset();
-          } else {
-            // Move focus back to the message
-            ctx.exitToThread('selected');
-          }
-          return true;
-        },
-        // Let editable fields handle Escape before closing the reply.
-        runWithInputFocused: false,
-        hotkeyToken: TOKENS.email.cancelReply,
-        displayPriority: 8,
       });
     }
   });
@@ -487,6 +476,7 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
           portalScope={composePortalScope}
           replyType={state.replyType}
           disabled={editingDisabled}
+          onEscape={leaveReply}
         />
         <div
           class={cn(
