@@ -39,6 +39,7 @@ import {
   type RecordChoice,
   type RecordOption,
   recordChoiceProblem,
+  recordDetail,
 } from '../core/pipeline-record';
 import { companyCreationError } from './create-company';
 import { contactCreationError } from './create-contact';
@@ -464,9 +465,13 @@ function PickedRecord(props: {
       <span class="min-w-0 truncate text-[13px] font-medium">
         {props.record.name}
       </span>
-      <span class="min-w-0 shrink-[2] truncate text-xs text-ink-extra-muted">
-        {props.record.detail}
-      </span>
+      <Show when={recordDetail(props.record)}>
+        {(detail) => (
+          <span class="min-w-0 shrink-[2] truncate text-xs text-ink-extra-muted">
+            {detail()}
+          </span>
+        )}
+      </Show>
       <Button
         variant="ghost"
         size="xs"

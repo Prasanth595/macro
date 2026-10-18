@@ -5,7 +5,7 @@ import { Layer } from '@ui';
 import { createSignal, Show } from 'solid-js';
 import { PropertyIcon } from '../../database/components/property-icon';
 import type { Pipeline } from '../core/pipeline';
-import type { RecordOption } from '../core/pipeline-record';
+import { type RecordOption, recordDetail } from '../core/pipeline-record';
 
 /** A search result row: a record to pick, or the search itself as a record to create. */
 type SearchItem =
@@ -95,7 +95,7 @@ export function RecordSearch(props: {
                   {record().name}
                 </Combobox.ItemLabel>
                 <span class="ml-auto min-w-0 shrink-[2] truncate text-xs text-ink-extra-muted">
-                  {record().detail}
+                  {recordDetail(record())}
                 </span>
               </>
             )}

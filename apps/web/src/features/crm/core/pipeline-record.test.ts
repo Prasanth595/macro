@@ -3,6 +3,7 @@ import {
   contactCompany,
   newRecordChoice,
   recordChoiceProblem,
+  recordDetail,
 } from './pipeline-record';
 
 const companies = [{ id: 'acme', domain: 'Acme.com' }];
@@ -102,5 +103,23 @@ describe('recordChoiceProblem', () => {
         companies
       )
     ).toBeUndefined();
+  });
+});
+
+describe('recordDetail', () => {
+  it('hides a detail that repeats the name', () => {
+    expect(
+      recordDetail({
+        id: 'n',
+        name: '43north.studio',
+        detail: '43North.Studio ',
+      })
+    ).toBe('');
+  });
+
+  it('keeps a detail that adds to the name', () => {
+    expect(
+      recordDetail({ id: 'g', name: 'Globex', detail: 'globex.com' })
+    ).toBe('globex.com');
   });
 });

@@ -10,6 +10,12 @@ export const isCompanyDomain = (value: string) => DOMAIN_PATTERN.test(value);
 /** A company or contact someone can pick for a pipeline row. */
 export type RecordOption = { id: string; name: string; detail: string };
 
+/** The detail worth showing beside a record's name: none when it only repeats the name. */
+export const recordDetail = (record: RecordOption) =>
+  record.detail.trim().toLowerCase() === record.name.trim().toLowerCase()
+    ? ''
+    : record.detail;
+
 /** A company a new contact can join, by the domain of its email. */
 export type DomainCompany = { id: string; domain: string };
 
