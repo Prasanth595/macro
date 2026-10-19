@@ -82,6 +82,7 @@ impl RecordingMessages {
                 .stored_sender
                 .clone()
                 .unwrap_or_else(|| Sender::new_from_user(user_id())),
+            guest_name: None,
             imported_author: None,
             bot_profile: None,
             mentions: vec![],
@@ -146,6 +147,7 @@ impl messages::domain::api::MessageCommands for RecordingMessages {
             parent,
             thread_id: input.thread_id,
             sender_id: sender,
+            guest_name: None,
             imported_author: None,
             bot_profile: None,
             mentions: vec![],
@@ -365,9 +367,7 @@ impl ChannelService for ToolTestChannelService {
 
     async fn set_channel_picture(
         &self,
-        _access: entity_access::domain::models::EntityAccessReceipt<
-            entity_access::domain::models::AdminParticipantRole,
-        >,
+        _access: crate::domain::ports::ChannelPictureAccess,
         _picture_id: Option<uuid::Uuid>,
     ) -> Result<(), crate::domain::ports::ChannelMutationErr> {
         unimplemented!("picture mutation is not used by this fixture")

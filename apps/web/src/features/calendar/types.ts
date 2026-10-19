@@ -18,7 +18,7 @@ export type CalendarPeriodView =
   | 'timeGridDay';
 
 /** The conferencing system backing an event's join URL. */
-type ConferenceProvider = 'google_meet' | 'other';
+type ConferenceProvider = 'google_meet' | 'microsoft_teams' | 'other';
 
 /** Supported first day of the calendar week. */
 export type CalendarWeekStart = 0 | 1;
@@ -28,6 +28,8 @@ export type CalendarTimeFormat = '12-hour' | '24-hour';
 
 /** A calendar source used to group and style events. */
 export interface CalendarSource {
+  provider?: 'google' | 'outlook';
+  capabilities?: import('@service-calendar/generated/schemas/calendarCapabilities').CalendarCapabilities;
   /** Stable source identifier. */
   id: string;
   /** Human-readable source name. */
@@ -134,7 +136,7 @@ export interface CalendarEvent {
   description?: string;
 }
 
-/** Source id every teammate out-of-office event carries; it is always shown. */
+/** Source id every teammate out-of-office event carries; hiding it hides the overlay. */
 export const TEAM_OOO_SOURCE_ID = 'team-ooo';
 
 /** Shared presentation source until calendar/account metadata is exposed. */
