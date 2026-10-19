@@ -1,3 +1,4 @@
+import { fileDrop } from '@core/directive/fileDrop';
 import ExpandIcon from '@phosphor/arrows-out-simple.svg';
 import PictureIcon from '@phosphor/image.svg';
 import PencilIcon from '@phosphor/pencil-simple.svg';
@@ -5,7 +6,9 @@ import TrashIcon from '@phosphor/trash.svg';
 import UploadIcon from '@phosphor/upload-simple.svg';
 import { Button } from '@ui/components/Button';
 import { TextField } from '@ui/components/TextField';
-import { Show } from 'solid-js';
+import { createSignal, Show } from 'solid-js';
+
+false && fileDrop;
 
 export function ChannelImageActions(props: {
   fileName?: string;
@@ -14,56 +17,82 @@ export function ChannelImageActions(props: {
   canPreview: boolean;
   error?: string;
   onPick: () => void;
+  onFileDrop: (file: File) => void;
   onClear: () => void;
   onPreview: (trigger: HTMLButtonElement) => void;
 }) {
+  const [dragging, setDragging] = createSignal(false);
   return (
     <div class="flex flex-col gap-3">
-      <div class="flex items-start justify-between gap-3">
-        <div class="min-w-0 flex-1">
-          <h3 class="text-sm font-medium break-all">
-            {props.fileName || 'Channel image'}
-          </h3>
-          <p class="mt-1 text-xs text-ink-muted">
-            PNG, JPG, WebP or GIF up to 16 MB
-          </p>
+      <div
+        role="group"
+        aria-label="Image upload"
+        aria-disabled={props.disabled}
+        class="flex flex-col gap-3 rounded-lg border border-dashed border-edge p-4"
+        classList={{
+          'border-accent bg-accent/5': dragging() && !props.disabled,
+          'opacity-50': props.disabled,
+        }}
+        use:fileDrop={{
+          disabled: props.disabled,
+          onDragStart: setDragging,
+          onDragEnd: () => setDragging(false),
+          onDrop: ([file]) => {
+            if (file) props.onFileDrop(file);
+          },
+        }}
+      >
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0 flex-1">
+            <h3 class="text-sm font-medium break-all">
+              {props.fileName || 'Channel image'}
+            </h3>
+            <p class="mt-1 text-xs text-ink-muted">
+              PNG, JPG, WebP or GIF up to 16 MB
+            </p>
+          </div>
+          <Show when={props.canPreview}>
+            <Button
+              variant="outline"
+              size="icon-md"
+              label="Preview image"
+              disabled={props.disabled}
+              class="touch:min-h-11 touch:min-w-11"
+              onClick={(event) => props.onPreview(event.currentTarget)}
+            >
+              <ExpandIcon />
+            </Button>
+          </Show>
         </div>
-        <Show when={props.canPreview}>
+        <div class="grid grid-cols-2 gap-2">
           <Button
-            variant="outline"
-            size="icon-md"
-            label="Preview image"
+            variant="accent"
+            size="md"
+            fullWidth
             disabled={props.disabled}
-            class="touch:min-h-11 touch:min-w-11"
-            onClick={(event) => props.onPreview(event.currentTarget)}
+            onClick={props.onPick}
+            class="px-2 touch:min-h-11"
           >
-            <ExpandIcon />
+            <UploadIcon class="size-4" />
+            Change image
           </Button>
-        </Show>
-      </div>
-      <div class="grid grid-cols-2 gap-2">
-        <Button
-          variant="accent"
-          size="md"
-          fullWidth
-          disabled={props.disabled}
-          onClick={props.onPick}
-          class="px-2 touch:min-h-11"
-        >
-          <UploadIcon class="size-4" />
-          Change image
-        </Button>
-        <Button
-          variant="ghost"
-          size="md"
-          fullWidth
-          disabled={props.disabled || !props.canClear}
-          onClick={props.onClear}
-          class="px-2 text-failure not-touch:not-disabled:hover:text-failure touch:min-h-11"
-        >
-          <TrashIcon class="size-4" />
-          Clear image
-        </Button>
+          <Button
+            variant="ghost"
+            size="md"
+            fullWidth
+            disabled={props.disabled || !props.canClear}
+            onClick={props.onClear}
+            class="px-2 text-failure not-touch:not-disabled:hover:text-failure touch:min-h-11"
+          >
+            <TrashIcon class="size-4" />
+            Clear image
+          </Button>
+        </div>
+        <p class="text-center text-xs text-ink-muted">
+          {dragging() && !props.disabled
+            ? 'Drop image here'
+            : 'or drag and drop an image'}
+        </p>
       </div>
       <Show when={props.error}>
         <p role="alert" class="text-sm text-failure-ink">

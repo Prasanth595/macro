@@ -284,6 +284,92 @@ describe('channel picture crop lifecycle', () => {
 });
 
 describe('channel editor steps', () => {
+  it('opens dropped images as drafts and saves GIFs only after Save', async () => {
+    const close = vi.fn();
+    const savePicture = vi.fn().mockResolvedValue(ok(undefined));
+    render(() =>
+      createComponent(ChannelIdentityModal, {
+        channelId: 'design',
+        name: 'Design',
+        pictureLoading: false,
+        canEdit: true,
+        writer: { saveName: vi.fn(), savePicture },
+        onClose: close,
+      })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
+    const png = new File(['image'], 'dropped.png', { type: 'image/png' });
+    fireEvent.drop(screen.getByRole('group', { name: 'Image upload' }), {
+      dataTransfer: { files: [png], items: [] },
+    });
+    expect(
+      await screen.findByRole('heading', { name: 'dropped.png' })
+    ).toBeDefined();
+    await screen.findByRole('button', { name: 'Apply crop' });
+    expect(savePicture).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.queryByRole('img', { name: 'Channel picture' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
+    const gif = new File(['animation'], 'dropped.gif', { type: 'image/gif' });
+    fireEvent.drop(screen.getByRole('group', { name: 'Image upload' }), {
+      dataTransfer: { files: [gif], items: [] },
+    });
+    expect(
+      await screen.findByRole('heading', { name: 'dropped.gif' })
+    ).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Apply crop' })).toBeNull();
+    expect(savePicture).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(close).toHaveBeenCalledOnce());
+    expect(savePicture).toHaveBeenCalledExactlyOnceWith(gif);
+  });
+
+  it('validates dropped files and blocks drops after edit permission is lost', async () => {
+    const [canEdit, setCanEdit] = createSignal(true);
+    const savePicture = vi.fn();
+    render(() =>
+      createComponent(ChannelIdentityModal, {
+        channelId: 'design',
+        name: 'Design',
+        pictureLoading: false,
+        get canEdit() {
+          return canEdit();
+        },
+        writer: { saveName: vi.fn(), savePicture },
+        onClose: vi.fn(),
+      })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
+    const upload = screen.getByRole('group', { name: 'Image upload' });
+    fireEvent.drop(upload, {
+      dataTransfer: {
+        files: [new File(['text'], 'notes.txt', { type: 'text/plain' })],
+        items: [],
+      },
+    });
+    expect(screen.getByRole('alert').textContent).toBe(
+      'Choose a PNG, JPG, WebP, or GIF image'
+    );
+    const oversized = new File(['image'], 'large.png', { type: 'image/png' });
+    Object.defineProperty(oversized, 'size', { value: 16_000_001 });
+    fireEvent.drop(upload, {
+      dataTransfer: { files: [oversized], items: [] },
+    });
+    expect(screen.getByRole('alert').textContent).toBe(
+      'Choose an image smaller than 16 MB'
+    );
+    setCanEdit(false);
+    fireEvent.drop(upload, {
+      dataTransfer: {
+        files: [new File(['image'], 'blocked.png', { type: 'image/png' })],
+        items: [],
+      },
+    });
+    expect(screen.queryByRole('button', { name: 'Apply crop' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'blocked.png' })).toBeNull();
+    expect(savePicture).not.toHaveBeenCalled();
+  });
   it('opens the empty image step and returns without changing the draft', async () => {
     const saveName = vi.fn();
     const savePicture = vi.fn();

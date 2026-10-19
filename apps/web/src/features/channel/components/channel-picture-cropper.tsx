@@ -198,8 +198,8 @@ export default function ChannelPictureCropper(props: {
         </>
       }
     >
-      <div class="flex flex-col items-center gap-4">
-        <div class="group/crop relative mx-auto aspect-square w-full max-w-80 overflow-hidden rounded-lg">
+      <div class="flex flex-col gap-4">
+        <div class="group/crop relative aspect-square w-full overflow-hidden rounded-lg">
           <div
             ref={container}
             role="group"
@@ -232,7 +232,7 @@ export default function ChannelPictureCropper(props: {
             </div>
           </div>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex w-full items-center justify-between gap-2">
           <output
             aria-label="Zoom level"
             class="min-w-12 text-sm tabular-nums text-ink-muted"
@@ -258,17 +258,17 @@ export default function ChannelPictureCropper(props: {
             >
               <PlusIcon />
             </Button>
+            <Button
+              label="Reset crop"
+              size="md"
+              variant="ghost"
+              disabled={disabled()}
+              onClick={() => cropper?.getCropperImage()?.$center('cover')}
+            >
+              <ArrowCounterClockwiseIcon />
+              Reset
+            </Button>
           </div>
-          <Button
-            label="Reset crop"
-            size="md"
-            variant="ghost"
-            disabled={disabled()}
-            onClick={() => cropper?.getCropperImage()?.$center('cover')}
-          >
-            <ArrowCounterClockwiseIcon />
-            Reset
-          </Button>
         </div>
       </div>
     </ChannelImageEditorLayout>

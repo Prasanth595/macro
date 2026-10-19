@@ -124,6 +124,25 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
     setEditingImage(true);
   }
 
+  function selectPicture(file: File) {
+    if (disposed || !props.canEdit || state.pending() || props.pictureLoading)
+      return;
+    if (channelPictureFileError(file)) {
+      state.changePicture(file);
+      return;
+    }
+    // Keep animated GIFs intact; canvas cropping produces a still image.
+    if (file.type === 'image/gif') {
+      setOriginalPicture(undefined);
+      state.changePicture(file);
+      setCropSource(undefined);
+      setEditingImage(true);
+      return;
+    }
+    setCropSource(file);
+    setEditingImage(true);
+  }
+
   const imageFileName = () => {
     const source = cropSource() ?? state.picture();
     if (source instanceof File) return source.name;
@@ -139,6 +158,7 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
         onPreview={previewPicture}
         error={state.error()}
         onPick={() => input.click()}
+        onFileDrop={selectPicture}
         onClear={() => {
           setOriginalPicture(undefined);
           setCropSource(undefined);
@@ -211,11 +231,11 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
         event.preventDefault();
         returnToDetails();
       }}
-      class="w-200"
+      class="w-180"
     >
       <Panel depth={2} class="rounded-xl">
         <Panel.Body>
-          <div class="flex max-h-[calc(100dvh-64px)] flex-col gap-6 overflow-y-auto py-6 mobile:max-h-none mobile:overflow-visible mobile:py-4">
+          <div class="flex max-h-[calc(100dvh-64px)] flex-col gap-6 overflow-y-auto pt-6 pb-4 mobile:max-h-none mobile:overflow-visible mobile:pt-4">
             <div class="flex items-center justify-between gap-4 px-6 mobile:px-4">
               <Dialog.Title class="text-xl font-semibold">
                 {editingImage() ? 'Edit channel image' : 'Edit channel'}
@@ -247,21 +267,7 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
                 onChange={(event) => {
                   const file = event.currentTarget.files?.[0];
                   event.currentTarget.value = '';
-                  if (!file) return;
-                  // Keep animated GIFs intact; canvas cropping produces a still image.
-                  if (channelPictureFileError(file)) {
-                    state.changePicture(file);
-                    return;
-                  }
-                  if (file.type === 'image/gif') {
-                    setOriginalPicture(undefined);
-                    state.changePicture(file);
-                    setCropSource(undefined);
-                    setEditingImage(true);
-                    return;
-                  }
-                  setCropSource(file);
-                  setEditingImage(true);
+                  if (file) selectPicture(file);
                 }}
               />
               <Stepper
