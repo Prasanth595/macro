@@ -111,7 +111,7 @@ export function RouteAgents() {
       <FeaturePageSection
         id="agent-sources"
         title={['Give your agent the full', 'context of your team’s', 'work.']}
-        description="Ask a question that draws on more than one app’s worth of information. Your agent can use your calendar, earlier conversations, and customer messages to prepare an answer grounded in your work."
+        description="Macro gives your agent access to your team’s calendar, conversations, and files, so it can use the full context of your work to help you get more done."
         details={agentsGuides['agent-sources']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
