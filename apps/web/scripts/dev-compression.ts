@@ -41,6 +41,8 @@ function compressSingleShot(_req: IncomingMessage, res: ServerResponse) {
   } as typeof write;
 
   const end = res.end;
+  // One signature, so TypeScript can resolve `call` with just a body.
+  const endWith = end as (this: ServerResponse, body: Buffer) => ServerResponse;
   res.end = function (this: ServerResponse, ...args: unknown[]) {
     const [body] = args;
     const restore = () => {
@@ -71,14 +73,14 @@ function compressSingleShot(_req: IncomingMessage, res: ServerResponse) {
     gzip(buffer, { level: constants.Z_BEST_SPEED }, (error, compressed) => {
       restore();
       if (error) {
-        end.call(this, buffer);
+        endWith.call(this, buffer);
         return;
       }
       res.setHeader('content-encoding', 'gzip');
       res.setHeader('content-length', compressed.length);
       const vary = res.getHeader('vary');
       res.setHeader('vary', vary ? `${vary}, Accept-Encoding` : 'Accept-Encoding');
-      end.call(this, compressed);
+      endWith.call(this, compressed);
     });
     return this;
   } as typeof end;

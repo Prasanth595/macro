@@ -6,7 +6,7 @@ import {
   request as httpRequest,
   type ServerResponse,
 } from 'node:http';
-import type { Http2ServerRequest, Http2ServerResponse } from 'node:http2';
+import type { Http2ServerRequest } from 'node:http2';
 import { Agent as HttpsAgent, request as httpsRequest } from 'node:https';
 import type { LookupFunction, Socket } from 'node:net';
 import type { Plugin } from 'vite';
@@ -16,7 +16,6 @@ import {
 } from '../src/lib/core/constant/developmentProxy';
 
 type ProxyRequest = IncomingMessage | Http2ServerRequest;
-type ProxyResponse = ServerResponse | Http2ServerResponse;
 
 /** Connection-level and HTTP/2 pseudo headers never cross the proxy. */
 const HOP_BY_HOP = new Set([
@@ -126,7 +125,8 @@ export function hostedDevProxy(
   const proxyHttp = (
     upstream: URL,
     req: ProxyRequest,
-    res: ProxyResponse,
+    // Connect hands middleware a ServerResponse (Node's HTTP/2 compat API matches it).
+    res: ServerResponse,
     logError: (message: string) => void
   ) => {
     const outgoing = send(

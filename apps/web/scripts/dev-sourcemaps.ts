@@ -60,6 +60,8 @@ export function devExternalSourcemaps(
 
 function linkInlineMaps(res: ServerResponse, store: (map: Buffer) => string) {
   const end = res.end;
+  // One signature, so TypeScript can resolve `call` with just a body.
+  const endWith = end as (this: ServerResponse, body: string) => ServerResponse;
   res.end = function (this: ServerResponse, ...args: unknown[]) {
     res.end = end;
     const [body] = args;
@@ -74,6 +76,6 @@ function linkInlineMaps(res: ServerResponse, store: (map: Buffer) => string) {
     const [inline, comment, base64, close = ''] = match;
     const url = store(Buffer.from(base64 ?? '', 'base64'));
     const linked = `${text.slice(0, text.length - inline.length)}\n${comment}${url}${close}`;
-    return end.call(this, linked);
+    return endWith.call(this, linked);
   } as typeof end;
 }
