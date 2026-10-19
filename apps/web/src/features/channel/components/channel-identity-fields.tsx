@@ -8,6 +8,7 @@ import { TextField } from '@ui/components/TextField';
 import { Show } from 'solid-js';
 
 export function ChannelImageActions(props: {
+  fileName?: string;
   disabled: boolean;
   canClear: boolean;
   canPreview: boolean;
@@ -19,8 +20,10 @@ export function ChannelImageActions(props: {
   return (
     <div class="flex flex-col gap-3">
       <div class="flex items-start justify-between gap-3">
-        <div>
-          <h3 class="text-sm font-medium">Channel image</h3>
+        <div class="min-w-0 flex-1">
+          <h3 class="text-sm font-medium break-all">
+            {props.fileName || 'Channel image'}
+          </h3>
           <p class="mt-1 text-xs text-ink-muted">
             PNG, JPG, WebP or GIF up to 16 MB
           </p>

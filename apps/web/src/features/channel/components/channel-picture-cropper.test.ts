@@ -413,6 +413,7 @@ describe('channel editor steps', () => {
         name: 'Design',
         pictureUrl: 'https://files.example.com/channel.png?size=1080',
         pictureSourceUrl: 'https://files.example.com/channel.png',
+        pictureFileName: 'design-team.jpg',
         pictureLoading: false,
         canEdit: true,
         writer: { saveName, savePicture },
@@ -420,6 +421,9 @@ describe('channel editor steps', () => {
       })
     );
     fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
+    expect(
+      await screen.findByRole('heading', { name: 'design-team.jpg' })
+    ).toBeDefined();
     fireEvent.click(await screen.findByRole('button', { name: 'Apply crop' }));
     fireEvent.click(
       await screen.findByRole('button', { name: 'Edit channel image' })
@@ -432,6 +436,12 @@ describe('channel editor steps', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Clear image' }));
     expect(screen.queryByRole('button', { name: 'Apply crop' })).toBeNull();
+    expect(
+      screen.queryByRole('heading', { name: 'design-team.jpg' })
+    ).toBeNull();
+    expect(
+      screen.getByRole('heading', { name: 'Channel image' })
+    ).toBeDefined();
     expect(saveName).not.toHaveBeenCalled();
     expect(savePicture).not.toHaveBeenCalled();
   });
@@ -465,15 +475,22 @@ describe('channel editor steps', () => {
     );
     const picker = screen.getByLabelText('Choose channel picture');
     fireEvent.change(picker, { target: { files: [original] } });
+    expect(
+      await screen.findByRole('heading', { name: 'original.png' })
+    ).toBeDefined();
     fireEvent.click(await screen.findByRole('button', { name: 'Apply crop' }));
     await screen.findByRole('button', { name: 'Edit channel image' });
     fireEvent.change(picker, { target: { files: [replacement] } });
+    expect(
+      await screen.findByRole('heading', { name: 'replacement.png' })
+    ).toBeDefined();
     fireEvent.click(await screen.findByRole('button', { name: 'Back' }));
     fireEvent.click(
       await screen.findByRole('button', { name: 'Edit channel image' })
     );
     await screen.findByRole('button', { name: 'Back' });
     expect(cropper.construct.mock.calls.at(-1)?.[0].src).toBe('blob:original');
+    expect(screen.getByRole('heading', { name: 'original.png' })).toBeDefined();
   });
 
   it('retains name edits across crop steps and saves only after explicit Save', async () => {

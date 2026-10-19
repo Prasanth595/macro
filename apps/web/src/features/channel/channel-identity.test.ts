@@ -29,6 +29,7 @@ vi.mock('@queries/channel/picture', () => ({
     largeUrl: () => undefined,
     isLoading: () => false,
   }),
+  useChannelPictureFileName: () => () => undefined,
 }));
 vi.mock('./queries/channel-identity', () => ({
   createChannelIdentityWriter: (options: { channelId: string }) => ({

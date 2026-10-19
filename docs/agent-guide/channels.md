@@ -1239,8 +1239,8 @@ The image-editing step puts the crop workspace on the left and a wider
 actions/details column on the right, without an outer bordered crop container.
 On narrow screens, the workspace appears above the controls. `Change image`
 and `Clear image` sit side by side, using accent and destructive ghost variants
-respectively, with medium-sized, touch-friendly buttons. Supported file types
-and size appear above these actions; image filenames are not shown. The nearby
+respectively, with medium-sized, touch-friendly buttons. The image filename,
+when available, appears above its supported file types and size. The nearby
 `Preview image` button opens the image being edited, including a newly selected
 image before applying its crop.
 
@@ -1253,10 +1253,11 @@ re-cropping while the editor stays open; canceling a replacement does not replac
 that source.
 
 The circular crop guide darkens the area outside it and reveals alignment guides
-on hover or focus. Drag to reposition or use the arrow keys to move. The current
-zoom percentage appears before the minus/plus controls, with Reset on the same
-row. The initial fit and Reset are 100%. Scroll-wheel zoom anchors to the cursor;
-the minus/plus buttons anchor to the center of the crop area, even after panning.
+on hover or focus. Drag to reposition or use the arrow keys to move. Zoom controls
+sit below the crop workspace, with the current percentage before the minus/plus
+buttons and Reset on the same row. The initial fit and Reset are 100%.
+Scroll-wheel zoom anchors to the cursor; the minus/plus buttons anchor to the
+center of the crop area, even after panning.
 `Apply crop` adds the square PNG to the local draft and returns to details.
 `Back` or Escape returns without applying a pending
 crop. Clearing an image or selecting a GIF updates only the draft. The cropper

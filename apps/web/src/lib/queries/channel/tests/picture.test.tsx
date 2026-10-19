@@ -6,7 +6,7 @@ import { storageServiceClient } from '@service-storage/client';
 import { QueryObserver } from '@tanstack/query-core';
 import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
 import { ok } from 'neverthrow';
-import { createMemo, createRoot } from 'solid-js';
+import { createMemo, createRoot, createSignal } from 'solid-js';
 import { render } from 'solid-js/web';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { previewDataLoader } from '../../preview/dataloader';
@@ -41,6 +41,7 @@ import {
   handleChannelPictureChanged,
   invalidateChannelPictures,
   useChannelPicture,
+  useChannelPictureFileName,
   useSetChannelPictureMutation,
 } from '../picture';
 
@@ -145,6 +146,52 @@ it('keeps picture accessors guarded while the preview loads', async () => {
   expect(staticFileClient.getMetadata).not.toHaveBeenCalled();
 });
 
+it('loads filename metadata only for the current picture without suspending', async () => {
+  const [pictureId, setPictureId] = createSignal<string>();
+  const pending =
+    Promise.withResolvers<
+      Awaited<ReturnType<typeof staticFileClient.getMetadata>>
+    >();
+  vi.mocked(staticFileClient.getMetadata).mockReturnValueOnce(pending.promise);
+  let fileName!: ReturnType<typeof useChannelPictureFileName>;
+  function Fixture() {
+    fileName = useChannelPictureFileName(pictureId);
+    return null;
+  }
+  dispose = render(
+    () => (
+      <QueryClientProvider client={client}>
+        <Fixture />
+      </QueryClientProvider>
+    ),
+    document.body
+  );
+  expect(fileName()).toBeUndefined();
+  expect(staticFileClient.getMetadata).not.toHaveBeenCalled();
+  setPictureId('first-picture');
+  await vi.waitFor(() =>
+    expect(staticFileClient.getMetadata).toHaveBeenCalledWith({
+      file_id: 'first-picture',
+    })
+  );
+  expect(fileName()).toBeUndefined();
+  setPictureId('second-picture');
+  await vi.waitFor(() => expect(fileName()).toBe('picture.png'));
+  pending.resolve(
+    ok({
+      file_id: 'first-picture',
+      owner_id: 'owner',
+      content_type: 'image/jpeg',
+      is_uploaded: true,
+      file_name: 'old-picture.jpg',
+      s3_key: 'file/first-picture',
+    })
+  );
+  await pending.promise;
+  expect(fileName()).toBe('picture.png');
+  setPictureId(undefined);
+  await vi.waitFor(() => expect(fileName()).toBeUndefined());
+});
 it('publishes the picture only after both upload and channel save succeed', async () => {
   const upload = vi.fn().mockResolvedValue('new-picture');
   vi.mocked(storageServiceClient.setChannelPicture).mockResolvedValue(

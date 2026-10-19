@@ -42,6 +42,7 @@ export type ChannelIdentityEditorProps = {
   name: string;
   pictureUrl?: string;
   pictureSourceUrl?: string;
+  pictureFileName?: string;
   pictureLoading: boolean;
   canEdit: boolean;
   writer: ChannelIdentityWriter;
@@ -123,9 +124,15 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
     setEditingImage(true);
   }
 
+  const imageFileName = () => {
+    const source = cropSource() ?? state.picture();
+    if (source instanceof File) return source.name;
+    return source === null ? undefined : props.pictureFileName;
+  };
   function ImageActions() {
     return (
       <ChannelImageActions
+        fileName={imageFileName()}
         disabled={!props.canEdit || state.pending() || props.pictureLoading}
         canClear={Boolean(cropSource() || pictureUrl())}
         canPreview={Boolean(imagePreviewUrl())}

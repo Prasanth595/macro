@@ -165,44 +165,6 @@ export default function ChannelPictureCropper(props: {
       sidebar={
         <>
           {props.actions}
-          <div class="flex items-center gap-2 border-t border-edge-muted pt-4">
-            <output
-              aria-label="Zoom level"
-              class="min-w-12 text-sm tabular-nums text-ink-muted"
-            >
-              {ready() ? `${zoomPercent()}%` : '—'}
-            </output>
-            <div class="flex items-center gap-2">
-              <Button
-                label="Zoom out"
-                size="icon-md"
-                variant="outline"
-                disabled={disabled()}
-                onClick={() => zoom(-0.1)}
-              >
-                <MinusIcon />
-              </Button>
-              <Button
-                label="Zoom in"
-                size="icon-md"
-                variant="outline"
-                disabled={disabled()}
-                onClick={() => zoom(0.1)}
-              >
-                <PlusIcon />
-              </Button>
-            </div>
-            <Button
-              label="Reset crop"
-              size="md"
-              variant="ghost"
-              disabled={disabled()}
-              onClick={() => cropper?.getCropperImage()?.$center('cover')}
-            >
-              <ArrowCounterClockwiseIcon />
-              Reset
-            </Button>
-          </div>
           <Show when={error()}>
             <p role="alert" class="text-sm text-failure-ink">
               {error()}
@@ -236,7 +198,7 @@ export default function ChannelPictureCropper(props: {
         </>
       }
     >
-      <div class="flex justify-center">
+      <div class="flex flex-col items-center gap-4">
         <div class="group/crop relative mx-auto aspect-square w-full max-w-80 overflow-hidden rounded-lg">
           <div
             ref={container}
@@ -269,6 +231,44 @@ export default function ChannelPictureCropper(props: {
               <div class="absolute inset-x-0 top-1/3 h-1/3 border-y border-accent/40" />
             </div>
           </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <output
+            aria-label="Zoom level"
+            class="min-w-12 text-sm tabular-nums text-ink-muted"
+          >
+            {ready() ? `${zoomPercent()}%` : '—'}
+          </output>
+          <div class="flex items-center gap-2">
+            <Button
+              label="Zoom out"
+              size="icon-md"
+              variant="outline"
+              disabled={disabled()}
+              onClick={() => zoom(-0.1)}
+            >
+              <MinusIcon />
+            </Button>
+            <Button
+              label="Zoom in"
+              size="icon-md"
+              variant="outline"
+              disabled={disabled()}
+              onClick={() => zoom(0.1)}
+            >
+              <PlusIcon />
+            </Button>
+          </div>
+          <Button
+            label="Reset crop"
+            size="md"
+            variant="ghost"
+            disabled={disabled()}
+            onClick={() => cropper?.getCropperImage()?.$center('cover')}
+          >
+            <ArrowCounterClockwiseIcon />
+            Reset
+          </Button>
         </div>
       </div>
     </ChannelImageEditorLayout>

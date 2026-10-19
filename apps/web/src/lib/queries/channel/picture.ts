@@ -2,7 +2,12 @@ import { staticFileSizedEndpoint } from '@core/constant/servers';
 import { throwOnErr } from '@core/util/result';
 import { staticFileClient } from '@service-static-files/client';
 import { storageServiceClient } from '@service-storage/client';
-import { queryOptions, useMutation, useQuery } from '@tanstack/solid-query';
+import {
+  queryOptions,
+  skipToken,
+  useMutation,
+  useQuery,
+} from '@tanstack/solid-query';
 import { type Accessor, createSignal, onCleanup } from 'solid-js';
 import { queryClient } from '../client';
 import { previewDataLoader } from '../preview/dataloader';
@@ -70,6 +75,29 @@ export function useChannelPicture(channelId: Accessor<string>) {
     isLoading: () => query.isPending,
     revision: () => query.dataUpdatedAt,
   };
+}
+
+function channelPictureFileNameQueryOptions(pictureId: string | undefined) {
+  return queryOptions({
+    queryKey: channelKeys.pictureFileName(pictureId).queryKey,
+    queryFn: pictureId
+      ? async () => {
+          const metadata = await throwOnErr(() =>
+            staticFileClient.getMetadata({ file_id: pictureId })
+          );
+          return metadata.file_name;
+        }
+      : skipToken,
+    staleTime: Infinity,
+  });
+}
+
+/** Read immutable filename metadata only when the identity editor mounts. */
+export function useChannelPictureFileName(
+  pictureId: Accessor<string | undefined>
+) {
+  const query = useQuery(() => channelPictureFileNameQueryOptions(pictureId()));
+  return () => (query.isPending ? undefined : query.data);
 }
 
 /**
