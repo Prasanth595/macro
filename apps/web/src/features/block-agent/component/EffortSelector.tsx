@@ -57,10 +57,10 @@ export function EffortSelector(props: {
   );
   const options = () => (
     <div>
-      <div class="mb-1 text-center text-xs text-ink-muted" aria-hidden="true">
+      <div class="mb-1 text-center text-sm text-ink-muted" aria-hidden="true">
         {label()}
       </div>
-      <div class="relative h-9">
+      <div class="relative mx-3 h-9">
         <div
           class="pointer-events-none absolute inset-x-0 top-3 flex h-3 gap-1"
           aria-hidden="true"
@@ -77,6 +77,13 @@ export function EffortSelector(props: {
             )}
           </For>
         </div>
+        <span
+          class="pointer-events-none absolute top-1.5 size-6 -translate-x-1/2 rounded-full bg-ink shadow-sm"
+          aria-hidden="true"
+          style={{
+            left: `calc(${((index() + 1) / choices().length) * 100}% + ${((index() + 1) / choices().length) * 4 - (index() === choices().length - 1 ? 4 : 2)}px)`,
+          }}
+        />
         <input
           type="range"
           aria-label="Reasoning effort"
@@ -110,7 +117,7 @@ export function EffortSelector(props: {
           <Popover
             open={open()}
             onOpenChange={changeOpen}
-            placement="top"
+            placement="bottom"
             gutter={8}
           >
             <Tooltip label={`Effort: ${label()}`} disabled={open()}>
