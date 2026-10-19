@@ -77,7 +77,7 @@ const playerTime = (container: HTMLElement) =>
 it('shows the full call record and seeks when a transcript line is clicked', () => {
   const view = render(() => <CallHeroDemo />);
   fireEvent.click(view.getByRole('button', { name: 'After the call' }));
-  expect(view.getByText('teo@macro.com')).toBeTruthy();
+  expect(view.getByText('teo@coparse.com')).toBeTruthy();
   expect(view.getByText('Summary')).toBeTruthy();
   expect(view.getByText('Recording')).toBeTruthy();
   expect(playerTime(view.container)).toBe('0:00 / 18:22');

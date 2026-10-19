@@ -19,7 +19,7 @@ const kestrel: SampleCompany = {
   updated: '10:08 AM',
   lastInteracted: '2 minutes ago',
   unread: true,
-  contacts: [{ name: 'Priya Shah', email: 'priya@kestrel.example' }],
+  contacts: [{ name: 'Priya Shah', email: 'priya@coparse.com' }],
   comments: [],
   emailIds: [],
   emails: [

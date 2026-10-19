@@ -16,7 +16,7 @@ const request: WorkspaceComment = {
 const reply: WorkspaceComment = {
   id: 'capture-reply',
   person: 'claude',
-  body: 'Done. The Meadow is in Demo and you’re the owner. From the call: demo Thursday at 9 with the studio team, and Alex (alex@meadow.example) is running the rollout on their side.',
+  body: 'Done. The Meadow is in Demo and you’re the owner. From the call: demo Thursday at 9 with the studio team, and Alex (alex@coparse.com) is running the rollout on their side.',
   time: '9:52 AM',
   replyTo: 'capture-request',
 };

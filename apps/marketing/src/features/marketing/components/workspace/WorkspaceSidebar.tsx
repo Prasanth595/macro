@@ -447,7 +447,7 @@ function WorkspaceSidebarOther(props: {
             <Group title="Calendars">
               <div class="flex items-center gap-2 px-2 py-2 text-sm">
                 <Calendar class="size-4" />
-                jacob@macro.com
+                jacob@coparse.com
               </div>
               <label class="flex items-center gap-2 px-2 text-sm">
                 <input

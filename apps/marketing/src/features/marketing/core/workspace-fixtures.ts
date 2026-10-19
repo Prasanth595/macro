@@ -191,9 +191,9 @@ export function sampleCompanies(): SampleCompany[] {
         '18,000'
       ),
       contacts: [
-        { name: 'Valentina', email: 'valentina@meadow.example' },
-        { name: 'Alex', email: 'alex@meadow.example' },
-        { name: 'Priya', email: 'priya@meadow.example' },
+        { name: 'Valentina', email: 'valentina@coparse.com' },
+        { name: 'Alex', email: 'alex@coparse.com' },
+        { name: 'Priya', email: 'priya@coparse.com' },
       ],
       comments: [
         {

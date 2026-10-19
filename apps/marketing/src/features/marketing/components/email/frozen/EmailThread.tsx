@@ -114,7 +114,7 @@ export function EmailThread(props: {
               <div class="py-3 border-y border-ink-muted/8 text-xs text-ink-muted">
                 From: {sender()}
                 <br />
-                To: {sent() ? props.email.sender : 'Jacob <jacob@macro.com>'}
+                To: {sent() ? props.email.sender : 'Jacob <jacob@coparse.com>'}
               </div>
             </Show>
             <div class="mail-message-text text-base text-ink pr-4">

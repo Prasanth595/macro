@@ -51,7 +51,7 @@ it('combines account, tab and search filters and preserves them after opening a 
   const accounts = within(view.getByRole('navigation', { name: 'Inboxes' }));
   const tabs = within(view.getByRole('navigation', { name: 'Email tabs' }));
   fireEvent.click(
-    accounts.getByRole('button', { name: 'jacob.beckerman@gmail.com' })
+    accounts.getByRole('button', { name: 'jacob.beckerman@coparse.com' })
   );
   expect(view.getAllByRole('button', { name: /^Read / })).toHaveLength(3);
   fireEvent.click(tabs.getByRole('button', { name: 'Noise' }));

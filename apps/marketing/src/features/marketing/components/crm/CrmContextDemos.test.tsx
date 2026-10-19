@@ -146,7 +146,7 @@ it('lists the record’s team, files, and tasks', () => {
   );
   fireEvent.click(view.getByRole('radio', { name: 'Team' }));
   const contacts = within(view.getByLabelText('Contacts'));
-  expect(contacts.getByText('alex@meadow.example')).toBeTruthy();
+  expect(contacts.getByText('alex@coparse.com')).toBeTruthy();
   fireEvent.input(view.getByRole('textbox', { name: 'Search contacts' }), {
     target: { value: 'priya' },
   });

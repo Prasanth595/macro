@@ -107,8 +107,8 @@ export function EmailSidebar(props: {
           </ViewSidebar.Item>
           <For
             each={[
-              { id: 'personal', label: 'jacob.beckerman@gmail.com' },
-              { id: 'work', label: 'jacob@macro.com' },
+              { id: 'personal', label: 'jacob.beckerman@coparse.com' },
+              { id: 'work', label: 'jacob@coparse.com' },
             ]}
           >
             {(account) => (

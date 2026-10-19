@@ -16,8 +16,8 @@ export function InboxChip(props: { account: DemoEmail['account'] }) {
       alt=""
       title={
         props.account === 'work'
-          ? 'jacob@macro.com'
-          : 'jacob.beckerman@gmail.com'
+          ? 'jacob@coparse.com'
+          : 'jacob.beckerman@coparse.com'
       }
     />
   );

@@ -4,7 +4,7 @@ import type { WorkspaceComment } from '../../core/dummy-workspace';
 export type CallPerson = 'jacob' | 'teo' | 'julia' | 'gabriel' | 'valentina';
 
 /** Participant pills show `idToEmail(userId)` in the app. */
-export const callEmail = (person: CallPerson) => `${person}@macro.com`;
+export const callEmail = (person: CallPerson) => `${person}@coparse.com`;
 
 export type CallSegment = {
   id: string;

@@ -53,10 +53,10 @@ export default function HomepageEmailCompose(
   let body: HTMLDivElement | undefined;
   let fileInput: HTMLInputElement | undefined;
   const [to, setTo] = createSignal(
-    props.draft?.to ?? 'Valentina <valentina@example.com>'
+    props.draft?.to ?? 'Valentina <valentina@coparse.com>'
   );
   const [cc, setCc] = createSignal(
-    props.draft?.cc ?? 'Julia <julia@macro.com>'
+    props.draft?.cc ?? 'Julia <julia@coparse.com>'
   );
   const [bcc, setBcc] = createSignal(props.draft?.bcc ?? '');
   const draftValue = () => ({

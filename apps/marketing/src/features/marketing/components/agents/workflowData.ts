@@ -43,7 +43,7 @@ export function seedAgentWorkflows(w: DummyWorkspace) {
       ...all,
       {
         id: 'beacon-email',
-        sender: 'Valentina <valentina@beacon.example>',
+        sender: 'Valentina <valentina@coparse.com>',
         subject: 'One more thing before Friday',
         snippet: 'Can our 12 clients upload without accounts?',
         body: 'Hi Julia,\n\nWe talked about our 8 internal reviewers on Tuesday. We also need 12 clients to send us files without creating accounts. Can we include that in the trial?\n\nLet’s discuss on Friday.\nValentina',

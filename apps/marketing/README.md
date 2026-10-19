@@ -736,3 +736,5 @@ an attendee. Turning sharing off leaves his list empty. Manual input pauses
 automation; reduced motion opens the saved summary. Verify the checkbox,
 recording navigation, transcript seeking, and phone layout. CRM linking remains
 on the CRM page; this scene demonstrates channel-call team sharing only.
+
+Sample email addresses in website demos use `coparse.com`, Macro’s former domain.
