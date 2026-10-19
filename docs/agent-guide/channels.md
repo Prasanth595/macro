@@ -1149,8 +1149,9 @@ instead.
 In the Chat workspace — and wherever a channel opens inline inside another
 view's detail stack (a channel mention followed from the email view, say) — the
 conversation renders an inline detail whose top bar holds the channel avatar
-and name, the same inset tab strip, live viewer avatars, and the `Call` and
-`Ask Macro` buttons. In Chat an ellipsis follows the name and opens the same
+and name, the same inset tab strip, and live viewer avatars. The top-right
+`Invite`, `Call`, and `Ask Macro` actions share the canonical rounded, outlined
+button group. In Chat an ellipsis follows the name and opens the same
 entity actions as right-clicking the conversation's rail row — `Open in new
 split`, `Rename`, `Set channel picture`, `Remove channel picture` (only when the
 channel has one), `Favorite`/`Unfavorite`, `Remind me`, `Snooze notifications…`, `Mute

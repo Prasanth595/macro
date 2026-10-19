@@ -35,6 +35,7 @@ import {
 } from '@core/context/channels';
 import { createMethodRegistration } from '@core/orchestrator';
 import { useChannelParticipantsQuery } from '@queries/channel/channel-participants';
+import { ButtonGroup } from '@ui';
 import {
   type Accessor,
   children,
@@ -165,31 +166,37 @@ export function ChannelDetailActions(props: ChannelDetailHeaderProps) {
   };
 
   return (
-    <div class="header-actions ml-auto flex shrink-0 items-center gap-1">
+    <div class="header-actions ml-auto flex shrink-0 items-center gap-2">
       <DebugSuspense name="ChannelDetail.live-indicators">
         <ChannelLiveIndicators channelId={props.channelId} />
       </DebugSuspense>
-      <DebugSuspense name="ChannelDetail.invite">
-        <ChannelInviteButton
-          channelId={props.channelId}
-          channelName={channelName() ?? 'New Channel'}
-          channelType={channelType()}
-        />
-      </DebugSuspense>
-      <Show
-        when={ENABLE_CALLS && !channel()?.agent_dm && !call.isInThisChannel()}
+      <ButtonGroup
+        variant="outline"
+        size="icon-md"
+        class="[&:not(:has([data-header-action]))]:hidden"
       >
-        <DebugSuspense name="ChannelDetail.call-button">
-          <ChannelCallButton channelId={props.channelId} />
+        <DebugSuspense name="ChannelDetail.invite">
+          <ChannelInviteButton
+            channelId={props.channelId}
+            channelName={channelName() ?? 'New Channel'}
+            channelType={channelType()}
+          />
         </DebugSuspense>
-      </Show>
-      <Show when={askMacroEntity()}>
-        {(entity) => (
-          <DebugSuspense name="ChannelDetail.ask-macro">
-            <ChatWithAgentButton entity={entity()} label="Ask Macro" />
+        <Show
+          when={ENABLE_CALLS && !channel()?.agent_dm && !call.isInThisChannel()}
+        >
+          <DebugSuspense name="ChannelDetail.call-button">
+            <ChannelCallButton channelId={props.channelId} />
           </DebugSuspense>
-        )}
-      </Show>
+        </Show>
+        <Show when={askMacroEntity()}>
+          {(entity) => (
+            <DebugSuspense name="ChannelDetail.ask-macro">
+              <ChatWithAgentButton entity={entity()} label="Ask Macro" />
+            </DebugSuspense>
+          )}
+        </Show>
+      </ButtonGroup>
     </div>
   );
 }
