@@ -1,6 +1,11 @@
 import { createBlockOrchestrator } from '@core/orchestrator';
-import { cleanup, render } from '@solidjs/testing-library';
-import { type Accessor, createComputed, type JSX } from 'solid-js';
+import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
+import {
+  type Accessor,
+  createComputed,
+  createSignal,
+  type JSX,
+} from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChannelTargetRequest } from '../ChannelSurface';
 import { useChannelTab } from '../ChannelTabContext';
@@ -11,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   pass: (props: { children?: JSX.Element }) => props.children,
   requests: [] as (ChannelTargetRequest | undefined)[],
   joinRequested: false,
+  canEditIdentity: false,
 }));
 
 vi.mock('@channel/Channel/ChannelSurface', () => ({
@@ -84,7 +90,22 @@ vi.mock('@core/context/channels', () => ({
   useChannelType: () => () => 'private',
 }));
 vi.mock('@queries/channel/channel-participants', () => ({
-  useChannelParticipantsQuery: () => ({ isSuccess: false, data: undefined }),
+  useChannelParticipantsQuery: () => ({
+    get isSuccess() {
+      return mocks.canEditIdentity;
+    },
+    get data() {
+      return mocks.canEditIdentity ? [{ user_id: 'viewer' }] : undefined;
+    },
+  }),
+}));
+vi.mock('@core/context/user', () => ({ useUserId: () => () => 'viewer' }));
+vi.mock('@channel/channel-identity-session', () => ({
+  default: (props: { onClose: () => void }) => (
+    <div role="dialog" aria-label="Edit channel">
+      <button onClick={props.onClose}>Cancel</button>
+    </div>
+  ),
 }));
 // Keep the orchestrator's registry real without pulling every block definition.
 vi.mock('@core/constant/allBlocks', () => ({
@@ -102,7 +123,7 @@ vi.mock('../use-channel-tab-items', () => ({
   useChannelTabItems: () => () => [],
 }));
 
-import { ChannelDetail } from '../ChannelDetail';
+import { ChannelDetail, ChannelDetailTitle } from '../ChannelDetail';
 
 const CHANNEL_ID = 'channel-1';
 
@@ -120,10 +141,34 @@ const messageRequests = () =>
 beforeEach(() => {
   mocks.requests.length = 0;
   mocks.joinRequested = false;
+  mocks.canEditIdentity = false;
 });
 afterEach(cleanup);
 
 describe('channel detail navigation', () => {
+  it('opens one title dialog from an external Edit channel action', async () => {
+    mocks.canEditIdentity = true;
+    const [open, setOpen] = createSignal(false);
+    render(() => (
+      <>
+        <button onClick={() => setOpen(true)}>Edit channel</button>
+        <ChannelDetailTitle
+          channelId={CHANNEL_ID}
+          identityOpen={open()}
+          onIdentityOpenChange={setOpen}
+        />
+      </>
+    ));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit channel' }));
+    expect(
+      await screen.findByRole('dialog', { name: 'Edit channel' })
+    ).toBeTruthy();
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(open()).toBe(false);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
   it('measures tab content against the height left after channel chrome', () => {
     const view = render(() => (
       <ChannelDetail channelId={CHANNEL_ID}>{() => null}</ChannelDetail>

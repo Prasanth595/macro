@@ -45,7 +45,6 @@ import {
   normalizeChannelTab,
   useChannelTabItems,
 } from '@channel/Channel/use-channel-tab-items';
-import { ChannelIdentityDialog } from '@channel/channel-identity';
 import { ChannelInviteButton } from '@channel/channel-invite-button';
 import { ChannelParticipantsTab } from '@channel/Participants/ChannelParticipantsTab';
 import { HeaderIsland } from '@components/app/split-layout/components/HeaderIsland';
@@ -68,7 +67,6 @@ import {
 } from '@core/context/channels';
 import { useUserId } from '@core/context/user';
 import { isMobile } from '@core/mobile/isMobile';
-import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { createMethodRegistration } from '@core/orchestrator';
 import { blockHotkeyScopeSignal } from '@core/signal/blockElement';
 import { blockHandleSignal } from '@core/signal/load';
@@ -231,13 +229,6 @@ function NewTop(props: { channelId: string }) {
           ]}
         />
       </SplitTitleFileMenu>
-      <ChannelIdentityDialog
-        channelId={props.channelId}
-        name={channelName() ?? 'New Channel'}
-        canEdit={canEditIdentity()}
-        open={isTouchDevice() && editOpen()}
-        onClose={() => setEditOpen(false)}
-      />
       <SplitHeaderRight>
         {/* On mobile the split header is pointer-events-none; only islands
             (glass pills) take taps. `empty:hidden` drops the pill when the

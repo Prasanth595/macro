@@ -1,12 +1,10 @@
 import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
-import { HoverCard } from '@ui/components/HoverCard';
 import { err, ok } from 'neverthrow';
 import { createComponent, createSignal } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ChannelIdentityDialog,
   ChannelIdentityTitle,
-  ChannelTitleHoverCard,
 } from './channel-identity';
 
 const testState = vi.hoisted(() => ({
@@ -31,7 +29,6 @@ vi.mock('@queries/channel/picture', () => ({
     largeUrl: () => undefined,
     isLoading: () => false,
   }),
-  useChannelPictureFileName: () => () => undefined,
 }));
 vi.mock('./queries/channel-identity', () => ({
   createChannelIdentityWriter: (options: { channelId: string }) => ({
@@ -54,40 +51,40 @@ afterEach(() => {
 });
 
 describe('channel title editing', () => {
-  it.each(['hover', 'inline'] as const)(
-    'opens a single %s popup from an external Edit channel action',
-    async (surface) => {
+  it.each([false, true])(
+    'opens one dialog from an external Edit channel action on touch=%s',
+    async (touch) => {
+      testState.touch = touch;
       const [open, setOpen] = createSignal(false);
       const action = document.createElement('button');
       action.textContent = 'Edit channel';
       action.onclick = () => setOpen(true);
       render(() => [
         action,
-        createComponent(
-          surface === 'hover' ? ChannelTitleHoverCard : ChannelIdentityTitle,
-          {
-            channelId: 'design',
-            name: 'Design',
-            canEdit: true,
-            children: 'Design',
-            get open() {
-              return open();
-            },
-            onOpenChange: setOpen,
-          }
-        ),
+        createComponent(ChannelIdentityTitle, {
+          channelId: 'design',
+          name: 'Design',
+          canEdit: true,
+          children: 'Design',
+          get open() {
+            return open();
+          },
+          onOpenChange: setOpen,
+        }),
       ]);
-      fireEvent.click(screen.getByRole('button', { name: 'Edit channel' }));
+      action.focus();
+      fireEvent.click(action);
       const input = await screen.findByRole('textbox', {
         name: 'Channel name',
       });
+      expect(screen.getAllByRole('dialog')).toHaveLength(1);
       expect(
         screen.getAllByRole('form', { name: 'Edit channel' })
       ).toHaveLength(1);
-      expect(screen.queryByRole('dialog')).toBeNull();
       fireEvent.input(input, { target: { value: 'Unsaved design' } });
       fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
       expect(open()).toBe(false);
+      expect(document.activeElement).toBe(action);
       expect(testState.saveName).not.toHaveBeenCalled();
       fireEvent.click(action);
       expect(
@@ -97,38 +94,50 @@ describe('channel title editing', () => {
           })
         ).value
       ).toBe('Design');
+      expect(screen.getAllByRole('dialog')).toHaveLength(1);
     }
   );
-  it('retains an unsaved draft when another rich hover card opens', async () => {
-    const [otherOpen, setOtherOpen] = createSignal(false);
-    render(() => [
-      createComponent(ChannelTitleHoverCard, {
+
+  it.each([false, true])(
+    'opens on click, not hover or focus, and restores title focus on touch=%s',
+    async (touch) => {
+      testState.touch = touch;
+      render(() =>
+        createComponent(ChannelIdentityTitle, {
+          channelId: 'design',
+          name: 'Design',
+          canEdit: true,
+          children: 'Design',
+        })
+      );
+      const title = screen.getByRole('button', {
+        name: 'Edit channel details',
+      });
+      fireEvent.mouseEnter(title);
+      title.focus();
+      expect(screen.queryByRole('dialog')).toBeNull();
+      fireEvent.click(title);
+      expect(await screen.findByRole('dialog')).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(document.activeElement).toBe(title);
+    }
+  );
+
+  it('leaves a non-editable title as text without opening a dialog', () => {
+    render(() =>
+      createComponent(ChannelIdentityTitle, {
         channelId: 'design',
         name: 'Design',
-        canEdit: true,
+        canEdit: false,
         children: 'Design',
-      }),
-      createComponent(HoverCard, {
-        get open() {
-          return otherOpen();
-        },
-        onOpenChange: setOtherOpen,
-        children: 'Another preview',
-        content: 'Another card',
-      }),
-    ]);
-    screen.getByLabelText('Edit channel details').focus();
-    const input = await screen.findByRole('textbox', { name: 'Channel name' });
-    fireEvent.input(input, { target: { value: 'Unsaved design' } });
-    setOtherOpen(true);
-    await screen.findByText('Another card');
+      })
+    );
+    expect(screen.getByText('Design')).toBeTruthy();
     expect(
-      screen.getByRole<HTMLInputElement>('textbox', { name: 'Channel name' })
-        .value
-    ).toBe('Unsaved design');
-    expect(testState.saveName).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(screen.queryByRole('textbox', { name: 'Channel name' })).toBeNull();
+      screen.queryByRole('button', { name: 'Edit channel details' })
+    ).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('opens the same draft editor from an inline title on touch', async () => {
@@ -141,7 +150,9 @@ describe('channel title editing', () => {
         children: 'Design',
       })
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Design' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Edit channel details' })
+    );
     const input = await screen.findByRole('textbox', { name: 'Channel name' });
     fireEvent.input(input, { target: { value: 'Mobile design' } });
     expect(testState.saveName).not.toHaveBeenCalled();
@@ -152,7 +163,7 @@ describe('channel title editing', () => {
   it('keeps cancellation available when edit permission is lost with a draft open', async () => {
     const [canEdit, setCanEdit] = createSignal(true);
     render(() =>
-      createComponent(ChannelTitleHoverCard, {
+      createComponent(ChannelIdentityTitle, {
         channelId: 'design',
         name: 'Design',
         get canEdit() {
@@ -161,7 +172,9 @@ describe('channel title editing', () => {
         children: 'Design',
       })
     );
-    screen.getByLabelText('Edit channel details').focus();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Edit channel details' })
+    );
     const input = await screen.findByRole('textbox', { name: 'Channel name' });
     fireEvent.input(input, { target: { value: 'Unsaved design' } });
     setCanEdit(false);
@@ -170,14 +183,13 @@ describe('channel title editing', () => {
     expect(screen.queryByRole('textbox', { name: 'Channel name' })).toBeNull();
     expect(testState.saveName).not.toHaveBeenCalled();
   });
-  it.each(['hover', 'dialog'] as const)(
-    'binds the %s editor draft and writes to the newly selected channel',
-    async (surface) => {
-      const [channel, setChannel] = createSignal({
-        id: 'design',
-        name: 'Design',
-      });
-      const props = {
+  it('binds the dialog draft and writes to the newly selected channel', async () => {
+    const [channel, setChannel] = createSignal({
+      id: 'design',
+      name: 'Design',
+    });
+    render(() =>
+      createComponent(ChannelIdentityDialog, {
         get channelId() {
           return channel().id;
         },
@@ -185,43 +197,27 @@ describe('channel title editing', () => {
           return channel().name;
         },
         canEdit: true,
-        children: 'Channel title',
-      };
-      render(() =>
-        surface === 'hover'
-          ? createComponent(ChannelTitleHoverCard, props)
-          : createComponent(ChannelIdentityDialog, {
-              ...props,
-              get channelId() {
-                return channel().id;
-              },
-              get name() {
-                return channel().name;
-              },
-              open: true,
-              onClose: vi.fn(),
-            })
-      );
-      if (surface === 'hover')
-        screen.getByLabelText('Edit channel details').focus();
-      const firstInput = await screen.findByRole('textbox', {
-        name: 'Channel name',
-      });
-      fireEvent.input(firstInput, { target: { value: 'Unsubmitted design' } });
-      setChannel({ id: 'marketing', name: 'Marketing' });
-      const input = await screen.findByRole<HTMLInputElement>('textbox', {
-        name: 'Channel name',
-      });
-      expect(input.value).toBe('Marketing');
-      expect(testState.saveName).not.toHaveBeenCalled();
-      fireEvent.input(input, { target: { value: 'Renamed marketing' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-      expect(testState.saveName).toHaveBeenCalledWith(
-        'Renamed marketing',
-        'marketing'
-      );
-    }
-  );
+        open: true,
+        onClose: vi.fn(),
+      })
+    );
+    const firstInput = await screen.findByRole('textbox', {
+      name: 'Channel name',
+    });
+    fireEvent.input(firstInput, { target: { value: 'Unsubmitted design' } });
+    setChannel({ id: 'marketing', name: 'Marketing' });
+    const input = await screen.findByRole<HTMLInputElement>('textbox', {
+      name: 'Channel name',
+    });
+    expect(input.value).toBe('Marketing');
+    expect(testState.saveName).not.toHaveBeenCalled();
+    fireEvent.input(input, { target: { value: 'Renamed marketing' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(testState.saveName).toHaveBeenCalledWith(
+      'Renamed marketing',
+      'marketing'
+    );
+  });
 
   it('completes both submitted fields for the old channel after switching channels', async () => {
     const pending = Promise.withResolvers<unknown>();
@@ -248,7 +244,7 @@ describe('channel title editing', () => {
     fireEvent.input(input, { target: { value: 'Renamed design' } });
     fireEvent.change(screen.getByLabelText('Choose channel picture'), {
       target: {
-        files: [new File(['image'], 'design.png', { type: 'image/png' })],
+        files: [new File(['image'], 'design.gif', { type: 'image/gif' })],
       },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
@@ -292,7 +288,7 @@ describe('channel title editing', () => {
     await screen.findByRole('textbox', { name: 'Channel name' });
     fireEvent.change(screen.getByLabelText('Choose channel picture'), {
       target: {
-        files: [new File(['image'], 'design.png', { type: 'image/png' })],
+        files: [new File(['image'], 'design.gif', { type: 'image/gif' })],
       },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));

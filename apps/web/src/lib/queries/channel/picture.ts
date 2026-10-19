@@ -2,12 +2,7 @@ import { staticFileSizedEndpoint } from '@core/constant/servers';
 import { throwOnErr } from '@core/util/result';
 import { staticFileClient } from '@service-static-files/client';
 import { storageServiceClient } from '@service-storage/client';
-import {
-  queryOptions,
-  skipToken,
-  useMutation,
-  useQuery,
-} from '@tanstack/solid-query';
+import { queryOptions, useMutation, useQuery } from '@tanstack/solid-query';
 import { type Accessor, createSignal, onCleanup } from 'solid-js';
 import { queryClient } from '../client';
 import { previewDataLoader } from '../preview/dataloader';
@@ -55,17 +50,6 @@ function channelPictureQueryOptions(id: string) {
   });
 }
 
-function channelPictureMetadataQueryOptions(pictureId: string | undefined) {
-  return queryOptions({
-    queryKey: channelKeys.pictureMetadata(pictureId ?? '').queryKey,
-    enabled: !!pictureId,
-    queryFn: pictureId
-      ? () =>
-          throwOnErr(() => staticFileClient.getMetadata({ file_id: pictureId }))
-      : skipToken,
-  });
-}
-
 /** Reuse the batched REST preview loader, including when Soup uses GraphQL. */
 export function useChannelPicture(channelId: Accessor<string>) {
   const query = useQuery(() => channelPictureQueryOptions(channelId()));
@@ -86,15 +70,6 @@ export function useChannelPicture(channelId: Accessor<string>) {
     isLoading: () => query.isPending,
     revision: () => query.dataUpdatedAt,
   };
-}
-
-/** Fetch the name only when the picture details editor supplies a picture id. */
-export function useChannelPictureFileName(
-  pictureId: Accessor<string | undefined>
-) {
-  const query = useQuery(() => channelPictureMetadataQueryOptions(pictureId()));
-  return () =>
-    pictureId() && query.isSuccess ? query.data.file_name : undefined;
 }
 
 /**

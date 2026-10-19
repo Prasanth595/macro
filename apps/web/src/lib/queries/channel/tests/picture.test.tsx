@@ -6,7 +6,7 @@ import { storageServiceClient } from '@service-storage/client';
 import { QueryObserver } from '@tanstack/query-core';
 import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
 import { ok } from 'neverthrow';
-import { createMemo, createRoot, createSignal } from 'solid-js';
+import { createMemo, createRoot } from 'solid-js';
 import { render } from 'solid-js/web';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { previewDataLoader } from '../../preview/dataloader';
@@ -41,7 +41,6 @@ import {
   handleChannelPictureChanged,
   invalidateChannelPictures,
   useChannelPicture,
-  useChannelPictureFileName,
   useSetChannelPictureMutation,
 } from '../picture';
 
@@ -144,52 +143,6 @@ it('keeps picture accessors guarded while the preview loads', async () => {
   });
   await vi.waitFor(() => expect(picture.pictureId()).toBe('picture-1'));
   expect(staticFileClient.getMetadata).not.toHaveBeenCalled();
-});
-
-it('disables filename reads without a picture id and fetches on selection', async () => {
-  const [pictureId, setPictureId] = createSignal<string | undefined>();
-  let filename!: ReturnType<typeof useChannelPictureFileName>;
-  function Fixture() {
-    filename = useChannelPictureFileName(pictureId);
-    return null;
-  }
-  dispose = render(
-    () => (
-      <QueryClientProvider client={client}>
-        <Fixture />
-      </QueryClientProvider>
-    ),
-    document.body
-  );
-  expect(filename()).toBeUndefined();
-  expect(staticFileClient.getMetadata).not.toHaveBeenCalled();
-  setPictureId('new-picture');
-  await vi.waitFor(() => expect(filename()).toBe('picture.png'));
-  expect(staticFileClient.getMetadata).toHaveBeenCalledWith({
-    file_id: 'new-picture',
-  });
-  expect(
-    client.getQueryData(channelKeys.pictureMetadata('new-picture').queryKey)
-  ).toMatchObject({ file_name: 'picture.png' });
-  vi.mocked(staticFileClient.getMetadata).mockResolvedValueOnce(
-    ok({
-      file_id: 'other-picture',
-      owner_id: 'owner',
-      content_type: 'image/jpeg',
-      is_uploaded: true,
-      file_name: 'other.jpg',
-      s3_key: 'file/other-picture',
-    })
-  );
-  setPictureId('other-picture');
-  expect(filename()).toBeUndefined();
-  await vi.waitFor(() => expect(filename()).toBe('other.jpg'));
-  expect(staticFileClient.getMetadata).toHaveBeenCalledWith({
-    file_id: 'other-picture',
-  });
-  setPictureId(undefined);
-  expect(filename()).toBeUndefined();
-  expect(staticFileClient.getMetadata).toHaveBeenCalledTimes(2);
 });
 
 it('publishes the picture only after both upload and channel save succeed', async () => {

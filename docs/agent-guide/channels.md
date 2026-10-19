@@ -1222,30 +1222,37 @@ Channels and group chats can have a custom picture. Any active participant of a
 named channel can edit its name and picture. Direct messages support neither;
 one-to-one direct messages continue to show the other person's user picture.
 
-On desktop, hover or focus the channel name in either the split topbar or an
-inline detail topbar to open its editor. The editor loads on demand and may briefly
-show `Loading channel details…`. The card shows a larger circular picture with
-an upload-icon overlay on image hover or keyboard focus when editing is allowed
-(always visible on touch devices), the image filename when available, and
-supported file types and size below the filename without a separator. Larger
-`Change image` and ghost `Clear image` buttons sit below the picture, followed by
-a channel-name input. Clicking the picture or the secondary `Change image` button
-opens the file chooser. PNG, JPG, WebP, and GIF files up to 16 MB are supported.
-Selecting a file, clearing the picture, or changing the name only updates the
-draft. The filled CTA `Save` button persists the changes; `Cancel` discards them.
-The card stays open while editing. Failed saves retain remaining changes for retry.
-If the picture saved but renaming failed, the card says so, and
-retrying does not upload the picture again. Switching channels starts a fresh
-editor draft for the newly selected channel. A save already in progress finishes
-its submitted changes for the previous channel without closing the new editor;
-a background failure reports a toast so the user can reopen the channel to retry.
+On desktop, click the channel name in either the split topbar or an inline detail
+topbar to open the `Edit channel` dialog. Hovering or focusing the title does not
+open an editor. The dialog loads on demand. It shows a larger circular picture
+with an upload-icon overlay on image hover or keyboard focus when editing is
+allowed (always visible on touch devices). Larger secondary `Change image` and
+destructive ghost `Clear image` buttons sit beside the picture, with supported
+file types and size beneath the actions. Image filenames are not shown. A
+channel-name input follows the picture row.
+
+Clicking the picture or `Change image` opens the file chooser. PNG, JPG, WebP,
+and GIF files up to 16 MB are supported. Selecting a still image opens a crop step
+inside the dialog. Drag to reposition the circular preview, use the arrow keys
+to move it, or use the zoom and reset buttons. `Apply crop` adds the square PNG
+to the local draft; `Back` or Escape returns without replacing the draft picture.
+GIFs skip cropping to preserve animation. The cropper loads only when needed.
+
+Selecting a file, applying a crop, clearing the picture, or changing the name
+only updates the draft. The filled CTA `Save` button persists the changes;
+`Cancel` discards them. Failed saves retain remaining changes for retry. If the
+picture saved but renaming failed, the dialog says so, and retrying does not
+upload the picture again. Switching channels starts a fresh editor draft for the
+newly selected channel. A save already in progress finishes its submitted changes
+for the previous channel without closing the new editor; a background failure
+reports a toast so the user can reopen the channel to retry.
 
 The Chat title ellipsis and the split title `...` menu offer `Edit channel` instead
-of separate rename/picture actions. On desktop, this opens the same title popup
-as hovering the channel name; only one editor opens. On phones, use `Edit channel` in the existing
-channel-options drawer to open a mobile editor with the same fields and explicit
-`Cancel`/`Save` actions. In inline details without an options menu, tap the
-channel name to open the editor directly. Touch devices do not require hover.
+of separate rename/picture actions. On desktop, this opens the same dialog as
+clicking the channel name; only one editor opens. On phones, use `Edit channel` in
+the existing channel-options drawer to open a mobile editor with the same fields
+and explicit `Cancel`/`Save` actions. In inline details without an options menu,
+tap the channel name to open the editor. Touch devices do not require hover.
 A team channel the viewer has not joined shows its picture without editing controls.
 
 The channel's rail context menu retains its immediate `Rename`, `Set channel

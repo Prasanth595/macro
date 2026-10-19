@@ -1,5 +1,4 @@
 import { scrollToFocusedInput } from '@components/app/mobile/MobileDrawer';
-import { useHoldParentHoverCardOpen } from '@core/component/HoverCard';
 import { toast } from '@core/component/Toast/Toast';
 import { isMobile } from '@core/mobile/isMobile';
 import { Telemetry } from '@macro-inc/observability';
@@ -7,47 +6,58 @@ import XIcon from '@phosphor/x.svg';
 import { Button } from '@ui/components/Button';
 import { Dialog } from '@ui/components/Dialog';
 import { Panel } from '@ui/components/Panel';
-import { createMemo, createSignal, onCleanup, Show } from 'solid-js';
+import {
+  createMemo,
+  createSignal,
+  lazy,
+  onCleanup,
+  Show,
+  Suspense,
+} from 'solid-js';
 import { ChannelIdentityFields } from '../components/channel-identity-fields';
 import type { ChannelIdentityWriter } from '../core/channel-identity';
-import { CHANNEL_PICTURE_MIME_TYPES } from '../core/channel-picture';
+import {
+  CHANNEL_PICTURE_MIME_TYPES,
+  channelPictureFileError,
+} from '../core/channel-picture';
 import { createChannelIdentityEditor } from '../primitives/create-channel-identity-editor';
+
+const ChannelPictureCropper = lazy(
+  () => import('../components/channel-picture-cropper')
+);
 
 export type ChannelIdentityEditorProps = {
   channelId: string;
   name: string;
   pictureUrl?: string;
-  fileName?: string;
   pictureLoading: boolean;
   canEdit: boolean;
   writer: ChannelIdentityWriter;
   onClose: () => void;
 };
 
-function ChannelIdentityEditor(
-  props: ChannelIdentityEditorProps & { dialog?: boolean }
-) {
+export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
+  const opener =
+    document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : undefined;
+  let closing = false;
   const state = createChannelIdentityEditor({
     name: props.name,
     canEdit: () => props.canEdit,
     writer: props.writer,
-    onClose: props.onClose,
+    onClose: () => {
+      closing = true;
+      props.onClose();
+    },
   });
   let disposed = false;
   onCleanup(() => {
     disposed = true;
   });
-  const [focused, setFocused] = createSignal(false);
-  const [picking, setPicking] = createSignal(false);
-  useHoldParentHoverCardOpen(
-    () =>
-      focused() ||
-      picking() ||
-      state.dirty() ||
-      state.pending() ||
-      !!state.error()
-  );
+  const [cropFile, setCropFile] = createSignal<File>();
   let input!: HTMLInputElement;
+  let body!: HTMLDivElement;
   const localUrl = createMemo(() => {
     const file = state.picture();
     if (!file) return undefined;
@@ -57,12 +67,16 @@ function ChannelIdentityEditor(
   });
   const pictureUrl = () =>
     state.picture() === null ? undefined : (localUrl() ?? props.pictureUrl);
-  const fileName = () =>
-    state.picture() === null
-      ? undefined
-      : (state.picture()?.name ?? props.fileName);
+
+  function returnToDetails() {
+    setCropFile(undefined);
+    body
+      .querySelector<HTMLButtonElement>('button')
+      ?.focus({ preventScroll: true });
+  }
+
   async function save() {
-    if (!state.canSave() || props.pictureLoading) return;
+    if (!state.canSave() || props.pictureLoading || cropFile()) return;
     await Telemetry.span('channel.identity.save', async (span) => {
       span.setAttr('channel.id', props.channelId);
       span.setAttr(
@@ -84,94 +98,116 @@ function ChannelIdentityEditor(
       }
     });
   }
-  const fields = () => (
-    <div
-      onFocusIn={(event) => {
-        setFocused(true);
-        if (isMobile()) scrollToFocusedInput(event);
-      }}
-      onFocusOut={(event) => {
-        if (
-          !(event.relatedTarget instanceof Node) ||
-          !event.currentTarget.contains(event.relatedTarget)
-        )
-          setFocused(false);
-      }}
-    >
-      <input
-        ref={input}
-        type="file"
-        accept={CHANNEL_PICTURE_MIME_TYPES.join(',')}
-        class="hidden"
-        aria-label="Choose channel picture"
-        disabled={!props.canEdit || state.pending()}
-        onChange={(event) => {
-          const file = event.currentTarget.files?.[0];
-          if (file) state.changePicture(file);
-          event.currentTarget.value = '';
-          setPicking(false);
-        }}
-        onCancel={() => setPicking(false)}
-      />
-      <ChannelIdentityFields
-        name={state.name()}
-        pictureUrl={pictureUrl()}
-        fileName={fileName()}
-        pictureLoading={props.pictureLoading}
-        canEdit={props.canEdit}
-        pending={state.pending()}
-        canSave={state.canSave()}
-        error={state.error()}
-        onNameChange={state.changeName}
-        onPickPicture={() => {
-          setPicking(true);
-          input.click();
-        }}
-        onClearPicture={() => state.changePicture(null)}
-        onCancel={state.close}
-        onSave={() => void save()}
-      />
-    </div>
-  );
 
   return (
-    <Show when={props.dialog} fallback={fields()}>
-      <Dialog
-        open
-        onOpenChange={(open) => !open && state.close()}
-        class="w-100"
-      >
-        <Panel depth={2} class="rounded-xl">
-          <Panel.Body>
-            <div class="flex flex-col gap-6 p-5 mobile:p-4">
-              <div class="flex items-center justify-between gap-4">
-                <Dialog.Title class="text-lg font-semibold">
-                  Edit channel
-                </Dialog.Title>
-                <Dialog.CloseButton
-                  as={Button}
-                  variant="ghost"
-                  size="icon-sm"
-                  label="Close"
-                  tabIndex={-1}
-                  disabled={state.pending()}
-                >
-                  <XIcon />
-                </Dialog.CloseButton>
-              </div>
-              {fields()}
+    <Dialog
+      open
+      position="center"
+      onOpenChange={(open) => !open && state.close()}
+      onCloseAutoFocus={(event) => {
+        // A channel switch tears down the old editor without closing the new one.
+        event.preventDefault();
+        if (closing && opener?.isConnected)
+          opener.focus({ preventScroll: true });
+      }}
+      onEscapeKeyDown={(event) => {
+        if (!cropFile()) return;
+        event.preventDefault();
+        returnToDetails();
+      }}
+      class="w-112"
+    >
+      <Panel depth={2} class="rounded-xl">
+        <Panel.Body>
+          <div class="flex flex-col gap-6 p-5 mobile:p-4">
+            <div class="flex items-center justify-between gap-4">
+              <Dialog.Title class="text-lg font-semibold">
+                {cropFile() ? 'Crop channel image' : 'Edit channel'}
+              </Dialog.Title>
+              <Dialog.CloseButton
+                as={Button}
+                variant="ghost"
+                size="icon-sm"
+                label="Close"
+                tabIndex={-1}
+                disabled={state.pending()}
+              >
+                <XIcon />
+              </Dialog.CloseButton>
             </div>
-          </Panel.Body>
-        </Panel>
-      </Dialog>
-    </Show>
+            <div
+              ref={body}
+              onFocusIn={(event) => {
+                if (isMobile()) scrollToFocusedInput(event);
+              }}
+            >
+              <input
+                ref={input}
+                type="file"
+                accept={CHANNEL_PICTURE_MIME_TYPES.join(',')}
+                class="hidden"
+                aria-label="Choose channel picture"
+                disabled={!props.canEdit || state.pending()}
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0];
+                  event.currentTarget.value = '';
+                  if (!file) return;
+                  // Keep animated GIFs intact; canvas cropping produces a still image.
+                  if (
+                    channelPictureFileError(file) ||
+                    file.type === 'image/gif'
+                  ) {
+                    state.changePicture(file);
+                    return;
+                  }
+                  setCropFile(file);
+                }}
+              />
+              <Show
+                when={cropFile()}
+                keyed
+                fallback={
+                  <ChannelIdentityFields
+                    name={state.name()}
+                    pictureUrl={pictureUrl()}
+                    pictureLoading={props.pictureLoading}
+                    canEdit={props.canEdit}
+                    pending={state.pending()}
+                    canSave={state.canSave()}
+                    error={state.error()}
+                    onNameChange={state.changeName}
+                    onPickPicture={() => input.click()}
+                    onClearPicture={() => state.changePicture(null)}
+                    onCancel={state.close}
+                    onSave={() => void save()}
+                  />
+                }
+              >
+                {(file) => (
+                  <Suspense
+                    fallback={
+                      <p class="text-sm text-ink-muted">
+                        Loading image editor…
+                      </p>
+                    }
+                  >
+                    <ChannelPictureCropper
+                      channelId={props.channelId}
+                      file={file}
+                      disabled={!props.canEdit || state.pending()}
+                      onApply={(cropped) => {
+                        state.changePicture(cropped);
+                        returnToDetails();
+                      }}
+                      onCancel={returnToDetails}
+                    />
+                  </Suspense>
+                )}
+              </Show>
+            </div>
+          </div>
+        </Panel.Body>
+      </Panel>
+    </Dialog>
   );
-}
-
-export function ChannelIdentityCard(props: ChannelIdentityEditorProps) {
-  return <ChannelIdentityEditor {...props} />;
-}
-
-export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
-  return <ChannelIdentityEditor {...props} dialog />;
 }

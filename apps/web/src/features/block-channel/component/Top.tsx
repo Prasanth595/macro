@@ -1,6 +1,6 @@
 import { toIconTabItems } from '@channel/Channel/channel-tab-icons';
 import type { ChannelTabId } from '@channel/Channel/channel-tabs';
-import { ChannelTitleHoverCard } from '@channel/channel-identity';
+import { ChannelIdentityTitle } from '@channel/channel-identity';
 import { ChannelTopIcon } from '@channel/components/ChannelTopIcon';
 import { CollapsibleHeaderItem } from '@components/app/split-layout/components/CollapsibleItem';
 import { HeaderIsland } from '@components/app/split-layout/components/HeaderIsland';
@@ -12,8 +12,10 @@ import type { TabItem } from '@core/component/Tabs';
 import { TabsInset } from '@core/component/TabsInset';
 import { useChannelName } from '@core/context/channels';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import CaretDownIcon from '@phosphor/caret-down.svg';
 import type { ChannelParticipant } from '@queries/channel/types';
 import type { ChannelType } from '@service-storage/generated/schemas/channelType';
+import { Button } from '@ui/components/Button';
 import { Show } from 'solid-js';
 
 type TopProps = {
@@ -55,7 +57,7 @@ export function ChannelTopLeft(props: ChannelTopLeftProps) {
             channelType={props.channelType}
             participants={props.participants}
           />
-          <ChannelTitleHoverCard
+          <ChannelIdentityTitle
             channelId={props.channelId}
             name={channelName() ?? 'New Channel'}
             canEdit={props.canEditIdentity}
@@ -63,13 +65,37 @@ export function ChannelTopLeft(props: ChannelTopLeftProps) {
             open={props.identityOpen}
             onOpenChange={props.onIdentityOpenChange}
           >
-            <SplitLabel
-              label={channelName() ?? 'New Channel'}
-              lockRename={props.lockRename}
-              renameOverrides={{ channelType: props.channelType }}
-              maxDisplayLength={48}
-            />
-          </ChannelTitleHoverCard>
+            <span
+              class={
+                props.canEditIdentity
+                  ? 'pointer-events-none touch:[&_svg]:hidden'
+                  : undefined
+              }
+            >
+              <SplitLabel
+                label={channelName() ?? 'New Channel'}
+                lockRename={props.lockRename}
+                renameOverrides={{ channelType: props.channelType }}
+                maxDisplayLength={48}
+              />
+            </span>
+          </ChannelIdentityTitle>
+          <Show
+            when={
+              isTouchDevice() &&
+              props.canEditIdentity &&
+              panel.titleFileMenuTrigger()
+            }
+          >
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              label="Channel options"
+              onClick={() => panel.titleFileMenuTrigger()?.()}
+            >
+              <CaretDownIcon class="size-4" />
+            </Button>
+          </Show>
           <div
             class="shrink-0 flex items-center h-full"
             ref={(ref) => panel.setTitleFileMenuRef(ref)}

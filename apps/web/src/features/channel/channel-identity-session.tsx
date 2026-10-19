@@ -1,24 +1,15 @@
 import { createStaticFile } from '@core/util/create';
-import {
-  useChannelPicture,
-  useChannelPictureFileName,
-} from '@queries/channel/picture';
-import { Show } from 'solid-js';
+import { useChannelPicture } from '@queries/channel/picture';
 import type { ChannelIdentityProps } from './channel-identity';
 import { createChannelIdentityWriter } from './queries/channel-identity';
-import {
-  ChannelIdentityCard,
-  ChannelIdentityModal,
-} from './views/channel-identity-editor';
+import { ChannelIdentityModal } from './views/channel-identity-editor';
 
 export default function ChannelIdentitySession(
   props: ChannelIdentityProps & {
     onClose: () => void;
-    dialog?: boolean;
   }
 ) {
   const picture = useChannelPicture(() => props.channelId);
-  const fileName = useChannelPictureFileName(picture.pictureId);
   const writer = createChannelIdentityWriter({
     channelId: props.channelId,
     name: props.name,
@@ -34,9 +25,6 @@ export default function ChannelIdentitySession(
     get channelId() {
       return props.channelId;
     },
-    get fileName() {
-      return fileName();
-    },
     get pictureLoading() {
       return picture.isLoading();
     },
@@ -47,12 +35,5 @@ export default function ChannelIdentitySession(
     onClose: props.onClose,
   };
 
-  return (
-    <Show
-      when={props.dialog}
-      fallback={<ChannelIdentityCard {...editorProps} />}
-    >
-      <ChannelIdentityModal {...editorProps} />
-    </Show>
-  );
+  return <ChannelIdentityModal {...editorProps} />;
 }
