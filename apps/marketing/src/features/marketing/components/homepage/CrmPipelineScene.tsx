@@ -3,6 +3,7 @@ import CaretDown from '@phosphor/caret-down.svg';
 import Currency from '@phosphor/currency-dollar.svg';
 import Grip from '@phosphor/dots-six-vertical.svg';
 import Dots from '@phosphor/dots-three.svg';
+import Sidebar from '@phosphor/sidebar-simple.svg';
 import Table from '@phosphor/table.svg';
 import Users from '@phosphor/users.svg';
 import { Button, Dropdown } from '@ui';
@@ -31,7 +32,7 @@ type Deal = {
   owner: HomepagePersonId | '';
   revenue: string;
 };
-const owners = ['julia', 'jacob', 'valentina', 'teo'] as const;
+const owners = ['julia', 'jacob', 'gabriel', 'teo'] as const;
 
 /** Website-owned presentation from CRM's records, pipeline sidebar and database toolbar. */
 export default function CrmPipelineScene() {
@@ -64,15 +65,23 @@ export default function CrmPipelineScene() {
     const name = accountNames[entry.id];
     if (name) sampleData = sampleData.replaceAll(entry.name, name);
   }
+  sampleData = sampleData
+    .replaceAll('Valentina', 'Ava Chen')
+    .replaceAll('valentina@coparse.com', 'ava@parlorstudio.example');
   w.setData(JSON.parse(sampleData));
   w.setData('companies', (entries) =>
     entries.map((entry) => ({
       ...entry,
-      description: '',
-      domain: '',
+      owner: entry.owner === 'valentina' ? 'gabriel' : entry.owner,
+      domain: `${(accountNames[entry.id] ?? entry.name).toLowerCase().replace(/[^a-z0-9]/g, '')}.example`,
+      contacts: entry.contacts.map((contact) => ({
+        ...contact,
+        email: `${contact.email.split('@')[0]}@${(accountNames[entry.id] ?? entry.name).toLowerCase().replace(/[^a-z0-9]/g, '')}.example`,
+      })),
     }))
   );
 
+  const [sidebarOpen, setSidebarOpen] = createSignal(false);
   const [tab, setTab] = createSignal('pipeline');
   const [query, setQuery] = createSignal('');
   const [board, setBoard] = createSignal(true);
@@ -106,6 +115,7 @@ export default function CrmPipelineScene() {
     );
   const navigate = (next: string) => {
     setTab(next);
+    setSidebarOpen(false);
     setQuery('');
     w.open('crm');
     setLinked(undefined);
@@ -215,7 +225,10 @@ export default function CrmPipelineScene() {
     />
   );
   return (
-    <div class="dummy-workspace homepage-crm-scene portal-scope">
+    <div
+      class="dummy-workspace homepage-crm-scene portal-scope"
+      data-sidebar-open={sidebarOpen()}
+    >
       <aside class="homepage-crm-sidebar">
         <ViewSidebar.Root aria-label="CRM navigation">
           <ViewSidebar.Header>
@@ -306,6 +319,16 @@ export default function CrmPipelineScene() {
             }
           >
             <ViewShell.TopBar class="homepage-crm-header">
+              <Button
+                class="homepage-crm-nav-toggle"
+                variant="plain"
+                size="icon-sm"
+                aria-label="Toggle CRM navigation"
+                aria-expanded={sidebarOpen()}
+                onClick={() => setSidebarOpen((open) => !open)}
+              >
+                <Sidebar class="size-4" />
+              </Button>
               <h1 class="text-sm font-semibold flex-1">
                 {tab() === 'pipeline'
                   ? 'Sales pipeline'
@@ -315,7 +338,6 @@ export default function CrmPipelineScene() {
                       ? 'Customers'
                       : 'All companies'}
               </h1>
-              <span class="text-xs text-ink-extra-muted">Sample data</span>
               <Show when={tab() === 'pipeline'}>
                 <Button
                   variant="plain"
@@ -358,6 +380,12 @@ export default function CrmPipelineScene() {
                     By stage
                   </Button>
                 </div>
+                <SearchBar
+                  label="Search pipeline"
+                  placeholder="Search"
+                  value={query()}
+                  onValueChange={setQuery}
+                />
               </div>
             </Show>
             <div class="dummy-scroll">
@@ -468,6 +496,7 @@ export default function CrmPipelineScene() {
                             <tr>
                               <td>
                                 <button
+                                  aria-label={company(deal.companyId).name}
                                   onClick={() => openCompany(deal.companyId)}
                                 >
                                   <Building class="size-4" />

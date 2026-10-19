@@ -8,8 +8,10 @@
 .homepage-crm-sidebar { width: 256px; flex: none; border-right: 1px solid var(--color-edge-muted); }
 .homepage-crm-section-label { margin: 0 12px 8px; font-size: 12px; color: var(--color-ink-muted); }
 .homepage-crm-main { min-width: 0; flex: 1; }
-.homepage-crm-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--color-edge-muted); }
+.homepage-crm-toolbar { gap: 12px; display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--color-edge-muted); }
 .homepage-crm-toolbar [aria-pressed=true] { background: var(--color-active); color: var(--color-ink); }
+.homepage-crm-toolbar > :last-child { flex: 0 1 240px; max-width: 44%; }
+.homepage-crm-nav-toggle { display: none; }
 .homepage-crm-search { padding: 12px 16px; }
 .homepage-crm-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; white-space: nowrap; }
 .homepage-crm-table th { height: 40px; padding: 8px 12px; color: var(--color-ink-extra-muted); font-size: 12px; font-weight: 400; border-bottom: 1px solid var(--color-edge-muted); }
@@ -36,7 +38,7 @@
 .homepage-pipeline-revenue { display: flex; align-items: center; gap: 8px; min-height: 24px; padding: 0 6px; font-size: 12px; }
 @media (max-width: 650px) {
   .homepage-crm-sidebar { display: none; position: absolute; z-index: 8; inset: 0 auto 0 0; width: 220px; background: var(--color-panel); box-shadow: 10px 0 30px #0006; }
-  .homepage-scene-crm > .dummy-workspace[data-sidebar-open=true] .homepage-crm-sidebar { display: block; }
+  .homepage-crm-scene[data-sidebar-open=true] .homepage-crm-sidebar { display: block; }
 }
 
 .homepage-scene > .dummy-workspace[data-embedded=true],
@@ -53,3 +55,11 @@
 .homepage-pipeline-field > svg, .homepage-pipeline-revenue > svg { color: var(--color-ink-placeholder); flex: none; }
 .homepage-crm-main .homepage-crm-header { height: 48px; min-height: 48px; padding-inline: 16px; }
 @media (hover: none) { .homepage-pipeline-actions { opacity: 1; } }
+
+@media (max-width: 650px) {
+  .homepage-crm-nav-toggle { display: inline-flex; }
+  .homepage-crm-main [data-view-shell-top-bar] { display: flex; }
+  .homepage-crm-sidebar { top: 48px; }
+  .homepage-crm-toolbar { padding-inline: 10px; }
+  .homepage-crm-toolbar [data-button] { padding-inline: 8px; }
+}

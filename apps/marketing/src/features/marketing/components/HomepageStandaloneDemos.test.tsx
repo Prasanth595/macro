@@ -32,6 +32,12 @@ describe('standalone website demos', () => {
   it('opens Bcc, edits the draft, and sends only within the local demo', () => {
     const view = render(() => <HomepageEmailCompose />);
     expect(
+      (view.getByRole('textbox', { name: 'To' }) as HTMLInputElement).value
+    ).toBe('Valentina <valentina@coparse.com>');
+    expect(
+      (view.getByRole('textbox', { name: 'Cc' }) as HTMLInputElement).value
+    ).toBe('Julia <julia@macro.com>');
+    expect(
       view.getByRole('textbox', { name: 'Email body' }).textContent
     ).toContain('Thanks for joining the demo');
     fireEvent.click(view.getByRole('button', { name: 'Bcc' }));
@@ -75,6 +81,13 @@ describe('standalone website demos', () => {
 
   it('edits cells, commits keyboard navigation, and restores edits with undo and redo', () => {
     const view = render(() => <HomepageSpreadsheet />);
+    expect(view.getByRole('gridcell', { name: 'B2: Coparse' })).toBeTruthy();
+    expect(
+      view.getByRole('gridcell', { name: 'C3: maya@lumen.example' })
+    ).toBeTruthy();
+    expect(
+      view.getByRole('gridcell', { name: 'C4: owen@fieldnote.example' })
+    ).toBeTruthy();
     const cell = view.getByRole('gridcell', {
       name: 'A2: Valentina',
     });

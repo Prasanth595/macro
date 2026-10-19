@@ -161,8 +161,13 @@ release, and supports arrow keys/Home/End. Repeat with reduced motion, which
 starts finished but permits manual scrubbing. Below 768px the existing compact
 layout continues to hide the timeline.
 
-Homepage email playback waits until at least 20% of its scene is visible; CRM
-waits for 30%. Both pause again below that threshold. Enabling reduced motion
+Homepage email playback waits until at least 20% of its scene is visible and
+pauses again below that threshold. The landing-page CRM uses the interactive
+`CrmPipelineScene` with the app’s records/pipelines sidebar, database view tabs,
+336px Kanban lanes, movable deals, and company records. It has no decorative
+wallpaper, replay controls, or status footer. On phones, its sidebar opens from
+the header and the board scrolls horizontally within the demo. The CRM product
+page retains its separate animated walkthrough. Enabling reduced motion
 mid-playback settles the document at its completed state, while leaving manual
 history scrubbing available. Scroll-driven entrances keep their native pacing.
 
@@ -787,6 +792,8 @@ automation; reduced motion opens the saved summary. Verify the checkbox,
 recording navigation, transcript seeking, and phone layout. CRM linking remains
 on the CRM page; this scene demonstrates channel-call team sharing only.
 
-Sample email addresses in website demos use `coparse.com`, Macro’s former domain.
+On the landing page, Valentina is an external contact at `coparse.com` and
+Julia’s Cc address is `julia@macro.com`. Spreadsheet and pipeline contacts use
+their company’s domain; fictional companies use reserved `.example` domains.
 
 Homepage feature dividers align with the heading text, above the description; coding agent logos sit in a separate row above the dividers. The document animation renders saved scheduling links as calendar mentions with a short label, matching Macro’s booking link presentation.

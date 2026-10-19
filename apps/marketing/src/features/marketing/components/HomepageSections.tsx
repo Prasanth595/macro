@@ -35,7 +35,7 @@ const SHOW_SIDEBAR_BREAKDOWN = false;
 const loadPullRequest = () => import('./HomepagePullRequest');
 const loadEmailCompose = () => import('./HomepageEmailCompose');
 const loadCollaborativeDoc = () => import('./HomepageCollaborativeDoc');
-const loadCrm = () => import('./HomepageCrm');
+const loadCrm = () => import('./HomepagePipelineDemo');
 const HomepageCrm = lazy(loadCrm);
 const loadSpreadsheet = () => import('./HomepageSpreadsheet');
 
@@ -299,7 +299,7 @@ export function HomepageSections() {
           description="Every customer conversation, in one place."
           messages={[
             {
-              person: 'valentina',
+              person: 'jacob',
               text: (
                 <>
                   <span class="homepage-person-mention">@Claude</span>, update
@@ -307,11 +307,11 @@ export function HomepageSections() {
                   <HomepageMention
                     kind="call"
                     label="Sales sync"
-                    description="Today’s sales call · Keystone Mechanical requested a proposal, and Bookend Retail signed."
+                    description="Today’s sales call · Keystone Mechanical is ready for negotiation, and Bookend Retail started a trial."
                     href="#crm"
                   />
-                  . Keystone Mechanical asked for a proposal, and Bookend Retail
-                  signed. Move them to the right stages.
+                  . Keystone Mechanical is ready for negotiation, and Bookend
+                  Retail started a trial. Update their stages.
                 </>
               ),
             },

@@ -6,6 +6,7 @@ import {
   within,
 } from '@solidjs/testing-library';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import HomepagePipelineDemo from '../HomepagePipelineDemo';
 import CrmPipelineScene from './CrmPipelineScene';
 
 beforeEach(() => {
@@ -126,4 +127,17 @@ it('moves a fictional account through the native-style card menu', async () => {
       { name: 'Miller & Rowe' }
     )
   ).toBeTruthy();
+});
+
+it('lets landing-page visitors search a live pipeline without playback controls', () => {
+  const view = render(() => <HomepagePipelineDemo />);
+  expect(view.queryByRole('button', { name: /Replay|Pause/ })).toBeNull();
+  fireEvent.input(view.getByRole('searchbox', { name: 'Search pipeline' }), {
+    target: { value: 'Juniper' },
+  });
+  expect(view.getByRole('button', { name: 'Juniper Dental' })).toBeTruthy();
+  expect(view.queryByRole('button', { name: 'Miller & Rowe' })).toBeNull();
+  fireEvent.click(view.getByRole('button', { name: 'Contacts' }));
+  expect(view.getByText('alex@parlorstudio.example')).toBeTruthy();
+  expect(view.queryByText('alex@coparse.com')).toBeNull();
 });

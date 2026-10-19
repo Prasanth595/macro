@@ -56,7 +56,7 @@ export default function HomepageEmailCompose(
     props.draft?.to ?? 'Valentina <valentina@coparse.com>'
   );
   const [cc, setCc] = createSignal(
-    props.draft?.cc ?? 'Julia <julia@coparse.com>'
+    props.draft?.cc ?? 'Julia <julia@macro.com>'
   );
   const [bcc, setBcc] = createSignal(props.draft?.bcc ?? '');
   const draftValue = () => ({

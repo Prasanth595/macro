@@ -1,0 +1,14 @@
+.homepage-pipeline-demo {
+  height: 580px;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-edge);
+  border-radius: 12px;
+  background: var(--color-panel);
+  box-shadow: 0 12px 36px #00000024;
+  text-align: left;
+}
+.homepage-pipeline-demo > .homepage-crm-scene { height: 100%; flex-direction: row; }
+@media (max-width: 650px) {
+  .homepage-pipeline-demo { height: 540px; }
+}
