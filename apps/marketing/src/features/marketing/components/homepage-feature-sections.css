@@ -44,7 +44,6 @@
   gap: 40px;
   padding-top: 28px;
   margin-top: 40px;
-  border-top: 1px solid color-mix(in srgb, var(--color-ink) 10%, transparent);
   font: 400 14px/1.5 'Inter Variable', Inter, sans-serif;
 }
 .homepage-feature-details > p { margin: 8px 0; color: var(--color-ink-placeholder); }
