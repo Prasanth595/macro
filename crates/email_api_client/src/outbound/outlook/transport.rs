@@ -62,14 +62,20 @@ impl OutlookApiClientRepository {
         let token = refreshed.as_ref().unwrap_or(token);
         let mut request = self
             .client
-            .request(method, url)
+            .request(method.clone(), url)
             .bearer_auth(token.expose_secret())
             .header("Prefer", IMMUTABLE_ID_PREFERENCE);
         if let Some(version) = expected_version {
             request = request.header("If-Match", version);
         }
-        if let Some(body) = body {
-            request = request.json(body);
+        match body {
+            Some(body) => request = request.json(body),
+            // reqwest omits Content-Length for an empty body, and Graph answers a
+            // bodyless POST or PATCH without it with 411 Length Required.
+            None if matches!(method, Method::POST | Method::PATCH) => {
+                request = request.header("Content-Length", 0)
+            }
+            None => {}
         }
         let retry = self
             .rejected_token_refresh
