@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { openExternalUrl } from '@core/util/url';
 import { Button } from '@ui';
 import { Show, Suspense } from 'solid-js';
@@ -67,7 +68,11 @@ function OutlookResponseLink(props: { target: EventReplacementTarget }) {
         Open in Outlook
       </Button>
       <Show when={link.isError}>
-        <Button variant="ghost" size="sm" onClick={() => void link.refetch()}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => fireAndForget(link.refetch(), 'calendar-replacement')}
+        >
           Retry Outlook link
         </Button>
       </Show>

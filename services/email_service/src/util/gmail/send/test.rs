@@ -95,3 +95,119 @@ async fn imported_gmail_draft_preserves_native_inline_files_and_honors_removal_a
     assert!(files[0].is_inline);
     assert_eq!(files[0].data, vec![1, 2, 3]);
 }
+
+struct SourceInboxReader {
+    db: PgPool,
+    source_link: Uuid,
+}
+
+impl AuthorizedAttachmentBytes for SourceInboxReader {
+    fn read<'a>(
+        &'a self,
+        actor: &'a str,
+        id: Uuid,
+    ) -> BoxFuture<'a, Result<(AttachmentReadRecord, Vec<u8>), MailboxError>> {
+        Box::pin(async move {
+            assert_eq!(actor, "macro|forwarder@example.com");
+            let record = email::outbound::EmailPgRepo::new(self.db.clone())
+                .attachment_read_record(id)
+                .await
+                .map_err(|_| MailboxError::Persistence)?
+                .ok_or(MailboxError::Persistence)?;
+            assert_eq!(record.link.id, self.source_link);
+            assert_eq!(record.mailbox.link_id, self.source_link);
+            assert_eq!(
+                record.link.provider,
+                models_email::service::link::UserProvider::Outlook
+            );
+            assert_eq!(record.message_provider_id, "original-message");
+            assert_eq!(
+                record.attachment.provider_id.as_deref(),
+                Some("original-attachment")
+            );
+            Ok((record, b"pdf bytes".to_vec()))
+        })
+    }
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn forwarding_preserves_source_inbox_identity_and_existing_attachments(db: PgPool) {
+    let sending = Uuid::now_v7();
+    let source = Uuid::now_v7();
+    let draft = Uuid::now_v7();
+    let original = Uuid::now_v7();
+    let attachment = Uuid::now_v7();
+    sqlx::query!(
+        "INSERT INTO email_links(id,macro_id,fusionauth_user_id,email_address,provider) VALUES
+        ($1,'macro|forwarder@example.com','forwarder','sender@example.com','GMAIL'),
+        ($2,'macro|forwarder@example.com','forwarder','source@example.com','OUTLOOK')",
+        sending,
+        source
+    )
+    .execute(&db)
+    .await
+    .unwrap();
+    for (message_id, link_id, provider_id, is_draft) in [
+        (draft, sending, "sending-draft", true),
+        (original, source, "original-message", false),
+    ] {
+        let thread_id = Uuid::now_v7();
+        sqlx::query!(
+            "INSERT INTO email_threads(id,link_id) VALUES($1,$2)",
+            thread_id,
+            link_id
+        )
+        .execute(&db)
+        .await
+        .unwrap();
+        sqlx::query!(
+            "INSERT INTO email_messages(id,link_id,thread_id,provider_id,is_draft) VALUES($1,$2,$3,$4,$5)",
+            message_id, link_id, thread_id, provider_id, is_draft
+        ).execute(&db).await.unwrap();
+    }
+    sqlx::query!(
+        "INSERT INTO email_attachments(id,message_id,provider_attachment_id,filename,mime_type,size_bytes)
+        VALUES($1,$2,'original-attachment','report.pdf','application/pdf',9)",
+        attachment, original
+    ).execute(&db).await.unwrap();
+    sqlx::query!(
+        "INSERT INTO email_attachments_fwd(message_id,attachment_id) VALUES($1,$2)",
+        draft,
+        attachment
+    )
+    .execute(&db)
+    .await
+    .unwrap();
+    let link = email_db_client::links::get::fetch_link_by_id(&db, sending)
+        .await
+        .unwrap()
+        .unwrap();
+    let reader = SourceInboxReader {
+        db: db.clone(),
+        source_link: source,
+    };
+    let mut message: message::MessageToSend = serde_json::from_value(serde_json::json!({
+        "db_id": draft,
+        "link_id": sending,
+        "subject": "Forward",
+        "attachments": [{"file_name": "local.txt", "content_type": "text/plain", "data": [1, 2, 3]}]
+    }))
+    .unwrap();
+    fetch_and_attach_forwarded_attachments(
+        &db,
+        &reader,
+        "macro|forwarder@example.com",
+        &link,
+        &mut message,
+    )
+    .await
+    .unwrap();
+    assert_eq!(message.link_id, sending);
+    let files = message.attachments.unwrap();
+    assert_eq!(files.len(), 2);
+    assert_eq!(files[0].file_name, "local.txt");
+    assert_eq!(files[0].data, vec![1, 2, 3]);
+    assert_eq!(files[1].file_name, "report.pdf");
+    assert_eq!(files[1].content_type, "application/pdf");
+    assert_eq!(files[1].data, b"pdf bytes");
+}

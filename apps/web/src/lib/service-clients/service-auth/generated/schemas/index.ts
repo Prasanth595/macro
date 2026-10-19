@@ -209,6 +209,7 @@ export * from './teamWithMembersScheduledSeatPlansAnyOf';
 export * from './toggleAutoJoinDomainResponse';
 export * from './toggleAutoJoinDomainResponseAutoJoinDomain';
 export * from './toggleNonAdminInvitesResponse';
+export * from './trialEligibility';
 export * from './updateAutoReloadRequest';
 export * from './updateAutoReloadRequestMonthlySpendLimitCents';
 export * from './updateOverageRequest';

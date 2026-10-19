@@ -1,6 +1,7 @@
 import { useCalendarPager } from '@app/features/calendar/components/CalendarPagerContext';
 import { isCalendarRangeSupported } from '@app/features/calendar/utils/calendar-supported-range';
 import { useAddInboxFlow } from '@core/email-link';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { useVisibleCalendarsQuery } from '@queries/calendar/calendars';
 import { useEmailLinksQuery } from '@queries/email/link';
 import { Button } from '@ui';
@@ -98,15 +99,18 @@ export function SetupStatus() {
       state === 'reauth'
         ? links.find((link) => link.needs_reauth)
         : links.find((link) => link.needs_calendar_permission);
-    void startAddInbox({
-      provider: link?.provider,
-      reconnectLinkId: link?.id,
-      emailAddress: link?.email_address,
-      scopes:
-        state === 'permission' || state === 'disabled'
-          ? 'calendar'
-          : 'gmail_and_calendar',
-    });
+    fireAndForget(
+      startAddInbox({
+        provider: link?.provider,
+        reconnectLinkId: link?.id,
+        emailAddress: link?.email_address,
+        scopes:
+          state === 'permission' || state === 'disabled'
+            ? 'calendar'
+            : 'gmail_and_calendar',
+      }),
+      'add-inbox'
+    );
   };
 
   return (

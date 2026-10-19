@@ -472,7 +472,7 @@ where
     }
 }
 
-fn email_thread_ids_from_receipts(
+pub(super) fn email_thread_ids_from_receipts(
     receipts: Vec<EntityAccessReceipt<ViewAccessLevel>>,
 ) -> Result<Vec<Uuid>, EmailErr> {
     receipts

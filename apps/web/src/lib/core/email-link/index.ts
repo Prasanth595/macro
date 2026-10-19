@@ -4,6 +4,7 @@ import { createNativeAuthSession } from '@core/auth/native-auth';
 import { toast } from '@core/component/Toast/Toast';
 import { PaywallKey, usePaywallState } from '@core/constant/PaywallState';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { useInitGmailLink } from '@queries/auth';
 import { useInitOutlookLink } from '@queries/auth/outlook-link';
 import { invalidateUserInfo } from '@queries/auth/user-info';
@@ -265,7 +266,8 @@ export function useAddInboxFlow() {
           requestShareInboxConfirmation({
             emailAddress: error.emailAddress,
             ownerEmail: error.ownerEmail,
-            onShare: () => void completeNativeLink(linkId, true),
+            onShare: () =>
+              fireAndForget(completeNativeLink(linkId, true), 'add-inbox'),
           });
           return;
         }

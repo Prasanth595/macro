@@ -7,6 +7,11 @@ export const SPREADSHEET_LORO_SCHEMA = schema({
   spreadsheetSheetMetadata: schema.LoroMap(
     {} as Record<string, ReturnType<typeof schema.String>>
   ),
+  // One entry per table, keyed by sheet and table id, so collaborators can
+  // change different tables of a sheet at once.
+  spreadsheetTables: schema.LoroMap(
+    {} as Record<string, ReturnType<typeof schema.String>>
+  ),
   spreadsheetSheetNames: schema.LoroMap(
     {} as Record<string, ReturnType<typeof schema.String>>
   ),
@@ -71,6 +76,9 @@ export const SPREADSHEET_LORO_SCHEMA = schema({
     {} as Record<string, ReturnType<typeof schema.Boolean>>
   ),
   spreadsheetWrap: schema.LoroMap(
+    {} as Record<string, ReturnType<typeof schema.Boolean>>
+  ),
+  spreadsheetCheckboxes: schema.LoroMap(
     {} as Record<string, ReturnType<typeof schema.Boolean>>
   ),
   spreadsheetBorderTop: schema.LoroMap(

@@ -1,6 +1,7 @@
 import { useKeyedPersistentToasts } from '@core/component/Toast/useKeyedPersistentToasts';
 import { useAddInboxFlow } from '@core/email-link';
 import { reconnectScopes } from '@core/email-link/consent';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   useEmailLinksQuery,
   useInboxHealthProbeQuery,
@@ -42,12 +43,15 @@ export function GmailReauthenticationPrompt() {
             // Suppress re-prompting until the inbox recovers; on native the page
             // stays mounted while the OAuth flow runs.
             dismiss();
-            void startAddInbox({
-              scopes: reconnectScopes(link),
-              provider: link.provider,
-              reconnectLinkId: link.id,
-              emailAddress: link.email_address,
-            });
+            fireAndForget(
+              startAddInbox({
+                scopes: reconnectScopes(link),
+                provider: link.provider,
+                reconnectLinkId: link.id,
+                emailAddress: link.email_address,
+              }),
+              'add-inbox'
+            );
           },
         },
       ],

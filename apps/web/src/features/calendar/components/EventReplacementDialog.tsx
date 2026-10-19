@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Button, Dialog, Panel } from '@ui';
 import { createSignal, Show } from 'solid-js';
 import type { EventReplacementController } from '../context/event-replacement-source';
@@ -116,7 +117,9 @@ export function EventReplacementDialog(props: {
                 <Button
                   variant="strong"
                   disabled={state.pending()}
-                  onClick={() => void state.prepare()}
+                  onClick={() =>
+                    fireAndForget(state.prepare(), 'calendar-replacement')
+                  }
                 >
                   Review replacement
                 </Button>
@@ -156,13 +159,23 @@ export function EventReplacementDialog(props: {
                           <div class="flex flex-wrap gap-2">
                             <Button
                               disabled={state.pending()}
-                              onClick={() => void state.check()}
+                              onClick={() =>
+                                fireAndForget(
+                                  state.check(),
+                                  'calendar-replacement'
+                                )
+                              }
                             >
                               Check progress
                             </Button>
                             <Button
                               disabled={state.pending()}
-                              onClick={() => void state.confirm()}
+                              onClick={() =>
+                                fireAndForget(
+                                  state.confirm(),
+                                  'calendar-replacement'
+                                )
+                              }
                             >
                               Continue replacement
                             </Button>
@@ -173,12 +186,19 @@ export function EventReplacementDialog(props: {
                       <ReplacementConfirmation
                         preview={preview()}
                         pending={state.pending()}
-                        onConfirm={() => void state.confirm()}
+                        onConfirm={() =>
+                          fireAndForget(state.confirm(), 'calendar-replacement')
+                        }
                       />
                       <Button
                         variant="ghost"
                         disabled={state.pending()}
-                        onClick={() => void state.changeOptions()}
+                        onClick={() =>
+                          fireAndForget(
+                            state.changeOptions(),
+                            'calendar-replacement'
+                          )
+                        }
                       >
                         Change options
                       </Button>

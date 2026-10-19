@@ -49,6 +49,9 @@ tools — hexagonal, heavily feature-gated.
 
 ## Gotchas
 
+- Forwarded attachments register through `domain/draft_attachments.rs` and resolve
+  bytes through `domain/attachment_access.rs`; scheduled delivery also rechecks
+  source inbox access in `domain/forwarded_attachments.rs`, including legacy jobs.
 - The feature matrix (`ports`/`inbound`/`outbound`/`http_client`/`s3`/
   `gmail_token`/`ai_tools`/`attachment`/`calendar_invitations`/`axum`) gates
   most modules; check `Cargo.toml`'s `[features]` block for which one a new

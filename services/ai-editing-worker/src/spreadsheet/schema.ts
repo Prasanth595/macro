@@ -1,3 +1,4 @@
+import { TABLE_COLUMN_TYPES } from '@macro-inc/spreadsheet/sheet-tables';
 import { z } from 'zod';
 
 const sheetId = z.string().min(1).max(64);
@@ -76,6 +77,7 @@ const style = z
         'text',
       ])
       .optional(),
+    checkbox: z.boolean().optional(),
   })
   .strict();
 const name = z.string().min(1).max(31);
@@ -160,6 +162,27 @@ const operation = z.discriminatedUnion('type', [
     })
     .strict(),
   z.object({ type: z.literal('clear_validation'), sheetId, range }).strict(),
+  z.object({ type: z.literal('insert_checkboxes'), sheetId, range }).strict(),
+  z
+    .object({
+      type: z.literal('create_table'),
+      sheetId,
+      range,
+      name: z.string().min(1).max(255).optional(),
+      totalsRow: z.boolean().optional(),
+      columnTypes: z
+        .array(
+          z
+            .object({
+              column: z.string().min(1).max(255),
+              type: z.enum(TABLE_COLUMN_TYPES),
+            })
+            .strict()
+        )
+        .max(500)
+        .optional(),
+    })
+    .strict(),
 ]);
 
 export const spreadsheetRequestSchema = z.discriminatedUnion('action', [

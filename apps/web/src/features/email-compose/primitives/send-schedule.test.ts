@@ -951,8 +951,11 @@ describe('send and schedule ordering', () => {
     const state = mountReplyComposer(composeContext);
     try {
       state.form.setSelectedInbox('secondary');
-      state.handleAddAttachments([new File(['attachment'], 'review.txt')]);
+      const adding = state.handleAddAttachments([
+        new File(['attachment'], 'review.txt'),
+      ]);
       await vi.advanceTimersByTimeAsync(500);
+      await adding;
       expect(state.handleSendTimeChange(hoursFromNow(24))).toBe(true);
       const scheduling = state.sendEmail();
       await vi.advanceTimersByTimeAsync(0);
@@ -976,8 +979,11 @@ describe('send and schedule ordering', () => {
     ).mockReturnValueOnce(uploading);
     const state = mountReplyComposer(composeContext);
     try {
-      state.handleAddAttachments([new File(['attachment'], 'review.txt')]);
+      const adding = state.handleAddAttachments([
+        new File(['attachment'], 'review.txt'),
+      ]);
       await vi.advanceTimersByTimeAsync(500);
+      await adding;
       expect(state.savedDraftId()).toBe('draft');
       const discarded = state.deleteDraftAndReset();
       expect(composeContext.drafts.deleteDraft).not.toHaveBeenCalled();
@@ -1059,7 +1065,7 @@ describe('send and schedule ordering', () => {
       state.form.attachments.add(attachment);
       state.edit('Forwarding');
       await vi.advanceTimersByTimeAsync(500);
-      state.handleRemoveAttachment(attachment);
+      const removing = state.handleRemoveAttachment(attachment);
       expect(
         composeContext.attachmentStorage.removeForwardedAttachment
       ).not.toHaveBeenCalled();
@@ -1068,6 +1074,7 @@ describe('send and schedule ordering', () => {
       expect(
         composeContext.attachmentStorage.addForwardedAttachments
       ).not.toHaveBeenCalled();
+      await removing;
     } finally {
       state.dispose();
     }

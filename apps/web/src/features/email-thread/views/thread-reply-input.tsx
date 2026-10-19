@@ -2,6 +2,7 @@ import { decodeBase64Utf8 } from '@app/features/email-compose/core/decode-base64
 import { plainTextToHtml } from '@app/features/email-compose/core/plain-text-to-html';
 import { ReplyInputView } from '@app/features/email-compose/views/reply-input';
 import type { EmailMessage } from '@app/features/email-message/core/email-message';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Layer } from '@ui';
 import {
   type Accessor,
@@ -103,7 +104,7 @@ function ThreadReplyInputSession(props: ThreadReplyInputProps) {
               context={viewContext.compose}
               onReloadDraft={() => {
                 setEngaged(false);
-                void ctx.query.refetch();
+                fireAndForget(ctx.query.refetch(), 'thread-reply-input');
               }}
               host={viewContext.composeHost}
               session={{

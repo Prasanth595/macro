@@ -23,4 +23,6 @@ pub mod inbox_catalog;
 pub mod inbox_health;
 pub mod inbox_lifecycle;
 
+/// Forwarded-attachment persistence facts.
+pub mod forwarded_attachments;
 pub mod mailbox_settings;

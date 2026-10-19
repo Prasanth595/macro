@@ -25,6 +25,7 @@ export type SpreadsheetCommand =
   | 'sort-desc'
   | 'trim-whitespace'
   | 'dropdown'
+  | 'table'
   | 'goal-seek'
   | 'custom-date-format'
   | 'border-all'
@@ -36,7 +37,9 @@ export type SpreadsheetCommand =
   | 'insert-average'
   | 'insert-count'
   | 'insert-min'
-  | 'insert-max';
+  | 'insert-max'
+  | 'insert-checkbox'
+  | 'remove-checkbox';
 
 export type SpreadsheetToolbarProps = {
   readonly: boolean;
@@ -45,6 +48,8 @@ export type SpreadsheetToolbarProps = {
   canUndo: boolean;
   canRedo: boolean;
   cell: SpreadsheetCell | undefined;
+  /** Whether the active cell is in a table, whose options the menu offers. */
+  inTable?: boolean;
   zoom: number;
   showGridlines: boolean;
   showFormulaBar: boolean;

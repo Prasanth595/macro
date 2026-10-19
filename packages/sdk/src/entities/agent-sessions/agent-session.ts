@@ -13,7 +13,9 @@ import { unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { MacroEntity } from '../entity';
 import { User } from '../users/user';
+import { CodeExecution } from './code-execution';
 import { QueuedAction } from './queued-action';
+import { type CreateReviewOptions, SessionReview } from './review';
 
 /** A GitHub pull request linked to a session. */
 export type SessionPullRequest = {
@@ -392,6 +394,19 @@ export class AgentSession extends MacroEntity<AgentSessionResponse> {
       }),
     );
   }
+
+  /** Persisted reviews scoped to this session, with or without a code execution. */
+  readonly reviews = {
+    create: (input: CreateReviewOptions) =>
+      SessionReview.createForSession(this.client, this, input),
+    byId: (id: string) => SessionReview.byId(this.client, this, id),
+  };
+
+  /** Saved code executions scoped to this session. Handle construction makes no request. */
+  readonly codeExecutions = {
+    byId: (id: string): CodeExecution =>
+      CodeExecution.byId(this.client, this, id),
+  };
 
   /** Delete this session and any live resources it owns. */
   async delete(): Promise<void> {

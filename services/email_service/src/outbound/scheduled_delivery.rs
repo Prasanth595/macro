@@ -24,6 +24,9 @@ use uuid::Uuid;
 /// Concrete worker adapters, wired by the scheduled worker's composition root.
 pub struct ScheduledDeliveryAdapter {
     pub db: sqlx::PgPool,
+    pub forwarded_attachments: email::domain::forwarded_attachments::ForwardedAttachmentService<
+        crate::outbound::forwarded_attachments::PgForwardedAttachmentRepo,
+    >,
     pub email_api: GmailApi,
     pub attachment_bytes:
         std::sync::Arc<dyn email::domain::attachment_access::AuthorizedAttachmentBytes>,
@@ -211,7 +214,18 @@ impl ScheduledMessageSender<ScheduledClaim, SentDelivery> for ScheduledDeliveryA
         )
         .await?;
 
-        // Include forwarded attachments (fetched from Gmail at send time)
+        // Preserve delivery-time source inbox checks, including legacy jobs
+        // that have no actor attribution. Attachment bytes are resolved below
+        // through the provider-aware reader.
+        let actor = data
+            .actor_id
+            .as_deref()
+            .and_then(|actor| MacroUserIdStr::parse_from_str(actor).ok());
+        ctx.forwarded_attachments
+            .for_delivery(actor.as_ref(), link.id, data.message_id)
+            .await?;
+
+        // Include forwarded and imported-draft attachments.
         fetch_and_attach_forwarded_attachments(
             &ctx.db,
             ctx.attachment_bytes.as_ref(),

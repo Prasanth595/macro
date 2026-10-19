@@ -45,19 +45,21 @@ it.each(['compose', 'reply'] as const)(
         : undefined;
     const send = () => {
       if (compose) compose.state.context.onSend();
-      else void reply?.sendEmail();
+      else return reply?.sendEmail();
     };
     try {
       compose?.edit('Continue the transferred draft');
-      send();
+      const blockedSend = send();
       await vi.advanceTimersByTimeAsync(0);
+      await blockedSend;
       expect(context.delivery.sendMessage).not.toHaveBeenCalled();
       setOperation(seeded);
       await context
         .operations(() => draft.db_id)
         .resolve(seeded, 'keep_original', false);
-      send();
+      const recoveredSend = send();
       await vi.advanceTimersByTimeAsync(0);
+      await recoveredSend;
       expect(context.delivery.sendMessage).toHaveBeenCalled();
     } finally {
       compose?.dispose();

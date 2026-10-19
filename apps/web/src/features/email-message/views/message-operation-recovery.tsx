@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Button } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
 import type { MessageOperationSource } from '../context/message-operation-source';
@@ -121,7 +122,10 @@ export function MessageOperationRecovery(props: {
                         !accepted())
                     }
                     onClick={() =>
-                      void execute(decision()!.action, decision()!.operation)
+                      fireAndForget(
+                        execute(decision()!.action, decision()!.operation),
+                        'message-operation-recovery'
+                      )
                     }
                   >
                     Confirm
@@ -154,7 +158,10 @@ export function MessageOperationRecovery(props: {
                         (action === 'retry_send' &&
                           operation().issue === 'SEND_REJECTED')
                       )
-                        void execute(action, operation());
+                        fireAndForget(
+                          execute(action, operation()),
+                          'message-operation-recovery'
+                        );
                       else setDecision({ action, operation: operation() });
                     }}
                   >

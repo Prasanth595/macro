@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { throwOnErr } from '@core/util/result';
 import { invalidateCalendarInvitations } from '@queries/calendar/invitations';
 import { calendarKeys } from '@queries/calendar/keys';
@@ -52,8 +53,8 @@ export function useEventReplacementSource(
       ),
     onSettled: () => {
       invalidateCalendarEventPreviews(eventId());
-      void invalidateCalendarInvitations();
-      void invalidateCalendarOccurrences();
+      fireAndForget(invalidateCalendarInvitations(), 'calendar-replacement');
+      fireAndForget(invalidateCalendarOccurrences(), 'calendar-replacement');
     },
   }));
   const discard = useMutation(() => ({
@@ -69,8 +70,8 @@ export function useEventReplacementSource(
     onSuccess: (view) => {
       if (view.status === 'complete') {
         invalidateCalendarEventPreviews(eventId());
-        void invalidateCalendarInvitations();
-        void invalidateCalendarOccurrences();
+        fireAndForget(invalidateCalendarInvitations(), 'calendar-replacement');
+        fireAndForget(invalidateCalendarOccurrences(), 'calendar-replacement');
       }
     },
   }));

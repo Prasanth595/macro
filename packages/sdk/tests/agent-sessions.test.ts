@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import type {
   AgentSessionChangesResponse,
   AgentSessionResponse,
+  ExecutionRecord,
 } from '../generated/agent-harness/types.gen';
 import { Macro } from '../src/macro';
 
@@ -76,7 +77,77 @@ describe('AgentSession', () => {
     ).toBe(true);
   });
 
-  test('preserves access errors from changes endpoints', async () => {
+  test('reads saved code results with both session and execution scope', async () => {
+    const executionId = '0198a4cc-e138-7670-a308-a6b766602702';
+    const record: ExecutionRecord = {
+      executionId,
+      source: 'return 42;',
+      status: 'succeeded',
+      result: 42,
+      calls: [],
+    };
+    let request: Request | undefined;
+    globalThis.fetch = (async (input) => {
+      request = input instanceof Request ? input : new Request(input);
+      return Response.json(record);
+    }) as typeof fetch;
+    const macro = new Macro({
+      token: 'user-token',
+      hosts: { 'agent-harness': 'https://agent.example.test' },
+    });
+
+    await expect(
+      macro.agentSessions
+        .byId(sessionId)
+        .codeExecutions.byId(executionId)
+        .status(),
+    ).resolves.toBe('succeeded');
+    expect(request?.method).toBe('GET');
+    expect(request?.url).toBe(
+      `https://agent.example.test/agent-sessions/${sessionId}/code-executions/${executionId}`,
+    );
+    expect(request?.headers.get('authorization')).toBe('Bearer user-token');
+  });
+
+  test('execution handles are lazy, cache fields, and refresh state without losing session scope', async () => {
+    const requests: string[] = [];
+    const executionId = '0198a4cc-e138-7670-a308-a6b766602702';
+    let record: ExecutionRecord = {
+      executionId,
+      source: 'return null;',
+      status: 'running',
+      calls: [],
+    };
+    globalThis.fetch = (async (input) => {
+      const request = input instanceof Request ? input : new Request(input);
+      requests.push(request.url);
+      return Response.json(record);
+    }) as typeof fetch;
+    const macro = new Macro({
+      token: 'user-token',
+      hosts: { 'agent-harness': 'https://agent.example.test' },
+    });
+    const agent = macro.agentSessions.byId(sessionId);
+    const execution = agent.codeExecutions.byId(executionId);
+    expect(execution.id).toBe(executionId);
+    expect(execution.session()).toBe(agent);
+    expect(requests).toEqual([]);
+    await expect(execution.status()).resolves.toBe('running');
+    await expect(execution.source()).resolves.toBe('return null;');
+    await expect(execution.calls()).resolves.toEqual([]);
+    expect(requests).toHaveLength(1);
+    record = { ...record, status: 'succeeded', result: null };
+    await expect(execution.refresh()).resolves.toBe(execution);
+    await expect(execution.status()).resolves.toBe('succeeded');
+    await expect(execution.result()).resolves.toBeNull();
+    expect(requests).toEqual(
+      Array(2).fill(
+        `https://agent.example.test/agent-sessions/${sessionId}/code-executions/${executionId}`,
+      ),
+    );
+  });
+
+  test('preserves access errors from session result endpoints', async () => {
     globalThis.fetch = (async (_input) =>
       Response.json({ message: 'Forbidden' }, { status: 403 })) as typeof fetch;
     const macro = new Macro({
@@ -89,6 +160,10 @@ describe('AgentSession', () => {
       () => agent.changes(),
       () => agent.changesPatch(),
       () => agent.refreshChanges(),
+      () =>
+        agent.codeExecutions
+          .byId('0198a4cc-e138-7670-a308-a6b766602702')
+          .status(),
     ]) {
       await expect(read()).rejects.toMatchObject({
         name: 'MacroApiError',
