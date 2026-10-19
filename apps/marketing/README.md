@@ -56,6 +56,13 @@ uses Valentina consistently.
 Demo copy is illustrative, informed by the team's website feedback, rather
 than a publication of private messages.
 
+The five homepage feature sections use a shared two-column introduction: a
+short category and Macro slab heading beside a plain-language explanation. Existing demos sit directly below, followed by four native
+`details` disclosures. Email keeps its conversation beside the generated draft on desktop and above
+it below 960px. Other sections lead directly into their existing product demo. Below 768px, copy stacks above the visual, and below
+421px the detail list becomes one column. Styles live in
+`components/homepage-feature-sections.css` and are scoped to the homepage.
+
 ## Ownership and dependency boundary
 
 - `src/features/marketing/`: homepage, feature demonstrations, navigation, and

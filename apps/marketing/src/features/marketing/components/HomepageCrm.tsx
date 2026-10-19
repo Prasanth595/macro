@@ -121,7 +121,7 @@ export default function HomepageCrm(
           ref={setViewport}
           class="homepage-crm-viewport"
           role="img"
-          aria-label="Claude moves Northwind from Qualified to Proposal, then Lumen from Proposal to Closed won."
+          aria-label="Claude moves Keystone Mechanical from Qualified to Proposal, then Bookend Retail from Proposal to Closed won."
         >
           <div
             class="homepage-crm-canvas"
