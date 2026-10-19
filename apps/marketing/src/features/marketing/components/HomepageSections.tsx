@@ -36,7 +36,6 @@ const scopedStyles = siteStyles
 
 function Feature(props: {
   id: string;
-  category: string;
   title: string;
   description: string;
   details: readonly { title: string; text: string }[];
@@ -51,7 +50,6 @@ function Feature(props: {
     >
       <header class="homepage-feature-intro workspace-demo homepage-enter">
         <div>
-          <p class="homepage-feature-category">{props.category}</p>
           <h2 id={`${props.id}-title`}>{props.title}</h2>
           <Show when={props.titleAdornment}>
             <div class="homepage-feature-adornment">{props.titleAdornment}</div>
@@ -147,7 +145,6 @@ export function HomepageSections() {
         </HomepageOpenSource>
         <Feature
           id="email"
-          category="Email and chat"
           title={'From chat\nto email draft.'}
           description="Discuss an email with your team, then ask Macro to draft the reply using the calls and documents already in your workspace."
           details={[
@@ -208,7 +205,6 @@ export function HomepageSections() {
         </Feature>
         <Feature
           id="documents"
-          category="Documents and tasks"
           title="Make the plan. Move it forward."
           description="Write together, turn decisions into tasks, and keep every next step connected to the plan. Your team and your agents work in the same document."
           details={[
@@ -245,7 +241,6 @@ export function HomepageSections() {
         </Feature>
         <Feature
           id="coding-agents"
-          category="Coding agents"
           title="Bring your agents into the team."
           titleAdornment={<HomepageAgentLogos />}
           description="Ask an agent to pick up a task, follow its progress, and review the changes together. Use the coding subscriptions you already have."
@@ -277,7 +272,6 @@ export function HomepageSections() {
         </Feature>
         <Feature
           id="spreadsheet"
-          category="Sheets and databases"
           title="Turn shared data into the next step."
           description="Work together in spreadsheets and databases. Ask an agent to find what matters and build a list your team can act on."
           details={[
@@ -308,7 +302,6 @@ export function HomepageSections() {
         </Feature>
         <Feature
           id="crm"
-          category="CRM"
           title="Keep the whole customer story."
           description="See the conversations, calls, documents, and next steps behind each deal. Keep the pipeline current from the work you’re already doing."
           details={[
