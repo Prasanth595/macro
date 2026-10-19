@@ -715,7 +715,10 @@ controls, reading-pane option, New, and an expandable Search icon. Its outlined
 below the sidebar title, above a flat, outlined **Accounts** group. Its selector shows
 the current account or `All inboxes` and opens a single-select dropdown of linked
 accounts and aliases. `Connect another account` starts the add-inbox flow from
-the group's separated footer. `New email` prefills From with the selected inbox, or the primary
+the group's separated footer. On desktop, `All inboxes` uses the shared avatar
+group to overlap the first two account portraits with a separator ring; aliases
+do not repeat a portrait. A single selected inbox shows its own portrait.
+`New email` prefills From with the selected inbox, or the primary
 inbox when All inboxes is selected; reopening a draft keeps its saved sender.
 The From menu groups each connected inbox with its verified Gmail send-as aliases.
 Replies default to an address on the thread's own inbox: preserve an outgoing

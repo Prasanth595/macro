@@ -11,7 +11,7 @@ import CheckIcon from '@phosphor/check.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import TrayIcon from '@phosphor/tray.svg';
 import { useMailAccountsQuery } from '@queries/email/mail-accounts';
-import { Button, cn, Dropdown, pressHandlers } from '@ui';
+import { AvatarGroup, Button, cn, Dropdown, pressHandlers } from '@ui';
 import { createMemo, For, type JSX, Show } from 'solid-js';
 import { fromInboxOptions } from '../../email-compose/core/email-sender';
 import { useEmailView } from '../email-view-context';
@@ -119,6 +119,24 @@ function InboxAvatar(props: {
   );
 }
 
+function AllInboxesAvatar(props: { options: readonly InboxOption[] }) {
+  const inboxes = () =>
+    props.options.filter((option) => !option.aliasAddress).slice(0, 2);
+
+  return (
+    <Show
+      when={!isTouchDevice() && inboxes().length > 0}
+      fallback={<TrayIcon aria-hidden="true" class="size-4 shrink-0" />}
+    >
+      <AvatarGroup size="sm" aria-hidden="true">
+        <For each={inboxes()}>
+          {(option) => <InboxAvatar option={option} size="sm" />}
+        </For>
+      </AvatarGroup>
+    </Show>
+  );
+}
+
 function InboxAccountGroup(props: {
   selection: ReturnType<typeof useInboxSelection>;
   class?: string;
@@ -155,7 +173,7 @@ function InboxAccountGroup(props: {
         >
           <Show
             when={selectedOption()}
-            fallback={<TrayIcon aria-hidden="true" class="size-4 shrink-0" />}
+            fallback={<AllInboxesAvatar options={selection.options()} />}
           >
             {(option) => (
               <InboxAvatar option={option()} size="sm" class="size-5" />
@@ -179,7 +197,7 @@ function InboxAccountGroup(props: {
               <Show when={selection.hasMultipleInboxes()}>
                 <InboxRadioItem
                   value={ALL_INBOXES_ID}
-                  icon={<TrayIcon class="size-4" />}
+                  icon={<AllInboxesAvatar options={selection.options()} />}
                 >
                   All inboxes
                 </InboxRadioItem>
@@ -339,7 +357,7 @@ export function EmailInboxFilter(props: { class?: string }) {
                 >
                   <InboxRadioItem
                     value={ALL_INBOXES_ID}
-                    icon={<TrayIcon class="size-4" />}
+                    icon={<AllInboxesAvatar options={selection.options()} />}
                   >
                     All inboxes
                   </InboxRadioItem>
@@ -394,7 +412,7 @@ export function EmailInboxMenu(props: { class?: string }) {
         >
           <Show
             when={selection.selectedOption()}
-            fallback={<TrayIcon aria-hidden="true" class="size-4 shrink-0" />}
+            fallback={<AllInboxesAvatar options={selection.options()} />}
           >
             {(option) => <InboxAvatar option={option()} size="sm" />}
           </Show>
@@ -404,7 +422,7 @@ export function EmailInboxMenu(props: { class?: string }) {
             <Dropdown.RadioGroup value={radioValue()} onChange={onRadioChange}>
               <InboxRadioItem
                 value={ALL_INBOXES_ID}
-                icon={<TrayIcon class="size-4" />}
+                icon={<AllInboxesAvatar options={selection.options()} />}
               >
                 All inboxes
               </InboxRadioItem>
