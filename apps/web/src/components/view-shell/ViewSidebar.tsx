@@ -2,7 +2,7 @@ import { SplitHeaderContextMenu } from '@components/app/split-layout/components/
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import SearchIcon from '@phosphor/magnifying-glass.svg';
-import { Button, ButtonGroup, type ButtonProps, cn } from '@ui';
+import { Button, type ButtonProps, cn } from '@ui';
 import { CollapseTransition } from '@ui/components/CollapseTransition';
 import type { JSX } from 'solid-js';
 import { createSignal, Show, splitProps } from 'solid-js';
@@ -69,21 +69,8 @@ function Header(
           data-view-sidebar-header=""
         >
           {local.children}
-          <Show
-            when={!isTouchDevice() && local.search}
-            fallback={
-              <div class="ml-auto flex shrink-0 items-center gap-1">
-                {local.collapseControl ?? (
-                  <ViewSidebarToggle action="collapse" />
-                )}
-              </div>
-            }
-          >
-            <ButtonGroup
-              variant="outline"
-              size="icon-md"
-              class="ml-auto shrink-0 **:data-button:size-8"
-            >
+          <div class="ml-auto flex shrink-0 items-center gap-1">
+            <Show when={!isTouchDevice() && local.search}>
               <Control
                 label={local.searchLabel ?? 'Search'}
                 aria-expanded={searchOpen()}
@@ -91,9 +78,9 @@ function Header(
               >
                 <SearchIcon class="size-4" />
               </Control>
-              {local.collapseControl ?? <ViewSidebarToggle action="collapse" />}
-            </ButtonGroup>
-          </Show>
+            </Show>
+            {local.collapseControl ?? <ViewSidebarToggle action="collapse" />}
+          </div>
         </div>
       </SplitHeaderContextMenu>
       <Show when={!isTouchDevice() && searchOpen()}>
