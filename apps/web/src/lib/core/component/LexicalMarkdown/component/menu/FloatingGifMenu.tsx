@@ -25,6 +25,7 @@ import {
   gifPickerPlugin,
   searchGifs,
 } from '../../plugins/gif';
+import PoweredByKlipy from '../../plugins/gif/powered-by-klipy.svg';
 import { useMenuKeyboardNavigation } from './useMenuKeyboardNavigation';
 
 false && floatWithSelection;
@@ -158,7 +159,7 @@ export function FloatingGifMenu(props: { canEdit?: Accessor<boolean> } = {}) {
             <input
               ref={inputRef}
               type="text"
-              placeholder="Search GIFs..."
+              placeholder="Search KLIPY"
               value={searchTerm()}
               onInput={(e) => setSearchTerm(e.currentTarget.value)}
               class="w-full px-3 py-2 text-sm bg-ink/5 rounded-lg outline-none focus:ring-2 focus:ring-accent/50 placeholder:text-ink-muted"
@@ -191,7 +192,7 @@ export function FloatingGifMenu(props: { canEdit?: Accessor<boolean> } = {}) {
                       type="button"
                       onClick={() => insertGif(gif)}
                       onMouseOver={() => setSelectedIndex(index())}
-                      class="relative rounded-lg overflow-hidden cursor-pointer transition-all"
+                      class="relative rounded-lg overflow-hidden transition-all"
                       classList={{
                         'ring-2 ring-accent': selectedIndex() === index(),
                         'hover:ring-2 hover:ring-accent/50':
@@ -216,9 +217,10 @@ export function FloatingGifMenu(props: { canEdit?: Accessor<boolean> } = {}) {
           </div>
 
           <div class="px-3 py-1.5 border-t border-edge flex items-center justify-end">
-            <span class="text-[10px] text-ink-extra-muted">
-              Powered by KLIPY
-            </span>
+            <PoweredByKlipy
+              class="h-2.5 w-auto text-ink-extra-muted"
+              aria-label="Powered by KLIPY"
+            />
           </div>
         </div>
       </Layer>
