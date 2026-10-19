@@ -120,7 +120,7 @@ export function RouteAgents() {
       </FeaturePageSection>
       <FeaturePageSection
         id="agent-actions"
-        title={['Make progress', 'together']}
+        title={['Work with your agent', 'across the workspace.']}
         description="Work with your agent in the same file your team uses. Add context, ask for an update, and review the result in the shared document instead of moving drafts back and forth."
         details={agentsGuides['agent-actions']}
       >
