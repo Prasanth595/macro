@@ -1,4 +1,4 @@
-.homepage-scroll-cue { position: absolute; bottom: max(48px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; gap: 8px; width: max-content; height: 44px; padding: 12px; border: 0; border-radius: 12px; background: none; color: var(--color-ink-muted); font: inherit; font-size: 12px; line-height: 20px; }
+.homepage-scroll-cue { position: absolute; bottom: max(28px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 12px; border: 0; border-radius: 12px; background: none; color: var(--color-ink-muted); font: inherit; font-size: 12px; line-height: 20px; }
 .site-nav-start.homepage-hero-cta { font-family: 'Inter Variable', Inter, sans-serif; }
 .homepage-hero-cta:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 4px; }
 .ob-welcome:has(.homepage-hero-cta) > [data-welcome-copy] > .homepage-hero-action { margin-top: 12px; padding-bottom: 8px; }

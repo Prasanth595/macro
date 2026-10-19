@@ -12,6 +12,14 @@ router applies it across navigation, and each HTML entry applies it before
 first paint. Sample workspace styles read that HTML palette before route code
 runs. Check both palettes when changing a shared demo or surface.
 
+Public calls to action use the shared `site-nav-start` treatment: warm white,
+soft pill corners, a fine border, and a 2px arrow shift on hover. `Talk to us` is an
+outlined secondary action; the header's `Open app` is a quiet text action
+without an arrow.
+Feedback uses 140ms CSS transitions, respects reduced motion, and does not
+track the pointer. Mobile header actions retain 44px touch targets. The homepage scroll cue is an
+arrow-only 44px button, inset 28px from the bottom while respecting safe areas.
+
 ## Ownership and dependency boundary
 
 - `src/features/marketing/`: homepage, feature demonstrations, navigation, and

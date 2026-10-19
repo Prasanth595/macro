@@ -1,8 +1,9 @@
+import ArrowRight from '@phosphor/arrow-right.svg';
 import { createSignal } from 'solid-js';
 import { HomepageScrollCue } from '../marketing/components/HomepageScrollCue';
-import { routePhoneToMobileSignup } from '../marketing/core/navigation';
 import { HomepageSections } from '../marketing/components/HomepageSections';
 import { HomepageUnification } from '../marketing/components/HomepageUnification';
+import { routePhoneToMobileSignup } from '../marketing/core/navigation';
 import { OnboardingShell } from './components/OnboardingShell';
 import { WelcomeStep } from './components/WelcomeSteps';
 
@@ -40,7 +41,8 @@ export function Homepage() {
                 href="/app/signup"
                 onClick={routePhoneToMobileSignup}
               >
-                Get Started
+                <span>Get started</span>
+                <ArrowRight aria-hidden="true" />
               </a>
             </div>
           }

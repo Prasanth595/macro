@@ -1,11 +1,4 @@
-import {
-  createSignal,
-  For,
-  type JSX,
-  onCleanup,
-  onMount,
-  Show,
-} from 'solid-js';
+import { createSignal, For, onCleanup, onMount, Show } from 'solid-js';
 import {
   DEMO_BOOKING_URL,
   FEATURE_PAGES,
@@ -51,45 +44,6 @@ export function SiteHeader(props: { hideOpenApp?: boolean }) {
   let menu!: HTMLDivElement;
   let trigger!: HTMLButtonElement;
   const [open, setOpen] = createSignal(false);
-  let glowFrame = 0;
-  let glowTarget: HTMLAnchorElement | undefined;
-  let pointerX = 0;
-  let pointerY = 0;
-  const moveGlow: JSX.EventHandler<HTMLAnchorElement, PointerEvent> = (
-    event
-  ) => {
-    if (event.pointerType === 'touch') return;
-    glowTarget = event.currentTarget;
-    pointerX = event.clientX;
-    pointerY = event.clientY;
-    if (glowFrame) return;
-    glowFrame = requestAnimationFrame(() => {
-      glowFrame = 0;
-      if (!glowTarget) return;
-      const bounds = glowTarget.getBoundingClientRect();
-      // Percentages also track correctly when Open app scales into the footer.
-      glowTarget.style.setProperty(
-        '--glow-x',
-        `${((pointerX - bounds.left) / bounds.width) * 100}%`
-      );
-      glowTarget.style.setProperty(
-        '--glow-y',
-        `${((pointerY - bounds.top) / bounds.height) * 100}%`
-      );
-    });
-  };
-  const stopGlow = () => {
-    if (glowFrame) cancelAnimationFrame(glowFrame);
-    glowFrame = 0;
-    glowTarget = undefined;
-  };
-  const centerGlow: JSX.EventHandler<HTMLAnchorElement, FocusEvent> = (
-    event
-  ) => {
-    event.currentTarget.style.setProperty('--glow-x', '50%');
-    event.currentTarget.style.setProperty('--glow-y', '50%');
-  };
-  onCleanup(stopGlow);
 
   onMount(() => {
     const outside = (event: PointerEvent) => {
@@ -171,11 +125,6 @@ export function SiteHeader(props: { hideOpenApp?: boolean }) {
       <div class="site-header-actions">
         <a
           class="site-nav-demo"
-          onPointerEnter={moveGlow}
-          onPointerMove={moveGlow}
-          onPointerLeave={stopGlow}
-          onPointerCancel={stopGlow}
-          onFocus={centerGlow}
           href={DEMO_BOOKING_URL}
           target="_blank"
           rel="noreferrer"
@@ -184,32 +133,12 @@ export function SiteHeader(props: { hideOpenApp?: boolean }) {
         </a>
         <Show when={!props.hideOpenApp}>
           <a
-            class="site-nav-start"
+            class="site-nav-start site-nav-open"
             target="_self"
             href="/app/signup"
             onClick={routePhoneToMobileSignup}
-            onPointerEnter={moveGlow}
-            onPointerMove={moveGlow}
-            onPointerLeave={stopGlow}
-            onPointerCancel={stopGlow}
-            onFocus={centerGlow}
           >
             <span>Open app</span>
-            <svg
-              width="28"
-              height="28"
-              viewBox="0 0 32 32"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M5 16h22M17 6l10 10-10 10"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
           </a>
         </Show>
       </div>

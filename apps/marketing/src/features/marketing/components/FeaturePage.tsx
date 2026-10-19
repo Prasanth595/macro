@@ -35,7 +35,7 @@ export function FeaturePage(props: {
 export function FeaturePageCta(props: { name: string; label?: string }) {
   return (
     <a
-      class="feature-page-cta"
+      class="site-nav-start feature-page-cta"
       href={ctaHref()}
       onClick={(event) => handleCtaClick(event, props.name)}
     >
