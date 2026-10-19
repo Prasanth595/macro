@@ -110,7 +110,7 @@ export function RouteDocuments() {
         </FeaturePageSection>
         <FeaturePageSection
           id="document-links"
-          title={['Tag emails, files, chats,', 'and companies in', 'your doc.']}
+          title={['Tag emails, files,', 'and chats in your docs.']}
           description="Link to the work you’re writing about and open it beside your document. Read the original email, task, or conversation while you write."
           details={documentsGuides['document-links']}
         >
