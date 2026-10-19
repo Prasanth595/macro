@@ -111,7 +111,7 @@ export function RouteDocuments() {
         <FeaturePageSection
           id="document-links"
           title={['Tag emails, files, chats,', 'and companies in', 'your doc.']}
-          description="Link to the work you’re writing about and open it beside your document. Read the original email, task, or conversation while you write, without copying the information into another file."
+          description="Link to the work you’re writing about and open it beside your document. Read the original email, task, or conversation while you write."
           details={documentsGuides['document-links']}
         >
           <DemoInteractionBoundary class="feature-page-visual docs-wide-demo">
