@@ -22,7 +22,7 @@ export function useOpenEventComposer() {
   return (options: OpenEventComposerOptions = {}) => {
     if (!options.event) {
       openCalendarView({
-        creationRequest: createCalendarCreationRequest(options.initialValues),
+        creationRequest: createCalendarCreationRequest(options),
       });
       return;
     }

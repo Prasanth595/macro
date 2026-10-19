@@ -16,7 +16,13 @@ export const [CalendarCreationProvider, useCalendarCreation] =
           (id) => {
             const request = props.request;
             if (!id || !request || !request.consume()) return;
-            if (!creation.open({ initialValues: request.initialValues }))
+            if (
+              !creation.open({
+                initialValues: request.initialValues,
+                onCalendarChange: request.onCalendarChange,
+                onClose: request.onClose,
+              })
+            )
               creation.moveToSidebar();
           }
         )

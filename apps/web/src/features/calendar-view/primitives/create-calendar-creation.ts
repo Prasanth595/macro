@@ -12,12 +12,17 @@ export interface CalendarCreationDraft {
 
 /** Runtime command state stays with the request, not a disposable workspace. */
 export function createCalendarCreationRequest(
-  initialValues?: EventEditorInitialValues
+  options: Pick<
+    CalendarCreationDraft,
+    'initialValues' | 'onCalendarChange' | 'onClose'
+  > = {}
 ): CalendarCreationRequest {
   let consumed = false;
   return {
     id: crypto.randomUUID(),
-    initialValues,
+    initialValues: options.initialValues,
+    onCalendarChange: options.onCalendarChange,
+    onClose: options.onClose,
     consume: () => {
       if (consumed) return false;
       consumed = true;

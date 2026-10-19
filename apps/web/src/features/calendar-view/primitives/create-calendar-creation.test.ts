@@ -51,7 +51,11 @@ describe('calendar creation draft', () => {
     });
   });
   it('consumes delivered requests so a dismissed draft does not reopen after remount', () => {
-    const [entry] = createStore({ request: createCalendarCreationRequest() });
+    const onCalendarChange = vi.fn();
+    const onClose = vi.fn();
+    const [entry] = createStore({
+      request: createCalendarCreationRequest({ onCalendarChange, onClose }),
+    });
     const request = entry.request;
     const first = createRoot((dispose) => {
       let creation: ReturnType<typeof useCalendarCreation> | undefined;
@@ -71,8 +75,12 @@ describe('calendar creation draft', () => {
     });
     try {
       expect(first.creation?.draft()).toBeDefined();
+      first.creation?.draft()?.onCalendarChange?.('work', '#123456');
+      expect(onCalendarChange).toHaveBeenCalledWith('work', '#123456');
       expect(request.consume()).toBe(false);
       first.creation?.close();
+      first.creation?.close();
+      expect(onClose).toHaveBeenCalledOnce();
     } finally {
       first.dispose();
     }
@@ -96,6 +104,7 @@ describe('calendar creation draft', () => {
       expect(remounted.creation).toBeDefined();
       expect(remounted.creation?.draft()).toBeUndefined();
       expect(request.consume()).toBe(false);
+      expect(onClose).toHaveBeenCalledOnce();
     } finally {
       remounted.dispose();
     }

@@ -7,6 +7,8 @@ export const CALENDAR_VIEW_ID = 'calendar';
 export interface CalendarCreationRequest {
   id: string;
   initialValues?: EventEditorInitialValues;
+  onCalendarChange?: (calendarId: string, color: string) => void;
+  onClose?: () => void;
   /** Returns true once, even if the same request reaches a remounted workspace. */
   consume: () => boolean;
 }
