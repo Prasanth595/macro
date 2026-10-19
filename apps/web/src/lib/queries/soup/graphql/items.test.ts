@@ -2256,7 +2256,7 @@ describe('createGraphqlSoupAstItemsQuery', () => {
       ],
     });
 
-    await new Promise<void>((resolve) => {
+    await new Promise<void>((resolve, reject) => {
       createRoot((dispose) => {
         const query = createGraphqlSoupAstItemsQuery(
           () => ({ params: {}, body: {} }) as never,
@@ -2264,12 +2264,11 @@ describe('createGraphqlSoupAstItemsQuery', () => {
         );
 
         expect(fake.executions).toHaveLength(1);
-        void vi
-          .waitFor(() => {
-            expect(query.isPlaceholderData()).toBe(false);
-            expect(query.isLoading()).toBe(false);
-            expect(query.data()?.entities[0]?.name).toBe('Local task');
-          })
+        vi.waitFor(() => {
+          expect(query.isPlaceholderData()).toBe(false);
+          expect(query.isLoading()).toBe(false);
+          expect(query.data()?.entities[0]?.name).toBe('Local task');
+        })
           .then(() => {
             fake.executions[0]?.next(
               graphqlSoupPage({
@@ -2283,7 +2282,8 @@ describe('createGraphqlSoupAstItemsQuery', () => {
             expect(query.data()?.entities[0]?.name).toBe('Network task');
             dispose();
             resolve();
-          });
+          })
+          .catch(reject);
       });
     });
     expect(entityFilterMock).toHaveBeenCalled();
@@ -2338,18 +2338,17 @@ describe('createGraphqlSoupAstItemsQuery', () => {
         ],
       });
 
-    await new Promise<void>((resolve) => {
+    await new Promise<void>((resolve, reject) => {
       createRoot((dispose) => {
         const query = createGraphqlSoupAstItemsQuery(
           () => ({ params: {}, body: {} }) as never,
           () => ({ enabled: true })
         );
 
-        void vi
-          .waitFor(() => {
-            expect(query.data()?.entities[0]?.name).toBe('Optimistic task');
-            expect(query.isPlaceholderData()).toBe(false);
-          })
+        vi.waitFor(() => {
+          expect(query.data()?.entities[0]?.name).toBe('Optimistic task');
+          expect(query.isPlaceholderData()).toBe(false);
+        })
           .then(async () => {
             fake.executions[0]?.next(
               graphqlSoupPage({
@@ -2370,7 +2369,8 @@ describe('createGraphqlSoupAstItemsQuery', () => {
             });
             dispose();
             resolve();
-          });
+          })
+          .catch(reject);
       });
     });
   });

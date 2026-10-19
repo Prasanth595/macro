@@ -9,7 +9,7 @@ const { action, markDone } = vi.hoisted(() => {
   const action = () => ({
     canExecute: () => true,
     execute: vi.fn(),
-    executeWithSoup: vi.fn(),
+    executeWithSoup: vi.fn(() => Promise.resolve()),
   });
   return { action, markDone: action() };
 });
