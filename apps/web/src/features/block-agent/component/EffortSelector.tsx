@@ -2,7 +2,7 @@ import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { Popover } from '@kobalte/core/popover';
 import { Button, Tooltip } from '@ui';
-import { createSignal, Show } from 'solid-js';
+import { createSignal, For, Show } from 'solid-js';
 import type {
   EffortChoice,
   SelectSessionConfigOption,
@@ -56,32 +56,50 @@ export function EffortSelector(props: {
     </svg>
   );
   const options = () => (
-    <div class="px-1">
+    <div>
       <div class="mb-1 text-center text-xs text-ink-muted" aria-hidden="true">
         {label()}
       </div>
-      <input
-        type="range"
-        aria-label="Reasoning effort"
-        aria-valuetext={label()}
-        min={0}
-        max={choices().length - 1}
-        step={1}
-        value={index()}
-        disabled={props.disabled}
-        class="m-0 h-9 w-full appearance-none rounded-full bg-transparent text-ink outline-none focus-visible:ring-2 focus-visible:ring-edge-focus disabled:opacity-50 [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-ink/20 [&::-webkit-slider-thumb]:-mt-1.5 [&::-webkit-slider-thumb]:size-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-ink [&::-moz-range-track]:h-1 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-ink/20 [&::-moz-range-thumb]:size-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-ink"
-        onInput={(event) => setPreview(Number(event.currentTarget.value))}
-        onChange={(event) => {
-          const choice = choices()[Number(event.currentTarget.value)];
-          if (!props.disabled && props.config && choice)
-            props.onChange({
-              configId: props.config.id,
-              value: choice.value,
-              name: choice.name,
-            });
-          setPreview(undefined);
-        }}
-      />
+      <div class="relative h-9">
+        <div
+          class="pointer-events-none absolute inset-x-0 top-3 flex h-3 gap-1"
+          aria-hidden="true"
+        >
+          <For each={choices()}>
+            {(_, position) => (
+              <span
+                class="flex-1 rounded-[3px] transition-colors duration-100"
+                classList={{
+                  'bg-ink/70': position() <= index(),
+                  'bg-ink/15': position() > index(),
+                }}
+              />
+            )}
+          </For>
+        </div>
+        <input
+          type="range"
+          aria-label="Reasoning effort"
+          aria-valuetext={label()}
+          min={0}
+          max={choices().length - 1}
+          step={1}
+          value={index()}
+          disabled={props.disabled}
+          class="relative m-0 h-9 w-full appearance-none rounded bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-edge-focus disabled:opacity-50 [&::-webkit-slider-runnable-track]:h-3 [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-0 [&::-webkit-slider-thumb]:appearance-none [&::-moz-range-track]:h-3 [&::-moz-range-track]:bg-transparent [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-0 [&::-moz-range-thumb]:border-0"
+          onInput={(event) => setPreview(Number(event.currentTarget.value))}
+          onChange={(event) => {
+            const choice = choices()[Number(event.currentTarget.value)];
+            if (!props.disabled && props.config && choice)
+              props.onChange({
+                configId: props.config.id,
+                value: choice.value,
+                name: choice.name,
+              });
+            setPreview(undefined);
+          }}
+        />
+      </div>
     </div>
   );
   return (
@@ -92,7 +110,7 @@ export function EffortSelector(props: {
           <Popover
             open={open()}
             onOpenChange={changeOpen}
-            placement="top-start"
+            placement="top"
             gutter={8}
           >
             <Tooltip label={`Effort: ${label()}`} disabled={open()}>
@@ -109,7 +127,7 @@ export function EffortSelector(props: {
             </Tooltip>
             <Popover.Portal>
               <Popover.Content
-                class="menu-surface z-modal w-72 max-w-[calc(100vw-2rem)] p-3"
+                class="menu-surface z-modal w-80 max-w-[calc(100vw-2rem)] p-3"
                 aria-label="Reasoning effort"
               >
                 {options()}
