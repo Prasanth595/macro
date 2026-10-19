@@ -21,25 +21,27 @@ export function EmailControls(props: EmailControlsProps) {
 
   return (
     <>
-      <ListHeaderGroup label="Email filters">
-        <EmailInboxMenu />
-        <div class="relative shrink-0">
-          <ListFilterDropdown
-            label="Filter email"
-            open={props.filterOpen}
-            onOpenChange={props.onFilterOpenChange}
-            groups={filters.groups()}
-            isSelected={filters.isSelected}
-            onSelectionChange={filters.setSelected}
-            onClear={filters.clear}
-          />
-          <Show when={filters.activeCount() > 0}>
-            <span class="pointer-events-none absolute -top-0.5 right-0 z-10 flex size-4 translate-x-1/2 not-touch:top-0.5 not-touch:right-0.5 not-touch:size-3.5 not-touch:translate-x-0 items-center justify-center rounded-full bg-accent text-xxs font-medium leading-none text-surface">
-              {filters.activeCount()}
-            </span>
-          </Show>
-        </div>
-      </ListHeaderGroup>
+      <div class="contents @max-[640px]/split-header:hidden">
+        <ListHeaderGroup label="Email filters">
+          <EmailInboxMenu />
+          <div class="relative shrink-0">
+            <ListFilterDropdown
+              label="Filter email"
+              open={props.filterOpen}
+              onOpenChange={props.onFilterOpenChange}
+              groups={filters.groups()}
+              isSelected={filters.isSelected}
+              onSelectionChange={filters.setSelected}
+              onClear={filters.clear}
+            />
+            <Show when={filters.activeCount() > 0}>
+              <span class="pointer-events-none absolute -top-0.5 right-0 z-10 flex size-4 translate-x-1/2 not-touch:top-0.5 not-touch:right-0.5 not-touch:size-3.5 not-touch:translate-x-0 items-center justify-center rounded-full bg-accent text-xxs font-medium leading-none text-surface">
+                {filters.activeCount()}
+              </span>
+            </Show>
+          </div>
+        </ListHeaderGroup>
+      </div>
       <ListHeaderGroup label="Email view options">
         <Show when={!isTouchDevice()}>
           <Button

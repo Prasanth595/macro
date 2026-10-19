@@ -134,13 +134,13 @@ export function EmailHeader(props: EmailHeaderProps) {
         </div>
       }
     >
+      <Show when={state.tab !== 'scheduled'}>
+        <EmailControls
+          filterOpen={filterOpen()}
+          onFilterOpenChange={setFilterOpen}
+        />
+      </Show>
       <div class="contents @max-[640px]/split-header:hidden">
-        <Show when={state.tab !== 'scheduled'}>
-          <EmailControls
-            filterOpen={filterOpen()}
-            onFilterOpenChange={setFilterOpen}
-          />
-        </Show>
         <ViewCreateButton
           aria-label="New email"
           onClick={() => composeEmail(openWithSplit, state.inboxIds)}

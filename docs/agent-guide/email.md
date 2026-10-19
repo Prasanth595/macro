@@ -712,8 +712,8 @@ section when the user can pick one: `All inboxes` or a single address, never sev
 `Clear all` resets those filters and the inbox selection. Desktop keeps its sidebar,
 single-row header: title (with Signal/Noise tabs beside Inbox), inbox/filter
 controls, reading-pane option, New, and an expandable Search icon. At 640px or
-narrower, the list header shows only Signal/Noise and Search; outside Inbox,
-the mailbox title replaces those tabs. Its outlined
+narrower, the list header shows Signal/Noise, the reading-pane toggle, and Search;
+outside Inbox, the mailbox title replaces those tabs. Its outlined
 `New` button also sits directly
 below the sidebar title, above a flat, outlined **Accounts** group with the same
 control background. Its selector shows
