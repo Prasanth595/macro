@@ -1,12 +1,5 @@
 import { WorkspaceDesktopDemo } from '../WorkspaceDesktopDemo';
 
 export function EmailDesktopDemo() {
-  return (
-    <WorkspaceDesktopDemo
-      heroFrame
-      view="email"
-      label="Try Macro Mail"
-      caption="Your inbox, in context. Click around — this workspace is yours to explore."
-    />
-  );
+  return <WorkspaceDesktopDemo heroFrame view="email" label="Try Macro Mail" />;
 }

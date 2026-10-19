@@ -275,7 +275,6 @@ html[data-palette='cream'] :is(
   .homepage-email-generating,
   .homepage-email-toolbar button,
   .homepage-email-sent,
-  .email-desktop-caption,
   .homepage-demo-carousel button,
   .homepage-demo-launch
 ) { color: var(--color-ink-muted); }

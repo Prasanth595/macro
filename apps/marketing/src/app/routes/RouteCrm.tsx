@@ -81,12 +81,7 @@ export function RouteCrm() {
         ]}
         cta="crm_hero_get_started"
       />
-      <WorkspaceDesktopDemo
-        heroFrame
-        view="crm"
-        label="Explore Macro CRM"
-        caption="A sample pipeline. Drag a company to a new stage or open its record."
-      />
+      <WorkspaceDesktopDemo heroFrame view="crm" label="Explore Macro CRM" />
       <nav
         class="feature-page-jump-links crm-feature-links"
         aria-label="On this page"

@@ -18,7 +18,6 @@ const Workspace = lazy(loadWorkspace);
 export function WorkspaceDesktopDemo(props: {
   view: WorkspaceView;
   label: string;
-  caption?: string;
   heroFrame?: boolean;
   /** Keep a desktop canvas intact inside a smaller marketing frame. */
   desktopWidth?: number;
@@ -124,9 +123,6 @@ export function WorkspaceDesktopDemo(props: {
           </DemoInteractionBoundary>
         </div>
       </div>
-      <Show when={props.caption}>
-        <p class="email-desktop-caption">{props.caption}</p>
-      </Show>
     </section>
   );
 }
