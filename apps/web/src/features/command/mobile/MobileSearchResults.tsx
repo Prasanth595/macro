@@ -234,6 +234,7 @@ function MobileFullTextResults(props: {
     !!search.error() && !isTransientRequestError(search.error());
   const panel = useSplitPanelOrThrow();
   const [container, setContainer] = createSignal<HTMLDivElement>();
+  const [layoutReady, setLayoutReady] = createSignal(false);
   const [scroll, setScroll] = useEntryState<SearchScrollState | undefined>(
     'mobileSearch.fullTextScroll',
     { default: undefined }
@@ -255,17 +256,35 @@ function MobileFullTextResults(props: {
   });
   // Page selection rematerializes entities; retain row identity as pages append.
   const rows = createSoupRowStore(results.items);
+  let restoreQueued = false;
   createEffect(
-    on([results.items, container, hasAuthoritativeError], () => {
+    on([results.items, container, layoutReady, hasAuthoritativeError], () => {
       if (hasAuthoritativeError()) restore = undefined;
       const list = container();
-      if (!restore || !list || results.items().length === 0) return;
-      if (restore.query !== state.query() || restore.category !== category()) {
-        restore = undefined;
+      if (
+        !restore ||
+        !list ||
+        !layoutReady() ||
+        !results.items().length ||
+        restoreQueued
+      )
         return;
-      }
-      list.scrollTop = restore.offset;
-      restore = undefined;
+      restoreQueued = true;
+      // ResizeObserver selects narrow/wide rows; let that DOM update commit
+      // before assigning an offset that the temporary wide layout could clamp.
+      queueMicrotask(() => {
+        restoreQueued = false;
+        if (!restore || !list.isConnected || list !== container()) return;
+        if (
+          restore.query !== state.query() ||
+          restore.category !== category()
+        ) {
+          restore = undefined;
+          return;
+        }
+        list.scrollTop = restore.offset;
+        restore = undefined;
+      });
     })
   );
   const loadMoreNearEnd = createSearchPagination({
@@ -314,10 +333,13 @@ function MobileFullTextResults(props: {
           });
         loadMoreNearEnd();
       }}
-      class="soup-list h-full overflow-y-auto overscroll-none mobile:pt-(--mobile-content-inset-top) mobile:pb-(--mobile-content-inset-bottom)"
+      class="soup-list h-full overflow-y-auto overscroll-none [overflow-anchor:none] mobile:pt-(--mobile-content-inset-top) mobile:pb-(--mobile-content-inset-bottom)"
     >
       <ListEntityMetadataQueryProvider>
-        <ListLayoutProvider ref={container}>
+        <ListLayoutProvider
+          ref={container}
+          onMeasured={() => setLayoutReady(true)}
+        >
           <StaticMarkdownContext>
             <For each={rows()}>
               {(entity) => (

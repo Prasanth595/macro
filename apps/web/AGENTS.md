@@ -88,7 +88,7 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Keep mobile search sessions, result order, loaded rows, and scroll state with their Search history entry; preserve order before opening a result so viewedAt updates cannot move it on Back. Refresh row data in place and append later pages. Scope saved rows and scroll measurements to their account and reset result adapters/scrollers on account changes. Query/category changes rerank; a fresh dock search starts a new session, including when reusing a native pane.
 - Keep Quick Access cache availability reactive to the GraphQL rollout flag; it can arrive after the provider mounts, and email has no legacy source fallback.
 - Virtualize mobile name results like desktop Command Menu; local Quick Access sources are unbounded, and mounting them all stalls iOS keyboard focus during layout. Load additional search pages near the scroll end instead of reserving a paging bar.
-- Reconcile mobile full-text rows by entity ID so appending a page preserves DOM rows and scroll position.
+- Reconcile mobile full-text rows by entity ID so appending a page preserves DOM rows and scroll position; restore after responsive row measurement and disable browser scroll anchoring so layout changes cannot override the saved history offset.
 - Reserve only the safe-area inset above mobile Search and Channels; their hidden split headers must not leave a blank strip or extend the top fade.
 - Show only the Recent conversation feed in mobile Channels, without view tabs or a persisted mobile tab selection.
 - Mount the mobile search input before focusing it inside the dock tap; keep navigation in that handler so focus does not trigger a second navigation or lose iOS keyboard activation.

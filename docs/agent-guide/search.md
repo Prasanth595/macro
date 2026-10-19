@@ -73,6 +73,11 @@ Repeat with a slow refresh: the saved rows and scroll should appear before it
 finishes, and its first page must not shrink a previously paginated list.
 If the viewport changes on return, scroll manually and confirm
 later pages preserve that new position instead of returning to the saved offset.
+In full-text mode, repeat Back several times from deep in a long result list;
+browser scroll anchoring must not move the viewport after the saved offset is
+restored. Restoration waits for responsive row measurement so the temporary wide
+layout cannot clamp a deep mobile offset. Check the same row remains at the same
+position while results reconcile, including the first return after a fresh search.
 Clear with whitespace and check category
 retention; select Projects from full-text mode and confirm it shows name results.
 Repeat opening with a large recent list: results are virtualized, so transferring

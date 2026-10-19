@@ -9,7 +9,7 @@ import {
   within,
 } from '@solidjs/testing-library';
 import { CombinedError } from '@urql/core';
-import { type Accessor, createSignal, Show } from 'solid-js';
+import { type Accessor, createSignal, onMount, Show } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { EntitySearchItem } from '../queries/entity-search';
 import { MobileSearchInput } from './MobileSearchInput';
@@ -32,6 +32,8 @@ const mocks = vi.hoisted(() => ({
   hasMore: true,
   loadingMore: false,
   viewportHeight: 400,
+  deferLayout: false,
+  measureLayout: () => {},
   fetchNextPage: vi.fn(),
   items: (() => []) as Accessor<EntitySearchItem[]>,
   loadingEntities: (() => false) as Accessor<boolean>,
@@ -113,8 +115,16 @@ vi.mock('@entity', () => ({
   ListEntityMetadataQueryProvider: (props: {
     children: import('solid-js').JSX.Element;
   }) => props.children,
-  ListLayoutProvider: (props: { children: import('solid-js').JSX.Element }) =>
-    props.children,
+  ListLayoutProvider: (props: {
+    children: import('solid-js').JSX.Element;
+    onMeasured?: () => void;
+  }) => {
+    mocks.measureLayout = () => props.onMeasured?.();
+    onMount(() => {
+      if (!mocks.deferLayout) mocks.measureLayout();
+    });
+    return props.children;
+  },
   ListEntity: (props: {
     entity: EntityData;
     onContentHitClick: (event: MouseEvent, location: SearchLocation) => void;
@@ -211,6 +221,7 @@ beforeEach(() => {
   mocks.hasMore = true;
   mocks.onOpen = () => {};
   mocks.viewportHeight = 400;
+  mocks.deferLayout = false;
   mocks.loadingMore = false;
   mocks.items = () => [];
   mocks.loadingEntities = () => false;
@@ -382,7 +393,7 @@ it('bounds mounted recent rows while keeping the first result usable', () => {
   expect(SearchState.isOpen()).toBe(false);
 });
 
-it('restores full-text order, query, category, mode and scroll after opening and remounting', () => {
+it('restores full-text order, query, category, mode and scroll after measuring remounted rows', async () => {
   const email: EntityData = {
     id: 'thread',
     type: 'email',
@@ -429,6 +440,7 @@ it('restores full-text order, query, category, mode and scroll after opening and
   mocks.setActive(true);
   setSettling(true);
   setItems([]);
+  mocks.deferLayout = true;
   render(() => (
     <>
       <MobileSearchInput />
@@ -445,7 +457,13 @@ it('restores full-text order, query, category, mode and scroll after opening and
     screen.getByRole('button', { name: 'Weekly update snippet' })
   ).toBeTruthy();
   expect(screen.getByRole('region', { name: 'Search results' }).scrollTop).toBe(
-    1280
+    0
+  );
+  mocks.measureLayout();
+  await waitFor(() =>
+    expect(
+      screen.getByRole('region', { name: 'Search results' }).scrollTop
+    ).toBe(1280)
   );
   setItems([email, other]);
   setSettling(false);
