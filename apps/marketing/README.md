@@ -61,8 +61,13 @@ Macro slab heading beside a plain-language explanation. Existing demos sit direc
 with a short explanation and example, grounded in the product pages. Kobalte
 owns focus trapping, Escape, outside dismissal, and scroll locking; closing
 returns focus to the opening button. The panel becomes full-width below 640px
-and respects reduced motion. Content lives in `core/homepage-feature-details.ts`. Email keeps its conversation beside the generated draft on desktop and above
-it below 960px. Other sections lead directly into their existing product demo. Below 768px, copy stacks above the visual, and below
+and respects reduced motion. Content lives in `core/homepage-feature-details.ts`. The demos reuse focused product-page views without a marketing toolbar or
+additional frame borders: `DocumentProjectDemo`, `AgentTeamworkStory`, and
+`CrmRecordDemo`, plus the existing spreadsheet. Email uses `WorkspaceChannel`
+and the app's `ComposerSurface` within an agent reply. Its one-time walkthrough
+reveals Julia's message, Jacob's request, then the draft. Playback waits for
+visibility and pauses offscreen; reduced motion and interaction reveal all
+messages, and user-added messages are preserved. Other sections lead directly into their existing product demo. Below 768px, copy stacks above the visual, and below
 421px the detail-button list becomes one column. Styles live in
 `components/homepage-feature-sections.css` and are scoped to the homepage.
 
@@ -141,7 +146,7 @@ Local preview data must not be presented as server-backed account state.
 The preview proceeds from integration selection directly to workspace setup;
 Back from workspace setup returns to integrations.
 
-The homepage document and version timeline share a single playhead. Verify that
+The legacy document and version timeline demo shares a single playhead. Verify that
 dragging the blue handle restores earlier and later edits, remains paused after
 release, and supports arrow keys/Home/End. Repeat with reduced motion, which
 starts finished but permits manual scrubbing. Below 768px the existing compact

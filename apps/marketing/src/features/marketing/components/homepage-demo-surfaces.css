@@ -1,0 +1,23 @@
+/* Reuse focused product-page views. No marketing toolbar or extra frame borders. */
+.homepage-native-demo .product-demo-stage { margin: 0; }
+.homepage-native-demo .product-demo-stage::before { display: none; }
+.homepage-native-demo .product-demo {
+  height: var(--demo-h, 660px);
+  overflow: hidden;
+  background: var(--color-panel);
+  border: 0;
+  border-radius: 12px;
+  box-shadow: none;
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+.homepage-inline-email-draft { width: min(680px, 100%); min-width: 0; margin-top: 12px; }
+.homepage-inline-email-draft .homepage-email-demo { --homepage-email-height: 440px; }
+.homepage-native-demo .homepage-spreadsheet { height: 520px; box-shadow: none; }
+.homepage-native-demo .crm-demo-frame { position: relative; }
+@media (max-width: 699px) {
+  .homepage-native-demo .product-demo { height: var(--demo-h-mobile, 660px); border-radius: 8px; }
+}
+.homepage-email-workspace [data-thread-id] { animation: homepage-native-message-in 180ms ease-out; }
+@keyframes homepage-native-message-in { from { opacity: 0; transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) { .homepage-email-workspace [data-thread-id] { animation: none; } }

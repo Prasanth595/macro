@@ -69,15 +69,4 @@
   .homepage-feature-detail-grid { grid-template-columns: 1fr; }
 }
 
-/* Email tells a cause-and-result story: the request beside the draft it produces. */
-.homepage-email-story { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.4fr); gap: 40px; align-items: center; }
-.homepage-email-story .homepage-conversation { width: 100%; max-width: none; margin: 0; font-size: 14px; gap: 24px; }
-.homepage-email-story .homepage-message { max-width: 100%; }
-.homepage-email-story-draft { min-width: 0; }
-@media (max-width: 959px) {
-  .homepage-email-story { grid-template-columns: 1fr; gap: 32px; }
-  .homepage-email-story .homepage-conversation { width: min(680px, 100%); margin-inline: auto; font-size: 15px; }
-  .homepage-email-story .homepage-message { max-width: 92%; }
-}
-
 .homepage-sections #email .homepage-feature-intro h2 { white-space: pre-line; }

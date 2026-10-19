@@ -5,13 +5,11 @@ import {
   homepageFeatureDetails,
 } from '../core/homepage-feature-details';
 import { DeferredDemo, DemoPlaceholder } from './DeferredDemo';
-import { DemoMention } from './DemoMention';
+import './homepage-demo-surfaces.css';
 import { HomepageAgentLogos } from './HomepageAgentLogos';
 import { HomepageBlog } from './HomepageBlog';
 import { HomepageClosing } from './HomepageClosing';
-import { HomepageConversation } from './HomepageConversation';
 import { HomepageFeatureDetails } from './HomepageFeatureDetails';
-import { HomepageMention } from './HomepageMention';
 import { HomepageOpenSource } from './HomepageOpenSource';
 import { HomepageSidebar } from './HomepageSidebar';
 import { HomepageTestimonials } from './HomepageTestimonials';
@@ -21,16 +19,26 @@ import './homepage-feature-sections.css';
 // Retain the standalone sidebar breakdown for future use.
 const SHOW_SIDEBAR_BREAKDOWN = false;
 
-const loadPullRequest = () => import('./HomepagePullRequest');
-const loadEmailCompose = () => import('./HomepageEmailCompose');
-const loadCollaborativeDoc = () => import('./HomepageCollaborativeDoc');
-const loadCrm = () => import('./HomepageCrm');
-const HomepageCrm = lazy(loadCrm);
+const loadAgentTeamwork = async () => ({
+  default: (await import('./agents/AgentWorkflowStories')).AgentTeamworkStory,
+});
+const loadEmailStory = async () => ({
+  default: (await import('./HomepageEmailStory')).HomepageEmailStory,
+});
+const HomepageEmailStory = lazy(loadEmailStory);
+const loadDocumentProject = async () => ({
+  default: (await import('./documents/DocumentProjectDemo'))
+    .DocumentProjectDemo,
+});
+const loadCrmRecord = async () => {
+  await import('./crm/crm-page.css');
+  return { default: (await import('./crm/CrmRecordDemo')).CrmRecordDemo };
+};
+const CrmRecordDemo = lazy(loadCrmRecord);
 const loadSpreadsheet = () => import('./HomepageSpreadsheet');
 
-const HomepagePullRequest = lazy(loadPullRequest);
-const HomepageEmailCompose = lazy(loadEmailCompose);
-const HomepageCollaborativeDoc = lazy(loadCollaborativeDoc);
+const AgentTeamworkStory = lazy(loadAgentTeamwork);
+const DocumentProjectDemo = lazy(loadDocumentProject);
 const HomepageSpreadsheet = lazy(loadSpreadsheet);
 
 const definitions =
@@ -67,7 +75,7 @@ function Feature(props: {
       </header>
       <div class="homepage-feature-visual">
         <div
-          class={`homepage-feature-graphic homepage-enter homepage-feature-${props.id}`}
+          class={`homepage-feature-graphic homepage-native-demo homepage-enter homepage-feature-${props.id}`}
         >
           {props.children}
         </div>
@@ -141,42 +149,14 @@ export function HomepageSections() {
           group="Email and chat"
           details={homepageFeatureDetails.email}
         >
-          <div class="homepage-email-story">
-            <HomepageConversation
-              messages={[
-                {
-                  person: 'julia',
-                  text: 'Can you send Valentina the demo follow-up?',
-                },
-                {
-                  person: 'jacob',
-                  text: (
-                    <>
-                      <DemoMention
-                        item={{ id: 'macro', label: 'Macro', kind: 'person' }}
-                      />{' '}
-                      draft Valentina’s follow-up from{' '}
-                      <HomepageMention
-                        kind="call"
-                        label="Demo call transcript"
-                        description="The customer call, including rollout questions and next steps."
-                        href="#email"
-                      />
-                      . Link the sales PDF and rollout plan. Cc Julia.
-                    </>
-                  ),
-                },
-              ]}
-            />
-            <div class="homepage-email-story-draft">
-              <DeferredDemo
-                preload={loadEmailCompose}
-                fallback={<DemoPlaceholder label="Email draft preview" />}
-              >
-                <HomepageEmailCompose />
-              </DeferredDemo>
-            </div>
-          </div>
+          <DeferredDemo
+            preload={loadEmailStory}
+            fallback={
+              <DemoPlaceholder label="Channel and email draft preview" />
+            }
+          >
+            <HomepageEmailStory />
+          </DeferredDemo>
         </Feature>
         <Feature
           id="documents"
@@ -188,12 +168,12 @@ export function HomepageSections() {
           <figure class="homepage-doc-history" id="tasks">
             <div id="version-control">
               <DeferredDemo
-                preload={loadCollaborativeDoc}
+                preload={loadDocumentProject}
                 fallback={
-                  <DemoPlaceholder label="Collaborative document, tasks, and version history preview" />
+                  <DemoPlaceholder label="Collaborative document and linked tasks preview" />
                 }
               >
-                <HomepageCollaborativeDoc />
+                <DocumentProjectDemo />
               </DeferredDemo>
             </div>
           </figure>
@@ -207,10 +187,10 @@ export function HomepageSections() {
           details={homepageFeatureDetails.agents}
         >
           <DeferredDemo
-            preload={loadPullRequest}
+            preload={loadAgentTeamwork}
             fallback={<DemoPlaceholder label="Agent session preview" />}
           >
-            <HomepagePullRequest />
+            <AgentTeamworkStory />
           </DeferredDemo>
         </Feature>
         <Feature
@@ -235,10 +215,10 @@ export function HomepageSections() {
           details={homepageFeatureDetails.crm}
         >
           <DeferredDemo
-            preload={loadCrm}
+            preload={loadCrmRecord}
             fallback={<DemoPlaceholder label="CRM pipeline preview" />}
           >
-            <HomepageCrm />
+            <CrmRecordDemo />
           </DeferredDemo>
         </Feature>
         <HomepageTestimonials />
