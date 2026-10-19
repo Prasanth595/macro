@@ -18,7 +18,9 @@ Slab display copy uses warm near-black (`#1d1c1a`) in the cream palette.
 Public calls to action use the shared `site-nav-start` treatment: warm white,
 soft pill corners, a fine border, and a 2px arrow shift on hover. `Talk to us` is a
 soft grey secondary action; the header's `Open app` is a quiet text action
-without an arrow.
+without an arrow. As it lands in the footer, the same link reveals the
+original wider white pill, glass rim, and arrow. It follows the existing scroll
+animation and fits within phone widths.
 The homepage primary adds a subtle satin gradient and inset edge, a quieter
 18px arrow, and a 1px hover lift; it remains a single link.
 Feedback uses 140ms CSS transitions, respects reduced motion, and does not
