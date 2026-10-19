@@ -150,7 +150,7 @@ html[data-palette='cream'] .homepage-crm .mdf-frame::before {
 }
 html[data-palette='cream'] .homepage-embedded-wallpaper { background: #e9e5dd; border-color: #1d1c1a0a; }
 html[data-palette='cream'] .homepage-embedded-wallpaper::after { background: radial-gradient(ellipse at 30% 0, #f6f4ee, #ddd9d1); opacity: 1; filter: none; }
-html[data-palette='cream'] .homepage-embedded-stage::after { background: linear-gradient(to bottom, transparent, #e9e5dd55 70%, #e9e5dd99); }
+html[data-palette='cream'] .homepage-embedded-stage::after { background: linear-gradient(to top, transparent, #f5f1e855 35%, #f5f1e8bb 65%, #f5f1e8 96%); }
 html[data-palette='cream'] .homepage-demo-slide-copy h2 { color: var(--color-ink); }
 
 /* ---- Chat bubbles ------------------------------------------------------
