@@ -1,11 +1,16 @@
-import { For, type JSX, lazy, onCleanup, onMount, Show } from 'solid-js';
+import { type JSX, lazy, onCleanup, onMount, Show } from 'solid-js';
 import siteStyles from '../../../app/main/index.css?inline';
+import {
+  type HomepageFeatureDetail,
+  homepageFeatureDetails,
+} from '../core/homepage-feature-details';
 import { DeferredDemo, DemoPlaceholder } from './DeferredDemo';
 import { DemoMention } from './DemoMention';
 import { HomepageAgentLogos } from './HomepageAgentLogos';
 import { HomepageBlog } from './HomepageBlog';
 import { HomepageClosing } from './HomepageClosing';
 import { HomepageConversation } from './HomepageConversation';
+import { HomepageFeatureDetails } from './HomepageFeatureDetails';
 import { HomepageMention } from './HomepageMention';
 import { HomepageOpenSource } from './HomepageOpenSource';
 import { HomepageSidebar } from './HomepageSidebar';
@@ -38,7 +43,8 @@ function Feature(props: {
   id: string;
   title: string;
   description: string;
-  details: readonly { title: string; text: string }[];
+  group: string;
+  details: readonly HomepageFeatureDetail[];
   titleAdornment?: JSX.Element;
   children: JSX.Element;
 }) {
@@ -66,22 +72,7 @@ function Feature(props: {
           {props.children}
         </div>
       </div>
-      <div class="homepage-feature-details workspace-demo">
-        <p>What you can do</p>
-        <div class="homepage-feature-detail-grid">
-          <For each={props.details}>
-            {(detail) => (
-              <details>
-                <summary>
-                  {detail.title}
-                  <span aria-hidden="true">+</span>
-                </summary>
-                <p>{detail.text}</p>
-              </details>
-            )}
-          </For>
-        </div>
-      </div>
+      <HomepageFeatureDetails group={props.group} details={props.details} />
     </section>
   );
 }
@@ -147,24 +138,8 @@ export function HomepageSections() {
           id="email"
           title={'From chat\nto email draft.'}
           description="Discuss an email with your team, then ask Macro to draft the reply using the calls and documents already in your workspace."
-          details={[
-            {
-              title: 'Share an email in chat',
-              text: 'Bring the live thread into a channel so your team can read the context and help with the reply.',
-            },
-            {
-              title: 'Draft from your work',
-              text: 'Ask Macro to use a call, document, or conversation when writing a follow-up.',
-            },
-            {
-              title: 'Keep replies together',
-              text: 'Discuss the details in a thread instead of losing them in the channel.',
-            },
-            {
-              title: 'Find the context',
-              text: 'Follow a mention to the email, document, or task behind the conversation.',
-            },
-          ]}
+          group="Email and chat"
+          details={homepageFeatureDetails.email}
         >
           <div class="homepage-email-story">
             <HomepageConversation
@@ -207,24 +182,8 @@ export function HomepageSections() {
           id="documents"
           title="Make the plan. Move it forward."
           description="Write together, turn decisions into tasks, and keep every next step connected to the plan. Your team and your agents work in the same document."
-          details={[
-            {
-              title: 'Write together',
-              text: 'See edits from teammates and agents as they happen, without passing copies around.',
-            },
-            {
-              title: 'Turn decisions into tasks',
-              text: 'Create a task from the conversation and link it to the document that explains the work.',
-            },
-            {
-              title: 'Keep track of changes',
-              text: 'Follow the document’s history to see how the plan evolved.',
-            },
-            {
-              title: 'Give every task an owner',
-              text: 'Set an assignee, priority, and status so everyone knows what happens next.',
-            },
-          ]}
+          group="Documents and tasks"
+          details={homepageFeatureDetails.documents}
         >
           <figure class="homepage-doc-history" id="tasks">
             <div id="version-control">
@@ -244,24 +203,8 @@ export function HomepageSections() {
           title="Bring your agents into the team."
           titleAdornment={<HomepageAgentLogos />}
           description="Ask an agent to pick up a task, follow its progress, and review the changes together. Use the coding subscriptions you already have."
-          details={[
-            {
-              title: 'Start from a conversation',
-              text: 'Give an agent the task where your team is already discussing it.',
-            },
-            {
-              title: 'Follow the work',
-              text: 'Open the session to see the agent’s progress and the tools it used.',
-            },
-            {
-              title: 'Review the changes',
-              text: 'Read the diff and discuss it before the work is merged.',
-            },
-            {
-              title: 'Keep the result connected',
-              text: 'Follow the pull request back to the task and conversation that started it.',
-            },
-          ]}
+          group="Coding agents"
+          details={homepageFeatureDetails.agents}
         >
           <DeferredDemo
             preload={loadPullRequest}
@@ -274,24 +217,8 @@ export function HomepageSections() {
           id="spreadsheet"
           title="Turn shared data into the next step."
           description="Work together in spreadsheets and databases. Ask an agent to find what matters and build a list your team can act on."
-          details={[
-            {
-              title: 'Work in the same sheet',
-              text: 'Keep the team’s data in one place and collaborate as it changes.',
-            },
-            {
-              title: 'Bring your data along',
-              text: 'Import existing spreadsheets and databases instead of starting from scratch.',
-            },
-            {
-              title: 'Ask an agent to help',
-              text: 'Have an agent gather information and update the sheet alongside your team.',
-            },
-            {
-              title: 'Connect data to the work',
-              text: 'Link the list to the conversations, customers, and tasks it supports.',
-            },
-          ]}
+          group="Sheets and databases"
+          details={homepageFeatureDetails.spreadsheet}
         >
           <DeferredDemo
             preload={loadSpreadsheet}
@@ -304,24 +231,8 @@ export function HomepageSections() {
           id="crm"
           title="Keep the whole customer story."
           description="See the conversations, calls, documents, and next steps behind each deal. Keep the pipeline current from the work you’re already doing."
-          details={[
-            {
-              title: 'Start with your email',
-              text: 'Companies and contacts are created from the people your team emails.',
-            },
-            {
-              title: 'See the full relationship',
-              text: 'Open a company to find its conversations, calls, files, and team discussion.',
-            },
-            {
-              title: 'Keep the pipeline current',
-              text: 'Move deals through stages yourself or ask an agent to update them from a sales conversation.',
-            },
-            {
-              title: 'Follow up with context',
-              text: 'Draft the next message using the call notes and documents already linked to the customer.',
-            },
-          ]}
+          group="CRM"
+          details={homepageFeatureDetails.crm}
         >
           <DeferredDemo
             preload={loadCrm}

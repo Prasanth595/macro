@@ -57,10 +57,13 @@ Demo copy is illustrative, informed by the team's website feedback, rather
 than a publication of private messages.
 
 The five homepage feature sections use a shared two-column introduction: a
-Macro slab heading beside a plain-language explanation. Existing demos sit directly below, followed by four native
-`details` disclosures. Email keeps its conversation beside the generated draft on desktop and above
+Macro slab heading beside a plain-language explanation. Existing demos sit directly below, followed by four detail buttons. Each opens a right-hand modal panel
+with a short explanation and example, grounded in the product pages. Kobalte
+owns focus trapping, Escape, outside dismissal, and scroll locking; closing
+returns focus to the opening button. The panel becomes full-width below 640px
+and respects reduced motion. Content lives in `core/homepage-feature-details.ts`. Email keeps its conversation beside the generated draft on desktop and above
 it below 960px. Other sections lead directly into their existing product demo. Below 768px, copy stacks above the visual, and below
-421px the detail list becomes one column. Styles live in
+421px the detail-button list becomes one column. Styles live in
 `components/homepage-feature-sections.css` and are scoped to the homepage.
 
 ## Ownership and dependency boundary
