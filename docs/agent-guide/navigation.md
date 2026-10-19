@@ -311,7 +311,7 @@ its existing navigation controls. Block detail panels (including Calendar) have
 the main title when hidden, with separate preferences per block type.
 
 Desktop splits, including a single split in the browser or native app, appear as
-individually bordered, medium-rounded panels with 6px top, right, and bottom
+individually bordered panels with 8px corners and 6px top, right, and bottom
 insets and 6px resizable gaps. The leftmost panel sits flush against the app rail,
 which has no right divider. Touch layouts keep their existing presentation.
 
