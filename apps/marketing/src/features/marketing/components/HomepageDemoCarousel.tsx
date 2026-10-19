@@ -6,7 +6,7 @@ const SLIDES = [
   {
     label: 'Inbox',
     target: 'Home',
-    title: 'Catch up on all your work.',
+    title: 'See what’s happening across your workspace.',
   },
   {
     label: 'Chat',
@@ -16,12 +16,12 @@ const SLIDES = [
   {
     label: 'Docs',
     target: 'Drive',
-    title: 'Write together, in the same document.',
+    title: 'Write, edit, and discuss in one place.',
   },
   {
     label: 'CRM',
     target: 'Customers',
-    title: 'Move deals forward with the full picture.',
+    title: 'See every deal and the work behind it.',
   },
   {
     label: 'Tasks',
@@ -31,7 +31,7 @@ const SLIDES = [
   {
     label: 'Agents',
     target: 'Agents',
-    title: 'Let agents turn your sources into useful work.',
+    title: 'Put agents to work with your company’s context.',
   },
 ];
 

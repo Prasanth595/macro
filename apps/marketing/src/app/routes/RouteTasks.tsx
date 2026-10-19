@@ -90,7 +90,7 @@ export function RouteTasks() {
           cta="tasks_hero_get_started"
           product="Tasks"
           title={['Task tracking without', 'the busywork.']}
-          description="What task tracking was meant to be."
+          description="Connect your tasks to the work."
         />
         <TaskHeroDemo />
         <section
