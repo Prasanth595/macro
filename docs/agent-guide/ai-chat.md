@@ -477,7 +477,7 @@ the shimmer.
   provider icons, search, **Suggested** first, and **More models** for the
   complete provider catalog. Desktop opens a submenu; phone widths show
   the catalog in place with a Back action. Search includes every model.
-- A compact **speedometer-style effort** button with a simple arc and needle beside the model selector opens a wide segmented slider with a circular marker at the right edge of the selected segment from lower to higher effort, showing only the current level: a popover centered below the button on desktop, or its own bottom sheet on mobile. Mobile shows it alongside the model control after the input expands. It is hidden when the model has fewer than two effort choices.
+- A compact **speedometer-style effort** button with a simple arc and needle beside the model selector opens a wide segmented slider with half as many visual segments as effort levels (rounded up) and a circular marker for the selected level from lower to higher effort, showing only the current level: a popover centered below the button on desktop, or its own bottom sheet on mobile. Mobile shows it alongside the model control after the input expands. It is hidden when the model has fewer than two effort choices.
   Model-specific effort choices remain available in model submenus.
   Free and Pro users start new conversations at the lowest advertised level,
   unless they explicitly choose another. Existing sessions keep their current setting.

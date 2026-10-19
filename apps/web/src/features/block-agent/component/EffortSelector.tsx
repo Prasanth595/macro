@@ -32,6 +32,8 @@ export function EffortSelector(props: {
       0,
       choices().findIndex((choice) => choice.value === value())
     );
+  const segments = () =>
+    Array.from({ length: Math.ceil(choices().length / 2) });
   const label = () => choices()[index()]?.name ?? 'Default';
   const angle = () => {
     return -70 + (index() / Math.max(1, choices().length - 1)) * 140;
@@ -66,15 +68,16 @@ export function EffortSelector(props: {
           class="pointer-events-none absolute inset-x-0 top-3 flex h-3 gap-1"
           aria-hidden="true"
         >
-          <For each={choices()}>
+          <For each={segments()}>
             {(_, position) => (
-              <span
-                class="flex-1 rounded-[5px] transition-colors duration-100"
-                classList={{
-                  'bg-ink/70': position() <= index(),
-                  'bg-ink/15': position() > index(),
-                }}
-              />
+              <span class="relative flex-1 overflow-hidden rounded-[5px] bg-ink/15">
+                <span
+                  class="absolute inset-y-0 left-0 bg-ink/70"
+                  style={{
+                    width: `${Math.max(0, Math.min(1, ((index() + 1) / choices().length) * segments().length - position())) * 100}%`,
+                  }}
+                />
+              </span>
             )}
           </For>
         </div>
