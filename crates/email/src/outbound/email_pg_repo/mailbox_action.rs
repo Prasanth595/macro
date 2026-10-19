@@ -9,7 +9,7 @@ pub(super) async fn messages(
     thread_id: Uuid,
 ) -> Result<Vec<MailboxActionMessage>, sqlx::Error> {
     sqlx::query_as!(MailboxActionMessage, r#"
-        SELECT m.id,m.provider_id,m.is_draft,m.is_sent,
+        SELECT m.id,m.provider_id,m.is_draft,m.is_sent,m.is_read,
             f.in_inbox AS "in_inbox!", f.in_trash AS "in_trash!", f.in_junk AS "in_junk!", f.is_present AS "is_present!"
         FROM email_messages m JOIN email_message_mailbox_facts f ON f.id = m.id
         WHERE m.link_id = $1 AND m.thread_id = $2 ORDER BY m.id

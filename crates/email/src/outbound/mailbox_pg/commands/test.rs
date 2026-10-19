@@ -98,6 +98,10 @@ async fn newer_intent_survives_sync_and_ack_of_an_older_command(db: PgPool) {
         false,
         "observed provider state stays separate"
     );
+    let messages = repo
+        .mailbox_action_messages(work.mailbox.link_id, thread)
+        .await
+        .unwrap();
     let second = repo
         .enqueue_mailbox_action(
             work.mailbox.link_id,
@@ -332,6 +336,10 @@ async fn unknown_write_is_confirmed_before_retry_and_revoked_access_stops_execut
         .unwrap(),
         "succeeded"
     );
+    let messages = repo
+        .mailbox_action_messages(work.mailbox.link_id, thread)
+        .await
+        .unwrap();
     let next = repo
         .enqueue_mailbox_action(
             work.mailbox.link_id,
@@ -509,6 +517,10 @@ async fn acceptance_order_wins_over_transaction_start_order(db: PgPool) {
         )
         .await
         .unwrap();
+    let messages = repo
+        .mailbox_action_messages(work.mailbox.link_id, thread)
+        .await
+        .unwrap();
     let second = repo
         .enqueue_mailbox_action(
             work.mailbox.link_id,
@@ -549,3 +561,22 @@ async fn acceptance_order_wins_over_transaction_start_order(db: PgPool) {
         .unwrap();
     assert_eq!(operations[0].id, second);
 }
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn reopening_a_read_thread_queues_no_command(db: PgPool) {
+    let (_, repo, work, thread) = setup(&db).await;
+    let link = work.mailbox.link_id;
+    let messages = repo.mailbox_action_messages(link, thread).await.unwrap();
+    repo.enqueue_mailbox_action(
+        link,
+        owner(),
+        &MailboxAction::Read(true),
+        &MailboxAction::Read(true).targets(&messages),
+    )
+    .await
+    .unwrap();
+    let messages = repo.mailbox_action_messages(link, thread).await.unwrap();
+    assert!(messages[0].is_read, "the accepted intent is the read state");
+    assert!(MailboxAction::Read(true).targets(&messages).is_empty());
+}
+
