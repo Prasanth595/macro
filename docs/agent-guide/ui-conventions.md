@@ -19,6 +19,12 @@ to enable glass on all devices, or `glass={false}` to disable it everywhere.
 Embedded and low-emphasis actions use `ghost`; inline calendar-invitation text
 actions remove the transparent border to keep their text alignment.
 
+## Scrolling content
+
+Desktop Email, Drive, and Tasks lists and email threads use a linear 38px top
+fade as content scrolls beneath the header. The fade grows with the scroll
+offset and clears at the top; it does not blur content or change mobile fades.
+
 ## Dialog actions
 
 Cancel uses a ghost button. Confirm, save, and create actions use strong: the
