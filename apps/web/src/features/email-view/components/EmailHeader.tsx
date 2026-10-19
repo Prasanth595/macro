@@ -112,6 +112,7 @@ export function EmailHeader(props: EmailHeaderProps) {
             <Tabs
               ref={tourTarget(EMAIL_TOUR.signalNoise)}
               aria-label="Inbox view"
+              variant={isTouchDevice() ? 'pill' : 'segmented'}
               class="shrink-0"
               labelClass="px-3"
               list={EMAIL_TABS.slice(0, 2).map((tab) => ({
