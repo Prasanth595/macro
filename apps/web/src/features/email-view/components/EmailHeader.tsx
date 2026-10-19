@@ -98,7 +98,13 @@ export function EmailHeader(props: EmailHeaderProps) {
     <ListHeader
       title={
         <div class="flex min-w-0 items-center gap-3">
-          <div class="min-w-0">
+          <div
+            class={
+              inboxSelected()
+                ? 'min-w-0 @max-[640px]/split-header:hidden'
+                : 'min-w-0'
+            }
+          >
             <Show
               when={props.tabOnly}
               fallback={<ViewBreadcrumbs.Outlet aria-label="Email location" />}
@@ -128,16 +134,18 @@ export function EmailHeader(props: EmailHeaderProps) {
         </div>
       }
     >
-      <Show when={state.tab !== 'scheduled'}>
-        <EmailControls
-          filterOpen={filterOpen()}
-          onFilterOpenChange={setFilterOpen}
+      <div class="contents @max-[640px]/split-header:hidden">
+        <Show when={state.tab !== 'scheduled'}>
+          <EmailControls
+            filterOpen={filterOpen()}
+            onFilterOpenChange={setFilterOpen}
+          />
+        </Show>
+        <ViewCreateButton
+          aria-label="New email"
+          onClick={() => composeEmail(openWithSplit, state.inboxIds)}
         />
-      </Show>
-      <ViewCreateButton
-        aria-label="New email"
-        onClick={() => composeEmail(openWithSplit, state.inboxIds)}
-      />
+      </div>
       <Show when={state.tab !== 'reminders' && state.tab !== 'scheduled'}>
         <ListHeaderSearch
           ref={searchTarget}
