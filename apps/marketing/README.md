@@ -57,9 +57,10 @@ Demo copy is illustrative, informed by the team's website feedback, rather
 than a publication of private messages.
 
 The homepage feature sections retain the centered headings, conversations,
-and demos from before the two-column layout experiment. Email, Docs, Agents,
-and CRM each have one Learn more button that opens the existing product route
-in a 420px drawer. Sheets has no dedicated product page, so it has no extra link.
+and demos from before the two-column layout experiment. Large Learn more buttons open the existing product pages. Email and Chat have
+separate buttons, as do Documents and Tasks. Agents and CRM each have one.
+The panel uses 55% of desktop width (at least 760px, bounded by the viewport),
+with a floating close control and no extra title bar. Sheets has no dedicated product page, so it has no extra link.
 The drawer uses an iframe with `embed=feature`; product pages hide duplicate site
 navigation, closing CTA, and the viewport vignette only when embedded this way.
 Normal product routes are unchanged. Escape in the embedded page closes the

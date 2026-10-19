@@ -1,14 +1,21 @@
 import { Dialog } from '@kobalte/core/dialog';
-import ArrowUpRight from '@phosphor/arrow-up-right.svg';
 import X from '@phosphor/x.svg';
 import { createSignal, onCleanup } from 'solid-js';
 import { createSitePalette } from '../../setup/sitePalette';
 import './homepage-feature-details.css';
 
+export type ProductPagePath =
+  | '/email'
+  | '/channels'
+  | '/documents'
+  | '/tasks'
+  | '/agents'
+  | '/crm';
+
 /** Keep the homepage in place while the existing product page opens beside it. */
 export function HomepageFeatureDetails(props: {
   title: string;
-  path: '/email' | '/documents' | '/agents' | '/crm';
+  path: ProductPagePath;
 }) {
   const palette = createSitePalette();
   const [open, setOpen] = createSignal(false);
@@ -62,7 +69,8 @@ export function HomepageFeatureDetails(props: {
           aria-label={`Learn more about ${props.title.toLowerCase()}`}
           onClick={() => changeOpen(true)}
         >
-          Learn more<span aria-hidden="true">+</span>
+          Learn more about {props.title.toLowerCase()}
+          <span aria-hidden="true">+</span>
         </button>
       </div>
       <Dialog open={open()} onOpenChange={changeOpen} modal>
@@ -79,24 +87,14 @@ export function HomepageFeatureDetails(props: {
               if (opener?.isConnected) opener.focus();
             }}
           >
-            <header>
-              <Dialog.Title>{props.title}</Dialog.Title>
-              <a
-                href={props.path}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={`Open ${props.title.toLowerCase()} page in a new tab`}
-                title="Open full page"
-              >
-                <ArrowUpRight aria-hidden="true" />
-              </a>
-              <Dialog.CloseButton
-                ref={closeButton}
-                aria-label="Close product page"
-              >
-                <X aria-hidden="true" />
-              </Dialog.CloseButton>
-            </header>
+            <Dialog.Title class="sr-only">{props.title}</Dialog.Title>
+            <Dialog.CloseButton
+              class="homepage-detail-close"
+              ref={closeButton}
+              aria-label="Close product page"
+            >
+              <X aria-hidden="true" />
+            </Dialog.CloseButton>
             <Dialog.Description class="sr-only">
               Read the {props.title.toLowerCase()} product page without leaving
               the homepage.

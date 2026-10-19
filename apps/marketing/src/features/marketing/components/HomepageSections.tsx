@@ -1,4 +1,12 @@
-import { createMemo, type JSX, lazy, onCleanup, onMount, Show } from 'solid-js';
+import {
+  createMemo,
+  For,
+  type JSX,
+  lazy,
+  onCleanup,
+  onMount,
+  Show,
+} from 'solid-js';
 import siteStyles from '../../../app/main/index.css?inline';
 import { DeferredDemo, DemoPlaceholder } from './DeferredDemo';
 import { DemoMention } from './DemoMention';
@@ -9,7 +17,10 @@ import {
   HomepageConversation,
   type HomepageMessage,
 } from './HomepageConversation';
-import { HomepageFeatureDetails } from './HomepageFeatureDetails';
+import {
+  HomepageFeatureDetails,
+  type ProductPagePath,
+} from './HomepageFeatureDetails';
 import { HomepageFeatureHeading } from './HomepageFeatureHeading';
 import { HomepageMention } from './HomepageMention';
 import { HomepageOpenSource } from './HomepageOpenSource';
@@ -60,7 +71,7 @@ function Feature(props: {
   id: string;
   title: string;
   description: string;
-  productPage?: '/email' | '/documents' | '/agents' | '/crm';
+  productPages?: readonly { title: string; path: ProductPagePath }[];
   titleAdornment?: JSX.Element;
   messages?: readonly HomepageMessage[];
   children: JSX.Element;
@@ -89,8 +100,16 @@ function Feature(props: {
           {props.children}
         </div>
       </div>
-      <Show when={props.productPage}>
-        {(path) => <HomepageFeatureDetails title={props.title} path={path()} />}
+      <Show when={props.productPages}>
+        {(pages) => (
+          <div class="homepage-feature-more-group">
+            <For each={pages()}>
+              {(page) => (
+                <HomepageFeatureDetails title={page.title} path={page.path} />
+              )}
+            </For>
+          </div>
+        )}
       </Show>
     </section>
   );
@@ -155,7 +174,10 @@ export function HomepageSections() {
         </HomepageOpenSource>
         <Feature
           id="email"
-          productPage="/email"
+          productPages={[
+            { title: 'Email', path: '/email' },
+            { title: 'Chat', path: '/channels' },
+          ]}
           title="Email and chat"
           description="Bring email into chat. Ask Macro to draft replies from your calls and docs."
           messages={[
@@ -192,7 +214,10 @@ export function HomepageSections() {
         </Feature>
         <Feature
           id="documents"
-          productPage="/documents"
+          productPages={[
+            { title: 'Documents', path: '/documents' },
+            { title: 'Tasks', path: '/tasks' },
+          ]}
           title="Documents and tasks"
           description="CRDT documents with live agent edits. Create tasks from messages and link them to the specification."
           messages={[
@@ -227,7 +252,7 @@ export function HomepageSections() {
         </Feature>
         <Feature
           id="coding-agents"
-          productPage="/agents"
+          productPages={[{ title: 'Agents', path: '/agents' }]}
           title="Coding agents"
           titleAdornment={<HomepageAgentLogos />}
           description="Use your coding agent subscriptions in channels. Read the diff and follow the task through to a pull request."
@@ -264,7 +289,7 @@ export function HomepageSections() {
         </Feature>
         <Feature
           id="crm"
-          productPage="/crm"
+          productPages={[{ title: 'CRM', path: '/crm' }]}
           title="Sales and marketing"
           description="Companies and contacts created from email. Agents update deal stages and draft customer follow-ups."
           messages={[

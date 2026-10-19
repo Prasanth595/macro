@@ -23,21 +23,14 @@ afterEach(() => {
 });
 
 it('opens the actual product page and restores focus when closed', async () => {
-  render(() => <HomepageFeatureDetails title="Email and chat" path="/email" />);
+  render(() => <HomepageFeatureDetails title="Email" path="/email" />);
   const opener = screen.getByRole('button', {
-    name: 'Learn more about email and chat',
+    name: 'Learn more about email',
   });
   fireEvent.click(opener);
-  expect(
-    await screen.findByRole('dialog', { name: 'Email and chat' })
-  ).toBeTruthy();
-  const frame = screen.getByTitle('Email and chat product page');
+  expect(await screen.findByRole('dialog', { name: 'Email' })).toBeTruthy();
+  const frame = screen.getByTitle('Email product page');
   expect(frame.getAttribute('src')).toBe('/email?embed=feature&theme=dark');
-  expect(
-    screen
-      .getByRole('link', { name: 'Open email and chat page in a new tab' })
-      .getAttribute('href')
-  ).toBe('/email');
   fireEvent.load(frame);
   expect(screen.queryByRole('status')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Close product page' }));
@@ -62,4 +55,27 @@ it('handles Escape from the embedded page without stealing a nested dialog’s E
   page.body.innerHTML = '';
   fireEvent.keyDown(page.body, { key: 'Escape' });
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+});
+
+it('opens Email and Chat as separate product pages', async () => {
+  render(() => (
+    <>
+      <HomepageFeatureDetails title="Email" path="/email" />
+      <HomepageFeatureDetails title="Chat" path="/channels" />
+    </>
+  ));
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Learn more about email' })
+  );
+  expect(
+    (await screen.findByTitle('Email product page')).getAttribute('src')
+  ).toBe('/email?embed=feature&theme=dark');
+  fireEvent.click(screen.getByRole('button', { name: 'Close product page' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Learn more about chat' })
+  );
+  expect(
+    (await screen.findByTitle('Chat product page')).getAttribute('src')
+  ).toBe('/channels?embed=feature&theme=dark');
 });
