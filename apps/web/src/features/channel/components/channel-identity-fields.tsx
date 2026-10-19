@@ -34,7 +34,7 @@ export function ChannelIdentityFields(props: {
         props.onCancel();
       }}
     >
-      <div class="flex items-center gap-5 mobile:flex-col mobile:gap-4">
+      <div class="flex items-center gap-5 max-sm:flex-col max-sm:gap-4">
         <Button
           type="button"
           variant="ghost"
@@ -64,14 +64,14 @@ export function ChannelIdentityFields(props: {
             </span>
           </Show>
         </Button>
-        <div class="flex min-w-0 flex-1 flex-col items-start gap-3 mobile:w-full mobile:items-center">
+        <div class="flex min-w-0 flex-1 flex-col items-start gap-3 max-sm:w-full max-sm:items-center">
           <Show when={props.canEdit}>
-            <div class="flex items-center gap-2 mobile:grid mobile:w-full mobile:grid-cols-2">
+            <div class="flex items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="lg"
-                class="touch:min-h-11 mobile:px-2"
+                class="touch:min-h-11 max-sm:gap-1 max-sm:px-1.5 max-sm:text-sm"
                 disabled={props.pending || props.pictureLoading}
                 onClick={props.onPickPicture}
               >
@@ -82,7 +82,7 @@ export function ChannelIdentityFields(props: {
                 type="button"
                 variant="ghost"
                 size="lg"
-                class="text-failure not-touch:not-disabled:hover:text-failure touch:min-h-11 mobile:px-2"
+                class="text-failure not-touch:not-disabled:hover:text-failure touch:min-h-11 max-sm:gap-1 max-sm:px-1.5 max-sm:text-sm"
                 disabled={
                   props.pending || props.pictureLoading || !props.pictureUrl
                 }
@@ -92,7 +92,7 @@ export function ChannelIdentityFields(props: {
                 Clear image
               </Button>
             </div>
-            <p class="text-xs text-ink-muted mobile:text-center">
+            <p class="text-xs text-ink-muted max-sm:text-center">
               PNG, JPG, WebP or GIF up to 16 MB
             </p>
           </Show>

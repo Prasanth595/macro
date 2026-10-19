@@ -1227,10 +1227,12 @@ topbar to open the `Edit channel` dialog. Hovering or focusing the title does no
 open an editor. The roomier dialog loads on demand. It shows a larger circular
 picture with an upload-icon overlay on image hover or keyboard focus when editing
 is allowed (always visible on touch devices). Secondary `Change image` and
-destructive ghost `Clear image` buttons sit side by side beside the picture on
-desktop, or side by side below it on phones. Supported file types and size appear
-beneath the actions; image filenames are not shown. A channel-name input follows
-the picture controls. Both footer actions have larger touch-friendly targets.
+destructive ghost `Clear image` buttons stay side by side, beside the picture on
+wide screens or below it on narrow screens (including narrow desktop windows).
+Their labels stay on one line without clipping at 320px, with or without touch.
+Supported file types and size appear beneath the actions; image filenames are
+not shown. A channel-name input follows the picture controls. Both footer actions
+have larger touch-friendly targets.
 
 Clicking the picture or `Change image` opens the file chooser. PNG, JPG, WebP,
 and GIF files up to 16 MB are supported. Selecting a still image slides to a crop
