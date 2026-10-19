@@ -5,7 +5,6 @@ import {
   useViewControlHotkeys,
   ViewSidebar,
 } from '@app/components/view-shell';
-import { SidebarCreateButton } from '@app/components/view-shell/SidebarCreateButton';
 import { changeSessionArchiveState } from '@app/features/block-agent/queries/change-session-archive-state';
 import {
   type EntityActionListState,
@@ -80,7 +79,6 @@ export type AgentsSidebarProps = Omit<
   error: boolean;
   hasNextPage: boolean;
   loadingNextPage: boolean;
-  onNewConversation: () => void;
   onSearchChange: (search: string) => void;
   onOpenConversation: (
     conversation: AgentConversationEntity,
@@ -274,16 +272,6 @@ export function AgentsSidebar(props: AgentsSidebarProps) {
               <ViewSidebar.Title>Agents</ViewSidebar.Title>
             </div>
           </ViewSidebar.Header>
-        </Show>
-
-        <Show when={!isTouchDevice()}>
-          <div class="px-(--sidebar-gutter) pt-2">
-            <SidebarCreateButton
-              label="New conversation"
-              onCreate={props.onNewConversation}
-              ref={tourTarget(AGENTS_TOUR.newChat)}
-            />
-          </div>
         </Show>
 
         <ViewSidebar.Content class="gap-2 overflow-hidden pt-2">

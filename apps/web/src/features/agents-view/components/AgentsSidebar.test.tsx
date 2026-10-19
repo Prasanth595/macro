@@ -108,11 +108,6 @@ vi.mock('@app/features/soup', () => ({
 vi.mock('@components/app/split-panel', () => ({
   SplitPanel: { CloseButton: () => null },
 }));
-vi.mock('@app/components/view-shell/SidebarCreateButton', () => ({
-  SidebarCreateButton: (props: { label: string; onCreate: () => void }) => (
-    <button onClick={props.onCreate}>{props.label}</button>
-  ),
-}));
 
 describe('mixed Agents sidebar', () => {
   it('lists chat and code conversations together until a filter narrows them', async () => {
@@ -142,7 +137,6 @@ describe('mixed Agents sidebar', () => {
       EMPTY_CONVERSATION_FILTERS
     );
     const open = vi.fn();
-    const create = vi.fn();
     const openPage = vi.fn();
     render(() => (
       <AgentsSidebar
@@ -163,7 +157,6 @@ describe('mixed Agents sidebar', () => {
         error={false}
         hasNextPage={false}
         loadingNextPage={false}
-        onNewConversation={create}
         onSearchChange={vi.fn()}
         onOpenConversation={open}
         onRetry={vi.fn()}
@@ -204,8 +197,9 @@ describe('mixed Agents sidebar', () => {
     expect(screen.queryByRole('button', { name: /Plan launch/ })).toBeNull();
     expect(screen.queryByText('Archived')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'New conversation' }));
-    expect(create).toHaveBeenCalledOnce();
+    expect(
+      screen.queryByRole('button', { name: 'New conversation' })
+    ).toBeNull();
   });
 
   it('keeps paging while filters leave too few conversations to scroll', () => {
@@ -231,7 +225,6 @@ describe('mixed Agents sidebar', () => {
         error={false}
         hasNextPage
         loadingNextPage={false}
-        onNewConversation={vi.fn()}
         onSearchChange={vi.fn()}
         onOpenConversation={vi.fn()}
         onRetry={vi.fn()}
@@ -284,7 +277,6 @@ describe('mixed Agents sidebar', () => {
         error={false}
         hasNextPage={false}
         loadingNextPage={false}
-        onNewConversation={vi.fn()}
         onSearchChange={vi.fn()}
         onOpenConversation={vi.fn()}
         onRetry={vi.fn()}
@@ -370,7 +362,6 @@ describe.each(['home', 'sidebar'] as const)('%s agent rows', (surface) => {
           error={false}
           hasNextPage={false}
           loadingNextPage={false}
-          onNewConversation={vi.fn()}
           onSearchChange={vi.fn()}
           onOpenConversation={open}
           onRetry={vi.fn()}

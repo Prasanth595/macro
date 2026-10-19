@@ -136,8 +136,7 @@ the header back button returns to the previous screen, or Agents for a direct li
 Portrait and landscape touch layouts have no conversation side panel. **Changes** opens a full-width,
 unified diff with **Back to conversation**; returning preserves the unsent draft.
 
-The mobile conversation list omits the desktop **New conversation**, **Agents**,
-and **Connections** controls. Use the Agents composer or global create menu to start
+The mobile conversation list omits the desktop **Agents** and **Connections** controls. Use the Agents composer or global create menu to start
 a conversation. Returning to the list and reopening the composer preserves the
 draft, attachments, agent, model, repository, and branch. Tap the
 agent/model control once to open a bottom sheet with its search field focused,
@@ -295,7 +294,7 @@ the shimmer.
 
 - Open **Go to Agents** → `/app/component/agents`. With AI agents enabled
   (`enable-chat-v3-agents`), the workspace uses one sidebar for Chat and Code.
-  Below **New conversation**, **Agents** opens the same roster as the composer’s
+  **Agents** in the sidebar opens the same roster as the composer’s
   **Create agent** action. **Connections** manages MCP integrations (including
   app authentication and disconnection); this section has moved out of Settings.
   Home’s **Connect your tools** and agent replies’ **Connect app** chips open this
@@ -325,7 +324,9 @@ the shimmer.
   first; `slack_v2` remains a separate row in Connections where it can be disabled
   or disconnected.
 
-  **New conversation** opens the composer. **Conversations** is a mixed list
+  Start a conversation with **Create → Agent**. The sidebar has no New conversation
+  button, and the empty composer has no New conversation heading.
+  **Conversations** is a mixed list
   of chats and coding sessions, with one search across both. **Group conversations**
   switches between Status (the default), Type, and None, preserving newest-first
   order within each group. **Filter conversations** combines Type, Status, and
@@ -415,7 +416,7 @@ the shimmer.
   when changing agents. Unsent New conversation text and attachments also come
   back after opening a session and returning, the same way channel replies persist
   when switching channels. Home's agent input also restores unsent text, under a
-  separate key from Agents → New conversation. Check the Home path explicitly:
+  separate key from the Agents page composer. Check the Home path explicitly:
   type a prompt on Home, visit an agent session, then return using the Home sidebar
   button or Back. The Home prompt should remain after returning and after a reload.
   Sending or clearing the input removes only that surface's saved text draft.
@@ -503,8 +504,7 @@ the shimmer.
   private agents, each with a TEAM/PRIVATE pill and an "In Macro / In Cursor /
   In your harness · model · channels" subtitle, plus Edit / Delete actions.
   **Add agent**, the setup strips, and Edit replace the list with full pages,
-  not dialogs; Back/Cancel returns to the list. Use **New conversation** in the
-  sidebar to return to the composer.
+  not dialogs; Back/Cancel returns to the list. Use **Create → Agent** to open a new composer.
   The agent editor has Profile, Instructions, **Where it runs** (In Macro, In
   Cursor, In your harness; In Claude Code too with the `claude-cloud` flag once
   Claude lists models) and **Who can use it** (Private / Team). The selected
@@ -567,7 +567,7 @@ the shimmer.
   chat agents omit that row. Chat and Code session inputs
   use the same growing, initially single-line input with the model selector on
   the right.
-  Existing sessions retain their agent and kind; use **New conversation** to
+  Existing sessions retain their agent and kind; use **Create → Agent** to
   choose another. An unsent message in that session — the text and attached
   files that finished uploading — stays when you leave for a channel, another
   session, or Home and come back, including after reload. Sending or clearing

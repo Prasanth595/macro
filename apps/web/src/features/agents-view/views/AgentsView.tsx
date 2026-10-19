@@ -295,7 +295,7 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
     if (page() === 'routines') return 'Routines';
     if (page() === 'agents') return 'Agents';
     if (page() === 'connections') return 'Connections';
-    return 'New conversation';
+    return undefined;
   };
 
   const sidebar = () => (
@@ -318,7 +318,6 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
       error={query.isLoadingError}
       hasNextPage={Boolean(query.hasNextPage)}
       loadingNextPage={query.isFetchingNextPage}
-      onNewConversation={showComposer}
       onSearchChange={setSearch}
       onOpenConversation={(conversation, event) =>
         openConversation(conversation, event, modeForConversation(conversation))
