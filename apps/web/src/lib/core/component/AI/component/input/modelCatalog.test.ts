@@ -23,6 +23,7 @@ describe('model catalog sections', () => {
       'sonnet',
       'sol',
       'openai/gpt-6-astra',
+      'google/gemini-3.8-flash',
     ]);
     expect(
       catalog.providers
@@ -44,10 +45,10 @@ describe('model catalog sections', () => {
   });
 
   it('does not invent frontier choices for a restricted catalog', () => {
-    const option = { id: 'gemini', label: 'Gemini 3.8 Flash' };
+    const option = { id: 'custom', label: 'Custom model' };
     expect(buildModelCatalog([option])).toEqual({
       frontier: [],
-      providers: [{ label: 'Google', options: [option] }],
+      providers: [{ label: 'Other models', options: [option] }],
     });
   });
 

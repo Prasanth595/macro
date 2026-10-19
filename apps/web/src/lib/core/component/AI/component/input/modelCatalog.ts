@@ -118,7 +118,7 @@ export function modelProviderLabel(option: CatalogModelOption): string {
 }
 
 /**
- * Four stable flagship choices. Prefer the base model over effort/speed
+ * Flagship choices, followed by Gemini. Prefer the base model over effort/speed
  * variants; every other variant remains in its provider's section. Include
  * suggested choices in provider groups when building the complete catalog.
  */
@@ -131,6 +131,7 @@ export function buildModelCatalog(
     /^(?:claude[ -])?sonnet[ -]5[.-]5(?:$|[ -])/i,
     /^(?:gpt[ -]\d+(?:\.\d+)?[ -])?sol(?:$|[ -])|^gpt[ -]5\.6(?:[ -]sol)?(?:$|[ -](?:high|medium|low|fast)\b)/i,
     /^(?:gpt[ -]\d+(?:\.\d+)?[ -])?astra(?:$|[ -])/i,
+    /^gemini\b/i,
   ];
   const frontier: CatalogModelOption[] = [];
   for (const pattern of frontierPatterns) {

@@ -150,7 +150,7 @@ bottom right at the end of the scrolling list. The picker uses one
 continuous surface, with labels and spacing separating groups instead of nested
 shaded cards. Provider sections use compact spacing, with labels close to their
 rows. Model lists start with
-**Suggested**, followed by **More models** and your agents. **More models**
+**Suggested**, with Gemini last when available, followed by **More models** and your agents. **More models**
 opens the complete provider catalog, including copies of Suggested choices;
 use Back to return. Search accepts
 model names, IDs, and providers. When browsing an agent, **Use default** in the
@@ -370,7 +370,7 @@ the shimmer.
   runtime, plus Cursor in Code mode.
   Macro's models use the same searchable catalog as running sessions:
   **Suggested** lists **Opus 5.5**, **Sonnet 5.5**, **GPT-5.6** (Sol in
-  runtime catalogs), and **GPT-6 Astra**, when available, in that order. The
+  runtime catalogs), **GPT-6 Astra**, and **Gemini**, when available, in that order. The
   **More models** submenu contains the complete catalog grouped by provider,
   including the Suggested choices and effort/speed variants. Your agents
   follow Suggested and More models in the root menu. Choosing a model
