@@ -4,6 +4,12 @@ import type { EventEditorInitialValues } from '../calendar/components/composer/e
 /** Stable identity used by the Calendar application view. */
 export const CALENDAR_VIEW_ID = 'calendar';
 
+export interface CalendarCreationRequest {
+  id: string;
+  initialValues?: EventEditorInitialValues;
+  /** Returns true once, even if the same request reaches a remounted workspace. */
+  consume: () => boolean;
+}
 /** Optional navigation target carried by an in-app Calendar route entry. */
 export interface CalendarViewTarget {
   /** Canonical event to focus. */
@@ -15,7 +21,7 @@ export interface CalendarViewTarget {
   /** Monotonic token that makes repeated navigation to one event observable. */
   focusRequestId?: number;
   /** Ephemeral action consumed by the calendar-owned creation editor. */
-  creationRequest?: { id: string; initialValues?: EventEditorInitialValues };
+  creationRequest?: CalendarCreationRequest;
 }
 
 /** A validated request to locate and focus one event occurrence. */

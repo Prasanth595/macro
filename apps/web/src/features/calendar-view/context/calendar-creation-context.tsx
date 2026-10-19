@@ -14,8 +14,9 @@ export const [CalendarCreationProvider, useCalendarCreation] =
         on(
           () => props.request?.id,
           (id) => {
-            if (!id) return;
-            if (!creation.open({ initialValues: props.request?.initialValues }))
+            const request = props.request;
+            if (!id || !request || !request.consume()) return;
+            if (!creation.open({ initialValues: request.initialValues }))
               creation.moveToSidebar();
           }
         )

@@ -4,6 +4,7 @@ import { useSplitLayout } from '@components/app/split-layout/layout';
 import { confirmDialog } from '@ui';
 import { getOwner } from 'solid-js';
 import { openCalendarView } from '../calendar-navigation';
+import { createCalendarCreationRequest } from '../primitives/create-calendar-creation';
 
 /** Values and lifecycle callbacks used to open an event composer. */
 export interface OpenEventComposerOptions {
@@ -21,10 +22,7 @@ export function useOpenEventComposer() {
   return (options: OpenEventComposerOptions = {}) => {
     if (!options.event) {
       openCalendarView({
-        creationRequest: {
-          id: crypto.randomUUID(),
-          initialValues: options.initialValues,
-        },
+        creationRequest: createCalendarCreationRequest(options.initialValues),
       });
       return;
     }

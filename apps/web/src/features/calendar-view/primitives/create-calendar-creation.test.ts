@@ -1,6 +1,14 @@
-import { createRoot } from 'solid-js';
+import { createComponent, createRoot } from 'solid-js';
+import { createStore } from 'solid-js/store';
 import { describe, expect, it, vi } from 'vitest';
-import { createCalendarCreation } from './create-calendar-creation';
+import {
+  CalendarCreationProvider,
+  useCalendarCreation,
+} from '../context/calendar-creation-context';
+import {
+  createCalendarCreation,
+  createCalendarCreationRequest,
+} from './create-calendar-creation';
 import { createCalendarDraftDismissal } from './create-calendar-draft-dismissal';
 
 describe('calendar creation draft', () => {
@@ -41,6 +49,56 @@ describe('calendar creation draft', () => {
       expect(creation.surface()).toBe('sidebar');
       dispose();
     });
+  });
+  it('consumes delivered requests so a dismissed draft does not reopen after remount', () => {
+    const [entry] = createStore({ request: createCalendarCreationRequest() });
+    const request = entry.request;
+    const first = createRoot((dispose) => {
+      let creation: ReturnType<typeof useCalendarCreation> | undefined;
+      createComponent(CalendarCreationProvider, {
+        request,
+        get children() {
+          creation = useCalendarCreation();
+          return null;
+        },
+      });
+      return {
+        get creation() {
+          return creation;
+        },
+        dispose,
+      };
+    });
+    try {
+      expect(first.creation?.draft()).toBeDefined();
+      expect(request.consume()).toBe(false);
+      first.creation?.close();
+    } finally {
+      first.dispose();
+    }
+    const remounted = createRoot((dispose) => {
+      let creation: ReturnType<typeof useCalendarCreation> | undefined;
+      createComponent(CalendarCreationProvider, {
+        request,
+        get children() {
+          creation = useCalendarCreation();
+          return null;
+        },
+      });
+      return {
+        get creation() {
+          return creation;
+        },
+        dispose,
+      };
+    });
+    try {
+      expect(remounted.creation).toBeDefined();
+      expect(remounted.creation?.draft()).toBeUndefined();
+      expect(request.consume()).toBe(false);
+    } finally {
+      remounted.dispose();
+    }
   });
 });
 

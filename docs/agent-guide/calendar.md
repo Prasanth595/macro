@@ -98,7 +98,8 @@ The popover's `Move to sidebar` action keeps the same draft in a right-hand edit
 layout: title, date/time, then guests, meeting link, location, description, and
 calendar settings. Scrolling, paging, changing period, outside clicks, and another
 empty-timeslot selection must leave the draft unchanged. Existing-event editing
-retains its separate dialog host.
+retains its separate dialog host. Menu creation requests are single-use: a workspace
+remount must not reopen a draft after it was saved or dismissed.
 
 On phones, event creation fills a bottom sheet, with scrollable content above the
 keyboard; existing-event editing retains its current sheet. Close, Cancel, Escape,

@@ -5,6 +5,7 @@ import type {
 } from '@components/app/split-layout/layoutManager';
 import { describe, expect, it, vi } from 'vitest';
 import { calendarViewContent, openCalendarView } from './calendar-navigation';
+import { createCalendarCreationRequest } from './primitives/create-calendar-creation';
 
 describe('Calendar view navigation', () => {
   it('builds route-backed component content', () => {
@@ -35,7 +36,7 @@ describe('Calendar view navigation', () => {
   });
 
   it('carries an ephemeral creation request without making draft data part of the URL', () => {
-    const creationRequest = { id: 'request-1' };
+    const creationRequest = createCalendarCreationRequest();
     const content = calendarViewContent({
       period: 'timeGridDay',
       creationRequest,
