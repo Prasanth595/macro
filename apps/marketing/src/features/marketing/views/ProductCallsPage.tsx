@@ -124,7 +124,7 @@ export function RouteCalls() {
         <FeaturePageSection
           id="call-default"
           title={['View call recordings', 'after they finish.']}
-          description="Give teammates a way to catch up even if they missed the meeting. Share the call’s recording, transcript, and summary so they can find the decisions and revisit the details."
+          description="After calls finish, you can go back and watch the recording, review the transcript, or get a summary of what was said. Call recordings are shareable across your team."
           details={callsGuides['call-default']}
         >
           <div class="feature-page-visual">
