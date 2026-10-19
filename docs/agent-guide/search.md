@@ -34,15 +34,27 @@ the build-time `VITE_ENABLE_GRAPHQL_SOUP=true` override; see the
 [cache guide](../../apps/web/docs/graphql-normalized-cache-plan.md#cached-email-quick-access).
 
 Category/mode changes keep the same input mounted and focused. Enter dismisses
-the keyboard without ending search. Opening a result or **Close search** ends the
-session; reopening starts in All/name mode. Mobile query/category state is transient
-and does not modify desktop search state. The dock search row has no Ask AI button.
+the keyboard without ending search. Opening a result hides search chrome while
+preserving that Search history entry's query, category, mode, and result scroll
+position. Swiping back, pressing the native Back control, or using browser Back
+returns to those results without focusing the input or reopening the keyboard.
+Native search captures its state when covered: it retains mounted results while
+it is among the front two panes, and restores them after deeper navigation evicts
+it. A remounted history entry restores its
+virtualizer measurements and offset (or the full-text scroller's offset) as results
+load. A later search cannot overwrite an earlier entry. **Close search** ends the
+session; opening Search from the dock starts in All/name mode. Mobile search state
+does not modify desktop search state. The dock search row has no Ask AI button.
 If a person’s conversation lookup fails, search stays open with its query and
 category intact so the result can be retried.
 
 Verify sender-only `teo` matches with one- and two-character prefixes, then switch
-categories with the keyboard up. Select full text, edit the query, open a snippet,
-reopen search, and check All/name reset. Clear with whitespace and check category
+categories with the keyboard up. In both name and full-text modes, scroll several
+pages, open a result/snippet, and go Back: check the query, category, mode, visible
+rows, and scroll position. Repeat Back/Forward and native swipe/Back; the keyboard
+stays dismissed on return. Open Search from the dock and check All/name reset,
+then revisit the earlier history entry and confirm its query is intact.
+Clear with whitespace and check category
 retention; select Projects from full-text mode and confirm it shows name results.
 Repeat opening with a large recent list: results are virtualized, so transferring
 keyboard focus should not mount every cached row. Scroll through later results

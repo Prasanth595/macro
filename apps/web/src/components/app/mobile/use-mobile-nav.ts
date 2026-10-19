@@ -87,7 +87,7 @@ export function useMobileNavNavigate(): (id: MobileDockNavId) => void {
     }
     const content = mobileNavContent(id);
     if (isNativeMobilePlatform()) {
-      replaceAllSplits(content);
+      replaceAllSplits(content, { fresh: id === 'search' });
       return;
     }
     const fgContent = globalSplitManager()?.activeSplit()?.content();

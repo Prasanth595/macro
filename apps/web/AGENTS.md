@@ -68,6 +68,7 @@ Then trigger the interaction and read `window.__inst.log`. `'1,2,3' → '' → '
 
 ### General
 - Mobile dock search owns transient category/mode state in `features/command/mobile`; reuse the shared entity source and explicit full-text adapter rather than overlaying the dock query on view tabs or saved facets. See `docs/agent-guide/search.md` at the repository root.
+- Keep mobile search sessions and result scroll state with their Search history entry; opening a result hides chrome, and Back resumes that entry without focusing the input. A fresh dock search starts a new session, including when reusing a native pane.
 - Keep Quick Access cache availability reactive to the GraphQL rollout flag; it can arrive after the provider mounts, and email has no legacy source fallback.
 - Virtualize mobile name results like desktop Command Menu; local Quick Access sources are unbounded, and mounting them all stalls iOS keyboard focus during layout. Load additional search pages near the scroll end instead of reserving a paging bar.
 - Reconcile mobile full-text rows by entity ID so appending a page preserves DOM rows and scroll position.

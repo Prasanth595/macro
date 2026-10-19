@@ -45,6 +45,12 @@ type UrlNavigationOptions = {
   /** How applying it writes the URL back. */
   mode: WriteMode;
   revert?: () => MaybePromise<void>;
+  fresh?: boolean;
+};
+
+type UrlNavigateOptions = SplitNavigateOptions & {
+  /** Create a new history entry even when a pane already shows this location. */
+  fresh?: boolean;
 };
 
 // The URL owns the location and history state owns route state; the stored
@@ -78,10 +84,13 @@ export function createUrlNavigation(options: {
   /** Makes every pane show `location`; a URL nothing handles is written back as the default route. */
   const navigationTo = (
     location: ExternalLocation,
-    { cause, mode, revert }: UrlNavigationOptions
+    { cause, mode, revert, fresh }: UrlNavigationOptions
   ): Navigation => {
     const decoded = decodePanes(routes, location);
-    const diff = panes.diff(decoded.panes, { same: sameVisit, adopt });
+    const diff = panes.diff(decoded.panes, {
+      same: fresh ? () => false : sameVisit,
+      adopt,
+    });
 
     const apply = (entries: readonly Entry[]): NavigationResult => {
       panes.applyDiff(diff, entries);
@@ -106,10 +115,13 @@ export function createUrlNavigation(options: {
   /** A navigation from the base to one location, which becomes the only pane. */
   const navigateToLocation = (
     location: SplitLocation,
-    navigateOptions: SplitNavigateOptions
+    navigateOptions: UrlNavigateOptions
   ): MaybePromise<NavigationResult> => {
     const entry = createEntry(routes, location, undefined, navigateOptions);
-    const diff = panes.diff([{ entry }], { same: sameVisit, adopt });
+    const diff = panes.diff([{ entry }], {
+      same: navigateOptions.fresh ? () => false : sameVisit,
+      adopt,
+    });
 
     const navigation: Navigation = {
       cause: 'navigate',
@@ -135,13 +147,14 @@ export function createUrlNavigation(options: {
    */
   const navigate = (
     to: SplitNavigationTarget,
-    navigateOptions: SplitNavigateOptions = {}
+    navigateOptions: UrlNavigateOptions = {}
   ): MaybePromise<NavigationResult> => {
     if (typeof to === 'string') {
       const mode = navigateOptions.replace ? 'replace' : 'push';
       const navigation = navigationTo(parseLocation(to), {
         cause: 'navigate',
         mode,
+        fresh: navigateOptions.fresh,
       });
 
       return runner.startUrl(navigation, false);

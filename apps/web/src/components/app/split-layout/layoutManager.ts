@@ -360,7 +360,7 @@ export type SplitManager = {
   /** Replace all splits with a single split containing the given content. */
   replaceAllSplits: (
     content: SplitContent,
-    options?: { referredFrom?: ReferredFrom }
+    options?: { referredFrom?: ReferredFrom; fresh?: boolean }
   ) => SplitHandle | undefined;
 
   /** Check if a split exists by its split id */
@@ -1677,7 +1677,7 @@ export function createSplitLayout(
   /** Shows `content` as the only split, in one navigation; a split already showing it stays. */
   function replaceAllSplits(
     content: SplitContent,
-    options: { referredFrom?: ReferredFrom } = {}
+    options: { referredFrom?: ReferredFrom; fresh?: boolean } = {}
   ): SplitHandle | undefined {
     if (
       !canOpenContent(content, getSplitByContent(content.type, content.id)?.id)
@@ -1688,10 +1688,13 @@ export function createSplitLayout(
 
     const result = router.navigate(
       { location: toLocation(content) },
-      entryOptionsOf(content, {
-        referredFrom: options.referredFrom ?? null,
-        activate: true,
-      })
+      {
+        ...entryOptionsOf(content, {
+          referredFrom: options.referredFrom ?? null,
+          activate: true,
+        }),
+        fresh: options.fresh,
+      }
     );
     const showAlone = (outcome: NavigationResult) => {
       if (outcome.status !== 'committed') return;

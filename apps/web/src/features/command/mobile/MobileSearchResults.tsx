@@ -2,6 +2,7 @@ import { useCrmContactDiscovery } from '@app/features/crm/record-adapter';
 import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
 import { projectRouteId } from '@app/features/projects/core/route';
 import { createSoupRowStore } from '@app/features/soup/collection/row-store';
+import { useEntryState } from '@components/app/split-layout/entry-state';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
@@ -18,7 +19,16 @@ import { Telemetry } from '@macro-inc/observability';
 import { useGetOrCreateDirectMessageMutation } from '@queries/channel/get-or-create-dm';
 import { useDatabaseDiscoverySync } from '@queries/storage/databases';
 import { Button, CommandMenuListItem } from '@ui';
-import { createMemo, createSignal, For, Show, Suspense } from 'solid-js';
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  on,
+  Show,
+  Suspense,
+  untrack,
+} from 'solid-js';
 import { type VirtualizerHandle, VList } from 'virtua/solid';
 import { ItemDisplay } from '../CommandItem';
 import {
@@ -27,33 +37,52 @@ import {
   useEntitySearch,
 } from '../queries/entity-search';
 import { createMobileFullTextSearch } from '../queries/mobile-full-text-search';
+import { createMobileSearchEntry } from './create-mobile-search-entry';
 import { createSearchPagination } from './create-search-pagination';
-import { SearchState } from './mobileSearchState';
+import type { MobileSearchSession } from './mobileSearchState';
 import { useMobileSearchCategory } from './use-mobile-search-category';
 
-function MobileNameResults() {
-  let virtualizer: VirtualizerHandle | undefined;
+type SearchScrollState = {
+  query: string;
+  category: EntitySearchCategory;
+  offset: number;
+  cache?: VirtualizerHandle['cache'];
+};
+
+function MobileNameResults(props: { session: MobileSearchSession }) {
+  const state = props.session;
+  const [virtualizer, setVirtualizer] = createSignal<VirtualizerHandle>();
   const [container, setContainer] = createSignal<HTMLDivElement>();
-  const category = useMobileSearchCategory();
-  const source = useEntitySearch(SearchState.query, category, {
-    enabled: SearchState.isOpen,
+  const category = useMobileSearchCategory(state.category);
+  const [scroll, setScroll] = useEntryState<SearchScrollState | undefined>(
+    'mobileSearch.nameScroll',
+    { default: undefined }
+  );
+  const initialScroll = untrack(() => scroll());
+  let restore =
+    initialScroll?.query === state.query() &&
+    initialScroll.category === category()
+      ? initialScroll
+      : undefined;
+  const source = useEntitySearch(state.query, category, {
+    enabled: () => true,
     contactDiscovery: useCrmContactDiscovery,
   });
-  useDatabaseDiscoverySync(SearchState.isOpen);
+  useDatabaseDiscoverySync(() => true);
   const items = createMemo(() =>
-    source.rankItems(source.items(), SearchState.query())
+    source.rankItems(source.items(), state.query())
   );
   const loadMoreNearEnd = createSearchPagination({
     items,
     container,
-    remaining: () =>
-      items().length === 0
+    remaining: () => {
+      const handle = virtualizer();
+      return items().length === 0
         ? 0
-        : virtualizer
-          ? virtualizer.scrollSize -
-            virtualizer.scrollOffset -
-            virtualizer.viewportSize
-          : undefined,
+        : handle
+          ? handle.scrollSize - handle.scrollOffset - handle.viewportSize
+          : undefined;
+    },
     hasMore: source.pagination.hasMore,
     busy: () => source.isLoadingEntities() || source.pagination.isLoadingMore(),
     loadMore: source.pagination.loadMore,
@@ -66,7 +95,6 @@ function MobileNameResults() {
       span.setAttr('entity.id', item.id);
       span.setAttr('entity.type', item.bucket);
       if (item.kind === 'initiative') {
-        SearchState.close();
         openWithSplit({
           type: 'component',
           id: projectRouteId({ id: item.id, section: 'overview' }),
@@ -75,18 +103,61 @@ function MobileNameResults() {
         const result = await directMessage.mutateAsync({
           recipient_id: item.id,
         });
-        SearchState.close();
         openWithSplit(
           { type: 'channel', id: result.channel_id },
           { reopen: 'latest' }
         );
       } else {
-        SearchState.close();
         await openEntityInSplitFromUnifiedList(item.data, {
           splitHandle: panel.handle,
         });
       }
     });
+  };
+  createEffect(
+    on(
+      [
+        items,
+        virtualizer,
+        source.isLoadingEntities,
+        source.pagination.isLoadingMore,
+      ],
+      () => {
+        const handle = virtualizer();
+        if (
+          !restore ||
+          !handle ||
+          items().length === 0 ||
+          source.isLoadingEntities() ||
+          source.pagination.isLoadingMore()
+        )
+          return;
+        if (
+          restore.query !== state.query() ||
+          restore.category !== category()
+        ) {
+          restore = undefined;
+          return;
+        }
+        handle.scrollTo(restore.offset);
+        if (
+          handle.scrollSize - handle.viewportSize >= restore.offset ||
+          !source.pagination.hasMore()
+        )
+          restore = undefined;
+      }
+    )
+  );
+  const onScroll = () => {
+    const handle = virtualizer();
+    if (handle && !restore)
+      setScroll({
+        query: state.query(),
+        category: category(),
+        offset: handle.scrollOffset,
+        cache: handle.cache,
+      });
+    loadMoreNearEnd();
   };
   const select = async (item: EntitySearchItem) => {
     try {
@@ -100,32 +171,28 @@ function MobileNameResults() {
       ref={setContainer}
       class="flex h-full min-h-0 flex-col px-3 mobile:pt-(--mobile-content-inset-top) mobile:pb-(--mobile-content-inset-bottom)"
     >
-      <Show when={SearchState.query().trim() && category() !== 'projects'}>
+      <Show when={state.query().trim() && category() !== 'projects'}>
         <div
           data-keep-keyboard
           onPointerDown={(event) => event.preventDefault()}
           onMouseDown={(event) => event.preventDefault()}
         >
-          <CommandMenuListItem
-            class="min-h-11"
-            onClick={SearchState.searchFullText}
-          >
+          <CommandMenuListItem class="min-h-11" onClick={state.searchFullText}>
             <span class="truncate">
-              Search full text for “{SearchState.query().trim()}”
+              Search full text for “{state.query().trim()}”
             </span>
           </CommandMenuListItem>
         </div>
       </Show>
       <Show when={items().length > 0}>
         <VList
-          ref={(handle) => {
-            virtualizer = handle;
-          }}
+          ref={setVirtualizer}
           data={items()}
+          cache={restore?.cache}
           role="region"
           aria-label="Search results"
           class="min-h-0 flex-1 overscroll-none"
-          onScroll={loadMoreNearEnd}
+          onScroll={onScroll}
         >
           {(item) => (
             <CommandMenuListItem
@@ -149,18 +216,24 @@ function MobileNameResults() {
   );
 }
 
-function MobileFullTextResults() {
-  const category = useMobileSearchCategory();
-  const search = createMobileFullTextSearch(SearchState.query, category);
+function MobileFullTextResults(props: { session: MobileSearchSession }) {
+  const state = props.session;
+  const category = useMobileSearchCategory(state.category);
+  const search = createMobileFullTextSearch(state.query, category);
   const panel = useSplitPanelOrThrow();
   const [container, setContainer] = createSignal<HTMLDivElement>();
+  const [scroll, setScroll] = useEntryState<SearchScrollState | undefined>(
+    'mobileSearch.fullTextScroll',
+    { default: undefined }
+  );
+  let restore = untrack(() => scroll());
   // A same-query refresh must not collapse the scroller between pages.
   const results = createMemo<{
     query: string;
     category: EntitySearchCategory;
     items: EntityData[];
   }>((previous) => {
-    const query = SearchState.query().trim();
+    const query = state.query().trim();
     const scope = category();
     const items = search.data();
     if (search.isSettling()) {
@@ -172,6 +245,22 @@ function MobileFullTextResults() {
   });
   // Page selection rematerializes entities; retain row identity as pages append.
   const rows = createSoupRowStore(() => results().items);
+  createEffect(
+    on([() => results().items, container, search.isSettling], () => {
+      const list = container();
+      if (!restore || !list || search.isSettling()) return;
+      if (restore.query !== state.query() || restore.category !== category()) {
+        restore = undefined;
+        return;
+      }
+      list.scrollTop = restore.offset;
+      if (
+        list.scrollHeight - list.clientHeight >= restore.offset ||
+        !search.hasNextPage()
+      )
+        restore = undefined;
+    })
+  );
   const loadMoreNearEnd = createSearchPagination({
     items: () => results().items,
     container,
@@ -192,7 +281,6 @@ function MobileFullTextResults() {
         span.setAttr('entity.id', entity.id);
         span.setAttr('entity.type', entity.type);
         span.setAttr('search.content_hit', !!location);
-        SearchState.close();
         await openEntityInSplitFromUnifiedList(entity, {
           splitHandle: panel.handle,
           location,
@@ -207,7 +295,15 @@ function MobileFullTextResults() {
       ref={setContainer}
       role="region"
       aria-label="Search results"
-      onScroll={loadMoreNearEnd}
+      onScroll={(event) => {
+        if (!restore)
+          setScroll({
+            query: state.query(),
+            category: category(),
+            offset: event.currentTarget.scrollTop,
+          });
+        loadMoreNearEnd();
+      }}
       class="soup-list h-full overflow-y-auto overscroll-none mobile:pt-(--mobile-content-inset-top) mobile:pb-(--mobile-content-inset-bottom)"
     >
       <ListEntityMetadataQueryProvider>
@@ -260,13 +356,14 @@ function MobileFullTextResults() {
 
 /** The dock owns the input; only the result subtree changes search modes. */
 export function MobileSearchResults() {
+  const session = createMobileSearchEntry();
   return (
     <Suspense fallback={<p role="status">Loading…</p>}>
       <Show
-        when={SearchState.mode() === 'full-text'}
-        fallback={<MobileNameResults />}
+        when={session.mode() === 'full-text'}
+        fallback={<MobileNameResults session={session} />}
       >
-        <MobileFullTextResults />
+        <MobileFullTextResults session={session} />
       </Show>
     </Suspense>
   );

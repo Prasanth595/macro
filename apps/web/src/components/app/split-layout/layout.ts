@@ -114,7 +114,7 @@ export function useSplitLayout() {
 
   function replaceAllSplits(
     content: SplitContent,
-    options?: { referredFrom?: ReferredFrom }
+    options?: { referredFrom?: ReferredFrom; fresh?: boolean }
   ) {
     const splitManager = globalSplitManager();
     if (!splitManager) {

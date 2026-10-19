@@ -1,3 +1,4 @@
+import type { EntryState } from '@components/app/split-layout/layoutManager';
 import type { EntityData, SearchLocation } from '@entity';
 import {
   cleanup,
@@ -6,7 +7,7 @@ import {
   screen,
   waitFor,
 } from '@solidjs/testing-library';
-import { type Accessor, createSignal } from 'solid-js';
+import { type Accessor, createSignal, Show } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { EntitySearchItem } from '../queries/entity-search';
 import { MobileSearchInput } from './MobileSearchInput';
@@ -27,6 +28,14 @@ const mocks = vi.hoisted(() => ({
   loadingMore: false,
   fetchNextPage: vi.fn(),
   items: (() => []) as Accessor<EntitySearchItem[]>,
+  active: (() => true) as Accessor<boolean>,
+  setActive: (_active: boolean) => {},
+  entryState: undefined as EntryState | undefined,
+  captors: new Map<string, () => unknown>(),
+}));
+vi.mock('@app/lib/split-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@app/lib/split-router')>()),
+  useSplitRouter: () => ({ entry: () => ({ id: 'search-entry' }) }),
 }));
 vi.mock('@app/lib/analytics/posthog', () => ({
   useFeatureFlag: () => () => ({ enabled: true }),
@@ -41,7 +50,22 @@ vi.mock('@components/app/split-layout/layout', () => ({
   useSplitLayout: () => ({ openWithSplit: mocks.open }),
 }));
 vi.mock('@components/app/split-layout/layoutUtils', () => ({
-  useSplitPanelOrThrow: () => ({ handle: {} }),
+  useSplitPanelOrThrow: () => ({
+    handle: {
+      isActive: () => mocks.active(),
+      currentEntryState: () => mocks.entryState,
+      content: () => ({ state: mocks.entryState }),
+      captureEntryState: () => {
+        mocks.entryState = Object.fromEntries(
+          [...mocks.captors].map(([key, read]) => [key, read()])
+        );
+      },
+      registerEntryStateCaptor: (key: string, getter: () => unknown) => {
+        mocks.captors.set(key, getter);
+        return () => mocks.captors.delete(key);
+      },
+    },
+  }),
 }));
 vi.mock('@components/app/mobile/use-mobile-nav', () => ({
   useForegroundMobileView: () => () => 'search',
@@ -122,6 +146,17 @@ vi.mock('../queries/mobile-full-text-search', () => ({
   },
 }));
 beforeEach(() => {
+  const [active, setActive] = createSignal(true);
+  mocks.active = active;
+  mocks.setActive = setActive;
+  mocks.entryState = undefined;
+  mocks.captors.clear();
+  mocks.open.mockImplementation(() => {
+    mocks.entryState = Object.fromEntries(
+      [...mocks.captors].map(([key, read]) => [key, read()])
+    );
+    setActive(false);
+  });
   vi.spyOn(HTMLElement.prototype, 'offsetParent', 'get').mockReturnValue(
     document.body
   );
@@ -192,7 +227,7 @@ it('offers full text above empty results, only mounts it explicitly, and keeps t
   expect(screen.getByPlaceholderText('Search…')).toBe(input);
 });
 
-it('omits full text for Projects and ends the session on result opening', async () => {
+it('omits full text for Projects and hides search on result opening', async () => {
   const [items, setItems] = createSignal<EntitySearchItem[]>([]);
   mocks.items = items;
   render(() => <MobileSearchResults />);
@@ -220,7 +255,7 @@ it('omits full text for Projects and ends the session on result opening', async 
   expect(SearchState.category()).toBe('all');
 });
 
-it('preserves the search after a failed person lookup and closes after a successful retry', async () => {
+it('preserves the search after a failed person lookup and on return from a successful retry', async () => {
   mocks.items = () => [
     {
       id: 'macro|teo@example.com',
@@ -261,11 +296,14 @@ it('preserves the search after a failed person lookup and closes after a success
     )
   );
   expect(SearchState.isOpen()).toBe(false);
-  expect(SearchState.query()).toBe('');
-  expect(SearchState.category()).toBe('all');
+  mocks.setActive(true);
+  expect(SearchState.isOpen()).toBe(true);
+  expect(SearchState.query()).toBe('teo');
+  expect(SearchState.category()).toBe('people');
+  expect(screen.getByRole('button', { name: 'Teo' })).toBeTruthy();
 });
 
-it('opens the selected full-text message and resets the session', () => {
+it('opens the selected full-text message and hides the search chrome', () => {
   const email: EntityData = {
     id: 'thread',
     type: 'email',
@@ -287,12 +325,12 @@ it('opens the selected full-text message and resets the session', () => {
     screen.getByRole('button', { name: 'Weekly update snippet' })
   );
   expect(mocks.open).toHaveBeenCalledWith(email, {
-    splitHandle: {},
+    splitHandle: expect.objectContaining({ isActive: expect.any(Function) }),
     location: { type: 'email', messageId: 'matching-message' },
   });
   expect(SearchState.isOpen()).toBe(false);
-  expect(SearchState.query()).toBe('');
-  expect(SearchState.category()).toBe('all');
+  expect(SearchState.query()).toBe('teo');
+  expect(SearchState.category()).toBe('email');
 });
 
 it('bounds mounted recent rows while keeping the first result usable', () => {
@@ -311,6 +349,152 @@ it('bounds mounted recent rows while keeping the first result usable', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Project 0' }));
   expect(mocks.open).toHaveBeenCalled();
   expect(SearchState.isOpen()).toBe(false);
+});
+
+it('restores the query, category, mode and scroll after a full-text history entry remounts', () => {
+  const email: EntityData = {
+    id: 'thread',
+    type: 'email',
+    name: 'Weekly update',
+    ownerId: 'owner',
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-02T00:00:00Z',
+    isRead: true,
+    isDraft: false,
+    isImportant: false,
+    done: false,
+  };
+  const [items, setItems] = createSignal<EntityData[]>([email]);
+  const [settling, setSettling] = createSignal(false);
+  mocks.fullTextData = items;
+  mocks.fullTextSettling = settling;
+  mocks.hasMore = false;
+  SearchState.setQuery('teo');
+  SearchState.setCategory('email');
+  SearchState.searchFullText();
+  const view = render(() => <MobileSearchResults />);
+  const list = screen.getByRole('region', { name: 'Search results' });
+  fireEvent.scroll(list, { target: { scrollTop: 1280 } });
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Weekly update snippet' })
+  );
+  const entry = mocks.entryState;
+  view.unmount();
+
+  // A separate dock session must not overwrite this history entry.
+  SearchState.open();
+  SearchState.setQuery('another query');
+  SearchState.setCategory('tasks');
+  SearchState.close();
+  expect(mocks.entryState).toBe(entry);
+  mocks.setActive(true);
+  setSettling(true);
+  setItems([]);
+  render(() => (
+    <>
+      <MobileSearchInput />
+      <MobileSearchResults />
+    </>
+  ));
+  const input = screen.getByPlaceholderText('Search…');
+  expect(input).toHaveProperty('value', 'teo');
+  expect(document.activeElement).not.toBe(input);
+  expect(SearchState.category()).toBe('email');
+  expect(SearchState.mode()).toBe('full-text');
+  setItems([email]);
+  setSettling(false);
+  expect(screen.getByRole('region', { name: 'Search results' }).scrollTop).toBe(
+    1280
+  );
+  expect(
+    screen.getByRole('button', { name: 'Weekly update snippet' })
+  ).toBeTruthy();
+});
+
+it('reveals the same scrolled results when native Back uncovers search', () => {
+  mocks.fullTextItems = [
+    {
+      id: 'thread',
+      type: 'email',
+      name: 'Weekly update',
+      ownerId: 'owner',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-02T00:00:00Z',
+      isRead: true,
+      isDraft: false,
+      isImportant: false,
+      done: false,
+    },
+  ];
+  mocks.hasMore = false;
+  SearchState.setQuery('teo');
+  SearchState.setCategory('email');
+  SearchState.searchFullText();
+  render(() => (
+    <>
+      <Show when={SearchState.isOpen()}>
+        <MobileSearchInput />
+      </Show>
+      <MobileSearchResults />
+    </>
+  ));
+  const list = screen.getByRole('region', { name: 'Search results' });
+  fireEvent.scroll(list, { target: { scrollTop: 940 } });
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Weekly update snippet' })
+  );
+  expect(screen.queryByPlaceholderText('Search…')).toBeNull();
+  mocks.setActive(true);
+  expect(screen.getByRole('region', { name: 'Search results' })).toBe(list);
+  expect(list.scrollTop).toBe(940);
+  const input = screen.getByPlaceholderText('Search…');
+  expect(input).toHaveProperty('value', 'teo');
+  expect(document.activeElement).not.toBe(input);
+});
+
+it('restores a virtualized name list after a history entry remounts', async () => {
+  mocks.hasMore = false;
+  mocks.items = () =>
+    Array.from({ length: 100 }, (_, index) => ({
+      id: `project-${index}`,
+      kind: 'initiative',
+      bucket: 'initiative',
+      name: `Project ${index}`,
+      searchText: `Project ${index}`,
+      sortTimestamp: 0,
+      timestamps: {},
+    }));
+  SearchState.setQuery('Project');
+  SearchState.setCategory('projects');
+  const view = render(() => <MobileSearchResults />);
+  fireEvent.scroll(screen.getByRole('region', { name: 'Search results' }), {
+    target: { scrollTop: 800 },
+  });
+  fireEvent.click(screen.getAllByRole('button')[0]);
+  view.unmount();
+  mocks.setActive(true);
+  render(() => <MobileSearchResults />);
+  expect(SearchState.query()).toBe('Project');
+  expect(SearchState.category()).toBe('projects');
+  await waitFor(() =>
+    expect(
+      screen.getByRole('region', { name: 'Search results' }).scrollTop
+    ).toBe(800)
+  );
+});
+
+it('keeps a covered native search entry independent of a new dock session', () => {
+  SearchState.setQuery('original');
+  SearchState.setCategory('email');
+  render(() => <MobileSearchResults />);
+  mocks.setActive(false);
+  expect(SearchState.isOpen()).toBe(false);
+  SearchState.open();
+  SearchState.setQuery('new search');
+  SearchState.setCategory('tasks');
+  mocks.setActive(true);
+  expect(SearchState.query()).toBe('original');
+  expect(SearchState.category()).toBe('email');
 });
 
 it('loads another name page near the end without a persistent paging bar', async () => {

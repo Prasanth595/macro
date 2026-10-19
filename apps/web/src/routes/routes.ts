@@ -635,6 +635,8 @@ export const searchRoute = defineRoute({
   path: 'search',
   search: '*' as const,
   claim: () => ({ namespace: 'component', id: 'search' }),
+  // Each visit owns its query and result scroll state, even in a reused pane.
+  remountKey: (_params, { entryId }) => entryId,
 });
 
 export const prDetailRoute = defineRoute({
