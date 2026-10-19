@@ -421,9 +421,11 @@ function ExpandedHeader(props: { search: ChannelRailSearch }) {
         <Show when={!isTouchDevice()}>
           <ConversationsCreateMenu presentation="sidebar" />
         </Show>
-        <ViewSidebar.Toolbar>
+        <ViewSidebar.Toolbar class={!isTouchDevice() ? 'px-0' : undefined}>
           <Tabs
             aria-label="Chat sidebar views"
+            variant={isTouchDevice() ? 'pill' : 'segmented'}
+            fullWidth={!isTouchDevice()}
             list={
               rail.threadsEnabled() ? CHANNEL_TABS_WITH_THREADS : CHANNEL_TABS
             }

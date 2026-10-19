@@ -2,7 +2,7 @@ import {
   SegmentedControl as KSegmentedControl,
   type SegmentedControlRootProps,
 } from '@kobalte/core/segmented-control';
-import { For, type JSX, splitProps } from 'solid-js';
+import { For, type JSX, Show, splitProps } from 'solid-js';
 import { cn } from '../utils/classname';
 
 export type TabItem = {
@@ -18,11 +18,12 @@ export type TabsProps = {
   itemClass?: string;
   labelClass?: string;
   fullWidth?: boolean;
+  variant?: 'pill' | 'segmented';
 } & Omit<SegmentedControlRootProps, 'defaultValue'>;
 
 /**
- * Borderless tab switcher. No track chrome — a rounded pill slides behind
- * the active item.
+ * Compact single-choice navigation. The default pill slides behind the active
+ * item; segmented tabs share a flat track with individually rounded choices.
  */
 export const Tabs = (props: TabsProps) => {
   const [local, rootProps] = splitProps(props, [
@@ -34,7 +35,9 @@ export const Tabs = (props: TabsProps) => {
     'itemClass',
     'labelClass',
     'fullWidth',
+    'variant',
   ]);
+  const segmented = () => local.variant === 'segmented';
 
   return (
     <KSegmentedControl
@@ -44,19 +47,25 @@ export const Tabs = (props: TabsProps) => {
       {...rootProps}
       class={cn(
         'relative inline-flex h-8 items-center',
+        segmented() && 'rounded-lg bg-control p-[3px]',
         local.fullWidth && 'flex w-full',
         local.class
       )}
     >
-      <KSegmentedControl.Indicator class="pointer-events-none absolute top-0 left-0 z-0 rounded-full border border-edge-frame bg-active transition-[transform,width,height] duration-50 motion-reduce:transition-none" />
+      <Show when={!segmented()}>
+        <KSegmentedControl.Indicator class="pointer-events-none absolute top-0 left-0 z-0 rounded-full border border-edge-frame bg-active transition-[transform,width,height] duration-50 motion-reduce:transition-none" />
+      </Show>
       <For each={local.list}>
         {(item) => (
           <KSegmentedControl.Item
             value={item.value}
             disabled={local.disabled}
             class={cn(
-              'relative z-1 inline-flex h-full min-w-0 items-center rounded-full',
+              'relative z-1 inline-flex h-full min-w-0 items-center',
               'has-focus-visible:ring-2 has-focus-visible:ring-inset has-focus-visible:ring-edge-focus data-disabled:pointer-events-none data-disabled:opacity-50',
+              segmented()
+                ? 'justify-center rounded-md border border-transparent data-checked:border-edge-button data-checked:bg-active data-checked:shadow-sm'
+                : 'rounded-full',
               local.fullWidth && 'flex-1',
               local.itemClass
             )}
@@ -64,7 +73,10 @@ export const Tabs = (props: TabsProps) => {
             <KSegmentedControl.ItemInput class="pointer-events-none absolute inset-0" />
             <KSegmentedControl.ItemLabel
               class={cn(
-                'flex h-8 items-center px-4 text-xs font-medium rounded-full select-none text-ink-extra-muted hover:text-ink data-checked:text-ink transition-colors duration-120 motion-reduce:transition-none',
+                'flex items-center font-medium select-none text-ink-extra-muted hover:text-ink data-checked:text-ink transition-colors duration-120 motion-reduce:transition-none',
+                segmented()
+                  ? 'h-full rounded-md px-1.5 text-sm'
+                  : 'h-8 rounded-full px-4 text-xs',
                 local.fullWidth && 'w-full justify-center',
                 local.labelClass
               )}
