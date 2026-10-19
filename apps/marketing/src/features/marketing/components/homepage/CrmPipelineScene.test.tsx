@@ -45,7 +45,7 @@ it('edits a pipeline deal without overwriting the company record fields', async 
     { key: 'Enter' }
   );
   fireEvent.keyDown(
-    await screen.findByRole('menuitem', { name: 'Negotiation', exact: true }),
+    await screen.findByRole('menuitem', { name: 'Negotiation' }),
     { key: 'Enter' }
   );
   expect(
@@ -55,7 +55,7 @@ it('edits a pipeline deal without overwriting the company record fields', async 
     view.getByRole('textbox', { name: 'Revenue for Northstar Design' }),
     { target: { value: '32000' } }
   );
-  fireEvent.click(view.getByRole('button', { name: 'Companies', exact: true }));
+  fireEvent.click(view.getByRole('button', { name: 'Companies' }));
   const row = view
     .getByRole('button', { name: /Northstar Design/ })
     .closest('tr')!;
@@ -82,13 +82,9 @@ it('opens a linked company record and returns to the same pipeline', () => {
     (view.getByRole('textbox', { name: 'Company name' }) as HTMLInputElement)
       .value
   ).toBe('The Meadow');
-  fireEvent.click(
-    view.getByRole('button', { name: 'Sales pipeline', exact: true })
-  );
+  fireEvent.click(view.getByRole('button', { name: 'Sales pipeline' }));
   expect(view.getByRole('table', { name: 'Sales pipeline' })).toBeTruthy();
   fireEvent.click(view.getByRole('button', { name: 'By stage' }));
   expect(view.queryByRole('table', { name: 'Sales pipeline' })).toBeNull();
-  expect(
-    view.getByRole('button', { name: 'The Meadow', exact: true })
-  ).toBeTruthy();
+  expect(view.getByRole('button', { name: 'The Meadow' })).toBeTruthy();
 });

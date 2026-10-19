@@ -1,4 +1,6 @@
 .homepage-scene { height: 100%; min-height: 0; color: var(--color-ink); background: var(--color-panel); }
+.homepage-scene .product-demo-stage::before { display: none; }
+.homepage-scene-agents .product-demo { box-sizing: border-box; padding-bottom: 200px; }
 .homepage-scene > .dummy-workspace { height: 100%; }
 :is(.homepage-scene-docs, .homepage-scene-agents) > .product-demo-stage { height: 100%; margin: 0; }
 :is(.homepage-scene-docs, .homepage-scene-agents) .product-demo { height: 100%; min-height: 0; border: 0; border-radius: 0; box-shadow: none; mask-image: none; -webkit-mask-image: none; }

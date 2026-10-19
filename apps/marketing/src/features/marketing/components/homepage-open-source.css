@@ -50,3 +50,8 @@
 @media (prefers-reduced-motion: reduce) {
   .homepage-embedded-stage::after, .homepage-demo-slide-dot span { transition: none; }
 }
+
+/* Keep the agent composer above the caption, with the fade confined to its empty tail. */
+.homepage-demo-carousel[data-active-scene=Agents] .homepage-embedded-stage::after {
+  inset: calc(100% - 160px) -1px -1px;
+}
