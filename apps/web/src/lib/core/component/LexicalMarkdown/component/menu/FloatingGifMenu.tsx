@@ -167,13 +167,13 @@ export function FloatingGifMenu(props: { canEdit?: Accessor<boolean> } = {}) {
           </div>
 
           <div
-            class="overflow-y-auto p-2 grid grid-cols-2 gap-2"
+            class="overflow-y-auto overscroll-contain p-2"
             style={{ height: `${GRID_HEIGHT}px` }}
           >
             <Show
               when={!gifs.loading}
               fallback={
-                <div class="col-span-2 flex items-center justify-center h-32 text-ink-muted text-sm">
+                <div class="flex h-full items-center justify-center text-sm text-ink-muted">
                   Loading...
                 </div>
               }
@@ -181,37 +181,35 @@ export function FloatingGifMenu(props: { canEdit?: Accessor<boolean> } = {}) {
               <Show
                 when={gifList().length > 0}
                 fallback={
-                  <div class="col-span-2 flex items-center justify-center h-32 text-ink-muted text-sm">
+                  <div class="flex h-full items-center justify-center text-sm text-ink-muted">
                     {searchTerm() ? 'No GIFs found' : 'Search for GIFs'}
                   </div>
                 }
               >
-                <For each={gifList()}>
-                  {(gif, index) => (
-                    <button
-                      type="button"
-                      onClick={() => insertGif(gif)}
-                      onMouseOver={() => setSelectedIndex(index())}
-                      class="relative rounded-lg overflow-hidden transition-all"
-                      classList={{
-                        'ring-2 ring-accent': selectedIndex() === index(),
-                        'hover:ring-2 hover:ring-accent/50':
-                          selectedIndex() !== index(),
-                      }}
-                      style={{
-                        'aspect-ratio': `${gif.width} / ${gif.height}`,
-                        'max-height': '120px',
-                      }}
-                    >
-                      <img
-                        src={gif.previewUrl}
-                        alt={gif.title}
-                        loading="lazy"
-                        class="w-full h-full object-cover"
-                      />
-                    </button>
-                  )}
-                </For>
+                <div class="grid grid-cols-2 auto-rows-[96px] gap-2">
+                  <For each={gifList()}>
+                    {(gif, index) => (
+                      <button
+                        type="button"
+                        onClick={() => insertGif(gif)}
+                        onMouseOver={() => setSelectedIndex(index())}
+                        class="size-full overflow-hidden rounded-lg bg-ink/5"
+                        classList={{
+                          'ring-2 ring-accent': selectedIndex() === index(),
+                          'not-touch:hover:ring-2 not-touch:hover:ring-accent/50':
+                            selectedIndex() !== index(),
+                        }}
+                      >
+                        <img
+                          src={gif.previewUrl}
+                          alt={gif.title}
+                          loading="lazy"
+                          class="size-full object-cover"
+                        />
+                      </button>
+                    )}
+                  </For>
+                </div>
               </Show>
             </Show>
           </div>
