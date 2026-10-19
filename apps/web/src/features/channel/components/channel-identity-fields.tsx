@@ -24,7 +24,7 @@ export function ChannelImageActions(props: {
 }) {
   const [dragging, setDragging] = createSignal(false);
   return (
-    <div class="flex flex-col gap-3">
+    <div class="flex flex-1 flex-col gap-3">
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0 flex-1">
           <h3 class="text-sm font-medium break-all">
@@ -51,7 +51,7 @@ export function ChannelImageActions(props: {
         role="group"
         aria-label="Image upload"
         aria-disabled={props.disabled}
-        class="flex flex-col gap-3 rounded-lg border border-dashed border-edge p-4"
+        class="flex min-h-48 flex-1 flex-col justify-center gap-3 rounded-lg border border-dashed border-edge p-4"
         classList={{
           'border-accent bg-accent/5': dragging() && !props.disabled,
           'opacity-50': props.disabled,
@@ -73,7 +73,7 @@ export function ChannelImageActions(props: {
           onDrop: props.onFilesDrop,
         }}
       >
-        <div class="grid grid-cols-2 gap-2">
+        <div class="flex flex-col gap-2">
           <Button
             variant="accent"
             size="md"

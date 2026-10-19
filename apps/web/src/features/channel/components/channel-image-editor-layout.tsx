@@ -7,7 +7,7 @@ export function ChannelImageEditorLayout(props: {
 }) {
   return (
     <div class="flex flex-col gap-6">
-      <div class="grid grid-cols-2 items-start gap-8 px-6 max-sm:flex max-sm:flex-col mobile:px-4">
+      <div class="grid grid-cols-2 items-stretch gap-8 px-6 max-sm:flex max-sm:flex-col mobile:px-4">
         <div class="min-w-0 max-sm:w-full">{props.children}</div>
         <div class="flex min-w-0 flex-col gap-5 max-sm:w-full">
           {props.sidebar}
