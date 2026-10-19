@@ -40,9 +40,10 @@ vi.mock('@block-call/call-route', () => ({ callDetailSearch: {} }));
 vi.mock(
   '@components/app/split-layout/split-router/app-route-shell',
   async (importOriginal) => {
-    const original = await importOriginal<
-      typeof import('@components/app/split-layout/split-router/app-route-shell')
-    >();
+    const original =
+      await importOriginal<
+        typeof import('@components/app/split-layout/split-router/app-route-shell')
+      >();
     return {
       ...original,
       AppView: (props: ParentProps) => <>{props.children}</>,

@@ -1,6 +1,5 @@
 import { listOwnedSlotName } from '@app/components/list';
 import { ViewBreadcrumbs, ViewShell } from '@app/components/view-shell';
-import { SplitRouter } from '@app/lib/split-router';
 import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
 import {
   type FacetSelection,
@@ -8,6 +7,7 @@ import {
 } from '@app/features/soup';
 import { ViewTour } from '@app/features/tours/ViewTour';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
+import { SplitRouter } from '@app/lib/split-router';
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import {
   useSplitPanelOrThrow,
@@ -210,7 +210,7 @@ function SignedOutDriveWorkspace() {
   const navigation = useDriveDetailNavigation();
   return (
     <ViewBreadcrumbs.Root
-      value={navigation.active()?.value}
+      value={navigation.active()?.value ?? ''}
       onChange={navigation.popTo}
     >
       <SplitPanel.Root>
