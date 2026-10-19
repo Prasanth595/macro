@@ -1224,12 +1224,12 @@ one-to-one direct messages continue to show the other person's user picture.
 
 On desktop, click the channel name in either the split topbar or an inline detail
 topbar to open the `Edit channel` dialog. Hovering or focusing the title does not
-open an editor. The dialog loads on demand. Its details step places a larger
-circular picture on the left and top-aligns the channel name input on the right.
-On narrow screens, the picture appears above the name. Click the picture to open
-the image-editing step; its pencil overlay appears on hover or focus and stays
-visible on touch devices. The separate `Preview image` expand button opens the
-current saved or draft image in the shared lightbox, without saving changes.
+open an editor. The dialog loads on demand. Its details step places a larger,
+outlined circular picture on the left and top-aligns the channel name input on
+the right. On narrow screens, the picture appears above the name. Click the
+picture to open the image-editing step; its pencil overlay appears on hover or
+focus and stays visible on touch devices. The separate `Preview image` expand
+button opens the current saved or draft image in the shared lightbox, without saving changes.
 Escape, the close button, or the backdrop returns to the editor and restores
 focus to the preview button. Closing the lightbox preserves the draft.
 Right-clicking the dialog or its overlay never opens the split header's context

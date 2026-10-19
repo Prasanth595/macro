@@ -157,7 +157,7 @@ export function ChannelIdentityFields(props: {
               <Button
                 type="button"
                 variant="ghost"
-                class="group/channel-picture size-40 rounded-full p-0"
+                class="group/channel-picture size-40 rounded-full border-edge p-0"
                 label={props.canEdit ? 'Edit channel image' : 'Channel picture'}
                 disabled={
                   !props.canEdit || props.pending || props.pictureLoading
