@@ -241,6 +241,16 @@ export default function ChannelPictureCropper(props: {
           </output>
           <div class="flex items-center gap-2">
             <Button
+              label="Reset crop"
+              size="md"
+              variant="ghost"
+              disabled={disabled()}
+              onClick={() => cropper?.getCropperImage()?.$center('cover')}
+            >
+              <ArrowCounterClockwiseIcon />
+              Reset
+            </Button>
+            <Button
               label="Zoom out"
               size="icon-md"
               variant="outline"
@@ -257,16 +267,6 @@ export default function ChannelPictureCropper(props: {
               onClick={() => zoom(0.1)}
             >
               <PlusIcon />
-            </Button>
-            <Button
-              label="Reset crop"
-              size="md"
-              variant="ghost"
-              disabled={disabled()}
-              onClick={() => cropper?.getCropperImage()?.$center('cover')}
-            >
-              <ArrowCounterClockwiseIcon />
-              Reset
             </Button>
           </div>
         </div>

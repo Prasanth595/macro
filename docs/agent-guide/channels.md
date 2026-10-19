@@ -1228,8 +1228,10 @@ open an editor. The dialog loads on demand. Its details step places a larger,
 outlined circular picture on the left and top-aligns the channel name input on
 the right. On narrow screens, the picture appears above the name. Click the
 picture to open the image-editing step; its pencil overlay appears on hover or
-focus and stays visible on touch devices. The separate `Preview image` expand
-button opens the current saved or draft image in the shared lightbox, without saving changes.
+focus and stays visible on touch devices. An empty circle opens the file chooser
+directly. Drop an image onto either an empty or existing picture circle to start
+editing it. The separate `Preview image` expand button opens the current saved or
+draft image in the shared lightbox, without saving changes.
 Escape, the close button, or the backdrop returns to the editor and restores
 focus to the preview button. Closing the lightbox preserves the draft.
 Right-clicking the dialog or its overlay never opens the split header's context
@@ -1237,10 +1239,11 @@ menu. Text inputs keep their native context menu.
 
 The image-editing step puts the crop workspace on the left and a wider
 actions/details column on the right, without an outer bordered crop container.
-On narrow screens, the workspace appears above the controls. A dashed upload
-area accepts one supported image file or opens the file chooser with `Change
-image`. Only a single file with a supported image type shows the drop cue. Mixed
-or multi-file drops are rejected without changing the draft.
+On narrow screens, the workspace appears above the controls. Below the image
+filename and file guidance, a dashed upload area accepts one supported image file
+or opens the file chooser with `Change image`. Only a single file with a supported
+image type shows the drop cue on either upload target. Mixed or multi-file drops
+are rejected without changing the draft.
 `Change image` and `Clear image` sit side by side, using accent and destructive
 ghost variants respectively, with medium-sized, touch-friendly buttons. The image
 filename, when available, appears above its supported file types and size. The
@@ -1257,8 +1260,8 @@ that source.
 
 The circular crop guide darkens the area outside it and reveals alignment guides
 on hover or focus. Drag to reposition or use the arrow keys to move. Zoom controls
-sit below the crop workspace, with the current percentage on the left and the
-minus/plus buttons and Reset on the right. The initial fit and Reset are 100%.
+sit below the crop workspace, with the current percentage on the left and Reset
+followed by the minus/plus buttons on the right. The initial fit and Reset are 100%.
 Scroll-wheel zoom anchors to the cursor; the minus/plus buttons anchor to the
 center of the crop area, even after panning.
 `Apply crop` adds the square PNG to the local draft and returns to details.

@@ -25,6 +25,28 @@ export function ChannelImageActions(props: {
   const [dragging, setDragging] = createSignal(false);
   return (
     <div class="flex flex-col gap-3">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0 flex-1">
+          <h3 class="text-sm font-medium break-all">
+            {props.fileName || 'Channel image'}
+          </h3>
+          <p class="mt-1 text-xs text-ink-muted">
+            PNG, JPG, WebP or GIF up to 16 MB
+          </p>
+        </div>
+        <Show when={props.canPreview}>
+          <Button
+            variant="outline"
+            size="icon-md"
+            label="Preview image"
+            disabled={props.disabled}
+            class="touch:min-h-11 touch:min-w-11"
+            onClick={(event) => props.onPreview(event.currentTarget)}
+          >
+            <ExpandIcon />
+          </Button>
+        </Show>
+      </div>
       <div
         role="group"
         aria-label="Image upload"
@@ -51,28 +73,6 @@ export function ChannelImageActions(props: {
           onDrop: props.onFilesDrop,
         }}
       >
-        <div class="flex items-start justify-between gap-3">
-          <div class="min-w-0 flex-1">
-            <h3 class="text-sm font-medium break-all">
-              {props.fileName || 'Channel image'}
-            </h3>
-            <p class="mt-1 text-xs text-ink-muted">
-              PNG, JPG, WebP or GIF up to 16 MB
-            </p>
-          </div>
-          <Show when={props.canPreview}>
-            <Button
-              variant="outline"
-              size="icon-md"
-              label="Preview image"
-              disabled={props.disabled}
-              class="touch:min-h-11 touch:min-w-11"
-              onClick={(event) => props.onPreview(event.currentTarget)}
-            >
-              <ExpandIcon />
-            </Button>
-          </Show>
-        </div>
         <div class="grid grid-cols-2 gap-2">
           <Button
             variant="accent"
@@ -122,10 +122,15 @@ export function ChannelIdentityFields(props: {
   error?: string;
   onNameChange: (name: string) => void;
   onEditPicture: () => void;
+  onPickPicture: () => void;
+  onFilesDrop: (files: File[]) => void;
   onPreviewPicture: (trigger: HTMLButtonElement) => void;
   onCancel: () => void;
   onSave: () => void;
 }) {
+  const [dragging, setDragging] = createSignal(false);
+  const imageDisabled = () =>
+    !props.canEdit || props.pending || props.pictureLoading;
   return (
     <form
       class="flex w-full flex-col gap-6 text-sm text-ink"
@@ -153,21 +158,60 @@ export function ChannelIdentityFields(props: {
             </TextField>
           </div>
           <div class="order-first flex shrink-0 flex-col items-center gap-3">
-            <div class="relative">
+            <div
+              class="relative"
+              use:fileDrop={{
+                disabled: imageDisabled(),
+                acceptedMimeTypes: CHANNEL_PICTURE_MIME_TYPES,
+                multiple: false,
+                onDragStart: (valid, event) => {
+                  const items = event.dataTransfer?.items;
+                  setDragging(
+                    valid &&
+                      items?.length === 1 &&
+                      items[0].kind === 'file' &&
+                      CHANNEL_PICTURE_MIME_TYPES.includes(items[0].type)
+                  );
+                },
+                onDragEnd: () => setDragging(false),
+                onDrop: props.onFilesDrop,
+              }}
+            >
               <Button
                 type="button"
                 variant="ghost"
                 class="group/channel-picture size-40 rounded-full border-edge p-0"
-                label={props.canEdit ? 'Edit channel image' : 'Channel picture'}
-                disabled={
-                  !props.canEdit || props.pending || props.pictureLoading
+                classList={{
+                  'border-accent bg-accent/5': dragging() && !imageDisabled(),
+                }}
+                label={
+                  props.canEdit
+                    ? props.pictureUrl
+                      ? 'Edit channel image'
+                      : 'Upload channel image'
+                    : 'Channel picture'
                 }
-                onClick={props.onEditPicture}
+                disabled={imageDisabled()}
+                onClick={() =>
+                  props.pictureUrl
+                    ? props.onEditPicture()
+                    : props.onPickPicture()
+                }
               >
                 <Show
                   when={props.pictureUrl}
                   fallback={
-                    <PictureIcon class="size-12 text-ink-placeholder" />
+                    <Show
+                      when={props.canEdit}
+                      fallback={
+                        <PictureIcon class="size-12 text-ink-placeholder" />
+                      }
+                    >
+                      <span class="flex flex-col items-center gap-2 text-ink-muted">
+                        <UploadIcon class="size-8" />
+                        <span class="text-xs font-medium">Upload image</span>
+                      </span>
+                    </Show>
                   }
                 >
                   {(url) => (
@@ -178,13 +222,23 @@ export function ChannelIdentityFields(props: {
                     />
                   )}
                 </Show>
-                <Show when={props.canEdit}>
+                <Show when={props.canEdit && (props.pictureUrl || dragging())}>
                   <span
                     aria-hidden="true"
                     class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-full bg-surface/60 text-ink opacity-0 transition-opacity not-touch:group-hover/channel-picture:opacity-100 group-focus-visible/channel-picture:opacity-100 touch:opacity-100"
+                    classList={{
+                      'opacity-100': dragging() && !imageDisabled(),
+                    }}
                   >
-                    <PencilIcon class="size-6" />
-                    <span class="text-xs font-medium">Edit image</span>
+                    <Show
+                      when={dragging()}
+                      fallback={<PencilIcon class="size-6" />}
+                    >
+                      <UploadIcon class="size-6" />
+                    </Show>
+                    <span class="text-xs font-medium">
+                      {dragging() ? 'Drop image here' : 'Edit image'}
+                    </span>
                   </span>
                 </Show>
               </Button>
@@ -205,7 +259,11 @@ export function ChannelIdentityFields(props: {
               </Show>
             </div>
             <Show when={props.canEdit}>
-              <p class="text-xs text-ink-muted">Click the image to edit</p>
+              <p class="text-center text-xs text-ink-muted">
+                {props.pictureUrl
+                  ? 'Click to edit or drop an image'
+                  : 'Click to upload or drop an image'}
+              </p>
             </Show>
           </div>
         </div>

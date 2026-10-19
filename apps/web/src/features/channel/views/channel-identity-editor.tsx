@@ -143,6 +143,14 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
     setEditingImage(true);
   }
 
+  function dropPictures(files: File[]) {
+    if (files.length !== 1) {
+      toast.failure('Drop one image at a time.');
+      return;
+    }
+    selectPicture(files[0]);
+  }
+
   const imageFileName = () => {
     const source = cropSource() ?? state.picture();
     if (source instanceof File) return source.name;
@@ -158,13 +166,7 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
         onPreview={previewPicture}
         error={state.error()}
         onPick={() => input.click()}
-        onFilesDrop={(files) => {
-          if (files.length !== 1) {
-            toast.failure('Drop one image at a time.');
-            return;
-          }
-          selectPicture(files[0]);
-        }}
+        onFilesDrop={dropPictures}
         onClear={() => {
           setOriginalPicture(undefined);
           setCropSource(undefined);
@@ -293,6 +295,8 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
                     error={state.error()}
                     onNameChange={state.changeName}
                     onEditPicture={editPicture}
+                    onPickPicture={() => input.click()}
+                    onFilesDrop={dropPictures}
                     onPreviewPicture={previewPicture}
                     onCancel={state.close}
                     onSave={() => void save()}
