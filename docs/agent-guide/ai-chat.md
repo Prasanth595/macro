@@ -169,6 +169,7 @@ Chat/Code stays in the inset bar above the input on phones. Repository controls
 appear alongside it in Code mode.
 Tapping outside collapses the composer and restores New.
 The editor and model picker stay mounted so collapsing preserves the draft.
+Dismissing the model or effort selector on mobile returns focus to the message input.
 Repository and branch pickers keep the composer expanded while their search
 fields are focused, so their anchor stays in place.
 

@@ -27,6 +27,7 @@ type ModelCatalogPickerProps = {
   value: string | null;
   options: CatalogModelOption[];
   onSelect: (id: string) => void;
+  onCloseAutoFocus?: (event: Event) => void;
   modelRow?: Component<ModelRowProps>;
   disabled?: boolean;
   pending?: boolean;
@@ -209,6 +210,7 @@ export function ModelCatalogPicker(props: ModelCatalogPickerProps) {
         <CaretDown class="size-3.5 shrink-0 rotate-[-90deg] opacity-70" />
       </Dropdown.Trigger>
       <Dropdown.Content
+        onCloseAutoFocus={props.onCloseAutoFocus}
         onPointerDown={(event: PointerEvent) => event.stopPropagation()}
         onMouseDown={(event: MouseEvent) => event.stopPropagation()}
         class={cn(

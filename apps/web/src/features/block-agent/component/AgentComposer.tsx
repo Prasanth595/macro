@@ -19,6 +19,7 @@ import {
   uploadInputAttachments,
 } from '@channel/Input';
 import { toast } from '@core/component/Toast/Toast';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { uploadFile } from '@core/util/upload';
 import type { AgentAction } from '@service-agent-harness/generated/schemas';
@@ -217,6 +218,11 @@ export function AgentComposer(props: {
   // Down past that row comes back. Plain variables, read only at call time.
   let focusQueueBottom: (() => void) | undefined;
   let focusInput: (() => void) | undefined;
+  const restoreInputFocus = (event: Event) => {
+    if (!isTouchDevice()) return;
+    event.preventDefault();
+    focusInput?.();
+  };
 
   // The server queue's entries, shaped for display: prompt text as-is, and
   // attribution only when somebody other than the current user queued it —
@@ -379,6 +385,7 @@ export function AgentComposer(props: {
         modelControl={
           <div class="flex min-w-0 items-center gap-1">
             <ModelSelector
+              onCloseAutoFocus={restoreInputFocus}
               model={metadata()?.model ?? null}
               changingTo={changingModel(messages(), metadata()?.model ?? null)}
               options={metadata()?.supportedModels ?? []}
@@ -415,6 +422,7 @@ export function AgentComposer(props: {
               )}
             />
             <EffortSelector
+              onCloseAutoFocus={restoreInputFocus}
               config={effort()}
               value={changingEffort()}
               disabled={

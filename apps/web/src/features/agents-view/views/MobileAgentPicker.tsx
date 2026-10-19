@@ -89,7 +89,13 @@ export function MobileAgentPicker(props: AgentPickerProps) {
     searchInput?.focus();
   };
   return (
-    <MobileDrawer side="bottom" open={open()} onOpenChange={changeOpen}>
+    <MobileDrawer
+      side="bottom"
+      open={open()}
+      onOpenChange={changeOpen}
+      restoreFocus={!!props.onCloseAutoFocus}
+      onFinalFocus={props.onCloseAutoFocus}
+    >
       <MobileDrawer.Trigger
         as={Button}
         variant="ghost"

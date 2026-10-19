@@ -325,6 +325,11 @@ export function NewChatPage(props: {
     );
   };
 
+  let focusInput: (() => void) | undefined;
+  const restoreInputFocus = (event: Event) => {
+    event.preventDefault();
+    focusInput?.();
+  };
   const agentSelector = () => (
     <AgentPicker
       agents={options()}
@@ -335,6 +340,7 @@ export function NewChatPage(props: {
         selectedEffort()?.name ?? effortLabel(effort(), effortOverride()?.value)
       }
       effortSelection={effortOverride()}
+      onCloseAutoFocus={restoreInputFocus}
       onSelect={selectAgent}
       onSelectEffort={selectAgent}
       onConnect={connect}
@@ -401,7 +407,10 @@ export function NewChatPage(props: {
       autoFocus={props.autoFocus}
       collapseOnBlur={props.compact}
       controlsOpen={repositoryPickerOpen() || effortPickerOpen()}
-      registerFocus={props.registerFocus}
+      registerFocus={(focus) => {
+        focusInput = focus;
+        props.registerFocus?.(focus);
+      }}
       draft={draft()}
       onDraftChange={setDraft}
       blockedReason={blocked()}
@@ -409,6 +418,7 @@ export function NewChatPage(props: {
         <div class="flex min-w-0 items-center gap-1">
           {agentSelector()}
           <EffortSelector
+            onCloseAutoFocus={restoreInputFocus}
             onOpenChange={setEffortPickerOpen}
             config={effort()}
             value={effortOverride()?.value}

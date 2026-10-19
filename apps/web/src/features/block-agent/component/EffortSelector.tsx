@@ -15,6 +15,7 @@ export function EffortSelector(props: {
   disabled?: boolean;
   onChange: (choice: EffortChoice) => void;
   onOpenChange?: (open: boolean) => void;
+  onCloseAutoFocus?: (event: Event) => void;
 }) {
   const [open, setOpen] = createSignal(false);
   const [preview, setPreview] = createSignal<number>();
@@ -60,7 +61,7 @@ export function EffortSelector(props: {
       <div class="mb-1 text-center text-sm text-ink-muted" aria-hidden="true">
         {label()}
       </div>
-      <div class="relative mx-3 h-9">
+      <div class="relative mx-3.5 h-9">
         <div
           class="pointer-events-none absolute inset-x-0 top-3 flex h-3 gap-1"
           aria-hidden="true"
@@ -68,7 +69,7 @@ export function EffortSelector(props: {
           <For each={choices()}>
             {(_, position) => (
               <span
-                class="flex-1 rounded-[3px] transition-colors duration-100"
+                class="flex-1 rounded-[5px] transition-colors duration-100"
                 classList={{
                   'bg-ink/70': position() <= index(),
                   'bg-ink/15': position() > index(),
@@ -78,7 +79,7 @@ export function EffortSelector(props: {
           </For>
         </div>
         <span
-          class="pointer-events-none absolute top-1.5 size-6 -translate-x-1/2 rounded-full bg-ink shadow-sm"
+          class="pointer-events-none absolute top-1 size-7 -translate-x-1/2 rounded-full bg-ink shadow-sm"
           aria-hidden="true"
           style={{
             left: `calc(${((index() + 1) / choices().length) * 100}% + ${((index() + 1) / choices().length) * 4 - (index() === choices().length - 1 ? 4 : 2)}px)`,
@@ -143,7 +144,13 @@ export function EffortSelector(props: {
           </Popover>
         }
       >
-        <MobileDrawer side="bottom" open={open()} onOpenChange={changeOpen}>
+        <MobileDrawer
+          side="bottom"
+          open={open()}
+          onOpenChange={changeOpen}
+          restoreFocus={!!props.onCloseAutoFocus}
+          onFinalFocus={props.onCloseAutoFocus}
+        >
           <MobileDrawer.Trigger
             as={Button}
             variant="ghost"

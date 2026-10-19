@@ -89,6 +89,7 @@ export interface AgentModelSelectorProps {
   modelRow?: Component<ModelRowProps>;
   /** Receives the id of the model to switch to. */
   onSelect: (model: string) => void;
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 export function AgentModelSelector(props: AgentModelSelectorProps) {
@@ -137,6 +138,8 @@ export function AgentModelSelector(props: AgentModelSelectorProps) {
       side="bottom"
       open={sheetOpen()}
       onOpenChange={openSheet}
+      restoreFocus={!!props.onCloseAutoFocus}
+      onFinalFocus={props.onCloseAutoFocus}
       preventScroll={false}
       preventScrollbarShift={false}
     >

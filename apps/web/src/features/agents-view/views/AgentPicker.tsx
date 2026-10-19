@@ -42,6 +42,7 @@ export type AgentPickerProps = {
   ) => void;
   onConnect: (agent: RosterAgent) => void;
   onCreate: () => void;
+  onCloseAutoFocus?: (event: Event) => void;
 };
 
 export function AgentPicker(props: AgentPickerProps) {

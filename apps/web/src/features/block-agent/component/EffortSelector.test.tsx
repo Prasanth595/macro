@@ -1,7 +1,13 @@
 /** @vitest-environment jsdom */
 
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@solidjs/testing-library';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { SelectSessionConfigOption } from '../state/session-config';
 import { EffortSelector } from './EffortSelector';
@@ -22,7 +28,9 @@ const config: SelectSessionConfigOption = {
     { name: 'High', value: 'high', group: null, description: null },
   ],
 };
+const originalScrollTo = HTMLElement.prototype.scrollTo;
 beforeEach(() => {
+  HTMLElement.prototype.scrollTo = vi.fn();
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
   vi.stubGlobal(
     'ResizeObserver',
@@ -35,6 +43,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  HTMLElement.prototype.scrollTo = originalScrollTo;
   vi.unstubAllGlobals();
 });
 it.each([false, true])(
@@ -66,4 +75,30 @@ it('does not open while configuration is disabled', () => {
   render(() => <EffortSelector config={config} disabled onChange={vi.fn()} />);
   fireEvent.click(screen.getByRole('button', { name: 'Effort: Low' }));
   expect(screen.queryByRole('slider')).toBeNull();
+});
+
+it('returns focus to the composer when the mobile chooser closes', async () => {
+  vi.mocked(isTouchDevice).mockReturnValue(true);
+  let input!: HTMLTextAreaElement;
+  render(() => (
+    <>
+      <style>{`[data-corvu-drawer-content] { transition-duration: 0s; }`}</style>
+      <textarea ref={input} aria-label="Message" />
+      <EffortSelector
+        config={config}
+        onChange={vi.fn()}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          input.focus();
+        }}
+      />
+    </>
+  ));
+  fireEvent.click(screen.getByRole('button', { name: 'Effort: Low' }));
+  const slider = await screen.findByRole('slider', {
+    name: 'Reasoning effort',
+  });
+  await waitFor(() => expect(document.activeElement).toBe(slider));
+  fireEvent.keyDown(slider, { key: 'Escape' });
+  await waitFor(() => expect(document.activeElement).toBe(input));
 });
