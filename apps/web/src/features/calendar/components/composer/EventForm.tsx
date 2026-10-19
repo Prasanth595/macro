@@ -1,13 +1,15 @@
 import { useMacroMentionLinkResolver } from '@components/app/split-layout/split-router/mention-links';
 import { MarkdownTextarea } from '@core/component/LexicalMarkdown/component/core/MarkdownTextarea';
+import { isMobile } from '@core/mobile/isMobile';
 import SpinnerIcon from '@phosphor/spinner.svg';
 import type { CalendarUpdateScope } from '@service-email/client';
-import { Button, cn, Layer, RadioGroup } from '@ui';
+import { Button, cn, Input, Layer, RadioGroup } from '@ui';
 import {
   createEffect,
   createSignal,
   createUniqueId,
   For,
+  type JSX,
   Show,
 } from 'solid-js';
 import {
@@ -36,6 +38,7 @@ import { RecurrenceBuilder } from './RecurrenceBuilder';
 
 export interface EventFormProps {
   controller: CalendarEventFormController;
+  layout?: 'compact' | 'details';
   /** Whether this host can create and attach Macro call links. */
   macroCallsEnabled: boolean;
   isEdit?: boolean;
@@ -64,7 +67,7 @@ const RECURRING_EDIT_SCOPE_OPTIONS = [
   label: string;
 }[];
 
-/** Create/edit event form laid out like the standalone task composer. */
+/** Shared event controls with compact editing and detail-style creation layouts. */
 export function EventForm(props: EventFormProps) {
   const formId = createUniqueId();
   const resolveAppLink = useMacroMentionLinkResolver();
@@ -128,6 +131,191 @@ export function EventForm(props: EventFormProps) {
     );
   };
 
+  const details = () => props.layout === 'details';
+  const titleField = () => (
+    <Input
+      type="text"
+      value={state().title}
+      onInput={(event) =>
+        controller.setField('title', event.currentTarget.value)
+      }
+      placeholder="New event"
+      aria-label="Title"
+      autofocus={!isEdit() && !isMobile()}
+      disabled={fieldIsDisabled('title')}
+      class="h-9 w-full border-0 rounded-none shadow-none bg-transparent px-2 text-lg font-semibold leading-snug text-ink outline-none placeholder:text-ink-placeholder"
+    />
+  );
+  const dateFields = () => (
+    <div class="flex min-w-0 flex-col gap-1">
+      <EventDateTimeRangeFields
+        start={state().start}
+        end={state().end}
+        allDay={state().allDay}
+        onStartChange={controller.setStart}
+        onEndChange={(end) => controller.setField('end', end)}
+        onAllDayChange={controller.setAllDay}
+        startDisabled={fieldIsDisabled('start')}
+        endDisabled={fieldIsDisabled('end')}
+        allDayDisabled={fieldIsDisabled('allDay')}
+        invalid={controller.dateRangeError() !== undefined}
+        describedBy={dateRangeDescribedBy()}
+        stacked={details()}
+      />
+      <Show when={controller.dateRangeError()}>
+        {(error) => (
+          <p id={dateRangeErrorId} role="alert" class="text-xs text-failure">
+            {error()}
+          </p>
+        )}
+      </Show>
+      <Show when={pastEventWarning()}>
+        {(warning) => (
+          <p id={pastEventWarningId} role="status" class="text-xs text-warning">
+            {warning()}
+          </p>
+        )}
+      </Show>
+    </div>
+  );
+  const descriptionField = () => (
+    <Show when={!isOutOfOffice()}>
+      <div
+        class={
+          details()
+            ? 'h-16 min-w-0 flex-1 overflow-y-auto'
+            : 'h-12 overflow-y-auto'
+        }
+      >
+        <MarkdownTextarea
+          resolveAppLink={resolveAppLink}
+          type="calendar"
+          initialHtml={calendarDescriptionToEditorHtml(initialDescription)}
+          editable={() => !fieldIsDisabled('description')}
+          onInitialized={(editor) => {
+            loadedDescription = exportCalendarDescription(editor);
+          }}
+          onChange={(_markdown, editor) => {
+            if (!editor) return;
+            const next = exportCalendarDescription(editor);
+            controller.setField(
+              'description',
+              next === loadedDescription ? initialDescription : next
+            );
+          }}
+          placeholder="Add description..."
+          portalScope="local"
+          domRef={(element) =>
+            element.setAttribute('aria-label', 'Description')
+          }
+          class="h-full w-full bg-transparent px-2 text-sm text-ink outline-none"
+        />
+      </div>
+    </Show>
+  );
+  const controls = {
+    kind: () => (
+      <EventComposerKindPill
+        eventType={state().eventType}
+        onChange={controller.setEventKind}
+        disabled={formIsDisabled()}
+        readOnly={isEdit()}
+      />
+    ),
+    calendar: () => (
+      <EventComposerCalendarPill
+        options={controller.calendarOptions()}
+        value={controller.selectedCalendarOption()}
+        onChange={(calendarId) => controller.setField('calendarId', calendarId)}
+        disabled={formIsDisabled()}
+        readOnly={fieldIsReadOnly('calendar')}
+      />
+    ),
+    recurrence: () => (
+      <EventComposerRecurrencePill
+        options={controller.recurrenceOptions()}
+        value={controller.selectedRecurrenceOption()}
+        onChange={controller.changeRecurrenceChoice}
+        disabled={formIsDisabled()}
+        // A single occurrence has no recurrence rule of its own, so the
+        // recurrence cannot be edited while the scope is one event.
+        readOnly={fieldIsReadOnly('recurrence') || editScope() === 'this_event'}
+      />
+    ),
+    guests: () => (
+      <EventComposerGuestsPill
+        options={controller.guestOptions}
+        selected={controller.selectedGuests()}
+        onChange={controller.setSelectedGuests}
+        disabled={formIsDisabled()}
+        readOnly={fieldIsReadOnly('guests')}
+      />
+    ),
+    conference: () => (
+      <EventComposerConferencePill
+        value={state().conference}
+        macroCallsEnabled={props.macroCallsEnabled}
+        canKeepExisting={controller.initialConferenceChoice() === 'existing'}
+        onChange={(conference) => controller.setField('conference', conference)}
+        disabled={fieldIsDisabled('conference')}
+      />
+    ),
+    location: () => (
+      <EventComposerLocationPill
+        value={state().location}
+        onChange={(location) => controller.setField('location', location)}
+        disabled={fieldIsDisabled('location')}
+      />
+    ),
+    decline: () => (
+      <EventComposerDeclinePill
+        value={state().outOfOffice}
+        onChange={controller.setOutOfOffice}
+        disabled={formIsDisabled()}
+      />
+    ),
+    declineMessage: () => (
+      <Show
+        when={
+          state().outOfOffice &&
+          state().outOfOffice?.autoDeclineMode !== 'decline_none'
+        }
+      >
+        <EventComposerDeclineMessagePill
+          value={state().outOfOffice?.declineMessage ?? ''}
+          onChange={(declineMessage) =>
+            controller.setOutOfOffice({
+              autoDeclineMode:
+                state().outOfOffice?.autoDeclineMode ?? 'decline_none',
+              declineMessage,
+            })
+          }
+          disabled={formIsDisabled()}
+        />
+      </Show>
+    ),
+    reminders: () => (
+      <EventComposerRemindersPill
+        minutes={controller.reminderMinutes()}
+        usedSlots={
+          controller.reminderMinutes().length +
+          controller.preservedReminderCount()
+        }
+        canAdd={controller.canAddReminder()}
+        onChange={controller.setReminderMinutes}
+        disabled={fieldIsDisabled('reminders')}
+      />
+    ),
+  };
+  const PropertyRow = (row: { label: string; children: JSX.Element }) => (
+    <div class="grid min-w-0 grid-cols-[5.5rem_minmax(0,1fr)] items-start gap-x-3 py-1">
+      <span class="pt-1.5 text-xs text-ink-extra-muted">{row.label}</span>
+      <div class="flex min-w-0 flex-wrap items-center gap-2">
+        {row.children}
+      </div>
+    </div>
+  );
+
   return (
     <form
       class={cn(
@@ -139,185 +327,88 @@ export function EventForm(props: EventFormProps) {
         submit();
       }}
     >
-      <div class="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto scrollbar-hidden">
-        <div class="flex min-w-0 flex-col gap-6 text-sm text-ink-muted">
-          <div class="flex min-w-0 flex-col gap-1">
-            <div class="flex min-w-0 flex-col gap-1">
-              <EventDateTimeRangeFields
-                start={state().start}
-                end={state().end}
-                allDay={state().allDay}
-                onStartChange={controller.setStart}
-                onEndChange={(end) => controller.setField('end', end)}
-                onAllDayChange={controller.setAllDay}
-                startDisabled={fieldIsDisabled('start')}
-                endDisabled={fieldIsDisabled('end')}
-                allDayDisabled={fieldIsDisabled('allDay')}
-                invalid={controller.dateRangeError() !== undefined}
-                describedBy={dateRangeDescribedBy()}
-              />
-              <Show when={controller.dateRangeError()}>
-                {(error) => (
-                  <p
-                    id={dateRangeErrorId}
-                    role="alert"
-                    class="text-xs text-failure"
-                  >
-                    {error()}
-                  </p>
-                )}
-              </Show>
-              <Show when={pastEventWarning()}>
-                {(warning) => (
-                  <p
-                    id={pastEventWarningId}
-                    role="status"
-                    class="text-xs text-warning"
-                  >
-                    {warning()}
-                  </p>
-                )}
-              </Show>
-            </div>
-
-            <input
-              type="text"
-              value={state().title}
-              onInput={(event) =>
-                controller.setField('title', event.currentTarget.value)
-              }
-              placeholder="New event"
-              aria-label="Title"
-              autofocus={!isEdit()}
-              disabled={fieldIsDisabled('title')}
-              class="h-9 w-full bg-transparent px-2 text-lg font-semibold leading-snug text-ink outline-none placeholder:text-ink-placeholder"
-            />
-
-            {/* Google rejects a description on an out-of-office event. The
-                editor re-initializes from the kind switch's reset state, so
-                what it shows always matches what a save submits. */}
-            <Show when={!isOutOfOffice()}>
-              <div class="h-12 overflow-y-auto">
-                <MarkdownTextarea
-                  resolveAppLink={resolveAppLink}
-                  type="calendar"
-                  initialHtml={calendarDescriptionToEditorHtml(
-                    initialDescription
-                  )}
-                  editable={() => !fieldIsDisabled('description')}
-                  onInitialized={(editor) => {
-                    loadedDescription = exportCalendarDescription(editor);
-                  }}
-                  onChange={(_markdown, editor) => {
-                    if (!editor) return;
-                    const next = exportCalendarDescription(editor);
-                    controller.setField(
-                      'description',
-                      next === loadedDescription ? initialDescription : next
-                    );
-                  }}
-                  placeholder="Add description..."
-                  portalScope="local"
-                  domRef={(element) =>
-                    element.setAttribute('aria-label', 'Description')
-                  }
-                  class="h-full w-full bg-transparent px-2 text-sm text-ink outline-none"
-                />
+      <div
+        class={cn(
+          'flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-hidden',
+          details() ? 'gap-5' : 'gap-6'
+        )}
+      >
+        <div
+          class={cn(
+            'flex min-w-0 flex-col text-sm text-ink-muted',
+            details() ? 'gap-4' : 'gap-6'
+          )}
+        >
+          <Show
+            when={details()}
+            fallback={
+              <div class="flex min-w-0 flex-col gap-1">
+                {dateFields()}
+                {titleField()}
+                {descriptionField()}
               </div>
-            </Show>
-          </div>
+            }
+          >
+            {titleField()}
+            {dateFields()}
+          </Show>
 
-          <div class="flex min-w-0 flex-wrap items-center gap-2">
-            <EventComposerKindPill
-              eventType={state().eventType}
-              onChange={controller.setEventKind}
-              disabled={formIsDisabled()}
-              readOnly={isEdit()}
-            />
-            <EventComposerCalendarPill
-              options={controller.calendarOptions()}
-              value={controller.selectedCalendarOption()}
-              onChange={(calendarId) =>
-                controller.setField('calendarId', calendarId)
-              }
-              disabled={formIsDisabled()}
-              readOnly={fieldIsReadOnly('calendar')}
-            />
-            <EventComposerRecurrencePill
-              options={controller.recurrenceOptions()}
-              value={controller.selectedRecurrenceOption()}
-              onChange={controller.changeRecurrenceChoice}
-              disabled={formIsDisabled()}
-              // A single occurrence has no recurrence rule of its own, so the
-              // recurrence cannot be edited while the scope is one event.
-              readOnly={
-                fieldIsReadOnly('recurrence') || editScope() === 'this_event'
-              }
-            />
-            <Show when={!isOutOfOffice()}>
-              <EventComposerGuestsPill
-                options={controller.guestOptions}
-                selected={controller.selectedGuests()}
-                onChange={controller.setSelectedGuests}
-                disabled={formIsDisabled()}
-                readOnly={fieldIsReadOnly('guests')}
-              />
-              <EventComposerConferencePill
-                value={state().conference}
-                macroCallsEnabled={props.macroCallsEnabled}
-                canKeepExisting={
-                  controller.initialConferenceChoice() === 'existing'
-                }
-                onChange={(conference) =>
-                  controller.setField('conference', conference)
-                }
-                disabled={fieldIsDisabled('conference')}
-              />
-              <EventComposerLocationPill
-                value={state().location}
-                onChange={(location) =>
-                  controller.setField('location', location)
-                }
-                disabled={fieldIsDisabled('location')}
-              />
-            </Show>
-            <Show when={isOutOfOffice()}>
-              <EventComposerDeclinePill
-                value={state().outOfOffice}
-                onChange={controller.setOutOfOffice}
-                disabled={formIsDisabled()}
-              />
-              <Show
-                when={
-                  state().outOfOffice &&
-                  state().outOfOffice?.autoDeclineMode !== 'decline_none'
-                }
-              >
-                <EventComposerDeclineMessagePill
-                  value={state().outOfOffice?.declineMessage ?? ''}
-                  onChange={(declineMessage) =>
-                    controller.setOutOfOffice({
-                      autoDeclineMode:
-                        state().outOfOffice?.autoDeclineMode ?? 'decline_none',
-                      declineMessage,
-                    })
-                  }
-                  disabled={formIsDisabled()}
-                />
+          <Show
+            when={details()}
+            fallback={
+              <div class="flex min-w-0 flex-wrap items-center gap-2">
+                {controls.kind()}
+                {controls.calendar()}
+                {controls.recurrence()}
+                <Show when={!isOutOfOffice()}>
+                  {controls.guests()}
+                  {controls.conference()}
+                  {controls.location()}
+                </Show>
+                <Show when={isOutOfOffice()}>
+                  {controls.decline()}
+                  {controls.declineMessage()}
+                </Show>
+                {controls.reminders()}
+              </div>
+            }
+          >
+            <div class="flex min-w-0 flex-col">
+              <Show when={!isOutOfOffice()}>
+                <PropertyRow label="Guests">{controls.guests()}</PropertyRow>
+                <PropertyRow label="Meeting link">
+                  {controls.conference()}
+                </PropertyRow>
+                <PropertyRow label="Location">
+                  {controls.location()}
+                </PropertyRow>
+                <PropertyRow label="Description">
+                  {descriptionField()}
+                </PropertyRow>
               </Show>
-            </Show>
-            <EventComposerRemindersPill
-              minutes={controller.reminderMinutes()}
-              usedSlots={
-                controller.reminderMinutes().length +
-                controller.preservedReminderCount()
-              }
-              canAdd={controller.canAddReminder()}
-              onChange={controller.setReminderMinutes}
-              disabled={fieldIsDisabled('reminders')}
-            />
-          </div>
-
+              <Show when={isOutOfOffice()}>
+                <PropertyRow label="Decline">{controls.decline()}</PropertyRow>
+                <PropertyRow label="Reply">
+                  {controls.declineMessage()}
+                </PropertyRow>
+              </Show>
+              <section
+                aria-label="Calendar settings"
+                class="mt-3 border-t border-edge-muted pt-3"
+              >
+                <PropertyRow label="Calendar">
+                  {controls.calendar()}
+                </PropertyRow>
+                <PropertyRow label="Type">{controls.kind()}</PropertyRow>
+                <PropertyRow label="Repeats">
+                  {controls.recurrence()}
+                </PropertyRow>
+                <PropertyRow label="Notifications">
+                  {controls.reminders()}
+                </PropertyRow>
+              </section>
+            </div>
+          </Show>
           <Show when={outOfOfficeNotice()}>
             {(notice) => (
               <div
@@ -338,7 +429,6 @@ export function EventForm(props: EventFormProps) {
             )}
           </Show>
         </div>
-
         <Show when={controller.recurrenceChoice() === 'custom'}>
           <Layer depth={3}>
             <div class="rounded-xl bg-surface p-4 text-ink">

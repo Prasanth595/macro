@@ -30,7 +30,6 @@ import {
   timeGridScroller,
 } from '@app/features/calendar/utils/time-grid-scroller';
 import { mergeCalendarOverlays } from '@app/features/calendar-team/core/merge';
-import { useOpenEventComposer } from '@app/features/calendar-view/components/use-open-event-composer';
 import { useQuickCallsFlag } from '@app/features/meetings/use-quick-calls-flag';
 import { toast } from '@core/component/Toast/Toast';
 import { ScrollIndicators } from '@core/component/VerticalScrollIndicators';
@@ -61,6 +60,7 @@ import {
   calendarFocusTargetId,
   useCalendarFocus,
 } from '../calendar-focus-target';
+import { useCalendarCreation } from '../context/calendar-creation-context';
 import { CalendarLoadingSkeleton } from './CalendarLoadingSkeleton';
 
 interface CalendarScrollTarget {
@@ -204,7 +204,7 @@ export function Page(props: {
   // Keep the settings object independent of route-period changes. Otherwise
   // reading any grid setting also subscribes FullCalendar to the whole object.
   const initialView = untrack(() => calendarView.displaySettings.periodView);
-  const openEventComposer = useOpenEventComposer();
+  const creation = useCalendarCreation();
   const quickCalls = useQuickCallsFlag();
   const calendarsQuery = useVisibleCalendarsQuery();
   const firstWritableCalendar = createMemo(() =>
@@ -251,16 +251,23 @@ export function Page(props: {
   const updateEventTime = useUpdateCalendarEventMutation();
   const handleSelect = (selection: DateSelectArg) => {
     if (!isActive()) return;
-    // The press that closes open event details also hits the grid. FullCalendar
-    // selects on mouseup, after the details have already closed, so that
-    // gesture must not open a new event.
-    if (consumeSuppressedCalendarDateSelection()) {
+    if (creation.draft() || consumeSuppressedCalendarDateSelection()) {
       selection.view.calendar.unselect();
       return;
     }
     const calendar = firstWritableCalendar();
+    const pointer = selection.jsEvent;
+    const target = pointer?.target;
+    const preview =
+      target instanceof Element
+        ? target
+            .closest('.fc')
+            ?.querySelector<HTMLElement>('.fc-event-mirror, .fc-highlight')
+        : undefined;
+    const rect = preview?.getBoundingClientRect();
     setSelectionColor(calendar?.color ?? DEFAULT_CALENDAR_SOURCE.color);
-    openEventComposer({
+    calendarView.closeEventDetails();
+    creation.open({
       initialValues: {
         ...calendarSelectionToEditorInitialValues(
           selection,
@@ -268,13 +275,21 @@ export function Page(props: {
         ),
         ...(calendar ? { calendarId: calendar.id } : {}),
       },
-      onCalendarChange: (_calendarId: string, color: string) =>
-        setSelectionColor(color),
+      anchor: rect
+        ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+        : {
+            x: pointer?.clientX ?? 0,
+            y: pointer?.clientY ?? 0,
+            width: 0,
+            height: 0,
+          },
+      onCalendarChange: (_calendarId, color) => setSelectionColor(color),
       onClose: () => {
         selection.view.calendar.unselect();
         setSelectionColor(undefined);
       },
     });
+    // The grid mirror is decoration only; the draft survives page recycling.
   };
 
   const handleDatesSet = ({ end, start }: DatesSetArg) => {
@@ -348,6 +363,7 @@ export function Page(props: {
         selection={{
           color: effectiveSelectionColor(),
           eventId: isActive() ? calendarView.selectedEvent()?.id : undefined,
+          allowDateSelection: () => !creation.draft(),
           onDateSelect: isMobile() ? undefined : handleSelect,
           onEventSelect: (event, element) => {
             if (isActive()) calendarView.selectEvent(event, element);

@@ -29,7 +29,10 @@ import {
   Suspense,
   Switch,
 } from 'solid-js';
+import { CalendarCreationProvider } from '../context/calendar-creation-context';
 import { CALENDAR_TOUR, calendarTour } from '../tour';
+import type { CalendarViewTarget } from '../types';
+import { CalendarEventCreation } from '../views/calendar-event-creation';
 import { CalendarSidebar } from './CalendarSidebar';
 import { Header } from './Header';
 import { Page } from './Page';
@@ -135,12 +138,19 @@ function CalendarPages() {
 }
 
 function CalendarPageContent() {
+  const [boundary, setBoundary] = createSignal<HTMLDivElement>();
   return (
     <div
-      ref={tourTarget(CALENDAR_TOUR.grid)}
-      class="calendar-view-content flex min-w-0 min-h-0 flex-1 flex-col"
+      ref={(element) => {
+        setBoundary(element);
+        tourTarget(CALENDAR_TOUR.grid)(element);
+      }}
+      class="calendar-view-content relative flex min-w-0 min-h-0 flex-1"
     >
       <CalendarPages />
+      <Show when={boundary()}>
+        {(element) => <CalendarEventCreation boundary={element()} />}
+      </Show>
     </div>
   );
 }
@@ -198,18 +208,22 @@ function CalendarPagerWorkspace() {
   );
 }
 
-export function Workspace() {
+export function Workspace(
+  props: { creationRequest?: CalendarViewTarget['creationRequest'] } = {}
+) {
   const calendarView = useCalendarView();
 
   return (
-    <CalendarPagerContextProvider
-      initialView={calendarView.displaySettings.periodView}
-      showWeekends={() => calendarView.displaySettings.showWeekends}
-      weekStartsOn={() => calendarView.displaySettings.weekStartsOn}
-      onNavigate={calendarView.closeEventDetails}
-      onViewChange={calendarView.setPeriodView}
-    >
-      <CalendarPagerWorkspace />
-    </CalendarPagerContextProvider>
+    <CalendarCreationProvider request={props.creationRequest}>
+      <CalendarPagerContextProvider
+        initialView={calendarView.displaySettings.periodView}
+        showWeekends={() => calendarView.displaySettings.showWeekends}
+        weekStartsOn={() => calendarView.displaySettings.weekStartsOn}
+        onNavigate={calendarView.closeEventDetails}
+        onViewChange={calendarView.setPeriodView}
+      >
+        <CalendarPagerWorkspace />
+      </CalendarPagerContextProvider>
+    </CalendarCreationProvider>
   );
 }

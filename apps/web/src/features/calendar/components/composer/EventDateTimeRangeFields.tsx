@@ -41,6 +41,7 @@ interface EventDateTimeDropdownProps {
   invalid?: boolean;
   describedBy?: string;
   placement: 'bottom-start' | 'bottom-end';
+  fullWidth?: boolean;
 }
 
 function EventDateTimeDropdown(props: EventDateTimeDropdownProps) {
@@ -98,6 +99,7 @@ function EventDateTimeDropdown(props: EventDateTimeDropdownProps) {
         aria-describedby={props.describedBy}
         class={cn(
           'group inline-flex h-7 w-fit max-w-48 min-w-0 items-center justify-between gap-1.5 rounded-lg border border-edge-muted bg-control px-2 py-1 text-left text-xs leading-tight text-ink-muted hover:bg-hover hover:text-ink focus-visible:bg-active focus-visible:text-ink focus-visible:ring-accent/10 data-expanded:bg-hover data-expanded:text-ink',
+          props.fullWidth && 'w-full max-w-none',
           open() && 'bg-hover text-ink',
           props.invalid &&
             'border-failure text-failure hover:text-failure focus-visible:text-failure data-expanded:text-failure'
@@ -182,6 +184,7 @@ export interface EventDateTimeRangeFieldsProps {
   allDayDisabled?: boolean;
   invalid?: boolean;
   describedBy?: string;
+  stacked?: boolean;
 }
 
 /** Separate start/end date-time dropdowns joined by a directional arrow. */
@@ -189,8 +192,18 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
   const fieldId = createUniqueId();
 
   return (
-    <div class="flex w-full items-center justify-between gap-3">
-      <div class="flex min-w-0 items-center gap-2">
+    <div
+      class={cn(
+        'flex w-full justify-between gap-3',
+        props.stacked ? 'items-start' : 'items-center'
+      )}
+    >
+      <div
+        class={cn(
+          'flex min-w-0 gap-2',
+          props.stacked ? 'flex-1 flex-col items-stretch' : 'items-center'
+        )}
+      >
         <EventDateTimeDropdown
           id={`composer-start-time-${fieldId}`}
           label="Start"
@@ -206,11 +219,13 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
           invalid={props.invalid}
           describedBy={props.describedBy}
           placement="bottom-start"
+          fullWidth={props.stacked}
         />
         <ArrowRightIcon
           aria-label="to"
           class={cn(
             'size-3.5 shrink-0 text-ink-extra-muted',
+            props.stacked && 'ml-2 rotate-90',
             props.invalid && 'text-failure'
           )}
         />
@@ -230,6 +245,7 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
           invalid={props.invalid}
           describedBy={props.describedBy}
           placement="bottom-end"
+          fullWidth={props.stacked}
         />
       </div>
       <ToggleSwitch

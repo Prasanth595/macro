@@ -39,14 +39,22 @@ export function calendarViewContent(
       range: target.range,
     })
   );
-  const params: CalendarViewTarget | undefined = eventId
-    ? {
-        eventId,
-        occurrenceKey: target.occurrenceKey,
-        range: target.range,
-        focusRequestId: nextFocusRequestId++,
-      }
-    : undefined;
+  const params: CalendarViewTarget | undefined =
+    eventId || target.creationRequest
+      ? {
+          ...(eventId
+            ? {
+                eventId,
+                occurrenceKey: target.occurrenceKey,
+                range: target.range,
+                focusRequestId: nextFocusRequestId++,
+              }
+            : {}),
+          ...(target.creationRequest
+            ? { creationRequest: target.creationRequest }
+            : {}),
+        }
+      : undefined;
 
   return {
     type: 'component',

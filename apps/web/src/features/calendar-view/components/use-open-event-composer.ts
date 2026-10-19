@@ -3,6 +3,7 @@ import type { CalendarEvent } from '@app/features/calendar/types';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { confirmDialog } from '@ui';
 import { getOwner } from 'solid-js';
+import { openCalendarView } from '../calendar-navigation';
 
 /** Values and lifecycle callbacks used to open an event composer. */
 export interface OpenEventComposerOptions {
@@ -12,12 +13,21 @@ export interface OpenEventComposerOptions {
   onClose?: () => void;
 }
 
-/** Opens an event composer with confirmation before discarding changes. */
+/** Creation belongs to Calendar; existing-event editing retains its split host. */
 export function useOpenEventComposer() {
   const { popoverSplit } = useSplitLayout();
   const owner = getOwner();
 
   return (options: OpenEventComposerOptions = {}) => {
+    if (!options.event) {
+      openCalendarView({
+        creationRequest: {
+          id: crypto.randomUUID(),
+          initialValues: options.initialValues,
+        },
+      });
+      return;
+    }
     let eventSaved = false;
     let formDirty = false;
     let closeConfirmationPending = false;

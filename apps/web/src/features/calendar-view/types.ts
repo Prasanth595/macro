@@ -1,4 +1,5 @@
 import type { CalendarOccurrenceQueryRange } from '@queries/calendar/occurrences';
+import type { EventEditorInitialValues } from '../calendar/components/composer/event-form-model';
 
 /** Stable identity used by the Calendar application view. */
 export const CALENDAR_VIEW_ID = 'calendar';
@@ -13,6 +14,8 @@ export interface CalendarViewTarget {
   occurrenceKey?: string;
   /** Monotonic token that makes repeated navigation to one event observable. */
   focusRequestId?: number;
+  /** Ephemeral action consumed by the calendar-owned creation editor. */
+  creationRequest?: { id: string; initialValues?: EventEditorInitialValues };
 }
 
 /** A validated request to locate and focus one event occurrence. */
