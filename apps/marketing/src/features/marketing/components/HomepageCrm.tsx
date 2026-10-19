@@ -196,11 +196,8 @@ export default function HomepageCrm(
             />
           </div>
         </div>
-        <div class="homepage-crm-footer">
-          <span class="homepage-crm-status" role="status">
-            {frame().status}
-          </span>
-          <Show when={!reduced() && props.playbackControls !== false}>
+        <Show when={!reduced() && props.playbackControls !== false}>
+          <div class="homepage-crm-footer">
             <div class="flex gap-3 shrink-0">
               <Show when={!complete()}>
                 <button
@@ -224,8 +221,8 @@ export default function HomepageCrm(
                 Replay
               </button>
             </div>
-          </Show>
-        </div>
+          </div>
+        </Show>
       </DocsGraphicFrame>
     </div>
   );

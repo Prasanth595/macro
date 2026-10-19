@@ -210,11 +210,6 @@ function Inbox(props: { signalNoise?: boolean }) {
               Move Product updates back to Signal
             </Show>
           </Button>
-          <span role="status">
-            {moved()
-              ? 'Product updates is now in Noise.'
-              : 'Switch between Signal and Noise in the sidebar.'}
-          </span>
         </div>
       </Show>
     </div>

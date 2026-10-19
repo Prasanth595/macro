@@ -111,7 +111,8 @@ channel-based sharing. Verify claims against the implementation. Avoid vague
 “context,” “move work forward,” and “all in one place” headlines, demo narration
 as feature prose, and unqualified superiority claims. Explain technical terms
 once in plain language; keep demo disclosures in relevant FAQs. Omit small explanatory captions below
-product demos; retain useful keyboard shortcuts and controls.
+product demos, including changing walkthrough narration inside their footer
+controls; retain useful keyboard shortcuts and controls.
 Write it the way the founder talks to another founder: plain words, “we,” the
 competitor by name when the comparison is specific, and why we built it.
 

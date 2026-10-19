@@ -157,6 +157,11 @@ it('keeps the live reply in the shared thread and stops at the completed result'
   setVisible(true);
   vi.advanceTimersByTime(10650);
   expect(view.getByText('2 messages · New reply from Valentina')).toBeTruthy();
+  expect(
+    view.queryByText(
+      'Valentina replied. Your whole team is already up to date.'
+    )
+  ).toBeNull();
   vi.advanceTimersByTime(30000);
   expect(view.getByText('2 messages · New reply from Valentina')).toBeTruthy();
   expect(vi.getTimerCount()).toBe(0);

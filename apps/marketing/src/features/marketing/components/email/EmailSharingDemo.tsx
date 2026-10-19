@@ -358,20 +358,13 @@ export function EmailSharingDemo(props: { onClose?: () => void } = {}) {
           )}
         </Show>
       </div>
-      <div class="mail-demo-controls">
-        <span>
-          {phase() >= 7
-            ? 'Valentina replied. Your whole team is already up to date.'
-            : phase() === 6
-              ? 'Shared. Open the email right from the channel.'
-              : 'Choose #launch, add a note, and share.'}
-        </span>
-        <Show when={props.onClose}>
+      <Show when={props.onClose}>
+        <div class="mail-demo-controls">
           <Button variant="plain" size="sm" onClick={props.onClose}>
             Back to inbox
           </Button>
-        </Show>
-      </div>
+        </div>
+      </Show>
     </div>
   );
 }
