@@ -133,7 +133,8 @@ export function projectLocalGroupedSoup(
   baseline: readonly GroupedSoupBin[],
   snapshot: LiveQuerySnapshot<SoupItemFieldsFragment>,
   input: GroupedSoupInitialInput,
-  now: Date
+  now: Date,
+  untrustedKeys: ReadonlySet<string> = new Set()
 ): GroupedSoupBin[] {
   const original = new Map(
     baseline.flatMap((bin) =>
@@ -148,7 +149,9 @@ export function projectLocalGroupedSoup(
     }
   const previousKeys = (key: string, item: SoupItemFieldsFragment) =>
     input.groupBy.field === 'PROPERTY'
-      ? localSoupGroupKeys(item, input, now)
+      ? untrustedKeys.has(key)
+        ? undefined
+        : localSoupGroupKeys(item, input, now)
       : oldKeys.get(key);
   const selected = new Map(
     snapshot.records.map((row) => [row.recordKey, row.record])

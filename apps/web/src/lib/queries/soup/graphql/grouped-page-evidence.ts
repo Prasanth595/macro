@@ -7,7 +7,14 @@ import type {
   GroupSoupQueryVariables,
 } from '../../../service-clients/service-storage/graphql/generated/graphql';
 
-type Evidence = { scope: string; data: GroupSoupQuery; persisted: boolean };
+import { soupItemKey } from './reconciliation';
+
+type Evidence = {
+  scope: string;
+  data: GroupSoupQuery;
+  persisted: boolean;
+  network: boolean;
+};
 
 /** Preserve server membership separately from later normalized field/link writes. */
 export function createGroupedPageEvidence(scope: Accessor<string>) {
@@ -69,6 +76,7 @@ export function createGroupedPageEvidence(scope: Accessor<string>) {
         scope: requestScope,
         data: result.data,
         persisted: !persistence,
+        network: metadata?.source === 'live-network',
       };
       setPages((previous) => new Map(previous).set(index, page));
       if (persistence)
@@ -87,6 +95,17 @@ export function createGroupedPageEvidence(scope: Accessor<string>) {
         .sort(([left], [right]) => left - right)
         .map(([, page]) => page.data);
     },
-    reset: () => setPages(new Map()),
+    // A restored page can combine old bin membership with newer normalized
+    // properties. Only raw network rows prove complete *previous* membership.
+    untrustedKeys: () =>
+      new Set(
+        [...pages().values()]
+          .filter((page) => page.scope === scope() && !page.network)
+          .flatMap((page) =>
+            page.data.user.groupSoup.bins.flatMap((bin) =>
+              bin.items.map(soupItemKey)
+            )
+          )
+      ),
   };
 }

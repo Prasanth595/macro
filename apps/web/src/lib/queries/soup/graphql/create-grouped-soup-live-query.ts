@@ -246,16 +246,22 @@ export function createGroupedSoupLiveQuery(
     )
       return undefined;
     const pages = [...initial];
+    const untrustedKeys = initialEvidence.untrustedKeys();
     for (const continuation of continuations().values()) {
       const loaded = continuation.query.data?.pages();
       if (!loaded?.length) continue;
       const evidence = continuation.evidence.data();
       if (!evidence || evidence.length !== loaded.length) return undefined;
       pages.push(...evidence);
+      for (const key of continuation.evidence.untrustedKeys())
+        untrustedKeys.add(key);
     }
-    return mergeGroupedSoupBins(
-      pages.filter((page) => page.user.id === initial[0].user.id)
-    );
+    return {
+      bins: mergeGroupedSoupBins(
+        pages.filter((page) => page.user.id === initial[0].user.id)
+      ),
+      untrustedKeys,
+    };
   });
   const selection = selectRecords(SoupItemFieldsFragmentDoc);
   const live = createPredicateQuery<SoupItemFieldsFragment>({
@@ -273,7 +279,7 @@ export function createGroupedSoupLiveQuery(
       )
         return undefined;
       const membership = soupReconciliationBaseline(
-        bins.flatMap((bin) => bin.items),
+        bins.bins.flatMap((bin) => bin.items),
         initial.sortMethod
       );
       if (!membership) return undefined;
@@ -298,16 +304,17 @@ export function createGroupedSoupLiveQuery(
     const span = Telemetry.span('graphql_cache.soup_grouped_local_evaluation');
     try {
       const result = projectLocalGroupedSoup(
-        evidence,
+        evidence.bins,
         snapshot,
         initial,
-        now()
+        now(),
+        evidence.untrustedKeys
       );
       span.setAttr('grouping.field', initial.groupBy.field);
       span.setAttr('grouping.bin_count', result.length);
       span.setAttr(
         'grouping.baseline_count',
-        evidence.reduce((count, bin) => count + bin.items.length, 0)
+        evidence.bins.reduce((count, bin) => count + bin.items.length, 0)
       );
       return result;
     } finally {

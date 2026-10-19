@@ -51,7 +51,11 @@ function setup() {
     variables: GroupSoupQueryVariables;
     publish(
       data: GroupSoupQuery,
-      persistence?: Promise<string | undefined>
+      persistence?: Promise<string | undefined>,
+      source?:
+        | 'live-network'
+        | 'normalized-cache-hit'
+        | 'normalized-cache-patch'
     ): void;
   }> = [];
   const client = {
@@ -68,14 +72,14 @@ function setup() {
       });
       executions.push({
         variables: request.variables,
-        publish: (data, persistence) =>
+        publish: (data, persistence, source = 'live-network') =>
           subject.next({
             operation,
             data,
             hasNext: false,
             stale: false,
             extensions: {
-              __macroNormalizedCache: { source: 'live-network', persistence },
+              __macroNormalizedCache: { source, persistence },
             },
           }),
       });
@@ -274,6 +278,56 @@ describe('grouped Soup live ownership', () => {
     state.requests[0].resolve(update([groupedDocument('a', ['done'])]));
     await state.requests[0].promise;
     expect(ids(state.query.data())?.[0].count).toBe(19);
+    state.executions[0].publish(
+      page([groupedDocument('a', ['done'])]),
+      undefined,
+      'normalized-cache-patch'
+    );
+    expect(state.requests).toHaveLength(1);
+    expect(ids(state.query.data())).toEqual([
+      { key: 'todo', ids: [], count: 19, cursor: 'next' },
+      { key: 'done', ids: ['a'], count: 1, cursor: null },
+    ]);
+  });
+
+  it('does not treat restored normalized properties as the original multi-value membership', async () => {
+    const state = setup();
+    const cached = page([groupedDocument('a', ['done'])]);
+    cached.user.groupSoup.bins.push({
+      key: 'done',
+      items: [],
+      totalCount: 12,
+      nextCursor: 'done-next',
+    });
+    state.executions[0].publish(cached, undefined, 'normalized-cache-hit');
+    state.requests[0].resolve(update([groupedDocument('a', ['done'])]));
+    await state.requests[0].promise;
+    expect(ids(state.query.data())).toEqual([
+      { key: 'todo', ids: [], count: 19, cursor: 'next' },
+      { key: 'done', ids: ['a'], count: 12, cursor: 'done-next' },
+    ]);
+  });
+
+  it('keeps network data when persistence is unavailable and ignores late acknowledgements after reset', async () => {
+    const state = setup();
+    let acknowledge!: (revision: string | undefined) => void;
+    const persistence = new Promise<string | undefined>((resolve) => {
+      acknowledge = resolve;
+    });
+    state.executions[0].publish(page([groupedDocument('a')]), persistence);
+    acknowledge(undefined);
+    await persistence;
+    expect(state.requests).toHaveLength(0);
+    expect(ids(state.query.data())?.[0].ids).toEqual(['a']);
+    let lateAcknowledge!: (revision: string) => void;
+    const late = new Promise<string>((resolve) => {
+      lateAcknowledge = resolve;
+    });
+    state.executions[0].publish(page([groupedDocument('b')]), late);
+    state.generations.forEach((listener) => listener({ storage: 'reset' }));
+    lateAcknowledge('2');
+    await late;
+    expect(state.requests).toHaveLength(0);
   });
 
   it('drops local evidence and loaded continuations on a cache generation reset', async () => {

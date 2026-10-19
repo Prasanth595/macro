@@ -117,9 +117,10 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Grouped Soup's `graphql/create-grouped-soup-live-query.ts` owns initial and
   continuation pages plus their local predicate projection. Group readers only
   delegate paging; do not introduce independent continuation owners. Keep server
-  membership snapshots separate from normalized field/link updates, and supply
-  complete prior multi-value memberships when adjusting counts: a row loaded in
-  one bin may already be an unloaded member of another.
+  membership snapshots separate from normalized field/link updates; restored
+  properties do not prove prior membership. Supply complete prior multi-value
+  memberships when adjusting counts: a row loaded in one bin may already be an
+  unloaded member of another.
 - Reactive GraphQL reads use `createLiveQuery` for a document and
   `useSoupAstItemsQuery` (backed by `createSoupLiveQuery`) for Soup lists; see
   [choosing a reactive read](docs/graphql-normalized-cache-plan.md#choosing-a-reactive-read).

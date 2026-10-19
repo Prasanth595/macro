@@ -751,6 +751,9 @@ candidates outside loaded pages: a bounded flat query cannot prove complete bin
 coverage. Counts retain unseen server membership and apply proven deltas, not
 loaded-row totals. Complete prior multi-value membership is necessary to prove
 count increases: a row loaded in A can already belong to an unloaded part of B.
+Restored cached pages cannot prove complete prior property membership: their
+normalized values may be newer than their embedded bins. They use loaded
+membership evidence only, without inferring count increases for existing bins.
 Date rollover uses the original server bin as old membership. The
 `graphql_cache.soup_grouped_local_evaluation` span records grouping field,
 loaded baseline size and resulting bin count.
