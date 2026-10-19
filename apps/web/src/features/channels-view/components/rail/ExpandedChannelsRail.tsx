@@ -5,6 +5,7 @@ import { openNewChannelModal } from '@channel/CreateChannelModal';
 import { ChannelMutedIndicator } from '@channel/components/ChannelMutedIndicator';
 import { useUserId } from '@core/context/user';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import { createScrollTopFade } from '@core/util/createScrollTopFade';
 import { lazyNamed } from '@core/util/lazyNamed';
 import EmptyStateNoSearchMatchGraphic from '@design/empty-state-no-search-match.svg';
 import { type ChannelEntity, Entity } from '@entity';
@@ -473,6 +474,7 @@ function ExpandedHeader(props: { search: ChannelRailSearch }) {
 function ExpandedSearchResults(props: { search: ChannelRailSearch }) {
   const rail = useChannelsRail();
   const [scrollRoot, setScrollRoot] = createSignal<HTMLDivElement>();
+  createScrollTopFade(scrollRoot);
   const pagination = useChannelRailVirtualizer(() => 'search');
   const query = () => props.search.query().trim();
   const focusedIndex = () => {
@@ -935,6 +937,7 @@ function RecentConversationCard(props: { channel: ChannelEntity }) {
 
 function ExpandedRecents() {
   const [scrollRoot, setScrollRoot] = createSignal<HTMLDivElement>();
+  createScrollTopFade(scrollRoot);
   const scope = useChannelRailScopeState(() => 'recents');
   const pagination = useChannelRailVirtualizer(() => 'recents');
   const forceEmptyState = useDebugSetting(

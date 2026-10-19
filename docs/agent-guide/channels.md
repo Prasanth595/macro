@@ -713,8 +713,8 @@ slide-over opens on its own and closes once a conversation is picked; the
 backdrop or `Escape` still dismisses it. There is no separate skinny sidebar mode.
 
 On desktop, the Chat rail has `All` and `Recent` tabs in a flat, shared track
-aligned with New. Choices use equal widths, 3px track padding, and fully rounded
-pill shapes for the track and selected state. All contains an optional
+aligned with New. Choices use equal widths, 2px track padding, and fully rounded
+pill shapes for the track and 32px selected state. All contains an optional
 `Favorites` section and the
 independently paginated `Channels` and `DMs` sections. Favorites appears when
 the user has channel favorites and only lists channels. Channel favorites open

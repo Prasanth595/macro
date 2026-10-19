@@ -21,8 +21,9 @@ actions remove the transparent border to keep their text alignment.
 
 ## Scrolling content
 
-Desktop Email, Drive, and Tasks lists and email threads use a linear 32px top
-fade as content scrolls beneath the header. The fade grows with the scroll
+Desktop Email, Drive, and Tasks lists, email threads, and Channels conversations,
+thread feeds, and navigation lists use a linear 32px top fade as content scrolls
+beneath the header. The fade grows with the scroll
 offset and clears at the top; it does not blur content or change mobile fades.
 
 ## Dialog actions

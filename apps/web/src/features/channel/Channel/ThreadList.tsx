@@ -1,4 +1,5 @@
 import { CustomScrollbar } from '@core/component/CustomScrollbar';
+import { createScrollTopFade } from '@core/util/createScrollTopFade';
 import {
   createScrollIntentTracker,
   type ScrollDirection,
@@ -120,6 +121,7 @@ export function ThreadList(props: ThreadListProps) {
   let scrollRef: HTMLDivElement | undefined;
   let contentRef: HTMLDivElement | undefined;
   const [scrollEl, setScrollEl] = createSignal<HTMLDivElement>();
+  createScrollTopFade(scrollEl);
   const [viewportSize, setViewportSize] = createSignal(0);
   const insets = () => props.insets ?? NO_SCROLL_INSETS;
   // Capture each key array so the previous virtualizer options still describe
