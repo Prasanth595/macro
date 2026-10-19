@@ -872,6 +872,8 @@ export function createReplyComposer(
 
     const offline = sendRefusalBeforeSave(props.connectivity);
     if (offline) return refuseSend(props.notices, offline);
+    if (attachmentLinks.uploading())
+      return refuseSend(props.notices, 'files-uploading');
     const currentEditor = editor();
     const rememberCurrentReply = () => {
       if (!currentEditor) return;
@@ -1127,6 +1129,7 @@ export function createReplyComposer(
   };
 
   const resetState = () => {
+    attachmentLinks.detach();
     clearEmailBody(editor());
     setBodyMacro('');
     session.dispatch({ type: 'reset' });
@@ -1203,7 +1206,7 @@ export function createReplyComposer(
     });
   };
 
-  const offerAttachmentLinks = createAttachmentLinkOffer({
+  const attachmentLinks = createAttachmentLinkOffer({
     editor,
     notices: props.notices,
     editorFiles: props.editorFiles,
@@ -1233,7 +1236,7 @@ export function createReplyComposer(
     }
     if (attachable.length > 0) scheduleDraftSave();
     try {
-      await offerAttachmentLinks(oversized);
+      await attachmentLinks.share(oversized);
     } catch (error) {
       props.notices.reportError(error);
     }
@@ -1272,6 +1275,7 @@ export function createReplyComposer(
     autosave.cancel();
     session.dispatch({ type: 'reset' });
     const omittedAttachments = attachmentPersistence.detach();
+    attachmentLinks.detach();
     schedule.detach();
     setTerminalState(undefined);
     persistedEditVersion = 0;
@@ -1380,6 +1384,7 @@ export function createReplyComposer(
     if (schedule.operation() === 'updating') return 'Updating schedule…';
     if (schedule.operation() === 'cancelling') return 'Cancelling schedule…';
     if (submitting()) return 'Sending…';
+    if (attachmentLinks.uploading()) return 'Uploading files to share…';
     if (schedule.action() === 'unavailable')
       return `Scheduled for ${schedule.confirmedTime()?.toLocaleString()}. Choose a new time to update it, or cancel the schedule to edit.`;
     return undefined;
@@ -1391,6 +1396,7 @@ export function createReplyComposer(
     scheduling() ||
     terminalState() !== undefined ||
     attachmentPersistence.uploading() ||
+    attachmentLinks.uploading() ||
     schedule.action() === 'unavailable';
   const toggleQuotedText = () => {
     if (editingDisabled()) return;

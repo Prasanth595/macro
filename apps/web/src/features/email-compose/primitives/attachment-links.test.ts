@@ -87,18 +87,18 @@ describe('createAttachmentLinkOffer', () => {
     const confirm = vi.fn(async () => confirmed);
     const uploadDocuments = vi.fn(async () => [report]);
     const makePublic = vi.fn();
-    const offer = createAttachmentLinkOffer({
+    const links = createAttachmentLinkOffer({
       editor: () => editor,
       notices: { confirm },
       editorFiles: { uploadDocuments, makePublic },
     });
-    return { offer, confirm, uploadDocuments, makePublic };
+    return { ...links, confirm, uploadDocuments, makePublic };
   }
 
   it('uploads nothing when the user declines', async () => {
     const editor = createEmailEditor('Hi');
-    const { offer, confirm, uploadDocuments } = offerFor(editor, false);
-    await offer([huge]);
+    const { share, confirm, uploadDocuments } = offerFor(editor, false);
+    await share([huge]);
     expect(confirm).toHaveBeenCalledExactlyOnceWith({
       title: 'Attachments exceed 18 MB',
       body: '"huge.mov" won\'t fit as an attachment. Upload it to Macro and share a view-only link instead?',
@@ -110,11 +110,11 @@ describe('createAttachmentLinkOffer', () => {
 
   it('uploads, opens, and links each confirmed file', async () => {
     const editor = createEmailEditor('Hi');
-    const { offer, confirm, uploadDocuments, makePublic } = offerFor(
+    const { share, confirm, uploadDocuments, makePublic } = offerFor(
       editor,
       true
     );
-    await offer([huge, small]);
+    await share([huge, small]);
     expect(confirm).toHaveBeenCalledWith(
       expect.objectContaining({
         body: "2 files won't fit as attachments. Upload them to Macro and share view-only links instead?",
@@ -128,9 +128,37 @@ describe('createAttachmentLinkOffer', () => {
 
   it('asks nothing when every file fits', async () => {
     const editor = createEmailEditor('Hi');
-    const { offer, confirm } = offerFor(editor, true);
-    await offer([]);
+    const { share, confirm } = offerFor(editor, true);
+    await share([]);
     expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('reports the upload in flight until it settles', async () => {
+    const editor = createEmailEditor('Hi');
+    const pending = Promise.withResolvers<(typeof report)[]>();
+    const links = offerFor(editor, true);
+    links.uploadDocuments.mockReturnValue(pending.promise);
+    const sharing = links.share([huge]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(links.uploading()).toBe(true);
+    pending.resolve([report]);
+    await sharing;
+    expect(links.uploading()).toBe(false);
+    expect(outline(editor)).toEqual(['text:Hi', 'link:doc-1']);
+  });
+
+  it('keeps a file private and unlinked when the composer moved on mid-upload', async () => {
+    const editor = createEmailEditor('Hi');
+    const pending = Promise.withResolvers<(typeof report)[]>();
+    const links = offerFor(editor, true);
+    links.uploadDocuments.mockReturnValue(pending.promise);
+    const sharing = links.share([huge]);
+    await vi.advanceTimersByTimeAsync(0);
+    links.detach();
+    pending.resolve([report]);
+    await sharing;
+    expect(links.makePublic).not.toHaveBeenCalled();
+    expect(outline(editor)).toEqual(['text:Hi']);
   });
 });
 
@@ -151,6 +179,63 @@ describe('oversized attachments in the composers', () => {
       expect(outline(root.editor)).toEqual(['text:With files']);
     } finally {
       root.dispose();
+    }
+  });
+
+  it('refuses to send a new email while a shared file is still uploading', async () => {
+    const context = createComposeContext();
+    const pending = Promise.withResolvers<(typeof report)[]>();
+    vi.mocked(context.notices.confirm).mockResolvedValue(true);
+    vi.mocked(context.editorFiles.uploadDocuments).mockReturnValue(
+      pending.promise
+    );
+    const root = mountEmailComposer(context);
+    try {
+      root.edit('Sent too early');
+      const adding = root.state.context.onAddAttachments([huge]);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(root.state.context.primaryActionDisabled()).toBe(true);
+      expect(root.state.context.sendUnavailableReason?.()).toBe(
+        'Uploading files to share…'
+      );
+      root.state.context.onSend();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(context.delivery.sendMessage).not.toHaveBeenCalled();
+      expect(context.notices.feedback.failure).toHaveBeenCalledWith(
+        'Failed to send email',
+        { subtext: 'Files are still uploading' }
+      );
+      pending.resolve([report]);
+      await adding;
+      expect(root.state.context.primaryActionDisabled()).toBe(false);
+      expect(outline(root.editor)).toEqual([
+        'text:Sent too early',
+        'link:doc-1',
+      ]);
+    } finally {
+      root.dispose();
+    }
+  });
+
+  it('drops a link that lands after the reply was discarded', async () => {
+    const context = createComposeContext();
+    const pending = Promise.withResolvers<(typeof report)[]>();
+    vi.mocked(context.notices.confirm).mockResolvedValue(true);
+    vi.mocked(context.editorFiles.uploadDocuments).mockReturnValue(
+      pending.promise
+    );
+    const composer = mountReplyComposer(context);
+    try {
+      const adding = composer.handleAddAttachments([huge]);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(composer.sendActionDisabled()).toBe(true);
+      await composer.deleteDraftAndReset();
+      pending.resolve([report]);
+      await adding;
+      expect(context.editorFiles.makePublic).not.toHaveBeenCalled();
+      expect(outline(composer.editor)).toEqual(['text:']);
+    } finally {
+      composer.dispose();
     }
   });
 

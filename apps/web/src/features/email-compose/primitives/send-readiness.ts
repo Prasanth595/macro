@@ -15,13 +15,15 @@ export type SendRefusal =
   | 'offline'
   | 'draft-not-saved'
   | 'draft-not-confirmed'
-  | 'attachment-not-uploaded';
+  | 'attachment-not-uploaded'
+  | 'files-uploading';
 
 const SEND_REFUSAL_SUBTEXT: Record<SendRefusal, string> = {
   offline: "You're offline",
   'draft-not-saved': 'Draft not saved',
   'draft-not-confirmed': 'Draft still syncing, try again',
   'attachment-not-uploaded': 'Attachment not uploaded',
+  'files-uploading': 'Files are still uploading',
 };
 
 export function refuseSend(

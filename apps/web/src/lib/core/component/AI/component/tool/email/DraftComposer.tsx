@@ -205,7 +205,7 @@ export function EmailDraftComposer(props: EmailDraftComposerProps) {
   });
   // Attach handlers run as event handlers without a Solid owner; the dialog needs this one.
   const dialogOwner = getOwner();
-  const offerAttachmentLinks = createAttachmentLinkOffer({
+  const attachmentLinks = createAttachmentLinkOffer({
     editor,
     notices: {
       confirm: (input) => confirmDialog(input, { owner: dialogOwner }),
@@ -233,15 +233,14 @@ export function EmailDraftComposer(props: EmailDraftComposerProps) {
   }
 
   props.registerDraftReader?.(() =>
-    !bodyInitialized() || attachments.uploading() ? undefined : collectArgs()
+    !bodyInitialized() || attachments.uploading() || attachmentLinks.uploading()
+      ? undefined
+      : collectArgs()
   );
   props.registerSubmitReader?.(async () => {
-    if (
-      !bodyInitialized() ||
-      !(await attachments.waitForUploads()) ||
-      !validate()
-    )
-      return;
+    if (!bodyInitialized()) return;
+    await attachmentLinks.settled();
+    if (!(await attachments.waitForUploads()) || !validate()) return;
     debouncedEdit.clear();
     return collectArgs();
   });
@@ -276,18 +275,28 @@ export function EmailDraftComposer(props: EmailDraftComposerProps) {
   }
   onCleanup(() => {
     debouncedEdit.clear();
+    attachmentLinks.detach();
     props.sink.onDispose?.();
   });
 
   async function handleSend() {
-    if (finalized || uiDisabled() || isSending() || attachments.uploading())
+    if (
+      finalized ||
+      uiDisabled() ||
+      isSending() ||
+      attachments.uploading() ||
+      attachmentLinks.uploading()
+    )
       return;
     if (!validate()) return;
     debouncedEdit.clear();
     setIsSending(true);
     const done = await props.sink.onExecute(collectArgs());
     setIsSending(false);
-    if (done) finalized = true;
+    if (done) {
+      finalized = true;
+      attachmentLinks.detach();
+    }
   }
 
   // `body` is markdown while the AI is drafting, but every persist path
@@ -339,7 +348,7 @@ export function EmailDraftComposer(props: EmailDraftComposerProps) {
         attachments.list()
       );
       attachments.add(attachable.map((file) => ({ type: 'local', file })));
-      fireAndForget(offerAttachmentLinks(oversized), 'ai-email-draft');
+      fireAndForget(attachmentLinks.share(oversized), 'ai-email-draft');
     },
     onRemoveAttachment: (attachment: DraftFormAttachment) => {
       if (uiDisabled()) return;
@@ -354,7 +363,10 @@ export function EmailDraftComposer(props: EmailDraftComposerProps) {
     disabled: () => isSending() || uiDisabled(),
     // Send waits for files the user just added to finish becoming documents.
     primaryActionDisabled: () =>
-      isSending() || uiDisabled() || attachments.uploading(),
+      isSending() ||
+      uiDisabled() ||
+      attachments.uploading() ||
+      attachmentLinks.uploading(),
     isSending,
     isSavingDraft: () => false,
     hasDraft: () => false,

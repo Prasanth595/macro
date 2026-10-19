@@ -510,7 +510,7 @@ export function createEmailComposer(props: EmailComposerOptions) {
 
   // --- Attachment handling ---
 
-  const offerAttachmentLinks = createAttachmentLinkOffer({
+  const attachmentLinks = createAttachmentLinkOffer({
     editor,
     notices: props.notices,
     editorFiles: props.editorFiles,
@@ -532,7 +532,7 @@ export function createEmailComposer(props: EmailComposerOptions) {
     }
     if (attachable.length > 0) markDirtyAndScheduleSave();
     try {
-      await offerAttachmentLinks(oversized);
+      await attachmentLinks.share(oversized);
     } catch (error) {
       props.notices.reportError(error);
     }
@@ -711,6 +711,8 @@ export function createEmailComposer(props: EmailComposerOptions) {
 
     const offline = sendRefusalBeforeSave(props.connectivity);
     if (offline) return refuseSend(props.notices, offline);
+    if (attachmentLinks.uploading())
+      return refuseSend(props.notices, 'files-uploading');
     const scheduleAction = schedule.action();
     if (scheduleAction === 'unavailable') {
       props.notices.feedback.alert(
@@ -844,6 +846,7 @@ export function createEmailComposer(props: EmailComposerOptions) {
   // --- Reset / delete ---
 
   const resetState = () => {
+    attachmentLinks.detach();
     clearEmailBody(editor());
     setContent('');
     session.dispatch({ type: 'reset' });
@@ -904,6 +907,7 @@ export function createEmailComposer(props: EmailComposerOptions) {
     autosave.cancel();
     session.dispatch({ type: 'reset' });
     const omittedAttachments = attachmentPersistence.detach();
+    attachmentLinks.detach();
     schedule.detach();
     setCompleted(false);
     setTerminalState(undefined);
@@ -1148,6 +1152,7 @@ export function createEmailComposer(props: EmailComposerOptions) {
       completed() ||
       terminalState() !== undefined ||
       scheduling() ||
+      attachmentLinks.uploading() ||
       schedule.action() === 'unavailable',
     isSending: () => submitting() || scheduling(),
     hasDraft: () => currentDraftId() != null,
@@ -1163,6 +1168,7 @@ export function createEmailComposer(props: EmailComposerOptions) {
       if (schedule.operation() === 'updating') return 'Updating schedule…';
       if (schedule.operation() === 'cancelling') return 'Cancelling schedule…';
       if (submitting()) return 'Sending…';
+      if (attachmentLinks.uploading()) return 'Uploading files to share…';
       if (schedule.action() === 'unavailable')
         return `Scheduled for ${schedule.confirmedTime()?.toLocaleString()}. Choose a new time to update it, or cancel the schedule to edit.`;
       return undefined;
