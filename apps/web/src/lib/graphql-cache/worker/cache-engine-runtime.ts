@@ -589,6 +589,11 @@ async function removeStaleDatabases(
   }
 }
 
+// The dedicated worker has no app Telemetry; its console is the error channel.
+function reportEngineTaskFailure(error: unknown): void {
+  console.error('[graphql-cache] cache engine task failed', error);
+}
+
 /** Installs the production dedicated-worker transport around CacheWorkerCore. */
 export function installCacheEngineWorker(
   options: CacheEngineRuntimeOptions = {}
@@ -605,12 +610,12 @@ export function installCacheEngineWorker(
     const cleanup = validatePageToCleanupEnvelope(event.data);
     if (cleanup.ok) {
       activated = true;
-      void removeStaleDatabases(
+      removeStaleDatabases(
         cleanup.value,
         directPort,
         workerScope,
         options
-      );
+      ).catch(reportEngineTaskFailure);
       return;
     }
     const parsed = validatePageToEngineEnvelope(event.data);
@@ -619,6 +624,8 @@ export function installCacheEngineWorker(
       return;
     }
     activated = true;
-    void activate(parsed.value, directPort, workerScope, options);
+    activate(parsed.value, directPort, workerScope, options).catch(
+      reportEngineTaskFailure
+    );
   };
 }
