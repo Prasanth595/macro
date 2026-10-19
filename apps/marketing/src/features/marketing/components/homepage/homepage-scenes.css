@@ -2,10 +2,10 @@
 .homepage-scene .product-demo-stage::before { display: none; }
 .homepage-scene-agents .product-demo { box-sizing: border-box; padding-bottom: 200px; }
 .homepage-scene > .dummy-workspace { height: 100%; }
-:is(.homepage-scene-docs, .homepage-scene-agents) > .product-demo-stage { height: 100%; margin: 0; }
+:is(.homepage-scene-docs, .homepage-scene-agents) .product-demo-stage { height: 100%; margin: 0; }
 :is(.homepage-scene-docs, .homepage-scene-agents) .product-demo { height: 100%; min-height: 0; border: 0; border-radius: 0; box-shadow: none; mask-image: none; -webkit-mask-image: none; }
-.homepage-crm-scene { flex-direction: row; }
-.homepage-crm-sidebar { width: 232px; flex: none; border-right: 1px solid var(--color-edge-muted); }
+.homepage-crm-scene { position: relative; flex-direction: row; }
+.homepage-crm-sidebar { width: 256px; flex: none; border-right: 1px solid var(--color-edge-muted); }
 .homepage-crm-section-label { margin: 0 12px 8px; font-size: 12px; color: var(--color-ink-muted); }
 .homepage-crm-main { min-width: 0; flex: 1; }
 .homepage-crm-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--color-edge-muted); }
@@ -21,7 +21,7 @@
 .homepage-crm-value { width: 96px; padding: 7px; border: 0; border-radius: 4px; background: transparent; color: inherit; font: inherit; }
 .homepage-crm-value:focus { outline: 1px solid var(--color-accent); background: var(--color-surface); }
 /* Current database Kanban: 336px lanes, muted lane surfaces and 8px cards. */
-.homepage-pipeline-board { display: flex; align-items: flex-start; min-height: 100%; gap: 16px; padding: 16px 20px; }
+.homepage-pipeline-board { display: flex; align-items: stretch; min-height: 100%; gap: 16px; padding: 16px 20px; }
 .homepage-pipeline-board > section { width: 336px; flex: none; padding: 8px; border: 1px solid var(--color-edge-frame); border-radius: 12px; background: color-mix(in oklch, var(--color-panel) 94%, var(--color-ink)); }
 .homepage-pipeline-board header { display: flex; align-items: center; gap: 8px; padding: 4px 8px 8px; font-size: 14px; font-weight: 500; color: var(--color-ink); }
 .homepage-pipeline-board header > span { font-size: 12px; font-weight: 400; color: var(--color-ink-muted); }
@@ -34,7 +34,10 @@
 .homepage-pipeline-fields button { min-height: 24px; height: 24px; padding: 0 4px; font-size: 12px; }
 .homepage-pipeline-fields img { width: 16px; height: 16px; }
 .homepage-pipeline-revenue { padding: 2px 4px; font-size: 12px; }
-@media (max-width: 700px) { .homepage-crm-sidebar { width: 176px; } }
+@media (max-width: 650px) {
+  .homepage-crm-sidebar { display: none; position: absolute; z-index: 8; inset: 0 auto 0 0; width: 220px; background: var(--color-panel); box-shadow: 10px 0 30px #0006; }
+  .homepage-scene-crm > .dummy-workspace[data-sidebar-open=true] .homepage-crm-sidebar { display: block; }
+}
 
 .homepage-scene > .dummy-workspace[data-embedded=true],
 .homepage-scene .product-demo.dummy-workspace {

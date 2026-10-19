@@ -96,3 +96,14 @@ it('opens a linked company record and returns to the same pipeline', () => {
   expect(view.queryByRole('table', { name: 'Sales pipeline' })).toBeNull();
   expect(view.getByRole('button', { name: 'The Meadow' })).toBeTruthy();
 });
+
+it('keeps empty stages available when moving a deal on the board', () => {
+  const view = render(() => <CrmPipelineScene />);
+  const lane = view.getByRole('region', { name: 'Churned deals' });
+  fireEvent.drop(lane, { dataTransfer: { getData: () => 'northstar' } });
+  expect(
+    within(lane).getByRole('button', { name: 'Northstar Design' })
+  ).toBeTruthy();
+  expect(view.getByRole('region', { name: 'Lead deals' })).toBeTruthy();
+  expect(view.getByRole('region', { name: 'No stage deals' })).toBeTruthy();
+});

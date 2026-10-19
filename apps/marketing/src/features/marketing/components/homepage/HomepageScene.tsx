@@ -55,16 +55,31 @@ export default function HomepageScene(props: { initialView?: string } = {}) {
           />
         </Match>
         <Match when={view() === 'Docs'}>
-          <Documents />
+          <DummyWorkspace
+            initialView="documents"
+            demoTitle="Website brief"
+            embedded
+            demoContent={<Documents />}
+          />
         </Match>
         <Match when={view() === 'CRM'}>
-          <Crm />
+          <DummyWorkspace
+            initialView="crm"
+            embedded
+            demoIncludesSidebar
+            demoContent={<Crm />}
+          />
         </Match>
         <Match when={view() === 'Tasks'}>
           <DummyWorkspace tasksShowcase embedded />
         </Match>
         <Match when={view() === 'Agents'}>
-          <Agents />
+          <DummyWorkspace
+            initialView="agents"
+            demoTitle="Tomorrow’s meetings"
+            embedded
+            demoContent={<Agents />}
+          />
         </Match>
       </Switch>
     </div>

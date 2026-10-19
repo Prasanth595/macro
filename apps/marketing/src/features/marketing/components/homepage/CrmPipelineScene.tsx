@@ -25,7 +25,7 @@ import './homepage-scenes.css';
 type Deal = {
   companyId: string;
   stage: DealStage;
-  owner: HomepagePersonId;
+  owner: HomepagePersonId | '';
   revenue: string;
 };
 const owners = ['julia', 'jacob', 'valentina', 'teo'] as const;
@@ -43,25 +43,13 @@ export default function CrmPipelineScene() {
   }>();
   // Pipeline fields belong to the deal, independently of the company record.
   const [deals, setDeals] = createStore<Deal[]>(
-    [...w.data.companies]
-      .sort((a, b) => Number(b.id === 'meadow') - Number(a.id === 'meadow'))
-      .slice(0, 18)
-      .map((company, index) => ({
-        companyId: company.id,
-        stage: (
-          [
-            'Qualified',
-            'Demo',
-            'Trial',
-            'Negotiation',
-            'Customer',
-            'Lead',
-          ] as const
-        )[index % 6],
-        owner: owners[index % owners.length],
-        revenue: ['24000', '18000', '36000', '12000', '48000', '9000'][
-          index % 6
-        ],
+    w.data.companies
+      .filter((entry) => entry.stage !== 'Churned')
+      .map((entry) => ({
+        companyId: entry.id,
+        stage: entry.stage,
+        owner: entry.owner,
+        revenue: (entry.revenue ?? '').replaceAll(',', ''),
       }))
   );
   const company = (id: string) =>
@@ -135,12 +123,17 @@ export default function CrmPipelineScene() {
         size="sm"
         aria-label={`Owner for ${company(deal.companyId).name}`}
       >
-        <img
-          class="size-5 rounded-full"
-          src={homepagePeople[deal.owner].photo}
-          alt=""
-        />
-        {homepagePeople[deal.owner].name}
+        <Show
+          when={deal.owner ? homepagePeople[deal.owner] : undefined}
+          fallback="Unassigned"
+        >
+          {(person) => (
+            <>
+              <img class="size-5 rounded-full" src={person().photo} alt="" />
+              {person().name}
+            </>
+          )}
+        </Show>
       </Dropdown.Trigger>
       <Dropdown.Content portalScope="local">
         <Dropdown.Group>
@@ -460,15 +453,23 @@ export default function CrmPipelineScene() {
                     role="region"
                     aria-label="Sales pipeline board"
                   >
-                    <For
-                      each={dealStages.filter(
-                        (stage) =>
-                          stage !== 'No stage' &&
-                          shownDeals().some((deal) => deal.stage === stage)
-                      )}
-                    >
+                    <For each={dealStages}>
                       {(stage) => (
-                        <section aria-label={`${stage} deals`}>
+                        <section
+                          aria-label={`${stage} deals`}
+                          onDragOver={(event) => event.preventDefault()}
+                          onDrop={(event) => {
+                            event.preventDefault();
+                            const id =
+                              event.dataTransfer?.getData('text/plain');
+                            if (id)
+                              setDeals(
+                                (deal) => deal.companyId === id,
+                                'stage',
+                                stage
+                              );
+                          }}
+                        >
                           <header>
                             <StageIcon stage={stage} />
                             {stage}
@@ -486,7 +487,15 @@ export default function CrmPipelineScene() {
                             )}
                           >
                             {(deal) => (
-                              <article>
+                              <article
+                                draggable
+                                onDragStart={(event) =>
+                                  event.dataTransfer?.setData(
+                                    'text/plain',
+                                    deal.companyId
+                                  )
+                                }
+                              >
                                 <button
                                   class="homepage-pipeline-company"
                                   onClick={() => openCompany(deal.companyId)}
@@ -495,17 +504,20 @@ export default function CrmPipelineScene() {
                                   {company(deal.companyId).name}
                                 </button>
                                 <div class="homepage-pipeline-fields">
-                                  {ownerCell(deal)}
-                                  {stageCell(deal)}
-                                  <span
-                                    class="homepage-pipeline-revenue"
-                                    title="Revenue"
-                                  >
-                                    $
-                                    {Number(deal.revenue || 0).toLocaleString(
-                                      'en-US'
-                                    )}
-                                  </span>
+                                  <Show when={deal.owner}>
+                                    {ownerCell(deal)}
+                                  </Show>
+                                  <Show when={deal.revenue}>
+                                    <span
+                                      class="homepage-pipeline-revenue"
+                                      title="Revenue"
+                                    >
+                                      $
+                                      {Number(deal.revenue || 0).toLocaleString(
+                                        'en-US'
+                                      )}
+                                    </span>
+                                  </Show>
                                 </div>
                               </article>
                             )}
