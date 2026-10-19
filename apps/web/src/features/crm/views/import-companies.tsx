@@ -95,6 +95,7 @@ export function CrmImport(props: {
             onChange={(e) => {
               const file = e.currentTarget.files?.[0];
               if (!file) return;
+              e.currentTarget.value = '';
               setFileName(file.name);
               fireAndForget(read(file), 'crm');
             }}
