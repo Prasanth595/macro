@@ -809,6 +809,10 @@ pub async fn run() -> anyhow::Result<()> {
             DocumentStorageServiceUrl::new()?.to_string(),
             pipedream_client.clone(),
         ),
+        read_agent_session_context: ai_tools::build_read_agent_session_context(
+            db.clone(),
+            entity_access_service.clone(),
+        ),
         coding_agent_tool_context: ai_tools::build_coding_agent_tool_context(
             macro_service_urls::AgentHarnessServiceUrl::new()?,
             internal_api_key.clone(),

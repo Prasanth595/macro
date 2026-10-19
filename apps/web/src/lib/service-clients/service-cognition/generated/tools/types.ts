@@ -4106,6 +4106,10 @@ export type ToolActivityAction =
       type: 'unknown';
     };
 /**
+ * The two sides of a session conversation.
+ */
+export type SessionMessageRole = 'user' | 'agent';
+/**
  * Position of a channel message.
  */
 export type ToolMessageKind = 'topLevelMessage' | 'threadReply';
@@ -12142,6 +12146,66 @@ export interface ToolActivityEvent {
    * When the action occurred.
    */
   occurredAt: string;
+}
+/**
+ * Read an agent session by its ID from an agent-session mention or search result. Returns the latest 20 messages in chronological order, including prompts, replies, tool activity and errors. Optionally select a turn number to inspect earlier history. Each message is capped at 4000 characters; truncated flags identify omitted history or text. Requires view access to the session. Use ReadChat for legacy AI chats.
+ */
+export interface ReadAgentSession {
+  /**
+   * The agent session UUID from its mention or search result.
+   */
+  sessionId: string;
+  /**
+   * Read only this turn number, as returned in messages; omit for recent history.
+   */
+  turn?: number | null;
+}
+/**
+ * A readable session conversation, including tool activity and failures.
+ */
+export interface SessionConversation {
+  /**
+   * Session identity.
+   */
+  sessionId: string;
+  /**
+   * User-facing session name.
+   */
+  name: string;
+  /**
+   * Messages in the requested turn, or the latest messages, oldest first.
+   */
+  messages: SessionConversationMessage[];
+  /**
+   * Number of messages matching the requested turn before bounding.
+   */
+  totalMessages: number;
+  /**
+   * Whether older messages or text were omitted.
+   */
+  truncated: boolean;
+}
+/**
+ * One folded prompt or reply.
+ */
+export interface SessionConversationMessage {
+  /**
+   * Turn number; pass it back to read that turn specifically.
+   */
+  turn: number;
+  role: SessionMessageRole;
+  /**
+   * Readable prose, tool activity, outputs, and errors.
+   */
+  content: string;
+  /**
+   * Terminal runtime error, retained separately even when earlier text is truncated.
+   */
+  failure?: string | null;
+  /**
+   * Whether this message's text exceeded the character budget.
+   */
+  truncated: boolean;
 }
 /**
  * Read the full personal or team Booking Links configuration: booking-page name and introduction, reusable schedules, default availability, and all link settings with IDs and revision. Omit teamId for personal. Discover team IDs using ListBookingLinks. This read does not create a profile. Use the returned profile with UpdateBookingSettings to change shared availability or page settings.

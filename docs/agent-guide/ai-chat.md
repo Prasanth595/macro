@@ -1906,3 +1906,16 @@ New conversations confirm selected model and effort settings before sending the
 first message. If startup reports a rejected setting or timeout, the first prompt
 has not been sent. See [effort capabilities](../architecture/agent-effort.md) for the harness
 contracts and test coverage.
+
+### Read another agent session
+
+An agent-session mention or search result supplies the ID for `ReadAgentSession`.
+The tool requires the viewer's normal session access and returns the latest 20
+folded messages, including prompts, replies, tool activity, and failures. Pass a
+returned turn number to read that turn instead. Messages are capped at 4000
+characters; response and message truncation flags identify omissions. Terminal
+failures are returned separately so long replies cannot hide them. The tool
+row expands to show the returned conversation on desktop and mobile. Legacy AI
+chats continue to use `ReadChat`.
+
+![Expanded session read with a terminal failure visible after truncated text](media/ai-chat/read-agent-session.png)

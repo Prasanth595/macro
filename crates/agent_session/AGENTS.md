@@ -15,6 +15,8 @@ consumer talks to.
 - `src/domain/turn_state.rs` + `src/domain/control.rs`: per-turn state and
   the control-plane commands (used by held tool-call approvals).
 - `src/inbound/axum_router.rs`: the HTTP surface.
+- `src/domain/read.rs` and `src/inbound/toolset/read_agent_session.rs`: bounded,
+  view-authorized conversation reads using the shared transcript fold.
 - `src/outbound/postgres.rs`: the session repository.
 - `src/outbound/broker_lifecycle_publisher.rs` /
   `broker_log_realtime.rs`: Kafka publication of lifecycle and log events.
@@ -29,8 +31,8 @@ consumer talks to.
 
 ## Boundaries
 
-- Depends on: `agent_runtime_protocol`, `agent_fold` (indirectly via
-  callers), `teams`, `macro_authorization`.
+- Depends on: `agent_runtime_protocol`, `agent_fold`, `teams`,
+  `macro_authorization`.
 - Used by: `agent_harness`, `agent_inmem`, `agent_egress`, `agent_trigger`,
   `agent_changes`, `agent_session_realtime`, `ai_tools` (coding-agent
   toolset), `complete_graph`, `webhook`, `search_service`, `soup_realtime`,

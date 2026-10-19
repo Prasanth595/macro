@@ -665,6 +665,10 @@ pub async fn build_tool_service_context_from_env(
             document_storage_service_url,
             pipedream_client,
         ),
+        read_agent_session_context: crate::build_read_agent_session_context(
+            pool.clone(),
+            entity_access_service.clone(),
+        ),
         coding_agent_tool_context: crate::build_coding_agent_tool_context(
             macro_service_urls::AgentHarnessServiceUrl::new()?,
             env.internal_api_key.to_string(),

@@ -336,6 +336,10 @@ type ToolParserMap = {
     call: types.ReadActivity;
     response: types.ReadActivityResponse;
   };
+  ReadAgentSession: {
+    call: types.ReadAgentSession;
+    response: types.SessionConversation;
+  };
   ReadBookingSettings: {
     call: types.ReadBookingSettings;
     response: types.BookingSettingsResult;
@@ -861,6 +865,10 @@ const toolParserMap = {
     call: schemas.ReadActivity,
     response: schemas.ReadActivityResponse,
   },
+  ReadAgentSession: {
+    call: schemas.ReadAgentSession,
+    response: schemas.SessionConversation,
+  },
   ReadBookingSettings: {
     call: schemas.ReadBookingSettings,
     response: schemas.BookingSettingsResult,
@@ -1384,6 +1392,10 @@ type ToolDataMap = {
   ReadActivity: {
     call: types.ReadActivity;
     response: types.ReadActivityResponse;
+  };
+  ReadAgentSession: {
+    call: types.ReadAgentSession;
+    response: types.SessionConversation;
   };
   ReadBookingSettings: {
     call: types.ReadBookingSettings;

@@ -683,3 +683,31 @@ fn code_mode_retains_direct_lifecycles_and_hides_sdk_methods_from_lazy_discovery
         assert!(!tools_for(host).prompt.to_string().contains(&routing));
     }
 }
+
+#[test]
+fn session_reader_is_available_to_every_conversation_host_and_mcp() {
+    for host in [
+        AiHost::Chat,
+        AiHost::AgentSession,
+        AiHost::ChannelBot,
+        AiHost::Mcp,
+    ] {
+        let tools = tools_for(host);
+        assert!(tools.toolset.tools.contains_key("ReadAgentSession"));
+        assert!(
+            !tools
+                .deferred
+                .iter()
+                .any(|tool| tool.name == "ReadAgentSession")
+        );
+    }
+    assert!(subagent_toolset().tools.contains_key("ReadAgentSession"));
+    let code_mode = tools_for_agent_code_mode();
+    assert!(code_mode.toolset.tools.contains_key("ReadAgentSession"));
+    assert!(
+        !code_mode
+            .deferred
+            .iter()
+            .any(|tool| tool.name == "ReadAgentSession")
+    );
+}

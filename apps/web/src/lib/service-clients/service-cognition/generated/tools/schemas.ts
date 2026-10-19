@@ -11298,6 +11298,46 @@ export const ReadActivityResponse = z.object({
   truncated: z.boolean(),
 });
 
+export const ReadAgentSession = z
+  .object({
+    sessionId: z.string().uuid(),
+    turn: z.union([z.number().int().gte(0), z.null()]).optional(),
+  })
+  .strict();
+
+export const SessionConversation = z.object({
+  sessionId: z.string().uuid(),
+  name: z.string(),
+  messages: z.array(
+    z.object({
+      turn: z.number().int().gte(0),
+      role: z.any().superRefine((x, ctx) => {
+        const schemas = [z.literal('user'), z.literal('agent')];
+        const errors = schemas.reduce<z.ZodError[]>(
+          (errors, schema) =>
+            ((result) => (result.error ? [...errors, result.error] : errors))(
+              schema.safeParse(x)
+            ),
+          []
+        );
+        if (schemas.length - errors.length !== 1) {
+          ctx.addIssue({
+            path: ctx.path,
+            code: 'invalid_union',
+            unionErrors: errors,
+            message: 'Invalid input: Should pass single schema',
+          });
+        }
+      }),
+      content: z.string(),
+      failure: z.union([z.string(), z.null()]).optional(),
+      truncated: z.boolean(),
+    })
+  ),
+  totalMessages: z.number().int().gte(0),
+  truncated: z.boolean(),
+});
+
 export const ReadBookingSettings = z
   .object({ teamId: z.union([z.string().uuid(), z.null()]).optional() })
   .strict();

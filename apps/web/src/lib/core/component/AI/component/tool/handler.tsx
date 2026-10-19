@@ -133,6 +133,7 @@ import {
   setEntityPropertyHandler,
 } from './Properties';
 import { readActivityHandler } from './ReadActivity';
+import { readAgentSessionHandler } from './ReadAgentSession';
 import { readCallRecordHandler } from './ReadCallRecord';
 import {
   readChannelMessageContextHandler,
@@ -293,6 +294,7 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   ReadChannelMessages: readChannelMessagesHandler,
   ReadChannelThread: readChannelThreadHandler,
   ReadChat: readChatHandler,
+  ReadAgentSession: readAgentSessionHandler,
   ReadThread: readThreadHandler,
   ReadContent: readContentHandler,
   ReadMetadata: readMetadataHandler,

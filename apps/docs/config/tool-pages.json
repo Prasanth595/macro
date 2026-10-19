@@ -100,6 +100,7 @@
   "AI/mcp/tools/query-database",
   "AI/mcp/tools/react-to-channel-message",
   "AI/mcp/tools/read-activity",
+  "AI/mcp/tools/read-agent-session",
   "AI/mcp/tools/read-booking-settings",
   "AI/mcp/tools/read-call-record",
   "AI/mcp/tools/read-channel-message-context",

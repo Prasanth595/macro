@@ -591,6 +591,10 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
             dss_url,
             pipedream_client,
         ),
+        read_agent_session_context: ai_tools::build_read_agent_session_context(
+            db.clone(),
+            entity_access_service.clone(),
+        ),
         coding_agent_tool_context: ai_tools::build_coding_agent_tool_context(
             macro_service_urls::AgentHarnessServiceUrl::new()?,
             config.internal_api_key.to_string(),

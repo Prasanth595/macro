@@ -12,6 +12,8 @@ execution, display) that don't belong to a single domain.
 - `src/lib.rs`: the composition point — imports each domain crate's
   `inbound::toolset` module and builds the combined `AsyncToolCollection`
   and frontend schema set.
+- `ReadAgentSession` is eager across chat, agent sessions, and MCP, and is also
+  available to subagents; keep its registration covered by the host tests.
 - `src/subagent.rs`: dispatches `snippet_specs` to parallel subagents.
 - `src/search.rs` / `src/search_tools.rs`: cross-entity search tools.
 - `src/deferred.rs`: tools whose result arrives after the turn (long-running
