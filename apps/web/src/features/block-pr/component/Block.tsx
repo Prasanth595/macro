@@ -28,7 +28,7 @@ export default function PrBlock() {
           status={detail.query.status}
         />
         <div class="flex flex-col size-full min-w-0">
-          <ViewShell.TopBar class="touch:flex">
+          <ViewShell.TopBar class="hidden touch:flex">
             <SplitPanel.CloseButton class="hidden shrink-0 touch:flex" />
             <Show when={detail.data()?.pullRequest.status}>
               {(status) => <PrStatusIcon status={status()} />}
