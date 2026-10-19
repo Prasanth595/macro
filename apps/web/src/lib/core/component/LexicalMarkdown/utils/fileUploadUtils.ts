@@ -144,13 +144,13 @@ async function onFilesReady(
           continue;
         }
         uploadedItemIds.push(item.id);
-        await handleBasicMention(item, {
+        handleBasicMention(item, {
           editor,
           blockName: parentBlockName,
           blockId,
           onDocumentMention: () => {},
           disableMentionTracking: false,
-        });
+        }).catch((error) => Telemetry.error(error, { surface: 'file-upload' }));
       }
     } else if (result.type === 'folder') {
       const item = await documentUploadToItem(result);
@@ -160,13 +160,13 @@ async function onFilesReady(
         continue;
       }
       uploadedItemIds.push(item.id);
-      await handleBasicMention(item, {
+      handleBasicMention(item, {
         editor,
         blockName: parentBlockName,
         blockId,
         onDocumentMention: () => {},
         disableMentionTracking: false,
-      });
+      }).catch((error) => Telemetry.error(error, { surface: 'file-upload' }));
     }
   }
 
