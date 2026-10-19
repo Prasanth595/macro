@@ -3,6 +3,7 @@ import { buildPostMessageSendPayload } from '@channel/Input/message-payload';
 import { useMessageBotMentionUsers } from '@channel/use-channel-bot-mention-users';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { useUserId } from '@core/context/user';
+import { getDisplayName, tryMacroId } from '@core/user';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { thrownResultErrorHasCode } from '@core/util/result';
 import CaretDown from '@phosphor/caret-down.svg';
@@ -21,7 +22,6 @@ import type {
   MessageParent,
   TimelineActivity,
 } from '@service-storage/messages';
-import { getDisplayName, tryMacroId } from '@core/user';
 import { createSignal, For, Show } from 'solid-js';
 import { MessageThread } from './MessageThread';
 import type { MessageData } from './types';
@@ -169,10 +169,7 @@ export function EntityConversation(props: {
                 <Show
                   when={row.kind === 'message' ? row : undefined}
                   fallback={
-                    <Show
-                      when={row.kind === 'note' ? row : undefined}
-                      keyed
-                    >
+                    <Show when={row.kind === 'note' ? row : undefined} keyed>
                       {(note) => (
                         <Show
                           when={note.at}
@@ -309,7 +306,11 @@ function ago(iso: string): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-function DealChangeLine(props: { at: string; text?: string; ownerId?: string }) {
+function DealChangeLine(props: {
+  at: string;
+  text?: string;
+  ownerId?: string;
+}) {
   const text = () => {
     if (!props.ownerId) return props.text ?? '';
     const id = tryMacroId(props.ownerId);

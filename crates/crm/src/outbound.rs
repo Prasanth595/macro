@@ -7,12 +7,12 @@ pub mod call_link;
 /// Postgres implementation of the companies repository
 #[cfg(feature = "outbound")]
 pub mod companies_repo;
-/// Postgres persistence for CRM deals
-#[cfg(feature = "outbound")]
-pub mod deals;
 /// Deal field changes on the activity timeline.
 #[cfg(feature = "deal_log")]
 pub mod deal_log;
+/// Postgres persistence for CRM deals
+#[cfg(feature = "outbound")]
+pub mod deals;
 /// Postgres implementation of the message store's CRM parent reader
 #[cfg(feature = "lookup")]
 pub mod lookup;

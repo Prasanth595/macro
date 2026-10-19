@@ -438,9 +438,7 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
                           }
                         >
                           <Dropdown.Group>
-                            <Show
-                              when={group === 'edit' && renameLocked()}
-                            >
+                            <Show when={group === 'edit' && renameLocked()}>
                               <Dropdown.Item disabled>
                                 This column cannot be renamed
                               </Dropdown.Item>

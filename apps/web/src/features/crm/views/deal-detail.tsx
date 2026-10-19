@@ -1,21 +1,22 @@
 import { useSplitLayout } from '@components/app/split-layout/layout';
+import { toast } from '@core/component/Toast/Toast';
 import { EntityDiscussion } from '@core/messages/EntityDiscussion';
+import { fireAndForget } from '@core/util/fireAndForget';
 import BuildingsIcon from '@phosphor/buildings.svg';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import CheckIcon from '@phosphor/check.svg';
 import UsersIcon from '@phosphor/users.svg';
 import { TagDot } from '@property/tags/TagDot';
-import { entityMessagesClient } from '@service-storage/messages';
+import { invalidateMessageTimeline } from '@queries/messages/timeline';
 import { storageServiceClient } from '@service-storage/client';
-import { toast } from '@core/component/Toast/Toast';
+import { entityMessagesClient } from '@service-storage/messages';
 import { badgeClasses, Dropdown } from '@ui';
 import { createResource, For, Show } from 'solid-js';
-import type { DatabaseCellValue } from '../../database/core/database-view';
-import { DealPill } from '../components/deal-card';
 import { toCellDate } from '../../database/core/cell-date';
+import type { DatabaseCellValue } from '../../database/core/database-view';
 import { writeDatabaseRow } from '../../database/core/row-write';
-import { invalidateMessageTimeline } from '@queries/messages/timeline';
 import { toViewColumn } from '../../database/queries/column-detail';
+import { DealPill } from '../components/deal-card';
 import { pipelineCell } from '../queries/pipeline-data';
 import { useCrmUserId as useUserId } from './use-crm';
 
@@ -28,26 +29,35 @@ export function Deal(props: {
 }) {
   const userId = useUserId();
   const layout = useSplitLayout();
-  const [deal, { refetch: refetchDeal }] = createResource(props.dealId, async (id) => {
-    const loaded = await storageServiceClient.getDeal({ dealId: id });
-    if (loaded.isErr()) throw loaded.error;
-    return loaded.value;
-  });
+  const [deal, { refetch: refetchDeal }] = createResource(
+    props.dealId,
+    async (id) => {
+      const loaded = await storageServiceClient.getDeal({ dealId: id });
+      if (loaded.isErr()) throw loaded.error;
+      return loaded.value;
+    }
+  );
   const [names] = createResource(deal, async (record) => {
     const companies = await Promise.all(
       record.companyIds.map(async (id) => {
-        const company = await storageServiceClient.getCompany({ companyId: id });
+        const company = await storageServiceClient.getCompany({
+          companyId: id,
+        });
         return {
           id,
           label: company.isOk()
-            ? company.value.name || company.value.domains[0]?.domain || 'Company'
+            ? company.value.name ||
+              company.value.domains[0]?.domain ||
+              'Company'
             : 'Company',
         };
       })
     );
     const people = await Promise.all(
       record.contactIds.map(async (id) => {
-        const contact = await storageServiceClient.getContact({ contactId: id });
+        const contact = await storageServiceClient.getContact({
+          contactId: id,
+        });
         return {
           id,
           label: contact.isOk()
@@ -115,13 +125,17 @@ export function Deal(props: {
               <DealRowFacts
                 pipelineId={pipelineId}
                 dealId={props.dealId}
-                onOutcome={() => void refetchDeal()}
+                onOutcome={() =>
+                  fireAndForget(refetchDeal(), 'crm.deal-detail')
+                }
               />
             )}
           </Show>
         </div>
         <Show when={deal()?.description}>
-          <p class="max-w-[65ch] text-sm text-ink-muted">{deal()?.description}</p>
+          <p class="max-w-[65ch] text-sm text-ink-muted">
+            {deal()?.description}
+          </p>
         </Show>
         <Show when={deal()}>
           {(record) => (
@@ -173,7 +187,9 @@ function DealRowFacts(props: {
     const current = facts();
     if (!current?.row) return null;
     const column = current.columns.find((entry) => entry.name === name);
-    const detail = current.details.find((entry) => entry.column.id === column?.id);
+    const detail = current.details.find(
+      (entry) => entry.column.id === column?.id
+    );
     if (!column || !detail) return null;
     const value = pipelineCell(current.row.cells[column.id], detail);
     return value === undefined ? null : value;
@@ -207,19 +223,23 @@ function DealRowFacts(props: {
       false
     );
     if (saved.isOk()) {
-      void refetch();
+      fireAndForget(refetch(), 'crm.deal-detail');
       if (
         name === 'Stage' ||
         name === 'When' ||
         name === 'Outcome' ||
         name === 'Next activity'
       ) {
-        void invalidateMessageTimeline({ type: 'crm_deal', id: props.dealId });
+        fireAndForget(
+          invalidateMessageTimeline({ type: 'crm_deal', id: props.dealId }),
+          'crm.deal-detail'
+        );
       }
       if (name === 'Outcome') props.onOutcome?.();
     }
   }
-  const stage = () => facts()?.columns.find((column) => column.name === 'Stage');
+  const stage = () =>
+    facts()?.columns.find((column) => column.name === 'Stage');
   const revenue = () => read('Revenue');
   return (
     <Show when={facts()?.row}>
@@ -231,7 +251,10 @@ function DealRowFacts(props: {
               column().options.find((option) => option.label === current());
             return (
               <Dropdown placement="bottom-start">
-                <Dropdown.Trigger aria-label="Stage" class="rounded-full text-ink">
+                <Dropdown.Trigger
+                  aria-label="Stage"
+                  class="rounded-full text-ink"
+                >
                   <Show when={selected()?.color}>
                     {(color) => <TagDot color={color()} class="size-2.5" />}
                   </Show>
@@ -241,13 +264,17 @@ function DealRowFacts(props: {
                 <Dropdown.Content class="min-w-40">
                   <Dropdown.RadioGroup
                     value={current() ?? ''}
-                    onChange={(value) => void write('Stage', value)}
+                    onChange={(value) =>
+                      fireAndForget(write('Stage', value), 'crm.deal-detail')
+                    }
                   >
                     <For each={column().options}>
                       {(option) => (
                         <Dropdown.RadioItem value={option.label} closeOnSelect>
                           <Show when={option.color}>
-                            {(color) => <TagDot color={color()} class="size-2.5" />}
+                            {(color) => (
+                              <TagDot color={color()} class="size-2.5" />
+                            )}
                           </Show>
                           <span class="flex-1">{option.label}</span>
                           <Dropdown.ItemIndicator>
@@ -271,38 +298,53 @@ function DealRowFacts(props: {
           value={typeof revenue() === 'number' ? String(revenue()) : ''}
           onChange={(event) => {
             const raw = event.currentTarget.value.trim();
-            void write('Revenue', raw === '' ? null : Number(raw));
+            fireAndForget(
+              write('Revenue', raw === '' ? null : Number(raw)),
+              'crm.deal-detail'
+            );
           }}
         />
-      <DealPill
-        presentation="cell"
-        when={text('When')?.slice(0, 10) ?? null}
-        next={text('Next activity')}
-        plan={text('Plan') ?? ''}
-        outcome={text('Outcome')}
-        dealId={props.dealId}
-        onWhen={(iso) => void write('When', iso)}
-        onNext={(activity) => void write('Next activity', activity)}
-        onPlan={(text) => void write('Plan', text)}
-        onOutcome={(outcome) => void write('Outcome', outcome)}
-        onLast={async (action) => {
-          try {
+        <DealPill
+          presentation="cell"
+          when={text('When')?.slice(0, 10) ?? null}
+          next={text('Next activity')}
+          plan={text('Plan') ?? ''}
+          outcome={text('Outcome')}
+          dealId={props.dealId}
+          onWhen={(iso) => fireAndForget(write('When', iso), 'crm.deal-detail')}
+          onNext={(activity) =>
+            fireAndForget(write('Next activity', activity), 'crm.deal-detail')
+          }
+          onPlan={(text) =>
+            fireAndForget(write('Plan', text), 'crm.deal-detail')
+          }
+          onOutcome={(outcome) =>
+            fireAndForget(write('Outcome', outcome), 'crm.deal-detail')
+          }
+          onLast={async (action) => {
+            try {
+              await entityMessagesClient.post(
+                { type: 'crm_deal', id: props.dealId },
+                { content: action }
+              );
+              fireAndForget(
+                invalidateMessageTimeline({
+                  type: 'crm_deal',
+                  id: props.dealId,
+                }),
+                'crm.deal-detail'
+              );
+            } catch {
+              toast.failure('Could not save the note');
+            }
+          }}
+          onHappened={async (note) => {
             await entityMessagesClient.post(
               { type: 'crm_deal', id: props.dealId },
-              { content: action }
+              { content: note }
             );
-            void invalidateMessageTimeline({ type: 'crm_deal', id: props.dealId });
-          } catch {
-            toast.failure('Could not save the note');
-          }
-        }}
-        onHappened={async (note) => {
-          await entityMessagesClient.post(
-            { type: 'crm_deal', id: props.dealId },
-            { content: note }
-          );
-        }}
-      />
+          }}
+        />
       </div>
     </Show>
   );

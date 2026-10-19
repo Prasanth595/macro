@@ -523,11 +523,13 @@ where
                 (RecordTarget::Id(id), _) => *id,
                 (RecordTarget::Email(_), PipelineRecordType::Deal) => {
                     return Err(WorkflowError::Invalid(
-                        "A deal is chosen by its id. Create the deal, then add that id."
-                            .into(),
+                        "A deal is chosen by its id. Create the deal, then add that id.".into(),
                     ));
                 }
-                (RecordTarget::Email(email), PipelineRecordType::Company | PipelineRecordType::Contact) => {
+                (
+                    RecordTarget::Email(email),
+                    PipelineRecordType::Company | PipelineRecordType::Contact,
+                ) => {
                     let team = team.as_ref().ok_or(WorkflowError::NoTeam)?;
                     let contact = self
                         .crm

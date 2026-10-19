@@ -27,7 +27,12 @@ it('refuses to rename a column whose name is reserved', async () => {
   const rename = vi.fn(() => okAsync(undefined));
   render(() => (
     <DatabaseColumnHeader
-      column={{ ...column, name: 'When', label: 'Next date', protections: ['rename'] }}
+      column={{
+        ...column,
+        name: 'When',
+        label: 'Next date',
+        protections: ['rename'],
+      }}
       canRename
       onRename={rename}
       onSort={vi.fn()}

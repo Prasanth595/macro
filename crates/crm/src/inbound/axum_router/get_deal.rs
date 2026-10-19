@@ -12,9 +12,7 @@ use serde::Serialize;
 use utoipa::ToSchema;
 use uuid::Uuid;
 
-use crate::domain::{
-    auth::CrmTeamReceipt, deals::Deal, model::CrmError, service::CrmService,
-};
+use crate::domain::{auth::CrmTeamReceipt, deals::Deal, model::CrmError, service::CrmService};
 
 use super::CrmRouterState;
 

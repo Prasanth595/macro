@@ -1,4 +1,7 @@
-import { useCrmContactDiscovery, useCrmDealMentionSource } from '@app/features/crm/record-adapter';
+import {
+  useCrmContactDiscovery,
+  useCrmDealMentionSource,
+} from '@app/features/crm/record-adapter';
 import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
 import { projectRouteId } from '@app/features/projects/core/route';
 import { createSoupRowStore } from '@app/features/soup/collection/row-store';

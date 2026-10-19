@@ -1,10 +1,10 @@
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { enableCrm } from '@core/constant/featureFlags';
 import type { EntityItem } from '@core/context/quickAccess';
-import type { CrmDealEntity } from '@entity';
 import { useQuickAccess } from '@core/context/quickAccess/context';
 import { toCrmContactItem } from '@core/context/quickAccess/crm-contacts';
 import { debouncedDependent } from '@core/util/debounce';
+import type { CrmDealEntity } from '@entity';
 import { isCrmContactEntity } from '@entity/types/entity';
 import { queryReadyGate } from '@queries/gate';
 import { storageServiceClient } from '@service-storage/client';

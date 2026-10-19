@@ -171,8 +171,7 @@ impl TryFrom<GraphqlPropertyEntityType> for PropertyEntityType {
             GraphqlPropertyEntityType::Thread => Self::Thread,
             GraphqlPropertyEntityType::User => Self::User,
             GraphqlPropertyEntityType::Initiative => Self::Initiative,
-            other
-            @ (GraphqlPropertyEntityType::CallRecord
+            other @ (GraphqlPropertyEntityType::CallRecord
             | GraphqlPropertyEntityType::Contact
             | GraphqlPropertyEntityType::Deal) => {
                 return Err(other);

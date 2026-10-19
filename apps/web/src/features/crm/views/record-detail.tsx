@@ -22,8 +22,8 @@ import {
 } from '../core/record';
 import { Company } from './company-detail';
 import { Contact } from './contact-detail';
-import { Deal } from './deal-detail';
 import { CrmCopyLinkButton } from './copy-link-button';
+import { Deal } from './deal-detail';
 import { useCompanyQuery, useContactQuery } from './use-crm';
 
 /** A CRM record shown inside the workspace, with its fallback label. */
@@ -164,22 +164,22 @@ export function CrmRecordDetail(props: {
             />
             <div class="min-w-0 overflow-x-auto">
               <Show when={current().type !== 'deal'}>
-              <Show
-                when={current().type === 'contact'}
-                fallback={
+                <Show
+                  when={current().type === 'contact'}
+                  fallback={
+                    <RecordTabs
+                      sections={COMPANY_SECTIONS}
+                      value={companySection()}
+                      onChange={setCompanySection}
+                    />
+                  }
+                >
                   <RecordTabs
-                    sections={COMPANY_SECTIONS}
-                    value={companySection()}
-                    onChange={setCompanySection}
+                    sections={CONTACT_SECTIONS}
+                    value={contactSection()}
+                    onChange={setContactSection}
                   />
-                }
-              >
-                <RecordTabs
-                  sections={CONTACT_SECTIONS}
-                  value={contactSection()}
-                  onChange={setContactSection}
-                />
-              </Show>
+                </Show>
               </Show>
             </div>
             <div class="ml-auto flex shrink-0 items-center gap-1">
@@ -198,43 +198,45 @@ export function CrmRecordDetail(props: {
                 <Show
                   when={record.type === 'deal'}
                   fallback={
-                <RecordContent
-                  record={record}
-                  nested={trail().length > 1}
-                  onBack={back}
-                >
-                  <Show
-                    when={record.type === 'contact'}
-                    fallback={
-                      <Company
-                        companyId={record.id}
-                        section={companySection()}
-                        headerToggle={false}
-                        onHidden={back}
-                        onOpenPipeline={props.onOpenPipeline}
-                        onOpenContact={(contact) =>
-                          open({
-                            type: 'contact',
-                            id: contact.id,
-                            name: contact.name ?? contact.email,
-                          })
+                    <RecordContent
+                      record={record}
+                      nested={trail().length > 1}
+                      onBack={back}
+                    >
+                      <Show
+                        when={record.type === 'contact'}
+                        fallback={
+                          <Company
+                            companyId={record.id}
+                            section={companySection()}
+                            headerToggle={false}
+                            onHidden={back}
+                            onOpenPipeline={props.onOpenPipeline}
+                            onOpenContact={(contact) =>
+                              open({
+                                type: 'contact',
+                                id: contact.id,
+                                name: contact.name ?? contact.email,
+                              })
+                            }
+                            onOpenDeal={(deal) =>
+                              open({ type: 'deal', ...deal })
+                            }
+                          />
                         }
-                        onOpenDeal={(deal) => open({ type: 'deal', ...deal })}
-                      />
-                    }
-                  >
-                    <Contact
-                      contactId={record.id}
-                      section={contactSection()}
-                      headerToggle={false}
-                      onOpenPipeline={props.onOpenPipeline}
-                      onOpenCompany={(companyId) => {
-                        open({ type: 'company', id: companyId, name: '' });
-                        return true;
-                      }}
-                    />
-                  </Show>
-                </RecordContent>
+                      >
+                        <Contact
+                          contactId={record.id}
+                          section={contactSection()}
+                          headerToggle={false}
+                          onOpenPipeline={props.onOpenPipeline}
+                          onOpenCompany={(companyId) => {
+                            open({ type: 'company', id: companyId, name: '' });
+                            return true;
+                          }}
+                        />
+                      </Show>
+                    </RecordContent>
                   }
                 >
                   <Deal

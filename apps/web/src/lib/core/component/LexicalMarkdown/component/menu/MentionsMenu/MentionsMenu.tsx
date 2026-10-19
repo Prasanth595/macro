@@ -1,4 +1,7 @@
-import { useCrmContactMentionSource, useCrmDealMentionSource } from '@app/features/crm/record-adapter';
+import {
+  useCrmContactMentionSource,
+  useCrmDealMentionSource,
+} from '@app/features/crm/record-adapter';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import type { BlockName } from '@core/block';

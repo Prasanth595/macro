@@ -1524,28 +1524,30 @@ pub async fn run() -> anyhow::Result<()> {
         ),
         macro_event_broker.clone(),
     ));
-    let pipeline_service = Arc::new(crm::domain::pipelines::PipelineServiceImpl::new(
-        crm::outbound::pipelines::PgPipelineRepo::new(
-            db.clone(),
-            databases::outbound::pg_cell_store::PgCellStore::new(
+    let pipeline_service = Arc::new(
+        crm::domain::pipelines::PipelineServiceImpl::new(
+            crm::outbound::pipelines::PgPipelineRepo::new(
                 db.clone(),
-                properties::outbound::properties_pg_repo::PropertiesPgRepo::new(db.clone()),
+                databases::outbound::pg_cell_store::PgCellStore::new(
+                    db.clone(),
+                    properties::outbound::properties_pg_repo::PropertiesPgRepo::new(db.clone()),
+                ),
             ),
-        ),
-        databases_service.clone(),
-        entity_access_service.clone(),
-        crm::outbound::stage_definitions::PropertiesStageDefinitionStore::new(
-            properties_service.clone(),
-        ),
-    )
-    .with_deal_log(Arc::new(crm::outbound::deal_log::ActivityDealLog::new(
-        db.clone(),
-    )))
-    .with_delivery(Arc::new(crate::deal_delivery::WonDelivery::new(
-        db.clone(),
-        initiative_service.clone(),
-        system_properties_service.clone(),
-    ))));
+            databases_service.clone(),
+            entity_access_service.clone(),
+            crm::outbound::stage_definitions::PropertiesStageDefinitionStore::new(
+                properties_service.clone(),
+            ),
+        )
+        .with_deal_log(Arc::new(crm::outbound::deal_log::ActivityDealLog::new(
+            db.clone(),
+        )))
+        .with_delivery(Arc::new(crate::deal_delivery::WonDelivery::new(
+            db.clone(),
+            initiative_service.clone(),
+            system_properties_service.clone(),
+        ))),
+    );
 
     let database_webhooks_service = Arc::new(database_webhooks::wiring::build_service(
         db.clone(),

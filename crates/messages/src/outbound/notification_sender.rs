@@ -61,9 +61,7 @@ impl<N: NotificationIngress> DiscussionNotifier for MessageNotificationSender<N>
         }
         if matches!(
             n.event.parent,
-            MessageParent::CrmCompany(_)
-            | MessageParent::CrmContact(_)
-            | MessageParent::CrmDeal(_)
+            MessageParent::CrmCompany(_) | MessageParent::CrmContact(_) | MessageParent::CrmDeal(_)
         ) {
             use model_notifications::{CrmDiscussionMetadata, CrmDiscussionReason};
             let reason = match n.reason {

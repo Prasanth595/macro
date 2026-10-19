@@ -320,49 +320,49 @@ export function DatabaseRecordsView(props: DatabaseRecordsViewProps) {
       <Show
         when={custom()}
         fallback={
-      <Show
-        when={relationCell()}
-        fallback={
-          <GridCell
-            {...options}
-            column={column()}
-            emptyLabel=""
-            value={rowValue(row(), column().id)}
-            canEdit={props.canEdit}
-            renderTextEditor={props.renderTextEditor}
-            renderTextValue={props.renderTextValue}
-            renderMentionPicker={props.renderMentionPicker}
-            renderMentionValue={props.renderMentionValue}
-            onOpenMention={isTitle() ? props.onOpenTitleMention : undefined}
-            onMention={(mention) =>
-              writeValue(row(), column(), mention.id, undefined, {
-                dataType: 'ENTITY',
-                entityType: mention.entityType,
+          <Show
+            when={relationCell()}
+            fallback={
+              <GridCell
+                {...options}
+                column={column()}
+                emptyLabel=""
+                value={rowValue(row(), column().id)}
+                canEdit={props.canEdit}
+                renderTextEditor={props.renderTextEditor}
+                renderTextValue={props.renderTextValue}
+                renderMentionPicker={props.renderMentionPicker}
+                renderMentionValue={props.renderMentionValue}
+                onOpenMention={isTitle() ? props.onOpenTitleMention : undefined}
+                onMention={(mention) =>
+                  writeValue(row(), column(), mention.id, undefined, {
+                    dataType: 'ENTITY',
+                    entityType: mention.entityType,
+                  })
+                }
+                onWrite={write}
+                onAddOption={(label, value) =>
+                  writeValue(row(), column(), value ?? label, label)
+                }
+              />
+            }
+          >
+            {(cell) =>
+              cell().render({
+                ...options,
+                get column() {
+                  return cell().column;
+                },
+                get value() {
+                  return rowValue(row(), column().id);
+                },
+                get canEdit() {
+                  return props.canEdit;
+                },
+                onWrite: write,
               })
             }
-            onWrite={write}
-            onAddOption={(label, value) =>
-              writeValue(row(), column(), value ?? label, label)
-            }
-          />
-        }
-      >
-        {(cell) =>
-          cell().render({
-            ...options,
-            get column() {
-              return cell().column;
-            },
-            get value() {
-              return rowValue(row(), column().id);
-            },
-            get canEdit() {
-              return props.canEdit;
-            },
-            onWrite: write,
-          })
-        }
-      </Show>
+          </Show>
         }
       >
         {(item) => item().node}

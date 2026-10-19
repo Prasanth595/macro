@@ -3,8 +3,8 @@
 //! link this library, so the service compiles once and caches as one rlib.
 
 mod api;
-mod deal_delivery;
 mod config;
+mod deal_delivery;
 pub mod model;
 mod outbound;
 mod server;

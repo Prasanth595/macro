@@ -1,10 +1,18 @@
 import { toast } from '@core/component/Toast/Toast';
+import { fireAndForget } from '@core/util/fireAndForget';
 import BuildingsIcon from '@phosphor/buildings.svg';
 import UsersIcon from '@phosphor/users.svg';
 import XIcon from '@phosphor/x.svg';
 import { storageServiceClient } from '@service-storage/client';
-import { badgeClasses, Button, Dialog, EntityComposer, Panel } from '@ui';
-import { type Component, createSignal, For, onCleanup, onMount, Show } from 'solid-js';
+import { Button, badgeClasses, Dialog, EntityComposer, Panel } from '@ui';
+import {
+  type Component,
+  createSignal,
+  For,
+  onCleanup,
+  onMount,
+  Show,
+} from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { fetchCrmExportCompanies } from '../queries/export';
 
@@ -27,30 +35,43 @@ export function DealDialog(props: {
   const [error, setError] = createSignal('');
   let contactTimer: number | undefined;
   const close = () => !pending() && props.onClose();
-  const chosenCompany = (id: string) => companies().some((item) => item.id === id);
-  const chosenContact = (id: string) => contacts().some((item) => item.id === id);
+  const chosenCompany = (id: string) =>
+    companies().some((item) => item.id === id);
+  const chosenContact = (id: string) =>
+    contacts().some((item) => item.id === id);
   const visibleCompanies = () => {
     const query = companyQuery().trim().toLowerCase();
     return companyChoices()
       .filter((company) => !chosenCompany(company.id))
-      .filter((company) => !query || company.label.toLowerCase().includes(query))
+      .filter(
+        (company) => !query || company.label.toLowerCase().includes(query)
+      )
       .slice(0, 8);
   };
 
   onMount(() => {
     const controller = new AbortController();
-    void fetchCrmExportCompanies(storageServiceClient, controller.signal, () => {})
-      .then((loaded) =>
-        setCompanyChoices(
-          loaded.map((company) => ({
-            id: company.id,
-            label: company.name || company.domains[0]?.domain || 'Company',
-          }))
-        )
-      )
-      .catch(() => undefined);
+    fireAndForget(loadCompanies(controller.signal), 'crm.deal-dialog');
     onCleanup(() => controller.abort());
   });
+
+  async function loadCompanies(signal: AbortSignal) {
+    try {
+      const loaded = await fetchCrmExportCompanies(
+        storageServiceClient,
+        signal,
+        () => {}
+      );
+      setCompanyChoices(
+        loaded.map((company) => ({
+          id: company.id,
+          label: company.name || company.domains[0]?.domain || 'Company',
+        }))
+      );
+    } catch {
+      // A closed dialog aborts the request.
+    }
+  }
 
   function searchContacts(query: string) {
     window.clearTimeout(contactTimer);
@@ -59,18 +80,22 @@ export function DealDialog(props: {
       return;
     }
     contactTimer = window.setTimeout(() => {
-      void storageServiceClient
-        .searchContacts({ query: query.trim(), limit: 8 })
-        .then((result) => {
-          if (result.isErr()) return;
-          setContactChoices(
-            result.value.contacts.map((contact) => ({
-              id: contact.id,
-              label: contact.name || contact.email,
-            }))
-          );
-        });
+      fireAndForget(loadContacts(query.trim()), 'crm.deal-dialog');
     }, 200);
+  }
+
+  async function loadContacts(query: string) {
+    const result = await storageServiceClient.searchContacts({
+      query,
+      limit: 8,
+    });
+    if (result.isErr()) return;
+    setContactChoices(
+      result.value.contacts.map((contact) => ({
+        id: contact.id,
+        label: contact.name || contact.email,
+      }))
+    );
   }
 
   async function submit() {
@@ -92,7 +117,9 @@ export function DealDialog(props: {
       await props.onCreate(created.value);
       props.onClose();
     } catch {
-      toast.failure('The deal was created, but it could not be added to the board.');
+      toast.failure(
+        'The deal was created, but it could not be added to the board.'
+      );
       props.onClose();
     } finally {
       setPending(false);
@@ -108,7 +135,7 @@ export function DealDialog(props: {
             aria-label="New deal"
             onSubmit={(event) => {
               event.preventDefault();
-              void submit();
+              fireAndForget(submit(), 'crm.deal-dialog');
             }}
           >
             <EntityComposer.Root>
@@ -164,7 +191,9 @@ export function DealDialog(props: {
                     setCompanyQuery('');
                   }}
                   onRemove={(id) =>
-                    setCompanies((current) => current.filter((item) => item.id !== id))
+                    setCompanies((current) =>
+                      current.filter((item) => item.id !== id)
+                    )
                   }
                 />
                 <LinkPicker
@@ -188,7 +217,9 @@ export function DealDialog(props: {
                     setContactChoices([]);
                   }}
                   onRemove={(id) =>
-                    setContacts((current) => current.filter((item) => item.id !== id))
+                    setContacts((current) =>
+                      current.filter((item) => item.id !== id)
+                    )
                   }
                 />
               </EntityComposer.Main>
@@ -247,7 +278,10 @@ function LinkPicker(props: {
         </div>
       </Show>
       <label class="flex items-center gap-2 rounded-lg border border-edge px-2 py-1">
-        <Dynamic component={props.icon} class="size-3.5 shrink-0 text-ink-muted" />
+        <Dynamic
+          component={props.icon}
+          class="size-3.5 shrink-0 text-ink-muted"
+        />
         <input
           aria-label={props.queryLabel}
           placeholder={props.placeholder}

@@ -98,9 +98,7 @@ export function useEntitySearch(
     contactsActive
   );
   const dealsActive = () =>
-    searchActive() &&
-    categoryFilter() === 'all' &&
-    query().trim().length > 0;
+    searchActive() && categoryFilter() === 'all' && query().trim().length > 0;
   const deals = options?.dealDiscovery?.(scopedSearchTerm, dealsActive);
   const dealItems = createMemo((): EntitySearchItem[] =>
     deals && dealsActive() ? deals.entities() : []

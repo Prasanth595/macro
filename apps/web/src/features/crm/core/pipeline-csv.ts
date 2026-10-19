@@ -192,7 +192,8 @@ export function planPipelineImport(
   }
 ): Result<PipelineImportPlan, PipelineImportFailure> {
   const { recordType, primaryColumnId } = pipeline;
-  if (recordType === 'deal') return err({ kind: 'no-record-column', recordType });
+  if (recordType === 'deal')
+    return err({ kind: 'no-record-column', recordType });
   const header = (names: string[]) =>
     csv.columns.findIndex((name) => names.includes(name.trim().toLowerCase()));
   const keyIndex = header(KEY_HEADERS[recordType]);

@@ -695,12 +695,10 @@ impl AccessRepository for PgAccessRepository {
         let deal_uuid = deal_id
             .parse::<Uuid>()
             .map_err(|_| AccessError::BadRequest("Invalid CRM deal ID format"))?;
-        Ok(queries::crm_deal_access::get_team_crm_deal_access(
-            &self.pool,
-            &deal_uuid,
-            &team_id,
+        Ok(
+            queries::crm_deal_access::get_team_crm_deal_access(&self.pool, &deal_uuid, &team_id)
+                .await?,
         )
-        .await?)
     }
 
     #[tracing::instrument(err, skip(self))]
@@ -794,9 +792,7 @@ impl AccessRepository for PgAccessRepository {
         let Some(user_id) = user_id else {
             return Ok(None);
         };
-        Ok(
-            queries::crm_deal_access::get_crm_deal_access(&self.pool, &deal_uuid, user_id).await?,
-        )
+        Ok(queries::crm_deal_access::get_crm_deal_access(&self.pool, &deal_uuid, user_id).await?)
     }
 
     #[tracing::instrument(err, skip(self))]

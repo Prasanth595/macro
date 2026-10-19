@@ -1,4 +1,5 @@
 import { toast } from '@core/component/Toast/Toast';
+import { fireAndForget } from '@core/util/fireAndForget';
 import CalendarIcon from '@phosphor/calendar-blank.svg';
 import CaretLeftIcon from '@phosphor/caret-left.svg';
 import CaretRightIcon from '@phosphor/caret-right.svg';
@@ -6,60 +7,66 @@ import EnvelopeIcon from '@phosphor/envelope.svg';
 import HandshakeIcon from '@phosphor/handshake.svg';
 import PhoneIcon from '@phosphor/phone.svg';
 import WarningIcon from '@phosphor/warning.svg';
+import { invalidateMessageTimeline } from '@queries/messages/timeline';
+import { storageServiceClient } from '@service-storage/client';
 import {
   entityMessagesClient,
   type MessageTimelineEntry,
 } from '@service-storage/messages';
-import { storageServiceClient } from '@service-storage/client';
-import { createEffect, createResource, createSignal, For, Show } from 'solid-js';
+import {
+  createEffect,
+  createResource,
+  createSignal,
+  For,
+  Show,
+} from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { useDatabase } from '../../database/context/database';
-import type { DatabaseRow } from '../../database/core/table';
 import { toCellDate } from '../../database/core/cell-date';
-import { invalidateMessageTimeline } from '@queries/messages/timeline';
 import type { DatabaseCellValue } from '../../database/core/database-view';
+import type { DatabaseRow } from '../../database/core/table';
 
 const NEXT = [
-  ['Call', 'Llamada'],
+  ['Call', 'Call'],
   ['Email', 'Email'],
-  ['Meeting', 'Reunión'],
+  ['Meeting', 'Meeting'],
 ] as const;
 
 const LAST_ACTIONS = [
-  'Llamada contestada',
-  'Llamada no contestada',
-  'Reunión agendada',
-  'Reunión realizada',
-  'Reunión — no show',
+  'Call answered',
+  'Call not answered',
+  'Meeting scheduled',
+  'Meeting held',
+  'Meeting — no show',
   'WhatsApp',
-  'Soporte positivo',
-  'Soporte negativo',
-  'Entrega',
-  'Realizada',
+  'Positive support',
+  'Negative support',
+  'Delivery',
+  'Done',
 ] as const;
 
 const OUTCOMES = [
-  ['Won', 'Ganado'],
-  ['Lost', 'Perdido'],
-  ['Cancelled', 'Cancelado'],
+  ['Won', 'Won'],
+  ['Lost', 'Lost'],
+  ['Cancelled', 'Cancelled'],
 ] as const;
 
 const MONTHS = [
-  'enero',
-  'febrero',
-  'marzo',
-  'abril',
-  'mayo',
-  'junio',
-  'julio',
-  'agosto',
-  'septiembre',
-  'octubre',
-  'noviembre',
-  'diciembre',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
-const WEEKDAYS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
+const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
 type Note = { at: string; text: string };
 
@@ -104,7 +111,10 @@ function isoOf(year: number, month: number, day: number) {
 
 function monthOf(iso: string | null) {
   const source = iso ?? dayIso(new Date());
-  return { year: Number(source.slice(0, 4)), month: Number(source.slice(5, 7)) };
+  return {
+    year: Number(source.slice(0, 4)),
+    month: Number(source.slice(5, 7)),
+  };
 }
 
 function noteFrom(entry: MessageTimelineEntry): Note | null {
@@ -146,7 +156,8 @@ export function DealMention(props: {
       loaded.value.companyIds.map(async (companyId) => {
         const company = await storageServiceClient.getCompany({ companyId });
         if (company.isErr()) return null;
-        const name = company.value.name || company.value.domains[0]?.domain || '';
+        const name =
+          company.value.name || company.value.domains[0]?.domain || '';
         return name ? { id: companyId, name } : null;
       })
     );
@@ -157,13 +168,14 @@ export function DealMention(props: {
   });
   // Reading the resource while it is loading suspends the whole pipeline page.
   const record = () =>
-    deal.state === 'ready' || deal.state === 'refreshing' ? deal.latest : undefined;
+    deal.state === 'ready' || deal.state === 'refreshing'
+      ? deal.latest
+      : undefined;
   const row = () =>
     database.data.rows
       .snapshot()
       ?.rows.find(
-        (entry) =>
-          String(entry.cells[props.primaryColumnId] ?? '') === props.id
+        (entry) => String(entry.cells[props.primaryColumnId] ?? '') === props.id
       );
   const column = (name: string) =>
     database.data.rows.columns().find((entry) => entry.name === name);
@@ -192,7 +204,10 @@ export function DealMention(props: {
     );
     if (saved.isErr()) toast.failure('Could not save the deal');
     else if (name === 'Stage' || name === 'When' || name === 'Outcome')
-      void invalidateMessageTimeline({ type: 'crm_deal', id: props.id });
+      fireAndForget(
+        invalidateMessageTimeline({ type: 'crm_deal', id: props.id }),
+        'crm.deal-card'
+      );
   }
   return (
     <span class="flex min-w-0 flex-col">
@@ -202,7 +217,6 @@ export function DealMention(props: {
           <button
             type="button"
             class="block w-full min-w-0 truncate text-left text-sm font-medium leading-5 text-ink hover:underline"
-            data-kanban-no-drag
             onClick={(event) => {
               event.stopPropagation();
               event.preventDefault();
@@ -218,7 +232,6 @@ export function DealMention(props: {
                   <button
                     type="button"
                     class="max-w-full min-w-0 truncate text-left hover:text-ink hover:underline"
-                    data-kanban-no-drag
                     onClick={(event) => {
                       event.stopPropagation();
                       event.preventDefault();
@@ -241,10 +254,22 @@ export function DealMention(props: {
           plan={plan()}
           outcome={outcome()}
           dealId={props.id}
-          onWhen={(iso) => void write('When', iso ? toCellDate(new Date(`${iso}T12:00:00`)) : null)}
-          onNext={(activity) => void write('Next activity', activity)}
-          onPlan={(text) => void write('Plan', text)}
-          onOutcome={(closed) => void write('Outcome', closed)}
+          onWhen={(iso) =>
+            fireAndForget(
+              write(
+                'When',
+                iso ? toCellDate(new Date(`${iso}T12:00:00`)) : null
+              ),
+              'crm.deal-card'
+            )
+          }
+          onNext={(activity) =>
+            fireAndForget(write('Next activity', activity), 'crm.deal-card')
+          }
+          onPlan={(text) => fireAndForget(write('Plan', text), 'crm.deal-card')}
+          onOutcome={(closed) =>
+            fireAndForget(write('Outcome', closed), 'crm.deal-card')
+          }
           onHappened={(text) => postDealNote(props.id, text)}
           onLast={(text) => postDealNote(props.id, text)}
         />
@@ -255,14 +280,20 @@ export function DealMention(props: {
 
 async function postDealNote(id: string, text: string) {
   try {
-    await entityMessagesClient.post({ type: 'crm_deal', id }, { content: text });
+    await entityMessagesClient.post(
+      { type: 'crm_deal', id },
+      { content: text }
+    );
   } catch {
     toast.failure('Could not save the note');
   }
 }
 
 /** The date line in a table cell. The same editor as the board card. */
-export function DealScheduleCell(props: { row: DatabaseRow; primaryColumnId: string }) {
+export function DealScheduleCell(props: {
+  row: DatabaseRow;
+  primaryColumnId: string;
+}) {
   const database = useDatabase();
   const id = () => {
     const value = props.row.cells[props.primaryColumnId];
@@ -290,7 +321,10 @@ export function DealScheduleCell(props: { row: DatabaseRow; primaryColumnId: str
     );
     if (saved.isErr()) toast.failure('Could not save the deal');
     else if (name === 'Stage' || name === 'When' || name === 'Outcome')
-      void invalidateMessageTimeline({ type: 'crm_deal', id: dealId });
+      fireAndForget(
+        invalidateMessageTimeline({ type: 'crm_deal', id: dealId }),
+        'crm.deal-card'
+      );
   }
   return (
     <Show when={id()}>
@@ -302,10 +336,22 @@ export function DealScheduleCell(props: { row: DatabaseRow; primaryColumnId: str
           plan={cellText(value('Plan')) ?? ''}
           outcome={cellText(value('Outcome'))}
           dealId={id()}
-          onWhen={(iso) => void write('When', iso ? toCellDate(new Date(`${iso}T12:00:00`)) : null)}
-          onNext={(activity) => void write('Next activity', activity)}
-          onPlan={(text) => void write('Plan', text)}
-          onOutcome={(closed) => void write('Outcome', closed)}
+          onWhen={(iso) =>
+            fireAndForget(
+              write(
+                'When',
+                iso ? toCellDate(new Date(`${iso}T12:00:00`)) : null
+              ),
+              'crm.deal-card'
+            )
+          }
+          onNext={(activity) =>
+            fireAndForget(write('Next activity', activity), 'crm.deal-card')
+          }
+          onPlan={(text) => fireAndForget(write('Plan', text), 'crm.deal-card')}
+          onOutcome={(closed) =>
+            fireAndForget(write('Outcome', closed), 'crm.deal-card')
+          }
           onHappened={(text) => postDealNote(id(), text)}
           onLast={(text) => postDealNote(id(), text)}
         />
@@ -315,7 +361,10 @@ export function DealScheduleCell(props: { row: DatabaseRow; primaryColumnId: str
 }
 
 /** The date or outcome label, with no editor. */
-export function DealDateBadge(props: { when: string | null; outcome: string | null }) {
+export function DealDateBadge(props: {
+  when: string | null;
+  outcome: string | null;
+}) {
   return <PillFace when={props.when} outcome={props.outcome} />;
 }
 
@@ -344,15 +393,16 @@ function pillLabel(when: string | null, outcome: string | null) {
         new Date(`${today}T12:00:00`).getTime()) /
         86_400_000
     );
-    return { text: `en ${days}d`, tone: 'later' as const, icon: true };
+    return { text: `in ${days}d`, tone: 'later' as const, icon: true };
   }
-  if (when === today) return { text: 'Hoy', tone: 'today' as const, icon: true };
+  if (when === today)
+    return { text: 'Today', tone: 'today' as const, icon: true };
   const days = Math.round(
     (new Date(`${today}T12:00:00`).getTime() -
       new Date(`${when}T12:00:00`).getTime()) /
       86_400_000
   );
-  return { text: `${days}d retraso`, tone: 'late' as const, icon: true };
+  return { text: `${days}d overdue`, tone: 'late' as const, icon: true };
 }
 
 function PillFace(props: {
@@ -369,9 +419,9 @@ function PillFace(props: {
           class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold whitespace-nowrap"
           classList={{
             'ml-auto': !!props.push,
-            'bg-[#6d4aff] text-white': mark().tone === 'later',
+            'bg-[#6d4aff] text-ink': mark().tone === 'later',
             'bg-failure/15 text-failure': mark().tone === 'today',
-            'bg-[#e11d48] text-white': mark().tone === 'late',
+            'bg-[#e11d48] text-ink': mark().tone === 'late',
             'bg-[#dcfce7] text-[#166534]': mark().tone === 'won',
             'bg-[#f3f4f6] text-[#6b7280]': mark().tone === 'closed',
           }}
@@ -412,12 +462,11 @@ export function DealPill(props: {
   const [notes, setNotes] = createSignal<Note[]>(props.notes ?? []);
   const [picked, setPicked] = createSignal<string | null>(null);
   const [panel, setPanel] = createSignal<HTMLDivElement>();
-  function refreshNotes() {
+  async function refreshNotes() {
     const id = props.dealId;
     if (!id) return;
-    void loadNotes(id).then((loaded) => {
-      if (props.dealId === id) setNotes(loaded);
-    });
+    const loaded = await loadNotes(id);
+    if (props.dealId === id) setNotes(loaded);
   }
   createEffect(() => {
     const bounds = anchor();
@@ -439,14 +488,15 @@ export function DealPill(props: {
       current.left === left && current.top === top ? current : { left, top }
     );
   });
-  function keepNote() {
+  async function keepNote() {
     const note = happened().trim();
     if (!note) return;
     setHappened('');
-    void props.onHappened(note).then(() => refreshNotes());
+    await props.onHappened(note);
+    await refreshNotes();
   }
   function close() {
-    keepNote();
+    fireAndForget(keepNote(), 'crm.deal-card');
     if (plan() !== props.plan) props.onPlan(plan());
     setOpen(false);
   }
@@ -473,25 +523,32 @@ export function DealPill(props: {
     setPlan(props.plan);
     setHappened('');
     setPicked(null);
-    refreshNotes();
+    fireAndForget(refreshNotes(), 'crm.deal-card');
     setOpen(true);
   }
   function chooseDay(iso: string) {
-    keepNote();
+    fireAndForget(keepNote(), 'crm.deal-card');
     props.onWhen(iso);
   }
   return (
     <span
       class="relative block min-w-0"
       classList={{ 'w-full': props.presentation === 'line' }}
-      data-kanban-no-drag
     >
       <Show
         when={props.presentation === 'line' || props.presentation === 'cell'}
         fallback={
           <Show when={label()}>
-            <button type="button" class="border-0 bg-transparent p-0" onClick={openAt}>
-              <PillFace when={props.when} next={props.next} outcome={props.outcome} />
+            <button
+              type="button"
+              class="border-0 bg-transparent p-0"
+              onClick={openAt}
+            >
+              <PillFace
+                when={props.when}
+                next={props.next}
+                outcome={props.outcome}
+              />
             </button>
           </Show>
         }
@@ -511,7 +568,7 @@ export function DealPill(props: {
                 'text-ink-extra-muted': !props.when,
               }}
             >
-              {props.when ? formatWhen(props.when) : 'Sin fecha'}
+              {props.when ? formatWhen(props.when) : 'No date'}
             </span>
           </Show>
           <Show when={props.presentation === 'line' && notes().length > 0}>
@@ -529,147 +586,174 @@ export function DealPill(props: {
       </Show>
       <Show when={open()}>
         <Portal>
-        <button
-          type="button"
-          class="fixed inset-0 z-[1100] cursor-default"
-          aria-label="Close"
-          onClick={(event) => {
-            event.stopPropagation();
-            close();
-          }}
-        />
-        <div
-          ref={setPanel}
-          class="fixed z-[1101] max-h-[calc(100vh-16px)] w-[328px] overflow-auto rounded-xl border border-edge bg-surface p-3 shadow-[0_12px_40px_oklch(0.15_0_0/0.16)]"
-          style={{ left: `${placed().left}px`, top: `${placed().top}px` }}
-          data-kanban-no-drag
-          onMouseDown={(event) => event.stopPropagation()}
-          onClick={(event) => event.stopPropagation()}
-        >
-          <label class="mb-2.5 flex flex-col gap-1.5 text-xs text-ink-muted">
-            Última acción
-            <select
-              class="h-8 rounded-lg border border-edge bg-surface px-2 text-xs text-ink"
-              value={last()}
-              onChange={(event) => {
-                const action = event.currentTarget.value;
-                if (!action) return;
-                setPicked(action);
-                void props.onLast(action).then(() => refreshNotes());
-              }}
-            >
-              <option value="">Sin anotar</option>
-              <For each={LAST_ACTIONS}>
-                {(action) => <option value={action}>{action}</option>}
-              </For>
-            </select>
-          </label>
-          <Show when={due()}>
-            <label class="flex flex-col gap-1.5 text-xs text-ink-muted">
-              Qué ha pasado
+          <button
+            type="button"
+            class="fixed inset-0 z-[1100] cursor-default"
+            aria-label="Close"
+            onClick={(event) => {
+              event.stopPropagation();
+              close();
+            }}
+          />
+          <div
+            ref={setPanel}
+            class="fixed z-[1101] max-h-[calc(100vh-16px)] w-[328px] overflow-auto rounded-xl border border-edge bg-surface p-3 shadow-[0_12px_40px_oklch(0.15_0_0/0.16)]"
+            style={{ left: `${placed().left}px`, top: `${placed().top}px` }}
+            data-kanban-no-drag
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <label class="mb-2.5 flex flex-col gap-1.5 text-xs text-ink-muted">
+              Last action
+              <select
+                class="h-8 rounded-lg border border-edge bg-surface px-2 text-xs text-ink"
+                value={last()}
+                onChange={(event) => {
+                  const action = event.currentTarget.value;
+                  if (!action) return;
+                  setPicked(action);
+                  fireAndForget(
+                    (async () => {
+                      await props.onLast(action);
+                      await refreshNotes();
+                    })(),
+                    'crm.deal-card'
+                  );
+                }}
+              >
+                <option value="">Not logged</option>
+                <For each={LAST_ACTIONS}>
+                  {(action) => <option value={action}>{action}</option>}
+                </For>
+              </select>
+            </label>
+            <Show when={due()}>
+              <label class="flex flex-col gap-1.5 text-xs text-ink-muted">
+                What happened
+                <textarea
+                  class="w-full resize-y rounded-lg border border-edge bg-transparent p-2 text-[13px] text-ink"
+                  rows={2}
+                  placeholder="For example, I called and they didn't pick up"
+                  value={happened()}
+                  onInput={(event) => setHappened(event.currentTarget.value)}
+                />
+              </label>
+            </Show>
+            <div class="my-3 h-px bg-edge-muted" />
+            <div class="mb-1.5 text-xs text-ink-muted">Next action</div>
+            <div class="flex flex-wrap gap-1.5">
+              <ForDay
+                label="Today"
+                days={0}
+                when={props.when}
+                onWhen={chooseDay}
+              />
+              <ForDay
+                label="Tomorrow"
+                days={1}
+                when={props.when}
+                onWhen={chooseDay}
+              />
+              <ForDay
+                label="Next week"
+                days={7}
+                when={props.when}
+                onWhen={chooseDay}
+              />
+              <ForDay
+                label="In 2 weeks"
+                days={14}
+                when={props.when}
+                onWhen={chooseDay}
+              />
+            </div>
+            <MonthGrid
+              year={view().year}
+              month={view().month}
+              when={props.when}
+              onWhen={chooseDay}
+              onMonth={(step) =>
+                setView((current) => {
+                  let month = current.month + step;
+                  let year = current.year;
+                  if (month < 1) {
+                    month = 12;
+                    year -= 1;
+                  }
+                  if (month > 12) {
+                    month = 1;
+                    year += 1;
+                  }
+                  return { year, month };
+                })
+              }
+            />
+            <div class="mt-3 flex gap-1.5">
+              {NEXT.map(([id, text]) => (
+                <button
+                  type="button"
+                  class="inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-lg border border-edge bg-surface text-xs text-ink"
+                  classList={{
+                    'border-[#c4b5fd] bg-[#6d4aff]/10 font-semibold':
+                      props.next === id,
+                  }}
+                  onClick={() => props.onNext(id)}
+                >
+                  {activityMark(id, 'size-3.5 shrink-0')}
+                  {text}
+                </button>
+              ))}
+            </div>
+            <label class="mt-2.5 flex flex-col gap-1.5 text-xs text-ink-muted">
+              What you plan to do
               <textarea
                 class="w-full resize-y rounded-lg border border-edge bg-transparent p-2 text-[13px] text-ink"
                 rows={2}
-                placeholder="Por ejemplo, llamé y no lo cogió"
-                value={happened()}
-                onInput={(event) => setHappened(event.currentTarget.value)}
+                value={plan()}
+                onInput={(event) => setPlan(event.currentTarget.value)}
+                onChange={(event) => props.onPlan(event.currentTarget.value)}
               />
             </label>
-          </Show>
-          <div class="my-3 h-px bg-edge-muted" />
-          <div class="mb-1.5 text-xs text-ink-muted">Siguiente acción</div>
-          <div class="flex flex-wrap gap-1.5">
-            <ForDay label="Hoy" days={0} when={props.when} onWhen={chooseDay} />
-            <ForDay label="Mañana" days={1} when={props.when} onWhen={chooseDay} />
-            <ForDay label="La semana que viene" days={7} when={props.when} onWhen={chooseDay} />
-            <ForDay label="En 2 semanas" days={14} when={props.when} onWhen={chooseDay} />
-          </div>
-          <MonthGrid
-            year={view().year}
-            month={view().month}
-            when={props.when}
-            onWhen={chooseDay}
-            onMonth={(step) =>
-              setView((current) => {
-                let month = current.month + step;
-                let year = current.year;
-                if (month < 1) {
-                  month = 12;
-                  year -= 1;
-                }
-                if (month > 12) {
-                  month = 1;
-                  year += 1;
-                }
-                return { year, month };
-              })
-            }
-          />
-          <div class="mt-3 flex gap-1.5">
-            {NEXT.map(([id, text]) => (
-              <button
-                type="button"
-                class="inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-lg border border-edge bg-surface text-xs text-ink"
-                classList={{
-                  'border-[#c4b5fd] bg-[#6d4aff]/10 font-semibold': props.next === id,
-                }}
-                onClick={() => props.onNext(id)}
-              >
-                {activityMark(id, 'size-3.5 shrink-0')}
-                {text}
-              </button>
-            ))}
-          </div>
-          <label class="mt-2.5 flex flex-col gap-1.5 text-xs text-ink-muted">
-            Lo que tienes planeado hacer
-            <textarea
-              class="w-full resize-y rounded-lg border border-edge bg-transparent p-2 text-[13px] text-ink"
-              rows={2}
-              value={plan()}
-              onInput={(event) => setPlan(event.currentTarget.value)}
-              onChange={(event) => props.onPlan(event.currentTarget.value)}
-            />
-          </label>
-          <div class="my-3 h-px bg-edge-muted" />
-          <div class="flex gap-1.5">
-            {OUTCOMES.map(([id, text]) => (
-              <button
-                type="button"
-                class="h-8 flex-1 rounded-lg border border-edge bg-surface text-xs text-ink"
-                classList={{
-                  'border-[#86efac] bg-[#dcfce7] text-[#166534]':
-                    props.outcome === id && id === 'Won',
-                  'border-[#d1d5db] bg-[#f3f4f6] text-[#4b5563]':
-                    props.outcome === id && id !== 'Won',
-                }}
-                onClick={() => {
-                  keepNote();
-                  props.onOutcome(id);
-                }}
-              >
-                {text}
-              </button>
-            ))}
-          </div>
-          <Show when={notes().length > 0}>
             <div class="my-3 h-px bg-edge-muted" />
-            <div class="flex flex-col gap-1.5 text-xs text-ink-muted">
-              Historial
-              <div>
-                <For each={notes()}>
-                  {(note) => (
-                    <p class="mb-2 text-[13px] leading-snug text-ink">
-                      <time class="block text-[11px] text-ink-extra-muted">
-                        {formatStamp(note.at)}
-                      </time>
-                      {note.text}
-                    </p>
-                  )}
-                </For>
-              </div>
+            <div class="flex gap-1.5">
+              {OUTCOMES.map(([id, text]) => (
+                <button
+                  type="button"
+                  class="h-8 flex-1 rounded-lg border border-edge bg-surface text-xs text-ink"
+                  classList={{
+                    'border-[#86efac] bg-[#dcfce7] text-[#166534]':
+                      props.outcome === id && id === 'Won',
+                    'border-[#d1d5db] bg-[#f3f4f6] text-[#4b5563]':
+                      props.outcome === id && id !== 'Won',
+                  }}
+                  onClick={() => {
+                    fireAndForget(keepNote(), 'crm.deal-card');
+                    props.onOutcome(id);
+                  }}
+                >
+                  {text}
+                </button>
+              ))}
             </div>
-          </Show>
-        </div>
+            <Show when={notes().length > 0}>
+              <div class="my-3 h-px bg-edge-muted" />
+              <div class="flex flex-col gap-1.5 text-xs text-ink-muted">
+                History
+                <div>
+                  <For each={notes()}>
+                    {(note) => (
+                      <p class="mb-2 text-[13px] leading-snug text-ink">
+                        <time class="block text-[11px] text-ink-extra-muted">
+                          {formatStamp(note.at)}
+                        </time>
+                        {note.text}
+                      </p>
+                    )}
+                  </For>
+                </div>
+              </div>
+            </Show>
+          </div>
         </Portal>
       </Show>
     </span>
@@ -688,7 +772,9 @@ function MonthGrid(props: {
     const first =
       (new Date(Date.UTC(props.year, props.month - 1, 1)).getUTCDay() + 6) % 7;
     const count = new Date(Date.UTC(props.year, props.month, 0)).getUTCDate();
-    const prevCount = new Date(Date.UTC(props.year, props.month - 1, 0)).getUTCDate();
+    const prevCount = new Date(
+      Date.UTC(props.year, props.month - 1, 0)
+    ).getUTCDate();
     const days: { iso: string; day: number; out: boolean }[] = [];
     for (let index = 0; index < first; index += 1) {
       const day = prevCount - first + 1 + index;
@@ -719,7 +805,7 @@ function MonthGrid(props: {
           <button
             type="button"
             class="grid size-7 place-items-center rounded-md text-ink-muted hover:bg-hover hover:text-ink"
-            aria-label="Mes anterior"
+            aria-label="Previous month"
             onClick={() => props.onMonth(-1)}
           >
             <CaretLeftIcon class="size-3.5" />
@@ -727,7 +813,7 @@ function MonthGrid(props: {
           <button
             type="button"
             class="grid size-7 place-items-center rounded-md text-ink-muted hover:bg-hover hover:text-ink"
-            aria-label="Mes siguiente"
+            aria-label="Next month"
             onClick={() => props.onMonth(1)}
           >
             <CaretRightIcon class="size-3.5" />
@@ -737,7 +823,9 @@ function MonthGrid(props: {
       <div class="mb-0.5 grid grid-cols-7">
         <For each={WEEKDAYS}>
           {(day) => (
-            <span class="py-0.5 text-center text-[11px] text-ink-extra-muted">{day}</span>
+            <span class="py-0.5 text-center text-[11px] text-ink-extra-muted">
+              {day}
+            </span>
           )}
         </For>
       </div>
@@ -751,7 +839,8 @@ function MonthGrid(props: {
                 'text-[#c5c5c5]': cell.out && cell.iso !== props.when,
                 'ring-1 ring-inset ring-ink':
                   cell.iso === today && cell.iso !== props.when,
-                'bg-[oklch(62.3%_0.214_259.815)] text-white': cell.iso === props.when,
+                'bg-[oklch(62.3%_0.214_259.815)] text-ink':
+                  cell.iso === props.when,
               }}
               onClick={() => props.onWhen(cell.iso)}
             >

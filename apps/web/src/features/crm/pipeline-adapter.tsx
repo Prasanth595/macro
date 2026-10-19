@@ -313,103 +313,107 @@ function PipelineToolbar(props: {
   };
   return (
     <>
-    <DatabaseToolbar
-      columns={columns()}
-      views={props.storedViews}
-      view={props.view}
-      selectedViewId={props.selectedViewId}
-      canEdit={props.canEdit}
-      onSelectView={props.onSelectView}
-      onChangeView={props.onChangeView}
-      onCreateView={(created) =>
-        props.views.create(props.view, created, columns()).map((view) => {
-          props.onSelectView(view.id);
-          if (
-            created.layout === 'board' &&
-            created.groupBy.kind === 'new-status'
-          )
-            refreshColumns();
-        })
-      }
-      onRenameView={(target, name) =>
-        props.views.update(target, { name }).map(() => undefined)
-      }
-      onShowViewAs={(target, shown) =>
-        match(shown)
-          .with({ kind: 'table' }, () =>
-            props.views
-              .update(target, { layout: { kind: 'table', columns: [] } })
-              .map(() => undefined)
-          )
-          .with({ kind: 'board', groupBy: { kind: 'column' } }, ({ groupBy }) =>
-            props.views
-              .update(target, {
-                layout: boardLayout(groupBy.columnId, columns()),
-              })
-              .map(() => undefined)
-          )
-          .with({ kind: 'board', groupBy: { kind: 'new-status' } }, () =>
-            props.views
-              .showAsBoardWithStatusColumn(target, columns())
-              .map(refreshColumns)
-          )
-          .exhaustive()
-      }
-      onDeleteView={(target) => {
-        if (props.selectedViewId === target.id) props.onSelectView(undefined);
-        return props.views.remove(target);
-      }}
-      actions={
-        <>
-          <Show when={props.canEdit && props.pipeline.recordType === 'deal'}>
-            <Button variant="outline" onClick={() => setDealOpen(true)}>
-              <PlusIcon class="size-4" />
-              Add deal
-            </Button>
-          </Show>
-          <Show when={props.canEdit && props.pipeline.recordType !== 'deal'}>
-            <Button variant="outline" onClick={() => props.onCompose({})}>
-              <PlusIcon class="size-4" />
-              {props.pipeline.recordType === 'company'
-                ? 'Add deal'
-                : 'Add contact'}
-            </Button>
-          </Show>
-          <Show
-            when={
-              props.canEdit &&
-              props.pipeline.recordType !== 'deal' &&
-              props.composing
-            }
-            keyed
-          >
-            {(initialValues) => (
-              <AddPipelineRecordDialog
-                pipeline={props.pipeline}
-                columns={columns()}
-                initialValues={initialValues}
-                onCreate={props.actions.createRow}
-                onClose={() => props.onCompose(undefined)}
-                renderTextEditor={(editor) => (
-                  <DatabaseTextEditor {...editor} />
-                )}
-                renderTextValue={(value) => <DatabaseTextValue value={value} />}
-                renderMentionPicker={(picker) => (
-                  <DatabaseMentionPicker {...picker} />
-                )}
-                renderMentionValue={(id, entityType) => (
-                  <DatabaseMentionValue id={id} entityType={entityType} />
-                )}
-              />
-            )}
-          </Show>
-          {props.pipelineActions}
-        </>
-      }
-    />
-    <Show when={dealOpen()}>
-      <DealDialog onClose={() => setDealOpen(false)} onCreate={addDeal} />
-    </Show>
+      <DatabaseToolbar
+        columns={columns()}
+        views={props.storedViews}
+        view={props.view}
+        selectedViewId={props.selectedViewId}
+        canEdit={props.canEdit}
+        onSelectView={props.onSelectView}
+        onChangeView={props.onChangeView}
+        onCreateView={(created) =>
+          props.views.create(props.view, created, columns()).map((view) => {
+            props.onSelectView(view.id);
+            if (
+              created.layout === 'board' &&
+              created.groupBy.kind === 'new-status'
+            )
+              refreshColumns();
+          })
+        }
+        onRenameView={(target, name) =>
+          props.views.update(target, { name }).map(() => undefined)
+        }
+        onShowViewAs={(target, shown) =>
+          match(shown)
+            .with({ kind: 'table' }, () =>
+              props.views
+                .update(target, { layout: { kind: 'table', columns: [] } })
+                .map(() => undefined)
+            )
+            .with(
+              { kind: 'board', groupBy: { kind: 'column' } },
+              ({ groupBy }) =>
+                props.views
+                  .update(target, {
+                    layout: boardLayout(groupBy.columnId, columns()),
+                  })
+                  .map(() => undefined)
+            )
+            .with({ kind: 'board', groupBy: { kind: 'new-status' } }, () =>
+              props.views
+                .showAsBoardWithStatusColumn(target, columns())
+                .map(refreshColumns)
+            )
+            .exhaustive()
+        }
+        onDeleteView={(target) => {
+          if (props.selectedViewId === target.id) props.onSelectView(undefined);
+          return props.views.remove(target);
+        }}
+        actions={
+          <>
+            <Show when={props.canEdit && props.pipeline.recordType === 'deal'}>
+              <Button variant="outline" onClick={() => setDealOpen(true)}>
+                <PlusIcon class="size-4" />
+                Add deal
+              </Button>
+            </Show>
+            <Show when={props.canEdit && props.pipeline.recordType !== 'deal'}>
+              <Button variant="outline" onClick={() => props.onCompose({})}>
+                <PlusIcon class="size-4" />
+                {props.pipeline.recordType === 'company'
+                  ? 'Add deal'
+                  : 'Add contact'}
+              </Button>
+            </Show>
+            <Show
+              when={
+                props.canEdit &&
+                props.pipeline.recordType !== 'deal' &&
+                props.composing
+              }
+              keyed
+            >
+              {(initialValues) => (
+                <AddPipelineRecordDialog
+                  pipeline={props.pipeline}
+                  columns={columns()}
+                  initialValues={initialValues}
+                  onCreate={props.actions.createRow}
+                  onClose={() => props.onCompose(undefined)}
+                  renderTextEditor={(editor) => (
+                    <DatabaseTextEditor {...editor} />
+                  )}
+                  renderTextValue={(value) => (
+                    <DatabaseTextValue value={value} />
+                  )}
+                  renderMentionPicker={(picker) => (
+                    <DatabaseMentionPicker {...picker} />
+                  )}
+                  renderMentionValue={(id, entityType) => (
+                    <DatabaseMentionValue id={id} entityType={entityType} />
+                  )}
+                />
+              )}
+            </Show>
+            {props.pipelineActions}
+          </>
+        }
+      />
+      <Show when={dealOpen()}>
+        <DealDialog onClose={() => setDealOpen(false)} onCreate={addDeal} />
+      </Show>
     </>
   );
 }

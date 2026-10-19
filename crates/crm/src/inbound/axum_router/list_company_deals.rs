@@ -80,9 +80,6 @@ pub async fn handler<
     State(state): State<CrmRouterState<C, St, Eas, Auth>>,
     Path(_company_id): Path<Uuid>,
 ) -> Result<Json<Vec<CompanyDealResponse>>, CrmError> {
-    let deals = state
-        .service
-        .list_company_deals(&access.receipt)
-        .await?;
+    let deals = state.service.list_company_deals(&access.receipt).await?;
     Ok(Json(deals.into_iter().map(Into::into).collect()))
 }
