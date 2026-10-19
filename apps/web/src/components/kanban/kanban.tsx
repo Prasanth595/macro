@@ -226,7 +226,8 @@ export function Kanban(props: KanbanProps) {
       <DragSessionSensors
         getViewport={() => props.getViewport?.()}
         axis="both"
-        activationDistance={props.mode === 'cross-column' ? 10 : undefined}
+        // A still press is a click. The stock sensor also starts a drag after 250ms.
+        activationDistance={10}
         nestedScroll={
           props.mode === 'cross-column'
             ? {

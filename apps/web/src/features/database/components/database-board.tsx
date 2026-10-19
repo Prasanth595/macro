@@ -617,6 +617,69 @@ function LanePill(props: {
   );
 }
 
+/** The card title. An entity mention stays mounted when another cell changes, so an open editor survives the row refresh. */
+function CardTitle(props: {
+  row: DatabaseRow;
+  column: DatabaseViewColumn | undefined;
+  renderTextValue?: (value: string) => JSX.Element;
+  renderMentionValue?: (id: string, type: DatabaseEntityType) => JSX.Element;
+}) {
+  const entity = () => {
+    const column = props.column;
+    const value = column ? rowValue(props.row, column.id) : null;
+    const render = props.renderMentionValue;
+    if (
+      !column ||
+      value === null ||
+      value === '' ||
+      column.dataType !== 'ENTITY' ||
+      column.isMultiSelect ||
+      !column.specificEntityType ||
+      !render
+    )
+      return undefined;
+    return {
+      id: String(value),
+      type: column.specificEntityType,
+      render,
+    };
+  };
+  return (
+    <Show
+      when={entity()?.id}
+      keyed
+      fallback={
+        <CardTitleText
+          row={props.row}
+          column={props.column}
+          renderTextValue={props.renderTextValue}
+        />
+      }
+    >
+      {(id) => {
+        const current = entity();
+        return current?.id === id ? current.render(id, current.type) : null;
+      }}
+    </Show>
+  );
+}
+
+function CardTitleText(props: {
+  row: DatabaseRow;
+  column: DatabaseViewColumn | undefined;
+  renderTextValue?: (value: string) => JSX.Element;
+}) {
+  const text = () => {
+    const column = props.column;
+    const value = column ? rowValue(props.row, column.id) : null;
+    if (!column || value === null || value === '') return 'Unnamed';
+    if (isWritableText(column) && props.renderTextValue)
+      return props.renderTextValue(String(value));
+    return cellTitle(props.row, column);
+  };
+  return <>{text()}</>;
+}
+
 function BoardCard(props: {
   row: DatabaseRow;
   laneId: string;
@@ -637,21 +700,6 @@ function BoardCard(props: {
   onMove: (rowId: string, lane: BoardGroup) => void;
 }) {
   const title = () => cellTitle(props.row, props.titleColumn);
-  const renderedTitle = (): JSX.Element => {
-    const column = props.titleColumn;
-    const value = column ? rowValue(props.row, column.id) : null;
-    if (!column || value === null || value === '') return 'Unnamed';
-    if (
-      column.dataType === 'ENTITY' &&
-      !column.isMultiSelect &&
-      column.specificEntityType &&
-      props.renderMentionValue
-    )
-      return props.renderMentionValue(String(value), column.specificEntityType);
-    if (isWritableText(column) && props.renderTextValue)
-      return props.renderTextValue(String(value));
-    return title();
-  };
   const metadata = () =>
     props.cardFields.flatMap((id) => {
       const column = props.columns.find((entry) => entry.id === id);
@@ -668,7 +716,14 @@ function BoardCard(props: {
       pending={props.pending}
     >
       <Show when={props.showCardDetails === false}>
-        <div class="p-3 font-normal">{renderedTitle()}</div>
+        <div class="p-3 font-normal">
+          <CardTitle
+            row={props.row}
+            column={props.titleColumn}
+            renderTextValue={props.renderTextValue}
+            renderMentionValue={props.renderMentionValue}
+          />
+        </div>
       </Show>
       <Show when={props.showCardDetails !== false}>
         <div
@@ -703,7 +758,12 @@ function BoardCard(props: {
                   aria-label={`Open ${title()}`}
                 >
                   <span role="heading" aria-level={3}>
-                    {renderedTitle()}
+                    <CardTitle
+                      row={props.row}
+                      column={props.titleColumn}
+                      renderTextValue={props.renderTextValue}
+                      renderMentionValue={props.renderMentionValue}
+                    />
                   </span>
                 </button>
               }

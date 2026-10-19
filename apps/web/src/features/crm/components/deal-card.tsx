@@ -191,7 +191,7 @@ export function DealMention(props: {
   async function write(name: string, nextValue: DatabaseCellValue) {
     const current = row();
     const field = column(name);
-    if (!current || !field) return;
+    if (!current || !field) return false;
     const saved = await database.data.rows.write(
       {
         kind: 'cell',
@@ -202,12 +202,16 @@ export function DealMention(props: {
       database.data.table()?.version,
       false
     );
-    if (saved.isErr()) toast.failure('Could not save the deal');
-    else if (name === 'Stage' || name === 'When' || name === 'Outcome')
+    if (saved.isErr()) {
+      toast.failure('Could not save the deal');
+      return false;
+    }
+    if (name === 'Stage' || name === 'When' || name === 'Outcome')
       fireAndForget(
         invalidateMessageTimeline({ type: 'crm_deal', id: props.id }),
         'crm.deal-card'
       );
+    return true;
   }
   return (
     <span class="flex min-w-0 flex-col">
@@ -255,21 +259,11 @@ export function DealMention(props: {
           outcome={outcome()}
           dealId={props.id}
           onWhen={(iso) =>
-            fireAndForget(
-              write(
-                'When',
-                iso ? toCellDate(new Date(`${iso}T12:00:00`)) : null
-              ),
-              'crm.deal-card'
-            )
+            write('When', iso ? toCellDate(new Date(`${iso}T12:00:00`)) : null)
           }
-          onNext={(activity) =>
-            fireAndForget(write('Next activity', activity), 'crm.deal-card')
-          }
+          onNext={(activity) => write('Next activity', activity)}
           onPlan={(text) => fireAndForget(write('Plan', text), 'crm.deal-card')}
-          onOutcome={(closed) =>
-            fireAndForget(write('Outcome', closed), 'crm.deal-card')
-          }
+          onOutcome={(closed) => write('Outcome', closed)}
           onHappened={(text) => postDealNote(props.id, text)}
           onLast={(text) => postDealNote(props.id, text)}
         />
@@ -308,7 +302,7 @@ export function DealScheduleCell(props: {
   async function write(name: string, nextValue: DatabaseCellValue) {
     const field = column(name);
     const dealId = id();
-    if (!field || !dealId) return;
+    if (!field || !dealId) return false;
     const saved = await database.data.rows.write(
       {
         kind: 'cell',
@@ -319,12 +313,16 @@ export function DealScheduleCell(props: {
       database.data.table()?.version,
       false
     );
-    if (saved.isErr()) toast.failure('Could not save the deal');
-    else if (name === 'Stage' || name === 'When' || name === 'Outcome')
+    if (saved.isErr()) {
+      toast.failure('Could not save the deal');
+      return false;
+    }
+    if (name === 'Stage' || name === 'When' || name === 'Outcome')
       fireAndForget(
         invalidateMessageTimeline({ type: 'crm_deal', id: dealId }),
         'crm.deal-card'
       );
+    return true;
   }
   return (
     <Show when={id()}>
@@ -337,21 +335,11 @@ export function DealScheduleCell(props: {
           outcome={cellText(value('Outcome'))}
           dealId={id()}
           onWhen={(iso) =>
-            fireAndForget(
-              write(
-                'When',
-                iso ? toCellDate(new Date(`${iso}T12:00:00`)) : null
-              ),
-              'crm.deal-card'
-            )
+            write('When', iso ? toCellDate(new Date(`${iso}T12:00:00`)) : null)
           }
-          onNext={(activity) =>
-            fireAndForget(write('Next activity', activity), 'crm.deal-card')
-          }
+          onNext={(activity) => write('Next activity', activity)}
           onPlan={(text) => fireAndForget(write('Plan', text), 'crm.deal-card')}
-          onOutcome={(closed) =>
-            fireAndForget(write('Outcome', closed), 'crm.deal-card')
-          }
+          onOutcome={(closed) => write('Outcome', closed)}
           onHappened={(text) => postDealNote(id(), text)}
           onLast={(text) => postDealNote(id(), text)}
         />
@@ -446,10 +434,10 @@ export function DealPill(props: {
   /** Loads the history when the date line opens, without holding the board. */
   dealId?: string;
   notes?: Note[];
-  onWhen(iso: string | null): void;
-  onNext(activity: string): void;
+  onWhen(iso: string | null): void | Promise<boolean>;
+  onNext(activity: string): void | Promise<boolean>;
   onPlan(text: string): void;
-  onOutcome(outcome: string | null): void;
+  onOutcome(outcome: string | null): void | Promise<boolean>;
   onHappened(text: string): Promise<void>;
   onLast(action: string): Promise<void>;
 }) {
@@ -462,6 +450,45 @@ export function DealPill(props: {
   const [notes, setNotes] = createSignal<Note[]>(props.notes ?? []);
   const [picked, setPicked] = createSignal<string | null>(null);
   const [panel, setPanel] = createSignal<HTMLDivElement>();
+  // The row is read back on a timer. Show the click before that read arrives.
+  const [nextChoice, setNextChoice] = createSignal<string | undefined>();
+  const [whenChoice, setWhenChoice] = createSignal<string | null | undefined>(
+    undefined
+  );
+  const [outcomeChoice, setOutcomeChoice] = createSignal<
+    string | null | undefined
+  >(undefined);
+  const next = () => nextChoice() ?? props.next;
+  const when = () => {
+    const chosen = whenChoice();
+    return chosen !== undefined ? chosen : props.when;
+  };
+  const outcome = () => {
+    const chosen = outcomeChoice();
+    return chosen !== undefined ? chosen : props.outcome;
+  };
+  createEffect(() => {
+    if (nextChoice() !== undefined && props.next === nextChoice())
+      setNextChoice(undefined);
+    if (whenChoice() !== undefined && props.when === whenChoice())
+      setWhenChoice(undefined);
+    if (outcomeChoice() !== undefined && props.outcome === outcomeChoice())
+      setOutcomeChoice(undefined);
+  });
+  function choose(
+    apply: () => void,
+    revert: () => void,
+    save: () => void | Promise<boolean>
+  ) {
+    apply();
+    fireAndForget(
+      (async () => {
+        const saved = await save();
+        if (saved === false) revert();
+      })(),
+      'crm.deal-card'
+    );
+  }
   async function refreshNotes() {
     const id = props.dealId;
     if (!id) return;
@@ -500,11 +527,15 @@ export function DealPill(props: {
     if (plan() !== props.plan) props.onPlan(plan());
     setOpen(false);
   }
-  const label = () => pillLabel(props.when, props.outcome);
+  const label = () => pillLabel(when(), outcome());
   const last = () => picked() ?? latestLastAction(notes());
   const due = () => {
-    const when = props.when;
-    return !!when && when <= dayIso(new Date()) && !props.outcome;
+    const date = when();
+    return !!date && date <= dayIso(new Date()) && !outcome();
+  };
+  const dateLabel = () => {
+    const date = when();
+    return date ? formatWhen(date) : 'No date';
   };
   function openAt(event: MouseEvent) {
     event.stopPropagation();
@@ -519,7 +550,7 @@ export function DealPill(props: {
       left: Math.max(8, Math.min(rect.left, window.innerWidth - 340)),
       top: rect.bottom + 8,
     });
-    setView(monthOf(props.when));
+    setView(monthOf(when()));
     setPlan(props.plan);
     setHappened('');
     setPicked(null);
@@ -528,7 +559,11 @@ export function DealPill(props: {
   }
   function chooseDay(iso: string) {
     fireAndForget(keepNote(), 'crm.deal-card');
-    props.onWhen(iso);
+    choose(
+      () => setWhenChoice(iso),
+      () => setWhenChoice(undefined),
+      () => props.onWhen(iso)
+    );
   }
   return (
     <span
@@ -544,11 +579,7 @@ export function DealPill(props: {
               class="border-0 bg-transparent p-0"
               onClick={openAt}
             >
-              <PillFace
-                when={props.when}
-                next={props.next}
-                outcome={props.outcome}
-              />
+              <PillFace when={when()} next={next()} outcome={outcome()} />
             </button>
           </Show>
         }
@@ -561,14 +592,14 @@ export function DealPill(props: {
           }}
           onClick={openAt}
         >
-          <Show when={!props.outcome}>
+          <Show when={!outcome()}>
             <span
               classList={{
-                'tabular-nums': !!props.when,
-                'text-ink-extra-muted': !props.when,
+                'tabular-nums': !!when(),
+                'text-ink-extra-muted': !when(),
               }}
             >
-              {props.when ? formatWhen(props.when) : 'No date'}
+              {dateLabel()}
             </span>
           </Show>
           <Show when={props.presentation === 'line' && notes().length > 0}>
@@ -578,9 +609,9 @@ export function DealPill(props: {
           </Show>
           <PillFace
             push={props.presentation === 'line' && notes().length === 0}
-            when={props.when}
-            next={props.next}
-            outcome={props.outcome}
+            when={when()}
+            next={next()}
+            outcome={outcome()}
           />
         </button>
       </Show>
@@ -642,35 +673,30 @@ export function DealPill(props: {
             <div class="my-3 h-px bg-edge-muted" />
             <div class="mb-1.5 text-xs text-ink-muted">Next action</div>
             <div class="flex flex-wrap gap-1.5">
-              <ForDay
-                label="Today"
-                days={0}
-                when={props.when}
-                onWhen={chooseDay}
-              />
+              <ForDay label="Today" days={0} when={when()} onWhen={chooseDay} />
               <ForDay
                 label="Tomorrow"
                 days={1}
-                when={props.when}
+                when={when()}
                 onWhen={chooseDay}
               />
               <ForDay
                 label="Next week"
                 days={7}
-                when={props.when}
+                when={when()}
                 onWhen={chooseDay}
               />
               <ForDay
                 label="In 2 weeks"
                 days={14}
-                when={props.when}
+                when={when()}
                 onWhen={chooseDay}
               />
             </div>
             <MonthGrid
               year={view().year}
               month={view().month}
-              when={props.when}
+              when={when()}
               onWhen={chooseDay}
               onMonth={(step) =>
                 setView((current) => {
@@ -695,9 +721,15 @@ export function DealPill(props: {
                   class="inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-lg border border-edge bg-surface text-xs text-ink"
                   classList={{
                     'border-[#c4b5fd] bg-[#6d4aff]/10 font-semibold':
-                      props.next === id,
+                      next() === id,
                   }}
-                  onClick={() => props.onNext(id)}
+                  onClick={() =>
+                    choose(
+                      () => setNextChoice(id),
+                      () => setNextChoice(undefined),
+                      () => props.onNext(id)
+                    )
+                  }
                 >
                   {activityMark(id, 'size-3.5 shrink-0')}
                   {text}
@@ -722,13 +754,17 @@ export function DealPill(props: {
                   class="h-8 flex-1 rounded-lg border border-edge bg-surface text-xs text-ink"
                   classList={{
                     'border-[#86efac] bg-[#dcfce7] text-[#166534]':
-                      props.outcome === id && id === 'Won',
+                      outcome() === id && id === 'Won',
                     'border-[#d1d5db] bg-[#f3f4f6] text-[#4b5563]':
-                      props.outcome === id && id !== 'Won',
+                      outcome() === id && id !== 'Won',
                   }}
                   onClick={() => {
                     fireAndForget(keepNote(), 'crm.deal-card');
-                    props.onOutcome(id);
+                    choose(
+                      () => setOutcomeChoice(id),
+                      () => setOutcomeChoice(undefined),
+                      () => props.onOutcome(id)
+                    );
                   }}
                 >
                   {text}
