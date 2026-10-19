@@ -77,7 +77,7 @@ export const inputGroupVariants = createVariants(
   {
     variant: {
       outline: cn(
-        'border-edge-frame bg-control',
+        'border-edge-frame not-touch:border-edge-button bg-control',
         'has-[[data-slot=input-group-control]:focus-visible]:ring-2 has-[[data-slot=input-group-control]:focus-visible]:ring-edge-muted'
       ),
       bare: 'border-transparent bg-transparent',

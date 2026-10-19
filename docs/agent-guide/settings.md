@@ -167,9 +167,9 @@ it is the only split (Home when there is none). Leave settings by picking any
 other rail item; there is no separate back or fullscreen control.
 
 Settings pages use the email composer’s raised surfaces on the page background.
-Section headings and controls share a white surface in light mode and the
-composer border in dark mode, with subtle row separators. The compact sidebar
-uses the shared workspace width.
+Section headings and controls share the composer surface, a faint button-style
+edge, a small ambient shadow, and subtle row separators on desktop. The compact
+sidebar uses the shared workspace width.
 
 When a newer version is ready, an **Update available** button (a download icon
 in a subtle accent circle that a glowing comet periodically circles) appears in

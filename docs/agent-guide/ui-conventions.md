@@ -16,6 +16,10 @@ active call's green ink and outline frame. Channel, company, contact, and projec
 content tabs use inset controls in the top bar. Button sizes do not change variant colors or framing; individual
 framed controls default to glass on touch and flat on desktop. Use `glass={true}`
 to enable glass on all devices, or `glass={false}` to disable it everywhere.
+Desktop glass surfaces use the same uniform edge as buttons and a compact
+ambient shadow, without specular highlights or an input halo. Composers,
+dropdowns, hover cards, and settings surfaces share this treatment in both
+themes. Touch retains its glass highlights and shadows.
 Embedded and low-emphasis actions use `ghost`; inline calendar-invitation text
 actions remove the transparent border to keep their text alignment.
 

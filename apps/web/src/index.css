@@ -771,9 +771,9 @@ html[data-theme-light='false'] {
    length). Shape and background come from the consumer, so this composes with
    any radius — the rim inherits it — and with variants (`mobile:glass`).
 
-   Desktop glass uses the marketing site's hero-ring geometry. Consumers can
-   override --glass-rim-background to customize the rim without owning its
-   pseudo-element. The palette stays in :root; the gradient reads those tokens. */
+   Desktop surfaces use the button border and a small ambient shadow. Touch
+   keeps the specular rim and highlights. Consumers can override the rim
+   without owning its pseudo-element. */
 @utility glass {
   --glass-rim-background: linear-gradient(
     135deg,
@@ -793,9 +793,6 @@ html[data-theme-light='false'] {
      which Chrome ignores: the glass loses its blur in production builds while
      still looking right in dev. */
   --glass-backdrop: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  &:where(html:not([data-touch-device="true"]) *) {
-    --glass-backdrop: none;
-  }
   --glass-shadow:
     inset 0 1px 0 color-mix(in oklch, var(--glass-tint) calc(var(--glass-highlight-base) * var(--glass-scale)), transparent),
     inset 0 -1px 0 color-mix(in oklch, var(--glass-shade-color) calc(var(--glass-shade-base) * var(--glass-scale)), transparent),
@@ -829,6 +826,13 @@ html[data-theme-light='false'] {
   --glass-shadow-y: 14px;
   --glass-shadow-blur: 32px;
   --glass-shadow-spread: -22px;
+
+  &:where(html:not([data-touch-device="true"]) *) {
+    --glass-backdrop: none;
+    --glass-rim-background: linear-gradient(var(--color-edge-button), var(--color-edge-button));
+    --glass-rim-shade-base: 0%;
+    --glass-shadow: var(--shadow-menu);
+  }
 }
 
 /* Strip the glass under a variant (e.g. a container query collapsing a pill
@@ -894,11 +898,8 @@ html[data-theme-light='false'] {
   }
 }
 
-/* The channel/compose input: the same glass, but the tight menu shadow
-   swaps for a wide, faint ambient one (a la the ChatGPT composer) so the
-   input reads as floating over the conversation rather than popped out of it.
-   Light themes keep the same geometry at a much lower scale so the halo
-   doesn't dominate pale surfaces. */
+/* Touch composers retain their wider ambient shadow. Desktop shares the
+   restrained frame and shadow of other floating surfaces. */
 @utility glass-input {
   @apply glass;
   --glass-shadow-y: 10px;
@@ -907,9 +908,8 @@ html[data-theme-light='false'] {
   --glass-shadow-scale: 0.5;
 }
 
-/* Shared menu appearance: an opaque menu fill with the glass rim, inset
-   top/bottom highlights, and cast shadow, so menus read as raised in both
-   themes. */
+/* Shared menu appearance: a button-colored edge and soft shadow on desktop,
+   with the existing glass treatment on touch. */
 @utility menu-surface {
   @apply glass relative min-h-0 rounded-xl bg-menu text-ink;
   --color-surface: var(--color-menu);
