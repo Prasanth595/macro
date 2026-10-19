@@ -154,7 +154,9 @@ Carry the notification ID through native delivery and the buffered `navigate`
 bridge, so clicks survive app restarts and wait for the split layout to be ready.
 Install and retain the UserNotifications delegate before the native event loop
 starts. Clicking restores and focuses the main window; receipt and dismissal do
-not navigate. This requires a native macOS release; see the
+not navigate. Preserve iOS and Android `createPushApi` tap navigation when changing
+desktop delivery, including buffered launch taps before device registration.
+This requires a native macOS release; see the
 [notification walkthrough](../../docs/agent-guide/notifications.md).
 
 ## Desktop file drops
