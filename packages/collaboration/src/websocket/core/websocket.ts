@@ -230,7 +230,12 @@ export class Websocket<Send = WebsocketData, Receive = WebsocketData> {
    * @return the readyState of the underlying websocket.
    */
   get readyState(): number {
-    return this._underlyingWebsocket.readyState;
+    return (
+      this._underlyingWebsocket?.readyState ??
+      (this.closedByUser
+        ? WebsocketConnectionState.Closed
+        : WebsocketConnectionState.Connecting)
+    );
   }
 
   /**
@@ -240,7 +245,7 @@ export class Websocket<Send = WebsocketData, Receive = WebsocketData> {
    * @return the bufferedAmount of the underlying websocket.
    */
   get bufferedAmount(): number {
-    return this._underlyingWebsocket.bufferedAmount;
+    return this._underlyingWebsocket?.bufferedAmount ?? 0;
   }
 
   /**
@@ -250,7 +255,7 @@ export class Websocket<Send = WebsocketData, Receive = WebsocketData> {
    * @return the extensions of the underlying websocket.
    */
   get extensions(): string {
-    return this._underlyingWebsocket.extensions;
+    return this._underlyingWebsocket?.extensions ?? '';
   }
 
   /**
@@ -388,6 +393,10 @@ export class Websocket<Send = WebsocketData, Receive = WebsocketData> {
         }
       );
       this.dispatchEvent(WebsocketEvent.UrlResolved, event);
+      // Listeners may close or replace the session synchronously.
+      if (this._closedByUser || generation !== this.connectionGeneration) {
+        return;
+      }
       const factory = this._options.factory ?? platformWebSocketFactory;
       const newSocket = factory(this.url, this.protocols); // create new browser-native websocket and add all event listeners
       this._underlyingWebsocket = newSocket;
