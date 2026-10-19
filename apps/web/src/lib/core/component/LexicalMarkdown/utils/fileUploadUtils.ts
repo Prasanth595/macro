@@ -144,7 +144,7 @@ async function onFilesReady(
           continue;
         }
         uploadedItemIds.push(item.id);
-        handleBasicMention(item, {
+        await handleBasicMention(item, {
           editor,
           blockName: parentBlockName,
           blockId,
@@ -160,7 +160,7 @@ async function onFilesReady(
         continue;
       }
       uploadedItemIds.push(item.id);
-      handleBasicMention(item, {
+      await handleBasicMention(item, {
         editor,
         blockName: parentBlockName,
         blockId,
