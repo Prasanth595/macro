@@ -46,3 +46,6 @@ pub mod warm;
 
 /// Visibility policy for standalone session lists.
 pub mod list_visibility;
+
+/// User-scoped AI session actions.
+pub mod tool_actions;

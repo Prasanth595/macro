@@ -48,6 +48,10 @@ FusionAuth.
   (`DEFAULT_MCP_ALLOWED_REDIRECT_HOSTS`) — see `mcp_auth_proxy/README.md` for
   the redirect URI policy this feeds.
 
+## Tool contracts
+
+- Agent sessions use the shared session toolset; legacy chat tools are not advertised or callable.
+
 ## Checks
 
 - `cargo test -p mcp_service` (`SQLX_OFFLINE` unset).

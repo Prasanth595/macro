@@ -24,6 +24,8 @@ use crate::domain::{
 pub struct ReadAgentSessionContext<R, A> {
     /// Domain conversation reader.
     pub service: Arc<SessionReader<R>>,
+    /// Existing session-sharing policy.
+    pub sharing: Arc<crate::domain::sharing::SessionSharingService<R>>,
     /// Mints a view-access capability for the caller.
     pub access: Arc<A>,
 }
@@ -33,7 +35,7 @@ pub struct ReadAgentSessionContext<R, A> {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[schemars(
     title = "ReadAgentSession",
-    description = "Read an agent session by its ID from an agent-session mention or search result. Returns the latest 20 messages in chronological order, including prompts, replies, tool activity and errors. Optionally select a turn number to inspect earlier history. Each message is capped at 4000 characters; truncated flags identify omitted history or text. Requires view access to the session. Use ReadChat for legacy AI chats."
+    description = "Read an agent session by its ID from an agent-session mention or search result. Returns the latest 20 messages in chronological order, including prompts, replies, tool activity and errors. Optionally select a turn number to inspect earlier history. Each message is capped at 4000 characters; truncated flags identify omitted history or text. Requires view access to the session."
 )]
 pub struct ReadAgentSession {
     /// Session to read.

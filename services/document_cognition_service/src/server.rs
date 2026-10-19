@@ -694,7 +694,6 @@ pub async fn run() -> anyhow::Result<()> {
         macro_event_broker.clone(),
         entity_access_service.clone(),
         document_tool_context.service.clone(),
-        chat_tool_context.service.clone(),
         user_email_service.clone(),
     );
 

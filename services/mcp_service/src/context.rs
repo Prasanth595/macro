@@ -408,7 +408,6 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
         macro_event_broker.clone(),
         entity_access_service.clone(),
         document_tool_context.service.clone(),
-        chat_tool_context.service.clone(),
         user_email_service.clone(),
     );
 

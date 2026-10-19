@@ -46,6 +46,10 @@ consumer talks to.
 - Add a lifecycle transition: `src/domain/lifecycle.rs` → `src/domain/service.rs`
   → `src/outbound/broker_lifecycle_publisher.rs` if it should publish.
 
+## Tool contracts
+
+- `src/inbound/toolset/`: session reads, creation, lifecycle actions, and sharing. Mutations preserve acting-user identity and existing owner/edit receipts; internal controls accept only prompt/stop, never human approvals.
+
 ## Checks
 
 - `cargo test -p agent_session` (`SQLX_OFFLINE` unset).

@@ -18,6 +18,10 @@ export const readAgentSessionHandler = createToolRenderer({
           <Show when={expanded() && response()}>
             {(result) => (
               <div class="max-h-96 overflow-auto space-y-3 p-3">
+                <p class="text-ink-muted">
+                  {result().name} · {result().status}
+                  {result().isArchived ? ' · Archived' : ''}
+                </p>
                 <Show when={result().truncated}>
                   <p class="text-ink-muted">
                     Some history or message text was omitted.

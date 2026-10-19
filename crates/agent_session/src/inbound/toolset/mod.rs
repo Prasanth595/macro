@@ -16,3 +16,8 @@ pub use link_task::LinkTask;
 pub use read_agent_session::{ReadAgentSession, ReadAgentSessionContext};
 pub use set_pull_request::SetPullRequest;
 pub use task_pull_requests::TaskPullRequestsTool;
+
+mod manage_agent_session;
+
+mod sharing;
+pub use sharing::{ReadAgentSessionSharing, UpdateAgentSessionSharing};

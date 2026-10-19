@@ -18,6 +18,12 @@ it('expands the conversation and preserves the failure when text was truncated',
         data: {
           sessionId: '0195d721-1730-7cda-a72e-855bec53411e',
           name: 'Debug session',
+          ownerId: 'macro|owner@example.com',
+          botId: 'bot-id',
+          isArchived: false,
+          harness: 'in-memory',
+          model: 'test',
+          status: 'disconnected',
           totalMessages: 2,
           truncated: true,
           messages: [

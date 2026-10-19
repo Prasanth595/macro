@@ -3,6 +3,8 @@
 use activity::inbound::toolset::activity_toolset;
 use agent_session::inbound::toolset::{ReadAgentSession, coding_agent_toolset};
 use ai_toolset::AsyncToolCollection;
+mod frontend_compat;
+
 use ai_toolset::schema::{FrontendSchemas, ToolSchemaGenerator, frontend_schemas_builder};
 
 #[cfg(test)]
@@ -35,7 +37,6 @@ use calendar_scheduling::inbound::toolset::{
 };
 use call::inbound::toolset::call_toolset;
 use channels::inbound::toolset::channel_toolset;
-use chat::inbound::toolset::chat_toolset;
 use cognition::inbound::toolset::cognition_toolset;
 use crm::inbound::toolset::{crm_toolset, pipelines::pipeline_toolset};
 use databases::inbound::toolset::{databases_read_only_toolset, databases_toolset};
@@ -167,8 +168,9 @@ pub(crate) fn subagent_toolset() -> AiToolSet {
         .add_subtoolset::<ToolInitiativeToolContext>(initiative_toolset())
         .add_subtoolset::<ToolPropertiesToolContext>(properties_toolset())
         .add_subtoolset::<ToolCallToolContext>(call_toolset())
-        .add_subtoolset::<ToolChatToolContext>(chat_toolset())
         .add_tool::<ReadAgentSession, ToolReadAgentSessionContext>()
+        .add_tool::<agent_session::inbound::toolset::ReadAgentSessionSharing, ToolReadAgentSessionContext>()
+        .add_tool::<agent_session::inbound::toolset::UpdateAgentSessionSharing, ToolReadAgentSessionContext>()
         .add_subtoolset::<ToolChannelToolContext>(channel_toolset())
         .add_subtoolset::<ToolBotToolContext>(bot_toolset())
         .add_subtoolset::<ToolTeamToolContext>(team_toolset())
@@ -236,7 +238,6 @@ pub const EAGER_TOOLS: &[&str] = &[
     "ReadAgentSession",
     "ReadChannelMessages",
     "ReadChannelThread",
-    "ReadChat",
     "ReadContent",
     "ReadMetadata",
     "ReadSkill",
@@ -384,7 +385,13 @@ pub fn all_tool_frontend_schemas() -> FrontendSchemas {
     frontend_schemas_builder()
         .merge(&tools_for(AiHost::AgentSession))
         .merge(&agent_code_mode::inbound::toolset::toolset())
+        // Persisted legacy calls still render, but are never executable or advertised.
+        .merge(&chat::inbound::toolset::chat_toolset::<
+            ToolChatService,
+            ToolEntityAccessService,
+        >())
         .merge(&read::read_thread())
+        .merge(&frontend_compat::LegacyConversationSchemas)
         .build()
 }
 

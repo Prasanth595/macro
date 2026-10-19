@@ -47,6 +47,10 @@ execution, display) that don't belong to a single domain.
 - Add a cross-domain tool: new module in `src/` → register in
   `src/lib.rs`'s toolset assembly → regenerate schemas (see Checks).
 
+## Tool contracts
+
+- Executable toolsets exclude legacy chats in every host and code mode. Keep historical parsing compatibility only in `frontend_compat.rs`; never merge it into provider schemas.
+
 ## Checks
 
 - `cargo test -p ai_tools` (`SQLX_OFFLINE` unset).

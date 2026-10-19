@@ -490,7 +490,6 @@ pub async fn build_tool_service_context_from_env(
         macro_event_broker.clone(),
         entity_access_service.clone(),
         document_tool_context.service.clone(),
-        chat_tool_context.service.clone(),
         user_email_service.clone(),
     );
 

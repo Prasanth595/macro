@@ -6,7 +6,7 @@ use serde::Serialize;
 
 use super::{
     error::{AgentSessionError, Result},
-    model::AgentSessionId,
+    model::{AgentSession, AgentSessionId},
     ports::{AgentSessionLogRepo, AgentSessionRepo},
 };
 
@@ -22,6 +22,18 @@ pub struct SessionConversation {
     pub session_id: uuid::Uuid,
     /// User-facing session name.
     pub name: String,
+    /// Owner's principal id.
+    pub owner_id: String,
+    /// Agent persona id.
+    pub bot_id: uuid::Uuid,
+    /// Whether the session is archived and read-only.
+    pub is_archived: bool,
+    /// Configured runtime.
+    pub harness: String,
+    /// Selected model.
+    pub model: String,
+    /// Last runtime status.
+    pub status: String,
     /// Messages in the requested turn, or the latest messages, oldest first.
     pub messages: Vec<SessionConversationMessage>,
     /// Number of messages matching the requested turn before bounding.
@@ -88,13 +100,12 @@ impl<R: AgentSessionRepo + AgentSessionLogRepo> SessionReader<R> {
         let session = self.repo.get(session_id).await?;
         let log = AgentSessionLogRepo::list_by_session(&self.repo, session_id).await?;
         let messages = fold(log.into_iter().map(|entry| entry.entry));
-        Ok(conversation(id, session.name, messages, turn))
+        Ok(conversation(&session, messages, turn))
     }
 }
 
 fn conversation(
-    session_id: uuid::Uuid,
-    name: String,
+    session: &AgentSession,
     messages: Vec<FoldedMessage>,
     turn: Option<u32>,
 ) -> SessionConversation {
@@ -130,8 +141,17 @@ fn conversation(
         })
         .collect();
     SessionConversation {
-        session_id,
-        name,
+        session_id: session.id.as_uuid(),
+        name: session.name.clone(),
+        owner_id: session.owner_id.to_string(),
+        bot_id: session.bot_id.as_uuid(),
+        is_archived: session.is_archived,
+        harness: session.harness.clone(),
+        model: session.model.clone(),
+        status: match &session.status {
+            super::model::SessionStatus::Event(event) => event.as_str().to_string(),
+            status => status.as_ref().to_string(),
+        },
         truncated: messages.len() < total_messages || messages.iter().any(|m| m.truncated),
         messages,
         total_messages,

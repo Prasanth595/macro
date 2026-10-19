@@ -58,7 +58,6 @@ async fn server_instructions_describe_available_workflows() {
         "NameSearch",
         "ReadContent",
         "ReadMetadata",
-        "ReadChat",
         "ReadAgentSession",
         "ReadChannelMessages",
         "ReadChannelThread",

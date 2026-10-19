@@ -20,8 +20,12 @@ pub fn build_read_agent_session_context(
     access: Arc<ToolEntityAccessService>,
 ) -> ToolReadAgentSessionContext {
     let registrar = OwnedEntityRegistrar::new(OwnerGrantPolicy::new(PgBotsRepo::new(pool.clone())));
+    let repo = PgAgentSessionRepo::new(pool, registrar);
     ReadAgentSessionContext {
-        service: Arc::new(SessionReader::new(PgAgentSessionRepo::new(pool, registrar))),
+        sharing: Arc::new(agent_session::domain::sharing::SessionSharingService::new(
+            repo.clone(),
+        )),
+        service: Arc::new(SessionReader::new(repo)),
         access,
     }
 }

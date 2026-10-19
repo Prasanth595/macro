@@ -73,13 +73,21 @@ fn keeps_recent_history_and_allows_selecting_an_earlier_turn() {
         }
         messages.extend(pair);
     }
-    let recent = conversation(uuid::Uuid::nil(), "Session".into(), messages.clone(), None);
+    let recent = conversation(
+        &test_agent_session(AgentSessionId::TEST_A),
+        messages.clone(),
+        None,
+    );
     assert_eq!(recent.total_messages, 30);
     assert_eq!(recent.messages.len(), 20);
     assert_eq!(recent.messages[0].turn, 5);
     assert_eq!(recent.messages[19].turn, 14);
     assert!(recent.truncated);
-    let earlier = conversation(uuid::Uuid::nil(), "Session".into(), messages, Some(2));
+    let earlier = conversation(
+        &test_agent_session(AgentSessionId::TEST_A),
+        messages,
+        Some(2),
+    );
     assert_eq!(earlier.messages.len(), 2);
     assert!(earlier.messages.iter().all(|message| message.turn == 2));
     assert!(!earlier.truncated);
@@ -97,7 +105,7 @@ fn preserves_failures_and_bounds_unicode_text_without_splitting_characters() {
         message: "Unknown tool mcp__missing".into(),
         notice: None,
     });
-    let result = conversation(uuid::Uuid::nil(), "Session".into(), messages, None);
+    let result = conversation(&test_agent_session(AgentSessionId::TEST_A), messages, None);
     assert_eq!(
         result.messages[1].failure.as_deref(),
         Some("Unknown tool mcp__missing")
@@ -105,8 +113,7 @@ fn preserves_failures_and_bounds_unicode_text_without_splitting_characters() {
     assert!(result.messages[1].truncated);
     let text = TURN.replace("list the examples and write a file", &"🦀".repeat(4_001));
     let result = conversation(
-        uuid::Uuid::nil(),
-        "Session".into(),
+        &test_agent_session(AgentSessionId::TEST_A),
         fold(parse_log_as(AgentSessionId::TEST_A, &text)),
         None,
     );
@@ -122,7 +129,7 @@ fn reports_truncated_failures_even_when_search_text_omits_them() {
         message: " ".repeat(MAX_MESSAGE_CHARS + 1),
         notice: None,
     });
-    let result = conversation(uuid::Uuid::nil(), "Session".into(), messages, None);
+    let result = conversation(&test_agent_session(AgentSessionId::TEST_A), messages, None);
     assert_eq!(
         result.messages[1].failure.as_deref(),
         Some(" ".repeat(MAX_MESSAGE_CHARS).as_str())
