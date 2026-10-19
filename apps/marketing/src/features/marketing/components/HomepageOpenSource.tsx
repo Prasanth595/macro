@@ -38,8 +38,8 @@ function DesktopHomepageOpenSource(props: {
         // palette pinned with `?theme=` carries over.
         const pinned = pinnedPalette();
         frame.src = pinned
-          ? `/demo?embedded=true&theme=${pinned}`
-          : '/demo?embedded=true';
+          ? `/demo?embedded=true&scene=homepage&theme=${pinned}`
+          : '/demo?embedded=true&scene=homepage';
       },
       { rootMargin: '1250px 0px' }
     );

@@ -36,14 +36,22 @@ The homepage names Macro in the unification heading and introduces the live
 sample with short benefit-led captions overlapping the original bottom fade
 of the demo. The outer wallpaper and double border are removed so the product
 sits directly against the page, with a soft fade at the bottom. Progress indicators sit above the overlaid heading; large previous/next
-arrows remain beside the frame. The eight-second slideshow runs only while visible, pauses
+arrows remain beside the frame. The slideshow gives longer scenes time to finish (14 seconds for Docs, 12 for
+CRM, 10 for Tasks, and 16 for Agents; 8 for the other views). It runs only while visible, pauses
 on hover or focus, and stops when someone selects a view or uses the embedded workspace.
 Reduced motion disables automatic cycling. The large side arrows use a subtle
 static highlight. The view label and heading follow the selected
 Inbox, Chat, Docs, CRM, Tasks, or Agents view. Inbox opens the native Home view. The frame
 blends into the surrounding black or cream page. It embeds the existing
-`/demo` workspace directly, with no alternate inbox layout. The Home view keeps
-the same mixed activity sidebar and agent composer. The sample launch story
+`/demo?scene=homepage` entry. The Home view keeps
+the same mixed activity sidebar and agent composer. Docs reuses the Docs page's
+collaborative editor, Tasks uses its existing task/project showcase, and Agents
+plays the existing meeting-preparation story with source reads and a linked
+brief. CRM reflects the records/pipelines split in the app: pipeline fields
+are separate from company fields. Its sidebar and table follow
+`apps/web/src/features/crm` and the shared database toolbar at GitHub commit
+`31d0eb0a962fad149f11c62907eed7b577194434`. Each scene keeps data local.
+The sample launch story
 uses Valentina consistently.
 Demo copy is illustrative, informed by the team's website feedback, rather
 than a publication of private messages.

@@ -1,4 +1,5 @@
 import { createSignal, For, type JSX, onCleanup, onMount } from 'solid-js';
+import { HOMEPAGE_DEMO_EVENT } from '../core/homepage-demo-scenes';
 
 const SLIDES = [
   {
@@ -14,22 +15,22 @@ const SLIDES = [
   {
     label: 'Docs',
     target: 'Drive',
-    title: 'Write together. Keep every version.',
+    title: 'Write together, in the same document.',
   },
   {
     label: 'CRM',
     target: 'Customers',
-    title: 'Keep every customer conversation connected.',
+    title: 'Move deals forward with the full picture.',
   },
   {
     label: 'Tasks',
     target: 'Tasks',
-    title: 'Turn messages into tasks.',
+    title: 'Keep every task connected to the work.',
   },
   {
     label: 'Agents',
     target: 'Agents',
-    title: 'Agents that read, edit, and act.',
+    title: 'Let agents turn your sources into useful work.',
   },
 ];
 
@@ -83,6 +84,14 @@ export function HomepageDemoCarousel(props: {
       `.dummy-rail button[aria-label="${target}"]`
     );
   const showView = () => {
+    if (document?.querySelector('[data-homepage-demo]')) {
+      props
+        .frame()
+        .contentWindow?.dispatchEvent(
+          new CustomEvent(HOMEPAGE_DEMO_EVENT, { detail: slide().label })
+        );
+      return;
+    }
     buttonFor(slide().target)?.click();
     if (slide().target === 'Drive') {
       Array.from(
@@ -147,7 +156,17 @@ export function HomepageDemoCarousel(props: {
         motion.matches
       )
         return;
-      timer = setTimeout(() => select(active() + 1, false), 8000);
+      const duration =
+        slide().label === 'Agents'
+          ? 16000
+          : slide().label === 'Docs'
+            ? 14000
+            : slide().label === 'CRM'
+              ? 12000
+              : slide().label === 'Tasks'
+                ? 10000
+                : 8000;
+      timer = setTimeout(() => select(active() + 1, false), duration);
     };
     const motionChanged = () => {
       if (motion.matches) setAutoplay(false);
@@ -199,10 +218,17 @@ export function HomepageDemoCarousel(props: {
       const index = SLIDES.findIndex(
         (item) => item.target === button.getAttribute('aria-label')
       );
-      if (index >= 0) setActive(index);
+      if (index >= 0) {
+        if (document?.querySelector('[data-homepage-demo]')) select(index);
+        else setActive(index);
+      }
     };
     const observer = new MutationObserver(() => {
-      if (!buttonFor('Home')) return;
+      if (
+        !buttonFor('Home') &&
+        !document?.querySelector('[data-homepage-demo]')
+      )
+        return;
       observer.disconnect();
       setReady(true);
       showView();
@@ -217,7 +243,10 @@ export function HomepageDemoCarousel(props: {
       document?.addEventListener('click', followNavigation);
       document?.addEventListener('pointerdown', pauseForUse);
       document?.addEventListener('keydown', pauseForUse);
-      if (buttonFor('Home')) {
+      if (
+        buttonFor('Home') ||
+        document?.querySelector('[data-homepage-demo]')
+      ) {
         setReady(true);
         showView();
         restartAutoplay();

@@ -148,7 +148,7 @@ it('cycles visible slides every eight seconds and wraps to the inbox', () => {
   expect(openView).toHaveBeenLastCalledWith('Home');
   vi.advanceTimersByTime(1);
   expect(openView).toHaveBeenLastCalledWith('Chat');
-  vi.advanceTimersByTime(40000);
+  vi.advanceTimersByTime(60000);
   expect(openView).toHaveBeenLastCalledWith('Home');
 });
 
@@ -187,4 +187,41 @@ it('stops automatic cycling after a manual arrow selection', () => {
   openView.mockClear();
   vi.advanceTimersByTime(24000);
   expect(openView).not.toHaveBeenCalled();
+});
+
+it('selects a dedicated homepage scene instead of forcing legacy app controls', () => {
+  frame.contentDocument!.body.innerHTML = '<div data-homepage-demo></div>';
+  const selectScene = vi.fn();
+  frame.contentWindow!.addEventListener(
+    'macro-homepage-demo-view',
+    selectScene
+  );
+  mountCarousel();
+  expect(selectScene).toHaveBeenCalledTimes(1);
+  expect(selectScene.mock.calls[0][0].detail).toBe('Inbox');
+  fireEvent.click(screen.getByRole('button', { name: 'Show Tasks highlight' }));
+  expect(selectScene.mock.calls.at(-1)![0].detail).toBe('Tasks');
+  expect(openView).not.toHaveBeenCalled();
+});
+
+it('keeps the dedicated scene and caption synchronized after an internal rail click', () => {
+  frame.contentDocument!.body.insertAdjacentHTML(
+    'afterbegin',
+    '<div data-homepage-demo></div>'
+  );
+  const selectScene = vi.fn();
+  frame.contentWindow!.addEventListener(
+    'macro-homepage-demo-view',
+    selectScene
+  );
+  mountCarousel();
+  frame
+    .contentDocument!.querySelector<HTMLButtonElement>('[aria-label=Drive]')!
+    .click();
+  expect(selectScene.mock.calls.at(-1)![0].detail).toBe('Docs');
+  expect(
+    screen
+      .getByRole('button', { name: 'Show Docs highlight' })
+      .getAttribute('aria-pressed')
+  ).toBe('true');
 });
