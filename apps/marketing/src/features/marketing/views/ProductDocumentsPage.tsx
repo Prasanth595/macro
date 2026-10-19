@@ -101,7 +101,7 @@ export function RouteDocuments() {
         <FeaturePageSection
           id="document-agents"
           title={['Write alongside', 'your agent.']}
-          description="Ask your agent to update a brief using your emails and tasks, then keep writing together. Your team and your agent work in the same shared document, with changes merging as you type."
+          description="Ask your agent to update a doc and watch it update in real time. You and your team can continue editing the document while the agent writes."
           details={documentsGuides['document-agents']}
         >
           <DemoInteractionBoundary class="feature-page-visual">
