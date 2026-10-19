@@ -69,7 +69,7 @@ export function RouteChannels() {
       </FeaturePageSection>
       <FeaturePageSection
         id="channel-access"
-        title={['Share once', 'with the team']}
+        title={['Easily share files', 'with your team.']}
         description="Mention a document, task, or email to share it with the channel. The people in the conversation can open the work, and new channel members get access to those shared items too."
         details={channelsGuides['channel-access']}
       >
