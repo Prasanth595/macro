@@ -175,10 +175,10 @@ export function EmailDraftComposer(props: EmailDraftComposerProps) {
   const canRetrySender = () =>
     !sendingLink() &&
     (emailLinksQuery.isError || (!explicitFrom() && replyInboxQuery.isError));
-  const retrySender = () => {
-    if (emailLinksQuery.isError) void emailLinksQuery.refetch();
+  const retrySender = async () => {
+    if (emailLinksQuery.isError) await emailLinksQuery.refetch();
     if (!explicitFrom() && replyInboxQuery.isError)
-      void replyInboxQuery.refetch();
+      await replyInboxQuery.refetch();
   };
   const signature = useEmailSignature(() => sendingLink()?.id);
   const emailSignaturesFlag = useFeatureFlag(enableEmailSignatures);
