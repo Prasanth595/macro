@@ -713,7 +713,8 @@ section when the user can pick one: `All inboxes` or a single address, never sev
 single-row header: title (with Signal/Noise tabs beside Inbox), inbox/filter
 controls, reading-pane option, New, and an expandable Search icon. Its outlined
 `New` button also sits directly
-below the sidebar title, above a flat, outlined **Accounts** group. Its selector shows
+below the sidebar title, above a flat, outlined **Accounts** group with the same
+control background. Its selector shows
 the current account or `All inboxes` and opens a single-select dropdown of linked
 accounts and aliases. `Connect another account` starts the add-inbox flow from
 the group's separated footer. On desktop, `All inboxes` uses the shared avatar

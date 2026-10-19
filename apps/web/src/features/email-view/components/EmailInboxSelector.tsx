@@ -155,7 +155,7 @@ function InboxAccountGroup(props: {
     <section
       aria-label="Email accounts"
       class={cn(
-        'shrink-0 rounded-xl border border-edge-button bg-panel p-1',
+        'shrink-0 rounded-xl border border-edge-button bg-control p-1',
         props.class
       )}
     >
