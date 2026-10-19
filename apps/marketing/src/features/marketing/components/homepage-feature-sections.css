@@ -80,3 +80,5 @@
   .homepage-email-story .homepage-conversation { width: min(680px, 100%); margin-inline: auto; font-size: 15px; }
   .homepage-email-story .homepage-message { max-width: 92%; }
 }
+
+.homepage-sections #email .homepage-feature-intro h2 { white-space: pre-line; }

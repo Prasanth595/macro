@@ -148,7 +148,7 @@ export function HomepageSections() {
         <Feature
           id="email"
           category="Email and chat"
-          title="Keep the conversation with the work."
+          title={'From chat\nto email draft.'}
           description="Discuss an email with your team, then ask Macro to draft the reply using the calls and documents already in your workspace."
           details={[
             {
