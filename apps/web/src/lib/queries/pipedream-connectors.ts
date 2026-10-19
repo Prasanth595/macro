@@ -1,5 +1,6 @@
 import { openPipedreamConnectUI } from '@core/pipedream/connect-ui';
 import { pipedreamSlugsMatch } from '@core/pipedream/slugs';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { isTauri } from '@core/util/platform';
 import { ThrownResultError, throwOnErr } from '@core/util/result';
 import { type Span, Telemetry } from '@macro-inc/observability';
@@ -267,48 +268,51 @@ async function connectPipedreamAccount(
         if (event.type === 'success' && !settled) {
           settled = true;
           consent.end();
-          void (async () => {
-            try {
-              if (currentUserId() !== userId) {
-                resolve('closed');
-                return;
+          fireAndForget(
+            (async () => {
+              try {
+                if (currentUserId() !== userId) {
+                  resolve('closed');
+                  return;
+                }
+                const connection = await span.span(
+                  'pipedream.register',
+                  async () =>
+                    throwOnErr(
+                      async () =>
+                        await cognitionApiServiceClient.completePipedreamConnection(
+                          {
+                            account_id: event.accountId,
+                            server_name: args.serverName,
+                          }
+                        )
+                    )
+                );
+                if (currentUserId() !== userId) {
+                  resolve('closed');
+                  return;
+                }
+                if (
+                  !pipedreamSlugsMatch(connection.app_slug, args.appSlug) ||
+                  !connection.enabled
+                ) {
+                  throw new Error('The requested connector was not enabled');
+                }
+                upsertConnection(connection);
+                await invalidateConnections();
+                resolve('connected');
+              } catch (error) {
+                reject(
+                  error instanceof Error
+                    ? error
+                    : new Error('failed to register Pipedream connection')
+                );
+              } finally {
+                ui.close();
               }
-              const connection = await span.span(
-                'pipedream.register',
-                async () =>
-                  throwOnErr(
-                    async () =>
-                      await cognitionApiServiceClient.completePipedreamConnection(
-                        {
-                          account_id: event.accountId,
-                          server_name: args.serverName,
-                        }
-                      )
-                  )
-              );
-              if (currentUserId() !== userId) {
-                resolve('closed');
-                return;
-              }
-              if (
-                !pipedreamSlugsMatch(connection.app_slug, args.appSlug) ||
-                !connection.enabled
-              ) {
-                throw new Error('The requested connector was not enabled');
-              }
-              upsertConnection(connection);
-              await invalidateConnections();
-              resolve('connected');
-            } catch (error) {
-              reject(
-                error instanceof Error
-                  ? error
-                  : new Error('failed to register Pipedream connection')
-              );
-            } finally {
-              ui.close();
-            }
-          })();
+            })(),
+            'pipedream-connect'
+          );
         } else if (event.type === 'close' && !settled) {
           settled = true;
           consent.end();

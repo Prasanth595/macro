@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { getWebOrigin } from '@core/util/webOrigin';
 import { invoke } from '@tauri-apps/api/core';
 import { Button } from '@ui/components/Button';
@@ -55,7 +56,10 @@ export function openNativePipedreamConnectUI(
             </p>
           </Show>
           <div class="flex gap-2">
-            <Button variant="outline" onClick={() => void launch()}>
+            <Button
+              variant="outline"
+              onClick={() => fireAndForget(launch(), 'pipedream-connect-open')}
+            >
               Open browser again
             </Button>
             <Button variant="ghost" onClick={cancel}>
@@ -75,6 +79,6 @@ export function openNativePipedreamConnectUI(
     dispose();
     host.remove();
   }
-  void launch();
+  fireAndForget(launch(), 'pipedream-connect-open');
   return { close };
 }

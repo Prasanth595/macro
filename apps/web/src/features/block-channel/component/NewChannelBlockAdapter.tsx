@@ -75,13 +75,13 @@ import { isMobile } from '@core/mobile/isMobile';
 import { createMethodRegistration } from '@core/orchestrator';
 import { blockHotkeyScopeSignal } from '@core/signal/blockElement';
 import { blockHandleSignal } from '@core/signal/load';
-import { buildEntityData } from '@entity';
+import { fireAndForget } from '@core/util/fireAndForget';
+import { buildEntityData, canEditChannelIdentity } from '@entity';
 import PictureIcon from '@phosphor/image.svg';
 import RenameIcon from '@phosphor/pencil-line.svg';
 import TrashIcon from '@phosphor/trash.svg';
 import { useActiveCallQuery } from '@queries/call/call';
 import { useChannelParticipantsQuery } from '@queries/channel/channel-participants';
-import { ChannelType } from '@service-storage/generated/schemas/channelType';
 import { useSearchParams } from '@solidjs/router';
 import { cn } from '@ui';
 import {
@@ -138,16 +138,6 @@ function NewTop(props: { channelId: string }) {
   const activeCallQuery = useActiveCallQuery(() => props.channelId);
   const participants = () =>
     participantsQuery.isLoading ? [] : participantsQuery.data;
-  const picture = useChannelPictureActions({
-    channelId: () => props.channelId,
-    canEdit: () =>
-      channelType() !== ChannelType.direct_message &&
-      (participants() ?? []).some(
-        (participant) =>
-          participant.user_id === userId() &&
-          (participant.role === 'admin' || participant.role === 'owner')
-      ),
-  });
   const tabs = useChannelTabItems(props.channelId);
 
   const channelEntity = () => {
@@ -166,6 +156,14 @@ function NewTop(props: { channelId: string }) {
         : undefined,
     });
   };
+
+  const picture = useChannelPictureActions({
+    channelId: () => props.channelId,
+    canEdit: () => {
+      const entity = channelEntity();
+      return !!entity && canEditChannelIdentity(entity);
+    },
+  });
 
   // Seed for "Ask Macro": a new chat with this channel @mentioned, so the
   // user does not have to create an agent and mention the channel by hand.
@@ -222,7 +220,7 @@ function NewTop(props: { channelId: string }) {
               action: () => {
                 const entity = askMacroEntity();
                 if (!entity) return;
-                void openChatWithAgent(entity);
+                fireAndForget(openChatWithAgent(entity), 'channel-header');
               },
               // Desktop gets a header button instead (see below).
               condition: () => isMobile() && !!askMacroEntity(),
@@ -235,7 +233,7 @@ function NewTop(props: { channelId: string }) {
               action: () => {
                 const entity = channelEntity();
                 if (!entity) return;
-                void renameAction.execute([entity]);
+                fireAndForget(renameAction.execute([entity]), 'channel-header');
               },
               condition: () => {
                 const entity = channelEntity();
