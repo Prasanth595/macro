@@ -28,7 +28,7 @@
 .homepage-demo-carousel { position: relative; z-index: 1; margin-top: 0; text-align: center; touch-action: pan-y; }
 .homepage-demo-slide-copy { min-height: 110px; gap: 16px; padding: 0 16px; margin-bottom: 24px; display: grid; justify-items: center; align-content: start; user-select: none;  }
 
-.homepage-demo-slide-copy h2 { margin: 0; max-width: 900px; color: #eee; font-family: 'Roboto Slab Variable', display, serif; font-size: clamp(30px, 3.5vw, 44px); font-weight: calc(315 + var(--cream-slab-weight-increase, 0)); letter-spacing: -.015em; line-height: 1.2; white-space: pre-line; }
+.homepage-demo-slide-copy h2 { margin: 0; max-width: 720px; color: #eee; font-family: 'Roboto Slab Variable', display, serif; font-size: clamp(28px, 2.6vw, 34px); font-weight: calc(315 + var(--cream-slab-weight-increase, 0)); letter-spacing: -.015em; line-height: 1.2; white-space: pre-line; }
 .homepage-demo-slide-copy p { margin: 0; color: var(--color-ink-muted); font-size: 15px; line-height: 1.7; }
 .homepage-demo-slide-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; margin: 0 0 40px; }
 .homepage-demo-carousel button { color: #999; background: transparent; border: 0; font: inherit; }

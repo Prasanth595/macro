@@ -40,7 +40,7 @@ it('starts with the unified Home example and wraps the highlights with keyboard 
       key: 'ArrowRight',
     }
   );
-  expect(screen.getByRole('heading').textContent).toContain('One inbox');
+  expect(screen.getByRole('heading').textContent).toContain('One workspace');
 });
 it('keeps the carousel in place during iframe interaction and cleans up load listeners', () => {
   const view = mountCarousel();
@@ -102,14 +102,14 @@ it('captures horizontal drags and ignores vertical or cancelled gestures', () =>
 
   pointer('pointerdown', carousel, down);
   pointer('pointerup', carousel, { ...down, clientX: 400 });
-  expect(screen.getByRole('heading').textContent).toContain('One inbox');
+  expect(screen.getByRole('heading').textContent).toContain('One workspace');
 
   pointer('pointerdown', carousel, down);
   pointer('pointerup', carousel, { ...down, clientX: 200, clientY: 250 });
-  expect(screen.getByRole('heading').textContent).toContain('One inbox');
+  expect(screen.getByRole('heading').textContent).toContain('One workspace');
 
   pointer('pointerdown', carousel, down);
   pointer('pointercancel', carousel, down);
   pointer('pointerup', carousel, { ...down, clientX: 200 });
-  expect(screen.getByRole('heading').textContent).toContain('One inbox');
+  expect(screen.getByRole('heading').textContent).toContain('One workspace');
 });

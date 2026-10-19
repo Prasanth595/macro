@@ -1,11 +1,18 @@
-import { createSignal, For, type JSX, onCleanup, onMount } from 'solid-js';
+import {
+  createSignal,
+  For,
+  type JSX,
+  onCleanup,
+  onMount,
+  Show,
+} from 'solid-js';
 
 const SLIDES = [
   {
-    label: 'Inbox',
+    label: 'Home',
     target: 'Home',
-    title: 'One inbox for your team’s work.',
-    description: 'Email, messages, tasks, and agents in one inbox.',
+    title: 'One workspace for emails, agents,\ntasks, and messages.',
+    description: '',
   },
   {
     label: 'Chat',
@@ -184,7 +191,9 @@ export function HomepageDemoCarousel(props: {
         aria-atomic="true"
       >
         <h2>{slide().title}</h2>
-        <p>{slide().description}</p>
+        <Show when={slide().description}>
+          <p>{slide().description}</p>
+        </Show>
       </div>
       <div
         class="homepage-demo-slide-controls"
