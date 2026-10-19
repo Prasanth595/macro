@@ -82,6 +82,50 @@ function setup(
 }
 
 describe('spreadsheet grid editing', () => {
+  it('inserts checkboxes, toggles them with Space, and unchecks then removes them with Delete', () => {
+    const { grid, key, cells, setCanEdit } = setup({
+      A2: { value: 'TRUE' },
+    });
+    grid.selectRange({ row: 0, column: 0 }, { row: 2, column: 0 });
+    grid.insertCheckboxes();
+    expect(cells()).toEqual({
+      A1: { value: 'FALSE', checkbox: true },
+      A2: { value: 'TRUE', checkbox: true },
+      A3: { value: 'FALSE', checkbox: true },
+    });
+    expect(key(' ').defaultPrevented).toBe(true);
+    expect(grid.editing()).toBeUndefined();
+    expect(['A1', 'A2', 'A3'].map((address) => cells()[address].value)).toEqual(
+      ['TRUE', 'TRUE', 'TRUE']
+    );
+    key(' ');
+    expect(['A1', 'A2', 'A3'].map((address) => cells()[address].value)).toEqual(
+      ['FALSE', 'FALSE', 'FALSE']
+    );
+
+    grid.select({ row: 1, column: 0 });
+    key(' ');
+    expect(cells().A2.value).toBe('TRUE');
+    grid.select({ row: 1, column: 1 });
+    key(' ');
+    expect(grid.editing()).toBe('cell');
+    expect(grid.draft()).toBe(' ');
+    grid.cancel();
+
+    grid.selectRange({ row: 0, column: 0 }, { row: 2, column: 0 });
+    key('Delete');
+    expect(cells().A2).toEqual({ value: 'FALSE', checkbox: true });
+    key('Backspace');
+    expect(cells().A2).toEqual({ value: '', checkbox: false });
+
+    grid.select({ row: 4, column: 0 });
+    grid.insertCheckboxes();
+    setCanEdit(false);
+    key(' ');
+    expect(cells().A5).toEqual({ value: 'FALSE', checkbox: true });
+    expect(grid.editing()).toBeUndefined();
+  });
+
   it('keeps Home and typing into a whole-row/column selection out of hidden cells', () => {
     const { grid, key, setHiddenRows, setHiddenColumns, cells } = setup();
     setHiddenRows([0]);
@@ -531,7 +575,7 @@ describe('formula-aware copy coordination', () => {
       });
       const view = setup({ A1: { value: '=B1' } }, () => pending);
       view.setRowCount(300);
-      view.grid.fill(
+      const filling = view.grid.fill(
         { anchor: { row: 0, column: 0 }, focus: { row: 0, column: 0 } },
         { anchor: { row: 0, column: 0 }, focus: { row: 299, column: 0 } }
       );
@@ -546,6 +590,7 @@ describe('formula-aware copy coordination', () => {
         focus: { row: 0, column: 0 },
       });
       expect(view.grid.notice()).toBe('');
+      await filling;
     }
   );
 

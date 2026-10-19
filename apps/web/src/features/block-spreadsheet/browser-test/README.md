@@ -34,9 +34,19 @@ without a calculation-status flash or grid remount. Further regressions cover
 immediate typing after the workbook loads (without taking focus from a control
 reached while loading) and after adding or duplicating sheets, returning focus from toolbar
 fields, range formatting/sorting, and footer controls down to a 360-pixel panel.
-Dropdowns added, used and removed from the toolbar and cell menus, open lists
+Dropdowns added, used and removed from the toolbar and cell menus (with
+choice colors drawn as chips in cells and in the open list), open lists
 kept clear of their cell (above it near the bottom edge) and moved to another
 dropdown cell with one click,
+checkboxes inserted, toggled by click and Space, counted by formulas, removed
+with Delete and the cell menu, and downloaded in Excel's checkbox format,
+date calendars on typed, imported and date-validated cells (keys, clicks and
+the stored form of the picked day),
+Dropdowns added, used and removed from the toolbar and cell menus, a block
+converted to a table at once (filtered by values and by condition, sorted,
+totaled in its footer, typed with a mismatch flag, grown by typing, its header
+and name renamed with their formulas, formula completion, recolored, grouped,
+converted back to a range that keeps its look, and deleted),
 imported conditional formatting, validation lists and notes, imported charts
 and images (drawn over their cells, following edits, deleted and restored with
 undo, and kept in the download), radar, bubble, stock and contour charts
@@ -111,5 +121,15 @@ or permission-token refresh. The ordinary fixture remains local-only unless the
 explicit test document/socket query parameters are supplied.
 
 ## Editor interaction regressions
+
+`spreadsheet.browser.e2e.ts` also enters `@` dates (a menu pick, and the `@date`
+calendar by keyboard, pointer and Escape) as date values that `=A6+30`, `DATEDIF`
+and the Excel download read as dates; the phone suite taps an `@date` day.
+
+`range-move.browser.e2e.ts` drags a selection by its border: the destination
+outline and label, formulas following the moved cells, a single undo, the
+confirmation before replacing values, auto-scroll past the grid's bottom edge,
+clicks, double-clicks and the cell menu on the border, and Escape cancelling
+a drag.
 
 `editor-interactions.browser.e2e.ts` mounts the real global hotkey listener to verify that selected-cell typing and arrows beat app navigation shortcuts. It also exercises multi-header drag/Shift selection, drags that scroll the grid past its bottom and right edges and back over the sticky headers to reach off-screen cells (including a fill-handle drag down to the last row), persistent row resizing and auto-fit, cross-sheet formula reference picking (including after comparison operators, from a row past the other sheet's end), and numeric/month-end date fill with undo. `formatting.browser.e2e.ts` checks mixed whole-column formatting, style persistence, viewport stability, a styled cell's pixels staying the same when selected, in a range and edited, percentage entry through both editors against the real calculation worker, the accounting layout, and indented line items measured from their aligned edge.

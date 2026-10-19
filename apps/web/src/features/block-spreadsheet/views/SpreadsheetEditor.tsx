@@ -1,4 +1,5 @@
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { cellPlainText } from '@macro-inc/spreadsheet/cell-mentions';
 import {
   type DropdownOptions,
@@ -28,9 +29,15 @@ import {
   DropdownDialog,
   type DropdownDialogState,
 } from '../components/DropdownDialog';
-import { SpreadsheetFileMenu } from '../components/SpreadsheetActionMenus';
+import {
+  SpreadsheetFileMenu,
+  SpreadsheetImportButton,
+} from '../components/SpreadsheetActionMenus';
 import { SpreadsheetDialog } from '../components/SpreadsheetDialog';
-import { SpreadsheetFindDialog } from '../components/SpreadsheetDialogs';
+import {
+  SpreadsheetFindDialog,
+  SpreadsheetMoveDialog,
+} from '../components/SpreadsheetDialogs';
 import { SpreadsheetGoalSeekDialog } from '../components/SpreadsheetGoalSeekDialog';
 import {
   renderedSelectionCell,
@@ -49,6 +56,7 @@ import {
 } from '../components/SpreadsheetWorkbookDialogs';
 import type { SpreadsheetCommentsCapability } from '../context/spreadsheet-comments';
 import type { SpreadsheetMentions } from '../context/spreadsheet-mentions';
+import { cellDateInput, serialDay } from '../core/cell-date';
 import { cellEditValue } from '../core/cell-input';
 import { chartData, createChartReader } from '../core/chart-data';
 import { encodeCsv } from '../core/csv-export';
@@ -61,6 +69,7 @@ import {
 } from '../core/grid-selection';
 import { selectionToggleStyles } from '../core/selection-formatting';
 import {
+  choiceColors,
   dropdownOptions,
   listItems,
   type RangeValues,
@@ -84,11 +93,16 @@ import { createCalculationStatus } from '../primitives/create-calculation-status
 import { createDrawingActions } from '../primitives/create-drawing-actions';
 import { createGoalSeek } from '../primitives/create-goal-seek';
 import { createGridController } from '../primitives/create-grid-controller';
+import { createRangeMove } from '../primitives/create-range-move';
 import { createSheetActions } from '../primitives/create-sheet-actions';
 import type { SpreadsheetStore } from '../primitives/create-spreadsheet-store';
+import { createTableActions } from '../primitives/create-table-actions';
 import { createWorkbookActions } from '../primitives/create-workbook-actions';
+import { SpreadsheetTableDialogs, tableGridUi } from './SpreadsheetTables';
 
 export function SpreadsheetEditor(props: {
+  /** A saved workbook's document, recorded on traces. */
+  documentId?: string;
   store: SpreadsheetStore;
   mentions?: SpreadsheetMentions;
   name: string;
@@ -182,6 +196,15 @@ export function SpreadsheetEditor(props: {
       ),
   });
   const values = calculation.values;
+  const tableActions = createTableActions({
+    store: props.store,
+    canEdit: editable,
+    selection: grid.selection,
+    values,
+    calculating: () => calculation.busy() || !!calculation.error(),
+    copyCells: calculation.copy,
+    setNotice: (message) => actions.setNotice(message),
+  });
   const activeValidation = createMemo(() =>
     validationAt(
       props.store.activeSheet().metadata?.validations,
@@ -189,6 +212,9 @@ export function SpreadsheetEditor(props: {
     )
   );
   const activeList = createMemo(() => {
+    // A table's total row offers its aggregates, as Excel does.
+    const totals = tableActions.totalChoices();
+    if (totals) return totals;
     const rule = activeValidation();
     if (rule?.type !== 'list' || rule.dropdown === false) return;
     const sheetId = props.store.activeSheetId();
@@ -200,15 +226,24 @@ export function SpreadsheetEditor(props: {
       ? { title: rule.promptTitle, message: rule.prompt ?? '' }
       : undefined;
   };
-  const dropdownRanges = createMemo(() =>
+  const dropdowns = createMemo(() =>
     (props.store.activeSheet().metadata?.validations ?? [])
       .filter((rule) => rule.type === 'list' && rule.dropdown !== false)
-      .map((rule) => rule.range)
+      .map((rule) => ({ range: rule.range, colors: choiceColors(rule) }))
   );
   const [dropdownDialog, setDropdownDialog] = createSignal<
     DropdownDialogState & { sheetId: string }
   >();
   const [dropdownError, setDropdownError] = createSignal<string>();
+  const rangeChoices = (range: string) => {
+    const dialog = dropdownDialog();
+    if (!dialog) return;
+    return listItems(
+      { range: dialog.range, type: 'list', formulas: [range] },
+      rangeValues(dialog.sheetId),
+      definedNames(dialog.sheetId)
+    );
+  };
   const selectionRange = () => {
     const bounds = selectionBounds(grid.selection());
     const first = cellAddress({ row: bounds.top, column: bounds.left });
@@ -335,16 +370,55 @@ export function SpreadsheetEditor(props: {
     },
     grid
   );
+  const canMoveCells = () => editable() && props.store.canChangeStructure();
+  const rangeMove = createRangeMove({
+    documentId: props.documentId,
+    store: props.store,
+    canMove: canMoveCells,
+    moveRange: calculation.moveRange,
+    setBusy: setStructureBusy,
+    setNotice: actions.setNotice,
+    select: grid.selectRange,
+  });
   const remoteCursors = createMemo(() =>
     spreadsheetCursors(props.store.peers(), props.store.rowCount())
   );
   const activeCell = () => props.store.cells()[grid.activeAddress()];
+  // A calendar edits literal dates, and any value of a date-validated cell.
+  const activeDatePicker = createMemo(() => {
+    const cell = activeCell();
+    if (cell?.value.startsWith('=') && cell.format !== 'text') return;
+    const result = values()[grid.activeAddress()];
+    const date =
+      result?.date && result.number !== undefined
+        ? serialDay(result.number)
+        : undefined;
+    if (date || activeValidation()?.type === 'date') return { date };
+  });
   const footerNotice = () =>
     workbookActions.busy() ||
     workbookActions.notice() ||
     actions.notice() ||
     grid.notice();
   let pendingMenuAction: SpreadsheetCommand | undefined;
+  /** A dialog a grid menu chose, opened once the menu returns focus. */
+  let pendingDialog: (() => void) | undefined;
+  const tableUi = tableGridUi({
+    actions: tableActions,
+    editable,
+    canChangeStructure: () => props.store.canChangeStructure(),
+    changeColumns: (column, action) => {
+      grid.selectRange(
+        { row: 0, column },
+        { row: props.store.rowCount() - 1, column }
+      );
+      fireAndForget(headerAction('column', action), 'spreadsheet-editor');
+    },
+    restoreFocus: () => restoreEditorFocus(),
+    afterMenu: (open) => {
+      pendingDialog = open;
+    },
+  });
   const focusGrid = () => gridElement?.focus({ preventScroll: true });
   const revealSelection = () =>
     gridElement
@@ -424,6 +498,12 @@ export function SpreadsheetEditor(props: {
     const pending = pendingMenuAction;
     pendingMenuAction = undefined;
     if (pending) command(pending);
+    const dialog = pendingDialog;
+    pendingDialog = undefined;
+    if (dialog) {
+      dialog();
+      return;
+    }
     // A drawing a menu just inserted keeps the focus.
     const inserted = insertedDrawing;
     insertedDrawing = undefined;
@@ -437,6 +517,8 @@ export function SpreadsheetEditor(props: {
       workbookActions.preview() ||
       workbookActions.sheetDialog() ||
       dropdownDialog() ||
+      tableActions.dialog() ||
+      tableActions.groupView() ||
       dateFormatDialog()
     )
       return;
@@ -459,6 +541,7 @@ export function SpreadsheetEditor(props: {
     if (
       action.startsWith('insert-') ||
       action === 'dropdown' ||
+      action === 'table' ||
       action === 'custom-date-format'
     )
       pendingMenuAction = action;
@@ -535,16 +618,16 @@ export function SpreadsheetEditor(props: {
       .with('undo', () => grid.undo())
       .with('redo', () => grid.redo())
       .with('cut', () => {
-        void actions.copy(true);
+        fireAndForget(actions.copy(true), 'spreadsheet-editor');
       })
       .with('copy', () => {
-        void actions.copy();
+        fireAndForget(actions.copy(), 'spreadsheet-editor');
       })
       .with('paste', () => {
-        void actions.paste();
+        fireAndForget(actions.paste(), 'spreadsheet-editor');
       })
       .with('paste-values', () => {
-        void actions.paste(true);
+        fireAndForget(actions.paste(true), 'spreadsheet-editor');
       })
       .with('clear-values', () => grid.clear())
       .with('clear-formatting', actions.clearFormatting)
@@ -566,7 +649,7 @@ export function SpreadsheetEditor(props: {
       .with('export-csv', exportCsv)
       .with('import', () => importInput.click())
       .with('export-xlsx', () => {
-        void workbookActions.exportExcel();
+        fireAndForget(workbookActions.exportExcel(), 'spreadsheet-editor');
       })
       .with('add-rows', () => props.store.appendRows(100))
       .with('toggle-gridlines', () => {
@@ -579,13 +662,14 @@ export function SpreadsheetEditor(props: {
       .with('toggle-formula-bar', () => setShowFormulaBar((value) => !value))
       .with('toggle-formulas', () => setShowFormulas((value) => !value))
       .with('sort-asc', () => {
-        void actions.sort(false);
+        fireAndForget(actions.sort(false), 'spreadsheet-editor');
       })
       .with('sort-desc', () => {
-        void actions.sort(true);
+        fireAndForget(actions.sort(true), 'spreadsheet-editor');
       })
       .with('trim-whitespace', actions.trimWhitespace)
       .with('dropdown', openDropdownDialog)
+      .with('table', tableActions.convert)
       .with('custom-date-format', openDateFormatDialog)
       .with('border-all', () => actions.borders('all'))
       .with('border-outer', () => actions.borders('outer'))
@@ -597,6 +681,8 @@ export function SpreadsheetEditor(props: {
       .with('insert-count', () => actions.insertFunction('COUNT'))
       .with('insert-min', () => actions.insertFunction('MIN'))
       .with('insert-max', () => actions.insertFunction('MAX'))
+      .with('insert-checkbox', grid.insertCheckboxes)
+      .with('remove-checkbox', () => grid.format({ checkbox: false }))
       .exhaustive();
   }
 
@@ -869,6 +955,7 @@ export function SpreadsheetEditor(props: {
           ...activeCell(),
           ...selectionToggleStyles(props.store.cells(), grid.selection()),
         }}
+        inTable={!!tableActions.activeTable()}
         zoom={zoom()}
         showGridlines={showGridlines()}
         showFormulaBar={showFormulaBar()}
@@ -909,7 +996,11 @@ export function SpreadsheetEditor(props: {
         onChange={(event) => {
           const file = event.currentTarget.files?.[0];
           event.currentTarget.value = '';
-          if (file) void drawingActions.insertImage(file);
+          if (file)
+            fireAndForget(
+              drawingActions.insertImage(file),
+              'spreadsheet-editor'
+            );
         }}
       />
       <input
@@ -921,7 +1012,7 @@ export function SpreadsheetEditor(props: {
         onChange={(event) => {
           const file = event.currentTarget.files?.[0];
           event.currentTarget.value = '';
-          void importFile(file);
+          fireAndForget(importFile(file), 'spreadsheet-editor');
         }}
       />
       <Show
@@ -935,6 +1026,7 @@ export function SpreadsheetEditor(props: {
           mentions={props.mentions}
           editing={!!grid.editing()}
           complete={calculation.complete}
+          tableReferences={tableActions.references}
           selectionRequest={grid.editorSelection()}
           references={grid.draftReferences()}
           pickingReference={
@@ -981,6 +1073,7 @@ export function SpreadsheetEditor(props: {
           mentions={props.mentions}
           sheetId={props.store.activeSheetId()}
           complete={calculation.complete}
+          tableReferences={tableActions.references}
           cells={props.store.cells()}
           zoom={zoom()}
           showGridlines={showGridlines()}
@@ -1003,10 +1096,24 @@ export function SpreadsheetEditor(props: {
           hiddenColumns={props.store.activeSheet().metadata?.hiddenColumns}
           canChangeStructure={props.store.canChangeStructure()}
           onCellAction={command}
-          onHeaderAction={(axis, action) => void headerAction(axis, action)}
+          onHeaderAction={(axis, action) =>
+            fireAndForget(headerAction(axis, action), 'spreadsheet-editor')
+          }
           onResizeColumn={props.store.resizeColumn}
           onFill={grid.fill}
           onCopyMetadata={grid.copyMetadata}
+          onMoveSelection={
+            canMoveCells()
+              ? (selection, rows, columns) => {
+                  grid.commit();
+                  actions.clearNotice();
+                  fireAndForget(
+                    rangeMove.move(selection, rows, columns),
+                    'spreadsheet-editor'
+                  );
+                }
+              : undefined
+          }
           values={values()}
           notes={props.store.activeSheet().metadata?.notes}
           drawings={props.store.activeSheet().metadata?.drawings}
@@ -1038,16 +1145,30 @@ export function SpreadsheetEditor(props: {
           revealDrawing={revealDrawing()}
           inputMessage={inputMessage()}
           listItems={activeList()}
-          dropdownRanges={dropdownRanges()}
+          dropdowns={dropdowns()}
+          onToggleCheckbox={(position) => {
+            actions.clearNotice();
+            grid.select(position);
+            grid.toggleCheckboxes();
+          }}
+          tables={props.store.activeSheet().metadata?.tables}
+          tableUi={tableUi}
           onPickListItem={(item) => {
             if (!editable()) return;
             grid.commit();
+            if (tableActions.pickTotal(item)) return;
             // A choice is literal text, even one that starts like a formula.
             props.store.setCells({
               [grid.activeAddress()]: {
                 value: item.startsWith('=') ? `'${item}` : item,
               },
             });
+          }}
+          datePicker={activeDatePicker()}
+          onPickDate={(day) => {
+            if (day.getTime() !== activeDatePicker()?.date?.getTime())
+              grid.setDraft(cellDateInput(activeCell()?.value ?? '', day));
+            grid.commit();
           }}
           pendingFormulas={
             calculation.busy() &&
@@ -1095,6 +1216,17 @@ export function SpreadsheetEditor(props: {
             ) {
               event.preventDefault();
               command('find');
+              return;
+            }
+            // Google Sheets' shortcut to convert to a table.
+            if (
+              (event.metaKey || event.ctrlKey) &&
+              event.altKey &&
+              event.code === 'KeyT'
+            ) {
+              event.preventDefault();
+              event.stopPropagation();
+              tableActions.convert();
               return;
             }
             if (
@@ -1284,7 +1416,13 @@ export function SpreadsheetEditor(props: {
             </span>
           </Show>
         </div>
-        <div class="shrink-0 border-l border-edge-muted pl-1 max-sm:order-1">
+        <div class="flex shrink-0 items-center gap-0.5 border-l border-edge-muted pl-1 max-sm:order-1">
+          <SpreadsheetImportButton
+            disabled={
+              !editable() || actions.pending() || !!workbookActions.busy()
+            }
+            onCommand={menuCommand}
+          />
           <SpreadsheetFileMenu
             readonly={
               !editable() || actions.pending() || !!workbookActions.busy()
@@ -1317,12 +1455,26 @@ export function SpreadsheetEditor(props: {
           else focusGrid();
         }}
       />
+      <SpreadsheetMoveDialog
+        open={!!rangeMove.confirming()}
+        onConfirm={() =>
+          fireAndForget(rangeMove.confirm(), 'spreadsheet-editor')
+        }
+        onClose={rangeMove.cancel}
+        onRestoreFocus={focusGrid}
+      />
       <DropdownDialog
         dialog={dropdownDialog()}
         error={dropdownError()}
+        rangeChoices={rangeChoices}
         onSave={changeDropdown}
         onRemove={() => changeDropdown()}
         onClose={() => setDropdownDialog(undefined)}
+        onRestoreFocus={focusGrid}
+      />
+      <SpreadsheetTableDialogs
+        actions={tableActions}
+        readonly={!editable()}
         onRestoreFocus={focusGrid}
       />
       <DateFormatDialog
@@ -1376,7 +1528,7 @@ export function SpreadsheetEditor(props: {
         solution={goalSeek.solution()}
         message={goalSeek.message()}
         onSeek={() => {
-          void goalSeek.seek();
+          fireAndForget(goalSeek.seek(), 'spreadsheet-editor');
         }}
         onApply={goalSeek.apply}
         onEdit={goalSeek.clearSolution}
