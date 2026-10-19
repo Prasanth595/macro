@@ -120,7 +120,7 @@ export function RouteDocuments() {
         </FeaturePageSection>
         <FeaturePageSection
           id="document-organization"
-          title={['Find docs', 'where you work']}
+          title={['Organize docs', 'with folders and tags.']}
           description="Keep documents in folders and use tags to find them across projects. A brief can stay in its home folder while appearing beside related emails and tasks under the tags your team uses."
           details={documentsGuides['document-organization']}
         >
