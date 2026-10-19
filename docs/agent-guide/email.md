@@ -31,8 +31,12 @@ and its `New tag` action creates a personal tag with no Team sharing option.
 Full email client. Desktop groups `Signal` and `Noise` under one `Inbox` sidebar
 item, with tabs beside the Inbox title in the content header. Selecting Inbox
 from another mailbox opens Signal; selecting it while in Noise keeps Noise.
-Other mailboxes are `Favorites` / `Sent` / `Scheduled` / `Calendar` / `Drafts` /
-`Shared` / `Archived` / `All`. Mobile keeps Signal and Noise as separate tabs.
+The desktop sidebar continues with `Favorites`, `Drafts`, `Sent`, `Scheduled`,
+and `Reminders`, followed by a **Library** section containing `All mail`,
+`Archived`, and `Shared`, then **Tags**. Sidebar number and sequential shortcuts
+follow that order. Calendar mail remains available through the calendar filter
+and existing Calendar route. Mobile keeps its original tabs and order, including
+separate Signal, Noise, and Calendar tabs.
 Compose via the `Email` button (or `Create` → `Email E`). On a fresh local user it
 shows `Connect your email`; Gmail/Google Workspace and enabled Outlook connections
 use provider consent. Most functionality needs a connected account. Search is `Ctrl+F` within the surface.
@@ -74,7 +78,8 @@ REST Soup uses `favorites_only: true`. Starring changes membership without
 changing the list query. Text search still resolves favorite IDs for the search
 service. An empty favorites list shows `No favorite emails`.
 
-`Archived`, directly before All, lists your own archived (Mail Done) threads: the
+`Archived`, between All mail and Shared in the desktop Library section, lists
+your own archived (Mail Done) threads: the
 All mailbox with Done applied, excluding threads teammates shared with you. It
 respects the selected inboxes and filters. The search service cannot filter
 archive state, so search within the tab keeps only archived hits on the client.

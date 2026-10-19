@@ -28,7 +28,7 @@ import { tourTarget } from '@ui/components/Tour';
 import { type Component, For, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { composeEmail } from '../compose-email';
-import { EMAIL_TAB_IDS, EMAIL_TABS, type EmailTabItem } from '../constants';
+import { EMAIL_TAB_IDS, EMAIL_TAB_LABELS, EMAIL_TABS } from '../constants';
 import { useEmailView } from '../email-view-context';
 import { EMAIL_TOUR } from '../tour';
 import type { EmailTab } from '../types';
@@ -36,6 +36,23 @@ import { EmailInboxList } from './EmailInboxSelector';
 
 // Email is personal, so the sidebar lists only the user's own tags.
 const SIDEBAR_TAG_SCOPES: readonly TagScope[] = ['user'];
+const PRIMARY_TAB_IDS = [
+  'favorites',
+  'drafts',
+  'sent',
+  'scheduled',
+  'reminders',
+] as const satisfies readonly EmailTab[];
+const LIBRARY_TAB_IDS = [
+  'all',
+  'archived',
+  'shared',
+] as const satisfies readonly EmailTab[];
+const DESKTOP_TAB_IDS = [
+  'important',
+  ...PRIMARY_TAB_IDS,
+  ...LIBRARY_TAB_IDS,
+] as const;
 
 const TAB_ICONS: Record<EmailTab, Component<{ class?: string }>> = {
   important: SignalIcon,
@@ -51,21 +68,21 @@ const TAB_ICONS: Record<EmailTab, Component<{ class?: string }>> = {
   all: EnvelopeIcon,
 };
 
-function Tab(props: { item: EmailTabItem; onNavigate?: () => void }) {
+function Tab(props: { id: EmailTab; label?: string; onNavigate?: () => void }) {
   const { state, setTab } = useEmailView();
 
   return (
     <ViewSidebar.Item
-      active={state.tab === props.item.id}
+      active={state.tab === props.id}
       {...pressHandlers(() => {
-        setTab(props.item.id);
+        setTab(props.id);
         props.onNavigate?.();
       })}
     >
       <ViewSidebar.Icon>
-        <Dynamic component={TAB_ICONS[props.item.id]} class="size-4" />
+        <Dynamic component={TAB_ICONS[props.id]} class="size-4" />
       </ViewSidebar.Icon>
-      <span class="truncate">{props.item.label}</span>
+      <span class="truncate">{props.label ?? EMAIL_TAB_LABELS[props.id]}</span>
     </ViewSidebar.Item>
   );
 }
@@ -73,21 +90,30 @@ function Tab(props: { item: EmailTabItem; onNavigate?: () => void }) {
 export function EmailNavigation(props: { onNavigate?: () => void }) {
   const { state, setTab } = useEmailView();
   const reminders = useFeatureFlag(enableReminders);
+  const showTab = (id: EmailTab) =>
+    id !== 'reminders' ||
+    reminders().enabled ||
+    (reminders().loading && state.tab === 'reminders');
   return (
-    <ViewSidebar.Nav aria-label="Email tabs">
-      <Show
-        when={!isTouchDevice()}
-        fallback={
+    <Show
+      when={!isTouchDevice()}
+      fallback={
+        <ViewSidebar.Nav aria-label="Email tabs">
           <div
             ref={tourTarget(EMAIL_TOUR.signalNoise)}
             class="flex flex-col gap-(--sidebar-row-gap)"
           >
             <For each={EMAIL_TABS.slice(0, 2)}>
-              {(item) => <Tab item={item} onNavigate={props.onNavigate} />}
+              {(item) => <Tab id={item.id} onNavigate={props.onNavigate} />}
             </For>
           </div>
-        }
-      >
+          <For each={EMAIL_TABS.slice(2).filter((tab) => showTab(tab.id))}>
+            {(item) => <Tab id={item.id} onNavigate={props.onNavigate} />}
+          </For>
+        </ViewSidebar.Nav>
+      }
+    >
+      <ViewSidebar.Nav aria-label="Email tabs">
         <ViewSidebar.Item
           ref={tourTarget(EMAIL_TOUR.inbox)}
           active={state.tab === 'important' || state.tab === 'noise'}
@@ -101,18 +127,30 @@ export function EmailNavigation(props: { onNavigate?: () => void }) {
           </ViewSidebar.Icon>
           <span class="truncate">Inbox</span>
         </ViewSidebar.Item>
-      </Show>
-      <For
-        each={EMAIL_TABS.slice(2).filter(
-          (tab) =>
-            tab.id !== 'reminders' ||
-            reminders().enabled ||
-            (reminders().loading && state.tab === 'reminders')
-        )}
-      >
-        {(item) => <Tab item={item} onNavigate={props.onNavigate} />}
-      </For>
-    </ViewSidebar.Nav>
+        <For each={PRIMARY_TAB_IDS.filter(showTab)}>
+          {(id) => <Tab id={id} onNavigate={props.onNavigate} />}
+        </For>
+      </ViewSidebar.Nav>
+      <section aria-label="Library" class="shrink-0">
+        <h2 class="flex h-(--sidebar-row-height) items-center px-(--sidebar-item-inset) text-xs font-medium text-ink-muted">
+          Library
+        </h2>
+        <ViewSidebar.Nav
+          aria-label="Email library"
+          class="pt-(--sidebar-section-content-gap)"
+        >
+          <For each={LIBRARY_TAB_IDS}>
+            {(id) => (
+              <Tab
+                id={id}
+                label={id === 'all' ? 'All mail' : undefined}
+                onNavigate={props.onNavigate}
+              />
+            )}
+          </For>
+        </ViewSidebar.Nav>
+      </section>
+    </Show>
   );
 }
 
@@ -133,12 +171,11 @@ export function EmailSidebar() {
     scopeId: panel.splitHotkeyScope,
     enabled: panel.isPanelActive,
     ids: () =>
-      EMAIL_TAB_IDS.filter(
+      (isTouchDevice() ? EMAIL_TAB_IDS : DESKTOP_TAB_IDS).filter(
         (id) =>
-          (isTouchDevice() || id !== 'noise') &&
-          (id !== 'reminders' ||
-            reminders().enabled ||
-            (reminders().loading && state.tab === 'reminders'))
+          id !== 'reminders' ||
+          reminders().enabled ||
+          (reminders().loading && state.tab === 'reminders')
       ),
     activeId: () =>
       !isTouchDevice() && state.tab === 'noise' ? 'important' : state.tab,
