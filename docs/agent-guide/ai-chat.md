@@ -358,8 +358,8 @@ the shimmer.
   row. Focusing a session input on a phone also expands it. Height changes animate
   over 200ms, with reduced-motion preferences respected. **Agent** and **Send**
   sit inside the input on the right.
-  Direct model selections show the model icon, with the model name in the title.
-  Saved and coding agents show their own icon and name on desktop, without a
+  Desktop model selectors always show the selected model name alongside the icon.
+  Saved and coding agents show their own icon and name plus the model name on desktop, without a
   second model icon; phones use an icon-only picker. Routine configuration
   keeps the saved model name visible in its picker, including unavailable models.
 - The agent dropdown includes saved agents of the selected mode regardless of
@@ -473,7 +473,7 @@ the shimmer.
   provider icons, search, **Suggested** first, and **More models** for the
   complete provider catalog. Desktop opens a submenu; phone widths show
   the catalog in place with a Back action. Search includes every model.
-- A **speedometer-style effort** button beside the model selector opens named choices ordered horizontally from lower to higher effort, with a checkmark: a compact popover on desktop, or its own bottom sheet on mobile. Mobile shows it alongside the model control after the input expands. It is hidden when the model has fewer than two effort choices.
+- A compact **speedometer-style effort** button with a simple arc and needle beside the model selector opens named choices ordered horizontally from lower to higher effort, with a checkmark: a compact popover on desktop, or its own bottom sheet on mobile. Mobile shows it alongside the model control after the input expands. It is hidden when the model has fewer than two effort choices.
   Model-specific effort choices remain available in model submenus.
   Free and Pro users start new conversations at the lowest advertised level,
   unless they explicitly choose another. Existing sessions keep their current setting.

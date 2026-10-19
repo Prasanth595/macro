@@ -422,6 +422,9 @@ describe('agent-led new conversation', () => {
       screen.getByRole('heading', { name: 'What should we work on?' })
     ).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Model' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Agent' }).textContent).toContain(
+      'Chat default'
+    );
     expect(
       (screen.getByRole('radio', { name: 'Chat' }) as HTMLInputElement).checked
     ).toBe(true);

@@ -31,20 +31,13 @@ export function EffortSelector(props: {
     return -70 + (Math.max(0, index) / Math.max(1, choices().length - 1)) * 140;
   };
   const contents = () => (
-    <svg viewBox="0 0 24 24" class="size-5" fill="none" aria-hidden="true">
+    <svg viewBox="0 0 24 24" class="size-[22px]" fill="none" aria-hidden="true">
       <path
         d="M4.5 18a9 9 0 1 1 15 0"
         stroke="currentColor"
         stroke-width="1.5"
         stroke-linecap="round"
         opacity="0.45"
-      />
-      <path
-        d="M5.5 13H7M8 6.8l1 1.1M12 4.5V6M16 6.8l-1 1.1M18.5 13H17"
-        stroke="currentColor"
-        stroke-width="1.5"
-        stroke-linecap="round"
-        opacity="0.65"
       />
       <g transform={`rotate(${angle()} 12 14)`}>
         <path
