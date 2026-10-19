@@ -110,7 +110,7 @@ export function RouteAgents() {
       </nav>
       <FeaturePageSection
         id="agent-sources"
-        title={['Give your agent the full', 'context of your team’s work.']}
+        title={['Give your agent the full', 'context of your team’s', 'work.']}
         description="Ask a question that draws on more than one app’s worth of information. Your agent can use your calendar, earlier conversations, and customer messages to prepare an answer grounded in your work."
         details={agentsGuides['agent-sources']}
       >
