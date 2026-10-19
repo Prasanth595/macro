@@ -15,6 +15,7 @@ import {
 } from '../components/reviews/GithubWorkflow';
 import { ReviewInboxDemo } from '../components/reviews/ReviewStories';
 import { WorkspaceDesktopDemo } from '../components/WorkspaceDesktopDemo';
+import { githubGuides } from '../content/feature-guides/github';
 
 const githubFaq = [
   {
@@ -107,24 +108,7 @@ export function RouteGithub() {
           id="pr-links"
           title={['See the code', 'behind the chat']}
           description="Share a GitHub pull request in chat and open it from the conversation. Read the discussion and inspect the code changes while the linked PR’s status stays up to date."
-          details={[
-            {
-              title: 'Share the pull request',
-              summary: 'Keep the pull request linked to the team discussion.',
-              text: 'Paste the PR into the team conversation. Its reference stays linked to the pull request and reflects its current status.',
-            },
-            {
-              title: 'Read the diff',
-              summary: 'Inspect the code changes directly in Macro.',
-              text: 'Open the PR in Macro to inspect the code changes alongside the discussion. Your repository, CI, and permissions remain on GitHub.',
-            },
-            {
-              title: 'Merge in Macro',
-              summary:
-                'Confirm the merge with GitHub’s requirements still applied.',
-              text: 'Use Merge on the pull request and confirm the action. GitHub still applies the repository’s permissions and merge requirements.',
-            },
-          ]}
+          details={githubGuides['pr-links']}
         >
           <div class="feature-page-visual">
             <GithubConversationDemo />
@@ -134,28 +118,7 @@ export function RouteGithub() {
           id="pr-tasks"
           title={['Keep tasks', 'in sync with code']}
           description="Keep implementation and task tracking connected. Link a pull request to its task, then let opening, merging, or closing the PR update the task’s status for the team."
-          details={[
-            {
-              title: 'Link the task ID',
-              summary: 'Connect the implementation to the work it completes.',
-              text: 'Put the task ID in the branch name, PR title, or description to connect the task and implementation.',
-            },
-            {
-              title: 'Open a PR',
-              summary: 'Move the linked task into review automatically.',
-              text: 'When the linked pull request opens, the task moves to In Review so the team can see that implementation is ready for review.',
-            },
-            {
-              title: 'Merge the change',
-              summary: 'Mark the task completed when the PR merges.',
-              text: 'Merging the linked PR marks the task Completed. The status follows the code change instead of waiting for someone to update it manually.',
-            },
-            {
-              title: 'Close without merging',
-              summary: 'Return the task to Not Started if the PR is closed.',
-              text: 'If the pull request is closed without a merge, the linked task returns to Not Started. The task does not appear finished when the change did not ship.',
-            },
-          ]}
+          details={githubGuides['pr-tasks']}
         >
           <div class="feature-page-visual">
             <GithubTaskDemo />
@@ -165,19 +128,7 @@ export function RouteGithub() {
           id="coding-agents"
           title={['Turn bug reports', 'into fixes']}
           description="Ask a connected coding agent to pick up a bug from the team conversation. Give it the context, then open its pull request in Macro to understand the changes and discuss the result."
-          details={[
-            {
-              title: 'Assign the bug to Cursor',
-              summary:
-                'Give your coding agent the problem in the team conversation.',
-              text: 'Tag Cursor in the conversation with the problem and the context it needs. The team can follow the request where the bug was reported.',
-            },
-            {
-              title: 'Inspect the pull request',
-              summary: 'Read the agent’s changes and review the result.',
-              text: 'Open the agent’s PR to read its changes and the discussion. Submit approvals and review comments on GitHub using your existing repository permissions.',
-            },
-          ]}
+          details={githubGuides['coding-agents']}
         >
           <div class="feature-page-visual">
             <GithubConversationDemo agent />
@@ -187,24 +138,7 @@ export function RouteGithub() {
           id="review-inbox"
           title={['Know what needs', 'your review']}
           description="Keep GitHub review requests, comments, and mentions alongside your messages, tasks, and email. See what needs attention and open the relevant pull request from the same inbox."
-          details={[
-            {
-              title: 'Review requests',
-              summary: 'Find the pull requests waiting for your review.',
-              text: 'See pull requests waiting for your review alongside your other work. Open the request to inspect the PR and understand what changed.',
-            },
-            {
-              title: 'Comments and mentions',
-              summary: 'See when a teammate needs your input on a PR.',
-              text: 'Find GitHub comments and mentions in the same inbox. Open the relevant pull request when a teammate needs your input.',
-            },
-            {
-              title: 'One inbox for the follow-up',
-              summary:
-                'Keep review requests alongside messages, tasks, and email.',
-              text: 'Keep the review request beside the messages, tasks, and emails that may explain it. You can follow the work without keeping a separate notification stream open.',
-            },
-          ]}
+          details={githubGuides['review-inbox']}
         >
           <div class="feature-page-visual">
             <ReviewInboxDemo />

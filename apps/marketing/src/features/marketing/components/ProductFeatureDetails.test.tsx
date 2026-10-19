@@ -6,6 +6,7 @@ import {
   waitFor,
 } from '@solidjs/testing-library';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { documentsGuides } from '../content/feature-guides/documents';
 import { ProductFeatureDetails } from './ProductFeatureDetails';
 import * as productPreview from './productPagePreview';
 
@@ -30,7 +31,9 @@ it('uses Back inside a homepage preview and preserves the underlying page', asyn
           {
             title: 'Edit together',
             summary: 'Work in the same shared document.',
-            text: 'Changes merge as your team writes.',
+            intro: 'Changes merge as your team writes.',
+            sections: [],
+            links: [],
           },
         ]}
       />
@@ -67,12 +70,16 @@ it('shows the selected detail in a drawer and restores its trigger on close', as
         {
           title: 'Navigate with J and K',
           summary: 'Navigate without the mouse.',
-          text: 'Move between conversations.',
+          intro: 'Move between conversations.',
+          sections: [],
+          links: [],
         },
         {
           title: 'Mark it done',
           summary: 'Clear completed conversations.',
-          text: 'Press E to mark the conversation done.',
+          intro: 'Press E to mark the conversation done.',
+          sections: [],
+          links: [],
         },
       ]}
     />
@@ -101,4 +108,40 @@ it('shows the selected detail in a drawer and restores its trigger on close', as
   fireEvent.keyDown(dialog, { key: 'Escape' });
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   await waitFor(() => expect(document.activeElement).toBe(done));
+});
+
+it('opens a complete guide with its example, steps, and direct documentation links', async () => {
+  render(() => (
+    <ProductFeatureDetails
+      section="Write with your agent"
+      details={documentsGuides['document-agents']}
+    />
+  ));
+  fireEvent.click(screen.getByRole('button', { name: 'Update from an email' }));
+  const dialog = await screen.findByRole('dialog', {
+    name: 'Update from an email',
+  });
+  expect(screen.getByRole('heading', { name: 'Example request' })).toBeTruthy();
+  expect(
+    screen.getByRole('heading', { name: 'From request to revision' })
+  ).toBeTruthy();
+  expect(screen.getAllByRole('listitem')).toHaveLength(3);
+  expect(
+    screen.getByRole('heading', { name: 'The document stays shared' })
+  ).toBeTruthy();
+  const guide = screen.getByRole('region', { name: 'Feature guide' });
+  guide.focus();
+  expect(document.activeElement).toBe(guide);
+  const docs = screen.getByRole('link', { name: 'Document editing' });
+  expect(docs.getAttribute('href')).toBe('https://docs.macro.com/product/docs');
+  expect(docs.getAttribute('target')).toBe('_blank');
+  fireEvent.keyDown(dialog, { key: 'Escape' });
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  fireEvent.click(screen.getByRole('button', { name: 'Edit together' }));
+  await screen.findByRole('dialog', { name: 'Edit together' });
+  expect(
+    screen.getByRole('heading', { name: 'When you need feedback' })
+  ).toBeTruthy();
+  expect(screen.getByText('Comments', { selector: 'dt' })).toBeTruthy();
+  expect(screen.queryByRole('heading', { name: 'Example request' })).toBeNull();
 });

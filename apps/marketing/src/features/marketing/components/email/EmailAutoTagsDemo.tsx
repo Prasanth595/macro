@@ -86,7 +86,7 @@ export function EmailAutoTagsDemo() {
       data-opened={opened()}
     >
       <div class="email-tag-stage">
-        <EmailShell label="Automatic email tagging demo" class="glass-input">
+        <EmailShell label="Email tags demo" class="glass-input">
           <header class="email-feature-toolbar">
             <Show
               when={opened()}

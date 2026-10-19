@@ -19,6 +19,7 @@ import {
   FeaturePageSection,
 } from '../../features/marketing/components/FeaturePage';
 import { HomepageClosing } from '../../features/marketing/components/HomepageClosing';
+import { emailGuides } from '../../features/marketing/content/feature-guides/email';
 import { setPageSeo } from '../utils/utilSeo';
 import '../../features/marketing/components/email/email-hero.css';
 
@@ -119,7 +120,7 @@ export function RouteEmail() {
       >
         <a href="#auto-tags">
           <AutoTagsGraphic />
-          <span>Automatic tags</span>
+          <span>Tags</span>
         </a>
         <a href="#email-sharing">
           <EmailSharingGraphic />
@@ -137,24 +138,8 @@ export function RouteEmail() {
       <FeaturePageSection
         id="auto-tags"
         title={['Find the', 'right email']}
-        description="Macro tags incoming email by customer, project, or follow-up. Find related conversations across your accounts and keep them connected to the documents and tasks your team is working on."
-        details={[
-          {
-            title: 'Automatic tagging',
-            summary: 'Organize incoming messages by customer and project.',
-            text: 'Incoming email gets tags such as customer, project, or follow-up. Those labels are applied as messages arrive, so you can find the conversation by what it relates to.',
-          },
-          {
-            title: 'Adjust a tag',
-            summary: 'Add or remove labels as a conversation changes.',
-            text: 'Open Tags on a thread to add or remove a label yourself. Automatic organization is a starting point; you can correct it as the conversation changes.',
-          },
-          {
-            title: 'Find related work',
-            summary: 'Use shared tags across emails, documents, and tasks.',
-            text: 'A thread can carry both a customer tag and a project tag. Those same tags work on documents and tasks, giving you another way to find everything connected to the conversation.',
-          },
-        ]}
+        description="Use tags to organize email by customer, project, or follow-up. Find related conversations across your accounts and connect them to the documents and tasks your team is working on."
+        details={emailGuides['auto-tags']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <EmailAutoTagsDemo />
@@ -164,23 +149,7 @@ export function RouteEmail() {
         id="email-sharing"
         title={['Bring your team', 'into the thread']}
         description="Bring a customer conversation into your team’s channel without forwarding a copy. Share the full email thread, discuss it together, and keep new replies available in the same place."
-        details={[
-          {
-            title: 'Share the whole thread',
-            summary: 'Give your channel the original messages and attachments.',
-            text: 'Choose a channel and add a note when sharing. Teammates can read the original email messages and attachments from the channel.',
-          },
-          {
-            title: 'Keep new replies together',
-            summary: 'New customer replies stay in the same shared thread.',
-            text: 'The shared item is the live thread. When the customer replies, that message becomes available in the same shared thread instead of requiring another forward.',
-          },
-          {
-            title: 'Discuss the next step',
-            summary: 'Plan the response with your team beside the email.',
-            text: 'Leave a comment alongside the email and mention the doc or task it relates to. Your internal discussion stays with the customer context your team needs.',
-          },
-        ]}
+        details={emailGuides['email-sharing']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <EmailSharingDemo />
@@ -190,29 +159,7 @@ export function RouteEmail() {
         id="keyboard-speed"
         title={['Move through', 'your inbox']}
         description="Move through your inbox without reaching for the mouse. Open a thread, write a reply, and mark it done, with search across all your connected accounts in the same place."
-        details={[
-          {
-            title: 'Navigate with J and K',
-            summary:
-              'Move between conversations without reaching for the mouse.',
-            text: 'Use J and K to move to the next or previous conversation. These shortcuts also work with a thread open, so you can keep moving through the inbox.',
-          },
-          {
-            title: 'Open and return',
-            summary: 'Open a thread and return to the list from your keyboard.',
-            text: 'Press Enter to open the selected thread and Escape to return to the list. Keep your hands on the keyboard as you move between the inbox and its conversations.',
-          },
-          {
-            title: 'Mark it done',
-            summary: 'Clear a conversation from the active list with E.',
-            text: 'Press E when a conversation no longer needs attention. The selected conversation leaves the active list so you can move to the next one.',
-          },
-          {
-            title: 'Search all accounts',
-            summary: 'Find email across connected accounts in one search.',
-            text: 'Search across your connected Gmail accounts from one inbox. Each result keeps its original account and sender when you open the conversation.',
-          },
-        ]}
+        details={emailGuides['keyboard-speed']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <EmailKeyboardDemo />
@@ -222,23 +169,7 @@ export function RouteEmail() {
         id="agentic-editing"
         title={['Start with', 'a better draft']}
         description="Ask an agent to prepare a reply using the email thread, relevant documents, and meeting transcript. You get an editable draft with the context already included, ready for your review."
-        details={[
-          {
-            title: 'Use the meeting context',
-            summary: 'Draft a follow-up using the thread and call transcript.',
-            text: 'Ask for a follow-up that draws on the email thread and the meeting transcript. The agent can read the sources you reference before writing the draft.',
-          },
-          {
-            title: 'Include the right people',
-            summary: 'Prepare the recipients and attachments with the reply.',
-            text: 'Ask the agent to copy the people involved and include a relevant attachment. Recipients and attachments are part of the draft you can inspect before sending.',
-          },
-          {
-            title: 'Edit before sending',
-            summary: 'Check the draft and approve it when it’s ready.',
-            text: 'Review the subject, wording, recipients, and attachments. You can change the draft yourself and approve the send when it is ready.',
-          },
-        ]}
+        details={emailGuides['agentic-editing']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <EmailAgenticEditingDemo />

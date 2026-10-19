@@ -18,6 +18,7 @@ import {
 } from '../components/product/ProductGraphics';
 import { ProductHero, ProductPage } from '../components/product/ProductPage';
 import { WorkspaceDesktopDemo } from '../components/WorkspaceDesktopDemo';
+import { agentsGuides } from '../content/feature-guides/agents';
 import './agents-page.css';
 
 const agentsFaq = [
@@ -111,24 +112,7 @@ export function RouteAgents() {
         id="agent-sources"
         title={['Get answers', 'with context']}
         description="Ask a question that draws on more than one app’s worth of information. Your agent can use your calendar, earlier conversations, and customer messages to prepare an answer grounded in your work."
-        details={[
-          {
-            title: 'Prepare for a meeting',
-            summary: 'Build a brief for tomorrow’s customer calls.',
-            text: 'Ask what you should know before tomorrow’s customer calls. Your agent can start from the calendar and gather the context needed for a useful brief.',
-          },
-          {
-            title: 'Connect the conversations',
-            summary:
-              'Bring earlier discussions and customer messages together.',
-            text: 'The agent can read earlier discussions and customer messages it has access to. It can combine those sources instead of treating the meeting as an isolated calendar event.',
-          },
-          {
-            title: 'Check the sources',
-            summary: 'Open the references behind the agent’s answer.',
-            text: 'Open the items referenced in the result to check a detail yourself. Continue the conversation with more context or ask the agent to take the next step.',
-          },
-        ]}
+        details={agentsGuides['agent-sources']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <AgentMeetingStory />
@@ -138,18 +122,7 @@ export function RouteAgents() {
         id="agent-actions"
         title={['Make progress', 'together']}
         description="Work with your agent in the same file your team uses. Add context, ask for an update, and review the result in the shared document instead of moving drafts back and forth."
-        details={[
-          {
-            title: 'Change the shared file',
-            summary: 'Make the update directly in the document your team uses.',
-            text: 'Ask the agent to update the document your team is using. Its work appears in that file instead of becoming a separate draft you need to move across.',
-          },
-          {
-            title: 'Keep refining it',
-            summary: 'Edit the result together and ask for another pass.',
-            text: 'Open the document, edit it yourself, and ask for another pass. Your teammates can contribute to the same file as the work develops.',
-          },
-        ]}
+        details={agentsGuides['agent-actions']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <AgentDeliverableStory />
@@ -159,24 +132,7 @@ export function RouteAgents() {
         id="agent-collaboration"
         title={['From idea', 'to working code']}
         description="Bring design and implementation into the team conversation. Ask Macro for a mockup, give feedback together, then tag Cursor to build it using the context already in the channel."
-        details={[
-          {
-            title: 'Make a mockup',
-            summary:
-              'Turn the client brief into a mockup you can open from chat.',
-            text: 'Ask Macro to turn the client brief into a mockup. Open the result directly from the conversation to see what it produced.',
-          },
-          {
-            title: 'Give feedback together',
-            summary: 'Keep the team’s feedback alongside the mockup.',
-            text: 'Discuss what to change in the channel. The team can see the mockup and the feedback that should guide the next version.',
-          },
-          {
-            title: 'Bring in Cursor',
-            summary: 'Hand the brief and feedback to your coding agent.',
-            text: 'Tag the connected coding agent when the direction is clear. It can continue from the brief, mockup, and conversation already shared with the team.',
-          },
-        ]}
+        details={agentsGuides['agent-collaboration']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <AgentTeamworkStory />
@@ -186,23 +142,7 @@ export function RouteAgents() {
         id="existing-agents"
         title={['Bring your', 'own agent']}
         description="Keep the agents you already use and connect them to your work in Macro. Bring a locally running agent into the workspace, or give an external MCP client access to Macro’s tools and context."
-        details={[
-          {
-            title: 'Connect through macrod',
-            summary: 'Bring an agent running on your machine into Macro.',
-            text: 'Bring a supported agent such as Claude Code, OpenCode, OpenClaw, or Hermes into Macro while it runs on your machine. The setup links above cover connection instructions.',
-          },
-          {
-            title: 'Use Macro through MCP',
-            summary: 'Use Macro’s tools from your preferred MCP client.',
-            text: 'Connect Macro’s MCP server to Claude, ChatGPT, Cursor, or another supported client. Work with the available Macro search, reading, and editing tools from that client.',
-          },
-          {
-            title: 'Keep your runtime',
-            summary: 'Use your agent’s own models and permission settings.',
-            text: 'A connected agent uses the models and permission settings supported by its own runtime. Connecting it to Macro does not mean switching to a different coding subscription.',
-          },
-        ]}
+        details={agentsGuides['existing-agents']}
       >
         <div class="agents-connections">
           <div class="agents-connection-paths">

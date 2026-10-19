@@ -25,6 +25,7 @@ import {
   ProductPage,
 } from '../../features/marketing/components/product/ProductPage';
 import { WorkspaceDesktopDemo } from '../../features/marketing/components/WorkspaceDesktopDemo';
+import { crmGuides } from '../../features/marketing/content/feature-guides/crm';
 import { setPageSeo } from '../utils/utilSeo';
 import '../../features/marketing/components/crm/crm-page.css';
 
@@ -115,23 +116,7 @@ export function RouteCrm() {
         id="crm-from-email"
         title={['Keep your', 'CRM current']}
         description="Your CRM lives beside your email, calls, and chat. Ask an agent to update stages, owners, and next steps from those conversations so your team can work from a current customer record."
-        details={[
-          {
-            title: 'Move a deal’s stage',
-            summary: 'Turn a customer update into a pipeline stage change.',
-            text: 'Tell the agent what changed in the customer conversation. A request for a product demo can become a stage update on the company record.',
-          },
-          {
-            title: 'Set the account owner',
-            summary: 'Assign responsibility on the shared customer record.',
-            text: 'Include the new owner in the same request. The assignment is saved on the shared record so the team can see who is responsible.',
-          },
-          {
-            title: 'Record the next step',
-            summary: 'Keep the handoff details with the customer.',
-            text: 'Add the detail that matters for the handoff, such as who is coordinating the rollout. Keep that context on the customer record instead of only in the sales conversation.',
-          },
-        ]}
+        details={crmGuides['crm-from-email']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <CrmCaptureDemo />
@@ -141,19 +126,7 @@ export function RouteCrm() {
         id="crm-enrichment"
         title={['Know who', 'you’re meeting']}
         description="When you email someone new, Macro creates the contact and company from their domain. Public company details fill in the record, so you have a starting point before the first meeting."
-        details={[
-          {
-            title: 'Create contacts from email',
-            summary: 'Start the customer record from a new email relationship.',
-            text: 'Emailing someone new creates a contact and a company from their domain. You can open the relationship from the conversation instead of entering the same person in a separate tool.',
-          },
-          {
-            title: 'Fill in company details',
-            summary:
-              'Fill the record with publicly available company information.',
-            text: 'Macro adds publicly available company information to the record. Review it and add what you learn yourself as the relationship develops.',
-          },
-        ]}
+        details={crmGuides['crm-enrichment']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <CrmEnrichmentDemo />
@@ -163,28 +136,7 @@ export function RouteCrm() {
         id="crm-context"
         title={['See the whole', 'relationship']}
         description="Open a company to see the people, emails, calls, files, and tasks behind the relationship. Keep notes on the customer record so the next person can understand what’s happened and what comes next."
-        details={[
-          {
-            title: 'People at the company',
-            summary: 'See the contacts involved in the account.',
-            text: 'Open the company’s contacts to see the people involved in the relationship. Keep the account context close when a new person joins the conversation.',
-          },
-          {
-            title: 'Emails and calls',
-            summary: 'Read the original conversations behind the relationship.',
-            text: 'Read customer threads and open related calls from the record. Go back to the original conversation when a summary does not give you enough detail.',
-          },
-          {
-            title: 'Files and tasks',
-            summary: 'Find shared documents and the work still in progress.',
-            text: 'Find the documents shared with the company and the work still in progress. The record brings those references together without making another copy of the files.',
-          },
-          {
-            title: 'Customer notes',
-            summary: 'Keep account notes where the team can find them.',
-            text: 'Use the record’s discussion for notes your team needs later. Mention the company in a doc or channel to link colleagues back to the same shared record.',
-          },
-        ]}
+        details={crmGuides['crm-context']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <CrmRecordDemo />
@@ -194,18 +146,7 @@ export function RouteCrm() {
         id="crm-agents"
         title={['Keep deals', 'moving']}
         description="After a sales call, tell your agent which deals moved and what needs updating. Agents can read customer records and change their properties, whether you use them in Macro or through a connected tool."
-        details={[
-          {
-            title: 'Update after the sales sync',
-            summary: 'Update deal stages from a description of the meeting.',
-            text: 'Tell an agent which deals moved and which stage each should be in. A short description of the sales meeting can update the shared pipeline without editing each record yourself.',
-          },
-          {
-            title: 'Work through MCP',
-            summary: 'Read and update the same records from a connected agent.',
-            text: 'Connected agents can list companies, read records, and update their properties through Macro’s MCP server. Use the same customer data from Macro or a supported external client.',
-          },
-        ]}
+        details={crmGuides['crm-agents']}
       >
         <DemoInteractionBoundary class="feature-page-visual crm-agent-scene">
           <HomepageConversation

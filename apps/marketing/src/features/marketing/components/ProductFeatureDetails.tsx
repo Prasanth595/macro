@@ -2,15 +2,78 @@ import { Dialog } from '@kobalte/core/dialog';
 import ArrowLeft from '@phosphor/arrow-left.svg';
 import ArrowRight from '@phosphor/arrow-right.svg';
 import X from '@phosphor/x.svg';
-import { createSignal, createUniqueId, For, Show } from 'solid-js';
+import {
+  createSignal,
+  createUniqueId,
+  For,
+  Match,
+  Show,
+  Switch,
+} from 'solid-js';
+import type {
+  ProductFeatureDetail,
+  ProductGuideSection,
+} from '../core/product-feature-guide';
 import { isEmbeddedProductPage } from './productPagePreview';
 import './product-feature-details.css';
 
-export type ProductFeatureDetail = {
-  title: string;
-  summary: string;
-  text: string;
-};
+export type { ProductFeatureDetail } from '../core/product-feature-guide';
+
+function GuideSection(props: { section: ProductGuideSection }) {
+  return (
+    <section class="product-guide-section" data-kind={props.section.kind}>
+      <h3>{props.section.heading}</h3>
+      <Switch>
+        <Match when={props.section.kind === 'text' && props.section}>
+          {(section) => (
+            <For each={section().paragraphs}>{(text) => <p>{text}</p>}</For>
+          )}
+        </Match>
+        <Match when={props.section.kind === 'steps' && props.section}>
+          {(section) => (
+            <ol class="product-guide-steps">
+              <For each={section().items}>
+                {(item) => (
+                  <li>
+                    <h4>{item.title}</h4>
+                    <p>{item.text}</p>
+                  </li>
+                )}
+              </For>
+            </ol>
+          )}
+        </Match>
+        <Match when={props.section.kind === 'facts' && props.section}>
+          {(section) => (
+            <dl class="product-guide-facts">
+              <For each={section().items}>
+                {(item) => (
+                  <div>
+                    <dt>{item.title}</dt>
+                    <dd>{item.text}</dd>
+                  </div>
+                )}
+              </For>
+            </dl>
+          )}
+        </Match>
+        <Match when={props.section.kind === 'example' && props.section}>
+          {(section) => (
+            <>
+              <blockquote>{section().text}</blockquote>
+              <Show when={section().caption}>
+                {(caption) => <p class="product-guide-caption">{caption()}</p>}
+              </Show>
+            </>
+          )}
+        </Match>
+        <Match when={props.section.kind === 'note' && props.section}>
+          {(section) => <p>{section().text}</p>}
+        </Match>
+      </Switch>
+    </section>
+  );
+}
 
 /** Standalone drawer; inside the homepage drawer, reuse its whole viewport. */
 export function ProductFeatureDetails(props: {
@@ -82,34 +145,62 @@ export function ProductFeatureDetails(props: {
                 if (opener?.isConnected) opener.focus({ preventScroll: true });
               }}
             >
-              <Dialog.CloseButton
-                ref={closeButton}
-                class={
-                  embedded ? 'product-detail-back' : 'product-detail-close'
-                }
-                aria-label={
-                  embedded ? 'Back to product page' : 'Close feature details'
-                }
+              <header class="product-detail-toolbar">
+                <Show when={!embedded}>
+                  <span>{props.section}</span>
+                </Show>
+                <Dialog.CloseButton
+                  ref={closeButton}
+                  class={
+                    embedded ? 'product-detail-back' : 'product-detail-close'
+                  }
+                  aria-label={
+                    embedded ? 'Back to product page' : 'Close feature details'
+                  }
+                >
+                  <Show when={embedded} fallback={<X aria-hidden="true" />}>
+                    <ArrowLeft aria-hidden="true" /> Back
+                  </Show>
+                </Dialog.CloseButton>
+              </header>
+              <div
+                class="product-detail-scroll"
+                tabIndex={0}
+                role="region"
+                aria-label="Feature guide"
               >
-                <Show when={embedded} fallback={<X aria-hidden="true" />}>
-                  <ArrowLeft aria-hidden="true" /> Back
-                </Show>
-              </Dialog.CloseButton>
-              <div class="product-detail-body">
-                <p class="product-detail-context">{props.section}</p>
-                <Show when={active()}>
-                  {(detail) => (
-                    <>
-                      <Dialog.Title class="product-detail-title">
-                        {detail().title}
-                      </Dialog.Title>
-                      <p class="product-detail-lead">{detail().summary}</p>
-                      <Dialog.Description class="product-detail-text">
-                        {detail().text}
-                      </Dialog.Description>
-                    </>
-                  )}
-                </Show>
+                <article class="product-detail-body">
+                  <Show when={active()}>
+                    {(detail) => (
+                      <>
+                        <Dialog.Title class="product-detail-title">
+                          {detail().title}
+                        </Dialog.Title>
+                        <Dialog.Description class="product-detail-lead">
+                          {detail().intro}
+                        </Dialog.Description>
+                        <For each={detail().sections}>
+                          {(section) => <GuideSection section={section} />}
+                        </For>
+                        <footer class="product-guide-links">
+                          <p>More in the docs</p>
+                          <For each={detail().links}>
+                            {(link) => (
+                              <a
+                                href={link.href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                {link.label}
+                                <ArrowRight aria-hidden="true" />
+                              </a>
+                            )}
+                          </For>
+                        </footer>
+                      </>
+                    )}
+                  </Show>
+                </article>
               </div>
             </Dialog.Content>
           </div>

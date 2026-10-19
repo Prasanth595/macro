@@ -262,8 +262,7 @@ changes to application routes, components, or providers.
 provides the lower demo chapters on Tasks, Email, Chat, Docs, Calls, CRM, Agents,
 and GitHub. Follow the original Linear-inspired chapter layout: full-width
 rules between sections, generous top and bottom spacing, a large slab heading
-beside a full explanatory paragraph, the existing native demo, and a quiet
-“What you can do” row. Give every heading two explicit lines using its title
+beside a full explanatory paragraph, the existing native demo, and descriptive feature cards. Give every heading two explicit lines using its title
 tuple. Keep both lines short enough to fit at phone widths without shrinking
 the type or clipping words.
 
@@ -281,6 +280,28 @@ still closes the product preview. Detect preview mode with
 `isEmbeddedProductPage`, shared with `FeaturePage`; the query alone does not
 activate it on a standalone page. Keep cards outside the demo interaction guard
 and leave the middle of the chapter free of divider rules.
+
+Feature-card content lives in `src/features/marketing/content/feature-guides/`,
+with one file per product. Every guide has a plain-language introduction,
+subject-specific sections, and direct links to the relevant Macro docs. Choose
+paragraphs, numbered steps, definition rows, and concrete examples to suit the
+feature; do not pad every guide into the same template. Explain what someone
+can do, what they need to start, and any access or availability detail that
+changes the result. Keep short card summaries separate from the fuller guide.
+Use no em dashes or invented product controls in this copy.
+
+The guides were checked against `apps/docs`, the current app agent guide, and
+implementation at upstream commit `c5cba006` on October 19, 2026. Source comments
+in each content file identify the relevant references. In particular, CRM
+company properties differ from pipeline-entry fields, shared email is readable
+without granting send access, and macrod's setup guide currently marks local
+agents as coming soon. Verify these claims again when the product changes.
+
+The guide panel has a fixed navigation row and an independently scrollable,
+keyboard-focusable article. Definition rows stack on phones; the header remains
+available at every scroll position. Documentation links open separately so
+reading a guide does not discard the product demo underneath it. Check standalone
+and embedded Back/Escape paths, both palettes, and phone wrapping after changes.
 
 Desktop chapters use a 1160px maximum measure. Below 800px the intro stacks;
 phone layouts keep the page gutters. Email stages share the chapter alignment

@@ -17,6 +17,7 @@ import {
   TaskGithubDemo,
 } from '../../features/marketing/components/tasks/TaskStories';
 import { TasksComparison } from '../../features/marketing/components/tasks/TasksComparison';
+import { tasksGuides } from '../../features/marketing/content/feature-guides/tasks';
 import { DEMO_BOOKING_URL } from '../../features/marketing/core/navigation';
 import '../../features/marketing/components/tasks/tasks-page.css';
 import { setPageSeo } from '../utils/utilSeo';
@@ -132,23 +133,7 @@ export function RouteTasks() {
           id="from-a-message"
           title={['Turn requests', 'into tasks']}
           description="Turn a request in chat into a task without copying it into another tool. Give it an owner, set the priority, and keep the original conversation close by."
-          details={[
-            {
-              title: 'Capture the request',
-              summary: 'Make a task from the message that started the request.',
-              text: 'Use the Task action on the message that contains the request. The task links back to the conversation, so its owner can read the original wording and the replies around it.',
-            },
-            {
-              title: 'Choose an owner',
-              summary: 'Give the next step a clear owner and priority.',
-              text: 'Assign the person responsible for the next step and set a priority. The task gives the request a clear owner and a place to track its progress.',
-            },
-            {
-              title: 'Add the missing details',
-              summary: 'Add a brief, checklist, or links before work begins.',
-              text: 'Open the task to add a description, checklist, or linked brief. Keep the original request as context while making the next step specific enough to act on.',
-            },
-          ]}
+          details={tasksGuides['from-a-message']}
         >
           <DemoInteractionBoundary class="feature-page-visual">
             <TaskFromMessageDemo />
@@ -158,18 +143,7 @@ export function RouteTasks() {
           id="ask-macro"
           title={['Let agents', 'handle updates']}
           description="Tell your agent what needs doing in the conversation where you’re already working. It can create tasks, change an assignment, and check what’s still open for the team."
-          details={[
-            {
-              title: 'Create several tasks',
-              summary: 'Turn a proposal request into separate assignments.',
-              text: 'Ask Macro to split the proposal into tasks and name the owners in the same message. Drafting the proposal and reviewing the pricing become separate assignments, each with its own owner.',
-            },
-            {
-              title: 'Reassign in chat',
-              summary: 'Change a task’s owner from the team conversation.',
-              text: 'When Julia takes over the draft, tell Macro in the channel. It updates the shared task’s assignee, so the change reaches the task itself as well as the people reading the conversation.',
-            },
-          ]}
+          details={tasksGuides['ask-macro']}
         >
           <DemoInteractionBoundary class="feature-page-visual">
             <TaskAgentChannelDemo />
@@ -179,23 +153,7 @@ export function RouteTasks() {
           id="from-docs-and-email"
           title={['Keep the context', 'with the task']}
           description="A task should include the information someone needs to do it. Link the brief, the customer email, or the team discussion directly in its description and open the source when you need it."
-          details={[
-            {
-              title: 'Reference the customer email',
-              summary: 'Keep the customer’s original request with the task.',
-              text: 'Mention the original email in the task description. The person doing the work can read the request and its attachments without relying on a pasted summary.',
-            },
-            {
-              title: 'Open the brief beside the task',
-              summary: 'Read the shared brief while working on the task.',
-              text: 'Follow a document mention to read the brief while working on the task. The link opens the original document, so later edits stay available.',
-            },
-            {
-              title: 'Find the discussion',
-              summary: 'Go back to the conversation behind the decision.',
-              text: 'Link the conversation where the decision was made. A new assignee can catch up on the reasoning and follow-up questions before starting.',
-            },
-          ]}
+          details={tasksGuides['from-docs-and-email']}
         >
           <DemoInteractionBoundary class="feature-page-visual">
             <TaskContextDemo />
@@ -205,18 +163,7 @@ export function RouteTasks() {
           id="github"
           title={['Merge code.', 'Close the task.']}
           description="Connect a task to its pull request and let the code update its status. The task moves into review when the PR opens and completes when the change merges."
-          details={[
-            {
-              title: 'Link by task ID',
-              summary: 'Connect a pull request using the task’s ID.',
-              text: 'Put the task ID in the branch name, pull request title, or description. Macro uses it to connect the implementation to the task.',
-            },
-            {
-              title: 'Move through review',
-              summary: 'Let opening and merging a PR update the task.',
-              text: 'Opening the linked pull request moves the task to In Review. Merging it marks the task Completed. Closing without a merge returns it to Not Started.',
-            },
-          ]}
+          details={tasksGuides['github']}
         >
           <DemoInteractionBoundary class="feature-page-visual">
             <TaskGithubDemo />
