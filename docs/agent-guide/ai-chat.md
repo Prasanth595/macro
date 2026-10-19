@@ -169,6 +169,8 @@ appear alongside it in Code mode.
 Tapping outside collapses the composer and restores New.
 The editor and model picker stay mounted so collapsing preserves the draft.
 Dismissing the model or effort selector on mobile returns focus to the message input.
+Active sessions use the same compact mobile model drawer: focused search, Suggested
+with Gemini last, and More models for the complete provider catalog.
 Repository and branch pickers keep the composer expanded while their search
 fields are focused, so their anchor stays in place.
 
@@ -1701,7 +1703,8 @@ There is no periodic PR lookup polling.
 ### Agent reasoning effort
 
 Open the model selector and hover a model to choose its reasoning effort in the
-submenu. Keyboard users open it with Right Arrow; touch users tap the model.
+submenu on desktop, opened with Right Arrow. On mobile, tap a model to select it,
+then use the adjacent effort button to adjust effort.
 Cursor and Macro's in-memory agent load the hovered model's own advertised
 choices. The selected label includes the effort, such as `Sonnet 5.5 · High`;
 the composer also offers a separate effort button for the selected model. Models without effort
@@ -1943,7 +1946,8 @@ creating an event is a real action, including from a local app connected to dev.
 ## Agent reasoning effort
 
 Open the model selector and hover a model to choose its reasoning effort in the
-submenu. Keyboard users open it with Right Arrow; touch users tap the model.
+submenu on desktop, opened with Right Arrow. On mobile, tap a model to select it,
+then use the adjacent effort button to adjust effort.
 Cursor and Macro's in-memory agent load the hovered model's own advertised
 choices. The selected label includes the effort, such as `Sonnet 5 · High`;
 the composer also offers a separate effort button for the selected model. Models without effort

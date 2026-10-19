@@ -96,11 +96,12 @@ The selected model also has a **speedometer-style effort** button beside its mod
 in new-chat and running-session composers. It opens a compact desktop popover
 or a dedicated bottom sheet on mobile. Its needle reflects the selected level. A segmented slider with half as many visual segments as effort levels (rounded up) and a circular marker for the selected level runs left to right from lower to higher effort, previews the current level while dragging, and applies it on release; models with fewer than two choices hide the button.
 
-Effort remains available in each model’s submenu.
+On desktop, effort remains available in each model’s submenu.
 Discovery runs when the submenu opens, scoped to that model and harness;
 the current session's advertised options take precedence for its selected model.
 The trigger displays the model and selected effort together. Keyboard Right Arrow
-and touch taps open the same submenu. Loading, discovery errors, and models with
+opens the submenu. On mobile, tapping a model selects it directly; use the adjacent
+effort button to adjust its supported effort levels. Loading, discovery errors, and models with
 no effort options keep ordinary model selection available.
 
 A combined running-session selection waits for the model's correlated ACP
