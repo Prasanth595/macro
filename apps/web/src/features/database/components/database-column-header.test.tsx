@@ -27,13 +27,13 @@ it('refuses to rename a column whose name is reserved', async () => {
   const rename = vi.fn(() => okAsync(undefined));
   render(() => (
     <DatabaseColumnHeader
-      column={{ ...column, name: 'When', label: 'Date', protections: ['rename'] }}
+      column={{ ...column, name: 'When', label: 'Next date', protections: ['rename'] }}
       canRename
       onRename={rename}
       onSort={vi.fn()}
     />
   ));
-  const header = screen.getByRole('columnheader', { name: 'Date' });
+  const header = screen.getByRole('columnheader', { name: 'Next date' });
   fireEvent.dblClick(header);
   fireEvent.keyDown(header, { key: 'F2' });
   expect(screen.queryByLabelText('Column name')).toBeNull();

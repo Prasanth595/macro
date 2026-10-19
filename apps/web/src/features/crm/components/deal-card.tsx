@@ -294,20 +294,22 @@ export function DealScheduleCell(props: { row: DatabaseRow; primaryColumnId: str
   }
   return (
     <Show when={id()}>
-      <DealPill
-        presentation="cell"
-        when={cellText(value('When'))?.slice(0, 10) ?? null}
-        next={cellText(value('Next activity'))}
-        plan={cellText(value('Plan')) ?? ''}
-        outcome={cellText(value('Outcome'))}
-        dealId={id()}
-        onWhen={(iso) => void write('When', iso ? toCellDate(new Date(`${iso}T12:00:00`)) : null)}
-        onNext={(activity) => void write('Next activity', activity)}
-        onPlan={(text) => void write('Plan', text)}
-        onOutcome={(closed) => void write('Outcome', closed)}
-        onHappened={(text) => postDealNote(id(), text)}
-        onLast={(text) => postDealNote(id(), text)}
-      />
+      <span class="flex min-h-9 w-full min-w-0 items-center px-2.5">
+        <DealPill
+          presentation="cell"
+          when={cellText(value('When'))?.slice(0, 10) ?? null}
+          next={cellText(value('Next activity'))}
+          plan={cellText(value('Plan')) ?? ''}
+          outcome={cellText(value('Outcome'))}
+          dealId={id()}
+          onWhen={(iso) => void write('When', iso ? toCellDate(new Date(`${iso}T12:00:00`)) : null)}
+          onNext={(activity) => void write('Next activity', activity)}
+          onPlan={(text) => void write('Plan', text)}
+          onOutcome={(closed) => void write('Outcome', closed)}
+          onHappened={(text) => postDealNote(id(), text)}
+          onLast={(text) => postDealNote(id(), text)}
+        />
+      </span>
     </Show>
   );
 }

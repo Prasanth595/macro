@@ -73,9 +73,13 @@ export function createPipelineApi(
                 ...toViewColumn(column),
                 primary: column.column.id === pipeline.primaryColumnId,
               };
-              return pipeline.recordType === 'deal' && view.name === 'When'
-                ? { ...view, label: 'Date' }
-                : view;
+              const label =
+                pipeline.recordType === 'deal' && view.name === 'When'
+                  ? 'Next date'
+                  : pipeline.recordType === 'deal' && view.name === 'Plan'
+                    ? 'Next step'
+                    : undefined;
+              return label ? { ...view, label } : view;
             }),
           })),
     readRows: (request) =>
