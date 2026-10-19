@@ -34,6 +34,21 @@ describe('Calendar view navigation', () => {
     });
   });
 
+  it('carries an ephemeral creation request without making draft data part of the URL', () => {
+    const creationRequest = { id: 'request-1' };
+    const content = calendarViewContent({
+      period: 'timeGridDay',
+      creationRequest,
+    });
+    expect(content.params).toEqual({ creationRequest });
+    expect(content.entryMetadata).toEqual({
+      route: paneRoute({
+        id: 'view-calendar',
+        params: { period: 'timeGridDay' },
+      }),
+    });
+  });
+
   it('retargets an existing Calendar component without a block handle', () => {
     const replace = vi.fn();
     const activate = vi.fn();

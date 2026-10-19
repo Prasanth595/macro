@@ -3,7 +3,7 @@
 ## Calendar — `/app/calendar/<month-or-week-or-day>`
 
 Event composer dropdown triggers and date/time inputs use the theme control
-surface, so they blend with the dialog instead of using the darker page fill.
+surface, so they blend with the editor instead of using the darker page fill.
 Their menus stay inside the composer's portal scope. Verify that calendar,
 recurrence, Guests, conferencing, Location, and Notifications open on the first
 click from the title field and accept changes without closing the composer.
@@ -92,9 +92,38 @@ an agent reply appears, and messages remain in the saved history; starting a
 new session from the same meeting link must start a separate chat thread.
 
 
-Calendar event creation and editing open in a bottom sheet on touch devices,
-with scrollable content above the keyboard. Desktop retains the centered dialog.
-Dismissing a changed event still asks before discarding the draft.
+Desktop click/drag creation opens a non-modal popover near the selected range.
+The popover's `Move to sidebar` action keeps the same draft in a right-hand editor;
+`New → Event` opens that sidebar directly. Both surfaces share the detail-style
+layout: title, date/time, then guests, meeting link, location, description, and
+calendar settings. Scrolling, paging, changing period, outside clicks, and another
+empty-timeslot selection must leave the draft unchanged. Existing-event editing
+retains its separate dialog host.
+
+On phones, event creation fills a bottom sheet, with scrollable content above the
+keyboard; existing-event editing retains its current sheet. Close, Cancel, Escape,
+and mobile sheet dismissal ask before discarding a changed draft. A pending save
+cannot be dismissed. Leaving Calendar or reloading protects unsaved changes too.
+
+Verify a click and a multi-slot drag in Week and Month. Enter a title, description,
+guest, and custom recurrence; move the popover to the sidebar and confirm all values
+survive. Scroll the original slot away, navigate several weeks, change period,
+click another empty slot, and confirm the original draft stays open and unchanged.
+Cancel dismissal with `Keep editing`, then discard explicitly. Repeat from
+`New → Event` and the phone's bottom Event action. Open each nested menu and use
+Escape: dismiss the menu first, not the editor. Do not save test events to shared
+dev data. Call-link retry behavior remains owned by the shared event editor.
+
+The isolated fixture mounts the real grid, creation hosts, form, and controller
+with empty account/contact sources. With Vite running, exercise desktop, tablet,
+and phone interactions without signing in or writing dev data:
+
+```sh
+\cd apps/web
+CALENDAR_PREVIEW_URL=https://localhost:3000 node src/features/calendar-view/browser-test/verify.mjs
+```
+
+Set `CALENDAR_BROWSER_CDP=http://localhost:9222` to use an existing Chromium.
 
 On phones, event details use inset round action buttons and a transparent RSVP
 footer. Answering a recurring invitation opens a rounded glass sheet: choose
