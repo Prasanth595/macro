@@ -1124,9 +1124,9 @@ entity actions as right-clicking the conversation's rail row, except `Edit
 channel` replaces the separate rename and picture actions. Other actions include
 `Open in new split`, `Favorite`/`Unfavorite`, `Remind me`, `Snooze notifications…`,
 `Mute notifications`, `Copy Link`, and `Copy ID`. A channel inlined in another
-view's detail stack has no such menu, but its name has the shared hover editor.
-The split's own title `...` menu also offers `Edit channel`. On desktop, both
-menus open the existing title popup, not a separate dialog.
+view's detail stack has no such menu, but clicking its name opens the shared
+channel editor. The split's own title `...` menu also offers `Edit channel`.
+On desktop, both menus open the same dialog as the channel name.
 
 `Calls` tab: recordings, transcriptions, and summaries for this channel. Click a
 row to open the call. The search field above the list matches call names and
@@ -1224,19 +1224,22 @@ one-to-one direct messages continue to show the other person's user picture.
 
 On desktop, click the channel name in either the split topbar or an inline detail
 topbar to open the `Edit channel` dialog. Hovering or focusing the title does not
-open an editor. The dialog loads on demand. It shows a larger circular picture
-with an upload-icon overlay on image hover or keyboard focus when editing is
-allowed (always visible on touch devices). Larger secondary `Change image` and
-destructive ghost `Clear image` buttons sit beside the picture, with supported
-file types and size beneath the actions. Image filenames are not shown. A
-channel-name input follows the picture row.
+open an editor. The roomier dialog loads on demand. It shows a larger circular
+picture with an upload-icon overlay on image hover or keyboard focus when editing
+is allowed (always visible on touch devices). Secondary `Change image` and
+destructive ghost `Clear image` buttons sit side by side beside the picture on
+desktop, or side by side below it on phones. Supported file types and size appear
+beneath the actions; image filenames are not shown. A channel-name input follows
+the picture controls. Both footer actions have larger touch-friendly targets.
 
 Clicking the picture or `Change image` opens the file chooser. PNG, JPG, WebP,
-and GIF files up to 16 MB are supported. Selecting a still image opens a crop step
-inside the dialog. Drag to reposition the circular preview, use the arrow keys
-to move it, or use the zoom and reset buttons. `Apply crop` adds the square PNG
-to the local draft; `Back` or Escape returns without replacing the draft picture.
-GIFs skip cropping to preserve animation. The cropper loads only when needed.
+and GIF files up to 16 MB are supported. Selecting a still image slides to a crop
+step inside the dialog using the shared Stepper. The framed workspace shows a
+circular crop guide, dims the corners, and reveals alignment guides on hover or
+focus. Drag to reposition, use the arrow keys to move, or use the zoom and reset
+controls. `Apply crop` adds the square PNG to the local draft; `Back` or Escape
+slides back without replacing the draft picture. GIFs skip cropping to preserve
+animation. The cropper loads only when needed.
 
 Selecting a file, applying a crop, clearing the picture, or changing the name
 only updates the draft. The filled CTA `Save` button persists the changes;

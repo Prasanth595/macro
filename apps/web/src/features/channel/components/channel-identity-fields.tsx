@@ -34,11 +34,11 @@ export function ChannelIdentityFields(props: {
         props.onCancel();
       }}
     >
-      <div class="flex items-center gap-4 mobile:gap-5">
+      <div class="flex items-center gap-5 mobile:flex-col mobile:gap-4">
         <Button
           type="button"
           variant="ghost"
-          class="group/channel-picture size-20 shrink-0 rounded-full p-0 mobile:size-24"
+          class="group/channel-picture size-24 shrink-0 rounded-full p-0"
           label={props.canEdit ? 'Change channel picture' : 'Channel picture'}
           disabled={!props.canEdit || props.pending || props.pictureLoading}
           onClick={props.onPickPicture}
@@ -64,33 +64,35 @@ export function ChannelIdentityFields(props: {
             </span>
           </Show>
         </Button>
-        <div class="flex min-w-0 flex-1 flex-col items-start gap-2">
+        <div class="flex min-w-0 flex-1 flex-col items-start gap-3 mobile:w-full mobile:items-center">
           <Show when={props.canEdit}>
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              class="touch:min-h-11"
-              disabled={props.pending || props.pictureLoading}
-              onClick={props.onPickPicture}
-            >
-              <UploadIcon />
-              Change image
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="lg"
-              class="text-failure not-touch:not-disabled:hover:text-failure touch:min-h-11"
-              disabled={
-                props.pending || props.pictureLoading || !props.pictureUrl
-              }
-              onClick={props.onClearPicture}
-            >
-              <TrashIcon />
-              Clear image
-            </Button>
-            <p class="text-xs text-ink-muted">
+            <div class="flex items-center gap-2 mobile:grid mobile:w-full mobile:grid-cols-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                class="touch:min-h-11 mobile:px-2"
+                disabled={props.pending || props.pictureLoading}
+                onClick={props.onPickPicture}
+              >
+                <UploadIcon />
+                Change image
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="lg"
+                class="text-failure not-touch:not-disabled:hover:text-failure touch:min-h-11 mobile:px-2"
+                disabled={
+                  props.pending || props.pictureLoading || !props.pictureUrl
+                }
+                onClick={props.onClearPicture}
+              >
+                <TrashIcon />
+                Clear image
+              </Button>
+            </div>
+            <p class="text-xs text-ink-muted mobile:text-center">
               PNG, JPG, WebP or GIF up to 16 MB
             </p>
           </Show>
@@ -128,13 +130,14 @@ export function ChannelIdentityFields(props: {
           Join this channel to edit its name and picture.
         </p>
       </Show>
-      <div class="flex justify-end gap-2 border-t border-edge-muted pt-4 mobile:pt-5">
+      <div class="flex justify-end gap-3 border-t border-edge-muted pt-5">
         <Button
           type="button"
           variant="ghost"
+          size="xl"
           disabled={props.pending}
           onClick={props.onCancel}
-          class="mobile:flex-1"
+          class="min-w-28 mobile:min-w-0 mobile:flex-1"
         >
           {props.canEdit ? 'Cancel' : 'Close'}
         </Button>
@@ -142,8 +145,9 @@ export function ChannelIdentityFields(props: {
           <Button
             type="submit"
             variant="cta"
+            size="xl"
             disabled={!props.canSave || props.pictureLoading}
-            class="mobile:flex-1"
+            class="min-w-28 mobile:min-w-0 mobile:flex-1"
           >
             {props.pending ? 'Saving…' : 'Save'}
           </Button>

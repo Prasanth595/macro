@@ -6,6 +6,7 @@ import XIcon from '@phosphor/x.svg';
 import { Button } from '@ui/components/Button';
 import { Dialog } from '@ui/components/Dialog';
 import { Panel } from '@ui/components/Panel';
+import { Stepper } from '@ui/components/Stepper';
 import {
   createMemo,
   createSignal,
@@ -115,13 +116,13 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
         event.preventDefault();
         returnToDetails();
       }}
-      class="w-112"
+      class="w-152"
     >
       <Panel depth={2} class="rounded-xl">
         <Panel.Body>
-          <div class="flex flex-col gap-6 p-5 mobile:p-4">
+          <div class="flex max-h-[calc(100dvh-64px)] flex-col gap-6 overflow-y-auto p-6 mobile:max-h-none mobile:overflow-visible mobile:p-4">
             <div class="flex items-center justify-between gap-4">
-              <Dialog.Title class="text-lg font-semibold">
+              <Dialog.Title class="text-xl font-semibold">
                 {cropFile() ? 'Crop channel image' : 'Edit channel'}
               </Dialog.Title>
               <Dialog.CloseButton
@@ -163,10 +164,13 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
                   setCropFile(file);
                 }}
               />
-              <Show
-                when={cropFile()}
-                keyed
-                fallback={
+              <Stepper
+                step={cropFile() ? 1 : 0}
+                transition={Stepper.transitions.slide}
+                keepMounted
+                class="overflow-clip"
+              >
+                <Stepper.Step>
                   <ChannelIdentityFields
                     name={state.name()}
                     pictureUrl={pictureUrl()}
@@ -181,29 +185,32 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
                     onCancel={state.close}
                     onSave={() => void save()}
                   />
-                }
-              >
-                {(file) => (
-                  <Suspense
-                    fallback={
-                      <p class="text-sm text-ink-muted">
-                        Loading image editor…
-                      </p>
-                    }
-                  >
-                    <ChannelPictureCropper
-                      channelId={props.channelId}
-                      file={file}
-                      disabled={!props.canEdit || state.pending()}
-                      onApply={(cropped) => {
-                        state.changePicture(cropped);
-                        returnToDetails();
-                      }}
-                      onCancel={returnToDetails}
-                    />
-                  </Suspense>
-                )}
-              </Show>
+                </Stepper.Step>
+                <Stepper.Step>
+                  <Show when={cropFile()} keyed>
+                    {(file) => (
+                      <Suspense
+                        fallback={
+                          <p class="text-sm text-ink-muted">
+                            Loading image editor…
+                          </p>
+                        }
+                      >
+                        <ChannelPictureCropper
+                          channelId={props.channelId}
+                          file={file}
+                          disabled={!props.canEdit || state.pending()}
+                          onApply={(cropped) => {
+                            state.changePicture(cropped);
+                            returnToDetails();
+                          }}
+                          onCancel={returnToDetails}
+                        />
+                      </Suspense>
+                    )}
+                  </Show>
+                </Stepper.Step>
+              </Stepper>
             </div>
           </div>
         </Panel.Body>

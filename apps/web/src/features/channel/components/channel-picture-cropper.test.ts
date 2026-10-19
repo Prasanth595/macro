@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
+import { ok } from 'neverthrow';
 import { createComponent, createSignal } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ChannelIdentityModal } from '../views/channel-identity-editor';
 import ChannelPictureCropper from './channel-picture-cropper';
 
 const cropper = vi.hoisted(() => ({
@@ -32,12 +34,18 @@ vi.mock('@macro-inc/observability', () => ({
     },
   },
 }));
+vi.mock('@core/mobile/isMobile', () => ({ isMobile: () => false }));
+vi.mock('@core/component/Toast/Toast', () => ({ toast: { failure: vi.fn() } }));
 
 beforeEach(() => {
   vi.clearAllMocks();
   cropper.ready.mockResolvedValue(document.createElement('img'));
+  vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 function exportedCanvas(blob: Blob | null) {
   const canvas = document.createElement('canvas');
@@ -165,5 +173,63 @@ describe('channel picture crop lifecycle', () => {
         .disabled
     ).toBe(false);
     expect(apply).not.toHaveBeenCalled();
+  });
+});
+
+describe('channel editor steps', () => {
+  it('retains name edits across crop steps and saves only after explicit Save', async () => {
+    cropper.exportCanvas.mockResolvedValue(
+      exportedCanvas(new Blob(['cropped'], { type: 'image/png' }))
+    );
+    const saved = Promise.withResolvers<void>();
+    const saveName = vi.fn().mockImplementation(async () => {
+      saved.resolve();
+      return ok(undefined);
+    });
+    const savePicture = vi.fn().mockResolvedValue(ok(undefined));
+    render(() =>
+      createComponent(ChannelIdentityModal, {
+        channelId: 'design',
+        name: 'Design',
+        pictureLoading: false,
+        canEdit: true,
+        writer: { saveName, savePicture },
+        onClose: vi.fn(),
+      })
+    );
+    fireEvent.input(screen.getByRole('textbox', { name: 'Channel name' }), {
+      target: { value: 'Design team' },
+    });
+    const file = new File(['original'], 'team.png', { type: 'image/png' });
+    const picker = screen.getByLabelText('Choose channel picture');
+    fireEvent.change(picker, { target: { files: [file] } });
+    await screen.findByRole('button', { name: 'Apply crop' });
+    expect(screen.queryByRole('textbox', { name: 'Channel name' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(
+      (
+        await screen.findByRole<HTMLInputElement>('textbox', {
+          name: 'Channel name',
+        })
+      ).value
+    ).toBe('Design team');
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'Change channel picture' })
+    );
+    expect(cropper.destroy).toHaveBeenCalledOnce();
+    expect(cropper.exportCanvas).not.toHaveBeenCalled();
+    fireEvent.change(picker, { target: { files: [file] } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply crop' }));
+    const save = await screen.findByRole('button', { name: 'Save' });
+    expect(saveName).not.toHaveBeenCalled();
+    expect(savePicture).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole<HTMLInputElement>('textbox', { name: 'Channel name' })
+        .value
+    ).toBe('Design team');
+    fireEvent.click(save);
+    expect(savePicture).toHaveBeenCalledOnce();
+    await saved.promise;
+    expect(saveName).toHaveBeenCalledWith('Design team');
   });
 });
