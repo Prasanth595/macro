@@ -22,7 +22,10 @@ mutations. Verify moving into a folder and back to root, opening the returned
 copy, and updating team/link/channel access on desktop and touch. Call-record
 permanent deletion and team sharing also use these mutations. A denied or failed
 GraphQL write must not retry through REST or report success; mixed bulk actions
-retain successful siblings. With the flag off, the existing REST paths remain.
+retain successful siblings. Restore immediately after trash and confirm the row
+returns without waiting for retained deletion markers to expire, even if the
+trash's background refresh failed. A delete started after the restore request
+must still hide its row. With the flag off, the existing REST paths remain.
 Deleting a non-owned item still only removes it from history. Forking a markdown
 history version still uses REST because GraphQL duplication copies current content.
 

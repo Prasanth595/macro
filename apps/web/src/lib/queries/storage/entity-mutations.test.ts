@@ -1,5 +1,5 @@
 import { CombinedError } from '@urql/core';
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   graphql: true,
@@ -16,11 +16,18 @@ vi.mock('@service-storage/graphql-soup', () => ({
 vi.mock('../soup/graphql/active-queries', () => ({
   refreshActiveGraphqlSoupQueries: mocks.refresh,
 }));
+vi.mock('@queries/client', async () => {
+  const { QueryClient } = await import('@tanstack/solid-query');
+  return { queryClient: new QueryClient() };
+});
 
 import { UpdateEntitySharePoliciesDocument } from '@service-storage/graphql/generated/graphql';
+import { queryClient } from '../client';
+import { createGraphqlSoupDeletion } from '../soup/graphql/optimistic-deletions';
 import {
   duplicateEntity,
   moveEntity,
+  restoreEntity,
   updateEntitySharePolicy,
   usesGraphqlSharePolicy,
 } from './entity-mutations';
@@ -43,6 +50,81 @@ beforeEach(() => {
       },
     }),
   });
+});
+
+afterEach(() => queryClient.clear());
+
+it('shows a confirmed restore immediately while retaining unrelated and newer deletes', async () => {
+  mocks.refresh.mockReturnValue(new Promise<void>(() => {}));
+  const earlier = createGraphqlSoupDeletion(['restored', 'sibling']);
+  earlier.settle(['restored', 'sibling']);
+  let finish!: () => void;
+  const network = new Promise<void>((resolve) => {
+    finish = resolve;
+  });
+  mocks.mutation.mockReturnValue({
+    toPromise: async () => {
+      await network;
+      return {
+        data: {
+          restoreEntities: {
+            results: [
+              {
+                __typename: 'GraphqlMutationSuccess',
+                effects: [
+                  {
+                    __typename: 'SoupUpdated',
+                    item: { __typename: 'GraphqlSoupDocument', id: 'restored' },
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      };
+    },
+  });
+  const restore = restoreEntity({ type: 'DOCUMENT', id: 'restored' });
+  const newer = createGraphqlSoupDeletion(['restored']);
+  newer.settle(['restored']);
+  try {
+    finish();
+    await restore;
+    expect(earlier.ids()).toEqual(['sibling']);
+    expect(newer.ids()).toEqual(['restored']);
+  } finally {
+    earlier.release();
+    newer.release();
+  }
+});
+
+it('keeps prior deletion markers when the server refuses restoration', async () => {
+  mocks.refresh.mockReturnValue(new Promise<void>(() => {}));
+  const deletion = createGraphqlSoupDeletion(['deleted']);
+  deletion.settle(['deleted']);
+  mocks.mutation.mockReturnValue({
+    toPromise: async () => ({
+      data: {
+        restoreEntities: {
+          results: [
+            {
+              __typename: 'GraphqlMutationError',
+              errorCode: 'FORBIDDEN',
+              message: 'Denied',
+            },
+          ],
+        },
+      },
+    }),
+  });
+  try {
+    await expect(
+      restoreEntity({ type: 'DOCUMENT', id: 'deleted' })
+    ).rejects.toBeDefined();
+    expect(deletion.ids()).toEqual(['deleted']);
+  } finally {
+    deletion.release();
+  }
 });
 
 it.each([

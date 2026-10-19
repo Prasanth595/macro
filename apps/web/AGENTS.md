@@ -114,7 +114,8 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Route supported move, trash, restore, permanent-delete, duplicate, and share-policy
   writes through `queries/storage/entity-mutations` when GraphQL Soup is enabled;
   never retry failed GraphQL writes through REST. Preserve non-owner history removal
-  and version-specific markdown forks on their existing paths.
+  and version-specific markdown forks on their existing paths. Confirmed restores
+  clear earlier deletion markers without clearing a newer delete's intent.
 - Preserve loaded block content on initial access confirmation when its loader
   supplies no permissions; reload only on a later confirmed permission change.
   Apply shared access in place only after a successful permissionless load.

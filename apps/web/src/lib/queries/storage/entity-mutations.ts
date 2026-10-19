@@ -22,6 +22,7 @@ import {
 } from '@service-storage/graphql-entity-mutations';
 import { match } from 'ts-pattern';
 import { refreshActiveGraphqlSoupQueries } from '../soup/graphql/active-queries';
+import { prepareGraphqlSoupRestore } from '../soup/graphql/optimistic-deletions';
 
 // Membership changes need a refresh even when the normalized cache is disabled.
 // A failed refresh must not turn a committed write into a retryable UI failure.
@@ -43,7 +44,14 @@ export async function trashEntity(entity: EntityRefInput) {
 }
 
 export async function restoreEntity(entity: EntityRefInput) {
-  await restoreGraphqlEntity(entity);
+  const confirmRestore = prepareGraphqlSoupRestore();
+  const result = await restoreGraphqlEntity(entity);
+  confirmRestore([
+    String(entity.id),
+    ...result.effects.flatMap((effect) =>
+      effect.__typename === 'SoupUpdated' ? [effect.item.id] : []
+    ),
+  ]);
   refreshSoup();
 }
 
