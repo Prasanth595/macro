@@ -114,3 +114,19 @@ fn preserves_failures_and_bounds_unicode_text_without_splitting_characters() {
     assert!(result.messages[0].truncated);
     assert!(result.truncated);
 }
+
+#[test]
+fn reports_truncated_failures_even_when_search_text_omits_them() {
+    let mut messages = fold(parse_log_as(AgentSessionId::TEST_A, TURN));
+    messages[1].stop = Some(agent_fold::domain::model::StopReason::Failed {
+        message: " ".repeat(MAX_MESSAGE_CHARS + 1),
+        notice: None,
+    });
+    let result = conversation(uuid::Uuid::nil(), "Session".into(), messages, None);
+    assert_eq!(
+        result.messages[1].failure.as_deref(),
+        Some(" ".repeat(MAX_MESSAGE_CHARS).as_str())
+    );
+    assert!(result.messages[1].truncated);
+    assert!(result.truncated);
+}

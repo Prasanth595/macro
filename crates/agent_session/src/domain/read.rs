@@ -1,4 +1,4 @@
-//! Authorized, bounded conversation reads over the app's session fold.
+//! Authorized conversation reads with bounded responses over the app's session fold.
 
 use agent_fold::domain::{fold::fold, model::FoldedMessage};
 use entity_access::domain::models::{EntityAccessReceipt, EntityType, ViewAccessLevel};
@@ -109,20 +109,23 @@ fn conversation(
         .map(|message| {
             let text = message.searchable_text();
             let content: String = text.chars().take(MAX_MESSAGE_CHARS).collect();
+            let (failure, failure_truncated) = match &message.stop {
+                Some(agent_fold::domain::model::StopReason::Failed { message, .. }) => {
+                    let failure: String = message.chars().take(MAX_MESSAGE_CHARS).collect();
+                    let truncated = failure.len() < message.len();
+                    (Some(failure), truncated)
+                }
+                _ => (None, false),
+            };
             SessionConversationMessage {
                 turn: message.id.0,
                 role: match message.author {
                     agent_fold::domain::model::Author::User { .. } => SessionMessageRole::User,
                     agent_fold::domain::model::Author::Agent => SessionMessageRole::Agent,
                 },
-                truncated: content.len() < text.len(),
+                truncated: content.len() < text.len() || failure_truncated,
                 content,
-                failure: match &message.stop {
-                    Some(agent_fold::domain::model::StopReason::Failed { message, .. }) => {
-                        Some(message.chars().take(MAX_MESSAGE_CHARS).collect())
-                    }
-                    _ => None,
-                },
+                failure,
             }
         })
         .collect();

@@ -52,6 +52,9 @@ consumer talks to.
 
 ## Gotchas
 
+- `ReadAgentSession` bounds its response, not storage work: it folds the full
+  effective history like the app. Raw log limits break replay and turn numbering;
+  bounded reads need a persisted conversation projection or a fold-aware port.
 - The row's fenced log writer and the Cursor projection both lock the
   session row `FOR UPDATE`; never add a second `NOWAIT` locker without
   checking both paths (see git history on `src/domain/control.rs`).
