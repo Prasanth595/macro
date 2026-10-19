@@ -75,12 +75,13 @@ html[data-palette='cream'] .homepage-embedded-window::after {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transition: opacity 180ms ease-out;
+  transition: opacity 180ms ease-out, visibility 0s linear 180ms;
 }
 .homepage-demo-carousel[data-arrows-visible=true] .homepage-demo-arrow {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
+  transition-delay: 0s;
 }
 @media (prefers-reduced-motion: reduce) {
   .homepage-demo-carousel .homepage-demo-arrow { transition: none; }

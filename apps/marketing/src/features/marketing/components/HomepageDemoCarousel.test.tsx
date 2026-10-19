@@ -238,7 +238,7 @@ it('stops cycling when the visitor enters the sample workspace', () => {
   expect(openView).not.toHaveBeenCalled();
 });
 
-it('reveals arrows only once the ready demo reaches the viewing area', () => {
+it('reveals arrows only while the ready demo is centered', () => {
   let reveal: IntersectionObserverCallback | undefined;
   vi.stubGlobal(
     'IntersectionObserver',
@@ -270,5 +270,5 @@ it('reveals arrows only once the ready demo reaches the viewing area', () => {
     [{ isIntersecting: false } as IntersectionObserverEntry],
     {} as IntersectionObserver
   );
-  expect(carousel.getAttribute('data-arrows-visible')).toBe('true');
+  expect(carousel.getAttribute('data-arrows-visible')).toBe('false');
 });

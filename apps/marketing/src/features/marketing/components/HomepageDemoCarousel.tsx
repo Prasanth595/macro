@@ -73,7 +73,7 @@ export function HomepageDemoCarousel(props: {
 }) {
   const [active, setActive] = createSignal(0);
   const [ready, setReady] = createSignal(false);
-  const [arrowsRevealed, setArrowsRevealed] = createSignal(false);
+  const [arrowsInView, setArrowsInView] = createSignal(false);
   const [autoplay, setAutoplay] = createSignal(true);
   let root!: HTMLDivElement;
   let previousArrow!: HTMLButtonElement;
@@ -215,24 +215,21 @@ export function HomepageDemoCarousel(props: {
             { threshold: 0.35 }
           );
     visibility?.observe(root);
-    // Reveal the arrows when their midpoint reaches the useful viewing area.
-    // Keep them available afterwards, including when keyboard users return.
+    // Keep arrows visible only while the demo is centered in the viewport.
     const arrowVisibility =
       typeof IntersectionObserver === 'undefined'
         ? undefined
         : new IntersectionObserver(
             ([entry]) => {
-              if (!entry.isIntersecting) return;
-              setArrowsRevealed(true);
-              arrowVisibility?.disconnect();
+              setArrowsInView(entry.isIntersecting);
             },
             {
-              rootMargin: `-${Math.round(window.innerHeight / 4)}px 0px -${Math.round(window.innerHeight / 4)}px 0px`,
+              rootMargin: `-${Math.round(window.innerHeight * 0.4)}px 0px -${Math.round(window.innerHeight * 0.4)}px 0px`,
               threshold: 0,
             }
           );
     if (arrowVisibility) arrowVisibility.observe(previousArrow);
-    else setArrowsRevealed(true);
+    else setArrowsInView(true);
     onCleanup(() => arrowVisibility?.disconnect());
     const followNavigation = (event: Event) => {
       const target = event.target as Element | null;
@@ -303,7 +300,7 @@ export function HomepageDemoCarousel(props: {
       ref={root}
       class="homepage-demo-carousel"
       data-active-scene={slide().label}
-      data-arrows-visible={ready() && arrowsRevealed()}
+      data-arrows-visible={ready() && arrowsInView()}
       aria-roledescription="carousel"
       role="region"
       aria-label="What you can do with Macro"

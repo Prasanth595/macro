@@ -41,8 +41,8 @@ CRM, 10 for Tasks, and 16 for Agents; 8 for the other views). It runs only while
 on hover or focus, and stops when someone selects a view or uses the embedded workspace.
 Reduced motion disables automatic cycling. The large side arrows use a subtle
 static highlight. They fade in only after the workspace is ready and the
-arrows reach the middle half of the viewport; they stay available afterwards.
-Reduced motion shows them without a fade. The view label and heading follow the selected
+arrows reach the center of the viewport, then fade out when the demo moves
+away. Reduced motion switches visibility without a fade. The view label and heading follow the selected
 Inbox, Chat, Docs, CRM, Tasks, or Agents view. Inbox opens the native Home view. The frame
 blends into the surrounding black or cream page. It embeds the existing
 `/demo?scene=homepage` entry. The Home view keeps
