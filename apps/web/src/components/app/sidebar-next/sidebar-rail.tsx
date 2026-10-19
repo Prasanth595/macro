@@ -65,7 +65,7 @@ const SidebarRailContent = () => {
     <div
       {...hotkeyScopeNeutralAttribute}
       data-ui="sidebar-rail"
-      class="relative flex h-full w-14 shrink-0 flex-col items-center gap-1 overflow-hidden bg-panel px-2 pb-3 pt-2"
+      class="relative flex h-full w-14 shrink-0 flex-col items-center gap-1 overflow-hidden bg-page px-2 pb-3 pt-2"
     >
       <SidebarRailCreateButton />
       <SearchRailButton />

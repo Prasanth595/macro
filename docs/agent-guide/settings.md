@@ -234,6 +234,10 @@ per-mode theme selectors. Light or Dark shows its own theme selector. Each selec
 retains theme search, editing, copying, custom theme creation, and importing
 themes from the clipboard.
 
+The default Macro Dark theme uses a neutral `#0E0E0E` outer background and
+`#121212` inset content panels. The app rail follows the outer background;
+text and accent colors retain their existing palette.
+
 ### Theme mentions
 
 Agent replies can include clickable theme mentions that let users apply a theme

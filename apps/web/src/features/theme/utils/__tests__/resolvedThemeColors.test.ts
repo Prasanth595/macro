@@ -27,7 +27,7 @@ describe('resolved theme colors', () => {
     'uses the %s theme panel assignment for first paint',
     (mode) => {
       const colors = resolveThemeColors({}, mode);
-      expect(colors.panel.l).toBeCloseTo(mode === 'dark' ? 0.17 : 1);
+      expect(colors.panel.l).toBeCloseTo(mode === 'dark' ? 0.1822037 : 1);
       if (mode === 'dark') {
         expect(colors.input).toEqual(colors['surface-2']);
       } else {

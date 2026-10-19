@@ -380,11 +380,11 @@ body.tauri-ios {
   --default-ring-width: var(--app-ring-width);
 
   /* Input tokens: the only raw colors stored by a VNext theme. */
-  --color-surface-0: oklch(0.17 0 0);
-  --color-surface-1: oklch(0.1949 0 0);
-  --color-surface-2: oklch(0.2115 0 0);
-  --color-surface-3: oklch(0.2281 0 0);
-  --color-surface-4: oklch(0.2447 0 0);
+  --color-surface-0: #0e0e0e;
+  --color-surface-1: #121212;
+  --color-surface-2: color-mix(in oklch, var(--color-surface-0) 95%, var(--color-content-0));
+  --color-surface-3: color-mix(in oklch, var(--color-surface-0) 93%, var(--color-content-0));
+  --color-surface-4: color-mix(in oklch, var(--color-surface-0) 91%, var(--color-content-0));
   --color-content-0: oklch(1 0 0);
   --color-content-1: oklch(0.83 0 0);
   --color-content-2: oklch(0.75 0 0);
