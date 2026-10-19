@@ -142,7 +142,7 @@ export function RouteTasks() {
         <FeaturePageSection
           id="ask-macro"
           title={['Let agents', 'handle updates']}
-          description="Tell your agent what needs doing in the conversation where you’re already working. It can create tasks, change an assignment, and check what’s still open for the team."
+          description="Tell your agent what your team needs to get done in the channel your team already talks in. The agent can create tasks, change who’s assigned, and check what tasks are still incomplete."
           details={tasksGuides['ask-macro']}
         >
           <DemoInteractionBoundary class="feature-page-visual">
