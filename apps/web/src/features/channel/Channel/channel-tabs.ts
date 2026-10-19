@@ -8,4 +8,13 @@ export const CHANNEL_TABS = [
 
 export type ChannelTabId = (typeof CHANNEL_TABS)[number]['value'];
 
+export type ChannelInfoTab = Extract<
+  ChannelTabId,
+  'attachments' | 'calls' | 'participants'
+>;
+
+export function isChannelInfoTab(tab: string): tab is ChannelInfoTab {
+  return tab === 'attachments' || tab === 'calls' || tab === 'participants';
+}
+
 export const DEFAULT_CHANNEL_TAB: ChannelTabId = 'messages';

@@ -1132,13 +1132,21 @@ This action does not enable team auto-join. Check opening and reopening,
 switching options, keyboard recipient selection, external email chips,
 cancellation, and focus restoration before sending invites.
 
-Inset tabs sit in the channel header:
-`Messages` / `Attachments` / `Calls` / `Participants`.
-`Ask Macro`, `Invite`, and `Call` actions remain in the header. On narrow desktop
-panes, the tabs collapse from text labels to icons. Standalone mobile channels
-keep view selection in the title menu. In both a single channel and an adjacent
-channel split, the message composer stays fully visible at the bottom. The
-`Calls` tab lists
+On desktop, click the channel avatar/name to expand **Channel details** on the
+right. Its rounded tabs contain `Attachments`, `Calls`, and `Participants`;
+switching them keeps the conversation and any unsent message mounted. The panel
+starts closed, keeps its selected tab when reopened, and closes from the name,
+the close button, or Escape within the panel. Closing from the panel restores
+focus to the name. In wide panes it sits beside the conversation; in narrow
+desktop splits it overlays the right side. Participant controls stack in this
+narrow panel, and the people list remains visible above team settings and bots.
+
+`Ask Macro`, `Invite`, and `Call` actions remain in the header. The
+`Messages` / live `Call` switch appears there only while a call is available;
+on narrow desktop panes it collapses from labels to icons. Mobile channels keep
+their existing view selection in the title menu and full-page views. In both a
+single channel and an adjacent channel split, the message composer stays fully
+visible at the bottom. `Calls` lists
 recordings for that channel
 (same rows as the Calls soup view, filtered to this channel). The live `Call` tab
 appears while a call is in progress. `Ask Macro` opens a new chat pane with the channel
@@ -1149,7 +1157,7 @@ instead.
 In the Chat workspace — and wherever a channel opens inline inside another
 view's detail stack (a channel mention followed from the email view, say) — the
 conversation renders an inline detail whose top bar holds the channel avatar
-and name, the same inset tab strip, and live viewer avatars. The top-right
+and expandable name, any live-call switch, and live viewer avatars. The top-right
 `Invite`, `Call`, and `Ask Macro` actions share the canonical rounded, outlined
 button group. In Chat an ellipsis follows the name and opens the same
 entity actions as right-clicking the conversation's rail row — `Open in new
@@ -1170,13 +1178,14 @@ Leaving from the channel's call controls switches to `Messages` immediately.
 Disconnect and server cleanup continue after that switch; slow or failed RTC
 teardown must not leave the channel showing the join screen.
 
-`Participants` tab keeps people and bots within the available page height, with
-separate scrolling lists and fixed search/invite controls. Team access appears
-between them when available. Search uses the shared
+On desktop, `Participants` in Channel details has a scrollable panel with a
+bounded people list, followed by team access and bots. Mobile keeps its existing
+participant layout. Search uses the shared
 input group; add, invite, and new-bot actions use neutral outline buttons.
 The bots section stays compact with few or no bots. Search by display name,
 email, or role and clear the search to restore the list; scrolling a long member
-list must leave the bots section and participant controls visible.
+list must leave its search and invite controls visible. Scroll the details panel
+to reach team settings and bots.
 
 `Participants` tab:
 - `Copy invite link`, participant search box.

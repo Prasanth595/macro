@@ -23,6 +23,7 @@ import {
   useSplitPanelOrThrow,
   withSplitPanelOwner,
 } from '@components/app/split-layout/layoutUtils';
+import { useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { fireAndForget } from '@core/util/fireAndForget';
 import EmptyStateCallsGraphic from '@design/empty-state-calls.svg';
@@ -59,20 +60,28 @@ type ChannelCallsActivationMetadata = {
   newSplit?: boolean;
 };
 
-export function ChannelCallsTab(props: { channelId: string }) {
+export function ChannelCallsTab(props: {
+  channelId: string;
+  embedded?: boolean;
+}) {
   return (
     <div class="relative flex h-full min-h-0 flex-1 justify-center overflow-hidden p-2 touch:pb-(--mobile-content-inset-bottom)">
       <div class="macro-message-width size-full min-h-0">
         <ListEntityMetadataQueryProvider>
-          <ChannelCallsList channelId={props.channelId} />
+          <ChannelCallsList
+            channelId={props.channelId}
+            embedded={props.embedded}
+          />
         </ListEntityMetadataQueryProvider>
       </div>
     </div>
   );
 }
 
-function ChannelCallsList(props: { channelId: string }) {
+function ChannelCallsList(props: { channelId: string; embedded?: boolean }) {
   const panel = useSplitPanelOrThrow();
+  const [attachHotkeys, localScope] = useHotkeyDOMScope('channel-call-history');
+  const hotkeyScope = props.embedded ? localScope : panel.splitHotkeyScope;
   const forceEmptyState = useDebugSetting(
     DEBUG_SETTING_KEYS.FORCE_EMPTY_STATES
   );
@@ -140,7 +149,7 @@ function ChannelCallsList(props: { channelId: string }) {
 
   withSplitPanelOwner(listOwnedSlotName('navigation-hotkeys'), () => {
     useSoupListNavigationHotkeys({
-      splitHotkeyScope: panel.splitHotkeyScope,
+      splitHotkeyScope: hotkeyScope,
       viewId: 'calls',
       dataSource: source,
       controller: list,
@@ -187,7 +196,7 @@ function ChannelCallsList(props: { channelId: string }) {
 
   useListInteractions({
     controller: list,
-    scopeId: panel.splitHotkeyScope,
+    scopeId: hotkeyScope,
     enabled: panel.isPanelActive,
     scrollHandle: virtualizer,
     navigation: {
@@ -207,7 +216,7 @@ function ChannelCallsList(props: { channelId: string }) {
   });
 
   useEntityActionHotkeys({
-    scopeId: panel.splitHotkeyScope,
+    scopeId: hotkeyScope,
     list: actionState,
     selectedEntities,
     focusedEntity: () => {
@@ -247,7 +256,10 @@ function ChannelCallsList(props: { channelId: string }) {
 
   return (
     <MaybeSoupEntityActionDrawerManager>
-      <div class="flex size-full min-h-0 min-w-0 flex-col">
+      <div
+        ref={props.embedded ? attachHotkeys : undefined}
+        class="flex size-full min-h-0 min-w-0 flex-col"
+      >
         <div class="shrink-0 pb-2">
           <SearchBar
             label="Search calls"

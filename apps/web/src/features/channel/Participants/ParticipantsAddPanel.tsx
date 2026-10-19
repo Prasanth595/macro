@@ -6,12 +6,13 @@ import {
 } from '@core/user';
 import { getDestinationFromOptions } from '@core/util/destination';
 import type { ChannelParticipant } from '@queries/channel/types';
-import { Button, inputClasses } from '@ui';
+import { Button, cn, inputClasses } from '@ui';
 import { type Accessor, createSignal } from 'solid-js';
 
 export function ParticipantsAddPanel(props: {
   participants: Accessor<ChannelParticipant[]>;
   onAddParticipants: (participantIds: string[]) => void;
+  compact?: boolean;
 }) {
   const contacts = useContacts();
   const [selectedUsers, setSelectedUsers] = createSignal<
@@ -37,7 +38,12 @@ export function ParticipantsAddPanel(props: {
   };
 
   return (
-    <div class="flex flex-col gap-2 md:flex-row md:items-center">
+    <div
+      class={cn(
+        'flex flex-col gap-2',
+        !props.compact && 'md:flex-row md:items-center'
+      )}
+    >
       <div class="min-w-0 flex-1">
         <RecipientSelector<'user'>
           setSelectedOptions={setSelectedUsers}

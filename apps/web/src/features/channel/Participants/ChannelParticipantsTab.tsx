@@ -30,6 +30,7 @@ export function ChannelParticipantsTab(props: {
   inviteBotFocusRequest: number;
   onCreateBot: () => void;
   onOpenBot: (botId: string) => void;
+  compact?: boolean;
 }) {
   const { openWithSplit } = useSplitLayout();
   const userId = useUserId();
@@ -172,6 +173,45 @@ export function ChannelParticipantsTab(props: {
     />
   );
 
+  const participantList = () => (
+    <ParticipantsList
+      participants={filteredParticipants}
+      searchQuery={searchQuery}
+      currentUserId={userId() ?? undefined}
+      editable={isEditable()}
+      onParticipantClick={openDirectMessage}
+      onRemoveParticipant={removeParticipant}
+    />
+  );
+
+  if (props.compact && !isTouchDevice()) {
+    return (
+      <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
+        <div class="flex flex-col gap-3">
+          <Show when={channelType() === ChannelType.private}>
+            <div class="flex justify-end">
+              <ChannelJoinLinkButton channelId={props.channelId} />
+            </div>
+          </Show>
+          <Show when={isEditable()}>
+            <ParticipantsAddPanel
+              compact
+              participants={participants}
+              onAddParticipants={addParticipants}
+            />
+          </Show>
+          <ParticipantsSearchInput
+            value={searchQuery()}
+            onInput={setSearchQuery}
+          />
+          <div class="relative h-64 shrink-0">{participantList()}</div>
+          {teamSettings()}
+          <Show when={props.botManagementEnabled}>{bots()}</Show>
+        </div>
+      </div>
+    );
+  }
+
   // The mobile bottom chrome (dock + accessory regions) floats over the
   // layout, so the panel stack has to end above it for the participants list
   // to scroll clear of it.
@@ -208,16 +248,7 @@ export function ChannelParticipantsTab(props: {
               <Panel.Body>
                 <div class="flex h-full flex-col">
                   {teamSettings()}
-                  <div class="relative min-h-0 flex-1">
-                    <ParticipantsList
-                      participants={filteredParticipants}
-                      searchQuery={searchQuery}
-                      currentUserId={userId() ?? undefined}
-                      editable={isEditable()}
-                      onParticipantClick={openDirectMessage}
-                      onRemoveParticipant={removeParticipant}
-                    />
-                  </div>
+                  <div class="relative min-h-0 flex-1">{participantList()}</div>
                 </div>
               </Panel.Body>
             </Panel>
@@ -233,16 +264,7 @@ export function ChannelParticipantsTab(props: {
             onInput={setSearchQuery}
           />
         )}
-        list={() => (
-          <ParticipantsList
-            participants={filteredParticipants}
-            searchQuery={searchQuery}
-            currentUserId={userId() ?? undefined}
-            editable={isEditable()}
-            onParticipantClick={openDirectMessage}
-            onRemoveParticipant={removeParticipant}
-          />
-        )}
+        list={participantList}
         inviteLink={
           channelType() === ChannelType.private
             ? () => (
