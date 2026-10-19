@@ -69,8 +69,8 @@ const tasksFaq = [
     q: 'Can I get started for free?',
     a: (
       <>
-        Yes. Start with a free personal account. See{' '}
-        <a href="/pricing">pricing</a> for company plans and current limits.
+        Yes. See <a href="/pricing">pricing</a> for company plans and current
+        limits.
       </>
     ),
   },

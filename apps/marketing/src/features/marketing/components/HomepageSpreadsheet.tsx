@@ -658,28 +658,6 @@ export default function HomepageSpreadsheet() {
           </div>
         </section>
       </div>
-      <div class="pointer-events-none absolute bottom-0 left-2 z-10 text-ink-muted sm:left-6">
-        <span class="sr-only">Interactive demo — try editing a cell.</span>
-        <svg
-          class="h-[160px] w-[200px] -rotate-6"
-          viewBox="0 0 200 165"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          {/* Hand-lettered so the marker note stays consistent without a font download. */}
-          <path d="M59 112C8 99 8 47 38 7M22 13C28 12 33 9 38 7C38 14 39 19 41 24" />
-          <g transform="translate(0 40)">
-            <path d="M70 70C84 68 98 67 108 69M91 69L87 102" />
-            <path d="M107 81L104 101M106 88C113 76 120 77 123 80" />
-            <path d="M127 80C124 89 125 94 130 94C137 94 141 82 143 78M143 78C137 101 135 115 123 116C116 116 116 111 121 108" />
-            <path d="M163 85L160 103M165 75L165 76M181 75L174 98Q174 105 182 100M167 85L186 83" />
-          </g>
-        </svg>
-      </div>
     </div>
   );
 }
