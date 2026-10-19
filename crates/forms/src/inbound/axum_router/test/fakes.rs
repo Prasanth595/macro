@@ -244,6 +244,7 @@ pub(super) fn form() -> Form {
         confirmation_message: "".into(),
         created_at: at,
         updated_at: at,
+        is_hidden_in_drive: false,
     }
 }
 
@@ -287,7 +288,7 @@ impl FormsService for RecordingForms {
         command: CreateFormCommand,
     ) -> Result<FormDetail, FormError> {
         let entity_id = match &command.source {
-            crate::domain::ports::CreateSource::NewDatabase => String::new(),
+            crate::domain::ports::CreateSource::NewDatabase { .. } => String::new(),
             crate::domain::ports::CreateSource::Table { receipt, .. } => {
                 receipt.entity().entity_id.clone()
             }
