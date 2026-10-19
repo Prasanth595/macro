@@ -582,7 +582,7 @@ it.each([undefined, 'Describe what you want to build'])(
   }
 );
 
-it('expands Home controls on focus without replacing the editor or model picker', () => {
+it('expands mobile controls on focus without replacing the editor or model picker', () => {
   vi.mocked(isTouchDevice).mockReturnValue(true);
   const { container } = render(() => (
     <ChatComposer
@@ -592,7 +592,6 @@ it('expands Home controls on focus without replacing the editor or model picker'
       onSend={() => {}}
       onAttachFiles={() => {}}
       selector={<button>Model</button>}
-      corner={<button>Chat / Code</button>}
       drawer={<button>Repository</button>}
       drawerOpen
     />

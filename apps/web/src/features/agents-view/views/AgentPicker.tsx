@@ -7,7 +7,7 @@ import CaretRightIcon from '@phosphor/caret-right.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import { buttonClasses, cn, Dropdown } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
-import { createSignal, For, type JSX, Show } from 'solid-js';
+import { createSignal, For, Show } from 'solid-js';
 import { AgentModelMenuItem } from '../../block-agent/component/AgentModelMenuItem';
 import type {
   EffortChoice,
@@ -31,7 +31,6 @@ export type AgentPickerProps = {
   /** Configuration forms also show the saved model name on mobile. */
   showModelLabel?: boolean;
   effortLabel?: string;
-  menuHeader?: JSX.Element;
   effortSelection?: EffortSelection;
   onSelect: (agent: RosterAgent, model?: string) => void;
   /** Supply only when the host can persist and apply effort selections. */
@@ -131,7 +130,6 @@ function DesktopAgentPicker(props: AgentPickerProps) {
         onMouseDown={(event: MouseEvent) => event.stopPropagation()}
       >
         <div class="flex min-h-0 max-h-[min(28rem,var(--kb-popper-content-available-height))] flex-col">
-          <Show when={!macro()}>{props.menuHeader}</Show>
           <div
             class="min-h-0 space-y-1 overflow-y-auto overscroll-contain px-2 pb-2"
             classList={{ 'pt-2': !macro() }}
@@ -139,7 +137,6 @@ function DesktopAgentPicker(props: AgentPickerProps) {
             <Show when={macro()}>
               {(agent) => (
                 <ModelCatalogMenu
-                  menuHeader={props.menuHeader}
                   autoFocusSearch
                   value={
                     props.selected?.id === agent().id ? (model() ?? null) : null

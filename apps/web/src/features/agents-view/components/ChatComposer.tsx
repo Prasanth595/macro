@@ -23,7 +23,7 @@ import { $insertReferencedPaste } from '@macro-inc/lexical-core';
 import PlusIcon from '@phosphor/plus.svg';
 import { makeEventListener } from '@solid-primitives/event-listener';
 import { createResizeObserver } from '@solid-primitives/resize-observer';
-import { Button, ComposerSurface, cn, SendButton } from '@ui';
+import { Button, ComposerSurface, SendButton } from '@ui';
 import {
   createEffect,
   createSignal,
@@ -52,8 +52,6 @@ export function ChatComposer(props: {
   attachments?: InputAttachmentData[];
   onAttachFiles?: (files: File[]) => void;
   onRemoveAttachment?: (attachment: InputAttachmentData) => void;
-  /** Sits beside the text on desktop and in the controls row on phones. */
-  corner?: JSX.Element;
   drawer?: JSX.Element;
   drawerOpen?: boolean;
   placeholder?: string;
@@ -106,8 +104,6 @@ export function ChatComposer(props: {
     !focused() &&
     !props.controlsOpen;
   const drawerOpen = () => props.drawerOpen && !collapsed();
-  // The collapsed phone pill is one fixed-height row with no room for it.
-  const hasCorner = () => !!props.corner && !collapsed();
   useTouchOutsideToDismissKeyboard(() => container);
   const disabled = () => !!props.blockedReason || props.session?.disabled;
   const canSendNext = () =>
@@ -242,12 +238,7 @@ export function ChatComposer(props: {
         'max-h-6 overflow-hidden': !!collapsed(),
         'max-h-[min(15rem,30dvh)]': !collapsed(),
       }}
-      class={cn(
-        'min-w-0 flex-1 self-center overflow-y-auto px-[9.375px] group-data-[composer-compact=true]/composer:px-0 group-data-[composer-coding=true]/composer:min-h-[58px] touch:group-data-[composer-compact=false]/composer:min-h-18',
-        hasCorner() && !isTouchDevice()
-          ? 'self-start'
-          : 'group-data-[composer-compact=false]/composer:flex-none group-data-[composer-compact=false]/composer:basis-full'
-      )}
+      class="min-w-0 flex-1 self-center overflow-y-auto px-[9.375px] group-data-[composer-compact=true]/composer:px-0 group-data-[composer-coding=true]/composer:min-h-[58px] touch:group-data-[composer-compact=false]/composer:min-h-18 group-data-[composer-compact=false]/composer:flex-none group-data-[composer-compact=false]/composer:basis-full"
     >
       <MarkdownShell
         class="h-auto min-h-6 text-base leading-6 [&_[data-markdown-editable]]:min-h-6 [&_[data-markdown-editable]]:outline-none [&_[data-markdown-editable]>.md-p]:my-0 [&_[data-markdown-placeholder]]:max-w-full [&_[data-markdown-placeholder]>p]:m-0 [&_[data-markdown-placeholder]>p]:truncate"
@@ -366,9 +357,7 @@ export function ChatComposer(props: {
                   7.5px padding + half the button/line-height difference. */}
               <div
                 ref={setLayout}
-                data-composer-compact={
-                  !drawerOpen() && !hasCorner() && isCompact()
-                }
+                data-composer-compact={!drawerOpen() && isCompact()}
                 data-composer-coding={drawerOpen() || undefined}
                 data-composer-collapsed={collapsed() || undefined}
                 class="group/composer flex min-w-0 data-[composer-compact=false]:flex-wrap items-end gap-2 p-[7.5px] pl-3 data-[composer-compact=false]:pb-2.5 data-[composer-compact=false]:px-3 data-[composer-compact=false]:pt-[calc(7.5px_+_(33.75px_-_1.5rem)/2)] data-[composer-collapsed=true]:h-(--mobile-chrome-button-size) data-[composer-collapsed=true]:items-center data-[composer-collapsed=true]:py-0 data-[composer-collapsed=true]:pl-3.5 data-[composer-collapsed=true]:pr-[9.5px]"
@@ -387,25 +376,7 @@ export function ChatComposer(props: {
                     </Input.AttachFilesAction>
                   </div>
                 </Show>
-                <Show when={props.corner} fallback={editorRow()}>
-                  {(corner) => (
-                    <div
-                      class={
-                        hasCorner()
-                          ? 'flex min-w-0 basis-full items-start gap-2 touch:contents'
-                          : 'contents'
-                      }
-                    >
-                      {editorRow()}
-                      <div
-                        class="shrink-0 touch:order-1"
-                        classList={{ hidden: !hasCorner() }}
-                      >
-                        {corner()}
-                      </div>
-                    </div>
-                  )}
-                </Show>
+                {editorRow()}
                 <div
                   data-composer-controls
                   class="order-2 flex min-w-0 max-w-[55%] group-data-[composer-compact=false]/composer:max-w-none group-data-[composer-compact=false]/composer:flex-1 shrink-0 items-center gap-2"

@@ -177,7 +177,6 @@ export function MobileAgentPicker(props: AgentPickerProps) {
               class="h-full min-w-0 w-full border-0 bg-transparent p-0 text-base outline-none placeholder:text-ink-extra-muted"
             />
           </div>
-          {props.menuHeader}
           <MobileDrawer.ScrollBody class="gap-1">
             <Show when={browsing() ?? macro()}>
               <For each={modelSections()}>

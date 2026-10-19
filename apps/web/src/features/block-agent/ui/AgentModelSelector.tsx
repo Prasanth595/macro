@@ -44,14 +44,7 @@ import SquaresFour from '@phosphor/squares-four.svg';
 import CaretDown from '@phosphor-icons/core/regular/caret-down.svg?component-solid';
 import type { ModelOption } from '@service-agent-fold/generated/types';
 import { Button, cn, Dropdown } from '@ui';
-import {
-  type Component,
-  createMemo,
-  createSignal,
-  For,
-  type JSX,
-  Show,
-} from 'solid-js';
+import { type Component, createMemo, createSignal, For, Show } from 'solid-js';
 import { withoutRedundantGroups } from './model-groups';
 
 /** Compact ghost pill — same size as the short-list trigger and chat's selector. */
@@ -87,7 +80,6 @@ export interface AgentModelSelectorProps {
   options: ModelOption[];
   disabled?: boolean;
   effortLabel?: string;
-  menuHeader?: JSX.Element;
   modelRow?: Component<ModelRowProps>;
   /** Receives the id of the model to switch to. */
   onSelect: (model: string) => void;
@@ -210,7 +202,6 @@ export function AgentModelSelector(props: AgentModelSelectorProps) {
               class="h-full min-w-0 w-full border-0 bg-transparent p-0 text-base outline-none placeholder:text-ink-extra-muted"
             />
           </div>
-          {props.menuHeader}
           <MobileDrawer.ScrollBody class="gap-1">
             <Show when={groups().length === 0}>
               <div role="status" class="px-4 py-3 text-sm text-ink-muted">
@@ -294,7 +285,6 @@ export function AgentModelSelector(props: AgentModelSelectorProps) {
         <CaretDown class="shrink-0" />
       </Dropdown.Trigger>
       <Dropdown.Content class="w-60 max-w-[calc(100vw-1rem)] overflow-hidden">
-        {props.menuHeader}
         {/* The gradients anchor here, outside the scrolling box, and read
             the menu background through `--color-surface`. */}
         <div class="relative [--color-surface:var(--color-menu)]">
@@ -334,7 +324,6 @@ export function AgentModelSelector(props: AgentModelSelectorProps) {
       <Show when={!isTouchDevice()} fallback={sheet}>
         <Show when={useCatalog() || props.modelRow} fallback={shortList}>
           <ModelCatalogPicker
-            menuHeader={props.menuHeader}
             value={shown()}
             options={catalogOptions()}
             onSelect={pick}

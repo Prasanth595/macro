@@ -33,7 +33,6 @@ type ModelCatalogPickerProps = {
   pending?: boolean;
   triggerLabel?: JSX.Element;
   children?: JSX.Element;
-  menuHeader?: JSX.Element;
   emptyMessage?: string;
   triggerClass?: string;
   contentClass?: string;
@@ -223,7 +222,6 @@ export function ModelCatalogPicker(props: ModelCatalogPickerProps) {
         }}
       >
         <ModelCatalogMenu
-          menuHeader={props.menuHeader}
           value={props.value}
           options={props.options}
           disabled={props.disabled || props.pending}
@@ -258,7 +256,6 @@ export function ModelCatalogMenu(
     | 'emptyMessage'
     | 'searchPlaceholder'
     | 'children'
-    | 'menuHeader'
   > & {
     searchRef?: (element: HTMLInputElement) => void;
     /**
@@ -315,7 +312,6 @@ export function ModelCatalogMenu(
             class="min-w-0 h-full w-full border-0 bg-transparent p-0 text-sm text-ink outline-none placeholder:text-ink-extra-muted"
           />
         </div>
-        {props.menuHeader}
       </div>
 
       {props.children}

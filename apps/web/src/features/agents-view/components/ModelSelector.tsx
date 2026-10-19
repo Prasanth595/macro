@@ -29,13 +29,11 @@ export function ModelSelector(props: {
   onSelect: (id: string) => void;
   onCloseAutoFocus?: (event: Event) => void;
   children?: JSX.Element;
-  menuHeader?: JSX.Element;
   emptyMessage?: string;
 }) {
   return (
     <ModelCatalogPicker
       onCloseAutoFocus={props.onCloseAutoFocus}
-      menuHeader={props.menuHeader}
       value={props.model ?? null}
       options={props.options.map((option) => ({
         id: option.id,
@@ -68,7 +66,6 @@ export function SessionModelSelector(props: AgentModelSelectorProps) {
     <Show when={!isTouchDevice()} fallback={<AgentModelSelector {...props} />}>
       <ModelSelector
         onCloseAutoFocus={props.onCloseAutoFocus}
-        menuHeader={props.menuHeader}
         model={shown()}
         label={[
           modelLabel(

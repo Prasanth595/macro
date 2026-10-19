@@ -1,4 +1,10 @@
-import { type Accessor, createEffect, createSignal, onCleanup } from 'solid-js';
+import {
+  type Accessor,
+  createEffect,
+  createSignal,
+  on,
+  onCleanup,
+} from 'solid-js';
 
 const TIPS = [
   'Connect your apps in Agents → Connections',
@@ -22,34 +28,36 @@ export function createChatComposerTip(
   let delay = 300;
 
   // A timer is external state: start and stop it with the visible empty input.
-  createEffect(() => {
-    if (!empty()) return;
-    let timer: ReturnType<typeof setTimeout>;
-    const schedule = (nextDelay: number) => {
-      delay = nextDelay;
-      timer = setTimeout(advance, delay);
-    };
-    const advance = () => {
-      const tip = tips[index];
-      if (deleting) {
-        length = Math.max(0, length - 2);
-        setText(tip.slice(0, length));
-        if (length === 0) {
-          index = (index + 1) % tips.length;
-          deleting = false;
-          schedule(300);
-        } else schedule(12);
-      } else {
-        length += 1;
-        setText(tip.slice(0, length));
-        if (length === tip.length) {
-          deleting = true;
-          schedule(2200);
-        } else schedule(32);
-      }
-    };
-    schedule(delay);
-    onCleanup(() => clearTimeout(timer));
-  });
+  createEffect(
+    on(empty, (isEmpty) => {
+      if (!isEmpty) return;
+      let timer: ReturnType<typeof setTimeout>;
+      const schedule = (nextDelay: number) => {
+        delay = nextDelay;
+        timer = setTimeout(advance, delay);
+      };
+      const advance = () => {
+        const tip = tips[index];
+        if (deleting) {
+          length = Math.max(0, length - 2);
+          setText(tip.slice(0, length));
+          if (length === 0) {
+            index = (index + 1) % tips.length;
+            deleting = false;
+            schedule(300);
+          } else schedule(12);
+        } else {
+          length += 1;
+          setText(tip.slice(0, length));
+          if (length === tip.length) {
+            deleting = true;
+            schedule(2200);
+          } else schedule(32);
+        }
+      };
+      schedule(delay);
+      onCleanup(() => clearTimeout(timer));
+    })
+  );
   return text;
 }
