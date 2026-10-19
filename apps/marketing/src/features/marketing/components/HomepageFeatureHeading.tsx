@@ -8,14 +8,16 @@ export function HomepageFeatureHeading(props: {
 }) {
   return (
     <header class="homepage-feature-heading homepage-enter workspace-demo">
-      <div class="homepage-feature-title">
-        {props.children}
-        <h2 id={props.id}>{props.title}</h2>
+      <div class="homepage-feature-heading-row">
+        <span class="homepage-heading-rule" aria-hidden="true" />
+        <div class="homepage-feature-title">
+          {props.children}
+          <h2 id={props.id}>{props.title}</h2>
+        </div>
+        <span class="homepage-heading-rule" aria-hidden="true" />
       </div>
       <div class="homepage-section-break">
-        <span aria-hidden="true" />
         <p>{props.description}</p>
-        <span aria-hidden="true" />
       </div>
     </header>
   );

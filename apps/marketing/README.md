@@ -738,3 +738,5 @@ recording navigation, transcript seeking, and phone layout. CRM linking remains
 on the CRM page; this scene demonstrates channel-call team sharing only.
 
 Sample email addresses in website demos use `coparse.com`, Macro’s former domain.
+
+Homepage feature dividers align with the heading, above the description. The document animation renders saved scheduling links as calendar mentions with a short label, matching Macro’s booking link presentation.
