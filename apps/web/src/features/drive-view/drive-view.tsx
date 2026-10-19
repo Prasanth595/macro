@@ -1,4 +1,6 @@
 import { listOwnedSlotName } from '@app/components/list';
+import { ViewBreadcrumbs, ViewShell } from '@app/components/view-shell';
+import { SplitRouter } from '@app/lib/split-router';
 import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
 import {
   type FacetSelection,
@@ -11,6 +13,8 @@ import {
   useSplitPanelOrThrow,
   withSplitPanelOwner,
 } from '@components/app/split-layout/layoutUtils';
+import { SplitPanel } from '@components/app/split-panel';
+import { LoadingBlock } from '@core/component/LoadingBlock';
 import { toast } from '@core/component/Toast/Toast';
 import { enableDatabases, enableForms } from '@core/constant/featureFlags';
 import { useUserId } from '@core/context/user';
@@ -23,6 +27,7 @@ import {
   on,
   onCleanup,
   onMount,
+  Show,
   Suspense,
 } from 'solid-js';
 import { DriveProvider } from './context/drive-context';
@@ -188,6 +193,40 @@ function DriveComposition(props: { route: DriveRouteState }) {
     >
       <DriveWorkspace tour={<ViewTour tour={documentsTour} />} />
     </DriveProvider>
+  );
+}
+
+/** Public details use the same viewer without constructing private Drive sources. */
+export function SignedOutDriveView() {
+  const route = createDriveRouteState(() => undefined);
+  return (
+    <DriveDetailNavigationProvider location={route.location}>
+      <SignedOutDriveWorkspace />
+    </DriveDetailNavigationProvider>
+  );
+}
+
+function SignedOutDriveWorkspace() {
+  const navigation = useDriveDetailNavigation();
+  return (
+    <ViewBreadcrumbs.Root
+      value={navigation.active()?.value}
+      onChange={navigation.popTo}
+    >
+      <SplitPanel.Root>
+        <SplitPanel.Body>
+          <ViewShell.Root>
+            <ViewShell.Main>
+              <Show when={navigation.active()} fallback={<LoadingBlock />}>
+                <Suspense fallback={<DriveLoading />}>
+                  <SplitRouter.Outlet />
+                </Suspense>
+              </Show>
+            </ViewShell.Main>
+          </ViewShell.Root>
+        </SplitPanel.Body>
+      </SplitPanel.Root>
+    </ViewBreadcrumbs.Root>
   );
 }
 

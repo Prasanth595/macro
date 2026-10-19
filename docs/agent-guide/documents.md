@@ -4,6 +4,12 @@ The document header has separate Share, Copy Share Link, and Side Panel buttons.
 They are borderless with a soft rounded background on hover. Share opens the
 sharing dialog; copying a link is a separate action.
 
+Verify **Public → View** links in a fresh signed-out browser context. The
+`/app/drive/md/<id>` route (including folder/tab document links and legacy
+`/app/md/<id>` redirects) must show the document without private Drive lists or
+folder navigation, on desktop and touch devices. The login banner may remain;
+it must not replace the public document. Private files still prompt for sign-in.
+
 Opening a private file link while signed in shows **You don't have access to
 this file**, the signed-in email, and **Request access**. View is selected by
 default; choose View, Comment, or Edit where supported, submit, then verify
