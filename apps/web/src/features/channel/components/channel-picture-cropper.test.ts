@@ -18,6 +18,13 @@ const cropper = vi.hoisted(() => ({
   destroy: vi.fn(),
   finished: vi.fn(),
   construct: vi.fn(),
+  exportFullCanvas: vi.fn(),
+  resetSelection: vi.fn(),
+  resize: vi.fn(),
+  move: vi.fn(),
+  selectionBounds: { x: 100, y: 100, width: 400, height: 400 },
+  changeSelection:
+    vi.fn<(bounds: { width: number; height: number }) => boolean>(),
   zoom: vi.fn(),
   transform: vi.fn<(matrix: number[]) => void>(),
   matrix: [1, 0, 0, 1, 0, 0],
@@ -34,8 +41,14 @@ vi.mock('cropperjs', () => ({
         width: 400,
         height: 400,
       }),
-      $toCanvas: cropper.exportCanvas,
+      $toCanvas: cropper.exportFullCanvas,
     };
+    selection = Object.assign(new EventTarget(), {
+      $toCanvas: cropper.exportCanvas,
+      $reset: cropper.resetSelection,
+      $resize: cropper.resize,
+      getBoundingClientRect: () => cropper.selectionBounds,
+    });
     image = Object.assign(new EventTarget(), {
       $image: document.createElement('img'),
       $ready: cropper.ready,
@@ -59,8 +72,18 @@ vi.mock('cropperjs', () => ({
         ]);
       },
       $center: () => cropper.transform([1, 0, 0, 1, 0, 0]),
+      $move: cropper.move,
     });
-    constructor(image: HTMLImageElement) {
+    constructor(
+      image: HTMLImageElement,
+      options: { container: HTMLElement; template: string }
+    ) {
+      options.container.innerHTML = options.template;
+      cropper.changeSelection.mockImplementation((detail) =>
+        this.selection.dispatchEvent(
+          new CustomEvent('change', { detail, cancelable: true })
+        )
+      );
       cropper.construct(image);
       Object.defineProperties(this.image.$image, {
         naturalWidth: { value: 800 },
@@ -76,6 +99,9 @@ vi.mock('cropperjs', () => ({
     }
     getCropperImage() {
       return this.image;
+    }
+    getCropperSelection() {
+      return this.selection;
     }
     destroy = cropper.destroy;
   },
@@ -97,6 +123,7 @@ vi.mock('@core/component/Toast/Toast', () => ({ toast: { failure: vi.fn() } }));
 beforeEach(() => {
   vi.clearAllMocks();
   cropper.matrix = [1, 0, 0, 1, 0, 0];
+  cropper.selectionBounds = { x: 100, y: 100, width: 400, height: 400 };
   cropper.ready.mockResolvedValue(document.createElement('img'));
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
 });
@@ -134,6 +161,61 @@ describe('channel picture crop lifecycle', () => {
     expect(cropper.zoom).toHaveBeenLastCalledWith(-0.1, 440, 240);
     fireEvent.click(screen.getByRole('button', { name: 'Reset crop' }));
     await screen.findByText('100%');
+    expect(cropper.resetSelection).toHaveBeenCalledOnce();
+  });
+
+  it('supports keyboard resizing from each corner without moving the image', async () => {
+    const [disabled, setDisabled] = createSignal(false);
+    render(() =>
+      createComponent(ChannelPictureCropper, {
+        channelId: 'design',
+        source: new File(['image'], 'team.png', { type: 'image/png' }),
+        get disabled() {
+          return disabled();
+        },
+        onApply: vi.fn(),
+        onCancel: vi.fn(),
+      })
+    );
+    await screen.findByRole('button', { name: 'Apply crop' });
+    const corners = ['top left', 'top right', 'bottom left', 'bottom right'];
+    const actions = ['nw-resize', 'ne-resize', 'sw-resize', 'se-resize'];
+    for (const [index, corner] of corners.entries()) {
+      const handle = screen.getByRole('button', {
+        name: `Resize crop from ${corner}`,
+      });
+      handle.focus();
+      fireEvent.keyDown(handle, { key: 'ArrowLeft' });
+      expect(cropper.resize).toHaveBeenLastCalledWith(actions[index], -10, 0);
+    }
+    expect(cropper.move).not.toHaveBeenCalled();
+    cropper.selectionBounds = { x: 120, y: 130, width: 200, height: 200 };
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    expect(cropper.zoom).toHaveBeenLastCalledWith(0.1, 360, 170);
+    setDisabled(true);
+    const handle = screen.getByRole('button', {
+      name: 'Resize crop from bottom right',
+    });
+    expect(handle.getAttribute('aria-disabled')).toBe('true');
+    expect(handle.tabIndex).toBe(-1);
+    fireEvent.keyDown(handle, { key: 'ArrowRight' });
+    expect(cropper.resize).toHaveBeenCalledTimes(4);
+  });
+
+  it('rejects crops too small for the corner handles', async () => {
+    render(() =>
+      createComponent(ChannelPictureCropper, {
+        channelId: 'design',
+        source: new File(['image'], 'team.png', { type: 'image/png' }),
+        disabled: false,
+        onApply: vi.fn(),
+        onCancel: vi.fn(),
+      })
+    );
+    await screen.findByRole('button', { name: 'Apply crop' });
+    expect(cropper.changeSelection({ width: 95, height: 95 })).toBe(false);
+    expect(cropper.changeSelection({ width: 200, height: 95 })).toBe(false);
+    expect(cropper.changeSelection({ width: 96, height: 96 })).toBe(true);
   });
 
   it('loads a saved image with CORS and exports a PNG draft', async () => {
@@ -204,6 +286,7 @@ describe('channel picture crop lifecycle', () => {
       width: 1024,
       height: 1024,
     });
+    expect(cropper.exportFullCanvas).not.toHaveBeenCalled();
     expect(apply).toHaveBeenCalledOnce();
     const file: File = apply.mock.calls[0][0];
     expect(file.name).toBe('team.photo.png');

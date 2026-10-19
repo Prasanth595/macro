@@ -1260,11 +1260,13 @@ re-cropping while the editor stays open; canceling a replacement does not replac
 that source.
 
 The circular crop guide darkens the area outside it and reveals alignment guides
-on hover or focus. Drag to reposition or use the arrow keys to move. Zoom controls
-sit below the crop workspace, with the current percentage on the left and Reset
-followed by the minus/plus buttons on the right. The initial fit and Reset are 100%.
+on hover or focus. Drag the image to reposition it or use the arrow keys in the
+crop workspace. Drag any corner handle to resize the square crop; when a handle
+is focused, arrow keys resize that corner. Zoom controls sit below the workspace,
+with the current percentage on the left and Reset followed by the minus/plus
+buttons on the right. Reset restores the full crop and the initial 100% image fit.
 Scroll-wheel zoom anchors to the cursor; the minus/plus buttons anchor to the
-center of the crop area, even after panning.
+center of the selected crop, even after resizing or panning.
 `Apply crop` adds the square PNG to the local draft and returns to details.
 `Back` or Escape returns without applying a pending
 crop. Clearing an image or selecting a GIF updates only the draft. The cropper

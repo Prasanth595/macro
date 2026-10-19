@@ -38,13 +38,16 @@ export default function ChannelPictureCropper(props: {
     cropper?.destroy();
   });
   createEffect(
-    on(
-      () => props.disabled || exporting(),
-      (value) => {
-        const canvas = cropper?.getCropperCanvas();
-        if (canvas) canvas.disabled = value;
-      }
-    )
+    on(disabled, (value) => {
+      const canvas = cropper?.getCropperCanvas();
+      if (canvas) canvas.disabled = value;
+      container
+        .querySelectorAll<HTMLElement>('cropper-handle[role="button"]')
+        .forEach((handle) => {
+          handle.tabIndex = value ? -1 : 0;
+          handle.setAttribute('aria-disabled', String(value));
+        });
+    })
   );
 
   onMount(() => {
@@ -60,11 +63,37 @@ export default function ChannelPictureCropper(props: {
         <cropper-canvas style="width: 100%; height: 100%;">
           <cropper-image initial-fit="cover" min-fit="cover" max-inset="0" scalable translatable></cropper-image>
           <cropper-handle action="move" plain></cropper-handle>
+          <cropper-selection initial-coverage="1" aspect-ratio="1" min-inset="0" resizable precise>
+            <cropper-handle action="move" plain></cropper-handle>
+            <div aria-hidden="true" class="pointer-events-none absolute inset-0 rounded-full border-2 border-accent/80 shadow-[0_0_0_999px_rgb(from_var(--color-modal-overlay)_r_g_b_/_75%)]">
+              <div class="absolute inset-0 overflow-hidden rounded-full opacity-0 transition-opacity not-touch:group-hover/crop:opacity-100 group-focus-within/crop:opacity-100">
+                <div class="absolute inset-y-0 left-1/3 w-1/3 border-x border-accent/40"></div>
+                <div class="absolute inset-x-0 top-1/3 h-1/3 border-y border-accent/40"></div>
+              </div>
+            </div>
+            <cropper-handle action="nw-resize" role="button" aria-label="Resize crop from top left" theme-color="var(--color-accent)" class="top-0 left-0 size-8 rounded-sm after:size-3 after:rounded-sm after:border-2 after:border-surface focus-visible:outline-2 focus-visible:outline-accent touch:size-11"></cropper-handle>
+            <cropper-handle action="ne-resize" role="button" aria-label="Resize crop from top right" theme-color="var(--color-accent)" class="top-0 right-0 size-8 rounded-sm after:size-3 after:rounded-sm after:border-2 after:border-surface focus-visible:outline-2 focus-visible:outline-accent touch:size-11"></cropper-handle>
+            <cropper-handle action="sw-resize" role="button" aria-label="Resize crop from bottom left" theme-color="var(--color-accent)" class="bottom-0 left-0 size-8 rounded-sm after:size-3 after:rounded-sm after:border-2 after:border-surface focus-visible:outline-2 focus-visible:outline-accent touch:size-11"></cropper-handle>
+            <cropper-handle action="se-resize" role="button" aria-label="Resize crop from bottom right" theme-color="var(--color-accent)" class="right-0 bottom-0 size-8 rounded-sm after:size-3 after:rounded-sm after:border-2 after:border-surface focus-visible:outline-2 focus-visible:outline-accent touch:size-11"></cropper-handle>
+          </cropper-selection>
         </cropper-canvas>
       `,
     });
     const canvas = cropper.getCropperCanvas();
-    if (canvas) canvas.disabled = props.disabled;
+    if (canvas) canvas.disabled = disabled();
+    const selection = cropper.getCropperSelection();
+    const onSelectionChange = (event: Event) => {
+      if (
+        event instanceof CustomEvent &&
+        (event.detail.width < 96 || event.detail.height < 96)
+      ) {
+        event.preventDefault();
+      }
+    };
+    selection?.addEventListener('change', onSelectionChange);
+    onCleanup(() =>
+      selection?.removeEventListener('change', onSelectionChange)
+    );
     const cropperImage = cropper.getCropperImage();
     // Cropper emits before committing a transform, and can reject the change.
     const onTransform = () => queueMicrotask(updateZoom);
@@ -107,20 +136,26 @@ export default function ChannelPictureCropper(props: {
   function zoom(amount: number) {
     if (disabled()) return;
     const image = cropper?.getCropperImage();
-    const canvas = cropper?.getCropperCanvas();
-    if (!image || !canvas) return;
+    const selection = cropper?.getCropperSelection();
+    if (!image || !selection) return;
     const imageBounds = image.getBoundingClientRect();
-    const canvasBounds = canvas.getBoundingClientRect();
+    const selectionBounds = selection.getBoundingClientRect();
     image.$zoom(
       amount,
-      canvasBounds.x + canvasBounds.width / 2 - imageBounds.x,
-      canvasBounds.y + canvasBounds.height / 2 - imageBounds.y
+      selectionBounds.x + selectionBounds.width / 2 - imageBounds.x,
+      selectionBounds.y + selectionBounds.height / 2 - imageBounds.y
     );
   }
 
+  function reset() {
+    if (disabled()) return;
+    cropper?.getCropperSelection()?.$reset();
+    cropper?.getCropperImage()?.$center('cover');
+  }
+
   async function apply() {
-    const canvas = cropper?.getCropperCanvas();
-    if (!canvas || disabled()) return;
+    const selection = cropper?.getCropperSelection();
+    if (!selection || disabled()) return;
     setExporting(true);
     setError(undefined);
     await Telemetry.span('channel.picture.crop', async (span) => {
@@ -130,7 +165,10 @@ export default function ChannelPictureCropper(props: {
       }
       const result = await ResultAsync.fromPromise(
         (async () => {
-          const image = await canvas.$toCanvas({ width: 1024, height: 1024 });
+          const image = await selection.$toCanvas({
+            width: 1024,
+            height: 1024,
+          });
           return new Promise<Blob | null>((resolve) => {
             image.toBlob(resolve, 'image/png');
           });
@@ -219,18 +257,17 @@ export default function ChannelPictureCropper(props: {
               if (!move) return;
               event.preventDefault();
               event.stopPropagation();
-              cropper?.getCropperImage()?.$move(...move);
+              const action =
+                event.target instanceof HTMLElement
+                  ? event.target
+                      .closest('cropper-handle[role="button"]')
+                      ?.getAttribute('action')
+                  : undefined;
+              if (action)
+                cropper?.getCropperSelection()?.$resize(action, ...move);
+              else cropper?.getCropperImage()?.$move(...move);
             }}
           />
-          <div
-            aria-hidden="true"
-            class="pointer-events-none absolute inset-0 rounded-full border-2 border-accent/80 shadow-[0_0_0_999px_rgb(from_var(--color-modal-overlay)_r_g_b_/_75%)]"
-          >
-            <div class="absolute inset-0 overflow-hidden rounded-full opacity-0 transition-opacity not-touch:group-hover/crop:opacity-100 group-focus-within/crop:opacity-100">
-              <div class="absolute inset-y-0 left-1/3 w-1/3 border-x border-accent/40" />
-              <div class="absolute inset-x-0 top-1/3 h-1/3 border-y border-accent/40" />
-            </div>
-          </div>
         </div>
         <div class="flex w-full items-center justify-between gap-2">
           <output
@@ -245,7 +282,7 @@ export default function ChannelPictureCropper(props: {
               size="md"
               variant="ghost"
               disabled={disabled()}
-              onClick={() => cropper?.getCropperImage()?.$center('cover')}
+              onClick={reset}
             >
               <ArrowCounterClockwiseIcon />
               Reset
