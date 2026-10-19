@@ -79,7 +79,12 @@ export default function HomepageCrm(
     sync();
     media.addEventListener('change', sync);
     const observer = new IntersectionObserver(
-      (entries) => setVisible(entries.some((e) => e.isIntersecting)),
+      (entries) =>
+        setVisible(
+          entries.some(
+            (entry) => entry.isIntersecting && entry.intersectionRatio >= 0.3
+          )
+        ),
       { threshold: 0.3 }
     );
     if (viewport()) observer.observe(viewport()!);

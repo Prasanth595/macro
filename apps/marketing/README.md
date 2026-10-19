@@ -103,6 +103,11 @@ release, and supports arrow keys/Home/End. Repeat with reduced motion, which
 starts finished but permits manual scrubbing. Below 768px the existing compact
 layout continues to hide the timeline.
 
+Homepage email playback waits until at least 20% of its scene is visible; CRM
+waits for 30%. Both pause again below that threshold. Enabling reduced motion
+mid-playback settles the document at its completed state, while leaving manual
+history scrubbing available. Scroll-driven entrances keep their native pacing.
+
 ## Develop and validate
 
 From this directory:

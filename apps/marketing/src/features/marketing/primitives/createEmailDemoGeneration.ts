@@ -68,7 +68,7 @@ export function createEmailDemoGeneration(
     document.addEventListener('visibilitychange', run);
     const observer = new IntersectionObserver(
       ([entry]) => {
-        visible = entry.isIntersecting;
+        visible = entry.isIntersecting && entry.intersectionRatio >= 0.2;
         run();
       },
       { threshold: 0.2 }

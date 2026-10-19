@@ -28,7 +28,10 @@ export default function HomepageCollaborativeDoc() {
       setPlaying(true);
     }
     const stopForReducedMotion = () => {
-      if (motion.matches) setPlaying(false);
+      if (motion.matches) {
+        setPlaying(false);
+        setTime(REST_T);
+      }
     };
     const visibility = () => setForeground(!document.hidden);
     visibility();
