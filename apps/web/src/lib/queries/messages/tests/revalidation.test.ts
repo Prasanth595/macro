@@ -1,3 +1,4 @@
+import type { Span } from '@macro-inc/observability';
 import type {
   MessageListItem,
   MessageParent,
@@ -6,7 +7,24 @@ import type {
 import { InfiniteQueryObserver, QueryClient } from '@tanstack/solid-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ timeline: vi.fn(), reportError: vi.fn() }));
+const mocks = vi.hoisted(() => {
+  const setAttr = vi.fn();
+  const spanError = vi.fn();
+  return {
+    timeline: vi.fn(),
+    reportError: vi.fn(),
+    setAttr,
+    spanError,
+    trace: vi.fn(
+      async (
+        _name: string,
+        work: (span: Pick<Span, 'setAttr' | 'error'>) => Promise<void>
+      ) => {
+        await work({ setAttr, error: spanError });
+      }
+    ),
+  };
+});
 let queryClient: QueryClient;
 vi.mock('../../client', () => ({
   get queryClient() {
@@ -18,7 +36,7 @@ vi.mock('@service-storage/messages', () => ({
 }));
 vi.mock('@app/lib/analytics', () => ({ analytics: { track: vi.fn() } }));
 vi.mock('@macro-inc/observability', () => ({
-  Telemetry: { error: mocks.reportError },
+  Telemetry: { error: mocks.reportError, span: mocks.trace },
 }));
 vi.mock('../subscription', () => ({ useMessageSubscription() {} }));
 
@@ -76,6 +94,9 @@ beforeEach(() => {
   });
   mocks.timeline.mockReset();
   mocks.reportError.mockReset();
+  mocks.trace.mockClear();
+  mocks.setAttr.mockClear();
+  mocks.spanError.mockClear();
 });
 afterEach(() => {
   for (const dispose of disposers.splice(0)) dispose();
@@ -189,6 +210,20 @@ it.each(['reaction', 'reply'] as const)(
     await Promise.all([firstFetch, finalFetch]);
 
     expect(mocks.timeline).toHaveBeenCalledTimes(2);
+    expect(mocks.trace).toHaveBeenCalledExactlyOnceWith(
+      'channel.timeline_restart',
+      expect.any(Function)
+    );
+    await mocks.trace.mock.results[0].value;
+    expect(mocks.setAttr.mock.calls).toEqual([
+      ['channel.id', parent.id],
+      ['query.count', 1],
+      ['query.fetch_more_directions', ['refetch']],
+      ['query.outcomes', ['fulfilled']],
+      ['query.fulfilled_count', 1],
+      ['query.rejected_count', 0],
+    ]);
+    expect(mocks.spanError).not.toHaveBeenCalled();
     const data = queryClient.getQueryData<MessageTimelineData>(
       options.queryKey
     );
@@ -393,6 +428,11 @@ it.each(['older', 'newer'] as const)(
     await Promise.all([firstFetch, finalFetch]);
 
     expect(mocks.timeline).toHaveBeenCalledTimes(2);
+    await mocks.trace.mock.results[0].value;
+    expect(mocks.setAttr).toHaveBeenCalledWith('query.fetch_more_directions', [
+      direction === 'older' ? 'forward' : 'backward',
+    ]);
+    expect(mocks.setAttr).toHaveBeenCalledWith('query.outcomes', ['fulfilled']);
     for (const call of mocks.timeline.mock.calls) {
       expect(call).toEqual([
         parent,
@@ -417,6 +457,79 @@ it.each(['older', 'newer'] as const)(
         .flatMap(timelineMessages)
         .find((message) => message.id === root.id)?.content
     ).toBe('Live edit');
+  }
+);
+
+it.each(['partial', 'all'] as const)(
+  'records %s restart failures without exposing request errors or rejecting the flow',
+  async (failed) => {
+    const page: MessageTimelinePage = {
+      entries: [{ type: 'message', message: root }],
+      next_cursor: null,
+      previous_cursor: null,
+    };
+    const options = [
+      messageTimelineQueryOptions(parent, null),
+      messageTimelineQueryOptions(parent, root.id),
+    ];
+    const observers = options.map((queryOptions) => {
+      queryClient.setQueryData<MessageTimelineData>(queryOptions.queryKey, {
+        pages: [page],
+        pageParams: [null],
+      });
+      const observer = new InfiniteQueryObserver(queryClient, {
+        ...queryOptions,
+        retry: false,
+      });
+      disposers.push(observer.subscribe(() => {}));
+      return observer;
+    });
+    const oldFirst = Promise.withResolvers<MessageTimelinePage>();
+    const oldSecond = Promise.withResolvers<MessageTimelinePage>();
+    const failure = new Error('Request error containing private data');
+    mocks.timeline
+      .mockReturnValueOnce(oldFirst.promise)
+      .mockReturnValueOnce(oldSecond.promise);
+    if (failed === 'all') mocks.timeline.mockRejectedValueOnce(failure);
+    else
+      mocks.timeline.mockResolvedValueOnce({
+        ...page,
+        entries: [
+          {
+            type: 'message',
+            message: { ...root, state: { ...root.state, resolved: true } },
+          },
+        ],
+      });
+    mocks.timeline.mockRejectedValueOnce(failure);
+    const initialFetches = observers.map((observer) => observer.refetch());
+
+    applyThreadState(parent, { ...root.state, resolved: true });
+    oldFirst.resolve(page);
+    oldSecond.resolve(page);
+    await Promise.all(initialFetches);
+    expect(mocks.trace).toHaveBeenCalledExactlyOnceWith(
+      'channel.timeline_restart',
+      expect.any(Function)
+    );
+    await mocks.trace.mock.results[0].value;
+
+    expect(mocks.setAttr.mock.calls).toEqual([
+      ['channel.id', parent.id],
+      ['query.count', 2],
+      ['query.fetch_more_directions', ['refetch', 'refetch']],
+      [
+        'query.outcomes',
+        [failed === 'all' ? 'rejected' : 'fulfilled', 'rejected'],
+      ],
+      ['query.fulfilled_count', failed === 'all' ? 0 : 1],
+      ['query.rejected_count', failed === 'all' ? 2 : 1],
+    ]);
+    expect(mocks.spanError).toHaveBeenCalledExactlyOnceWith(
+      'Channel timeline restart failed'
+    );
+    expect(mocks.reportError).not.toHaveBeenCalled();
+    expect(queryClient.getQueryState(options[1].queryKey)?.error).toBe(failure);
   }
 );
 
@@ -447,6 +560,7 @@ it('does not fetch idle channels for ordinary live updates', () => {
   });
 
   expect(mocks.timeline).not.toHaveBeenCalled();
+  expect(mocks.trace).not.toHaveBeenCalled();
   expect(
     queryClient.getQueryData<MessageTimelineData>(options.queryKey)?.pages[0]
       .entries

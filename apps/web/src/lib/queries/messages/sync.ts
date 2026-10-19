@@ -1,4 +1,5 @@
 import { fireAndForget } from '@core/util/fireAndForget';
+import { Telemetry } from '@macro-inc/observability';
 import type { MessageEvent } from '@service-storage/generated/schemas/messageEvent';
 import type {
   Message,
@@ -45,16 +46,40 @@ async function restartPendingChannelTimeline(parent: MessageParent) {
     predicate: (query) =>
       query.state.data !== undefined && query.state.fetchStatus === 'fetching',
   });
-  // Keep fetchMore direction: replacing pagination with an ordinary refetch
-  // would silently discard the user's request for an older/newer page.
-  await Promise.allSettled(
-    pending.map((query) =>
-      query.fetch(undefined, {
-        cancelRefetch: true,
-        meta: query.state.fetchMeta ?? undefined,
-      })
-    )
-  );
+  if (pending.length === 0) return;
+  await Telemetry.span('channel.timeline_restart', async (span) => {
+    span.setAttr('channel.id', parent.id);
+    span.setAttr('query.count', pending.length);
+    span.setAttr(
+      'query.fetch_more_directions',
+      pending.map(
+        (query) => query.state.fetchMeta?.fetchMore?.direction ?? 'refetch'
+      )
+    );
+    // Keep fetchMore direction: replacing pagination with an ordinary refetch
+    // would silently discard the user's request for an older/newer page.
+    const results = await Promise.allSettled(
+      pending.map((query) =>
+        query.fetch(undefined, {
+          cancelRefetch: true,
+          meta: query.state.fetchMeta ?? undefined,
+        })
+      )
+    );
+    const rejected = results.filter(
+      (result) => result.status === 'rejected'
+    ).length;
+    span.setAttr(
+      'query.outcomes',
+      results.map((result) => result.status)
+    );
+    span.setAttr('query.fulfilled_count', results.length - rejected);
+    span.setAttr('query.rejected_count', rejected);
+    if (rejected > 0) {
+      // Request errors can contain URLs or message data; record only a category.
+      span.error('Channel timeline restart failed');
+    }
+  });
 }
 
 /** Committed timeline activity, delivered whole so loaded history needs no re-read. */

@@ -626,6 +626,13 @@ apply live events without fetching; cached content stays visible if a refresh
 fails. Message links still load around the targeted message.
 The `channel_messages_load` event records `path: full` and `reason`
 (`revalidate`, `no_cache`, `cache_not_at_latest`, or `load_around`).
+Actual in-flight restarts emit a `channel.timeline_restart` span, searchable by
+`channel.id`. `query.count` records the number of restarted queries;
+`query.fetch_more_directions` and `query.outcomes` are arrays in the same query
+order (`refetch`/`forward`/`backward` and `fulfilled`/`rejected`). The span also
+records fulfilled/rejected counts and is marked as an error if any restart fails.
+Idle channels emit no restart span. Request error text and message content are
+not included.
 
 To verify recovery, open a root with no replies, disconnect that client's live
 updates, then add replies and reactions, edit another root, and delete a root
