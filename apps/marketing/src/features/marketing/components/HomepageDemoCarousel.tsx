@@ -4,32 +4,32 @@ const SLIDES = [
   {
     label: 'Inbox',
     target: 'Home',
-    title: 'One inbox for emails, agents,\ntasks, and messages',
+    title: 'Catch up on all your work.',
   },
   {
     label: 'Chat',
     target: 'Chat',
-    title: 'Agents are first-class participants\nin channels and DMs',
+    title: 'Chat with your team and your agents.',
   },
   {
     label: 'Docs',
     target: 'Drive',
-    title: 'Agents can edit docs\nas collaborative peers',
+    title: 'Write together. Keep every version.',
   },
   {
     label: 'CRM',
     target: 'Customers',
-    title: 'Agents keep deals current\nfrom email and chat',
+    title: 'Keep every customer conversation connected.',
   },
   {
     label: 'Tasks',
     target: 'Tasks',
-    title: 'Tasks from messages and email,\nassigned to people and agents',
+    title: 'Turn messages into tasks.',
   },
   {
     label: 'Agents',
     target: 'Agents',
-    title: 'Agents with memory built\nfrom your workspace',
+    title: 'Agents that read, edit, and act.',
   },
 ];
 

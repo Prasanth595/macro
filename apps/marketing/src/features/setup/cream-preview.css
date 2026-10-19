@@ -110,8 +110,8 @@ html[data-palette='cream'] .homepage-sheet-add-rows { background: #1d1c1a08; bor
 
 /* ---- GitHub / open source -------------------------------------------- */
 html[data-palette='cream'] .homepage-github-mark { background: var(--color-surface-3); box-shadow: 0 0 0 7px #1d1c1a05; color: #1d1c1a; }
-html[data-palette='cream'] .homepage-embedded-window { background: #faf8f3; border-color: #1d1c1a1a; box-shadow: 0 32px 70px -24px #1d1c1a40; }
-html[data-palette='cream'] .homepage-embedded-stage::after { background: linear-gradient(to bottom, transparent, #f5f1e855 35%, #f5f1e8bb 65%, #f5f1e8 96%); }
+html[data-palette='cream'] .homepage-embedded-demo { --demo-page: #f5f1e8; }
+html[data-palette='cream'] .homepage-embedded-window { background: #faf8f3; }
 html[data-palette='cream'] .homepage-demo-slide-copy h2 { color: #1d1c1a; }
 
 /* ---- Sample workspace (/demo, embedded on the homepage) ----------------
@@ -140,17 +140,13 @@ html[data-palette='cream'] .dummy-route {
 
 /* ---- Demo backdrops ---------------------------------------------------
    The frames fade from the ink color, which is near-black here; use a faint
-   ink wash instead. The embedded workspace's purple/teal wallpaper becomes
-   the warm neutrals of the ad set. */
+   ink wash instead. */
 html[data-palette='cream'] .homepage-crm .mdf-frame {
   background: linear-gradient(to bottom, #1d1c1a12 0%, #1d1c1a08 45%, #1d1c1a03 78%, transparent 100%);
 }
 html[data-palette='cream'] .homepage-crm .mdf-frame::before {
   background: linear-gradient(to bottom, #1d1c1a14 0%, #1d1c1a0a 45%, transparent 100%);
 }
-html[data-palette='cream'] .homepage-embedded-wallpaper { background: #e9e5dd; border-color: #1d1c1a0a; }
-html[data-palette='cream'] .homepage-embedded-wallpaper::after { background: radial-gradient(ellipse at 30% 0, #f6f4ee, #ddd9d1); opacity: 1; filter: none; }
-html[data-palette='cream'] .homepage-embedded-stage::after { background: linear-gradient(to top, transparent, #f5f1e855 35%, #f5f1e8bb 65%, #f5f1e8 96%); }
 html[data-palette='cream'] .homepage-demo-slide-copy h2 { color: var(--color-ink); }
 
 /* ---- Chat bubbles ------------------------------------------------------

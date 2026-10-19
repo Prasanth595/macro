@@ -36,7 +36,9 @@ it('starts with the unified Home example and wraps the highlights with keyboard 
   fireEvent.keyDown(screen.getByRole('button', { name: 'Next highlight' }), {
     key: 'ArrowRight',
   });
-  expect(screen.getByRole('heading').textContent).toContain('One inbox');
+  expect(screen.getByRole('heading').textContent).toContain(
+    'Catch up on all your work.'
+  );
 });
 it('keeps the carousel in place during iframe interaction and cleans up load listeners', () => {
   const view = mountCarousel();
@@ -55,7 +57,7 @@ it('keeps the carousel in place during iframe interaction and cleans up load lis
     .contentDocument!.querySelector<HTMLButtonElement>('[aria-label=Chat]')!
     .click();
   expect(screen.getByRole('heading').textContent).toContain(
-    'Agents are first-class participants'
+    'Chat with your team and your agents.'
   );
   view.unmount();
   openView.mockClear();
@@ -91,21 +93,27 @@ it('captures horizontal drags and ignores vertical or cancelled gestures', () =>
   expect(capture).toHaveBeenCalledWith(1);
   pointer('pointerup', carousel, { ...down, clientX: 200 });
   expect(screen.getByRole('heading').textContent).toContain(
-    'first-class participants'
+    'Chat with your team and your agents.'
   );
 
   pointer('pointerdown', carousel, down);
   pointer('pointerup', carousel, { ...down, clientX: 400 });
-  expect(screen.getByRole('heading').textContent).toContain('One inbox');
+  expect(screen.getByRole('heading').textContent).toContain(
+    'Catch up on all your work.'
+  );
 
   pointer('pointerdown', carousel, down);
   pointer('pointerup', carousel, { ...down, clientX: 200, clientY: 250 });
-  expect(screen.getByRole('heading').textContent).toContain('One inbox');
+  expect(screen.getByRole('heading').textContent).toContain(
+    'Catch up on all your work.'
+  );
 
   pointer('pointerdown', carousel, down);
   pointer('pointercancel', carousel, down);
   pointer('pointerup', carousel, { ...down, clientX: 200 });
-  expect(screen.getByRole('heading').textContent).toContain('One inbox');
+  expect(screen.getByRole('heading').textContent).toContain(
+    'Catch up on all your work.'
+  );
 });
 
 function enableAutoplay() {

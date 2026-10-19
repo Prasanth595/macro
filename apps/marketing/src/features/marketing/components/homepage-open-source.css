@@ -1,7 +1,6 @@
-.homepage-embedded-demo { position: relative; width: min(1200px, 86vw); margin-left: 50%; transform: translateX(-50%); padding: 176px 0 32px; color: #aaa; font-family: 'Inter Variable', Inter, sans-serif; }
-.homepage-embedded-wallpaper { padding: clamp(24px, 3vw, 44px); position: relative; isolation: isolate; background: #191a1e; border: 1px solid #ffffff0a; border-radius: 14px; overflow: hidden; }
-.homepage-embedded-wallpaper::after { content: ''; position: absolute; inset: 0; z-index: -1; background: url('../../../assets/desktop/monterey-dark.jpg') center / cover; filter: grayscale(1) brightness(1.25); opacity: .55; pointer-events: none; }
-.homepage-embedded-window { display: flex; flex-direction: column; height: clamp(600px, 46vw, 680px); overflow: hidden; background: #0f0f0f; border: 1px solid #ffffff25; border-radius: 12px; box-shadow: 0 32px 70px -20px #1b1726b3, 0 10px 24px #0005, inset 0 1px 0 #ffffff18; }
+.homepage-embedded-demo { --demo-page: #000; position: relative; width: min(1200px, 86vw); margin-left: 50%; transform: translateX(-50%); padding: 120px 0 32px; color: #aaa; font-family: 'Inter Variable', Inter, sans-serif; }
+.homepage-embedded-wallpaper { padding: clamp(24px, 3vw, 44px); position: relative; isolation: isolate; background: transparent; border: 0; overflow: hidden; }
+.homepage-embedded-window { display: flex; flex-direction: column; height: clamp(600px, 46vw, 680px); overflow: hidden; background: #0f0f0f; border: 0; border-radius: 12px; box-shadow: none; }
 .homepage-embedded-content { --demo-scale: .85; position: relative; flex: 1; min-height: 0; }
 .homepage-embedded-content iframe { position: absolute; inset: 0; display: block; width: calc(100% / var(--demo-scale)); height: calc(100% / var(--demo-scale)); transform: scale(var(--demo-scale)); transform-origin: top left; border: 0; background: #0f0f0f; }
 .homepage-embedded-loading { position: absolute; inset: 0; display: grid; place-items: center; font-size: 14px; }
@@ -18,19 +17,20 @@
   .homepage-sidebar-connection { padding-top: 180px; }
 }
 
-.homepage-embedded-wallpaper::before { content: ''; position: absolute; z-index: -1; inset: 0; pointer-events: none; opacity: .45; mix-blend-mode: soft-light; background: url('../../../assets/desktop/gradient-grain.svg') repeat; }
 .homepage-demo-travel { position: absolute; z-index: 3; inset: 0; pointer-events: none; }
 .homepage-demo-travel .feature-flow-icon, .homepage-demo-travel .feature-flow-core { display: grid; place-items: center; }
 
 .homepage-embedded-stage { position: relative; }
 
-.homepage-embedded-stage::after { content: ''; position: absolute; inset: -1px 0 45%; background: linear-gradient(to top, transparent, #0005 35%, #000b 65%, #000 96%); pointer-events: none; transition: opacity 300ms ease; }
+.homepage-embedded-stage::before, .homepage-embedded-stage::after { content: ''; position: absolute; left: -1px; right: -1px; z-index: 2; pointer-events: none; }
+.homepage-embedded-stage::after { top: -1px; height: 176px; background: linear-gradient(to bottom, var(--demo-page) 0%, var(--demo-page) 35%, transparent 100%); }
+.homepage-embedded-stage::before { bottom: -1px; height: 90px; background: linear-gradient(to bottom, transparent, var(--demo-page)); }
 .homepage-demo-carousel { position: relative; z-index: 1; margin-top: 0; text-align: center; touch-action: pan-y; }
 .homepage-demo-slide-copy { min-height: 0; margin-bottom: 0; display: grid; justify-items: center; align-content: start; user-select: none; cursor: grab; }
 .homepage-demo-slide-copy:active { cursor: grabbing; }
 .homepage-demo-stage-shell { position: relative; }
 .homepage-demo-caption { position: absolute; z-index: 6; top: 0; left: 0; right: 0; }
-.homepage-demo-slide-copy h2 { margin: 0; max-width: min(900px, calc(100% - 32px)); color: #eee; font-family: 'Roboto Slab Variable', display, serif; font-size: 34px; font-weight: calc(315 + var(--cream-slab-weight-increase, 0)); letter-spacing: -.015em; line-height: 1.2; white-space: normal; }
+.homepage-demo-slide-copy h2 { margin: 0; max-width: min(900px, calc(100% - 32px)); color: #eee; font-family: 'Roboto Slab Variable', display, serif; font-size: clamp(26px, 2.15vw, 34px); font-weight: calc(315 + var(--cream-slab-weight-increase, 0)); letter-spacing: -.015em; line-height: 1.2; white-space: normal; }
 .homepage-demo-slide-controls { display: flex; align-items: center; justify-content: center; gap: 0; margin: 0 0 12px; }
 .homepage-demo-carousel button { color: #999; background: transparent; border: 0; font: inherit; }
 .homepage-demo-carousel button:hover { color: #eee; }

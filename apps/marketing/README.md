@@ -23,14 +23,15 @@ track the pointer. Mobile header actions retain 44px touch targets. The homepage
 16px arrow inside a 44px button, inset 20px from the bottom while respecting safe areas.
 
 The homepage names Macro in the unification heading and introduces the live
-sample with the original fade-and-caption treatment mirrored to the top of
-the demo. Progress indicators sit above the overlaid heading; large previous/next
+sample with short benefit-led captions overlapping a shallow fade at the top
+of the demo. The outer wallpaper and double border are removed so the product
+sits directly against the page, with a soft fade at the bottom. Progress indicators sit above the overlaid heading; large previous/next
 arrows remain beside the frame. The eight-second slideshow runs only while visible, pauses
 on hover or focus, and stops when someone selects a view or uses the embedded workspace.
 Reduced motion disables automatic cycling. The large side arrows use a subtle
 static highlight. The view label and heading follow the selected
 Inbox, Chat, Docs, CRM, Tasks, or Agents view. Inbox opens the native Home view. The frame
-uses a neutral charcoal treatment (warm grey in cream). It embeds the existing
+blends into the surrounding black or cream page. It embeds the existing
 `/demo` workspace directly, with no alternate inbox layout. The Home view keeps
 the same mixed activity sidebar and agent composer. The sample launch story
 uses Valentina consistently.
