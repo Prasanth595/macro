@@ -21,7 +21,7 @@
 .homepage-crm-value { width: 96px; padding: 7px; border: 0; border-radius: 4px; background: transparent; color: inherit; font: inherit; }
 .homepage-crm-value:focus { outline: 1px solid var(--color-accent); background: var(--color-surface); }
 /* Current database Kanban: 336px lanes, muted lane surfaces and 8px cards. */
-.homepage-pipeline-board { display: flex; align-items: stretch; min-height: 100%; gap: 16px; padding: 16px 20px; }
+.homepage-pipeline-board { display: flex; align-items: flex-start; min-height: 100%; gap: 16px; padding: 16px 20px; }
 .homepage-pipeline-board > section { width: 336px; flex: none; padding: 8px; border: 1px solid var(--color-edge-frame); border-radius: 12px; background: color-mix(in oklch, var(--color-panel) 94%, var(--color-ink)); }
 .homepage-pipeline-board header { display: flex; align-items: center; gap: 8px; padding: 4px 8px 8px; font-size: 14px; font-weight: 500; color: var(--color-ink); }
 .homepage-pipeline-board header > span { font-size: 12px; font-weight: 400; color: var(--color-ink-muted); }

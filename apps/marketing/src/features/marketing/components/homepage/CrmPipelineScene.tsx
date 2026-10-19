@@ -33,6 +33,43 @@ const owners = ['julia', 'jacob', 'valentina', 'teo'] as const;
 /** Website-owned presentation from CRM's records, pipeline sidebar and database toolbar. */
 export default function CrmPipelineScene() {
   const w = createDummyWorkspace('crm');
+  // Recognizable example accounts, not a claim that these companies use Macro.
+  const accountNames: Record<string, string> = {
+    northstar: 'Figma',
+    harbor: 'Linear',
+    ridgeline: 'Arc’teryx',
+    copperleaf: 'Pilot',
+    orbit: 'Vercel',
+    tidewater: 'Headway',
+    fernway: 'Navan',
+    meadow: 'Instrument',
+    bluebird: 'Flexport',
+    sable: 'COLLINS',
+    lumen: 'Square',
+    foxglove: 'Olson Kundig',
+    northwind: 'ServiceTitan',
+    granite: 'Cooley',
+    relay: 'Intercom',
+    pallet: 'Stumptown Coffee',
+    fieldnote: 'User Interviews',
+    cedar: 'BUCK',
+    fieldwork: 'Industrious',
+    brightline: 'Varsity Tutors',
+  };
+  let sampleData = JSON.stringify(w.data);
+  for (const entry of w.data.companies) {
+    const name = accountNames[entry.id];
+    if (name) sampleData = sampleData.replaceAll(entry.name, name);
+  }
+  w.setData(JSON.parse(sampleData));
+  w.setData('companies', (entries) =>
+    entries.map((entry) => ({
+      ...entry,
+      description: '',
+      domain: '',
+    }))
+  );
+
   const [tab, setTab] = createSignal('pipeline');
   const [query, setQuery] = createSignal('');
   const [board, setBoard] = createSignal(true);
@@ -268,7 +305,7 @@ export default function CrmPipelineScene() {
             <ViewShell.TopBar>
               <h1 class="text-sm font-semibold flex-1">
                 {tab() === 'pipeline'
-                  ? 'Sales pipeline'
+                  ? 'Sales pipeline · Sample data'
                   : tab() === 'contacts'
                     ? 'Contacts'
                     : tab() === 'customers'
