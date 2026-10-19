@@ -148,6 +148,15 @@ Follow [`docs/ios-releases.md`](docs/ios-releases.md) for App Store signing and
 provisioning, including both extensions. The release script temporarily selects
 manual export when a distribution certificate path is supplied.
 
+## macOS notification activation
+
+Carry the notification ID through native delivery and the buffered `navigate`
+bridge, so clicks survive app restarts and wait for the split layout to be ready.
+Install and retain the UserNotifications delegate before the native event loop
+starts. Clicking restores and focuses the main window; receipt and dismissal do
+not navigate. This requires a native macOS release; see the
+[notification walkthrough](../../docs/agent-guide/notifications.md).
+
 ## Desktop file drops
 
 Keep `app.windows[].dragDropEnabled` false in `tauri/src-tauri/tauri.macos.conf.json`.
