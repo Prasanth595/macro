@@ -305,7 +305,7 @@ export function ChatComposer(props: {
       <div
         ref={container}
         data-keep-keyboard
-        class="w-full min-w-0"
+        class="relative w-full min-w-0 touch:island touch:rounded-[32px]"
         onFocusIn={(event) => {
           // Focusing a control before its click must not move it into the
           // expanded layout midway through a tap.
@@ -337,7 +337,7 @@ export function ChatComposer(props: {
           data-composer-expanded={
             (isTouchDevice() && !collapsed()) || undefined
           }
-          class="relative z-10 min-w-0 rounded-[32px] touch:island transition-[height] duration-200 ease-[cubic-bezier(0.77,0,0.175,1)] motion-reduce:transition-none"
+          class="relative z-10 min-w-0 rounded-[32px] transition-[height] duration-200 ease-[cubic-bezier(0.77,0,0.175,1)] motion-reduce:transition-none"
           style={{
             height: height() === undefined ? undefined : `${height()}px`,
           }}

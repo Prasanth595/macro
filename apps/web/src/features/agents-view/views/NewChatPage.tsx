@@ -443,7 +443,9 @@ export function NewChatPage(props: {
         <div class="flex w-full min-w-0 items-center gap-2">
           {modeSwitch()}
           <Show when={coding()}>
-            <div class="min-w-0 flex-1">{repositoryPicker()}</div>
+            <div class="min-w-0 flex-1 touch:[&>div]:justify-end">
+              {repositoryPicker()}
+            </div>
           </Show>
         </div>
       }

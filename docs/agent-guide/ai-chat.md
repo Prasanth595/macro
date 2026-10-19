@@ -431,10 +431,9 @@ the shimmer.
   with the repository bar below the input on desktop and above it on mobile.
   The plus attachment button stays at the far left: before the
   text in the compact row, and on the bottom control row when expanded. The editor sits above the controls, with attachments
-  on the left and the agent/model and Send on the right. An inset bar, aligned to the full width of the input on mobile and desktop, holds Chat/Code in both modes at a stable 44 px height with 4 px vertical padding, with rounded outer corners
-  and a subtle border, with a darker surface in dark mode.
+  on the left and the agent/model and Send on the right. On mobile, Chat/Code sits at the top left and repository controls at the top right; repository and branch selection open in standard bottom drawers. These controls sit inside the same continuous surface as the input with no inset or dividing border. On desktop, an inset bar aligned to the full input width holds Chat/Code with rounded outer corners and a subtle border, with a darker surface in dark mode. The settings row keeps a stable height when changing modes: 44 px on desktop, with 2 px more top and side padding on mobile.
   Selecting Chat hides the repository controls and keeps the mode switch in
-  the inset bar, without remounting the editor or losing the draft. Reduced-motion
+  the settings row, without remounting the editor or losing the draft. Reduced-motion
   preferences disable the animation. The hidden drawer is inert. **Repository**
   (**Choose repository** until one is picked) opens a searchable list:
   **Choose automatically**, then the repositories the signed-in user reaches

@@ -395,20 +395,21 @@
 	}
 
 	:where(.agents-view, .agents-view-portal) .composer-drawer[data-placement="top"] {
-		border-radius: 20px 20px 0 0;
+		border-radius: 0;
+		background: transparent;
 	}
 
 	:where(.agents-view, .agents-view-portal) .composer-drawer[data-placement="top"]::before {
-		border-top: 1px solid var(--edge-muted);
-		border-bottom: 0;
+		content: none;
 	}
 
 	:where(.agents-view, .agents-view-portal) .composer-drawer[data-placement="top"]::after {
-		top: 100%;
-		bottom: auto;
+		content: none;
 	}
 
 	:where(.agents-view, .agents-view-portal) .composer-drawer[data-placement="top"] .composer-drawer-content {
+		min-height: 46px;
+		padding: 6px 12px 4px;
 		transform: translateY(12px);
 	}
 
