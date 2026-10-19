@@ -367,7 +367,13 @@ describe('agent-led new conversation', () => {
     const frontier = within(screen.getByRole('group', { name: 'Suggested' }));
     expect(
       frontier.getAllByRole('button').map((item) => item.textContent?.trim())
-    ).toEqual(['Opus 5.5', 'Sonnet 5.5', 'GPT-5.6', 'GPT-6 Astra']);
+    ).toEqual([
+      'Opus 5.5',
+      'Sonnet 5.5',
+      'GPT-5.6',
+      'GPT-6 Astra',
+      'Gemini 3.8 Flash',
+    ]);
     expect(screen.queryByRole('group', { name: 'Google' })).toBeNull();
     expect(screen.getByRole('button', { name: 'More models' })).toBeTruthy();
     expect(screen.queryByText('Recommended')).toBeNull();
@@ -915,6 +921,7 @@ describe('agent-led new conversation', () => {
       'Sonnet 5.5',
       'GPT-5.6',
       'GPT-6 Astra',
+      'Gemini 3.8 Flash',
     ]);
     const sonnet = models.getByTitle('Sonnet 5.5');
     expect(
