@@ -1,3 +1,4 @@
+import { DemoMention } from '../DemoMention';
 import { HomepageConversation } from '../HomepageConversation';
 import HomepageEmailCompose from '../HomepageEmailCompose';
 import { HomepageMention } from '../HomepageMention';
@@ -11,21 +12,23 @@ export function EmailAgenticEditingDemo() {
         messages={[
           {
             person: 'julia',
-            text: 'Valentina wants to invite her team. Are we still on for Thursday?',
+            text: 'Can you send Valentina the demo follow-up?',
           },
           {
             person: 'jacob',
             text: (
               <>
-                <span class="homepage-person-mention">@Claude</span>, draft a
-                follow-up email based on{' '}
+                <DemoMention
+                  item={{ id: 'macro', label: 'Macro', kind: 'person' }}
+                />{' '}
+                draft Valentina’s follow-up from{' '}
                 <HomepageMention
                   kind="call"
                   label="Demo call transcript"
                   description="The demo with Valentina: team rollout, sales materials, and next steps."
                   href="#agentic-editing"
                 />
-                . Include the sales PDF and rollout doc, and cc Julia.
+                . Link the sales PDF and rollout plan. Cc Julia.
               </>
             ),
           },

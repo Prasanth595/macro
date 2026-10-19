@@ -1,6 +1,7 @@
 import { createMemo, type JSX, lazy, onCleanup, onMount, Show } from 'solid-js';
 import siteStyles from '../../../app/main/index.css?inline';
 import { DeferredDemo, DemoPlaceholder } from './DeferredDemo';
+import { DemoMention } from './DemoMention';
 import { HomepageAgentLogos } from './HomepageAgentLogos';
 import { HomepageBlog } from './HomepageBlog';
 import { HomepageClosing } from './HomepageClosing';
@@ -150,32 +151,27 @@ export function HomepageSections() {
         <Feature
           id="email"
           title="Email and chat"
-          description="Share live email threads in channels. Ask agents to draft from your emails, documents, and calls."
+          description="Bring email into chat. Ask Macro to draft replies from your calls and docs."
           messages={[
             {
               person: 'julia',
-              text: 'Valentina wants to invite her team. Are we still on for Thursday?',
+              text: 'Can you send Valentina the demo follow-up?',
             },
             {
               person: 'jacob',
               text: (
                 <>
-                  <span class="homepage-person-mention">@Claude</span>, draft a
-                  follow-up email based on{' '}
-                  <HomepageMention
-                    kind="calendar"
-                    label="Demo Call Sep 14th"
-                    description="Jacob, Valentina, and Julia · Product demo and next steps for Valentina’s team."
-                    href="#email"
+                  <DemoMention
+                    item={{ id: 'macro', label: 'Macro', kind: 'person' }}
                   />{' '}
-                  and{' '}
+                  draft Valentina’s follow-up from{' '}
                   <HomepageMention
                     kind="call"
                     label="Demo call transcript"
                     description="Transcript of the September 14 demo with Valentina · Team rollout, sales materials, and follow-up next steps."
                     href="#email"
                   />
-                  . Include the sales PDF and rollout doc, and cc Julia.
+                  . Link the sales PDF and rollout plan. Cc Julia.
                 </>
               ),
             },
