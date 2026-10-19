@@ -184,7 +184,7 @@ export function HomepageSections() {
             { title: 'Chat', path: '/channels' },
           ]}
           title="Email and chat"
-          description="Bring email into chat. Ask Macro to draft replies from your calls and docs."
+          description="Turn conversations into email drafts."
           messages={[
             {
               person: 'julia',
@@ -224,7 +224,7 @@ export function HomepageSections() {
             { title: 'Tasks', path: '/tasks' },
           ]}
           title="Documents and tasks"
-          description="CRDT documents with live agent edits. Create tasks from messages and link them to the specification."
+          description="Write together. Keep tasks connected."
           messages={[
             {
               person: 'jacob',
@@ -260,7 +260,7 @@ export function HomepageSections() {
           productPages={[{ title: 'Agents', path: '/agents' }]}
           title="Coding agents"
           titleAdornment={<HomepageAgentLogos />}
-          description="Use your coding agent subscriptions in channels. Read the diff and follow the task through to a pull request."
+          description="Give agents tasks. Review the work together."
         >
           <DeferredDemo
             preload={loadPullRequest}
@@ -272,7 +272,7 @@ export function HomepageSections() {
         <Feature
           id="spreadsheet"
           title="Sheets and databases"
-          description="Live collaboration with humans and agents. Import your Google Sheets and Notion databases."
+          description="One shared place for your team’s data."
           messages={[
             {
               person: 'claude',
@@ -296,7 +296,7 @@ export function HomepageSections() {
           id="crm"
           productPages={[{ title: 'CRM', path: '/crm' }]}
           title="CRM"
-          description="Keep every customer conversation and next step together."
+          description="Every customer conversation, in one place."
           messages={[
             {
               person: 'valentina',
