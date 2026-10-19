@@ -56,20 +56,16 @@ uses Valentina consistently.
 Demo copy is illustrative, informed by the team's website feedback, rather
 than a publication of private messages.
 
-The five homepage feature sections use a shared two-column introduction: a
-Macro slab heading beside a plain-language explanation. Existing demos sit directly below, followed by four detail buttons. Each opens a right-hand modal panel
-with a short explanation and example, grounded in the product pages. Kobalte
-owns focus trapping, Escape, outside dismissal, and scroll locking; closing
-returns focus to the opening button. The panel becomes full-width below 640px
-and respects reduced motion. Content lives in `core/homepage-feature-details.ts`. The demos reuse focused product-page views without a marketing toolbar or
-additional frame borders: `DocumentProjectDemo`, `AgentTeamworkStory`, and
-`CrmRecordDemo`, plus the existing spreadsheet. Email uses `WorkspaceChannel`
-and the app's `ComposerSurface` within an agent reply. Its one-time walkthrough
-reveals Julia's message, Jacob's request, then the draft. Playback waits for
-visibility and pauses offscreen; reduced motion and interaction reveal all
-messages, and user-added messages are preserved. Other sections lead directly into their existing product demo. Below 768px, copy stacks above the visual, and below
-421px the detail-button list becomes one column. Styles live in
-`components/homepage-feature-sections.css` and are scoped to the homepage.
+The homepage feature sections retain the centered headings, conversations,
+and demos from before the two-column layout experiment. Email, Docs, Agents,
+and CRM each have one Learn more button that opens the existing product route
+in a 420px drawer. Sheets has no dedicated product page, so it has no extra link.
+The drawer uses an iframe with `embed=feature`; product pages hide duplicate site
+navigation, closing CTA, and the viewport vignette only when embedded this way.
+Normal product routes are unchanged. Escape in the embedded page closes the
+drawer unless a nested dialog or menu is open, and closing returns focus to the
+opening button. On phones the panel fills the viewport. Content is maintained
+in the product pages, not in a separate set of homepage explanations.
 
 ## Ownership and dependency boundary
 
@@ -146,7 +142,7 @@ Local preview data must not be presented as server-backed account state.
 The preview proceeds from integration selection directly to workspace setup;
 Back from workspace setup returns to integrations.
 
-The legacy document and version timeline demo shares a single playhead. Verify that
+The homepage document and version timeline share a single playhead. Verify that
 dragging the blue handle restores earlier and later edits, remains paused after
 release, and supports arrow keys/Home/End. Repeat with reduced motion, which
 starts finished but permits manual scrubbing. Below 768px the existing compact

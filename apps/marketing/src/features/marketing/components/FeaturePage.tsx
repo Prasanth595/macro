@@ -1,12 +1,14 @@
 import ArrowRight from '@phosphor/arrow-right.svg';
 import CaretDown from '@phosphor/caret-down.svg';
 import { For, type JSX, Show } from 'solid-js';
+import { isServer } from 'solid-js/web';
 import { ctaHref, handleCtaClick } from '../../../app/utils/utilCta';
 import palette from '../../../styles/dark-theme.css?inline';
 import uiStyles from '../../../styles/site-ui.css?inline';
 import { HomepageFeatureHeading } from './HomepageFeatureHeading';
 import './workspace-story.css';
 import './feature-page.css';
+import './product-page-preview.css';
 
 // The frozen UI utilities and palette apply only inside this page. Legacy
 // public routes retain their own CSS; no authenticated app styles are loaded.
@@ -20,9 +22,14 @@ export function FeaturePage(props: {
   children: JSX.Element;
   productSpacing?: boolean;
 }) {
+  const embedded =
+    !isServer &&
+    window.self !== window.top &&
+    new URLSearchParams(window.location.search).get('embed') === 'feature';
   return (
     <main
       class="feature-page"
+      data-product-preview={embedded ? 'true' : undefined}
       data-product-spacing={props.productSpacing ? 'true' : undefined}
     >
       <style>{uiProperties}</style>

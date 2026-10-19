@@ -1,45 +1,54 @@
-import { type JSX, lazy, onCleanup, onMount, Show } from 'solid-js';
+import { createMemo, type JSX, lazy, onCleanup, onMount, Show } from 'solid-js';
 import siteStyles from '../../../app/main/index.css?inline';
-import {
-  type HomepageFeatureDetail,
-  homepageFeatureDetails,
-} from '../core/homepage-feature-details';
 import { DeferredDemo, DemoPlaceholder } from './DeferredDemo';
-import './homepage-demo-surfaces.css';
+import { DemoMention } from './DemoMention';
 import { HomepageAgentLogos } from './HomepageAgentLogos';
 import { HomepageBlog } from './HomepageBlog';
 import { HomepageClosing } from './HomepageClosing';
+import {
+  HomepageConversation,
+  type HomepageMessage,
+} from './HomepageConversation';
 import { HomepageFeatureDetails } from './HomepageFeatureDetails';
+import { HomepageFeatureHeading } from './HomepageFeatureHeading';
+import { HomepageMention } from './HomepageMention';
 import { HomepageOpenSource } from './HomepageOpenSource';
 import { HomepageSidebar } from './HomepageSidebar';
 import { HomepageTestimonials } from './HomepageTestimonials';
 import './workspace-story.css';
-import './homepage-feature-sections.css';
 
 // Retain the standalone sidebar breakdown for future use.
 const SHOW_SIDEBAR_BREAKDOWN = false;
 
-const loadAgentTeamwork = async () => ({
-  default: (await import('./agents/AgentWorkflowStories')).AgentTeamworkStory,
-});
-const loadEmailStory = async () => ({
-  default: (await import('./HomepageEmailStory')).HomepageEmailStory,
-});
-const HomepageEmailStory = lazy(loadEmailStory);
-const loadDocumentProject = async () => ({
-  default: (await import('./documents/DocumentProjectDemo'))
-    .DocumentProjectDemo,
-});
-const loadCrmRecord = async () => {
-  await import('./crm/crm-page.css');
-  return { default: (await import('./crm/CrmRecordDemo')).CrmRecordDemo };
-};
-const CrmRecordDemo = lazy(loadCrmRecord);
+const loadPullRequest = () => import('./HomepagePullRequest');
+const loadEmailCompose = () => import('./HomepageEmailCompose');
+const loadCollaborativeDoc = () => import('./HomepageCollaborativeDoc');
+const loadCrm = () => import('./HomepageCrm');
+const HomepageCrm = lazy(loadCrm);
 const loadSpreadsheet = () => import('./HomepageSpreadsheet');
 
-const AgentTeamworkStory = lazy(loadAgentTeamwork);
-const DocumentProjectDemo = lazy(loadDocumentProject);
+const HomepagePullRequest = lazy(loadPullRequest);
+const HomepageEmailCompose = lazy(loadEmailCompose);
+const HomepageCollaborativeDoc = lazy(loadCollaborativeDoc);
 const HomepageSpreadsheet = lazy(loadSpreadsheet);
+
+const LaunchPlan = () => (
+  <HomepageMention
+    kind="md"
+    label="Website launch plan"
+    description="The shared launch plan, checklist, and owners. Julia and Gabriel are editing."
+    href="#documents"
+  />
+);
+
+const CustomersSheet = () => (
+  <HomepageMention
+    kind="spreadsheet"
+    label="Customers to reach"
+    description="Top customers this month, compiled from PostHog. The list stays in the spreadsheet."
+    href="#spreadsheet"
+  />
+);
 
 const definitions =
   siteStyles.match(/@(font-face|property)[^{]*\{[^}]*\}/g)?.join('\n') ?? '';
@@ -51,36 +60,38 @@ function Feature(props: {
   id: string;
   title: string;
   description: string;
-  group: string;
-  details: readonly HomepageFeatureDetail[];
+  productPage?: '/email' | '/documents' | '/agents' | '/crm';
   titleAdornment?: JSX.Element;
+  messages?: readonly HomepageMessage[];
   children: JSX.Element;
 }) {
+  const conversation = createMemo(() => props.messages);
   return (
     <section
       class="homepage-feature"
       aria-labelledby={`${props.id}-title`}
       id={props.id}
     >
-      <header class="homepage-feature-intro workspace-demo homepage-enter">
-        <div>
-          <h2 id={`${props.id}-title`}>{props.title}</h2>
-          <Show when={props.titleAdornment}>
-            <div class="homepage-feature-adornment">{props.titleAdornment}</div>
-          </Show>
-        </div>
-        <div class="homepage-feature-summary">
-          <p>{props.description}</p>
-        </div>
-      </header>
+      <HomepageFeatureHeading
+        id={`${props.id}-title`}
+        title={props.title}
+        description={props.description}
+      >
+        {props.titleAdornment}
+      </HomepageFeatureHeading>
+      <Show when={conversation()}>
+        {(messages) => <HomepageConversation messages={messages()} />}
+      </Show>
       <div class="homepage-feature-visual">
         <div
-          class={`homepage-feature-graphic homepage-native-demo homepage-enter homepage-feature-${props.id}`}
+          class={`homepage-feature-graphic homepage-enter homepage-feature-${props.id}`}
         >
           {props.children}
         </div>
       </div>
-      <HomepageFeatureDetails group={props.group} details={props.details} />
+      <Show when={props.productPage}>
+        {(path) => <HomepageFeatureDetails title={props.title} path={path()} />}
+      </Show>
     </section>
   );
 }
@@ -144,61 +155,105 @@ export function HomepageSections() {
         </HomepageOpenSource>
         <Feature
           id="email"
-          title={'From chat\nto email draft.'}
-          description="Discuss an email with your team, then ask Macro to draft the reply using the calls and documents already in your workspace."
-          group="Email and chat"
-          details={homepageFeatureDetails.email}
+          productPage="/email"
+          title="Email and chat"
+          description="Bring email into chat. Ask Macro to draft replies from your calls and docs."
+          messages={[
+            {
+              person: 'julia',
+              text: 'Can you send Valentina the demo follow-up?',
+            },
+            {
+              person: 'jacob',
+              text: (
+                <>
+                  <DemoMention
+                    item={{ id: 'macro', label: 'Macro', kind: 'person' }}
+                  />{' '}
+                  draft Valentina’s follow-up from{' '}
+                  <HomepageMention
+                    kind="call"
+                    label="Demo call transcript"
+                    description="Transcript of the September 14 demo with Valentina · Team rollout, sales materials, and follow-up next steps."
+                    href="#email"
+                  />
+                  . Link the sales PDF and rollout plan. Cc Julia.
+                </>
+              ),
+            },
+          ]}
         >
           <DeferredDemo
-            preload={loadEmailStory}
-            fallback={
-              <DemoPlaceholder label="Channel and email draft preview" />
-            }
+            preload={loadEmailCompose}
+            fallback={<DemoPlaceholder label="Email draft preview" />}
           >
-            <HomepageEmailStory />
+            <HomepageEmailCompose />
           </DeferredDemo>
         </Feature>
         <Feature
           id="documents"
-          title="Make the plan. Move it forward."
-          description="Write together, turn decisions into tasks, and keep every next step connected to the plan. Your team and your agents work in the same document."
-          group="Documents and tasks"
-          details={homepageFeatureDetails.documents}
+          productPage="/documents"
+          title="Documents and tasks"
+          description="CRDT documents with live agent edits. Create tasks from messages and link them to the specification."
+          messages={[
+            {
+              person: 'jacob',
+              text: (
+                <>
+                  Let’s put the plan, owners, and tasks in <LaunchPlan />.
+                  Julia, can you take the announcement? Gabriel, the invite
+                  check?
+                </>
+              ),
+            },
+            {
+              person: 'julia',
+              text: 'On it. I’ve linked the launch checklist so we can track it from the doc.',
+            },
+          ]}
         >
           <figure class="homepage-doc-history" id="tasks">
             <div id="version-control">
               <DeferredDemo
-                preload={loadDocumentProject}
+                preload={loadCollaborativeDoc}
                 fallback={
-                  <DemoPlaceholder label="Collaborative document and linked tasks preview" />
+                  <DemoPlaceholder label="Collaborative document, tasks, and version history preview" />
                 }
               >
-                <DocumentProjectDemo />
+                <HomepageCollaborativeDoc />
               </DeferredDemo>
             </div>
           </figure>
         </Feature>
         <Feature
           id="coding-agents"
-          title="Bring your agents into the team."
+          productPage="/agents"
+          title="Coding agents"
           titleAdornment={<HomepageAgentLogos />}
-          description="Ask an agent to pick up a task, follow its progress, and review the changes together. Use the coding subscriptions you already have."
-          group="Coding agents"
-          details={homepageFeatureDetails.agents}
+          description="Use your coding agent subscriptions in channels. Read the diff and follow the task through to a pull request."
         >
           <DeferredDemo
-            preload={loadAgentTeamwork}
+            preload={loadPullRequest}
             fallback={<DemoPlaceholder label="Agent session preview" />}
           >
-            <AgentTeamworkStory />
+            <HomepagePullRequest />
           </DeferredDemo>
         </Feature>
         <Feature
           id="spreadsheet"
-          title="Turn shared data into the next step."
-          description="Work together in spreadsheets and databases. Ask an agent to find what matters and build a list your team can act on."
-          group="Sheets and databases"
-          details={homepageFeatureDetails.spreadsheet}
+          title="Sheets and databases"
+          description="Live collaboration with humans and agents. Import your Google Sheets and Notion databases."
+          messages={[
+            {
+              person: 'claude',
+              text: (
+                <>
+                  Checked PostHog. The most active accounts this month are in{' '}
+                  <CustomersSheet />.
+                </>
+              ),
+            },
+          ]}
         >
           <DeferredDemo
             preload={loadSpreadsheet}
@@ -209,16 +264,34 @@ export function HomepageSections() {
         </Feature>
         <Feature
           id="crm"
-          title="Keep the whole customer story."
-          description="See the conversations, calls, documents, and next steps behind each deal. Keep the pipeline current from the work you’re already doing."
-          group="CRM"
-          details={homepageFeatureDetails.crm}
+          productPage="/crm"
+          title="Sales and marketing"
+          description="Companies and contacts created from email. Agents update deal stages and draft customer follow-ups."
+          messages={[
+            {
+              person: 'valentina',
+              text: (
+                <>
+                  <span class="homepage-person-mention">@Claude</span>, update
+                  the CRM from{' '}
+                  <HomepageMention
+                    kind="call"
+                    label="Sales sync"
+                    description="Today’s sales call · Keystone Mechanical requested a proposal, and Bookend Retail signed."
+                    href="#crm"
+                  />
+                  . Keystone Mechanical asked for a proposal, and Bookend Retail
+                  signed. Move them to the right stages.
+                </>
+              ),
+            },
+          ]}
         >
           <DeferredDemo
-            preload={loadCrmRecord}
+            preload={loadCrm}
             fallback={<DemoPlaceholder label="CRM pipeline preview" />}
           >
-            <CrmRecordDemo />
+            <HomepageCrm />
           </DeferredDemo>
         </Feature>
         <HomepageTestimonials />

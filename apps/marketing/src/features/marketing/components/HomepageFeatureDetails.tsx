@@ -1,43 +1,71 @@
 import { Dialog } from '@kobalte/core/dialog';
+import ArrowUpRight from '@phosphor/arrow-up-right.svg';
 import X from '@phosphor/x.svg';
-import { createSignal, For, Show } from 'solid-js';
-import type { HomepageFeatureDetail } from '../core/homepage-feature-details';
+import { createSignal, onCleanup } from 'solid-js';
+import { createSitePalette } from '../../setup/sitePalette';
 import './homepage-feature-details.css';
 
-/** One quiet, accessible side panel for the details in a product section. */
+/** Keep the homepage in place while the existing product page opens beside it. */
 export function HomepageFeatureDetails(props: {
-  group: string;
-  details: readonly HomepageFeatureDetail[];
+  title: string;
+  path: '/email' | '/documents' | '/agents' | '/crm';
 }) {
-  const [active, setActive] = createSignal<HomepageFeatureDetail>();
+  const palette = createSitePalette();
   const [open, setOpen] = createSignal(false);
-  let opener: HTMLButtonElement | undefined;
+  const [loaded, setLoaded] = createSignal(false);
+  let opener!: HTMLButtonElement;
   let closeButton: HTMLButtonElement | undefined;
+  let frame: HTMLIFrameElement | undefined;
+  let releaseFrame: (() => void) | undefined;
+  const changeOpen = (next: boolean) => {
+    if (!next) {
+      releaseFrame?.();
+      releaseFrame = undefined;
+    } else setLoaded(false);
+    setOpen(next);
+  };
+  const attachPage = () => {
+    if (!open()) return;
+    releaseFrame?.();
+    releaseFrame = undefined;
+    setLoaded(true);
+    // Escape inside a same-origin frame does not bubble to the outer dialog.
+    let page: Document | null | undefined;
+    try {
+      page = frame?.contentDocument;
+    } catch {
+      return;
+    }
+    if (!page) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (
+        event.key !== 'Escape' ||
+        event.defaultPrevented ||
+        page.querySelector('[role="dialog"], [role="menu"], [role="listbox"]')
+      )
+        return;
+      event.preventDefault();
+      changeOpen(false);
+    };
+    page.addEventListener('keydown', handleEscape);
+    releaseFrame = () => page.removeEventListener('keydown', handleEscape);
+  };
+  onCleanup(() => releaseFrame?.());
 
   return (
     <>
-      <div class="homepage-feature-details workspace-demo">
-        <p>What you can do</p>
-        <div class="homepage-feature-detail-grid">
-          <For each={props.details}>
-            {(detail) => (
-              <button
-                type="button"
-                aria-haspopup="dialog"
-                onClick={(event) => {
-                  opener = event.currentTarget;
-                  setActive(detail);
-                  setOpen(true);
-                }}
-              >
-                {detail.title}
-                <span aria-hidden="true">+</span>
-              </button>
-            )}
-          </For>
-        </div>
+      <div class="homepage-feature-more workspace-demo">
+        <button
+          ref={opener}
+          type="button"
+          aria-haspopup="dialog"
+          aria-label={`Learn more about ${props.title.toLowerCase()}`}
+          onClick={() => changeOpen(true)}
+        >
+          Learn more<span aria-hidden="true">+</span>
+        </button>
       </div>
-      <Dialog open={open()} onOpenChange={setOpen} modal>
+      <Dialog open={open()} onOpenChange={changeOpen} modal>
         <Dialog.Portal>
           <Dialog.Overlay class="homepage-detail-backdrop" />
           <Dialog.Content
@@ -52,31 +80,36 @@ export function HomepageFeatureDetails(props: {
             }}
           >
             <header>
-              <span>{props.group}</span>
+              <Dialog.Title>{props.title}</Dialog.Title>
+              <a
+                href={props.path}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={`Open ${props.title.toLowerCase()} page in a new tab`}
+                title="Open full page"
+              >
+                <ArrowUpRight aria-hidden="true" />
+              </a>
               <Dialog.CloseButton
                 ref={closeButton}
-                aria-label="Close feature details"
+                aria-label="Close product page"
               >
                 <X aria-hidden="true" />
               </Dialog.CloseButton>
             </header>
-            <Show when={active()}>
-              {(detail) => (
-                <div class="homepage-detail-body">
-                  <Dialog.Title class="homepage-detail-title">
-                    {detail().title}
-                  </Dialog.Title>
-                  <Dialog.Description class="homepage-detail-lead">
-                    {detail().text}
-                  </Dialog.Description>
-                  <p class="homepage-detail-explanation">{detail().body}</p>
-                  <div class="homepage-detail-example">
-                    <p>For example</p>
-                    <blockquote>{detail().example}</blockquote>
-                  </div>
-                </div>
-              )}
-            </Show>
+            <Dialog.Description class="sr-only">
+              Read the {props.title.toLowerCase()} product page without leaving
+              the homepage.
+            </Dialog.Description>
+            <div class="homepage-detail-page" aria-busy={!loaded()}>
+              <iframe
+                ref={frame}
+                title={`${props.title} product page`}
+                src={`${props.path}?embed=feature&theme=${palette()}`}
+                onLoad={attachPage}
+              />
+              {!loaded() && <p role="status">Opening page…</p>}
+            </div>
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog>

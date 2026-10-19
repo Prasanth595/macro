@@ -6,12 +6,10 @@ import {
   waitFor,
 } from '@solidjs/testing-library';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { homepageFeatureDetails } from '../core/homepage-feature-details';
 import { HomepageFeatureDetails } from './HomepageFeatureDetails';
 
 let motionStyle: HTMLStyleElement;
 beforeEach(() => {
-  // jsdom reports an empty animationName without CSS; Presence expects browser's "none".
   motionStyle = document.createElement('style');
   motionStyle.textContent =
     '.homepage-detail-panel, .homepage-detail-backdrop { animation-name: none; }';
@@ -24,50 +22,44 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-it('opens the chosen explanation and returns focus to its trigger on close', async () => {
-  render(() => (
-    <HomepageFeatureDetails
-      group="Email and chat"
-      details={homepageFeatureDetails.email}
-    />
-  ));
-  const trigger = screen.getByRole('button', { name: 'Draft from your work' });
-  trigger.focus();
-  fireEvent.click(trigger);
-  const dialog = await screen.findByRole('dialog', {
-    name: 'Draft from your work',
+it('opens the actual product page and restores focus when closed', async () => {
+  render(() => <HomepageFeatureDetails title="Email and chat" path="/email" />);
+  const opener = screen.getByRole('button', {
+    name: 'Learn more about email and chat',
   });
-  expect(dialog.textContent).toContain('Review the draft');
-  expect(dialog.textContent).toContain('For example');
-  await waitFor(() =>
-    expect(document.activeElement).toBe(
-      screen.getByRole('button', { name: 'Close feature details' })
-    )
-  );
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Close feature details' })
-  );
+  fireEvent.click(opener);
+  expect(
+    await screen.findByRole('dialog', { name: 'Email and chat' })
+  ).toBeTruthy();
+  const frame = screen.getByTitle('Email and chat product page');
+  expect(frame.getAttribute('src')).toBe('/email?embed=feature&theme=dark');
+  expect(
+    screen
+      .getByRole('link', { name: 'Open email and chat page in a new tab' })
+      .getAttribute('href')
+  ).toBe('/email');
+  fireEvent.load(frame);
+  expect(screen.queryByRole('status')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Close product page' }));
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-  await waitFor(() => expect(document.activeElement).toBe(trigger));
+  await waitFor(() => expect(document.activeElement).toBe(opener));
 });
 
-it('dismisses with Escape and opens a different detail without stale content', async () => {
-  render(() => (
-    <HomepageFeatureDetails
-      group="Documents and tasks"
-      details={homepageFeatureDetails.documents}
-    />
-  ));
-  fireEvent.click(screen.getByRole('button', { name: 'Write together' }));
-  const dialog = await screen.findByRole('dialog', { name: 'Write together' });
-  fireEvent.keyDown(dialog, { key: 'Escape' });
+it('handles Escape from the embedded page without stealing a nested dialog’s Escape', async () => {
+  render(() => <HomepageFeatureDetails title="CRM" path="/crm" />);
+  fireEvent.click(screen.getByRole('button', { name: 'Learn more about crm' }));
+  const frame = (await screen.findByTitle(
+    'CRM product page'
+  )) as HTMLIFrameElement;
+  const page = frame.contentDocument!;
+  page.open();
+  page.write('<!doctype html><html><body></body></html>');
+  page.close();
+  fireEvent.load(frame);
+  page.body.innerHTML = '<div role="dialog">Share company</div>';
+  fireEvent.keyDown(page.body, { key: 'Escape' });
+  expect(screen.getByRole('dialog', { name: 'CRM' })).toBeTruthy();
+  page.body.innerHTML = '';
+  fireEvent.keyDown(page.body, { key: 'Escape' });
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Keep track of changes' })
-  );
-  const history = await screen.findByRole('dialog', {
-    name: 'Keep track of changes',
-  });
-  expect(history.textContent).toContain('make a new copy');
-  expect(history.textContent).not.toContain('same paragraph');
 });

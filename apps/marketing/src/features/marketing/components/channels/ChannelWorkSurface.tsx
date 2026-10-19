@@ -177,7 +177,6 @@ function ChannelWorkPane(props: {
 export function ChannelWorkSurface(props: {
   workspace: DummyWorkspace;
   renderMessageDetails?: (message: WorkspaceComment) => JSX.Element;
-  renderMessageBody?: (message: WorkspaceComment) => JSX.Element;
 }) {
   const w = props.workspace;
   let root!: HTMLDivElement;
@@ -263,7 +262,6 @@ export function ChannelWorkSurface(props: {
         <WorkspaceChannel
           workspace={channel}
           renderMessageDetails={props.renderMessageDetails}
-          renderMessageBody={props.renderMessageBody}
         />
       </div>
       <For each={panes()}>
