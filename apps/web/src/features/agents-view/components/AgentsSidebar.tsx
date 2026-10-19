@@ -244,7 +244,23 @@ export function AgentsSidebar(props: AgentsSidebarProps) {
     <MaybeSoupEntityActionDrawerManager>
       <ViewSidebar.Root aria-label="Agents navigation">
         <Show when={!isTouchDevice()}>
-          <ViewSidebar.Header>
+          <ViewSidebar.Header
+            searchLabel="Search conversations"
+            searchOpen={searchOpen()}
+            onSearchOpenChange={(open) => (open ? openSearch() : closeSearch())}
+            search={() => (
+              <SearchBar
+                ref={searchInput}
+                placeholder="Search conversations"
+                label="Search conversations"
+                value={props.search}
+                onValueChange={props.onSearchChange}
+                onEscape={() => {
+                  if (!props.search) closeSearch();
+                }}
+              />
+            )}
+          >
             <div class="flex min-w-0 items-center gap-1">
               <ViewSidebar.CloseButton />
               <ViewSidebar.Title>Agents</ViewSidebar.Title>
@@ -252,9 +268,19 @@ export function AgentsSidebar(props: AgentsSidebarProps) {
           </ViewSidebar.Header>
         </Show>
 
+        <Show when={!isTouchDevice()}>
+          <ViewSidebar.Primary>
+            <SidebarCreateButton
+              label="New conversation"
+              onCreate={props.onNewConversation}
+              ref={tourTarget(AGENTS_TOUR.newChat)}
+            />
+          </ViewSidebar.Primary>
+        </Show>
+
         <div
           ref={tourTarget(AGENTS_TOUR.modeSwitch)}
-          class="px-(--sidebar-gutter) pt-1 touch:pt-0"
+          class="px-(--sidebar-gutter) pt-3 touch:pt-0"
         >
           <Tabs
             aria-label="Agents mode"
@@ -269,16 +295,6 @@ export function AgentsSidebar(props: AgentsSidebarProps) {
             }
           />
         </div>
-
-        <Show when={!isTouchDevice()}>
-          <div class="px-(--sidebar-gutter) pt-2">
-            <SidebarCreateButton
-              label="New conversation"
-              onCreate={props.onNewConversation}
-              ref={tourTarget(AGENTS_TOUR.newChat)}
-            />
-          </div>
-        </Show>
 
         <ViewSidebar.Content class="gap-2 overflow-hidden pt-2">
           <Show when={!isTouchDevice()}>
@@ -326,17 +342,19 @@ export function AgentsSidebar(props: AgentsSidebarProps) {
                 <span class="min-w-0 truncate">Conversations</span>
                 <CollapsibleSection.Indicator />
               </CollapsibleSection.Trigger>
-              <CollapsibleSection.Action
-                label="Search conversations"
-                aria-pressed={searchOpen()}
-                class={cn(searchOpen() && 'bg-active text-ink')}
-                onClick={() => (searchOpen() ? closeSearch() : openSearch())}
-              >
-                <MagnifyingGlassIcon class="size-3.5" />
-              </CollapsibleSection.Action>
+              <Show when={isTouchDevice()}>
+                <CollapsibleSection.Action
+                  label="Search conversations"
+                  aria-pressed={searchOpen()}
+                  class={cn(searchOpen() && 'bg-active text-ink')}
+                  onClick={() => (searchOpen() ? closeSearch() : openSearch())}
+                >
+                  <MagnifyingGlassIcon class="size-3.5" />
+                </CollapsibleSection.Action>
+              </Show>
             </CollapsibleSection.Header>
             <CollapsibleSection.Content class="flex min-h-0 flex-1 flex-col gap-1">
-              <Show when={searchOpen()}>
+              <Show when={isTouchDevice() && searchOpen()}>
                 <SearchBar
                   ref={searchInput}
                   placeholder="Search conversations"

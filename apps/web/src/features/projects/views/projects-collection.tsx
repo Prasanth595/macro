@@ -14,6 +14,7 @@ import {
   ViewShell,
 } from '@app/components/view-shell';
 import { SidebarCreateButton } from '@app/components/view-shell/SidebarCreateButton';
+import { ViewCreateButton } from '@app/components/view-shell/ViewCreateButton';
 import {
   getSoupMenuEntities,
   getSoupRowEntities,
@@ -26,7 +27,6 @@ import { compareDateDesc } from '@core/util/date';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { EntitySelectionToolbarModal } from '@entity/EntitySelectionToolbarModal';
 import CalendarIcon from '@phosphor/calendar.svg';
-import PlusIcon from '@phosphor/plus.svg';
 import SpinnerIcon from '@phosphor/spinner.svg';
 import { PropertyValueIcon } from '@property/component/propertyValue';
 import {
@@ -74,6 +74,7 @@ export function ProjectsCollection(props: {
   onOpen(id: string, metadata?: ProjectListActivation): void;
   createAssigneeName: (id: Accessor<string>) => Accessor<string>;
   onCreate(draft?: ProjectComposerDraft): void;
+  createAction?: JSX.Element;
   scopeId: string;
   isActive: Accessor<boolean>;
   collection: ReturnType<typeof createProjectCollection>;
@@ -433,12 +434,14 @@ export function ProjectsCollection(props: {
             <h1 class="min-w-0 truncate text-xl font-semibold tracking-[-0.03em] text-ink">
               Projects
             </h1>
-            <div class="ml-auto shrink-0">
-              <SidebarCreateButton
-                label="New"
-                onCreate={() => props.onCreate()}
-              />
-            </div>
+            <Show when={isTouchDevice()}>
+              <div class="ml-auto shrink-0">
+                <SidebarCreateButton
+                  label="New"
+                  onCreate={() => props.onCreate()}
+                />
+              </div>
+            </Show>
           </div>
           <div class="flex min-w-0 items-center justify-between gap-3">
             <SearchBar
@@ -453,7 +456,7 @@ export function ProjectsCollection(props: {
               class="max-w-md flex-1"
               hotkey="cmd+f"
             />
-            <div class="flex shrink-0 items-center gap-2">
+            <div class="ml-auto flex shrink-0 items-center gap-2">
               <Show when={!isTouchDevice()}>
                 <ViewLayoutDropdown
                   label="Project layout"
@@ -558,14 +561,14 @@ export function ProjectsCollection(props: {
                   </div>
                 </Dropdown.Content>
               </Dropdown>
-              <Button
-                variant="outline"
-                class="touch:hidden @max-[720px]/view-shell:hidden"
-                onClick={() => props.onCreate()}
-              >
-                <PlusIcon class="size-4" />
-                New project
-              </Button>
+              <Show when={!isTouchDevice()}>
+                {props.createAction ?? (
+                  <ViewCreateButton
+                    aria-label="New project"
+                    onClick={() => props.onCreate()}
+                  />
+                )}
+              </Show>
             </div>
           </div>
         </div>

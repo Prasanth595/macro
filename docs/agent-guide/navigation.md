@@ -431,7 +431,8 @@ unsynced PR shows its number without an assumed status. Missing metadata is omit
 "Coding agent" is never substituted for a branch. There is no right-side dot in
 Agents; Home keeps its sparkle and trailing unread dot. Only the selected row has
 the selected background. Legacy chat rows keep their chat icon.
-Use **Search conversations** beside the Conversations heading to filter by title.
+Use **Search conversations** beside the sidebar collapse icon to open a search
+field above New and filter by title.
 Results stay packed at the top with compact spacing, even with only a few matches;
 clearing the search restores the list.
 Its **New conversation** button opens the composer for the current mode with one
@@ -444,11 +445,21 @@ offers both kinds. Opening an existing row restores its own kind and URL.
 Right-click a conversation for Rename, Favorite, Copy link, Share, Delete, and
 the other entity actions used on Home.
 
-Home's inner rail starts with a full-width **New chat** plus button that returns
-to Home's starting pane without creating a chat. Email and Tasks use the same
-pill styling and top placement for **New email** and **New task**, replacing
-the sidebar title bars. When multiple desktop splits are open, a **Close** (X)
-button appears beside each sidebar's New button and closes that split, including
+Desktop inner sidebars place the same full-width, outlined **New** pill directly
+below the title. List toolbars place its compact version at the right end of the
+controls row, including when the sidebar is hidden. The action stays specific to
+the view: Home returns to its starting pane, Email composes mail, Chat offers a
+channel or direct message, and Calendar offers an event or call. Tasks offers
+**Task**, **Project** (when enabled), and **Tag** in both the Tasks and Projects
+lists. Customers offers Company, Contact, and enabled Pipeline creation. Reviews
+uses the general creation menu. Agents keeps New above its Chat/Code mode tabs.
+Each desktop sidebar puts its Search icon immediately left of the collapse
+control. Click it to reveal the view's search field between the title and New;
+click again to hide it. The field focuses when opened. Existing list-toolbar
+search remains available and shares its query where the view filters a list.
+Mobile creation controls, search controls, and placement are unchanged.
+When multiple desktop splits are open, a **Close** (X) button appears in the
+sidebar title bar and closes that split, including
 when the sidebar is an overlay in a narrow split. Verify with three splits:
 open **Show navigation**, then use the sidebar's **Close** button without first
 hiding navigation; only its owning split closes. The last logical split has no

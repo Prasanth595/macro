@@ -4,12 +4,11 @@ import {
   ViewBreadcrumbs,
   ViewShell,
 } from '@app/components/view-shell';
-import { SidebarCreateButton } from '@app/components/view-shell/SidebarCreateButton';
-import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { Show } from 'solid-js';
 import { TASK_TABS } from '../constants';
+import { TasksCreateAction } from '../tasks-create-action';
 import { useTasksView } from '../tasks-view-context';
 import { TasksControls } from './TasksControls';
 import { TasksMobileTabs } from './TasksMobileTabs';
@@ -59,8 +58,7 @@ export function TasksTopBar() {
 
 export function TasksHeader(props: TasksHeaderProps) {
   const panel = useSplitPanelOrThrow();
-  const layout = useSplitLayout();
-  const { state, setState } = useTasksView();
+  const { state, setState, projectsEnabled } = useTasksView();
   let searchInput: HTMLInputElement | undefined;
   const selectedTabLabel = () =>
     TASK_TABS.find((tab) => tab.id === state.tab)?.label ?? 'Tasks';
@@ -78,10 +76,6 @@ export function TasksHeader(props: TasksHeaderProps) {
     },
   });
 
-  const createTask = () => {
-    layout.popoverSplit({ type: 'component', id: 'task-compose' });
-  };
-
   return (
     <div class="flex min-w-0 flex-col @max-[720px]/view-shell:gap-3">
       <Show
@@ -92,9 +86,6 @@ export function TasksHeader(props: TasksHeaderProps) {
               <h1 class="min-w-0 truncate text-xl font-semibold tracking-[-0.03em] text-ink">
                 {selectedTabLabel()}
               </h1>
-              <div class="ml-auto shrink-0">
-                <SidebarCreateButton label="New" onCreate={createTask} />
-              </div>
             </div>
 
             <div class="flex min-w-0 items-center justify-between gap-3">
@@ -108,7 +99,13 @@ export function TasksHeader(props: TasksHeaderProps) {
                 placeholder="Search tasks"
                 class="max-w-md flex-1"
               />
-              <TasksControls />
+              <div class="ml-auto flex shrink-0 items-center gap-2">
+                <TasksControls />
+                <TasksCreateAction
+                  presentation="toolbar"
+                  projectsEnabled={projectsEnabled()}
+                />
+              </div>
             </div>
           </>
         }

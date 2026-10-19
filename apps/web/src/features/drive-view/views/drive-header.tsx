@@ -69,9 +69,6 @@ export function DriveHeader() {
                   <h1 class="min-w-0 truncate text-xl font-semibold tracking-[-0.03em] text-ink">
                     {title()}
                   </h1>
-                  <div class="ml-auto shrink-0">
-                    <DriveCreateMenu />
-                  </div>
                 </div>
                 <div class="flex min-w-0 items-center justify-between gap-3">
                   <Show when={!state.projectId()}>
@@ -101,7 +98,7 @@ export function DriveHeader() {
                         <DriveFilterMenu />
                       </Suspense>
                     </Show>
-                    <div class="shrink-0 @max-[720px]/view-shell:hidden">
+                    <div class="shrink-0">
                       <DriveCreateMenu presentation="toolbar" />
                     </div>
                   </div>

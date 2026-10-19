@@ -3,7 +3,8 @@
 ## Surface
 
 `Go to Tasks` → `/app/component/tasks`. Tabs: `My tasks`, `Created by me`, `Team tasks`, and `Projects`.
-The desktop toolbar contains search (`Ctrl+F`), an icon-only `Task layout` dropdown, `Sort`, `Group`, and `Filter`;
+The desktop toolbar contains search (`Ctrl+F`), an icon-only `Task layout` dropdown,
+`Sort`, `Group`, `Filter`, and an outlined `New` menu at the right end;
 the filter uses the legacy compact option rows and searchable Assignee, Created by,
 and Tags submenus. Multi-select choices keep the menu open; Escape dismisses it.
 The top of the `Filter` menu is a `Filter with AI…` textbox, focused when the menu opens: type a plain-English
@@ -17,8 +18,14 @@ off-topic text) keep the typed text and show a red error there instead. The box 
 focus while you type even if the pointer drifts over the rows; ArrowDown moves into
 the rows and hovering a submenu hands focus to it as usual. The mobile drawer has no
 AI box.
-Task creation is available from the `New` button in the Tasks sidebar. With Projects
-enabled, `My projects` appears below the tabs and favorites. It lists
+The desktop sidebar's Search icon, immediately left of collapse, opens the
+search field above New. It shares the current Tasks or Projects list query.
+The desktop sidebar and toolbar `New` menus offer `Task`, `Project` (when
+Projects is enabled), and `Tag`. Task and Project open their existing composers;
+Tag opens the tag editor, with personal scope selected and team sharing available
+when the user has a team. The Projects list uses the same menu. Mobile creation
+controls are unchanged. With Projects enabled, `My projects` appears below the
+tabs and favorites. It lists
 accessible projects by most recently updated, with a capped height and its own scroll
 area. Click a project to open its overview within the current Tasks view, keeping
 the sidebar mounted, or Shift-click to open it in a new split.
@@ -842,7 +849,7 @@ tags start expanded. Filter-menu options continue to show full tag names.
 ## Tasks — `/app/component/tasks`
 
 Task navigation uses `My Tasks`, `All Tasks`, and `Created by me`. The desktop
-sidebar has a full-width `New task` action and a collapsible list of task favorites;
+sidebar has the full-width `New` menu and a collapsible list of task favorites;
 tag filtering lives in the `Filter` menu. Favorite rows open their tasks.
 Normal row and favorite activation replaces the list with the editable task
 document; its originating-tab breadcrumb returns to the list and its

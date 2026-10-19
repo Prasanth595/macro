@@ -19,8 +19,8 @@ Browser Back and Forward restore the tab and close an open record.
 Companies lists every visible company, grouped by Stage by default, with Owner,
 Revenue and Last Interaction columns. A Stage column is off by default; turn it
 on, or hide Owner or Revenue, under **Display options**. Its toolbar holds
-sort, group, filter, display options, saved views, and **New company** at the
-right end.
+sort, group, filter, display options, saved views, and the shared **New** menu
+at the right end, with the same options as the sidebar.
 
 People lists contacts across every CRM-enabled team the viewer belongs to, from
 the same Soup query with only CRM contacts opted in (`crmf`). The server collapses
@@ -28,8 +28,8 @@ duplicate full email addresses (case-insensitive) to one contact. Hidden contact
 and contacts under hidden companies are excluded. Columns are Person (name and
 email), Company and Last contacted (sortable). `Search people` matches name or
 email on the server after a short typing pause, so results include contacts not
-yet scrolled into view. **New contact** sits at the right end of the toolbar. Its
-dialog asks for a company through a **Choose a company** pill (searchable by name
+yet scrolled into view. The desktop toolbar ends with the shared **New** menu;
+choose **Contact**. On touch, **New contact** is unchanged. The contact dialog asks for a company through a **Choose a company** pill (searchable by name
 or domain, from the up to 500 most relevant companies with a domain) and fixes
 the email to that company's primary domain; **Add contact** on a company's Team
 tab skips the company pill. The company, contact and pipeline dialogs share the
@@ -263,7 +263,7 @@ picker. Checking or unchecking saves immediately and refreshes the CRM sidebar's
 membership counts. Changes are disabled while saving; failures show an inline retry
 message and keep the last saved membership. With no lists, create one in the CRM sidebar.
 
-`New company` uses the existing creation dialog. `Import` previews a CSV with a
+Desktop `New` → `Company` uses the existing creation dialog. `Import` previews a CSV with a
 `Domain` (or `Domains`, `Website`) column and an optional `Name` or `Company`
 column, such as a Companies export (up to 10,000 rows, at most 5 MB). Each row
 takes its first valid domain; rows without one or repeating an earlier domain are

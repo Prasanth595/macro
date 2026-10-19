@@ -697,8 +697,9 @@ and swiping left to mark emails done in Signal and Noise. The filter button open
 glass bottom sheet for status, done, attachment, calendar and tag filters, plus an `Inbox`
 section when the user can pick one: `All inboxes` or a single address, never several.
 `Clear all` resets those filters and the inbox selection. Desktop keeps its sidebar,
-search field, filter menu and preview control. The sidebar lists the inboxes above the
-`New email` button and tabs as plain rows; clicking one shows only that inbox.
+search field, filter menu and preview control. Its outlined `New` button sits
+directly below the sidebar title, above the inboxes, and at the right end of the
+list toolbar. Inbox rows select only that inbox.
 `Connect another account` starts the add-inbox flow from its own row below the
 scrolling list. `New email` prefills From with the selected inbox, or the primary
 inbox when All inboxes is selected; reopening a draft keeps its saved sender.

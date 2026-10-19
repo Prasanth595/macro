@@ -1,4 +1,8 @@
-import { useViewTabHotkeys, ViewSidebar } from '@app/components/view-shell';
+import {
+  SearchBar,
+  useViewTabHotkeys,
+  ViewSidebar,
+} from '@app/components/view-shell';
 import { SidebarCreateButton } from '@app/components/view-shell/SidebarCreateButton';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { useSplitLayout } from '@components/app/split-layout/layout';
@@ -98,6 +102,7 @@ export function EmailSidebar() {
   const { openWithSplit } = useSplitLayout();
   const {
     state,
+    setState,
     setTab,
     showTags,
     isSidebarSectionOpen,
@@ -126,7 +131,17 @@ export function EmailSidebar() {
   return (
     <ViewSidebar.Root aria-label="Email navigation">
       <Show when={!isTouchDevice()}>
-        <ViewSidebar.Header>
+        <ViewSidebar.Header
+          searchLabel="Search email"
+          search={() => (
+            <SearchBar
+              label="Search email"
+              placeholder="Search email"
+              value={state.search}
+              onValueChange={(search) => setState('search', search)}
+            />
+          )}
+        >
           <div class="flex min-w-0 items-center gap-1">
             <ViewSidebar.CloseButton class="shrink-0" />
             <ViewSidebar.Title>Email</ViewSidebar.Title>
@@ -134,13 +149,24 @@ export function EmailSidebar() {
         </ViewSidebar.Header>
       </Show>
 
+      <Show when={!isTouchDevice()}>
+        <ViewSidebar.Primary>
+          <SidebarCreateButton
+            label="New email"
+            onCreate={() => composeEmail(openWithSplit, state.inboxIds)}
+          />
+        </ViewSidebar.Primary>
+      </Show>
+
       <ViewSidebar.Content>
         <EmailInboxList />
 
-        <SidebarCreateButton
-          label="New email"
-          onCreate={() => composeEmail(openWithSplit, state.inboxIds)}
-        />
+        <Show when={isTouchDevice()}>
+          <SidebarCreateButton
+            label="New email"
+            onCreate={() => composeEmail(openWithSplit, state.inboxIds)}
+          />
+        </Show>
 
         <EmailNavigation />
 

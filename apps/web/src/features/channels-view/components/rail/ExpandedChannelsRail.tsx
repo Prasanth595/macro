@@ -9,12 +9,9 @@ import { lazyNamed } from '@core/util/lazyNamed';
 import EmptyStateNoSearchMatchGraphic from '@design/empty-state-no-search-match.svg';
 import { type ChannelEntity, Entity } from '@entity';
 import CaretDownIcon from '@phosphor/caret-down.svg';
-import ChatCircleIcon from '@phosphor/chat-circle.svg';
 import ChatsCircleIcon from '@phosphor/chats-circle.svg';
 import CheckIcon from '@phosphor/check.svg';
-import HashIcon from '@phosphor/hash.svg';
 import MagnifyingGlassIcon from '@phosphor/magnifying-glass.svg';
-import PlusIcon from '@phosphor/plus.svg';
 import SortIcon from '@phosphor/sort-ascending.svg';
 import XIcon from '@phosphor/x.svg';
 import {
@@ -45,6 +42,7 @@ import type {
 } from '../../types';
 import { channelMentionsUser, formatDetailedTimestamp } from '../../utils';
 import { ChannelsEmptyState } from '../ChannelsEmptyState';
+import { ConversationsCreateMenu } from '../ConversationsCreateMenu';
 import { ChannelFavoritesSection } from './ChannelFavoriteRows';
 import {
   ChannelLabelMenuItems,
@@ -394,13 +392,35 @@ function ExpandedHeader(props: { search: ChannelRailSearch }) {
 
   return (
     <div class="flex shrink-0 flex-col">
-      <ViewSidebar.Header>
+      <ViewSidebar.Header
+        searchLabel="Search conversations"
+        searchOpen={props.search.isOpen()}
+        onSearchOpenChange={(open) =>
+          open ? props.search.open() : props.search.close()
+        }
+        search={() => (
+          <SearchBar
+            ref={props.search.registerInput}
+            label="Search channels and direct messages"
+            placeholder="Search conversations"
+            value={props.search.query()}
+            hotkey="cmd+f"
+            onValueChange={props.search.setQuery}
+            onEscape={() => {
+              if (!props.search.query()) props.search.close();
+            }}
+          />
+        )}
+      >
         <div class="flex min-w-0 items-center gap-1">
           <ViewSidebar.CloseButton />
           <ViewSidebar.Title>Chat</ViewSidebar.Title>
         </div>
       </ViewSidebar.Header>
-      <ViewSidebar.Primary>
+      <ViewSidebar.Primary class="flex flex-col gap-3">
+        <Show when={!isTouchDevice()}>
+          <ConversationsCreateMenu presentation="sidebar" />
+        </Show>
         <ViewSidebar.Toolbar>
           <Tabs
             aria-label="Chat sidebar views"
@@ -410,21 +430,25 @@ function ExpandedHeader(props: { search: ChannelRailSearch }) {
             value={rail.tab()}
             onChange={selectTab}
           />
-          <ViewSidebar.Control
-            label={
-              props.search.isOpen() ? 'Close search' : 'Search conversations'
-            }
-            aria-pressed={props.search.isOpen()}
-            class={cn(props.search.isOpen() && 'bg-active text-ink')}
-            onClick={() =>
-              props.search.isOpen() ? props.search.close() : props.search.open()
-            }
-          >
-            <MagnifyingGlassIcon class="size-3.5" />
-          </ViewSidebar.Control>
+          <Show when={isTouchDevice()}>
+            <ViewSidebar.Control
+              label={
+                props.search.isOpen() ? 'Close search' : 'Search conversations'
+              }
+              aria-pressed={props.search.isOpen()}
+              class={cn(props.search.isOpen() && 'bg-active text-ink')}
+              onClick={() =>
+                props.search.isOpen()
+                  ? props.search.close()
+                  : props.search.open()
+              }
+            >
+              <MagnifyingGlassIcon class="size-3.5" />
+            </ViewSidebar.Control>
+          </Show>
         </ViewSidebar.Toolbar>
       </ViewSidebar.Primary>
-      <Show when={props.search.isOpen()}>
+      <Show when={isTouchDevice() && props.search.isOpen()}>
         <div class="px-(--sidebar-content-inset) pt-(--sidebar-gutter)">
           <SearchBar
             ref={props.search.registerInput}
@@ -969,36 +993,6 @@ function ExpandedRecents() {
   );
 }
 
-/** The Threads section's create action: a channel or a direct message. */
-function ConversationsCreateMenu() {
-  return (
-    <Dropdown placement="bottom-end">
-      <Dropdown.Trigger
-        as={ViewSidebar.Control}
-        variant="ghost"
-        size="icon-sm"
-        label="Create channel or direct message"
-      >
-        <PlusIcon class="size-3.5" />
-      </Dropdown.Trigger>
-      <Dropdown.Content class="min-w-44">
-        <Dropdown.Group>
-          <Dropdown.Item onSelect={openNewChannelModal}>
-            <HashIcon class="size-3.5 shrink-0 text-ink-muted" />
-            <span class="flex-1 truncate text-ink-muted">New channel</span>
-          </Dropdown.Item>
-          <Dropdown.Item onSelect={() => runCreateAction('channel')}>
-            <ChatCircleIcon class="size-3.5 shrink-0 text-ink-muted" />
-            <span class="flex-1 truncate text-ink-muted">
-              New direct message
-            </span>
-          </Dropdown.Item>
-        </Dropdown.Group>
-      </Dropdown.Content>
-    </Dropdown>
-  );
-}
-
 function ExpandedThreads() {
   const rail = useChannelsRail();
   const [scrollRoot, setScrollRoot] = createSignal<HTMLDivElement>();
@@ -1043,7 +1037,9 @@ function ExpandedThreads() {
           </span>
           <div data-section-action="" class="flex items-center gap-0.5">
             <ChannelSortDropdown group="threads" label="Conversations" />
-            <ConversationsCreateMenu />
+            <Show when={isTouchDevice()}>
+              <ConversationsCreateMenu />
+            </Show>
           </div>
         </CollapsibleSection.Header>
         <CollapsibleSection.Content

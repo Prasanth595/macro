@@ -39,6 +39,7 @@ import {
   Suspense,
 } from 'solid-js';
 import { CrmListDialog } from '../components/company-list-dialog';
+import { CrmCreateMenu } from '../components/crm-create-menu';
 import { CrmMobileTabs } from '../components/crm-mobile-tabs';
 import { CrmSidebar } from '../components/crm-sidebar';
 import { PipelineDialog } from '../components/pipeline-dialog';
@@ -149,25 +150,12 @@ function CrmSearchBar() {
 }
 
 /** Contacts are not in the search index, so People searches the soup query. */
-function PeopleSearchBar() {
+function PeopleSearchBar(props: {
+  value: string;
+  onValueChange: (value: string) => void;
+}) {
   const view = useCrmWorkspace();
   let input: HTMLInputElement | undefined;
-  const [text, setText] = createSignal(
-    view.queryFilters.state.include.crmContactSearch ?? ''
-  );
-  // Every applied search restarts the server query; wait for a typing pause.
-  const applySearch = debounce(
-    (value: string) =>
-      view.queryFilters.set({
-        include: { crmContactSearch: value.trim() || undefined },
-      }),
-    250
-  );
-  onCleanup(applySearch.clear);
-  const search = (value: string) => {
-    setText(value);
-    applySearch(value);
-  };
   useViewControlHotkeys({
     scopeId: view.host.scopeId,
     enabled: view.host.isActive,
@@ -185,8 +173,8 @@ function PeopleSearchBar() {
       ref={(element) => (input = element)}
       label="Search people"
       placeholder="Search people"
-      value={text()}
-      onValueChange={search}
+      value={props.value}
+      onValueChange={props.onValueChange}
       onEscape={view.host.focus}
       hotkey="cmd+f"
       class="max-w-md flex-1"
@@ -217,6 +205,22 @@ export function CrmWorkspaceView(props: {
     copyViewLink,
   } = useCrmContext();
   const view = useCrmWorkspace();
+  const [peopleSearch, setPeopleSearch] = createSignal(
+    view.queryFilters.state.include.crmContactSearch ?? ''
+  );
+  const applyPeopleSearch = debounce(
+    (value: string) =>
+      view.queryFilters.set({
+        include: { crmContactSearch: value.trim() || undefined },
+      }),
+    250
+  );
+  onCleanup(applyPeopleSearch.clear);
+  const searchPeople = (value: string) => {
+    setPeopleSearch(value);
+    applyPeopleSearch(value);
+  };
+
   const { openWithSplit } = useCrmContext().createNavigation();
   const [selectedRecord, setSelectedRecord] = createSignal<CrmRecordRef>();
   const closeRecord = () => setSelectedRecord(undefined);
@@ -369,8 +373,32 @@ export function CrmWorkspaceView(props: {
   onMount(() => {
     if (!listsEnabled() && active().startsWith('list:')) navigate('active');
   });
+  const toolbarCreateMenu = () => (
+    <CrmCreateMenu
+      presentation="toolbar"
+      onCreateCompany={openCreateCompanyModal}
+      onCreateContact={() => openCreateContactModal()}
+      pipeline={
+        pipelinesEnabled()
+          ? {
+              disabled: !canCreatePipeline(),
+              onCreate: () => setCreatingPipeline(true),
+            }
+          : undefined
+      }
+    />
+  );
   const sidebar = (onCollapse: () => void = () => setCollapsed(true)) => (
     <CrmSidebar
+      searchLabel={peopleActive() ? 'Search people' : 'Search companies'}
+      search={() => (
+        <Show when={peopleActive()} fallback={<CrmSearchBar />}>
+          <PeopleSearchBar
+            value={peopleSearch()}
+            onValueChange={searchPeople}
+          />
+        </Show>
+      )}
       pipelines={
         <Show when={pipelinesEnabled()}>
           <PipelineSidebar
@@ -531,15 +559,25 @@ export function CrmWorkspaceView(props: {
               fallback={
                 <ViewShell.Header class="touch:pt-0">
                   <div class="flex min-w-0 items-center justify-between gap-3">
-                    <PeopleSearchBar />
-                    <Button
-                      variant="outline"
-                      class="ml-auto shrink-0"
-                      onClick={() => openCreateContactModal()}
+                    <PeopleSearchBar
+                      value={peopleSearch()}
+                      onValueChange={searchPeople}
+                    />
+                    <Show
+                      when={!isTouchDevice()}
+                      fallback={
+                        <Button
+                          variant="outline"
+                          class="ml-auto shrink-0"
+                          onClick={() => openCreateContactModal()}
+                        >
+                          <PlusIcon class="size-4" />
+                          New contact
+                        </Button>
+                      }
                     >
-                      <PlusIcon class="size-4" />
-                      New contact
-                    </Button>
+                      {toolbarCreateMenu()}
+                    </Show>
                   </div>
                 </ViewShell.Header>
               }
@@ -572,10 +610,7 @@ export function CrmWorkspaceView(props: {
                         </Button>
                       )}
                     </Show>
-                    <Button variant="outline" onClick={openCreateCompanyModal}>
-                      <PlusIcon />
-                      New company
-                    </Button>
+                    {toolbarCreateMenu()}
                   </div>
                 </div>
               </ViewShell.Header>

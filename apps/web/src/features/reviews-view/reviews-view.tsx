@@ -4,6 +4,7 @@ import {
   ViewBreadcrumbs,
   ViewShell,
 } from '@app/components/view-shell';
+import { ViewCreateMenu } from '@app/features/command/view-create-menu';
 import {
   createSearchParams,
   SplitRouter,
@@ -360,6 +361,7 @@ function ReviewsRoot() {
               />
               <div class="flex min-w-0 items-center justify-end gap-3">
                 <ReviewsControls {...controls()} />
+                <ViewCreateMenu presentation="toolbar" />
               </div>
             </div>
           }

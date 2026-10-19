@@ -4,6 +4,7 @@ import {
   useViewTabHotkeys,
   ViewSidebar,
 } from '@app/components/view-shell';
+import { ViewCreateMenu } from '@app/features/command/view-create-menu';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { PrOriginIcon } from '@block-pr/component/PrLinks';
 import { PrStatusIcon } from '@block-pr/component/PrStatus';
@@ -291,22 +292,41 @@ export function ReviewsSidebar(props: {
 
   return (
     <ViewSidebar.Root aria-label="Reviews navigation">
-      <ViewSidebar.Header>
+      <ViewSidebar.Header
+        searchLabel="Search reviews"
+        search={() => (
+          <SearchBar
+            label="Search reviews"
+            placeholder="Search reviews"
+            autocomplete="off"
+            value={props.search}
+            onValueChange={props.onSearchChange}
+            onEscape={() => props.onSearchChange('')}
+          />
+        )}
+      >
         <div class="flex min-w-0 items-center gap-1">
           <ViewSidebar.CloseButton />
           <ViewSidebar.Title>Reviews</ViewSidebar.Title>
         </div>
       </ViewSidebar.Header>
+      <Show when={!isTouchDevice()}>
+        <ViewSidebar.Primary>
+          <ViewCreateMenu presentation="sidebar" />
+        </ViewSidebar.Primary>
+      </Show>
       <ViewSidebar.Primary class="flex flex-col gap-2">
-        <SearchBar
-          label="Search reviews"
-          placeholder="Search reviews"
-          autocomplete="off"
-          value={props.search}
-          onValueChange={props.onSearchChange}
-          class="border-0 bg-ink/5 shadow-none"
-          onEscape={() => props.onSearchChange('')}
-        />
+        <Show when={isTouchDevice()}>
+          <SearchBar
+            label="Search reviews"
+            placeholder="Search reviews"
+            autocomplete="off"
+            value={props.search}
+            onValueChange={props.onSearchChange}
+            class="border-0 bg-ink/5 shadow-none"
+            onEscape={() => props.onSearchChange('')}
+          />
+        </Show>
         {/* Touch layouts list pull requests; the board needs a pointer to drag. */}
         <Show when={!isTouchDevice()}>
           <TabsInset

@@ -5,8 +5,10 @@ import {
   ViewShell,
 } from '@app/components/view-shell';
 import { SidebarCreateButton } from '@app/components/view-shell/SidebarCreateButton';
+import { ViewCreateButton } from '@app/components/view-shell/ViewCreateButton';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { tourTarget } from '@ui/components/Tour';
 import { createSignal, Show } from 'solid-js';
 import { composeEmail } from '../compose-email';
@@ -114,18 +116,18 @@ export function EmailHeader(props: EmailHeaderProps) {
         <EmailInboxFilter class="@max-[480px]/view-shell:order-3 @max-[480px]/view-shell:w-full" />
         <div class="ml-auto flex shrink-0 items-center self-center gap-2">
           <EmailInboxMenu />
-          <div class="shrink-0">
+          <Show when={isTouchDevice()}>
             <SidebarCreateButton
               label="New"
               onCreate={() => composeEmail(openWithSplit, state.inboxIds)}
             />
-          </div>
+          </Show>
         </div>
       </div>
 
-      <Show when={state.tab !== 'scheduled'}>
+      <Show when={state.tab !== 'scheduled' || !isTouchDevice()}>
         <div class="flex min-w-0 items-center justify-between gap-3">
-          <Show when={state.tab !== 'reminders'}>
+          <Show when={state.tab !== 'reminders' && state.tab !== 'scheduled'}>
             <SearchBar
               ref={(element) => {
                 searchInput = element;
@@ -140,10 +142,20 @@ export function EmailHeader(props: EmailHeaderProps) {
               class="max-w-md flex-1"
             />
           </Show>
-          <EmailControls
-            filterOpen={filterOpen()}
-            onFilterOpenChange={setFilterOpen}
-          />
+          <div class="ml-auto flex shrink-0 items-center gap-2">
+            <Show when={state.tab !== 'scheduled'}>
+              <EmailControls
+                filterOpen={filterOpen()}
+                onFilterOpenChange={setFilterOpen}
+              />
+            </Show>
+            <Show when={!isTouchDevice()}>
+              <ViewCreateButton
+                aria-label="New email"
+                onClick={() => composeEmail(openWithSplit, state.inboxIds)}
+              />
+            </Show>
+          </div>
         </div>
       </Show>
     </div>

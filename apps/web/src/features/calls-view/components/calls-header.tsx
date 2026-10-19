@@ -29,13 +29,15 @@ export function CallsHeader() {
         <h1 class="min-w-0 flex-1 truncate px-1 text-sm font-semibold tracking-[-0.03em] text-ink">
           {title()}
         </h1>
-        <div class="flex shrink-0 items-center gap-2 [&_button]:h-8 [&_button]:min-w-8 [&_button>svg]:size-4!">
+      </ViewShell.TopBar>
+      <ViewShell.Header>
+        <div class="ml-auto flex w-fit shrink-0 items-center gap-2">
           <SoupViewContextSort />
           <SoupViewContextGroup hideLabel variant="ghost" />
           <UnifiedFilterDropdown hideLabel variant="ghost" />
           <NewCallButton />
         </div>
-      </ViewShell.TopBar>
+      </ViewShell.Header>
       <SoupActiveFiltersBar
         filters={consolidatedFiltersList()}
         onClearAll={resetToTabDefaults}

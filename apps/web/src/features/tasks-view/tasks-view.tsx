@@ -87,7 +87,7 @@ function ImportLinearAction() {
 
 function TasksViewRoot() {
   const panel = useSplitPanelOrThrow();
-  const { state, projectsEnabled } = useTasksView();
+  const { state, setState, projectsEnabled } = useTasksView();
   const navigate = useNavigate();
   const layout = useSplitLayout();
   const [listElement, setListElement] = createSignal<HTMLDivElement>();
@@ -132,6 +132,10 @@ function TasksViewRoot() {
                       <TasksMobileTabs />
                     </div>
                     <ProjectsTab
+                      search={{
+                        value: () => state.search,
+                        onChange: (search) => setState('search', search),
+                      }}
                       onOpen={(id, event, newSplit) => {
                         if (
                           newSplit ||

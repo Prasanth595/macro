@@ -88,14 +88,13 @@ export function Header(props: { presentation: 'workspace' | 'preview' }) {
     headerElement()?.closest<HTMLElement>('[data-view-shell-main]')
   );
   // Measure the parent pane so toolbar content cannot affect its own breakpoint.
-  // A docked sidebar owns New and hides the navigation toggle, so its toolbar
-  // fits sooner. Avoid wrapping just before the sidebar collapses and unwraps it.
+  // A docked sidebar hides the navigation toggle, so its toolbar fits sooner.
   const hasDockedSidebar = () =>
     !!shell && !shell.aside.isCollapsed() && !shell.aside.isOverlay();
   const breakpoints = createSizeBreakpoints(
     () => paneSize.width ?? 0,
     () => ({
-      fullHeader: { min: hasDockedSidebar() ? 480 : 600 },
+      fullHeader: { min: hasDockedSidebar() ? 580 : 600 },
       inlineSearch: { min: 1040 },
       labeledNew: { min: 360 },
       labeledToday: { min: 304 },
@@ -155,9 +154,6 @@ export function Header(props: { presentation: 'workspace' | 'preview' }) {
   );
   const isNarrow = () => shell?.aside.isCollapsed() ?? true;
   const showBookingLinks = () => isMobile() || !shell?.breakpoints.narrow?.();
-  const showHeaderCreate = () =>
-    isCompactHeader() ||
-    (shell?.aside.isCollapsed() && !shell?.aside.isOverlay());
   const usesSplitHeader = () =>
     props.presentation === 'preview' || isTouchDevice();
   const createItems = () => (
@@ -168,6 +164,11 @@ export function Header(props: { presentation: 'workspace' | 'preview' }) {
   );
   const headerCreateMenu = () => (
     <CalendarCreateMenu
+      presentation={
+        !isTouchDevice() && props.presentation === 'workspace'
+          ? 'toolbar'
+          : undefined
+      }
       size={breakpoints.labeledNew() ? 'md' : 'icon-md'}
       label="New"
       class={cn(
@@ -366,11 +367,6 @@ export function Header(props: { presentation: 'workspace' | 'preview' }) {
             ref={tourTarget(CALENDAR_TOUR.period)}
             onClick={() => setSearchExpanded(false)}
           >
-            <Show when={showHeaderCreate()}>
-              <div classList={{ 'mr-auto': isCompactHeader() }}>
-                {headerCreateMenu()}
-              </div>
-            </Show>
             <Show when={showBookingLinks()}>
               <CalendarSchedulingActions />
             </Show>
@@ -378,6 +374,7 @@ export function Header(props: { presentation: 'workspace' | 'preview' }) {
             <PeriodSelector isNarrow={isNarrow()} />
             {previous()}
             {next()}
+            {headerCreateMenu()}
           </div>
         </ViewShell.TopBar>
       </Match>
