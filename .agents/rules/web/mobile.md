@@ -24,7 +24,7 @@ read their code, and follow that pattern rather than inventing a new one.
   `mobile:` decide phone layout (touch and under 640px). Hide a desktop
   control and show its touch replacement with the same one, or tablets get
   neither. Native checks (`isPlatform` in `@core/util/platform`) are for
-  native bridges, not layout.
+  native bridges and platform-specific visual effects, not layout.
 - Gate hover and press styles with `not-touch:`; iOS leaves hover stuck.
 - No action lives only behind hover. `HoverCard` renders nothing on touch,
   so give it a tap path that opens a sheet, as `UserCardTrigger` does.
@@ -35,7 +35,8 @@ read their code, and follow that pattern rather than inventing a new one.
   swipes ignore the left edge (iOS back swipe).
 - Primary nav fires `hapticImpact('light')` on pointer down and acts on
   click, so a held or cancelled touch does nothing. `glass` and `island`
-  controls get press animation from `installGlassPress`; add none.
+  controls and channel inputs get iOS-app-only press animation from
+  `installGlassPress`; reuse it and keep Android and web free of the effect.
 
 ## Sheets, menus, and dialogs
 

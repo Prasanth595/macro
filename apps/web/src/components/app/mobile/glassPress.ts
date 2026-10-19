@@ -1,23 +1,25 @@
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import { isPlatform } from '@core/util/platform';
 
 const GROUP =
   '[data-mobile-dock-island], [data-header-island], [data-slot="button-group"].glass';
 const CONTROL =
   'button, a, [role="button"], [role="tab"], [data-header-island]';
+const INPUT = '[data-glass-input], [data-input] [data-composer-collapsed]';
 const DISABLED = ':disabled, [data-disabled], [aria-disabled="true"]';
 
-/** Round controls retain their 20% press; wide surfaces grow at most 3px per edge. */
+/** Round controls grow 28%; wide surfaces expand their paint by up to 6px per edge. */
 export function glassPressGeometry(width: number, height: number) {
-  const outset = Math.min(3, width * 0.15, height * 0.15);
+  const outset = Math.min(6, width * 0.15, height * 0.15);
   return {
     outset,
     round: width <= height * 1.15,
-    scale: 1.2,
+    scale: 1.28,
   };
 }
 
 /**
- * Automatically animate glass/island controls and their enclosing groups,
+ * Animate native iOS glass/island controls, channel inputs and enclosing groups,
  * including controls rendered through portals. CSS owns the persistent paint
  * layers and their release transitions; controls own action timing.
  */
@@ -33,15 +35,25 @@ export function installGlassPress() {
     pressed = undefined;
   };
   const down = (event: PointerEvent) => {
-    if (!isTouchDevice() || !event.isPrimary || event.button !== 0) return;
+    if (
+      !isPlatform('ios') ||
+      !isTouchDevice() ||
+      !event.isPrimary ||
+      event.button !== 0
+    )
+      return;
     if (!(event.target instanceof Element)) return;
     const control = event.target.closest<HTMLElement>(CONTROL);
-    if (!control || control.closest(DISABLED)) return;
-    const group = control.closest<HTMLElement>(GROUP);
-    if (!group && !control.matches('.glass, .island, [class~="touch:island"]'))
-      return;
+    if (event.target.closest(DISABLED)) return;
+    const input = event.target.closest<HTMLElement>(INPUT);
+    const element =
+      input ??
+      control?.closest<HTMLElement>(GROUP) ??
+      (control?.matches('.glass, .island, [class~="touch:island"]')
+        ? control
+        : undefined);
+    if (!element) return;
     release();
-    const element = group ?? control;
     const bounds = element.getBoundingClientRect();
     if (!bounds.width || !bounds.height) return;
     const width = element.offsetWidth;
@@ -62,9 +74,14 @@ export function installGlassPress() {
     );
     element.style.setProperty(
       '--press-shimmer-size',
-      `${Math.max(100, Math.min(260, height * 3))}px`
+      `${Math.max(140, Math.min(320, height * 4))}px`
     );
-    element.setAttribute('data-glass-press', geometry.round ? 'round' : 'wide');
+    // Editors keep their text and caret still, even when a long draft is taller
+    // than the input is wide. Only the enclosing paint should expand.
+    element.setAttribute(
+      'data-glass-press',
+      !input && geometry.round ? 'round' : 'wide'
+    );
     pressed = { element, pointerId: event.pointerId, bounds };
   };
   const up = (event: PointerEvent) => {

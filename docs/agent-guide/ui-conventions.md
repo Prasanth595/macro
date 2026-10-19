@@ -19,6 +19,10 @@ to enable glass on all devices, or `glass={false}` to disable it everywhere.
 Embedded and low-emphasis actions use `ghost`; inline calendar-invitation text
 actions remove the transparent border to keep their text alignment.
 
+On touch, glass rims reflect at the top-left and bottom-right and fade at the
+opposing corners. The iOS app also uses shared
+[glass press feedback](navigation.md#mobile-glass-feedback).
+
 ## Mobile filters
 
 Adjacent checked options in a filter section share one continuous selection

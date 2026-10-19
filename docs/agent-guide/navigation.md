@@ -639,17 +639,20 @@ When calls are enabled, `C C` (Create → Call) opens `/app/meet/new`. The call 
 created only after `Start call`; Escape closes the Create menu.
 Project opens the native project composer; Folder remains the Files folder action.
 
-Mobile glass presses animate the enclosing surface over 300ms. Round buttons
-retain roughly 20% growth; wide pills and grouped controls extend their glass
-fill and rim by up to 3px per edge, with 8% icon growth around each icon's center.
+## Mobile glass feedback
+
+In the native iOS app, glass presses animate the enclosing surface over 300ms.
+Round buttons grow by 28%; wide pills and grouped controls extend their glass
+fill and rim by up to 6px per edge, with 18% icon growth around each icon's center.
 Labels and layout stay fixed; icons remain visually aligned through release.
 Selecting or deselecting a pill updates its fill and text together, including
-during release or a rapid second tap. A subtle radial sheen spreads from the tap
-location and fades on release. On touch devices, buttons omit the circular
-hover/press overlay and native tap highlight; the shimmer supplies feedback.
-Release, cancellation, or dragging outside
-restores the surface. Disabled controls stay still; reduced motion keeps only
-the static highlight.
+during release or a rapid second tap. The fill changes with a radial spotlight
+centered on the touch, bright on dark themes and shaded on light themes.
+These iOS surfaces omit the native tap highlight; the spotlight supplies feedback.
+Release, cancellation, dragging outside, or losing window focus restores the
+surface. Disabled controls stay still; reduced motion keeps only the static
+color feedback. Android and web keep normal tap feedback without this expansion
+or spotlight.
 
 ## Routines
 
