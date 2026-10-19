@@ -70,7 +70,7 @@ export function RouteChannels() {
       <FeaturePageSection
         id="channel-access"
         title={['Easily share files', 'with your team.']}
-        description="Mention a document, task, or email to share it with the channel. The people in the conversation can open the work, and new channel members get access to those shared items too."
+        description="After sharing files in a conversation, anyone in that chat automatically gets access. Anyone added later will gain access, and anyone you remove will lose access."
         details={channelsGuides['channel-access']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
