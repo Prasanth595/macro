@@ -1236,8 +1236,9 @@ with an edge-to-edge divider above them.
 
 Clicking the picture or `Change image` opens the file chooser. PNG, JPG, WebP,
 and GIF files up to 16 MB are supported. Selecting a still image slides to a crop
-step inside the dialog using the shared Stepper. The `Crop image` icon on an
-existing picture also opens this step, including after applying a draft crop.
+step inside the dialog using the shared Stepper. The `Adjust` button (labeled
+`Adjust image`) appears before `Change image` and `Clear image`, with a sliders
+icon. It opens this step for an existing picture or an applied draft crop.
 Cropping a saved picture loads its full stored image, not its resized preview.
 The original source remains available for re-cropping while this editor stays
 open; canceling a replacement image does not replace that source.

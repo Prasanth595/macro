@@ -278,16 +278,18 @@ describe('channel editor steps', () => {
         onClose: vi.fn(),
       })
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Crop image' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Adjust image' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Apply crop' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Crop image' }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Adjust image' })
+    );
     const back = await screen.findByRole('button', { name: 'Back' });
     expect(cropper.construct.mock.calls.at(-1)?.[0].src).toBe(
       'https://files.example.com/channel.png'
     );
     fireEvent.click(back);
     fireEvent.click(screen.getByRole('button', { name: 'Clear image' }));
-    expect(screen.queryByRole('button', { name: 'Crop image' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Adjust image' })).toBeNull();
     expect(saveName).not.toHaveBeenCalled();
     expect(savePicture).not.toHaveBeenCalled();
   });
@@ -322,10 +324,12 @@ describe('channel editor steps', () => {
     const picker = screen.getByLabelText('Choose channel picture');
     fireEvent.change(picker, { target: { files: [original] } });
     fireEvent.click(await screen.findByRole('button', { name: 'Apply crop' }));
-    await screen.findByRole('button', { name: 'Crop image' });
+    await screen.findByRole('button', { name: 'Adjust image' });
     fireEvent.change(picker, { target: { files: [replacement] } });
     fireEvent.click(await screen.findByRole('button', { name: 'Back' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Crop image' }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Adjust image' })
+    );
     await screen.findByRole('button', { name: 'Back' });
     expect(cropper.construct.mock.calls.at(-1)?.[0].src).toBe('blob:original');
   });

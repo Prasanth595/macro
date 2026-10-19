@@ -1,5 +1,5 @@
-import CropIcon from '@phosphor/crop.svg';
 import PictureIcon from '@phosphor/image.svg';
+import SlidersIcon from '@phosphor/sliders-horizontal.svg';
 import TrashIcon from '@phosphor/trash.svg';
 import UploadIcon from '@phosphor/upload-simple.svg';
 import { Button } from '@ui/components/Button';
@@ -52,7 +52,7 @@ export function ChannelIdentityFields(props: {
           </TextField.ErrorMessage>
         </TextField>
         <div class="flex items-center gap-5 max-sm:flex-col max-sm:gap-4">
-          <div class="relative shrink-0">
+          <div class="shrink-0">
             <Button
               type="button"
               variant="ghost"
@@ -84,45 +84,46 @@ export function ChannelIdentityFields(props: {
                 </span>
               </Show>
             </Button>
-            <Show when={props.canEdit && props.canCrop}>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-lg"
-                label="Crop image"
-                class="absolute -right-1 -bottom-1 touch:min-h-11 touch:min-w-11"
-                disabled={props.pending || props.pictureLoading}
-                onClick={props.onCropPicture}
-              >
-                <CropIcon />
-              </Button>
-            </Show>
           </div>
           <div class="flex min-w-0 flex-1 flex-col items-start gap-3 max-sm:w-full max-sm:items-center">
             <Show when={props.canEdit}>
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 max-sm:gap-1">
+                <Show when={props.canCrop}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    label="Adjust image"
+                    class="touch:min-h-11 max-sm:gap-1 max-sm:px-0.5 max-sm:text-xs"
+                    disabled={props.pending || props.pictureLoading}
+                    onClick={props.onCropPicture}
+                  >
+                    <SlidersIcon class="size-5 max-sm:size-4" />
+                    Adjust
+                  </Button>
+                </Show>
                 <Button
                   type="button"
                   variant="outline"
                   size="lg"
-                  class="touch:min-h-11 max-sm:gap-1 max-sm:px-1.5 max-sm:text-sm"
+                  class="touch:min-h-11 max-sm:gap-1 max-sm:px-0.5 max-sm:text-xs"
                   disabled={props.pending || props.pictureLoading}
                   onClick={props.onPickPicture}
                 >
-                  <UploadIcon />
+                  <UploadIcon class="size-5 max-sm:size-4" />
                   Change image
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
                   size="lg"
-                  class="text-failure not-touch:not-disabled:hover:text-failure touch:min-h-11 max-sm:gap-1 max-sm:px-1.5 max-sm:text-sm"
+                  class="text-failure not-touch:not-disabled:hover:text-failure touch:min-h-11 max-sm:gap-1 max-sm:px-0.5 max-sm:text-xs"
                   disabled={
                     props.pending || props.pictureLoading || !props.pictureUrl
                   }
                   onClick={props.onClearPicture}
                 >
-                  <TrashIcon />
+                  <TrashIcon class="size-5 max-sm:size-4" />
                   Clear image
                 </Button>
               </div>
