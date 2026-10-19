@@ -728,17 +728,32 @@ use `createSoupLiveQuery`: it adds Soup's local membership, ordering, pagination
 and Mail policy through its predicate adapter. That policy remains outside
 generic cache-core.
 
-Grouped Soup still reads server bins, with local date grouping for cached Mail
-and mutation-specific property membership patches. The baseline reconciliation
-core in `src/lib/queries/soup/grouped/reconciliation.ts` is the first step toward
-maintained grouped queries; it is not yet connected to those readers. It combines
-initial and continuation memberships, preserves unknown rows and server cursors,
-and accepts locally evaluated membership in sort order. It deliberately ignores
-candidates outside the loaded baseline rather than treating a bounded flat query
-as complete group coverage. Complete prior multi-value membership is necessary
-to prove count increases: a row loaded in A can already belong to an unloaded
-part of B. The remaining integration must capture that evidence and reconcile all
-loaded pages under one query/account lifetime before publishing grouped data.
+Grouped Soup uses `graphql/create-grouped-soup-live-query.ts` to own the initial
+request and every loaded per-bin continuation. With maintained cache queries and
+a supported filter plus created/updated sort, their combined server membership
+is the baseline for the same predicate adapter used by flat Soup. Selected
+normalized rows then derive date, project and property memberships (including
+multi-value and scoped property joins); entity-type bins retain their invariant
+server keys. Missing grouping evidence retains the old membership. Unsupported
+filters/sorts or hosts retain the merged live server pages. Cached Mail keeps its
+separate date-grouping policy.
+
+Server membership evidence is captured separately from normalized field/link
+updates, and local evaluation waits for network persistence. Filter/account/cache
+generation changes discard old local evidence and continuation owners. Initial
+network refreshes restart continuation coverage. Group readers delegate paging
+to this owner, so moving a continuation row cannot leave a second copy behind.
+The initial cursor remains baseline metadata; paging follows the last loaded
+server continuation, never a locally fabricated cursor.
+
+The reconciliation core in `grouped/reconciliation.ts` deliberately ignores
+candidates outside loaded pages: a bounded flat query cannot prove complete bin
+coverage. Counts retain unseen server membership and apply proven deltas, not
+loaded-row totals. Complete prior multi-value membership is necessary to prove
+count increases: a row loaded in A can already belong to an unloaded part of B.
+Date rollover uses the original server bin as old membership. The
+`graphql_cache.soup_grouped_local_evaluation` span records grouping field,
+loaded baseline size and resulting bin count.
 
 Network responses must provide the schema's identity fields (usually `id`, and
 `__typename` for abstract types) for normalization. They are not automatically
