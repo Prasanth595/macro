@@ -22,7 +22,10 @@ tool list. Expand the discovery row to see the results. An app name alone does
 not establish that the requested action is supported.
 
 For a suitable unconnected app, the assistant offers **Connect <app>**. Clicking
-it opens the hosted authorization flow over the agent transcript. After the
+it opens the hosted authorization flow over the agent transcript on web. In
+native apps, consent opens in the system browser; choose **Return to Macro**
+after authorization. The waiting dialog also offers **Cancel**, and callbacks
+from canceled or expired attempts cannot resume the agent. After the
 backend verifies and registers the connection, the agent session sends a visible
 continuation message in the same conversation. Before that message reaches the
 agent, the harness hands the live session its permitted connector servers again
@@ -966,9 +969,9 @@ removable file pill under the body once its name resolves. The card's paperclip
 uploaded as a Macro document, shown as a pill while it uploads, and `Send email`
 stays disabled until every upload finishes. Macro-native documents written in the
 editor have no file and cannot be attached; the send reports which document
-could not be attached. Attachments together may total 18 MB: a picked or
-dropped file that would pass that opens the same confirmation as the email
-composer, offering to upload it to Macro and link it from the body as a public
+could not be attached. Attachments together may total the sending inbox's limit
+(18 MB on Gmail, 150 MB on Outlook): a picked or dropped file that would pass it
+opens the same confirmation as the email composer, offering to upload it to Macro and link it from the body as a public
 view-only document instead; Cancel adds nothing, and files that fit still
 attach. The sent and saved-draft rows read `with N attachments`, and the
 expanded sent card shows the pills read-only.

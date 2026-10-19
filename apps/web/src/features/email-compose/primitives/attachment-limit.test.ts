@@ -10,9 +10,11 @@ function fileOf(bytes: number, name: string) {
 
 describe('partitionByAttachmentLimit', () => {
   it('attaches the files that fit and sets the others aside in picking order', () => {
-    const huge = fileOf(MAX_ATTACHMENTS_BYTES_SIZE, 'huge.mov');
+    const huge = fileOf(MAX_ATTACHMENTS_BYTES_SIZE + 1, 'huge.mov');
     const small = fileOf(2 * MB, 'small.pdf');
-    expect(partitionByAttachmentLimit([huge, small], [])).toEqual({
+    expect(
+      partitionByAttachmentLimit([huge, small], [], MAX_ATTACHMENTS_BYTES_SIZE)
+    ).toEqual({
       attachable: [small],
       oversized: [huge],
     });
@@ -34,17 +36,30 @@ describe('partitionByAttachmentLimit', () => {
             fileSize: 10 * MB,
           },
           { type: 'local', file: fileOf(6 * MB, 'local.pdf') },
-        ]
+        ],
+        MAX_ATTACHMENTS_BYTES_SIZE
       )
     ).toEqual({ attachable: [fits], oversized: [over] });
   });
 
-  it('treats a total of exactly the limit as over it', () => {
+  it('fills the limit exactly and sets aside the next byte', () => {
     const half = fileOf(MAX_ATTACHMENTS_BYTES_SIZE / 2, 'half.zip');
     const rest = fileOf(MAX_ATTACHMENTS_BYTES_SIZE / 2, 'rest.zip');
-    expect(partitionByAttachmentLimit([half, rest], [])).toEqual({
-      attachable: [half],
-      oversized: [rest],
+    const extra = fileOf(1, 'extra.zip');
+    expect(
+      partitionByAttachmentLimit(
+        [half, rest, extra],
+        [],
+        MAX_ATTACHMENTS_BYTES_SIZE
+      )
+    ).toEqual({ attachable: [half, rest], oversized: [extra] });
+  });
+
+  it('sizes the limit per inbox', () => {
+    const large = fileOf(100 * MB, 'large.mov');
+    expect(partitionByAttachmentLimit([large], [], 150 * MB)).toEqual({
+      attachable: [large],
+      oversized: [],
     });
   });
 });

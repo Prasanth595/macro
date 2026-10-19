@@ -1,15 +1,15 @@
 import { getUploadFileSize } from '@core/mobile/nativeStagedUpload';
-import { MAX_ATTACHMENTS_BYTES_SIZE } from '../core/constants';
 import type { DraftFormAttachment } from './email-form-state';
 
 /**
  * Splits picked files, in picking order, into those that still fit under the
- * email delivery limit beside the current attachments and those that do not.
+ * inbox's delivery limit beside the current attachments and those that do not.
  * A file that does not fit is skipped, so a smaller later file can still attach.
  */
 export function partitionByAttachmentLimit(
   files: readonly File[],
-  current: readonly DraftFormAttachment[]
+  current: readonly DraftFormAttachment[],
+  limitBytes: number
 ): { attachable: File[]; oversized: File[] } {
   let total = current.reduce(
     (sum, attachment) =>
@@ -23,7 +23,7 @@ export function partitionByAttachmentLimit(
   const oversized: File[] = [];
   for (const file of files) {
     const size = getUploadFileSize(file);
-    if (total + size >= MAX_ATTACHMENTS_BYTES_SIZE) {
+    if (total + size > limitBytes) {
       oversized.push(file);
       continue;
     }

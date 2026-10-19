@@ -16,9 +16,6 @@ import type {
   EmailEditorFiles,
   UploadedDocument,
 } from '../context/compose-capabilities';
-import { MAX_ATTACHMENTS_BYTES_SIZE } from '../core/constants';
-
-const LIMIT_LABEL = `${MAX_ATTACHMENTS_BYTES_SIZE / 1_000_000} MB`;
 
 /**
  * Links each document on its own line at the end of the written message,
@@ -69,10 +66,11 @@ export function createAttachmentLinkOffer(options: {
   const [uploading, setUploading] = createSignal(false);
   let generation = 0;
 
-  const share = async (files: File[]): Promise<void> => {
+  const share = async (files: File[], limitBytes: number): Promise<void> => {
     if (files.length === 0) return;
     const started = generation;
     const single = files.length === 1;
+    const limitLabel = `${limitBytes / 1_000_000} MB`;
     await Telemetry.span('email.attachment_links', async (span) => {
       span.setAttr('email.attachment_links.file_count', files.length);
       span.setAttr(
@@ -80,7 +78,7 @@ export function createAttachmentLinkOffer(options: {
         files.reduce((sum, file) => sum + getUploadFileSize(file), 0)
       );
       const confirmed = await options.notices.confirm({
-        title: `Attachments exceed ${LIMIT_LABEL}`,
+        title: `Attachments exceed ${limitLabel}`,
         body: single
           ? `"${files[0].name}" won't fit as an attachment. Upload it to Macro and share a view-only link instead?`
           : `${files.length} files won't fit as attachments. Upload them to Macro and share view-only links instead?`,

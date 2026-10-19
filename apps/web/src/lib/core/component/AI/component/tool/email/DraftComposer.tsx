@@ -10,6 +10,7 @@
 
 import { SignaturePreview } from '@app/features/email-compose/components/signature-preview';
 import { ComposeProvider } from '@app/features/email-compose/context/compose-context';
+import { attachmentLimitBytes } from '@app/features/email-compose/core/constants';
 import { decodeBase64Utf8 } from '@app/features/email-compose/core/decode-base64';
 import type { EmailRecipient } from '@app/features/email-compose/core/email-recipient';
 import { convertContactInfoToEmailRecipient } from '@app/features/email-compose/core/recipient-conversion';
@@ -343,12 +344,14 @@ export function EmailDraftComposer(props: EmailDraftComposerProps) {
     },
     onAddAttachments: (files: File[]) => {
       if (uiDisabled()) return;
+      const limit = attachmentLimitBytes(sendingLink()?.provider);
       const { attachable, oversized } = partitionByAttachmentLimit(
         files,
-        attachments.list()
+        attachments.list(),
+        limit
       );
       attachments.add(attachable.map((file) => ({ type: 'local', file })));
-      fireAndForget(attachmentLinks.share(oversized), 'ai-email-draft');
+      fireAndForget(attachmentLinks.share(oversized, limit), 'ai-email-draft');
     },
     onRemoveAttachment: (attachment: DraftFormAttachment) => {
       if (uiDisabled()) return;

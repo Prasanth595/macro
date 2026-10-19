@@ -24,7 +24,7 @@ const report = {
   blockName: 'pdf',
 };
 const huge = new File(
-  [new ArrayBuffer(MAX_ATTACHMENTS_BYTES_SIZE)],
+  [new ArrayBuffer(MAX_ATTACHMENTS_BYTES_SIZE + 1)],
   'huge.mov'
 );
 const small = new File(['notes'], 'notes.txt');
@@ -98,7 +98,7 @@ describe('createAttachmentLinkOffer', () => {
   it('uploads nothing when the user declines', async () => {
     const editor = createEmailEditor('Hi');
     const { share, confirm, uploadDocuments } = offerFor(editor, false);
-    await share([huge]);
+    await share([huge], MAX_ATTACHMENTS_BYTES_SIZE);
     expect(confirm).toHaveBeenCalledExactlyOnceWith({
       title: 'Attachments exceed 18 MB',
       body: '"huge.mov" won\'t fit as an attachment. Upload it to Macro and share a view-only link instead?',
@@ -114,7 +114,7 @@ describe('createAttachmentLinkOffer', () => {
       editor,
       true
     );
-    await share([huge, small]);
+    await share([huge, small], MAX_ATTACHMENTS_BYTES_SIZE);
     expect(confirm).toHaveBeenCalledWith(
       expect.objectContaining({
         body: "2 files won't fit as attachments. Upload them to Macro and share view-only links instead?",
@@ -129,7 +129,7 @@ describe('createAttachmentLinkOffer', () => {
   it('asks nothing when every file fits', async () => {
     const editor = createEmailEditor('Hi');
     const { share, confirm } = offerFor(editor, true);
-    await share([]);
+    await share([], MAX_ATTACHMENTS_BYTES_SIZE);
     expect(confirm).not.toHaveBeenCalled();
   });
 
@@ -138,7 +138,7 @@ describe('createAttachmentLinkOffer', () => {
     const pending = Promise.withResolvers<(typeof report)[]>();
     const links = offerFor(editor, true);
     links.uploadDocuments.mockReturnValue(pending.promise);
-    const sharing = links.share([huge]);
+    const sharing = links.share([huge], MAX_ATTACHMENTS_BYTES_SIZE);
     await vi.advanceTimersByTimeAsync(0);
     expect(links.uploading()).toBe(true);
     pending.resolve([report]);
@@ -152,7 +152,7 @@ describe('createAttachmentLinkOffer', () => {
     const pending = Promise.withResolvers<(typeof report)[]>();
     const links = offerFor(editor, true);
     links.uploadDocuments.mockReturnValue(pending.promise);
-    const sharing = links.share([huge]);
+    const sharing = links.share([huge], MAX_ATTACHMENTS_BYTES_SIZE);
     await vi.advanceTimersByTimeAsync(0);
     links.detach();
     pending.resolve([report]);
