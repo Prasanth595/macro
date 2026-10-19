@@ -47,7 +47,8 @@ export const Tabs = (props: TabsProps) => {
       {...rootProps}
       class={cn(
         'relative inline-flex h-8 items-center',
-        segmented() && 'h-9 rounded-full bg-control p-0.5',
+        segmented() &&
+          'h-9 rounded-full border border-edge-button bg-transparent p-px',
         local.fullWidth && 'flex w-full',
         local.class
       )}
@@ -64,7 +65,7 @@ export const Tabs = (props: TabsProps) => {
               'relative z-1 inline-flex h-full min-w-0 items-center',
               'has-focus-visible:ring-2 has-focus-visible:ring-inset has-focus-visible:ring-edge-focus data-disabled:pointer-events-none data-disabled:opacity-50',
               segmented()
-                ? 'justify-center rounded-full border border-transparent data-checked:border-edge-button data-checked:bg-active data-checked:shadow-sm'
+                ? 'justify-center rounded-full border border-transparent data-checked:border-edge-button data-checked:bg-control'
                 : 'rounded-full',
               local.fullWidth && 'flex-1',
               local.itemClass

@@ -26,7 +26,10 @@ surfaces. Controls use `bg-control` and `border-edge-button`; composers, menus,
 and dialogs use their semantic fill with the same uniform edge and the compact
 `shadow-menu` shadow. Keep buttons flat and add elevation only where needed.
 
-Reuse `Button`, `Input`, `InputGroup`, `ComposerSurface`, `menu-surface`, and
+Segmented tabs use the same control fill and border for the selected pill,
+inside a transparent outlined track, without a separate active tint or shadow.
+
+Reuse `Button`, `Input`, `InputGroup`, `Tabs`, `ComposerSurface`, `menu-surface`, and
 `elevated-surface` instead of introducing one-off surface styling. Settings
 cards inherit `ComposerSurface`. Do not add specular rims, inset shading,
 broad halos, or custom shadows. Touch retains its existing glass treatment.
