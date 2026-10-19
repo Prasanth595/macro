@@ -739,4 +739,4 @@ on the CRM page; this scene demonstrates channel-call team sharing only.
 
 Sample email addresses in website demos use `coparse.com`, Macro’s former domain.
 
-Homepage feature dividers align with the heading, above the description. The document animation renders saved scheduling links as calendar mentions with a short label, matching Macro’s booking link presentation.
+Homepage feature dividers align with the heading text, above the description; coding agent logos sit in a separate row above the dividers. The document animation renders saved scheduling links as calendar mentions with a short label, matching Macro’s booking link presentation.
