@@ -45,7 +45,7 @@ for (const [state, expected, attachedBuild, stamp, nativeTree = tree] of [
   ['READY_FOR_DISTRIBUTION', null, '188', tree, null],
   ['API_ERROR', null, '188', tree],
 ]) {
-  test(`status reports ${expected} for ${state}, build ${attachedBuild}, tree ${stamp[0]}`, () => {
+  await test(`status reports ${expected} for ${state}, build ${attachedBuild}, tree ${stamp[0]}`, () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'ios-gate-status-'));
     try {
       const fixture = path.join(dir, 'fetch.mjs');
