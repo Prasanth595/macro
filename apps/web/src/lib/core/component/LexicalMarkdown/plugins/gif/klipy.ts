@@ -2,7 +2,8 @@ import { z } from 'zod';
 
 // Klipy keys are meant to ship in the client: its terms require requests to
 // come from the user's browser, not a proxy.
-const KLIPY_API_KEY = '';
+const KLIPY_API_KEY =
+  'FKijCGbLIyeSWaLowRX53mFAkpjDPZ3S8ncEw1AENQdL4tj0CQFpu37JmJaMluHG';
 // Klipy serves Tenor's v2 API shape.
 const KLIPY_BASE_URL = 'https://api.klipy.com/v2';
 const MEDIA_FILTER = 'gif,tinygif,nanogif,mediumgif';
