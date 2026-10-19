@@ -1230,8 +1230,9 @@ the right. On narrow screens, the picture appears above the name. Click the
 picture to open the image-editing step; its pencil overlay appears on hover or
 focus and stays visible on touch devices. An empty circle opens the file chooser
 directly. Drop an image onto either an empty or existing picture circle to start
-editing it. The separate `Preview image` expand button opens the current saved or
-draft image in the shared lightbox, without saving changes.
+editing it. The `Preview image` expand button floats over the image's bottom-right
+corner and opens the saved or draft image in the shared lightbox without saving.
+It appears on hover or keyboard focus and stays visible on touch devices.
 Escape, the close button, or the backdrop returns to the editor and restores
 focus to the preview button. Closing the lightbox preserves the draft.
 Right-clicking the dialog or its overlay never opens the split header's context
@@ -1248,8 +1249,8 @@ are rejected without changing the draft.
 `Clear image` sits below `Change image`, using destructive ghost and accent
 variants respectively, with medium-sized, touch-friendly buttons. The image
 filename, when available, appears above its supported file types and size. The
-`Preview image` button opens the image being edited. `Revert image` restores the
-saved picture without losing channel-name edits or writing changes.
+`Preview image` button floats over the crop workspace or animated image with the
+same hover, keyboard-focus, and touch behavior.
 
 `Change image` opens the file chooser. PNG, JPG, WebP, and GIF files up to
 16 MB are supported. Selecting a still image opens its crop workspace. An empty
@@ -1261,12 +1262,10 @@ edit after a failed save. Canceling a replacement leaves the saved image unchang
 The fixed circular crop guide darkens the area outside it and reveals alignment
 guides on hover or focus. Drag the image to reposition it or use the arrow keys in
 the crop workspace. There are no resize handles. Zoom controls sit below the
-workspace, with the current percentage on the left and Reset, Rotate, and the
-minus/plus buttons on the right. Rotate recenters the image and turns it clockwise
-by 90 degrees, keeping the current zoom.
-Reset removes rotation and restores the initial 100% image fit.
+workspace, with the current percentage on the left and Reset and the minus/plus
+buttons on the right. Reset restores the initial 100% image fit.
 Scroll-wheel zoom anchors to the cursor; the minus/plus buttons anchor to the
-center of the crop, even after panning or rotation.
+center of the crop, even after panning.
 The image step's `Save` exports a square PNG only for a new image or changed crop,
 saves all channel changes, and closes the dialog. Opening an existing image does
 not enable Save, and saving only a name change does not upload the image again.
@@ -1277,7 +1276,7 @@ applying a pending crop.
 The cropper and lightbox load only when needed. Compact footer actions have an
 edge-to-edge divider above them.
 
-Selecting a file, clearing the picture, reverting it, or changing the name only
+Selecting a file, clearing the picture, or changing the name only
 updates the draft. The filled CTA `Save` button on either step persists changes;
 `Cancel` discards them. Failed saves retain remaining changes for retry. If the
 picture saved but renaming failed, the dialog says so, and retrying does not

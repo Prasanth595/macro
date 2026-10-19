@@ -1,6 +1,4 @@
 import { fileDrop } from '@core/directive/fileDrop';
-import RevertIcon from '@phosphor/arrow-u-up-left.svg';
-import ExpandIcon from '@phosphor/arrows-out-simple.svg';
 import PictureIcon from '@phosphor/image.svg';
 import PencilIcon from '@phosphor/pencil-simple.svg';
 import TrashIcon from '@phosphor/trash.svg';
@@ -9,6 +7,7 @@ import { Button } from '@ui/components/Button';
 import { TextField } from '@ui/components/TextField';
 import { createSignal, Show } from 'solid-js';
 import { CHANNEL_PICTURE_MIME_TYPES } from '../core/channel-picture';
+import { ChannelImagePreviewButton } from './channel-image-preview-button';
 
 false && fileDrop;
 
@@ -16,39 +15,21 @@ export function ChannelImageActions(props: {
   fileName?: string;
   disabled: boolean;
   canClear: boolean;
-  canRevert: boolean;
-  canPreview: boolean;
   error?: string;
   onPick: () => void;
   onFilesDrop: (files: File[]) => void;
   onClear: () => void;
-  onRevert: () => void;
-  onPreview: (trigger: HTMLButtonElement) => void;
 }) {
   const [dragging, setDragging] = createSignal(false);
   return (
     <div class="flex flex-1 flex-col gap-3">
-      <div class="flex items-start justify-between gap-3">
-        <div class="min-w-0 flex-1">
-          <h3 class="text-sm font-medium break-all">
-            {props.fileName || 'Channel image'}
-          </h3>
-          <p class="mt-1 text-xs text-ink-muted">
-            PNG, JPG, WebP or GIF up to 16 MB
-          </p>
-        </div>
-        <Show when={props.canPreview}>
-          <Button
-            variant="outline"
-            size="icon-md"
-            label="Preview image"
-            disabled={props.disabled}
-            class="touch:min-h-11 touch:min-w-11"
-            onClick={(event) => props.onPreview(event.currentTarget)}
-          >
-            <ExpandIcon />
-          </Button>
-        </Show>
+      <div class="min-w-0">
+        <h3 class="text-sm font-medium break-all">
+          {props.fileName || 'Channel image'}
+        </h3>
+        <p class="mt-1 text-xs text-ink-muted">
+          PNG, JPG, WebP or GIF up to 16 MB
+        </p>
       </div>
       <div
         role="group"
@@ -98,17 +79,6 @@ export function ChannelImageActions(props: {
           >
             <TrashIcon class="size-4" />
             Clear image
-          </Button>
-          <Button
-            variant="ghost"
-            size="md"
-            fullWidth
-            disabled={props.disabled || !props.canRevert}
-            onClick={props.onRevert}
-            class="px-2 touch:min-h-11"
-          >
-            <RevertIcon class="size-4" />
-            Revert image
           </Button>
         </div>
         <p class="text-center text-xs text-ink-muted">
@@ -173,7 +143,7 @@ export function ChannelIdentityFields(props: {
           </div>
           <div class="order-first flex shrink-0 flex-col items-center gap-3">
             <div
-              class="relative"
+              class="group/channel-image relative"
               use:fileDrop={{
                 disabled: imageDisabled(),
                 acceptedMimeTypes: CHANNEL_PICTURE_MIME_TYPES,
@@ -257,19 +227,10 @@ export function ChannelIdentityFields(props: {
                 </Show>
               </Button>
               <Show when={props.pictureUrl}>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-md"
-                  label="Preview image"
-                  class="absolute right-0 bottom-0 touch:min-h-11 touch:min-w-11"
+                <ChannelImagePreviewButton
                   disabled={props.pending || props.pictureLoading}
-                  onClick={(event) =>
-                    props.onPreviewPicture(event.currentTarget)
-                  }
-                >
-                  <ExpandIcon />
-                </Button>
+                  onPreview={props.onPreviewPicture}
+                />
               </Show>
             </div>
             <Show when={props.canEdit}>

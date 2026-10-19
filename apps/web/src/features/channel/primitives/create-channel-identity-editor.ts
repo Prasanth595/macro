@@ -36,12 +36,6 @@ export function createChannelIdentityEditor(options: {
     if (!validationError) setPicture(file);
   }
 
-  function revertPicture() {
-    if (pending() || !options.canEdit()) return;
-    setPicture(undefined);
-    setError(undefined);
-  }
-
   function close() {
     if (!pending()) options.onClose();
   }
@@ -111,7 +105,6 @@ export function createChannelIdentityEditor(options: {
     canSave,
     changeName,
     changePicture,
-    revertPicture,
     close,
     save,
   };

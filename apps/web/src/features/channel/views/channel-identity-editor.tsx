@@ -21,6 +21,7 @@ import {
   ChannelImageActions,
 } from '../components/channel-identity-fields';
 import { ChannelImageEditorLayout } from '../components/channel-image-editor-layout';
+import { ChannelImagePreviewButton } from '../components/channel-image-preview-button';
 import type { ChannelIdentityWriter } from '../core/channel-identity';
 import {
   CHANNEL_PICTURE_MIME_TYPES,
@@ -162,28 +163,25 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
         fileName={imageFileName()}
         disabled={!props.canEdit || state.pending() || props.pictureLoading}
         canClear={Boolean(cropSource() || pictureUrl())}
-        canRevert={
-          state.picture() !== undefined ||
-          (cropSource() !== undefined &&
-            cropSource() !== props.pictureSourceUrl)
-        }
-        canPreview={Boolean(imagePreviewUrl())}
-        onPreview={previewPicture}
         error={state.error()}
         onPick={() => input.click()}
         onFilesDrop={dropPictures}
-        onRevert={() => {
-          state.revertPicture();
-          setOriginalPicture(undefined);
-          setCropSource(undefined);
-          editPicture();
-        }}
         onClear={() => {
           setOriginalPicture(undefined);
           setCropSource(undefined);
           state.changePicture(null);
         }}
       />
+    );
+  }
+  function ImagePreview() {
+    return (
+      <Show when={imagePreviewUrl()}>
+        <ChannelImagePreviewButton
+          disabled={!props.canEdit || state.pending() || props.pictureLoading}
+          onPreview={previewPicture}
+        />
+      </Show>
     );
   }
 
@@ -347,7 +345,7 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
                             </>
                           }
                         >
-                          <div class="flex min-h-64 flex-col items-center justify-center gap-4 rounded-xl border border-edge-muted bg-control p-6 text-center">
+                          <div class="group/channel-image relative flex min-h-64 flex-col items-center justify-center gap-4 rounded-xl border border-edge-muted bg-control p-6 text-center">
                             <Show
                               when={pictureUrl()}
                               fallback={
@@ -372,6 +370,7 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
                                 </>
                               )}
                             </Show>
+                            <ImagePreview />
                           </div>
                         </ChannelImageEditorLayout>
                       }
@@ -389,6 +388,7 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
                             source={file}
                             disabled={!props.canEdit || state.pending()}
                             actions={<ImageActions />}
+                            preview={<ImagePreview />}
                             saveDisabled={!state.name().trim()}
                             canSave={state.canSave()}
                             hasImageDraft={state.picture() instanceof File}

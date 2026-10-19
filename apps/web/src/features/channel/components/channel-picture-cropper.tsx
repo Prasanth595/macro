@@ -1,5 +1,4 @@
 import { Telemetry } from '@macro-inc/observability';
-import RotateIcon from '@phosphor/arrow-clockwise.svg';
 import ArrowCounterClockwiseIcon from '@phosphor/arrow-counter-clockwise.svg';
 import MinusIcon from '@phosphor/minus.svg';
 import PlusIcon from '@phosphor/plus.svg';
@@ -22,6 +21,7 @@ export default function ChannelPictureCropper(props: {
   source: File | string;
   disabled: boolean;
   actions?: JSX.Element;
+  preview?: JSX.Element;
   saveDisabled?: boolean;
   canSave?: boolean;
   hasImageDraft?: boolean;
@@ -64,7 +64,7 @@ export default function ChannelPictureCropper(props: {
       container,
       template: `
         <cropper-canvas style="width: 100%; height: 100%;">
-          <cropper-image initial-fit="cover" min-fit="cover" max-inset="0" scalable translatable rotatable></cropper-image>
+          <cropper-image initial-fit="cover" min-fit="cover" max-inset="0" scalable translatable></cropper-image>
           <cropper-handle action="move" plain></cropper-handle>
           <cropper-selection initial-coverage="1" aspect-ratio="1" precise>
             <cropper-handle action="move" plain></cropper-handle>
@@ -167,12 +167,6 @@ export default function ChannelPictureCropper(props: {
     );
   }
 
-  function rotate() {
-    if (disabled()) return;
-    // Recenter before rotating so the new bounds stay inside the crop constraints.
-    cropper?.getCropperImage()?.$center().$rotate('90deg');
-  }
-
   async function save() {
     const selection = cropper?.getCropperSelection();
     if (!selection || !canSave()) return;
@@ -261,7 +255,7 @@ export default function ChannelPictureCropper(props: {
       }
     >
       <div class="flex flex-col gap-4">
-        <div class="group/crop relative aspect-square w-full overflow-hidden rounded-lg">
+        <div class="group/crop group/channel-image relative aspect-square w-full overflow-hidden rounded-lg">
           <div
             ref={container}
             role="group"
@@ -284,6 +278,7 @@ export default function ChannelPictureCropper(props: {
               cropper?.getCropperImage()?.$move(...move);
             }}
           />
+          {props.preview}
         </div>
         <div class="flex w-full items-center justify-between gap-2">
           <output
@@ -302,15 +297,6 @@ export default function ChannelPictureCropper(props: {
             >
               <ArrowCounterClockwiseIcon />
               Reset
-            </Button>
-            <Button
-              label="Rotate image"
-              size="icon-md"
-              variant="outline"
-              disabled={disabled()}
-              onClick={rotate}
-            >
-              <RotateIcon />
             </Button>
             <Button
               label="Zoom out"
