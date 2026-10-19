@@ -4,6 +4,19 @@ The document header has separate Share, Copy Share Link, and Side Panel buttons.
 They are borderless with a soft rounded background on hover. Share opens the
 sharing dialog; copying a link is a separate action.
 
+Verify **Public → View** links in a fresh signed-out browser context. The
+`/app/drive/md/<id>` route (including folder/tab document links and legacy
+`/app/md/<id>` redirects) must show the document without private Drive lists or
+folder navigation, on desktop and touch devices. The login banner may remain;
+it must not replace the public document. Signed-out readers see **Sign in to view
+comments**, not a comment-fetch error or composer. Account-only lists, contacts,
+notifications, activity, and gateway/storage WebSockets must stay idle until
+sign-in; public document metadata, properties, and sync still load normally.
+Check that signing in restores account services and signing out stops them.
+Private files still prompt for sign-in. Signed-out Drive list URLs (My Files,
+Recent, Shared with me, or folders without a document target) show **Sign in to
+view your files** with Login and Sign Up actions, never an indefinite loader.
+
 Opening a private file link while signed in shows **You don't have access to
 this file**, the signed-in email, and **Request access**. View is selected by
 default; choose View, Comment, or Edit where supported, submit, then verify
@@ -2661,6 +2674,22 @@ comment button in the selection menu; placeable comments come from the toolbar
 highlight; deleting a placeable's discussion removes the placeable. An anchor bound only
 to a legacy annotation thread that was never imported stays hidden rather than
 shown as a bare highlight.
+
+## PDF signatures
+
+Choose **Signature** in the PDF toolbar, then click the page where it should go.
+The **Draw signature** dialog opens over the active PDF. Drag across the canvas
+with a mouse, pen, or finger; **Use signature** becomes available after drawing.
+Confirm to place the signature, then drag it to adjust its position. **Cancel
+signature**, Escape, or clicking outside discards the unfinished placement.
+Signatures are saved into that PDF through its normal save flow; reusable saved
+signatures are not available yet.
+
+When verifying this flow, draw near the right and bottom edges as well as the
+center. Check at desktop and phone widths and at 2x pixel density; strokes should
+stay under the pointer, survive resizing, and appear on the PDF after confirming.
+Reopen the dialog and verify it stays centered during its opening animation and
+starts with an empty canvas. Cancelling must leave no empty signature box.
 
 ## Word (DOCX) editor
 
