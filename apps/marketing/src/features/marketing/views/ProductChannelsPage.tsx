@@ -60,7 +60,7 @@ export function RouteChannels() {
       <FeaturePageSection
         id="shared-work"
         title={['Open files, emails,', 'and tasks from your chats.']}
-        description="Share the work itself in your team’s conversation. Click a mention to open a document, task, or email beside chat, so the discussion and the thing you’re working on stay in view."
+        description="Share work in your team channels. Click on a document, task, email, company, person, or any file to see it beside your chat."
         details={channelsGuides['shared-work']}
       >
         <DemoInteractionBoundary class="feature-page-visual channel-wide-demo">
