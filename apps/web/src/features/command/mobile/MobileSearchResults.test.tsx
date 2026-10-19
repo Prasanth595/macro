@@ -7,6 +7,7 @@ import {
   screen,
   waitFor,
 } from '@solidjs/testing-library';
+import { CombinedError } from '@urql/core';
 import { type Accessor, createSignal, Show } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { EntitySearchItem } from '../queries/entity-search';
@@ -28,6 +29,9 @@ const mocks = vi.hoisted(() => ({
   loadingMore: false,
   fetchNextPage: vi.fn(),
   items: (() => []) as Accessor<EntitySearchItem[]>,
+  loadingEntities: (() => false) as Accessor<boolean>,
+  refreshError: (() => false) as Accessor<boolean>,
+  fullTextError: (() => undefined) as Accessor<Error | undefined>,
   active: (() => true) as Accessor<boolean>,
   setActive: (_active: boolean) => {},
   entryState: undefined as EntryState | undefined,
@@ -123,7 +127,10 @@ vi.mock('../queries/entity-search', () => ({
   useEntitySearch: () => ({
     items: () => mocks.items(),
     rankItems: (items: EntitySearchItem[]) => items,
-    isLoadingEntities: () => false,
+    isLoadingEntities: () => mocks.loadingEntities(),
+    isSettling: () => mocks.loadingEntities(),
+    hasError: () => mocks.refreshError(),
+    hasAuthoritativeError: () => false,
     pagination: {
       hasMore: () => mocks.hasMore,
       isLoadingMore: () => mocks.loadingMore,
@@ -138,7 +145,7 @@ vi.mock('../queries/mobile-full-text-search', () => ({
       data: () => mocks.fullTextData(),
       isLoading: () => mocks.fullTextLoading(),
       isSettling: () => mocks.fullTextSettling(),
-      error: () => undefined,
+      error: () => mocks.fullTextError(),
       hasNextPage: () => mocks.hasMore,
       isFetchingNextPage: () => mocks.loadingMore,
       fetchNextPage: mocks.fetchNextPage,
@@ -185,6 +192,9 @@ beforeEach(() => {
   mocks.hasMore = true;
   mocks.loadingMore = false;
   mocks.items = () => [];
+  mocks.loadingEntities = () => false;
+  mocks.refreshError = () => false;
+  mocks.fullTextError = () => undefined;
   mocks.fullTextItems = [];
   mocks.fullTextData = () => mocks.fullTextItems;
   mocks.fullTextLoading = () => false;
@@ -401,6 +411,13 @@ it('restores the query, category, mode and scroll after a full-text history entr
   expect(document.activeElement).not.toBe(input);
   expect(SearchState.category()).toBe('email');
   expect(SearchState.mode()).toBe('full-text');
+  expect(screen.queryByText('Searching…')).toBeNull();
+  expect(
+    screen.getByRole('button', { name: 'Weekly update snippet' })
+  ).toBeTruthy();
+  expect(screen.getByRole('region', { name: 'Search results' }).scrollTop).toBe(
+    1280
+  );
   setItems([email]);
   setSettling(false);
   expect(screen.getByRole('region', { name: 'Search results' }).scrollTop).toBe(
@@ -481,6 +498,167 @@ it('restores a virtualized name list after a history entry remounts', async () =
       screen.getByRole('region', { name: 'Search results' }).scrollTop
     ).toBe(800)
   );
+});
+
+it('restores loaded name pages and scroll before refresh resolves, without a loading footer', async () => {
+  const savedItems: EntitySearchItem[] = Array.from(
+    { length: 100 },
+    (_, index) => ({
+      id: `project-${index}`,
+      kind: 'initiative',
+      bucket: 'initiative',
+      name: `Project ${index}`,
+      searchText: `Project ${index}`,
+      sortTimestamp: 0,
+      timestamps: {},
+    })
+  );
+  const [items, setItems] = createSignal(savedItems);
+  const [loading, setLoading] = createSignal(false);
+  mocks.items = items;
+  mocks.loadingEntities = loading;
+  SearchState.setQuery('Project');
+  SearchState.setCategory('projects');
+  const view = render(() => <MobileSearchResults />);
+  fireEvent.scroll(screen.getByRole('region', { name: 'Search results' }), {
+    target: { scrollTop: 800 },
+  });
+  fireEvent.click(screen.getAllByRole('button')[0]);
+  view.unmount();
+
+  setLoading(true);
+  setItems([]);
+  mocks.setActive(true);
+  render(() => <MobileSearchResults />);
+  expect(screen.queryByText('Loading…')).toBeNull();
+  expect(screen.getAllByRole('button').length).toBeGreaterThan(0);
+  await waitFor(() =>
+    expect(
+      screen.getByRole('region', { name: 'Search results' }).scrollTop
+    ).toBe(800)
+  );
+
+  // Browsers emit this for the programmatic restoration; JSDOM does not.
+  fireEvent.scroll(screen.getByRole('region', { name: 'Search results' }));
+  // A first page must not replace the larger window this entry already loaded.
+  setItems(savedItems.slice(0, 1));
+  setLoading(false);
+  expect(screen.queryByText('Loading…')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Project 2' })).toBeTruthy();
+  await waitFor(() => expect(mocks.loadMore).toHaveBeenCalledOnce());
+  expect(screen.getByRole('region', { name: 'Search results' }).scrollTop).toBe(
+    800
+  );
+  setItems(
+    savedItems.map((item) => ({
+      ...item,
+      searchText: `${item.searchText} refreshed`,
+    }))
+  );
+  expect(
+    screen.getByRole('button', { name: 'Project 2 refreshed' })
+  ).toBeTruthy();
+  expect(screen.getByRole('region', { name: 'Search results' }).scrollTop).toBe(
+    800
+  );
+});
+
+it('does not show a loading footer for available name results during a background lookup', () => {
+  mocks.items = () => [
+    {
+      id: 'project',
+      kind: 'initiative',
+      bucket: 'initiative',
+      name: 'Project',
+      searchText: 'Project',
+      sortTimestamp: 0,
+      timestamps: {},
+    },
+  ];
+  mocks.loadingEntities = () => true;
+  render(() => <MobileSearchResults />);
+  expect(screen.getByRole('button', { name: 'Project' })).toBeTruthy();
+  expect(screen.queryByText('Loading…')).toBeNull();
+});
+
+it('keeps restored name results after a failed refresh but accepts a successful empty result', () => {
+  const [items, setItems] = createSignal<EntitySearchItem[]>([
+    {
+      id: 'project',
+      kind: 'initiative',
+      bucket: 'initiative',
+      name: 'Project',
+      searchText: 'Project',
+      sortTimestamp: 0,
+      timestamps: {},
+    },
+  ]);
+  const [loading, setLoading] = createSignal(false);
+  const [failed, setFailed] = createSignal(false);
+  mocks.items = items;
+  mocks.loadingEntities = loading;
+  mocks.refreshError = failed;
+  mocks.hasMore = false;
+  SearchState.setQuery('Project');
+  SearchState.setCategory('projects');
+  const view = render(() => <MobileSearchResults />);
+  fireEvent.click(screen.getByRole('button', { name: 'Project' }));
+  view.unmount();
+  setLoading(true);
+  setItems([]);
+  mocks.setActive(true);
+  render(() => <MobileSearchResults />);
+  setFailed(true);
+  setLoading(false);
+  expect(screen.getByRole('button', { name: 'Project' })).toBeTruthy();
+  expect(screen.queryByText('Loading…')).toBeNull();
+  expect(mocks.loadMore).not.toHaveBeenCalled();
+  setLoading(true);
+  setFailed(false);
+  setLoading(false);
+  expect(screen.queryByRole('button', { name: 'Project' })).toBeNull();
+  expect(screen.getByText('No results')).toBeTruthy();
+});
+
+it('discards saved full-text rows on access loss even when an old cursor remains', () => {
+  const [items, setItems] = createSignal<EntityData[]>([
+    {
+      id: 'thread',
+      type: 'email',
+      name: 'Weekly update',
+      ownerId: 'owner',
+      isRead: true,
+      isDraft: false,
+      isImportant: false,
+      done: false,
+    },
+  ]);
+  mocks.fullTextData = items;
+  const [error, setError] = createSignal<Error>();
+  mocks.fullTextError = error;
+  SearchState.setQuery('teo');
+  SearchState.searchFullText();
+  render(() => <MobileSearchResults />);
+  expect(
+    screen.getByRole('button', { name: 'Weekly update snippet' })
+  ).toBeTruthy();
+  setError(new Error('Network unavailable'));
+  expect(
+    screen.getByRole('button', { name: 'Weekly update snippet' })
+  ).toBeTruthy();
+  setError(
+    new CombinedError({
+      graphQLErrors: [
+        { message: 'Forbidden', extensions: { code: 'FORBIDDEN' } },
+      ],
+    })
+  );
+  // The real service source removes rows after an authoritative failure.
+  setItems([]);
+  expect(
+    screen.queryByRole('button', { name: 'Weekly update snippet' })
+  ).toBeNull();
+  expect(mocks.fetchNextPage).not.toHaveBeenCalled();
 });
 
 it('keeps a covered native search entry independent of a new dock session', () => {

@@ -40,9 +40,13 @@ position. Swiping back, pressing the native Back control, or using browser Back
 returns to those results without focusing the input or reopening the keyboard.
 Native search captures its state when covered: it retains mounted results while
 it is among the front two panes, and restores them after deeper navigation evicts
-it. A remounted history entry restores its
-virtualizer measurements and offset (or the full-text scroller's offset) as results
-load. A later search cannot overwrite an earlier entry. **Close search** ends the
+it. A remounted history entry immediately restores its loaded results,
+virtualizer measurements and offset (or the full-text scroller's offset).
+Refreshing sources rebuild the saved result window before replacing it; available
+results show no loading footer. Failed background reads retain the window;
+successful empty results replace it, and authoritative errors discard the saved
+window in favor of the current source result. A later search
+cannot overwrite an earlier entry. **Close search** ends the
 session; opening Search from the dock starts in All/name mode. Mobile search state
 does not modify desktop search state. The dock search row has no Ask AI button.
 If a person’s conversation lookup fails, search stays open with its query and
@@ -54,6 +58,8 @@ pages, open a result/snippet, and go Back: check the query, category, mode, visi
 rows, and scroll position. Repeat Back/Forward and native swipe/Back; the keyboard
 stays dismissed on return. Open Search from the dock and check All/name reset,
 then revisit the earlier history entry and confirm its query is intact.
+Repeat with a slow refresh: the saved rows and scroll should appear before it
+finishes, and its first page must not shrink a previously paginated list.
 Clear with whitespace and check category
 retention; select Projects from full-text mode and confirm it shows name results.
 Repeat opening with a large recent list: results are virtualized, so transferring

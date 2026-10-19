@@ -8,6 +8,7 @@ import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { toast } from '@core/component/Toast/Toast';
 import { fireAndForget } from '@core/util/fireAndForget';
+import { isTransientRequestError } from '@core/util/request-error';
 import {
   type EntityData,
   ListEntity,
@@ -39,6 +40,7 @@ import {
 import { createMobileFullTextSearch } from '../queries/mobile-full-text-search';
 import { createMobileSearchEntry } from './create-mobile-search-entry';
 import { createSearchPagination } from './create-search-pagination';
+import { createSearchResultWindow } from './create-search-result-window';
 import type { MobileSearchSession } from './mobileSearchState';
 import { useMobileSearchCategory } from './use-mobile-search-category';
 
@@ -69,22 +71,38 @@ function MobileNameResults(props: { session: MobileSearchSession }) {
     contactDiscovery: useCrmContactDiscovery,
   });
   useDatabaseDiscoverySync(() => true);
-  const items = createMemo(() =>
+  const incoming = createMemo(() =>
     source.rankItems(source.items(), state.query())
   );
+  const results = createSearchResultWindow({
+    key: 'mobileSearch.nameResults',
+    query: state.query,
+    category,
+    items: incoming,
+    pending: () =>
+      source.isSettling() ||
+      source.pagination.isLoadingMore() ||
+      source.hasError(),
+    discard: source.hasAuthoritativeError,
+    hasMore: source.pagination.hasMore,
+  });
+  const items = results.items;
   const loadMoreNearEnd = createSearchPagination({
-    items,
+    items: incoming,
     container,
     remaining: () => {
       const handle = virtualizer();
-      return items().length === 0
+      return results.needsMore() || items().length === 0
         ? 0
         : handle
           ? handle.scrollSize - handle.scrollOffset - handle.viewportSize
           : undefined;
     },
     hasMore: source.pagination.hasMore,
-    busy: () => source.isLoadingEntities() || source.pagination.isLoadingMore(),
+    busy: () =>
+      source.isSettling() ||
+      source.pagination.isLoadingMore() ||
+      source.hasError(),
     loadMore: source.pagination.loadMore,
   });
   const { openWithSplit } = useSplitLayout();
@@ -115,38 +133,21 @@ function MobileNameResults(props: { session: MobileSearchSession }) {
     });
   };
   createEffect(
-    on(
-      [
-        items,
-        virtualizer,
-        source.isLoadingEntities,
-        source.pagination.isLoadingMore,
-      ],
-      () => {
-        const handle = virtualizer();
-        if (
-          !restore ||
-          !handle ||
-          items().length === 0 ||
-          source.isLoadingEntities() ||
-          source.pagination.isLoadingMore()
-        )
-          return;
-        if (
-          restore.query !== state.query() ||
-          restore.category !== category()
-        ) {
-          restore = undefined;
-          return;
-        }
-        handle.scrollTo(restore.offset);
-        if (
-          handle.scrollSize - handle.viewportSize >= restore.offset ||
-          !source.pagination.hasMore()
-        )
-          restore = undefined;
+    on([items, virtualizer, source.hasAuthoritativeError], () => {
+      if (source.hasAuthoritativeError()) restore = undefined;
+      const handle = virtualizer();
+      if (!restore || !handle || items().length === 0) return;
+      if (restore.query !== state.query() || restore.category !== category()) {
+        restore = undefined;
+        return;
       }
-    )
+      handle.scrollTo(restore.offset);
+      if (
+        handle.scrollSize - handle.viewportSize >= restore.offset ||
+        !source.pagination.hasMore()
+      )
+        restore = undefined;
+    })
   );
   const onScroll = () => {
     const handle = virtualizer();
@@ -204,7 +205,7 @@ function MobileNameResults(props: { session: MobileSearchSession }) {
           )}
         </VList>
       </Show>
-      <Show when={source.isLoadingEntities()}>
+      <Show when={source.isLoadingEntities() && items().length === 0}>
         <p role="status" class="p-3 text-ink-muted">
           Loading…
         </p>
@@ -220,6 +221,8 @@ function MobileFullTextResults(props: { session: MobileSearchSession }) {
   const state = props.session;
   const category = useMobileSearchCategory(state.category);
   const search = createMobileFullTextSearch(state.query, category);
+  const hasAuthoritativeError = () =>
+    !!search.error() && !isTransientRequestError(search.error());
   const panel = useSplitPanelOrThrow();
   const [container, setContainer] = createSignal<HTMLDivElement>();
   const [scroll, setScroll] = useEntryState<SearchScrollState | undefined>(
@@ -227,28 +230,24 @@ function MobileFullTextResults(props: { session: MobileSearchSession }) {
     { default: undefined }
   );
   let restore = untrack(() => scroll());
-  // A same-query refresh must not collapse the scroller between pages.
-  const results = createMemo<{
-    query: string;
-    category: EntitySearchCategory;
-    items: EntityData[];
-  }>((previous) => {
-    const query = state.query().trim();
-    const scope = category();
-    const items = search.data();
-    if (search.isSettling()) {
-      if (previous?.query === query && previous.category === scope)
-        return previous;
-      return { query, category: scope, items: [] };
-    }
-    return { query, category: scope, items };
+  const incoming = createMemo(() => (search.isSettling() ? [] : search.data()));
+  const results = createSearchResultWindow({
+    key: 'mobileSearch.fullTextResults',
+    query: state.query,
+    category,
+    items: incoming,
+    pending: () =>
+      search.isSettling() || search.isFetchingNextPage() || !!search.error(),
+    discard: hasAuthoritativeError,
+    hasMore: search.hasNextPage,
   });
   // Page selection rematerializes entities; retain row identity as pages append.
-  const rows = createSoupRowStore(() => results().items);
+  const rows = createSoupRowStore(results.items);
   createEffect(
-    on([() => results().items, container, search.isSettling], () => {
+    on([results.items, container, hasAuthoritativeError], () => {
+      if (hasAuthoritativeError()) restore = undefined;
       const list = container();
-      if (!restore || !list || search.isSettling()) return;
+      if (!restore || !list || results.items().length === 0) return;
       if (restore.query !== state.query() || restore.category !== category()) {
         restore = undefined;
         return;
@@ -262,9 +261,10 @@ function MobileFullTextResults(props: { session: MobileSearchSession }) {
     })
   );
   const loadMoreNearEnd = createSearchPagination({
-    items: () => results().items,
+    items: incoming,
     container,
     remaining: () => {
+      if (results.needsMore()) return 0;
       const list = container();
       return list
         ? list.scrollHeight - list.scrollTop - list.clientHeight
@@ -326,7 +326,7 @@ function MobileFullTextResults(props: { session: MobileSearchSession }) {
           </StaticMarkdownContext>
         </ListLayoutProvider>
       </ListEntityMetadataQueryProvider>
-      <Show when={search.isSettling() && results().items.length === 0}>
+      <Show when={search.isSettling() && results.items().length === 0}>
         <p role="status" class="p-3 text-ink-muted">
           Searching…
         </p>
@@ -345,7 +345,7 @@ function MobileFullTextResults(props: { session: MobileSearchSession }) {
         when={
           !search.isSettling() &&
           !search.error() &&
-          results().items.length === 0
+          results.items().length === 0
         }
       >
         <p class="p-3 text-ink-muted">No results</p>
