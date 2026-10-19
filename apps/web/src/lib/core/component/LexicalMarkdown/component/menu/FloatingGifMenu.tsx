@@ -1,15 +1,20 @@
+import { type PortalScope, ScopedPortal } from '@core/component/ScopedPortal';
 import clickOutside from '@core/directive/clickOutside';
 import { useCanEdit } from '@core/signal/permissions';
+import MagnifyingGlassIcon from '@phosphor/magnifying-glass.svg';
 import { createCallback } from '@solid-primitives/rootless';
 import { debounce } from '@solid-primitives/scheduled';
-import { Layer } from '@ui';
+import { cn, InputGroup, Surface } from '@ui';
+import { $getSelection, $setSelection, type BaseSelection } from 'lexical';
 import {
   type Accessor,
   createEffect,
   createResource,
   createSignal,
   For,
+  Match,
   Show,
+  Switch,
   untrack,
   useContext,
 } from 'solid-js';
@@ -31,10 +36,18 @@ import { useMenuKeyboardNavigation } from './useMenuKeyboardNavigation';
 false && floatWithSelection;
 false && clickOutside;
 
-const PICKER_WIDTH = 320;
-const GRID_HEIGHT = 280;
+const COLUMNS = 2;
+const RESULT_LIMIT = 30;
 
-export function FloatingGifMenu(props: { canEdit?: Accessor<boolean> } = {}) {
+/**
+ * GIF search, opened via TRY_INSERT_GIF_COMMAND (`/gif` or a composer's +).
+ * The search field takes focus; arrows move through the grid, Enter inserts,
+ * Escape closes. Portalled like the slash menu so the editor shell's click
+ * and keydown handlers don't swallow the picker's events.
+ */
+export function FloatingGifMenu(
+  props: { canEdit?: Accessor<boolean>; portalScope?: PortalScope } = {}
+) {
   const canEdit = props.canEdit ?? useCanEdit();
   const lexicalWrapper = useContext(LexicalWrapperContext);
   const plugins = () => lexicalWrapper?.plugins;
@@ -49,27 +62,35 @@ export function FloatingGifMenu(props: { canEdit?: Accessor<boolean> } = {}) {
   const [searchTerm, setSearchTerm] = createSignal('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = createSignal('');
   const [selectedIndex, setSelectedIndex] = createSignal(0);
-
+  // The search field takes focus, so the editor's caret is kept to insert at.
+  let insertAt: BaseSelection | null = null;
   let inputRef: HTMLInputElement | undefined;
 
-  const debouncedSetSearch = debounce(
-    (term: string) => setDebouncedSearchTerm(term),
-    300
+  const debouncedSetSearch = debounce(setDebouncedSearchTerm, 300);
+  const updateSearch = (term: string) => {
+    setSearchTerm(term);
+    setSelectedIndex(0);
+    debouncedSetSearch(term);
+  };
+
+  const [gifs, { refetch }] = createResource(
+    () => (menuOpen() ? debouncedSearchTerm() : false),
+    (query) => searchGifs(query, RESULT_LIMIT)
   );
-
-  createEffect(() => {
-    debouncedSetSearch(searchTerm());
-  });
-
-  const [gifs] = createResource(debouncedSearchTerm, async (query) => {
-    return searchGifs(query, 30);
-  });
+  const gifList = () => (gifs.state === 'ready' ? gifs() : []);
 
   const resetMenu = () => {
     setMenuOpen(false);
+    debouncedSetSearch.clear();
     setSearchTerm('');
     setDebouncedSearchTerm('');
     setSelectedIndex(0);
+    insertAt = null;
+  };
+
+  const closeToEditor = () => {
+    resetMenu();
+    editor()?.focus();
   };
 
   const handleOpenPicker = createCallback(() => {
@@ -77,18 +98,21 @@ export function FloatingGifMenu(props: { canEdit?: Accessor<boolean> } = {}) {
       resetMenu();
       return;
     }
+    insertAt = $getSelection()?.clone() ?? null;
+    // Defer past the keystroke that ran the command, as FloatingTableMenu does.
     setTimeout(() => {
       setMenuOpen(true);
-      setTimeout(() => inputRef?.focus(), 0);
+      inputRef?.focus();
     }, 0);
   });
 
   const insertGif = (gif: Gif) => {
+    const selection = insertAt;
     editor()?.update(() => {
+      if (selection) $setSelection(selection.clone());
       $insertGifNode(gif);
     });
-    resetMenu();
-    editor()?.focus();
+    closeToEditor();
   };
 
   createEffect(() => {
@@ -101,127 +125,122 @@ export function FloatingGifMenu(props: { canEdit?: Accessor<boolean> } = {}) {
     });
   });
 
-  const gifList = () => gifs() ?? [];
+  const moveSelection = (delta: number) => {
+    const lastIndex = gifList().length - 1;
+    if (lastIndex < 0) return;
+    setSelectedIndex((index) =>
+      Math.min(lastIndex, Math.max(0, index + delta))
+    );
+  };
 
   useMenuKeyboardNavigation({
     isActive: menuOpen,
-    onUp: () => {
-      const cols = 2;
-      setSelectedIndex((i) => Math.max(0, i - cols));
-    },
-    onDown: () => {
-      const cols = 2;
-      const maxIndex = gifList().length - 1;
-      setSelectedIndex((i) => Math.min(maxIndex, i + cols));
-    },
-    onLeft: () => {
-      setSelectedIndex((i) => Math.max(0, i - 1));
-    },
-    onRight: () => {
-      const maxIndex = gifList().length - 1;
-      setSelectedIndex((i) => Math.min(maxIndex, i + 1));
-    },
+    onUp: () => moveSelection(-COLUMNS),
+    onDown: () => moveSelection(COLUMNS),
+    onLeft: () => moveSelection(-1),
+    onRight: () => moveSelection(1),
     onSelect: () => {
       const gif = gifList()[selectedIndex()];
       if (gif) insertGif(gif);
     },
-    onClose: () => {
-      resetMenu();
-      editor()?.focus();
-    },
-    onOtherKey: () => {},
-  });
-
-  createEffect(() => {
-    if (selectedIndex() >= gifList().length && gifList().length > 0) {
-      setSelectedIndex(gifList().length - 1);
-    }
+    onClose: closeToEditor,
   });
 
   return (
     <Show when={menuOpen()}>
-      <Layer depth={2}>
+      <ScopedPortal scope={props.portalScope}>
         <div
-          class="fixed top-0 left-0 z-action-menu bg-surface rounded-xl shadow-lg ring-1 ring-edge cursor-default select-none overflow-hidden"
-          style={{ width: `${PICKER_WIDTH}px` }}
+          class="w-80 cursor-default select-none z-modal-content menu-open-animation"
           use:floatWithSelection={{
             selection: untrack(() => window.getSelection()),
             reactiveOnContainer: editor()?.getRootElement(),
           }}
-          use:clickOutside={() => resetMenu()}
-          on:mousedown={(e) => {
-            if (e.target !== inputRef) {
-              e.preventDefault();
-            }
+          use:clickOutside={resetMenu}
+          on:touchstart={(event) => event.stopPropagation()}
+          // Keep focus in the search field while picking a GIF.
+          on:mousedown={(event) => {
+            if (event.target !== inputRef) event.preventDefault();
           }}
         >
-          <div class="p-2 border-b border-edge">
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder="Search KLIPY"
-              value={searchTerm()}
-              onInput={(e) => setSearchTerm(e.currentTarget.value)}
-              class="w-full px-3 py-2 text-sm bg-ink/5 rounded-lg outline-none focus:ring-2 focus:ring-accent/50 placeholder:text-ink-muted"
-            />
-          </div>
-
-          <div
-            class="overflow-y-auto overscroll-contain p-2"
-            style={{ height: `${GRID_HEIGHT}px` }}
+          <Surface
+            depth={2}
+            class="flex flex-col gap-1.5 p-1.5 glass bg-menu-glass rounded-xl"
           >
-            <Show
-              when={!gifs.loading}
-              fallback={
-                <div class="flex h-full items-center justify-center text-sm text-ink-muted">
-                  Loading...
-                </div>
-              }
-            >
-              <Show
-                when={gifList().length > 0}
-                fallback={
-                  <div class="flex h-full items-center justify-center text-sm text-ink-muted">
-                    {searchTerm() ? 'No GIFs found' : 'Search for GIFs'}
-                  </div>
-                }
-              >
-                <div class="grid grid-cols-2 auto-rows-[96px] gap-2">
-                  <For each={gifList()}>
-                    {(gif, index) => (
-                      <button
-                        type="button"
-                        onClick={() => insertGif(gif)}
-                        onMouseOver={() => setSelectedIndex(index())}
-                        class="size-full overflow-hidden rounded-lg bg-ink/5"
-                        classList={{
-                          'ring-2 ring-accent': selectedIndex() === index(),
-                          'not-touch:hover:ring-2 not-touch:hover:ring-accent/50':
-                            selectedIndex() !== index(),
-                        }}
-                      >
-                        <img
-                          src={gif.previewUrl}
-                          alt={gif.title}
-                          loading="lazy"
-                          class="size-full object-cover"
-                        />
-                      </button>
-                    )}
-                  </For>
-                </div>
-              </Show>
-            </Show>
-          </div>
+            <InputGroup size="sm">
+              <InputGroup.Input
+                ref={inputRef}
+                type="search"
+                value={searchTerm()}
+                onInput={(event) => updateSearch(event.currentTarget.value)}
+                placeholder="Search KLIPY"
+                aria-label="Search GIFs"
+              />
+              <InputGroup.Addon align="inline-start">
+                <MagnifyingGlassIcon aria-hidden="true" />
+              </InputGroup.Addon>
+            </InputGroup>
 
-          <div class="px-3 py-1.5 border-t border-edge flex items-center justify-end">
-            <PoweredByKlipy
-              class="h-2.5 w-auto text-ink-extra-muted"
-              aria-label="Powered by KLIPY"
-            />
-          </div>
+            <div class="h-70 overflow-y-auto overscroll-contain scrollbar-hidden">
+              <Switch>
+                <Match when={gifs.error}>
+                  <div class="flex h-full flex-col items-center justify-center gap-1 text-sm text-ink-muted">
+                    Couldn't load GIFs
+                    <button
+                      type="button"
+                      class="text-xs text-accent"
+                      onClick={() => refetch()}
+                    >
+                      Try again
+                    </button>
+                  </div>
+                </Match>
+                <Match when={gifs.loading && gifList().length === 0}>
+                  <div class="flex h-full items-center justify-center text-sm text-ink-muted">
+                    Loading…
+                  </div>
+                </Match>
+                <Match when={gifList().length === 0}>
+                  <div class="flex h-full items-center justify-center text-sm text-ink-muted">
+                    No GIFs found
+                  </div>
+                </Match>
+                <Match when={true}>
+                  <div class="grid grid-cols-2 auto-rows-24 gap-1.5 p-0.5">
+                    <For each={gifList()}>
+                      {(gif, index) => (
+                        <button
+                          type="button"
+                          aria-label={gif.title}
+                          onClick={() => insertGif(gif)}
+                          onPointerEnter={() => setSelectedIndex(index())}
+                          class={cn(
+                            'size-full overflow-hidden rounded-lg bg-ink/5 outline-none',
+                            selectedIndex() === index() && 'ring-2 ring-accent'
+                          )}
+                        >
+                          <img
+                            src={gif.previewUrl}
+                            alt=""
+                            loading="lazy"
+                            class="size-full object-cover"
+                          />
+                        </button>
+                      )}
+                    </For>
+                  </div>
+                </Match>
+              </Switch>
+            </div>
+
+            <div class="flex justify-end px-1">
+              <PoweredByKlipy
+                class="h-2.5 w-auto text-ink-extra-muted"
+                aria-label="Powered by KLIPY"
+              />
+            </div>
+          </Surface>
         </div>
-      </Layer>
+      </ScopedPortal>
     </Show>
   );
 }

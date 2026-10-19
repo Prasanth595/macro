@@ -37,7 +37,8 @@ const resultSchema = z.object({
 const responseSchema = z.object({ results: z.array(resultSchema) });
 
 function toGif(result: z.infer<typeof resultSchema>): Gif | null {
-  const gif = result.media_formats.gif ?? result.media_formats.mediumgif;
+  // mediumgif is a fraction of the full gif's size at message width.
+  const gif = result.media_formats.mediumgif ?? result.media_formats.gif;
   const preview = result.media_formats.tinygif ?? result.media_formats.nanogif;
   if (!gif || !preview) return null;
 

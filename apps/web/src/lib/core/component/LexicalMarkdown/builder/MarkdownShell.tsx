@@ -390,7 +390,10 @@ export const MarkdownShell: Component<MarkdownShellProps> = (props) => {
               />
             </Show>
             <Show when={state.actionsMenuOps}>
-              <FloatingGifMenu canEdit={() => !props.disabled} />
+              <FloatingGifMenu
+                canEdit={() => !props.disabled}
+                portalScope={props.portalScope}
+              />
             </Show>
           </FloatingMenuGroup>
         </Show>

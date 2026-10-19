@@ -9,12 +9,11 @@ import {
 import { $insertNodesAndSplitList } from '../../utils';
 import type { Gif } from './klipy';
 
+const MAX_GIF_WIDTH = 400;
+
 export const TRY_INSERT_GIF_COMMAND: LexicalCommand<void> = createCommand(
   'TRY_INSERT_GIF_COMMAND'
 );
-
-export const INSERT_GIF_COMMAND: LexicalCommand<Gif> =
-  createCommand('INSERT_GIF_COMMAND');
 
 type GifPickerPluginProps = {
   onOpenPicker: () => void;
@@ -43,14 +42,15 @@ export function gifPickerPlugin(props: GifPickerPluginProps) {
 }
 
 export function $insertGifNode(gif: Gif) {
+  const width = Math.min(gif.width, MAX_GIF_WIDTH);
   const imageNode = $createImageNode({
     srcType: 'url',
     url: gif.url,
     alt: gif.title,
-    constrainedWidth: Math.min(gif.width, 400),
-    constrainedHeight: Math.round(
-      (Math.min(gif.width, 400) / gif.width) * gif.height
-    ),
+    width: gif.width,
+    height: gif.height,
+    constrainedWidth: width,
+    constrainedHeight: Math.round((width / gif.width) * gif.height),
   });
 
   $insertNodesAndSplitList([imageNode]);
