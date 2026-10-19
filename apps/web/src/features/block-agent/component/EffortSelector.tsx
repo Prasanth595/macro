@@ -1,9 +1,8 @@
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { Popover } from '@kobalte/core/popover';
-import CheckIcon from '@phosphor/check.svg';
 import { Button, Tooltip } from '@ui';
-import { createSignal, For, Show } from 'solid-js';
+import { createSignal, Show } from 'solid-js';
 import type {
   EffortChoice,
   SelectSessionConfigOption,
@@ -18,17 +17,23 @@ export function EffortSelector(props: {
   onOpenChange?: (open: boolean) => void;
 }) {
   const [open, setOpen] = createSignal(false);
+  const [preview, setPreview] = createSignal<number>();
   const changeOpen = (value: boolean) => {
     setOpen(value);
+    setPreview(undefined);
     props.onOpenChange?.(value);
   };
   const choices = () => props.config?.options ?? [];
   const value = () => props.value ?? props.config?.currentValue;
-  const label = () =>
-    choices().find((choice) => choice.value === value())?.name ?? 'Default';
+  const index = () =>
+    preview() ??
+    Math.max(
+      0,
+      choices().findIndex((choice) => choice.value === value())
+    );
+  const label = () => choices()[index()]?.name ?? 'Default';
   const angle = () => {
-    const index = choices().findIndex((choice) => choice.value === value());
-    return -70 + (Math.max(0, index) / Math.max(1, choices().length - 1)) * 140;
+    return -70 + (index() / Math.max(1, choices().length - 1)) * 140;
   };
   const contents = () => (
     <svg viewBox="0 0 24 24" class="size-[22px]" fill="none" aria-hidden="true">
@@ -51,42 +56,32 @@ export function EffortSelector(props: {
     </svg>
   );
   const options = () => (
-    <div>
-      <div class="mb-2 flex justify-between px-1 text-xs text-ink-muted">
-        <span>Lower effort</span>
-        <span>Higher effort</span>
+    <div class="px-1">
+      <div class="mb-1 text-center text-xs text-ink-muted" aria-hidden="true">
+        {label()}
       </div>
-      <div
-        role="group"
+      <input
+        type="range"
         aria-label="Reasoning effort"
-        class="flex gap-1 overflow-x-auto"
-      >
-        <For each={choices()}>
-          {(choice) => (
-            <Button
-              variant="ghost"
-              class="h-auto min-h-12 min-w-12 flex-1 flex-col justify-center gap-1 rounded-lg px-2 py-2 text-xs"
-              aria-pressed={choice.value === value()}
-              disabled={props.disabled}
-              onClick={() => {
-                if (!props.config) return;
-                props.onChange({
-                  configId: props.config.id,
-                  value: choice.value,
-                  name: choice.name,
-                });
-                changeOpen(false);
-              }}
-            >
-              {choice.name}
-              <CheckIcon
-                class="size-3"
-                classList={{ invisible: choice.value !== value() }}
-              />
-            </Button>
-          )}
-        </For>
-      </div>
+        aria-valuetext={label()}
+        min={0}
+        max={choices().length - 1}
+        step={1}
+        value={index()}
+        disabled={props.disabled}
+        class="m-0 h-9 w-full appearance-none rounded-full bg-transparent text-ink outline-none focus-visible:ring-2 focus-visible:ring-edge-focus disabled:opacity-50 [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-ink/20 [&::-webkit-slider-thumb]:-mt-1.5 [&::-webkit-slider-thumb]:size-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-ink [&::-moz-range-track]:h-1 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-ink/20 [&::-moz-range-thumb]:size-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-ink"
+        onInput={(event) => setPreview(Number(event.currentTarget.value))}
+        onChange={(event) => {
+          const choice = choices()[Number(event.currentTarget.value)];
+          if (!props.disabled && props.config && choice)
+            props.onChange({
+              configId: props.config.id,
+              value: choice.value,
+              name: choice.name,
+            });
+          setPreview(undefined);
+        }}
+      />
     </div>
   );
   return (
@@ -145,7 +140,7 @@ export function EffortSelector(props: {
                 Reasoning effort
               </MobileDrawer.Title>
               <MobileDrawer.ScrollBody>
-                <div class="px-2 pb-3">{options()}</div>
+                <div class="px-5 pb-4">{options()}</div>
               </MobileDrawer.ScrollBody>
             </MobileDrawer.Content>
           </MobileDrawer.Portal>

@@ -1,13 +1,7 @@
 /** @vitest-environment jsdom */
 
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from '@solidjs/testing-library';
+import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { SelectSessionConfigOption } from '../state/session-config';
 import { EffortSelector } from './EffortSelector';
@@ -44,39 +38,24 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 it.each([false, true])(
-  'selects named effort and closes choices (touch=%s)',
+  'previews effort while dragging and applies on release (touch=%s)',
   async (touch) => {
     vi.mocked(isTouchDevice).mockReturnValue(touch);
     const change = vi.fn();
-    const changeOpen = vi.fn();
-    render(() => (
-      <EffortSelector
-        config={config}
-        onChange={change}
-        onOpenChange={changeOpen}
-      />
-    ));
+    render(() => <EffortSelector config={config} onChange={change} />);
     fireEvent.click(screen.getByRole('button', { name: 'Effort: Low' }));
-    const high = await screen.findByRole('button', { name: 'High' });
-    await waitFor(() => expect(changeOpen).toHaveBeenLastCalledWith(true));
-    expect(
-      screen.getByRole('button', { name: 'Low' }).getAttribute('aria-pressed')
-    ).toBe('true');
-    fireEvent.click(high);
-    await waitFor(() => expect(changeOpen).toHaveBeenLastCalledWith(false));
+    const slider = await screen.findByRole('slider', {
+      name: 'Reasoning effort',
+    });
+    fireEvent.input(slider, { target: { value: '1' } });
+    expect(slider.getAttribute('aria-valuetext')).toBe('High');
+    expect(change).not.toHaveBeenCalled();
+    fireEvent.change(slider, { target: { value: '1' } });
     expect(change).toHaveBeenCalledExactlyOnceWith({
       configId: 'effort',
       value: 'high',
       name: 'High',
     });
-    if (!touch)
-      await waitFor(() =>
-        expect(
-          screen
-            .getByRole('button', { name: 'Effort: Low' })
-            .getAttribute('aria-expanded')
-        ).toBe('false')
-      );
   }
 );
 it('hides unsupported effort', () => {
@@ -86,5 +65,5 @@ it('hides unsupported effort', () => {
 it('does not open while configuration is disabled', () => {
   render(() => <EffortSelector config={config} disabled onChange={vi.fn()} />);
   fireEvent.click(screen.getByRole('button', { name: 'Effort: Low' }));
-  expect(screen.queryByRole('button', { name: 'High' })).toBeNull();
+  expect(screen.queryByRole('slider')).toBeNull();
 });
