@@ -26,22 +26,23 @@
 
 .homepage-embedded-stage::after { content: ''; position: absolute; inset: 82% 0 -1px; background: linear-gradient(to bottom, transparent, #0003 70%, #0007 100%); pointer-events: none; transition: opacity 300ms ease; }
 .homepage-demo-carousel { position: relative; z-index: 1; margin-top: 0; text-align: center; touch-action: pan-y; }
-.homepage-demo-slide-copy { min-height: 110px; gap: 16px; padding: 0 16px; margin-bottom: 24px; display: grid; justify-items: center; align-content: start; user-select: none;  }
+.homepage-demo-slide-copy { min-height: 0; gap: 10px; padding: 0 16px; margin-bottom: 18px; display: grid; justify-items: center; align-content: start; user-select: none;  }
 
 .homepage-demo-slide-copy h2 { margin: 0; max-width: 720px; color: #eee; font-family: 'Roboto Slab Variable', display, serif; font-size: clamp(28px, 2.6vw, 34px); font-weight: calc(315 + var(--cream-slab-weight-increase, 0)); letter-spacing: -.015em; line-height: 1.2; white-space: pre-line; }
 .homepage-demo-slide-copy p { margin: 0; color: var(--color-ink-muted); font-size: 15px; line-height: 1.7; }
-.homepage-demo-slide-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; margin: 0 0 40px; }
+.homepage-demo-slide-controls { position: relative; z-index: 4; display: flex; align-items: center; justify-content: center; gap: 4px; width: max-content; margin: 0 auto -22px; padding: 0 8px; border: 1px solid var(--color-edge-muted); border-radius: 999px; background: var(--color-surface); box-shadow: 0 2px 8px #00000012; }
+.homepage-demo-current { min-width: 68px; color: var(--color-ink); font-size: 13px; }
+.homepage-demo-carousel .homepage-demo-arrow { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; color: var(--color-ink-muted); font-size: 20px; }
+.homepage-demo-carousel .homepage-demo-arrow:hover { color: var(--color-ink); background: color-mix(in srgb, var(--color-ink) 5%, transparent); }
 .homepage-demo-carousel button { color: #999; background: transparent; border: 0; font: inherit; }
 .homepage-demo-carousel button:hover { color: #eee; }
 .homepage-demo-carousel button:focus-visible { outline: 2px solid #aaa; outline-offset: 4px; border-radius: 6px; }
 .homepage-demo-carousel button:disabled { opacity: .4; }
-.homepage-demo-carousel .homepage-demo-slide-tab { min-height: 40px; padding: 8px 18px; border-radius: 999px; color: var(--color-ink-muted); border: 1px solid transparent; font-size: 14px; transition: color 140ms ease, background-color 140ms ease; }
-.homepage-demo-carousel .homepage-demo-slide-tab[aria-pressed=true] { color: var(--color-ink); background: color-mix(in srgb, var(--color-ink) 8%, transparent); border-color: color-mix(in srgb, var(--color-ink) 12%, transparent); }
 @media (max-width: 767px) {
   .homepage-demo-carousel { margin-top: 0; padding: 0 12px; }
-  .homepage-demo-slide-copy { min-height: 130px; }
+  .homepage-demo-slide-copy { min-height: 0; }
   .homepage-demo-slide-copy h2 { font-size: clamp(26px, 6.7vw, 36px); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .homepage-embedded-stage::after, .homepage-demo-slide-tab { transition: none; }
+  .homepage-embedded-stage::after, .homepage-demo-arrow { transition: none; }
 }

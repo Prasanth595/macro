@@ -23,9 +23,9 @@ track the pointer. Mobile header actions retain 44px touch targets. The homepage
 16px arrow inside a 44px button, inset 20px from the bottom while respecting safe areas.
 
 The homepage names Macro in the unification heading and introduces the live
-sample with a compact, two-line heading and named view selectors above the
-frame. Its first selector is Home, matching the app; the heading describes the
-whole workspace rather than calling it an inbox. The frame
+sample with a compact heading above the frame and previous/next arrows
+overlapping its top edge. The view label and heading follow the selected
+Inbox, Chat, Docs, CRM, Tasks, or Agents view. Inbox opens the native Home view. The frame
 uses a neutral charcoal treatment (warm grey in cream). It embeds the existing
 `/demo` workspace directly, with no alternate inbox layout. The Home view keeps
 the same mixed activity sidebar and agent composer. The sample launch story

@@ -1,44 +1,37 @@
-import {
-  createSignal,
-  For,
-  type JSX,
-  onCleanup,
-  onMount,
-  Show,
-} from 'solid-js';
+import { createSignal, type JSX, onCleanup, onMount, Show } from 'solid-js';
 
 const SLIDES = [
   {
-    label: 'Home',
+    label: 'Inbox',
     target: 'Home',
-    title: 'One workspace for emails, agents,\ntasks, and messages.',
+    title: 'One inbox for emails, agents,\ntasks, and messages.',
     description: '',
   },
   {
     label: 'Chat',
     target: 'Chat',
-    title: 'Work with your team and your agents.',
+    title: 'Chat with your team and your agents.',
     description:
       'Discuss the launch, share the source, and turn feedback into tasks.',
   },
   {
     label: 'Docs',
     target: 'Drive',
-    title: 'Write the plan together.',
+    title: 'Docs your team and agents can edit.',
     description:
       'Your team and agents edit the same document, with every change recorded.',
   },
   {
     label: 'CRM',
     target: 'Customers',
-    title: 'Keep the customer conversation connected.',
+    title: 'CRM connected to every conversation.',
     description:
       'See emails, notes, tasks, and the next step alongside each company.',
   },
   {
     label: 'Tasks',
     target: 'Tasks',
-    title: 'Turn the conversation into action.',
+    title: 'Tasks for your team and your agents.',
     description:
       'Assign work to people or agents without losing the original discussion.',
   },
@@ -207,20 +200,27 @@ export function HomepageDemoCarousel(props: {
           select(active() + (event.key === 'ArrowRight' ? 1 : -1));
         }}
       >
-        <For each={SLIDES}>
-          {(item, index) => (
-            <button
-              type="button"
-              class="homepage-demo-slide-tab"
-              aria-label={`Show ${item.label} highlight`}
-              aria-pressed={active() === index()}
-              disabled={!ready()}
-              onClick={() => select(index())}
-            >
-              <span>{item.label}</span>
-            </button>
-          )}
-        </For>
+        <button
+          type="button"
+          class="homepage-demo-arrow"
+          aria-label="Previous highlight"
+          disabled={!ready()}
+          onClick={() => select(active() - 1)}
+        >
+          <span aria-hidden="true">←</span>
+        </button>
+        <span class="homepage-demo-current" aria-live="polite">
+          {slide().label}
+        </span>
+        <button
+          type="button"
+          class="homepage-demo-arrow"
+          aria-label="Next highlight"
+          disabled={!ready()}
+          onClick={() => select(active() + 1)}
+        >
+          <span aria-hidden="true">→</span>
+        </button>
       </div>
       {props.children}
     </div>

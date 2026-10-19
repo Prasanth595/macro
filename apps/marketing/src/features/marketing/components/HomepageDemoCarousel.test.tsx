@@ -25,22 +25,16 @@ function mountCarousel() {
 it('starts with the unified Home example and wraps the highlights with keyboard navigation', () => {
   mountCarousel();
   expect(openView.mock.calls.map((call) => call[0])).toEqual(['Home']);
-  fireEvent.click(
-    screen.getByRole('button', { name: 'Show Agents highlight' })
-  );
-  expect(
-    screen
-      .getByRole('button', { name: 'Show Agents highlight' })
-      .getAttribute('aria-pressed')
-  ).toBe('true');
+  fireEvent.click(screen.getByRole('button', { name: 'Previous highlight' }));
+  expect(screen.getByText('Agents')).toBeTruthy();
   expect(openView).toHaveBeenLastCalledWith('Fix the deploy pipeline');
   fireEvent.keyDown(
-    screen.getByRole('button', { name: 'Show Agents highlight' }),
+    screen.getByRole('button', { name: 'Previous highlight' }),
     {
       key: 'ArrowRight',
     }
   );
-  expect(screen.getByRole('heading').textContent).toContain('One workspace');
+  expect(screen.getByRole('heading').textContent).toContain('One inbox');
 });
 it('keeps the carousel in place during iframe interaction and cleans up load listeners', () => {
   const view = mountCarousel();
@@ -53,7 +47,7 @@ it('keeps the carousel in place during iframe interaction and cleans up load lis
   );
   expect(screen.getByRole('heading')).toBe(heading);
   expect(
-    screen.getByRole('button', { name: 'Show Agents highlight' })
+    screen.getByRole('button', { name: 'Previous highlight' })
   ).toBeTruthy();
   expect(screen.queryByText('Back to highlights')).toBeNull();
   expect(document.querySelector('iframe')).toBe(frame);
@@ -61,7 +55,7 @@ it('keeps the carousel in place during iframe interaction and cleans up load lis
     .contentDocument!.querySelector<HTMLButtonElement>('[aria-label=Chat]')!
     .click();
   expect(screen.getByRole('heading').textContent).toContain(
-    'Work with your team and your agents.'
+    'Chat with your team and your agents.'
   );
   view.unmount();
   openView.mockClear();
@@ -97,19 +91,19 @@ it('captures horizontal drags and ignores vertical or cancelled gestures', () =>
   expect(capture).toHaveBeenCalledWith(1);
   pointer('pointerup', carousel, { ...down, clientX: 200 });
   expect(screen.getByRole('heading').textContent).toContain(
-    'Work with your team and your agents.'
+    'Chat with your team and your agents.'
   );
 
   pointer('pointerdown', carousel, down);
   pointer('pointerup', carousel, { ...down, clientX: 400 });
-  expect(screen.getByRole('heading').textContent).toContain('One workspace');
+  expect(screen.getByRole('heading').textContent).toContain('One inbox');
 
   pointer('pointerdown', carousel, down);
   pointer('pointerup', carousel, { ...down, clientX: 200, clientY: 250 });
-  expect(screen.getByRole('heading').textContent).toContain('One workspace');
+  expect(screen.getByRole('heading').textContent).toContain('One inbox');
 
   pointer('pointerdown', carousel, down);
   pointer('pointercancel', carousel, down);
   pointer('pointerup', carousel, { ...down, clientX: 200 });
-  expect(screen.getByRole('heading').textContent).toContain('One workspace');
+  expect(screen.getByRole('heading').textContent).toContain('One inbox');
 });
