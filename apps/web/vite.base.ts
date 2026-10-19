@@ -12,6 +12,7 @@ import tsconfigpaths from 'vite-tsconfig-paths';
 import { version } from './package.json';
 import { devCompression } from './scripts/dev-compression';
 import { devHttps } from './scripts/dev-https';
+import { devExternalSourcemaps } from './scripts/dev-sourcemaps';
 import { hostedDevProxy } from './scripts/hosted-dev-proxy';
 import { keepImportMetaDev } from './scripts/keep-import-meta-dev';
 import { localDevServer } from './scripts/local-dev-server';
@@ -320,6 +321,7 @@ export const createAppViteConfig = (): UserConfigFn => {
       plugins: [
         devHttps(),
         devCompression(),
+        devExternalSourcemaps(),
         hostedDevProxy(),
         // solidDevtools({ autoname: true }),
         pureGeneratedZodSchemas(),

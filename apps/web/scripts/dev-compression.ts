@@ -58,6 +58,7 @@ function compressSingleShot(_req: IncomingMessage, res: ServerResponse) {
     const type = String(res.getHeader('content-type') ?? '');
     if (
       streamed ||
+      res.headersSent ||
       !buffer ||
       buffer.length < MIN_BYTES ||
       res.statusCode !== 200 ||
