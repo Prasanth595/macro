@@ -55,7 +55,7 @@ export function FeaturePageCta(props: { name: string; label?: string }) {
 
 export function FeaturePageSection(props: {
   id: string;
-  title: readonly [string, string];
+  title: readonly string[];
   description: string;
   details: readonly ProductFeatureDetail[];
   children: JSX.Element;
@@ -68,7 +68,7 @@ export function FeaturePageSection(props: {
     >
       <header class="product-feature-intro">
         <h2 id={`${props.id}-title`}>
-          <span>{props.title[0]}</span> <span>{props.title[1]}</span>
+          <For each={props.title}>{(line) => <span>{line}</span>}</For>
         </h2>
         <p>{props.description}</p>
       </header>
