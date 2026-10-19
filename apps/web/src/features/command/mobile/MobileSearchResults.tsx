@@ -142,11 +142,8 @@ function MobileNameResults(props: { session: MobileSearchSession }) {
         return;
       }
       handle.scrollTo(restore.offset);
-      if (
-        handle.scrollSize - handle.viewportSize >= restore.offset ||
-        !source.pagination.hasMore()
-      )
-        restore = undefined;
+      // The saved window is already mounted; later pages must not move the user.
+      restore = undefined;
     })
   );
   const onScroll = () => {
@@ -253,11 +250,7 @@ function MobileFullTextResults(props: { session: MobileSearchSession }) {
         return;
       }
       list.scrollTop = restore.offset;
-      if (
-        list.scrollHeight - list.clientHeight >= restore.offset ||
-        !search.hasNextPage()
-      )
-        restore = undefined;
+      restore = undefined;
     })
   );
   const loadMoreNearEnd = createSearchPagination({

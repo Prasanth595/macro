@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => ({
   loadMore: vi.fn(),
   hasMore: true,
   loadingMore: false,
+  viewportHeight: 400,
   fetchNextPage: vi.fn(),
   items: (() => []) as Accessor<EntitySearchItem[]>,
   loadingEntities: (() => false) as Accessor<boolean>,
@@ -176,7 +177,14 @@ beforeEach(() => {
           [
             {
               target,
-              contentRect: new DOMRect(0, 0, 400, 400),
+              contentRect: new DOMRect(
+                0,
+                0,
+                400,
+                target.getAttribute('role') === 'region'
+                  ? mocks.viewportHeight
+                  : 400
+              ),
               borderBoxSize: [],
               contentBoxSize: [],
               devicePixelContentBoxSize: [],
@@ -190,6 +198,7 @@ beforeEach(() => {
     }
   );
   mocks.hasMore = true;
+  mocks.viewportHeight = 400;
   mocks.loadingMore = false;
   mocks.items = () => [];
   mocks.loadingEntities = () => false;
@@ -580,6 +589,111 @@ it('does not show a loading footer for available name results during a backgroun
   expect(screen.getByRole('button', { name: 'Project' })).toBeTruthy();
   expect(screen.queryByText('Loading…')).toBeNull();
 });
+
+it.each(['name', 'full-text'] as const)(
+  'keeps user scrolling after restoring %s results into a taller viewport',
+  async (mode) => {
+    const [nameItems, setNameItems] = createSignal<EntitySearchItem[]>([
+      {
+        id: 'first',
+        kind: 'initiative',
+        bucket: 'initiative',
+        name: 'First',
+        searchText: 'First',
+        sortTimestamp: 0,
+        timestamps: {},
+      },
+      {
+        id: 'second',
+        kind: 'initiative',
+        bucket: 'initiative',
+        name: 'Second',
+        searchText: 'Second',
+        sortTimestamp: 0,
+        timestamps: {},
+      },
+    ]);
+    const [fullTextItems, setFullTextItems] = createSignal<EntityData[]>([
+      {
+        id: 'first',
+        type: 'email',
+        name: 'First',
+        ownerId: 'owner',
+        isRead: true,
+        isDraft: false,
+        isImportant: false,
+        done: false,
+      },
+      {
+        id: 'second',
+        type: 'email',
+        name: 'Second',
+        ownerId: 'owner',
+        isRead: true,
+        isDraft: false,
+        isImportant: false,
+        done: false,
+      },
+    ]);
+    mocks.items = nameItems;
+    mocks.fullTextData = fullTextItems;
+    vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(800);
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockImplementation(
+      () => mocks.viewportHeight
+    );
+    SearchState.setQuery('First');
+    if (mode === 'full-text') SearchState.searchFullText();
+    const view = render(() => <MobileSearchResults />);
+    fireEvent.scroll(screen.getByRole('region', { name: 'Search results' }), {
+      target: { scrollTop: 300 },
+    });
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: mode === 'name' ? 'First' : 'First snippet',
+      })
+    );
+    view.unmount();
+    // A taller viewport cannot reach the previously saved offset yet.
+    mocks.viewportHeight = 600;
+    mocks.setActive(true);
+    render(() => <MobileSearchResults />);
+    const list = screen.getByRole('region', { name: 'Search results' });
+    await waitFor(() => expect(list.scrollTop).toBe(300));
+    // Simulate the browser clamping the initial offset to the new scroll range.
+    fireEvent.scroll(list, { target: { scrollTop: 200 } });
+    fireEvent.scroll(list, { target: { scrollTop: 100 } });
+    setNameItems([
+      { ...nameItems()[0], searchText: 'Updated first' },
+      nameItems()[1],
+      { ...nameItems()[0], id: 'third', searchText: 'Third' },
+    ]);
+    setFullTextItems([
+      { ...fullTextItems()[0], name: 'Updated first' },
+      fullTextItems()[1],
+      { ...fullTextItems()[0], id: 'third', name: 'Third' },
+    ]);
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', {
+          name: mode === 'name' ? 'Updated first' : 'Updated first snippet',
+        })
+      ).toBeTruthy()
+    );
+    expect(list.scrollTop).toBe(100);
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: mode === 'name' ? 'Updated first' : 'Updated first snippet',
+      })
+    );
+    const scroll =
+      mocks.entryState?.[
+        mode === 'name'
+          ? 'mobileSearch.nameScroll'
+          : 'mobileSearch.fullTextScroll'
+      ];
+    expect(scroll).toMatchObject({ offset: 100 });
+  }
+);
 
 it('keeps restored name results after a failed refresh but accepts a successful empty result', () => {
   const [items, setItems] = createSignal<EntitySearchItem[]>([

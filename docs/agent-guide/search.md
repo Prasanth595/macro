@@ -60,6 +60,8 @@ stays dismissed on return. Open Search from the dock and check All/name reset,
 then revisit the earlier history entry and confirm its query is intact.
 Repeat with a slow refresh: the saved rows and scroll should appear before it
 finishes, and its first page must not shrink a previously paginated list.
+If the viewport changes on return, scroll manually and confirm
+later pages preserve that new position instead of returning to the saved offset.
 Clear with whitespace and check category
 retention; select Projects from full-text mode and confirm it shows name results.
 Repeat opening with a large recent list: results are virtualized, so transferring
