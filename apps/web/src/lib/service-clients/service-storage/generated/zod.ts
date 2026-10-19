@@ -47778,6 +47778,12 @@ export const messageTimelineEntriesResponse = zod
                       .datetime({})
                       .nullish()
                       .describe('Last content edit, if any.'),
+                    guest_name: zod
+                      .string()
+                      .nullish()
+                      .describe(
+                        'Display name of a verified call guest, retained after the call ends.'
+                      ),
                     id: zod.uuid().describe('Message UUID.'),
                     imported_author: zod
                       .union([
@@ -48131,6 +48137,12 @@ export const messageTimelineEntriesResponse = zod
                                     .datetime({})
                                     .nullish()
                                     .describe('Last content edit, if any.'),
+                                  guest_name: zod
+                                    .string()
+                                    .nullish()
+                                    .describe(
+                                      'Display name of a verified call guest, retained after the call ends.'
+                                    ),
                                   id: zod.uuid().describe('Message UUID.'),
                                   imported_author: zod
                                     .union([
