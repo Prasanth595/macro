@@ -21,21 +21,29 @@ import {
 } from '../core/record';
 import { Company } from './company-detail';
 import { Contact } from './contact-detail';
+import { Deal } from './deal-detail';
 import { CrmCopyLinkButton } from './copy-link-button';
 import { useCompanyQuery, useContactQuery } from './use-crm';
 
 /** A CRM record shown inside the workspace, with its fallback label. */
 export type CrmRecordRef = {
-  type: 'company' | 'contact';
+  type: 'company' | 'contact' | 'deal';
   id: string;
   name: string;
+  pipelineId?: string;
 };
 
 const recordKey = (record: CrmRecordRef) => `${record.type}:${record.id}`;
 
 function createRecordName(record: CrmRecordRef): () => string {
   const fallback =
-    record.name || (record.type === 'company' ? 'Company' : 'Contact');
+    record.name ||
+    (record.type === 'company'
+      ? 'Company'
+      : record.type === 'deal'
+        ? 'Deal'
+        : 'Contact');
+  if (record.type === 'deal') return () => record.name || fallback;
   if (record.type === 'company') {
     const { company } = useCompanyQuery(() => record.id);
     return () => company()?.name ?? fallback;
@@ -124,13 +132,15 @@ export function CrmRecordDetail(props: {
                     onClick={item.onSelect}
                     class="gap-1.5"
                   >
-                    <EntityIcon
-                      targetType={
-                        record.type === 'company' ? 'crm_company' : 'contact'
-                      }
-                      size="xs"
-                      class="shrink-0"
-                    />
+                    <Show when={record.type !== 'deal'}>
+                      <EntityIcon
+                        targetType={
+                          record.type === 'company' ? 'crm_company' : 'contact'
+                        }
+                        size="xs"
+                        class="shrink-0"
+                      />
+                    </Show>
                     <span class="truncate">{name()}</span>
                   </ViewBreadcrumbs.Button>
                 </Tooltip>
@@ -152,6 +162,7 @@ export function CrmRecordDetail(props: {
               class="min-w-0 shrink"
             />
             <div class="min-w-0 overflow-x-auto">
+              <Show when={current().type !== 'deal'}>
               <Show
                 when={current().type === 'contact'}
                 fallback={
@@ -168,15 +179,24 @@ export function CrmRecordDetail(props: {
                   onChange={setContactSection}
                 />
               </Show>
+              </Show>
             </div>
             <div class="ml-auto flex shrink-0 items-center gap-1">
-              <CrmCopyLinkButton type={current().type} id={current().id} />
+              <Show when={current().type !== 'deal'}>
+                <CrmCopyLinkButton
+                  type={current().type === 'contact' ? 'contact' : 'company'}
+                  id={current().id}
+                />
+              </Show>
               <SidePanel.Toggle />
             </div>
           </div>
           <div class="relative min-h-0 min-w-0 flex-1">
             <Show when={current()} keyed>
               {(record) => (
+                <Show
+                  when={record.type === 'deal'}
+                  fallback={
                 <RecordContent
                   record={record}
                   nested={trail().length > 1}
@@ -198,6 +218,7 @@ export function CrmRecordDetail(props: {
                             name: contact.name ?? contact.email,
                           })
                         }
+                        onOpenDeal={(deal) => open({ type: 'deal', ...deal })}
                       />
                     }
                   >
@@ -213,6 +234,19 @@ export function CrmRecordDetail(props: {
                     />
                   </Show>
                 </RecordContent>
+                  }
+                >
+                  <Deal
+                    dealId={record.id}
+                    pipelineId={record.pipelineId}
+                    onOpenCompany={(id) =>
+                      open({ type: 'company', id, name: '' })
+                    }
+                    onOpenContact={(id) =>
+                      open({ type: 'contact', id, name: '' })
+                    }
+                  />
+                </Show>
               )}
             </Show>
           </div>

@@ -83,6 +83,7 @@ export function ReplyTarget(props: ReplyTargetDecoratorProps) {
         id: props.parent.id,
         params: { comment_id: props.targetMessageId },
       }))
+      .with('crm_deal', () => undefined)
       .with('document', () =>
         document.isSuccess && document.data.fileType
           ? {

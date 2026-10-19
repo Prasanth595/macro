@@ -120,6 +120,12 @@ export function createPipelineTransfer(
             });
           return;
         }
+        if (pipeline.recordType === 'deal') {
+          const deal = await storage.getDeal({ dealId: id });
+          if (deal.isOk())
+            records.set(id, { name: deal.value.name, key: deal.value.name });
+          return;
+        }
         const contact = await storage.getContact({ contactId: id });
         if (contact.isOk())
           records.set(id, {
@@ -130,6 +136,7 @@ export function createPipelineTransfer(
       return records;
     },
     async resolveRecords(records, signal, progress) {
+      if (pipeline.recordType === 'deal') return new Map<string, string>();
       const domains = new Map<string, Promise<string | undefined>>();
       for (const company of await companies(signal))
         for (const { domain } of company.domains)

@@ -31,6 +31,7 @@ pub fn canonical_entity_type(entity_type: EntityType) -> AccessEntityType {
         EntityType::Company => AccessEntityType::CrmCompany,
         EntityType::DatabaseRow => AccessEntityType::DatabaseRow,
         EntityType::Contact => AccessEntityType::CrmContact,
+        EntityType::Deal => AccessEntityType::CrmDeal,
         EntityType::User => AccessEntityType::User,
     }
 }
@@ -65,6 +66,7 @@ pub fn storage_entity_type(entity_type: AccessEntityType) -> Option<EntityType> 
         | AccessEntityType::Skill
         | AccessEntityType::AgentSession
         | AccessEntityType::ScheduledAction => None,
+        AccessEntityType::CrmDeal => Some(EntityType::Deal),
     }
 }
 

@@ -155,6 +155,13 @@ pub enum DiscussionSurface {
         /// Contact name.
         name: String,
     },
+    /// A comment thread on a CRM deal.
+    CrmDealComment {
+        /// Deal id.
+        id: Uuid,
+        /// Deal name.
+        name: String,
+    },
     /// The chat of a call.
     CallChat {
         /// Call id.

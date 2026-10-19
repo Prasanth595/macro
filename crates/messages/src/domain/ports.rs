@@ -575,6 +575,10 @@ pub struct TimelineActivitySource {
     pub selection: TimelineSelection,
 }
 
+/// Stage, date and outcome on a deal. Other property edits stay off the discussion.
+pub const DEAL_TIMELINE: TimelineSelection =
+    TimelineSelection::new(&[ActionTag::PropertyChanged], &[]);
+
 /// Which activity, if any, belongs in a parent's timeline. Parents without a
 /// source read message-only timelines; adding one is a deliberate choice here.
 pub fn timeline_activity(parent: &MessageParent) -> Option<TimelineActivitySource> {
@@ -582,6 +586,10 @@ pub fn timeline_activity(parent: &MessageParent) -> Option<TimelineActivitySourc
         MessageParent::Channel(_) => Some(TimelineActivitySource {
             entity_type: activity::EntityType::Channel,
             selection: CHANNEL_TIMELINE,
+        }),
+        MessageParent::CrmDeal(_) => Some(TimelineActivitySource {
+            entity_type: activity::EntityType::CrmDeal,
+            selection: DEAL_TIMELINE,
         }),
         MessageParent::Document(_)
         | MessageParent::Initiative(_)
@@ -596,6 +604,7 @@ pub fn timeline_activity(parent: &MessageParent) -> Option<TimelineActivitySourc
 pub fn timeline_parent(activity: &activity::Activity) -> Option<MessageParent> {
     let parent = match activity.entity_type {
         activity::EntityType::Channel => MessageParent::Channel(activity.entity_id.parse().ok()?),
+        activity::EntityType::CrmDeal => MessageParent::CrmDeal(activity.entity_id.parse().ok()?),
         _ => return None,
     };
     let source = timeline_activity(&parent)?;

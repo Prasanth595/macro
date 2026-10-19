@@ -490,6 +490,8 @@ pub enum EntityKind {
     Company,
     /// CRM contacts.
     Contact,
+    /// CRM deals.
+    Deal,
     /// Call recordings.
     CallRecord,
     /// Channels.

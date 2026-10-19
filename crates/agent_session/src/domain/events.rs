@@ -52,7 +52,8 @@ impl ThreadOrigin {
             | MessageParent::Call(_)
             | MessageParent::Initiative(_)
             | MessageParent::CrmCompany(_)
-            | MessageParent::CrmContact(_) => None,
+            | MessageParent::CrmContact(_)
+            | MessageParent::CrmDeal(_) => None,
         };
         Self {
             parent,

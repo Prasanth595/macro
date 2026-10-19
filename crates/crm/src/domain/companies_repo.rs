@@ -608,4 +608,36 @@ pub trait CompaniesRepository: Clone + Send + Sync + 'static {
         team_id: &uuid::Uuid,
         patch: &CrmTeamSettingsPatch,
     ) -> impl Future<Output = Result<CrmTeamSettings, CrmError>> + Send;
+
+    /// Create a deal for the team and link companies and people that already
+    /// belong to it.
+    fn create_deal(
+        &self,
+        team_id: &uuid::Uuid,
+        name: &str,
+        description: &str,
+        company_ids: &[uuid::Uuid],
+        contact_ids: &[uuid::Uuid],
+    ) -> impl Future<Output = Result<crate::domain::deals::Deal, CrmError>> + Send;
+
+    /// The deal when the team owns it.
+    fn get_deal(
+        &self,
+        team_id: &uuid::Uuid,
+        deal_id: &uuid::Uuid,
+    ) -> impl Future<Output = Result<Option<crate::domain::deals::Deal>, CrmError>> + Send;
+
+    /// The deals among `ids` that the team owns.
+    fn list_deals(
+        &self,
+        team_id: &uuid::Uuid,
+        ids: &[uuid::Uuid],
+    ) -> impl Future<Output = Result<Vec<crate::domain::deals::Deal>, CrmError>> + Send;
+
+    /// Deals linked to the company, with the board facts beside each one.
+    fn list_company_deals(
+        &self,
+        team_id: &uuid::Uuid,
+        company_id: &uuid::Uuid,
+    ) -> impl Future<Output = Result<Vec<crate::domain::deals::CompanyDeal>, CrmError>> + Send;
 }

@@ -70,6 +70,8 @@ pub enum MessageReferenceKind {
     CrmCompany,
     /// A CRM contact.
     CrmContact,
+    /// A CRM deal.
+    CrmDeal,
     /// An automation reference; recognized separately from message authorization support.
     Automation,
 }
@@ -93,6 +95,7 @@ impl MessageReferenceKind {
             "group" => Self::Group,
             "crm_company" => Self::CrmCompany,
             "crm_contact" => Self::CrmContact,
+            "crm_deal" => Self::CrmDeal,
             "automation" => Self::Automation,
             _ => return None,
         })

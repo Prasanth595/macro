@@ -492,6 +492,8 @@ export type EntityKind =
   | 'COMPANY'
   /**  CRM contacts. */
   | 'CONTACT'
+  /**  CRM deals. */
+  | 'DEAL'
   /**  Call recordings. */
   | 'CALL_RECORD'
   /**  Channels. */
@@ -910,6 +912,8 @@ export type OpEntityKind =
   | 'COMPANY'
   /**  CRM contacts. */
   | 'CONTACT'
+  /**  CRM deals. */
+  | 'DEAL'
   /**  Call recordings. */
   | 'CALL_RECORD'
   /**  Channels. */

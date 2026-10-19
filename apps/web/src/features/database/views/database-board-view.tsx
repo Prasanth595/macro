@@ -94,6 +94,8 @@ type DatabaseBoardViewProps = {
   renderCell?: DatabaseTableProps['renderCell'];
   renderTextValue?: (value: string) => JSX.Element;
   renderMentionValue?: (id: string, type: DatabaseEntityType) => JSX.Element;
+  /** Whether a card offers the record-details button. */
+  showCardDetails?: boolean;
   controlsRef?: (controls: DatabaseBoardControls) => void;
 };
 
@@ -343,6 +345,7 @@ function GroupedBoard(
               renderCell={props.renderCell}
               renderTextValue={props.renderTextValue}
               renderMentionValue={props.renderMentionValue}
+              showCardDetails={props.showCardDetails}
               canEdit={props.canEdit}
               rowPending={props.rowPending}
               createPending={props.createPending}

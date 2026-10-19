@@ -21,7 +21,9 @@ export function useMessageParticipants(
 ): Accessor<IUser[]> {
   const isChannel = () => parent().type === 'channel';
   const isCrm = () =>
-    parent().type === 'crm_company' || parent().type === 'crm_contact';
+    parent().type === 'crm_company' ||
+    parent().type === 'crm_contact' ||
+    parent().type === 'crm_deal';
   const channelParticipants = useChannelParticipants(() =>
     isChannel() ? parent().id : ''
   );
@@ -40,7 +42,9 @@ export function useMessageParticipants(
     match(parent().type)
       .with('channel', () => channelParticipants.users())
       .with(P.union('document', 'initiative', 'call'), () => contacts())
-      .with(P.union('crm_company', 'crm_contact'), () => teamMembers())
+      .with(P.union('crm_company', 'crm_contact', 'crm_deal'), () =>
+        teamMembers()
+      )
       .exhaustive()
   );
 }

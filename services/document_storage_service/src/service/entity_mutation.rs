@@ -433,6 +433,7 @@ where
             | EntityType::StaticFile
             | EntityType::CrmCompany
             | EntityType::CrmContact
+            | EntityType::CrmDeal
             | EntityType::CrmPipeline
             | EntityType::CalendarEvent
             | EntityType::Reminder
@@ -483,6 +484,7 @@ where
             | EntityType::StaticFile
             | EntityType::CrmCompany
             | EntityType::CrmContact
+            | EntityType::CrmDeal
             | EntityType::CrmPipeline
             | EntityType::CalendarEvent
             | EntityType::Reminder
@@ -539,6 +541,7 @@ where
             | EntityType::StaticFile
             | EntityType::CrmCompany
             | EntityType::CrmContact
+            | EntityType::CrmDeal
             | EntityType::CrmPipeline
             | EntityType::CalendarEvent
             | EntityType::Reminder
@@ -600,6 +603,7 @@ where
             | EntityType::StaticFile
             | EntityType::CrmCompany
             | EntityType::CrmContact
+            | EntityType::CrmDeal
             | EntityType::CrmPipeline
             | EntityType::CalendarEvent
             | EntityType::Reminder
@@ -636,6 +640,7 @@ where
             | EntityType::StaticFile
             | EntityType::CrmCompany
             | EntityType::CrmContact
+            | EntityType::CrmDeal
             | EntityType::CrmPipeline
             | EntityType::CalendarEvent
             | EntityType::Reminder
@@ -692,6 +697,7 @@ where
             | EntityType::StaticFile
             | EntityType::CrmCompany
             | EntityType::CrmContact
+            | EntityType::CrmDeal
             | EntityType::CrmPipeline
             | EntityType::CalendarEvent
             | EntityType::Reminder
@@ -756,6 +762,7 @@ where
             | EntityType::StaticFile
             | EntityType::CrmCompany
             | EntityType::CrmContact
+            | EntityType::CrmDeal
             | EntityType::CrmPipeline
             | EntityType::CalendarEvent
             | EntityType::Reminder

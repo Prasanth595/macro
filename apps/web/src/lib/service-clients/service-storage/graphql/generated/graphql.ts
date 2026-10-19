@@ -1412,6 +1412,8 @@ export type GraphqlPropertyEntityType =
   | 'COMPANY'
   /** CRM contact entity. */
   | 'CONTACT'
+  /** CRM deal entity. */
+  | 'DEAL'
   /** Database row entity. */
   | 'DATABASE_ROW'
   /** Document entity. */

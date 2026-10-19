@@ -287,6 +287,41 @@ impl CompaniesRepository for StubRepo {
         }
         Ok(settings)
     }
+
+    async fn create_deal(
+        &self,
+        _team_id: &uuid::Uuid,
+        _name: &str,
+        _description: &str,
+        _company_ids: &[uuid::Uuid],
+        _contact_ids: &[uuid::Uuid],
+    ) -> Result<crate::domain::deals::Deal, CrmError> {
+        unimplemented!("StubRepo.create_deal")
+    }
+
+    async fn get_deal(
+        &self,
+        _team_id: &uuid::Uuid,
+        _deal_id: &uuid::Uuid,
+    ) -> Result<Option<crate::domain::deals::Deal>, CrmError> {
+        unimplemented!("StubRepo.get_deal")
+    }
+
+    async fn list_deals(
+        &self,
+        _team_id: &uuid::Uuid,
+        _ids: &[uuid::Uuid],
+    ) -> Result<Vec<crate::domain::deals::Deal>, CrmError> {
+        unimplemented!("StubRepo.list_deals")
+    }
+
+    async fn list_company_deals(
+        &self,
+        _team_id: &uuid::Uuid,
+        _company_id: &uuid::Uuid,
+    ) -> Result<Vec<crate::domain::deals::CompanyDeal>, CrmError> {
+        unimplemented!("StubRepo.list_company_deals")
+    }
 }
 
 fn service() -> CrmServiceImpl<StubRepo, NoOpCompanyMetadataResolver> {

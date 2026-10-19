@@ -10,6 +10,7 @@ import {
   sameRecordScope,
 } from '../core/record';
 import { CompanyContactsSection } from './company-contacts-section';
+import { CompanyDeals } from './company-deals';
 import { CompanyDiscussionSection } from './company-discussion-section';
 import { CompanyEmailsSection } from './company-emails-section';
 import { CompanyHeader } from './company-header';
@@ -36,6 +37,11 @@ export function Company(props: {
   headerToggle?: boolean;
   onHidden?: () => void;
   onOpenContact?: (contact: CompanyContact) => void;
+  onOpenDeal?: (deal: {
+    id: string;
+    name: string;
+    pipelineId?: string;
+  }) => void;
   onOpenPipeline?: (pipelineId: string) => void;
 }) {
   const context = useCrmContext();
@@ -75,6 +81,12 @@ export function Company(props: {
                     <context.PipelineEntries
                       record={{ type: 'company', id: props.companyId }}
                       onOpenPipeline={props.onOpenPipeline}
+                    />
+                  </Show>
+                  <Show when={!!props.onOpenDeal}>
+                    <CompanyDeals
+                      companyId={props.companyId}
+                      onOpenDeal={(deal) => props.onOpenDeal?.(deal)}
                     />
                   </Show>
                   <CompanyDiscussionSection companyId={props.companyId} />

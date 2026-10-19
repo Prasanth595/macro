@@ -133,7 +133,8 @@ where
             | MessageParent::Call(_)
             | MessageParent::Initiative(_)
             | MessageParent::CrmCompany(_)
-            | MessageParent::CrmContact(_),
+            | MessageParent::CrmContact(_)
+            | MessageParent::CrmDeal(_),
             _,
         ) => None,
     };

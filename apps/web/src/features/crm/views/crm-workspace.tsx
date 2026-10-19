@@ -16,6 +16,7 @@ import { UnifiedFilterDropdown } from '@app/features/next-soup/soup-view/filters
 import { useFilterRefinements } from '@app/features/next-soup/soup-view/filters-bar/use-filter-refinements';
 import { usePreference } from '@app/preferences/use-preference';
 import { SplitPanel } from '@components/app/split-panel';
+import { loadDatabaseSqlWasm } from '@core/database-sql/wasm-module';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { debounce } from '@core/util/debounce';
 import {
@@ -246,12 +247,21 @@ export function CrmWorkspaceView(props: {
   };
   // Touch shows records in their own split, as the lists do.
   const openPipelineRecord = (record: {
-    type: 'company' | 'contact';
+    type: 'company' | 'contact' | 'deal';
     id: string;
-  }) =>
-    isTouchDevice()
-      ? openWithSplit(record, { activate: true })
-      : showRecord({ ...record, name: '' });
+    pipelineId?: string;
+    name?: string;
+  }) => {
+    if (
+      (record.type === 'company' || record.type === 'contact') &&
+      isTouchDevice()
+    )
+      return openWithSplit(
+        { type: record.type, id: record.id },
+        { activate: true }
+      );
+    return showRecord({ ...record, name: record.name ?? '' });
+  };
   const apply = useApplyCrmView();
   const [collapsed, setCollapsed] = usePreference(
     'macro:pref:crm:sidebar-collapsed',
@@ -366,6 +376,7 @@ export function CrmWorkspaceView(props: {
     });
   };
   onMount(() => {
+    void loadDatabaseSqlWasm().catch(() => undefined);
     if (!listsEnabled() && active().startsWith('list:')) navigate('active');
   });
   const sidebar = () => (

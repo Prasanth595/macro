@@ -207,6 +207,9 @@ export function toGraphqlPropertyTargetEntityType(
   if (entityType === 'CONTACT') {
     throw new Error('crm contacts do not support properties');
   }
+  if (entityType === 'DEAL') {
+    throw new Error('crm deals do not support properties');
+  }
   return entityType;
 }
 

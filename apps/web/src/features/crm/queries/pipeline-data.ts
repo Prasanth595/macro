@@ -68,10 +68,15 @@ export function createPipelineApi(
             databaseId: detail.table.database_id,
             name: pipeline.name,
             version: detail.table.version,
-            columns: detail.columns.map((column) => ({
-              ...toViewColumn(column),
-              primary: column.column.id === pipeline.primaryColumnId,
-            })),
+            columns: detail.columns.map((column) => {
+              const view = {
+                ...toViewColumn(column),
+                primary: column.column.id === pipeline.primaryColumnId,
+              };
+              return pipeline.recordType === 'deal' && view.name === 'When'
+                ? { ...view, label: 'Date' }
+                : view;
+            }),
           })),
     readRows: (request) =>
       request.tableId !== pipeline.tableId

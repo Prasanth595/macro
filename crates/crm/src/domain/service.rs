@@ -394,6 +394,37 @@ pub trait CrmService: Clone + Send + Sync + 'static {
         access: &CrmTeamReceipt<MemberTeamRole>,
         patch: CrmTeamSettingsPatch,
     ) -> impl Future<Output = Result<CrmTeamSettings, CrmError>> + Send;
+
+    /// Create a deal for the team. Linked companies and people must already
+    /// belong to that team.
+    fn create_deal(
+        &self,
+        access: &CrmTeamReceipt<MemberTeamRole>,
+        name: &str,
+        description: &str,
+        company_ids: &[uuid::Uuid],
+        contact_ids: &[uuid::Uuid],
+    ) -> impl Future<Output = Result<super::deals::Deal, CrmError>> + Send;
+
+    /// The deal when this team owns it.
+    fn get_deal(
+        &self,
+        access: &CrmTeamReceipt<MemberTeamRole>,
+        deal_id: &uuid::Uuid,
+    ) -> impl Future<Output = Result<Option<super::deals::Deal>, CrmError>> + Send;
+
+    /// The deals among `ids` that this team owns.
+    fn list_deals(
+        &self,
+        access: &CrmTeamReceipt<MemberTeamRole>,
+        ids: &[uuid::Uuid],
+    ) -> impl Future<Output = Result<Vec<super::deals::Deal>, CrmError>> + Send;
+
+    /// Deals linked to a company the caller can view. The facts are read-only.
+    fn list_company_deals(
+        &self,
+        access: &CrmCompanyReceipt<ViewAccessLevel>,
+    ) -> impl Future<Output = Result<Vec<super::deals::CompanyDeal>, CrmError>> + Send;
 }
 
 /// Maximum accepted length (in chars) for a manually specified display
@@ -1032,6 +1063,64 @@ where
             .update_team_settings(&access.team_id(), &patch)
             .await
     }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn create_deal(
+        &self,
+        access: &CrmTeamReceipt<MemberTeamRole>,
+        name: &str,
+        description: &str,
+        company_ids: &[uuid::Uuid],
+        contact_ids: &[uuid::Uuid],
+    ) -> Result<super::deals::Deal, CrmError> {
+        let name = validate_display_name(name)?;
+        if description.chars().count() > 4_000 {
+            return Err(CrmError::InvalidRequest(
+                "deal description is too long".into(),
+            ));
+        }
+        self.companies_repository
+            .create_deal(
+                &access.team_id(),
+                name,
+                description,
+                company_ids,
+                contact_ids,
+            )
+            .await
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn get_deal(
+        &self,
+        access: &CrmTeamReceipt<MemberTeamRole>,
+        deal_id: &uuid::Uuid,
+    ) -> Result<Option<super::deals::Deal>, CrmError> {
+        self.companies_repository
+            .get_deal(&access.team_id(), deal_id)
+            .await
+    }
+
+    #[tracing::instrument(skip(self), err)]
+    async fn list_deals(
+        &self,
+        access: &CrmTeamReceipt<MemberTeamRole>,
+        ids: &[uuid::Uuid],
+    ) -> Result<Vec<super::deals::Deal>, CrmError> {
+        self.companies_repository
+            .list_deals(&access.team_id(), ids)
+            .await
+    }
+
+    #[tracing::instrument(skip(self, access), err)]
+    async fn list_company_deals(
+        &self,
+        access: &CrmCompanyReceipt<ViewAccessLevel>,
+    ) -> Result<Vec<super::deals::CompanyDeal>, CrmError> {
+        self.companies_repository
+            .list_company_deals(&access.team_id(), &access.company_id()?)
+            .await
+    }
 }
 
 /// No-op [`CrmService`] for binaries that need to satisfy the bound
@@ -1238,5 +1327,39 @@ impl CrmService for NoOpCrmService {
         _patch: CrmTeamSettingsPatch,
     ) -> Result<CrmTeamSettings, CrmError> {
         unimplemented!("NoOpCrmService.update_team_settings")
+    }
+
+    async fn create_deal(
+        &self,
+        _access: &CrmTeamReceipt<MemberTeamRole>,
+        _name: &str,
+        _description: &str,
+        _company_ids: &[uuid::Uuid],
+        _contact_ids: &[uuid::Uuid],
+    ) -> Result<super::deals::Deal, CrmError> {
+        unimplemented!("NoOpCrmService.create_deal")
+    }
+
+    async fn get_deal(
+        &self,
+        _access: &CrmTeamReceipt<MemberTeamRole>,
+        _deal_id: &uuid::Uuid,
+    ) -> Result<Option<super::deals::Deal>, CrmError> {
+        unimplemented!("NoOpCrmService.get_deal")
+    }
+
+    async fn list_company_deals(
+        &self,
+        _access: &CrmCompanyReceipt<ViewAccessLevel>,
+    ) -> Result<Vec<super::deals::CompanyDeal>, CrmError> {
+        Ok(Vec::new())
+    }
+
+    async fn list_deals(
+        &self,
+        _access: &CrmTeamReceipt<MemberTeamRole>,
+        _ids: &[uuid::Uuid],
+    ) -> Result<Vec<super::deals::Deal>, CrmError> {
+        unimplemented!("NoOpCrmService.list_deals")
     }
 }

@@ -183,7 +183,9 @@ impl<Channels: ChannelRepo, Calls: CallRepository> ParentNames
                 .await
                 .map_err(unknown)?
                 .map(|initiative| initiative.name),
-            MessageParent::CrmCompany(_) | MessageParent::CrmContact(_) => self
+            MessageParent::CrmCompany(_)
+            | MessageParent::CrmContact(_)
+            | MessageParent::CrmDeal(_) => self
                 .crm
                 .read_crm_parent(parent)
                 .await
@@ -415,6 +417,9 @@ fn surface(
         }
         (MessageParent::CrmContact(id), ParentName::Named(name)) => {
             DiscussionSurface::CrmContactComment { id: *id, name }
+        }
+        (MessageParent::CrmDeal(id), ParentName::Named(name)) => {
+            DiscussionSurface::CrmDealComment { id: *id, name }
         }
         (MessageParent::Call(id), ParentName::Named(title)) => {
             DiscussionSurface::CallChat { id: *id, title }

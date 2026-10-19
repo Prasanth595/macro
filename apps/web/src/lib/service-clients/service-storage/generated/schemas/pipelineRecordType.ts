@@ -15,4 +15,5 @@ export type PipelineRecordType =
 export const PipelineRecordType = {
   company: 'company',
   contact: 'contact',
+  deal: 'deal',
 } as const;

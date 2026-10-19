@@ -1,6 +1,7 @@
 import BuildingsIcon from '@phosphor/buildings.svg';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import CheckIcon from '@phosphor/check.svg';
+import HandshakeIcon from '@phosphor/handshake.svg';
 import UsersIcon from '@phosphor/users.svg';
 import XIcon from '@phosphor/x.svg';
 import { Button, Checkbox, Dialog, Dropdown, EntityComposer, Panel } from '@ui';
@@ -11,6 +12,7 @@ import type { NewPipeline } from '../core/pipeline';
 const RECORD_TYPES = [
   { value: 'company', label: 'Companies', icon: BuildingsIcon },
   { value: 'contact', label: 'Contacts', icon: UsersIcon },
+  { value: 'deal', label: 'Deals', icon: HandshakeIcon },
 ] as const;
 
 /** One creation session; cancel preserves existing CRM data. */

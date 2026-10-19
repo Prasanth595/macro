@@ -56,6 +56,28 @@ impl PgCrmParentReader {
         })
     }
 
+    async fn deal(&self, id: Uuid) -> Result<Option<CrmParentFacts>, sqlx::Error> {
+        sqlx::query!(
+            r#"
+            SELECT d.team_id, d.name,
+                   (SELECT dc.company_id FROM crm_deal_companies dc
+                    WHERE dc.deal_id = d.id ORDER BY dc.company_id LIMIT 1) AS company_id
+            FROM crm_deals d
+            WHERE d.id = $1
+            "#,
+            id,
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map(|row| {
+            row.map(|row| CrmParentFacts {
+                team_id: row.team_id,
+                company_id: row.company_id.unwrap_or(Uuid::nil()),
+                name: row.name,
+            })
+        })
+    }
+
     async fn contact(&self, id: Uuid) -> Result<Option<CrmParentFacts>, sqlx::Error> {
         sqlx::query!(
             r#"
@@ -89,6 +111,7 @@ impl CrmParentReader for PgCrmParentReader {
             let facts = match parent {
                 MessageParent::CrmCompany(id) => self.company(id).await?,
                 MessageParent::CrmContact(id) => self.contact(id).await?,
+                MessageParent::CrmDeal(id) => self.deal(id).await?,
                 MessageParent::Channel(_)
                 | MessageParent::Document(_)
                 | MessageParent::Initiative(_)

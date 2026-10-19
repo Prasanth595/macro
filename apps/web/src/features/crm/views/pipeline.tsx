@@ -32,7 +32,12 @@ export function PipelineView(props: {
   onCopyLink(): void;
   /** After the pipeline moves to trash, leave its page. */
   onTrashed(): void;
-  onOpenRecord?(record: { type: 'company' | 'contact'; id: string }): void;
+  onOpenRecord?(record: {
+    type: 'company' | 'contact' | 'deal';
+    id: string;
+    pipelineId?: string;
+    name?: string;
+  }): void;
   /** CSV export and import of the pipeline's entries, when the host offers them. */
   transfer?: {
     source: PipelineTransfer;
@@ -265,7 +270,7 @@ export function PipelineView(props: {
                 <DownloadIcon class="size-4" />
                 Export CSV
               </Button>
-              <Show when={canEdit()}>
+              <Show when={canEdit() && props.pipeline.recordType !== 'deal'}>
                 <Button
                   variant="ghost"
                   class="w-full justify-start"

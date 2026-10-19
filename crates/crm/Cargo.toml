@@ -40,6 +40,7 @@ call_link = [
   "macro_event_broker/outbound",
   "ports",
 ]
+deal_log = ["dep:activity", "outbound", "ports"]
 default = ["ai_tools", "call_link", "inbound", "lookup", "outbound", "ports"]
 inbound = ["axum", "ports"]
 # Read-only company/contact identity for other domains. Pulls only sqlx + ports.
@@ -65,6 +66,7 @@ databases = { path = "../databases", default-features = false, features = ["port
 models_databases = { path = "../models_databases", optional = true }
 models_permissions = { path = "../models_permissions", optional = true }
 entity_access_db_utils = { path = "../entity_access_db_utils", optional = true }
+activity = { path = "../activity", default-features = false, features = ["outbound"], optional = true }
 anyhow = { workspace = true }
 csv = { workspace = true, optional = true }
 futures = { workspace = true, optional = true }

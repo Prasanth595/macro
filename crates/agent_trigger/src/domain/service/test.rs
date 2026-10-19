@@ -222,7 +222,8 @@ fn allow_invocation(
             | MessageParent::Call(_)
             | MessageParent::Initiative(_)
             | MessageParent::CrmCompany(_)
-            | MessageParent::CrmContact(_) => EntityPermission::AccessLevel {
+            | MessageParent::CrmContact(_)
+            | MessageParent::CrmDeal(_) => EntityPermission::AccessLevel {
                 access_level: AccessLevel::Comment,
             },
         },

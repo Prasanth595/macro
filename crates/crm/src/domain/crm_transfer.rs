@@ -118,6 +118,7 @@ fn record_headers(record_type: PipelineRecordType) -> [&'static str; 2] {
     match record_type {
         PipelineRecordType::Company => ["Company", "Domain"],
         PipelineRecordType::Contact => ["Contact", "Email"],
+        PipelineRecordType::Deal => ["Deal", "Name"],
     }
 }
 
@@ -284,6 +285,11 @@ where
         let found = match record_type {
             PipelineRecordType::Company => self.companies(viewer, &unique, domains).await?,
             PipelineRecordType::Contact => self.contacts(viewer, &unique, domains).await?,
+            PipelineRecordType::Deal => {
+                return Err(TransferError::Invalid(
+                    "A deal pipeline is not filled from a company or contact file.".into(),
+                ));
+            }
         };
         let mut ids = HashMap::new();
         let mut created = 0;

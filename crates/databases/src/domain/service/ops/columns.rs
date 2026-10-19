@@ -178,6 +178,18 @@ impl Planner {
         if previous_name.is_some_and(|previous| previous != current) {
             return Err(place.refuse(SchemaError::ColumnRenamedElsewhere.to_string()));
         }
+        if column
+            .column
+            .protections
+            .contains(&ColumnProtection::Rename)
+        {
+            return Err(place.refuse(
+                SchemaError::ColumnProtected {
+                    capability: ColumnProtection::Rename,
+                }
+                .to_string(),
+            ));
+        }
         if entry
             .columns
             .iter()

@@ -625,6 +625,7 @@ pub fn build_pipeline_tool_context(
     databases: &ToolDatabasesToolContext,
     crm: &ToolCrmToolContext,
 ) -> ToolPipelineToolContext {
+    let deal_log = Arc::new(crm::outbound::deal_log::ActivityDealLog::new(pool.clone()));
     let pipelines = crm::domain::pipelines::PipelineServiceImpl::new(
         crm::outbound::pipelines::PgPipelineRepo::new(
             pool.clone(),
@@ -638,7 +639,8 @@ pub fn build_pipeline_tool_context(
         crm::outbound::stage_definitions::PropertiesStageDefinitionStore::new(
             crm.properties.clone(),
         ),
-    );
+    )
+    .with_deal_log(deal_log);
     crm::inbound::toolset::pipelines::PipelineToolContext {
         service: Arc::new(
             crm::domain::pipeline_workflows::PipelineWorkflowServiceImpl::new(

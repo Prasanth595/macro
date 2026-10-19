@@ -49,6 +49,7 @@ describe('ReplyTargetNode', () => {
     'initiative',
     'crm_company',
     'crm_contact',
+    'crm_deal',
     'call',
   ] as const)('round-trips a %s reply target', (type) => {
     const target = {

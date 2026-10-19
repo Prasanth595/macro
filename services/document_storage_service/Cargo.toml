@@ -97,7 +97,7 @@ channel_labels = { path = "../../crates/channel_labels", features = [
   "inbound",
   "postgres",
 ] }
-crm = { path = "../../crates/crm" }
+crm = { path = "../../crates/crm", features = ["deal_log"] }
 databases = { path = "../../crates/databases", features = [
   "entity_mutation",
   "gateway",

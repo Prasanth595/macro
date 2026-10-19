@@ -98,6 +98,7 @@ fn validate_favoritable(entity_type: EntityType) -> Result<(), FavoritesError> {
         | EntityType::ForeignEntity
         | EntityType::CrmCompany
         | EntityType::CrmContact => Ok(()),
+        | EntityType::CrmDeal => Ok(()),
         EntityType::User
         | EntityType::Team
         | EntityType::ChannelMessage

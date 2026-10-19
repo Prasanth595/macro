@@ -373,6 +373,9 @@ pub enum CrmError {
     /// Contact id is not owned by the requesting team.
     #[error("crm contact not found for team")]
     ContactNotFoundForTeam,
+    /// Deal id is not owned by the requesting team.
+    #[error("crm deal not found for team")]
+    DealNotFoundForTeam,
     /// Request rejected for a client-side reason (e.g. blank comment text).
     #[error("{0}")]
     InvalidRequest(String),

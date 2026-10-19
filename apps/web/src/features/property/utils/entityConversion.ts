@@ -66,6 +66,7 @@ export function entityTypeToItemType(type: EntityType): ItemType | undefined {
       'CALENDAR_EVENT',
       'INITIATIVE',
       'DATABASE_ROW',
+      'DEAL',
       () => undefined
     )
     .exhaustive();

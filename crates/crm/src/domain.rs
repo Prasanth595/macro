@@ -1,6 +1,14 @@
 /// Domain models for CRM records
 pub mod model;
 
+/// A deal: one commercial opportunity linked to companies and people.
+#[cfg(feature = "ports")]
+pub mod deals;
+
+/// Watched deal-pipeline cells, as lines the deal discussion can show.
+#[cfg(feature = "ports")]
+pub mod deal_changes;
+
 /// Static list of generic/personal email-provider domains to exclude
 /// from CRM populate
 #[cfg(feature = "ports")]

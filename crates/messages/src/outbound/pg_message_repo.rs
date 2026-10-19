@@ -570,7 +570,9 @@ impl MessageRepository for PgMessageRepository {
                     .await.map(|value| value.is_some())
                     .map_err(|error| MessageError::Repository(rootcause::report!(error).into()));
             }
-            MessageParent::CrmCompany(_) | MessageParent::CrmContact(_) => {
+            MessageParent::CrmCompany(_)
+            | MessageParent::CrmContact(_)
+            | MessageParent::CrmDeal(_) => {
                 return self.crm_parent_exists(parent).await;
             }
             MessageParent::Document(_) => sqlx::query_scalar!(r#"SELECT EXISTS(SELECT 1 FROM "Document" WHERE id = $1 AND "deletedAt" IS NULL) AS "exists!""#, parent.entity_id())

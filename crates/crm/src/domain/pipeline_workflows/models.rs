@@ -65,6 +65,7 @@ impl PipelineOverview {
         match self.pipeline.pipeline.record_type {
             PipelineRecordType::Company => EntityKind::Company,
             PipelineRecordType::Contact => EntityKind::Contact,
+            PipelineRecordType::Deal => EntityKind::Deal,
         }
     }
 }

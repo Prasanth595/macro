@@ -140,6 +140,7 @@ fn pairs(values: &[ToolFieldValue]) -> Vec<(String, FieldInput)> {
 pub enum ToolRecordType {
     Company,
     Contact,
+    Deal,
 }
 
 impl From<PipelineRecordType> for ToolRecordType {
@@ -147,6 +148,7 @@ impl From<PipelineRecordType> for ToolRecordType {
         match value {
             PipelineRecordType::Company => Self::Company,
             PipelineRecordType::Contact => Self::Contact,
+            PipelineRecordType::Deal => Self::Deal,
         }
     }
 }
@@ -156,6 +158,7 @@ impl From<ToolRecordType> for PipelineRecordType {
         match value {
             ToolRecordType::Company => Self::Company,
             ToolRecordType::Contact => Self::Contact,
+            ToolRecordType::Deal => Self::Deal,
         }
     }
 }
@@ -232,6 +235,8 @@ pub enum ToolFieldType {
     Company,
     /// The contact the entry tracks.
     Contact,
+    /// The deal the entry tracks.
+    Deal,
     /// Free text.
     Text,
     /// A number.
@@ -261,6 +266,7 @@ impl From<FieldKind> for ToolFieldType {
         match kind {
             FieldKind::Record(PipelineRecordType::Company) => Self::Company,
             FieldKind::Record(PipelineRecordType::Contact) => Self::Contact,
+            FieldKind::Record(PipelineRecordType::Deal) => Self::Deal,
             FieldKind::Text => Self::Text,
             FieldKind::Number => Self::Number,
             FieldKind::Checkbox => Self::Checkbox,

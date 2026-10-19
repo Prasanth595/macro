@@ -15,4 +15,5 @@ export type ColumnProtection =
 export const ColumnProtection = {
   delete: 'delete',
   change_type: 'change_type',
+  rename: 'rename',
 } as const;

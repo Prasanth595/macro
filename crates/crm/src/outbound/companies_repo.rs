@@ -2025,6 +2025,49 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
             default_team_view_id: row.default_team_view_id,
         })
     }
+
+    async fn create_deal(
+        &self,
+        team_id: &uuid::Uuid,
+        name: &str,
+        description: &str,
+        company_ids: &[uuid::Uuid],
+        contact_ids: &[uuid::Uuid],
+    ) -> Result<crate::domain::deals::Deal, CrmError> {
+        crate::outbound::deals::create_deal(
+            &self.pool,
+            *team_id,
+            name,
+            description,
+            company_ids,
+            contact_ids,
+        )
+        .await
+    }
+
+    async fn get_deal(
+        &self,
+        team_id: &uuid::Uuid,
+        deal_id: &uuid::Uuid,
+    ) -> Result<Option<crate::domain::deals::Deal>, CrmError> {
+        crate::outbound::deals::get_deal(&self.pool, *team_id, *deal_id).await
+    }
+
+    async fn list_company_deals(
+        &self,
+        team_id: &uuid::Uuid,
+        company_id: &uuid::Uuid,
+    ) -> Result<Vec<crate::domain::deals::CompanyDeal>, CrmError> {
+        crate::outbound::deals::list_company_deals(&self.pool, *team_id, *company_id).await
+    }
+
+    async fn list_deals(
+        &self,
+        team_id: &uuid::Uuid,
+        ids: &[uuid::Uuid],
+    ) -> Result<Vec<crate::domain::deals::Deal>, CrmError> {
+        crate::outbound::deals::list_deals(&self.pool, *team_id, ids).await
+    }
 }
 
 impl TeamSettingsStore for CompaniesRepositoryImpl {

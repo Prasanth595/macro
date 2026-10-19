@@ -1004,6 +1004,7 @@ async fn human_can_post_canonical_agent_mentions_on_documents_and_channels() {
         MessageParent::Initiative(Uuid::from_u128(21)),
         MessageParent::CrmCompany(Uuid::from_u128(22)),
         MessageParent::CrmContact(Uuid::from_u128(23)),
+        MessageParent::CrmDeal(Uuid::from_u128(25)),
         MessageParent::Call(Uuid::from_u128(24)),
     ] {
         let repo = fixture();
@@ -1013,7 +1014,8 @@ async fn human_can_post_canonical_agent_mentions_on_documents_and_channels() {
             MessageParent::Document(_)
             | MessageParent::Initiative(_)
             | MessageParent::CrmCompany(_)
-            | MessageParent::CrmContact(_) => (
+            | MessageParent::CrmContact(_)
+            | MessageParent::CrmDeal(_) => (
                 parent.access_entity_type(),
                 EntityPermission::AccessLevel {
                     access_level: AccessLevel::Comment,

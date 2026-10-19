@@ -95,6 +95,8 @@ type DatabaseBoardProps = {
   onAddGroup?: (label: string) => Promise<DatabaseGroupAdded>;
   /** Hands the host a way to start a card, as the toolbar's New record does. */
   controlsRef?: (controls: DatabaseBoardControls) => void;
+  /** Whether a card offers the record-details button. */
+  showCardDetails?: boolean;
 };
 
 export type DatabaseBoardControls = {
@@ -519,6 +521,7 @@ function BoardLane(
                 renderCell={props.renderCell}
                 renderTextValue={props.renderTextValue}
                 renderMentionValue={props.renderMentionValue}
+                showCardDetails={props.showCardDetails}
                 groupColumn={props.groupColumn}
                 groups={props.groups}
                 canEdit={props.canMove}
@@ -624,6 +627,7 @@ function BoardCard(props: {
   renderCell?: DatabaseTableProps['renderCell'];
   renderTextValue?: (value: string) => JSX.Element;
   renderMentionValue?: (id: string, type: DatabaseEntityType) => JSX.Element;
+  showCardDetails?: boolean;
   groupColumn: DatabaseViewColumn;
   groups: BoardGroup[];
   canEdit: boolean;
@@ -662,6 +666,10 @@ function BoardCard(props: {
       canDrag={props.canEdit}
       pending={props.pending}
     >
+      <Show when={props.showCardDetails === false}>
+        <div class="p-3 font-normal">{renderedTitle()}</div>
+      </Show>
+      <Show when={props.showCardDetails !== false}>
       <div
         class="grid grid-cols-[1.5rem_minmax(0,1fr)_auto] gap-x-2 p-3"
         data-card-grid
@@ -709,7 +717,7 @@ function BoardCard(props: {
             )}
           </Show>
           <KanbanBoard.CardActions>
-            <Show when={props.renderCell}>
+            <Show when={props.renderCell && props.showCardDetails !== false}>
               <Button
                 size="icon-xs"
                 label={`Open ${title()}`}
@@ -831,6 +839,7 @@ function BoardCard(props: {
           </KanbanBoard.CardFields>
         </Show>
       </div>
+      </Show>
     </KanbanBoard.Card>
   );
 }

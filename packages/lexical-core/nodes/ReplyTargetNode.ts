@@ -24,6 +24,7 @@ export const REPLY_TARGET_PARENT_TYPES = [
   'initiative',
   'crm_company',
   'crm_contact',
+  'crm_deal',
   'call',
 ] as const;
 

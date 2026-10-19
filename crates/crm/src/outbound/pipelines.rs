@@ -112,6 +112,7 @@ where
                 let record_type = match row.record_type.as_str() {
                     "company" => PipelineRecordType::Company,
                     "contact" => PipelineRecordType::Contact,
+                    "deal" => PipelineRecordType::Deal,
                     _ => {
                         return Err(
                             sqlx::Error::Decode("Invalid pipeline record type".into()).into()

@@ -37,6 +37,15 @@ pub mod get_company;
 /// Manually create a CRM company (name + domain) for the caller's team.
 pub mod create_company;
 
+/// Deals linked to one company. The facts are read-only.
+pub mod list_company_deals;
+
+/// Create a deal and link the companies and people it involves.
+pub mod create_deal;
+
+/// Fetch one deal owned by the caller's team.
+pub mod get_deal;
+
 /// Manually create a contact (name + email) under a CRM company.
 pub mod create_contact;
 
@@ -135,6 +144,14 @@ where
             post(create_company::handler::<C, St, Eas, Auth>),
         )
         .route(
+            "/deals",
+            post(create_deal::handler::<C, St, Eas, Auth>),
+        )
+        .route(
+            "/deals/{deal_id}",
+            get(get_deal::handler::<C, St, Eas, Auth>),
+        )
+        .route(
             "/companies/{company_id}/email-sync",
             put(set_email_sync::handler::<C, St, Eas, Auth>),
         )
@@ -149,6 +166,10 @@ where
         .route(
             "/companies/{company_id}",
             get(get_company::handler::<C, St, Eas, Auth>),
+        )
+        .route(
+            "/companies/{company_id}/deals",
+            get(list_company_deals::handler::<C, St, Eas, Auth>),
         )
         .route(
             "/companies/{company_id}/contacts",
@@ -201,6 +222,12 @@ impl IntoResponse for CrmError {
                 StatusCode::NOT_FOUND,
                 Json(ErrorResponse {
                     message: "crm contact not found for team".into(),
+                }),
+            ),
+            CrmError::DealNotFoundForTeam => (
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse {
+                    message: "crm deal not found for team".into(),
                 }),
             ),
             CrmError::InvalidRequest(message) => (

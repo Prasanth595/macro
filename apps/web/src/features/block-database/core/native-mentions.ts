@@ -71,6 +71,7 @@ export function databaseMentionScope(
       'CALENDAR_EVENT',
       'CALL_RECORD',
       'DATABASE_ROW',
+      'DEAL',
       'INITIATIVE',
       () => ({ sources: [], documentBuckets: undefined })
     )

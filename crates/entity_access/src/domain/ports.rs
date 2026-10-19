@@ -238,6 +238,13 @@ pub trait AccessRepository: Clone + Send + Sync + 'static {
         team_id: Uuid,
     ) -> impl Future<Output = Result<Option<CrmEntityAccess>, AccessError>> + Send;
 
+    /// Get member-equivalent access to a CRM deal owned by the scoped team.
+    fn get_team_crm_deal_access(
+        &self,
+        deal_id: &str,
+        team_id: Uuid,
+    ) -> impl Future<Output = Result<Option<CrmEntityAccess>, AccessError>> + Send;
+
     /// Check whether a user has access to a foreign entity.
     ///
     /// Foreign entity access is boolean because it only maps to [`AccessLevel::View`]
@@ -273,6 +280,18 @@ pub trait AccessRepository: Clone + Send + Sync + 'static {
     fn get_crm_contact_access(
         &self,
         contact_id: &str,
+        user_id: Option<&MacroUserId<Lowercase<'_>>>,
+    ) -> impl Future<Output = Result<Option<CrmEntityAccess>, AccessError>> + Send;
+
+    /// Get the access level a user has for a CRM deal, with the deal's
+    /// owning `team_id`.
+    ///
+    /// Access derives from the user's role on the team that owns the deal:
+    /// `Owner` → [`AccessLevel::Owner`], `Admin` and `Member` →
+    /// [`AccessLevel::Edit`].
+    fn get_crm_deal_access(
+        &self,
+        deal_id: &str,
         user_id: Option<&MacroUserId<Lowercase<'_>>>,
     ) -> impl Future<Output = Result<Option<CrmEntityAccess>, AccessError>> + Send;
 
