@@ -237,3 +237,38 @@ it('stops cycling when the visitor enters the sample workspace', () => {
   vi.advanceTimersByTime(30000);
   expect(openView).not.toHaveBeenCalled();
 });
+
+it('reveals arrows only once the ready demo reaches the viewing area', () => {
+  let reveal: IntersectionObserverCallback | undefined;
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      constructor(
+        callback: IntersectionObserverCallback,
+        options: IntersectionObserverInit
+      ) {
+        if (options.rootMargin) reveal = callback;
+      }
+      observe() {}
+      disconnect() {}
+    }
+  );
+  mountCarousel();
+  const carousel = screen.getByRole('region');
+  expect(carousel.getAttribute('data-arrows-visible')).toBe('false');
+  reveal?.(
+    [{ isIntersecting: false } as IntersectionObserverEntry],
+    {} as IntersectionObserver
+  );
+  expect(carousel.getAttribute('data-arrows-visible')).toBe('false');
+  reveal?.(
+    [{ isIntersecting: true } as IntersectionObserverEntry],
+    {} as IntersectionObserver
+  );
+  expect(carousel.getAttribute('data-arrows-visible')).toBe('true');
+  reveal?.(
+    [{ isIntersecting: false } as IntersectionObserverEntry],
+    {} as IntersectionObserver
+  );
+  expect(carousel.getAttribute('data-arrows-visible')).toBe('true');
+});

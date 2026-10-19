@@ -69,3 +69,19 @@ html[data-palette='cream'] .homepage-embedded-window::after {
   border-color: rgb(58 51 38 / 18%);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 75%);
 }
+
+/* Arrows enter with the usable demo, rather than arriving ahead of its window. */
+.homepage-demo-carousel .homepage-demo-arrow {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 180ms ease-out;
+}
+.homepage-demo-carousel[data-arrows-visible=true] .homepage-demo-arrow {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  .homepage-demo-carousel .homepage-demo-arrow { transition: none; }
+}

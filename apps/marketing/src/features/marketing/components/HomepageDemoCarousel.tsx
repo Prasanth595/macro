@@ -73,8 +73,10 @@ export function HomepageDemoCarousel(props: {
 }) {
   const [active, setActive] = createSignal(0);
   const [ready, setReady] = createSignal(false);
+  const [arrowsRevealed, setArrowsRevealed] = createSignal(false);
   const [autoplay, setAutoplay] = createSignal(true);
   let root!: HTMLDivElement;
+  let previousArrow!: HTMLButtonElement;
   let restartAutoplay = () => {};
   let document: Document | null = null;
   let transition: Animation | undefined;
@@ -213,6 +215,25 @@ export function HomepageDemoCarousel(props: {
             { threshold: 0.35 }
           );
     visibility?.observe(root);
+    // Reveal the arrows when their midpoint reaches the useful viewing area.
+    // Keep them available afterwards, including when keyboard users return.
+    const arrowVisibility =
+      typeof IntersectionObserver === 'undefined'
+        ? undefined
+        : new IntersectionObserver(
+            ([entry]) => {
+              if (!entry.isIntersecting) return;
+              setArrowsRevealed(true);
+              arrowVisibility?.disconnect();
+            },
+            {
+              rootMargin: `-${Math.round(window.innerHeight / 4)}px 0px -${Math.round(window.innerHeight / 4)}px 0px`,
+              threshold: 0,
+            }
+          );
+    if (arrowVisibility) arrowVisibility.observe(previousArrow);
+    else setArrowsRevealed(true);
+    onCleanup(() => arrowVisibility?.disconnect());
     const followNavigation = (event: Event) => {
       const target = event.target as Element | null;
       const button = target?.closest('.dummy-rail button[aria-label]');
@@ -282,6 +303,7 @@ export function HomepageDemoCarousel(props: {
       ref={root}
       class="homepage-demo-carousel"
       data-active-scene={slide().label}
+      data-arrows-visible={ready() && arrowsRevealed()}
       aria-roledescription="carousel"
       role="region"
       aria-label="What you can do with Macro"
@@ -353,6 +375,7 @@ export function HomepageDemoCarousel(props: {
         </div>
         <button
           type="button"
+          ref={previousArrow}
           class="homepage-demo-arrow homepage-demo-arrow-previous"
           aria-label="Previous highlight"
           disabled={!ready()}
