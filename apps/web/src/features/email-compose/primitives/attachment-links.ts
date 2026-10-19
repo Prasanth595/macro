@@ -85,7 +85,12 @@ export function createAttachmentLinkOffer(options: {
         confirmLabel: single ? 'Share link' : 'Share links',
       });
       span.setAttr('email.attachment_links.confirmed', confirmed);
-      if (!confirmed) return;
+      // The composer may have reset while the prompt was open; nothing to
+      // upload for then.
+      if (!confirmed || started !== generation) {
+        span.setAttr('email.attachment_links.linked', false);
+        return;
+      }
       const upload = span.span('email.attachment_links.upload', () =>
         options.editorFiles.uploadDocuments(files)
       );

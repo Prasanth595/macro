@@ -147,6 +147,19 @@ describe('createAttachmentLinkOffer', () => {
     expect(outline(editor)).toEqual(['text:Hi', 'link:doc-1']);
   });
 
+  it('uploads nothing when the composer moved on while the prompt was open', async () => {
+    const editor = createEmailEditor('Hi');
+    const decision = Promise.withResolvers<boolean>();
+    const links = offerFor(editor, true);
+    links.confirm.mockReturnValue(decision.promise);
+    const sharing = links.share([huge], MAX_ATTACHMENTS_BYTES_SIZE);
+    links.detach();
+    decision.resolve(true);
+    await sharing;
+    expect(links.uploadDocuments).not.toHaveBeenCalled();
+    expect(outline(editor)).toEqual(['text:Hi']);
+  });
+
   it('keeps a file private and unlinked when the composer moved on mid-upload', async () => {
     const editor = createEmailEditor('Hi');
     const pending = Promise.withResolvers<(typeof report)[]>();
