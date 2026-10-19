@@ -23,6 +23,7 @@ use serde_json::json;
 use uuid::Uuid;
 
 mod active_meetings;
+mod guest_chat;
 mod meeting_invites;
 mod meeting_participants;
 mod meeting_startup;
@@ -1041,7 +1042,7 @@ fn build_webhook_service(
     repo: MockCallRepository,
     rtc_client: MockCallRtcClient,
     event_broker: RecordingEventBroker,
-) -> impl CallService {
+) -> impl CallService + messages::domain::service::guest_chat::GuestCallAuthorizer {
     build_webhook_service_with_connection(repo, rtc_client, StubConnectionService, event_broker)
 }
 
@@ -1050,7 +1051,7 @@ fn build_webhook_service_with_connection<Cn: ConnectionService>(
     rtc_client: MockCallRtcClient,
     connection_service: Cn,
     event_broker: RecordingEventBroker,
-) -> impl CallService {
+) -> impl CallService + messages::domain::service::guest_chat::GuestCallAuthorizer {
     let service: BaseWebhookCallService<Cn> = CallServiceImpl::new(
         repo,
         rtc_client,

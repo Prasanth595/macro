@@ -382,6 +382,7 @@ async fn an_answer_the_thread_may_not_carry_points_at_the_session() {
         triggered_by: None,
         bot_profile: None,
         mentions: vec![],
+        guest_name: None,
         imported_author: None,
         content: "composed pointer".to_owned(),
         created_at: chrono::Utc::now(),

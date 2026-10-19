@@ -1545,6 +1545,71 @@ export const getActiveCallsResponse = zod
   );
 
 /**
+ * @summary Read the live call discussion as a verified guest.
+ */
+export const guestCallChatReadParams = zod.object({
+  call_id: zod.uuid(),
+});
+
+export const guestCallChatReadResponse = zod
+  .object({
+    messages: zod
+      .array(
+        zod
+          .object({
+            content: zod.string().describe('Message body.'),
+            created_at: zod.iso.datetime({}).describe('Creation time.'),
+            guest: zod.boolean().describe('Whether the author is a guest.'),
+            id: zod.uuid().describe('Persisted message identity.'),
+            is_you: zod
+              .boolean()
+              .describe('Whether this session authored the message.'),
+            name: zod.string().describe('Display-only author name.'),
+          })
+          .describe(
+            'Guest-safe message projection: no account identities, attachments, or entity grants.'
+          )
+      )
+      .describe('Visible, nondeleted messages.'),
+  })
+  .describe("Messages in the call's one discussion, oldest first.");
+
+/**
+ * @summary Append text to the same saved discussion used by account participants.
+ */
+export const guestCallChatPostParams = zod.object({
+  call_id: zod.uuid(),
+});
+
+export const guestCallChatPostBody = zod
+  .object({
+    content: zod.string().describe('Text to append to the call discussion.'),
+    id: zod
+      .uuid()
+      .describe(
+        'UUIDv7 used to deduplicate retries, including the first message.'
+      ),
+  })
+  .describe(
+    'Guests may send text only; attribution and parent are server-owned.'
+  );
+
+export const guestCallChatPostResponse = zod
+  .object({
+    content: zod.string().describe('Message body.'),
+    created_at: zod.iso.datetime({}).describe('Creation time.'),
+    guest: zod.boolean().describe('Whether the author is a guest.'),
+    id: zod.uuid().describe('Persisted message identity.'),
+    is_you: zod
+      .boolean()
+      .describe('Whether this session authored the message.'),
+    name: zod.string().describe('Display-only author name.'),
+  })
+  .describe(
+    'Guest-safe message projection: no account identities, attachments, or entity grants.'
+  );
+
+/**
  * @summary Handle `GET /call/join/{token}` through the call domain service.
  */
 export const meetingLookupParams = zod.object({
@@ -1575,7 +1640,7 @@ export const meetingLookupResponse = zod
     shareToken: zod
       .string()
       .describe(
-        "A bearer capability that grants access only to a meeting's RTC room."
+        "An invitation capability for joining a meeting's RTC room. Chat additionally\nrequires the resulting participant credential and current guest membership."
       ),
     title: zod.string().describe('Human-readable meeting title.'),
   })
@@ -1695,7 +1760,7 @@ export const meetingListResponse = zod
             shareToken: zod
               .string()
               .describe(
-                "A bearer capability that grants access only to a meeting's RTC room."
+                "An invitation capability for joining a meeting's RTC room. Chat additionally\nrequires the resulting participant credential and current guest membership."
               ),
             title: zod.string().describe('Human-readable meeting title.'),
           })
@@ -1756,7 +1821,7 @@ export const meetingCreateResponse = zod
     shareToken: zod
       .string()
       .describe(
-        "A bearer capability that grants access only to a meeting's RTC room."
+        "An invitation capability for joining a meeting's RTC room. Chat additionally\nrequires the resulting participant credential and current guest membership."
       ),
     title: zod.string().describe('Human-readable meeting title.'),
   })
@@ -1795,7 +1860,7 @@ export const meetingListActiveResponse = zod
             shareToken: zod
               .string()
               .describe(
-                "A bearer capability that grants access only to a meeting's RTC room."
+                "An invitation capability for joining a meeting's RTC room. Chat additionally\nrequires the resulting participant credential and current guest membership."
               ),
             title: zod.string().describe('Human-readable meeting title.'),
           })
@@ -2011,7 +2076,7 @@ export const meetingUpdateResponse = zod
     shareToken: zod
       .string()
       .describe(
-        "A bearer capability that grants access only to a meeting's RTC room."
+        "An invitation capability for joining a meeting's RTC room. Chat additionally\nrequires the resulting participant credential and current guest membership."
       ),
     title: zod.string().describe('Human-readable meeting title.'),
   })
@@ -2407,7 +2472,7 @@ export const meetingShareResponse = zod
     shareToken: zod
       .string()
       .describe(
-        "A bearer capability that grants access only to a meeting's RTC room."
+        "An invitation capability for joining a meeting's RTC room. Chat additionally\nrequires the resulting participant credential and current guest membership."
       ),
     title: zod.string().describe('Human-readable meeting title.'),
   })
@@ -36782,6 +36847,12 @@ export const messageTimelineResponse = zod
               .datetime({})
               .nullish()
               .describe('Last content edit, if any.'),
+            guest_name: zod
+              .string()
+              .nullish()
+              .describe(
+                'Display name of a verified call guest, retained after the call ends.'
+              ),
             id: zod.uuid().describe('Message UUID.'),
             imported_author: zod
               .union([
@@ -37105,6 +37176,12 @@ export const messageTimelineResponse = zod
                             .datetime({})
                             .nullish()
                             .describe('Last content edit, if any.'),
+                          guest_name: zod
+                            .string()
+                            .nullish()
+                            .describe(
+                              'Display name of a verified call guest, retained after the call ends.'
+                            ),
                           id: zod.uuid().describe('Message UUID.'),
                           imported_author: zod
                             .union([
@@ -37480,6 +37557,12 @@ export const entityMessageCreateResponse = zod
       .datetime({})
       .nullish()
       .describe('Last content edit, if any.'),
+    guest_name: zod
+      .string()
+      .nullish()
+      .describe(
+        'Display name of a verified call guest, retained after the call ends.'
+      ),
     id: zod.uuid().describe('Message UUID.'),
     imported_author: zod
       .union([
@@ -37636,6 +37719,12 @@ export const entityMessageGetMessageResponse = zod
       .datetime({})
       .nullish()
       .describe('Last content edit, if any.'),
+    guest_name: zod
+      .string()
+      .nullish()
+      .describe(
+        'Display name of a verified call guest, retained after the call ends.'
+      ),
     id: zod.uuid().describe('Message UUID.'),
     imported_author: zod
       .union([
@@ -37796,6 +37885,12 @@ export const entityMessageDeleteMessageResponse = zod
       .datetime({})
       .nullish()
       .describe('Last content edit, if any.'),
+    guest_name: zod
+      .string()
+      .nullish()
+      .describe(
+        'Display name of a verified call guest, retained after the call ends.'
+      ),
     id: zod.uuid().describe('Message UUID.'),
     imported_author: zod
       .union([
@@ -38052,6 +38147,12 @@ export const entityMessageEditResponse = zod
       .datetime({})
       .nullish()
       .describe('Last content edit, if any.'),
+    guest_name: zod
+      .string()
+      .nullish()
+      .describe(
+        'Display name of a verified call guest, retained after the call ends.'
+      ),
     id: zod.uuid().describe('Message UUID.'),
     imported_author: zod
       .union([
@@ -38216,6 +38317,12 @@ export const entityMessageReactResponse = zod
       .datetime({})
       .nullish()
       .describe('Last content edit, if any.'),
+    guest_name: zod
+      .string()
+      .nullish()
+      .describe(
+        'Display name of a verified call guest, retained after the call ends.'
+      ),
     id: zod.uuid().describe('Message UUID.'),
     imported_author: zod
       .union([
@@ -38379,6 +38486,12 @@ export const entityMessageLegacyResponse = zod
       .datetime({})
       .nullish()
       .describe('Last content edit, if any.'),
+    guest_name: zod
+      .string()
+      .nullish()
+      .describe(
+        'Display name of a verified call guest, retained after the call ends.'
+      ),
     id: zod.uuid().describe('Message UUID.'),
     imported_author: zod
       .union([
@@ -38552,6 +38665,12 @@ export const entityMessageGetThreadResponse = zod
               .datetime({})
               .nullish()
               .describe('Last content edit, if any.'),
+            guest_name: zod
+              .string()
+              .nullish()
+              .describe(
+                'Display name of a verified call guest, retained after the call ends.'
+              ),
             id: zod.uuid().describe('Message UUID.'),
             imported_author: zod
               .union([
@@ -38715,6 +38834,12 @@ export const entityMessageGetThreadResponse = zod
           .datetime({})
           .nullish()
           .describe('Last content edit, if any.'),
+        guest_name: zod
+          .string()
+          .nullish()
+          .describe(
+            'Display name of a verified call guest, retained after the call ends.'
+          ),
         id: zod.uuid().describe('Message UUID.'),
         imported_author: zod
           .union([

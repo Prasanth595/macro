@@ -1115,7 +1115,8 @@ For local verification, set `VITE_ENABLE_QUICK_CALLS=true` or `false` explicitly
 During a quick or scheduled call, signed-in participants can open **Call chat**
 from its separate button at the far right of the bottom toolbar. Messages persist
 with that call session and are visible in its recording page after it ends.
-Guests do not see chat. The `@` menu includes Macro and available agents;
+Guests can open the same call discussion and read and send text while connected;
+their messages show their name with **(Guest)**. The signed-in composer’s `@` menu includes Macro and available agents;
 mentioning one invokes it in the call thread. Reply on any live message, including
 your own, quotes it in the bottom composer. Verify the reply preserves a draft,
 an agent reply appears, and messages remain in the saved history; starting a
@@ -1596,7 +1597,7 @@ in the background, so the next call does not wait for that room to be deleted.
 It keeps its label and shows a checkmark for a few seconds after copying, then
 restores the copy icon.
 
-Guest access is limited to the call room; joining does not expose the channel or grant
+Guest access is limited to the call room and its live text discussion; joining does not expose the channel or grant
 anonymous access to saved transcripts and recordings. Guest names are preserved in
 the host's call history. Signed-in attendees receive access to that session's saved
 call without gaining access to the channel.

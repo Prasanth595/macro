@@ -3636,6 +3636,7 @@ dependencies = [
  "macro_event_topics",
  "macro_user_id",
  "macro_uuid",
+ "messages",
  "mockall",
  "model-entity",
  "model-error-response",
@@ -3884,7 +3885,6 @@ name = "channel_sender"
 version = "0.1.0"
 dependencies = [
  "bot_id",
- "either",
  "macro_user_id",
  "serde",
  "serde_json",
@@ -12021,6 +12021,7 @@ dependencies = [
  "connection_gateway_client",
  "entity_access",
  "initiative",
+ "ip_extractor",
  "macro_authorization",
  "macro_db_migrator",
  "macro_event_broker",
@@ -12036,6 +12037,7 @@ dependencies = [
  "models_properties",
  "notification",
  "properties",
+ "rate_limit",
  "rootcause",
  "schemars 1.2.1",
  "serde",

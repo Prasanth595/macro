@@ -129,6 +129,7 @@ impl MessageCommands for FakeMessages {
                 bot_id::MACRO_AI_BOT_ID.into_storage_id().to_string(),
             )
             .unwrap(),
+            guest_name: None,
             imported_author: None,
             bot_profile: None,
             mentions: vec![],

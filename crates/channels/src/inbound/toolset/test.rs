@@ -75,6 +75,7 @@ impl messages::domain::api::MessageCommands for RecordingMessages {
             parent,
             thread_id: input.thread_id,
             sender_id: sender,
+            guest_name: None,
             imported_author: None,
             bot_profile: None,
             mentions: vec![],
