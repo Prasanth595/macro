@@ -30,7 +30,7 @@
 
 .homepage-demo-slide-copy h2 { margin: 0; max-width: 900px; color: #eee; font-family: 'Roboto Slab Variable', display, serif; font-size: clamp(30px, 3.5vw, 44px); font-weight: calc(315 + var(--cream-slab-weight-increase, 0)); letter-spacing: -.015em; line-height: 1.2; white-space: pre-line; }
 .homepage-demo-slide-copy p { margin: 0; color: var(--color-ink-muted); font-size: 15px; line-height: 1.7; }
-.homepage-demo-slide-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; margin: 0 0 28px; }
+.homepage-demo-slide-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; margin: 0 0 40px; }
 .homepage-demo-carousel button { color: #999; background: transparent; border: 0; font: inherit; }
 .homepage-demo-carousel button:hover { color: #eee; }
 .homepage-demo-carousel button:focus-visible { outline: 2px solid #aaa; outline-offset: 4px; border-radius: 6px; }
