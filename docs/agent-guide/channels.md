@@ -1224,13 +1224,16 @@ one-to-one direct messages continue to show the other person's user picture.
 
 On desktop, hover or focus the channel name in either the split topbar or an
 inline detail topbar to open its editor. The editor loads on demand and may briefly
-show `Loading channel details…`. The card shows a larger circular picture,
-the image filename when available, `Edit` and `Clear` buttons, and a channel-name
-input. Clicking the picture or `Edit` opens the file chooser. PNG, JPG, WebP, and
-GIF files up to 16 MB are supported. Selecting a file, clearing the picture, or
-changing the name only updates the draft. `Save` persists the changes; `Cancel`
-discards them. The card stays open while editing. Failed saves retain remaining
-changes for retry; if the picture saved but renaming failed, the card says so and
+show `Loading channel details…`. The card shows a larger circular picture with
+an upload-icon overlay when editing is allowed, the image filename when available,
+and supported file types below the filename. Larger `Change image` and destructive
+`Clear image` buttons sit below the picture, followed by a channel-name input.
+Clicking the picture or the secondary `Change image` button opens the file chooser.
+PNG, JPG, WebP, and GIF files up to 16 MB are supported. Selecting a file, clearing
+the picture, or changing the name only updates the draft. The accent `Save` button
+persists the changes; `Cancel` discards them. The card stays open while editing.
+Failed saves retain remaining changes for retry. If the picture saved but renaming
+failed, the card says so, and
 retrying does not upload the picture again. Switching channels starts a fresh
 editor draft for the newly selected channel. A save already in progress finishes
 its submitted changes for the previous channel without closing the new editor;
