@@ -82,6 +82,7 @@ impl RecordingMessages {
                 .stored_sender
                 .clone()
                 .unwrap_or_else(|| Sender::new_from_user(user_id())),
+            guest_name: None,
             imported_author: None,
             bot_profile: None,
             mentions: vec![],

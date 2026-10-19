@@ -71,6 +71,7 @@ impl FakeMessages {
                 .comment_author
                 .clone()
                 .expect("test configured a stored comment"),
+            guest_name: None,
             imported_author: None,
             bot_profile: None,
             mentions: vec![],

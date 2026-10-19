@@ -501,6 +501,7 @@ async fn shared_thread_and_dm_snapshots_omit_raw_tool_details() {
                     triggered_by: None,
                     bot_profile: None,
                     mentions: vec![],
+                    guest_name: None,
                     imported_author: None,
                     content: post.content,
                     created_at: chrono::Utc::now(),
