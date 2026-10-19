@@ -19,6 +19,7 @@ import { SplitPanel } from '@components/app/split-panel';
 import { loadDatabaseSqlWasm } from '@core/database-sql/wasm-module';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { debounce } from '@core/util/debounce';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   type EntityData,
   isCrmCompanyEntity,
@@ -61,7 +62,7 @@ import {
 
 function NavigationToggle(props: {
   onExpand: () => void;
-  children: import('solid-js').JSX.Element;
+  children: (close: () => void) => JSX.Element;
 }) {
   const shell = useViewShell();
   const [open, setOpen] = createSignal(false);
@@ -109,7 +110,7 @@ function NavigationToggle(props: {
                     setOpen(false);
                 }}
               >
-                {props.children}
+                {props.children(() => setOpen(false))}
               </div>
             </Dropdown.Content>
           </Dropdown>
@@ -379,7 +380,7 @@ export function CrmWorkspaceView(props: {
     void loadDatabaseSqlWasm().catch(() => undefined);
     if (!listsEnabled() && active().startsWith('list:')) navigate('active');
   });
-  const sidebar = () => (
+  const sidebar = (onCollapse: () => void = () => setCollapsed(true)) => (
     <CrmSidebar
       pipelines={
         <Show when={pipelinesEnabled()}>
@@ -391,7 +392,7 @@ export function CrmWorkspaceView(props: {
             canCreate={canCreatePipeline()}
             onCreate={() => setCreatingPipeline(true)}
             onSelect={selectPipeline}
-            onRetry={() => void pipelines.refresh()}
+            onRetry={() => fireAndForget(pipelines.refresh(), 'crm')}
           />
         </Show>
       }
@@ -420,7 +421,7 @@ export function CrmWorkspaceView(props: {
       onImport={() => setImporting(true)}
       onExport={() => setExporting(true)}
       onSettings={view.host.openSettings}
-      onCollapse={() => setCollapsed(true)}
+      onCollapse={onCollapse}
     />
   );
   return (
@@ -468,7 +469,7 @@ export function CrmWorkspaceView(props: {
               onOpenPipeline={selectPipeline}
               navigation={
                 <NavigationToggle onExpand={() => setCollapsed(false)}>
-                  <Suspense>{sidebar()}</Suspense>
+                  {(close) => <Suspense>{sidebar(close)}</Suspense>}
                 </NavigationToggle>
               }
             />
@@ -498,7 +499,7 @@ export function CrmWorkspaceView(props: {
                   navigation={
                     <Show when={!isTouchDevice()}>
                       <NavigationToggle onExpand={() => setCollapsed(false)}>
-                        <Suspense>{sidebar()}</Suspense>
+                        {(close) => <Suspense>{sidebar(close)}</Suspense>}
                       </NavigationToggle>
                     </Show>
                   }
@@ -526,7 +527,7 @@ export function CrmWorkspaceView(props: {
             <Show when={!isTouchDevice()}>
               <div class="flex h-12 shrink-0 items-center gap-3 px-4">
                 <NavigationToggle onExpand={() => setCollapsed(false)}>
-                  <Suspense>{sidebar()}</Suspense>
+                  {(close) => <Suspense>{sidebar(close)}</Suspense>}
                 </NavigationToggle>
                 <h1
                   class="flex h-7 min-w-0 flex-1 items-center px-1 text-sm font-semibold tracking-[-0.03em]"

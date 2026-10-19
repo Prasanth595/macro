@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import BuildingsIcon from '@phosphor/buildings.svg';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import CheckIcon from '@phosphor/check.svg';
@@ -55,7 +56,7 @@ export function PipelineDialog(props: {
             aria-label="New pipeline"
             onSubmit={(event) => {
               event.preventDefault();
-              void submit();
+              fireAndForget(submit(), 'crm');
             }}
             onKeyDown={(event) => {
               if (
@@ -65,7 +66,7 @@ export function PipelineDialog(props: {
               ) {
                 event.preventDefault();
                 event.stopPropagation();
-                void submit();
+                fireAndForget(submit(), 'crm');
               }
             }}
           >

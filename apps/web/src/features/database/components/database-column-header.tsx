@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { ContextMenu } from '@kobalte/core/context-menu';
 import { Popover } from '@kobalte/core/popover';
 import ArrowDownIcon from '@phosphor/arrow-down.svg';
@@ -151,9 +152,12 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
   };
   const save = (restoreFocus: boolean) => {
     if (canRename())
-      void columnRename.save(
-        restoreFocus,
-        restoreFocus ? props.onEnter : undefined
+      fireAndForget(
+        columnRename.save(
+          restoreFocus,
+          restoreFocus ? props.onEnter : undefined
+        ),
+        'database'
       );
   };
   props.registerRename?.(rename);
@@ -488,7 +492,9 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
                                 loadCasts={(open) =>
                                   props.columnCasts?.(props.column.id, open)
                                 }
-                                onChange={(change) => void changeType(change)}
+                                onChange={(change) =>
+                                  fireAndForget(changeType(change), 'database')
+                                }
                                 onFormula={
                                   formulas &&
                                   (() => {
@@ -738,7 +744,7 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
         confirmLabel="Convert into a new column"
         onConfirm={() => {
           const choice = converting();
-          if (choice) void convert(choice);
+          if (choice) fireAndForget(convert(choice), 'database');
         }}
         body={
           <>
@@ -762,7 +768,7 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
         title="Delete column?"
         deleteLabel="Delete column"
         pending={pending()}
-        onDelete={() => void remove()}
+        onDelete={() => fireAndForget(remove(), 'database')}
         onCloseAutoFocus={(event) => {
           event.preventDefault();
           restoreFocus();
