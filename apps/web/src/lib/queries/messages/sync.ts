@@ -70,7 +70,7 @@ export function handleTimelineActivity(event: {
     { queryKey: getMessageTimelineQueryKeyPrefix(event.parent) },
     (data) => insertActivitiesIntoMessageTimeline(data, event.activities)
   );
-  void restartPendingChannelTimeline(event.parent);
+  fireAndForget(restartPendingChannelTimeline(event.parent), 'messages-sync');
 }
 
 type ThreadStateListener = (
@@ -144,7 +144,7 @@ export function applyMessage(
     patchTargetMessage(parent, target, normalized);
   }
   softInvalidateTargetCaches(parent, target);
-  void restartPendingChannelTimeline(parent);
+  fireAndForget(restartPendingChannelTimeline(parent), 'messages-sync');
   // Calls have one thread and no mounted timeline to seed its first fetch.
   // A view may still be showing the empty response when the first post arrives.
   if (
@@ -334,7 +334,8 @@ export function applyThreadState(
         : undefined
   );
   for (const listener of threadStateListeners) listener(parent, state);
-  if (!state.deleted_at) void restartPendingChannelTimeline(parent);
+  if (!state.deleted_at)
+    fireAndForget(restartPendingChannelTimeline(parent), 'messages-sync');
   if (state.deleted_at) {
     // Annotation layout also reads tombstones, including roots outside loaded
     // pages. Fetch the committed state so it survives late document mounting.

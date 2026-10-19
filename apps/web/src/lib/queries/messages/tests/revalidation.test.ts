@@ -6,7 +6,7 @@ import type {
 import { InfiniteQueryObserver, QueryClient } from '@tanstack/solid-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ timeline: vi.fn() }));
+const mocks = vi.hoisted(() => ({ timeline: vi.fn(), reportError: vi.fn() }));
 let queryClient: QueryClient;
 vi.mock('../../client', () => ({
   get queryClient() {
@@ -17,6 +17,9 @@ vi.mock('@service-storage/messages', () => ({
   entityMessagesClient: { timeline: mocks.timeline },
 }));
 vi.mock('@app/lib/analytics', () => ({ analytics: { track: vi.fn() } }));
+vi.mock('@macro-inc/observability', () => ({
+  Telemetry: { error: mocks.reportError },
+}));
 vi.mock('../subscription', () => ({ useMessageSubscription() {} }));
 
 import {
@@ -72,11 +75,61 @@ beforeEach(() => {
     defaultOptions: { queries: { retry: false } },
   });
   mocks.timeline.mockReset();
+  mocks.reportError.mockReset();
 });
 afterEach(() => {
   for (const dispose of disposers.splice(0)) dispose();
   queryClient.clear();
+  vi.restoreAllMocks();
 });
+
+it.each(['message', 'activity', 'thread'] as const)(
+  'reports a failed %s timeline restart instead of leaving its promise unhandled',
+  async (event) => {
+    const failure = new Error('Unable to restart the timeline');
+    const reported = Promise.withResolvers<void>();
+    mocks.reportError.mockImplementation(() => reported.resolve());
+    const cache = queryClient.getQueryCache();
+    const findAll = cache.findAll.bind(cache);
+    vi.spyOn(cache, 'findAll').mockImplementation((filters) => {
+      if (filters?.type === 'active') throw failure;
+      return findAll(filters);
+    });
+
+    if (event === 'message') {
+      handleMessageEvent({
+        parent,
+        actor: 'user-2',
+        change: {
+          type: 'posted',
+          message: liveReply,
+          mentions: [],
+          notification_policy: 'Default',
+        },
+      });
+    } else if (event === 'activity') {
+      handleTimelineActivity({
+        parent,
+        activities: [
+          {
+            id: 'activity',
+            actor_id: 'user-2',
+            action: 'renamed',
+            occurred_at: '2026-10-15T14:33:00Z',
+            payload: { to: 'Renamed channel' },
+          },
+        ],
+      });
+    } else {
+      applyThreadState(parent, { ...root.state, resolved: true });
+    }
+
+    await reported.promise;
+    expect(mocks.reportError).toHaveBeenCalledExactlyOnceWith(failure, {
+      surface: 'messages-sync',
+    });
+  }
+);
 
 it.each(['reaction', 'reply'] as const)(
   'recovers missed replies even when a live %s changes the same root during refresh',
