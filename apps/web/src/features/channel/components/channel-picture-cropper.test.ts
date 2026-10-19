@@ -1,3 +1,4 @@
+import { toast } from '@core/component/Toast/Toast';
 import {
   cleanup,
   fireEvent,
@@ -325,6 +326,91 @@ describe('channel editor steps', () => {
     expect(savePicture).toHaveBeenCalledExactlyOnceWith(gif);
   });
 
+  it('rejects mixed and multi-image drops without accepting the first file', () => {
+    render(() =>
+      createComponent(ChannelIdentityModal, {
+        channelId: 'design',
+        name: 'Design',
+        pictureLoading: false,
+        canEdit: true,
+        writer: { saveName: vi.fn(), savePicture: vi.fn() },
+        onClose: vi.fn(),
+      })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
+    const upload = screen.getByRole('group', { name: 'Image upload' });
+    const image = new File(['image'], 'first.png', { type: 'image/png' });
+    fireEvent.drop(upload, {
+      dataTransfer: {
+        files: [image, new File(['text'], 'notes.txt', { type: 'text/plain' })],
+        items: [],
+      },
+    });
+    expect(toast.failure).toHaveBeenLastCalledWith(
+      'Invalid attachment file(s)'
+    );
+    expect(screen.queryByRole('heading', { name: 'first.png' })).toBeNull();
+    fireEvent.drop(upload, {
+      dataTransfer: {
+        files: [
+          image,
+          new File(['image'], 'second.png', { type: 'image/png' }),
+        ],
+        items: [],
+      },
+    });
+    expect(toast.failure).toHaveBeenLastCalledWith('Drop one image at a time.');
+    expect(screen.queryByRole('heading', { name: 'first.png' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Apply crop' })).toBeNull();
+  });
+
+  it('only shows the image drop cue for supported image drags', () => {
+    render(() =>
+      createComponent(ChannelIdentityModal, {
+        channelId: 'design',
+        name: 'Design',
+        pictureLoading: false,
+        canEdit: true,
+        writer: { saveName: vi.fn(), savePicture: vi.fn() },
+        onClose: vi.fn(),
+      })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
+    const upload = screen.getByRole('group', { name: 'Image upload' });
+    fireEvent.dragEnter(upload, {
+      dataTransfer: { items: [{ kind: 'file', type: 'text/plain' }] },
+    });
+    expect(screen.queryByText('Drop image here')).toBeNull();
+    fireEvent.dragLeave(upload);
+    fireEvent.dragEnter(upload, {
+      dataTransfer: {
+        items: [{ kind: 'string', type: 'text/html' }],
+        types: ['text/html'],
+      },
+    });
+    expect(screen.queryByText('Drop image here')).toBeNull();
+    fireEvent.dragLeave(upload);
+    fireEvent.dragEnter(upload, {
+      dataTransfer: { items: [{ kind: 'file', type: '' }] },
+    });
+    expect(screen.queryByText('Drop image here')).toBeNull();
+    fireEvent.dragLeave(upload);
+    fireEvent.dragEnter(upload, {
+      dataTransfer: {
+        items: [
+          { kind: 'file', type: 'image/png' },
+          { kind: 'file', type: 'image/png' },
+        ],
+      },
+    });
+    expect(screen.queryByText('Drop image here')).toBeNull();
+    fireEvent.dragLeave(upload);
+    fireEvent.dragEnter(upload, {
+      dataTransfer: { items: [{ kind: 'file', type: 'image/png' }] },
+    });
+    expect(screen.getByText('Drop image here')).toBeDefined();
+  });
+
   it('validates dropped files and blocks drops after edit permission is lost', async () => {
     const [canEdit, setCanEdit] = createSignal(true);
     const savePicture = vi.fn();
@@ -348,9 +434,10 @@ describe('channel editor steps', () => {
         items: [],
       },
     });
-    expect(screen.getByRole('alert').textContent).toBe(
-      'Choose a PNG, JPG, WebP, or GIF image'
+    expect(toast.failure).toHaveBeenLastCalledWith(
+      'Invalid attachment file(s)'
     );
+    expect(screen.queryByRole('alert')).toBeNull();
     const oversized = new File(['image'], 'large.png', { type: 'image/png' });
     Object.defineProperty(oversized, 'size', { value: 16_000_001 });
     fireEvent.drop(upload, {

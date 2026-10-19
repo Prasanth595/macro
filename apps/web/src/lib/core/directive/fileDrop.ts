@@ -6,7 +6,7 @@ import { type Accessor, onCleanup } from 'solid-js';
 interface FileDropDirectiveOptions {
   disabled?: boolean;
   onDrop?: (files: File[], e: DragEvent) => void;
-  onDragStart?: (valid: boolean) => void;
+  onDragStart?: (valid: boolean, event: DragEvent) => void;
   onDragEnd?: () => void;
   onMouseUp?: (x: number, y: number) => void;
   acceptedMimeTypes?: string[];
@@ -57,11 +57,11 @@ export function fileDrop(
         // If we have HTML data, it might be an image element
         if (types.includes('text/html')) {
           // Assume valid for now - we'll validate on drop
-          options?.onDragStart?.(true);
+          options?.onDragStart?.(true, e);
           return;
         }
         // No files and no HTML - not a valid drag
-        options?.onDragStart?.(false);
+        options?.onDragStart?.(false, e);
         return;
       }
 
@@ -79,12 +79,12 @@ export function fileDrop(
         });
 
         if (invalidItems.length > 0) {
-          options?.onDragStart?.(false);
+          options?.onDragStart?.(false, e);
           return;
         }
       }
 
-      options?.onDragStart?.(true);
+      options?.onDragStart?.(true, e);
     }
   };
 

@@ -1238,7 +1238,9 @@ menu. Text inputs keep their native context menu.
 The image-editing step puts the crop workspace on the left and a wider
 actions/details column on the right, without an outer bordered crop container.
 On narrow screens, the workspace appears above the controls. A dashed upload
-area accepts dragged image files or opens the file chooser with `Change image`.
+area accepts one supported image file or opens the file chooser with `Change
+image`. Only a single file with a supported image type shows the drop cue. Mixed
+or multi-file drops are rejected without changing the draft.
 `Change image` and `Clear image` sit side by side, using accent and destructive
 ghost variants respectively, with medium-sized, touch-friendly buttons. The image
 filename, when available, appears above its supported file types and size. The

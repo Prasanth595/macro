@@ -7,6 +7,7 @@ import UploadIcon from '@phosphor/upload-simple.svg';
 import { Button } from '@ui/components/Button';
 import { TextField } from '@ui/components/TextField';
 import { createSignal, Show } from 'solid-js';
+import { CHANNEL_PICTURE_MIME_TYPES } from '../core/channel-picture';
 
 false && fileDrop;
 
@@ -17,7 +18,7 @@ export function ChannelImageActions(props: {
   canPreview: boolean;
   error?: string;
   onPick: () => void;
-  onFileDrop: (file: File) => void;
+  onFilesDrop: (files: File[]) => void;
   onClear: () => void;
   onPreview: (trigger: HTMLButtonElement) => void;
 }) {
@@ -35,11 +36,19 @@ export function ChannelImageActions(props: {
         }}
         use:fileDrop={{
           disabled: props.disabled,
-          onDragStart: setDragging,
-          onDragEnd: () => setDragging(false),
-          onDrop: ([file]) => {
-            if (file) props.onFileDrop(file);
+          acceptedMimeTypes: CHANNEL_PICTURE_MIME_TYPES,
+          multiple: false,
+          onDragStart: (valid, event) => {
+            const items = event.dataTransfer?.items;
+            setDragging(
+              valid &&
+                items?.length === 1 &&
+                items[0].kind === 'file' &&
+                CHANNEL_PICTURE_MIME_TYPES.includes(items[0].type)
+            );
           },
+          onDragEnd: () => setDragging(false),
+          onDrop: props.onFilesDrop,
         }}
       >
         <div class="flex items-start justify-between gap-3">

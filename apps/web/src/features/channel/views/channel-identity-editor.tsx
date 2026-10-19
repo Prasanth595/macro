@@ -158,7 +158,13 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
         onPreview={previewPicture}
         error={state.error()}
         onPick={() => input.click()}
-        onFileDrop={selectPicture}
+        onFilesDrop={(files) => {
+          if (files.length !== 1) {
+            toast.failure('Drop one image at a time.');
+            return;
+          }
+          selectPicture(files[0]);
+        }}
         onClear={() => {
           setOriginalPicture(undefined);
           setCropSource(undefined);
