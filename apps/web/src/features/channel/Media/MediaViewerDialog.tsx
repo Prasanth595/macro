@@ -15,6 +15,9 @@ type MediaViewerDialogProps = {
   onOpenChange: (open: boolean) => void;
   currentIndex: Accessor<number>;
   onCurrentIndexChange: (index: number) => void;
+  onCloseAutoFocus?: (event: Event) => void;
+  onEscapeKeyDown?: (event: KeyboardEvent) => void;
+  onPointerDownOutside?: (event: Event) => void;
 };
 
 function VideoViewerContent(props: {
@@ -23,6 +26,9 @@ function VideoViewerContent(props: {
   onNext?: () => void;
   indexLabel?: Accessor<string>;
   navigationHidden?: boolean;
+  onCloseAutoFocus?: (event: Event) => void;
+  onEscapeKeyDown?: (event: KeyboardEvent) => void;
+  onPointerDownOutside?: (event: Event) => void;
 }) {
   const navButtonClass =
     'absolute top-1/2 -translate-y-1/2 bg-surface backdrop-blur-sm rounded-lg border border-edge p-2 shadow-md hover:bg-surface transition-colors disabled:cursor-not-allowed disabled:opacity-50';
@@ -71,7 +77,12 @@ function VideoViewerContent(props: {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      <Dialog.Content class="flex items-center justify-center bg-surface">
+      <Dialog.Content
+        class="flex items-center justify-center bg-surface"
+        onCloseAutoFocus={props.onCloseAutoFocus}
+        onEscapeKeyDown={props.onEscapeKeyDown}
+        onPointerDownOutside={props.onPointerDownOutside}
+      >
         <LightboxToolbar isVisible={true}>
           <Dialog.CloseButton
             as={Button}
@@ -163,6 +174,9 @@ export function MediaViewerDialog(props: MediaViewerDialogProps) {
                   onNext={hasNext() ? navigateNext : undefined}
                   indexLabel={hasMultipleItems() ? indexLabel : undefined}
                   navigationHidden={!hasMultipleItems()}
+                  onCloseAutoFocus={props.onCloseAutoFocus}
+                  onEscapeKeyDown={props.onEscapeKeyDown}
+                  onPointerDownOutside={props.onPointerDownOutside}
                 />
               }
             >
@@ -173,6 +187,9 @@ export function MediaViewerDialog(props: MediaViewerDialogProps) {
                 onNext={hasNext() ? navigateNext : undefined}
                 navigationHidden={!hasMultipleItems()}
                 indexLabel={hasMultipleItems() ? indexLabel : undefined}
+                onCloseAutoFocus={props.onCloseAutoFocus}
+                onEscapeKeyDown={props.onEscapeKeyDown}
+                onPointerDownOutside={props.onPointerDownOutside}
               />
             </Show>
           )}

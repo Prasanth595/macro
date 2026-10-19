@@ -39,6 +39,9 @@ type LightboxProps = {
   // "2/5" style indicator — rendered when provided
   indexLabel?: Accessor<string>;
   navigationHidden?: boolean;
+  onCloseAutoFocus?: (event: Event) => void;
+  onEscapeKeyDown?: (event: KeyboardEvent) => void;
+  onPointerDownOutside?: (event: Event) => void;
 };
 
 export function Lightbox(props: LightboxProps) {
@@ -84,6 +87,9 @@ export function Lightbox(props: LightboxProps) {
       <Dialog.Content
         aria-label="Lightbox image viewer"
         class="flex items-center justify-center bg-surface rounded-md overflow-hidden"
+        onCloseAutoFocus={props.onCloseAutoFocus}
+        onEscapeKeyDown={props.onEscapeKeyDown}
+        onPointerDownOutside={props.onPointerDownOutside}
       >
         <LightboxToolbar isVisible={true}>
           <Button

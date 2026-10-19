@@ -36,6 +36,8 @@ export type DialogProps = {
   class?: string /* classes for content */;
   open: boolean /* if dialog is open */;
   visibleScrim?: boolean /* if the scrim is visible */;
+  /** Disable outside pointers in the mobile drawer; default true. */
+  noOutsidePointerEvents?: boolean;
   /** Desktop opening animation; mobile drawers own their transitions. */
   animate?: boolean;
 };
@@ -71,7 +73,7 @@ function DialogDrawer(props: DialogProps) {
         onInitialFocus={props.onOpenAutoFocus}
         onFinalFocus={props.onCloseAutoFocus}
         restoreFocus
-        noOutsidePointerEvents
+        noOutsidePointerEvents={props.noOutsidePointerEvents ?? true}
       >
         <MobileDrawer.Portal>
           <MobileDrawer.Overlay

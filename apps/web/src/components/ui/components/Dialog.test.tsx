@@ -75,6 +75,22 @@ function setup(props: Partial<Omit<DialogProps, 'children' | 'open'>> = {}) {
 }
 
 describe('responsive dialog', () => {
+  it.each([true, false])(
+    'sets mobile pointer blocking to %s',
+    async (noOutsidePointerEvents) => {
+      setup({ noOutsidePointerEvents });
+      await screen.findByRole('dialog', { name: 'Edit name' });
+      await waitFor(() =>
+        expect(document.body.style.pointerEvents === 'none').toBe(
+          noOutsidePointerEvents
+        )
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(document.body.style.pointerEvents).not.toBe('none');
+    }
+  );
+
   it.each([
     { mobile: true, fullscreen: false, drawer: true },
     { mobile: false, fullscreen: false, drawer: false },

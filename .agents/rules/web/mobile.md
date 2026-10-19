@@ -48,6 +48,7 @@ read their code, and follow that pattern rather than inventing a new one.
   place with a back row.
 - Overlays are Kobalte or corvu layers or handle Escape: Android Back sends
   Escape to the top layer. Own back stacks use `useAndroidBackNavigation`.
+- When a Kobalte lightbox opens inside `Dialog`, set `noOutsidePointerEvents={false}` on the parent so one library owns body pointer locking; its overlay still blocks the page.
 
 ## Keyboard and focus
 
