@@ -24,7 +24,10 @@ const SEND_REFUSAL_SUBTEXT: Record<SendRefusal, string> = {
   'attachment-not-uploaded': 'Attachment not uploaded',
 };
 
-export function refuseSend(notices: EmailComposeFeedback, reason: SendRefusal) {
+export function refuseSend(
+  notices: Pick<EmailComposeFeedback, 'feedback'>,
+  reason: SendRefusal
+) {
   notices.feedback.failure('Failed to send email', {
     subtext: SEND_REFUSAL_SUBTEXT[reason],
   });

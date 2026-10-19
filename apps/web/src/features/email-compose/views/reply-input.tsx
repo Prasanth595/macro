@@ -56,6 +56,7 @@ type ReplyInputViewProps = Omit<
   | 'notices'
   | 'accounts'
   | 'connectivity'
+  | 'editorFiles'
   | 'viewerEmail'
   | 'hasPaidAccess'
   | 'recordMention'
@@ -124,6 +125,7 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
       notices: composeContext.notices,
       accounts: composeContext.accounts,
       connectivity: composeContext.connectivity,
+      editorFiles: composeContext.editorFiles,
       viewerEmail: composeContext.viewerEmail,
       hasPaidAccess: composeContext.hasPaidAccess,
       recordMention: composeContext.recordMention,

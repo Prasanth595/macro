@@ -1,13 +1,8 @@
-import {
-  MACRO_EMAIL_SIGNATURE,
-  MAX_ATTACHMENTS_BYTES_SIZE,
-} from '@app/features/email-compose/core/constants';
+import { MACRO_EMAIL_SIGNATURE } from '@app/features/email-compose/core/constants';
 import type { EmailMessage } from '@app/features/email-message/core/email-message';
 import type { UserMentionRecord } from '@core/component/LexicalMarkdown/utils/mentionsUtils';
 import { setEditorStateFromHtml } from '@core/component/LexicalMarkdown/utils/setEditorStateFromHtml';
-import { getUploadFileSize } from '@core/mobile/nativeStagedUpload';
 import { fireAndForget } from '@core/util/fireAndForget';
-import { plural } from '@core/util/string';
 import { $generateHtmlFromNodes } from '@lexical/html';
 import {
   $appendWatermarkNodeToLast,
@@ -35,6 +30,7 @@ import type {
   EmailDelivery,
   EmailDraftLifecycleSource,
   EmailDraftStorage,
+  EmailEditorFiles,
   EmailUndoHandle,
 } from '../context/compose-capabilities';
 import type { EmailReplySession } from '../context/email-form-inputs';
@@ -43,6 +39,8 @@ import {
   convertContactInfoToEmailRecipient,
   convertEmailRecipientToContactInfo,
 } from '../core/recipient-conversion';
+import { partitionByAttachmentLimit } from './attachment-limit';
+import { createAttachmentLinkOffer } from './attachment-links';
 import {
   createAttachmentPersistence,
   refuseAttachmentsOffline,
@@ -106,6 +104,7 @@ export type ReplyComposerOptions = {
   notices: EmailComposeFeedback;
   accounts: EmailComposeAccounts;
   connectivity: EmailConnectivity;
+  editorFiles: Pick<EmailEditorFiles, 'uploadDocuments' | 'makePublic'>;
   viewerEmail: Accessor<string | undefined>;
   hasPaidAccess: Accessor<boolean>;
   recordMention(sourceId: string, targetId: string): void;
@@ -1204,6 +1203,12 @@ export function createReplyComposer(
     });
   };
 
+  const offerAttachmentLinks = createAttachmentLinkOffer({
+    editor,
+    notices: props.notices,
+    editorFiles: props.editorFiles,
+  });
+
   const handleAddAttachments = async (files: File[]) => {
     if (
       submitting() ||
@@ -1219,44 +1224,19 @@ export function createReplyComposer(
       (await refuseAttachmentsOffline(props.connectivity, props.notices))
     )
       return;
-    const currentAttachments = form.attachments.list();
-
-    const attachmentsToAddByteSize = files.reduce(
-      (sum, f) => sum + getUploadFileSize(f),
-      0
+    const { attachable, oversized } = partitionByAttachmentLimit(
+      files,
+      form.attachments.list()
     );
-
-    if (attachmentsToAddByteSize >= MAX_ATTACHMENTS_BYTES_SIZE) {
-      props.notices.feedback.failure(
-        `${plural('Attachment', files.length)} exceed 18MB`
-      );
-      return;
+    for (const file of attachable) {
+      form.attachments.add({ type: 'local', file });
     }
-
-    const currentAttachmentsByteSize = currentAttachments.reduce(
-      (sum, a) =>
-        sum + (a.type === 'local' ? getUploadFileSize(a.file) : a.fileSize),
-      0
-    );
-
-    if (
-      currentAttachmentsByteSize + attachmentsToAddByteSize >=
-      MAX_ATTACHMENTS_BYTES_SIZE
-    ) {
-      props.notices.feedback.failure("Can't add more attachments", {
-        subtext: 'Total attachments exceed 18MB limit',
-      });
-      return;
+    if (attachable.length > 0) scheduleDraftSave();
+    try {
+      await offerAttachmentLinks(oversized);
+    } catch (error) {
+      props.notices.reportError(error);
     }
-
-    for (const file of files) {
-      form.attachments.add({
-        type: 'local',
-        file,
-      });
-    }
-
-    scheduleDraftSave();
   };
 
   const handleRemoveAttachment = async (attachment: DraftFormAttachment) => {

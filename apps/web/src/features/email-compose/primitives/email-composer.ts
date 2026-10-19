@@ -28,6 +28,7 @@ import type {
   EmailDelivery,
   EmailDraftLifecycleSource,
   EmailDraftStorage,
+  EmailEditorFiles,
   PersistedEmailIdentity,
 } from '../context/compose-capabilities';
 import { decodeBase64Utf8 } from '../core/decode-base64';
@@ -50,6 +51,8 @@ import {
   prepareEmailBody,
 } from '../primitives/prepare-email-body';
 import { endUndoSend } from '../primitives/undo-send-claim';
+import { partitionByAttachmentLimit } from './attachment-limit';
+import { createAttachmentLinkOffer } from './attachment-links';
 import {
   createAttachmentPersistence,
   refuseAttachmentsOffline,
@@ -97,6 +100,7 @@ export type EmailComposerOptions = {
   notices: EmailComposeFeedback;
   accounts: EmailComposeAccounts;
   connectivity: EmailConnectivity;
+  editorFiles: Pick<EmailEditorFiles, 'uploadDocuments' | 'makePublic'>;
   viewerEmail: Accessor<string | undefined>;
   hasPaidAccess: Accessor<boolean>;
   recipients: Accessor<EmailRecipient[]>;
@@ -506,17 +510,32 @@ export function createEmailComposer(props: EmailComposerOptions) {
 
   // --- Attachment handling ---
 
-  const handleAddAttachments = async (attachments: DraftFormAttachment[]) => {
+  const offerAttachmentLinks = createAttachmentLinkOffer({
+    editor,
+    notices: props.notices,
+    editorFiles: props.editorFiles,
+  });
+
+  const handleAddAttachments = async (files: File[]) => {
     if (persistencePaused()) return;
     if (
       !props.drafts.saveLocalDraft &&
       (await refuseAttachmentsOffline(props.connectivity, props.notices))
     )
       return;
-    for (const attachment of attachments) {
-      form.attachments.add(attachment);
+    const { attachable, oversized } = partitionByAttachmentLimit(
+      files,
+      form.attachments.list()
+    );
+    for (const file of attachable) {
+      form.attachments.add({ type: 'local', file });
     }
-    markDirtyAndScheduleSave();
+    if (attachable.length > 0) markDirtyAndScheduleSave();
+    try {
+      await offerAttachmentLinks(oversized);
+    } catch (error) {
+      props.notices.reportError(error);
+    }
   };
 
   const handleRemoveAttachment = async (attachment: DraftFormAttachment) => {
@@ -1188,6 +1207,7 @@ export function createEmailComposer(props: EmailComposerOptions) {
     acknowledgeSaved: autosave.acknowledgeSaved,
     context: ctxValue,
     editor,
+    form,
     previewName,
     hasInboxError,
     draftDirty,

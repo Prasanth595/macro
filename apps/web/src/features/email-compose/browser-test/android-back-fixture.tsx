@@ -64,6 +64,7 @@ function MobileComposePanel(props: { onLeave: () => void }) {
         dismiss: () => {},
       },
       blockingNotice: async () => {},
+      confirm: async () => false,
       reportError: () => {},
     },
     accounts: {
@@ -75,6 +76,7 @@ function MobileComposePanel(props: { onLeave: () => void }) {
       primaryId: () => 'inbox',
     },
     connectivity: { looksOffline: () => false },
+    editorFiles: { uploadDocuments: async () => [], makePublic: () => {} },
     viewerEmail: () => 'me@example.com',
     hasPaidAccess: () => true,
     recipients: () => [],

@@ -92,6 +92,7 @@ function LoadedEmailComposeView(
     notices: composeContext.notices,
     accounts: composeContext.accounts,
     connectivity: composeContext.connectivity,
+    editorFiles: composeContext.editorFiles,
     viewerEmail: composeContext.viewerEmail,
     hasPaidAccess: composeContext.hasPaidAccess,
     recipients: composeContext.recipients,
@@ -142,7 +143,6 @@ function LoadedEmailComposeView(
     },
     isMobile: composeContext.presentation.isMobile,
     scheduleEnabled: composeContext.presentation.scheduleEnabled,
-    attachmentFailure: composeContext.notices.feedback.failure,
     onUpgrade: composeContext.presentation.onUpgrade,
     viewerLoading: composeContext.presentation.viewerLoading,
     signaturePreview: () => (

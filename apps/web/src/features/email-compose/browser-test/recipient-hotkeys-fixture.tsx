@@ -60,6 +60,7 @@ const context: EmailComposeContext = {
       dismiss: () => {},
     },
     blockingNotice: async () => {},
+    confirm: async () => false,
     reportError: () => {},
   },
   accounts: {
@@ -84,6 +85,7 @@ const context: EmailComposeContext = {
     readDroppedFiles: () => {},
     makePublic: () => {},
     uploadEditorFiles: () => {},
+    uploadDocuments: async () => [],
   },
   viewerEmail: () => 'me@example.com',
   recipients: () => [],
@@ -145,7 +147,6 @@ function NewEmail() {
         },
         isMobile: () => false,
         scheduleEnabled: false,
-        attachmentFailure: () => {},
       }}
     >
       <ComposeLayout />

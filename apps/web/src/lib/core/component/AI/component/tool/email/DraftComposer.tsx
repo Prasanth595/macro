@@ -14,12 +14,16 @@ import { decodeBase64Utf8 } from '@app/features/email-compose/core/decode-base64
 import type { EmailRecipient } from '@app/features/email-compose/core/email-recipient';
 import { convertContactInfoToEmailRecipient } from '@app/features/email-compose/core/recipient-conversion';
 import { createComposeBodyActions } from '@app/features/email-compose/editor-adapter';
+import { makeAttachmentPublic } from '@app/features/email-compose/make-attachment-public';
+import { partitionByAttachmentLimit } from '@app/features/email-compose/primitives/attachment-limit';
+import { createAttachmentLinkOffer } from '@app/features/email-compose/primitives/attachment-links';
 import type {
   ComposeContextValue,
   ComposeValidationError,
 } from '@app/features/email-compose/primitives/compose-view-state';
 import type { DraftFormAttachment } from '@app/features/email-compose/primitives/email-form-state';
 import { prepareEmailBody } from '@app/features/email-compose/primitives/prepare-email-body';
+import { uploadAttachmentDocuments } from '@app/features/email-compose/upload-documents';
 import { ComposeLayout } from '@app/features/email-compose/views/compose-layout';
 import { EmailComposeToolbar } from '@app/features/email-compose/views/compose-toolbar';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
@@ -27,6 +31,7 @@ import { toast } from '@core/component/Toast/Toast';
 import { enableEmailSignatures } from '@core/constant/featureFlags';
 import { isMobile } from '@core/mobile/isMobile';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { interceptMailtoLinks } from '@core/util/interceptMailtoLinks';
 import { forceDssRuleset, uploadFile } from '@core/util/upload';
 import { useEmailLinksQuery, useEmailSignature } from '@queries/email/link';
@@ -36,12 +41,13 @@ import type { SendEmail } from '@service-cognition/generated/tools/types';
 import { FileTypeMap } from '@service-storage/fileTypeMap';
 import { debounce } from '@solid-primitives/scheduled';
 import { useQueryClient } from '@tanstack/solid-query';
-import { ComposerSurface, cn } from '@ui';
+import { ComposerSurface, cn, confirmDialog } from '@ui';
 import type { LexicalEditor } from 'lexical';
 import {
   type ComponentProps,
   createMemo,
   createSignal,
+  getOwner,
   type JSX,
   onCleanup,
   Show,
@@ -197,6 +203,18 @@ export function EmailDraftComposer(props: EmailDraftComposerProps) {
     upload: uploadAttachmentDocument,
     onChange: () => scheduleUpdate(),
   });
+  // Attach handlers run as event handlers without a Solid owner; the dialog needs this one.
+  const dialogOwner = getOwner();
+  const offerAttachmentLinks = createAttachmentLinkOffer({
+    editor,
+    notices: {
+      confirm: (input) => confirmDialog(input, { owner: dialogOwner }),
+    },
+    editorFiles: {
+      uploadDocuments: uploadAttachmentDocuments,
+      makePublic: makeAttachmentPublic,
+    },
+  });
 
   function collectArgs(): SendEmail {
     return {
@@ -289,7 +307,6 @@ export function EmailDraftComposer(props: EmailDraftComposerProps) {
     isMobile,
     // The AI tool has its own execute contract and does not expose scheduled send.
     scheduleEnabled: false,
-    attachmentFailure: toast.failure,
     subject,
     attachments: attachments.list,
     schedule: {
@@ -315,9 +332,14 @@ export function EmailDraftComposer(props: EmailDraftComposerProps) {
     onContentChange: () => {
       scheduleUpdate();
     },
-    onAddAttachments: (added: DraftFormAttachment[]) => {
+    onAddAttachments: (files: File[]) => {
       if (uiDisabled()) return;
-      attachments.add(added);
+      const { attachable, oversized } = partitionByAttachmentLimit(
+        files,
+        attachments.list()
+      );
+      attachments.add(attachable.map((file) => ({ type: 'local', file })));
+      fireAndForget(offerAttachmentLinks(oversized), 'ai-email-draft');
     },
     onRemoveAttachment: (attachment: DraftFormAttachment) => {
       if (uiDisabled()) return;
