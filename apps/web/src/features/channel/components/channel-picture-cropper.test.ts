@@ -24,18 +24,23 @@ const cropper = vi.hoisted(() => ({
   zoom: vi.fn(),
   transform: vi.fn<(matrix: number[]) => void>(),
   matrix: [1, 0, 0, 1, 0, 0],
+  canvasSize: 400,
 }));
 vi.mock('cropperjs', () => ({
   default: class {
     canvas = {
       disabled: false,
-      clientWidth: 400,
-      clientHeight: 400,
+      get clientWidth() {
+        return cropper.canvasSize;
+      },
+      get clientHeight() {
+        return cropper.canvasSize;
+      },
       getBoundingClientRect: () => ({
         x: 100,
         y: 100,
-        width: 400,
-        height: 400,
+        width: cropper.canvasSize,
+        height: cropper.canvasSize,
       }),
       $toCanvas: cropper.exportFullCanvas,
     };
@@ -129,7 +134,8 @@ vi.mock('@core/component/Toast/Toast', () => ({ toast: { failure: vi.fn() } }));
 
 beforeEach(() => {
   vi.clearAllMocks();
-  cropper.matrix = [1, 0, 0, 1, 0, 0];
+  cropper.matrix = [1, 0, 0, 1, -200, 0];
+  cropper.canvasSize = 400;
   cropper.ready.mockResolvedValue(document.createElement('img'));
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
 });
@@ -217,8 +223,13 @@ describe('channel picture crop lifecycle', () => {
     );
     const image: HTMLImageElement = cropper.construct.mock.calls[0][0];
     expect(image.src).toBe('https://files.example.com/channel.png');
+    const save = await screen.findByRole<HTMLButtonElement>('button', {
+      name: 'Save',
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Rotate image' }));
+    await waitFor(() => expect(save.disabled).toBe(false));
     expect(image.crossOrigin).toBe('anonymous');
-    fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
+    fireEvent.click(save);
     await completed.promise;
     expect(apply.mock.calls[0][0].name).toBe('channel-picture.png');
   });
@@ -707,6 +718,85 @@ describe('channel editor steps', () => {
     ).toBe('Design team');
     expect(saveName).not.toHaveBeenCalled();
     expect(savePicture).not.toHaveBeenCalled();
+  });
+  it('disables unchanged image saves and saves only the name after resetting image edits', async () => {
+    const saveName = vi.fn().mockResolvedValue(ok(undefined));
+    const savePicture = vi.fn();
+    const close = vi.fn();
+    render(() =>
+      createComponent(ChannelIdentityModal, {
+        channelId: 'design',
+        name: 'Design',
+        pictureUrl: 'https://files.example.com/channel.png',
+        pictureSourceUrl: 'https://files.example.com/channel.png',
+        pictureLoading: false,
+        canEdit: true,
+        writer: { saveName, savePicture },
+        onClose: close,
+      })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
+    const save = await screen.findByRole<HTMLButtonElement>('button', {
+      name: 'Save',
+    });
+    expect(save.disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    await waitFor(() => expect(save.disabled).toBe(false));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset crop' }));
+    await waitFor(() => expect(save.disabled).toBe(true));
+    cropper.canvasSize = 200;
+    fireEvent.click(screen.getByRole('button', { name: 'Reset crop' }));
+    await waitFor(() => expect(save.disabled).toBe(true));
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    fireEvent.input(screen.getByRole('textbox', { name: 'Channel name' }), {
+      target: { value: 'New design' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(close).toHaveBeenCalledOnce());
+    expect(saveName).toHaveBeenCalledExactlyOnceWith('New design');
+    expect(savePicture).not.toHaveBeenCalled();
+    expect(cropper.exportCanvas).not.toHaveBeenCalled();
+  });
+
+  it('keeps the original source available after an image upload fails', async () => {
+    cropper.exportCanvas.mockResolvedValue(
+      exportedCanvas(new Blob(['cropped'], { type: 'image/png' }))
+    );
+    const savePicture = vi
+      .fn()
+      .mockResolvedValueOnce(err({ kind: 'picture' }))
+      .mockResolvedValue(ok(undefined));
+    render(() =>
+      createComponent(ChannelIdentityModal, {
+        channelId: 'design',
+        name: 'Design',
+        pictureUrl: 'https://files.example.com/channel.png',
+        pictureSourceUrl: 'https://files.example.com/original.png',
+        pictureLoading: false,
+        canEdit: true,
+        writer: { saveName: vi.fn(), savePicture },
+        onClose: vi.fn(),
+      })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
+    const save = await screen.findByRole<HTMLButtonElement>('button', {
+      name: 'Save',
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Rotate image' }));
+    await waitFor(() => expect(save.disabled).toBe(false));
+    fireEvent.click(save);
+    await screen.findByRole('alert');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
+    await screen.findByRole('button', { name: 'Save' });
+    expect(cropper.construct.mock.calls.at(-1)?.[0].src).toBe(
+      'https://files.example.com/original.png'
+    );
+    expect(savePicture).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset crop' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(savePicture).toHaveBeenCalledTimes(2));
+    expect(cropper.exportCanvas).toHaveBeenCalledTimes(2);
   });
 
   it('keeps Save visible with no image and saves an image removal directly', async () => {

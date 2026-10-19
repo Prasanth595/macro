@@ -23,7 +23,9 @@ export default function ChannelPictureCropper(props: {
   disabled: boolean;
   actions?: JSX.Element;
   saveDisabled?: boolean;
-  onSave: (file: File) => void;
+  canSave?: boolean;
+  hasImageDraft?: boolean;
+  onSave: (file?: File) => void;
   onCancel: () => void;
 }) {
   let container!: HTMLDivElement;
@@ -33,6 +35,11 @@ export default function ChannelPictureCropper(props: {
   const [exporting, setExporting] = createSignal(false);
   const [error, setError] = createSignal<string>();
   const [zoomPercent, setZoomPercent] = createSignal(100);
+  const [cropChanged, setCropChanged] = createSignal(false);
+  const needsExport = () =>
+    props.source instanceof File || props.hasImageDraft || cropChanged();
+  const canSave = () =>
+    !disabled() && !props.saveDisabled && (needsExport() || props.canSave);
   const disabled = () => props.disabled || exporting() || !ready();
 
   onCleanup(() => {
@@ -75,7 +82,7 @@ export default function ChannelPictureCropper(props: {
     if (canvas) canvas.disabled = disabled();
     const cropperImage = cropper.getCropperImage();
     // Cropper emits before committing a transform, and can reject the change.
-    const onTransform = () => queueMicrotask(updateZoom);
+    const onTransform = () => queueMicrotask(updateTransform);
     cropperImage?.addEventListener('transform', onTransform);
     onCleanup(() =>
       cropperImage?.removeEventListener('transform', onTransform)
@@ -95,21 +102,32 @@ export default function ChannelPictureCropper(props: {
       setError('Could not read this image. Go back and choose another image.');
       return;
     }
-    updateZoom();
+    updateTransform();
     setReady(true);
   }
 
-  function updateZoom() {
+  function updateTransform() {
     if (disposed) return;
     const image = cropper?.getCropperImage();
     const canvas = cropper?.getCropperCanvas();
     if (!image || !canvas || !image.$image.naturalWidth) return;
-    const fit = Math.max(
-      canvas.clientWidth / image.$image.naturalWidth,
-      canvas.clientHeight / image.$image.naturalHeight
-    );
+    const { width, height } = canvas.getBoundingClientRect();
+    const { naturalWidth, naturalHeight } = image.$image;
+    const fit = Math.max(width / naturalWidth, height / naturalHeight);
     if (!fit) return;
-    const [a, b] = image.$getTransform();
+    const matrix = image.$getTransform();
+    const [a, b] = matrix;
+    const baseline = [
+      fit,
+      0,
+      0,
+      fit,
+      (width - naturalWidth) / 2,
+      (height - naturalHeight) / 2,
+    ];
+    setCropChanged(
+      matrix.some((value, index) => Math.abs(value - baseline[index]) > 1e-6)
+    );
     setZoomPercent(Math.round((Math.hypot(a, b) / fit) * 100));
   }
 
@@ -133,9 +151,10 @@ export default function ChannelPictureCropper(props: {
     const canvas = cropper?.getCropperCanvas();
     if (!image || !canvas) return;
     const { naturalWidth, naturalHeight } = image.$image;
+    const bounds = canvas.getBoundingClientRect();
     const scale = Math.max(
-      canvas.clientWidth / naturalWidth,
-      canvas.clientHeight / naturalHeight
+      bounds.width / naturalWidth,
+      bounds.height / naturalHeight
     );
     // Apply the fitted, centered transform atomically: identity can violate min-fit.
     image.$setTransform(
@@ -143,8 +162,8 @@ export default function ChannelPictureCropper(props: {
       0,
       0,
       scale,
-      (canvas.clientWidth - naturalWidth) / 2,
-      (canvas.clientHeight - naturalHeight) / 2
+      (bounds.width - naturalWidth) / 2,
+      (bounds.height - naturalHeight) / 2
     );
   }
 
@@ -156,7 +175,11 @@ export default function ChannelPictureCropper(props: {
 
   async function save() {
     const selection = cropper?.getCropperSelection();
-    if (!selection || disabled() || props.saveDisabled) return;
+    if (!selection || !canSave()) return;
+    if (!needsExport()) {
+      props.onSave();
+      return;
+    }
     setExporting(true);
     setError(undefined);
     await Telemetry.span('channel.picture.crop', async (span) => {
@@ -183,7 +206,7 @@ export default function ChannelPictureCropper(props: {
         setError('Could not crop this image. Try again or go back.');
         return;
       }
-      if (props.disabled) return;
+      if (props.disabled || props.saveDisabled) return;
       span.setAttr('image.output_bytes', result.value.size);
       props.onSave(
         new File(
@@ -225,7 +248,7 @@ export default function ChannelPictureCropper(props: {
             variant="cta"
             size="md"
             class="touch:min-h-11"
-            disabled={disabled() || props.saveDisabled}
+            disabled={!canSave()}
             onClick={() => void save()}
           >
             {exporting()

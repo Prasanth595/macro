@@ -1267,10 +1267,13 @@ by 90 degrees, keeping the current zoom.
 Reset removes rotation and restores the initial 100% image fit.
 Scroll-wheel zoom anchors to the cursor; the minus/plus buttons anchor to the
 center of the crop, even after panning or rotation.
-The image step's `Save` exports the square PNG, saves all channel changes, and
-closes the dialog. Save remains visible for empty images and GIFs, including after
-clearing an image. It is disabled when there are no changes or required fields
-are invalid. `Back` or Escape returns without applying a pending crop.
+The image step's `Save` exports a square PNG only for a new image or changed crop,
+saves all channel changes, and closes the dialog. Opening an existing image does
+not enable Save, and saving only a name change does not upload the image again.
+Resetting the crop restores its unchanged state. Save stays visible for empty
+images and GIFs, including after clearing an image. It is disabled when there are
+no changes or required fields are invalid. `Back` or Escape returns without
+applying a pending crop.
 The cropper and lightbox load only when needed. Compact footer actions have an
 edge-to-edge divider above them.
 

@@ -390,9 +390,13 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
                             disabled={!props.canEdit || state.pending()}
                             actions={<ImageActions />}
                             saveDisabled={!state.name().trim()}
+                            canSave={state.canSave()}
+                            hasImageDraft={state.picture() instanceof File}
                             onSave={(cropped) => {
-                              setOriginalPicture(cropSource());
-                              state.changePicture(cropped);
+                              if (cropped) {
+                                setOriginalPicture(cropSource());
+                                state.changePicture(cropped);
+                              }
                               returnToDetails();
                               void save();
                             }}
