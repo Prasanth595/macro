@@ -266,7 +266,7 @@ beside a full explanatory paragraph, the existing native demo, and descriptive f
 tuple. Keep both lines short enough to fit at phone widths without shrinking
 the type or clipping words.
 
-Use two to four feature cards chosen for the specific demo, each with a concrete
+Use only the feature cards needed for the specific demo, each with a concrete
 action label, a required short summary, and an adjacent arrow. All eight
 subpages use the same soft card layout; vary the content and count with the
 workflow rather than repeating generic benefits.
@@ -289,6 +289,11 @@ feature; do not pad every guide into the same template. Explain what someone
 can do, what they need to start, and any access or availability detail that
 changes the result. Keep short card summaries separate from the fuller guide.
 Use no em dashes or invented product controls in this copy.
+Keep each panel focused on a distinct action; consolidate overlapping cards and
+remove sections that restate the introduction. Use `prompt` for agent requests,
+with the visible label “Example prompt”; reserve `example` for human messages or
+sample notes. Do not add captions beneath prompts. Keep access and availability
+details only where they affect the action described.
 
 The guides were checked against `apps/docs`, the current app agent guide, and
 implementation at upstream commit `c5cba006` on October 19, 2026. Source comments

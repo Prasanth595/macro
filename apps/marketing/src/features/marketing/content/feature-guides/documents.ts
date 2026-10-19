@@ -8,37 +8,35 @@ export const documentsGuides = {
       title: 'Update from an email',
       summary: 'Turn customer feedback into changes in the shared document.',
       intro:
-        'When a customer asks for a change, give your agent the email and the document it affects. The agent can read the request and edit the existing file, so your team can review the result where it already works.',
+        'Give an agent the customer email and the document it affects. It can update the shared file directly.',
       sections: [
         {
-          kind: 'example',
-          heading: 'Example request',
+          kind: 'prompt',
+          heading: 'Example prompt',
           text: 'Update the rollout plan with the dates Valentina confirmed in this email. Keep the rest of the plan as it is.',
-          caption:
-            'Mention the actual email and rollout plan in your request so the agent opens the right items.',
         },
         {
           kind: 'steps',
           heading: 'From request to revision',
           items: [
             {
-              title: 'Point to the sources',
-              text: 'Type @ to select the email thread and the document. A mention links to the original item, including the text the agent needs to read.',
+              title: 'Mention both items',
+              text: 'Type @ to select the email and document.',
             },
             {
-              title: 'Describe the change',
-              text: 'Name the section or decision you want updated. Include any wording, dates, or details that should stay the same.',
+              title: 'Name the change',
+              text: 'Say which section to update and what should stay unchanged.',
             },
             {
               title: 'Read the result',
-              text: 'Open the shared document and check the change against the email. Edit it yourself or ask for another pass in the same conversation.',
+              text: 'Open the revised section and check it against the email. Edit it directly or ask for another pass.',
             },
           ],
         },
         {
           kind: 'note',
-          heading: 'The document stays shared',
-          text: 'The agent edits the file you referenced. Existing collaborators keep working in that document, and its links continue to point to it. The agent can only open and edit items your account is allowed to access.',
+          heading: 'Access',
+          text: 'The agent needs permission to read the email and edit the document.',
         },
       ],
       links: [
@@ -56,38 +54,37 @@ export const documentsGuides = {
       title: 'Edit together',
       summary: 'Write with teammates and agents in the same document.',
       intro:
-        'Open a document with your team and work on it together. Changes appear as people write, including when an agent updates the file. There is no separate draft to collect and paste back into the team’s version.',
+        'Write with teammates and agents in the same document. Changes merge as you work, including edits to the same line.',
       sections: [
         {
           kind: 'text',
-          heading: 'One document, several contributors',
+          heading: 'Keep writing',
           paragraphs: [
-            'Use the same editor for a project brief, meeting notes, or a working plan. It supports headings, lists, checklists, tables, images, and links. Teammates can make changes in different parts of the document while you keep writing.',
-            'Macro combines simultaneous edits, including edits to the same line. You can keep working through a lost connection and sync changes when you reconnect.',
+            'Use headings, checklists, tables, images, and links. You can keep working through a lost connection and sync when you reconnect.',
           ],
         },
         {
           kind: 'facts',
-          heading: 'When you need feedback',
+          heading: 'Feedback and history',
           items: [
             {
               title: 'Comments',
-              text: 'Select text and leave a comment tied to that passage. Replies stay together, and you can resolve the thread when the feedback is addressed.',
+              text: 'Select text to discuss a passage. Reply in the thread and resolve it when addressed.',
             },
             {
               title: 'Mentions',
-              text: 'Mention a teammate in a comment to bring them into the discussion. Simply putting their name in the document body does not notify them.',
+              text: 'Mention a teammate in a comment to notify them. A name in the document body does not send that notification.',
             },
             {
               title: 'History',
-              text: 'Browse past versions to understand what changed. You can fork an earlier version into a separate document when you need a copy of that state.',
+              text: 'Browse past versions or fork an earlier version into a separate document.',
             },
           ],
         },
         {
           kind: 'note',
-          heading: 'Choose who can edit',
-          text: 'Use Share to give someone the appropriate access. An editor can change the document; a commenter can leave feedback; a viewer can read it. Sharing a document does not have to mean giving everyone editing rights.',
+          heading: 'Sharing',
+          text: 'Choose viewer, commenter, or editor access in Share.',
         },
       ],
       links: [
@@ -107,37 +104,26 @@ export const documentsGuides = {
       title: 'Reference the email',
       summary: 'Keep the original customer request one click from the brief.',
       intro:
-        'A document can link directly to an email thread in Macro. That gives the reader a way to check what the customer actually said, including the replies and attachments, instead of relying on a copied excerpt.',
+        'Mention a customer email in a document so readers can open the original thread and attachments.',
       sections: [
         {
           kind: 'steps',
-          heading: 'Add the source',
+          heading: 'Add a reference',
           items: [
             {
-              title: 'Insert a mention',
-              text: 'Type @ in the document and find the email thread. Select the result to insert a reference at the point where it matters.',
+              title: 'Type @ and choose the email',
+              text: 'Insert the mention beside the requirement or decision it supports.',
             },
             {
-              title: 'Explain why it matters',
-              text: 'Add a sentence beside the reference, such as which requirement or date the customer confirmed. The link provides evidence; your sentence makes its purpose clear.',
-            },
-            {
-              title: 'Open the conversation',
-              text: 'Click the mention to read the original email. You can return to the document after checking the details.',
+              title: 'Explain the connection',
+              text: 'Add a short sentence, such as “Valentina confirmed this date in the rollout email.”',
             },
           ],
         },
         {
-          kind: 'example',
-          heading: 'In a rollout plan',
-          text: 'Customer approval: Valentina confirmed the revised launch date in the rollout email thread.',
-          caption:
-            'Use an email mention after the sentence so the reader can open the conversation.',
-        },
-        {
           kind: 'note',
-          heading: 'Check access to the email',
-          text: 'A link in a document is a reference. When teammates need the email itself, share the thread with them or their channel. Shared readers can view the thread; sharing does not give them permission to send replies from your mailbox.',
+          heading: 'Give readers access',
+          text: 'Share the email with the teammate or channel when needed. A reference alone does not grant access to the thread.',
         },
       ],
       links: [
@@ -155,44 +141,21 @@ export const documentsGuides = {
       title: 'Check the task',
       summary: 'See the current task status from inside the document.',
       intro:
-        'Mention a task in a brief or plan to connect the explanation with the work that needs doing. The reference shows the task’s current details and opens the task when someone needs to act.',
+        'Mention a task in the plan to show its current details and let readers open the assignment.',
       sections: [
         {
-          kind: 'facts',
-          heading: 'What stays connected',
-          items: [
-            {
-              title: 'The plan',
-              text: 'Describe the outcome, requirements, and decisions in the document. Put the task reference beside the part it implements.',
-            },
-            {
-              title: 'The assignment',
-              text: 'Keep the owner, status, and priority on the task itself. The mention reflects task information, so a manually typed status in the brief is unnecessary.',
-            },
-            {
-              title: 'The discussion',
-              text: 'Open the task to read its description and comments. Questions about the assignment stay with the work instead of becoming another version of the plan.',
-            },
+          kind: 'text',
+          heading: 'Link the assignment',
+          paragraphs: [
+            'Type @ and select the task beside the work it covers. Keep the owner, status, and priority on the task so you don’t need to maintain a separate status in the document.',
           ],
-        },
-        {
-          kind: 'example',
-          heading: 'In a launch checklist',
-          text: 'Before inviting customers, complete the task to review the onboarding email.',
-          caption:
-            'Insert the real task with @ so readers can see whether it is still open.',
         },
         {
           kind: 'text',
-          heading: 'Give the reader a clear next step',
+          heading: 'Follow up on the task',
           paragraphs: [
-            'Use a task for something someone can finish, such as reviewing a draft or testing a change. Use the document for the information they need to do it. This keeps a long brief readable without hiding the responsibilities inside paragraphs.',
+            'Open it to read the description, update progress, or leave a comment. The mention points to the existing task rather than creating another one.',
           ],
-        },
-        {
-          kind: 'note',
-          heading: 'A reference is not a new task',
-          text: 'Mentioning an existing task does not create another assignment. Everyone who can open the reference is looking at the same task.',
         },
       ],
       links: [
@@ -210,48 +173,30 @@ export const documentsGuides = {
       title: 'Read side by side',
       summary: 'Keep a source open while you write or check a document.',
       intro:
-        'Use Macro’s split view when you need to compare a document with an email, task, or another file. Both stay open, so you can read the source while changing the draft.',
+        'Keep a document open beside the email, task, or file you are using as a source.',
       sections: [
         {
           kind: 'steps',
-          heading: 'Keep both items in view',
+          heading: 'Open another split',
           items: [
             {
-              title: 'Open the document',
-              text: 'Start with the brief, plan, or notes you want to work on.',
+              title: 'Start with the document',
+              text: 'Open the plan or draft you want to edit.',
             },
             {
-              title: 'Open the supporting item',
-              text: 'Use Open in new split on the source you need. From a focused list result, Shift + Enter opens it in another split.',
+              title: 'Open the source beside it',
+              text: 'Choose Open in new split. From a focused list item, use Shift + Enter.',
             },
             {
-              title: 'Work between the two',
-              text: 'Check the original wording, update the document, and follow other references when needed. Each pane shows the original item, with its usual controls.',
-            },
-          ],
-        },
-        {
-          kind: 'facts',
-          heading: 'Useful pairings',
-          items: [
-            {
-              title: 'Email and plan',
-              text: 'Check the customer’s dates and requirements while revising the rollout plan.',
-            },
-            {
-              title: 'Task and brief',
-              text: 'Read the acceptance details while updating the task’s description or progress.',
-            },
-            {
-              title: 'Two documents',
-              text: 'Compare the working plan with the meeting notes that explain a change.',
+              title: 'Read and edit',
+              text: 'Compare the source with the draft while both remain in view.',
             },
           ],
         },
         {
           kind: 'note',
-          heading: 'On a smaller screen',
-          text: 'Open the source, read the detail, and return to the document. The link is still useful when there is not enough room to read both comfortably.',
+          heading: 'Small screens',
+          text: 'When two panes feel cramped, open the reference and return to the document after checking it.',
         },
       ],
       links: [
@@ -271,38 +216,32 @@ export const documentsGuides = {
       title: 'Give docs a home',
       summary: 'Group the files a team or project uses in a folder.',
       intro:
-        'Put related documents in a folder so people have a clear place to start. A launch folder might contain the plan, customer brief, and supporting files, while links connect those files to the work elsewhere in Macro.',
+        'Put a project’s plan, brief, and supporting files in a folder so the team has a place to start.',
       sections: [
         {
           kind: 'steps',
-          heading: 'Organize a project',
+          heading: 'Organize the files',
           items: [
             {
               title: 'Create a folder',
-              text: 'Give it a name people will recognize, such as the project or team. Keep the name useful to someone who did not create it.',
+              text: 'Name it for the project or team.',
             },
             {
-              title: 'Move in the documents',
-              text: 'Move existing files into the folder. They remain the same documents, so you can keep referencing them from tasks and conversations.',
+              title: 'Move in existing documents',
+              text: 'References keep opening those same documents after they move.',
             },
             {
-              title: 'Share the work',
-              text: 'Check the folder’s and documents’ sharing settings for the people who need them. You can also share a document directly in the project’s channel.',
+              title: 'Review sharing',
+              text: 'Check the folder and document access for the people who need them.',
             },
           ],
         },
         {
           kind: 'text',
-          heading: 'Folders and links do different jobs',
+          heading: 'Link them where needed',
           paragraphs: [
-            'A folder gives a document a place in your file structure. A mention connects it to a conversation or task. You can use both: keep a plan in the project folder, then mention that same plan wherever the team discusses it.',
-            'You do not need a new copy for each conversation. Opening a document mention takes the reader to the shared file.',
+            'Mention the same files in tasks and conversations. You don’t need a copy for each discussion.',
           ],
-        },
-        {
-          kind: 'note',
-          heading: 'Finding a file later',
-          text: 'Files shows your documents and files shared with you. Search can find their contents as well as their names, so a folder is a useful starting point rather than the only way back.',
         },
       ],
       links: [
@@ -320,48 +259,30 @@ export const documentsGuides = {
       title: 'Find them by tag',
       summary: 'Find related documents, emails, and tasks with the same tag.',
       intro:
-        'A folder tells you where a document lives. A tag tells you what it relates to. Use tags for a project, customer, or area of work, then find the matching items across Macro.',
+        'Use a project or customer tag to find related documents, emails, tasks, and calls across Macro.',
       sections: [
         {
-          kind: 'facts',
-          heading: 'Choose the right kind of tag',
-          items: [
-            {
-              title: 'Personal',
-              text: 'Use a personal tag for your own organization. Only you see it, so you can group work without changing the team’s system.',
-            },
-            {
-              title: 'Team',
-              text: 'Use a team tag when colleagues need the same grouping. A shared project tag can connect documents, tasks, emails, and calls.',
-            },
-            {
-              title: 'More than one',
-              text: 'A document can have several tags. A launch plan can belong to both a marketing group and a particular product launch.',
-            },
-          ],
-        },
-        {
           kind: 'steps',
-          heading: 'Find the connected work',
+          heading: 'Tag and find',
           items: [
             {
-              title: 'Apply the tag',
-              text: 'Type # in a document or open its tag controls. Choose an existing tag so related work uses the same one.',
+              title: 'Apply a tag',
+              text: 'Type # in a document or open its tag controls. Choose an existing tag when possible.',
             },
             {
-              title: 'Follow it',
-              text: 'Click a tag pill to see other items carrying that tag. You can also choose Tags in search filters.',
+              title: 'Choose the scope',
+              text: 'Personal tags are visible to you. Team tags give colleagues the same grouping.',
             },
             {
-              title: 'Narrow the results',
-              text: 'Choose Any to match one of the selected tags, or All to find items with every selected tag.',
+              title: 'Filter the results',
+              text: 'Click a tag or choose Tags in search. Any matches at least one selected tag; All matches every selected tag.',
             },
           ],
         },
         {
           kind: 'note',
-          heading: 'Tags do not change access',
-          text: 'A shared label helps organize work. It does not make a private document visible to someone who cannot otherwise open it.',
+          heading: 'Access',
+          text: 'Tags organize items without changing who can open them.',
         },
       ],
       links: [

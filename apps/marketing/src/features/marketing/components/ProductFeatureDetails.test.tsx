@@ -4,9 +4,17 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@solidjs/testing-library';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { agentsGuides } from '../content/feature-guides/agents';
+import { callsGuides } from '../content/feature-guides/calls';
+import { channelsGuides } from '../content/feature-guides/channels';
+import { crmGuides } from '../content/feature-guides/crm';
 import { documentsGuides } from '../content/feature-guides/documents';
+import { emailGuides } from '../content/feature-guides/email';
+import { githubGuides } from '../content/feature-guides/github';
+import { tasksGuides } from '../content/feature-guides/tasks';
 import { ProductFeatureDetails } from './ProductFeatureDetails';
 import * as productPreview from './productPagePreview';
 
@@ -121,14 +129,12 @@ it('opens a complete guide with its example, steps, and direct documentation lin
   const dialog = await screen.findByRole('dialog', {
     name: 'Update from an email',
   });
-  expect(screen.getByRole('heading', { name: 'Example request' })).toBeTruthy();
+  expect(screen.getByRole('heading', { name: 'Example prompt' })).toBeTruthy();
   expect(
     screen.getByRole('heading', { name: 'From request to revision' })
   ).toBeTruthy();
   expect(screen.getAllByRole('listitem')).toHaveLength(3);
-  expect(
-    screen.getByRole('heading', { name: 'The document stays shared' })
-  ).toBeTruthy();
+  expect(screen.getByRole('heading', { name: 'Access' })).toBeTruthy();
   const guide = screen.getByRole('region', { name: 'Feature guide' });
   guide.focus();
   expect(document.activeElement).toBe(guide);
@@ -140,8 +146,64 @@ it('opens a complete guide with its example, steps, and direct documentation lin
   fireEvent.click(screen.getByRole('button', { name: 'Edit together' }));
   await screen.findByRole('dialog', { name: 'Edit together' });
   expect(
-    screen.getByRole('heading', { name: 'When you need feedback' })
+    screen.getByRole('heading', { name: 'Feedback and history' })
   ).toBeTruthy();
   expect(screen.getByText('Comments', { selector: 'dt' })).toBeTruthy();
-  expect(screen.queryByRole('heading', { name: 'Example request' })).toBeNull();
+  expect(screen.queryByRole('heading', { name: 'Example prompt' })).toBeNull();
 });
+
+it('labels an agent prompt separately from instructions and sample human messages', async () => {
+  render(() => (
+    <ProductFeatureDetails section="Email" details={emailGuides['auto-tags']} />
+  ));
+  fireEvent.click(screen.getByRole('button', { name: 'Organize with tags' }));
+  const dialog = await screen.findByRole('dialog', {
+    name: 'Organize with tags',
+  });
+  const prompt = within(dialog).getByRole('region', { name: 'Example prompt' });
+  expect(
+    within(prompt).getByText(
+      'Tag this customer thread and the rollout plan with the same project tag.'
+    )
+  ).toBeTruthy();
+  expect(within(prompt).queryByRole('textbox')).toBeNull();
+  expect(within(prompt).queryByRole('button')).toBeNull();
+  expect(within(dialog).queryByText('Ask an agent to help')).toBeNull();
+  expect(
+    within(dialog).queryByText(/An agent can apply tags when you ask/)
+  ).toBeNull();
+  expect(
+    within(dialog).getByRole('heading', { name: 'Add or change tags' })
+  ).toBeTruthy();
+});
+
+it.each([
+  ['Email', emailGuides],
+  ['Chat', channelsGuides],
+  ['Documents', documentsGuides],
+  ['Agents', agentsGuides],
+  ['Calls', callsGuides],
+  ['CRM', crmGuides],
+  ['Tasks', tasksGuides],
+  ['GitHub', githubGuides],
+] as const)(
+  'opens each %s guide and returns to its card',
+  async (section, groups) => {
+    const details = Object.values(groups).flat();
+    render(() => <ProductFeatureDetails section={section} details={details} />);
+    for (const detail of details) {
+      const card = screen.getByRole('button', {
+        name: detail.title,
+      });
+      fireEvent.click(card);
+      const dialog = await screen.findByRole('dialog', {
+        name: detail.title,
+      });
+      expect(within(dialog).getByText(detail.intro)).toBeTruthy();
+      expect(within(dialog).getAllByRole('link').length).toBeGreaterThan(0);
+      fireEvent.keyDown(dialog, { key: 'Escape' });
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      await waitFor(() => expect(document.activeElement).toBe(card));
+    }
+  }
+);

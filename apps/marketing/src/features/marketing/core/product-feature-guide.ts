@@ -3,7 +3,7 @@ type GuideItem = { title: string; text: string };
 export type ProductGuideSection =
   | { kind: 'text'; heading: string; paragraphs: readonly string[] }
   | { kind: 'steps' | 'facts'; heading: string; items: readonly GuideItem[] }
-  | { kind: 'example'; heading: string; text: string; caption?: string }
+  | { kind: 'prompt' | 'example'; heading: string; text: string }
   | { kind: 'note'; heading: string; text: string };
 
 export type ProductFeatureDetail = {

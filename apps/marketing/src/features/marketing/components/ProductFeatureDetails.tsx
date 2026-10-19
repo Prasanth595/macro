@@ -20,9 +20,14 @@ import './product-feature-details.css';
 export type { ProductFeatureDetail } from '../core/product-feature-guide';
 
 function GuideSection(props: { section: ProductGuideSection }) {
+  const headingId = createUniqueId();
   return (
-    <section class="product-guide-section" data-kind={props.section.kind}>
-      <h3>{props.section.heading}</h3>
+    <section
+      class="product-guide-section"
+      data-kind={props.section.kind}
+      aria-labelledby={headingId}
+    >
+      <h3 id={headingId}>{props.section.heading}</h3>
       <Switch>
         <Match when={props.section.kind === 'text' && props.section}>
           {(section) => (
@@ -57,15 +62,11 @@ function GuideSection(props: { section: ProductGuideSection }) {
             </dl>
           )}
         </Match>
+        <Match when={props.section.kind === 'prompt' && props.section}>
+          {(section) => <p class="product-guide-prompt">{section().text}</p>}
+        </Match>
         <Match when={props.section.kind === 'example' && props.section}>
-          {(section) => (
-            <>
-              <blockquote>{section().text}</blockquote>
-              <Show when={section().caption}>
-                {(caption) => <p class="product-guide-caption">{caption()}</p>}
-              </Show>
-            </>
-          )}
+          {(section) => <blockquote>{section().text}</blockquote>}
         </Match>
         <Match when={props.section.kind === 'note' && props.section}>
           {(section) => <p>{section().text}</p>}
@@ -183,7 +184,6 @@ export function ProductFeatureDetails(props: {
                           {(section) => <GuideSection section={section} />}
                         </For>
                         <footer class="product-guide-links">
-                          <p>More in the docs</p>
                           <For each={detail().links}>
                             {(link) => (
                               <a
