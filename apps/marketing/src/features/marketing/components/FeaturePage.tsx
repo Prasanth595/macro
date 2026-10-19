@@ -61,6 +61,7 @@ export function FeaturePageSection(props: {
   title: readonly [string, string];
   description: string;
   details: readonly ProductFeatureDetail[];
+  detailLayout?: 'cards';
   children: JSX.Element;
 }) {
   return (
@@ -79,6 +80,7 @@ export function FeaturePageSection(props: {
       <ProductFeatureDetails
         section={props.title.join(' ')}
         details={props.details}
+        layout={props.detailLayout}
       />
     </section>
   );

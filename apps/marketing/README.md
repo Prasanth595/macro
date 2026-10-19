@@ -261,7 +261,10 @@ with adjacent chevrons open `ProductFeatureDetails` in an accessible modal, so
 the demo and surrounding page do not change size. Escape, backdrop click, and
 the close button dismiss it and return focus to the triggering button. Keep
 these controls outside the demo interaction guard and retain the demo state.
-Keep the middle of the chapter free of divider rules.
+Keep the middle of the chapter free of divider rules. Documents currently
+uses `detailLayout="cards"` as a trial: a full-width row of soft feature cards with a
+short visible summary and an adjacent arrow. Each card opens the same modal.
+Keep this experiment on Documents until the user approves a broader rollout.
 
 Desktop chapters use a 1160px maximum measure. Below 800px the intro stacks;
 phone layouts keep the page gutters. Email stages share the chapter alignment

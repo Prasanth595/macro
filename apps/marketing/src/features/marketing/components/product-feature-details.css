@@ -25,6 +25,51 @@
 }
 .product-feature-detail-links > button > svg { flex: none; width: 14px; height: 14px; }
 
+/* Documents-only trial: the summary is readable before opening the detail. */
+.product-feature-details[data-layout='cards'] {
+  display: block;
+  padding-top: 0;
+  margin-top: 40px;
+}
+.product-feature-details[data-layout='cards'] .product-feature-detail-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 20px;
+  align-items: stretch;
+}
+.product-feature-details[data-layout='cards'] .product-feature-detail-links > button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 10px;
+  min-height: 156px;
+  padding: 28px;
+  border-color: transparent;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-ink) 5%, transparent);
+}
+.product-feature-details[data-layout='cards'] .product-feature-detail-links > button:hover {
+  border-color: color-mix(in srgb, var(--color-ink) 12%, transparent);
+  background: color-mix(in srgb, var(--color-ink) 7%, transparent);
+}
+.product-feature-card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-ink);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.product-feature-card-title > svg { flex: none; width: 18px; height: 18px; }
+.product-feature-card-summary { max-width: 42ch; color: var(--color-ink-muted); font-size: 16px; line-height: 1.6; }
+@media (max-width: 599px) {
+  .product-feature-details[data-layout='cards'] { margin-top: 28px; }
+  .product-feature-details[data-layout='cards'] .product-feature-detail-links { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .product-feature-details[data-layout='cards'] .product-feature-detail-links > button { min-height: 0; padding: 24px; }
+}
+
 .product-detail-backdrop { position: fixed; inset: 0; z-index: 11000; background: rgb(0 0 0 / 45%); }
 .product-detail-positioner { position: fixed; inset: 0; z-index: 11001; display: grid; place-items: center; padding: 20px; pointer-events: none; }
 .product-detail-modal {

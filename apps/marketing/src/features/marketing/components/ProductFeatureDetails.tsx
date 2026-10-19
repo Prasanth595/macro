@@ -1,15 +1,21 @@
 import { Dialog } from '@kobalte/core/dialog';
+import ArrowRight from '@phosphor/arrow-right.svg';
 import CaretRight from '@phosphor/caret-right.svg';
 import X from '@phosphor/x.svg';
 import { createSignal, For, Show } from 'solid-js';
 import './product-feature-details.css';
 
-export type ProductFeatureDetail = { title: string; text: string };
+export type ProductFeatureDetail = {
+  title: string;
+  text: string;
+  summary?: string;
+};
 
 /** Details open above the page without resizing or remounting its demo. */
 export function ProductFeatureDetails(props: {
   section: string;
   details: readonly ProductFeatureDetail[];
+  layout?: 'cards';
 }) {
   const [active, setActive] = createSignal<ProductFeatureDetail>();
   let opener: HTMLButtonElement | undefined;
@@ -17,8 +23,10 @@ export function ProductFeatureDetails(props: {
 
   return (
     <>
-      <div class="product-feature-details">
-        <p>What you can do</p>
+      <div class="product-feature-details" data-layout={props.layout}>
+        <Show when={props.layout !== 'cards'}>
+          <p>What you can do</p>
+        </Show>
         <div class="product-feature-detail-links">
           <For each={props.details}>
             {(detail) => (
@@ -30,8 +38,25 @@ export function ProductFeatureDetails(props: {
                   setActive(detail);
                 }}
               >
-                {detail.title}
-                <CaretRight aria-hidden="true" />
+                <Show
+                  when={props.layout === 'cards'}
+                  fallback={
+                    <>
+                      {detail.title}
+                      <CaretRight aria-hidden="true" />
+                    </>
+                  }
+                >
+                  <span class="product-feature-card-title">
+                    {detail.title}
+                    <ArrowRight aria-hidden="true" />
+                  </span>
+                  <Show when={detail.summary}>
+                    <span class="product-feature-card-summary">
+                      {detail.summary}
+                    </span>
+                  </Show>
+                </Show>
               </button>
             )}
           </For>

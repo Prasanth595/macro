@@ -101,13 +101,16 @@ export function RouteDocuments() {
           id="document-agents"
           title={['Write with', 'your agent']}
           description="Ask your agent to update a brief using your emails and tasks, then keep writing together. Your team and your agent work in the same shared document, with changes merging as you type."
+          detailLayout="cards"
           details={[
             {
               title: 'Update from an email',
+              summary: 'Turn new information into changes in your shared doc.',
               text: 'Point the agent to the pricing email and ask it to update the shared brief. It can read the source and change the document instead of giving you another block of text to paste.',
             },
             {
               title: 'Edit together',
+              summary: 'Write in the same document with your team and agent.',
               text: 'You, your teammates, and the agent work in the same document. Changes merge as you type, so you can review and refine the draft where the work is happening.',
             },
           ]}
@@ -120,17 +123,21 @@ export function RouteDocuments() {
           id="document-links"
           title={['Open the source', 'beside your doc']}
           description="Link to the work you’re writing about and open it beside your document. Read the original email, task, or conversation while you write, without copying the information into another file."
+          detailLayout="cards"
           details={[
             {
               title: 'Reference the email',
+              summary: 'Keep the original conversation a click away.',
               text: 'Add an inline mention of the email that contains the source information. Readers can open the original thread to check the wording or understand a decision.',
             },
             {
               title: 'Check the task',
+              summary: 'See the next step without losing your place.',
               text: 'Mention the task that tracks a next step. Open it from the doc to see the requirements and status while keeping the plan in view.',
             },
             {
               title: 'Read side by side',
+              summary: 'Keep your source open while you write.',
               text: 'Open a linked item beside the document. You can check the source as you write without moving between separate browser tabs.',
             },
           ]}
@@ -143,13 +150,16 @@ export function RouteDocuments() {
           id="document-organization"
           title={['Find docs', 'where you work']}
           description="Keep documents in folders and use tags to find them across projects. A brief can stay in its home folder while appearing beside related emails and tasks under the tags your team uses."
+          detailLayout="cards"
           details={[
             {
               title: 'Give docs a home',
+              summary: 'Group briefs, notes, and files by project.',
               text: 'Put the brief, notes, and supporting files in a project folder. Browse that folder when you want the work your team has deliberately grouped together.',
             },
             {
               title: 'Find them by tag',
+              summary: 'Find related docs, emails, and tasks together.',
               text: 'Apply more than one tag to a document. It can stay in its folder and also appear with related emails and tasks under a shared project or topic.',
             },
           ]}
