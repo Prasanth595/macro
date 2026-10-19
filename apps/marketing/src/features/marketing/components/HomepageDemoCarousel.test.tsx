@@ -18,6 +18,7 @@ afterEach(() => {
   cleanup();
   frame.remove();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 function mountCarousel() {
   return render(() => <HomepageDemoCarousel frame={() => frame} />);
@@ -105,4 +106,77 @@ it('captures horizontal drags and ignores vertical or cancelled gestures', () =>
   pointer('pointercancel', carousel, down);
   pointer('pointerup', carousel, { ...down, clientX: 200 });
   expect(screen.getByRole('heading').textContent).toContain('One inbox');
+});
+
+function enableAutoplay() {
+  vi.useFakeTimers();
+  vi.stubGlobal('matchMedia', () => ({ matches: false }));
+  frame.animate = vi.fn(() => ({ cancel() {} }) as Animation);
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      constructor(private callback: IntersectionObserverCallback) {}
+      observe(target: Element) {
+        this.callback(
+          [
+            {
+              target,
+              isIntersecting: true,
+              intersectionRatio: 1,
+            } as IntersectionObserverEntry,
+          ],
+          this as unknown as IntersectionObserver
+        );
+      }
+      disconnect() {}
+    }
+  );
+}
+
+it('cycles visible slides every eight seconds and wraps to the inbox', () => {
+  enableAutoplay();
+  mountCarousel();
+  vi.advanceTimersByTime(7999);
+  expect(openView).toHaveBeenLastCalledWith('Home');
+  vi.advanceTimersByTime(1);
+  expect(openView).toHaveBeenLastCalledWith('Chat');
+  vi.advanceTimersByTime(40000);
+  expect(openView).toHaveBeenLastCalledWith('Home');
+});
+
+it('pauses on hover, resumes after leaving, and stops when the workspace is used', () => {
+  enableAutoplay();
+  mountCarousel();
+  const carousel = screen.getByRole('region');
+  fireEvent.pointerEnter(carousel);
+  vi.advanceTimersByTime(16000);
+  expect(openView).toHaveBeenLastCalledWith('Home');
+  fireEvent.pointerLeave(carousel);
+  vi.advanceTimersByTime(8000);
+  expect(openView).toHaveBeenLastCalledWith('Chat');
+  frame.contentDocument!.dispatchEvent(
+    new Event('pointerdown', { bubbles: true })
+  );
+  openView.mockClear();
+  vi.advanceTimersByTime(24000);
+  expect(openView).not.toHaveBeenCalled();
+  expect(screen.queryByRole('button', { name: 'Pause slideshow' })).toBeNull();
+});
+
+it('does not start automatic cycling for reduced motion', () => {
+  vi.useFakeTimers();
+  mountCarousel();
+  vi.advanceTimersByTime(24000);
+  expect(openView.mock.calls.map((call) => call[0])).toEqual(['Home']);
+  expect(screen.queryByRole('button', { name: 'Pause slideshow' })).toBeNull();
+});
+
+it('stops automatic cycling after a manual arrow selection', () => {
+  enableAutoplay();
+  mountCarousel();
+  fireEvent.click(screen.getByRole('button', { name: 'Next highlight' }));
+  expect(openView).toHaveBeenLastCalledWith('Chat');
+  openView.mockClear();
+  vi.advanceTimersByTime(24000);
+  expect(openView).not.toHaveBeenCalled();
 });

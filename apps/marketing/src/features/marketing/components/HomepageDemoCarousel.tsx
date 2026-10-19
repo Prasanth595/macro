@@ -36,6 +36,18 @@ const SLIDES = [
 function CarouselCaret(props: { direction: 'left' | 'right' }) {
   return (
     <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24">
+      <defs>
+        <linearGradient
+          id={`homepage-arrow-${props.direction}`}
+          x1="0"
+          y1="0"
+          x2="0"
+          y2="1"
+        >
+          <stop offset="0" stop-color="currentColor" />
+          <stop offset="1" stop-color="currentColor" stop-opacity="0.55" />
+        </linearGradient>
+      </defs>
       <path
         d={
           props.direction === 'left'
@@ -43,7 +55,7 @@ function CarouselCaret(props: { direction: 'left' | 'right' }) {
             : 'M9.5 5.5 16 12l-6.5 6.5'
         }
         fill="none"
-        stroke="currentColor"
+        stroke={`url(#homepage-arrow-${props.direction})`}
         stroke-width="2"
         stroke-linecap="round"
         stroke-linejoin="round"
@@ -59,6 +71,9 @@ export function HomepageDemoCarousel(props: {
 }) {
   const [active, setActive] = createSignal(0);
   const [ready, setReady] = createSignal(false);
+  const [autoplay, setAutoplay] = createSignal(true);
+  let root!: HTMLDivElement;
+  let restartAutoplay = () => {};
   let document: Document | null = null;
   let transition: Animation | undefined;
   let swipe: { x: number; y: number; pointerId: number } | undefined;
@@ -98,9 +113,11 @@ export function HomepageDemoCarousel(props: {
         ?.click();
     }
   };
-  const select = (index: number) => {
+  const select = (index: number, manual = true) => {
+    if (manual) setAutoplay(false);
     setActive((index + SLIDES.length) % SLIDES.length);
     showView();
+    restartAutoplay();
     transition?.cancel();
     if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       transition = props.frame().animate([{ opacity: 0.25 }, { opacity: 1 }], {
@@ -112,6 +129,69 @@ export function HomepageDemoCarousel(props: {
 
   onMount(() => {
     const frame = props.frame();
+    const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (motion.matches) setAutoplay(false);
+    let visible = typeof IntersectionObserver === 'undefined';
+    let hovered = false;
+    let focused = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    restartAutoplay = () => {
+      clearTimeout(timer);
+      if (
+        !ready() ||
+        !autoplay() ||
+        !visible ||
+        hovered ||
+        focused ||
+        window.document.hidden ||
+        motion.matches
+      )
+        return;
+      timer = setTimeout(() => select(active() + 1, false), 8000);
+    };
+    const motionChanged = () => {
+      if (motion.matches) setAutoplay(false);
+      restartAutoplay();
+    };
+    const pauseForUse = () => {
+      setAutoplay(false);
+      restartAutoplay();
+    };
+    const enter = () => {
+      hovered = true;
+      restartAutoplay();
+    };
+    const leave = () => {
+      hovered = false;
+      restartAutoplay();
+    };
+    const focus = () => {
+      focused = true;
+      restartAutoplay();
+    };
+    const blur = (event: FocusEvent) => {
+      focused =
+        event.relatedTarget instanceof Node &&
+        root.contains(event.relatedTarget);
+      restartAutoplay();
+    };
+    root.addEventListener('pointerenter', enter);
+    root.addEventListener('pointerleave', leave);
+    root.addEventListener('focusin', focus);
+    root.addEventListener('focusout', blur);
+    window.document.addEventListener('visibilitychange', restartAutoplay);
+    motion.addEventListener?.('change', motionChanged);
+    const visibility =
+      typeof IntersectionObserver === 'undefined'
+        ? undefined
+        : new IntersectionObserver(
+            ([entry]) => {
+              visible = entry.isIntersecting && entry.intersectionRatio >= 0.35;
+              restartAutoplay();
+            },
+            { threshold: 0.35 }
+          );
+    visibility?.observe(root);
     const followNavigation = (event: Event) => {
       const target = event.target as Element | null;
       const button = target?.closest('.dummy-rail button[aria-label]');
@@ -126,15 +206,21 @@ export function HomepageDemoCarousel(props: {
       observer.disconnect();
       setReady(true);
       showView();
+      restartAutoplay();
     });
     const attach = () => {
       observer.disconnect();
       document?.removeEventListener('click', followNavigation);
+      document?.removeEventListener('pointerdown', pauseForUse);
+      document?.removeEventListener('keydown', pauseForUse);
       document = frame.contentDocument;
       document?.addEventListener('click', followNavigation);
+      document?.addEventListener('pointerdown', pauseForUse);
+      document?.addEventListener('keydown', pauseForUse);
       if (buttonFor('Home')) {
         setReady(true);
         showView();
+        restartAutoplay();
       } else if (document?.body) {
         observer.observe(document.body, { childList: true, subtree: true });
       }
@@ -144,6 +230,16 @@ export function HomepageDemoCarousel(props: {
     onCleanup(() => {
       document?.removeEventListener('click', followNavigation);
       observer.disconnect();
+      visibility?.disconnect();
+      clearTimeout(timer);
+      root.removeEventListener('pointerenter', enter);
+      root.removeEventListener('pointerleave', leave);
+      root.removeEventListener('focusin', focus);
+      root.removeEventListener('focusout', blur);
+      window.document.removeEventListener('visibilitychange', restartAutoplay);
+      motion.removeEventListener?.('change', motionChanged);
+      document?.removeEventListener('pointerdown', pauseForUse);
+      document?.removeEventListener('keydown', pauseForUse);
       transition?.cancel();
       frame.removeEventListener('load', attach);
     });
@@ -151,10 +247,20 @@ export function HomepageDemoCarousel(props: {
 
   return (
     <div
+      ref={root}
       class="homepage-demo-carousel"
       aria-roledescription="carousel"
       role="region"
       aria-label="What you can do with Macro"
+      onKeyDown={(event) => {
+        if (
+          !ready() ||
+          (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')
+        )
+          return;
+        event.preventDefault();
+        select(active() + (event.key === 'ArrowRight' ? 1 : -1));
+      }}
       onPointerDown={(event) => {
         if (
           !ready() ||
@@ -187,26 +293,13 @@ export function HomepageDemoCarousel(props: {
       }}
     >
       <div
-        class="homepage-demo-slide-controls"
-        onKeyDown={(event) => {
-          if (
-            !ready() ||
-            (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')
-          )
-            return;
-          event.preventDefault();
-          select(active() + (event.key === 'ArrowRight' ? 1 : -1));
-        }}
+        class="homepage-demo-slide-copy"
+        aria-live={autoplay() ? 'off' : 'polite'}
+        aria-atomic="true"
       >
-        <button
-          type="button"
-          class="homepage-demo-arrow"
-          aria-label="Previous highlight"
-          disabled={!ready()}
-          onClick={() => select(active() - 1)}
-        >
-          <CarouselCaret direction="left" />
-        </button>
+        <h2>{slide().title.replaceAll('\n', ' ')}</h2>
+      </div>
+      <div class="homepage-demo-slide-controls">
         <For each={SLIDES}>
           {(item, index) => (
             <button
@@ -221,9 +314,21 @@ export function HomepageDemoCarousel(props: {
             </button>
           )}
         </For>
+      </div>
+      <div class="homepage-demo-stage-shell">
         <button
           type="button"
-          class="homepage-demo-arrow"
+          class="homepage-demo-arrow homepage-demo-arrow-previous"
+          aria-label="Previous highlight"
+          disabled={!ready()}
+          onClick={() => select(active() - 1)}
+        >
+          <CarouselCaret direction="left" />
+        </button>
+        {props.children}
+        <button
+          type="button"
+          class="homepage-demo-arrow homepage-demo-arrow-next"
           aria-label="Next highlight"
           disabled={!ready()}
           onClick={() => select(active() + 1)}
@@ -231,14 +336,6 @@ export function HomepageDemoCarousel(props: {
           <CarouselCaret direction="right" />
         </button>
       </div>
-      <div
-        class="homepage-demo-slide-copy"
-        aria-live="polite"
-        aria-atomic="true"
-      >
-        <h2>{slide().title}</h2>
-      </div>
-      {props.children}
     </div>
   );
 }
