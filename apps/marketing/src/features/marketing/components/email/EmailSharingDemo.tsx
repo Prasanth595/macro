@@ -11,6 +11,7 @@ import { demoEmails } from './email-fixtures';
 import { ChannelComposer } from './frozen/ChannelComposer';
 import { EmailShell } from './frozen/EmailShell';
 import { EmailThread } from './frozen/EmailThread';
+import './email-feature-demos.css';
 import './email-demos.css';
 import './email-sharing-stage.css';
 
@@ -29,7 +30,7 @@ function ShareForm(props: {
   return (
     <div class="mail-share-scrim">
       <div
-        class="mail-share-form glass-input"
+        class="mail-share-form"
         role="group"
         aria-label="Share email preview"
       >
@@ -153,7 +154,7 @@ function ChannelResult(props: { onOpen: () => void; updated: boolean }) {
                   Valentina’s ready for Thursday. Here’s the conversation.
                   <button
                     type="button"
-                    class="mail-shared-thread glass-input"
+                    class="mail-shared-thread"
                     onClick={props.onOpen}
                     aria-label="Open shared email: Homepage feedback"
                   >
@@ -284,7 +285,11 @@ export function EmailSharingDemo(props: { onClose?: () => void } = {}) {
     });
   });
   return (
-    <div ref={root} class="mail-sharing-demo" data-phase={phase()}>
+    <div
+      ref={root}
+      class="mail-sharing-demo email-feature-demo"
+      data-phase={phase()}
+    >
       <div
         ref={stage}
         class="mail-sharing-stage"
@@ -300,7 +305,7 @@ export function EmailSharingDemo(props: { onClose?: () => void } = {}) {
         data-opened={opened()}
       >
         <EmailShell
-          class="glass-input"
+          showRail={false}
           label="Email sharing animation"
           channel={phase() >= 6 && !opened()}
         >
@@ -315,13 +320,17 @@ export function EmailSharingDemo(props: { onClose?: () => void } = {}) {
                 sharing={phase() === 1}
               >
                 <Show when={opened() && phase() >= 7}>
-                  <div class="mail-arrived-reply glass-input">
-                    <header>
-                      <strong>Valentina</strong>
-                      <span>Just now</span>
-                    </header>
-                    <p>{incomingReply}</p>
-                  </div>
+                  <EmailThread
+                    email={{
+                      ...demoEmails[0],
+                      id: 'follow-up',
+                      time: 'Just now',
+                      body: incomingReply,
+                    }}
+                    hideHeader
+                    hideSubject
+                    hideReply
+                  />
                 </Show>
               </EmailThread>
             }

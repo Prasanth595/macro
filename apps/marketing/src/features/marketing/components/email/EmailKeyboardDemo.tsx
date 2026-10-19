@@ -99,7 +99,7 @@ export function EmailKeyboardDemo() {
       onKeyDown={onKeyDown}
     >
       <div class="email-keyboard-stage">
-        <EmailShell label="Keyboard email demo" class="glass-input">
+        <EmailShell label="Keyboard email demo" showRail={false}>
           <header class="email-feature-toolbar">
             <Show when={opened()} fallback={<span>Signal</span>}>
               <Button

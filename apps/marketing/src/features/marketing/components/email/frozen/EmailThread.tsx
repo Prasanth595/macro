@@ -20,6 +20,7 @@ export function EmailThread(props: {
   sharing?: boolean;
   onReply?: () => void;
   hideHeader?: boolean;
+  hideSubject?: boolean;
   hideReply?: boolean;
   replyContent?: JSX.Element;
   participants?: JSX.Element;
@@ -64,9 +65,11 @@ export function EmailThread(props: {
         </div>
       </Show>
       <div class="mail-thread-body">
-        <h3 class="block w-full max-w-full min-w-0 text-pretty font-semibold tracking-tight text-ink leading-snug text-2xl mb-6">
-          {props.email.subject}
-        </h3>
+        <Show when={!props.hideSubject}>
+          <h3 class="block w-full max-w-full min-w-0 text-pretty font-semibold tracking-tight text-ink leading-snug text-2xl mb-6">
+            {props.email.subject}
+          </h3>
+        </Show>
         {props.participants}
         <MessageCard
           messageId={props.email.id}

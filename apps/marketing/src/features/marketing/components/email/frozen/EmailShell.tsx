@@ -180,6 +180,7 @@ export function EmailShell(props: {
   children: JSX.Element;
   sidebar?: JSX.Element;
   channel?: boolean;
+  showRail?: boolean;
   label: string;
   class?: string;
 }) {
@@ -190,7 +191,9 @@ export function EmailShell(props: {
       role="group"
       aria-label={props.label}
     >
-      <MailAppRail channel={props.channel} />
+      <Show when={props.showRail !== false}>
+        <MailAppRail channel={props.channel} />
+      </Show>
       <Show when={props.sidebar}>{props.sidebar}</Show>
       <div class="mail-main">{props.children}</div>
     </div>

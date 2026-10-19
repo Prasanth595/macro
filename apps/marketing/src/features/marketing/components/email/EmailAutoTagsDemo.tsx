@@ -11,7 +11,6 @@ import {
   emailTags,
 } from '../../core/demo-email';
 import { createEmailWalkthrough } from '../../primitives/createEmailWalkthrough';
-import { DemoCursor } from '../DemoCursor';
 import { EmailRows } from './frozen/EmailRows';
 import { EmailShell } from './frozen/EmailShell';
 import { EmailThread } from './frozen/EmailThread';
@@ -86,7 +85,7 @@ export function EmailAutoTagsDemo() {
       data-opened={opened()}
     >
       <div class="email-tag-stage">
-        <EmailShell label="Email tags demo" class="glass-input">
+        <EmailShell label="Email tags demo" showRail={false}>
           <header class="email-feature-toolbar">
             <Show
               when={opened()}
@@ -179,24 +178,6 @@ export function EmailAutoTagsDemo() {
                   </button>
                 )}
               </For>
-            </div>
-          </Show>
-          <Show when={playback.playing() && !playback.reducedMotion()}>
-            <div
-              class="email-agent-pointer"
-              data-menu={menu()}
-              style={{
-                '--email-cursor-row': selected(),
-                '--email-tag-index': Math.max(
-                  0,
-                  emailTags.findIndex(
-                    (tag) => tag.id === incoming[selected()].tags?.[0]
-                  )
-                ),
-              }}
-              aria-hidden="true"
-            >
-              <DemoCursor />
             </div>
           </Show>
         </EmailShell>

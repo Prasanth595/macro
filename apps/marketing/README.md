@@ -328,10 +328,14 @@ pointer. Manual pointer or keyboard interaction stops it. Email, channel, and
 new-reply views share a fixed-height viewport with internal scrolling, so the
 section below stays in place.
 
-The four feature links have inline SVG illustrations. Full app frames use a
-raised rim and a bottom mask into the page background; keep interactive controls
-above the faded tail. `HomepageEmailCompose` uses the frozen app composer chrome
-on the email page while retaining the existing homepage appearance.
+The four feature links have inline SVG illustrations. Lower email demos share
+one neutral app surface, 48px toolbars, and the frozen inbox row spacing. Do not
+add glass gradients, dotted backgrounds, fading masks, or per-scene row chrome.
+Thread messages, including new replies, use the same `MessageCard` presentation.
+The drafting story places channel messages beside the existing email composer
+in two connected panes, stacked below 800px. Keep the surrounding page scrollable
+until the visitor enters a demo. `HomepageEmailCompose` retains the existing
+homepage appearance; the wallpaper hero is unchanged.
 
 `/crm` follows the same reading width, left-aligned slab headings, glass edges,
 and homepage closing animation. `WorkspaceDesktopDemo` supplies the shared Mac

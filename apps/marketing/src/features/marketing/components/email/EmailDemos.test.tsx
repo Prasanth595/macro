@@ -174,6 +174,16 @@ it('keeps the live reply in the shared thread and stops at the completed result'
   expect(
     view.getByText(/One more thing: could you include the onboarding guide/)
   ).toBeTruthy();
+  const messageDetails = view.getAllByRole('button', {
+    name: 'Message details',
+  });
+  expect(messageDetails).toHaveLength(2);
+  fireEvent.click(messageDetails[1]);
+  expect(messageDetails[1].getAttribute('aria-expanded')).toBe('true');
+  expect(messageDetails[0].getAttribute('aria-expanded')).toBe('false');
+  expect(
+    view.getAllByRole('heading', { name: 'Homepage feedback' })
+  ).toHaveLength(1);
   expect(view.queryByRole('button', { name: /Play|Pause|Replay/ })).toBeNull();
 });
 

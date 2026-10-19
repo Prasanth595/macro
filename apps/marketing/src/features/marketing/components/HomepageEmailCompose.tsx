@@ -42,7 +42,7 @@ export default function HomepageEmailCompose(
 ) {
   const initialBody = props.draft?.body;
   const [subject, setSubject] = createSignal(
-    props.draft?.subject ?? 'Great meeting you — demo follow-up'
+    props.draft?.subject ?? 'Demo follow-up'
   );
   const [showBcc, setShowBcc] = createSignal(false);
   const [showFormat, setShowFormat] = createSignal(false);

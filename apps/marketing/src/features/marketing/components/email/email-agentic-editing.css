@@ -1,27 +1,19 @@
-#agentic-editing .homepage-feature-heading { max-width: 920px; margin-inline: auto; padding-inline: 24px; text-align: left; }
-#agentic-editing .homepage-feature-title { justify-content: flex-start; }
-#agentic-editing .homepage-section-break { display: block; }
-#agentic-editing .homepage-section-break > span { display: none; }
-#agentic-editing .homepage-section-break p { max-width: 490px; margin-inline: 0; white-space: pre-line; text-wrap: wrap; }
-
-.email-editing-stage { position: relative; isolation: isolate; padding: 24px; }
-.email-editing-stage::before {
-  content: ''; position: absolute; inset: 0 -24px; z-index: -1; pointer-events: none;
-  background: radial-gradient(ellipse at 50% 50%, #a0aabc08, transparent 70%);
-}
-.email-editing-stage::after {
-  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
-  background-image: radial-gradient(#d0d6e133 .6px, transparent .9px);
-  background-size: 8px 8px;
-  mask-image: radial-gradient(ellipse at 50% 40%, #000, transparent 70%);
-  opacity: .16;
-}
-.email-editing-stage .homepage-conversation { width: 100%; }
-.email-editing-stage .homepage-email-body p + p { margin-top: 16px; }
-
-@media (max-width: 699px) {
-  #agentic-editing .homepage-feature-heading { padding-inline: 0; }
-  #agentic-editing .homepage-section-break p { max-width: 100%; white-space: normal; text-wrap: pretty; }
-  .email-editing-stage { padding: 12px 0 0; }
-  .email-editing-stage::before { inset: 0; }
+/* Existing channel bubbles and email composer, arranged as two app splits. */
+.email-editing-stage { position: relative; }
+.email-editing-panes { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); min-width: 0; }
+.email-editing-panes > section { min-width: 0; }
+.email-editing-draft { border-left: 1px solid var(--color-edge-muted); }
+.email-editing-panes .email-feature-toolbar > :last-child { margin-left: 0; }
+.email-editing-messages { padding: 32px 20px; }
+.email-editing-messages .homepage-conversation { width: 100%; margin: 0; gap: 24px; font-size: 14px; }
+.email-editing-messages .homepage-message { max-width: 100%; }
+.email-editing-compose { padding: 20px 24px 28px; }
+.email-editing-compose .homepage-email-demo { --homepage-email-height: 480px; }
+.email-editing-compose .homepage-email-label { flex-basis: 48px; }
+.email-editing-compose .homepage-email-body p + p { margin-top: 16px; }
+@media (max-width: 799px) {
+  .email-editing-panes { grid-template-columns: minmax(0, 1fr); }
+  .email-editing-draft { border-left: 0; border-top: 1px solid var(--color-edge-muted); }
+  .email-editing-messages { padding: 20px 12px 28px; }
+  .email-editing-compose { padding: 12px; }
 }
