@@ -47,7 +47,7 @@ export const Tabs = (props: TabsProps) => {
       {...rootProps}
       class={cn(
         'relative inline-flex h-8 items-center',
-        segmented() && 'rounded-full bg-control p-[3px]',
+        segmented() && 'rounded-full bg-control p-0.5',
         local.fullWidth && 'flex w-full',
         local.class
       )}
