@@ -20,7 +20,7 @@ The homepage primary adds a subtle satin gradient and inset edge, a quieter
 18px arrow, and a 1px hover lift; it remains a single link.
 Feedback uses 140ms CSS transitions, respects reduced motion, and does not
 track the pointer. Mobile header actions retain 44px touch targets. The homepage scroll cue is an
-arrow-only 44px button, inset 28px from the bottom while respecting safe areas.
+16px arrow inside a 44px button, inset 20px from the bottom while respecting safe areas.
 
 ## Ownership and dependency boundary
 

@@ -1,4 +1,4 @@
-.homepage-scroll-cue { position: absolute; bottom: max(28px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 12px; border: 0; border-radius: 12px; background: none; color: var(--color-ink-muted); font: inherit; font-size: 12px; line-height: 20px; }
+.homepage-scroll-cue { position: absolute; bottom: max(20px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 12px; border: 0; border-radius: 12px; background: none; color: var(--color-ink-muted); font: inherit; font-size: 12px; line-height: 20px; }
 .site-nav-start.homepage-hero-cta { font-family: 'Inter Variable', Inter, sans-serif; }
 /* The hero keeps a quiet satin finish, with depth from edges rather than glow. */
 .site-nav-start.homepage-primary-cta {
@@ -45,7 +45,7 @@ html[data-palette='cream'] .site-nav-start.homepage-primary-cta:active {
 .homepage-scroll-cue:focus-visible { outline: 1px solid var(--color-ink-muted); outline-offset: 4px; }
 .homepage-scroll-cue { transition: opacity 240ms ease, visibility 0s 240ms; }
 .homepage-scroll-cue[data-dismissed=true] { opacity: 0; visibility: hidden; pointer-events: none; }
-.homepage-scroll-cue svg { width: 20px; height: 20px; animation: homepage-scroll-nudge 2.4s ease-in-out infinite; }
+.homepage-scroll-cue svg { width: 16px; height: 16px; animation: homepage-scroll-nudge 2.4s ease-in-out infinite; }
 .homepage-scroll-cue:not([data-visible=true]) svg,
 .homepage-scroll-cue[data-dismissed=true] svg { animation-play-state: paused; }
 @keyframes homepage-scroll-nudge { 0%, 25%, 100% { transform: translateY(0); } 55% { transform: translateY(5px); } 75% { transform: translateY(0); } }
