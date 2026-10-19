@@ -137,7 +137,7 @@ Portrait and landscape touch layouts have no conversation side panel. **Changes*
 unified diff with **Back to conversation**; returning preserves the unsent draft.
 
 The mobile conversation list omits the desktop **New conversation**, **Agents**,
-and **Connections** controls. Use the Home composer or global create menu to start
+and **Connections** controls. Use the Agents composer or global create menu to start
 a conversation. Returning to the list and reopening the composer preserves the
 draft, attachments, agent, model, repository, and branch. Tap the
 agent/model control once to open a bottom sheet with its search field focused,
@@ -157,7 +157,9 @@ use Back to return. Search accepts
 model names, IDs, and providers. When browsing an agent, **Use default** in the
 header selects its configured model.
 
-The mobile Home composer is an opaque, rounded input using the same surface as
+The floating mobile composer appears only on **Agents**; Home and other views
+keep their New action or their own reply/comment composer.
+The mobile Agents composer is an opaque, rounded input using the same surface as
 the New button, including its glass treatment in dark mode. Send is a bare up
 arrow without a background, including when disabled. The short placeholder reads
 “Message Macro AI”.
@@ -185,7 +187,7 @@ draft or queue, the busy composer offers **Stop**. Send-next actions disable and
 Steer is hidden during stopping/starting and for read-only sessions.
 
 Phone verification: check portrait and landscape with touch emulation. In the
-Home composer, enter multiple lines and tap Send, attach, or the model control;
+Agents composer, enter multiple lines and tap Send, attach, or the model control;
 blurring the editor during the tap must not collapse or move the controls. Then exercise
 list → new conversation → back → new conversation, a row and direct session link,
 the model sheet and repository controls, queued sends, and Changes → back. Check

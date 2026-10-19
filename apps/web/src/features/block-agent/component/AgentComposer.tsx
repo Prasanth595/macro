@@ -390,7 +390,9 @@ export function AgentComposer(props: {
                 configuring() ||
                 changingEffort() !== undefined
               }
-              onSelect={(model) => void chooseModel(model)}
+              onSelect={(model) =>
+                fireAndForget(chooseModel(model), 'agent-composer')
+              }
               modelRow={(row) => (
                 <AgentModelMenuItem
                   {...row}
@@ -404,7 +406,10 @@ export function AgentComposer(props: {
                       : undefined
                   }
                   onSelectEffort={(selection) =>
-                    void chooseModel(row.option.id, selection)
+                    fireAndForget(
+                      chooseModel(row.option.id, selection),
+                      'agent-composer'
+                    )
                   }
                 />
               )}
@@ -423,7 +428,8 @@ export function AgentComposer(props: {
               }
               onChange={(choice) => {
                 const model = metadata()?.model;
-                if (model) void chooseModel(model, choice);
+                if (model)
+                  fireAndForget(chooseModel(model, choice), 'agent-composer');
               }}
             />
 
