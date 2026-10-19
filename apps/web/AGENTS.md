@@ -91,6 +91,9 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Reconcile global focus when focused DOM subtrees are removed; iOS can omit blur events, otherwise floating creation actions stay hidden after search or editor teardown.
 - Mount the floating mobile AI composer only on the Agents view; other views keep their New action or their own reply/comment composer.
 - All API/network calls live in service-clients.
+- Route explicit call exits using the server's `callEnded` result: ended calls
+  open their record; ongoing channel and scheduled calls return to the channel
+  and Calendar. Preserve the session ID before disconnecting.
 - Keep desktop Gmail and Outlook inbox consent in the system browser with a
   `macro:///inbox-link-callback` return; webview origins are not desktop callbacks.
 - Draft autosaves preserve active email thread messages; evict inactive legacy
