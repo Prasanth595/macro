@@ -1,6 +1,6 @@
 import { toast } from '@core/component/Toast/Toast';
 import { extractFileSystemEntries } from '@core/util/dataTransfer';
-import { fileExtension } from '@service-storage/util/filename';
+import { fileExtension } from '@service-storage/util/fileExtension';
 import { type Accessor, onCleanup } from 'solid-js';
 
 interface FileDropDirectiveOptions {

@@ -1,5 +1,8 @@
 import type { BlockAlias, BlockName } from '@core/block';
 import { fileTypeToBlockName } from '@core/constant/allBlocks';
+import { fileExtension } from './fileExtension';
+
+export { fileExtension };
 
 const FULLY_QUALIFIED_DOCUMENT_NAME_BLOCKS: Array<BlockName | BlockAlias> = [
   'unknown',
@@ -19,21 +22,6 @@ export function filenameWithoutExtension(
 
   const lastDotIndex = filename.lastIndexOf('.');
   return lastDotIndex === -1 ? filename : filename.substring(0, lastDotIndex);
-}
-
-/**
- * Gets the extension of a filename.
- * @param filename - The filename to get the extension from.
- * @returns The extension of the filename, or undefined if no extension is found.
- */
-export function fileExtension(
-  filename: string | undefined
-): string | undefined {
-  if (!filename) return undefined;
-  const lastDotIndex = filename.lastIndexOf('.');
-  return lastDotIndex === -1
-    ? undefined
-    : filename.substring(lastDotIndex + 1).toLowerCase();
 }
 
 /**
