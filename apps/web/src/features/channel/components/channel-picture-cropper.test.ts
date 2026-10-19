@@ -70,15 +70,19 @@ vi.mock('cropperjs', () => ({
           0,
         ]);
       },
-      $resetTransform: () => {
-        cropper.transform([1, 0, 0, 1, 0, 0]);
+      $setTransform: (...matrix: number[]) => {
+        cropper.transform(matrix);
         return this.image;
       },
-      $center: () => cropper.transform([1, 0, 0, 1, 0, 0]),
+      $center: () => {
+        const [a, b, c, d] = cropper.matrix;
+        cropper.transform([a, b, c, d, -200, 0]);
+        return this.image;
+      },
       $rotate: (angle: string) => {
         cropper.rotate(angle);
-        const [a, b, c, d] = cropper.matrix;
-        cropper.transform([c, d, -a, -b, 0, 0]);
+        const [a, b, c, d, e, f] = cropper.matrix;
+        cropper.transform([c, d, -a, -b, e, f]);
       },
       $move: cropper.move,
     });
@@ -183,13 +187,13 @@ describe('channel picture crop lifecycle', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Rotate image' }));
     expect(cropper.rotate).toHaveBeenCalledWith('90deg');
     await screen.findByText('100%');
-    expect(cropper.matrix).toEqual([0, 1, -1, -0, 0, 0]);
+    expect(cropper.matrix).toEqual([0, 1, -1, -0, -200, 0]);
     fireEvent.keyDown(screen.getByRole('group', { name: 'Crop preview' }), {
       key: 'ArrowLeft',
     });
     expect(cropper.move).toHaveBeenCalledWith(-10, 0);
     fireEvent.click(screen.getByRole('button', { name: 'Reset crop' }));
-    expect(cropper.matrix).toEqual([1, 0, 0, 1, 0, 0]);
+    expect(cropper.matrix).toEqual([1, 0, 0, 1, -200, 0]);
     setDisabled(true);
     fireEvent.click(screen.getByRole('button', { name: 'Rotate image' }));
     expect(cropper.rotate).toHaveBeenCalledOnce();

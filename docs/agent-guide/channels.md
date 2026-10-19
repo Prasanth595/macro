@@ -1262,7 +1262,8 @@ The fixed circular crop guide darkens the area outside it and reveals alignment
 guides on hover or focus. Drag the image to reposition it or use the arrow keys in
 the crop workspace. There are no resize handles. Zoom controls sit below the
 workspace, with the current percentage on the left and Reset, Rotate, and the
-minus/plus buttons on the right. Rotate turns the image clockwise by 90 degrees.
+minus/plus buttons on the right. Rotate recenters the image and turns it clockwise
+by 90 degrees, keeping the current zoom.
 Reset removes rotation and restores the initial 100% image fit.
 Scroll-wheel zoom anchors to the cursor; the minus/plus buttons anchor to the
 center of the crop, even after panning or rotation.

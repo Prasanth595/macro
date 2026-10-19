@@ -129,12 +129,29 @@ export default function ChannelPictureCropper(props: {
 
   function reset() {
     if (disabled()) return;
-    cropper?.getCropperImage()?.$resetTransform().$center('cover');
+    const image = cropper?.getCropperImage();
+    const canvas = cropper?.getCropperCanvas();
+    if (!image || !canvas) return;
+    const { naturalWidth, naturalHeight } = image.$image;
+    const scale = Math.max(
+      canvas.clientWidth / naturalWidth,
+      canvas.clientHeight / naturalHeight
+    );
+    // Apply the fitted, centered transform atomically: identity can violate min-fit.
+    image.$setTransform(
+      scale,
+      0,
+      0,
+      scale,
+      (canvas.clientWidth - naturalWidth) / 2,
+      (canvas.clientHeight - naturalHeight) / 2
+    );
   }
 
   function rotate() {
     if (disabled()) return;
-    cropper?.getCropperImage()?.$rotate('90deg');
+    // Recenter before rotating so the new bounds stay inside the crop constraints.
+    cropper?.getCropperImage()?.$center().$rotate('90deg');
   }
 
   async function save() {
