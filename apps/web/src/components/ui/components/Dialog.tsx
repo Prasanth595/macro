@@ -78,9 +78,11 @@ function DialogDrawer(props: DialogProps) {
         <MobileDrawer.Portal>
           <MobileDrawer.Overlay
             class={cn(props.visibleScrim && 'bg-modal-overlay')}
+            onContextMenu={(event: MouseEvent) => event.stopPropagation()}
           />
           <MobileDrawer.Content
             ref={props.contentRef}
+            onContextMenu={(event: MouseEvent) => event.stopPropagation()}
             maxHeight={100}
             class={cn('mx-auto max-w-[calc(100vw-16px)]', props.class)}
           >
@@ -142,6 +144,7 @@ function DesktopDialog(props: DialogProps) {
     <KobalteDialog onOpenChange={props.onOpenChange} open={props.open} modal>
       <KobalteDialog.Portal>
         <KobalteDialog.Overlay
+          onContextMenu={(event) => event.stopPropagation()}
           class={cn(
             // Every floating dialog dims the page behind it with the accent
             // sheen; `visibleScrim` layers the heavier legacy coat on top for
@@ -152,6 +155,7 @@ function DesktopDialog(props: DialogProps) {
           )}
         />
         <div
+          onContextMenu={(event) => event.stopPropagation()}
           class={cn(
             'fixed top-0 bottom-(--virtual-keyboard-height,0) inset-x-0 z-modal flex',
             props.fullscreen

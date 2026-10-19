@@ -76,6 +76,37 @@ function setup(props: Partial<Omit<DialogProps, 'children' | 'open'>> = {}) {
 
 describe('responsive dialog', () => {
   it.each([true, false])(
+    'isolates content and overlay context menus from its host with mobile=%s',
+    async (isMobile) => {
+      mobile.value = isMobile;
+      const openHostMenu = vi.fn();
+      render(() => (
+        <div onContextMenu={openHostMenu}>
+          <Dialog open>
+            <Dialog.Title>Channel details</Dialog.Title>
+            <input aria-label="Channel name" />
+          </Dialog>
+        </div>
+      ));
+      const dialog = await screen.findByRole('dialog', {
+        name: 'Channel details',
+      });
+      const overlay = isMobile
+        ? document.querySelector('[data-corvu-drawer-overlay]')!
+        : document.querySelector('.scrim-glass')!;
+      for (const target of [
+        screen.getByRole('textbox', { name: 'Channel name' }),
+        dialog,
+        overlay,
+        ...(isMobile ? [] : [dialog.parentElement!]),
+      ]) {
+        // Keep the native input menu, but do not reach the portaling host.
+        expect(fireEvent.contextMenu(target)).toBe(true);
+      }
+      expect(openHostMenu).not.toHaveBeenCalled();
+    }
+  );
+  it.each([true, false])(
     'sets mobile pointer blocking to %s',
     async (noOutsidePointerEvents) => {
       setup({ noOutsidePointerEvents });
