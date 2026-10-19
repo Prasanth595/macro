@@ -1,5 +1,8 @@
 import Building from '@phosphor/building-office.svg';
 import CaretDown from '@phosphor/caret-down.svg';
+import Currency from '@phosphor/currency-dollar.svg';
+import Grip from '@phosphor/dots-six-vertical.svg';
+import Dots from '@phosphor/dots-three.svg';
 import Table from '@phosphor/table.svg';
 import Users from '@phosphor/users.svg';
 import { Button, Dropdown } from '@ui';
@@ -33,28 +36,28 @@ const owners = ['julia', 'jacob', 'valentina', 'teo'] as const;
 /** Website-owned presentation from CRM's records, pipeline sidebar and database toolbar. */
 export default function CrmPipelineScene() {
   const w = createDummyWorkspace('crm');
-  // Recognizable example accounts, not a claim that these companies use Macro.
+  // Fictional accounts for the public demo; IDs retain the linked sample records.
   const accountNames: Record<string, string> = {
-    northstar: 'Figma',
-    harbor: 'Linear',
-    ridgeline: 'Arc’teryx',
-    copperleaf: 'Pilot',
-    orbit: 'Vercel',
-    tidewater: 'Headway',
-    fernway: 'Navan',
-    meadow: 'Instrument',
-    bluebird: 'Flexport',
-    sable: 'COLLINS',
-    lumen: 'Square',
-    foxglove: 'Olson Kundig',
-    northwind: 'ServiceTitan',
-    granite: 'Cooley',
-    relay: 'Intercom',
-    pallet: 'Stumptown Coffee',
-    fieldnote: 'User Interviews',
-    cedar: 'BUCK',
-    fieldwork: 'Industrious',
-    brightline: 'Varsity Tutors',
+    northstar: 'Miller & Rowe',
+    harbor: 'Juniper Dental',
+    ridgeline: 'Eastbank Architecture',
+    copperleaf: 'Acorn Accounting',
+    orbit: 'Fieldstone Software',
+    tidewater: 'Cedar Grove Physio',
+    fernway: 'Roamwell Travel',
+    meadow: 'Parlor Studio',
+    bluebird: 'Westport Freight',
+    sable: 'Paperhouse Creative',
+    lumen: 'Bookend Retail',
+    foxglove: 'Atelier Finch',
+    northwind: 'Keystone Mechanical',
+    granite: 'Benton Legal',
+    relay: 'Replywell',
+    pallet: 'Canopy Coffee',
+    fieldnote: 'Panelwork Research',
+    cedar: 'Studio Morrow',
+    fieldwork: 'Commonroom Offices',
+    brightline: 'Oaklane Tutoring',
   };
   let sampleData = JSON.stringify(w.data);
   for (const entry of w.data.companies) {
@@ -302,16 +305,17 @@ export default function CrmPipelineScene() {
               />
             }
           >
-            <ViewShell.TopBar>
+            <ViewShell.TopBar class="homepage-crm-header">
               <h1 class="text-sm font-semibold flex-1">
                 {tab() === 'pipeline'
-                  ? 'Sales pipeline · Sample data'
+                  ? 'Sales pipeline'
                   : tab() === 'contacts'
                     ? 'Contacts'
                     : tab() === 'customers'
                       ? 'Customers'
                       : 'All companies'}
               </h1>
+              <span class="text-xs text-ink-extra-muted">Sample data</span>
               <Show when={tab() === 'pipeline'}>
                 <Button
                   variant="plain"
@@ -339,7 +343,7 @@ export default function CrmPipelineScene() {
                 <div class="flex items-center gap-1" aria-label="Views">
                   <Button
                     variant="ghost"
-                    size="sm"
+                    size="md"
                     aria-pressed={!board()}
                     onClick={() => setBoard(false)}
                   >
@@ -347,7 +351,7 @@ export default function CrmPipelineScene() {
                   </Button>
                   <Button
                     variant="ghost"
-                    size="sm"
+                    size="md"
                     aria-pressed={board()}
                     onClick={() => setBoard(true)}
                   >
@@ -533,23 +537,75 @@ export default function CrmPipelineScene() {
                                   )
                                 }
                               >
-                                <button
-                                  class="homepage-pipeline-company"
-                                  onClick={() => openCompany(deal.companyId)}
-                                >
-                                  <Building class="size-4" />
-                                  {company(deal.companyId).name}
-                                </button>
+                                <div class="homepage-pipeline-card-header">
+                                  <span
+                                    class="homepage-pipeline-grip"
+                                    title={`Drag ${company(deal.companyId).name}`}
+                                  >
+                                    <Grip class="size-4" />
+                                  </span>
+                                  <button
+                                    class="homepage-pipeline-company"
+                                    onClick={() => openCompany(deal.companyId)}
+                                  >
+                                    <Building class="size-4" />
+                                    <span>{company(deal.companyId).name}</span>
+                                  </button>
+                                  <Dropdown modal={false}>
+                                    <Dropdown.Trigger
+                                      variant="ghost"
+                                      size="icon-xs"
+                                      aria-label={`Move ${company(deal.companyId).name}`}
+                                      class="homepage-pipeline-actions"
+                                    >
+                                      <Dots class="size-4" />
+                                    </Dropdown.Trigger>
+                                    <Dropdown.Content portalScope="local">
+                                      <Dropdown.Group>
+                                        <Dropdown.GroupLabel>
+                                          Move to
+                                        </Dropdown.GroupLabel>
+                                        <For each={dealStages}>
+                                          {(destination) => (
+                                            <Dropdown.Item
+                                              disabled={
+                                                destination === deal.stage
+                                              }
+                                              onSelect={() =>
+                                                setDeals(
+                                                  (entry) =>
+                                                    entry.companyId ===
+                                                    deal.companyId,
+                                                  'stage',
+                                                  destination
+                                                )
+                                              }
+                                            >
+                                              <StageIcon stage={destination} />
+                                              {destination}
+                                            </Dropdown.Item>
+                                          )}
+                                        </For>
+                                      </Dropdown.Group>
+                                    </Dropdown.Content>
+                                  </Dropdown>
+                                </div>
                                 <div class="homepage-pipeline-fields">
                                   <Show when={deal.owner}>
-                                    {ownerCell(deal)}
+                                    <div
+                                      class="homepage-pipeline-field"
+                                      title="Owner"
+                                    >
+                                      <Users class="size-3.5" />
+                                      {ownerCell(deal)}
+                                    </div>
                                   </Show>
                                   <Show when={deal.revenue}>
                                     <span
                                       class="homepage-pipeline-revenue"
                                       title="Revenue"
                                     >
-                                      $
+                                      <Currency class="size-3.5" />
                                       {Number(deal.revenue || 0).toLocaleString(
                                         'en-US'
                                       )}

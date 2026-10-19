@@ -27,13 +27,13 @@
 .homepage-pipeline-board header > span { font-size: 12px; font-weight: 400; color: var(--color-ink-muted); }
 .homepage-pipeline-board article { padding: 12px; margin-top: 12px; border: 1px solid var(--color-edge-muted); border-radius: 8px; background: var(--color-surface-3); box-shadow: 0 1px 2px #0001; }
 .homepage-pipeline-board article:hover { border-color: var(--color-edge); box-shadow: 0 2px 4px #0002; }
-.homepage-pipeline-company { display: flex; align-items: flex-start; gap: 8px; text-align: left; font-size: 14px; font-weight: 500; line-height: 24px; }
-.homepage-pipeline-company > svg { width: 24px; height: 24px; flex: none; padding: 4px; color: var(--color-ink-muted); }
+.homepage-pipeline-company { min-width: 0; display: flex; align-items: flex-start; gap: 8px; text-align: left; font-size: 14px; font-weight: 500; line-height: 24px; }
+.homepage-pipeline-company > svg { width: 16px; height: 16px; margin-top: 4px; flex: none; color: var(--color-ink-muted); }
 .homepage-pipeline-company:hover { text-decoration: underline; }
 .homepage-pipeline-fields { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding-top: 8px; padding-left: 32px; color: var(--color-ink-muted); font-size: 12px; }
 .homepage-pipeline-fields button { min-height: 24px; height: 24px; padding: 0 4px; font-size: 12px; }
 .homepage-pipeline-fields img { width: 16px; height: 16px; }
-.homepage-pipeline-revenue { padding: 2px 4px; font-size: 12px; }
+.homepage-pipeline-revenue { display: flex; align-items: center; gap: 8px; min-height: 24px; padding: 0 6px; font-size: 12px; }
 @media (max-width: 650px) {
   .homepage-crm-sidebar { display: none; position: absolute; z-index: 8; inset: 0 auto 0 0; width: 220px; background: var(--color-panel); box-shadow: 10px 0 30px #0006; }
   .homepage-scene-crm > .dummy-workspace[data-sidebar-open=true] .homepage-crm-sidebar { display: block; }
@@ -43,3 +43,13 @@
 .homepage-scene .product-demo.dummy-workspace {
   border: 0; border-radius: 0; box-shadow: none;
 }
+
+/* database-board.tsx: drag handle, title, actions, then property-icon metadata. */
+.homepage-pipeline-card-header { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 8px; align-items: start; }
+.homepage-pipeline-grip { display: grid; place-items: center; width: 24px; height: 24px; color: var(--color-ink-muted); cursor: grab; }
+.homepage-pipeline-actions { opacity: 0; }
+.homepage-pipeline-board article:hover .homepage-pipeline-actions, .homepage-pipeline-board article:focus-within .homepage-pipeline-actions { opacity: 1; }
+.homepage-pipeline-field { display: flex; align-items: center; gap: 8px; min-height: 24px; max-width: 160px; padding-left: 6px; }
+.homepage-pipeline-field > svg, .homepage-pipeline-revenue > svg { color: var(--color-ink-placeholder); flex: none; }
+.homepage-crm-main .homepage-crm-header { height: 48px; min-height: 48px; padding-inline: 16px; }
+@media (hover: none) { .homepage-pipeline-actions { opacity: 1; } }
