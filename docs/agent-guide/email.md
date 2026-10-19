@@ -322,7 +322,10 @@ with focus outside any input does the same once there is nothing left to unwind
 first); the list keeps the row you came from focused. The inline header uses the existing
 email title menu: open the menu button beside the subject for **Ask AI**, **Create a
 Task**, and the other thread actions. On desktop, **Mark as unread**, **Mark done**,
-and **Previous item** / **Next item** sit at the right of that header. The arrows
+and reminders share one outlined group at the right of that header. Separate
+groups contain **Previous item** / **Next item**, icon-only **Ask Macro** / **Create
+task**, and the **Share** label / copy-link icon. Mobile keeps its existing
+controls. The arrows
 follow the current filtered list and disable at its ends. Mark done advances in
 that list. In a list, the Mark done, Mark as not done and Delete keys act once per
 press: a held key auto-repeats, and those repeats are ignored. Mark as unread (in

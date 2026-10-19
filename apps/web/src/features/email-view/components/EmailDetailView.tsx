@@ -97,17 +97,21 @@ function EmailDetailHeader(
       <Show when={props.controlsMount}>
         {(mount) => (
           <Portal mount={mount()}>
-            <ButtonGroup variant="outline" size="icon-md" class="touch:hidden">
-              <EmailThreadControls {...controls} />
+            <div class="flex items-center gap-2 touch:hidden">
+              <ButtonGroup variant="outline" size="icon-md">
+                <EmailThreadControls {...controls} />
+              </ButtonGroup>
               <Show when={props.listNavigation}>
                 {(navigation) => (
-                  <ListNavigationButtons
-                    navigation={navigation()}
-                    class="gap-0"
-                  />
+                  <ButtonGroup variant="outline" size="icon-md">
+                    <ListNavigationButtons
+                      navigation={navigation()}
+                      class="gap-0"
+                    />
+                  </ButtonGroup>
                 )}
               </Show>
-            </ButtonGroup>
+            </div>
           </Portal>
         )}
       </Show>
@@ -251,16 +255,45 @@ export function EmailDetailView(props: {
             aria-label="Email location"
             fallback={<EntityDetailBreadcrumbSkeleton />}
           />
-          <div class="ml-auto flex shrink-0 items-center gap-1 @max-[900px]/split-header:[&_[data-header-action]]:w-8 @max-[900px]/split-header:[&_[data-header-action]]:p-0 @max-[900px]/split-header:[&_[data-header-action-label]]:hidden">
+          <div class="ml-auto flex shrink-0 items-center gap-2 touch:gap-1 @max-[900px]/split-header:[&_[data-header-action]]:w-8 @max-[900px]/split-header:[&_[data-header-action]]:p-0 @max-[900px]/split-header:[&_[data-header-action-label]]:hidden">
             <div ref={setControlsMount} class="flex items-center" />
-            <SidePanel.HeaderActionsOutlet />
+            <Show
+              when={!isTouchDevice()}
+              fallback={<SidePanel.HeaderActionsOutlet />}
+            >
+              <ButtonGroup
+                variant="outline"
+                size="icon-md"
+                class="has-[[data-side-panel-header-actions]:empty]:hidden [&_[data-header-action]]:size-8 [&_[data-header-action]]:p-0 [&_[data-header-action-label]]:hidden"
+              >
+                <SidePanel.HeaderActionsOutlet />
+              </ButtonGroup>
+            </Show>
             <Show when={ENABLE_EMAIL_SHARING}>
-              <ShareTrigger
-                onClick={openShare}
-                id={props.thread.id}
-                blockType="email"
-                hotkeyScope={keyScope}
-              />
+              <Show
+                when={!isTouchDevice()}
+                fallback={
+                  <ShareTrigger
+                    onClick={openShare}
+                    id={props.thread.id}
+                    blockType="email"
+                    hotkeyScope={keyScope}
+                  />
+                }
+              >
+                <ButtonGroup
+                  variant="outline"
+                  size="icon-md"
+                  class="[&_[data-header-action]]:w-auto! [&_[data-header-action]]:px-3! [&_[data-header-action-label]]:inline!"
+                >
+                  <ShareTrigger
+                    onClick={openShare}
+                    id={props.thread.id}
+                    blockType="email"
+                    hotkeyScope={keyScope}
+                  />
+                </ButtonGroup>
+              </Show>
             </Show>
             <SidePanel.Toggle />
           </div>
