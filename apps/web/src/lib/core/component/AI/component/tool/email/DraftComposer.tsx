@@ -227,10 +227,12 @@ export function EmailDraftComposer(props: EmailDraftComposerProps) {
       subject: subject(),
       body: prepareEmailBody(editor())?.bodyHtml ?? '',
       replyingToId: props.initialData.replyingToId,
-      // The inbox shown in the From row, so the email goes out as the sender
-      // the user is looking at. Omitted only while the inboxes are still
-      // loading, where the backend's own default applies.
-      from: fromAddress(),
+      // Only persist an explicit choice. The displayed fallback must not
+      // override the backend's reply inbox while its lookup is pending or failed.
+      from:
+        chosenInboxId() !== undefined || props.initialData.from?.trim()
+          ? fromAddress()
+          : undefined,
       // Omit to use the backend default policy; false only when dismissed.
       includeSignature: includeSignature() ? undefined : false,
       attachments: attachments.toToolArgs(),

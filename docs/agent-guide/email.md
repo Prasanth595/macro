@@ -318,6 +318,11 @@ When checking draft autosave, edit the body of a draft with uploaded or forwarde
 attachments, wait for the save, and reopen it; the attachments should remain visible.
 AI email tool drafts persist body-only edits; changing recipients or the subject
 is not required to save the body.
+For an AI-drafted reply with no explicit sender, the backend selects the inbox
+that received the original message. Delay or fail the reply-inbox lookup, then
+edit or send: the tool arguments must omit `from` instead of persisting the
+primary inbox shown as a fallback. Choosing a From inbox or naming a sender in
+the draft must still include that explicit address. This applies on mobile too.
 
 With GraphQL draft queuing enabled, working copies and pending attachment bytes
 are saved on this device independently of the mutation queue. A failed server
