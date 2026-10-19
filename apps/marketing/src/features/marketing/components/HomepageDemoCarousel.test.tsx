@@ -141,14 +141,14 @@ function enableAutoplay() {
   );
 }
 
-it('cycles visible slides every eight seconds and wraps to the inbox', () => {
+it('gives simple scenes ten seconds and longer stories time to finish before wrapping', () => {
   enableAutoplay();
   mountCarousel();
-  vi.advanceTimersByTime(7999);
+  vi.advanceTimersByTime(9999);
   expect(openView).toHaveBeenLastCalledWith('Home');
   vi.advanceTimersByTime(1);
   expect(openView).toHaveBeenLastCalledWith('Chat');
-  vi.advanceTimersByTime(60000);
+  vi.advanceTimersByTime(62000);
   expect(openView).toHaveBeenLastCalledWith('Home');
 });
 
@@ -160,7 +160,7 @@ it('pauses on hover, resumes after leaving, and stops when the workspace is used
   vi.advanceTimersByTime(16000);
   expect(openView).toHaveBeenLastCalledWith('Home');
   fireEvent.pointerLeave(carousel);
-  vi.advanceTimersByTime(8000);
+  vi.advanceTimersByTime(10000);
   expect(openView).toHaveBeenLastCalledWith('Chat');
   frame.contentDocument!.dispatchEvent(
     new Event('pointerdown', { bubbles: true })
@@ -271,4 +271,102 @@ it('reveals arrows only while the ready demo is centered', () => {
     {} as IntersectionObserver
   );
   expect(carousel.getAttribute('data-arrows-visible')).toBe('false');
+});
+
+it('handles page arrow keys without focusing an arrow and releases the listener on unmount', () => {
+  const view = mountCarousel();
+  fireEvent.keyDown(document.body, { key: 'ArrowRight' });
+  expect(openView).toHaveBeenLastCalledWith('Chat');
+  fireEvent.keyDown(document.body, { key: 'ArrowLeft' });
+  expect(openView).toHaveBeenLastCalledWith('Home');
+  view.unmount();
+  openView.mockClear();
+  fireEvent.keyDown(document.body, { key: 'ArrowRight' });
+  expect(openView).not.toHaveBeenCalled();
+});
+
+it('leaves arrows with editors, other controls, dialogs, and the embedded workspace', () => {
+  mountCarousel();
+  const container = document.createElement('div');
+  container.innerHTML =
+    '<input /><textarea></textarea><div contenteditable="true"><span>Editor</span></div><button>Other carousel</button><div role="slider" tabindex="0"></div>';
+  document.body.append(container);
+  openView.mockClear();
+  for (const target of container.querySelectorAll(
+    'input, textarea, span, button, [role="slider"]'
+  )) {
+    expect(fireEvent.keyDown(target, { key: 'ArrowRight' })).toBe(true);
+  }
+  fireEvent.keyDown(frame.contentDocument!.body, { key: 'ArrowRight' });
+  for (const options of [
+    { metaKey: true },
+    { ctrlKey: true },
+    { altKey: true },
+    { shiftKey: true },
+    { isComposing: true },
+    { repeat: true },
+  ]) {
+    fireEvent.keyDown(document.body, { key: 'ArrowRight', ...options });
+  }
+  const dialog = document.createElement('div');
+  dialog.setAttribute('role', 'dialog');
+  container.append(dialog);
+  fireEvent.keyDown(document.body, { key: 'ArrowRight' });
+  expect(openView).not.toHaveBeenCalled();
+  container.remove();
+});
+
+it('ignores page arrow keys when the demo is out of view', () => {
+  let visibility: IntersectionObserverCallback | undefined;
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      constructor(
+        callback: IntersectionObserverCallback,
+        options: IntersectionObserverInit
+      ) {
+        if (!options.rootMargin) visibility = callback;
+      }
+      observe() {}
+      disconnect() {}
+    }
+  );
+  mountCarousel();
+  openView.mockClear();
+  fireEvent.keyDown(document.body, { key: 'ArrowRight' });
+  expect(openView).not.toHaveBeenCalled();
+  visibility?.(
+    [
+      {
+        isIntersecting: true,
+        intersectionRatio: 0.5,
+      } as IntersectionObserverEntry,
+    ],
+    {} as IntersectionObserver
+  );
+  fireEvent.keyDown(document.body, { key: 'ArrowRight' });
+  expect(openView).toHaveBeenLastCalledWith('Chat');
+  visibility?.(
+    [
+      {
+        isIntersecting: false,
+        intersectionRatio: 0,
+      } as IntersectionObserverEntry,
+    ],
+    {} as IntersectionObserver
+  );
+  openView.mockClear();
+  fireEvent.keyDown(document.body, { key: 'ArrowLeft' });
+  expect(openView).not.toHaveBeenCalled();
+});
+
+it('does not restart automatic cycling after keyboard focus leaves the demo', () => {
+  enableAutoplay();
+  mountCarousel();
+  const next = screen.getByRole('button', { name: 'Next highlight' });
+  fireEvent.focusIn(next);
+  fireEvent.focusOut(next, { relatedTarget: document.body });
+  openView.mockClear();
+  vi.advanceTimersByTime(60000);
+  expect(openView).not.toHaveBeenCalled();
 });

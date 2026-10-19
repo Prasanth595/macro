@@ -168,7 +168,7 @@ export function HomepageDemoCarousel(props: {
               ? 12000
               : slide().label === 'Tasks'
                 ? 10000
-                : 8000;
+                : 10000;
       timer = setTimeout(() => select(active() + 1, false), duration);
     };
     const motionChanged = () => {
@@ -189,7 +189,7 @@ export function HomepageDemoCarousel(props: {
     };
     const focus = () => {
       focused = true;
-      restartAutoplay();
+      pauseForUse();
     };
     const blur = (event: FocusEvent) => {
       focused =
@@ -197,6 +197,40 @@ export function HomepageDemoCarousel(props: {
         root.contains(event.relatedTarget);
       restartAutoplay();
     };
+    const navigateWithKeyboard = (event: KeyboardEvent) => {
+      if (
+        !ready() ||
+        !visible ||
+        window.document.hidden ||
+        event.defaultPrevented ||
+        event.isComposing ||
+        event.repeat ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
+        (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')
+      )
+        return;
+      const target = event.target;
+      if (
+        window.document.querySelector(
+          '[role="dialog"], [role="menu"], [role="listbox"]'
+        ) ||
+        (target instanceof Element &&
+          (target.closest(
+            'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="slider"], [role="spinbutton"], [role="tablist"]'
+          ) ||
+            (!root.contains(target) &&
+              target.closest('button, a, [tabindex]'))))
+      )
+        return;
+      // Listen on the page so navigating does not require focusing an arrow.
+      // Events inside the embedded workspace stay with its editors and controls.
+      event.preventDefault();
+      select(active() + (event.key === 'ArrowRight' ? 1 : -1));
+    };
+    window.document.addEventListener('keydown', navigateWithKeyboard);
     root.addEventListener(DEMO_INTERACTION_EVENT, pauseForUse);
     root.addEventListener('pointerenter', enter);
     root.addEventListener('pointerleave', leave);
@@ -281,6 +315,7 @@ export function HomepageDemoCarousel(props: {
       observer.disconnect();
       visibility?.disconnect();
       clearTimeout(timer);
+      window.document.removeEventListener('keydown', navigateWithKeyboard);
       root.removeEventListener(DEMO_INTERACTION_EVENT, pauseForUse);
       root.removeEventListener('pointerenter', enter);
       root.removeEventListener('pointerleave', leave);
@@ -304,15 +339,6 @@ export function HomepageDemoCarousel(props: {
       aria-roledescription="carousel"
       role="region"
       aria-label="What you can do with Macro"
-      onKeyDown={(event) => {
-        if (
-          !ready() ||
-          (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')
-        )
-          return;
-        event.preventDefault();
-        select(active() + (event.key === 'ArrowRight' ? 1 : -1));
-      }}
       onPointerDown={(event) => {
         if (
           !ready() ||

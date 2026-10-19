@@ -38,8 +38,8 @@ sample with short benefit-led captions overlapping the original bottom fade
 of the demo. The outer wallpaper and double border are removed so the product
 sits directly against the page, with a soft fade at the bottom. Progress indicators sit above the overlaid heading; large previous/next
 arrows remain beside the frame. The slideshow gives longer scenes time to finish (14 seconds for Docs, 12 for
-CRM, 10 for Tasks, and 16 for Agents; 8 for the other views). It runs only while visible, pauses
-on hover or focus, and stops when someone selects a view or uses the embedded workspace.
+CRM, 10 for Tasks, and 16 for Agents; 10 for the other views). It runs only while visible, pauses
+on hover, and stops when keyboard focus enters, someone selects a view, or uses the embedded workspace.
 Reduced motion disables automatic cycling. The large side arrows use a subtle
 static highlight. They fade in only after the workspace is ready and the
 arrows reach the center of the viewport, then fade out when the demo moves
@@ -412,7 +412,7 @@ build; a correctly styled standalone `/demo` does not prove the iframe boots.
 A benefit carousel fades the live preview into slab-serif headlines. The first
 highlight opens an email inside Home’s mixed activity feed; subsequent highlights
 show Chat, Docs, CRM, Tasks, and Agents. Arrows, dots, left/right keys, and swiping
-the caption select highlights without reloading the frame. Horizontal drags
+the caption select highlights without reloading the frame. Page-level left/right keys work while at least 35% of the carousel is visible, without first focusing an arrow. Editors, other focused controls, open dialogs, modified keys, and keys inside the iframe keep their native behavior. Horizontal drags
 capture the pointer; vertical gestures keep scrolling the page. Automatic cycling stops when the visitor selects or enters a demo.
 The shared interaction boundary keeps the page scrollable until entry. Clicking or typing inside it keeps the fade,
 headline, controls, and layout intact. Sidebar navigation updates the active
