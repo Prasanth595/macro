@@ -3,15 +3,14 @@ language: tsx
 # Twin of ts-tauri-ipc-promise-handled — ast-grep rules are single-language,
 # and `typescript` only scans .ts files.
 severity: error
-message: Await, return, or `.catch` this Tauri IPC promise; a dropped one becomes an unhandled rejection when the plugin rejects.
+message: Await, return, `.catch`, or fireAndForget this Tauri IPC promise; a dropped one becomes an unhandled rejection when the plugin rejects.
 note: |-
   Rule FE-56 in docs/development/style-guide.md. Native plugins reject when
   their resource is already gone (a cancelled request, a closed socket, a
   listener removed during teardown), and nothing awaits a promise started with
   `void` or a bare `.then(cb)`, so each rejection reaches the global
-  unhandledrejection handler. Teardown paths end the chain with
-  `.catch(() => {})` or log the error; release event listeners with
-  `unlistenQuietly` from @macro/tauri/unlisten.
+  unhandledrejection handler. Start un-awaited teardown work with
+  fireAndForget from @core/util/fireAndForget (FE-13).
 files:
   - apps/web/src/**
   - packages/**

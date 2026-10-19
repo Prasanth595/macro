@@ -241,7 +241,9 @@ export class TauriWebSocketWrapper implements MinimalWebSocket {
       // suspended (e.g. iOS backgrounding) whenever we become visible again.
       this.visibilityHandler = () => {
         if (document.visibilityState === 'visible') {
-          void this.recover();
+          this.recover().catch((error: unknown) => {
+            console.error(`Tauri WebSocket recover failed for ${url}:`, error);
+          });
         }
       };
       document.addEventListener('visibilitychange', this.visibilityHandler);

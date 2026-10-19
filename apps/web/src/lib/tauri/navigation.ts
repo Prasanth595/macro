@@ -1,11 +1,13 @@
+import { handlePipedreamCallback } from '@core/pipedream/connect-callback';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { getNativeMobilePlatform } from '@core/util/platform';
 import { setPostLoginRedirect } from '@core/util/postLoginRedirect';
+import { Telemetry } from '@macro-inc/observability';
 import { useNavigate } from '@solidjs/router';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { createEffect, onCleanup } from 'solid-js';
 import { registerMacroLinkInterceptor } from './macroLinkInterceptor';
-import { unlistenQuietly } from './unlisten';
 
 type NavigateEvent = {
   path: string;
@@ -23,6 +25,7 @@ export function useTauriNavigationEffect() {
     const unregisterInterceptor = registerMacroLinkInterceptor();
 
     const unlisten = listen<NavigateEvent>('navigate', (ev) => {
+      if (handlePipedreamCallback(ev.payload.path, ev.payload.query)) return;
       const path = ev.payload.query
         ? `${ev.payload.path}?${ev.payload.query}`
         : ev.payload.path;
@@ -51,12 +54,19 @@ export function useTauriNavigationEffect() {
           console.error('failed to flush launch deep link', e);
         });
       },
-      (e) => console.error('failed to listen for navigate events', e)
+      (error) => Telemetry.error(error, { surface: 'tauri-navigation' })
     );
 
     return onCleanup(() => {
       unregisterInterceptor();
-      unlistenQuietly(unlisten);
+      // A failed listen() was already reported above.
+      fireAndForget(
+        unlisten.then(
+          (fn) => fn(),
+          () => {}
+        ),
+        'tauri-navigation'
+      );
     });
   });
 }

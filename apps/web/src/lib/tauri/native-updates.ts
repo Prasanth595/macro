@@ -1,4 +1,5 @@
 import { toast } from '@core/component/Toast/Toast';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { isPlatform } from '@core/util/platform';
 import { hasAutomaticReloadHolds } from '@core/util/reloadForNewerBuild';
 import { invoke } from '@tauri-apps/api/core';
@@ -6,7 +7,6 @@ import { listen } from '@tauri-apps/api/event';
 import { createSignal, onCleanup, onMount } from 'solid-js';
 import { match } from 'ts-pattern';
 import { createNativeUpdatePreparation } from './native-update-preparation';
-import { unlistenQuietly } from './unlisten';
 
 export type NativeUpdateStatus =
   | { status: 'Disabled' | 'Idle' | 'Checking' | 'Installing' }
@@ -95,10 +95,11 @@ export function createNativeUpdates(flush: () => Promise<void>) {
         }
       );
       if (disposed) {
-        unlistenQuietly(stop);
+        // UnlistenFn returns the unlisten IPC promise despite its void type.
+        fireAndForget(stop(), 'native-updates');
         return;
       }
-      unsubscribe = () => unlistenQuietly(stop);
+      unsubscribe = () => fireAndForget(stop(), 'native-updates');
       const current = await invoke<NativeUpdateStatus>(
         'get_native_update_status'
       );
@@ -110,7 +111,7 @@ export function createNativeUpdates(flush: () => Promise<void>) {
   }
 
   onMount(() => {
-    if (isPlatform('desktop')) void initialize();
+    if (isPlatform('desktop')) fireAndForget(initialize(), 'native-updates');
   });
   onCleanup(() => {
     disposed = true;

@@ -1,4 +1,5 @@
 import { toast } from '@core/component/Toast/Toast';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type { OsType } from '@tauri-apps/plugin-os';
@@ -12,7 +13,6 @@ import {
   useContext,
 } from 'solid-js';
 import { useAndroidShares } from './androidShares';
-import { unlistenQuietly } from './unlisten';
 
 interface StagedSharedFileData {
   token: string;
@@ -218,20 +218,32 @@ export function ShareTargetProvider(props: {
 
     const unlisten = listen<ShareFilesReadyPayload>(
       'share-files-ready',
-      (event) => void loadPendingShareFiles(event.payload.filenames)
+      (event) =>
+        fireAndForget(
+          loadPendingShareFiles(event.payload.filenames),
+          'share-target'
+        )
     );
 
-    void (async () => {
-      try {
-        await unlisten;
-        const filenames = await getPendingShareFilenames();
-        await loadPendingShareFiles(filenames);
-      } catch (error) {
-        console.error('failed to initialize iOS share target', error);
-      }
-    })();
+    fireAndForget(
+      (async () => {
+        try {
+          await unlisten;
+          const filenames = await getPendingShareFilenames();
+          await loadPendingShareFiles(filenames);
+        } catch (error) {
+          console.error('failed to initialize iOS share target', error);
+        }
+      })(),
+      'share-target'
+    );
 
-    onCleanup(() => unlistenQuietly(unlisten));
+    onCleanup(() =>
+      fireAndForget(
+        unlisten.then((fn) => fn()),
+        'share-target'
+      )
+    );
   });
 
   const value: ShareTargetContextValue = {

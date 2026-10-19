@@ -3,7 +3,9 @@ import { useCallKitSetup } from '@channel/Call/use-callkit';
 import { useAndroidBack } from '@core/mobile/androidBack';
 import { useAndroidWindowInsets } from '@core/mobile/androidWindowInsets';
 import { NativeAppUpdateRequiredDialog } from '@core/mobile/NativeAppUpdateRequiredDialog';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { isPlatform, isTauri } from '@core/util/platform';
+import { Telemetry } from '@macro-inc/observability';
 import { PlatformNotificationProvider } from '@notifications';
 import { queryPersistence } from '@queries/client';
 import type { RouteSectionProps } from '@solidjs/router';
@@ -29,7 +31,6 @@ import {
 import { useTauriNavigationEffect } from './navigation';
 import { MaybePushNotificationRegistration } from './PushNotification';
 import { ShareTargetProvider } from './ShareTargetProvider';
-import { unlistenQuietly } from './unlisten';
 
 export type BundleUpdateStatus =
   | { status: 'Idle' }
@@ -137,10 +138,12 @@ function TauriProvider(props: { children: JSX.Element }) {
       .then((status) => {
         setBundleUpdateStatus(status);
       })
-      .catch((e) =>
-        console.error('[bundle-update] get_bundle_update_status failed', e)
-      );
-    onCleanup(() => unlistenQuietly(unlistenPromise));
+      .catch((error) => Telemetry.error(error, { surface: 'bundle-update' }));
+    onCleanup(() => {
+      unlistenPromise
+        .then((unlisten) => unlisten())
+        .catch((error) => Telemetry.error(error, { surface: 'bundle-update' }));
+    });
 
     document.body.classList.add('tauri');
     document.body.classList.add(`tauri-${value.os}`);
@@ -195,7 +198,7 @@ function TauriProvider(props: { children: JSX.Element }) {
         }
         onRestart={
           nativeUpdates.status().status === 'Ready'
-            ? () => void nativeUpdates.restart()
+            ? () => fireAndForget(nativeUpdates.restart(), 'native-updates')
             : undefined
         }
       />

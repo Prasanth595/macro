@@ -1,4 +1,5 @@
 import type { MutationInspection } from '../protocol';
+
 /**
  * Tauri CacheHost: talks to the native cache engine living in the Tauri
  * host process (graphql_cache_plugin) over invoke commands. The host
@@ -8,7 +9,7 @@ import type { MutationInspection } from '../protocol';
  * worker-host.ts.
  */
 
-import { unlistenQuietly } from '@macro/tauri/unlisten';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { invoke } from '@tauri-apps/api/core';
 import { emit, listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type {
@@ -275,15 +276,18 @@ export function createTauriCacheHost(options: TauriHostOptions): CacheHost {
     }
   }
   const ready = initialize();
-  void (async () => {
-    try {
-      await ready;
-    } catch (error) {
-      options.onInitializationError?.(
-        error instanceof Error ? error : new Error(String(error))
-      );
-    }
-  })();
+  fireAndForget(
+    (async () => {
+      try {
+        await ready;
+      } catch (error) {
+        options.onInitializationError?.(
+          error instanceof Error ? error : new Error(String(error))
+        );
+      }
+    })(),
+    'graphql-cache-host'
+  );
 
   const opId = (opKey: number) => `${clientId}:${opKey}`;
 
@@ -674,10 +678,18 @@ export function createTauriCacheHost(options: TauriHostOptions): CacheHost {
       hydrationSubscribers.clear();
       generationChangeSubscribers.clear();
       settlementSubscribers.clear();
-      unlistenQuietly(unlistenOps);
-      unlistenQuietly(unlistenCacheChanges);
-      unlistenQuietly(unlistenHydration);
-      unlistenQuietly(unlistenSettlements);
+      for (const unlisten of [
+        unlistenOps,
+        unlistenCacheChanges,
+        unlistenHydration,
+        unlistenSettlements,
+      ]) {
+        // UnlistenFn returns the unlisten IPC promise despite its void type.
+        fireAndForget(
+          unlisten.then((fn) => fn?.()),
+          'graphql-cache-host'
+        );
+      }
     },
   };
 }
