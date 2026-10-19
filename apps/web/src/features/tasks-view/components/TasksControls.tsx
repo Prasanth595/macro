@@ -3,12 +3,14 @@ import {
   ListGroupDropdown,
   ListSortDropdown,
   useViewControlHotkeys,
-  type ViewLayout,
 } from '@app/components/view-shell';
 import { ListHeaderGroup } from '@app/components/view-shell/ListHeader';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import { SegmentedControl } from '@ui';
+import GanttIcon from '@phosphor/chart-bar-horizontal.svg';
+import BoardIcon from '@phosphor/kanban.svg';
+import ListIcon from '@phosphor/list-bullets.svg';
+import { Button } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
 import { createSignal, Show } from 'solid-js';
 import { TASK_GROUP_OPTIONS, TASK_SORT_OPTIONS } from '../constants';
@@ -104,19 +106,37 @@ function DesktopTasksControls() {
           </Show>
         </div>
       </ListHeaderGroup>
-      <SegmentedControl<ViewLayout>
-        aria-label="Task layout"
-        class="shrink-0 border-edge-button bg-control"
-        value={state.layout}
-        options={[
-          { value: 'list', label: 'List' },
-          { value: 'board', label: 'Board' },
-          ...(ganttEnabled()
-            ? [{ value: 'gantt' as const, label: 'Gantt' }]
-            : []),
-        ]}
-        onChange={(layout) => setState('layout', layout)}
-      />
+      <ListHeaderGroup label="Task layout">
+        <Button
+          variant="ghost"
+          size="icon-md"
+          label="List"
+          aria-pressed={state.layout === 'list'}
+          onClick={() => setState('layout', 'list')}
+        >
+          <ListIcon class="size-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-md"
+          label="Board"
+          aria-pressed={state.layout === 'board'}
+          onClick={() => setState('layout', 'board')}
+        >
+          <BoardIcon class="size-4" />
+        </Button>
+        <Show when={ganttEnabled()}>
+          <Button
+            variant="ghost"
+            size="icon-md"
+            label="Gantt"
+            aria-pressed={state.layout === 'gantt'}
+            onClick={() => setState('layout', 'gantt')}
+          >
+            <GanttIcon class="size-4" />
+          </Button>
+        </Show>
+      </ListHeaderGroup>
       <ListHeaderGroup label="Task view options">
         <Show
           when={!isBoardSearch()}

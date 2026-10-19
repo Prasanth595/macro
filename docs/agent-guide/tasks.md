@@ -4,7 +4,7 @@
 
 `Go to Tasks` → `/app/component/tasks`. Tabs: `My tasks`, `Created by me`, `Team tasks`, and `Projects`.
 The single-row desktop header contains the title, `Filter`, a separate
-`Task layout` single-select group for `List`, `Board`, and enabled `Gantt`,
+`Task layout` single-select icon group for `List`, `Board`, and enabled `Gantt`,
 `Sort`, `Group`, `New`, and an expandable Search icon
 (`Ctrl+F` opens it);
 the filter uses the legacy compact option rows and searchable Assignee, Created by,
@@ -243,7 +243,8 @@ Gantt persists in `tasks.layout` or `projectTasks.layout`, just like List and Bo
 ## Board layout
 
 Choose **Board** in the **Task layout** group in the toolbar
-(or **List** to switch back). One segment is selected at a time. **Group by**
+(or **List** to switch back). One icon is selected at a time; hover or focus shows
+its label. **Group by**
 offers Status, Priority, Assignee, and (when Projects is enabled) Project.
 Both layouts share one grouping, which restores with the Tasks navigation entry.
 List-only None and Date groupings display Status columns in Board; switching
