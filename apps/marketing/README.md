@@ -16,6 +16,8 @@ Public calls to action use the shared `site-nav-start` treatment: warm white,
 soft pill corners, a fine border, and a 2px arrow shift on hover. `Talk to us` is an
 outlined secondary action; the header's `Open app` is a quiet text action
 without an arrow.
+The homepage primary adds a subtle satin gradient and inset edge, a quieter
+18px arrow, and a 1px hover lift; it remains a single link.
 Feedback uses 140ms CSS transitions, respects reduced motion, and does not
 track the pointer. Mobile header actions retain 44px touch targets. The homepage scroll cue is an
 arrow-only 44px button, inset 28px from the bottom while respecting safe areas.

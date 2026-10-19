@@ -37,7 +37,7 @@ export function Homepage() {
           action={
             <div class="homepage-hero-action mt-6 flex justify-center pb-5">
               <a
-                class="site-nav-start homepage-hero-cta"
+                class="site-nav-start homepage-hero-cta homepage-primary-cta"
                 href="/app/signup"
                 onClick={routePhoneToMobileSignup}
               >

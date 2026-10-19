@@ -1,5 +1,44 @@
 .homepage-scroll-cue { position: absolute; bottom: max(28px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 12px; border: 0; border-radius: 12px; background: none; color: var(--color-ink-muted); font: inherit; font-size: 12px; line-height: 20px; }
 .site-nav-start.homepage-hero-cta { font-family: 'Inter Variable', Inter, sans-serif; }
+/* The hero keeps a quiet satin finish, with depth from edges rather than glow. */
+.site-nav-start.homepage-primary-cta {
+  position: relative; isolation: isolate;
+  min-width: 174px; min-height: 54px; padding: 14px 24px; gap: 14px;
+  font-family: 'Inter Variable', Inter, sans-serif;
+  font-size: 15px; font-weight: 550; letter-spacing: -.015em;
+  color: #252624;
+  border-color: #ffffffc7;
+  background: linear-gradient(180deg, #fff 0%, #f5f5f2 48%, #e7e8e4 100%);
+  box-shadow: inset 0 1px 0 #fff, inset 0 -1px 1px #0000000d,
+    0 0 0 1px #ffffff1c, 0 5px 12px -6px #0000005c;
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+.site-nav-start.homepage-primary-cta > span, .site-nav-start.homepage-primary-cta > svg { position: relative; z-index: 1; }
+.site-nav-start.homepage-primary-cta svg { width: 18px; height: 18px; opacity: .72; }
+@media (hover: hover) and (pointer: fine) {
+  .site-nav-start.homepage-primary-cta:hover {
+    transform: translateY(-1px);
+    box-shadow: inset 0 1px 0 #fff, inset 0 -1px 1px #00000008,
+      0 0 0 1px #ffffff38, 0 7px 16px -7px #00000066;
+  }
+}
+.site-nav-start.homepage-primary-cta:active {
+  transform: translateY(0);
+  background: linear-gradient(180deg, #eceee9, #f5f5f2);
+  box-shadow: inset 0 1px 3px #00000017, 0 0 0 1px #ffffff14;
+}
+html[data-palette='cream'] .site-nav-start.homepage-primary-cta {
+  border-color: #ffffffd9;
+  box-shadow: inset 0 1px 0 #fff, inset 0 -1px 1px #0000000d,
+    0 0 0 1px #25262426, 0 5px 12px -6px #25262438;
+}
+html[data-palette='cream'] .site-nav-start.homepage-primary-cta:active {
+  box-shadow: inset 0 1px 3px #00000017, 0 0 0 1px #25262426;
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-nav-start.homepage-primary-cta { transition: none; }
+  .site-nav-start.homepage-primary-cta:hover { transform: none; }
+}
 .homepage-hero-cta:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 4px; }
 .ob-welcome:has(.homepage-hero-cta) > [data-welcome-copy] > .homepage-hero-action { margin-top: 12px; padding-bottom: 8px; }
 .homepage-scroll-cue:hover { color: var(--color-ink); }
