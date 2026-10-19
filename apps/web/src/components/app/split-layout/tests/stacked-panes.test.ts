@@ -196,10 +196,11 @@ describe('stacked panes', () => {
     const pending = SearchState.session();
     manager.replaceAllSplits(
       { type: 'component', id: 'search' },
-      { fresh: true }
+      { routeState: { sessionId: 'new-search' } }
     );
     expect(manager.activeSplit()?.id).toBe(handle.id);
     expect(router.entry(pane)?.id).not.toBe(previous.id);
+    expect(router.entry(pane)?.state).toEqual({ sessionId: 'new-search' });
     expect(SearchState.session()).toBe(pending);
     // The outlet must recreate Search for the new entry in this same pane.
     expect(firstChangedDepth(router.routes, previous, router.entry(pane))).toBe(
@@ -221,6 +222,28 @@ describe('stacked panes', () => {
     expect(SearchState.category()).toBe('email');
     expect(SearchState.mode()).toBe('full-text');
     restored.unmount();
+  });
+
+  it('reuses a Search visit only when its route session is unchanged', () => {
+    const { manager, router } = setup('/search');
+    const content: SplitContent = { type: 'component', id: 'search' };
+    manager.replaceAllSplits(content, {
+      routeState: { sessionId: 'first-search' },
+    });
+    const pane = router.panes()[0]!;
+    const first = router.entry(pane)!;
+    expect(first.state).toEqual({ sessionId: 'first-search' });
+
+    manager.replaceAllSplits(content, {
+      routeState: { sessionId: 'first-search' },
+    });
+    expect(router.entry(pane)?.id).toBe(first.id);
+
+    manager.replaceAllSplits(content, {
+      routeState: { sessionId: 'second-search' },
+    });
+    expect(router.entry(pane)?.id).not.toBe(first.id);
+    expect(router.entry(pane)?.state).toEqual({ sessionId: 'second-search' });
   });
 
   it.each([true, false])(

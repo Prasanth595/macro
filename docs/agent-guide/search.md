@@ -47,6 +47,8 @@ Refreshing sources rebuild the loaded window and update matching rows in place;
 new pages append without reordering saved rows. A saved row missing from an
 incomplete source page remains until it is found or pagination exhausts.
 Changing the query/category or starting a new dock search computes a fresh order.
+Native dock searches carry a new session ID in Search's route state; returning
+through history retains the earlier ID and its saved window without changing the URL.
 Saved rows and scroll measurements belong to their account; switching accounts
 resets the result sources and scrollers and cannot restore another account's window.
 Available results show no loading footer. Failed background reads retain the window;

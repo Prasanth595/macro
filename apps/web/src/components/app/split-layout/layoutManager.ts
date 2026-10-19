@@ -176,6 +176,12 @@ export type ReferredFrom =
   | 'fork'
   | null;
 
+export type ReplaceAllSplitsOptions = {
+  referredFrom?: ReferredFrom;
+  /** Router state validated by the destination route, separate from runtime EntryState. */
+  routeState?: unknown;
+};
+
 export type SplitState = {
   id: SplitId;
   content: SplitContent; // mirror of the pane's current router entry
@@ -360,7 +366,7 @@ export type SplitManager = {
   /** Replace all splits with a single split containing the given content. */
   replaceAllSplits: (
     content: SplitContent,
-    options?: { referredFrom?: ReferredFrom; fresh?: boolean }
+    options?: ReplaceAllSplitsOptions
   ) => SplitHandle | undefined;
 
   /** Check if a split exists by its split id */
@@ -1677,7 +1683,7 @@ export function createSplitLayout(
   /** Shows `content` as the only split, in one navigation; a split already showing it stays. */
   function replaceAllSplits(
     content: SplitContent,
-    options: { referredFrom?: ReferredFrom; fresh?: boolean } = {}
+    options: ReplaceAllSplitsOptions = {}
   ): SplitHandle | undefined {
     if (
       !canOpenContent(content, getSplitByContent(content.type, content.id)?.id)
@@ -1693,7 +1699,7 @@ export function createSplitLayout(
           referredFrom: options.referredFrom ?? null,
           activate: true,
         }),
-        fresh: options.fresh,
+        ...(options.routeState !== undefined && { state: options.routeState }),
       }
     );
     const showAlone = (outcome: NavigationResult) => {

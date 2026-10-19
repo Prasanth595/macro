@@ -721,22 +721,6 @@ describe('split router', () => {
     ]);
   });
 
-  it.each(['url', 'route'])(
-    'starts a fresh visit and preserves the previous history entry for a %s target',
-    async (kind) => {
-      const { router, history } = track(setup('/mail/~/drive'));
-      const pane = router.panes()[0]!;
-      const previous = router.entry(pane)!;
-      const target = kind === 'url' ? '/mail' : { location: location('mail') };
-      await router.navigate(target, { fresh: true });
-      expect(router.panes()).toEqual([pane]);
-      expect(router.entry(pane)?.id).not.toBe(previous.id);
-      expect(history.entries()).toHaveLength(2);
-      history.back();
-      expect(router.entry(pane)?.id).toBe(previous.id);
-    }
-  );
-
   it('closing the last pane can go back to an earlier entry', async () => {
     const closeLast: SplitCloseAction = {
       type: 'back-to',
