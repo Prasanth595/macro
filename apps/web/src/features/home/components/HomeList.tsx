@@ -191,7 +191,9 @@ export function HomeList(props: HomeListProps) {
 
   function showPreview(entity: WithNotification<EntityData>) {
     props.onPreviewEntityChange(
-      entity?.type === 'initiative' ? undefined : entity
+      entity.type === 'initiative' || entity.type === 'crm_deal'
+        ? undefined
+        : entity
     );
   }
 
@@ -293,7 +295,9 @@ export function HomeList(props: HomeListProps) {
     return ({ entity }) => {
       previewAfterNavigation.clear();
       props.onPreviewEntityChange(
-        entity?.type === 'initiative' ? undefined : entity
+        entity?.type === 'initiative' || entity?.type === 'crm_deal'
+          ? undefined
+          : entity
       );
     };
   };

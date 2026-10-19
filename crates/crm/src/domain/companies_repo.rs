@@ -634,6 +634,15 @@ pub trait CompaniesRepository: Clone + Send + Sync + 'static {
         ids: &[uuid::Uuid],
     ) -> impl Future<Output = Result<Vec<crate::domain::deals::Deal>, CrmError>> + Send;
 
+    /// Deals whose name contains `query`, most recently updated first.
+    /// An empty query returns the most recently updated deals.
+    fn search_deals(
+        &self,
+        team_id: &uuid::Uuid,
+        query: &str,
+        limit: i64,
+    ) -> impl Future<Output = Result<Vec<crate::domain::deals::DealMatch>, CrmError>> + Send;
+
     /// Deals linked to the company, with the board facts beside each one.
     fn list_company_deals(
         &self,

@@ -49,6 +49,7 @@ export interface BlockMethodRegistry {
   agent: EmptySpec;
   initiative: EmptySpec;
   pipeline: EmptySpec;
+  deal: EmptySpec;
 }
 
 // Type helper to get the method spec for a block name

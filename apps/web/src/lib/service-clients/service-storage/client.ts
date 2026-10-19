@@ -2699,6 +2699,16 @@ export const storageServiceClient = {
       body: JSON.stringify(body),
     });
   },
+  async searchDeals({ query, limit = 20 }: { query: string; limit?: number }) {
+    const params = new URLSearchParams({
+      query,
+      limit: String(limit),
+    });
+    return await dssFetch<{ deals: { id: string; name: string }[] }>(
+      `/crm/deals?${params}`,
+      { method: 'GET' }
+    );
+  },
   async getDeal({ dealId }: { dealId: string }) {
     return await dssFetch<{
       id: string;

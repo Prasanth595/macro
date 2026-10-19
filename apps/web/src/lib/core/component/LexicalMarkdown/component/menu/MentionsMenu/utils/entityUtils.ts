@@ -23,6 +23,7 @@ export function getBlockNameFromEntity(
     .with('note', () => 'md' as const)
     .with('crm_company', () => 'company' as const)
     .with('crm_contact', () => 'contact' as const)
+    .with('crm_deal', () => 'deal' as const)
     .with('database', () => 'database' as const)
     .with('form', () => 'form' as const)
     .with('initiative', () => 'initiative' as const)

@@ -994,6 +994,9 @@ function getEntitySplitContent(entity: EntityData) {
       .with({ type: 'crm_contact' }, (entity) => {
         return { type: 'contact' as const, id: entity.id };
       })
+      .with({ type: 'crm_deal' }, (entity) => {
+        return { type: 'deal' as const, id: entity.id };
+      })
       // Calendar events open the singleton Calendar application view; the open
       // path branches before reaching here, so this only serves duplicate checks.
       .with({ type: 'calendar_event' }, () => {

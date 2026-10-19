@@ -35,6 +35,8 @@ export const BlockRegistry = [
   'initiative',
   // A CRM pipeline, shown in the Customers view.
   'pipeline',
+  // A CRM deal. The page is the deal ficha.
+  'deal',
 ] as const;
 
 /** Aliases for block types that share a concrete block implementation. */

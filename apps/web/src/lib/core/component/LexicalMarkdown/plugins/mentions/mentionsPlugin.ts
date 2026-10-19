@@ -157,6 +157,7 @@ export type ItemMention = {
     | 'routine'
     | 'crm_company'
     | 'crm_contact'
+    | 'crm_deal'
     | 'crm_pipeline'
     | 'skill';
   itemId: string;
@@ -253,6 +254,9 @@ function $mentionItemFromNode(node: MentionNode): ItemMention {
     } else if (blockName === 'contact') {
       fileType = 'contact';
       itemType = 'crm_contact';
+    } else if (blockName === 'deal') {
+      fileType = 'deal';
+      itemType = 'crm_deal';
     } else if (blockName === 'pipeline') {
       fileType = 'pipeline';
       itemType = 'crm_pipeline';
@@ -367,6 +371,7 @@ const blockItemType = (blockName: string): ItemMention['itemType'] => {
     })
     .with('crm_company', () => 'crm_company')
     .with('crm_contact', () => 'crm_contact')
+    .with('crm_deal', () => 'crm_deal')
     .with('crm_pipeline', () => 'crm_pipeline')
     .exhaustive();
 };

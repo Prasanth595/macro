@@ -451,6 +451,15 @@ impl CrmService for FakeCrmService {
         panic!("unexpected list_deals call")
     }
 
+    async fn search_deals(
+        &self,
+        _access: &CrmTeamReceipt<MemberTeamRole>,
+        _query: &str,
+        _limit: u16,
+    ) -> Result<Vec<crate::domain::deals::DealMatch>, CrmError> {
+        panic!("unexpected search_deals call")
+    }
+
     async fn list_company_deals(
         &self,
         _access: &CrmCompanyReceipt<ViewAccessLevel>,

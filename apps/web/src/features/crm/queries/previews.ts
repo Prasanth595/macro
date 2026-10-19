@@ -80,6 +80,31 @@ export async function fetchCrmPipelinePreviews(
   );
 }
 
+/** A deal chip reads the deal by id. A missing or foreign deal is not a name. */
+export async function fetchCrmDealPreviews(
+  getDeal: typeof storageServiceClient.getDeal,
+  dealIds: string[]
+): Promise<PreviewItem[]> {
+  return await Promise.all(
+    dealIds.map(async (id) => {
+      const base = {
+        id,
+        type: 'crm_deal' as const,
+        loading: false as const,
+      };
+      const result = await getDeal({ dealId: id });
+      if (result.isErr()) return { ...base, access: 'no_access' as const };
+      const name = result.value.name.trim() || 'Deal';
+      return {
+        ...base,
+        access: 'access' as const,
+        name,
+        rawName: name,
+      };
+    })
+  );
+}
+
 /** Contact titles use the same role-aware REST boundary as contact details. */
 export async function fetchCrmContactPreviews(
   getContact: typeof storageServiceClient.getContact,

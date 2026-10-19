@@ -420,6 +420,14 @@ pub trait CrmService: Clone + Send + Sync + 'static {
         ids: &[uuid::Uuid],
     ) -> impl Future<Output = Result<Vec<super::deals::Deal>, CrmError>> + Send;
 
+    /// Deals in this team whose name contains `query`.
+    fn search_deals(
+        &self,
+        access: &CrmTeamReceipt<MemberTeamRole>,
+        query: &str,
+        limit: u16,
+    ) -> impl Future<Output = Result<Vec<super::deals::DealMatch>, CrmError>> + Send;
+
     /// Deals linked to a company the caller can view. The facts are read-only.
     fn list_company_deals(
         &self,
@@ -440,6 +448,9 @@ const MAX_EMAIL_CHARS: usize = 320;
 /// Most contacts one [`CrmService::search_contacts`] call returns. Large
 /// enough for the Quick Access feed of a team's recent contacts.
 pub const MAX_CONTACT_SEARCH_LIMIT: u16 = 500;
+
+/// Most deals one [`CrmService::search_deals`] call returns.
+pub const MAX_DEAL_SEARCH_LIMIT: u16 = 50;
 
 /// The records a viewer-scoped CRM read covers: every enabled team the
 /// viewer belongs to, or the single team of a verified team-scoped bot
@@ -1113,6 +1124,22 @@ where
     }
 
     #[tracing::instrument(skip(self, access), err)]
+    async fn search_deals(
+        &self,
+        access: &CrmTeamReceipt<MemberTeamRole>,
+        query: &str,
+        limit: u16,
+    ) -> Result<Vec<super::deals::DealMatch>, CrmError> {
+        self.companies_repository
+            .search_deals(
+                &access.team_id(),
+                query.trim(),
+                i64::from(limit.clamp(1, MAX_DEAL_SEARCH_LIMIT)),
+            )
+            .await
+    }
+
+    #[tracing::instrument(skip(self, access), err)]
     async fn list_company_deals(
         &self,
         access: &CrmCompanyReceipt<ViewAccessLevel>,
@@ -1361,5 +1388,14 @@ impl CrmService for NoOpCrmService {
         _ids: &[uuid::Uuid],
     ) -> Result<Vec<super::deals::Deal>, CrmError> {
         unimplemented!("NoOpCrmService.list_deals")
+    }
+
+    async fn search_deals(
+        &self,
+        _access: &CrmTeamReceipt<MemberTeamRole>,
+        _query: &str,
+        _limit: u16,
+    ) -> Result<Vec<super::deals::DealMatch>, CrmError> {
+        Ok(Vec::new())
     }
 }

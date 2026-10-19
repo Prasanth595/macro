@@ -80,6 +80,7 @@ export const NonDocumentBlockTypes = [
   'email',
   'contact',
   'company',
+  'deal',
   'routine',
   'pr',
   'agent',
@@ -152,6 +153,7 @@ const _ValidBlockCombinations: BlockCombinationRules = {
   agent: allBlockNames,
   initiative: allBlockNames,
   pipeline: allBlockNames,
+  deal: allBlockNames,
 } as const;
 
 // maps block name to valid parents
@@ -189,6 +191,7 @@ export const ValidNestingCombinations: BlockCombinationRules = {
   agent: new Set([]),
   initiative: new Set([]),
   pipeline: new Set([]),
+  deal: new Set([]),
 };
 
 export const LoadErrors = {

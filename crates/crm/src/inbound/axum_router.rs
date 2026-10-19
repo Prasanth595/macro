@@ -46,6 +46,9 @@ pub mod create_deal;
 /// Fetch one deal owned by the caller's team.
 pub mod get_deal;
 
+/// Search the caller's team's deals by name.
+pub mod search_deals;
+
 /// Manually create a contact (name + email) under a CRM company.
 pub mod create_contact;
 
@@ -145,7 +148,8 @@ where
         )
         .route(
             "/deals",
-            post(create_deal::handler::<C, St, Eas, Auth>),
+            post(create_deal::handler::<C, St, Eas, Auth>)
+                .get(search_deals::handler::<C, St, Eas, Auth>),
         )
         .route(
             "/deals/{deal_id}",

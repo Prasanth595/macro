@@ -1,6 +1,6 @@
 import { isListViewID } from '@app/constants/list-views';
 import { openChatWithMessage } from '@app/features/chat/ChatWithAgentButton';
-import { useCrmContactDiscovery } from '@app/features/crm/record-adapter';
+import { useCrmContactDiscovery, useCrmDealMentionSource } from '@app/features/crm/record-adapter';
 import { getViewPreset } from '@app/features/next-soup/sidebar/soup-filter-presets';
 import { getSearchSplit } from '@app/features/next-soup/soup-view/search-controllers';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
@@ -193,6 +193,7 @@ export function CommandMenuInner(props: {
     : useCommandItems(query, categoryFilter, {
         searchActive: CommandState.isOpen,
         contactDiscovery: useCrmContactDiscovery,
+        dealDiscovery: useCrmDealMentionSource,
       });
   const filteredItems = props.items ?? defaultCommandItems!.items;
   const pagination = defaultCommandItems?.pagination;

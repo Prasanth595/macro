@@ -2068,6 +2068,15 @@ impl CompaniesRepository for CompaniesRepositoryImpl {
     ) -> Result<Vec<crate::domain::deals::Deal>, CrmError> {
         crate::outbound::deals::list_deals(&self.pool, *team_id, ids).await
     }
+
+    async fn search_deals(
+        &self,
+        team_id: &uuid::Uuid,
+        query: &str,
+        limit: i64,
+    ) -> Result<Vec<crate::domain::deals::DealMatch>, CrmError> {
+        crate::outbound::deals::search_deals(&self.pool, *team_id, query, limit).await
+    }
 }
 
 impl TeamSettingsStore for CompaniesRepositoryImpl {

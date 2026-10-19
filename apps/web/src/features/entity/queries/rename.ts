@@ -316,7 +316,8 @@ const renameDssSetData = (
       // names derive from the directory/email, and their soup tags are
       // camelCase 'crmCompany'/'crmContact', not these snake-case itemTypes).
       itemType !== 'crm_company' &&
-      itemType !== 'crm_contact'
+      itemType !== 'crm_contact' &&
+      itemType !== 'crm_deal'
     ) {
       txns.set(
         soupTransactionKey(itemType, id),

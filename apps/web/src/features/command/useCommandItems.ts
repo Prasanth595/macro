@@ -346,6 +346,17 @@ export function useCommandItems(
       search: Accessor<string>,
       active: Accessor<boolean>
     ) => CommandContactSource;
+    /** Finds deals by name. They are not in the Soup feed. */
+    dealDiscovery?: (
+      search: Accessor<string>,
+      active: Accessor<boolean>
+    ) => {
+      entities: Accessor<EntityItem[]>;
+      isLoading: Accessor<boolean>;
+      hasMore: Accessor<boolean>;
+      isLoadingMore: Accessor<boolean>;
+      loadMore: () => Promise<void>;
+    };
   }
 ) {
   const showSearchRow = options?.showSearchRow ?? true;
@@ -360,6 +371,7 @@ export function useCommandItems(
     enabled: entityEnabled,
     excludeEmails: true,
     contactDiscovery: options?.contactDiscovery,
+    dealDiscovery: options?.dealDiscovery,
   });
   const categoryItems = (): CommandMenuItem[] => {
     if (

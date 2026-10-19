@@ -4,7 +4,7 @@ use crate::domain::{
     deals::{CompanyDeal, Deal},
     model::CrmError,
 };
-use sqlx::PgPool;
+use sqlx::{PgPool, Row};
 use std::collections::BTreeSet;
 use uuid::Uuid;
 
@@ -174,6 +174,38 @@ pub async fn get_deal(
         description: row.description,
         delivery_initiative_id: row.delivery_initiative_id,
     }))
+}
+
+/// Deals whose name contains `query`, most recently updated first.
+/// An empty query returns the most recently updated deals. The match is
+/// literal: a typed `%` is not a wildcard.
+pub async fn search_deals(
+    pool: &PgPool,
+    team_id: Uuid,
+    query: &str,
+    limit: i64,
+) -> Result<Vec<crate::domain::deals::DealMatch>, CrmError> {
+    let rows = sqlx::query(
+        r#"SELECT id, name
+           FROM crm_deals
+           WHERE team_id = $1
+             AND ($2 = '' OR STRPOS(LOWER(name), LOWER($2)) > 0)
+           ORDER BY updated_at DESC, id DESC
+           LIMIT $3"#,
+    )
+    .bind(team_id)
+    .bind(query)
+    .bind(limit)
+    .fetch_all(pool)
+    .await
+    .map_err(|error| CrmError::StorageLayerError(error.into()))?;
+    Ok(rows
+        .into_iter()
+        .map(|row| crate::domain::deals::DealMatch {
+            id: row.get("id"),
+            name: row.get("name"),
+        })
+        .collect())
 }
 
 /// The deals among `ids` that belong to the team. Missing ids are omitted.

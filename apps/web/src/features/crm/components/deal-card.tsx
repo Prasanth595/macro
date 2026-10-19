@@ -544,8 +544,26 @@ export function DealPill(props: {
           onMouseDown={(event) => event.stopPropagation()}
           onClick={(event) => event.stopPropagation()}
         >
+          <label class="mb-2.5 flex flex-col gap-1.5 text-xs text-ink-muted">
+            Última acción
+            <select
+              class="h-8 rounded-lg border border-edge bg-surface px-2 text-xs text-ink"
+              value={last()}
+              onChange={(event) => {
+                const action = event.currentTarget.value;
+                if (!action) return;
+                setPicked(action);
+                void props.onLast(action).then(() => refreshNotes());
+              }}
+            >
+              <option value="">Sin anotar</option>
+              <For each={LAST_ACTIONS}>
+                {(action) => <option value={action}>{action}</option>}
+              </For>
+            </select>
+          </label>
           <Show when={due()}>
-            <label class="mb-3 flex flex-col gap-1.5 text-xs text-ink-muted">
+            <label class="flex flex-col gap-1.5 text-xs text-ink-muted">
               Qué ha pasado
               <textarea
                 class="w-full resize-y rounded-lg border border-edge bg-transparent p-2 text-[13px] text-ink"
@@ -555,8 +573,9 @@ export function DealPill(props: {
                 onInput={(event) => setHappened(event.currentTarget.value)}
               />
             </label>
-            <div class="mb-3 h-px bg-edge-muted" />
           </Show>
+          <div class="my-3 h-px bg-edge-muted" />
+          <div class="mb-1.5 text-xs text-ink-muted">Siguiente acción</div>
           <div class="flex flex-wrap gap-1.5">
             <ForDay label="Hoy" days={0} when={props.when} onWhen={chooseDay} />
             <ForDay label="Mañana" days={1} when={props.when} onWhen={chooseDay} />
@@ -584,26 +603,22 @@ export function DealPill(props: {
               })
             }
           />
-          <div class="my-3 h-px bg-edge-muted" />
-          <div class="mb-2.5 flex flex-col gap-1.5 text-xs text-ink-muted">
-            Siguiente acción
-            <div class="flex gap-1.5">
-              {NEXT.map(([id, text]) => (
-                <button
-                  type="button"
-                  class="inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-lg border border-edge bg-surface text-xs text-ink"
-                  classList={{
-                    'border-[#c4b5fd] bg-[#6d4aff]/10 font-semibold': props.next === id,
-                  }}
-                  onClick={() => props.onNext(id)}
-                >
-                  {activityMark(id, 'size-3.5 shrink-0')}
-                  {text}
-                </button>
-              ))}
-            </div>
+          <div class="mt-3 flex gap-1.5">
+            {NEXT.map(([id, text]) => (
+              <button
+                type="button"
+                class="inline-flex h-8 flex-1 items-center justify-center gap-1 rounded-lg border border-edge bg-surface text-xs text-ink"
+                classList={{
+                  'border-[#c4b5fd] bg-[#6d4aff]/10 font-semibold': props.next === id,
+                }}
+                onClick={() => props.onNext(id)}
+              >
+                {activityMark(id, 'size-3.5 shrink-0')}
+                {text}
+              </button>
+            ))}
           </div>
-          <label class="mb-2.5 flex flex-col gap-1.5 text-xs text-ink-muted">
+          <label class="mt-2.5 flex flex-col gap-1.5 text-xs text-ink-muted">
             Lo que tienes planeado hacer
             <textarea
               class="w-full resize-y rounded-lg border border-edge bg-transparent p-2 text-[13px] text-ink"
@@ -612,24 +627,6 @@ export function DealPill(props: {
               onInput={(event) => setPlan(event.currentTarget.value)}
               onChange={(event) => props.onPlan(event.currentTarget.value)}
             />
-          </label>
-          <label class="mb-2.5 flex flex-col gap-1.5 text-xs text-ink-muted">
-            Última acción
-            <select
-              class="h-8 rounded-lg border border-edge bg-surface px-2 text-xs text-ink"
-              value={last()}
-              onChange={(event) => {
-                const action = event.currentTarget.value;
-                if (!action) return;
-                setPicked(action);
-                void props.onLast(action).then(() => refreshNotes());
-              }}
-            >
-              <option value="">Sin anotar</option>
-              <For each={LAST_ACTIONS}>
-                {(action) => <option value={action}>{action}</option>}
-              </For>
-            </select>
           </label>
           <div class="my-3 h-px bg-edge-muted" />
           <div class="flex gap-1.5">

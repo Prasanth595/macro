@@ -1,4 +1,4 @@
-import { useCrmContactMentionSource } from '@app/features/crm/record-adapter';
+import { useCrmContactMentionSource, useCrmDealMentionSource } from '@app/features/crm/record-adapter';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import type { BlockName } from '@core/block';
@@ -233,6 +233,17 @@ function MentionsMenuInner(props: MentionsMenuProps) {
         )
     : undefined;
 
+  const dealMention =
+    isFeatureEnabled(enableCrm) && !hasCustomEntities()
+      ? useCrmDealMentionSource(
+          activeSearchTerm,
+          () =>
+            props.menu.isOpen() &&
+            (!props.sources || props.sources.includes('deals'))
+        )
+      : undefined;
+  const deals = () => dealMention?.entities() ?? [];
+
   const {
     emails,
     totalCount: totalEmailCount,
@@ -324,6 +335,7 @@ function MentionsMenuInner(props: MentionsMenuProps) {
       ...(sourceEnabled('channels') ? (channels() ?? []) : []),
       ...(sourceEnabled('agentSessions') ? agentSessions() : []),
       ...(sourceEnabled('companies') ? (companies() ?? []) : []),
+      ...(sourceEnabled('deals') ? deals() : []),
       ...(sourceEnabled('emails') ? (emails() ?? []) : []),
       ...(sourceEnabled('dates') ? (dates() ?? []) : []),
     ];
@@ -349,6 +361,7 @@ function MentionsMenuInner(props: MentionsMenuProps) {
             (sourceEnabled('companies')
               ? (companyMention?.totalCount() ?? 0)
               : 0) +
+            (sourceEnabled('deals') ? (dealMention?.totalCount() ?? 0) : 0) +
             (sourceEnabled('emails') ? totalEmailCount() : 0) +
             (sourceEnabled('dates') ? (dates()?.length ?? 0) : 0),
           hasMore: () =>
@@ -433,6 +446,15 @@ function MentionsMenuInner(props: MentionsMenuProps) {
         hasMore: () => companyMention?.hasMore() ?? false,
         isLoadingMore: () => companyMention?.isLoadingMore() ?? false,
         loadMore: async () => companyMention?.loadMore(),
+      },
+      {
+        id: 'deals',
+        label: 'Deals',
+        getData: () => deals(),
+        getFullCount: () => dealMention?.totalCount() ?? 0,
+        hasMore: () => false,
+        isLoadingMore: () => false,
+        loadMore: async () => {},
       },
       {
         id: 'emails',

@@ -10,6 +10,7 @@ export type MentionBucketId =
   | 'agentSessions'
   | 'channels'
   | 'companies'
+  | 'deals'
   | 'emails'
   | 'dates'
   | 'openTabs';

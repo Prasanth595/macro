@@ -315,6 +315,15 @@ impl CompaniesRepository for StubRepo {
         unimplemented!("StubRepo.list_deals")
     }
 
+    async fn search_deals(
+        &self,
+        _team_id: &uuid::Uuid,
+        _query: &str,
+        _limit: i64,
+    ) -> Result<Vec<crate::domain::deals::DealMatch>, CrmError> {
+        Ok(Vec::new())
+    }
+
     async fn list_company_deals(
         &self,
         _team_id: &uuid::Uuid,

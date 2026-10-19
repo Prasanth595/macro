@@ -29,6 +29,14 @@ vi.mock('@app/features/crm/record-adapter', () => ({
       loadMore: mocks.loadMoreContacts,
     };
   },
+  useCrmDealMentionSource: () => ({
+    entities: () => [],
+    totalCount: () => 0,
+    hasMore: () => false,
+    isLoading: () => false,
+    isLoadingMore: () => false,
+    loadMore: async () => {},
+  }),
 }));
 
 vi.mock('@app/lib/analytics/analytics-context', () => ({

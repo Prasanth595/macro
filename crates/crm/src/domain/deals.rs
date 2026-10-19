@@ -20,6 +20,15 @@ pub struct Deal {
     pub delivery_initiative_id: Option<Uuid>,
 }
 
+/// A deal a name search can mention. The ficha is loaded separately.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DealMatch {
+    /// Deal id.
+    pub id: Uuid,
+    /// Name shown on the card and in the mention chip.
+    pub name: String,
+}
+
 /// One deal of a company, with the pipeline facts that are only displayed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CompanyDeal {

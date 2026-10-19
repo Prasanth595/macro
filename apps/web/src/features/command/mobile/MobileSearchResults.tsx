@@ -1,4 +1,4 @@
-import { useCrmContactDiscovery } from '@app/features/crm/record-adapter';
+import { useCrmContactDiscovery, useCrmDealMentionSource } from '@app/features/crm/record-adapter';
 import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
 import { projectRouteId } from '@app/features/projects/core/route';
 import { createSoupRowStore } from '@app/features/soup/collection/row-store';
@@ -38,6 +38,7 @@ function MobileNameResults() {
   const source = useEntitySearch(SearchState.query, category, {
     enabled: SearchState.isOpen,
     contactDiscovery: useCrmContactDiscovery,
+    dealDiscovery: useCrmDealMentionSource,
   });
   useDatabaseDiscoverySync(SearchState.isOpen);
   const items = createMemo(() =>

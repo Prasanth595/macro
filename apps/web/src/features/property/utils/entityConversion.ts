@@ -112,5 +112,8 @@ export function macroEntityToPropertyEntityType(
     .with({ type: 'form' }, () => {
       throw new Error('forms do not support properties');
     })
+    .with({ type: 'crm_deal' }, () => {
+      throw new Error('deals do not support properties');
+    })
     .exhaustive();
 }

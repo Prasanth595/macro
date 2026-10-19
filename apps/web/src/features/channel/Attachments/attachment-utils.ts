@@ -70,6 +70,9 @@ export function getEntityClickContent(entity: EntityData): SplitContent {
     .with({ type: 'crm_contact' }, () => {
       throw new Error('crm contacts are not openable as attachments');
     })
+    .with({ type: 'crm_deal' }, () => {
+      throw new Error('deals are not openable as attachments');
+    })
     .with({ type: 'calendar_event' }, () => {
       throw new Error('calendar events are not openable as attachments');
     })

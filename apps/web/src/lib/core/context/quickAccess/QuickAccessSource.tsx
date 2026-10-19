@@ -348,6 +348,8 @@ const RECORD_TYPE_BY_BUCKET: Record<Bucket, string> = {
   chat: 'GraphqlSoupChat',
   crm_company: 'GraphqlSoupCrmCompany',
   crm_contact: 'GraphqlSoupCrmContact',
+  // Deals are not Soup rows. Nothing in this feed writes the bucket.
+  crm_deal: 'CrmDeal',
   document: 'GraphqlSoupDocument',
   task: 'GraphqlSoupDocument',
   snippet: 'GraphqlSoupDocument',

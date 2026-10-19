@@ -192,6 +192,7 @@ export function fileTypeToBlockName(
   // CRM entity types map to their dedicated blocks (entity type !== block name).
   if (blockOrFiletype === 'crm_company') return 'company';
   if (blockOrFiletype === 'crm_contact') return 'contact';
+  if (blockOrFiletype === 'crm_deal') return 'deal';
   if (blockOrFiletype === 'crm_pipeline') return 'pipeline';
 
   if (blockOrFiletype === 'docx' || blockOrFiletype === 'write') {
@@ -247,6 +248,7 @@ export type ItemLike = {
     | 'initiative'
     | 'call'
     | 'crm_company'
+    | 'crm_deal'
     | 'calendar_event'
     | 'database';
   fileType?: BasicDocumentFileType;

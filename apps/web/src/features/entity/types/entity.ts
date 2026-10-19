@@ -396,6 +396,11 @@ export type CrmCompanyEntity = EntityBase & {
   properties?: SoupProperty[];
 };
 
+/** A deal. Not a Soup entity: mentions find it by name in Postgres. */
+export type CrmDealEntity = EntityBase & {
+  type: 'crm_deal';
+};
+
 export type CrmContactEntity = EntityBase & {
   type: 'crm_contact';
   teamId?: string;
@@ -479,6 +484,7 @@ export type EntityData =
   | CallEntity
   | CrmCompanyEntity
   | CrmContactEntity
+  | CrmDealEntity
   | DatabaseEntity
   | FormEntity
   | RoutineEntity
@@ -498,6 +504,7 @@ const ENTITY_TYPE_VALUES = new Set<EntityData['type']>([
   'call',
   'crm_company',
   'crm_contact',
+  'crm_deal',
   'database',
   'form',
   'routine',

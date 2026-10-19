@@ -1,5 +1,6 @@
 import {
   type Bucket,
+  type EntityItem,
   type QuickAccessItem,
   useQuickAccess,
 } from '@core/context/quickAccess';
@@ -53,6 +54,16 @@ export function useEntitySearch(
       search: Accessor<string>,
       active: Accessor<boolean>
     ) => CommandContactSource;
+    dealDiscovery?: (
+      search: Accessor<string>,
+      active: Accessor<boolean>
+    ) => {
+      entities: Accessor<EntityItem[]>;
+      isLoading: Accessor<boolean>;
+      hasMore: Accessor<boolean>;
+      isLoadingMore: Accessor<boolean>;
+      loadMore: () => Promise<void>;
+    };
   }
 ) {
   const quickAccess = useQuickAccess();
@@ -86,6 +97,14 @@ export function useEntitySearch(
     scopedSearchTerm,
     contactsActive
   );
+  const dealsActive = () =>
+    searchActive() &&
+    categoryFilter() === 'all' &&
+    query().trim().length > 0;
+  const deals = options?.dealDiscovery?.(scopedSearchTerm, dealsActive);
+  const dealItems = createMemo((): EntitySearchItem[] =>
+    deals && dealsActive() ? deals.entities() : []
+  );
   const contactPeople = contacts
     ? {
         users: quickAccess.useList('person').items,
@@ -110,7 +129,7 @@ export function useEntitySearch(
   const withDiscovery = <T extends CommandMenuItem>(
     baseItems: T[]
   ): (T | EntitySearchItem)[] => {
-    const items = [...baseItems, ...projects.items()];
+    const items = [...baseItems, ...projects.items(), ...dealItems()];
     // A contact's row keeps its CRM name searchable, so it replaces the same
     // conversation listed under its own name.
     const contactIds = contactItemIds();
@@ -129,7 +148,10 @@ export function useEntitySearch(
     return rankCommandSearchItems(items, queryText, {
       preserveAdditionalEntityMatches:
         quickAccess.usesRecordSelection() || quickAccess.usesSearchProjection(),
-      preservedIds: contactItemIds(),
+      preservedIds: new Set([
+        ...contactItemIds(),
+        ...dealItems().map((item) => item.id),
+      ]),
     });
   };
 
@@ -142,21 +164,25 @@ export function useEntitySearch(
     isLoadingEntities: () =>
       (!!activeList()?.isLoading() && activeList()?.items().length === 0) ||
       projects.isLoading() ||
-      (contactsActive() && (contacts?.isLoading() ?? false)),
+      (contactsActive() && (contacts?.isLoading() ?? false)) ||
+      (dealsActive() && (deals?.isLoading() ?? false)),
     pagination: {
       hasMore: () =>
         (activeList()?.hasMore() ?? false) ||
         projects.hasMore() ||
-        (contactsActive() && (contacts?.hasMore() ?? false)),
+        (contactsActive() && (contacts?.hasMore() ?? false)) ||
+        (dealsActive() && (deals?.hasMore() ?? false)),
       isLoadingMore: () =>
         (activeList()?.isLoadingMore() ?? false) ||
         projects.isLoadingMore() ||
-        (contactsActive() && (contacts?.isLoadingMore() ?? false)),
+        (contactsActive() && (contacts?.isLoadingMore() ?? false)) ||
+        (dealsActive() && (deals?.isLoadingMore() ?? false)),
       loadMore: async () => {
         await Promise.all([
           activeList()?.loadMore(),
           projects.loadMore(),
           contactsActive() ? contacts?.loadMore() : undefined,
+          dealsActive() ? deals?.loadMore() : undefined,
         ]);
       },
     },

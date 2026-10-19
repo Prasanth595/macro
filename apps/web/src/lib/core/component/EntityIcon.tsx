@@ -20,6 +20,7 @@ import Blueprint from '@phosphor/blueprint.svg';
 import BracketsCurly from '@phosphor/brackets-curly.svg';
 import Building from '@phosphor/building.svg';
 import BuildingOffice from '@phosphor/building-office.svg';
+import Handshake from '@phosphor/handshake.svg';
 import Calendar from '@phosphor/calendar.svg';
 import ClipboardText from '@phosphor/clipboard-text.svg';
 import ClockClockwise from '@phosphor/clock-clockwise.svg';
@@ -61,6 +62,7 @@ import BlueprintBold from '@phosphor-icons/core/bold/blueprint-bold.svg';
 import BracketsCurlyBold from '@phosphor-icons/core/bold/brackets-curly-bold.svg';
 import BuildingBold from '@phosphor-icons/core/bold/building-bold.svg';
 import BuildingOfficeBold from '@phosphor-icons/core/bold/building-office-bold.svg';
+import HandshakeBold from '@phosphor-icons/core/bold/handshake-bold.svg';
 import CalendarBold from '@phosphor-icons/core/bold/calendar-bold.svg';
 import ClipboardTextBold from '@phosphor-icons/core/bold/clipboard-text-bold.svg';
 import ClockClockwiseBold from '@phosphor-icons/core/bold/clock-clockwise-bold.svg';
@@ -130,6 +132,7 @@ export type EntityWithValidIcon =
   | 'archive'
   | 'files'
   | 'crm_company'
+  | 'crm_deal'
   | 'html'
   | 'initiative'
   | 'reminder';
@@ -477,12 +480,26 @@ export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
     background: 'bg-default/20',
     prettyName: 'Company',
   },
+  crm_deal: {
+    icon: Handshake,
+    boldIcon: HandshakeBold,
+    foreground: 'text-default',
+    background: 'bg-default/20',
+    prettyName: 'Deal',
+  },
   company: {
     icon: BuildingOffice,
     boldIcon: BuildingOfficeBold,
     foreground: 'text-default',
     background: 'bg-default/20',
     prettyName: 'Company',
+  },
+  deal: {
+    icon: Handshake,
+    boldIcon: HandshakeBold,
+    foreground: 'text-default',
+    background: 'bg-default/20',
+    prettyName: 'Deal',
   },
   pipeline: {
     icon: Table,
@@ -701,6 +718,7 @@ export function getEntityIconType(entity: EntityIconData): EntityWithValidIcon {
     })
     .with({ type: 'crm_company' }, () => 'crm_company')
     .with({ type: 'crm_contact' }, () => 'contact')
+    .with({ type: 'crm_deal' }, () => 'deal')
     .with({ type: 'database' }, () => 'database')
     .with({ type: 'form' }, () => 'form')
     .exhaustive();
