@@ -7,13 +7,13 @@ import {
   type LexicalEditor,
 } from 'lexical';
 import { $insertNodesAndSplitList } from '../../utils';
-import type { TenorGif } from './tenor';
+import type { Gif } from './klipy';
 
 export const TRY_INSERT_GIF_COMMAND: LexicalCommand<void> = createCommand(
   'TRY_INSERT_GIF_COMMAND'
 );
 
-export const INSERT_GIF_COMMAND: LexicalCommand<TenorGif> =
+export const INSERT_GIF_COMMAND: LexicalCommand<Gif> =
   createCommand('INSERT_GIF_COMMAND');
 
 type GifPickerPluginProps = {
@@ -42,7 +42,7 @@ export function gifPickerPlugin(props: GifPickerPluginProps) {
   return (editor: LexicalEditor) => registerGifPickerPlugin(editor, props);
 }
 
-export function $insertGifNode(gif: TenorGif) {
+export function $insertGifNode(gif: Gif) {
   const imageNode = $createImageNode({
     srcType: 'url',
     url: gif.url,

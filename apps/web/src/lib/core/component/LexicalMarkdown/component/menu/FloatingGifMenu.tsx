@@ -21,9 +21,9 @@ import { LexicalWrapperContext } from '../../context/LexicalWrapperContext';
 import { floatWithSelection } from '../../directive/floatWithSelection';
 import {
   $insertGifNode,
+  type Gif,
   gifPickerPlugin,
-  searchTenorGifs,
-  type TenorGif,
+  searchGifs,
 } from '../../plugins/gif';
 import { useMenuKeyboardNavigation } from './useMenuKeyboardNavigation';
 
@@ -61,7 +61,7 @@ export function FloatingGifMenu(props: { canEdit?: Accessor<boolean> } = {}) {
   });
 
   const [gifs] = createResource(debouncedSearchTerm, async (query) => {
-    return searchTenorGifs(query, 30);
+    return searchGifs(query, 30);
   });
 
   const resetMenu = () => {
@@ -82,7 +82,7 @@ export function FloatingGifMenu(props: { canEdit?: Accessor<boolean> } = {}) {
     }, 0);
   });
 
-  const insertGif = (gif: TenorGif) => {
+  const insertGif = (gif: Gif) => {
     editor()?.update(() => {
       $insertGifNode(gif);
     });
@@ -217,7 +217,7 @@ export function FloatingGifMenu(props: { canEdit?: Accessor<boolean> } = {}) {
 
           <div class="px-3 py-1.5 border-t border-edge flex items-center justify-end">
             <span class="text-[10px] text-ink-extra-muted">
-              Powered by Tenor
+              Powered by KLIPY
             </span>
           </div>
         </div>

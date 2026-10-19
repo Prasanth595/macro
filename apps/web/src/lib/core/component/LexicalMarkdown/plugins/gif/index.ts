@@ -4,4 +4,4 @@ export {
   gifPickerPlugin,
   TRY_INSERT_GIF_COMMAND,
 } from './gifPlugin';
-export { fetchTrendingGifs, searchTenorGifs, type TenorGif } from './tenor';
+export { fetchTrendingGifs, type Gif, searchGifs } from './klipy';
