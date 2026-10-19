@@ -2,6 +2,15 @@
 
 ## Calendar — `/app/calendar/<month-or-week-or-day>`
 
+Microsoft calendars use the same editor and calendar views after calendar consent.
+Conference choices follow the selected calendar's capabilities: Microsoft Teams
+where supported and Google Meet for Google calendars. Selecting a calendar that
+cannot create a requested conference shows an error until the request is resolved;
+editing an existing meeting preserves its conference. Email reminders are sent to
+the connected calendar mailbox. Outlook out-of-office automatic replies show an
+uncertainty notice if a provider response cannot be confirmed; a reconnect must
+not resend an already attempted automatic reply.
+
 Event composer dropdown triggers and date/time inputs use the theme control
 surface, so they blend with the dialog instead of using the darker page fill.
 Their menus stay inside the composer's portal scope. Verify that calendar,
@@ -324,12 +333,15 @@ Failed calendar or account queries show `Could not load your calendars.` with
 `New event` opens the compact composer with All day in the date/time fields.
 The meeting-link selector lists `Macro call`, `Google Meet`, then `No meeting link`
 for new events, defaulting to `Macro call` when quick calls are enabled. Keeping
-that selection creates and attaches a Macro call after the event saves. Selecting
+that selection creates the Macro call together with the event in one save, so the
+invitation attendees receive already carries the link; if the call cannot be
+created, nothing is saved and Save retries the whole create. Selecting
 `Google Meet` or `No meeting link` skips the Macro call. Out-of-office entries do
 not create calls. There is no separate call toggle or Scheduled Call menu option.
 All-day events get an untimed call link, so setup does not display a misleading midnight time.
-A failed link attachment keeps the composer open with a retry message; Save reuses
-the saved event and call instead of creating duplicates. The invitation includes
+Adding a call to an existing event attaches it after the update; a failed
+attachment keeps the composer open with a retry message, and Save reuses the same
+call instead of creating duplicates. The invitation includes
 the call link in its description and, when no location was entered, its location.
 Event details show a plain icon row with a standard gray `Join Macro call` button
 and `Copy call link`, without an enclosing border or the full URL.
@@ -979,3 +991,16 @@ action is unavailable.
 focus to its trigger. Busy overlapping events are labeled, while cancelled, declined,
 and free events do not count as conflicts. Calendar 12/24-hour preferences apply to
 already-open invitation cards as well as the calendar view.
+
+For a writable Outlook event you organize, the editor's `Replace event…` action
+can reset guest RSVPs or remove its online meeting. Save or discard ordinary edits
+first. Choose the entire series or only this occurrence, review the saved event,
+and check the cancellation/reinvitation acknowledgement before `Replace event`.
+The old invitation is cancelled after the replacement is prepared; guests receive
+a new invitation and must respond again. `Check progress` and `Continue replacement`
+resume that saved operation after an interrupted response. Recovery continues when
+the dialog closes. A conflict offers links to review both copies in Outlook; do
+not create another copy while the existing operation is unresolved. Events with
+native details that cannot be safely copied are rejected before any invitations.
+For an Outlook invitation you attend, `Open in Outlook` below the RSVP controls
+opens the actual occurrence so you can clear your own response there.
