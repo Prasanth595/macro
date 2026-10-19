@@ -42,6 +42,7 @@ async function resolveWsUrl() {
 }
 
 export const ws = new WebsocketBuilder(resolveWsUrl)
+  .withAutoConnect(false)
   .withSerializer(
     new JsonSerializer<ToWebsocketMessage, FromWebsocketMessage>()
   )

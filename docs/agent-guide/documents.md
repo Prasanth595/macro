@@ -8,7 +8,12 @@ Verify **Public → View** links in a fresh signed-out browser context. The
 `/app/drive/md/<id>` route (including folder/tab document links and legacy
 `/app/md/<id>` redirects) must show the document without private Drive lists or
 folder navigation, on desktop and touch devices. The login banner may remain;
-it must not replace the public document. Private files still prompt for sign-in.
+it must not replace the public document. Signed-out readers see **Sign in to view
+comments**, not a comment-fetch error or composer. Account-only lists, contacts,
+notifications, activity, and gateway/storage WebSockets must stay idle until
+sign-in; public document metadata, properties, and sync still load normally.
+Check that signing in restores account services and signing out stops them.
+Private files still prompt for sign-in.
 
 Opening a private file link while signed in shows **You don't have access to
 this file**, the signed-in email, and **Request access**. View is selected by

@@ -61,6 +61,7 @@ export class Websocket<Send = WebsocketData, Receive = WebsocketData> {
   private _binaryType?: BinaryType = 'blob'; // the binaryType to use
 
   private _closedByUser: boolean = false; // whether the websocket was closed by the user
+  private connectionGeneration = 0;
   private _lastConnection?: Date; // timestamp of the last connection
   private _underlyingWebsocket!: MinimalWebSocket; // assigned by tryConnect
   private connectPending: boolean = false; // whether tryConnect is resolving its url / creating a socket
@@ -132,7 +133,12 @@ export class Websocket<Send = WebsocketData, Receive = WebsocketData> {
       this._url = resolver;
     }
 
-    this.tryConnect();
+    this._closedByUser = options?.autoConnect === false;
+    if (this._closedByUser) {
+      this.connectionState = WebsocketConnectionState.Closed;
+    } else {
+      this.tryConnect();
+    }
   }
 
   /**
@@ -306,6 +312,7 @@ export class Websocket<Send = WebsocketData, Receive = WebsocketData> {
   public close(code?: number, reason?: string): void {
     this.cancelScheduledConnectionRetry(); // cancel any scheduled retries
     this._closedByUser = true; // mark websocket as closed by user
+    this.connectionGeneration++;
     // The underlying websocket is unassigned while the first connect attempt
     // is still resolving its url; tryConnect observes _closedByUser and
     // won't open a socket after this point.
@@ -361,12 +368,13 @@ export class Websocket<Send = WebsocketData, Receive = WebsocketData> {
    */
   private async tryConnect(): Promise<void> {
     this.connectPending = true;
+    const generation = this.connectionGeneration;
     try {
       const url = await resolveUrl(this._urlResolver);
 
       // The websocket may have been closed by the user while the url was
       // resolving (e.g. a token fetch); don't open a connection nobody owns.
-      if (this._closedByUser) {
+      if (this._closedByUser || generation !== this.connectionGeneration) {
         return;
       }
 
@@ -406,13 +414,18 @@ export class Websocket<Send = WebsocketData, Receive = WebsocketData> {
     } catch {
       // URL resolution can require online authorization. No native socket
       // exists to emit a close event when that fails, so retry it here too.
-      if (!this._closedByUser) {
+      if (!this._closedByUser && generation === this.connectionGeneration) {
         this.connectionState = WebsocketConnectionState.Closed;
         this.dispatchEvent(WebsocketEvent.Error, new Event('error'));
         this.scheduleConnectionRetryIfNeeded();
       }
     } finally {
       this.connectPending = false;
+      // A close followed by reconnect may be a different signed-in session.
+      // Resolve fresh credentials instead of adopting the previous URL.
+      if (!this._closedByUser && generation !== this.connectionGeneration) {
+        this.tryConnect();
+      }
     }
   }
 
@@ -869,14 +882,14 @@ export class Websocket<Send = WebsocketData, Receive = WebsocketData> {
   reconnect() {
     // An explicit reconnect always overrides a prior user close — clear the
     // flag before the pending check so a close() that landed while a connect
-    // attempt was resolving its url doesn't strand the instance (tryConnect
-    // bails on _closedByUser after the url resolves).
+    // attempt was resolving its url doesn't strand the instance. tryConnect
+    // discards an old generation's URL and resolves a fresh one when it settles.
     this._closedByUser = false;
     if (this.connectPending) {
       // A fresh connection is already being established (e.g. 'online' and
       // 'visibilitychange' firing together on wake) — starting a second
-      // tryConnect would orphan the first socket. With _closedByUser cleared
-      // above, the in-flight attempt is adopted as this reconnect.
+      // tryConnect would orphan the first socket. An unchanged generation
+      // adopts this attempt; a closed generation retries with fresh credentials.
       return;
     }
     this.cancelScheduledConnectionRetry();

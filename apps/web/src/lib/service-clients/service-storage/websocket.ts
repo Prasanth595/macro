@@ -21,6 +21,7 @@ const HEARTBEAT_INTERVAL = 300000;
 const HEARTBEAT_TIMEOUT = 5000;
 
 const ws = new WebsocketBuilder(SERVER_HOSTS['websocket-service'])
+  .withAutoConnect(false)
   .withBackoff(new ConstantBackoff(2_000))
   .withMaxRetries(20)
   .withHeartbeat({
