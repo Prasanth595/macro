@@ -1,14 +1,14 @@
 import {
-  SearchBar,
   useViewControlHotkeys,
   ViewBreadcrumbs,
-  ViewShell,
 } from '@app/components/view-shell';
-import { SidebarCreateButton } from '@app/components/view-shell/SidebarCreateButton';
+import {
+  ListHeader,
+  ListHeaderSearch,
+} from '@app/components/view-shell/ListHeader';
 import { ViewCreateButton } from '@app/components/view-shell/ViewCreateButton';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
-import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { tourTarget } from '@ui/components/Tour';
 import { createSignal, Show } from 'solid-js';
 import { composeEmail } from '../compose-email';
@@ -16,11 +16,11 @@ import { EMAIL_TABS } from '../constants';
 import { useEmailView } from '../email-view-context';
 import { EMAIL_TOUR } from '../tour';
 import { EmailControls } from './EmailControls';
-import { EmailInboxFilter, EmailInboxMenu } from './EmailInboxSelector';
 
 export type EmailHeaderProps = {
   /** Restores list focus when Escape leaves the search field. */
   onSearchEscape?: () => void;
+  tabOnly?: boolean;
 };
 
 export function EmailViewBreadcrumbItem() {
@@ -50,36 +50,12 @@ export function EmailViewBreadcrumbItem() {
   );
 }
 
-export function EmailTopBar(props: {
-  /** Beside a reading pane the reader shows the trail; the list shows its tab. */
-  tabOnly?: boolean;
-}) {
-  const { state } = useEmailView();
-  const tabTitle = () =>
-    EMAIL_TABS.find((tab) => tab.id === state.tab)?.label ?? 'Email';
-  return (
-    <ViewShell.TopBar>
-      <div class="flex min-w-0 flex-1 items-baseline gap-2">
-        <Show
-          when={props.tabOnly}
-          fallback={<ViewBreadcrumbs.Outlet aria-label="Email location" />}
-        >
-          <h2 class="truncate px-1 text-sm font-medium text-ink">
-            {tabTitle()}
-          </h2>
-        </Show>
-        <EmailInboxFilter class="@max-[720px]/view-shell:hidden" />
-      </div>
-    </ViewShell.TopBar>
-  );
-}
-
 export function EmailHeader(props: EmailHeaderProps) {
   const panel = useSplitPanelOrThrow();
   const { openWithSplit } = useSplitLayout();
   const { state, setState } = useEmailView();
   const [filterOpen, setFilterOpen] = createSignal(false);
-  let searchInput: HTMLInputElement | undefined;
+  let focusSearch: (() => void) | undefined;
   const searchTarget = tourTarget(EMAIL_TOUR.search);
   const selectedTabLabel = () =>
     EMAIL_TABS.find((tab) => tab.id === state.tab)?.label ?? 'Email';
@@ -92,8 +68,7 @@ export function EmailHeader(props: EmailHeaderProps) {
       description: 'Search email',
       condition: () => state.tab !== 'scheduled' && state.tab !== 'reminders',
       run: () => {
-        searchInput?.focus();
-        searchInput?.select();
+        focusSearch?.();
         return true;
       },
     },
@@ -108,56 +83,40 @@ export function EmailHeader(props: EmailHeaderProps) {
   });
 
   return (
-    <div class="flex min-w-0 flex-col">
-      <div class="mb-4 hidden min-h-8 min-w-0 flex-wrap items-baseline gap-2 @max-[720px]/view-shell:flex">
-        <h1 class="min-w-0 shrink-0 truncate text-xl font-semibold tracking-[-0.03em] text-ink">
-          {selectedTabLabel()}
-        </h1>
-        <EmailInboxFilter class="@max-[480px]/view-shell:order-3 @max-[480px]/view-shell:w-full" />
-        <div class="ml-auto flex shrink-0 items-center self-center gap-2">
-          <EmailInboxMenu />
-          <Show when={isTouchDevice()}>
-            <SidebarCreateButton
-              label="New"
-              onCreate={() => composeEmail(openWithSplit, state.inboxIds)}
-            />
-          </Show>
-        </div>
-      </div>
-
-      <Show when={state.tab !== 'scheduled' || !isTouchDevice()}>
-        <div class="flex min-w-0 items-center justify-between gap-3">
-          <Show when={state.tab !== 'reminders' && state.tab !== 'scheduled'}>
-            <SearchBar
-              ref={(element) => {
-                searchInput = element;
-                searchTarget(element);
-              }}
-              label="Search email"
-              value={state.search}
-              hotkey="cmd+f"
-              onValueChange={(search) => setState('search', search)}
-              onEscape={props.onSearchEscape}
-              placeholder="Search email"
-              class="max-w-md flex-1"
-            />
-          </Show>
-          <div class="ml-auto flex shrink-0 items-center gap-2">
-            <Show when={state.tab !== 'scheduled'}>
-              <EmailControls
-                filterOpen={filterOpen()}
-                onFilterOpenChange={setFilterOpen}
-              />
-            </Show>
-            <Show when={!isTouchDevice()}>
-              <ViewCreateButton
-                aria-label="New email"
-                onClick={() => composeEmail(openWithSplit, state.inboxIds)}
-              />
-            </Show>
-          </div>
-        </div>
+    <ListHeader
+      title={
+        <Show
+          when={props.tabOnly}
+          fallback={<ViewBreadcrumbs.Outlet aria-label="Email location" />}
+        >
+          <h2 class="truncate px-1 text-sm font-medium text-ink">
+            {selectedTabLabel()}
+          </h2>
+        </Show>
+      }
+    >
+      <Show when={state.tab !== 'scheduled'}>
+        <EmailControls
+          filterOpen={filterOpen()}
+          onFilterOpenChange={setFilterOpen}
+        />
       </Show>
-    </div>
+      <ViewCreateButton
+        aria-label="New email"
+        onClick={() => composeEmail(openWithSplit, state.inboxIds)}
+      />
+      <Show when={state.tab !== 'reminders' && state.tab !== 'scheduled'}>
+        <ListHeaderSearch
+          ref={searchTarget}
+          label="Search email"
+          value={state.search}
+          onValueChange={(search) => setState('search', search)}
+          onEscape={props.onSearchEscape}
+          registerFocus={(focus) => {
+            focusSearch = focus;
+          }}
+        />
+      </Show>
+    </ListHeader>
   );
 }

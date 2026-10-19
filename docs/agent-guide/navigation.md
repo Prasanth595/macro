@@ -446,8 +446,13 @@ Right-click a conversation for Rename, Favorite, Copy link, Share, Delete, and
 the other entity actions used on Home.
 
 Desktop inner sidebars place the same full-width, outlined **New** pill directly
-below the title. List toolbars place its compact version at the right end of the
-controls row, including when the sidebar is hidden. The action stays specific to
+below the title. List toolbars use its compact version, including when the
+sidebar is hidden. Email, Drive, Tasks, and the Projects list use one desktop
+row: title, filter controls, view options, New, and Search. Filter and view
+controls use the rounded, bordered button groups from the email thread toolbar;
+New and Search have their own rounded, bordered backgrounds. Search starts as an
+icon and expands into a compact field when clicked or opened with Cmd/Ctrl+F.
+Closing it clears the query and returns to the icon. The action stays specific to
 the view: Home returns to its starting pane, Email composes mail, Chat offers a
 channel or direct message, and Calendar offers an event or call. Tasks offers
 **Task**, **Project** (when enabled), and **Tag** in both the Tasks and Projects
@@ -455,8 +460,7 @@ lists. Customers offers Company, Contact, and enabled Pipeline creation. Reviews
 uses the general creation menu. Agents keeps New above its Chat/Code mode tabs.
 Each desktop sidebar puts its Search icon immediately left of the collapse
 control. Click it to reveal the view's search field between the title and New,
-at the same height as the New button;
-click again to hide it. The field focuses when opened. Existing list-toolbar
+at the same height as the New button; click again to hide it. The field focuses when opened. Existing list-toolbar
 search remains available and shares its query where the view filters a list.
 Mobile creation controls, search controls, and placement are unchanged.
 When multiple desktop splits are open, a **Close** (X) button appears in the

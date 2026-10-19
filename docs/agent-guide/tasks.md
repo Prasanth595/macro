@@ -3,8 +3,9 @@
 ## Surface
 
 `Go to Tasks` → `/app/component/tasks`. Tabs: `My tasks`, `Created by me`, `Team tasks`, and `Projects`.
-The desktop toolbar contains search (`Ctrl+F`), an icon-only `Task layout` dropdown,
-`Sort`, `Group`, `Filter`, and an outlined `New` menu at the right end;
+The single-row desktop header contains the title, `Filter`, an icon-only
+`Task layout` dropdown, `Sort`, `Group`, `New`, and an expandable Search icon
+(`Ctrl+F` opens it);
 the filter uses the legacy compact option rows and searchable Assignee, Created by,
 and Tags submenus. Multi-select choices keep the menu open; Escape dismisses it.
 The top of the `Filter` menu is a `Filter with AI…` textbox, focused when the menu opens: type a plain-English

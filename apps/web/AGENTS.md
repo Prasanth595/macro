@@ -95,8 +95,9 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Reconcile global focus when focused DOM subtrees are removed; iOS can omit blur events, otherwise floating creation actions stay hidden after search or editor teardown.
 - Mount the floating mobile AI composer only on the Agents view; other views keep their New action or their own reply/comment composer.
 - Keep desktop New actions on `ViewCreateButton`: full width below the inner
-  sidebar title and compact at the right end of list controls; retain each
-  view's creation workflow and mobile controls. Put sidebar search in
+  sidebar title and compact in list controls; retain each view's creation
+  workflow and mobile controls. Use `ListHeader` for the single-row Email, Drive,
+  and Tasks headers: title, filters, view options, New, expandable Search. Put sidebar search in
   `ViewSidebar.Header` so its icon precedes collapse and its field opens above New.
 - All API/network calls live in service-clients.
 - Keep desktop Gmail and Outlook inbox consent in the system browser with a
