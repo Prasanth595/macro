@@ -16,12 +16,17 @@ import {
 } from '../../core/homepage-demo-people';
 import { type DealStage, dealStages } from '../../core/workspace-fixtures';
 import { createDummyWorkspace } from '../../primitives/createDummyWorkspace';
+import { createProductWalkthrough } from '../../primitives/createProductWalkthrough';
+import { DemoCursor } from '../DemoCursor';
 import { ViewSidebar } from '../DemoViewSidebar';
 import { ViewShell } from '../DemoWorkspaceChrome';
 import { DocumentShareSheet } from '../documents/DocumentShareSheet';
 import { SearchBar } from '../email/frozen/SearchBar';
 import { StageIcon } from '../workspace/CompanyRecord';
-import { WorkspaceCompanies } from '../workspace/WorkspaceCompanies';
+import {
+  type CompanySection,
+  WorkspaceCompanies,
+} from '../workspace/WorkspaceCompanies';
 import { WorkspaceDocuments } from '../workspace/WorkspaceDocuments';
 import { WorkspaceEmail } from '../workspace/WorkspaceEmail';
 import './homepage-scenes.css';
@@ -35,8 +40,33 @@ type Deal = {
 const owners = ['julia', 'jacob', 'gabriel', 'teo'] as const;
 
 /** Website-owned presentation from CRM's records, pipeline sidebar and database toolbar. */
-export default function CrmPipelineScene() {
+export default function CrmPipelineScene(props: { compact?: boolean } = {}) {
+  let scene!: HTMLDivElement;
+  const compactStages: DealStage[] = ['Demo', 'Negotiation', 'Customer'];
+  const compactIds = [
+    'meadow',
+    'bluebird',
+    'sable',
+    'northwind',
+    'lumen',
+    'relay',
+    'pallet',
+  ];
+  const stages = () => (props.compact ? compactStages : dealStages);
+  const [transfer, setTransfer] = createSignal<{
+    id: string;
+    name: string;
+    owner: HomepagePersonId | '';
+    revenue: string;
+    x: number;
+    y: number;
+    width: number;
+    dx: number;
+    dy: number;
+  }>();
   const w = createDummyWorkspace('crm');
+  const [recordSection, setRecordSection] =
+    createSignal<CompanySection>('overview');
   // Fictional accounts for the public demo; IDs retain the linked sample records.
   const accountNames: Record<string, string> = {
     northstar: 'Miller & Rowe',
@@ -93,14 +123,86 @@ export default function CrmPipelineScene() {
   // Pipeline fields belong to the deal, independently of the company record.
   const [deals, setDeals] = createStore<Deal[]>(
     w.data.companies
-      .filter((entry) => entry.stage !== 'Churned')
+      .filter(
+        (entry) =>
+          entry.stage !== 'Churned' &&
+          (!props.compact || compactIds.includes(entry.id))
+      )
       .map((entry) => ({
         companyId: entry.id,
-        stage: entry.stage,
+        stage:
+          props.compact && entry.id === 'lumen' ? 'Negotiation' : entry.stage,
         owner: entry.owner,
         revenue: (entry.revenue ?? '').replaceAll(',', ''),
       }))
   );
+  const move = (id: string, stage: DealStage) => {
+    setDeals((deal) => deal.companyId === id, 'stage', stage);
+    if (props.compact)
+      w.setData('companies', (entry) => entry.id === id, 'stage', stage);
+  };
+  const startTransfer = (id: string, destination: DealStage) => {
+    const card = scene.querySelector<HTMLElement>(
+      `[data-pipeline-company="${id}"]`
+    );
+    const lane = scene.querySelector<HTMLElement>(
+      `[aria-label="${destination} deals"]`
+    );
+    if (!card || !lane) return;
+    const root = scene.getBoundingClientRect();
+    const from = card.getBoundingClientRect();
+    const to = lane.getBoundingClientRect();
+    const first = lane.querySelector('article')?.getBoundingClientRect();
+    const deal = deals.find((entry) => entry.companyId === id);
+    setTransfer({
+      id,
+      name: w.data.companies.find((entry) => entry.id === id)?.name ?? '',
+      owner: deal?.owner ?? '',
+      revenue: deal?.revenue ?? '',
+      x: from.left - root.left,
+      y: from.top - root.top,
+      width: from.width,
+      dx: (first?.left ?? to.left + 9) - from.left,
+      dy: (first?.top ?? to.top + 54) - from.top,
+    });
+  };
+  const walkthrough = props.compact
+    ? createProductWalkthrough({
+        root: () => scene,
+        steps: 7,
+        visibilityThreshold: 0.5,
+        reset: () => {},
+        delay: (step) =>
+          [0, 1800, 1500, 1800, 1500, 2000, 3500, 4500][step] ?? 1400,
+        reduced: () => {
+          move('meadow', 'Negotiation');
+          move('lumen', 'Customer');
+          setTransfer(undefined);
+        },
+        advance: (step) => {
+          if (step === 1) startTransfer('meadow', 'Negotiation');
+          if (step === 2) {
+            move('meadow', 'Negotiation');
+            setTransfer(undefined);
+          }
+          if (step === 3) startTransfer('lumen', 'Customer');
+          if (step === 4) {
+            move('lumen', 'Customer');
+            setTransfer(undefined);
+          }
+          if (step === 5) {
+            w.setCompanyFilter('Sales pipeline');
+            w.open('crm', 'meadow');
+          }
+          if (step === 6) setRecordSection('emails');
+          if (step === 7) w.open('crm');
+        },
+      })
+    : undefined;
+  const takeOver = () => {
+    walkthrough?.pause();
+    setTransfer(undefined);
+  };
   const company = (id: string) =>
     w.data.companies.find((item) => item.id === id)!;
   const shownDeals = () =>
@@ -121,6 +223,8 @@ export default function CrmPipelineScene() {
     setLinked(undefined);
   };
   const openCompany = (id: string) => {
+    takeOver();
+    setRecordSection('overview');
     w.setCompanyFilter(
       tab() === 'pipeline' ? 'Sales pipeline' : 'All companies'
     );
@@ -226,62 +330,68 @@ export default function CrmPipelineScene() {
   );
   return (
     <div
+      ref={scene}
       class="dummy-workspace homepage-crm-scene portal-scope"
+      data-compact={props.compact}
       data-sidebar-open={sidebarOpen()}
+      onPointerDown={takeOver}
+      onKeyDown={takeOver}
     >
-      <aside class="homepage-crm-sidebar">
-        <ViewSidebar.Root aria-label="CRM navigation">
-          <ViewSidebar.Header>
-            <ViewSidebar.Title>Customers</ViewSidebar.Title>
-          </ViewSidebar.Header>
-          <ViewSidebar.Content>
-            <section>
-              <p class="homepage-crm-section-label">Records</p>
-              <ViewSidebar.Nav>
-                <ViewSidebar.Item
-                  active={tab() === 'companies'}
-                  onClick={() => navigate('companies')}
-                >
-                  <Building class="size-4" />
-                  Companies
-                </ViewSidebar.Item>
-                <ViewSidebar.Item
-                  active={tab() === 'contacts'}
-                  onClick={() => navigate('contacts')}
-                >
-                  <Users class="size-4" />
-                  Contacts
-                </ViewSidebar.Item>
-              </ViewSidebar.Nav>
-            </section>
-            <section>
-              <p class="homepage-crm-section-label">Pipelines</p>
-              <ViewSidebar.Nav>
-                <ViewSidebar.Item
-                  active={tab() === 'pipeline'}
-                  onClick={() => navigate('pipeline')}
-                >
-                  <Table class="size-4" />
-                  <span class="flex-1">Sales pipeline</span>
-                  <span class="text-xs text-ink-extra-muted">Team</span>
-                </ViewSidebar.Item>
-              </ViewSidebar.Nav>
-            </section>
-            <section>
-              <p class="homepage-crm-section-label">Lists</p>
-              <ViewSidebar.Nav>
-                <ViewSidebar.Item
-                  active={tab() === 'customers'}
-                  onClick={() => navigate('customers')}
-                >
-                  <Users class="size-4" />
-                  Customers
-                </ViewSidebar.Item>
-              </ViewSidebar.Nav>
-            </section>
-          </ViewSidebar.Content>
-        </ViewSidebar.Root>
-      </aside>
+      <Show when={!props.compact}>
+        <aside class="homepage-crm-sidebar">
+          <ViewSidebar.Root aria-label="CRM navigation">
+            <ViewSidebar.Header>
+              <ViewSidebar.Title>Customers</ViewSidebar.Title>
+            </ViewSidebar.Header>
+            <ViewSidebar.Content>
+              <section>
+                <p class="homepage-crm-section-label">Records</p>
+                <ViewSidebar.Nav>
+                  <ViewSidebar.Item
+                    active={tab() === 'companies'}
+                    onClick={() => navigate('companies')}
+                  >
+                    <Building class="size-4" />
+                    Companies
+                  </ViewSidebar.Item>
+                  <ViewSidebar.Item
+                    active={tab() === 'contacts'}
+                    onClick={() => navigate('contacts')}
+                  >
+                    <Users class="size-4" />
+                    Contacts
+                  </ViewSidebar.Item>
+                </ViewSidebar.Nav>
+              </section>
+              <section>
+                <p class="homepage-crm-section-label">Pipelines</p>
+                <ViewSidebar.Nav>
+                  <ViewSidebar.Item
+                    active={tab() === 'pipeline'}
+                    onClick={() => navigate('pipeline')}
+                  >
+                    <Table class="size-4" />
+                    <span class="flex-1">Sales pipeline</span>
+                    <span class="text-xs text-ink-extra-muted">Team</span>
+                  </ViewSidebar.Item>
+                </ViewSidebar.Nav>
+              </section>
+              <section>
+                <p class="homepage-crm-section-label">Lists</p>
+                <ViewSidebar.Nav>
+                  <ViewSidebar.Item
+                    active={tab() === 'customers'}
+                    onClick={() => navigate('customers')}
+                  >
+                    <Users class="size-4" />
+                    Customers
+                  </ViewSidebar.Item>
+                </ViewSidebar.Nav>
+              </section>
+            </ViewSidebar.Content>
+          </ViewSidebar.Root>
+        </aside>
+      </Show>
       <main class="dummy-main homepage-crm-main">
         <Show
           when={!linked()}
@@ -314,21 +424,25 @@ export default function CrmPipelineScene() {
             fallback={
               <WorkspaceCompanies
                 workspace={w}
+                section={props.compact ? recordSection() : undefined}
+                onSectionChange={props.compact ? setRecordSection : undefined}
                 onOpenItem={(view, id) => setLinked({ view, id })}
               />
             }
           >
             <ViewShell.TopBar class="homepage-crm-header">
-              <Button
-                class="homepage-crm-nav-toggle"
-                variant="plain"
-                size="icon-sm"
-                aria-label="Toggle CRM navigation"
-                aria-expanded={sidebarOpen()}
-                onClick={() => setSidebarOpen((open) => !open)}
-              >
-                <Sidebar class="size-4" />
-              </Button>
+              <Show when={!props.compact}>
+                <Button
+                  class="homepage-crm-nav-toggle"
+                  variant="plain"
+                  size="icon-sm"
+                  aria-label="Toggle CRM navigation"
+                  aria-expanded={sidebarOpen()}
+                  onClick={() => setSidebarOpen((open) => !open)}
+                >
+                  <Sidebar class="size-4" />
+                </Button>
+              </Show>
               <h1 class="text-sm font-semibold flex-1">
                 {tab() === 'pipeline'
                   ? 'Sales pipeline'
@@ -348,45 +462,47 @@ export default function CrmPipelineScene() {
                 </Button>
               </Show>
             </ViewShell.TopBar>
-            <Show
-              when={tab() === 'pipeline'}
-              fallback={
-                <div class="homepage-crm-search">
+            <Show when={!props.compact}>
+              <Show
+                when={tab() === 'pipeline'}
+                fallback={
+                  <div class="homepage-crm-search">
+                    <SearchBar
+                      label="Search records"
+                      placeholder="Search records"
+                      value={query()}
+                      onValueChange={setQuery}
+                    />
+                  </div>
+                }
+              >
+                <div class="homepage-crm-toolbar">
+                  <div class="flex items-center gap-1" aria-label="Views">
+                    <Button
+                      variant="ghost"
+                      size="md"
+                      aria-pressed={!board()}
+                      onClick={() => setBoard(false)}
+                    >
+                      All records
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="md"
+                      aria-pressed={board()}
+                      onClick={() => setBoard(true)}
+                    >
+                      By stage
+                    </Button>
+                  </div>
                   <SearchBar
-                    label="Search records"
-                    placeholder="Search records"
+                    label="Search pipeline"
+                    placeholder="Search"
                     value={query()}
                     onValueChange={setQuery}
                   />
                 </div>
-              }
-            >
-              <div class="homepage-crm-toolbar">
-                <div class="flex items-center gap-1" aria-label="Views">
-                  <Button
-                    variant="ghost"
-                    size="md"
-                    aria-pressed={!board()}
-                    onClick={() => setBoard(false)}
-                  >
-                    All records
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="md"
-                    aria-pressed={board()}
-                    onClick={() => setBoard(true)}
-                  >
-                    By stage
-                  </Button>
-                </div>
-                <SearchBar
-                  label="Search pipeline"
-                  placeholder="Search"
-                  value={query()}
-                  onValueChange={setQuery}
-                />
-              </div>
+              </Show>
             </Show>
             <div class="dummy-scroll">
               <Show
@@ -523,7 +639,7 @@ export default function CrmPipelineScene() {
                     role="region"
                     aria-label="Sales pipeline board"
                   >
-                    <For each={dealStages}>
+                    <For each={stages()}>
                       {(stage) => (
                         <section
                           aria-label={`${stage} deals`}
@@ -558,6 +674,10 @@ export default function CrmPipelineScene() {
                           >
                             {(deal) => (
                               <article
+                                data-pipeline-company={deal.companyId}
+                                data-transferring={
+                                  transfer()?.id === deal.companyId
+                                }
                                 draggable
                                 onDragStart={(event) =>
                                   event.dataTransfer?.setData(
@@ -594,7 +714,7 @@ export default function CrmPipelineScene() {
                                         <Dropdown.GroupLabel>
                                           Move to
                                         </Dropdown.GroupLabel>
-                                        <For each={dealStages}>
+                                        <For each={stages()}>
                                           {(destination) => (
                                             <Dropdown.Item
                                               disabled={
@@ -655,6 +775,49 @@ export default function CrmPipelineScene() {
         </Show>
       </main>
 
+      <Show when={transfer()}>
+        {(card) => (
+          <div
+            class="landing-pipeline-transfer"
+            style={{
+              left: `${card().x}px`,
+              top: `${card().y}px`,
+              width: `${card().width}px`,
+              '--transfer-x': `${card().dx}px`,
+              '--transfer-y': `${card().dy}px`,
+            }}
+            aria-hidden="true"
+          >
+            <div class="homepage-pipeline-card-header">
+              <span class="homepage-pipeline-grip">
+                <Grip class="size-4" />
+              </span>
+              <span class="homepage-pipeline-company">
+                <Building class="size-4" />
+                <span>{card().name}</span>
+              </span>
+            </div>
+            <div class="homepage-pipeline-fields">
+              <Show when={card().owner}>
+                {(owner) => (
+                  <span class="homepage-pipeline-field">
+                    <Users class="size-3.5" />
+                    <img src={homepagePeople[owner()].photo} alt="" />
+                    {homepagePeople[owner()].name}
+                  </span>
+                )}
+              </Show>
+              <Show when={card().revenue}>
+                <span class="homepage-pipeline-revenue">
+                  <Currency class="size-3.5" />
+                  {Number(card().revenue).toLocaleString('en-US')}
+                </span>
+              </Show>
+            </div>
+            <DemoCursor label="Claude" />
+          </div>
+        )}
+      </Show>
       <DocumentShareSheet
         open={share()}
         title="Sales pipeline"

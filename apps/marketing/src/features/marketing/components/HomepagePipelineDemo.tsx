@@ -6,7 +6,7 @@ import './homepage-pipeline-demo.css';
 export default function HomepagePipelineDemo() {
   return (
     <div class="homepage-pipeline-demo workspace-demo">
-      <CrmPipelineScene />
+      <CrmPipelineScene compact />
     </div>
   );
 }

@@ -166,11 +166,14 @@ starts finished but permits manual scrubbing. Below 768px the existing compact
 layout continues to hide the timeline.
 
 Homepage email playback waits until at least 20% of its scene is visible and
-pauses again below that threshold. The landing-page CRM uses the interactive
-`CrmPipelineScene` with the app’s records/pipelines sidebar, database view tabs,
-336px Kanban lanes, movable deals, and company records. It has no decorative
-wallpaper, replay controls, or status footer. On phones, its sidebar opens from
-the header and the board scrolls horizontally within the demo. The CRM product
+pauses again below that threshold. The landing-page CRM uses a compact,
+three-stage Kanban without a sidebar or database toolbar. Its visible-only
+walkthrough moves two deals, opens a company record and its email history,
+then returns to the board. Pointer or keyboard interaction stops playback;
+reduced motion presents the updated board without animating. Visitors can move
+cards and open records themselves. Desktop lanes fit the frame; phones scroll
+only the three stages. There is no wallpaper, replay button, or status caption.
+The CRM product
 page retains its separate animated walkthrough. Enabling reduced motion
 mid-playback settles the document at its completed state, while leaving manual
 history scrubbing available. Scroll-driven entrances keep their native pacing.

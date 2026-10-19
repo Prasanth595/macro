@@ -307,11 +307,11 @@ export function HomepageSections() {
                   <HomepageMention
                     kind="call"
                     label="Sales sync"
-                    description="Today’s sales call · Keystone Mechanical is ready for negotiation, and Bookend Retail started a trial."
+                    description="Today’s sales call · Parlor Studio asked for pricing, and Bookend Retail signed."
                     href="#crm"
                   />
-                  . Keystone Mechanical is ready for negotiation, and Bookend
-                  Retail started a trial. Update their stages.
+                  . Parlor Studio asked for pricing, and Bookend Retail signed.
+                  Update their stages.
                 </>
               ),
             },

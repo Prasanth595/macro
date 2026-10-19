@@ -9,7 +9,9 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import HomepagePipelineDemo from '../HomepagePipelineDemo';
 import CrmPipelineScene from './CrmPipelineScene';
 
+let revealCompact: (() => void) | undefined;
 beforeEach(() => {
+  revealCompact = undefined;
   vi.stubGlobal('matchMedia', () => ({
     matches: false,
     addEventListener() {},
@@ -26,7 +28,20 @@ beforeEach(() => {
   vi.stubGlobal(
     'IntersectionObserver',
     class {
-      observe() {}
+      constructor(private callback: IntersectionObserverCallback) {}
+      observe(target: HTMLElement) {
+        if (target.dataset.compact === 'true')
+          revealCompact = () =>
+            this.callback(
+              [
+                {
+                  isIntersecting: true,
+                  intersectionRatio: 1,
+                } as IntersectionObserverEntry,
+              ],
+              this as unknown as IntersectionObserver
+            );
+      }
       disconnect() {}
     }
   );
@@ -37,6 +52,7 @@ afterEach(() => {
   cleanup();
   expect(fetch).not.toHaveBeenCalled();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 it('edits a pipeline deal without overwriting the company record fields', async () => {
@@ -129,15 +145,72 @@ it('moves a fictional account through the native-style card menu', async () => {
   ).toBeTruthy();
 });
 
-it('lets landing-page visitors search a live pipeline without playback controls', () => {
+it('keeps the landing pipeline to three stages with clickable records and no sidebar', () => {
   const view = render(() => <HomepagePipelineDemo />);
-  expect(view.queryByRole('button', { name: /Replay|Pause/ })).toBeNull();
-  fireEvent.input(view.getByRole('searchbox', { name: 'Search pipeline' }), {
-    target: { value: 'Juniper' },
-  });
-  expect(view.getByRole('button', { name: 'Juniper Dental' })).toBeTruthy();
-  expect(view.queryByRole('button', { name: 'Miller & Rowe' })).toBeNull();
-  fireEvent.click(view.getByRole('button', { name: 'Contacts' }));
-  expect(view.getByText('alex@parlorstudio.example')).toBeTruthy();
-  expect(view.queryByText('alex@coparse.com')).toBeNull();
+  expect(view.queryByRole('complementary')).toBeNull();
+  expect(view.queryByRole('searchbox')).toBeNull();
+  expect(view.getByRole('region', { name: 'Demo deals' })).toBeTruthy();
+  expect(view.getByRole('region', { name: 'Negotiation deals' })).toBeTruthy();
+  expect(view.getByRole('region', { name: 'Customer deals' })).toBeTruthy();
+  expect(view.queryByRole('region', { name: 'Lead deals' })).toBeNull();
+  fireEvent.click(
+    view.getByRole('button', { name: 'Parlor Studio', exact: true })
+  );
+  expect(
+    (view.getByRole('textbox', { name: 'Company name' }) as HTMLInputElement)
+      .value
+  ).toBe('Parlor Studio');
+  fireEvent.click(
+    view.getByRole('button', { name: 'Sales pipeline', exact: true })
+  );
+  expect(
+    view.getByRole('region', { name: 'Sales pipeline board' })
+  ).toBeTruthy();
+});
+
+it('moves deals, opens their context, and stops when a visitor takes over', () => {
+  vi.useFakeTimers();
+  const view = render(() => <HomepagePipelineDemo />);
+  revealCompact?.();
+  vi.advanceTimersByTime(3300);
+  expect(
+    within(view.getByRole('region', { name: 'Negotiation deals' })).getByRole(
+      'button',
+      { name: 'Parlor Studio', exact: true }
+    )
+  ).toBeTruthy();
+  vi.advanceTimersByTime(3300);
+  expect(
+    within(view.getByRole('region', { name: 'Customer deals' })).getByRole(
+      'button',
+      { name: 'Bookend Retail', exact: true }
+    )
+  ).toBeTruthy();
+  vi.advanceTimersByTime(2000);
+  expect(
+    (view.getByRole('textbox', { name: 'Company name' }) as HTMLInputElement)
+      .value
+  ).toBe('Parlor Studio');
+  fireEvent.pointerDown(view.getByRole('textbox', { name: 'Company name' }));
+  vi.advanceTimersByTime(12000);
+  expect(view.getByRole('textbox', { name: 'Company name' })).toBeTruthy();
+});
+
+it('shows the email context and returns to the compact board when untouched', () => {
+  vi.useFakeTimers();
+  const view = render(() => <HomepagePipelineDemo />);
+  revealCompact?.();
+  vi.advanceTimersByTime(12100);
+  expect(
+    (
+      view.getByRole('radio', {
+        name: 'Emails',
+        exact: true,
+      }) as HTMLInputElement
+    ).checked
+  ).toBe(true);
+  vi.advanceTimersByTime(4500);
+  expect(
+    view.getByRole('region', { name: 'Sales pipeline board' })
+  ).toBeTruthy();
 });
