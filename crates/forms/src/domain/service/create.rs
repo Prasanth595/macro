@@ -214,6 +214,10 @@ where
         }
     }
 
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "Attaching carries the new form's identity, status and Drive visibility"
+    )]
     async fn attach_to_new_database(
         &self,
         creator: &Viewer,
