@@ -123,7 +123,7 @@ export function RouteCalls() {
         </FeaturePageSection>
         <FeaturePageSection
           id="call-default"
-          title={['Catch up', 'after the call']}
+          title={['View call recordings', 'after they finish.']}
           description="Give teammates a way to catch up even if they missed the meeting. Share the call’s recording, transcript, and summary so they can find the decisions and revisit the details."
           details={callsGuides['call-default']}
         >
