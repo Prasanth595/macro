@@ -322,9 +322,14 @@ async fn test_labels_by_thread_ids_reads_labels_by_message_index(
 
     let mut scans = Vec::new();
     relation_scans(&plan[0]["Plan"], "email_message_labels", &mut scans);
-    assert!(!scans.is_empty(), "plan must read email_message_labels: {plan}");
+    assert!(
+        !scans.is_empty(),
+        "plan must read email_message_labels: {plan}"
+    );
     for scan in scans {
-        let condition = scan["Index Cond"].as_str().or(scan["Recheck Cond"].as_str());
+        let condition = scan["Index Cond"]
+            .as_str()
+            .or(scan["Recheck Cond"].as_str());
         assert!(
             condition.is_some_and(|cond| cond.contains("message_id")),
             "thread label lookups must probe email_message_labels by message_id: {plan}"
