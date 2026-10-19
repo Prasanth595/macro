@@ -35,15 +35,19 @@ the build-time `VITE_ENABLE_GRAPHQL_SOUP=true` override; see the
 
 Category/mode changes keep the same input mounted and focused. Enter dismisses
 the keyboard without ending search. Opening a result hides search chrome while
-preserving that Search history entry's query, category, mode, and result scroll
-position. Swiping back, pressing the native Back control, or using browser Back
+preserving that Search history entry's query, category, mode, result order, and
+scroll position. Opening a result does not promote it within that saved list,
+even when its last-viewed time changes. Swiping back, pressing the native Back control, or using browser Back
 returns to those results without focusing the input or reopening the keyboard.
 Native search captures its state when covered: it retains mounted results while
 it is among the front two panes, and restores them after deeper navigation evicts
 it. A remounted history entry immediately restores its loaded results,
 virtualizer measurements and offset (or the full-text scroller's offset).
-Refreshing sources rebuild the saved result window before replacing it; available
-results show no loading footer. Failed background reads retain the window;
+Refreshing sources rebuild the loaded window and update matching rows in place;
+new pages append without reordering saved rows. A saved row missing from an
+incomplete source page remains until it is found or pagination exhausts.
+Changing the query/category or starting a new dock search computes a fresh order.
+Available results show no loading footer. Failed background reads retain the window;
 successful empty results replace it, and authoritative errors discard the saved
 window in favor of the current source result. A later search
 cannot overwrite an earlier entry. **Close search** ends the
@@ -58,6 +62,9 @@ pages, open a result/snippet, and go Back: check the query, category, mode, visi
 rows, and scroll position. Repeat Back/Forward and native swipe/Back; the keyboard
 stays dismissed on return. Open Search from the dock and check All/name reset,
 then revisit the earlier history entry and confirm its query is intact.
+Open a result from midway through the list and confirm it keeps its original
+position after Back, both when Search stays mounted and after deeper navigation
+evicts it. Refresh row metadata and append pages; existing rows must keep their order.
 Repeat with a slow refresh: the saved rows and scroll should appear before it
 finishes, and its first page must not shrink a previously paginated list.
 If the viewport changes on return, scroll manually and confirm

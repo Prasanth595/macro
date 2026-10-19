@@ -158,6 +158,7 @@ function MobileNameResults(props: { session: MobileSearchSession }) {
     loadMoreNearEnd();
   };
   const select = async (item: EntitySearchItem) => {
+    results.preserveOrder();
     try {
       await open(item);
     } catch {
@@ -269,6 +270,7 @@ function MobileFullTextResults(props: { session: MobileSearchSession }) {
     loadMore: search.fetchNextPage,
   });
   const open = async (entity: EntityData, location?: SearchLocation) => {
+    results.preserveOrder();
     try {
       await Telemetry.span('mobile.search.open', async (span) => {
         span.setAttr('entity.id', entity.id);

@@ -6,6 +6,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from '@solidjs/testing-library';
 import { CombinedError } from '@urql/core';
 import { type Accessor, createSignal, Show } from 'solid-js';
@@ -22,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   fullTextLoading: (() => false) as Accessor<boolean>,
   fullTextSettling: (() => false) as Accessor<boolean>,
   open: vi.fn(),
+  onOpen: () => {},
   directMessage: vi.fn(),
   failure: vi.fn(),
   loadMore: vi.fn(),
@@ -160,6 +162,7 @@ beforeEach(() => {
   mocks.entryState = undefined;
   mocks.captors.clear();
   mocks.open.mockImplementation(() => {
+    mocks.onOpen();
     mocks.entryState = Object.fromEntries(
       [...mocks.captors].map(([key, read]) => [key, read()])
     );
@@ -198,6 +201,7 @@ beforeEach(() => {
     }
   );
   mocks.hasMore = true;
+  mocks.onOpen = () => {};
   mocks.viewportHeight = 400;
   mocks.loadingMore = false;
   mocks.items = () => [];
@@ -370,7 +374,7 @@ it('bounds mounted recent rows while keeping the first result usable', () => {
   expect(SearchState.isOpen()).toBe(false);
 });
 
-it('restores the query, category, mode and scroll after a full-text history entry remounts', () => {
+it('restores full-text order, query, category, mode and scroll after opening and remounting', () => {
   const email: EntityData = {
     id: 'thread',
     type: 'email',
@@ -383,7 +387,9 @@ it('restores the query, category, mode and scroll after a full-text history entr
     isImportant: false,
     done: false,
   };
-  const [items, setItems] = createSignal<EntityData[]>([email]);
+  const other = { ...email, id: 'other', name: 'Earlier update' };
+  const [items, setItems] = createSignal<EntityData[]>([other, email]);
+  mocks.onOpen = () => setItems([email, other]);
   const [settling, setSettling] = createSignal(false);
   mocks.fullTextData = items;
   mocks.fullTextSettling = settling;
@@ -397,6 +403,12 @@ it('restores the query, category, mode and scroll after a full-text history entr
   fireEvent.click(
     screen.getByRole('button', { name: 'Weekly update snippet' })
   );
+  mocks.setActive(true);
+  expect(
+    within(list)
+      .getAllByRole('button')
+      .map((row) => row.textContent)
+  ).toEqual(['Earlier update snippet', 'Weekly update snippet']);
   const entry = mocks.entryState;
   view.unmount();
 
@@ -427,8 +439,13 @@ it('restores the query, category, mode and scroll after a full-text history entr
   expect(screen.getByRole('region', { name: 'Search results' }).scrollTop).toBe(
     1280
   );
-  setItems([email]);
+  setItems([email, other]);
   setSettling(false);
+  expect(
+    within(screen.getByRole('region', { name: 'Search results' }))
+      .getAllByRole('button')
+      .map((row) => row.textContent)
+  ).toEqual(['Earlier update snippet', 'Weekly update snippet']);
   expect(screen.getByRole('region', { name: 'Search results' }).scrollTop).toBe(
     1280
   );
@@ -478,10 +495,11 @@ it('reveals the same scrolled results when native Back uncovers search', () => {
   expect(document.activeElement).not.toBe(input);
 });
 
-it('restores a virtualized name list after a history entry remounts', async () => {
+it('restores the name list order and scroll after opening promotes a result by recency', async () => {
   mocks.hasMore = false;
-  mocks.items = () =>
-    Array.from({ length: 100 }, (_, index) => ({
+  const originalItems: EntitySearchItem[] = Array.from(
+    { length: 100 },
+    (_, index) => ({
       id: `project-${index}`,
       kind: 'initiative',
       bucket: 'initiative',
@@ -489,14 +507,33 @@ it('restores a virtualized name list after a history entry remounts', async () =
       searchText: `Project ${index}`,
       sortTimestamp: 0,
       timestamps: {},
-    }));
+    })
+  );
+  const [items, setItems] = createSignal(originalItems);
+  mocks.items = items;
+  mocks.onOpen = () =>
+    setItems([
+      originalItems[2],
+      ...originalItems.filter((item) => item.id !== 'project-2'),
+    ]);
   SearchState.setQuery('Project');
   SearchState.setCategory('projects');
   const view = render(() => <MobileSearchResults />);
   fireEvent.scroll(screen.getByRole('region', { name: 'Search results' }), {
     target: { scrollTop: 800 },
   });
-  fireEvent.click(screen.getAllByRole('button')[0]);
+  const visibleResults = screen
+    .getAllByRole('button')
+    .map((row) => row.textContent);
+  fireEvent.click(screen.getByRole('button', { name: 'Project 2' }));
+  expect(screen.getAllByRole('button').map((row) => row.textContent)).toEqual(
+    visibleResults
+  );
+  // Native Back can uncover the same mounted list before any remount.
+  mocks.setActive(true);
+  expect(screen.getAllByRole('button').map((row) => row.textContent)).toEqual(
+    visibleResults
+  );
   view.unmount();
   mocks.setActive(true);
   render(() => <MobileSearchResults />);
@@ -506,6 +543,10 @@ it('restores a virtualized name list after a history entry remounts', async () =
     expect(
       screen.getByRole('region', { name: 'Search results' }).scrollTop
     ).toBe(800)
+  );
+  fireEvent.scroll(screen.getByRole('region', { name: 'Search results' }));
+  expect(screen.getAllByRole('button').map((row) => row.textContent)).toEqual(
+    visibleResults
   );
 });
 
