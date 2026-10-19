@@ -15,6 +15,20 @@ export type GroupedSoupMembership = {
   groupKeys?: readonly string[];
 };
 
+function collectGroupedBaseline(baseline: readonly ReconciledSoupBin[]) {
+  const bins = new Map<string, ReconciledSoupBin>();
+  const memberships = new Map<string, Set<string>>();
+  for (const bin of baseline) {
+    if (!bins.has(bin.key)) bins.set(bin.key, { ...bin, itemIds: [] });
+    for (const id of bin.itemIds) {
+      const keys = memberships.get(id) ?? new Set<string>();
+      keys.add(bin.key);
+      memberships.set(id, keys);
+    }
+  }
+  return { bins, memberships };
+}
+
 /**
  * Reconcile loaded server membership, not an exhaustive local collection.
  * Pass initial bins before continuation bins; repeated bins contribute rows,
@@ -28,17 +42,7 @@ export function reconcileGroupedSoup(
   baseline: readonly ReconciledSoupBin[],
   evaluated: readonly GroupedSoupMembership[]
 ): ReconciledSoupBin[] {
-  const bins = new Map<string, ReconciledSoupBin>();
-  const memberships = new Map<string, Set<string>>();
-  for (const bin of baseline) {
-    if (!bins.has(bin.key)) bins.set(bin.key, { ...bin, itemIds: [] });
-    for (const id of bin.itemIds) {
-      const keys = memberships.get(id) ?? new Set<string>();
-      keys.add(bin.key);
-      memberships.set(id, keys);
-    }
-  }
-
+  const { bins, memberships } = collectGroupedBaseline(baseline);
   const visited = new Set<string>();
   for (const row of evaluated) {
     const loadedKeys = memberships.get(row.id);
