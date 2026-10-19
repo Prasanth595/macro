@@ -45,7 +45,7 @@ export default defineDoc({
       id: 'segmented',
       title: 'Segmented',
       description:
-        'A 32px track with 3px padding and equal-width, rounded rectangular choices.',
+        'A fully rounded 32px track with 3px padding and equal-width pill choices.',
       render: () => <TabsDemo variant="segmented" />,
     },
   ],
