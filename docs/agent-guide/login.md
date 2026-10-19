@@ -34,6 +34,20 @@ the configured bypass flag. Verify with an authorized test account outside
 sign-in still apply. See the [authentication-service configuration guide](../../services/authentication_service/README.md#temporary-open-signup-override)
 for restoring allowlist enforcement.
 
+## GraphQL cache session lifecycle
+
+Signed-out pages use the network client without creating the GraphQL cache,
+draft queue runner, or live-update subscriptions. Signing in activates them in
+the same tab, including after a session expiry. Queued draft writes wait for
+authenticated user info; unrelated mutations can continue draining.
+
+Verify expiry followed by signing into a different account without reloading:
+the new account's lists must load and receive live updates, and the previous
+account's cached data must be absent. Logout wipes local caches before retiring
+their clients. Mounted query observers must receive the next account's data
+after the wipe. Previous account data must not return through initial data,
+placeholder data, or a later query reset.
+
 ## Hosted-dev proxy SSO
 
 On an allowed OAuth origin such as `https://localhost:<port>`, Google/SSO
@@ -63,6 +77,14 @@ For simulator checks, `xcrun devicectl device process launch --device <udid>
 Signed universal links and share-sheet flows still need end-to-end verification;
 see the [Tauri guide](../../apps/web/tauri/src-tauri/README.md#ios-27-scene-lifecycle)
 and [repeatable iOS smoke test](../../apps/web/tests/native/ios/README.md).
+
+## Signed-out GraphQL regression
+
+Open a public sharing link with stale login hints and an expired session. Once
+user-info returns 401, GraphQL must use the plain network client, dispose any
+normalized cache and live-update session, and clear the login hints. Repeat with
+retained user-info data from an earlier successful request. A network failure or
+5xx must not end the session; successful sign-in must re-enable eligible caching.
 
 ## Native Android
 

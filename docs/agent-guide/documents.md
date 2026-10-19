@@ -50,7 +50,9 @@ old snippet toggle provided, or **None** to remove team access.
 Hover or focus a document title in the header to see its owner, created time,
 and last-updated time. This details card is shared
 by documents, tasks, snippets, canvas, and file blocks; unavailable metadata is
-labeled rather than inferred.
+labeled rather than inferred. Canvas and file breadcrumb names follow live
+renames, including the tab title and title menu. Rename an open canvas and confirm
+its header updates immediately without reloading or remounting the editor.
 
 Editable documents show matching **Add tags** and **Add property** pills below
 the title. Once tags are applied, **Add tags** becomes the existing tag name or
@@ -74,6 +76,13 @@ embeds and check that their preview bodies load; also check that a code or canva
 mention offers **Convert to Embed** in its preview menu.
 Drag an embed's bottom-right resize grip, then release and select the card. Its
 height should stay at the dragged size and persist after reopening the document.
+Zoom to fit and menu/keyboard zoom use the full canvas viewport center; floating
+inspectors and details overlays do not reserve centering space. Verify with content
+on both sides of the canvas and the inspector visible. Press **.** to fit the
+current selection, or all content when nothing is selected. The zoom menu keeps
+**Zoom to fit** for all content and adds **Zoom to fit selection**, disabled with
+no selection. Verify one item and multiple selected items, then deselect and
+check that **.** fits everything again.
 All canvases open in Canvas Next, including drive details and Markdown embeds;
 there is no rollout flag or legacy editor. Unversioned/version 1 files migrate
 in memory. Opening a file alone does not save the migration; the first edit saves
@@ -81,6 +90,66 @@ version 2 while retaining the original JSON for recovery. Unsupported legacy
 records and unknown versions show an error without changing the saved file.
 To verify migration, open a supported legacy canvas, edit it, then reopen it and
 check that its shapes, text, and connectors remain intact.
+
+Canvas spatial paste keeps the layout of the copied selection. Copying from another
+canvas, or pasting Excalidraw data, centers the selection in the current viewport
+at the current pan/zoom. Same-canvas copies retain the cumulative 24-unit paste
+offset, including copies from another tab of that document. Shift+Cmd/Ctrl+V (or
+**Paste in place** in the context menu) keeps original world coordinates and
+bypasses grid snapping. Verify cross-canvas, same-canvas repeated paste, and
+Shift-paste with a grouped selection; ordinary text/editor paste is unchanged.
+
+The editable drawing toolbar has a paperclip **Attach** button with an **I**
+shortcut hint. Clicking it opens a standard dropdown for **Media**, **Upload
+media**, and **Reference**. Its pickers open above the toolbar; attachments land
+at the canvas center. Verify clicking Attach, choosing each type, and Escape.
+The Attach tooltip stays hidden while the insertion menu or picker is open.
+Radial menu buttons retain an opaque surface when their slice is highlighted.
+
+With an editable canvas focused, press **I** to open a radial menu of separate floating buttons around the mouse
+position: **Media**, **Upload media**, and **Reference**. Equal directional slices
+highlight the corresponding button and ring arc on pointer movement; clicking
+anywhere in the viewport selects the active slice, including well beyond the
+buttons; outside clicks do not dismiss the radial menu. Escape closes it. The center is a neutral dead zone. Media and Reference
+replace the radial menu with searchable mentions-style pickers. Upload media
+opens the OS picker directly for local images/videos. References insert document
+preview cards; creating new embeds is unavailable. Arrow keys or Ctrl+J/K navigate;
+Enter selects and Escape closes. Selected rows scroll with the same inset as the
+menu padding. Picker height stays fixed through loading, search results, and no
+results, capped by the available viewport space. Verify typing an unmatched query
+and clearing it does not move the search field or resize the menu.
+Media retains its dashed drop area and **Add files** button, with no
+folder option. Insertion uses the position captured when I is pressed. Verify
+keyboard selection, closing/reopening, upload cancellation, and placement after
+pan/zoom. The shortcut is inactive during text/embed editing and in read-only canvases.
+Reference cards register with the shared reference system when the canvas saves.
+Verify the backlink on the target, duplicate cards retaining one reference, and
+removing the final card followed by undo/redo. Reload must preserve tracking.
+Existing untracked cards register on their next content save.
+Pasting a same-host Macro file URL uses the same link resolver as Markdown and
+inserts a reference card at the viewport center, including nested Drive routes
+and copied split layouts (the rightmost pane). Legacy `/app/md/<id>` links still
+work. Verify a `/app/drive/md/<id>` paste becomes a card and registers a backlink;
+foreign-host links and unrecognized routes remain text.
+
+Pasting or dropping image files shows local previews while the static-file upload
+finishes. Previews become selectable image nodes after upload and remote loading
+succeed; a failed upload removes its preview and reports the failure. Verify with
+a slow upload, then undo/redo the inserted batch and reopen the canvas. Blob URLs
+must never enter the saved scene. When opening a canvas, image nodes show a
+`skeleton-shimmer bg-skeleton` placeholder at their saved size until the image
+loads; this also applies to read-only embeds. Failed image requests display
+“Media unavailable” instead of an indefinite skeleton.
+
+Canvas object snapping is enabled by default. Drag a shape or selection near
+another object's edge or center to align it; dashed guides show the matched axes.
+Axis-aligned resize handles also snap. The tolerance stays six screen pixels at
+any zoom, and objects more than 160 screen pixels away on the perpendicular axis
+are ignored. In **Zoom options**, toggle **Snap to objects** independently of
+**No grid snapping**, **Snap to px**, or **Auto snapping**. Object alignment takes
+priority over grid snapping on the matched axis. Verify dragging with snapping
+on/off, resizing, Shift-constrained movement, zoom changes, and undo. Rotated
+resize frames retain their existing local-axis resizing behavior.
 
 Canvas embeds are read-only: **Select** selects shapes without moving them,
 and **Hand** pans the canvas. The toolbar contains only those two tools; property
@@ -234,6 +303,60 @@ closes it. Typing a value the rule does not allow
 shows the rule's message in the footer, and a "stop" rule keeps the previous value.
 A red corner marks a cell with a note; selecting the cell shows the note, and any
 input message, beside it.
+
+To make a table, select a cell in the records (or the records with their header
+row) and choose **Format and data → Convert to table** (or **Convert to table**
+in the cell menu, or ⌘/Ctrl+Alt+T). It converts at once, with no dialog: one cell
+converts the block of filled cells around it, an empty cell becomes a blank table
+headed **Column1**–**Column4**, and the table is named `Table1`, `Table2`….
+Blank or repeated headers are renamed (`Column3`, `Amount2`) and columns take the
+type their values suggest. While the active cell or the pointer is in a table,
+its name shows as a tab above the header row (as an icon in the column header
+bar for a table in row 1), a button named
+**Table Table1 menu** whose menu has **Rename table** and **Adjust table range…**
+(dialogs with **Table name** or **Range** and **Save**), a **Table color**
+radio group of ten swatches, **Formatting** checkboxes (**Alternating colors**,
+**Banded columns**, **Bold first column**, **Bold last column**, **Footer row
+with totals**), **Group by view…**, **Clear all filters** when filtered,
+**Convert to range** (cells keep the table's look) and **Delete table** (removes
+its cells too). In a table cell, **Table options** in the cell menu or **Format
+and data** opens the same menu.
+
+Each header cell has a button (**Region column menu**; a filtered column's ends
+in **, filtered** and shows a funnel) whose menu shows the column's type, a
+**Column type** submenu (**None**, **Text**, **Number**, **Percent**,
+**Currency**, **Date**, **Date time**, **Time**, **Checkbox**, **Dropdown**,
+**People**), **Sort A → Z**, **Sort Z → A**, **Filter…**, **Clear filter** when
+filtered, **Group by this column**, and **Insert column left**, **Insert column
+right** and **Delete column**. A type formats the column's data cells; checkbox
+makes blanks unchecked boxes and dropdown offers the column's values as colored
+chips. A cell whose value does not fit shows an orange corner and a tooltip such
+as "Expected a number". **Filter…** opens **Filter "Region"**: a **Condition**
+select (**Text contains**, **Greater than**, **Is between**…) with **Value** (and
+**To**) fields, and **By values** with **Search values**, **Select all**,
+**Clear** and a checkbox per value; **OK** applies it and hides whole sheet rows.
+**Group by view…** opens **Group by view · Table1** with **Group by**,
+**Summarize** and **As** selects and a table of groups with their row counts and
+summary; choosing a group filters the table to it and **Show all rows** clears
+that filter.
+
+With **Footer row with totals** on, selecting a footer cell shows its arrow
+(**Choose a value for B5**) listing **None**, **Sum**, **Average**, **Min**,
+**Max**, **Count**, **Count numbers**, **Empty**, **Unique**, **Percent
+filled**, **Percent empty**, **Percent unique**, **Standard deviation** and
+**Variance**; the cell shows the aggregate's name beside its value. Typing a value
+directly below the table (without a footer) or directly to its right grows the
+table; a new row takes the formatting, dropdowns and calculated formulas of the
+row above. Formulas use structured references such as `=SUM(Table1[Amount])`,
+`=[@Qty]*[@Price]` and `=ROWS(Table1)`; typing `Table1[` suggests its columns.
+Renaming a header rewrites formulas that use the old name, and references to a
+missing table or column show `#REF!`. Scrolling past a table's header row shows
+its column names in the column headers. Agents create tables, with optional
+`columnTypes`, through `EditSpreadsheet`'s `create_table` operation, and
+`ReadSpreadsheet` lists each sheet's tables with their columns and types. Excel
+tables with a header row import with their names, styles, totals and value or
+condition filters and download as Excel tables; a table without a header row
+imports as ordinary cells, with its references converted to cell ranges.
 
 To add checkboxes, select the cells and choose **Checkbox** in the toolbar's
 **Insert chart, image or checkbox** menu (chart icon), or **Insert checkbox** in
@@ -638,11 +761,12 @@ waits for acknowledgement. A failed save leaves the draft editable and supports
 retry, without opening an empty chat. This path needs the updated native-document
 backend, just like Share.
 
-The AI can use **ReadSpreadsheet** to inspect sheet names, used ranges, raw inputs,
-formulas, typed results, errors, and formatting. **CalculateSpreadsheet** evaluates
-scratch formulas and what-if inputs without changing the workbook.
+The AI can use **ReadSpreadsheet** to inspect sheet names, used ranges, tables,
+raw inputs, formulas, typed results, errors, and formatting. **CalculateSpreadsheet**
+evaluates scratch formulas and what-if inputs without changing the workbook.
 **EditSpreadsheet** applies a validated batch of cell/formula/format edits, fill,
-row additions, column resizing, and sheet creation/rename/duplication/deletion.
+row additions, column resizing, dropdowns, checkboxes, table creation, and sheet
+creation/rename/duplication/deletion.
 `format_cells` shows dates in any Excel date code with
 `{ "format": "date", "numberFormat": "mmm yyyy" }`.
 Edits require a revision from a fresh read; a concurrent change rejects the entire
@@ -655,6 +779,20 @@ check both source/formula and displayed result in the sheet and another connecte
 client. A viewer's edit must fail; a concurrent manual edit must force a fresh
 read. These tool calls require the updated AI backend, AI editing worker, and sync
 service; the frontend alone cannot test their hosted path.
+
+## Desktop file drops
+
+In a rebuilt macOS desktop app, drag a PNG and a PDF from Finder into a
+disposable Markdown document, then into channel and AI chat attachment inputs.
+Check that each drop shows the upload feedback and adds each file once, with
+images rendered inline in Markdown and attachments visible in the composers.
+Try multiple files and a second drop after the first completes. Discard unsent
+drafts after checking. Also check that the file picker still attaches files.
+
+Use an actual Finder drag for this check: synthetic browser events bypass
+Tauri's native interception and cannot verify the desktop window configuration.
+The setting and native rebuild requirement are documented in the
+[web agent guide](../../apps/web/AGENTS.md#desktop-file-drops).
 
 ## Folder uploads
 
@@ -2410,8 +2548,9 @@ trash button. Deleting a comment's first message deletes the whole discussion �
 the confirmation reads `Delete comment`, the replies under it go too, and an
 anchored comment's highlight clears from the document. Deleting a reply removes
 only that reply. On mobile, the new-comment composer is docked above the navigation bar,
-replacing Ask AI and New when commenting is available in documents and tasks.
-When the comment composer is unavailable, the default Ask AI row appears instead.
+replacing New when commenting is available in documents and tasks.
+When the comment composer is unavailable, New remains available; these views
+have no floating Ask AI input.
 Tap `Leave a comment...`
 to expand the channel-style input; use Send comment to submit (Enter inserts a
 newline on mobile). Submitting clears and unfocuses the mobile input, returning
