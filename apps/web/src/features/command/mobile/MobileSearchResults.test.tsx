@@ -17,6 +17,8 @@ import { MobileSearchResults } from './MobileSearchResults';
 import { SearchState } from './mobileSearchState';
 
 const mocks = vi.hoisted(() => ({
+  accountId: (() => 'owner') as Accessor<string>,
+  authenticated: (() => true) as Accessor<boolean>,
   fullText: vi.fn(),
   fullTextItems: [] as EntityData[],
   fullTextData: (() => []) as Accessor<EntityData[]>,
@@ -79,6 +81,10 @@ vi.mock('@components/app/mobile/use-mobile-nav', () => ({
   useMobileNavNavigate: () => vi.fn(),
 }));
 vi.mock('@core/mobile/haptics', () => ({ hapticImpact: vi.fn() }));
+vi.mock('@core/context/user', () => ({
+  useUserId: () => mocks.accountId,
+  useIsAuthenticated: () => mocks.authenticated,
+}));
 vi.mock(
   '@core/component/LexicalMarkdown/component/core/StaticMarkdown',
   () => ({
@@ -156,6 +162,8 @@ vi.mock('../queries/mobile-full-text-search', () => ({
   },
 }));
 beforeEach(() => {
+  mocks.accountId = () => 'owner';
+  mocks.authenticated = () => true;
   const [active, setActive] = createSignal(true);
   mocks.active = active;
   mocks.setActive = setActive;
@@ -632,8 +640,12 @@ it('does not show a loading footer for available name results during a backgroun
 });
 
 it.each(['name', 'full-text'] as const)(
-  'keeps user scrolling after restoring %s results into a taller viewport',
+  'keeps user scrolling after restoring %s results and resets it for another account',
   async (mode) => {
+    const [accountId, setAccountId] = createSignal('owner');
+    const [authenticated, setAuthenticated] = createSignal(true);
+    mocks.accountId = accountId;
+    mocks.authenticated = authenticated;
     const [nameItems, setNameItems] = createSignal<EntitySearchItem[]>([
       {
         id: 'first',
@@ -733,6 +745,18 @@ it.each(['name', 'full-text'] as const)(
           : 'mobileSearch.fullTextScroll'
       ];
     expect(scroll).toMatchObject({ offset: 100 });
+    mocks.setActive(true);
+    setAccountId('another-account');
+    const nextList = screen.getByRole('region', { name: 'Search results' });
+    expect(nextList).not.toBe(list);
+    expect(nextList.scrollTop).toBe(0);
+    cleanup();
+    render(() => <MobileSearchResults />);
+    expect(
+      screen.getByRole('region', { name: 'Search results' }).scrollTop
+    ).toBe(0);
+    setAuthenticated(false);
+    expect(screen.queryByRole('region', { name: 'Search results' })).toBeNull();
   }
 );
 

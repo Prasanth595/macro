@@ -7,6 +7,7 @@ import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { toast } from '@core/component/Toast/Toast';
+import { useIsAuthenticated, useUserId } from '@core/context/user';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { isTransientRequestError } from '@core/util/request-error';
 import {
@@ -45,13 +46,17 @@ import type { MobileSearchSession } from './mobileSearchState';
 import { useMobileSearchCategory } from './use-mobile-search-category';
 
 type SearchScrollState = {
+  accountId: string;
   query: string;
   category: EntitySearchCategory;
   offset: number;
   cache?: VirtualizerHandle['cache'];
 };
 
-function MobileNameResults(props: { session: MobileSearchSession }) {
+function MobileNameResults(props: {
+  session: MobileSearchSession;
+  accountId: string;
+}) {
   const state = props.session;
   const [virtualizer, setVirtualizer] = createSignal<VirtualizerHandle>();
   const [container, setContainer] = createSignal<HTMLDivElement>();
@@ -62,7 +67,8 @@ function MobileNameResults(props: { session: MobileSearchSession }) {
   );
   const initialScroll = untrack(() => scroll());
   let restore =
-    initialScroll?.query === state.query() &&
+    initialScroll?.accountId === props.accountId &&
+    initialScroll.query === state.query() &&
     initialScroll.category === category()
       ? initialScroll
       : undefined;
@@ -76,6 +82,7 @@ function MobileNameResults(props: { session: MobileSearchSession }) {
   );
   const results = createSearchResultWindow({
     key: 'mobileSearch.nameResults',
+    accountId: () => props.accountId,
     query: state.query,
     category,
     items: incoming,
@@ -150,6 +157,7 @@ function MobileNameResults(props: { session: MobileSearchSession }) {
     const handle = virtualizer();
     if (handle && !restore)
       setScroll({
+        accountId: props.accountId,
         query: state.query(),
         category: category(),
         offset: handle.scrollOffset,
@@ -215,7 +223,10 @@ function MobileNameResults(props: { session: MobileSearchSession }) {
   );
 }
 
-function MobileFullTextResults(props: { session: MobileSearchSession }) {
+function MobileFullTextResults(props: {
+  session: MobileSearchSession;
+  accountId: string;
+}) {
   const state = props.session;
   const category = useMobileSearchCategory(state.category);
   const search = createMobileFullTextSearch(state.query, category);
@@ -227,10 +238,13 @@ function MobileFullTextResults(props: { session: MobileSearchSession }) {
     'mobileSearch.fullTextScroll',
     { default: undefined }
   );
-  let restore = untrack(() => scroll());
+  const initialScroll = untrack(() => scroll());
+  let restore =
+    initialScroll?.accountId === props.accountId ? initialScroll : undefined;
   const incoming = createMemo(() => (search.isSettling() ? [] : search.data()));
   const results = createSearchResultWindow({
     key: 'mobileSearch.fullTextResults',
+    accountId: () => props.accountId,
     query: state.query,
     category,
     items: incoming,
@@ -293,6 +307,7 @@ function MobileFullTextResults(props: { session: MobileSearchSession }) {
       onScroll={(event) => {
         if (!restore)
           setScroll({
+            accountId: props.accountId,
             query: state.query(),
             category: category(),
             offset: event.currentTarget.scrollTop,
@@ -352,14 +367,20 @@ function MobileFullTextResults(props: { session: MobileSearchSession }) {
 /** The dock owns the input; only the result subtree changes search modes. */
 export function MobileSearchResults() {
   const session = createMobileSearchEntry();
+  const accountId = useUserId();
+  const authenticated = useIsAuthenticated();
   return (
-    <Suspense fallback={<p role="status">Loading…</p>}>
-      <Show
-        when={session.mode() === 'full-text'}
-        fallback={<MobileNameResults session={session} />}
-      >
-        <MobileFullTextResults session={session} />
-      </Show>
-    </Suspense>
+    <Show when={authenticated() === true ? accountId() : undefined} keyed>
+      {(id) => (
+        <Suspense fallback={<p role="status">Loading…</p>}>
+          <Show
+            when={session.mode() === 'full-text'}
+            fallback={<MobileNameResults session={session} accountId={id} />}
+          >
+            <MobileFullTextResults session={session} accountId={id} />
+          </Show>
+        </Suspense>
+      )}
+    </Show>
   );
 }

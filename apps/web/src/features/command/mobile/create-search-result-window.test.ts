@@ -37,10 +37,13 @@ afterEach(() => {
 
 function setup(
   items: Row[],
-  initial: { hasMore?: boolean; pending?: boolean } = {}
+  initial: { accountId?: string; hasMore?: boolean; pending?: boolean } = {}
 ) {
   return createRoot((dispose) => {
     cleanups.push(dispose);
+    const [accountId, setAccountId] = createSignal(
+      initial.accountId ?? 'alice'
+    );
     const [query, setQuery] = createSignal('notes');
     const [category, setCategory] = createSignal<EntitySearchCategory>('all');
     const [incoming, setItems] = createSignal(items);
@@ -49,6 +52,7 @@ function setup(
     const [discard, setDiscard] = createSignal(false);
     const results = createSearchResultWindow({
       key: 'results',
+      accountId,
       query,
       category,
       items: incoming,
@@ -59,6 +63,7 @@ function setup(
     return {
       results,
       dispose,
+      setAccountId,
       setQuery,
       setCategory,
       setItems,
@@ -192,4 +197,43 @@ it('discards saved rows on authoritative failure and accepts successful empty re
     setItems([]);
   });
   expect(results.items()).toEqual([]);
+});
+
+it('drops the previous account window while the next account is loading', () => {
+  const { results, setAccountId, setItems, setPending, setHasMore } =
+    setup(original);
+  results.preserveOrder();
+  batch(() => {
+    setAccountId('bob');
+    setPending(true);
+    setHasMore(true);
+    setItems([]);
+  });
+  expect(results.items()).toEqual([]);
+  expect(results.needsMore()).toBe(false);
+  batch(() => {
+    setItems([original[2], original[0]]);
+    setPending(false);
+  });
+  expect(results.items()).toEqual([original[2], original[0]]);
+});
+
+it('ignores another account snapshot when remounting a history entry', () => {
+  const first = setup(original);
+  history.state = Object.fromEntries(
+    [...history.captors].map(([key, read]) => [key, read()])
+  );
+  first.dispose();
+  const { results, setItems, setPending } = setup([], {
+    accountId: 'bob',
+    hasMore: true,
+    pending: true,
+  });
+  expect(results.items()).toEqual([]);
+  expect(results.needsMore()).toBe(false);
+  batch(() => {
+    setItems([original[2], original[0]]);
+    setPending(false);
+  });
+  expect(results.items()).toEqual([original[2], original[0]]);
 });

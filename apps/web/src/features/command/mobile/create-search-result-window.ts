@@ -9,6 +9,7 @@ import {
 import type { EntitySearchCategory } from '../queries/entity-search';
 
 type SearchResultWindow<T> = {
+  accountId: string;
   query: string;
   category: EntitySearchCategory;
   items: T[];
@@ -19,6 +20,7 @@ type SearchResultWindow<T> = {
 /** Restore loaded rows in their saved order while sources refresh and page. */
 export function createSearchResultWindow<T extends { id: string }>(options: {
   key: string;
+  accountId: Accessor<string>;
   query: Accessor<string>;
   category: Accessor<EntitySearchCategory>;
   items: Accessor<T[]>;
@@ -31,13 +33,15 @@ export function createSearchResultWindow<T extends { id: string }>(options: {
     | SearchResultWindow<T>
     | undefined;
   const scope = createMemo(() => ({
+    accountId: options.accountId(),
     query: options.query(),
     category: options.category(),
   }));
   const [preservedScope, setPreservedScope] = createSignal(
     untrack(() => {
       const initial = scope();
-      return stored?.query === initial.query &&
+      return stored?.accountId === initial.accountId &&
+        stored.query === initial.query &&
         stored.category === initial.category
         ? initial
         : undefined;
@@ -46,11 +50,21 @@ export function createSearchResultWindow<T extends { id: string }>(options: {
   const window = createMemo<SearchResultWindow<T>>(
     (previous) => {
       const currentScope = scope();
-      const { query, category } = currentScope;
+      const { accountId, query, category } = currentScope;
       const items = options.items();
-      const next = { query, category, items, sourceSize: items.length };
+      const next = {
+        accountId,
+        query,
+        category,
+        items,
+        sourceSize: items.length,
+      };
       if (options.discard()) return next;
-      if (previous?.query === query && previous.category === category) {
+      if (
+        previous?.accountId === accountId &&
+        previous.query === query &&
+        previous.category === category
+      ) {
         if (
           previous.items.length > 0 &&
           (options.pending() ||
@@ -75,6 +89,7 @@ export function createSearchResultWindow<T extends { id: string }>(options: {
       return next;
     },
     stored ?? {
+      accountId: untrack(options.accountId),
       query: untrack(options.query),
       category: untrack(options.category),
       items: [],

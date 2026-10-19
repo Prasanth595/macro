@@ -47,6 +47,8 @@ Refreshing sources rebuild the loaded window and update matching rows in place;
 new pages append without reordering saved rows. A saved row missing from an
 incomplete source page remains until it is found or pagination exhausts.
 Changing the query/category or starting a new dock search computes a fresh order.
+Saved rows and scroll measurements belong to their account; switching accounts
+resets the result sources and scrollers and cannot restore another account's window.
 Available results show no loading footer. Failed background reads retain the window;
 successful empty results replace it, and authoritative errors discard the saved
 window in favor of the current source result. A later search
@@ -65,6 +67,8 @@ then revisit the earlier history entry and confirm its query is intact.
 Open a result from midway through the list and confirm it keeps its original
 position after Back, both when Search stays mounted and after deeper navigation
 evicts it. Refresh row metadata and append pages; existing rows must keep their order.
+Switch accounts with a scrolled Search entry still mounted, then remount that
+entry: neither path should retain the previous account's rows or scroll offset.
 Repeat with a slow refresh: the saved rows and scroll should appear before it
 finishes, and its first page must not shrink a previously paginated list.
 If the viewport changes on return, scroll manually and confirm
