@@ -728,6 +728,18 @@ use `createSoupLiveQuery`: it adds Soup's local membership, ordering, pagination
 and Mail policy through its predicate adapter. That policy remains outside
 generic cache-core.
 
+Grouped Soup still reads server bins, with local date grouping for cached Mail
+and mutation-specific property membership patches. The baseline reconciliation
+core in `src/lib/queries/soup/grouped/reconciliation.ts` is the first step toward
+maintained grouped queries; it is not yet connected to those readers. It combines
+initial and continuation memberships, preserves unknown rows and server cursors,
+and accepts locally evaluated membership in sort order. It deliberately ignores
+candidates outside the loaded baseline rather than treating a bounded flat query
+as complete group coverage. Complete prior multi-value membership is necessary
+to prove count increases: a row loaded in A can already belong to an unloaded
+part of B. The remaining integration must capture that evidence and reconcile all
+loaded pages under one query/account lifetime before publishing grouped data.
+
 Network responses must provide the schema's identity fields (usually `id`, and
 `__typename` for abstract types) for normalization. They are not automatically
 injected. Queries against other schemas, incremental `@defer`/`@stream` delivery

@@ -114,6 +114,10 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Preserve loaded block content on initial access confirmation when its loader
   supplies no permissions; reload only on a later confirmed permission change.
   Apply shared access in place only after a successful permissionless load.
+- Grouped Soup's baseline reconciliation core lives in
+  `src/lib/queries/soup/grouped/reconciliation.ts`; its live-query integration is
+  pending. Supply complete prior multi-value memberships when adjusting counts:
+  a row loaded in one bin may already be an unloaded member of another.
 - Reactive GraphQL reads use `createLiveQuery` for a document and
   `useSoupAstItemsQuery` (backed by `createSoupLiveQuery`) for Soup lists; see
   [choosing a reactive read](docs/graphql-normalized-cache-plan.md#choosing-a-reactive-read).
