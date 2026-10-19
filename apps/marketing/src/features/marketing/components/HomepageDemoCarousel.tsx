@@ -1,48 +1,56 @@
-import { createSignal, type JSX, onCleanup, onMount, Show } from 'solid-js';
+import { createSignal, For, type JSX, onCleanup, onMount } from 'solid-js';
 
 const SLIDES = [
   {
     label: 'Inbox',
     target: 'Home',
-    title: 'One inbox for emails, agents,\ntasks, and messages.',
-    description: '',
+    title: 'One inbox for emails, agents,\ntasks, and messages',
   },
   {
     label: 'Chat',
     target: 'Chat',
-    title: 'Chat with your team and your agents.',
-    description:
-      'Discuss the launch, share the source, and turn feedback into tasks.',
+    title: 'Agents are first-class participants\nin channels and DMs',
   },
   {
     label: 'Docs',
     target: 'Drive',
-    title: 'Docs your team and agents can edit.',
-    description:
-      'Your team and agents edit the same document, with every change recorded.',
+    title: 'Agents can edit docs\nas collaborative peers',
   },
   {
     label: 'CRM',
     target: 'Customers',
-    title: 'CRM connected to every conversation.',
-    description:
-      'See emails, notes, tasks, and the next step alongside each company.',
+    title: 'Agents keep deals current\nfrom email and chat',
   },
   {
     label: 'Tasks',
     target: 'Tasks',
-    title: 'Tasks for your team and your agents.',
-    description:
-      'Assign work to people or agents without losing the original discussion.',
+    title: 'Tasks from messages and email,\nassigned to people and agents',
   },
   {
     label: 'Agents',
     target: 'Agents',
-    title: 'Agents that work across your workspace.',
-    description:
-      'Ask an agent to read documents, check conversations, and act on tasks.',
+    title: 'Agents with memory built\nfrom your workspace',
   },
 ];
+
+function CarouselCaret(props: { direction: 'left' | 'right' }) {
+  return (
+    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24">
+      <path
+        d={
+          props.direction === 'left'
+            ? 'M14.5 5.5 8 12l6.5 6.5'
+            : 'M9.5 5.5 16 12l-6.5 6.5'
+        }
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </svg>
+  );
+}
 
 /** The live-site highlights over a workspace that is always interactive. */
 export function HomepageDemoCarousel(props: {
@@ -179,16 +187,6 @@ export function HomepageDemoCarousel(props: {
       }}
     >
       <div
-        class="homepage-demo-slide-copy"
-        aria-live="polite"
-        aria-atomic="true"
-      >
-        <h2>{slide().title}</h2>
-        <Show when={slide().description}>
-          <p>{slide().description}</p>
-        </Show>
-      </div>
-      <div
         class="homepage-demo-slide-controls"
         onKeyDown={(event) => {
           if (
@@ -207,11 +205,22 @@ export function HomepageDemoCarousel(props: {
           disabled={!ready()}
           onClick={() => select(active() - 1)}
         >
-          <span aria-hidden="true">←</span>
+          <CarouselCaret direction="left" />
         </button>
-        <span class="homepage-demo-current" aria-live="polite">
-          {slide().label}
-        </span>
+        <For each={SLIDES}>
+          {(item, index) => (
+            <button
+              type="button"
+              class="homepage-demo-slide-dot"
+              aria-label={`Show ${item.label} highlight`}
+              aria-pressed={active() === index()}
+              disabled={!ready()}
+              onClick={() => select(index())}
+            >
+              <span />
+            </button>
+          )}
+        </For>
         <button
           type="button"
           class="homepage-demo-arrow"
@@ -219,8 +228,15 @@ export function HomepageDemoCarousel(props: {
           disabled={!ready()}
           onClick={() => select(active() + 1)}
         >
-          <span aria-hidden="true">→</span>
+          <CarouselCaret direction="right" />
         </button>
+      </div>
+      <div
+        class="homepage-demo-slide-copy"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        <h2>{slide().title}</h2>
       </div>
       {props.children}
     </div>
