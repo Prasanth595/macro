@@ -105,8 +105,8 @@ export function RouteGithub() {
         </nav>
         <FeaturePageSection
           id="pr-links"
-          title="Open the PR from the conversation."
-          description="Share a pull request in chat. Its status stays current, and the changes are a click away."
+          title="See the code behind the chat"
+          description="Open a shared pull request to inspect the changes."
         >
           <div class="feature-page-visual">
             <GithubConversationDemo />
@@ -114,8 +114,8 @@ export function RouteGithub() {
         </FeaturePageSection>
         <FeaturePageSection
           id="pr-tasks"
-          title="Merge the PR and the task updates."
-          description="Link a PR to a task. The task moves to In Review when the PR is created, and Completed when it merges."
+          title="Keep tasks in sync with code"
+          description="Linked tasks move from review to done as the PR updates."
         >
           <div class="feature-page-visual">
             <GithubTaskDemo />
@@ -123,8 +123,8 @@ export function RouteGithub() {
         </FeaturePageSection>
         <FeaturePageSection
           id="coding-agents"
-          title="Ask an agent to fix a bug."
-          description="Tag @Cursor in the conversation. Open its pull request to see what changed."
+          title="Turn a bug report into a fix"
+          description="Tag Cursor in chat, then inspect its pull request."
         >
           <div class="feature-page-visual">
             <GithubConversationDemo agent />
@@ -132,8 +132,8 @@ export function RouteGithub() {
         </FeaturePageSection>
         <FeaturePageSection
           id="review-inbox"
-          title="Review requests in your inbox."
-          description="See GitHub review requests, comments, and mentions alongside your messages, tasks, and email."
+          title="Know what needs your review"
+          description="Find GitHub requests and comments in your Macro inbox."
         >
           <div class="feature-page-visual">
             <ReviewInboxDemo />

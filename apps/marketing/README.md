@@ -245,11 +245,17 @@ changes to application routes, components, or providers.
 
 ## Feature-page pattern
 
-`/email` establishes the public feature-page pattern in
-`src/features/marketing/components/FeaturePage.tsx`: homepage slab headings and
-rules, Inter body copy, and the onboarding security section’s reading measure
-and FAQ disclosures. Website UI utilities and the frozen dark palette are
-scoped to `.feature-page`, preserving the surrounding public-page styles.
+`FeaturePageSection` in `src/features/marketing/components/FeaturePage.tsx`
+provides the lower demo sections on Tasks, Email, Chat, Docs, Calls, CRM, Agents,
+and GitHub. A short slab heading sits beside a plain value statement, with the
+existing product demo below on a shared 1040px measure. At 799px and below the
+intro stacks; at phone widths it uses the page gutters. Keep this layout scoped
+to lower sections: the homepage, product heroes, and wallpaper demos retain
+their own layout. Do not add section eyebrows, divider rules, or demo chrome.
+Supporting copy should be brief and explain a useful detail beyond the heading.
+FAQ disclosures retain the onboarding security section’s reading measure.
+Website UI utilities and the frozen dark palette are scoped to `.feature-page`,
+preserving the surrounding public-page styles.
 
 The email page reuses `HomepageEmailCompose`. Its other local demos freeze the
 presentation of the application’s `EmailSidebar`, `SearchBar`, entity email row

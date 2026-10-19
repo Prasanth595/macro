@@ -130,8 +130,8 @@ export function RouteTasks() {
         </section>
         <FeaturePageSection
           id="from-a-message"
-          title="Turn a message into a task."
-          description="Make a task from the request and give it an owner."
+          title="Turn requests into tasks"
+          description="Give a message an owner and a next step."
         >
           <DemoInteractionBoundary class="feature-page-visual">
             <TaskFromMessageDemo />
@@ -139,8 +139,8 @@ export function RouteTasks() {
         </FeaturePageSection>
         <FeaturePageSection
           id="ask-macro"
-          title="Ask your agent to handle updates."
-          description="Macro can create the tasks, change an assignment, or check what’s still open."
+          title="Let agents handle updates"
+          description="Create tasks and change assignments from chat."
         >
           <DemoInteractionBoundary class="feature-page-visual">
             <TaskAgentChannelDemo />
@@ -148,8 +148,8 @@ export function RouteTasks() {
         </FeaturePageSection>
         <FeaturePageSection
           id="from-docs-and-email"
-          title="Link the work inside the task."
-          description={'Use @mentions to link docs, emails, and conversations.'}
+          title="Keep the context close"
+          description="Link the docs, emails, and conversations behind a task."
         >
           <DemoInteractionBoundary class="feature-page-visual">
             <TaskContextDemo />
@@ -157,8 +157,8 @@ export function RouteTasks() {
         </FeaturePageSection>
         <FeaturePageSection
           id="github"
-          title="Tasks close themselves upon completion."
-          description="Merge a linked pull request and Macro marks the task done."
+          title="Merge code. Close the task."
+          description="Linked tasks update when a pull request merges."
         >
           <DemoInteractionBoundary class="feature-page-visual">
             <TaskGithubDemo />

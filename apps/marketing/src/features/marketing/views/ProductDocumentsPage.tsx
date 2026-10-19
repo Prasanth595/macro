@@ -99,8 +99,8 @@ export function RouteDocuments() {
         </nav>
         <FeaturePageSection
           id="document-agents"
-          title="Write alongside your agent."
-          description="Ask it to use your emails and tasks to update the doc. Both of you can edit the same paragraph, with changes merging as you type."
+          title="Write with your agent"
+          description="Turn emails and tasks into changes in your shared doc."
         >
           <DemoInteractionBoundary class="feature-page-visual">
             <DocumentAgentDemo />
@@ -108,8 +108,8 @@ export function RouteDocuments() {
         </FeaturePageSection>
         <FeaturePageSection
           id="document-links"
-          title="Open emails and tasks beside your doc."
-          description="Link to the work you’re writing about. Open the original email, task, or conversation without closing your doc."
+          title="Open the source beside you"
+          description="Read a linked email or task without leaving your doc."
         >
           <DemoInteractionBoundary class="feature-page-visual docs-wide-demo">
             <DocumentMentionsDemo />
@@ -117,8 +117,8 @@ export function RouteDocuments() {
         </FeaturePageSection>
         <FeaturePageSection
           id="document-organization"
-          title="Organize docs with folders and tags."
-          description="Keep a doc in its folder and find it through any of its tags, alongside related emails and tasks."
+          title="Find docs where you work"
+          description="Use folders and tags to keep related work together."
         >
           <DemoInteractionBoundary class="feature-page-visual">
             <DocumentOrganizationDemo />

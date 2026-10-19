@@ -5,9 +5,9 @@ import { isServer } from 'solid-js/web';
 import { ctaHref, handleCtaClick } from '../../../app/utils/utilCta';
 import palette from '../../../styles/dark-theme.css?inline';
 import uiStyles from '../../../styles/site-ui.css?inline';
-import { HomepageFeatureHeading } from './HomepageFeatureHeading';
 import './workspace-story.css';
 import './feature-page.css';
+import './product-feature-section.css';
 import './product-page-preview.css';
 
 // The frozen UI utilities and palette apply only inside this page. Legacy
@@ -64,11 +64,10 @@ export function FeaturePageSection(props: {
       id={props.id}
       aria-labelledby={`${props.id}-title`}
     >
-      <HomepageFeatureHeading
-        id={`${props.id}-title`}
-        title={props.title}
-        description={props.description}
-      />
+      <header class="product-feature-intro">
+        <h2 id={`${props.id}-title`}>{props.title}</h2>
+        <p>{props.description}</p>
+      </header>
       {props.children}
     </section>
   );

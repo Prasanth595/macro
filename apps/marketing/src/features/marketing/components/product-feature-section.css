@@ -1,0 +1,61 @@
+/* Lower product sections only. Hero demos and homepage keep their own layout. */
+.feature-page .feature-page-section {
+  width: min(1040px, calc(100% - 48px));
+  margin-inline: auto;
+}
+
+.product-feature-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 24px 64px;
+  margin-bottom: 40px;
+  text-align: left;
+}
+
+.product-feature-intro h2 {
+  margin: 0;
+  max-width: 15em;
+  font: calc(315 + var(--cream-slab-weight-increase, 0)) clamp(28px, 2.8vw, 38px)/1.2 'Roboto Slab Variable', display, serif;
+  letter-spacing: -.035em;
+  text-wrap: balance;
+}
+
+.product-feature-intro p {
+  padding-top: 4px;
+  max-width: 38ch;
+  color: var(--color-ink-muted);
+  font: 400 18px/1.6 'Inter Variable', Inter, sans-serif;
+  text-wrap: pretty;
+}
+
+.feature-page .feature-page-section > .feature-page-visual {
+  width: 100%;
+}
+
+.feature-page .feature-page-section > :is(.product-prose, .email-feature-prose) {
+  width: auto;
+  max-width: 65ch;
+  margin: 24px 0 0 auto;
+  padding: 0;
+  color: var(--color-ink-muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+@media (max-width: 799px) {
+  .product-feature-intro {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+
+  .product-feature-intro h2 { max-width: none; text-wrap: pretty; }
+  .product-feature-intro p { max-width: 50ch; padding-top: 0; font-size: 16px; }
+}
+
+@media (max-width: 699px) {
+  .feature-page .feature-page-section { width: calc(100% - 36px); }
+  .feature-page .product-page .feature-page-section { width: 100%; }
+  .feature-page .feature-page-section > :is(.product-prose, .email-feature-prose) { margin-top: 20px; }
+}

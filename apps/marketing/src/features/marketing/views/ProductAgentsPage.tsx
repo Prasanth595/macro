@@ -109,8 +109,8 @@ export function RouteAgents() {
       </nav>
       <FeaturePageSection
         id="agent-sources"
-        title="An agent that knows where to look."
-        description="Your agent can follow connections across your company’s work and act on what it finds. A question about tomorrow’s calls can draw on your calendar, earlier conversations, and the latest customer messages."
+        title="Get answers with context"
+        description="Let your agent find what matters across your work."
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <AgentMeetingStory />
@@ -118,8 +118,8 @@ export function RouteAgents() {
       </FeaturePageSection>
       <FeaturePageSection
         id="agent-actions"
-        title="Work alongside your agent"
-        description="Your team can open the same document, add context, and ask an agent to update it. Changes happen in the shared file."
+        title="Make progress together"
+        description="Your team and your agent can edit the same shared doc."
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <AgentDeliverableStory />
@@ -127,8 +127,8 @@ export function RouteAgents() {
       </FeaturePageSection>
       <FeaturePageSection
         id="agent-collaboration"
-        title="Bring your agents into team chat."
-        description="Ask Macro for a mockup, give feedback, then tag Cursor to build it."
+        title="Go from idea to implementation"
+        description="Ask Macro for a mockup, then tag Cursor to build it."
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <AgentTeamworkStory />
@@ -136,8 +136,8 @@ export function RouteAgents() {
       </FeaturePageSection>
       <FeaturePageSection
         id="existing-agents"
-        title="Bring your own agent."
-        description="Give the agent you already use access to the context and tools in Macro."
+        title="Bring your own agent"
+        description="Connect the agent you use to your work in Macro."
       >
         <div class="agents-connections">
           <div class="agents-connection-paths">

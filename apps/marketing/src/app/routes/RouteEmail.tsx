@@ -136,81 +136,61 @@ export function RouteEmail() {
       </nav>
       <FeaturePageSection
         id="auto-tags"
-        title="Your email, automatically tagged."
-        description={
-          'Macro tags incoming email by customer, project, or follow-up.\nUse tags to find the related conversations across your accounts.'
-        }
+        title="Find the right email"
+        description="Automatic tags organize email by customer and project."
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <EmailAutoTagsDemo />
         </DemoInteractionBoundary>
         <div class="email-feature-prose">
           <p>
-            Automatic tags label incoming messages so you can browse email by
-            customer, project, or follow-up. Tags also work on documents, tasks,
-            and other workspace items. You can add, remove, or change a tag
-            yourself. A thread can have several tags, so it can appear under
-            both the customer and the project.
+            Add or change tags yourself. A thread can belong to both a customer
+            and a project, alongside related docs and tasks.
           </p>
         </div>
       </FeaturePageSection>
       <FeaturePageSection
         id="email-sharing"
-        title="Share an email directly to a channel."
-        description={
-          'Share the full email thread with your team.\nFuture replies appear in the shared thread automatically.'
-        }
+        title="Bring your team into the thread"
+        description="Share an email in chat, with new replies included."
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <EmailSharingDemo />
         </DemoInteractionBoundary>
         <div class="email-feature-prose">
           <p>
-            Choose a channel, add a note, and share the email. Channel members
-            can open the original thread, including its messages and
-            attachments. New replies update that same thread. Your team can
-            leave comments and @mention documents or tasks alongside the
-            customer’s email.
+            Everyone in the channel can open the shared thread and its
+            attachments. New replies appear in the same place.
           </p>
         </div>
       </FeaturePageSection>
       <FeaturePageSection
         id="keyboard-speed"
-        title="Superhuman speed."
-        description={
-          'J and K to navigate. E to mark done.\nSearch all your connected accounts from one inbox.'
-        }
+        title="Move through your inbox"
+        description="Open, reply, and mark done from your keyboard."
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <EmailKeyboardDemo />
         </DemoInteractionBoundary>
         <div class="email-feature-prose">
           <p>
-            Macro syncs email into its own database and search index. Search and
-            agent reading tools work on the indexed messages across your
-            connected accounts. J and K move to the next and previous thread. E
-            marks the conversation done. Enter opens it, and Esc returns to the
-            list. These shortcuts work with a thread open too.
+            Use J and K to move between threads, E to mark done, and Escape to
+            return to the list.
           </p>
         </div>
       </FeaturePageSection>
       <FeaturePageSection
         id="agentic-editing"
-        title="Agents draft from your email and docs."
-        description={
-          'Ask for a follow-up using the email thread and meeting transcript.\nReview the draft, recipients, and attachments before sending.'
-        }
+        title="Start with a better draft"
+        description="Ask an agent to draft from your emails, docs, and calls."
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <EmailAgenticEditingDemo />
         </DemoInteractionBoundary>
         <div class="email-feature-prose">
           <p>
-            Agents can search past emails and read the documents and calls you
-            reference. Ask Claude to write a reply, attach a proposal, and copy
-            the people involved. The result is an editable email draft. Change
-            the subject or wording, check the recipients, and approve the send
-            when you’re ready.
+            Review the draft, recipients, and attachments. Edit anything before
+            approving the send.
           </p>
         </div>
       </FeaturePageSection>

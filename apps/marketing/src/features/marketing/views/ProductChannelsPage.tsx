@@ -58,8 +58,8 @@ export function RouteChannels() {
       </nav>
       <FeaturePageSection
         id="shared-work"
-        title="Open docs, tasks, and email straight from chat."
-        description="Click a mention to open the work beside the conversation."
+        title="Open the work from chat"
+        description="Read docs, tasks, and emails beside the conversation."
       >
         <DemoInteractionBoundary class="feature-page-visual channel-wide-demo">
           <ChannelSharedWorkDemo />
@@ -67,8 +67,8 @@ export function RouteChannels() {
       </FeaturePageSection>
       <FeaturePageSection
         id="channel-access"
-        title="Access follows the channel."
-        description="Mention a doc, task, or email to give the channel access. New members get access too."
+        title="Share once with the team"
+        description="Mention a file to give the channel access."
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <ChannelPermissionsDemo />
@@ -76,8 +76,8 @@ export function RouteChannels() {
       </FeaturePageSection>
       <FeaturePageSection
         id="channel-agents"
-        title="Agents are first-class participants."
-        description="Use Macro’s agents or bring your own. The team can follow the work in the channel."
+        title="Put agents in the conversation"
+        description="Ask an agent to help where your team is already talking."
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <ChannelAgentDemo />
@@ -85,8 +85,8 @@ export function RouteChannels() {
       </FeaturePageSection>
       <FeaturePageSection
         id="catch-up"
-        title="Catch up without opening every thread."
-        description="Read replies inline and respond in the same conversation."
+        title="Catch up in one place"
+        description="Read replies and respond without opening every thread."
       >
         <span id="channel-threads" />
         <span id="chat-inbox" />

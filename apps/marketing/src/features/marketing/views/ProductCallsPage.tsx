@@ -102,8 +102,8 @@ export function RouteCalls() {
         </nav>
         <FeaturePageSection
           id="call-start"
-          title="Start a call in one click."
-          description={'Click Call in a channel or DM.'}
+          title="Meet in a click"
+          description="Start a call straight from a channel or DM."
         >
           <div class="feature-page-visual">
             <CallStartDemo />
@@ -111,8 +111,8 @@ export function RouteCalls() {
         </FeaturePageSection>
         <FeaturePageSection
           id="call-followup"
-          title="Update tasks from your calls."
-          description="Ask an agent to update the owner and next steps from your call."
+          title="Turn decisions into action"
+          description="Ask an agent to update tasks from your call."
         >
           <div class="feature-page-visual">
             <CallFollowupDemo />
@@ -120,10 +120,8 @@ export function RouteCalls() {
         </FeaturePageSection>
         <FeaturePageSection
           id="call-default"
-          title="Your team can catch up without being there."
-          description={
-            'Share a call’s recording, transcript, and summary with your team.'
-          }
+          title="Catch up after the call"
+          description="Share the recording, transcript, and summary."
         >
           <div class="feature-page-visual">
             <CallTeamMemoryDemo />

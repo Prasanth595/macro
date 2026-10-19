@@ -119,63 +119,53 @@ export function RouteCrm() {
       </nav>
       <FeaturePageSection
         id="crm-from-email"
-        title="Keep your CRM current."
-        description={'Update stages and owners from your conversations.'}
+        title="Keep your CRM current"
+        description="Update stages and owners from your conversations."
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <CrmCaptureDemo />
         </DemoInteractionBoundary>
         <ProductProse>
           <p>
-            Every CRM is useful when it’s up to date, and every keystroke it
-            takes to get there is a chore. That’s why most of them go stale.
-            Auto-updating CRMs like Attio and Lightfield help, but they’re still
-            another tool someone has to check. Macro’s CRM lives in the same
-            workspace as your email, calls, and chat, and agents keep it current
-            from those conversations.
+            Ask an agent to update a stage or owner using the email, call, or
+            conversation where the change happened.
           </p>
         </ProductProse>
       </FeaturePageSection>
       <FeaturePageSection
         id="crm-enrichment"
-        title="Know who you’re meeting."
-        description={'Company details, filled in from the first email.'}
+        title="Know who you’re meeting"
+        description="Company details, filled in from the first email."
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <CrmEnrichmentDemo />
         </DemoInteractionBoundary>
         <ProductProse>
           <p>
-            When you email someone new, Macro creates the contact and the
-            company from their domain and fills in what’s publicly known about
-            them. You don’t start from a blank record, and you don’t need a
-            separate enrichment tool to do it.
+            New contacts and companies are created from email. Public company
+            details fill in the record automatically.
           </p>
         </ProductProse>
       </FeaturePageSection>
       <FeaturePageSection
         id="crm-context"
-        title="Keep the full picture."
-        description={'Emails, calls, files, and tasks together.'}
+        title="See the whole relationship"
+        description="Keep emails, calls, files, and tasks on the customer record."
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <CrmRecordDemo />
         </DemoInteractionBoundary>
         <ProductProse>
           <p>
-            Open a company and it’s all there: the people you talk to, every
-            email thread, every call, the files you’ve sent, and the tasks in
-            flight. The discussion on each record works like a channel thread,
-            so the note about pricing lives on the customer instead of somewhere
-            in #sales. Mention the company in a doc or channel and it links
-            straight back here.
+            Open a company to see its contacts and related work. Add notes to
+            the record so your team can find them later.
           </p>
         </ProductProse>
       </FeaturePageSection>
       <FeaturePageSection
         id="crm-agents"
-        title="Move deals forward."
-        description={'Let agents research accounts and prepare the next step.'}
+        title="Keep deals moving"
+        description="Ask an agent to update your pipeline after a sales call."
       >
         <DemoInteractionBoundary class="feature-page-visual crm-agent-scene">
           <HomepageConversation
@@ -205,11 +195,8 @@ export function RouteCrm() {
         </DemoInteractionBoundary>
         <ProductProse>
           <p>
-            We treat Macro’s MCP server as seriously as the interface. Agents
-            can list companies, read a record, and update its properties,
-            whether they’re running in Macro or in Claude, ChatGPT, or Cursor.
-            Tell one which deals moved after your sales sync and the pipeline
-            updates while you get on with your day.
+            Agents can read customer records and update their properties from
+            Macro or a connected MCP client.
           </p>
         </ProductProse>
       </FeaturePageSection>
