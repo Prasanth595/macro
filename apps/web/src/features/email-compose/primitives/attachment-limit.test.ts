@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_ATTACHMENTS_BYTES_SIZE } from '../core/constants';
+import {
+  attachmentLimitBytes,
+  MAX_ATTACHMENTS_BYTES_SIZE,
+} from '../core/constants';
 import { partitionByAttachmentLimit } from './attachment-limit';
 
 const MB = 1_000_000;
@@ -55,11 +58,13 @@ describe('partitionByAttachmentLimit', () => {
     ).toEqual({ attachable: [half, rest], oversized: [extra] });
   });
 
-  it('sizes the limit per inbox', () => {
-    const large = fileOf(100 * MB, 'large.mov');
-    expect(partitionByAttachmentLimit([large], [], 150 * MB)).toEqual({
-      attachable: [large],
-      oversized: [],
-    });
+  it('lets an Outlook inbox attach what Gmail cannot', () => {
+    const large = fileOf(20 * MB, 'large.mov');
+    expect(
+      partitionByAttachmentLimit([large], [], attachmentLimitBytes('GMAIL'))
+    ).toEqual({ attachable: [], oversized: [large] });
+    expect(
+      partitionByAttachmentLimit([large], [], attachmentLimitBytes('OUTLOOK'))
+    ).toEqual({ attachable: [large], oversized: [] });
   });
 });

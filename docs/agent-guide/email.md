@@ -377,7 +377,7 @@ Attachments that can be opened are buttons named by their filename; Tab to one
 and press Enter or Space. Removal is a separate button named `Remove <filename>`.
 Removing a forwarded file keeps the received original.
 Files that would push the email over the sending inbox's delivery limit (18 MB
-on Gmail, 150 MB on Outlook) are not attached:
+on Gmail, 25 MB on Outlook) are not attached:
 a confirmation (a drawer on phones) offers to upload them to Macro and share
 view-only links instead. Confirming inserts one link per file at the end of the
 written message, above a reply's quoted thread, and the draft autosaves; Cancel
