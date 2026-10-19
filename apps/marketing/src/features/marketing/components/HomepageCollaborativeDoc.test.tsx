@@ -60,7 +60,7 @@ it('restores actual document content in both directions and holds the chosen edi
   show();
   fireEvent.input(slider, { target: { value: '1000' } });
   const finished = scene.textContent;
-  expect(finished).toContain('Q3 launch plan');
+  expect(finished).toContain('Website launch plan');
   fireEvent.input(slider, { target: { value: '200' } });
   const earlier = scene.textContent;
   expect(earlier).not.toBe(finished);

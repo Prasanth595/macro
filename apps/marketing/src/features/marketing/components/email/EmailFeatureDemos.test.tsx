@@ -52,14 +52,12 @@ it('tags incoming mail, pauses offscreen and preserves manual tag edits', () => 
   setVisible(false);
   vi.advanceTimersByTime(5000);
   expect(view.getByText('1 / 4 tagged')).toBeTruthy();
-  fireEvent.click(
-    view.getByRole('button', { name: 'Read Next steps for our team' })
-  );
+  fireEvent.click(view.getByRole('button', { name: 'Read Homepage feedback' }));
   fireEvent.click(
     view.getByRole('button', { name: 'Edit selected email tags' })
   );
   const menu = within(
-    view.getByRole('group', { name: 'Tags for Next steps for our team' })
+    view.getByRole('group', { name: 'Tags for Homepage feedback' })
   );
   fireEvent.click(menu.getByRole('button', { name: 'Customers' }));
   fireEvent.click(menu.getByRole('button', { name: 'Launch' }));
@@ -92,16 +90,14 @@ it('navigates with J/K, opens threads and archives the selection through the emp
     view.getByRole('heading', { name: 'Launch announcement' })
   ).toBeTruthy();
   fireEvent.keyDown(region, { key: 'k' });
-  expect(
-    view.getByRole('heading', { name: 'Next steps for our team' })
-  ).toBeTruthy();
+  expect(view.getByRole('heading', { name: 'Homepage feedback' })).toBeTruthy();
   fireEvent.keyDown(region, { key: 'e' });
   expect(
     view.getByRole('heading', { name: 'Launch announcement' })
   ).toBeTruthy();
   fireEvent.keyDown(region, { key: 'Escape' });
   expect(
-    view.queryByRole('button', { name: 'Read Next steps for our team' })
+    view.queryByRole('button', { name: 'Read Homepage feedback' })
   ).toBeNull();
   for (let count = 0; count < 3; count++)
     fireEvent.keyDown(region, { key: 'e' });
@@ -125,9 +121,7 @@ it('finishes keyboard playback and cleans up its timer', () => {
   const view = render(() => <EmailKeyboardDemo />);
   setVisible(true);
   vi.advanceTimersByTime(1400);
-  expect(
-    view.getByRole('heading', { name: 'Next steps for our team' })
-  ).toBeTruthy();
+  expect(view.getByRole('heading', { name: 'Homepage feedback' })).toBeTruthy();
   vi.advanceTimersByTime(7000);
   expect(view.queryByText('1 archived')).toBeNull();
   expect(view.getAllByRole('button', { name: /^Read / })).toHaveLength(3);

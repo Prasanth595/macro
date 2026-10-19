@@ -76,26 +76,30 @@ describe('standalone website demos', () => {
   it('edits cells, commits keyboard navigation, and restores edits with undo and redo', () => {
     const view = render(() => <HomepageSpreadsheet />);
     const cell = view.getByRole('gridcell', {
-      name: 'A2: Dana',
+      name: 'A2: Valentina',
     });
     fireEvent.click(cell);
     fireEvent.dblClick(cell);
     fireEvent.input(view.getByRole('textbox', { name: 'Edit A2' }), {
-      target: { value: 'Dana Test' },
+      target: { value: 'Valentina Test' },
     });
     fireEvent.keyDown(view.getByRole('textbox', { name: 'Edit A2' }), {
       key: 'Enter',
     });
-    expect(view.getByRole('gridcell', { name: 'A2: Dana Test' })).toBeTruthy();
+    expect(
+      view.getByRole('gridcell', { name: 'A2: Valentina Test' })
+    ).toBeTruthy();
     expect(
       view
         .getByRole('gridcell', { name: 'A3: Maya' })
         .getAttribute('aria-selected')
     ).toBe('true');
     fireEvent.click(view.getByRole('button', { name: 'Undo' }));
-    expect(view.getByRole('gridcell', { name: 'A2: Dana' })).toBeTruthy();
+    expect(view.getByRole('gridcell', { name: 'A2: Valentina' })).toBeTruthy();
     fireEvent.click(view.getByRole('button', { name: 'Redo' }));
-    expect(view.getByRole('gridcell', { name: 'A2: Dana Test' })).toBeTruthy();
+    expect(
+      view.getByRole('gridcell', { name: 'A2: Valentina Test' })
+    ).toBeTruthy();
     fireEvent.click(view.getByRole('button', { name: 'Bold' }));
     expect(
       view.getByRole('gridcell', { name: 'A3: Maya' }).style.fontWeight

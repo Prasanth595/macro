@@ -176,7 +176,7 @@ const MENU_EVERYTHING: MenuSection[] = [
   {
     title: 'Documents, Agents, & Tasks',
     count: 10199,
-    rows: [{ icon: 'doc', label: 'Q3 launch plan' }],
+    rows: [{ icon: 'doc', label: 'Website launch plan' }],
   },
   {
     title: 'Channels',
@@ -208,7 +208,7 @@ const SNIPPETS: MenuSection[] = [
   },
 ];
 
-const DOC_TITLE = 'Q3 launch plan';
+const DOC_TITLE = 'Website launch plan';
 
 const SCRIPT: Block[] = [
   {
@@ -271,7 +271,7 @@ const SCRIPT: Block[] = [
             title: 'Documents, Agents, & Tasks',
             count: 74,
             rows: [
-              { icon: 'doc', label: 'Q3 launch notes' },
+              { icon: 'doc', label: 'Website launch notes' },
               {
                 icon: 'task',
                 label: 'Prepare the launch checklist',
@@ -361,7 +361,7 @@ const SCRIPT: Block[] = [
   {
     kind: 'li',
     md: '',
-    segs: [{ k: 'text', text: 'Share the plan with Dana' }],
+    segs: [{ k: 'text', text: 'Share the plan with Valentina' }],
   },
   { kind: 'h2', md: '## ', segs: [{ k: 'text', text: 'Context' }] },
   {
@@ -445,7 +445,7 @@ const SCRIPT: Block[] = [
 ];
 
 /** The run the comment lands on, and the comment itself. */
-const COMMENT_TEXT = 'Please check the date against Dana’s email.';
+const COMMENT_TEXT = 'Please check the date against Valentina’s email.';
 /** Which block carries the highlight and the badge -- the "Agenda" heading. */
 const COMMENT_BLOCK = 4;
 

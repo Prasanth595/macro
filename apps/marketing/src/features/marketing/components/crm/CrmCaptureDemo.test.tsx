@@ -59,7 +59,7 @@ const owner = (view: ReturnType<typeof render>) =>
 
 it('lets Claude set the stage and owner, then answer in the Discussion thread', () => {
   const view = render(() => <CrmCaptureDemo />);
-  expect(view.getByText(/just got off a call with Dana/)).toBeTruthy();
+  expect(view.getByText(/just got off a call with Valentina/)).toBeTruthy();
   expect(stage(view)).toContain('Lead');
   expect(owner(view)).toContain('Empty');
   vi.advanceTimersByTime(10000);
@@ -115,9 +115,11 @@ it('posts a visitor’s comment and thread reply in the company Discussion', () 
   const view = render(() => <CrmCaptureDemo />);
   const comment = view.getByRole('textbox', { name: 'Comment on company' });
   expect(comment.getAttribute('placeholder')).toBe('Leave a comment...');
-  fireEvent.input(comment, { target: { value: 'Dana confirmed 12 seats.' } });
+  fireEvent.input(comment, {
+    target: { value: 'Valentina confirmed 12 seats.' },
+  });
   fireEvent.keyDown(comment, { key: 'Enter' });
-  expect(view.getByText('Dana confirmed 12 seats.')).toBeTruthy();
+  expect(view.getByText('Valentina confirmed 12 seats.')).toBeTruthy();
   const thread = view.container.querySelector<HTMLElement>(
     '[data-thread-id="capture-request"]'
   );

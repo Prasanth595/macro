@@ -33,7 +33,7 @@ const HomepageSpreadsheet = lazy(loadSpreadsheet);
 const LaunchPlan = () => (
   <HomepageMention
     kind="md"
-    label="Q3 launch plan"
+    label="Website launch plan"
     description="The shared launch plan, checklist, and owners. Julia and Gabriel are editing."
     href="#documents"
   />
@@ -154,7 +154,7 @@ export function HomepageSections() {
           messages={[
             {
               person: 'julia',
-              text: 'Dana wants to invite her team. Are we still on for Thursday?',
+              text: 'Valentina wants to invite her team. Are we still on for Thursday?',
             },
             {
               person: 'jacob',
@@ -165,14 +165,14 @@ export function HomepageSections() {
                   <HomepageMention
                     kind="calendar"
                     label="Demo Call Sep 14th"
-                    description="Jacob, Dana, and Julia · Product demo and next steps for Dana’s team."
+                    description="Jacob, Valentina, and Julia · Product demo and next steps for Valentina’s team."
                     href="#email"
                   />{' '}
                   and{' '}
                   <HomepageMention
                     kind="call"
                     label="Demo call transcript"
-                    description="Transcript of the September 14 demo with Dana · Team rollout, sales materials, and follow-up next steps."
+                    description="Transcript of the September 14 demo with Valentina · Team rollout, sales materials, and follow-up next steps."
                     href="#email"
                   />
                   . Include the sales PDF and rollout doc, and cc Julia.

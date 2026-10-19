@@ -115,7 +115,7 @@ it('inserts into nested contenteditable markup while preserving surrounding text
         >
           <p>
             <strong>Keep this </strong>
-            <span>@q3</span> and this.
+            <span>@web</span> and this.
           </p>
         </div>
       </div>
@@ -125,13 +125,13 @@ it('inserts into nested contenteditable markup while preserving surrounding text
   editor.focus();
   const query = editor.querySelector('span')!.firstChild!;
   const range = document.createRange();
-  range.setStart(query, 3);
+  range.setStart(query, 4);
   range.collapse(true);
   window.getSelection()!.removeAllRanges();
   window.getSelection()!.addRange(range);
   fireEvent.input(editor);
   fireEvent.keyDown(editor, { key: 'Enter' });
-  expect(editor.textContent).toBe('Keep this Q3 launch plan  and this.');
+  expect(editor.textContent).toBe('Keep this Website launch plan  and this.');
   expect(
     editor
       .querySelector('[data-demo-mention="plan"]')

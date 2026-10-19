@@ -10,7 +10,7 @@ import { CrmRecordWorkspace } from './CrmRecordWorkspace';
 const request: WorkspaceComment = {
   id: 'capture-request',
   person: 'jacob',
-  body: '@[Claude](demo-mention:claude) just got off a call with Dana. They want a demo Thursday at 9 for the studio team. Move The Meadow to Demo, make me the owner, and note that Alex is running the rollout on their side.',
+  body: '@[Claude](demo-mention:claude) just got off a call with Valentina. They want a demo Thursday at 9 for the studio team. Move The Meadow to Demo, make me the owner, and note that Alex is running the rollout on their side.',
   time: '9:51 AM',
 };
 const reply: WorkspaceComment = {

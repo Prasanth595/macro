@@ -13,14 +13,23 @@ first paint. Sample workspace styles read that HTML palette before route code
 runs. Check both palettes when changing a shared demo or surface.
 
 Public calls to action use the shared `site-nav-start` treatment: warm white,
-soft pill corners, a fine border, and a 2px arrow shift on hover. `Talk to us` is an
+soft pill corners, a fine border, and a 2px arrow shift on hover. `Talk to us` is a
 soft grey secondary action; the header's `Open app` is a quiet text action
 without an arrow.
 The homepage primary adds a subtle satin gradient and inset edge, a quieter
 18px arrow, and a 1px hover lift; it remains a single link.
 Feedback uses 140ms CSS transitions, respects reduced motion, and does not
-track the pointer. Mobile header actions retain 44px touch targets. The homepage scroll cue is an
+track the pointer. Mobile header actions retain 44px touch targets. The homepage scroll cue is a
 16px arrow inside a 44px button, inset 20px from the bottom while respecting safe areas.
+
+The homepage names Macro in the unification heading and introduces the live
+sample with its heading and named view selectors above the frame. The frame
+uses a neutral charcoal treatment (warm grey in cream). It embeds the existing
+`/demo` workspace directly, with no alternate inbox layout. The Home view keeps
+the same mixed activity sidebar and agent composer. The sample launch story
+uses Valentina consistently.
+Demo copy is illustrative, informed by the team's website feedback, rather
+than a publication of private messages.
 
 ## Ownership and dependency boundary
 

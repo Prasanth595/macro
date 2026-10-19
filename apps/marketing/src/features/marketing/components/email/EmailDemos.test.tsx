@@ -59,10 +59,12 @@ it('combines account, tab and search filters and preserves them after opening a 
   fireEvent.click(accounts.getByRole('button', { name: 'All inboxes' }));
   fireEvent.click(tabs.getByRole('button', { name: 'All' }));
   fireEvent.input(view.getByLabelText('Search sample email'), {
-    target: { value: 'Dana' },
+    target: { value: 'Valentina' },
   });
   expect(view.getAllByRole('button', { name: /^Read / })).toHaveLength(2);
-  fireEvent.click(view.getByRole('button', { name: /^Read Next steps/ }));
+  fireEvent.click(
+    view.getByRole('button', { name: /^Read Homepage feedback/ })
+  );
   expect(view.getByText('Hi Jacob,')).toBeTruthy();
   fireEvent.click(view.getByRole('button', { name: 'Back to inbox' }));
   expect(view.getAllByRole('button', { name: /^Read / })).toHaveLength(2);
@@ -110,7 +112,7 @@ it('shares into a channel, sends a local message, and opens the original convers
   expect(send.hasAttribute('disabled')).toBe(true);
   fireEvent.click(
     view.getByRole('button', {
-      name: 'Open shared email: Next steps for our team',
+      name: 'Open shared email: Homepage feedback',
     })
   );
   expect(view.getByText('Hi Jacob,')).toBeTruthy();
@@ -154,13 +156,13 @@ it('keeps the live reply in the shared thread and stops at the completed result'
   const view = render(() => <EmailSharingDemo />);
   setVisible(true);
   vi.advanceTimersByTime(10650);
-  expect(view.getByText('2 messages · New reply from Dana')).toBeTruthy();
+  expect(view.getByText('2 messages · New reply from Valentina')).toBeTruthy();
   vi.advanceTimersByTime(30000);
-  expect(view.getByText('2 messages · New reply from Dana')).toBeTruthy();
+  expect(view.getByText('2 messages · New reply from Valentina')).toBeTruthy();
   expect(vi.getTimerCount()).toBe(0);
   fireEvent.click(
     view.getByRole('button', {
-      name: 'Open shared email: Next steps for our team',
+      name: 'Open shared email: Homepage feedback',
     })
   );
   expect(view.getByText('Hi Jacob,')).toBeTruthy();
@@ -176,7 +178,7 @@ it('shows the shared result without autoplay for reduced motion', () => {
   setVisible(true);
   expect(
     view.getByRole('button', {
-      name: 'Open shared email: Next steps for our team',
+      name: 'Open shared email: Homepage feedback',
     })
   ).toBeTruthy();
   expect(
@@ -185,7 +187,7 @@ it('shows the shared result without autoplay for reduced motion', () => {
   vi.advanceTimersByTime(10000);
   expect(
     view.getByRole('button', {
-      name: 'Open shared email: Next steps for our team',
+      name: 'Open shared email: Homepage feedback',
     })
   ).toBeTruthy();
 });

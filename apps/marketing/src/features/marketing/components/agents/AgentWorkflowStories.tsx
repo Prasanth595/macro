@@ -149,7 +149,7 @@ function WorkflowSources(props: {
       text={
         'Sources: @[customer-support](agent:support), @[File upload testing notes](agent:notes), and @[Upload size guidance task](agent:task).' +
         (props.meeting
-          ? '\n\n@[Dana’s latest email](agent:email) · @[Beacon discovery call](agent:call)'
+          ? '\n\n@[Valentina’s latest email](agent:email) · @[Beacon discovery call](agent:call)'
           : '')
       }
       mentions={{

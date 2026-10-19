@@ -48,7 +48,7 @@ it('opens the same palette from Search and ⌘K without changing the underlying 
   expect(screen.queryByRole('dialog')).toBeNull();
   fireEvent.keyDown(document.body, { key: 'k', ctrlKey: true });
   fireEvent.input(screen.getByRole('combobox'), {
-    target: { value: 'Q3 launch' },
+    target: { value: 'Website launch' },
   });
   fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' });
   expect(screen.queryByRole('dialog')).toBeNull();

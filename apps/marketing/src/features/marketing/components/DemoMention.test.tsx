@@ -48,14 +48,14 @@ it('keeps multiple references atomic, formatted, and intact when the message is 
     </>
   ));
   const editor = screen.getByRole('textbox', { name: 'Message' });
-  for (const query of ['@teo', '@q3', '@announcement']) {
+  for (const query of ['@teo', '@web', '@announcement']) {
     typeAtEnd(editor, query);
     fireEvent.keyDown(editor, { key: 'Enter' });
     expect(onSend).not.toHaveBeenCalled();
     expect(screen.queryByRole('listbox')).toBeNull();
   }
   expect(editor.textContent).toBe(
-    '@Teo Q3 launch plan Write the launch announcement '
+    '@Teo Website launch plan Write the launch announcement '
   );
   expect(editor.querySelectorAll('[contenteditable="false"]')).toHaveLength(3);
   expect(editor.querySelector('.mention-person')?.textContent).toBe('@Teo');
@@ -77,7 +77,7 @@ it('keeps multiple references atomic, formatted, and intact when the message is 
     3
   );
   expect(result.container.textContent).toContain(
-    '@Teo Q3 launch plan Write the launch announcement please review these.'
+    '@Teo Website launch plan Write the launch announcement please review these.'
   );
   expect(result.container.textContent).not.toContain('demo-mention:');
 });

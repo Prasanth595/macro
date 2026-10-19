@@ -8,7 +8,7 @@ beforeEach(() => {
   vi.stubGlobal('matchMedia', () => ({ matches: true }));
   frame = document.createElement('iframe');
   document.body.append(frame);
-  frame.contentDocument!.body.innerHTML = `<div class="dummy-rail">${['Home', 'Chat', 'Drive', 'Tasks', 'Customers', 'Agents'].map((label) => `<button aria-label="${label}">${label}</button>`).join('')}</div><div class="dummy-sidebar"><button>Next steps for our team</button><button>Fix the deploy pipeline</button></div>`;
+  frame.contentDocument!.body.innerHTML = `<div class="dummy-rail">${['Home', 'Chat', 'Drive', 'Tasks', 'Customers', 'Agents'].map((label) => `<button aria-label="${label}">${label}</button>`).join('')}</div><div class="dummy-sidebar"><button>Homepage feedback</button><button>Fix the deploy pipeline</button></div>`;
   openView = vi.fn();
   frame.contentDocument!.querySelectorAll('button').forEach((button) => {
     button.addEventListener('click', () => openView(button.textContent));
@@ -24,20 +24,22 @@ function mountCarousel() {
 }
 it('starts with the unified Home example and wraps the highlights with keyboard navigation', () => {
   mountCarousel();
-  expect(openView.mock.calls.map((call) => call[0])).toEqual([
-    'Home',
-    'Next steps for our team',
-  ]);
-  fireEvent.click(screen.getByRole('button', { name: 'Previous highlight' }));
+  expect(openView.mock.calls.map((call) => call[0])).toEqual(['Home']);
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Show Agents highlight' })
+  );
   expect(
     screen
       .getByRole('button', { name: 'Show Agents highlight' })
       .getAttribute('aria-pressed')
   ).toBe('true');
   expect(openView).toHaveBeenLastCalledWith('Fix the deploy pipeline');
-  fireEvent.keyDown(screen.getByRole('button', { name: 'Next highlight' }), {
-    key: 'ArrowRight',
-  });
+  fireEvent.keyDown(
+    screen.getByRole('button', { name: 'Show Agents highlight' }),
+    {
+      key: 'ArrowRight',
+    }
+  );
   expect(screen.getByRole('heading').textContent).toContain('One inbox');
 });
 it('keeps the carousel in place during iframe interaction and cleans up load listeners', () => {
@@ -50,14 +52,16 @@ it('keeps the carousel in place during iframe interaction and cleans up load lis
     new KeyboardEvent('keydown', { key: 'a', bubbles: true })
   );
   expect(screen.getByRole('heading')).toBe(heading);
-  expect(screen.getByRole('button', { name: 'Next highlight' })).toBeTruthy();
+  expect(
+    screen.getByRole('button', { name: 'Show Agents highlight' })
+  ).toBeTruthy();
   expect(screen.queryByText('Back to highlights')).toBeNull();
   expect(document.querySelector('iframe')).toBe(frame);
   frame
     .contentDocument!.querySelector<HTMLButtonElement>('[aria-label=Chat]')!
     .click();
   expect(screen.getByRole('heading').textContent).toContain(
-    'Agents are first-class participants'
+    'Work with your team and your agents.'
   );
   view.unmount();
   openView.mockClear();
@@ -93,7 +97,7 @@ it('captures horizontal drags and ignores vertical or cancelled gestures', () =>
   expect(capture).toHaveBeenCalledWith(1);
   pointer('pointerup', carousel, { ...down, clientX: 200 });
   expect(screen.getByRole('heading').textContent).toContain(
-    'first-class participants'
+    'Work with your team and your agents.'
   );
 
   pointer('pointerdown', carousel, down);

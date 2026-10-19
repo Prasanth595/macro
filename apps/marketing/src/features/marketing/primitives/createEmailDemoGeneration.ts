@@ -2,7 +2,7 @@ import { createSignal, onCleanup, onMount } from 'solid-js';
 
 export type EmailDemoToken = string | { kind: 'pdf' | 'md'; label: string };
 const parts: EmailDemoToken[] = [
-  'Hi Dana,\n',
+  'Hi Valentina,\n',
   'Thanks for joining the demo on September 14. Great meeting your team!\n',
   'Here’s our ',
   { kind: 'pdf', label: 'Macro sales overview.pdf' },

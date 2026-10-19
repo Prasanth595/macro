@@ -148,16 +148,10 @@ html[data-palette='cream'] .homepage-crm .mdf-frame {
 html[data-palette='cream'] .homepage-crm .mdf-frame::before {
   background: linear-gradient(to bottom, #1d1c1a14 0%, #1d1c1a0a 45%, transparent 100%);
 }
-html[data-palette='cream'] .homepage-embedded-wallpaper {
-  background:
-    radial-gradient(ellipse at 8% 20%, #e7dfd2 0%, transparent 53%),
-    radial-gradient(ellipse at 72% 0%, #dde3da 0%, transparent 55%),
-    radial-gradient(ellipse at 30% 100%, #e4e1d1 0%, transparent 57%),
-    radial-gradient(ellipse at 100% 90%, #ebdfd0 0%, transparent 55%),
-    #ebe6dc;
-}
-html[data-palette='cream'] .homepage-demo-slide-dot span { background: #cfcac0; }
-html[data-palette='cream'] .homepage-demo-slide-dot[aria-pressed=true] span { background: #1d1c1a; }
+html[data-palette='cream'] .homepage-embedded-wallpaper { background: #e9e5dd; border-color: #1d1c1a0a; }
+html[data-palette='cream'] .homepage-embedded-wallpaper::after { background: radial-gradient(ellipse at 30% 0, #f6f4ee, #ddd9d1); opacity: 1; filter: none; }
+html[data-palette='cream'] .homepage-embedded-stage::after { background: linear-gradient(to bottom, transparent, #e9e5dd55 70%, #e9e5dd99); }
+html[data-palette='cream'] .homepage-demo-slide-copy h2 { color: var(--color-ink); }
 
 /* ---- Chat bubbles ------------------------------------------------------
    Match dark mode's hierarchy with warm cream tones: sent messages have a

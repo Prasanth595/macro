@@ -95,7 +95,7 @@ it('shows the described company and note at once with reduced motion', () => {
 
 it('tours The Meadow’s emails and calls, then returns to its Discussion', () => {
   const view = render(() => <CrmRecordDemo />);
-  expect(view.getByText(/Dana asked about pricing/)).toBeTruthy();
+  expect(view.getByText(/Valentina asked about pricing/)).toBeTruthy();
   visible(true);
   vi.advanceTimersByTime(1400);
   expect(section(view)).toBe('Emails');
@@ -150,7 +150,7 @@ it('lists the record’s team, files, and tasks', () => {
   fireEvent.input(view.getByRole('textbox', { name: 'Search contacts' }), {
     target: { value: 'priya' },
   });
-  expect(contacts.queryByText('Dana')).toBeNull();
+  expect(contacts.queryByText('Valentina')).toBeNull();
   fireEvent.click(view.getByRole('radio', { name: 'Files' }));
   expect(
     view.getByRole('button', { name: 'Team rollout plan 9:30 AM' })

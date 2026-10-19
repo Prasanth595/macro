@@ -11,7 +11,7 @@ export function EmailAgenticEditingDemo() {
         messages={[
           {
             person: 'julia',
-            text: 'Dana wants to invite her team. Are we still on for Thursday?',
+            text: 'Valentina wants to invite her team. Are we still on for Thursday?',
           },
           {
             person: 'jacob',
@@ -22,7 +22,7 @@ export function EmailAgenticEditingDemo() {
                 <HomepageMention
                   kind="call"
                   label="Demo call transcript"
-                  description="The demo with Dana: team rollout, sales materials, and next steps."
+                  description="The demo with Valentina: team rollout, sales materials, and next steps."
                   href="#agentic-editing"
                 />
                 . Include the sales PDF and rollout doc, and cc Julia.

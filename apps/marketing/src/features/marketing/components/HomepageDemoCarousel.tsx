@@ -1,60 +1,53 @@
-import { createSignal, For, onCleanup, onMount } from 'solid-js';
+import { createSignal, For, type JSX, onCleanup, onMount } from 'solid-js';
 
 const SLIDES = [
   {
     label: 'Inbox',
     target: 'Home',
-    title: 'One inbox for emails, agents,\ntasks, and messages',
+    title: 'One inbox for your team’s work.',
+    description: 'Email, messages, tasks, and agents in one inbox.',
   },
   {
     label: 'Chat',
     target: 'Chat',
-    title: 'Agents are first-class participants\nin channels and DMs',
+    title: 'Work with your team and your agents.',
+    description:
+      'Discuss the launch, share the source, and turn feedback into tasks.',
   },
   {
     label: 'Docs',
     target: 'Drive',
-    title: 'Agents can edit docs\nas collaborative peers',
+    title: 'Write the plan together.',
+    description:
+      'Your team and agents edit the same document, with every change recorded.',
   },
   {
     label: 'CRM',
     target: 'Customers',
-    title: 'Agents keep deals current\nfrom email and chat',
+    title: 'Keep the customer conversation connected.',
+    description:
+      'See emails, notes, tasks, and the next step alongside each company.',
   },
   {
     label: 'Tasks',
     target: 'Tasks',
-    title: 'Tasks from messages and email,\nassigned to people and agents',
+    title: 'Turn the conversation into action.',
+    description:
+      'Assign work to people or agents without losing the original discussion.',
   },
   {
     label: 'Agents',
     target: 'Agents',
-    title: 'Agents with memory built\nfrom your workspace',
+    title: 'Agents that work across your workspace.',
+    description:
+      'Ask an agent to read documents, check conversations, and act on tasks.',
   },
 ];
-
-function CarouselCaret(props: { direction: 'left' | 'right' }) {
-  return (
-    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24">
-      <path
-        d={
-          props.direction === 'left'
-            ? 'M14.5 5.5 8 12l6.5 6.5'
-            : 'M9.5 5.5 16 12l-6.5 6.5'
-        }
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      />
-    </svg>
-  );
-}
 
 /** The live-site highlights over a workspace that is always interactive. */
 export function HomepageDemoCarousel(props: {
   frame: () => HTMLIFrameElement;
+  children?: JSX.Element;
 }) {
   const [active, setActive] = createSignal(0);
   const [ready, setReady] = createSignal(false);
@@ -68,24 +61,13 @@ export function HomepageDemoCarousel(props: {
     );
   const showView = () => {
     buttonFor(slide().target)?.click();
-    // Show an email within Home, keeping its mixed activity sidebar visible.
-    if (active() === 0) {
-      const email = Array.from(
-        document?.querySelectorAll<HTMLButtonElement>(
-          '.dummy-sidebar button'
-        ) ?? []
-      ).find(
-        (button) => button.textContent?.trim() === 'Next steps for our team'
-      );
-      email?.click();
-    }
     if (slide().target === 'Drive') {
       Array.from(
         document?.querySelectorAll<HTMLButtonElement>('.dummy-main button') ??
           []
       )
         .find((button) =>
-          button.textContent?.trim().startsWith('Q3 launch plan')
+          button.textContent?.trim().startsWith('Website launch plan')
         )
         ?.click();
     }
@@ -197,6 +179,14 @@ export function HomepageDemoCarousel(props: {
       }}
     >
       <div
+        class="homepage-demo-slide-copy"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        <h2>{slide().title}</h2>
+        <p>{slide().description}</p>
+      </div>
+      <div
         class="homepage-demo-slide-controls"
         onKeyDown={(event) => {
           if (
@@ -208,46 +198,22 @@ export function HomepageDemoCarousel(props: {
           select(active() + (event.key === 'ArrowRight' ? 1 : -1));
         }}
       >
-        <button
-          type="button"
-          class="homepage-demo-arrow"
-          aria-label="Previous highlight"
-          disabled={!ready()}
-          onClick={() => select(active() - 1)}
-        >
-          <CarouselCaret direction="left" />
-        </button>
         <For each={SLIDES}>
           {(item, index) => (
             <button
               type="button"
-              class="homepage-demo-slide-dot"
+              class="homepage-demo-slide-tab"
               aria-label={`Show ${item.label} highlight`}
               aria-pressed={active() === index()}
               disabled={!ready()}
               onClick={() => select(index())}
             >
-              <span />
+              <span>{item.label}</span>
             </button>
           )}
         </For>
-        <button
-          type="button"
-          class="homepage-demo-arrow"
-          aria-label="Next highlight"
-          disabled={!ready()}
-          onClick={() => select(active() + 1)}
-        >
-          <CarouselCaret direction="right" />
-        </button>
       </div>
-      <div
-        class="homepage-demo-slide-copy"
-        aria-live="polite"
-        aria-atomic="true"
-      >
-        <h2>{slide().title}</h2>
-      </div>
+      {props.children}
     </div>
   );
 }

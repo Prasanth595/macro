@@ -36,7 +36,7 @@ function ShareForm(props: {
         <header class="px-4 flex h-12 items-center gap-1.5 text-sm font-medium">
           <span class="shrink-0">Share:</span>
           <Envelope class="size-4 shrink-0" />
-          <span class="truncate">Next steps for our team</span>
+          <span class="truncate">Homepage feedback</span>
           <Button
             variant="plain"
             size="icon-sm"
@@ -87,7 +87,7 @@ function ShareForm(props: {
                 <span class="text-ink-placeholder">Optional message</span>
               }
             >
-              Dana’s ready for Thursday. Here’s the conversation.
+              Valentina’s ready for Thursday. Here’s the conversation.
             </Show>
           </div>
           <div class="shrink-0 flex w-full items-center px-4 py-4 gap-3 flex-wrap">
@@ -142,31 +142,32 @@ function ChannelResult(props: { onOpen: () => void; updated: boolean }) {
       <div class="mail-channel-messages">
         <HomepageConversation
           messages={[
-            { person: 'julia', text: 'What does Dana need before Thursday?' },
+            {
+              person: 'julia',
+              text: 'What does Valentina need before Thursday?',
+            },
             {
               person: 'jacob',
               text: (
                 <>
-                  Dana’s ready for Thursday. Here’s the conversation.
+                  Valentina’s ready for Thursday. Here’s the conversation.
                   <button
                     type="button"
                     class="mail-shared-thread glass-input"
                     onClick={props.onOpen}
-                    aria-label="Open shared email: Next steps for our team"
+                    aria-label="Open shared email: Homepage feedback"
                   >
                     <span class="mail-shared-thread-label">
                       <Envelope class="size-4" /> Email thread <span>Live</span>
                     </span>
-                    <strong>Next steps for our team</strong>
-                    <span>Dana · Jacob</span>
+                    <strong>Homepage feedback</strong>
+                    <span>Valentina · Jacob</span>
                     <span class="mail-shared-thread-preview">
-                      {props.updated
-                        ? incomingReply
-                        : 'Thursday at 9 works. Could you share the rollout plan?'}
+                      {props.updated ? incomingReply : demoEmails[0].snippet}
                     </span>
                     <span class="mail-shared-thread-footer">
                       {props.updated
-                        ? '2 messages · New reply from Dana'
+                        ? '2 messages · New reply from Valentina'
                         : '1 message · Open full thread'}{' '}
                       <span aria-hidden="true">↗</span>
                     </span>
@@ -316,7 +317,7 @@ export function EmailSharingDemo(props: { onClose?: () => void } = {}) {
                 <Show when={opened() && phase() >= 7}>
                   <div class="mail-arrived-reply glass-input">
                     <header>
-                      <strong>Dana</strong>
+                      <strong>Valentina</strong>
                       <span>Just now</span>
                     </header>
                     <p>{incomingReply}</p>
@@ -360,7 +361,7 @@ export function EmailSharingDemo(props: { onClose?: () => void } = {}) {
       <div class="mail-demo-controls">
         <span>
           {phase() >= 7
-            ? 'Dana replied. Your whole team is already up to date.'
+            ? 'Valentina replied. Your whole team is already up to date.'
             : phase() === 6
               ? 'Shared. Open the email right from the channel.'
               : 'Choose #launch, add a note, and share.'}

@@ -113,26 +113,27 @@ function DesktopHomepageOpenSource(props: {
         aria-label="Explore Macro interactively"
         id="interactive-demo"
       >
-        <div class="homepage-embedded-stage">
-          <div class="homepage-embedded-wallpaper">
-            <div class="homepage-embedded-window">
-              <div class="homepage-embedded-content">
-                <Show when={!loaded()}>
-                  <div class="homepage-embedded-loading" role="status">
-                    Opening your workspace…
-                  </div>
-                </Show>
-                <iframe
-                  ref={frame}
-                  title="Embedded Macro sample workspace"
-                  // Ignore the initial about:blank load before src is set.
-                  onLoad={() => frame.src && setLoaded(true)}
-                />
+        <HomepageDemoCarousel frame={() => frame}>
+          <div class="homepage-embedded-stage">
+            <div class="homepage-embedded-wallpaper">
+              <div class="homepage-embedded-window">
+                <div class="homepage-embedded-content">
+                  <Show when={!loaded()}>
+                    <div class="homepage-embedded-loading" role="status">
+                      Opening your workspace…
+                    </div>
+                  </Show>
+                  <iframe
+                    ref={frame}
+                    title="Embedded Macro sample workspace"
+                    // Ignore the initial about:blank load before src is set.
+                    onLoad={() => frame.src && setLoaded(true)}
+                  />
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        <HomepageDemoCarousel frame={() => frame} />
+        </HomepageDemoCarousel>
         <HomepageGithub />
       </section>
       <Show when={props.showSidebarBreakdown}>
