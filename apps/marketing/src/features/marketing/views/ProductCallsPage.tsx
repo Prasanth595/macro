@@ -114,7 +114,7 @@ export function RouteCalls() {
         <FeaturePageSection
           id="call-followup"
           title={['Turn what was said on', 'your calls into action']}
-          description="Make the decisions from a call part of the work that follows. Ask your agent to read the transcript, update a task, and add the owner and next steps you agreed on."
+          description="Tell your agent to turn what was said on a call into tasks, follow-up emails, and CRM updates. Your agent can read the transcript and determine who said what."
           details={callsGuides['call-followup']}
         >
           <div class="feature-page-visual">
