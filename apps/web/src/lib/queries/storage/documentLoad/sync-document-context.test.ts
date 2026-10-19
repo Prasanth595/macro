@@ -81,6 +81,7 @@ vi.mock('../../client', async () => {
           set: vi.fn(),
           remove: vi.fn(),
           flush: async () => {},
+          clear: async () => {},
         },
       },
     ],
@@ -132,7 +133,7 @@ describe('native document identity bootstrap', () => {
   it('waits for identity restoration without waiting for a stalled auth fetch', async () => {
     const restored = Promise.withResolvers<PersistedQueryEntry | undefined>();
     mocks.restore.mockReturnValue(restored.promise);
-    void queryClient.prefetchQuery({
+    queryClient.prefetchQuery({
       queryKey: authKeys.userInfo.queryKey,
       queryFn: () => new Promise(() => {}),
     });

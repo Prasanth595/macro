@@ -1,5 +1,6 @@
 import { useChannelsContext } from '@core/context/channels';
 import { useUserId } from '@core/context/user';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { usePlatformNotificationState } from '@notifications';
 import { DefaultUserNameResolver } from '@notifications/notification-resolvers';
 import {
@@ -12,6 +13,7 @@ import { createCallEventsEffect } from './call-events';
 import {
   createCallResolutionsEffect,
   publishCallResolution,
+  resolvesRingFor,
 } from './call-resolution';
 import { joinChannelCall } from './join-channel-call';
 import {
@@ -211,10 +213,11 @@ function startRingingLoop(
  * Listens for `call_started` websocket events broadcast to channel members
  * and surfaces a browser notification + ring tone for the recipients.
  *
- * Also resolves the ring remotely: `call_answered` (sent to just this user
- * when they join the call on any device, e.g. answering on iPhone) and
- * `call_ended` both stop the ring and close the incoming-call notification —
- * the user is already in the call, or there is no longer a call to answer.
+ * Also resolves the ring remotely: `call_answered` and `call_declined` (each
+ * sent to just this user when they answer or decline on any device, e.g. on
+ * the iPhone lock screen) and `call_ended` all stop the ring and close the
+ * incoming-call notification — the user is already in the call, has turned it
+ * down, or there is no longer a call to answer.
  *
  * This component is the sole bridge from those one-shot websocket events to
  * published call resolutions (`call-resolution.ts`) — resolution consumers
@@ -244,13 +247,22 @@ export function CallStartedNotifier() {
   attachRingCoordination();
 
   createCallResolutionsEffect((resolution) => {
+    if (!resolvesRingFor(resolution, userId())) return;
+
     if (resolution.type === 'answered') {
-      if (resolution.answeredBy !== userId()) return;
       stopCallRinger(resolution.callId);
       closeCallNotification(resolution.callId);
       // The creator's other devices never receive call_started; a refetch
       // picks the now-answered call up for their active-call badges.
-      void invalidateActiveCallQueries();
+      fireAndForget(invalidateActiveCallQueries(), 'channel');
+      return;
+    }
+
+    if (resolution.type === 'declined') {
+      // The call is still live for other members, so only this user's ring
+      // and toast go away; the active-call caches stay untouched.
+      stopCallRinger(resolution.callId);
+      closeCallNotification(resolution.callId);
       return;
     }
 
@@ -264,7 +276,7 @@ export function CallStartedNotifier() {
       channelId: resolution.channelId,
       callId: resolution.callId,
     });
-    void invalidateActiveCallQueries();
+    fireAndForget(invalidateActiveCallQueries(), 'channel');
   });
 
   createCallEventsEffect({
@@ -282,6 +294,16 @@ export function CallStartedNotifier() {
       });
     },
 
+    onCallDeclined: ({ callId, declinedBy }) => {
+      const decliningUserId = declinedBy ?? userId();
+      if (!decliningUserId) return;
+      publishCallResolution({
+        type: 'declined',
+        callId,
+        declinedBy: decliningUserId,
+      });
+    },
+
     onCallStarted: ({ channelId, callId, createdBy, isFromSelf }) => {
       const createdAt = new Date().toISOString();
       setActiveCallStartedCache({
@@ -290,21 +312,24 @@ export function CallStartedNotifier() {
         createdAt,
         createdBy: createdBy ?? '',
       });
-      void invalidateActiveCallQueries();
+      fireAndForget(invalidateActiveCallQueries(), 'channel');
 
       // The cache above is updated for every call, including our own; only the
       // ring and the toast are skipped when we're already in it or started it.
       if (callCtx.activeCallId() === callId) return;
       if (isFromSelf) return;
 
-      void emitCallStartedNotification({
-        channelId,
-        callId,
-        createdBy,
-        channelName: channelsCtx.channelsById()[channelId]?.name ?? undefined,
-        notif,
-        isJoined: () => callCtx.activeCallId() === callId,
-      });
+      fireAndForget(
+        emitCallStartedNotification({
+          channelId,
+          callId,
+          createdBy,
+          channelName: channelsCtx.channelsById()[channelId]?.name ?? undefined,
+          notif,
+          isJoined: () => callCtx.activeCallId() === callId,
+        }),
+        'channel'
+      );
     },
   });
 
@@ -375,7 +400,7 @@ async function emitCallStartedNotification(args: {
     };
     handle.onClick(() => {
       window.focus();
-      void joinChannelCall(channelId);
+      fireAndForget(joinChannelCall(channelId), 'channel');
       handle.close();
       untrack();
       ringer.stop();

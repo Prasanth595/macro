@@ -30,13 +30,17 @@ import { isMobile } from '@core/mobile/isMobile';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { useTouchOutsideToDismissKeyboard } from '@core/mobile/useTouchOutsideToDismissKeyboard';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { handleFileFolderDrop } from '@core/util/upload';
 import PaperclipIcon from '@phosphor/paperclip.svg';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import { createCallback } from '@solid-primitives/rootless';
 import { Button, ComposerSurface, cn, SendButton as UiSendButton } from '@ui';
 import { createEffect, createMemo, createSignal, Show } from 'solid-js';
+import { speedForModel } from '../../constant/speed';
+import { fastModeEnabled } from '../../signal/speed';
 import { AttachmentList } from './Attachment';
+import { SpeedToggle } from './SpeedToggle';
 import { useAiDataConsentGate } from './useAiDataConsent';
 
 /**
@@ -189,7 +193,7 @@ export function ChatInput(props: ChatInputComponentProps) {
     !isEmptyInput();
 
   const sendMessage = createCallback(
-    async (opts?: { modelOverride?: Model; metaKey?: boolean }) => {
+    (opts?: { modelOverride?: Model; metaKey?: boolean }) => {
       if (!canSendMessage()) return;
 
       if (isNativeMobilePlatform() && !hasConsent()) {
@@ -200,6 +204,7 @@ export function ChatInput(props: ChatInputComponentProps) {
       const sendInput: ChatSendInput = {
         content: markdownText(),
         model: opts?.modelOverride ?? model(),
+        speed: speedForModel(opts?.modelOverride ?? model(), fastModeEnabled()),
         attachments: attachments.attached(),
         toolset: toolsetSignal[0](),
         metaKey: opts?.metaKey,
@@ -217,9 +222,12 @@ export function ChatInput(props: ChatInputComponentProps) {
           toast.failure('Folder upload not supported here');
           return;
         }
-        handleFileFolderDrop(files, directories, (entries) => {
-          uploadQueue.upload(entries.map((e) => e.file));
-        });
+        fireAndForget(
+          handleFileFolderDrop(files, directories, (entries) => {
+            uploadQueue.upload(entries.map((e) => e.file));
+          }),
+          'chat-input'
+        );
       },
     })
     .onEnter((e) => {
@@ -318,6 +326,7 @@ export function ChatInput(props: ChatInputComponentProps) {
         onLocked={() => showPaywall(PaywallKey.O1_LIMIT)}
         compact={compactSelector()}
       />
+      <SpeedToggle model={model()} />
       <DictationButton dictation={dictation} />
       <Show when={generating() && props.onStop} fallback={<SendButton />}>
         <StopButton />
@@ -431,6 +440,7 @@ export function ChatInput(props: ChatInputComponentProps) {
                   models={modelOptions()}
                   onSelect={() => {}}
                 />
+                <div class="size-7 not-touch:size-[33.75px] shrink-0" />
                 <div class="size-7 not-touch:size-[33.75px] shrink-0" />
                 <div class="size-7 not-touch:size-[33.75px] shrink-0" />
               </div>

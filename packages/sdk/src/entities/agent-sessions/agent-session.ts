@@ -3,6 +3,7 @@ import type {
   AgentSessionChangesResponse,
   AgentSessionLogResponse,
   AgentSessionResponse,
+  CodingPreferencesBody,
   ControlResponse,
   PromptAttachment,
   PullRequestLinkSource,
@@ -12,7 +13,9 @@ import { unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { MacroEntity } from '../entity';
 import { User } from '../users/user';
+import { CodeExecution } from './code-execution';
 import { QueuedAction } from './queued-action';
+import { type CreateReviewOptions, SessionReview } from './review';
 
 /** A GitHub pull request linked to a session. */
 export type SessionPullRequest = {
@@ -73,7 +76,7 @@ export class AgentSession extends MacroEntity<AgentSessionResponse> {
   /** Create a managed session, optionally delivering its first prompt. */
   static async createManaged(
     client: MacroClient,
-    opts?: CreateManagedSessionOptions
+    opts?: CreateManagedSessionOptions,
   ): Promise<AgentSession> {
     const { session } = unwrap(
       await client.agentHarness.createAgentSession({
@@ -84,7 +87,7 @@ export class AgentSession extends MacroEntity<AgentSessionResponse> {
           repoUrl: opts?.repoUrl,
           repoBranch: opts?.repoBranch,
         },
-      })
+      }),
     );
     return new AgentSession(client, session.id, session);
   }
@@ -96,10 +99,10 @@ export class AgentSession extends MacroEntity<AgentSessionResponse> {
    * nowhere they reach.
    */
   static async repositories(
-    client: MacroClient
+    client: MacroClient,
   ): Promise<SelectableRepository[]> {
     const { repositories } = unwrap(
-      await client.agentHarness.listAgentRepositories()
+      await client.agentHarness.listAgentRepositories(),
     );
     return repositories.map((repository) => ({
       url: repository.url,
@@ -115,12 +118,12 @@ export class AgentSession extends MacroEntity<AgentSessionResponse> {
    */
   static async repositoryBranches(
     client: MacroClient,
-    repoUrl: string
+    repoUrl: string,
   ): Promise<string[]> {
     const { branches } = unwrap(
       await client.agentHarness.listAgentRepositoryBranches({
         query: { repoUrl },
-      })
+      }),
     );
     return branches;
   }
@@ -129,7 +132,7 @@ export class AgentSession extends MacroEntity<AgentSessionResponse> {
     return unwrap(
       await this.client.agentHarness.getAgentSession({
         path: { session_id: this.id },
-      })
+      }),
     );
   }
 
@@ -175,10 +178,10 @@ export class AgentSession extends MacroEntity<AgentSessionResponse> {
    */
   static async forPullRequest(
     client: MacroClient,
-    url: string
+    url: string,
   ): Promise<AgentSession[]> {
     const { sessionIds } = unwrap(
-      await client.agentHarness.agentSessionsForPullRequest({ body: { url } })
+      await client.agentHarness.agentSessionsForPullRequest({ body: { url } }),
     );
     return sessionIds.map((id) => AgentSession.byId(client, id));
   }
@@ -191,7 +194,7 @@ export class AgentSession extends MacroEntity<AgentSessionResponse> {
     const { pullRequests } = unwrap(
       await this.client.agentHarness.listAgentSessionPullRequests({
         path: { session_id: this.id },
-      })
+      }),
     );
     return pullRequests.map((link) => ({
       githubKey: link.githubKey,
@@ -213,7 +216,7 @@ export class AgentSession extends MacroEntity<AgentSessionResponse> {
       await this.client.agentHarness.linkAgentSessionPullRequest({
         path: { session_id: this.id },
         body: { url },
-      })
+      }),
     );
   }
 
@@ -226,7 +229,7 @@ export class AgentSession extends MacroEntity<AgentSessionResponse> {
       await this.client.agentHarness.unlinkAgentSessionPullRequest({
         path: { session_id: this.id },
         query: { url },
-      })
+      }),
     );
   }
 
@@ -236,7 +239,7 @@ export class AgentSession extends MacroEntity<AgentSessionResponse> {
       client.agentHarness.renameAgentSession({
         path: { session_id: this.id },
         body: { name },
-      })
+      }),
     );
   }
 
@@ -255,7 +258,7 @@ export class AgentSession extends MacroEntity<AgentSessionResponse> {
       client.agentHarness.setAgentSessionArchived({
         path: { session_id: this.id },
         body: { isArchived },
-      })
+      }),
     );
   }
 
@@ -265,7 +268,7 @@ export class AgentSession extends MacroEntity<AgentSessionResponse> {
       client.agentHarness.putAgentSessionSandboxSize({
         path: { session_id: this.id },
         body: { size },
-      })
+      }),
     );
     return next;
   }
@@ -278,13 +281,32 @@ export class AgentSession extends MacroEntity<AgentSessionResponse> {
   /** Set the caller's default sandbox size for the next `@coder` mention. */
   static async setDefaultSandboxSize(
     client: MacroClient,
-    size: SandboxSize
+    size: SandboxSize,
   ): Promise<SandboxSize> {
     return unwrap(
       await client.agentHarness.putAgentSandboxSize({
         body: { size },
-      })
+      }),
     ).size;
+  }
+
+  /** What the caller's new coding sessions are told to do beyond their assignment. */
+  static async codingPreferences(
+    client: MacroClient,
+  ): Promise<CodingPreferencesBody> {
+    return unwrap(await client.agentHarness.getAgentCodingPreferences());
+  }
+
+  /** Replace the caller's coding preferences. */
+  static async setCodingPreferences(
+    client: MacroClient,
+    preferences: CodingPreferencesBody,
+  ): Promise<CodingPreferencesBody> {
+    return unwrap(
+      await client.agentHarness.putAgentCodingPreferences({
+        body: preferences,
+      }),
+    );
   }
 
   /**
@@ -300,7 +322,7 @@ export class AgentSession extends MacroEntity<AgentSessionResponse> {
       client.agentHarness.controlAgentSession({
         path: { session_id: this.id },
         body: action,
-      })
+      }),
     );
   }
 
@@ -313,7 +335,7 @@ export class AgentSession extends MacroEntity<AgentSessionResponse> {
    */
   prompt(
     text: string,
-    attachments?: PromptAttachment[]
+    attachments?: PromptAttachment[],
   ): Promise<ControlResponse> {
     return this.control({
       type: 'prompt',
@@ -330,10 +352,10 @@ export class AgentSession extends MacroEntity<AgentSessionResponse> {
     const { entries } = unwrap(
       await this.client.agentHarness.getAgentSessionQueue({
         path: { session_id: this.id },
-      })
+      }),
     );
     return entries.map((entry) =>
-      QueuedAction.from(this.client, this.id, entry)
+      QueuedAction.from(this.client, this.id, entry),
     );
   }
 
@@ -342,7 +364,7 @@ export class AgentSession extends MacroEntity<AgentSessionResponse> {
     return unwrap(
       await this.client.agentHarness.getAgentSessionChanges({
         path: { session_id: this.id },
-      })
+      }),
     );
   }
 
@@ -351,7 +373,7 @@ export class AgentSession extends MacroEntity<AgentSessionResponse> {
     return unwrap(
       await this.client.agentHarness.getAgentSessionChangesPatch({
         path: { session_id: this.id },
-      })
+      }),
     ).patch;
   }
 
@@ -360,7 +382,7 @@ export class AgentSession extends MacroEntity<AgentSessionResponse> {
     return this.mutate((client) =>
       client.agentHarness.refreshAgentSessionChanges({
         path: { session_id: this.id },
-      })
+      }),
     );
   }
 
@@ -369,16 +391,29 @@ export class AgentSession extends MacroEntity<AgentSessionResponse> {
     return unwrap(
       await this.client.agentHarness.getAgentSessionLog({
         path: { session_id: this.id },
-      })
+      }),
     );
   }
+
+  /** Persisted reviews scoped to this session, with or without a code execution. */
+  readonly reviews = {
+    create: (input: CreateReviewOptions) =>
+      SessionReview.createForSession(this.client, this, input),
+    byId: (id: string) => SessionReview.byId(this.client, this, id),
+  };
+
+  /** Saved code executions scoped to this session. Handle construction makes no request. */
+  readonly codeExecutions = {
+    byId: (id: string): CodeExecution =>
+      CodeExecution.byId(this.client, this, id),
+  };
 
   /** Delete this session and any live resources it owns. */
   async delete(): Promise<void> {
     await this.mutate((client) =>
       client.agentHarness.deleteAgentSession({
         path: { session_id: this.id },
-      })
+      }),
     );
   }
 }

@@ -44,6 +44,7 @@ vi.mock('@service-storage/graphql-soup', () => ({
   getGraphqlSoupCacheHost: () => undefined,
   getGraphqlSoupClient: getGraphqlSoupClientMock,
   mapGraphqlGroupedSoupPage: mapGraphqlGroupedSoupPageMock,
+  mapGraphqlSoupItem: (item: unknown) => item,
 }));
 
 vi.mock('@queries/client', async () => {
@@ -105,7 +106,18 @@ function makeFakeClient(): {
       next: (page, state) =>
         subject.next({
           operation,
-          data: { page, user: { id: 'viewer' } },
+          data: {
+            page,
+            user: {
+              id: 'viewer',
+              groupSoup: {
+                bins: page.groups.map((group) => ({
+                  ...group,
+                  items: group.itemIds.map((id) => page.items[id]),
+                })),
+              },
+            },
+          },
           ...state,
         } as OperationResult<unknown, GroupSoupQueryVariables>),
       fail: (error) =>
@@ -329,7 +341,7 @@ describe('createGraphqlGroupedSoupQueries', () => {
       groupedSoupInputKey(initialInput)
     );
     let firstASettled = false;
-    void firstA.then(() => {
+    const firstASettledFlag = firstA.then(() => {
       firstASettled = true;
     });
     fake.executions[1]?.next(
@@ -345,6 +357,7 @@ describe('createGraphqlGroupedSoupQueries', () => {
       page([group('a', ['a-2'], 'a-cursor-2')], [item('a-2')])
     );
     await firstA;
+    await firstASettledFlag;
     expect(a.isFetchingNextPage()).toBe(false);
     expect(entityIds(a)).toEqual(['a-1', 'a-2']);
 

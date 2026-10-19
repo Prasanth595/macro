@@ -10,6 +10,48 @@ export type ClientOptions = {
 export type AttendeeResponseStatus = 'needs_action' | 'accepted' | 'declined' | 'tentative';
 
 /**
+ * Per-user inclusion of a source calendar in personal availability.
+ */
+export type AvailabilityCalendar = {
+    /**
+     * Visible source calendar.
+     */
+    calendarId: string;
+    /**
+     * Whether its events normally block the user's time.
+     */
+    contributesToAvailability: boolean;
+    /**
+     * Whether this is the connected account's primary calendar.
+     */
+    isPrimary: boolean;
+    /**
+     * Source name.
+     */
+    name: string;
+};
+
+/**
+ * Own-user source inclusion preference.
+ */
+export type AvailabilityCalendarBody = {
+    /**
+     * Whether this calendar contributes to personal availability.
+     */
+    contributesToAvailability: boolean;
+};
+
+/**
+ * Source calendar settings returned to their viewer.
+ */
+export type AvailabilityCalendarsResponse = {
+    /**
+     * Directly visible source calendars.
+     */
+    calendars: Array<AvailabilityCalendar>;
+};
+
+/**
  * An attendee on a calendar event.
  */
 export type CalendarAttendee = {
@@ -256,7 +298,7 @@ export type CalendarMutationApiError = {
 /**
  * Machine-readable failure category for calendar mutations.
  */
-export type CalendarMutationErrorCode = 'not_found' | 'occurrence_not_found' | 'read_only' | 'no_writable_calendar' | 'not_attendee' | 'invalid_input' | 'reauth_required' | 'provider_rejected' | 'retryable' | 'persist_failed';
+export type CalendarMutationErrorCode = 'not_found' | 'occurrence_not_found' | 'read_only' | 'no_writable_calendar' | 'not_attendee' | 'invalid_input' | 'reauth_required' | 'provider_rejected' | 'retryable' | 'persist_failed' | 'macro_call_failed';
 
 /**
  * How much of a recurring series an RSVP applies to.
@@ -331,6 +373,12 @@ export type CreateCalendarEventRequest = {
      * Optional location label.
      */
     location?: string | null;
+    /**
+     * Mint a Macro call and write its join link into the description and
+     * location before creating the event, so the invitation carries it.
+     * Cannot be combined with `conference`.
+     */
+    macroCall?: boolean;
     outOfOffice?: null | OutOfOfficeProperties;
     /**
      * Raw RFC 5545 recurrence properties (`RRULE`, `RDATE`, `EXDATE`).
@@ -395,7 +443,7 @@ export type EventStatus = 'confirmed' | 'tentative' | 'cancelled';
  */
 export type EventTime = {
     /**
-     * Exclusive end instant.
+     * Exclusive end instant; equal to the start for an imported point event.
      */
     endsAt: string;
     kind: 'timed';
@@ -469,7 +517,7 @@ export type OutOfOfficeProperties = {
 };
 
 /**
- * A sync run committed changes for `link_id`; viewers should refetch.
+ * Realtime signal that a connected inbox's calendar projection changed.
  */
 export type RefreshCalendarEvent = {
     event: 'synced';
@@ -477,6 +525,16 @@ export type RefreshCalendarEvent = {
      * Connected inbox whose calendars changed.
      */
     link_id: string;
+    /**
+     * False only when the run excludes changes to teammate OOO projections.
+     */
+    team_ooo_changed: boolean;
+} | {
+    event: 'team_sharing_changed';
+    /**
+     * True for sharing changes and any possibly affected OOO projection.
+     */
+    team_ooo_changed: boolean;
 };
 
 /**
@@ -501,6 +559,21 @@ export type RsvpCalendarEventRequest = {
      */
     response: AttendeeResponseStatus;
     scope?: null | CalendarRsvpScopeParam;
+};
+
+/**
+ * What a user exposes through their team membership.
+ */
+export type TeamCalendarSharing = 'all' | 'busy_only' | 'none';
+
+/**
+ * Own-user sharing preference.
+ */
+export type TeamCalendarSharingBody = {
+    /**
+     * Busy-only is the default, including when no setting has been saved.
+     */
+    sharing: TeamCalendarSharing;
 };
 
 /**
@@ -594,6 +667,34 @@ export type VisibleCalendar = {
     syncError?: string | null;
 };
 
+export type GetAvailabilityCalendarsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/availability-calendars';
+};
+
+export type GetAvailabilityCalendarsResponses = {
+    200: AvailabilityCalendarsResponse;
+};
+
+export type GetAvailabilityCalendarsResponse = GetAvailabilityCalendarsResponses[keyof GetAvailabilityCalendarsResponses];
+
+export type SetAvailabilityCalendarData = {
+    body: AvailabilityCalendarBody;
+    path: {
+        calendar_id: string;
+    };
+    query?: never;
+    url: '/availability-calendars/{calendar_id}';
+};
+
+export type SetAvailabilityCalendarResponses = {
+    204: void;
+};
+
+export type SetAvailabilityCalendarResponse = SetAvailabilityCalendarResponses[keyof SetAvailabilityCalendarResponses];
+
 export type ListCalendarsData = {
     body?: never;
     path?: never;
@@ -648,7 +749,7 @@ export type CreateCalendarEventErrors = {
      */
     409: CalendarMutationApiError;
     /**
-     * Transient provider failure
+     * Transient provider failure, or the Macro call could not be created
      */
     503: CalendarMutationApiError;
 };
@@ -835,3 +936,29 @@ export type HealthHandlerResponses = {
 };
 
 export type HealthHandlerResponse = HealthHandlerResponses[keyof HealthHandlerResponses];
+
+export type GetTeamSharingData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/team-sharing';
+};
+
+export type GetTeamSharingResponses = {
+    200: TeamCalendarSharingBody;
+};
+
+export type GetTeamSharingResponse = GetTeamSharingResponses[keyof GetTeamSharingResponses];
+
+export type SetTeamSharingData = {
+    body: TeamCalendarSharingBody;
+    path?: never;
+    query?: never;
+    url: '/team-sharing';
+};
+
+export type SetTeamSharingResponses = {
+    200: TeamCalendarSharingBody;
+};
+
+export type SetTeamSharingResponse = SetTeamSharingResponses[keyof SetTeamSharingResponses];

@@ -55,8 +55,13 @@
       # `.sh` is required so `include_str!` of
       # `crates/agent_harness/container/ensure_ready.sh` survives the prune;
       # `.ttf` and `.xml` for the fonts and preset shape definitions that
-      # `crates/pptx_engine` embeds with `include_bytes!`.
-      assetFilter = path: _type: builtins.match ".*\\.(md|html|txt|json|canvas|sql|sh|ttf|xml)$" path != null;
+      # `crates/pptx_engine` embeds with `include_bytes!`; `.graphql` for the
+      # `static_assets/schema.graphql` that `cache-core`'s build script reads;
+      # `.jsonl` for the recorded sessions `agent_fold` tests embed; `.mjs`
+      # for the Deno bootstrap and bundled public SDK/Handlebars runtime.
+      assetFilter =
+        path: _type:
+        builtins.match ".*\\.(md|html|txt|json|jsonl|canvas|sql|sh|ttf|xml|graphql|mjs)$" path != null;
       # Rust local HTTP clients embed only the public proxy CA, never its keys.
       localCaFilter = path: _type: pkgs.lib.hasSuffix "/infra/local/certs/ca.pem" (toString path);
       binFilter = path: _type: builtins.match ".*\\.bin$" path != null;
@@ -226,7 +231,9 @@
           doCheck = false;
           doInstallCargoArtifacts = true;
           cargoExtraArgs = "--locked --all-features --workspace --lib --exclude sync_service";
-          RUSTFLAGS = "-Dwarnings" + pkgs.lib.optionalString isLinux " -C link-arg=-fuse-ld=mold";
+          # Keep RUSTFLAGS identical to cargoArtifacts: any difference changes
+          # cargo's fingerprint and recompiles every dependency in this layer.
+          # The clippy checks enforce `-D warnings`.
           RUSTDOCFLAGS = "-Dwarnings";
         }
       );
@@ -918,7 +925,9 @@
           cargo-nextest
           cargo-expand
           binaryen
-          wasm-bindgen-cli
+          # Match Cargo.lock so parallel wasm-pack builds do not race to
+          # install a replacement CLI into their shared cache.
+          wasm-bindgen-cli_0_2_126
           wasm-pack
           pkg-config
           bacon
@@ -956,6 +965,14 @@
     in
     {
       checks = {
+        code-execution-assets = pkgs.runCommand "cloud-storage-code-execution-assets" { } ''
+          for source in ${src} ${prunedDeploySrc "service-agent-harness-service" "agent_harness_service"}; do
+            for asset in bootstrap.mjs sdk.mjs handlebars.mjs; do
+              test -s "$source/crates/code_execution/src/outbound/deno/$asset"
+            done
+          done
+          touch $out
+        '';
         fmt = craneLib.cargoFmt {
           inherit src;
           pname = "cloud-storage";

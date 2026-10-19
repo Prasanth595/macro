@@ -1,4 +1,5 @@
 import { toast } from '@core/component/Toast/Toast';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   Combobox,
   type ComboboxRootItemComponentProps,
@@ -50,6 +51,7 @@ export function BotInviteSelect(props: {
   channelId: string;
   channelBotIds: string[];
   focusRequest: number;
+  onInvited?: () => void;
 }) {
   const botsQuery = useBotsQuery();
   const addBotMutation = useAddBotToChannelMutation();
@@ -90,7 +92,8 @@ export function BotInviteSelect(props: {
       });
       setSelectedBot(undefined);
       toast.success(`${bot.name} invited to channel`);
-      focusInput();
+      if (props.onInvited) props.onInvited();
+      else focusInput();
     } catch {
       toast.failure('Failed to invite bot');
     }
@@ -148,7 +151,7 @@ export function BotInviteSelect(props: {
       <Button
         variant="outline"
         disabled={!selectedBot() || addBotMutation.isPending}
-        onClick={() => void inviteBot()}
+        onClick={() => fireAndForget(inviteBot(), 'channel-bots')}
       >
         {addBotMutation.isPending ? 'Inviting…' : 'Invite bot'}
       </Button>

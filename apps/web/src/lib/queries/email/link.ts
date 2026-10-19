@@ -1,5 +1,7 @@
 import { useUserId } from '@core/context/user';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { throwOnErr } from '@core/util/result';
+import { Telemetry } from '@macro-inc/observability';
 import { invalidateUserInfo } from '@queries/auth/user-info';
 import { invalidateCalendarViews } from '@queries/calendar/sync';
 import { queryClient } from '@queries/client';
@@ -11,6 +13,7 @@ import { type Accessor, createMemo } from 'solid-js';
 import { queryReadyGate } from '../gate';
 import { type MutationCallbacks, withCallbacks } from '../utils';
 import { emailKeys } from './keys';
+import { refreshMailAccounts } from './mail-accounts';
 
 const LINK_STALE_TIME = 5 * 60 * 1000;
 
@@ -29,20 +32,26 @@ const queryEnabled = () => true;
 export function useInboxHealthProbeQuery() {
   return useQuery(() => ({
     queryKey: emailKeys.linksHealthProbe.queryKey,
-    queryFn: async () => {
-      await emailClient.healthCheckLinks();
-      return null;
-    },
+    queryFn: probeInboxHealth,
     staleTime: HEALTH_PROBE_STALE_TIME,
     refetchOnWindowFocus: true,
     retry: false,
   }));
 }
 
+async function probeInboxHealth() {
+  await emailClient.healthCheckLinks();
+  return null;
+}
+
+function fetchEmailLinks() {
+  return throwOnErr(() => emailClient.getLinks());
+}
+
 export function useEmailLinksQuery(enabled: Accessor<boolean> = queryEnabled) {
   return useQuery(() => ({
     queryKey: emailKeys.links.queryKey,
-    queryFn: async () => throwOnErr(async () => await emailClient.getLinks()),
+    queryFn: fetchEmailLinks,
     enabled: enabled(),
     staleTime: LINK_STALE_TIME,
     refetchOnWindowFocus: 'always',
@@ -114,7 +123,18 @@ export function useNonPrimaryEmailLinkIdHeader() {
     nonPrimaryEmailLinkIdHeader(linkId, primaryLinkId());
 }
 
+async function refreshSenderCatalog(): Promise<void> {
+  try {
+    await refreshMailAccounts();
+  } catch (error) {
+    Telemetry.error(error);
+  }
+}
+
 export function invalidateEmailLinks() {
+  // Connection, reauthorization and link-removal events must refresh the
+  // GraphQL catalog consumed by both From and the sidebar, not only legacy reads.
+  fireAndForget(refreshSenderCatalog(), 'email-links');
   queryClient.cancelQueries({ queryKey: emailKeys.links.queryKey });
   queryClient.invalidateQueries({
     queryKey: emailKeys.links.queryKey,

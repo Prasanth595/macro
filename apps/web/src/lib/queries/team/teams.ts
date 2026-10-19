@@ -1,5 +1,6 @@
 import { toast } from '@core/component/Toast/Toast';
 import { useUserId } from '@core/context/user';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { ThrownResultError, throwOnErr } from '@core/util/result';
 import {
   authServiceClient,
@@ -14,26 +15,31 @@ import type { ToggleAutoJoinDomainResponse } from '@service-auth/generated/schem
 import type { ToggleNonAdminInvitesResponse } from '@service-auth/generated/schemas/toggleNonAdminInvitesResponse';
 import { useMutation, useQuery } from '@tanstack/solid-query';
 import type { Accessor } from 'solid-js';
-
 import { authKeys } from '../auth';
 import { queryClient } from '../client';
 import { queryReadyGate } from '../gate';
 import { type MutationCallbacks, withCallbacks } from '../utils';
-
 import { teamKeys } from './keys';
+
+function fetchUserTeams() {
+  return throwOnErr(() => authServiceClient.getUserTeams());
+}
+
+function fetchTeam() {
+  return throwOnErr(() => authServiceClient.getTeam());
+}
 
 export function useUserTeamsQuery() {
   return useQuery(() => ({
     queryKey: teamKeys.userTeams.queryKey,
-    queryFn: async () =>
-      await throwOnErr(() => authServiceClient.getUserTeams()),
+    queryFn: fetchUserTeams,
   }));
 }
 
 export function useTeamQuery(teamId: Accessor<string>) {
   return useQuery(() => ({
     queryKey: teamKeys.detail(teamId()).queryKey,
-    queryFn: async () => await throwOnErr(() => authServiceClient.getTeam()),
+    queryFn: fetchTeam,
     enabled: !!teamId(),
   }));
 }
@@ -42,7 +48,7 @@ export function useTeamQuery(teamId: Accessor<string>) {
 export function useCurrentTeamQuery(enabled?: Accessor<boolean>) {
   return useQuery(() => ({
     queryKey: teamKeys.currentTeam.queryKey,
-    queryFn: async () => await throwOnErr(() => authServiceClient.getTeam()),
+    queryFn: fetchTeam,
     enabled: enabled?.() ?? true,
   }));
 }
@@ -135,7 +141,7 @@ export function usePatchTeamMutation(callbacks?: PatchTeamCallbacks) {
     ...withCallbacks<void, Error, PatchTeamArgs>(
       {
         onSuccess: (_data, { teamId }) => {
-          invalidateTeam(teamId);
+          fireAndForget(invalidateTeam(teamId), 'team-settings');
           invalidateUserTeams();
           toast.success('Team updated');
         },
@@ -205,7 +211,7 @@ export function useToggleAutoJoinDomainMutation(
             teamKeys.currentTeam.queryKey,
             applyDomain
           );
-          invalidateTeam(teamId);
+          fireAndForget(invalidateTeam(teamId), 'team-settings');
           invalidateUserTeams();
           toast.success(
             data.auto_join_domain
@@ -270,7 +276,7 @@ export function useToggleNonAdminInvitesMutation(
             teamKeys.currentTeam.queryKey,
             applySetting
           );
-          invalidateTeam(teamId);
+          fireAndForget(invalidateTeam(teamId), 'team-settings');
           invalidateUserTeams();
           toast.success(
             data.allow_non_admin_invites

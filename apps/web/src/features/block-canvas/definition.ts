@@ -10,7 +10,7 @@ import { fetchBinary } from '@service-storage/util/fetchBinary';
 import { makeFileFromBlob } from '@service-storage/util/makeFileFromBlob';
 import { err, ok } from 'neverthrow';
 import { lazy } from 'solid-js';
-import type { Canvas } from './model/CanvasModel';
+import type { CanvasFile } from './core/document-format';
 
 export const definition = defineBlock({
   name: 'canvas',
@@ -73,5 +73,5 @@ export const definition = defineBlock({
 export type CanvasData = ExtractLoadType<(typeof definition)['load']>;
 
 export type CanvasSpec = {
-  exportCanvas: () => Promise<Canvas>;
+  exportCanvas: () => Promise<CanvasFile>;
 };

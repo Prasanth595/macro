@@ -50,10 +50,10 @@ import {
   setNativeEditMenuSuppressed,
 } from '@core/mobile/nativeEditMenu';
 import { debouncedDependent } from '@core/util/debounce';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { getScrollParentElement } from '@core/util/scrollParent';
 import type { NodeIdMappings } from '@macro-inc/lexical-core';
 import { $getId } from '@macro-inc/lexical-core/plugins/nodeIdPlugin';
-import ArrowUp from '@phosphor/arrow-up.svg';
 import ChatTeardrop from '@phosphor/chat-teardrop.svg';
 import GridIcon from '@phosphor/grid-four.svg';
 import CheckIcon from '@phosphor-icons/core/bold/check-bold.svg?component-solid';
@@ -62,7 +62,7 @@ import LoadingIcon from '@phosphor-icons/core/bold/spinner-gap-bold.svg?componen
 import CheckSquareIcon from '@phosphor-icons/core/regular/check-square.svg?component-solid';
 import LinkIcon from '@phosphor-icons/core/regular/link.svg?component-solid';
 import { makeResizeObserver } from '@solid-primitives/resize-observer';
-import { Button, Toolbar } from '@ui';
+import { Button, SendButton, Toolbar } from '@ui';
 import {
   $getSelection,
   $isRangeSelection,
@@ -313,15 +313,10 @@ export function MarkdownPopup(props: {
     <Show
       when={hasActiveAiEdit(blockId)}
       fallback={
-        <Button
-          size="icon-sm"
-          variant="strong"
-          tooltip="Send"
+        <SendButton
           disabled={!aiEditInput().trim()}
           onClick={handleAiEditSubmit}
-        >
-          <ArrowUp class="size-4" />
-        </Button>
+        />
       }
     >
       <Button
@@ -350,17 +345,20 @@ export function MarkdownPopup(props: {
     setAiEditRunning(true);
     // Fast mode: one model edits the whole document directly, no supervisor.
     // Apply ops locally so the edit lands in this client's undo stack.
-    void requestAiEditWithToast(
-      {
-        documentId: blockId,
-        prompt: `Request: ${instruction}\nUser is selecting nodes ${nodeIds.join(' ')}. Proceed with requested edit`,
-        mode: 'fast',
-        onOps: (ops) => applyAiOps(editor, props.lexicalMapping, ops),
-      },
-      () => {
-        setAiEditLocation(null);
-        setAiEditRunning(false);
-      }
+    fireAndForget(
+      requestAiEditWithToast(
+        {
+          documentId: blockId,
+          prompt: `Request: ${instruction}\nUser is selecting nodes ${nodeIds.join(' ')}. Proceed with requested edit`,
+          mode: 'fast',
+          onOps: (ops) => applyAiOps(editor, props.lexicalMapping, ops),
+        },
+        () => {
+          setAiEditLocation(null);
+          setAiEditRunning(false);
+        }
+      ),
+      'markdown-ai-edit'
     );
     setAiEditInput('');
     setAiEditDrawerOpen(false);
@@ -601,7 +599,7 @@ export function MarkdownPopup(props: {
             <Toolbar.Button
               size="icon-sm"
               depth={3}
-              onClick={() => void handleShare()}
+              onClick={() => fireAndForget(handleShare(), 'block-md')}
               tooltip="Copy link to snippet"
               label="Copy link to snippet"
             >
@@ -731,9 +729,9 @@ export function MarkdownPopup(props: {
             onConvertToTasks={handleConvertToTasks}
             onConvertListToTable={handleConvertListToTable}
             onOpenComment={handleShowComment}
-            onShare={() => void handleShare()}
+            onShare={() => fireAndForget(handleShare(), 'block-md')}
             onInsertComment={handleInsertComment}
-            onPaste={() => void handlePaste()}
+            onPaste={() => fireAndForget(handlePaste(), 'block-md')}
             onEditWithAi={handleOpenAiEditDrawer}
           />
         </GeneralizedPopup>

@@ -2,10 +2,18 @@ import {
   materializeCachedGraphqlCrmCompanies,
   useQuickAccessCrmCompaniesQuery,
 } from '@app/features/crm/crm-search';
-import { useQuickAccessCrmContactsQuery } from '@app/features/crm/record-adapter';
+import {
+  materializeCachedGraphqlCrmContacts,
+  useQuickAccessCrmContactsQuery,
+} from '@app/features/crm/record-adapter';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { itemToSafeName } from '@core/constant/allBlocks';
-import { enableCrm, enableDatabases } from '@core/constant/featureFlags';
+import {
+  enableCrm,
+  enableDatabases,
+  enableForms,
+  enableGraphqlSoup,
+} from '@core/constant/featureFlags';
 import {
   useChannelsContext,
   useDmActivityByUserId,
@@ -16,11 +24,13 @@ import {
   useIsConnectedSecondaryInbox,
 } from '@core/user';
 import type { DateValue } from '@core/util/date';
+import { fireAndForget } from '@core/util/fireAndForget';
 import type {
   ChannelEntity,
   CrmCompanyEntity,
   CrmContactEntity,
   DatabaseEntity,
+  FormEntity,
   SkillEntity,
   SnippetEntity,
 } from '@entity';
@@ -29,6 +39,7 @@ import {
   type CachedGraphqlChannel,
   materializeCachedGraphqlChannels,
 } from '@queries/channel/graphql';
+import { materializeCachedEmailItems } from '@queries/email/quick-access';
 import { queryReadyGate } from '@queries/gate';
 import { materializeCachedGraphqlHistoryItems } from '@queries/history/graphql';
 import { type HistoryItem, useHistoryQuery } from '@queries/history/history';
@@ -38,6 +49,7 @@ import { useQuickAccessSkillsQuery } from '@queries/soup/quick-access-skills';
 import { useQuickAccessSnippetsQuery } from '@queries/soup/quick-access-snippets';
 import { useRecentlyViewedSoupQuery } from '@queries/soup/recently-viewed';
 import { useDatabasesQuery } from '@queries/storage/databases';
+import { useFormsQuery } from '@queries/storage/forms';
 import { useInstructionsMdIdQuery } from '@queries/storage/instructions-md';
 import { subscribeToVisibleCacheChanges } from '@queries/subscribe-to-visible-cache-changes';
 import type { ApiChannelWithLatest } from '@service-storage/channel-list-types';
@@ -46,6 +58,7 @@ import { formatDocumentName } from '@service-storage/util/filename';
 import { createLazyMemo } from '@solid-primitives/memo';
 import { toDate } from 'date-fns';
 import { createEffect, createMemo, createSignal, onCleanup } from 'solid-js';
+import { deduplicateContactItems, toCrmContactItem } from './crm-contacts';
 import {
   filterQuickAccessItems,
   searchQuickAccessItems,
@@ -275,14 +288,8 @@ function getCrmCompanyVersion(
   return `${company.name}|${domains}|${company.updatedAt}|${viewedAt}`;
 }
 
-function getCrmContactSearchText(contact: CrmContactEntity): string {
-  return contact.name === contact.email
-    ? contact.email
-    : `${contact.name} | ${contact.email}`;
-}
-
 function getCrmContactVersion(contact: CrmContactEntity): string {
-  return `${contact.name}|${contact.email}|${contact.hidden}|${contact.updatedAt}`;
+  return `${contact.name}|${contact.email}|${contact.hidden}|${contact.updatedAt}|${contact.lastInteraction}`;
 }
 
 function getSnippetVersion(snippet: SnippetEntity, viewedAt?: string): string {
@@ -340,7 +347,7 @@ const RECORD_TYPE_BY_BUCKET: Record<Bucket, string> = {
   dm: 'GraphqlSoupChannel',
   chat: 'GraphqlSoupChat',
   crm_company: 'GraphqlSoupCrmCompany',
-  crm_contact: 'CrmContact',
+  crm_contact: 'GraphqlSoupCrmContact',
   document: 'GraphqlSoupDocument',
   task: 'GraphqlSoupDocument',
   snippet: 'GraphqlSoupDocument',
@@ -352,6 +359,8 @@ const RECORD_TYPE_BY_BUCKET: Record<Bucket, string> = {
   agent_session: 'AgentSession',
   // Databases come from their REST list, not the Soup cache.
   database: 'Database',
+  // Forms come from their REST list too.
+  form: 'Form',
   initiative: 'GraphqlSoupInitiative',
 };
 
@@ -372,6 +381,7 @@ function sortIndexEntries(entries: IndexEntry[]): IndexEntry[] {
 /** Builds Quick Access from history and its supporting entity sources. */
 export function createQuickAccessValue(): QuickAccessContextValue {
   const crmFlag = useFeatureFlag(enableCrm);
+  const graphqlFlag = useFeatureFlag(enableGraphqlSoup);
   // queries
   const historyQuery = useHistoryQuery();
   const { channels, isLoading: channelsLoading } = useChannelsContext();
@@ -385,6 +395,9 @@ export function createQuickAccessValue(): QuickAccessContextValue {
   // Access falls back to the REST channel list instead of the dead host. The
   // memo keeps the subscription below until the host itself changes.
   const cacheHost = createMemo(() => {
+    // The host getter reads PostHog imperatively; retry when the remote flag
+    // arrives after mount, while leaving cache lifetime decisions to the getter.
+    graphqlFlag();
     const graphqlCacheHost = getGraphqlSoupCacheHost();
     return graphqlCacheHost?.disabled ? undefined : graphqlCacheHost;
   });
@@ -415,6 +428,8 @@ export function createQuickAccessValue(): QuickAccessContextValue {
     useQuickAccessAgentSessionsQuery();
   const databasesQuery = useDatabasesQuery();
   const databasesFlag = useFeatureFlag(enableDatabases);
+  const formsQuery = useFormsQuery();
+  const formsFlag = useFeatureFlag(enableForms);
   const { query: initiativesQuery, initiatives: initiativesAccessor } =
     useQuickAccessInitiativesQuery();
 
@@ -674,28 +689,19 @@ export function createQuickAccessValue(): QuickAccessContextValue {
     const allEntries: IndexEntry[] = [];
     const hidden = hiddenIds();
     for (const contact of crmContactsAccessor()) {
-      if (hidden.has(contact.id)) continue;
+      if (contact.hidden || hidden.has(contact.id)) continue;
       const version = getCrmContactVersion(contact);
       const cached = itemCache.get(contact.id);
-      const sortTimestamp = toTimestamp(contact.updatedAt);
-      if (!cached || cached.version !== version) {
-        itemCache.set(contact.id, {
-          version,
-          item: {
-            kind: 'entity',
-            id: contact.id,
-            bucket: 'crm_contact',
-            searchText: getCrmContactSearchText(contact),
-            sortTimestamp,
-            timestamps: {
-              lastInteraction: contact.updatedAt,
-              createdAt: contact.createdAt,
-            },
-            data: contact,
-          },
-        });
-      }
-      allEntries.push({ id: contact.id, bucket: 'crm_contact', sortTimestamp });
+      const item =
+        cached && cached.version === version
+          ? cached.item
+          : toCrmContactItem(contact);
+      if (item !== cached?.item) itemCache.set(contact.id, { version, item });
+      allEntries.push({
+        id: contact.id,
+        bucket: 'crm_contact',
+        sortTimestamp: item.sortTimestamp,
+      });
     }
     return sortIndexEntries(allEntries);
   });
@@ -903,6 +909,44 @@ export function createQuickAccessValue(): QuickAccessContextValue {
     return sortIndexEntries(entries);
   });
 
+  // Forms, like databases, have only a creation time to sort on.
+  const formEntries = createLazyMemo(() => {
+    if (!formsFlag().enabled) return [];
+    const hidden = hiddenIds();
+    const entries: IndexEntry[] = [];
+    const listed = formsQuery.isSuccess ? formsQuery.data : [];
+    for (const { form, access } of listed) {
+      if (hidden.has(form.id)) continue;
+      const sortTimestamp = toTimestamp(form.createdAt);
+      const entity: FormEntity = {
+        type: 'form',
+        id: form.id,
+        name: form.name,
+        ownerId: form.ownerId,
+        createdAt: form.createdAt,
+        access,
+      };
+      const version = JSON.stringify(entity);
+      const cached = itemCache.get(form.id);
+      if (!cached || cached.version !== version) {
+        itemCache.set(form.id, {
+          version,
+          item: {
+            kind: 'entity',
+            id: form.id,
+            bucket: 'form',
+            searchText: form.name,
+            sortTimestamp,
+            timestamps: { createdAt: form.createdAt },
+            data: entity,
+          },
+        });
+      }
+      entries.push({ id: form.id, bucket: 'form', sortTimestamp });
+    }
+    return sortIndexEntries(entries);
+  });
+
   const initiativeEntries = createLazyMemo(() => {
     const viewedAtMap = soupViewedAtMap();
     const hidden = hiddenIds();
@@ -949,6 +993,7 @@ export function createQuickAccessValue(): QuickAccessContextValue {
       skillEntries(),
       agentSessionEntries(),
       databaseEntries(),
+      formEntries(),
       initiativeEntries(),
     ]);
     const seenIds = new Set(allEntries.map((entry) => entry.id));
@@ -1021,6 +1066,7 @@ export function createQuickAccessValue(): QuickAccessContextValue {
         indices.get('chat') ?? [],
         indices.get('project') ?? [],
         indices.get('database') ?? [],
+        indices.get('form') ?? [],
         indices.get('initiative') ?? [],
       ]),
     };
@@ -1130,12 +1176,19 @@ export function createQuickAccessValue(): QuickAccessContextValue {
               const missing = documents.filter(
                 ({ recordKey }) => !itemCache.has(idOf(recordKey))
               );
-              const [historyItems, cachedChannelItems, cachedCompanies] =
-                await Promise.all([
-                  materializeCachedGraphqlHistoryItems(projectionHost, missing),
-                  materializeCachedGraphqlChannels(projectionHost, missing),
-                  materializeCachedGraphqlCrmCompanies(projectionHost, missing),
-                ]);
+              const [
+                historyItems,
+                cachedChannelItems,
+                cachedCompanies,
+                cachedContacts,
+                cachedEmails,
+              ] = await Promise.all([
+                materializeCachedGraphqlHistoryItems(projectionHost, missing),
+                materializeCachedGraphqlChannels(projectionHost, missing),
+                materializeCachedGraphqlCrmCompanies(projectionHost, missing),
+                materializeCachedGraphqlCrmContacts(projectionHost, missing),
+                materializeCachedEmailItems(projectionHost, documents),
+              ]);
               const historyById = new Map(
                 historyItems.map((item) => [item.id, item])
               );
@@ -1145,8 +1198,18 @@ export function createQuickAccessValue(): QuickAccessContextValue {
               const companiesById = new Map(
                 cachedCompanies.map((company) => [company.id, company])
               );
+              const contactsById = new Map(
+                cachedContacts.map((contact) => [contact.id, contact])
+              );
+              const emailsById = new Map(
+                cachedEmails.map((item) => [item.id, item])
+              );
               return documents.flatMap((document): QuickAccessItem[] => {
                 const id = idOf(document.recordKey);
+                if (document.bucket === 'email') {
+                  const email = emailsById.get(id);
+                  return email ? [email] : [];
+                }
                 const cached = itemCache.get(id)?.item;
                 if (cached) return [cached];
                 const historyItem = historyById.get(id);
@@ -1177,6 +1240,8 @@ export function createQuickAccessValue(): QuickAccessContextValue {
                     },
                   ];
                 }
+                const contact = contactsById.get(id);
+                if (contact) return [toCrmContactItem(contact)];
                 const company = companiesById.get(id);
                 if (company) {
                   return [
@@ -1206,7 +1271,8 @@ export function createQuickAccessValue(): QuickAccessContextValue {
 
     const list = createLazyMemo(() => {
       const local = localItems();
-      if (!projected || options?.enabled?.() === false) return local;
+      if (!projected || options?.enabled?.() === false)
+        return deduplicateContactItems(local);
 
       // Search describes cached contents, not corpus completeness. Merge known
       // rows before sorting recency so hydration cannot promote older items.
@@ -1217,9 +1283,11 @@ export function createQuickAccessValue(): QuickAccessContextValue {
       const combined = ranked.concat(
         local.filter((item) => !seen.has(item.id))
       );
-      return options?.searchTerm?.().trim()
-        ? combined
-        : combined.sort(compareRecency);
+      return deduplicateContactItems(
+        options?.searchTerm?.().trim()
+          ? combined
+          : combined.sort(compareRecency)
+      );
     });
     return {
       items: list,
@@ -1248,16 +1316,19 @@ export function createQuickAccessValue(): QuickAccessContextValue {
   const refresh = () => {
     if (cacheHost()) {
       setManualRefreshRevision((revision) => revision + 1);
-      void cachedChannelsQuery.refetch();
+      fireAndForget(cachedChannelsQuery.refetch(), 'quick-access');
     }
-    historyQuery.refetch();
-    crmCompaniesQuery.refetch();
-    crmContactsQuery.refetch();
-    snippetsQuery.refetch();
-    skillsQuery.refetch();
-    void agentSessionsQuery.refetch();
-    if (databasesFlag().enabled) void databasesQuery.refetch();
-    initiativesQuery.refetch();
+    fireAndForget(historyQuery.refetch(), 'quick-access');
+    fireAndForget(crmCompaniesQuery.refetch(), 'quick-access');
+    fireAndForget(crmContactsQuery.refetch(), 'quick-access');
+    fireAndForget(snippetsQuery.refetch(), 'quick-access');
+    fireAndForget(skillsQuery.refetch(), 'quick-access');
+    fireAndForget(agentSessionsQuery.refetch(), 'quick-access');
+    if (databasesFlag().enabled)
+      fireAndForget(databasesQuery.refetch(), 'quick-access');
+    if (formsFlag().enabled)
+      fireAndForget(formsQuery.refetch(), 'quick-access');
+    fireAndForget(initiativesQuery.refetch(), 'quick-access');
   };
 
   return {

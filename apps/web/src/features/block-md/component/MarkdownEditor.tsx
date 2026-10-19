@@ -81,6 +81,7 @@ import {
 } from '@core/constant/featureFlags';
 import { fileFolderDrop } from '@core/directive/fileFolderDrop';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { bufToString } from '@core/util/string';
 import type { LoroManager } from '@macro-inc/collaboration/collab/manager';
 import {
@@ -88,6 +89,7 @@ import {
   createPeerIdValidator,
   type PeerIdValidator,
 } from '@macro-inc/lexical-core';
+import { Telemetry } from '@macro-inc/observability';
 import { useDocTags } from '@property/tags';
 import { EntityType } from '@service-properties/generated/schemas/entityType';
 import { onElementConnect } from '@solid-primitives/lifecycle';
@@ -146,7 +148,7 @@ export function MarkdownEditor(props: {
     permissions,
     state: documentState,
   } = useMarkdownDocument();
-  const { canEdit, canComment } = permissions;
+  const { canEdit } = permissions;
   const blockId = documentId();
   const documentKind = kind();
   const sourceBlockName = documentKind === 'document' ? 'md' : documentKind;
@@ -226,12 +228,6 @@ export function MarkdownEditor(props: {
 
   const [highlightLayerRef, setHighlightLayerRef] =
     createSignal<HTMLDivElement>();
-
-  createEffect(() => {
-    // We still want the editor to be locked down (for certain things like click events on check
-    // lists) when the user does not have editor access.
-    editor.setEditable(editorReady() && (canEdit() || canComment()));
-  });
 
   const isContentEditable = createMemo(() => {
     return (
@@ -559,11 +555,16 @@ export function MarkdownEditor(props: {
   );
 
   const [fileArrayBuffer, setFileArrayBuffer] = createSignal<ArrayBuffer>();
+  const readFileArrayBuffer = async (file: Blob) => {
+    setFileArrayBuffer(await file.arrayBuffer());
+  };
   createEffect(() => {
     const source = documentSource();
     if (source.type !== 'dss') return;
 
-    source.file.arrayBuffer().then(setFileArrayBuffer);
+    readFileArrayBuffer(source.file).catch((error) =>
+      Telemetry.error(error, { surface: 'markdown-editor' })
+    );
   });
 
   createEffect(() => {
@@ -778,7 +779,10 @@ export function MarkdownEditor(props: {
           isApplied={(tag) => documentTags.isApplied(tag.optionId)}
           onApplyTag={(tag) => {
             if (!canEdit()) return;
-            void documentTags.applyTag(tag.scope, tag.optionId);
+            fireAndForget(
+              documentTags.applyTag(tag.scope, tag.optionId),
+              'markdown-editor'
+            );
           }}
         />
 

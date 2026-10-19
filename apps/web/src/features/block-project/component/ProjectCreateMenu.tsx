@@ -1,5 +1,8 @@
+import { createAiDocument } from '@app/features/block-ai/queries/create-ai';
 import { createFigDocument } from '@app/features/block-fig/queries/create-fig';
+import { createPsdDocument } from '@app/features/block-psd/queries/create-psd';
 import { useSpreadsheetAccess } from '@app/features/block-spreadsheet/primitives/use-spreadsheet-access';
+import { createSpreadsheetDocument } from '@app/features/block-spreadsheet/queries/create-spreadsheet';
 import { openChatWithAgent } from '@app/features/chat/ChatWithAgentButton';
 import type { BlockTool } from '@components/app/ResponsiveBlockToolbar';
 import { useSplitLayout } from '@components/app/split-layout/layout';
@@ -7,8 +10,10 @@ import type { BlockAlias, BlockName } from '@core/block';
 import { EntityIcon } from '@core/component/EntityIcon';
 import { toast } from '@core/component/Toast/Toast';
 import {
+  enableAiEditor,
   enableChatV3Agents,
   enableFigViewer,
+  enablePsdEditor,
   isFeatureEnabled,
 } from '@core/constant/featureFlags';
 import { pressedKeys } from '@core/hotkey/state';
@@ -19,6 +24,7 @@ import {
   createMarkdownFile,
   createTask,
 } from '@core/util/create';
+import { fireAndForget } from '@core/util/fireAndForget';
 import type { ObjectLike } from '@core/util/result';
 import CaretDown from '@phosphor/caret-down.svg';
 import PlusIcon from '@phosphor/plus.svg';
@@ -157,6 +163,22 @@ const BLOCK_CREATE_SPECS: CreateBlockSpec[] = [
     },
   },
   {
+    label: 'Photoshop file',
+    blockName: 'psd' as BlockName,
+    hotkeyToken: TOKENS.create.photoshop,
+    icon: () => (
+      <div class="size-4 shrink-0">
+        <EntityIcon targetType="psd" size="shrinkFill" theme="monochrome" />
+      </div>
+    ),
+    loading: true,
+    createFn: async (projectId) => {
+      const id = await createPsdDocument({ projectId, source: 'project' });
+      if (!id) throw new Error('Failed to create Photoshop file');
+      return id;
+    },
+  },
+  {
     label: 'Design',
     blockName: 'fig' as BlockName,
     hotkeyToken: TOKENS.create.design,
@@ -169,6 +191,22 @@ const BLOCK_CREATE_SPECS: CreateBlockSpec[] = [
     createFn: async (projectId) => {
       const id = await createFigDocument({ projectId, source: 'project' });
       if (!id) throw new Error('Failed to create design');
+      return id;
+    },
+  },
+  {
+    label: 'Illustrator file',
+    blockName: 'ai' as BlockName,
+    hotkeyToken: TOKENS.create.illustration,
+    icon: () => (
+      <div class="size-4 shrink-0">
+        <EntityIcon targetType="ai" size="shrinkFill" theme="monochrome" />
+      </div>
+    ),
+    loading: true,
+    createFn: async (projectId) => {
+      const id = await createAiDocument({ projectId, source: 'project' });
+      if (!id) throw new Error('Failed to create Illustrator file');
       return id;
     },
   },
@@ -263,7 +301,9 @@ function ProjectCreateDialog(props: {
   const spreadsheetAccess = useSpreadsheetAccess();
   const offered = (spec: CreateBlockSpec) => {
     if (spec.blockName === 'spreadsheet') return spreadsheetAccess();
+    if (spec.blockName === 'psd') return isFeatureEnabled(enablePsdEditor);
     if (spec.blockName === 'fig') return isFeatureEnabled(enableFigViewer);
+    if (spec.blockName === 'ai') return isFeatureEnabled(enableAiEditor);
     return true;
   };
 
@@ -285,19 +325,25 @@ function ProjectCreateDialog(props: {
                       spec.blockName === 'chat' &&
                       isFeatureEnabled(enableChatV3Agents)
                     ) {
-                      void openChatWithAgent({
-                        type: 'project',
-                        id: props.projectId,
-                        name: props.name,
-                      });
+                      fireAndForget(
+                        openChatWithAgent({
+                          type: 'project',
+                          id: props.projectId,
+                          name: props.name,
+                        }),
+                        'project-create'
+                      );
                       return;
                     }
-                    createBlock({
-                      blockName: spec.blockName,
-                      loading: spec.loading,
-                      createFn: () => spec.createFn(props.projectId),
-                      params: spec.params,
-                    });
+                    fireAndForget(
+                      createBlock({
+                        blockName: spec.blockName,
+                        loading: spec.loading,
+                        createFn: () => spec.createFn(props.projectId),
+                        params: spec.params,
+                      }),
+                      'project-create'
+                    );
                   }}
                 >
                   <div class="size-4 shrink-0">
@@ -331,7 +377,9 @@ function MenuContent(props: { projectId: string; name: string }) {
   const spreadsheetAccess = useSpreadsheetAccess();
   const offered = (spec: CreateBlockSpec) => {
     if (spec.blockName === 'spreadsheet') return spreadsheetAccess();
+    if (spec.blockName === 'psd') return isFeatureEnabled(enablePsdEditor);
     if (spec.blockName === 'fig') return isFeatureEnabled(enableFigViewer);
+    if (spec.blockName === 'ai') return isFeatureEnabled(enableAiEditor);
     return true;
   };
 
@@ -341,11 +389,14 @@ function MenuContent(props: { projectId: string; name: string }) {
       Icon: spec.icon,
       action: () => {
         if (spec.blockName === 'chat' && isFeatureEnabled(enableChatV3Agents)) {
-          void openChatWithAgent({
-            type: 'project',
-            id: props.projectId,
-            name: props.name,
-          });
+          fireAndForget(
+            openChatWithAgent({
+              type: 'project',
+              id: props.projectId,
+              name: props.name,
+            }),
+            'project-create'
+          );
           return;
         }
         return createBlock({
@@ -415,5 +466,3 @@ export function ProjectCreateMenu(props: { id: string; name: string }) {
     </Dropdown>
   );
 }
-
-import { createSpreadsheetDocument } from '@app/features/block-spreadsheet/queries/create-spreadsheet';

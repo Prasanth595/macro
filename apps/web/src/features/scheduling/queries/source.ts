@@ -1,10 +1,17 @@
+import { getDisplayNameParts, type MacroId } from '@core/user';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { throwOnErr } from '@core/util/result';
 import { queryClient } from '@queries/client';
 import { schedulingClient } from '@service-email/scheduling';
 import { useMutation, useQuery } from '@tanstack/solid-query';
 import type { Accessor } from 'solid-js';
 import type { SchedulingSource } from '../context/scheduling-context';
-import type { SchedulingProfile, SchedulingScope } from '../core/types';
+import {
+  newDefaultBookingLink,
+  newSchedule,
+  type SchedulingProfile,
+  type SchedulingScope,
+} from '../core/types';
 import { schedulingKeys } from './keys';
 
 export function useSchedulingProfileQuery(scope: Accessor<SchedulingScope>) {
@@ -19,7 +26,8 @@ export function useSchedulingProfileQuery(scope: Accessor<SchedulingScope>) {
 
 export function createSchedulingSource(
   scope: Accessor<SchedulingScope>,
-  range: Accessor<{ from: string; to: string }>
+  range: Accessor<{ from: string; to: string }>,
+  loadBookings: Accessor<boolean> = () => true
 ): SchedulingSource {
   const profile = useSchedulingProfileQuery(scope);
   const bookings = useQuery(() => ({
@@ -31,6 +39,7 @@ export function createSchedulingSource(
           schedulingClient.bookings(scope().teamId, range())
         )
       ).bookings,
+    enabled: loadBookings(),
     retry: false,
   }));
   const save = useMutation(() => ({
@@ -51,15 +60,15 @@ export function createSchedulingSource(
     },
   }));
   const reload = () => {
-    void profile.refetch();
-    void bookings.refetch();
+    fireAndForget(profile.refetch(), 'scheduling');
+    if (loadBookings()) fireAndForget(bookings.refetch(), 'scheduling');
   };
   return {
     profile: () => (profile.isSuccess ? profile.data : undefined),
     bookings: () => (bookings.isSuccess ? bookings.data : []),
-    loading: () => profile.isPending || bookings.isPending,
+    loading: () => profile.isPending || (loadBookings() && bookings.isPending),
     error: () =>
-      profile.isError || bookings.isError
+      profile.isError || (loadBookings() && bookings.isError)
         ? profile.isError
           ? 'Calendar scheduling could not be loaded. Check your connection and try again.'
           : 'Bookings could not be loaded. Try a shorter date range or check your connection.'
@@ -104,5 +113,63 @@ export function createSchedulingSource(
 export function useManageBookingMutation() {
   return useMutation(() => ({
     mutationFn: (id: string) => throwOnErr(() => schedulingClient.manage(id)),
+  }));
+}
+
+async function createDefaultBookingLinkIfNeeded(
+  profile: SchedulingProfile,
+  userId: string
+): Promise<SchedulingProfile | null> {
+  if (profile.revision !== 0 || profile.eventTypes.length > 0) {
+    return null;
+  }
+
+  const { firstName } = getDisplayNameParts(userId as MacroId);
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const schedule = newSchedule(timeZone);
+  const bookingLink = newDefaultBookingLink(schedule.id, userId, firstName);
+
+  const updatedProfile: SchedulingProfile = {
+    ...profile,
+    schedules: [schedule],
+    defaultScheduleId: schedule.id,
+    eventTypes: [bookingLink],
+  };
+
+  try {
+    const result = await throwOnErr(() =>
+      schedulingClient.save(updatedProfile, undefined)
+    );
+    return result.profile;
+  } catch {
+    return null;
+  }
+}
+
+export function useSchedulingProfileWithAutoSetupQuery(
+  scope: Accessor<SchedulingScope>,
+  userId: Accessor<string>
+) {
+  return useQuery(() => ({
+    queryKey: schedulingKeys.settings(scope().id).queryKey,
+    queryFn: async () => {
+      const result = await throwOnErr(() =>
+        schedulingClient.settings(scope().teamId)
+      );
+      const profile = result.profile;
+
+      if (!scope().teamId && userId()) {
+        const updated = await createDefaultBookingLinkIfNeeded(
+          profile,
+          userId()
+        );
+        if (updated) {
+          return updated;
+        }
+      }
+
+      return profile;
+    },
+    retry: false,
   }));
 }

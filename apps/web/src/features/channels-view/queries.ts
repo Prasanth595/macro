@@ -4,14 +4,18 @@ import {
   defineQueryFilters,
   queryStateFrom,
 } from '@app/features/next-soup/filters/filter-store';
+import { useFeatureFlag } from '@app/lib/analytics/posthog';
+import { enableGraphqlSoup } from '@core/constant/featureFlags';
 import { useUserId } from '@core/context/user';
 import { compareDateDesc } from '@core/util/date';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   type ChannelEntity,
   type EntityData,
   isChannelEntity,
   isChannelThreadEntity,
 } from '@entity';
+import { createChannelDetailQuery } from '@queries/channel/detail';
 import {
   type SoupAstItemsQueryArgs,
   type SoupAstParams,
@@ -158,7 +162,12 @@ export function channelsByIdsQueryArgs(
 export function useChannelsByIdsQuery(channelIds: Accessor<readonly string[]>) {
   const query = useSoupAstItemsQuery(
     () => channelsByIdsQueryArgs(channelIds()),
-    () => ({ enabled: channelIds().length > 0, staleTime: 30_000 })
+    // Rail rows need only bounded unread evidence, like the channel lists.
+    () => ({
+      enabled: channelIds().length > 0,
+      staleTime: 30_000,
+      graphqlProjection: 'channel-list',
+    })
   );
   // Drive the external paginated query until all requested matches are loaded.
   createEffect(() => {
@@ -170,7 +179,7 @@ export function useChannelsByIdsQuery(channelIds: Accessor<readonly string[]>) {
       !query.hasNextPage
     )
       return;
-    void query.fetchNextPage();
+    fireAndForget(query.fetchNextPage(), 'channels-view');
   });
   return query;
 }
@@ -279,7 +288,7 @@ function useThreadChannelsDataSource(
         THREAD_CHANNELS_PAGE_SIZE * THREAD_CHANNELS_AUTO_PAGES
     )
       return;
-    void threadsQuery.fetchNextPage();
+    fireAndForget(threadsQuery.fetchNextPage(), 'channels-view');
   });
   const channelIds = createMemo<string[]>((previous) => {
     if (!threadsQuery.isEnabled || threadsQuery.isLoading) return previous;
@@ -423,10 +432,37 @@ export function useChannelByIdQuery(
   channelId: Accessor<string | undefined>,
   enabled: Accessor<boolean>
 ) {
-  return useSoupAstItemsQuery(
-    () => channelByIdQueryArgs(channelId() ?? ''),
-    // Every activation needs a fresh complete edge for thread scoping and marking
-    // read. GraphQL revalidates on activation; keep the REST fallback stale too.
-    () => ({ enabled: enabled(), staleTime: 0 })
+  // Every activation needs a fresh complete unread edge for marking read.
+  // GraphQL revalidates on activation; keep the REST fallback stale too.
+  const graphqlSoup = useFeatureFlag(enableGraphqlSoup);
+  const graphql = createChannelDetailQuery(
+    channelId,
+    () => enabled() && graphqlSoup().enabled
   );
+  const rest = useSoupAstItemsQuery(
+    () => ({ ...channelByIdQueryArgs(channelId() ?? ''), transport: 'rest' }),
+    () => ({ enabled: enabled() && !graphqlSoup().enabled, staleTime: 0 })
+  );
+  const query = () => (graphqlSoup().enabled ? graphql : rest);
+  return {
+    get isEnabled() {
+      return query().isEnabled;
+    },
+    get isPending() {
+      return query().isPending;
+    },
+    get isLoading() {
+      return query().isLoading;
+    },
+    get isFetching() {
+      return query().isFetching;
+    },
+    get error() {
+      return query().error;
+    },
+    get data() {
+      return query().data;
+    },
+    refresh: () => query().refresh(),
+  };
 }

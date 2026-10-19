@@ -4,7 +4,9 @@ import { useMacroMentionLinkResolver } from '@components/app/split-layout/split-
 import { buildConfig } from '@core/component/LexicalMarkdown/builder/MarkdownConfigBuilder';
 import { MarkdownShell } from '@core/component/LexicalMarkdown/builder/MarkdownShell';
 import { toast } from '@core/component/Toast/Toast';
+import { blockNameToDefaultFile } from '@core/constant/allBlocks';
 import { registerHotkey, useHotkeyDOMScope } from '@core/hotkey/hotkeys';
+import { fireAndForget } from '@core/util/fireAndForget';
 import ArrowsOutIcon from '@phosphor/arrows-out.svg';
 import XIcon from '@phosphor/x.svg';
 import { InlineTagsPill } from '@property/tags';
@@ -40,7 +42,8 @@ export function ComposeDocument(props: ComposeDocumentProps) {
   const portalScope = () => (panel.handle.isPopover() ? 'local' : 'block');
 
   const submit = async (expand = false) => {
-    const documentTitle = title().trim() || (expand ? 'New Note' : '');
+    const documentTitle =
+      title().trim() || (expand ? blockNameToDefaultFile('md') : '');
     if (isCreating() || !documentTitle) return;
     const documentContent = content().trim();
     const entries = tags.tagEntries();
@@ -117,7 +120,10 @@ export function ComposeDocument(props: ComposeDocumentProps) {
       applyTargetLabel: 'Document',
       isApplied: (tag) => tags.composerTags.isApplied(tag.optionId),
       onCreate: (tag) => {
-        void tags.composerTags.applyTag(tag.scope, tag.optionId);
+        fireAndForget(
+          tags.composerTags.applyTag(tag.scope, tag.optionId),
+          'compose-document'
+        );
       },
     })
     .withEmojis()
@@ -149,7 +155,7 @@ export function ComposeDocument(props: ComposeDocumentProps) {
     scopeId: scope,
     description: 'Create document',
     keyDownHandler: () => {
-      void submit();
+      fireAndForget(submit(), 'compose-document');
       return true;
     },
     runWithInputFocused: true,
@@ -161,7 +167,9 @@ export function ComposeDocument(props: ComposeDocumentProps) {
         <div class="flex-1 flex items-center">
           <Show when={panel.handle.isPopover()}>
             <Button
-              onMouseDown={() => void submit(true)}
+              onMouseDown={() =>
+                fireAndForget(submit(true), 'compose-document')
+              }
               disabled={isCreating()}
               tabIndex={-1}
               tooltip="Continue editing in split"
@@ -191,7 +199,10 @@ export function ComposeDocument(props: ComposeDocumentProps) {
             containerRef={container}
             onUserInput={() => {}}
             onTagSelected={(tag) => {
-              void tags.composerTags.applyTag(tag.scope, tag.optionId);
+              fireAndForget(
+                tags.composerTags.applyTag(tag.scope, tag.optionId),
+                'compose-document'
+              );
             }}
             onDeleteTagsAtStart={() => false}
             portalScope={portalScope()}
@@ -220,7 +231,7 @@ export function ComposeDocument(props: ComposeDocumentProps) {
             submitButton = button;
           }}
           variant="strong"
-          onClick={() => void submit()}
+          onClick={() => fireAndForget(submit(), 'compose-document')}
           disabled={!title().trim() || isCreating()}
           hasContent={!!title().trim()}
         >

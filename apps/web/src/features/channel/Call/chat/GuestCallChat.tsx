@@ -1,3 +1,6 @@
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import { fireAndForget } from '@core/util/fireAndForget';
+import { Button, TextField } from '@ui';
 import { createEffect, createSignal, For, on, Show, Suspense } from 'solid-js';
 import { v7 as newMessageId } from 'uuid';
 import { CallChatPanel } from './components/CallChatPanel';
@@ -31,7 +34,7 @@ function GuestCallChatContent(props: GuestCallChatProps) {
   let input!: HTMLTextAreaElement;
   createEffect(
     on([() => props.open, chat.ready], ([open, ready]) => {
-      if (open && ready) input?.focus();
+      if (open && ready && !isTouchDevice()) input?.focus();
     })
   );
 
@@ -44,8 +47,8 @@ function GuestCallChatContent(props: GuestCallChatProps) {
       await chat.send(pending);
       pending = undefined;
       setContent('');
-      void chat.refresh();
-      input.focus();
+      fireAndForget(chat.refresh(), 'meetings');
+      if (!isTouchDevice()) input.focus();
     } catch {
       setError(true);
     }
@@ -58,7 +61,7 @@ function GuestCallChatContent(props: GuestCallChatProps) {
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            void send();
+            fireAndForget(send(), 'meetings');
           }}
         >
           <Show when={error()}>
@@ -66,34 +69,37 @@ function GuestCallChatContent(props: GuestCallChatProps) {
               Message could not be sent. Try again.
             </p>
           </Show>
-          <textarea
-            ref={input}
-            aria-label="Message this call"
-            placeholder="Message this call…"
-            class="w-full resize-none rounded-md bg-input p-2 text-sm text-ink placeholder:text-ink-placeholder"
+          <TextField
             value={content()}
+            onChange={setContent}
             disabled={!chat.ready() || chat.sending()}
-            maxLength={16000}
-            rows={3}
-            onInput={(event) => setContent(event.currentTarget.value)}
-            onKeyDown={(event) => {
-              if (
-                event.key === 'Enter' &&
-                !event.shiftKey &&
-                !event.isComposing
-              ) {
-                event.preventDefault();
-                void send();
-              }
-            }}
-          />
-          <button
+          >
+            <TextField.TextArea
+              ref={input}
+              aria-label="Message this call"
+              placeholder="Message this call…"
+              maxLength={16000}
+              rows={3}
+              onKeyDown={(event: KeyboardEvent) => {
+                if (
+                  event.key === 'Enter' &&
+                  !isTouchDevice() &&
+                  !event.shiftKey &&
+                  !event.isComposing
+                ) {
+                  event.preventDefault();
+                  fireAndForget(send(), 'meetings');
+                }
+              }}
+            />
+          </TextField>
+          <Button
             type="submit"
-            class="mt-2 rounded-md bg-accent px-3 py-1 text-sm text-surface disabled:opacity-50"
+            class="mt-2"
             disabled={!chat.ready() || chat.sending() || !content().trim()}
           >
             Send
-          </button>
+          </Button>
         </form>
       }
     >
@@ -108,13 +114,12 @@ function GuestCallChatContent(props: GuestCallChatProps) {
             ? 'Chat is available while you are in this call.'
             : 'Could not load chat.'}
         </p>
-        <button
+        <Button
           type="button"
-          class="text-sm text-accent"
-          onClick={() => void chat.refresh()}
+          onClick={() => fireAndForget(chat.refresh(), 'meetings')}
         >
           Retry
-        </button>
+        </Button>
       </Show>
       <Show when={chat.ready() && chat.messages().length === 0}>
         <p class="text-sm text-ink-muted">

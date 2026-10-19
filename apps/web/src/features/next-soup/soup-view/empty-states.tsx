@@ -7,6 +7,7 @@ import {
 } from '@app/features/command/Launcher';
 import { openNewChannelModal } from '@channel/CreateChannelModal';
 import { useAddInboxFlow, useEmailLinksStatus } from '@core/email-link';
+import { fireAndForget } from '@core/util/fireAndForget';
 import EmptyStateAiGraphic from '@design/empty-state-ai.svg';
 import EmptyStateCallsGraphic from '@design/empty-state-calls.svg';
 import EmptyStateChannelsGraphic from '@design/empty-state-channels.svg';
@@ -24,15 +25,6 @@ import { EmptyStatePanel, FilteredHiddenBanner } from '@ui';
 import { type Component, type JSXElement, Match, Switch } from 'solid-js';
 import { FolderDropZone } from './FolderDropZone';
 import { useSoupView } from './soup-view-context';
-
-/** A single key, sized to sit inline in a sentence rather than on its own row. */
-function HotkeyCap(props: { children: JSXElement }) {
-  return (
-    <kbd class="rounded border border-edge-muted px-1 py-px font-mono text-xs">
-      {props.children}
-    </kbd>
-  );
-}
 
 type FallbackContent = {
   plural: string;
@@ -67,17 +59,6 @@ const FALLBACK_CONTENT: Partial<Record<ListView, FallbackContent>> = {
     create: { label: 'New channel', blockName: 'channel' },
     documentationUrl: `${DOCS_BASE}/product/channels`,
   },
-  reminders: {
-    plural: 'reminders',
-    description: (
-      <>
-        Set a reminder on anything in Macro by selecting it and pressing{' '}
-        <HotkeyCap>h</HotkeyCap>, or write one about nothing in particular from
-        the Create menu.
-      </>
-    ),
-    create: { label: 'New reminder', blockName: 'reminder' },
-  },
   calls: {
     plural: 'calls',
     graphic: EmptyStateCallsGraphic,
@@ -106,7 +87,7 @@ export function EmptyState(props: {
   const isCreatableEnabled = useCreatableEnabled();
 
   const onConnectEmail = () => {
-    void startAddInbox();
+    fireAndForget(startAddInbox(), 'add-inbox');
   };
 
   return (
@@ -146,34 +127,6 @@ export function EmptyState(props: {
       {/* The Reminders tab is not an email surface, so it sits above the
           connect-email gate — its empty copy is the same with or without a
           linked inbox. */}
-      <Match
-        when={props.listView === 'home' && soup.activeTab() === 'reminders'}
-      >
-        <EmptyStatePanel
-          graphic={EmptyStateInboxTrayGraphic}
-          title="No scheduled reminders"
-          description={
-            <>
-              Reminders you schedule wait here until they fire into Signal. Set
-              one on anything in Macro by selecting it and pressing{' '}
-              <HotkeyCap>h</HotkeyCap>, or write one about nothing in
-              particular.
-            </>
-          }
-          // Gated like every other reminder affordance. The tab itself is
-          // already hidden when the flag is off, so this is belt and braces
-          // rather than the only thing standing in the way.
-          primaryAction={
-            isCreatableEnabled('reminder')
-              ? {
-                  label: 'New reminder',
-                  onClick: () => runCreateAction('reminder'),
-                }
-              : undefined
-          }
-          documentationUrl={`${DOCS_BASE}/product/inbox`}
-        />
-      </Match>
 
       <Match when={props.listView === 'home' && !emailActive()}>
         <EmptyStatePanel

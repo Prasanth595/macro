@@ -8,10 +8,10 @@
  */
 
 import { analytics } from '@app/lib/analytics';
+import { groupPickedFolderFiles } from '@core/client/folderUploadPaths';
 import {
   DirectoryFileCountExceededError,
   DirectoryFileSizeExceededError,
-  type FileDetail,
   handleFoldersInput,
   zipFiles,
 } from '@core/client/zipWorkerClient';
@@ -21,6 +21,7 @@ import {
   blockAcceptsFileExtension,
 } from '@core/constant/allBlocks';
 import { heicConversionService } from '@core/heic/service';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { holdAutomaticReload } from '@core/util/reloadForNewerBuild';
 import {
   createStaticUploadFile,
@@ -115,7 +116,7 @@ function openUploadPicker(
     cleanup();
     // Only call onSelect if there are files selected
     if (files.length > 0) {
-      void onSelect(files);
+      fireAndForget(onSelect(files), 'file-upload');
     }
   };
 
@@ -622,9 +623,12 @@ export async function handleFileFolderDrop(
   ]);
 
   if (folderEntries.length > 0) {
-    toast.promise(resultPromise, {
-      loading: 'Preparing folder upload...',
-    });
+    fireAndForget(
+      toast.promise(resultPromise, {
+        loading: 'Preparing folder upload...',
+      }),
+      'file-upload'
+    );
   }
 
   const results = await resultPromise;
@@ -651,20 +655,7 @@ export async function handleFolderSelect(
   files: File[],
   onFilesReady: (files: UploadFileEntry[]) => void | Promise<void>
 ): Promise<void> {
-  const groups = new Map<string, { files: File[]; details: FileDetail[] }>();
-  for (const file of files) {
-    const rel = file.webkitRelativePath || file.name;
-    const parts = rel.split('/');
-    const top = parts.shift() || file.name;
-    const path = parts.join('/');
-    const group = groups.get(top) || {
-      files: [],
-      details: [],
-    };
-    group.files.push(file);
-    group.details.push({ path: path || file.name });
-    groups.set(top, group);
-  }
+  const groups = groupPickedFolderFiles(files);
 
   const zipEntryPromises = Array.from(groups.entries()).map(
     ([folderName, group]) =>
@@ -677,9 +668,12 @@ export async function handleFolderSelect(
   const resultPromise = Promise.allSettled(zipEntryPromises);
 
   if (zipEntryPromises.length > 0) {
-    toast.promise(resultPromise, {
-      loading: 'Preparing folder upload...',
-    });
+    fireAndForget(
+      toast.promise(resultPromise, {
+        loading: 'Preparing folder upload...',
+      }),
+      'file-upload'
+    );
   }
 
   const results = await resultPromise;

@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { createEffect, Match, onCleanup, Show, Switch } from 'solid-js';
 import { BypassButton } from '../components/bypass-button';
 import {
@@ -5,7 +6,6 @@ import {
   focusStepHeading,
 } from '../components/motion/step-change';
 import { OnboardingShell } from '../components/onboarding-shell';
-import { PlanComparison } from '../components/plan-comparison';
 import { StepFallback } from '../components/step-fallback';
 import { OnboardingTrustDetails } from '../components/trust-details';
 import { useOnboardingContext } from '../context/onboarding-context';
@@ -20,6 +20,7 @@ import {
 import { createFlowFinish } from '../primitives/flow-finish';
 import { createOnboardingFlow } from '../primitives/onboarding-flow';
 import { EmailStep } from './email-step';
+import { PlanComparisonView } from './plan-comparison-view';
 import { type InviteOfferSlot, PlanStep } from './plan-step';
 import { StoryStageView } from './story-stage-view';
 import { TeamStep } from './team-step';
@@ -51,7 +52,7 @@ export function OnboardingFlowView(props: {
       const accounts = emailAccounts.accounts();
       return {
         emails_connected: accounts.t === 'ready' ? accounts.value.length : 0,
-        connectors_connected: [...(connectedTools() ?? [])],
+        connectors_connected: [...connectedTools.connected()],
       };
     },
   });
@@ -104,7 +105,7 @@ export function OnboardingFlowView(props: {
       viewer.t === 'signed-in' &&
       viewer.viewer.licensed
     ) {
-      void finish.finishPremium();
+      fireAndForget(finish.finishPremium(), 'onboarding');
       return;
     }
     goTo(next);
@@ -137,18 +138,28 @@ export function OnboardingFlowView(props: {
           {(current) => (
             <BypassButton
               disabled={finish.finishing()}
-              onBypass={() => void finish.bypass(current())}
+              onBypass={() =>
+                fireAndForget(finish.bypass(current()), 'onboarding')
+              }
             />
           )}
         </Show>
       }
-      explainerLabel={showPlanOffer() ? 'Continue as Guest' : undefined}
+      explainerLabel={showPlanOffer() ? 'See more' : undefined}
       explainer={
         showPlanOffer() ? (
-          <PlanComparison
+          <PlanComparisonView
             disabled={finish.finishing()}
-            onContinueGuest={() => void finish.finishFree()}
+            onContinueFree={() =>
+              fireAndForget(finish.finishFree(), 'onboarding')
+            }
             onBackToPro={() => focusStepHeading(content, true)}
+            onStartMax={() =>
+              fireAndForget(
+                finish.startPremiumCheckout('max', 'standard'),
+                'onboarding'
+              )
+            }
           />
         ) : step() === 'security' ||
           step() === 'work' ||
@@ -196,9 +207,14 @@ export function OnboardingFlowView(props: {
               checkoutReturn={props.checkoutReturn}
               finishing={finish.finishing()}
               onStartCheckout={(tier, terms) =>
-                void finish.startPremiumCheckout(tier, terms)
+                fireAndForget(
+                  finish.startPremiumCheckout(tier, terms),
+                  'onboarding'
+                )
               }
-              onContinueFree={() => void finish.finishFree()}
+              onContinueFree={() =>
+                fireAndForget(finish.finishFree(), 'onboarding')
+              }
               renderInviteOffer={props.renderInviteOffer}
               onPremiumPaid={finish.finishPremium}
             />

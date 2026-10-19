@@ -81,14 +81,11 @@ function EventComposerContent(
   );
 
   return (
-    <div
-      ref={attachHotkeys}
-      class="portal-scope flex h-full min-h-0 flex-col p-4 text-ink"
-    >
+    <div ref={attachHotkeys} class="flex h-full min-h-0 flex-col p-4 text-ink">
       <EventForm
         controller={controller}
         macroCallsEnabled={macroCallsEnabled()}
-        isEdit={isEdit() || editor.eventCreated()}
+        isEdit={isEdit()}
         saveError={editor.saveError()}
         disabledFields={editor.disabledFields()}
         showRecurringEditNotice={editor.showRecurringEditNotice()}

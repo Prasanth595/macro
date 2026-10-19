@@ -5,10 +5,8 @@ import { useGlobalBlockOrchestrator } from '@components/app/GlobalAppState';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import {
   returnSplitToRecentListView,
-  useCanAutofocusSplitContent,
   useSplitPanelOrThrow,
 } from '@components/app/split-layout/layoutUtils';
-import { useNavigatedFromJK } from '@components/app/useNavigatedFromJK';
 import { useHasPaidAccess } from '@core/auth/license';
 import { useBlockId } from '@core/block';
 import { DATABASE_MODEL, modelsForPlan } from '@core/component/AI/constant';
@@ -21,6 +19,7 @@ import { registerHotkey } from '@core/hotkey/hotkeys';
 import { TOKENS } from '@core/hotkey/tokens';
 import { createMethodRegistration } from '@core/orchestrator';
 import { blockHandleSignal } from '@core/signal/load';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { createUserScopedStorage } from '@core/util/userScopedStorage';
 import {
   onDatabaseBatchCommitted,
@@ -42,18 +41,18 @@ import {
   Show,
 } from 'solid-js';
 import { match } from 'ts-pattern';
-import { DatabaseSearch } from '../components/database-search';
-import type { ShownLayout } from '../components/database-toolbar';
-import { DatabaseToolbar } from '../components/database-toolbar';
-import type { NewView } from '../components/new-view-dialog';
+import { DatabaseSearch } from '../../database/components/database-search';
+import type { ShownLayout } from '../../database/components/database-toolbar';
+import { DatabaseToolbar } from '../../database/components/database-toolbar';
+import type { DatabaseRelatedDestination } from '../../database/core/database-relations';
+import type { NewView } from '../../database/core/view-creation';
+import type { ViewChange } from '../../database/core/view-state';
+import { allRecordsView, boardLayout } from '../../database/core/views';
+import { databaseOpMessage } from '../../database/core/write-failure';
+import { createDatabaseSearch } from '../../database/primitives/database-search';
+import { createDatabaseUndo } from '../../database/primitives/undo-controller';
+import { createViewCreation } from '../../database/primitives/view-creation';
 import { databaseChat } from '../core/chat-context';
-import type { DatabaseRelatedDestination } from '../core/database-relations';
-import type { ViewChange } from '../core/view-state';
-import { allRecordsView, boardLayout } from '../core/views';
-import { databaseOpMessage } from '../core/write-failure';
-import { createDatabaseSearch } from '../primitives/database-search';
-import { createDatabaseUndo } from '../primitives/undo-controller';
-import { createViewCreation } from '../primitives/view-creation';
 import { createDatabaseViewSelection } from '../primitives/view-selection';
 import { searchDatabase } from '../queries/database-search';
 import { toViewColumn } from '../queries/table-rows';
@@ -76,8 +75,6 @@ const Block: Component = () => {
   const { replaceOrInsertSplit } = useSplitLayout();
   const orchestrator = useGlobalBlockOrchestrator();
   let requestedRecord: DatabaseRelatedDestination | undefined;
-  const canAutofocus = useCanAutofocusSplitContent();
-  const { navigatedFromJK } = useNavigatedFromJK();
   const userId = useUserId();
   const storage = createUserScopedStorage(
     `database-view-selection:${databaseId}`
@@ -91,7 +88,6 @@ const Block: Component = () => {
   let gridEntry:
     | {
         tableId: string;
-        focus: () => Promise<void>;
         openRecord: (rowId: string) => void;
       }
     | undefined;
@@ -135,22 +131,16 @@ const Block: Component = () => {
           views: { ...current.views, [params.tableId]: params.viewId },
         }));
       if (params.tableId && params.rowId)
-        void openRelated({
-          databaseId,
-          tableId: params.tableId,
-          rowId: params.rowId,
-        });
+        fireAndForget(
+          openRelated({
+            databaseId,
+            tableId: params.tableId,
+            rowId: params.rowId,
+          }),
+          'database-view'
+        );
     },
   });
-  let requestedGridEntry = false;
-  const enterFirstCell = () => {
-    if (!gridEntry || gridEntry.tableId !== activeTableId()) {
-      requestedGridEntry = true;
-      return;
-    }
-    requestedGridEntry = false;
-    void gridEntry.focus();
-  };
   const [openingChat, setOpeningChat] = createSignal(false);
   const hasPaidAccess = useHasPaidAccess();
   const { showPaywall } = usePaywallState();
@@ -246,7 +236,7 @@ const Block: Component = () => {
     description: 'Undo your last edit',
     condition: databaseUndo.canUndo,
     keyDownHandler: () => {
-      void databaseUndo.undo();
+      fireAndForget(databaseUndo.undo(), 'database-view');
       return true;
     },
   });
@@ -257,7 +247,7 @@ const Block: Component = () => {
     description: 'Redo your last undo',
     condition: databaseUndo.canRedo,
     keyDownHandler: () => {
-      void databaseUndo.redo();
+      fireAndForget(databaseUndo.redo(), 'database-view');
       return true;
     },
   });
@@ -332,12 +322,6 @@ const Block: Component = () => {
           detail={detail()}
           canEdit={canEdit()}
           activeTable={activeTable()}
-          autoFocusTitle={
-            canAutofocus &&
-            !navigatedFromJK() &&
-            detail()?.database.name === 'Untitled database'
-          }
-          onTitleConfirm={enterFirstCell}
           onSelectTable={(tableId) =>
             setSelection((current) => ({ ...current, tableId }))
           }
@@ -347,7 +331,7 @@ const Block: Component = () => {
             )
           }
           openingChat={openingChat()}
-          onOpenChat={() => void openDatabaseChat()}
+          onOpenChat={() => fireAndForget(openDatabaseChat(), 'database-view')}
         />
         <div
           class="@container/database flex size-full min-h-0 min-w-0 flex-col overflow-hidden bg-canvas-base text-ink"
@@ -369,7 +353,7 @@ const Block: Component = () => {
                   variant="outline"
                   onClick={() => {
                     reset();
-                    void detailQuery.refetch();
+                    fireAndForget(detailQuery.refetch(), 'database-view');
                   }}
                 >
                   Try again
@@ -391,7 +375,9 @@ const Block: Component = () => {
                     </p>
                     <Button
                       variant="outline"
-                      onClick={() => void detailQuery.refetch()}
+                      onClick={() =>
+                        fireAndForget(detailQuery.refetch(), 'database-view')
+                      }
                     >
                       Try again
                     </Button>
@@ -466,11 +452,9 @@ const Block: Component = () => {
                             actionsRef={(actions) => {
                               gridEntry = {
                                 tableId: table().table.id,
-                                focus: actions.focusFirstCell,
                                 openRecord: actions.openRecord,
                               };
                               openRequestedRecord();
-                              if (requestedGridEntry) enterFirstCell();
                             }}
                             renderToolbar={(actions) => (
                               <DatabaseToolbar
@@ -489,10 +473,13 @@ const Block: Component = () => {
                                     onClose={search.close}
                                     inputRef={search.setInput}
                                     onChoose={(choice) =>
-                                      void openRelated({
-                                        databaseId,
-                                        ...choice,
-                                      })
+                                      fireAndForget(
+                                        openRelated({
+                                          databaseId,
+                                          ...choice,
+                                        }),
+                                        'database-view'
+                                      )
                                     }
                                   />
                                 }
@@ -512,8 +499,8 @@ const Block: Component = () => {
                                     selectView();
                                   return deleteDatabaseView(target);
                                 }}
-                                onReorderViews={(order) =>
-                                  void reorderDatabaseViews(
+                                onReorderViews={(order) => {
+                                  reorderDatabaseViews(
                                     databaseId,
                                     table().table.id,
                                     order
@@ -521,11 +508,15 @@ const Block: Component = () => {
                                     toast.failure(
                                       databaseOpMessage(failure, 'these views')
                                     )
-                                  )
-                                }
+                                  );
+                                }}
                                 onCreateRecord={
                                   canEdit()
-                                    ? () => void actions.createRecord()
+                                    ? () =>
+                                        fireAndForget(
+                                          actions.createRecord(),
+                                          'database-view'
+                                        )
                                     : undefined
                                 }
                                 canCreateRecord={columns().length > 0}

@@ -1,3 +1,4 @@
+import { useCrmContactMentionSource } from '@app/features/crm/record-adapter';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import type { BlockName } from '@core/block';
@@ -15,8 +16,10 @@ import { isMobile } from '@core/mobile/isMobile';
 import type { ChannelWithParticipants, IUser } from '@core/user';
 import { useDateSearch } from '@core/util/dateSearch/useDateSearch';
 import { debouncedDependent } from '@core/util/debounce';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { useIsKeyPressActive } from '@core/util/useIsKeyPressActive';
 import type { EmailEntity } from '@entity';
+import { Telemetry } from '@macro-inc/observability';
 import type { HistoryItem as Item } from '@queries/history/history';
 import { Key } from '@solid-primitives/keyed';
 import { createLazyMemo } from '@solid-primitives/memo';
@@ -59,6 +62,7 @@ import type { BucketConfig, MentionBucketId } from './MentionsMenuController';
 import { useMentionsMenuController } from './MentionsMenuController';
 import { createItemHandler } from './utils/mentionHandlers';
 import { sortMobileMentions } from './utils/mobileSort';
+import { mergePeopleMentions } from './utils/people-mentions';
 
 const TARGET_ITEMS = 8;
 const VIRTUAL_ITEM_HEIGHT = 36;
@@ -72,6 +76,7 @@ const DEFAULT_DOCUMENT_BUCKETS: EntityBucket[] = [
   'project',
   'chat',
   'database',
+  'form',
   'initiative',
 ];
 
@@ -84,12 +89,19 @@ type MentionsMenuProps = {
   /** whether the menu checks against block boundary in floating middleware. uses floating-ui default if false. */
   useBlockBoundary?: boolean;
   portalScope?: PortalScope;
+  /** Mounts the menu here instead of by `portalScope`. */
+  portalMount?: HTMLElement;
   block?: BlockName;
   anchor?: HTMLElement | null;
   onUserMention?: (mention: UserMentionRecord) => void;
   onDocumentMention?: (item: Item | ChannelWithParticipants) => void;
   onEmailMention?: (item: EmailEntity) => void;
   disableMentionTracking?: boolean;
+  /**
+   * The document hosting the editor, which records inserted mentions.
+   * Defaults to the enclosing legacy block, which routed documents lack.
+   */
+  sourceDocumentId?: string;
   /** whether to show open tabs as a bucket in the menu */
   showOpenTabs?: boolean;
   /** restrict which mention source buckets to show (e.g. ['users'] for user-only mentions) */
@@ -98,6 +110,10 @@ type MentionsMenuProps = {
   documentBuckets?: EntityBucket[];
   /** Scalar person fields cannot store group mentions. Defaults to true. */
   includeGroups?: boolean;
+  /** Disable CRM references for fields that only store Macro user identities. */
+  includeContacts?: boolean;
+  /** Repeated cell editing opens immediately instead of animating each picker. */
+  animate?: boolean;
 } & (
   | { editor: LexicalEditor; onPick?: never }
   | { editor?: never; anchor: HTMLElement; onPick: (item: MentionItem) => void }
@@ -138,9 +154,10 @@ function MentionsMenuInner(props: MentionsMenuProps) {
 
   const { isKeypressActive } = useIsKeyPressActive();
 
-  const blockId = useMaybeBlockId();
+  const legacyBlockId = useMaybeBlockId();
+  const blockId = props.sourceDocumentId ?? legacyBlockId;
 
-  const { usersAndGroups, groups } = useUsersMention({
+  const { usersAndGroups, groups, availableUsers } = useUsersMention({
     users: props.users,
     searchTerm,
     isChannelBlock: props.block === 'channel',
@@ -197,6 +214,24 @@ function MentionsMenuInner(props: MentionsMenuProps) {
       }))
     : undefined;
   const companies = () => companyMention?.entities() ?? [];
+  const contactsEnabled = () =>
+    props.includeContacts ??
+    !(props.sources?.length === 1 && props.sources[0] === 'users');
+  const contactMention = isFeatureEnabled(enableCrm)
+    ? props.entities
+      ? useEntityMentionFromList({
+          items: props.entities,
+          buckets: ['crm_contact'],
+          searchTerm,
+        })
+      : useCrmContactMentionSource(
+          activeSearchTerm,
+          () =>
+            props.menu.isOpen() &&
+            contactsEnabled() &&
+            (!props.sources || props.sources.includes('users'))
+        )
+    : undefined;
 
   const {
     emails,
@@ -228,8 +263,6 @@ function MentionsMenuInner(props: MentionsMenuProps) {
     );
   });
 
-  const currentBlockId = useMaybeBlockId();
-
   const openTabs = createLazyMemo(() => {
     const splitManager = globalSplitManager();
     if (!splitManager) return [];
@@ -249,7 +282,7 @@ function MentionsMenuInner(props: MentionsMenuProps) {
         continue;
       }
 
-      if (split.content.id === currentBlockId) continue;
+      if (split.content.id === blockId) continue;
 
       const key = `${split.content.type}:${split.content.id}`;
       if (seenKeys.has(key)) continue;
@@ -274,8 +307,12 @@ function MentionsMenuInner(props: MentionsMenuProps) {
   const [mountSelection, setMountSelection] = createSignal<Selection | null>();
 
   const mentionUsers = () =>
-    (usersAndGroups() ?? []).filter(
-      (item) => props.includeGroups !== false || item.kind !== 'group'
+    mergePeopleMentions(
+      (usersAndGroups() ?? []).filter(
+        (item) => props.includeGroups !== false || item.kind !== 'group'
+      ),
+      contactsEnabled() ? (contactMention?.entities() ?? []) : [],
+      availableUsers()
     );
   const sourceEnabled = (source: MentionBucketId) =>
     !props.sources || props.sources.includes(source);
@@ -294,6 +331,10 @@ function MentionsMenuInner(props: MentionsMenuProps) {
   });
 
   const bucketConfigs = createLazyMemo((): BucketConfig[] => {
+    // Binning and pagination read these eagerly, outside the menu's Show.
+    // Keep closed composers from gathering and ranking mention candidates.
+    if (!menuOpen()) return [];
+
     if (isMobile()) {
       return [
         {
@@ -311,12 +352,18 @@ function MentionsMenuInner(props: MentionsMenuProps) {
             (sourceEnabled('emails') ? totalEmailCount() : 0) +
             (sourceEnabled('dates') ? (dates()?.length ?? 0) : 0),
           hasMore: () =>
+            (sourceEnabled('users') &&
+              contactsEnabled() &&
+              (contactMention?.hasMore() ?? false)) ||
             (sourceEnabled('documents') && docsMention.hasMore()) ||
             (sourceEnabled('channels') && channelsMention.hasMore()) ||
             (sourceEnabled('companies') &&
               (companyMention?.hasMore() ?? false)) ||
             (sourceEnabled('emails') && hasMoreEmails()),
           isLoadingMore: () =>
+            (sourceEnabled('users') &&
+              contactsEnabled() &&
+              (contactMention?.isLoadingMore() ?? false)) ||
             (sourceEnabled('documents') && docsMention.isLoadingMore()) ||
             (sourceEnabled('channels') && channelsMention.isLoadingMore()) ||
             (sourceEnabled('companies') &&
@@ -324,6 +371,9 @@ function MentionsMenuInner(props: MentionsMenuProps) {
             (sourceEnabled('emails') && isLoadingMoreEmails()),
           loadMore: async () => {
             await Promise.all([
+              sourceEnabled('users') &&
+                contactsEnabled() &&
+                contactMention?.loadMore(),
               sourceEnabled('documents') && docsMention.loadMore(),
               sourceEnabled('channels') && channelsMention.loadMore(),
               sourceEnabled('companies') && companyMention?.loadMore(),
@@ -343,6 +393,13 @@ function MentionsMenuInner(props: MentionsMenuProps) {
             : 'People',
         getData: mentionUsers,
         getFullCount: () => mentionUsers().length,
+        hasMore: () =>
+          contactsEnabled() && (contactMention?.hasMore() ?? false),
+        isLoadingMore: () =>
+          contactsEnabled() && (contactMention?.isLoadingMore() ?? false),
+        loadMore: async () => {
+          if (contactsEnabled()) await contactMention?.loadMore();
+        },
       },
       {
         id: 'documents',
@@ -431,7 +488,7 @@ function MentionsMenuInner(props: MentionsMenuProps) {
     ? createItemHandler({
         editor: props.editor,
         blockName: useMaybeBlockName(),
-        blockId: useMaybeBlockId(),
+        blockId,
         onUserMention: props.onUserMention,
         onDocumentMention: props.onDocumentMention,
         onEmailMention: props.onEmailMention,
@@ -493,7 +550,12 @@ function MentionsMenuInner(props: MentionsMenuProps) {
     onSelect: () => {
       const selectedItem = controller.selectedItem();
       if (selectedItem) {
-        itemAction(selectedItem);
+        itemAction(selectedItem).catch((error) =>
+          Telemetry.error(error, {
+            surface: 'mentions-menu',
+            itemKind: selectedItem.kind,
+          })
+        );
       } else {
         closeMenu();
       }
@@ -638,9 +700,10 @@ function MentionsMenuInner(props: MentionsMenuProps) {
 
   return (
     <Show when={menuOpen()}>
-      <ScopedPortal scope={props.portalScope}>
+      <ScopedPortal scope={props.portalScope} mount={props.portalMount}>
         <div
-          class="w-96 max-w-[calc(100cqw-1rem-2px)] cursor-default select-none z-modal-content menu-open-animation"
+          class="w-96 max-w-[calc(100cqw-1rem-2px)] cursor-default select-none z-modal-content"
+          classList={{ 'menu-open-animation': props.animate !== false }}
           on:touchstart={(e) => e.stopPropagation()}
           onPointerDown={(event) => {
             if (props.onPick) event.preventDefault();
@@ -750,7 +813,10 @@ function MentionsMenuInner(props: MentionsMenuProps) {
                   activeViewAllBucket()?.isLoadingMore?.() ?? false
                 }
                 onEndReached={() => {
-                  void activeViewAllBucket()?.loadMore?.();
+                  fireAndForget(
+                    activeViewAllBucket()?.loadMore?.(),
+                    'mentions-menu'
+                  );
                 }}
               />
             </Show>

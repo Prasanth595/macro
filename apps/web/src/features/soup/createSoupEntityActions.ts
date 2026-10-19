@@ -4,13 +4,13 @@ import {
   type EntityActionNavigationHandler,
   type EntityActionViewContext,
   makeBlockSenderAction,
+  makeChannelPictureAction,
   makeCopyAction,
   makeCopyBranchNameAction,
   makeCopyEntityIdAction,
   makeCopyLinkAction,
   makeCreateReminderAction,
   makeDeleteAction,
-  makeEditReminderAction,
   makeFavoriteAction,
   makeMarkDoneAction,
   makeMarkNotDoneAction,
@@ -24,10 +24,10 @@ import {
   makeRemoveFromProjectAction,
   makeRenameAction,
   makeShareAction,
-  markReminderTargetDone,
 } from '@app/features/next-soup/actions';
+import type { MarkDoneDelegate } from '@app/features/next-soup/actions/mark-done-delegate';
 import {
-  markReminderSeenOnOpen,
+  markCalendarNotificationSeenOnOpen,
   openEntityInSplitFromUnifiedList,
 } from '@app/features/next-soup/utils';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
@@ -91,7 +91,12 @@ export const viewedProjectIdFromContent = (content: {
     ? content.id
     : undefined;
 
-export function createSoupEntityActions(): {
+export function createSoupEntityActions(
+  options: {
+    /** A list that completes its own rows, such as Home's work feed. */
+    markDoneDelegate?: () => MarkDoneDelegate | undefined;
+  } = {}
+): {
   buildActionGroups: BuildActionGroups;
   isFavorited: (entity: EntityData) => boolean;
 } {
@@ -104,6 +109,7 @@ export function createSoupEntityActions(): {
   const markDone = makeMarkDoneAction({
     userId: () => userId(),
     notificationSource: () => notificationSource,
+    delegate: options.markDoneDelegate,
   });
 
   const markNotDone = makeMarkNotDoneAction({
@@ -124,6 +130,8 @@ export function createSoupEntityActions(): {
     userId: () => userId(),
   });
 
+  const channelPictureAction = makeChannelPictureAction();
+
   const copyAction = makeCopyAction();
   const favoriteAction = makeFavoriteAction();
   const muteAction = makeMuteAction({
@@ -134,12 +142,7 @@ export function createSoupEntityActions(): {
   const copyLinkAction = makeCopyLinkAction();
   const copyBranchNameAction = makeCopyBranchNameAction();
   const copyEntityIdAction = makeCopyEntityIdAction();
-  // Setting a reminder puts the row down: it marks it done, so the list drops
-  // it and the reminder is what brings it back.
-  const createReminderAction = makeCreateReminderAction({
-    onCreated: markReminderTargetDone(markDone),
-  });
-  const editReminderAction = makeEditReminderAction();
+  const createReminderAction = makeCreateReminderAction();
   const shareAction = makeShareAction();
   const blockSenderAction = makeBlockSenderAction();
   const markSenderSignalAction = makeMarkSenderSignalAction();
@@ -247,7 +250,6 @@ export function createSoupEntityActions(): {
       const splitManager = globalSplitManager();
       if (!splitManager) return undefined;
       // Reminder route claims perform identity reuse when the action runs.
-      if (entity.type === 'reminder') return entity;
       const contentId =
         entity.type === 'channel_message' || entity.type === 'channel_thread'
           ? entity.channelId
@@ -268,7 +270,7 @@ export function createSoupEntityActions(): {
         });
       }
 
-      markReminderSeenOnOpen(entity, notificationSource);
+      markCalendarNotificationSeenOnOpen(entity, notificationSource);
 
       // Match row navigation, including a thread row's driving message.
       await openEntityInSplitFromUnifiedList(entity, {
@@ -279,7 +281,7 @@ export function createSoupEntityActions(): {
       });
     };
 
-    if (openableEntity()) {
+    if (viewContext.supportsOpenInNewSplit && openableEntity()) {
       topItems.push({
         id: 'open-in-split',
         label: 'Open in new split',
@@ -303,20 +305,21 @@ export function createSoupEntityActions(): {
       });
     }
 
-    // Takes Rename's slot, and its 'r' key. The two cannot both appear:
-    // `renameAction.canExecute` ends at `entity.ownerId === userId()`, and a
-    // reminder row's `ownerId` is always `''` (both soup mappers set it — a
-    // reminder is private to its owner, so the row carries no owner id) while
-    // `userId()` is a macro id or undefined. Renaming one would fail anyway;
-    // its name is its description, which only the reminders API can change.
-    // Single-entity only: the editor asks about one reminder's time.
-    if (entities.length === 1 && editReminderAction.canExecute(entities[0])) {
+    // Sits with Rename because it edits the same channel identity, under the
+    // same participant rule. Single-entity only: one upload, one channel.
+    if (entities.length === 1 && channelPictureAction.canExecute(entities[0])) {
       middleItems.push({
-        id: 'edit-reminder',
-        label: 'Edit reminder',
-        hotkeyToken: TOKENS.entity.action.rename,
-        onClick: handle(editReminderAction.executeWithSoup),
+        id: 'set-channel-picture',
+        label: 'Set channel picture',
+        onClick: () => channelPictureAction.execute(entities),
       });
+      if (channelPictureAction.hasPicture(entities[0])) {
+        middleItems.push({
+          id: 'remove-channel-picture',
+          label: 'Remove channel picture',
+          onClick: () => channelPictureAction.remove(entities),
+        });
+      }
     }
 
     if (canExecuteAll(favoriteAction.canExecute)) {

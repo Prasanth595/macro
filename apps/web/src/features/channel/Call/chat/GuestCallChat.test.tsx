@@ -14,7 +14,9 @@ const mocks = vi.hoisted(() => ({
   send: vi.fn(),
   refresh: vi.fn(),
   nextId: vi.fn(),
+  touch: vi.fn(),
 }));
+vi.mock('@core/mobile/isTouchDevice', () => ({ isTouchDevice: mocks.touch }));
 vi.mock('uuid', () => ({ v7: mocks.nextId }));
 vi.mock('./queries/use-guest-call-chat', () => ({
   useGuestCallChat: () => ({
@@ -101,4 +103,24 @@ it('does not submit Shift+Enter or composition Enter', () => {
   fireEvent.keyDown(input, { key: 'Enter', shiftKey: true });
   fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
   expect(mocks.send).not.toHaveBeenCalled();
+});
+
+it('keeps Enter for newlines on touch and sends with the button', async () => {
+  mocks.touch.mockReturnValue(true);
+  render(() => (
+    <GuestCallChat
+      callId="call"
+      session={{ token: 'token', participantId: 'guest' }}
+      id="chat"
+      open
+      onClose={() => {}}
+    />
+  ));
+  const input = screen.getByRole('textbox');
+  expect(document.activeElement).not.toBe(input);
+  fireEvent.input(input, { target: { value: 'Hello' } });
+  fireEvent.keyDown(input, { key: 'Enter' });
+  expect(mocks.send).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+  await waitFor(() => expect(mocks.send).toHaveBeenCalledOnce());
 });

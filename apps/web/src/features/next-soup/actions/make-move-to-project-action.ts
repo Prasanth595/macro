@@ -1,5 +1,6 @@
 import { openBulkEditModal } from '@app/features/entity/bulk-edit/BulkEditEntityModal';
 import { toast } from '@core/component/Toast/Toast';
+import { fireAndForget } from '@core/util/fireAndForget';
 import type { EntityData } from '@entity';
 import { restoreSoupFocus } from '../utils';
 import type { EntityActionListState } from './entity-action-context';
@@ -8,13 +9,12 @@ export const makeMoveToProjectAction = () => {
   const canExecute = (entity: EntityData): boolean => {
     return (
       entity.type !== 'database' &&
+      entity.type !== 'form' &&
       entity.type !== 'agent_session' &&
       entity.type !== 'channel' &&
       entity.type !== 'channel_message' &&
       entity.type !== 'channel_thread' &&
-      entity.type !== 'foreign' &&
-      // Reminders are private to their owner and live outside the folder tree.
-      entity.type !== 'reminder'
+      entity.type !== 'foreign'
     );
   };
 
@@ -54,7 +54,7 @@ export const makeMoveToProjectAction = () => {
             ? `Moved ${entities.length} items`
             : 'Moved to folder'
         );
-        restoreSoupFocus(nextRow?.id);
+        fireAndForget(restoreSoupFocus(nextRow?.id), 'entity-actions');
       },
       onError: () => toast.failure('Failed to move to folder'),
       onCancel: () => {
@@ -62,7 +62,7 @@ export const makeMoveToProjectAction = () => {
         if (firstEntity) {
           soup.focus.set(firstEntity.id);
         }
-        restoreSoupFocus(firstEntity?.id);
+        fireAndForget(restoreSoupFocus(firstEntity?.id), 'entity-actions');
       },
     });
   };

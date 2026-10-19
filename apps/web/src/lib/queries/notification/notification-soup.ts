@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { channelThreadRootId } from '@notifications/channel-thread-root';
 import type { UnifiedNotification } from '@notifications/types';
 import { match, P } from 'ts-pattern';
@@ -20,21 +21,23 @@ function notificationEntityTypeToSoupTag(
     .with('project', () => 'project' as const)
     .with('email_thread', () => 'emailThread' as const)
     .with('foreign_entity', () => 'foreignEntity' as const)
-    .with('reminder', () => 'reminder' as const)
     .with('calendar_event', () => 'calendarEvent' as const)
     .with('agent_session', () => 'agentSession' as const)
     .with(
       P.union(
         'user',
+        'reminder',
         'team',
         'call',
         'channel_message',
         'static_file',
         'crm_company',
         'crm_contact',
+        'crm_pipeline',
         'skill',
         'database',
         'database_row',
+        'form',
         'scheduled_action',
         'initiative'
       ),
@@ -57,7 +60,10 @@ export function updateSoupForNotification(notification: UnifiedNotification) {
       );
     }
   } else {
-    void refetchSoupEntity(notification.entity_id, soupTag);
+    fireAndForget(
+      refetchSoupEntity(notification.entity_id, soupTag),
+      'notification-soup'
+    );
   }
 
   // Mentions, replies, and reactions belong to the thread's Home row.
@@ -70,7 +76,10 @@ export function updateSoupForNotification(notification: UnifiedNotification) {
     );
   }
   if (threadRootId && !hasSoupEntity(threadRootId)) {
-    void refetchSoupEntity(threadRootId, 'channelThread');
+    fireAndForget(
+      refetchSoupEntity(threadRootId, 'channelThread'),
+      'notification-soup'
+    );
   }
 
   // A field merge cannot restore a cached row removed by a done filter.

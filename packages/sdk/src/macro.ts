@@ -1,5 +1,6 @@
 import type { MacroOpts } from './config';
 import { AgentSessionNamespace } from './entities/agent-sessions/namespace';
+import { AiNamespace } from './entities/ai/namespace';
 import { BotsNamespace } from './entities/bots/namespace';
 import { CalendarNamespace } from './entities/calendar/namespace';
 import { CallRecordNamespace } from './entities/calls/namespace';
@@ -11,6 +12,7 @@ import { DocumentNamespace } from './entities/documents/namespace';
 import { EmailNamespace } from './entities/email/namespace';
 import { FavoritesNamespace } from './entities/favorites/namespace';
 import { ForeignEntityNamespace } from './entities/foreign/namespace';
+import { FormNamespace } from './entities/forms/namespace';
 import { NotificationNamespace } from './entities/notifications/namespace';
 import { PinsNamespace } from './entities/pins/namespace';
 import { ProjectNamespace } from './entities/projects/namespace';
@@ -20,10 +22,18 @@ import { TeamNamespace } from './entities/teams/namespace';
 import { UserNamespace } from './entities/users/namespace';
 import type { User } from './entities/users/user';
 import { WebhooksNamespace } from './entities/webhooks/namespace';
+import { WorkspaceNamespace } from './entities/workspace/namespace';
 import type { MacroEvents } from './events/receiver';
 import { MacroClient } from './utils/client';
 
 export type { MacroOpts } from './config';
+export { CodeExecution } from './entities/agent-sessions/code-execution';
+export type {
+  DecisionRequest,
+  DecisionResponse,
+  StructuredCompletionRequest,
+  StructuredCompletionResponse,
+} from './entities/ai/namespace';
 export type { CallMessage } from './entities/calls/message';
 export {
   type AddColumnOptions,
@@ -34,6 +44,27 @@ export {
   MacroOpRefusedError,
   type OpResultOf,
 } from './entities/databases/database';
+export {
+  Form,
+  type FormAnswer,
+  type FormAnswerValue,
+  type FormBookingStep,
+  type FormBookingTarget,
+  type FormEntityHandle,
+  type FormLayoutResult,
+  type FormQuestionPlacement,
+  type FormQuestionTally,
+  FormReference,
+  type FormResponseSummary,
+  type FormRules,
+  type FormRuleTest,
+  type FormSectionPlacement,
+  type FormSubmissionOutcome,
+  type MyFormResponse,
+} from './entities/forms/form';
+export { FormOption, FormQuestion } from './entities/forms/question';
+export { FormResponse } from './entities/forms/response';
+export { FormSection } from './entities/forms/section';
 export type { ListenOptions, MacroEvents } from './events/receiver';
 export {
   here,
@@ -46,9 +77,11 @@ export {
   toBody,
   wrapXml,
 } from './mentions';
+export type { RequestActivity } from './utils/activity';
 
 export class Macro<T extends MacroOpts = MacroOpts> {
   readonly agentSessions: AgentSessionNamespace;
+  readonly ai: AiNamespace;
   readonly bots: BotsNamespace;
   readonly calendar: CalendarNamespace;
   readonly calls: CallRecordNamespace;
@@ -60,6 +93,8 @@ export class Macro<T extends MacroOpts = MacroOpts> {
   readonly email: EmailNamespace;
   readonly favorites: FavoritesNamespace;
   readonly foreignEntities: ForeignEntityNamespace;
+  /** Build forms and submit answers without granting respondents database access. */
+  readonly forms: FormNamespace;
   readonly notifications: NotificationNamespace;
   readonly pins: PinsNamespace;
   readonly projects: ProjectNamespace;
@@ -68,6 +103,8 @@ export class Macro<T extends MacroOpts = MacroOpts> {
   readonly teams: TeamNamespace;
   readonly users: UserNamespace;
   readonly webhooks: WebhooksNamespace;
+  /** Browse workspace activity with type, task, time, tag and inbox filters. */
+  readonly workspace: WorkspaceNamespace;
   readonly events: MacroEvents;
   /** Base URL of the Macro web app, used to build entity URLs. */
   readonly webAppUrl: string;
@@ -80,6 +117,7 @@ export class Macro<T extends MacroOpts = MacroOpts> {
     const client = new MacroClient(opts);
     this._client = client;
     this.agentSessions = new AgentSessionNamespace(client);
+    this.ai = new AiNamespace(client);
     this.bots = new BotsNamespace(client);
     this.calendar = new CalendarNamespace(client);
     this.calls = new CallRecordNamespace(client);
@@ -91,6 +129,7 @@ export class Macro<T extends MacroOpts = MacroOpts> {
     this.email = new EmailNamespace(client);
     this.favorites = new FavoritesNamespace(client);
     this.foreignEntities = new ForeignEntityNamespace(client);
+    this.forms = new FormNamespace(client);
     this.notifications = new NotificationNamespace(client);
     this.pins = new PinsNamespace(client);
     this.projects = new ProjectNamespace(client);
@@ -99,6 +138,7 @@ export class Macro<T extends MacroOpts = MacroOpts> {
     this.teams = new TeamNamespace(client);
     this.users = new UserNamespace(client);
     this.webhooks = new WebhooksNamespace(client);
+    this.workspace = new WorkspaceNamespace(client);
     this.events = client.events;
     this.webAppUrl = client.webAppUrl;
   }
@@ -118,3 +158,20 @@ export class Macro<T extends MacroOpts = MacroOpts> {
     return new Macro({ ...this.opts, requestedAs: user.id });
   }
 }
+
+export type { CodeResult } from './entities/agent-sessions/code-execution';
+export type {
+  CreateReviewOptions,
+  ReviewCalendarDraft,
+  ReviewEmailDraft,
+} from './entities/agent-sessions/review';
+export { ReviewItem, SessionReview } from './entities/agent-sessions/review';
+export type {
+  WorkspaceFilters,
+  WorkspaceItem,
+  WorkspaceListOptions,
+  WorkspacePage,
+  WorkspacePageOptions,
+  WorkspaceTag,
+  WorkspaceType,
+} from './entities/workspace/types';

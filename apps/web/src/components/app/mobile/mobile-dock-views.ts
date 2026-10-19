@@ -1,9 +1,8 @@
 import { useCalendarUiFlag } from '@app/features/calendar/hooks/use-calendar-ui-flag';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { getIconConfig } from '@core/component/EntityIcon';
-import { enableCrm, enableReminders } from '@core/constant/featureFlags';
+import { enableCrm } from '@core/constant/featureFlags';
 import BellIcon from '@phosphor/bell.svg';
-import BellSimpleIcon from '@phosphor/bell-simple.svg';
 import BellFillIcon from '@phosphor-fill/bell-fill.svg';
 import CalendarFillIcon from '@phosphor-fill/calendar-fill.svg';
 import EmailFillIcon from '@phosphor-fill/envelope-fill.svg';
@@ -19,14 +18,11 @@ export type MobileDockView = {
   /** Phosphor glyph for this view. */
   icon: MobileDockIcon;
   iconActive?: MobileDockIcon;
-  /** When set, the scope pill renders icon-only with this icon. */
-  pillIcon?: MobileDockIcon;
 };
 
 /**
- * Shared navigation order for the dock and search scope pills. The dock shows
- * as many views as fit and puts the remainder in More. All and Settings are
- * added by their respective surfaces.
+ * Dock navigation order. Views that do not fit go in More; Settings is
+ * added by its own surface.
  */
 const MOBILE_DOCK_VIEWS: readonly MobileDockView[] = [
   {
@@ -34,20 +30,12 @@ const MOBILE_DOCK_VIEWS: readonly MobileDockView[] = [
     label: 'Notifications',
     icon: BellIcon,
     iconActive: BellFillIcon,
-    pillIcon: BellIcon,
-  },
-  {
-    id: 'reminders',
-    label: 'Reminders',
-    icon: BellSimpleIcon,
-    iconActive: BellFillIcon,
   },
   {
     id: 'calendar',
     label: 'Calendar',
     icon: getIconConfig('calendar').icon,
     iconActive: CalendarFillIcon,
-    pillIcon: getIconConfig('calendar').icon,
   },
   {
     id: 'mail',
@@ -61,13 +49,13 @@ const MOBILE_DOCK_VIEWS: readonly MobileDockView[] = [
     icon: getIconConfig('channel').icon,
     iconActive: ChannelFillIcon,
   },
+  { id: 'agents', label: 'Agents', icon: getIconConfig('agent').icon },
   {
     id: 'documents',
     label: 'Files',
     icon: getIconConfig('files').icon,
     iconActive: FilesFillIcon,
   },
-  { id: 'agents', label: 'Agents', icon: getIconConfig('agent').icon },
   { id: 'tasks', label: 'Tasks', icon: getIconConfig('task').icon },
   { id: 'calls', label: 'Calls', icon: getIconConfig('call').icon },
   { id: 'companies', label: 'CRM', icon: getIconConfig('company').icon },
@@ -76,12 +64,9 @@ const MOBILE_DOCK_VIEWS: readonly MobileDockView[] = [
 export function useMobileDockViews() {
   const calendarEnabled = useCalendarUiFlag();
   const crm = useFeatureFlag(enableCrm);
-  const reminders = useFeatureFlag(enableReminders);
   return createMemo(() =>
     MOBILE_DOCK_VIEWS.filter(
       (view) => view.id !== 'calendar' || calendarEnabled()
-    )
-      .filter((view) => view.id !== 'companies' || crm().enabled)
-      .filter((view) => view.id !== 'reminders' || reminders().enabled)
+    ).filter((view) => view.id !== 'companies' || crm().enabled)
   );
 }

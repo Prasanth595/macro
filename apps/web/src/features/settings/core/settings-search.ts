@@ -79,42 +79,6 @@ const SETTINGS: Setting[] = [
       'google gmail connect accounts visibility show hide color colour subcalendar',
   },
   {
-    tab: 'Booking links',
-    title: 'Booking links',
-    target: 'Booking links',
-    keywords: 'event types meeting duration scheduling public link',
-  },
-  {
-    tab: 'Booking links',
-    title: 'Availability',
-    target: 'Availability',
-    keywords: 'working hours timezone schedule time zone',
-  },
-  {
-    tab: 'Booking links',
-    title: 'Booking page',
-    target: 'Booking pages',
-    keywords: 'public profile scheduling name username',
-  },
-  {
-    tab: 'Booking links',
-    title: 'Bookings',
-    target: 'Bookings',
-    keywords: 'upcoming past cancel reschedule meetings',
-  },
-  {
-    tab: 'Booking links',
-    title: 'Scheduling teams',
-    target: 'Teams',
-    keywords: 'members collective round robin',
-  },
-  {
-    tab: 'Booking links',
-    title: 'Scheduling insights',
-    target: 'Insights',
-    keywords: 'analytics statistics',
-  },
-  {
     tab: 'Agents',
     title: 'Team agents',
     target: 'Team agents',
@@ -277,6 +241,11 @@ const SETTINGS: Setting[] = [
     tab: 'API Keys',
     title: 'Create and revoke API keys',
     keywords: 'token secret developer authentication',
+  },
+  {
+    tab: 'Desktop App',
+    title: 'Desktop app version and download',
+    keywords: 'download mac macos linux version latest release updated',
   },
   {
     tab: 'Mobile App',

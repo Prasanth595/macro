@@ -33,6 +33,8 @@ export const agentHarnessExcluded = [
   'loadAgentModelsHandler',
   'discoverAgentCapabilitiesHandler',
   'previewAgentSessions',
+  // Batch form of agentSessionsForPullRequest that feeds the web Reviews list.
+  'agentSessionsForPullRequests',
   // Speculative page warm-up requires a signed-in user and is app-internal.
   'warmAgentSessionHandler',
 ] as const satisfies readonly (keyof AgentHarnessSdk)[];
@@ -40,6 +42,10 @@ export const agentHarnessExcluded = [
 export const agentHarnessBacklog = [
   'answerAgentSessionToolApproval',
   'getAgentSessionPermissions',
+  // Agent conversation controls (DMs are flag-gated in the web app); not wrapped yet.
+  'listAgentConversations',
+  'retryAgentConversationTurn',
+  'startFreshAgentConversation',
   'updateAgentSessionPermissions',
 ] as const satisfies readonly (keyof AgentHarnessSdk)[];
 
@@ -57,7 +63,6 @@ export const authExcluded = [
   'createMergeRequest',
   'createPortalSession',
   'createTeam',
-  'createUser',
   'deleteCursorApiKey',
   'deleteGithubLink',
   'deleteTeam',
@@ -70,11 +75,16 @@ export const authExcluded = [
   'getAiBillingSummary',
   'getCodexConnection',
   'getCursorApiKey',
+  'getGithubPullRequestMergeability',
   'getGtmInviteOffer',
   'getLegacyUserPermissions',
   'getPermissions',
   'getReferralCode',
+  // Renewal and scheduled-plan details are part of the app's billing settings.
+  'getSubscriptionStatus',
   'getTeamInvites',
+  // Introductory offers belong to the app's subscription checkout flow.
+  'getTrialEligibility',
   'getUserInvites',
   'getUserLinkExists',
   'getUserName',
@@ -121,10 +131,12 @@ export const authExcluded = [
   'sendReferralCode',
   'sessionCreation',
   'sessionLogin',
+  'setGithubPullRequestDraft',
   'ssoLogin',
   'startCodexLogin',
   'toggleTeamAutoJoinDomain',
   'toggleTeamNonAdminInvites',
+  'updateAiBillingAutoReload',
   'updateAiBillingOverage',
   'verifyEmailLink',
   'verifyFusionauthUserEmail',
@@ -140,8 +152,13 @@ export const calendarExcluded = [
   'healthHandler',
 ] as const satisfies readonly (keyof CalendarSdk)[];
 
-export const calendarBacklog =
-  [] as const satisfies readonly (keyof CalendarSdk)[];
+export const calendarBacklog = [
+  // Team sharing and availability preferences use the generated client for now.
+  'getAvailabilityCalendars',
+  'getTeamSharing',
+  'setAvailabilityCalendar',
+  'setTeamSharing',
+] as const satisfies readonly (keyof CalendarSdk)[];
 
 export const cognitionExcluded = [
   'addMcpServer',
@@ -184,7 +201,6 @@ export const cognitionBacklog = [
   'getUsageHandler',
   'sendChatMessage',
   'stopChatStream',
-  'structuredCompletion',
 ] as const satisfies readonly (keyof CognitionSdk)[];
 
 export const connectionExcluded = [
@@ -294,6 +310,8 @@ export const staticFilesBacklog =
   [] as const satisfies readonly (keyof StaticFilesSdk)[];
 
 export const storageExcluded = [
+  // Browser Loro-session initialization/publication; SDK layout writes use putFormLayout.
+  'collaborateForm',
   // Slack archive imports are browser-admin workflows, not SDK surface in v1.
   'cancelSlackImport',
   'completeSlackImportUploads',
@@ -309,6 +327,9 @@ export const storageExcluded = [
   'createCollabSurfaceToken',
   'createInstructionsHandler',
   'createViewHandler',
+  // Declining a ringing call is a live-device session flow, like leaving.
+  'declineCall',
+  'declineRing',
   'deleteCollabSurface',
   'ensureCollabSurface',
   // First-run sample content is provisioned by the app's feature-gated onboarding.
@@ -316,6 +337,9 @@ export const storageExcluded = [
   'deleteHistoryHandler',
   'deleteUserDocumentViewLocation',
   'deleteViewHandler',
+  // Called by third parties holding a webhook's URL; its token, not the
+  // SDK's credentials, authenticates it.
+  'deliverDatabaseWebhook',
   // Old numeric comment links resolve inside the web app only.
   'entityMessageLegacy',
   'excludeDefaultViewHandler',
@@ -345,6 +369,9 @@ export const storageExcluded = [
   'getRingStatus',
   'getUserDocumentViewLocation',
   'getViewsHandler',
+  // Guest chat uses a live RTC session token, not SDK account credentials.
+  'guestCallChatPost',
+  'guestCallChatRead',
   'handler',
   'healthHandler',
   'ingestTranscript',
@@ -365,7 +392,6 @@ export const storageExcluded = [
   'mentionPreviews',
   'patchViewHandler',
   'postItemsSoup',
-  'postItemsSoupAst',
   'postItemsSoupAstGrouped',
   'removeBotFromChannelByBot',
   // Storage for the web app's saved questions, not a user-facing surface.
@@ -384,10 +410,31 @@ export const storageExcluded = [
 ] as const satisfies readonly (keyof StorageSdk)[];
 
 export const storageBacklog = [
-  // Email follow-ups are available through the generated client, like reminders.
+  // Sharing requests and direct grants are available through the generated client.
+  'accessRequestsCancel',
+  'accessRequestsDirect',
+  'accessRequestsRemoveDirect',
+  'accessRequestsResolve',
+  'accessRequestsSetDirect',
+  'accessRequestsState',
+  'accessRequestsSubmit',
+  // Email follow-ups are available through the generated client.
   'getEmailFollowup',
   'setEmailFollowup',
   'listEmailReminders',
+  // CRM pipelines fit the crm namespace but are not wrapped yet.
+  'createCrmPipeline',
+  'applyCrmPipelineOps',
+  'getCrmPipeline',
+  'getCrmPipelinePermissions',
+  'getCrmPipelineRows',
+  'queryCrmPipelineRows',
+  'getCrmPipelineTable',
+  'listCrmPipelines',
+  'renameCrmPipeline',
+  'shareCrmPipeline',
+  'trashCrmPipeline',
+  'updateCrmPipelinePermissions',
   'approveHarnessPairing',
   'claimHarnessPairing',
   'createAgent',
@@ -396,14 +443,12 @@ export const storageBacklog = [
   'createEntityMention',
   'createHarnessPairing',
   'createInitiative',
-  'createReminder',
   'createUserApiKey',
   'deleteAnchor',
   'deleteEntityMention',
   'deleteHarness',
   'deleteInitiative',
   'deleteSelfHarness',
-  'deleteReminder',
   'deleteUserApiKey',
   'editAnchor',
   'editCallTranscript',
@@ -425,15 +470,14 @@ export const storageBacklog = [
   'getHarnessPairing',
   'getInitiative',
   'getSelfHarness',
-  'getReminder',
   'listAgents',
   'listHarnessAgents',
   'listHarnessSessions',
   'listHarnesses',
   'listInitiatives',
   'listOccurrences',
-  'listReminders',
-  'listReminderCollection',
+  // Read-only team projections use the generated client for now.
+  'listTeamCalendar',
   'listTeamOutOfOffice',
   'listUserApiKeys',
   // Meeting management uses the generated client.
@@ -447,6 +491,8 @@ export const storageBacklog = [
   'meetingLookup',
   'meetingShare',
   'meetingUpdate',
+  // Mixed message and activity timelines; Channel.messages() reads messages only.
+  'messageTimelineEntries',
   'postActivity',
   'presaveDocumentHandler',
   'saveDocumentHandler',
@@ -455,7 +501,6 @@ export const storageBacklog = [
   'toggleShareWithTeam',
   'updateAgent',
   'updateInitiative',
-  'updateReminder',
   'validateDocumentPermissionsToken',
 ] as const satisfies readonly (keyof StorageSdk)[];
 

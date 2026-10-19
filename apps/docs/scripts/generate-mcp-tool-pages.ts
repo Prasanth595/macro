@@ -147,8 +147,17 @@ function describeProp(
   return '';
 }
 
+/** Schema descriptions are Markdown text, not MDX expressions or JSX. */
+function escapeMdx(text: string) {
+  // Preserve existing escapes and code enclosed by matching backtick runs.
+  return text.replace(
+    /(?<!`)(`+)(?!`)[\s\S]*?(?<!`)\1(?!`)|\\[\s\S]|[<{]/g,
+    (match) => (match === '<' || match === '{' ? `\\${match}` : match)
+  );
+}
+
 function escapeCell(text: string) {
-  return text.replaceAll('\n', ' ').replaceAll('|', '\\|').trim();
+  return escapeMdx(text).replaceAll('\n', ' ').replaceAll('|', '\\|').trim();
 }
 
 function renderParamsTable(
@@ -243,7 +252,7 @@ ${descriptionLines.map((line) => `  ${line}`).join('\n')}
 
 # ${tool.name}
 
-${description}
+${escapeMdx(description)}
 ${paramsTable ? `\n## Parameters\n\n${paramsTable}\n` : ''}`,
   };
 }
@@ -304,7 +313,11 @@ async function writeNavigation(navPages: string[]) {
 
 async function main() {
   const file = await loadSchemas();
-  const tools = resolveTools(file).sort((a, b) => a.name.localeCompare(b.name));
+  // The shared frontend schemas also include tools from the private agent
+  // session endpoint. They are unavailable through the public MCP server.
+  const tools = resolveTools(file)
+    .filter((tool) => !['DescribeCodeTools', 'ExecuteCode'].includes(tool.name))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   await resetGeneratedPages();
 

@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Telemetry } from '@macro-inc/observability';
 import { createSignal, onCleanup } from 'solid-js';
 import type {
@@ -213,7 +214,7 @@ export function createMeetingSession(capabilities: MeetingSessionCapabilities) {
 
   onCleanup(() => {
     disposed = true;
-    void leave();
+    fireAndForget(leave(), 'meetings');
   });
 
   return { join, leave, joining, joinedCallId, credentials, error, hasLeft };

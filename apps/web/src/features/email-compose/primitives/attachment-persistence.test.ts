@@ -8,7 +8,8 @@ const disposers: (() => void)[] = [];
 afterEach(() => disposers.splice(0).forEach((dispose) => dispose()));
 
 function setup(
-  uploadAttachments: (input: UploadEmailAttachments) => Promise<void>
+  uploadAttachments: (input: UploadEmailAttachments) => Promise<void>,
+  confirmRemoval = false
 ) {
   return createRoot((dispose) => {
     disposers.push(dispose);
@@ -25,6 +26,7 @@ function setup(
     const [draftId, setDraftId] = createSignal('draft');
     const persistence = createAttachmentPersistence({
       services,
+      confirmRemoval,
       attachments: form.attachments,
       draftId,
       inboxId: () => 'secondary-inbox',
@@ -97,8 +99,10 @@ describe('draft attachment persistence', () => {
     };
     state.form.attachments.add(local);
     state.form.attachments.add(forwarded);
-    state.persistence.remove(local);
-    state.persistence.remove(forwarded);
+    const removals = [
+      state.persistence.remove(local),
+      state.persistence.remove(forwarded),
+    ];
     expect(state.form.attachments.list()).toEqual([]);
     expect(state.services.removeAttachment).toHaveBeenCalledWith({
       draftId: 'draft',
@@ -110,7 +114,7 @@ describe('draft attachment persistence', () => {
       attachmentId: 'forwarded',
       inboxId: 'secondary-inbox',
     });
-    await Promise.resolve();
+    await Promise.all(removals);
   });
 
   it('re-uploads files after detach and ignores late callbacks from the obsolete upload', async () => {
@@ -143,4 +147,26 @@ describe('draft attachment persistence', () => {
       'replacement-attachment'
     );
   });
+});
+
+it('keeps durable server attachments visible until removal succeeds, retaining them after failure', async () => {
+  const state = setup(async () => {}, true);
+  const attachment = {
+    type: 'local' as const,
+    file: new File(['keep'], 'keep.txt'),
+    attachmentId: 'server-file',
+    uploaded: true,
+  };
+  state.form.attachments.add(attachment);
+  const pending = Promise.withResolvers<void>();
+  state.services.removeAttachment.mockReturnValueOnce(pending.promise);
+  const removal = state.persistence.remove(attachment);
+  expect(state.persistence.removing()).toBe(true);
+  expect(state.form.attachments.list()).toEqual([attachment]);
+  pending.reject(new Error('Offline'));
+  await expect(removal).rejects.toThrow('Offline');
+  expect(state.form.attachments.list()).toEqual([attachment]);
+  expect(state.persistence.removing()).toBe(false);
+  await state.persistence.remove(attachment);
+  expect(state.form.attachments.list()).toEqual([]);
 });

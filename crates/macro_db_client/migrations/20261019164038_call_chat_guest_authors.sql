@@ -1,3 +1,5 @@
+SET LOCAL lock_timeout = '5s';
+
 ALTER TABLE comms_messages ADD COLUMN guest_name text;
 
 -- Guest attribution is only meaningful on call conversations. Existing writers

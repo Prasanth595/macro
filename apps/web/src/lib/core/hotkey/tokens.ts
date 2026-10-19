@@ -118,7 +118,6 @@ export const TOKENS = {
     goToLeader: 'sidebar.goToLeader',
     goTo: {
       home: 'sidebar.goTo.home',
-      gettingStarted: 'sidebar.goTo.gettingStarted',
       recent: 'sidebar.goTo.recent',
       activity: 'sidebar.goTo.activity',
       calendar: 'sidebar.goTo.calendar',
@@ -154,6 +153,7 @@ export const TOKENS = {
     blockSender: 'email.blockSender',
     markSenderSignal: 'email.markSenderSignal',
     markSenderNoise: 'email.markSenderNoise',
+    toggleReadingPane: 'email.toggleReadingPane',
     compose: {
       edit: {
         recipients: 'email.compose.edit.recipients',
@@ -206,6 +206,7 @@ export const TOKENS = {
     paste: 'canvas.paste',
     zoomIn: 'canvas.zoomIn',
     zoomOut: 'canvas.zoomOut',
+    zoomFit: 'canvas.zoomFit',
     undo: 'canvas.undo',
     redo: 'canvas.redo',
     cancel: 'canvas.cancel',
@@ -286,8 +287,12 @@ export const TOKENS = {
     chatNewSplit: 'create.chatNewSplit',
     canvas: 'create.canvas',
     canvasNewSplit: 'create.canvasNewSplit',
+    photoshop: 'create.photoshop',
+    photoshopNewSplit: 'create.photoshopNewSplit',
     design: 'create.design',
     designNewSplit: 'create.designNewSplit',
+    illustration: 'create.illustration',
+    illustrationNewSplit: 'create.illustrationNewSplit',
     spreadsheet: 'create.spreadsheet',
     spreadsheetNewSplit: 'create.spreadsheetNewSplit',
     project: 'create.project',
@@ -306,6 +311,8 @@ export const TOKENS = {
     agentNewSplit: 'create.agentNewSplit',
     database: 'create.database',
     databaseNewSplit: 'create.databaseNewSplit',
+    form: 'create.form',
+    formNewSplit: 'create.formNewSplit',
     close_menu: 'create.close_menu',
   },
 

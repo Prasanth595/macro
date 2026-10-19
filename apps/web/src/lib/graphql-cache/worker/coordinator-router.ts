@@ -153,7 +153,9 @@ type WithoutVersion<T> = T extends unknown
   ? Omit<T, 'coordinatorVersion'>
   : never;
 
-const envelope = <T extends { coordinatorVersion: 6 }>(
+const envelope = <
+  T extends { coordinatorVersion: typeof CACHE_COORDINATOR_PROTOCOL_VERSION },
+>(
   value: WithoutVersion<T>
 ): T =>
   ({
@@ -202,6 +204,11 @@ export function watchTabLivenessLock(
       }
     });
   return () => abortController.abort();
+}
+
+// The SharedWorker has no app Telemetry; its console is the error channel.
+function reportCoordinatorTaskFailure(error: unknown): void {
+  console.error('[graphql-cache] coordinator task failed', error);
 }
 
 /** SharedWorker adapter around the deterministic coordinator state machine. */
@@ -315,7 +322,9 @@ export class CoordinatorRouter {
 
   connect(port: CoordinatorMessagePort): void {
     port.onmessage = (event: MessageEvent<unknown>) => {
-      void this.handleTabMessage(port, event.data, event.ports);
+      this.handleTabMessage(port, event.data, event.ports).catch(
+        reportCoordinatorTaskFailure
+      );
     };
     port.onmessageerror = () => {
       const tabId = this.portTabs.get(port);
@@ -644,7 +653,7 @@ export class CoordinatorRouter {
         break;
       }
       case 'owner-lock-busy':
-        void this.checkBusyOwnerLock(route);
+        this.checkBusyOwnerLock(route).catch(reportCoordinatorTaskFailure);
         break;
       case 'owner-lock-unavailable':
         this.closeUnavailable(
@@ -717,7 +726,9 @@ export class CoordinatorRouter {
           this.clearActivationTimer();
           this.resetRecoveryRetries();
           this.scheduleHeartbeat(message.ownerEpoch);
-          void this.allowStaleDatabaseRemoval(route);
+          this.allowStaleDatabaseRemoval(route).catch(
+            reportCoordinatorTaskFailure
+          );
         }
         break;
       }
@@ -1563,7 +1574,9 @@ export class CoordinatorRouter {
         return;
       }
       this.heartbeatTimeoutTimer = this.setTimeoutFn(() => {
-        void this.checkHeartbeatOwner(route, heartbeatId);
+        this.checkHeartbeatOwner(route, heartbeatId).catch(
+          reportCoordinatorTaskFailure
+        );
       }, this.heartbeatTimeoutMs);
     }, this.heartbeatIntervalMs);
   }
@@ -1676,7 +1689,7 @@ export class CoordinatorRouter {
     };
     takeover.timer = this.setTimeoutFn(() => {
       takeover.timer = undefined;
-      void this.expireTakeover(takeover);
+      this.expireTakeover(takeover).catch(reportCoordinatorTaskFailure);
     }, this.takeoverReplyTimeoutMs);
     this.takeover = takeover;
     channel.post({

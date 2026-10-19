@@ -1,5 +1,6 @@
 use std::pin::Pin;
 
+use super::coding_preferences::CodingPreferences;
 use super::error::{AgentSessionError, Result};
 use super::model::*;
 use super::session::StopReason;
@@ -13,6 +14,7 @@ use bots::domain::models::BotId;
 use macro_user_id::user_id::MacroUserIdStr;
 use macro_uuid::Uuid;
 use model_owner::{Owner, OwnerType};
+use shared_entity_registry::OwnedPurgeOutcome;
 use std::num::NonZeroUsize;
 
 /// A bidirectional connection to an agent runtime.
@@ -362,6 +364,16 @@ pub trait SessionOpener: Send + Sync + 'static {
     ) -> impl Future<Output = Result<Option<AgentSessionId>>> + Send;
 }
 
+/// The turn currently allowed to initiate work, from shared durable state.
+/// Stopping, ended, archived, and deleted sessions have no active turn.
+pub trait ActiveSessionTurn: Send + Sync + 'static {
+    /// Resolve the starting, running, or blocked turn independently of replica ownership.
+    fn active_turn(
+        &self,
+        id: AgentSessionId,
+    ) -> impl Future<Output = Result<Option<agent_runtime_protocol::domain::action::AgentActionId>>> + Send;
+}
+
 /// `Send + Sync + 'static` with `Send` futures because callers drive sessions
 /// from spawned tasks - a Kafka consumer hands each message to its own task,
 /// and a repo whose futures are not `Send` cannot be used there.
@@ -382,6 +394,10 @@ pub trait AgentSessionRepo: Send + Sync + 'static {
 
     /// Get an agent session by id.
     fn get(&self, id: AgentSessionId) -> impl Future<Output = Result<AgentSession>> + Send;
+
+    /// The agent session with this id, or `None` when there is none.
+    fn find(&self, id: AgentSessionId)
+    -> impl Future<Output = Result<Option<AgentSession>>> + Send;
 
     /// The sessions among `ids` that exist, each with what a chip shows and
     /// whether a materialized grant lets `viewer` see it: their own grant,
@@ -506,6 +522,14 @@ pub trait AgentSessionRepo: Send + Sync + 'static {
         is_archived: bool,
     ) -> impl Future<Output = Result<()>> + Send;
 
+    /// Whether the session is an agent conversation's current one: the
+    /// session its channel's messages go to now. A session the conversation
+    /// left behind by starting fresh is not.
+    fn is_current_conversation_session(
+        &self,
+        id: AgentSessionId,
+    ) -> impl Future<Output = Result<bool>> + Send;
+
     /// Persist an automatically generated name only while the default remains
     /// and the session is not archived.
     fn set_name_if_default(
@@ -534,6 +558,21 @@ pub trait AgentSessionRepo: Send + Sync + 'static {
         &self,
         user_id: &MacroUserIdStr<'static>,
         size: SandboxSize,
+    ) -> impl Future<Output = Result<()>> + Send;
+
+    /// The user's coding preferences.
+    ///
+    /// A missing row is every preference off, not an error.
+    fn user_coding_preferences(
+        &self,
+        user_id: &MacroUserIdStr<'static>,
+    ) -> impl Future<Output = Result<CodingPreferences>> + Send;
+
+    /// Upsert the user's coding preferences, replacing every field.
+    fn set_user_coding_preferences(
+        &self,
+        user_id: &MacroUserIdStr<'static>,
+        preferences: CodingPreferences,
     ) -> impl Future<Output = Result<()>> + Send;
 
     /// Delete an agent session by id.
@@ -808,6 +847,19 @@ pub struct Appended {
 /// and [`flush_deadline`](Self::flush_deadline) tells the owning actor when
 /// the buffer must next be forced out with [`flush`](Self::flush).
 pub trait AgentSessionLogWriter: Send + 'static {
+    /// Persist the missing frames of a stable presentation and flush before acknowledging.
+    fn present_tool(
+        &mut self,
+        id: AgentSessionId,
+        acp_id: agent_client_protocol::schema::v1::SessionId,
+        presentation: super::model::SessionToolPresentation,
+    ) -> impl Future<Output = Result<()>> + Send {
+        async move {
+            let _ = (acp_id, presentation);
+            Err(AgentSessionError::Disconnected(id))
+        }
+    }
+
     /// Persist and fold one frame into this connection's live projection.
     fn append(&mut self, log: AgentSessionLog) -> impl Future<Output = Result<Appended>> + Send {
         self.append_with_boundary(log, None)
@@ -1094,6 +1146,9 @@ pub struct ControlEvent {
     /// `None` means "no user is responsible", not "unknown" - a bot's own
     /// actions are attributed to the bot, which this field does not carry.
     pub actor: Option<MacroUserIdStr<'static>>,
+    /// Why the agent is being asked, when a runtime forwards a triggered
+    /// prompt. Users driving a session directly supply none.
+    pub context: Option<trigger_context::TriggerContext>,
 }
 
 /// What accepting a control operation did with it.
@@ -1141,6 +1196,19 @@ pub struct QueuedControl {
 /// control routes can be mounted against it without knowing what a harness is.
 #[cfg_attr(feature = "test-utils", mockall::automock)]
 pub trait AgentSessionNotificationRecipient: Send + Sync + 'static {
+    /// Persist a nonblocking tool presentation through the owning session actor.
+    fn present_tool(
+        &self,
+        id: AgentSessionId,
+        actor: MacroUserIdStr<'static>,
+        presentation: super::model::SessionToolPresentation,
+    ) -> impl Future<Output = Result<()>> + Send {
+        async move {
+            let _ = (actor, presentation);
+            Err(AgentSessionError::Disconnected(id))
+        }
+    }
+
     /// Release and delete every session owned by a user before account deletion.
     /// Internal account lifecycle only; shared sessions owned by others are untouched.
     fn delete_user_sessions(
@@ -1150,6 +1218,15 @@ pub trait AgentSessionNotificationRecipient: Send + Sync + 'static {
 
     /// The session is going away: release its live resources and delete it.
     fn session_deleted(&self, id: AgentSessionId) -> impl Future<Output = Result<()>> + Send;
+
+    /// Release and delete one session while `expected_owner` still owns it.
+    /// Internal owner removal only. A missing session is already purged; one
+    /// under another owner is untouched.
+    fn purge_owned_session(
+        &self,
+        id: AgentSessionId,
+        expected_owner: &Owner,
+    ) -> impl Future<Output = Result<OwnedPurgeOutcome>> + Send;
 
     /// A control operation the live connection has to be told about. Returns
     /// the action id the caller correlates against the fold stream, and
