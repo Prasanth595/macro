@@ -164,6 +164,7 @@ export function ListEntity(props: ListEntityProps) {
     leadingAction: !isTouchDevice() ? leadingAction() : undefined,
     titleLeading: titleLeading(),
     icon: icon(),
+    hideIcon: props.hideIcon,
     titleTrailing: titleTrailing(),
     meta: meta(),
     scheduleStatus: scheduleStatus(),

@@ -1,20 +1,24 @@
 import {
   SearchBar,
+  SidebarActionRow,
   useViewControlHotkeys,
   ViewBreadcrumbs,
   ViewShell,
 } from '@app/components/view-shell';
-import { SidebarCreateButton } from '@app/components/view-shell/SidebarCreateButton';
+import { useSidebarSearchFocus } from '@app/components/view-shell/SidebarActionRow';
+import { SidebarCreateAction } from '@app/components/view-shell/SidebarCreateAction';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
+import { Button, cn } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
-import { createSignal, Show } from 'solid-js';
+import { createSignal, For, type ParentProps, Show } from 'solid-js';
 import { composeEmail } from '../compose-email';
-import { EMAIL_TABS } from '../constants';
+import { EMAIL_INBOX_TAB_IDS, EMAIL_TABS } from '../constants';
 import { useEmailView } from '../email-view-context';
+import { useInboxViewCounts } from '../queries/use-inbox-view-counts';
 import { EMAIL_TOUR } from '../tour';
 import { EmailControls } from './EmailControls';
-import { EmailInboxFilter, EmailInboxMenu } from './EmailInboxSelector';
+import { EmailInboxMenu } from './EmailInboxSelector';
 
 export type EmailHeaderProps = {
   /** Restores list focus when Escape leaves the search field. */
@@ -48,53 +52,67 @@ export function EmailViewBreadcrumbItem() {
   );
 }
 
-export function EmailTopBar(props: {
-  /** Beside a reading pane the reader shows the trail; the list shows its tab. */
-  tabOnly?: boolean;
-}) {
-  const { state } = useEmailView();
-  const tabTitle = () =>
-    EMAIL_TABS.find((tab) => tab.id === state.tab)?.label ?? 'Email';
+export function EmailTopBar(props: ParentProps<{ tabOnly?: boolean }> = {}) {
+  const { state, setTab } = useEmailView();
+  const counts = useInboxViewCounts(state);
+  const isInbox = () =>
+    state.tab === 'important' ||
+    state.tab === 'noise' ||
+    state.tab === 'calendar';
+
   return (
-    <ViewShell.TopBar>
-      <div class="flex min-w-0 flex-1 items-baseline gap-2">
-        <Show
-          when={props.tabOnly}
-          fallback={<ViewBreadcrumbs.Outlet aria-label="Email location" />}
+    <ViewShell.TopBar
+      controls={
+        <div class="flex min-w-0 items-center gap-2">{props.children}</div>
+      }
+      workspaceActions
+      class="h-12 gap-3 px-4 not-touch:pl-4 not-touch:[&:has([data-view-sidebar-toggle=expand])_[data-email-inbox-tabs]]:ml-1 touch:flex touch:mt-[var(--safe-top,0px)]"
+    >
+      <div class="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+        <nav
+          aria-label="Inbox views"
+          data-email-inbox-tabs=""
+          class="flex min-w-0 items-center gap-6 overflow-x-auto"
+          ref={tourTarget(EMAIL_TOUR.signalNoise)}
         >
-          <h2 class="truncate px-1 text-sm font-medium text-ink">
-            {tabTitle()}
-          </h2>
+          <For each={EMAIL_INBOX_TAB_IDS}>
+            {(tab) => (
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-current={state.tab === tab ? 'page' : undefined}
+                onClick={() => setTab(tab)}
+                class={cn(
+                  'h-8 shrink-0 gap-1.5 rounded-none border-0 bg-none! px-0 text-base font-semibold',
+                  state.tab === tab ? 'text-ink' : 'text-ink-muted'
+                )}
+              >
+                {EMAIL_TABS.find((item) => item.id === tab)?.label}
+                <Show when={counts()[tab] !== undefined && counts()[tab] !== 0}>
+                  <span class="text-xs font-normal tabular-nums text-ink-muted">
+                    {counts()[tab]?.toLocaleString()}
+                  </span>
+                </Show>
+              </Button>
+            )}
+          </For>
+        </nav>
+        <Show when={!isInbox() && !props.tabOnly}>
+          <ViewBreadcrumbs.Outlet aria-label="Email location" />
         </Show>
-        <EmailInboxFilter class="@max-[720px]/view-shell:hidden" />
       </div>
     </ViewShell.TopBar>
   );
 }
 
-export function EmailHeader(props: EmailHeaderProps) {
+export function EmailHeader(props: { tabOnly?: boolean } = {}) {
   const panel = useSplitPanelOrThrow();
-  const { openWithSplit } = useSplitLayout();
-  const { state, setState } = useEmailView();
+  const { state } = useEmailView();
   const [filterOpen, setFilterOpen] = createSignal(false);
-  let searchInput: HTMLInputElement | undefined;
-  const searchTarget = tourTarget(EMAIL_TOUR.search);
-  const selectedTabLabel = () =>
-    EMAIL_TABS.find((tab) => tab.id === state.tab)?.label ?? 'Email';
-
   // The view's control hotkeys are registered once, here, for the split scope.
   useViewControlHotkeys({
     scopeId: panel.splitHotkeyScope,
     enabled: panel.isPanelActive,
-    search: {
-      description: 'Search email',
-      condition: () => state.tab !== 'scheduled' && state.tab !== 'reminders',
-      run: () => {
-        searchInput?.focus();
-        searchInput?.select();
-        return true;
-      },
-    },
     filter: {
       description: 'Filter email',
       condition: () => state.tab !== 'scheduled',
@@ -106,46 +124,72 @@ export function EmailHeader(props: EmailHeaderProps) {
   });
 
   return (
-    <div class="flex min-w-0 flex-col">
-      <div class="mb-4 hidden min-h-8 min-w-0 flex-wrap items-baseline gap-2 @max-[720px]/view-shell:flex">
-        <h1 class="min-w-0 shrink-0 truncate text-xl font-semibold tracking-[-0.03em] text-ink">
-          {selectedTabLabel()}
-        </h1>
-        <EmailInboxFilter class="@max-[480px]/view-shell:order-3 @max-[480px]/view-shell:w-full" />
-        <div class="ml-auto flex shrink-0 items-center self-center gap-2">
-          <EmailInboxMenu />
-          <div class="shrink-0">
-            <SidebarCreateButton
-              label="New"
-              onCreate={() => composeEmail(openWithSplit, state.inboxIds)}
-            />
-          </div>
-        </div>
-      </div>
-
-      <Show when={state.tab !== 'scheduled'}>
-        <div class="flex min-w-0 items-center justify-between gap-3">
-          <Show when={state.tab !== 'reminders'}>
-            <SearchBar
-              ref={(element) => {
-                searchInput = element;
-                searchTarget(element);
-              }}
-              label="Search email"
-              value={state.search}
-              hotkey="cmd+f"
-              onValueChange={(search) => setState('search', search)}
-              onEscape={props.onSearchEscape}
-              placeholder="Search email"
-              class="max-w-md flex-1"
-            />
-          </Show>
+    <EmailTopBar tabOnly={props.tabOnly}>
+      <div class="flex shrink-0 items-center gap-1">
+        <EmailInboxMenu />
+        <Show when={state.tab !== 'scheduled'}>
           <EmailControls
             filterOpen={filterOpen()}
             onFilterOpenChange={setFilterOpen}
           />
-        </div>
-      </Show>
-    </div>
+        </Show>
+      </div>
+    </EmailTopBar>
+  );
+}
+
+export function EmailPrimaryActions(props: EmailHeaderProps) {
+  const panel = useSplitPanelOrThrow();
+  const { openWithSplit } = useSplitLayout();
+  const { state, setState, setTab, closeThread } = useEmailView();
+  let searchInput: HTMLInputElement | undefined;
+  const focusSearch = useSidebarSearchFocus(() => searchInput);
+  const searchTarget = tourTarget(EMAIL_TOUR.search);
+  useViewControlHotkeys({
+    scopeId: panel.splitHotkeyScope,
+    enabled: panel.isPanelActive,
+    search: {
+      description: 'Search email',
+      run: () => {
+        closeThread();
+        focusSearch();
+        return true;
+      },
+    },
+  });
+  return (
+    <SidebarActionRow
+      title="Email"
+      onSearch={() => {
+        closeThread();
+        focusSearch();
+      }}
+      search={
+        <SearchBar
+          ref={(element) => {
+            searchInput = element;
+            searchTarget(element);
+          }}
+          onEscape={props.onSearchEscape}
+          label="Search email"
+          value={state.search}
+          placeholder="Search emails"
+          onValueChange={(search) => {
+            if (state.tab === 'scheduled' || state.tab === 'reminders')
+              setTab('all');
+            setState('search', search);
+            closeThread();
+          }}
+        />
+      }
+      create={() => (
+        <SidebarCreateAction
+          aria-label="New email"
+          onClick={() => composeEmail(openWithSplit, state.inboxIds)}
+        >
+          New
+        </SidebarCreateAction>
+      )}
+    />
   );
 }

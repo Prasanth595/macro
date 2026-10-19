@@ -1,5 +1,8 @@
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { fireAndForget } from '@core/util/fireAndForget';
+import CaretDown from '@icon/system/regular/caret-down.svg';
+import CheckSquare from '@icon/system/regular/check-square.svg';
+import Square from '@icon/system/regular/square.svg';
 import { cellPlainText } from '@macro-inc/spreadsheet/cell-mentions';
 import {
   checkboxChecked,
@@ -23,9 +26,6 @@ import {
   tableBounds,
 } from '@macro-inc/spreadsheet/sheet-tables';
 import { tableCellLook } from '@macro-inc/spreadsheet/table-styles';
-import CaretDown from '@phosphor/caret-down.svg';
-import Square from '@phosphor/square.svg';
-import CheckSquare from '@phosphor-fill/check-square-fill.svg';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import {
   createEffect,

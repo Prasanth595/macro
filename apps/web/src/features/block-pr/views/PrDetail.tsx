@@ -10,6 +10,10 @@ import {
 } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { GithubLabelPills } from '@entity/components/GithubLabelPill';
+import {
+  rowPillClasses,
+  rowPillTriggerClasses,
+} from '@entity/components/row-pill';
 import { PrAgentSessionsChip } from '@entity/views/PrAgentSessionsChip';
 import { DebouncedNotificationReadMarker } from '@notifications';
 import {
@@ -17,7 +21,7 @@ import {
   useRefreshGithubPullRequest,
 } from '@queries/storage/github-pull-requests';
 import { githubPullRequestChangesKeys } from '@queries/storage/keys';
-import { Button, cn, Layer, Scroll } from '@ui';
+import { Button, Layer, Scroll } from '@ui';
 import { type Accessor, createMemo, Show, Suspense } from 'solid-js';
 import { MergePullRequestButton } from '../component/MergePullRequestButton';
 import { PrChangesProvider } from '../component/PrChanges';
@@ -27,11 +31,7 @@ import {
   PrTimelineSkeleton,
   PrTitleSkeleton,
 } from '../component/PrSkeletons';
-import {
-  PR_PILL_CLASS,
-  PrStatusChip,
-  PrStatusIcon,
-} from '../component/PrStatus';
+import { PrStatusChip, PrStatusIcon } from '../component/PrStatus';
 import { PrTimeline } from '../component/PrTimeline';
 import { PrSidePanelSections } from '../component/sidepanel/PrSidePanelSections';
 import { createPrDiscussionSource } from '../data/prDiscussionSource';
@@ -282,7 +282,7 @@ function PrMetadata(props: {
               href={`https://github.com/${githubDisplayLogin(authorLogin())}`}
               target="_blank"
               rel="noreferrer"
-              class={cn(PR_PILL_CLASS, 'text-ink-muted hover:bg-hover')}
+              class={rowPillTriggerClasses()}
             >
               <img
                 src={githubAvatarUrl(authorLogin())}
@@ -300,7 +300,7 @@ function PrMetadata(props: {
           href={props.pullRequest?.url}
           target="_blank"
           rel="noreferrer"
-          class={cn(PR_PILL_CLASS, 'text-ink-muted hover:bg-hover')}
+          class={rowPillTriggerClasses()}
         >
           {prDisplayName(props.prRef)}
         </a>
@@ -315,7 +315,7 @@ function PrMetadata(props: {
           <Show
             when={changes?.available()}
             fallback={
-              <span class={PR_PILL_CLASS}>
+              <span class={rowPillClasses()}>
                 <span class="text-success">
                   +{props.pullRequest?.additions ?? 0}
                 </span>
@@ -327,7 +327,7 @@ function PrMetadata(props: {
           >
             <button
               type="button"
-              class={PR_PILL_CLASS}
+              class={rowPillTriggerClasses()}
               aria-label="Open Changes pane"
               aria-expanded={changes?.layout.changesVisible()}
               onClick={() => changes?.layout.open()}
@@ -345,13 +345,11 @@ function PrMetadata(props: {
       <Layer depth={2}>
         <PrAgentSessionsChip
           url={props.pullRequest?.url ?? prHtmlUrl(props.prRef)}
-          class="border-edge-muted bg-surface px-2 text-sm font-normal"
         />
       </Layer>
       <GithubLabelPills
         labels={props.pullRequest?.labels ?? []}
         class="contents"
-        pillClass="h-auto px-2 py-1 text-sm leading-tight"
       />
     </div>
   );

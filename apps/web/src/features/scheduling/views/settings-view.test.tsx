@@ -757,3 +757,17 @@ it.each([undefined, 4, 5, 6])(
     }
   }
 );
+
+it('consumes a requested booking draft once without saving on cancel', async () => {
+  const f = fixture();
+  f.setSearch({ createBookingLink: true });
+  await waitFor(() =>
+    expect(screen.getByText('Cancel test event')).toBeTruthy()
+  );
+  expect(f.search.createBookingLink).toBeUndefined();
+  fireEvent.click(screen.getByText('Cancel test event'));
+  await waitFor(() =>
+    expect(screen.queryByText('Cancel test event')).toBeNull()
+  );
+  expect(f.saves).not.toHaveBeenCalled();
+});

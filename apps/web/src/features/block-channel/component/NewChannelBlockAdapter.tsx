@@ -77,9 +77,9 @@ import { blockHotkeyScopeSignal } from '@core/signal/blockElement';
 import { blockHandleSignal } from '@core/signal/load';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { buildEntityData, canEditChannelIdentity } from '@entity';
-import PictureIcon from '@phosphor/image.svg';
-import RenameIcon from '@phosphor/pencil-line.svg';
-import TrashIcon from '@phosphor/trash.svg';
+import PictureIcon from '@icon/system/regular/image.svg';
+import RenameIcon from '@icon/system/regular/pencil-line.svg';
+import TrashIcon from '@icon/system/regular/trash.svg';
 import { useActiveCallQuery } from '@queries/call/call';
 import { useChannelParticipantsQuery } from '@queries/channel/channel-participants';
 import { useSearchParams } from '@solidjs/router';
@@ -215,7 +215,7 @@ function NewTop(props: { channelId: string }) {
           mobileViews={isMobile() ? mobileViews() : undefined}
           tools={[
             {
-              label: 'Ask Macro',
+              label: 'Ask AI',
               icon: ChatWithAgentIcon,
               action: () => {
                 const entity = askMacroEntity();
@@ -274,7 +274,7 @@ function NewTop(props: { channelId: string }) {
         {(entity) => (
           <SplitHeaderRight>
             <HeaderIsland>
-              <ChatWithAgentButton entity={entity()} label="Ask Macro" />
+              <ChatWithAgentButton entity={entity()} label="Ask AI" />
             </HeaderIsland>
           </SplitHeaderRight>
         )}

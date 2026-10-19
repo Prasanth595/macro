@@ -1,8 +1,11 @@
+import { CreateMenuItem } from '@app/components/view-shell/CreateMenuItem';
 import { useQuickCallsFlag } from '@app/features/meetings/use-quick-calls-flag';
-import CalendarIcon from '@phosphor/calendar-blank.svg';
-import PhoneIcon from '@phosphor/phone.svg';
+import { ShowFeatureFlag } from '@app/lib/analytics/posthog';
+import { enableCalendarScheduling } from '@core/constant/featureFlags';
+import CalendarIcon from '@icon/system/regular/calendar-blank.svg';
+import LinkIcon from '@icon/system/regular/link.svg';
+import PhoneIcon from '@icon/system/regular/phone.svg';
 import { useNavigate } from '@solidjs/router';
-import { Dropdown } from '@ui';
 import { Show } from 'solid-js';
 import { useOpenEventComposer } from './use-open-event-composer';
 
@@ -12,16 +15,16 @@ export function CalendarCreateEventItem(props: CreateItemProps) {
   const openEventComposer = useOpenEventComposer();
 
   return (
-    <Dropdown.Item
+    <CreateMenuItem
+      icon={CalendarIcon}
+      title="Event"
+      description="Schedule a meeting or block time on your calendar."
       closeOnSelect
       onSelect={() => {
         props.onSelect?.();
         void openEventComposer();
       }}
-    >
-      <CalendarIcon class="size-4" />
-      Event
-    </Dropdown.Item>
+    />
   );
 }
 
@@ -31,16 +34,35 @@ export function CalendarCreateCallItem(props: CreateItemProps) {
 
   return (
     <Show when={quickCalls().enabled}>
-      <Dropdown.Item
+      <CreateMenuItem
+        icon={PhoneIcon}
+        title="Call"
+        description="Start a live call now and invite others to join."
         closeOnSelect
         onSelect={() => {
           props.onSelect?.();
           navigate('/meet/new');
         }}
-      >
-        <PhoneIcon class="size-4" />
-        Call
-      </Dropdown.Item>
+      />
     </Show>
+  );
+}
+
+export function CalendarCreateBookingLinkItem(props: CreateItemProps) {
+  const navigate = useNavigate();
+
+  return (
+    <ShowFeatureFlag flag={enableCalendarScheduling}>
+      <CreateMenuItem
+        icon={LinkIcon}
+        title="Booking link"
+        description="Share your availability so others can book a time with you."
+        closeOnSelect
+        onSelect={() => {
+          props.onSelect?.();
+          navigate('/app/scheduling?s0.scheduling.createBookingLink=true');
+        }}
+      />
+    </ShowFeatureFlag>
   );
 }

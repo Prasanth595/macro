@@ -1,13 +1,16 @@
 import { HeaderActionButton } from '@components/app/HeaderActionButton';
 import { fireAndForget } from '@core/util/fireAndForget';
-import PhoneIcon from '@phosphor/phone-call.svg';
+import PhoneIcon from '@icon/system/regular/phone-call.svg';
 import { cn } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
-import { Show } from 'solid-js';
+import { type JSX, Show } from 'solid-js';
 import { CHANNEL_TOUR } from '../tour';
 import { useStartChannelCall } from './use-start-channel-call';
 
-export function ChannelCallButton(props: { channelId: string }) {
+export function ChannelCallButton(props: {
+  channelId: string;
+  trailing?: JSX.Element;
+}) {
   const call = useStartChannelCall(() => props.channelId);
 
   const tooltip = () => (call.isCallInProgress() ? 'Join Call' : 'Start Call');
@@ -20,9 +23,11 @@ export function ChannelCallButton(props: { channelId: string }) {
         onClick={() => fireAndForget(call.start(), 'channel-call')}
         tooltip={tooltip()}
         label={label()}
+        textOnly
         icon={<PhoneIcon />}
         class={cn(call.isCallInProgress() && 'text-success')}
       />
+      {props.trailing}
     </Show>
   );
 }

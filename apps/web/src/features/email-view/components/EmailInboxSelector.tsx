@@ -5,10 +5,10 @@ import { UserIcon, type UserIconSize } from '@core/component/UserIcon';
 import { enableMultiInbox } from '@core/constant/featureFlags';
 import { useAddInboxFlow } from '@core/email-link';
 import { fireAndForget } from '@core/util/fireAndForget';
-import CaretDownIcon from '@phosphor/caret-down.svg';
-import CheckIcon from '@phosphor/check.svg';
-import PlusIcon from '@phosphor/plus.svg';
-import TrayIcon from '@phosphor/tray.svg';
+import CaretDownIcon from '@icon/system/regular/caret-down.svg';
+import CheckIcon from '@icon/system/regular/check.svg';
+import PlusIcon from '@icon/system/regular/plus.svg';
+import TrayIcon from '@icon/system/regular/tray.svg';
 import { useMailAccountsQuery } from '@queries/email/mail-accounts';
 import { cn, Dropdown, pressHandlers } from '@ui';
 import { createMemo, For, type JSX, Show } from 'solid-js';
@@ -118,21 +118,14 @@ function InboxAvatar(props: {
   );
 }
 
-/**
- * The inbox list at the top of the Email sidebar: `All inboxes` followed by
- * one row per inbox, with a separate action to connect another account.
- * Clicking a row selects that inbox alone; there is no multi-select.
- */
 export function EmailInboxList(props: { class?: string }) {
   const selection = useInboxSelection();
 
   return (
     <Show when={selection.visible()}>
-      <div
-        class={cn(
-          'flex shrink-0 flex-col gap-(--sidebar-row-gap)',
-          props.class
-        )}
+      <section
+        aria-label="Accounts & Aliases"
+        class={cn('flex shrink-0 flex-col gap-2', props.class)}
       >
         <ViewSidebar.Nav
           aria-label="Inboxes"
@@ -149,7 +142,7 @@ export function EmailInboxList(props: { class?: string }) {
                   when={selection.isAll()}
                   fallback={<TrayIcon class="size-4" />}
                 >
-                  <CheckIcon class="size-4 text-accent" />
+                  <CheckIcon class="size-4 text-ink" />
                 </Show>
               </ViewSidebar.Icon>
               <span class="truncate">All inboxes</span>
@@ -171,7 +164,7 @@ export function EmailInboxList(props: { class?: string }) {
                       <InboxAvatar option={option} size="sm" class="size-5" />
                     }
                   >
-                    <CheckIcon class="size-4 text-accent" />
+                    <CheckIcon class="size-4 text-ink" />
                   </Show>
                 </ViewSidebar.Icon>
                 <span
@@ -189,10 +182,10 @@ export function EmailInboxList(props: { class?: string }) {
             <ViewSidebar.Icon>
               <PlusIcon class="size-4" />
             </ViewSidebar.Icon>
-            <span class="truncate">Connect another account</span>
+            <span class="truncate">Add account</span>
           </ViewSidebar.Item>
         </Show>
-      </div>
+      </section>
     </Show>
   );
 }
@@ -278,7 +271,7 @@ export function EmailInboxMenu(props: { class?: string }) {
       <Dropdown placement="bottom-end">
         <Dropdown.Trigger
           variant="ghost"
-          size="sm"
+          size="md"
           square
           depth={2}
           aria-label={`Inbox: ${selection.label()}`}
@@ -347,7 +340,7 @@ function InboxRadioItem(props: {
       </span>
       <span class="min-w-0 flex-1 truncate">{props.children}</span>
       <Dropdown.ItemIndicator>
-        <CheckIcon class="size-3.5 text-accent" />
+        <CheckIcon class="size-3.5 text-ink" />
       </Dropdown.ItemIndicator>
     </Dropdown.RadioItem>
   );

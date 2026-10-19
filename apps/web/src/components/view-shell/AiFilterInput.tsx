@@ -1,6 +1,6 @@
 import { fireAndForget } from '@core/util/fireAndForget';
-import SparkleIcon from '@phosphor/sparkle.svg';
-import SpinnerIcon from '@phosphor/spinner-gap.svg';
+import SparkleIcon from '@icon/system/regular/sparkle.svg';
+import SpinnerIcon from '@icon/system/regular/spinner-gap.svg';
 import { cn } from '@ui';
 import { createSignal, onCleanup, onMount, Show } from 'solid-js';
 

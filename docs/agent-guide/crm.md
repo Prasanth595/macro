@@ -3,7 +3,7 @@
 ## Customers (CRM) — `/app/component/companies`
 
 On desktop, the local sidebar uses the same navigation primitives as Email and Tasks.
-Its **New** menu creates a **Company**, a **Contact**, or a **Pipeline** (Pipeline
+Its sidebar **New record** menu creates a **Company**, a **Contact**, or a **Pipeline** (Pipeline
 only when pipelines are enabled; disabled until the team's CRM is enabled). The
 **Records** section lists **Companies** and **People**; Pipelines and Lists follow.
 There are no built-in company views or Board/List layout. Companies and People
@@ -288,3 +288,5 @@ properties. `Prepare export` fetches every page and shows a count and three-row 
 it does not download. `Download CSV` saves the prepared snapshot using the selected
 columns. Changing scope requires preparing again. Cancel stops preparation. CSV uses UTF-8,
 quoted fields, original date timestamps and spreadsheet formula escaping.
+
+The record creation menu uses wide, icon-led rows describing Company, Contact, and Pipeline so you can choose the right record type. Existing pipeline availability and permissions are unchanged.

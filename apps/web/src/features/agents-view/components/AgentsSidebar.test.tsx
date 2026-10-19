@@ -1,3 +1,7 @@
+import {
+  SidebarActionsProvider,
+  WorkspaceActions,
+} from '@app/components/view-shell/SidebarActionRow';
 import { HomeListEntity } from '@app/features/home/components/HomeListEntity';
 import {
   cleanup,
@@ -8,7 +12,6 @@ import {
 } from '@solidjs/testing-library';
 import { createSignal, type JSX } from 'solid-js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { AgentsMode } from '../core/mode';
 import {
   type AgentConversationEntity,
   partitionArchived,
@@ -112,7 +115,7 @@ vi.mock('@app/components/view-shell/SidebarCreateButton', () => ({
 }));
 
 describe('mixed Agents sidebar', () => {
-  it('lists only the conversations of the chosen mode and switches between Work and Code', async () => {
+  it('lists work and coding conversations together without a mode toggle', async () => {
     const conversations: AgentConversationEntity[] = [
       {
         type: 'agent_session',
@@ -134,56 +137,54 @@ describe('mixed Agents sidebar', () => {
         status: 'disconnected',
       },
     ];
-    const [mode, setMode] = createSignal<AgentsMode>('chat');
-    const changeMode = vi.fn(setMode);
     const open = vi.fn();
     const create = vi.fn();
     const openPage = vi.fn();
+    const createAgent = vi.fn();
+    const createRoutine = vi.fn();
     render(() => (
-      <AgentsSidebar
-        mode={mode()}
-        onModeChange={changeMode}
-        activePage="new"
-        onOpenPage={openPage}
-        {...partitionArchived(conversations)}
-        modeForConversation={(conversation) =>
-          conversation.type === 'chat' ? 'chat' : 'code'
-        }
-        activeConversationId="chat"
-        search=""
-        loading={false}
-        error={false}
-        hasNextPage={false}
-        loadingNextPage={false}
-        onNewConversation={create}
-        onSearchChange={vi.fn()}
-        onOpenConversation={open}
-        onRetry={vi.fn()}
-        onLoadMore={vi.fn()}
-      />
+      <SidebarActionsProvider>
+        <AgentsSidebar
+          activePage="new"
+          onOpenPage={openPage}
+          {...partitionArchived(conversations)}
+          modeForConversation={(conversation) =>
+            conversation.type === 'chat' ? 'chat' : 'code'
+          }
+          activeConversationId="chat"
+          search=""
+          loading={false}
+          error={false}
+          hasNextPage={false}
+          loadingNextPage={false}
+          onCreateRoutine={createRoutine}
+          onCreateAgent={createAgent}
+          onNewConversation={create}
+          onSearchChange={vi.fn()}
+          onOpenConversation={open}
+          onRetry={vi.fn()}
+          onLoadMore={vi.fn()}
+        />
+        <header>
+          <WorkspaceActions />
+        </header>
+      </SidebarActionsProvider>
     ));
     for (const label of ['Agents', 'Routines', 'Connections']) {
       fireEvent.click(screen.getByRole('button', { name: label }));
       expect(openPage).toHaveBeenLastCalledWith(label.toLowerCase());
     }
 
-    const work = screen.getByRole('radio', {
-      name: 'Work',
-    }) as HTMLInputElement;
-    expect(work.checked).toBe(true);
+    expect(screen.queryByRole('radio', { name: 'Work' })).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'Code' })).toBeNull();
     const chat = screen.getByRole('button', { name: /Plan launch/ });
     expect(chat.getAttribute('data-kind')).toBe('chat');
     expect(chat.getAttribute('aria-current')).toBe('page');
-    expect(screen.queryByRole('button', { name: /Fix build/ })).toBeNull();
-    expect(screen.queryByText('Archived')).toBeNull();
     fireEvent.click(chat);
     expect(open).toHaveBeenLastCalledWith(conversations[1], expect.anything());
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Code' }));
-    expect(changeMode).toHaveBeenCalledWith('code');
     const code = await screen.findByRole('button', { name: /Fix build/ });
     expect(code.closest('[data-kind]')?.getAttribute('data-kind')).toBe('code');
-    expect(screen.queryByRole('button', { name: /Plan launch/ })).toBeNull();
     expect(screen.getByText('Archived')).toBeTruthy();
     expect(screen.getByRole('button', { name: /Old spike/ })).toBeTruthy();
     fireEvent.click(code, { shiftKey: true });
@@ -191,16 +192,49 @@ describe('mixed Agents sidebar', () => {
       conversations[0],
       expect.objectContaining({ shiftKey: true })
     );
-    fireEvent.click(screen.getByRole('button', { name: 'New conversation' }));
-    expect(create).toHaveBeenCalledOnce();
+    const createButtons = screen.getAllByRole('button', {
+      name: 'New conversation',
+    });
+    expect(createButtons).toHaveLength(1);
+    fireEvent.click(createButtons[0]);
+    expect(create).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(
+      await screen.findByRole('button', { name: 'New agent' }),
+      {
+        key: 'Enter',
+      }
+    );
+    fireEvent.keyDown(
+      await screen.findByRole('menuitem', { name: 'Work agent' }),
+      { key: 'Enter' }
+    );
+    expect(createAgent).toHaveBeenLastCalledWith('agent');
+    fireEvent.keyDown(
+      await screen.findByRole('button', { name: 'New agent' }),
+      {
+        key: 'Enter',
+      }
+    );
+    fireEvent.keyDown(
+      await screen.findByRole('menuitem', { name: 'Coding agent' }),
+      { key: 'Enter' }
+    );
+    expect(createAgent).toHaveBeenLastCalledWith('coder');
+    fireEvent.keyDown(
+      await screen.findByRole('button', { name: 'New agent' }),
+      { key: 'Enter' }
+    );
+    fireEvent.keyDown(
+      await screen.findByRole('menuitem', { name: 'Routine' }),
+      { key: 'Enter' }
+    );
+    expect(createRoutine).toHaveBeenCalledOnce();
   });
 
-  it('keeps paging while the chosen mode has too few conversations to scroll', () => {
+  it('keeps paging while the unified history has too few conversations to scroll', () => {
     const loadMore = vi.fn();
     render(() => (
       <AgentsSidebar
-        mode="code"
-        onModeChange={vi.fn()}
         activePage="new"
         onOpenPage={vi.fn()}
         conversations={[
@@ -214,6 +248,8 @@ describe('mixed Agents sidebar', () => {
         error={false}
         hasNextPage
         loadingNextPage={false}
+        onCreateRoutine={vi.fn()}
+        onCreateAgent={vi.fn()}
         onNewConversation={vi.fn()}
         onSearchChange={vi.fn()}
         onOpenConversation={vi.fn()}
@@ -222,14 +258,13 @@ describe('mixed Agents sidebar', () => {
       />
     ));
     expect(loadMore).toHaveBeenCalledOnce();
-    expect(screen.getByText('No coding conversations yet.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Plan launch/ })).toBeTruthy();
+    expect(screen.queryByText('No conversations yet.')).toBeNull();
   });
 
   it('opens rename and delete on a session or chat right-click', async () => {
     render(() => (
       <AgentsSidebar
-        mode="chat"
-        onModeChange={vi.fn()}
         activePage="new"
         onOpenPage={vi.fn()}
         {...partitionArchived([
@@ -260,6 +295,8 @@ describe('mixed Agents sidebar', () => {
         error={false}
         hasNextPage={false}
         loadingNextPage={false}
+        onCreateRoutine={vi.fn()}
+        onCreateAgent={vi.fn()}
         onNewConversation={vi.fn()}
         onSearchChange={vi.fn()}
         onOpenConversation={vi.fn()}
@@ -330,8 +367,6 @@ describe.each(['home', 'sidebar'] as const)('%s agent rows', (surface) => {
         />
       ) : (
         <AgentsSidebar
-          mode="code"
-          onModeChange={vi.fn()}
           activePage="new"
           onOpenPage={vi.fn()}
           conversations={[entity()]}
@@ -343,6 +378,8 @@ describe.each(['home', 'sidebar'] as const)('%s agent rows', (surface) => {
           error={false}
           hasNextPage={false}
           loadingNextPage={false}
+          onCreateRoutine={vi.fn()}
+          onCreateAgent={vi.fn()}
           onNewConversation={vi.fn()}
           onSearchChange={vi.fn()}
           onOpenConversation={open}

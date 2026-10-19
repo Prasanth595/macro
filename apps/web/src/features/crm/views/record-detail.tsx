@@ -2,7 +2,7 @@ import { ViewBreadcrumbs } from '@app/components/view-shell';
 import { SidePanel } from '@components/app/side-panel';
 import { EntityIcon } from '@core/component/EntityIcon';
 import { fireAndForget } from '@core/util/fireAndForget';
-import SpinnerIcon from '@phosphor/spinner.svg';
+import SpinnerIcon from '@icon/system/regular/spinner.svg';
 import { Button, Tooltip } from '@ui';
 import {
   createSignal,

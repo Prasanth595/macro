@@ -8,11 +8,11 @@ import {
 import { useSettingsState } from '@core/constant/SettingsState';
 import { triggerFocusInput } from '@core/directive/focusInput';
 import { hapticImpact } from '@core/mobile/haptics';
-import CalendarCheckIcon from '@phosphor/calendar-check.svg';
-import CaretUpIcon from '@phosphor/caret-up.svg';
-import IconGear from '@phosphor/gear.svg';
-import GitPullRequestIcon from '@phosphor/git-pull-request.svg';
-import SearchIcon from '@phosphor/magnifying-glass.svg';
+import CalendarCheckIcon from '@icon/system/regular/calendar-check.svg';
+import CaretUpIcon from '@icon/system/regular/caret-up.svg';
+import IconGear from '@icon/system/regular/gear.svg';
+import GitPullRequestIcon from '@icon/system/regular/git-pull-request.svg';
+import SearchIcon from '@icon/system/regular/magnifying-glass.svg';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import { cn } from '@ui';
 import { createSignal, For, Show } from 'solid-js';

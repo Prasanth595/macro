@@ -21,7 +21,7 @@ import { toast } from '@core/component/Toast/Toast';
 import { useUserId } from '@core/context/user';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { ListEntityMetadataQueryProvider } from '@entity';
-import SpinnerIcon from '@phosphor/spinner.svg';
+import SpinnerIcon from '@icon/system/regular/spinner.svg';
 import { useWarmAgentSessionQuery } from '@queries/agent-session/warm';
 import { useSoupItemsQuery } from '@queries/soup/items';
 import {
@@ -43,7 +43,7 @@ import { AgentSessionPane } from '../components/AgentSessionPane';
 import { AgentsSidebar } from '../components/AgentsSidebar';
 import { Topbar } from '../components/Topbar';
 import { DataModeProvider, dataModeFor } from '../context/data-mode';
-import { type AgentKind, kindForMode, modeForKind } from '../core/agent-kind';
+import { type AgentKind, modeForKind } from '../core/agent-kind';
 import type { AgentsMode } from '../core/mode';
 import { type AgentsPage, parseAgentsPage } from '../core/pages';
 import {
@@ -106,6 +106,7 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
       : undefined
   );
   const [mobileList, setMobileList] = createSignal(!isRoutinesPage());
+  const [createAgentKind, setCreateAgentKind] = createSignal<AgentKind>();
   const [draft, setDraft] = createSignal('');
   const [search, setSearch] = createSignal('');
   const rosterSource = createAgentRosterSource();
@@ -218,17 +219,18 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
             ? parseAgentsPage(content.params?.agentPage)
             : undefined;
         if (next) openPage(next);
+        const createKind =
+          content.type === 'component'
+            ? content.params?.createAgentKind
+            : undefined;
+        if (createKind === 'agent' || createKind === 'coder') {
+          setCreateAgentKind(createKind);
+        }
       }
     )
   );
   const openRoster = (_kind: AgentKind) => {
     openPage('agents');
-  };
-  const changeMode = (next: AgentsMode) => {
-    if (next === workspace.mode()) return;
-    workspace.setMode(next);
-    // The open conversation belongs to the other mode now.
-    if (selected()) showComposer();
   };
   const openConversation = (
     conversation: AgentConversationTarget,
@@ -306,8 +308,6 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
 
   const sidebar = () => (
     <AgentsSidebar
-      mode={workspace.mode()}
-      onModeChange={changeMode}
       activePage={selected() ? undefined : page()}
       onOpenPage={(next) =>
         next === 'agents' ? openRoster('agent') : openPage(next)
@@ -322,6 +322,32 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
       hasNextPage={Boolean(query.hasNextPage)}
       loadingNextPage={query.isFetchingNextPage}
       onNewConversation={showComposer}
+      onCreateRoutine={() => {
+        layout.openWithSplit(routineContent('new'), {
+          handle: panel.handle,
+          activate: true,
+          search: {},
+        });
+      }}
+      onCreateAgent={(kind) => {
+        if (isRoutinesPage()) {
+          layout.openWithSplit(
+            {
+              type: 'component',
+              id: 'agents',
+              params: {
+                agentPage: 'agents',
+                agentPageRequest: crypto.randomUUID(),
+                createAgentKind: kind,
+              },
+            },
+            { handle: panel.handle, activate: true, search: {} }
+          );
+          return;
+        }
+        openPage('agents');
+        setCreateAgentKind(kind);
+      }}
       onSearchChange={setSearch}
       onOpenConversation={(conversation, event) =>
         openConversation(conversation, event, modeForConversation(conversation))
@@ -369,6 +395,7 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
                       <>
                         <Show when={page() !== 'routines'}>
                           <Topbar
+                            workspaceActions
                             title={pageTitle()}
                             onBack={
                               isTouchDevice()
@@ -387,35 +414,35 @@ function AgentsWorkspace(props: { initialRoute?: AgentsRoute }) {
                                 <McpConnections />
                               </Match>
                               <Match when={page() === 'agents'}>
-                                <AgentSettings />
+                                <AgentSettings
+                                  createKind={createAgentKind()}
+                                  onCloseCreate={() =>
+                                    setCreateAgentKind(undefined)
+                                  }
+                                />
                               </Match>
                             </Switch>
                             <div
                               class="contents"
                               classList={{ hidden: page() !== 'new' }}
                             >
-                              <Show when={workspace.mode()} keyed>
-                                {(kind) => (
-                                  <NewChatPage
-                                    kind={kindForMode(kind)}
-                                    active={
-                                      !isTouchDevice() ||
-                                      (!mobileList() && page() === 'new')
-                                    }
-                                    registerFocus={(focus) => {
-                                      composerFocus = focus;
-                                    }}
-                                    workspaceId={panel.handle.id}
-                                    draft={draft()}
-                                    onDraftChange={setDraft}
-                                    roster={rosterSource.roster()}
-                                    rosterLoading={rosterSource.loading()}
-                                    availabilityLoading={rosterSource.availabilityLoading()}
-                                    onStart={startConversation}
-                                    onOpenRoster={openRoster}
-                                  />
-                                )}
-                              </Show>
+                              <NewChatPage
+                                active={
+                                  !isTouchDevice() ||
+                                  (!mobileList() && page() === 'new')
+                                }
+                                registerFocus={(focus) => {
+                                  composerFocus = focus;
+                                }}
+                                workspaceId={panel.handle.id}
+                                draft={draft()}
+                                onDraftChange={setDraft}
+                                roster={rosterSource.roster()}
+                                rosterLoading={rosterSource.loading()}
+                                availabilityLoading={rosterSource.availabilityLoading()}
+                                onStart={startConversation}
+                                onOpenRoster={openRoster}
+                              />
                             </div>
                           </Suspense>
                         </div>

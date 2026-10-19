@@ -1,7 +1,7 @@
 import { ListFilterDropdown } from '@app/components/view-shell';
 import { TOKENS } from '@core/hotkey/tokens';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import ColumnsIcon from '@phosphor/columns.svg';
+import ColumnsIcon from '@icon/system/regular/columns.svg';
 import { Button } from '@ui';
 import { Show } from 'solid-js';
 import { useEmailView } from '../email-view-context';

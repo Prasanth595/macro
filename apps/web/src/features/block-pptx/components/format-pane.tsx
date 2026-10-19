@@ -1,3 +1,4 @@
+import X from '@icon/system/regular/x.svg';
 /**
  * The format pane, docked right of the slide as in PowerPoint: fill and
  * line, size and position, text box and paragraph settings, and the slide
@@ -7,7 +8,6 @@
 import type { TextDirection } from '@core/pptx-engine/types';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { Popover } from '@kobalte/core/popover';
-import X from '@phosphor/x.svg';
 import { Button } from '@ui/components/Button';
 import { createSignal, For, type JSX, Show } from 'solid-js';
 import { boxOf } from '../core/geometry';
@@ -543,7 +543,7 @@ export function FormatPane(props: {
             <label class="flex items-center gap-2 text-xs">
               <input
                 type="checkbox"
-                class="accent-accent"
+                class="accent-ink"
                 checked={lockAspect()}
                 onChange={(e) => setLockAspect(e.currentTarget.checked)}
               />
@@ -679,7 +679,7 @@ export function FormatPane(props: {
             <label class="flex items-center gap-2 text-xs">
               <input
                 type="checkbox"
-                class="accent-accent"
+                class="accent-ink"
                 disabled={ro()}
                 onChange={(e) =>
                   fireAndForget(

@@ -1,3 +1,5 @@
+import DatabaseIcon from '@icon/system/regular/database.svg';
+import TableIcon from '@icon/system/regular/table.svg';
 /**
  * Tool renderers for the Macro Databases toolsets: QueryDatabase and
  * SaveDatabaseQuery from `crates/databases_sql/src/toolset`, the rest from
@@ -16,8 +18,6 @@ import {
 import { isFeatureEnabled, showDatabaseSql } from '@core/constant/featureFlags';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { decodeHtmlEntities } from '@macro-inc/lexical-core/utils/html-entities';
-import DatabaseIcon from '@phosphor/database.svg';
-import TableIcon from '@phosphor/table.svg';
 import {
   invalidateDatabase,
   useDatabaseDetailQuery,

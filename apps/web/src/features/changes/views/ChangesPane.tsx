@@ -1,3 +1,8 @@
+import ArrowsClockwiseIcon from '@icon/system/regular/arrows-clockwise.svg';
+import CircleNotchIcon from '@icon/system/regular/circle-notch.svg';
+import FileIcon from '@icon/system/regular/file.svg';
+import SidebarIcon from '@icon/system/regular/sidebar-simple.svg';
+import WarningCircleIcon from '@icon/system/regular/warning-circle.svg';
 /**
  * The Changes pane: PR metadata above a full-height file tree and diff stack,
  * with tree actions in its header and borderless controls above the diffs.
@@ -14,11 +19,6 @@ import { Resize } from '@core/component/Resize';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { fireAndForget } from '@core/util/fireAndForget';
 import * as Dialog from '@kobalte/core/dialog';
-import ArrowsClockwiseIcon from '@phosphor/arrows-clockwise.svg';
-import CircleNotchIcon from '@phosphor/circle-notch.svg';
-import FileIcon from '@phosphor/file.svg';
-import SidebarIcon from '@phosphor/sidebar-simple.svg';
-import WarningCircleIcon from '@phosphor/warning-circle.svg';
 import { Button, cn, Panel } from '@ui';
 import { CollapseTransition } from '@ui/components/CollapseTransition';
 import { FileTree } from '@ui/components/FileTree';

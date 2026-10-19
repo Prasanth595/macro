@@ -31,6 +31,12 @@ vi.mock('@app/components/view-shell', () => ({
     breakpoints: { narrow: () => fixture.narrow },
   }),
   useViewControlHotkeys: () => {},
+  SidebarActionRow: (props: { search: JSX.Element; create: JSX.Element }) => (
+    <>
+      {props.search}
+      {props.create}
+    </>
+  ),
   SearchBar: () => null,
 }));
 vi.mock('@app/preferences/use-preference', () => ({
@@ -89,7 +95,10 @@ vi.mock('@components/app/split-panel', () => ({
     CloseButton: () => <button type="button" aria-label="Close split" />,
   },
 }));
-vi.mock('@ui/components/Tour', () => ({ tourTarget: () => () => {} }));
+vi.mock('@ui/components/Tour', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@ui/components/Tour')>()),
+  tourTarget: () => () => {},
+}));
 vi.mock('@app/components/view-shell/tour', () => ({
   VIEW_SHELL_TOUR: { sidebarToggle: 'sidebar-toggle' },
 }));

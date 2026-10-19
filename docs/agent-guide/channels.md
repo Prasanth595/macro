@@ -703,9 +703,13 @@ with the same full sidebar contents. With no conversation selected, the
 slide-over opens on its own and closes once a conversation is picked; the
 backdrop or `Escape` still dismisses it. There is no separate skinny sidebar mode.
 
-On desktop, the Chat rail has `All` and `Recent` tabs. All contains an
-optional `Favorites` section and the
-independently paginated `Channels` and `DMs` sections. Favorites appears when
+On desktop, the Chat sidebar places its view menu immediately left of Search
+in the title row. Open the hamburger button labeled `Chat sidebar views` to choose
+`All`, `Recent`, or `Threads` (when enabled); a check marks the current view.
+Search expands below the title row, and New Message opens the creation menu.
+`New` is available in every view, including search. All contains an optional
+`Favorites` section with a compact 4px desktop top inset, and independently paginated `Channels` and `Direct messages`
+sections. Favorites appears when
 the user has channel favorites and only lists channels. Channel favorites open
 in the shared channel detail. Shift-clicking a favorite, channel, or DM opens that
 conversation in a new split instead. Shift-click refreshes the notification
@@ -733,7 +737,7 @@ favorite row rather than the channel's own row.
 The `enable-channel-threads-preview` feature flag adds a third `Threads` tab.
 It is on in development; `VITE_ENABLE_CHANNEL_THREADS_PREVIEW` overrides it
 locally. The rail shows an `All threads` row above a `Conversations` section
-with the same sort and `+` controls as the All tab's sections. Conversations
+with a sort control; creation uses the shared `New` menu above. Conversations
 lists only channels and DMs that hold threads the user takes part in; it pages
 through the user's threads and loads their channels, so scrolling the section
 reveals more. Selecting a row filters the main pane instead of opening the
@@ -877,9 +881,11 @@ While reading older history or composing in the preview, incoming notifications
 messages, or revoke composer focus. To check this, leave an unsent draft in a
 preview scrolled into older history and deliver a notification. Selecting another
 conversation or explicitly navigating to a message must still work.
-The search action beside the tabs opens a search field below them and replaces
-the active tab contents with matching channels and direct messages from one
-activity-ordered source. Search results use compact rows on `All` and
+Typing in the sidebar's persistent search field replaces the active tab contents
+with matching channels and direct messages from one activity-ordered source.
+`Cmd+F` focuses the field without changing the list while the query is empty.
+The clear button or `Escape` clears the query and restores the selected view;
+the search field remains visible. Search results use compact rows on `All` and
 conversation cards on `Recent`. Switching tabs preserves the active search and
 query, then scrolls the results to the selected channel when present or to the
 start. Closing search restores the active tab and applies the same scroll
@@ -1115,14 +1121,15 @@ cancellation, and focus restoration before sending invites.
 
 Inset tabs sit in the channel header:
 `Messages` / `Attachments` / `Calls` / `Participants`.
-`Ask Macro`, `Invite`, and `Call` actions remain in the header. On narrow desktop
+`Invite`, `Call`, and `Ask AI` use text-only header buttons with faint separators.
+On narrow desktop
 panes, the tabs collapse from text labels to icons. Standalone mobile channels
 keep view selection in the title menu. In both a single channel and an adjacent
 channel split, the message composer stays fully visible at the bottom. The
 `Calls` tab lists
 recordings for that channel
 (same rows as the Calls soup view, filtered to this channel). The live `Call` tab
-appears while a call is in progress. `Ask Macro` opens a new chat pane with the channel
+appears while a call is in progress. `Ask AI` opens a new chat pane with the channel
 already @mentioned as context (see ai-chat.md). On mobile it lives in the channel title's
 `...` drawer instead. Clicking the radio input can time out — click the adjacent label text
 instead.
@@ -1131,7 +1138,7 @@ In the Chat workspace — and wherever a channel opens inline inside another
 view's detail stack (a channel mention followed from the email view, say) — the
 conversation renders an inline detail whose top bar holds the channel avatar
 and name, the same inset tab strip, live viewer avatars, and the `Call` and
-`Ask Macro` buttons. In Chat an ellipsis follows the name and opens the same
+`Ask AI` buttons. In Chat an ellipsis follows the name and opens the same
 entity actions as right-clicking the conversation's rail row — `Open in new
 split`, `Rename`, `Set channel picture`, `Remove channel picture` (only when the
 channel has one), `Favorite`/`Unfavorite`, `Remind me`, `Snooze notifications…`, `Mute
@@ -1253,3 +1260,11 @@ Markdown options before Query and Database. Typing `/query` filters to the Query
 action; `/database` creates a new database and inserts its editable card.
 
 When Databases is enabled, type `/query` in a channel message or thread reply and choose **Query** to insert a live question. Ask with Enter or the Ask button, then accept the answer before sending the message. Enter in the question box belongs to the question and must not send the channel draft. Recipients can read the live answer subject to their database access. Database @ mentions in message composers remain compact; **Expand** turns one into an editable database card.
+
+The channel header uses an inset segmented control: a single raised pill slides
+between its views. Keyboard arrow selection and icon-only collapsed headers
+retain the same behavior; reduced-motion preferences disable the sliding transition.
+
+Share and New Channel use the same floating dialog shell as Cmd+K and Create: a separated header, scrolling body, and footer actions. New Channel still follows Name → Visibility → Add people; advancing past Visibility creates the channel. Escape or clicking outside dismisses the dialog when no request is pending.
+
+Selected emoji reactions use a subtle ink-tinted fill and border in both themes, rather than the high-contrast primary action fill. Emoji retain their native colors.

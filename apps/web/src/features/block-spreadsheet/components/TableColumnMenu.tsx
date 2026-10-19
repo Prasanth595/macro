@@ -1,3 +1,12 @@
+import ArrowLineLeft from '@icon/system/regular/arrow-left.svg';
+import ArrowLineRight from '@icon/system/regular/arrow-right.svg';
+import CaretDown from '@icon/system/regular/caret-down.svg';
+import Funnel from '@icon/system/regular/funnel-simple.svg';
+import Rows from '@icon/system/regular/rows.svg';
+import SortAscending from '@icon/system/regular/sort-ascending.svg';
+import SortDescending from '@icon/system/regular/sort-descending.svg';
+import Trash from '@icon/system/regular/trash.svg';
+import XCircle from '@icon/system/regular/x-circle.svg';
 import {
   TABLE_COLUMN_TYPES,
   type TableColumnFilter,
@@ -5,16 +14,6 @@ import {
 } from '@macro-inc/spreadsheet/sheet-tables';
 import { TABLE_COLUMN_TYPE_LABELS } from '@macro-inc/spreadsheet/table-columns';
 import { filterSummary } from '@macro-inc/spreadsheet/table-filters';
-import ArrowLineLeft from '@phosphor/arrow-line-left.svg';
-import ArrowLineRight from '@phosphor/arrow-line-right.svg';
-import CaretDown from '@phosphor/caret-down.svg';
-import Funnel from '@phosphor/funnel-simple.svg';
-import Rows from '@phosphor/rows.svg';
-import SortAscending from '@phosphor/sort-ascending.svg';
-import SortDescending from '@phosphor/sort-descending.svg';
-import Trash from '@phosphor/trash.svg';
-import XCircle from '@phosphor/x-circle.svg';
-import FunnelFill from '@phosphor-fill/funnel-simple-fill.svg';
 import { Dropdown } from '@ui/components/Dropdown';
 import { createSignal, For, Show } from 'solid-js';
 import type { TableFilterChoice } from '../core/table-types';
@@ -71,7 +70,7 @@ export function TableColumnMenu(props: {
           class="size-full min-h-0 min-w-0 rounded-sm border border-edge-muted bg-panel p-0 text-ink-muted hover:text-ink touch:min-h-0 touch:min-w-0"
         >
           <Show when={props.filter} fallback={<CaretDown class="size-3" />}>
-            <FunnelFill class="size-3 text-accent" />
+            <Funnel class="size-3 text-accent" />
           </Show>
         </Dropdown.Trigger>
         <Dropdown.Content

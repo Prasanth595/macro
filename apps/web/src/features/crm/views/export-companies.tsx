@@ -148,7 +148,7 @@ export function CrmExport(props: {
                       <label class="flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-hover">
                         <input
                           type="checkbox"
-                          class="accent-accent"
+                          class="accent-ink"
                           checked={selected().includes(column.id)}
                           onChange={(event) =>
                             setSelected((current) =>
@@ -177,7 +177,7 @@ export function CrmExport(props: {
                           <label class="flex min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-hover">
                             <input
                               type="checkbox"
-                              class="accent-accent"
+                              class="accent-ink"
                               checked={selected().includes(column.id)}
                               onChange={(event) =>
                                 setSelected((current) =>

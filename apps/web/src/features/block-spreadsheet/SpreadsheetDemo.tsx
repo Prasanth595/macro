@@ -109,7 +109,7 @@ export default function SpreadsheetDemo() {
       }),
     onSaveFailure: (action) =>
       toast.failure('Could not save spreadsheet', {
-        subtext: `Your changes are still here. Try ${action === 'share' ? 'sharing' : 'Ask Macro'} again.`,
+        subtext: `Your changes are still here. Try ${action === 'share' ? 'sharing' : 'Ask AI'} again.`,
       }),
   });
 
@@ -152,7 +152,7 @@ export default function SpreadsheetDemo() {
             onClick={() => fireAndForget(actions.ask(), 'spreadsheet-draft')}
           >
             <ChatWithAgentIcon />
-            Ask Macro
+            Ask AI
           </Button>
           <Button
             variant="outline"

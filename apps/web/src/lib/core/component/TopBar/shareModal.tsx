@@ -33,6 +33,7 @@ function SuspendedShareModal(props: ShareModalProps) {
 /** Opens the share modal outside of any component, e.g. from a list action. */
 export function openShareModal(props: ShareModalInput): DialogHandle {
   return openDialog(SuspendedShareModal, props, {
+    contextOwner: getOwner(),
     key: `share:${props.itemType}:${props.id}`,
   });
 }

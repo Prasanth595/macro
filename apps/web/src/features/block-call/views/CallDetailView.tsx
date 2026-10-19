@@ -9,8 +9,8 @@ import { ShareTrigger } from '@core/component/TopBar/ShareButton';
 import { useShareModal } from '@core/component/TopBar/shareModal';
 import { isMobile } from '@core/mobile/isMobile';
 import { fireAndForget } from '@core/util/fireAndForget';
-import PhoneCallIcon from '@phosphor/phone-call.svg';
-import SpinnerIcon from '@phosphor/spinner.svg';
+import PhoneCallIcon from '@icon/system/regular/phone-call.svg';
+import SpinnerIcon from '@icon/system/regular/spinner.svg';
 import { useCallRecordQuery } from '@queries/call/call';
 import {
   hasSoupEntity,

@@ -4,10 +4,10 @@ import {
 } from '@app/components/view-shell';
 import { DebugSuspense } from '@channel/DebugSuspense';
 import { fireAndForget } from '@core/util/fireAndForget';
-import CaretDownIcon from '@phosphor/caret-down.svg';
-import CaretUpIcon from '@phosphor/caret-up.svg';
-import PlusIcon from '@phosphor/plus.svg';
-import SpinnerIcon from '@phosphor/spinner.svg';
+import CaretDownIcon from '@icon/system/regular/caret-down.svg';
+import CaretUpIcon from '@icon/system/regular/caret-up.svg';
+import PlusIcon from '@icon/system/regular/plus.svg';
+import SpinnerIcon from '@icon/system/regular/spinner.svg';
 import { Button, cn, Scroll, Tooltip } from '@ui';
 import { CollapseTransition } from '@ui/components/CollapseTransition';
 import {

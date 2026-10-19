@@ -43,7 +43,11 @@ export function useOwningInboxForEntity(entity: Accessor<EntityData>) {
  * address on hover), resolved by email so an own secondary inbox shows its own
  * identity rather than the parent account's.
  */
-export function EmailInboxChip(props: { entity: EmailEntity; class?: string }) {
+export function EmailInboxChip(props: {
+  entity: EmailEntity;
+  class?: string;
+  size?: 'sm' | 'md';
+}) {
   const inbox = useOwningInbox(() => props.entity);
   return (
     <Show when={inbox()}>
@@ -55,7 +59,7 @@ export function EmailInboxChip(props: { entity: EmailEntity; class?: string }) {
           <UserIcon
             {...inboxIconProps(link().email_address)}
             photoUrl={link().photo_url ?? undefined}
-            size="sm"
+            size={props.size ?? 'sm'}
             suppressClick
             class="shrink-0"
           />
@@ -147,11 +151,10 @@ export function EmailWideContent(props: {
 }) {
   return (
     <>
-      <span class="w-(--title-width) shrink-0 flex items-center gap-2">
+      <span class="w-(--title-width) shrink-0 flex items-center gap-2 not-touch:mr-5">
         <span class="truncate max-w-32 flex gap-2 items-center">
           <EmailIdentity entity={props.entity} />
         </span>
-        <EmailInboxChip entity={props.entity} class="ml-auto" />
       </span>
       <span class="truncate">
         <Entity.Title entity={props.entity} />

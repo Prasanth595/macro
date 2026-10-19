@@ -29,10 +29,10 @@ import {
   ListLayoutProvider,
   type WithNotification,
 } from '@entity';
-import BellIcon from '@phosphor/bell-simple.svg';
-import CaretDownIcon from '@phosphor/caret-down.svg';
-import CheckIcon from '@phosphor/check.svg';
-import SpinnerIcon from '@phosphor/spinner.svg';
+import BellIcon from '@icon/system/regular/bell-simple.svg';
+import CaretDownIcon from '@icon/system/regular/caret-down.svg';
+import CheckIcon from '@icon/system/regular/check.svg';
+import SpinnerIcon from '@icon/system/regular/spinner.svg';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import { Button, cn } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
@@ -68,6 +68,7 @@ import { createEmailRowActionState } from '../primitives/row-action-state';
 import type { EmailDataSourceItem } from '../queries/use-email-query';
 import type { EmailListPane } from '../reader-pane';
 import { EMAIL_TOUR } from '../tour';
+import { useEmailInboxHotkeys } from '../use-email-inbox-hotkeys';
 import { useEmailListHotkeys } from '../use-email-list-hotkeys';
 import { EmailDateGroupHeader } from './EmailDateGroupHeader';
 import { EmailEmptyState } from './EmailEmptyState';
@@ -88,6 +89,7 @@ export type EmailListProps = {
 export function EmailList(props: EmailListProps) {
   const {
     state,
+    setTab,
     source,
     list,
     registerListActivationHandler,
@@ -259,6 +261,13 @@ export function EmailList(props: EmailListProps) {
   // While the reader has the keyboard the list's keys stand down.
   const listHasKeyboard = () =>
     panel.isPanelActive() && !(props.pane?.readerHasKeyboard() ?? false);
+
+  useEmailInboxHotkeys({
+    scopeId: panel.splitHotkeyScope,
+    enabled: listHasKeyboard,
+    activeId: () => state.tab,
+    setActiveId: setTab,
+  });
 
   const [collapseEntity, setCollapseEntity] =
     createSignal<(entityId: string) => Promise<void>>();
@@ -604,7 +613,7 @@ export function EmailList(props: EmailListProps) {
                   <div
                     ref={setTopSpacer}
                     aria-hidden="true"
-                    class="h-0 touch:h-(--mobile-content-inset-top)"
+                    class="h-2 touch:h-(--mobile-content-inset-top)"
                   />
                   {/* A row subtree that suspends (the project crumb's preview query, say)
                       detaches only itself, not the list and its scroll position. */}
@@ -613,9 +622,7 @@ export function EmailList(props: EmailListProps) {
                       ref={registerVirtualizer}
                       data={rows()}
                       scrollRef={viewport()}
-                      startMargin={
-                        isTouchDevice() ? (topSpacerSize.height ?? 0) : 0
-                      }
+                      startMargin={topSpacerSize.height ?? 0}
                       bufferSize={500}
                       itemSize={44}
                       keepMounted={
@@ -659,6 +666,7 @@ export function EmailList(props: EmailListProps) {
                                 >
                                   <div role="gridcell">
                                     <ListEntity
+                                      hideIcon
                                       entity={entityRow().entity}
                                       onFilterByTag={filterByTag}
                                       scheduleStatus={

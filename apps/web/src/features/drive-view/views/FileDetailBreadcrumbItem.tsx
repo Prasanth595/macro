@@ -14,6 +14,7 @@ import { buildEntityData } from '@entity';
 import { useItemRawName } from '@queries/preview';
 import type { AccessLevel } from '@service-storage/generated/schemas/accessLevel';
 import type { DocumentMetadata } from '@service-storage/generated/schemas/documentMetadata';
+import { type JSX, Show } from 'solid-js';
 
 export function FileDetailBreadcrumbItem(props: {
   value: string;
@@ -24,6 +25,7 @@ export function FileDetailBreadcrumbItem(props: {
   blockType: BlockName | BlockAlias;
   fallbackName?: string;
   operations?: FileOperation[];
+  titleControls?: JSX.Element;
   onClose: () => void;
   onDuplicate: (id: string, name: string) => void;
 }) {
@@ -105,6 +107,7 @@ export function FileDetailBreadcrumbItem(props: {
               onDelete={props.onClose}
             />
           </div>
+          <Show when={item.isActive()}>{props.titleControls}</Show>
         </div>
       )}
     </ViewBreadcrumbs.Item>

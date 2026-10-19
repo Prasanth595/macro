@@ -1,3 +1,5 @@
+import CaretDown from '@icon/system/regular/caret-down.svg';
+import WarningCircle from '@icon/system/regular/warning-circle.svg';
 /**
  * The font family picker of the Type section, as Figma's: a search over
  * the document's fonts and Google Fonts, each family previewed in its own
@@ -7,8 +9,6 @@
 
 import { fireAndForget } from '@core/util/fireAndForget';
 import { Popover } from '@kobalte/core/popover';
-import CaretDown from '@phosphor/caret-down.svg';
-import WarningCircle from '@phosphor/warning-circle.svg';
 import { Layer } from '@ui';
 import {
   createMemo,

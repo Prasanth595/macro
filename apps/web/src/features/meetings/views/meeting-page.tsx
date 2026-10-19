@@ -1,7 +1,7 @@
 import type { BackgroundEffect } from '@core/media/background-effect';
 import { fireAndForget } from '@core/util/fireAndForget';
-import ArrowLeft from '@phosphor/arrow-left.svg';
-import Phone from '@phosphor/phone-call.svg';
+import ArrowLeft from '@icon/system/regular/arrow-left.svg';
+import Phone from '@icon/system/regular/phone-call.svg';
 import { Button } from '@ui';
 import {
   type Accessor,

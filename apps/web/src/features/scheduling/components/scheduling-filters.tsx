@@ -1,8 +1,8 @@
 import { MobileFilterDrawer } from '@app/components/view-shell/MobileFilterDrawer';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import Funnel from '@icon/system/regular/funnel.svg';
 import { Accordion } from '@kobalte/core/accordion';
 import { Popover } from '@kobalte/core/popover';
-import Funnel from '@phosphor/funnel.svg';
 import { Button } from '@ui';
 import { createSignal, type JSX, Show } from 'solid-js';
 

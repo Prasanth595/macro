@@ -37,7 +37,11 @@ import {
   ChannelWideContent,
 } from './channel';
 import { CompactingPills } from './compacting-pills';
-import { EmailWideContent, useOwningInboxForEntity } from './email';
+import {
+  EmailInboxChip,
+  EmailWideContent,
+  useOwningInboxForEntity,
+} from './email';
 import {
   GithubPullRequestChecksIndicator,
   GithubPullRequestPills,
@@ -128,19 +132,21 @@ export function WideLayout(props: LayoutProps) {
           isGithubPrEntity(props.entity) && 'min-w-[min(26rem,50cqw)]'
         )}
       >
-        <div class="size-4 shrink-0">
-          <Show
-            when={props.icon}
-            fallback={
-              <Entity.Icon
-                entity={props.entity}
-                streamState={props.streamState}
-              />
-            }
-          >
-            {props.icon}
-          </Show>
-        </div>
+        <Show when={!props.hideIcon}>
+          <div class="size-4 shrink-0">
+            <Show
+              when={props.icon}
+              fallback={
+                <Entity.Icon
+                  entity={props.entity}
+                  streamState={props.streamState}
+                />
+              }
+            >
+              {props.icon}
+            </Show>
+          </div>
+        </Show>
         {props.titleLeading}
         <Switch>
           <Match when={isEmailEntity(props.entity) && props.entity}>
@@ -251,12 +257,15 @@ export function WideLayout(props: LayoutProps) {
         </Show>
         <Show when={isEmailEntity(props.entity) && props.entity}>
           {(entity) => (
-            <RowTags
-              entityId={entity().id}
-              entityType={EntityType.THREAD}
-              properties={entity().properties}
-              onFilterByTag={props.onFilterByTag}
-            />
+            <span class="flex shrink-0 items-center gap-2">
+              <RowTags
+                entityId={entity().id}
+                entityType={EntityType.THREAD}
+                properties={entity().properties}
+                onFilterByTag={props.onFilterByTag}
+              />
+              <EmailInboxChip entity={entity()} size="md" />
+            </span>
           )}
         </Show>
         <Show when={isChatEntity(props.entity) && props.entity}>
