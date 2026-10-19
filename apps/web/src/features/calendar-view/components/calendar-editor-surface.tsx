@@ -8,20 +8,20 @@ import CloseIcon from '@phosphor/x.svg';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import { Button, Layer } from '@ui';
 import { type JSX, Show } from 'solid-js';
-import type { CalendarCreationDraft } from '../primitives/create-calendar-creation';
+import type { CalendarEditorDraft } from '../primitives/create-calendar-editor';
 
-export function CalendarCreationSurface(props: {
+export function CalendarEditorSurface(props: {
   boundary: HTMLElement;
-  draft: CalendarCreationDraft;
+  draft: CalendarEditorDraft;
   surface: 'popover' | 'sidebar';
   pending: boolean;
   onClose: () => void;
   onMoveToSidebar: () => void;
   children: JSX.Element;
 }) {
+  const label = () => (props.draft.event ? 'Edit event' : 'New event');
   const header = () => (
-    <div class="order-first flex shrink-0 items-center justify-between gap-2 px-4 pb-2 pt-3">
-      <h2 class="text-xs font-medium text-ink-muted">New event</h2>
+    <div class="order-first flex shrink-0 items-center justify-end gap-1 px-3 pb-1 pt-2">
       <div class="flex items-center gap-1">
         <Show when={!isMobile() && props.surface === 'popover'}>
           <Button
@@ -66,29 +66,30 @@ export function CalendarCreationSurface(props: {
               <Layer depth={3}>
                 <KobalteDialog.Content
                   as="aside"
-                  aria-label="New event"
+                  aria-label={label()}
                   class="portal-scope z-20 flex h-full min-h-0 w-[min(25rem,100%)] shrink-0 flex-col border-l border-edge-muted bg-panel text-ink outline-none"
+                  onOpenAutoFocus={focusEditorTitle}
                   onInteractOutside={(event) => event.preventDefault()}
                   onCloseAutoFocus={(event) => event.preventDefault()}
                 >
                   <KobalteDialog.Title class="sr-only">
-                    New event
+                    {label()}
                   </KobalteDialog.Title>
-                  <CreationFormBody>{props.children}</CreationFormBody>
+                  <EditorFormBody>{props.children}</EditorFormBody>
                   {header()}
                 </KobalteDialog.Content>
               </Layer>
             </KobalteDialog>
           }
         >
-          <CreationPopover
+          <EditorPopover
             boundary={props.boundary}
             draft={props.draft}
             onClose={props.onClose}
           >
-            <CreationFormBody>{props.children}</CreationFormBody>
+            <EditorFormBody>{props.children}</EditorFormBody>
             {header()}
-          </CreationPopover>
+          </EditorPopover>
         </Show>
       }
     >
@@ -104,12 +105,12 @@ export function CalendarCreationSurface(props: {
           <MobileDrawer.Content
             targetHeight={100}
             maxHeight={100}
-            aria-label="New event"
+            aria-label={label()}
           >
             <MobileDrawer.Handle />
-            <MobileDrawer.Title class="sr-only">New event</MobileDrawer.Title>
+            <MobileDrawer.Title class="sr-only">{label()}</MobileDrawer.Title>
             <MobileDrawer.ScrollBody>
-              <CreationFormBody>{props.children}</CreationFormBody>
+              <EditorFormBody>{props.children}</EditorFormBody>
             </MobileDrawer.ScrollBody>
           </MobileDrawer.Content>
         </MobileDrawer.Portal>
@@ -118,7 +119,7 @@ export function CalendarCreationSurface(props: {
   );
 }
 
-function CreationFormBody(props: { children: JSX.Element }) {
+function EditorFormBody(props: { children: JSX.Element }) {
   const [attachHotkeys] = useHotkeyDOMScope('event-composer', true);
   return (
     <div ref={attachHotkeys} class="flex min-h-0 flex-1 flex-col px-4 pb-4">
@@ -127,9 +128,9 @@ function CreationFormBody(props: { children: JSX.Element }) {
   );
 }
 
-function CreationPopover(props: {
+function EditorPopover(props: {
   boundary: HTMLElement;
-  draft: CalendarCreationDraft;
+  draft: CalendarEditorDraft;
   onClose: () => void;
   children: JSX.Element;
 }) {
@@ -181,11 +182,14 @@ function CreationPopover(props: {
               style={{
                 'max-height': `${Math.max(0, (size.height ?? 560) - 16)}px`,
               }}
+              onOpenAutoFocus={focusEditorTitle}
               onInteractOutside={(event) => event.preventDefault()}
               onFocusOutside={(event) => event.preventDefault()}
               onCloseAutoFocus={(event) => event.preventDefault()}
             >
-              <Popover.Title class="sr-only">New event</Popover.Title>
+              <Popover.Title class="sr-only">
+                {props.draft.event ? 'Edit event' : 'New event'}
+              </Popover.Title>
               {props.children}
             </Popover.Content>
           </Layer>
@@ -193,4 +197,14 @@ function CreationPopover(props: {
       </Popover>
     </>
   );
+}
+
+// The type selector precedes Title, but creation still starts typing there.
+function focusEditorTitle(event: Event) {
+  const container = event.target;
+  if (!(container instanceof HTMLElement)) return;
+  const title = container.querySelector<HTMLInputElement>('input[autofocus]');
+  if (!title) return;
+  event.preventDefault();
+  title.focus();
 }

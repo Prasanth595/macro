@@ -6,7 +6,6 @@ import CalendarDotsIcon from '@phosphor/calendar-dots.svg';
 import CalendarXIcon from '@phosphor/calendar-x.svg';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import ChatTextIcon from '@phosphor/chat-text.svg';
-import MapPinIcon from '@phosphor/map-pin.svg';
 import RepeatIcon from '@phosphor/repeat.svg';
 import SquaresFourIcon from '@phosphor/squares-four.svg';
 import UsersIcon from '@phosphor/users.svg';
@@ -20,7 +19,7 @@ import { PropertyCaret } from '@property/extractors/PropertyCaret';
 import { PropertyPill } from '@property/extractors/PropertyPill';
 import type { EntityProperty } from '@property/types';
 import type { EventType } from '@service-storage/generated/schemas/eventType';
-import { cn, Layer, Select } from '@ui';
+import { Button, cn, Layer, Select } from '@ui';
 import { type Accessor, createMemo, createSignal, For, Show } from 'solid-js';
 import {
   formatReminderOffset,
@@ -294,75 +293,6 @@ export function EventComposerGuestsPill(props: EventComposerGuestsPillProps) {
   );
 }
 
-export interface EventComposerLocationPillProps {
-  value: string;
-  onChange: (value: string) => void;
-  disabled?: boolean;
-  hideIcon?: boolean;
-}
-
-/** Compact editable location property pill. */
-export function EventComposerLocationPill(
-  props: EventComposerLocationPillProps
-) {
-  const [open, setOpen] = createSignal(false);
-  let input: HTMLInputElement | undefined;
-
-  return (
-    <Popover
-      open={open() && !props.disabled}
-      onOpenChange={(nextOpen) => setOpen(!props.disabled && nextOpen)}
-      placement="bottom-start"
-      gutter={4}
-      flip
-      slide
-    >
-      <Popover.Trigger
-        disabled={props.disabled}
-        aria-label="Location"
-        class={cn(PROPERTY_TRIGGER_CLASS, 'max-w-48 overflow-hidden')}
-      >
-        <Show when={!props.hideIcon}>
-          <MapPinIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
-        </Show>
-        <span
-          class={cn(
-            'min-w-0 truncate',
-            PROPERTY_VALUE_CLASS,
-            props.value ? 'text-current' : 'text-ink-extra-muted'
-          )}
-        >
-          {props.value || 'Add location'}
-        </span>
-        <CaretDownIcon class="size-3 shrink-0 text-ink-extra-muted" />
-      </Popover.Trigger>
-      <EventComposerPopoverPortal>
-        <Layer depth={3}>
-          <Popover.Content
-            class="z-action-menu w-72 max-w-[calc(100vw-1rem)] rounded-xl border border-edge bg-menu-glass p-2 glass menu-open-animation"
-            onOpenAutoFocus={(event) => {
-              event.preventDefault();
-              queueMicrotask(() => input?.focus());
-            }}
-          >
-            <Popover.Title class="sr-only">Event location</Popover.Title>
-            <input
-              ref={input}
-              type="text"
-              value={props.value}
-              onInput={(event) => props.onChange(event.currentTarget.value)}
-              placeholder="Add location..."
-              aria-label="Location"
-              disabled={props.disabled}
-              class="h-8 w-full rounded-md border border-edge-muted bg-control px-2 text-sm text-ink outline-none placeholder:text-ink-placeholder focus:border-accent"
-            />
-          </Popover.Content>
-        </Layer>
-      </EventComposerPopoverPortal>
-    </Popover>
-  );
-}
-
 interface EventComposerConferenceOption {
   value: EventEditorConferenceChoice;
   label: string;
@@ -391,6 +321,7 @@ export interface EventComposerConferencePillProps {
   macroCallsEnabled: boolean;
   onChange: (value: EventEditorConferenceChoice) => void;
   disabled?: boolean;
+  hideIcon?: boolean;
 }
 
 /** Compact selector for adding, replacing, or removing video conferencing. */
@@ -422,7 +353,9 @@ export function EventComposerConferencePill(
         aria-label="Video conferencing"
         class={cn(PROPERTY_TRIGGER_CLASS, 'max-w-48 overflow-hidden')}
       >
-        <VideoCameraIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
+        <Show when={!props.hideIcon}>
+          <VideoCameraIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
+        </Show>
         <Select.Value<EventComposerConferenceOption>>
           {(selectState) => (
             <span
@@ -453,6 +386,7 @@ export interface EventComposerRemindersPillProps {
   canAdd: boolean;
   onChange: (minutes: number[]) => void;
   disabled?: boolean;
+  hideIcon?: boolean;
 }
 
 const REMINDER_PRESET_MINUTE_SET = new Set(REMINDER_PRESET_MINUTES);
@@ -547,7 +481,9 @@ export function EventComposerRemindersPill(
         aria-label="Notifications"
         class={cn(PROPERTY_TRIGGER_CLASS, 'max-w-48 overflow-hidden')}
       >
-        <BellSimpleIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
+        <Show when={!props.hideIcon}>
+          <BellSimpleIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
+        </Show>
         <Select.Value<EventComposerSelectOption>>
           {(selectState) => (
             <span class={cn('truncate', PROPERTY_VALUE_CLASS)}>
@@ -583,6 +519,7 @@ export interface EventComposerRecurrencePillProps {
   disabled?: boolean;
   readOnly?: boolean;
   hideIcon?: boolean;
+  onEditCustom?: () => void;
 }
 
 /** Compact recurrence property pill. */
@@ -590,34 +527,50 @@ export function EventComposerRecurrencePill(
   props: EventComposerRecurrencePillProps
 ) {
   return (
-    <Select<EventComposerSelectOption>
-      options={props.options}
-      value={props.value}
-      onChange={(option) => {
-        if (option && !props.readOnly) props.onChange(option.value);
-      }}
-      optionValue="value"
-      optionTextValue="label"
-      optionDisabled={() => props.readOnly === true}
-      disabled={props.disabled}
-    >
-      <Select.Trigger
-        aria-label="Repeats"
-        aria-readonly={props.readOnly || undefined}
-        class={cn(PROPERTY_TRIGGER_CLASS, 'max-w-48')}
+    <div class="flex min-w-0 items-center gap-1">
+      <Select<EventComposerSelectOption>
+        options={props.options}
+        value={props.value}
+        onChange={(option) => {
+          if (option && !props.readOnly) props.onChange(option.value);
+        }}
+        optionValue="value"
+        optionTextValue="label"
+        optionDisabled={() => props.readOnly === true}
+        disabled={props.disabled}
       >
-        <Show when={!props.hideIcon}>
-          <RepeatIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
-        </Show>
-        <Select.Value<EventComposerSelectOption>>
-          {(selectState) => selectState.selectedOption().label}
-        </Select.Value>
-        <Select.Icon />
-      </Select.Trigger>
-      <Select.Content portalScope="local">
-        <Select.Listbox />
-      </Select.Content>
-    </Select>
+        <Select.Trigger
+          aria-label="Repeats"
+          aria-readonly={props.readOnly || undefined}
+          class={cn(PROPERTY_TRIGGER_CLASS, 'max-w-48')}
+        >
+          <Show when={!props.hideIcon}>
+            <RepeatIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
+          </Show>
+          <Select.Value<EventComposerSelectOption>>
+            {(selectState) => selectState.selectedOption().label}
+          </Select.Value>
+          <Select.Icon />
+        </Select.Trigger>
+        <Select.Content portalScope="local">
+          <Select.Listbox />
+        </Select.Content>
+      </Select>
+      <Show
+        when={
+          props.value.value === 'custom' && !props.readOnly && !props.disabled
+        }
+      >
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={props.onEditCustom}
+        >
+          Edit custom rule
+        </Button>
+      </Show>
+    </div>
   );
 }
 
@@ -627,6 +580,7 @@ export interface EventComposerCalendarPillProps {
   onChange: (calendarId: string) => void;
   disabled?: boolean;
   readOnly?: boolean;
+  hideIcon?: boolean;
 }
 
 /** Compact calendar property pill. */
@@ -651,7 +605,9 @@ export function EventComposerCalendarPill(
         aria-readonly={props.readOnly || undefined}
         class={cn(PROPERTY_TRIGGER_CLASS, 'w-40')}
       >
-        <CalendarDotsIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
+        <Show when={!props.hideIcon}>
+          <CalendarDotsIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
+        </Show>
         <Select.Value<EventEditorCalendarOption>>
           {(selectState) => selectState.selectedOption().label}
         </Select.Value>
@@ -680,6 +636,7 @@ export interface EventComposerKindPillProps {
   disabled?: boolean;
   /** The provider event type is immutable, so edits show the kind fixed. */
   readOnly?: boolean;
+  hideIcon?: boolean;
 }
 
 /** Compact selector for the kind of event being created. */
@@ -717,7 +674,9 @@ export function EventComposerKindPill(props: EventComposerKindPillProps) {
         aria-readonly={props.readOnly || undefined}
         class={cn(PROPERTY_TRIGGER_CLASS, 'max-w-48')}
       >
-        <SquaresFourIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
+        <Show when={!props.hideIcon}>
+          <SquaresFourIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
+        </Show>
         <Select.Value<EventComposerKindOption>>
           {(selectState) => selectState.selectedOption().label}
         </Select.Value>
@@ -752,6 +711,7 @@ export interface EventComposerDeclinePillProps {
   value: EventEditorOutOfOffice | undefined;
   onChange: (value: EventEditorOutOfOffice) => void;
   disabled?: boolean;
+  hideIcon?: boolean;
 }
 
 /** Compact selector for how an out-of-office event declines meetings. */
@@ -781,7 +741,9 @@ export function EventComposerDeclinePill(props: EventComposerDeclinePillProps) {
         aria-label="Decline meetings"
         class={cn(PROPERTY_TRIGGER_CLASS, 'max-w-48 overflow-hidden')}
       >
-        <CalendarXIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
+        <Show when={!props.hideIcon}>
+          <CalendarXIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
+        </Show>
         <Select.Value<EventComposerDeclineOption>>
           {(selectState) => (
             <span class={cn('truncate', PROPERTY_VALUE_CLASS)}>
@@ -802,6 +764,7 @@ export interface EventComposerDeclineMessagePillProps {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  hideIcon?: boolean;
 }
 
 /** Compact editable pill for the auto-decline reply message. */
@@ -825,7 +788,9 @@ export function EventComposerDeclineMessagePill(
         aria-label="Decline message"
         class={cn(PROPERTY_TRIGGER_CLASS, 'max-w-48 overflow-hidden')}
       >
-        <ChatTextIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
+        <Show when={!props.hideIcon}>
+          <ChatTextIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
+        </Show>
         <span
           class={cn(
             'min-w-0 truncate',

@@ -454,6 +454,17 @@ export interface RecurrenceConfig {
   ends: RecurrenceEnds;
 }
 
+/** The shared validity constraints for custom event recurrence. */
+export function isValidRecurrenceConfig(config: RecurrenceConfig) {
+  if (!Number.isInteger(config.interval) || config.interval < 1) return false;
+  if (config.frequency === 'WEEKLY' && config.byDay.length === 0) return false;
+  if (config.ends.kind === 'on') return config.ends.date !== '';
+  if (config.ends.kind === 'after') {
+    return Number.isInteger(config.ends.count) && config.ends.count >= 1;
+  }
+  return true;
+}
+
 const NEVER: RecurrenceEnds = { kind: 'never' };
 
 /**

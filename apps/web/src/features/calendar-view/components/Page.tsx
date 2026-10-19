@@ -60,7 +60,7 @@ import {
   calendarFocusTargetId,
   useCalendarFocus,
 } from '../calendar-focus-target';
-import { useCalendarCreation } from '../context/calendar-creation-context';
+import { useCalendarEditor } from '../context/calendar-editor-context';
 import { CalendarLoadingSkeleton } from './CalendarLoadingSkeleton';
 
 interface CalendarScrollTarget {
@@ -204,7 +204,7 @@ export function Page(props: {
   // Keep the settings object independent of route-period changes. Otherwise
   // reading any grid setting also subscribes FullCalendar to the whole object.
   const initialView = untrack(() => calendarView.displaySettings.periodView);
-  const creation = useCalendarCreation();
+  const composer = useCalendarEditor();
   const quickCalls = useQuickCallsFlag();
   const calendarsQuery = useVisibleCalendarsQuery();
   const firstWritableCalendar = createMemo(() =>
@@ -251,7 +251,7 @@ export function Page(props: {
   const updateEventTime = useUpdateCalendarEventMutation();
   const handleSelect = (selection: DateSelectArg) => {
     if (!isActive()) return;
-    if (creation.draft() || consumeSuppressedCalendarDateSelection()) {
+    if (composer.draft() || consumeSuppressedCalendarDateSelection()) {
       selection.view.calendar.unselect();
       return;
     }
@@ -267,7 +267,7 @@ export function Page(props: {
     const rect = preview?.getBoundingClientRect();
     setSelectionColor(calendar?.color ?? DEFAULT_CALENDAR_SOURCE.color);
     calendarView.closeEventDetails();
-    creation.open({
+    composer.open({
       initialValues: {
         ...calendarSelectionToEditorInitialValues(
           selection,
@@ -363,7 +363,7 @@ export function Page(props: {
         selection={{
           color: effectiveSelectionColor(),
           eventId: isActive() ? calendarView.selectedEvent()?.id : undefined,
-          allowDateSelection: () => !creation.draft(),
+          allowDateSelection: () => !composer.draft(),
           onDateSelect: isMobile() ? undefined : handleSelect,
           onEventSelect: (event, element) => {
             if (isActive()) calendarView.selectEvent(event, element);

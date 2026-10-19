@@ -1,7 +1,6 @@
 import { parseAgentsRoute } from '@app/features/agents-view/core/route';
 import { useSpreadsheetAccess } from '@app/features/block-spreadsheet/primitives/use-spreadsheet-access';
-import type { EventEditorInitialValues } from '@app/features/calendar/components/composer/event-form-model';
-import type { CalendarEvent } from '@app/features/calendar/types';
+import { calendarViewContent } from '@app/features/calendar-view/calendar-navigation';
 import { HomeRouteView } from '@app/features/home/route-views';
 import { parseProjectRoute } from '@app/features/projects/core/route';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
@@ -116,10 +115,6 @@ const SettingsRouteView = lazyNamed(
 const TasksRouteView = lazyNamed(
   () => import('@app/features/tasks-view/route-views'),
   'TasksRouteView'
-);
-const EventComposerSplit = lazyNamed(
-  () => import('@block-calendar/components/EventComposerSplit'),
-  'EventComposerSplit'
 );
 const ChannelCompose = lazyNamed(
   () => import('@block-channel/component/Compose'),
@@ -430,26 +425,10 @@ registerComponent('task-compose', (params) => {
 registerComponent('agent-session-compose', () => (
   <RedirectSplit to={{ type: 'component', id: 'agents' }} />
 ));
-registerComponent('calendar-event-compose', (params) => {
-  usePageViewTracking('calendar-event-compose');
-  return (
-    <EventComposerSplit
-      event={params?.event as CalendarEvent | undefined}
-      initialValues={
-        params?.initialValues as EventEditorInitialValues | undefined
-      }
-      onCalendarChange={
-        params?.onCalendarChange as
-          | ((calendarId: string, color: string) => void)
-          | undefined
-      }
-      onDirtyChange={
-        params?.onDirtyChange as ((dirty: boolean) => void) | undefined
-      }
-      onSaveSuccess={params?.onSaveSuccess as (() => void) | undefined}
-    />
-  );
-});
+// Restore old composer URLs into the calendar-owned editor workspace.
+registerComponent('calendar-event-compose', () => (
+  <RedirectSplit to={calendarViewContent()} />
+));
 registerComponent('skill-compose', (params) => {
   usePageViewTracking('skill-compose');
   return <ComposeSkill {...params} />;

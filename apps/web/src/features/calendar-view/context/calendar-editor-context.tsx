@@ -1,15 +1,13 @@
 import { createAssertedContextProvider } from '@core/context/createContext';
 import { createEffect, on, type ParentProps } from 'solid-js';
-import { createCalendarCreation } from '../primitives/create-calendar-creation';
+import { createCalendarEditor } from '../primitives/create-calendar-editor';
 import type { CalendarViewTarget } from '../types';
 
-export const [CalendarCreationProvider, useCalendarCreation] =
+export const [CalendarEditorProvider, useCalendarEditor] =
   createAssertedContextProvider(
-    'CalendarCreation',
-    (
-      props: ParentProps<{ request?: CalendarViewTarget['creationRequest'] }>
-    ) => {
-      const creation = createCalendarCreation();
+    'CalendarEditor',
+    (props: ParentProps<{ request?: CalendarViewTarget['editorRequest'] }>) => {
+      const composer = createCalendarEditor();
       createEffect(
         on(
           () => props.request?.id,
@@ -17,16 +15,17 @@ export const [CalendarCreationProvider, useCalendarCreation] =
             const request = props.request;
             if (!id || !request || !request.consume()) return;
             if (
-              !creation.open({
+              !composer.open({
+                event: request.event,
                 initialValues: request.initialValues,
                 onCalendarChange: request.onCalendarChange,
                 onClose: request.onClose,
               })
             )
-              creation.moveToSidebar();
+              composer.moveToSidebar();
           }
         )
       );
-      return creation;
+      return composer;
     }
   );

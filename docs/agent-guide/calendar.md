@@ -94,29 +94,44 @@ new session from the same meeting link must start a separate chat thread.
 
 Desktop click/drag creation opens a non-modal popover near the selected range.
 The popover's `Move to sidebar` action keeps the same draft in a right-hand editor;
-`New → Event` opens that sidebar directly. Both surfaces share the detail-style
-layout: title, date/time, then guests, meeting link, location, description, and
-calendar settings. Scrolling, paging, changing period, outside clicks, and another
-empty-timeslot selection must leave the draft unchanged. Existing-event editing
-retains its separate dialog host. Menu creation requests are single-use: a workspace
-remount must not reopen a draft after it was saved or dismissed.
+`New → Event` opens that sidebar directly. Editing from event details opens the
+same anchored popover, not a separate split dialog. Both create and edit show the
+event type above the title, the description immediately below it, and icon-led
+rows for guests, meeting link, direct location input, and calendar settings.
+The popover has no visible `New event` heading or date range. Move to the sidebar
+to change dates, times, or All day. The primary Create event and Save actions use
+the CTA button style.
 
-On phones, event creation fills a bottom sheet, with scrollable content above the
-keyboard; existing-event editing retains its current sheet. Close, Cancel, Escape,
-and mobile sheet dismissal ask before discarding a changed draft. A pending save
-cannot be dismissed. Leaving Calendar or reloading protects unsaved changes too.
+Scrolling, paging, changing period, outside clicks, and another empty-timeslot
+selection leave the active draft unchanged. External create/edit requests retain
+caller lifecycle callbacks and are single-use: a workspace remount must not
+reopen a draft after it was saved or dismissed.
+
+Custom repeat rules open in a separate `Custom recurrence` dialog. Changes remain
+local until `Done`; Cancel or Escape preserves the prior choice and rule.
+`Edit custom rule` reopens an existing custom rule. Blank end dates and invalid
+intervals or occurrence counts cannot be applied.
+
+On phones, creation and editing fill the same bottom sheet, retaining date/time
+controls and the shared layout. Custom recurrence uses a nested sheet.
+Close, Cancel, Escape, and mobile sheet dismissal ask before discarding a changed
+draft. A pending save cannot be dismissed. Leaving Calendar or reloading protects
+unsaved changes too.
 
 Verify a click and a multi-slot drag in Week and Month. Enter a title, description,
-guest, and custom recurrence; move the popover to the sidebar and confirm all values
-survive. Scroll the original slot away, navigate several weeks, change period,
-click another empty slot, and confirm the original draft stays open and unchanged.
-Cancel dismissal with `Keep editing`, then discard explicitly. Repeat from
-`New → Event` and the phone's bottom Event action. Open each nested menu and use
-Escape: dismiss the menu first, not the editor. Do not save test events to shared
-dev data. Call-link retry behavior remains owned by the shared event editor.
+guest, location, and custom recurrence; move the popover to the sidebar and confirm
+all values survive and date controls appear. Cancel a new custom rule and changes
+to an existing rule; confirm neither changes the event. Scroll the original slot
+away, navigate several weeks, change period, click another empty slot, and confirm
+the original draft stays open and unchanged. Cancel dismissal with `Keep editing`,
+then discard explicitly. Repeat from `New → Event` and on a phone. Open each nested
+menu or dialog and press Escape: dismiss the top layer first, not the editor.
+Edit an existing recurring event, move it to the sidebar, and check both recurring
+scopes. Do not save test events to shared dev data. Call-link retry behavior remains
+owned by the shared event editor.
 
-The isolated fixture mounts the real grid, creation hosts, form, and controller
-with empty account/contact sources. With Vite running, exercise desktop, tablet,
+The isolated fixture mounts the real grid, create/edit hosts, form, and controller
+with isolated sample event, calendar, and contact data. With Vite running, exercise desktop, tablet,
 and phone interactions without signing in or writing dev data:
 
 ```sh
@@ -351,7 +366,7 @@ does not silently send the invitation from another connected inbox.
 Failed calendar or account queries show `Could not load your calendars.` with
 `Try again`, rather than offering consent or presenting the failure as backfill.
 
-`New event` opens the compact composer with All day in the date/time fields.
+`New → Event` opens the shared editor sidebar, with All day in the date/time fields.
 The meeting-link selector lists `Macro call`, `Google Meet`, then `No meeting link`
 for new events, defaulting to `Macro call` when quick calls are enabled. Keeping
 that selection creates and attaches a Macro call after the event saves. Selecting
@@ -390,10 +405,10 @@ Desktop event details stay inside the visible calendar grid, including Home
 previews and narrow splits. They overlap wide Day-view events when needed and
 shrink to fit the pane; long details scroll while the RSVP row stays visible.
 
-The `New event` composer (also opened by dragging a range on the grid) has an `Event kind`
-pill choosing between `Event` and `Out of office`. Picking `Out of office` hides the guests,
-conferencing, and location pills and the description field (Google rejects them on this
-type), forces a timed (not all-day) range, restricts the calendar
+The event type control above the title chooses between `Event` and `Out of office`.
+Picking `Out of office` hides the guests, conferencing, and location controls and
+the description field (Google rejects them for this event type). It forces a
+timed (not all-day) range, restricts the calendar
 pill to primary calendars, and shows a `Decline meetings` pill (`Don't decline meetings` /
 `Decline new meetings` / `Decline all meetings`) plus, when declining, an optional
 `Decline message` pill; a warning note discloses the away/auto-decline effect before saving.

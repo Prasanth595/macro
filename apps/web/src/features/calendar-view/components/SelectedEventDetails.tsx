@@ -15,7 +15,6 @@ import {
 import { handleOpenEventOutsidePress } from '@app/features/calendar/utils/open-event-outside-press';
 import { TeamEventDetails } from '@app/features/calendar-team/components/team-event-details';
 import { EventRsvpSection } from '@app/features/calendar-view/components/EventRsvpSection';
-import { useOpenEventComposer } from '@app/features/calendar-view/components/use-open-event-composer';
 import { useOpenEventEmail } from '@app/features/calendar-view/components/use-open-event-email';
 import { copyCalendarEventMention } from '@app/features/calendar-view/copy-event-mention';
 import { copyGuestEmails } from '@app/features/calendar-view/copy-guest-emails';
@@ -51,6 +50,7 @@ interface SelectedEventDetailsProps {
   event: Accessor<CalendarEvent | undefined>;
   timeFormat: Accessor<CalendarTimeFormat>;
   onClose: () => void;
+  onEdit: (event: CalendarEvent, anchor?: DOMRect) => void;
 }
 
 /**
@@ -102,6 +102,7 @@ export function SelectedEventDetails(props: SelectedEventDetailsProps) {
                   event={currentEvent()}
                   timeFormat={props.timeFormat()}
                   defaultReminders={defaultReminders(currentEvent())}
+                  onEdit={props.onEdit}
                   onOpenChange={(open) => {
                     if (!open) props.onClose();
                   }}
@@ -119,6 +120,7 @@ export function SelectedEventDetails(props: SelectedEventDetailsProps) {
               event={currentEvent()}
               timeFormat={props.timeFormat()}
               defaultReminders={defaultReminders(currentEvent())}
+              onEdit={props.onEdit}
               onOpenChange={(open) => {
                 if (!open) props.onClose();
               }}
@@ -135,6 +137,7 @@ interface EventDetailsOverlayProps {
   timeFormat: CalendarTimeFormat;
   defaultReminders?: EventReminderOverride[];
   onOpenChange: (open: boolean) => void;
+  onEdit: (event: CalendarEvent, anchor?: DOMRect) => void;
 }
 
 function EveryoneElseDeclinedNotice(props: {
@@ -219,7 +222,6 @@ function EventGuestActions(props: {
 }
 
 function EventDetailsDrawer(props: EventDetailsOverlayProps) {
-  const openEventComposer = useOpenEventComposer();
   const deleteDialog = useDeleteEventDialog({
     event: () => props.event,
     onDeleted: () => props.onOpenChange(false),
@@ -229,7 +231,7 @@ function EventDetailsDrawer(props: EventDetailsOverlayProps) {
     !props.event.isReadOnly &&
     !props.event.isCancelled;
   const openEditor = () => {
-    openEventComposer({ event: props.event });
+    props.onEdit(props.event);
     props.onOpenChange(false);
   };
 
@@ -457,7 +459,6 @@ function DeleteEventDialog(
  * scroll within 32rem or the available height; the RSVP row stays pinned.
  */
 function EventDetailsPopover(props: EventDetailsPopoverProps) {
-  const openEventComposer = useOpenEventComposer();
   const deleteDialog = useDeleteEventDialog({
     event: () => props.event,
     onDeleted: () => props.onOpenChange(false),
@@ -467,7 +468,7 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
     !props.event.isReadOnly &&
     !props.event.isCancelled;
   const openEditor = () => {
-    openEventComposer({ event: props.event });
+    props.onEdit(props.event, props.anchor.getBoundingClientRect());
     props.onOpenChange(false);
   };
 

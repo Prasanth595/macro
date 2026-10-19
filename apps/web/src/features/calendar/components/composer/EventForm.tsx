@@ -1,9 +1,20 @@
 import { useMacroMentionLinkResolver } from '@components/app/split-layout/split-router/mention-links';
 import { MarkdownTextarea } from '@core/component/LexicalMarkdown/component/core/MarkdownTextarea';
 import { isMobile } from '@core/mobile/isMobile';
+import BellSimpleIcon from '@phosphor/bell-simple.svg';
+import CalendarBlankIcon from '@phosphor/calendar-blank.svg';
+import CalendarDotsIcon from '@phosphor/calendar-dots.svg';
+import CalendarXIcon from '@phosphor/calendar-x.svg';
+import ChatTextIcon from '@phosphor/chat-text.svg';
+import MapPinIcon from '@phosphor/map-pin.svg';
+import RepeatIcon from '@phosphor/repeat.svg';
 import SpinnerIcon from '@phosphor/spinner.svg';
+import SquaresFourIcon from '@phosphor/squares-four.svg';
+import TextAlignLeftIcon from '@phosphor/text-align-left.svg';
+import UsersIcon from '@phosphor/users.svg';
+import VideoCameraIcon from '@phosphor/video-camera.svg';
 import type { CalendarUpdateScope } from '@service-email/client';
-import { Button, cn, Input, Layer, RadioGroup } from '@ui';
+import { Button, cn, Input, RadioGroup } from '@ui';
 import {
   createEffect,
   createSignal,
@@ -12,6 +23,7 @@ import {
   type JSX,
   Show,
 } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 import {
   calendarDescriptionToEditorHtml,
   exportCalendarDescription,
@@ -25,20 +37,19 @@ import {
   EventComposerDeclinePill,
   EventComposerGuestsPill,
   EventComposerKindPill,
-  EventComposerLocationPill,
   EventComposerRecurrencePill,
   EventComposerRemindersPill,
 } from './EventPropertyPills';
+import { EventRecurrenceDialog } from './EventRecurrenceDialog';
 import type {
   EventEditorDisabledFields,
   EventEditorSubmitValues,
 } from './event-form-model';
 import { outOfOfficeNoticeFor } from './out-of-office';
-import { RecurrenceBuilder } from './RecurrenceBuilder';
 
 export interface EventFormProps {
   controller: CalendarEventFormController;
-  layout?: 'compact' | 'details';
+  showDateRange?: boolean;
   /** Whether this host can create and attach Macro call links. */
   macroCallsEnabled: boolean;
   isEdit?: boolean;
@@ -67,7 +78,7 @@ const RECURRING_EDIT_SCOPE_OPTIONS = [
   label: string;
 }[];
 
-/** Shared event controls with compact editing and detail-style creation layouts. */
+/** Shared event controls for creation and editing. */
 export function EventForm(props: EventFormProps) {
   const formId = createUniqueId();
   const resolveAppLink = useMacroMentionLinkResolver();
@@ -82,7 +93,9 @@ export function EventForm(props: EventFormProps) {
 
   // Recurring edits default to the whole series, matching the long-standing
   // behavior; "this event" writes a single-occurrence exception.
-  const [editScope, setEditScope] = createSignal<CalendarUpdateScope>('all');
+  const editScope = controller.editScope;
+  const setEditScope = controller.setEditScope;
+  const [recurrenceDialogOpen, setRecurrenceDialogOpen] = createSignal(false);
 
   // An invalid range already speaks for itself; only one line shows at a time.
   const pastEventWarning = () =>
@@ -131,7 +144,6 @@ export function EventForm(props: EventFormProps) {
     );
   };
 
-  const details = () => props.layout === 'details';
   const titleField = () => (
     <Input
       type="text"
@@ -160,7 +172,7 @@ export function EventForm(props: EventFormProps) {
         allDayDisabled={fieldIsDisabled('allDay')}
         invalid={controller.dateRangeError() !== undefined}
         describedBy={dateRangeDescribedBy()}
-        stacked={details()}
+        stacked
       />
       <Show when={controller.dateRangeError()}>
         {(error) => (
@@ -180,13 +192,7 @@ export function EventForm(props: EventFormProps) {
   );
   const descriptionField = () => (
     <Show when={!isOutOfOffice()}>
-      <div
-        class={
-          details()
-            ? 'h-16 min-w-0 flex-1 overflow-y-auto'
-            : 'h-12 overflow-y-auto'
-        }
-      >
+      <div class="h-16 min-w-0 flex-1 overflow-y-auto">
         <MarkdownTextarea
           resolveAppLink={resolveAppLink}
           type="calendar"
@@ -220,6 +226,7 @@ export function EventForm(props: EventFormProps) {
         onChange={controller.setEventKind}
         disabled={formIsDisabled()}
         readOnly={isEdit()}
+        hideIcon
       />
     ),
     calendar: () => (
@@ -229,17 +236,23 @@ export function EventForm(props: EventFormProps) {
         onChange={(calendarId) => controller.setField('calendarId', calendarId)}
         disabled={formIsDisabled()}
         readOnly={fieldIsReadOnly('calendar')}
+        hideIcon
       />
     ),
     recurrence: () => (
       <EventComposerRecurrencePill
         options={controller.recurrenceOptions()}
         value={controller.selectedRecurrenceOption()}
-        onChange={controller.changeRecurrenceChoice}
+        onChange={(choice) =>
+          choice === 'custom'
+            ? setRecurrenceDialogOpen(true)
+            : controller.changeRecurrenceChoice(choice)
+        }
+        onEditCustom={() => setRecurrenceDialogOpen(true)}
         disabled={formIsDisabled()}
-        // A single occurrence has no recurrence rule of its own, so the
-        // recurrence cannot be edited while the scope is one event.
+        // A single occurrence has no recurrence rule of its own.
         readOnly={fieldIsReadOnly('recurrence') || editScope() === 'this_event'}
+        hideIcon
       />
     ),
     guests: () => (
@@ -249,6 +262,7 @@ export function EventForm(props: EventFormProps) {
         onChange={controller.setSelectedGuests}
         disabled={formIsDisabled()}
         readOnly={fieldIsReadOnly('guests')}
+        hideIcon
       />
     ),
     conference: () => (
@@ -258,13 +272,20 @@ export function EventForm(props: EventFormProps) {
         canKeepExisting={controller.initialConferenceChoice() === 'existing'}
         onChange={(conference) => controller.setField('conference', conference)}
         disabled={fieldIsDisabled('conference')}
+        hideIcon
       />
     ),
     location: () => (
-      <EventComposerLocationPill
+      <Input
+        type="text"
         value={state().location}
-        onChange={(location) => controller.setField('location', location)}
+        onInput={(event) =>
+          controller.setField('location', event.currentTarget.value)
+        }
+        placeholder="Add location..."
+        aria-label="Location"
         disabled={fieldIsDisabled('location')}
+        class="h-8 min-w-0 w-full max-w-72 border-0 bg-transparent px-2 text-sm text-ink shadow-none placeholder:text-ink-placeholder"
       />
     ),
     decline: () => (
@@ -272,6 +293,7 @@ export function EventForm(props: EventFormProps) {
         value={state().outOfOffice}
         onChange={controller.setOutOfOffice}
         disabled={formIsDisabled()}
+        hideIcon
       />
     ),
     declineMessage: () => (
@@ -291,6 +313,7 @@ export function EventForm(props: EventFormProps) {
             })
           }
           disabled={formIsDisabled()}
+          hideIcon
         />
       </Show>
     ),
@@ -304,13 +327,26 @@ export function EventForm(props: EventFormProps) {
         canAdd={controller.canAddReminder()}
         onChange={controller.setReminderMinutes}
         disabled={fieldIsDisabled('reminders')}
+        hideIcon
       />
     ),
   };
-  const PropertyRow = (row: { label: string; children: JSX.Element }) => (
-    <div class="grid min-w-0 grid-cols-[5.5rem_minmax(0,1fr)] items-start gap-x-3 py-1">
-      <span class="pt-1.5 text-xs text-ink-extra-muted">{row.label}</span>
-      <div class="flex min-w-0 flex-wrap items-center gap-2">
+  const PropertyRow = (row: {
+    label: string;
+    icon: typeof CalendarBlankIcon;
+    children: JSX.Element;
+  }) => (
+    <div
+      role="group"
+      aria-label={row.label}
+      class="grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-x-4 py-1 sm:grid-cols-[1rem_minmax(0,1fr)] sm:gap-x-3"
+    >
+      <Dynamic
+        component={row.icon}
+        aria-hidden="true"
+        class="mt-1 size-5 text-ink-extra-muted sm:size-4"
+      />
+      <div class="flex min-w-0 w-full flex-wrap items-center gap-2">
         {row.children}
       </div>
     </div>
@@ -327,88 +363,75 @@ export function EventForm(props: EventFormProps) {
         submit();
       }}
     >
-      <div
-        class={cn(
-          'flex min-h-0 flex-1 flex-col overflow-y-auto scrollbar-hidden',
-          details() ? 'gap-5' : 'gap-6'
-        )}
-      >
-        <div
-          class={cn(
-            'flex min-w-0 flex-col text-sm text-ink-muted',
-            details() ? 'gap-4' : 'gap-6'
-          )}
-        >
-          <Show
-            when={details()}
-            fallback={
-              <div class="flex min-w-0 flex-col gap-1">
-                {dateFields()}
-                {titleField()}
+      <div class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto scrollbar-hidden">
+        <div class="flex min-w-0 flex-col gap-4 text-sm text-ink-muted">
+          <div class="flex min-w-0 flex-col gap-1">
+            <PropertyRow label="Event type" icon={SquaresFourIcon}>
+              {controls.kind()}
+            </PropertyRow>
+            <div class="min-w-0 pl-9 sm:pl-7">{titleField()}</div>
+            <Show when={!isOutOfOffice()}>
+              <PropertyRow label="Description" icon={TextAlignLeftIcon}>
                 {descriptionField()}
-              </div>
-            }
-          >
-            {titleField()}
-            {dateFields()}
+              </PropertyRow>
+            </Show>
+          </div>
+          <Show when={props.showDateRange !== false}>
+            <PropertyRow label="Date and time" icon={CalendarBlankIcon}>
+              {dateFields()}
+            </PropertyRow>
           </Show>
-
           <Show
-            when={details()}
-            fallback={
-              <div class="flex min-w-0 flex-wrap items-center gap-2">
-                {controls.kind()}
-                {controls.calendar()}
-                {controls.recurrence()}
-                <Show when={!isOutOfOffice()}>
-                  {controls.guests()}
-                  {controls.conference()}
-                  {controls.location()}
-                </Show>
-                <Show when={isOutOfOffice()}>
-                  {controls.decline()}
-                  {controls.declineMessage()}
-                </Show>
-                {controls.reminders()}
-              </div>
-            }
+            when={props.showDateRange === false && controller.dateRangeError()}
           >
-            <div class="flex min-w-0 flex-col">
-              <Show when={!isOutOfOffice()}>
-                <PropertyRow label="Guests">{controls.guests()}</PropertyRow>
-                <PropertyRow label="Meeting link">
-                  {controls.conference()}
-                </PropertyRow>
-                <PropertyRow label="Location">
-                  {controls.location()}
-                </PropertyRow>
-                <PropertyRow label="Description">
-                  {descriptionField()}
-                </PropertyRow>
-              </Show>
-              <Show when={isOutOfOffice()}>
-                <PropertyRow label="Decline">{controls.decline()}</PropertyRow>
-                <PropertyRow label="Reply">
-                  {controls.declineMessage()}
-                </PropertyRow>
-              </Show>
-              <section
-                aria-label="Calendar settings"
-                class="mt-3 border-t border-edge-muted pt-3"
-              >
-                <PropertyRow label="Calendar">
-                  {controls.calendar()}
-                </PropertyRow>
-                <PropertyRow label="Type">{controls.kind()}</PropertyRow>
-                <PropertyRow label="Repeats">
-                  {controls.recurrence()}
-                </PropertyRow>
-                <PropertyRow label="Notifications">
-                  {controls.reminders()}
-                </PropertyRow>
-              </section>
-            </div>
+            {(error) => (
+              <p role="alert" class="text-xs text-failure">
+                {error()}
+              </p>
+            )}
           </Show>
+          <Show when={props.showDateRange === false && pastEventWarning()}>
+            {(warning) => (
+              <p role="status" class="text-xs text-warning">
+                {warning()}
+              </p>
+            )}
+          </Show>
+          <div class="flex min-w-0 flex-col">
+            <Show when={!isOutOfOffice()}>
+              <PropertyRow label="Guests" icon={UsersIcon}>
+                {controls.guests()}
+              </PropertyRow>
+              <PropertyRow label="Meeting link" icon={VideoCameraIcon}>
+                {controls.conference()}
+              </PropertyRow>
+              <PropertyRow label="Location" icon={MapPinIcon}>
+                {controls.location()}
+              </PropertyRow>
+            </Show>
+            <Show when={isOutOfOffice()}>
+              <PropertyRow label="Decline" icon={CalendarXIcon}>
+                {controls.decline()}
+              </PropertyRow>
+              <PropertyRow label="Reply" icon={ChatTextIcon}>
+                {controls.declineMessage()}
+              </PropertyRow>
+            </Show>
+            <section
+              aria-label="Calendar settings"
+              class="mt-3 border-t border-edge-muted pt-3"
+            >
+              <PropertyRow label="Calendar" icon={CalendarDotsIcon}>
+                {controls.calendar()}
+              </PropertyRow>
+              <PropertyRow label="Repeats" icon={RepeatIcon}>
+                {controls.recurrence()}
+              </PropertyRow>
+              <PropertyRow label="Notifications" icon={BellSimpleIcon}>
+                {controls.reminders()}
+              </PropertyRow>
+            </section>
+          </div>
           <Show when={outOfOfficeNotice()}>
             {(notice) => (
               <div
@@ -429,22 +452,20 @@ export function EventForm(props: EventFormProps) {
             )}
           </Show>
         </div>
-        <Show when={controller.recurrenceChoice() === 'custom'}>
-          <Layer depth={3}>
-            <div class="rounded-xl bg-surface p-4 text-ink">
-              <RecurrenceBuilder
-                value={controller.customConfig()}
-                start={controller.startForRecurrence()}
-                allDay={state().allDay}
-                disabled={
-                  fieldIsDisabled('recurrence') || editScope() === 'this_event'
-                }
-                onChange={controller.setCustomConfig}
-              />
-            </div>
-          </Layer>
-        </Show>
       </div>
+      <EventRecurrenceDialog
+        open={recurrenceDialogOpen()}
+        onClose={() => setRecurrenceDialogOpen(false)}
+        choice={controller.recurrenceChoice()}
+        config={controller.customConfig()}
+        start={controller.startForRecurrence()}
+        allDay={state().allDay}
+        onDone={(config) => {
+          controller.changeRecurrenceChoice('custom');
+          controller.setCustomConfig(config);
+          setRecurrenceDialogOpen(false);
+        }}
+      />
 
       <Show when={props.saveError}>
         <p role="alert" class="text-sm text-failure">
@@ -480,7 +501,7 @@ export function EventForm(props: EventFormProps) {
         </Button>
         <Button
           type="submit"
-          variant="strong"
+          variant="cta"
           depth={3}
           disabled={!controller.canSave() || formIsDisabled()}
           aria-label={isEdit() ? 'Save' : 'Create event'}

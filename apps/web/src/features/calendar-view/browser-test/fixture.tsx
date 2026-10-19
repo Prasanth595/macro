@@ -3,6 +3,7 @@ import { ChannelsContextProvider } from '@core/context/channels';
 import { EmailLinksContextProvider } from '@core/context/emailLinks';
 import { QuickAccessContextProvider } from '@core/context/quickAccess/context';
 import { UserContextProvider } from '@core/context/user';
+import { isMobile } from '@core/mobile/isMobile';
 import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
 import '@fontsource-variable/inter';
 import '../../../index.css';
@@ -16,31 +17,66 @@ import {
   type CalendarGridHandle,
 } from '../../calendar/components/CalendarGrid';
 import { createCalendarEventFormController } from '../../calendar/components/composer/create-calendar-event-form-controller';
-import { EventForm } from '../../calendar/components/composer/EventForm';
 import {
+  EventForm,
+  type EventFormProps,
+} from '../../calendar/components/composer/EventForm';
+import {
+  calendarEventToEditorInitialValues,
   calendarSelectionToEditorInitialValues,
   defaultEditorInitialValues,
+  type EventEditorSubmitValues,
 } from '../../calendar/components/composer/event-form-model';
+import type { CalendarEvent } from '../../calendar/types';
 import { macroLightTheme } from '../../theme/themes/macro-light';
 import { themeCssVars } from '../../theme/utils/themeColorTokens';
-import { CalendarCreationSurface } from '../components/calendar-creation-surface';
-import {
-  type CalendarCreationDraft,
-  createCalendarCreation,
-} from '../primitives/create-calendar-creation';
+import { CalendarEditorSurface } from '../components/calendar-editor-surface';
 import { createCalendarDraftDismissal } from '../primitives/create-calendar-draft-dismissal';
+import {
+  type CalendarEditorDraft,
+  createCalendarEditor,
+} from '../primitives/create-calendar-editor';
 
 for (const [key, value] of Object.entries(themeCssVars(macroLightTheme)))
   document.documentElement.style.setProperty(key, value);
 
+const exampleEvent: CalendarEvent = {
+  id: 'fixture-occurrence',
+  eventId: 'fixture-event',
+  occurrenceKey: '2030-10-21T10:00:00',
+  isCancelled: false,
+  isReadOnly: false,
+  eventType: 'default',
+  calendarId: 'personal',
+  sourceCalendarIds: ['personal'],
+  recurrenceLines: ['RRULE:FREQ=WEEKLY;BYDAY=MO'],
+  attendees: [],
+  title: 'Weekly design review',
+  description: 'Existing agenda',
+  location: 'Design studio',
+  start: '2030-10-21T10:00:00',
+  end: '2030-10-21T11:00:00',
+  allDay: false,
+  calendar: {
+    id: 'personal',
+    name: 'Personal',
+    color: '#4285f4',
+    isPrimary: true,
+  },
+  visibleCalendars: [],
+};
 function Fixture() {
-  const creation = createCalendarCreation();
+  const composer = createCalendarEditor();
   const [boundary, setBoundary] = createSignal<HTMLDivElement>();
   const [period, setPeriod] = createSignal(0);
   const [grid, setGrid] = createSignal<CalendarGridHandle>();
   const [month, setMonth] = createSignal(false);
+  const [submitted, setSubmitted] = createSignal<{
+    values: EventEditorSubmitValues;
+    scope?: string;
+  }>();
   const openSlot = (event: MouseEvent) =>
-    creation.open({
+    composer.open({
       initialValues: defaultEditorInitialValues(
         new Date('2030-10-21T10:00:00')
       ),
@@ -51,7 +87,7 @@ function Fixture() {
     <div class="flex h-dvh flex-col bg-page p-4 text-ink">
       <ImperativeDialogHost />
       <header class="flex shrink-0 gap-2 pb-4">
-        <Button onClick={() => creation.open()}>Create event</Button>
+        <Button onClick={() => composer.open()}>Create event</Button>
         <Button
           onClick={() => {
             grid()?.api()?.next();
@@ -72,6 +108,9 @@ function Fixture() {
           Change period
         </Button>
         <span>Week {period()}</span>
+        <output aria-label="Saved event" class="sr-only">
+          {JSON.stringify(submitted())}
+        </output>
       </header>
       <div
         ref={setBoundary}
@@ -81,9 +120,19 @@ function Fixture() {
           class="flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden"
           aria-label="Calendar grid"
         >
-          <div class="flex shrink-0 gap-2 p-2">
+          <div class="flex shrink-0 flex-wrap gap-2 p-2">
             <Button onClick={openSlot}>Select 10 AM</Button>
             <Button onClick={openSlot}>Select another timeslot</Button>
+            <Button
+              onClick={(event) =>
+                composer.open({
+                  event: exampleEvent,
+                  anchor: event.currentTarget.getBoundingClientRect(),
+                })
+              }
+            >
+              Edit example event
+            </Button>
           </div>
           <div class="min-h-0 flex-1">
             <CalendarGrid
@@ -100,10 +149,10 @@ function Fixture() {
               }}
               selection={{
                 color: '#4285f4',
-                allowDateSelection: () => !creation.draft(),
+                allowDateSelection: () => !composer.draft(),
                 onDateSelect: (selection) => {
                   const pointer = selection.jsEvent;
-                  creation.open({
+                  composer.open({
                     initialValues:
                       calendarSelectionToEditorInitialValues(selection),
                     anchor: {
@@ -124,16 +173,17 @@ function Fixture() {
             </CalendarGrid>
           </div>
         </main>
-        <Show keyed when={creation.draft()}>
+        <Show keyed when={composer.draft()}>
           {(draft) => (
             <Show when={boundary()}>
               {(element) => (
                 <FixtureEditor
                   boundary={element()}
                   draft={draft}
-                  surface={creation.surface()}
-                  onMoveToSidebar={creation.moveToSidebar}
-                  onClose={creation.close}
+                  surface={composer.surface()}
+                  onMoveToSidebar={composer.moveToSidebar}
+                  onClose={composer.close}
+                  onSubmit={(values, scope) => setSubmitted({ values, scope })}
                 />
               )}
             </Show>
@@ -146,10 +196,11 @@ function Fixture() {
 
 function FixtureEditor(props: {
   boundary: HTMLElement;
-  draft: CalendarCreationDraft;
+  draft: CalendarEditorDraft;
   surface: 'popover' | 'sidebar';
   onMoveToSidebar: () => void;
   onClose: () => void;
+  onSubmit: EventFormProps['onSubmit'];
 }) {
   const owner = getOwner();
   const calendars = [
@@ -165,8 +216,12 @@ function FixtureEditor(props: {
   ];
   const controller = createCalendarEventFormController({
     initialValue:
+      (props.draft.event
+        ? calendarEventToEditorInitialValues(props.draft.event)
+        : undefined) ??
       props.draft.initialValues ??
       defaultEditorInitialValues(new Date('2030-10-21T10:00:00')),
+    isEdit: props.draft.event !== undefined,
     calendarOptions: () => calendars,
     guestOptions: () => guests,
   });
@@ -188,19 +243,26 @@ function FixtureEditor(props: {
   const close = async () => {
     if (await mayDismiss()) props.onClose();
   };
-  const requestClose = () =>
-    fireAndForget(close(), 'calendar-creation-fixture');
+  const requestClose = () => fireAndForget(close(), 'calendar-editor-fixture');
   return (
-    <CalendarCreationSurface {...props} pending={false} onClose={requestClose}>
+    <CalendarEditorSurface {...props} pending={false} onClose={requestClose}>
       <EventForm
-        layout="details"
+        showDateRange={isMobile() || props.surface !== 'popover'}
         controller={controller}
         macroCallsEnabled
+        isEdit={props.draft.event !== undefined}
+        disabledFields={props.draft.event ? { calendar: true } : undefined}
+        showRecurringEditNotice={Boolean(
+          props.draft.event?.recurrenceLines.length
+        )}
         pending={false}
         onCancel={requestClose}
-        onSubmit={() => props.onClose()}
+        onSubmit={(values, scope) => {
+          props.onSubmit(values, scope);
+          props.onClose();
+        }}
       />
-    </CalendarCreationSurface>
+    </CalendarEditorSurface>
   );
 }
 

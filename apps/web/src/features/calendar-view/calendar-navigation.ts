@@ -40,7 +40,7 @@ export function calendarViewContent(
     })
   );
   const params: CalendarViewTarget | undefined =
-    eventId || target.creationRequest
+    eventId || target.editorRequest
       ? {
           ...(eventId
             ? {
@@ -50,8 +50,8 @@ export function calendarViewContent(
                 focusRequestId: nextFocusRequestId++,
               }
             : {}),
-          ...(target.creationRequest
-            ? { creationRequest: target.creationRequest }
+          ...(target.editorRequest
+            ? { editorRequest: target.editorRequest }
             : {}),
         }
       : undefined;

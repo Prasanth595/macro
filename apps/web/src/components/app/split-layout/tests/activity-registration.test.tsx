@@ -124,7 +124,6 @@ vi.mock('@app/features/tasks-view/components/TasksDetailView', () => ({
   TasksDetailRouteView: () => null,
 }));
 vi.mock('@app/signal/splitLayout', () => ({}));
-vi.mock('@block-calendar/components/EventComposerSplit', () => ({}));
 vi.mock('@block-channel/component/Compose', () => ({}));
 vi.mock('@block-md/component/ComposeSkill', () => ({}));
 vi.mock('@block-md/component/ComposeTask', () => ({}));

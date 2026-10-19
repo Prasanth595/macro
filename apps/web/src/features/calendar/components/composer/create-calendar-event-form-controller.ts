@@ -1,4 +1,5 @@
 import type { OutOfOfficeProperties } from '@service-calendar/generated/schemas/outOfOfficeProperties';
+import type { CalendarUpdateScope } from '@service-email/client';
 import { type Accessor, batch, createMemo, createSignal } from 'solid-js';
 import {
   buildReminderOverrides,
@@ -140,6 +141,8 @@ export function createCalendarEventFormController(
     cloneValue(options.initialValue)
   );
   const [state, setState] = createSignal(cloneValue(options.initialValue));
+  // Save policy belongs to the draft, not a disposable popover or sidebar form.
+  const [editScope, setEditScope] = createSignal<CalendarUpdateScope>('all');
 
   const initialGuests = initialGuestOptions(
     options.initialValue.guests,
@@ -507,6 +510,7 @@ export function createCalendarEventFormController(
       setInitialGuestEmails(guests.map(guestEmail));
       setSelectedGuestsState(guests);
       setReminderEdits(undefined);
+      setEditScope('all');
       recurrence.replaceInitialValues(cloned);
     });
   };
@@ -514,6 +518,8 @@ export function createCalendarEventFormController(
   return {
     state,
     value,
+    editScope,
+    setEditScope,
     calendarOptions: availableCalendarOptions,
     guestOptions: options.guestOptions,
     selectedGuests,

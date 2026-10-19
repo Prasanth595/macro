@@ -29,10 +29,13 @@ import {
   Suspense,
   Switch,
 } from 'solid-js';
-import { CalendarCreationProvider } from '../context/calendar-creation-context';
+import {
+  CalendarEditorProvider,
+  useCalendarEditor,
+} from '../context/calendar-editor-context';
 import { CALENDAR_TOUR, calendarTour } from '../tour';
 import type { CalendarViewTarget } from '../types';
-import { CalendarEventCreation } from '../views/calendar-event-creation';
+import { CalendarEventComposer } from '../views/calendar-event-composer';
 import { CalendarSidebar } from './CalendarSidebar';
 import { Header } from './Header';
 import { Page } from './Page';
@@ -45,6 +48,7 @@ const CALENDAR_SWIPE_EDGE_INSET = 40;
 function CalendarPages() {
   const calendarView = useCalendarView();
   const calendarPager = useCalendarPager();
+  const composer = useCalendarEditor();
   const [viewport, setViewport] = createSignal<HTMLDivElement>();
   const viewportSize = createElementSize(viewport);
   const breakpoints = createSizeBreakpoints(
@@ -114,6 +118,10 @@ function CalendarPages() {
                 event={calendarView.selectedEvent}
                 timeFormat={() => calendarView.displaySettings.timeFormat}
                 onClose={calendarView.closeEventDetails}
+                onEdit={(event, anchor) => {
+                  if (!composer.open({ event, anchor }))
+                    composer.moveToSidebar();
+                }}
               />
             )}
           </Show>
@@ -149,7 +157,7 @@ function CalendarPageContent() {
     >
       <CalendarPages />
       <Show when={boundary()}>
-        {(element) => <CalendarEventCreation boundary={element()} />}
+        {(element) => <CalendarEventComposer boundary={element()} />}
       </Show>
     </div>
   );
@@ -209,12 +217,12 @@ function CalendarPagerWorkspace() {
 }
 
 export function Workspace(
-  props: { creationRequest?: CalendarViewTarget['creationRequest'] } = {}
+  props: { editorRequest?: CalendarViewTarget['editorRequest'] } = {}
 ) {
   const calendarView = useCalendarView();
 
   return (
-    <CalendarCreationProvider request={props.creationRequest}>
+    <CalendarEditorProvider request={props.editorRequest}>
       <CalendarPagerContextProvider
         initialView={calendarView.displaySettings.periodView}
         showWeekends={() => calendarView.displaySettings.showWeekends}
@@ -224,6 +232,6 @@ export function Workspace(
       >
         <CalendarPagerWorkspace />
       </CalendarPagerContextProvider>
-    </CalendarCreationProvider>
+    </CalendarEditorProvider>
   );
 }

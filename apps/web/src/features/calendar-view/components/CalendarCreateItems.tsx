@@ -4,19 +4,19 @@ import PhoneIcon from '@phosphor/phone.svg';
 import { useNavigate } from '@solidjs/router';
 import { Dropdown } from '@ui';
 import { Show } from 'solid-js';
-import { useCalendarCreation } from '../context/calendar-creation-context';
+import { useCalendarEditor } from '../context/calendar-editor-context';
 
 type CreateItemProps = { onSelect?: () => void };
 
 export function CalendarCreateEventItem(props: CreateItemProps) {
-  const creation = useCalendarCreation();
+  const composer = useCalendarEditor();
 
   return (
     <Dropdown.Item
       closeOnSelect
       onSelect={() => {
         props.onSelect?.();
-        if (!creation.open()) creation.moveToSidebar();
+        if (!composer.open()) composer.moveToSidebar();
       }}
     >
       <CalendarIcon class="size-4" />

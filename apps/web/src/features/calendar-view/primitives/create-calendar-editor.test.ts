@@ -2,51 +2,51 @@ import { createComponent, createRoot } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  CalendarCreationProvider,
-  useCalendarCreation,
-} from '../context/calendar-creation-context';
-import {
-  createCalendarCreation,
-  createCalendarCreationRequest,
-} from './create-calendar-creation';
+  CalendarEditorProvider,
+  useCalendarEditor,
+} from '../context/calendar-editor-context';
 import { createCalendarDraftDismissal } from './create-calendar-draft-dismissal';
+import {
+  createCalendarEditor,
+  createCalendarEditorRequest,
+} from './create-calendar-editor';
 
-describe('calendar creation draft', () => {
+describe('calendar composer draft', () => {
   it('keeps the current draft when another timeslot or create action is selected', () => {
     createRoot((dispose) => {
-      const creation = createCalendarCreation();
+      const composer = createCalendarEditor();
       const draft = { anchor: { x: 100, y: 200, width: 80, height: 30 } };
-      expect(creation.open(draft)).toBe(true);
-      expect(creation.surface()).toBe('popover');
+      expect(composer.open(draft)).toBe(true);
+      expect(composer.surface()).toBe('popover');
       expect(
-        creation.open({ anchor: { x: 400, y: 500, width: 80, height: 30 } })
+        composer.open({ anchor: { x: 400, y: 500, width: 80, height: 30 } })
       ).toBe(false);
-      expect(creation.open()).toBe(false);
-      expect(creation.draft()).toBe(draft);
-      expect(creation.surface()).toBe('popover');
+      expect(composer.open()).toBe(false);
+      expect(composer.draft()).toBe(draft);
+      expect(composer.surface()).toBe('popover');
       dispose();
     });
   });
 
   it('moves the same draft to the sidebar without closing and cleans up only once', () => {
     createRoot((dispose) => {
-      const creation = createCalendarCreation();
+      const composer = createCalendarEditor();
       const onClose = vi.fn();
       const draft = {
         anchor: { x: 100, y: 200, width: 80, height: 30 },
         onClose,
       };
-      creation.open(draft);
-      creation.moveToSidebar();
-      expect(creation.draft()).toBe(draft);
-      expect(creation.surface()).toBe('sidebar');
+      composer.open(draft);
+      composer.moveToSidebar();
+      expect(composer.draft()).toBe(draft);
+      expect(composer.surface()).toBe('sidebar');
       expect(onClose).not.toHaveBeenCalled();
-      creation.close();
-      creation.close();
+      composer.close();
+      composer.close();
       expect(onClose).toHaveBeenCalledOnce();
-      expect(creation.draft()).toBeUndefined();
-      creation.open();
-      expect(creation.surface()).toBe('sidebar');
+      expect(composer.draft()).toBeUndefined();
+      composer.open();
+      expect(composer.surface()).toBe('sidebar');
       dispose();
     });
   });
@@ -54,55 +54,55 @@ describe('calendar creation draft', () => {
     const onCalendarChange = vi.fn();
     const onClose = vi.fn();
     const [entry] = createStore({
-      request: createCalendarCreationRequest({ onCalendarChange, onClose }),
+      request: createCalendarEditorRequest({ onCalendarChange, onClose }),
     });
     const request = entry.request;
     const first = createRoot((dispose) => {
-      let creation: ReturnType<typeof useCalendarCreation> | undefined;
-      createComponent(CalendarCreationProvider, {
+      let composer: ReturnType<typeof useCalendarEditor> | undefined;
+      createComponent(CalendarEditorProvider, {
         request,
         get children() {
-          creation = useCalendarCreation();
+          composer = useCalendarEditor();
           return null;
         },
       });
       return {
-        get creation() {
-          return creation;
+        get composer() {
+          return composer;
         },
         dispose,
       };
     });
     try {
-      expect(first.creation?.draft()).toBeDefined();
-      first.creation?.draft()?.onCalendarChange?.('work', '#123456');
+      expect(first.composer?.draft()).toBeDefined();
+      first.composer?.draft()?.onCalendarChange?.('work', '#123456');
       expect(onCalendarChange).toHaveBeenCalledWith('work', '#123456');
       expect(request.consume()).toBe(false);
-      first.creation?.close();
-      first.creation?.close();
+      first.composer?.close();
+      first.composer?.close();
       expect(onClose).toHaveBeenCalledOnce();
     } finally {
       first.dispose();
     }
     const remounted = createRoot((dispose) => {
-      let creation: ReturnType<typeof useCalendarCreation> | undefined;
-      createComponent(CalendarCreationProvider, {
+      let composer: ReturnType<typeof useCalendarEditor> | undefined;
+      createComponent(CalendarEditorProvider, {
         request,
         get children() {
-          creation = useCalendarCreation();
+          composer = useCalendarEditor();
           return null;
         },
       });
       return {
-        get creation() {
-          return creation;
+        get composer() {
+          return composer;
         },
         dispose,
       };
     });
     try {
-      expect(remounted.creation).toBeDefined();
-      expect(remounted.creation?.draft()).toBeUndefined();
+      expect(remounted.composer).toBeDefined();
+      expect(remounted.composer?.draft()).toBeUndefined();
       expect(request.consume()).toBe(false);
       expect(onClose).toHaveBeenCalledOnce();
     } finally {

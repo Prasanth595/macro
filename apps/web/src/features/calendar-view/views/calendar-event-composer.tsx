@@ -16,32 +16,32 @@ import {
   Show,
   Suspense,
 } from 'solid-js';
-import { CalendarCreationSurface } from '../components/calendar-creation-surface';
-import { useCalendarCreation } from '../context/calendar-creation-context';
-import type { CalendarCreationDraft } from '../primitives/create-calendar-creation';
+import { CalendarEditorSurface } from '../components/calendar-editor-surface';
+import { useCalendarEditor } from '../context/calendar-editor-context';
 import { createCalendarDraftDismissal } from '../primitives/create-calendar-draft-dismissal';
+import type { CalendarEditorDraft } from '../primitives/create-calendar-editor';
 
 /** The controller and mutation state survive every presentation change. */
-export function CalendarEventCreation(props: { boundary: HTMLElement }) {
-  const creation = useCalendarCreation();
+export function CalendarEventComposer(props: { boundary: HTMLElement }) {
+  const composer = useCalendarEditor();
   return (
-    <Show keyed when={creation.draft()}>
+    <Show keyed when={composer.draft()}>
       {(draft) => (
         <Suspense
           fallback={
-            <CalendarCreationLoading boundary={props.boundary} draft={draft} />
+            <CalendarEditorLoading boundary={props.boundary} draft={draft} />
           }
         >
-          <CalendarCreationReady boundary={props.boundary} draft={draft} />
+          <CalendarEditorReady boundary={props.boundary} draft={draft} />
         </Suspense>
       )}
     </Show>
   );
 }
 
-function CalendarCreationReady(props: {
+function CalendarEditorReady(props: {
   boundary: HTMLElement;
-  draft: CalendarCreationDraft;
+  draft: CalendarEditorDraft;
 }) {
   const quickCalls = useQuickCallsFlag();
   const ready = createMemo(
@@ -49,8 +49,8 @@ function CalendarCreationReady(props: {
     false
   );
   return (
-    <Show when={ready()} fallback={<CalendarCreationLoading {...props} />}>
-      <CalendarCreationEditor
+    <Show when={ready()} fallback={<CalendarEditorLoading {...props} />}>
+      <CalendarEditorContent
         {...props}
         macroCallsEnabled={() => quickCalls().enabled && !quickCalls().loading}
       />
@@ -58,51 +58,55 @@ function CalendarCreationReady(props: {
   );
 }
 
-function CalendarCreationLoading(props: {
+function CalendarEditorLoading(props: {
   boundary: HTMLElement;
-  draft: CalendarCreationDraft;
+  draft: CalendarEditorDraft;
 }) {
-  const creation = useCalendarCreation();
+  const composer = useCalendarEditor();
   return (
-    <CalendarCreationSurface
+    <CalendarEditorSurface
       {...props}
-      surface={creation.surface()}
+      surface={composer.surface()}
       pending={false}
-      onClose={creation.close}
-      onMoveToSidebar={creation.moveToSidebar}
+      onClose={composer.close}
+      onMoveToSidebar={composer.moveToSidebar}
     >
       <p role="status" class="p-4">
         Loading event…
       </p>
-    </CalendarCreationSurface>
+    </CalendarEditorSurface>
   );
 }
 
-function CalendarCreationEditor(props: {
+function CalendarEditorContent(props: {
   boundary: HTMLElement;
-  draft: CalendarCreationDraft;
+  draft: CalendarEditorDraft;
   macroCallsEnabled: Accessor<boolean>;
 }) {
-  const creation = useCalendarCreation();
+  const composer = useCalendarEditor();
   const owner = getOwner();
   const opener = document.activeElement;
   let saved = false;
   const editor = useEventEditor({
-    event: () => undefined,
+    event: () => props.draft.event,
     macroCallsEnabled: props.macroCallsEnabled,
     onSaved: () => {
       saved = true;
-      creation.close();
+      composer.close();
     },
   });
   const initial =
+    editor.initialValues() ??
     props.draft.initialValues ??
     defaultEditorInitialValues(new Date(), props.macroCallsEnabled());
   const controller = createCalendarEventFormController({
     initialValue:
-      initial.conference === 'macro' && !props.macroCallsEnabled()
+      !props.draft.event &&
+      initial.conference === 'macro' &&
+      !props.macroCallsEnabled()
         ? { ...initial, conference: 'none' }
         : initial,
+    isEdit: props.draft.event !== undefined,
     calendarOptions: editor.calendarOptions,
     guestOptions: editor.guestOptions,
   });
@@ -122,9 +126,9 @@ function CalendarCreationEditor(props: {
       ),
   });
   const close = async () => {
-    if (await mayDismiss()) creation.close();
+    if (await mayDismiss()) composer.close();
   };
-  const requestClose = () => fireAndForget(close(), 'calendar-event-creation');
+  const requestClose = () => fireAndForget(close(), 'calendar-event-composer');
   useBeforeLeave(() => mayDismiss());
   const beforeUnload = (event: BeforeUnloadEvent) => {
     if (!controller.isDirty() && !editor.pending()) return;
@@ -138,42 +142,50 @@ function CalendarCreationEditor(props: {
   });
 
   return (
-    <CalendarCreationSurface
+    <CalendarEditorSurface
       boundary={props.boundary}
       draft={props.draft}
-      surface={creation.surface()}
+      surface={composer.surface()}
       pending={editor.pending()}
       onClose={requestClose}
-      onMoveToSidebar={creation.moveToSidebar}
+      onMoveToSidebar={composer.moveToSidebar}
     >
       <EventForm
-        layout="details"
+        showDateRange={isMobile() || composer.surface() !== 'popover'}
         controller={controller}
         macroCallsEnabled={props.macroCallsEnabled()}
-        isEdit={editor.eventCreated()}
+        isEdit={props.draft.event !== undefined || editor.eventCreated()}
         saveError={editor.saveError()}
         disabledFields={editor.disabledFields()}
+        showRecurringEditNotice={editor.showRecurringEditNotice()}
         pending={editor.pending()}
         onCalendarChange={props.draft.onCalendarChange}
         onCancel={requestClose}
         onSubmit={(values, scope) =>
           fireAndForget(
-            Telemetry.span('calendar.event.create', async (span) => {
-              span.setAttr(
-                'calendar.surface',
-                isMobile() ? 'sheet' : creation.surface()
-              );
-              if (values.calendarId)
-                span.setAttr('calendar.id', values.calendarId);
-              await editor.save(values, scope);
-              span.setAttr('calendar.saved', saved);
-              if (!saved)
-                span.error(editor.saveError() ?? 'Event creation failed');
-            }),
-            'calendar-event-creation'
+            Telemetry.span(
+              props.draft.event
+                ? 'calendar.event.update'
+                : 'calendar.event.create',
+              async (span) => {
+                span.setAttr(
+                  'calendar.surface',
+                  isMobile() ? 'sheet' : composer.surface()
+                );
+                if (values.calendarId)
+                  span.setAttr('calendar.id', values.calendarId);
+                if (props.draft.event)
+                  span.setAttr('calendar.event.id', props.draft.event.eventId);
+                await editor.save(values, scope);
+                span.setAttr('calendar.saved', saved);
+                if (!saved)
+                  span.error(editor.saveError() ?? 'Event composer failed');
+              }
+            ),
+            'calendar-event-composer'
           )
         }
       />
-    </CalendarCreationSurface>
+    </CalendarEditorSurface>
   );
 }
