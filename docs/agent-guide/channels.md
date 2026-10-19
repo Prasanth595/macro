@@ -599,7 +599,10 @@ On a cold channel open, verify that delayed bot/agent mention requests leave the
 messages and composer visible. Expand a thread while its replies are still
 loading: existing preview replies should remain visible until the full list
 arrives. Repeat after reopening the channel to cover both cold and cached data.
-For PR mentions, also fail a GitHub connection-status request, then paste a
+For PR mentions, also fail a GitHub connection-status request, scroll through
+virtualized rows repeatedly, and verify remounts make no new status requests.
+An explicit retry or completed OAuth must still refresh the status, even if all
+mentions have unmounted. Then paste a
 mention while the retry is held pending. The composer must stay visible and
 focused, and messages containing PR mentions must render immediately. Resolve
 the retry as linked, unlinked, or failed: none should hide the surrounding UI;

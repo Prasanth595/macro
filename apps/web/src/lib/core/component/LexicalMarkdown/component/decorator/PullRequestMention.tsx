@@ -554,6 +554,8 @@ export function PullRequestMention(props: PullRequestMentionDecoratorProps) {
 
   const githubLinkQuery = useGithubLinkStatusQuery({
     enabled: () => !lexicalWrapper?.skipPreviewFetch,
+    // Virtualized rows remount while scrolling; they should not retry failures.
+    retryOnMount: false,
   });
 
   const isSelectedAsNode = () => {
@@ -575,6 +577,7 @@ export function PullRequestMention(props: PullRequestMentionDecoratorProps) {
     // Reading its pending data would suspend the surrounding composer/message.
     return !!(
       props.url &&
+      !githubLinkQuery.isError &&
       queryReadyGate(githubLinkQuery) &&
       githubLinkQuery.data.status !== 'linked'
     );

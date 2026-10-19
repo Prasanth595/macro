@@ -1,4 +1,7 @@
-import { githubLinkStatusQueryOptions } from '@queries/auth/github-link';
+import {
+  githubLinkStatusQueryOptions,
+  invalidateGithubLinkStatus,
+} from '@queries/auth/github-link';
 import type { authServiceClient } from '@service-auth/client';
 import { cleanup, render, screen } from '@solidjs/testing-library';
 import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
@@ -113,6 +116,13 @@ describe('PR mention connection-status suspense', () => {
       composer.focus();
       setInserted(true);
 
+      expect(checkGithubLinkStatus).toHaveBeenCalledTimes(1);
+      setInserted(false);
+      setInserted(true);
+      expect(checkGithubLinkStatus).toHaveBeenCalledTimes(1);
+
+      // An explicit retry still works and must not suspend either surface.
+      const settled = client.fetchQuery(githubLinkStatusQueryOptions());
       expect(checkGithubLinkStatus).toHaveBeenCalledTimes(2);
       expect(screen.getByRole('textbox')).toBe(composer);
       expect(document.activeElement).toBe(composer);
@@ -134,7 +144,6 @@ describe('PR mention connection-status suspense', () => {
                 message: 'Connection status unavailable',
               } as const,
             ]);
-      const settled = client.fetchQuery(githubLinkStatusQueryOptions());
       retry.resolve(response);
       if (outcome === 'error') {
         await expect(settled).rejects.toThrow();
@@ -156,4 +165,29 @@ describe('PR mention connection-status suspense', () => {
       ).toBe(outcome !== 'unlinked');
     }
   );
+});
+
+it('refreshes a failed inactive status query after OAuth completes', async () => {
+  checkGithubLinkStatus.mockResolvedValueOnce(
+    err([{ code: 'HTTP_ERROR', message: 'Connection status unavailable' }])
+  );
+  await expect(
+    client.fetchQuery(githubLinkStatusQueryOptions())
+  ).rejects.toThrow();
+  checkGithubLinkStatus.mockResolvedValueOnce(
+    ok({
+      github_user_id: '123',
+      github_username: 'macro-user',
+      reauthentication_required: false,
+    })
+  );
+
+  await invalidateGithubLinkStatus();
+
+  expect(checkGithubLinkStatus).toHaveBeenCalledTimes(2);
+  expect(client.getQueryData(githubLinkStatusQueryOptions().queryKey)).toEqual({
+    status: 'linked',
+    username: 'macro-user',
+    userId: '123',
+  });
 });

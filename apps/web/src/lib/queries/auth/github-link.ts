@@ -24,6 +24,7 @@ type UseGithubLinkStatusQueryOptions = {
   enabled?: boolean | (() => boolean);
   refetchInterval?: number;
   refetchOnMount?: 'always';
+  retryOnMount?: boolean;
 };
 
 function hasReauthenticationError(
@@ -81,6 +82,7 @@ export function useGithubLinkStatusQuery(
       enabled,
       refetchInterval: options?.refetchInterval,
       refetchOnMount: options?.refetchOnMount,
+      retryOnMount: options?.retryOnMount,
     };
   });
 }
@@ -88,6 +90,7 @@ export function useGithubLinkStatusQuery(
 export function invalidateGithubLinkStatus() {
   return queryClient.invalidateQueries({
     queryKey: authKeys.githubLinkStatus.queryKey,
+    refetchType: 'all',
   });
 }
 
