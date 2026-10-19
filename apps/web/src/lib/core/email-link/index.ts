@@ -7,6 +7,7 @@ import {
 import { toast } from '@core/component/Toast/Toast';
 import { PaywallKey, usePaywallState } from '@core/constant/PaywallState';
 import { isNativeMobilePlatform } from '@core/mobile/isNativeMobilePlatform';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { isPlatform } from '@core/util/platform';
 import { Telemetry } from '@macro-inc/observability';
 import { useInitGmailLink } from '@queries/auth';
@@ -260,7 +261,8 @@ export function useAddInboxFlow() {
           requestShareInboxConfirmation({
             emailAddress: error.emailAddress,
             ownerEmail: error.ownerEmail,
-            onShare: () => void completeNativeLink(linkId, true),
+            onShare: () =>
+              fireAndForget(completeNativeLink(linkId, true), 'add-inbox'),
           });
           return;
         }
