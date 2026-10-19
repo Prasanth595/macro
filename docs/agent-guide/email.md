@@ -324,7 +324,7 @@ email title menu: open the menu button beside the subject for **Ask AI**, **Crea
 Task**, and the other thread actions. On desktop, **Mark as unread**, **Mark done**,
 and reminders share one outlined group at the right of that header. Separate
 groups contain **Previous item** / **Next item**, icon-only **Ask Macro** / **Create
-task**, and the **Share** label / copy-link icon. Mobile keeps its existing
+task**, and the **Share** icon and label / copy-link icon. Mobile keeps its existing
 controls. The arrows
 follow the current filtered list and disable at its ends. Mark done advances in
 that list. In a list, the Mark done, Mark as not done and Delete keys act once per
