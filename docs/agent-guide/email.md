@@ -28,8 +28,12 @@ and switch the mailbox to All. Parent selection does not include descendant tags
 Unlike Calls, it lists only personal tags; team-shared tags are hidden,
 and its `New tag` action creates a personal tag with no Team sharing option.
 
-Full email client. Tabs: `Signal` / `Noise` / `Favorites` / `Sent` / `Scheduled` / `Calendar` / `Drafts` / `Shared` /
-`Archived` / `All`. Compose via the `Email` button (or `Create` → `Email E`). On a fresh local user it
+Full email client. Desktop groups `Signal` and `Noise` under one `Inbox` sidebar
+item, with tabs beside the Inbox title in the content header. Selecting Inbox
+from another mailbox opens Signal; selecting it while in Noise keeps Noise.
+Other mailboxes are `Favorites` / `Sent` / `Scheduled` / `Calendar` / `Drafts` /
+`Shared` / `Archived` / `All`. Mobile keeps Signal and Noise as separate tabs.
+Compose via the `Email` button (or `Create` → `Email E`). On a fresh local user it
 shows `Connect your email`; Gmail/Google Workspace and enabled Outlook connections
 use provider consent. Most functionality needs a connected account. Search is `Ctrl+F` within the surface.
 
@@ -61,8 +65,8 @@ query: load more threads from the same address, then check that existing row
 names and their hover cards do not change. Repeat with a text query to exercise
 the search-service results.
 
-`Favorites`, directly below Noise, lists starred Macro emails across Signal,
-Noise, and archived mail. It respects the selected inboxes and filters; search
+`Favorites`, directly below Inbox on desktop, lists starred Macro emails across
+Signal, Noise, and archived mail. It respects the selected inboxes and filters; search
 within the tab is also restricted to favorites. Removing a star removes the row
 from this view. The tab persists across reloads. With `enable-graphql-soup` on,
 the paginated GraphQL Soup query uses `favoritesOnly: true`. With the flag off,
@@ -311,7 +315,7 @@ not replace it), and that after j/k the grid still has focus: the next Enter
 moves into the reader without opening a reply.
 
 In the new Email view, ordinary row activation opens the thread inside
-`/app/component/mail`; the view breadcrumb (for example Signal) has a hover
+`/app/component/mail`; the view breadcrumb (for example Inbox) has a hover
 background and returns to the filtered list. Pressing `Escape` in the open thread
 with focus outside any input does the same once there is nothing left to unwind
 (an open reply, an expanded body, or a focused message each take one `Escape`
@@ -697,9 +701,10 @@ and swiping left to mark emails done in Signal and Noise. The filter button open
 glass bottom sheet for status, done, attachment, calendar and tag filters, plus an `Inbox`
 section when the user can pick one: `All inboxes` or a single address, never several.
 `Clear all` resets those filters and the inbox selection. Desktop keeps its sidebar,
-single-row header: title, inbox/filter controls, reading-pane option, New,
-and an expandable Search icon. Its outlined `New` button also sits directly
-below the sidebar title, above the inboxes. Inbox rows select only that inbox.
+single-row header: title (with Signal/Noise tabs beside Inbox), inbox/filter
+controls, reading-pane option, New, and an expandable Search icon. Its outlined
+`New` button also sits directly
+below the sidebar title, above the accounts. Account rows select only that inbox.
 `Connect another account` starts the add-inbox flow from its own row below the
 scrolling list. `New email` prefills From with the selected inbox, or the primary
 inbox when All inboxes is selected; reopening a draft keeps its saved sender.

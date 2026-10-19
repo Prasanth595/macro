@@ -9,6 +9,8 @@ import {
 import { ViewCreateButton } from '@app/components/view-shell/ViewCreateButton';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import { Tabs } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
 import { createSignal, Show } from 'solid-js';
 import { composeEmail } from '../compose-email';
@@ -25,8 +27,12 @@ export type EmailHeaderProps = {
 
 export function EmailViewBreadcrumbItem() {
   const { state } = useEmailView();
+  const inboxSelected = () =>
+    !isTouchDevice() && (state.tab === 'important' || state.tab === 'noise');
   const tabTitle = () =>
-    EMAIL_TABS.find((tab) => tab.id === state.tab)?.label ?? 'Email';
+    inboxSelected()
+      ? 'Inbox'
+      : (EMAIL_TABS.find((tab) => tab.id === state.tab)?.label ?? 'Email');
 
   return (
     <ViewBreadcrumbs.Item
@@ -43,7 +49,9 @@ export function EmailViewBreadcrumbItem() {
           <span class="truncate @max-[720px]/view-shell:hidden">
             {tabTitle()}
           </span>
-          <span class="hidden @max-[720px]/view-shell:inline">Email</span>
+          <span class="hidden @max-[720px]/view-shell:inline">
+            {inboxSelected() ? 'Inbox' : 'Email'}
+          </span>
         </ViewBreadcrumbs.Button>
       )}
     </ViewBreadcrumbs.Item>
@@ -53,12 +61,16 @@ export function EmailViewBreadcrumbItem() {
 export function EmailHeader(props: EmailHeaderProps) {
   const panel = useSplitPanelOrThrow();
   const { openWithSplit } = useSplitLayout();
-  const { state, setState } = useEmailView();
+  const { state, setState, setTab } = useEmailView();
   const [filterOpen, setFilterOpen] = createSignal(false);
   let focusSearch: (() => void) | undefined;
   const searchTarget = tourTarget(EMAIL_TOUR.search);
+  const inboxSelected = () =>
+    state.tab === 'important' || state.tab === 'noise';
   const selectedTabLabel = () =>
-    EMAIL_TABS.find((tab) => tab.id === state.tab)?.label ?? 'Email';
+    inboxSelected()
+      ? 'Inbox'
+      : (EMAIL_TABS.find((tab) => tab.id === state.tab)?.label ?? 'Email');
 
   // The view's control hotkeys are registered once, here, for the split scope.
   useViewControlHotkeys({
@@ -85,14 +97,34 @@ export function EmailHeader(props: EmailHeaderProps) {
   return (
     <ListHeader
       title={
-        <Show
-          when={props.tabOnly}
-          fallback={<ViewBreadcrumbs.Outlet aria-label="Email location" />}
-        >
-          <h2 class="truncate px-1 text-sm font-medium text-ink">
-            {selectedTabLabel()}
-          </h2>
-        </Show>
+        <div class="flex min-w-0 items-center gap-3">
+          <div class="min-w-0">
+            <Show
+              when={props.tabOnly}
+              fallback={<ViewBreadcrumbs.Outlet aria-label="Email location" />}
+            >
+              <h2 class="truncate px-1 text-sm font-medium text-ink">
+                {selectedTabLabel()}
+              </h2>
+            </Show>
+          </div>
+          <Show when={inboxSelected()}>
+            <Tabs
+              ref={tourTarget(EMAIL_TOUR.signalNoise)}
+              aria-label="Inbox view"
+              class="shrink-0"
+              labelClass="px-3"
+              list={EMAIL_TABS.slice(0, 2).map((tab) => ({
+                value: tab.id,
+                label: tab.label,
+              }))}
+              value={state.tab}
+              onChange={(tab) => {
+                if (tab === 'important' || tab === 'noise') setTab(tab);
+              }}
+            />
+          </Show>
+        </div>
       }
     >
       <Show when={state.tab !== 'scheduled'}>

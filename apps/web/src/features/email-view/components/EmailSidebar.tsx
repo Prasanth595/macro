@@ -17,6 +17,7 @@ import EnvelopeIcon from '@phosphor/envelope.svg';
 import FileIcon from '@phosphor/file.svg';
 import PaperPlaneTiltIcon from '@phosphor/paper-plane-tilt.svg';
 import StarIcon from '@phosphor/star.svg';
+import TrayIcon from '@phosphor/tray.svg';
 import UsersThreeIcon from '@phosphor/users-three.svg';
 import SignalIcon from '@phosphor/wave-sine.svg';
 import NoiseIcon from '@phosphor/waveform.svg';
@@ -70,18 +71,37 @@ function Tab(props: { item: EmailTabItem; onNavigate?: () => void }) {
 }
 
 export function EmailNavigation(props: { onNavigate?: () => void }) {
-  const { state } = useEmailView();
+  const { state, setTab } = useEmailView();
   const reminders = useFeatureFlag(enableReminders);
   return (
     <ViewSidebar.Nav aria-label="Email tabs">
-      <div
-        ref={tourTarget(EMAIL_TOUR.signalNoise)}
-        class="flex flex-col gap-(--sidebar-row-gap)"
+      <Show
+        when={!isTouchDevice()}
+        fallback={
+          <div
+            ref={tourTarget(EMAIL_TOUR.signalNoise)}
+            class="flex flex-col gap-(--sidebar-row-gap)"
+          >
+            <For each={EMAIL_TABS.slice(0, 2)}>
+              {(item) => <Tab item={item} onNavigate={props.onNavigate} />}
+            </For>
+          </div>
+        }
       >
-        <For each={EMAIL_TABS.slice(0, 2)}>
-          {(item) => <Tab item={item} onNavigate={props.onNavigate} />}
-        </For>
-      </div>
+        <ViewSidebar.Item
+          ref={tourTarget(EMAIL_TOUR.inbox)}
+          active={state.tab === 'important' || state.tab === 'noise'}
+          {...pressHandlers(() => {
+            setTab(state.tab === 'noise' ? 'noise' : 'important');
+            props.onNavigate?.();
+          })}
+        >
+          <ViewSidebar.Icon>
+            <TrayIcon class="size-4" />
+          </ViewSidebar.Icon>
+          <span class="truncate">Inbox</span>
+        </ViewSidebar.Item>
+      </Show>
       <For
         each={EMAIL_TABS.slice(2).filter(
           (tab) =>
@@ -115,11 +135,13 @@ export function EmailSidebar() {
     ids: () =>
       EMAIL_TAB_IDS.filter(
         (id) =>
-          id !== 'reminders' ||
-          reminders().enabled ||
-          (reminders().loading && state.tab === 'reminders')
+          (isTouchDevice() || id !== 'noise') &&
+          (id !== 'reminders' ||
+            reminders().enabled ||
+            (reminders().loading && state.tab === 'reminders'))
       ),
-    activeId: () => state.tab,
+    activeId: () =>
+      !isTouchDevice() && state.tab === 'noise' ? 'important' : state.tab,
     setActiveId: setTab,
     shouldHandleSequentialKeyEvent: (event) =>
       !(
