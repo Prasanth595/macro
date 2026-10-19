@@ -292,30 +292,32 @@ export function HomepageDemoCarousel(props: {
         swipe = undefined;
       }}
     >
-      <div
-        class="homepage-demo-slide-copy"
-        aria-live={autoplay() ? 'off' : 'polite'}
-        aria-atomic="true"
-      >
-        <h2>{slide().title.replaceAll('\n', ' ')}</h2>
-      </div>
-      <div class="homepage-demo-slide-controls">
-        <For each={SLIDES}>
-          {(item, index) => (
-            <button
-              type="button"
-              class="homepage-demo-slide-dot"
-              aria-label={`Show ${item.label} highlight`}
-              aria-pressed={active() === index()}
-              disabled={!ready()}
-              onClick={() => select(index())}
-            >
-              <span />
-            </button>
-          )}
-        </For>
-      </div>
       <div class="homepage-demo-stage-shell">
+        <div class="homepage-demo-caption">
+          <div class="homepage-demo-slide-controls">
+            <For each={SLIDES}>
+              {(item, index) => (
+                <button
+                  type="button"
+                  class="homepage-demo-slide-dot"
+                  aria-label={`Show ${item.label} highlight`}
+                  aria-pressed={active() === index()}
+                  disabled={!ready()}
+                  onClick={() => select(index())}
+                >
+                  <span />
+                </button>
+              )}
+            </For>
+          </div>
+          <div
+            class="homepage-demo-slide-copy"
+            aria-live={autoplay() ? 'off' : 'polite'}
+            aria-atomic="true"
+          >
+            <h2>{slide().title.replaceAll('\n', ' ')}</h2>
+          </div>
+        </div>
         <button
           type="button"
           class="homepage-demo-arrow homepage-demo-arrow-previous"
