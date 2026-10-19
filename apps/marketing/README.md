@@ -26,7 +26,7 @@ track the pointer. Mobile header actions retain 44px touch targets. The homepage
 16px arrow inside a 44px button, inset 20px from the bottom while respecting safe areas.
 
 The homepage names Macro in the unification heading and introduces the live
-sample with short benefit-led captions overlapping a shallow fade at the top
+sample with short benefit-led captions overlapping the original bottom fade
 of the demo. The outer wallpaper and double border are removed so the product
 sits directly against the page, with a soft fade at the bottom. Progress indicators sit above the overlaid heading; large previous/next
 arrows remain beside the frame. The eight-second slideshow runs only while visible, pauses
