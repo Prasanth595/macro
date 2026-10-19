@@ -66,6 +66,40 @@ describe('channel identity drafts', () => {
     expect(saveName).not.toHaveBeenCalled();
   });
 
+  it('reverts only picture edits and blocks reverting during saves or after losing permission', async () => {
+    const [canEdit, setCanEdit] = createSignal(true);
+    const pending =
+      Promise.withResolvers<Result<void, ChannelIdentitySaveError>>();
+    const state = createRoot((cleanup) => {
+      dispose = cleanup;
+      return createChannelIdentityEditor({
+        name: 'Design',
+        canEdit,
+        writer: {
+          savePicture: () => pending.promise,
+          saveName: vi.fn().mockResolvedValue(ok(undefined)),
+        },
+        onClose: vi.fn(),
+      });
+    });
+    const file = new File(['image'], 'design.png', { type: 'image/png' });
+    state.changeName('New design');
+    state.changePicture(file);
+    state.revertPicture();
+    expect(state.picture()).toBeUndefined();
+    expect(state.name()).toBe('New design');
+    state.changePicture(null);
+    setCanEdit(false);
+    state.revertPicture();
+    expect(state.picture()).toBeNull();
+    setCanEdit(true);
+    const saving = state.save();
+    state.revertPicture();
+    expect(state.picture()).toBeNull();
+    pending.resolve(ok(undefined));
+    await saving;
+  });
+
   it('trims the name, writes changed fields, and closes only after success', async () => {
     const savePicture = vi.fn().mockResolvedValue(ok(undefined));
     const saveName = vi.fn().mockResolvedValue(ok(undefined));

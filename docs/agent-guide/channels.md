@@ -1248,33 +1248,33 @@ are rejected without changing the draft.
 `Clear image` sits below `Change image`, using destructive ghost and accent
 variants respectively, with medium-sized, touch-friendly buttons. The image
 filename, when available, appears above its supported file types and size. The
-`Preview image` button opens the image being edited, including a newly selected
-image before applying its crop.
+`Preview image` button opens the image being edited. `Revert image` restores the
+saved picture without losing channel-name edits or writing changes.
 
 `Change image` opens the file chooser. PNG, JPG, WebP, and GIF files up to
 16 MB are supported. Selecting a still image opens its crop workspace. An empty
 image step offers the same chooser, and newly selected GIFs show an animated
 preview instead of cropping. Cropping a saved picture loads its full stored
-image, not its resized preview. The original source remains available for
-re-cropping while the editor stays open; canceling a replacement does not replace
-that source.
+image, not its resized preview. The uncropped source stays available for another
+edit after a failed save. Canceling a replacement leaves the saved image unchanged.
 
-The circular crop guide darkens the area outside it and reveals alignment guides
-on hover or focus. Drag the image to reposition it or use the arrow keys in the
-crop workspace. Drag any corner handle to resize the square crop; when a handle
-is focused, arrow keys resize that corner. Zoom controls sit below the workspace,
-with the current percentage on the left and Reset followed by the minus/plus
-buttons on the right. Reset restores the full crop and the initial 100% image fit.
+The fixed circular crop guide darkens the area outside it and reveals alignment
+guides on hover or focus. Drag the image to reposition it or use the arrow keys in
+the crop workspace. There are no resize handles. Zoom controls sit below the
+workspace, with the current percentage on the left and Reset, Rotate, and the
+minus/plus buttons on the right. Rotate turns the image clockwise by 90 degrees.
+Reset removes rotation and restores the initial 100% image fit.
 Scroll-wheel zoom anchors to the cursor; the minus/plus buttons anchor to the
-center of the selected crop, even after resizing or panning.
-`Apply crop` adds the square PNG to the local draft and returns to details.
-`Back` or Escape returns without applying a pending
-crop. Clearing an image or selecting a GIF updates only the draft. The cropper
-and lightbox load only when needed. Compact footer actions have an edge-to-edge
-divider above them.
+center of the crop, even after panning or rotation.
+The image step's `Save` exports the square PNG, saves all channel changes, and
+closes the dialog. Save remains visible for empty images and GIFs, including after
+clearing an image. It is disabled when there are no changes or required fields
+are invalid. `Back` or Escape returns without applying a pending crop.
+The cropper and lightbox load only when needed. Compact footer actions have an
+edge-to-edge divider above them.
 
-Selecting a file, applying a crop, clearing the picture, or changing the name
-only updates the draft. The filled CTA `Save` button persists the changes;
+Selecting a file, clearing the picture, reverting it, or changing the name only
+updates the draft. The filled CTA `Save` button on either step persists changes;
 `Cancel` discards them. Failed saves retain remaining changes for retry. If the
 picture saved but renaming failed, the dialog says so, and retrying does not
 upload the picture again. Switching channels starts a fresh editor draft for the

@@ -1,4 +1,5 @@
 import { fileDrop } from '@core/directive/fileDrop';
+import RevertIcon from '@phosphor/arrow-u-up-left.svg';
 import ExpandIcon from '@phosphor/arrows-out-simple.svg';
 import PictureIcon from '@phosphor/image.svg';
 import PencilIcon from '@phosphor/pencil-simple.svg';
@@ -15,11 +16,13 @@ export function ChannelImageActions(props: {
   fileName?: string;
   disabled: boolean;
   canClear: boolean;
+  canRevert: boolean;
   canPreview: boolean;
   error?: string;
   onPick: () => void;
   onFilesDrop: (files: File[]) => void;
   onClear: () => void;
+  onRevert: () => void;
   onPreview: (trigger: HTMLButtonElement) => void;
 }) {
   const [dragging, setDragging] = createSignal(false);
@@ -95,6 +98,17 @@ export function ChannelImageActions(props: {
           >
             <TrashIcon class="size-4" />
             Clear image
+          </Button>
+          <Button
+            variant="ghost"
+            size="md"
+            fullWidth
+            disabled={props.disabled || !props.canRevert}
+            onClick={props.onRevert}
+            class="px-2 touch:min-h-11"
+          >
+            <RevertIcon class="size-4" />
+            Revert image
           </Button>
         </div>
         <p class="text-center text-xs text-ink-muted">

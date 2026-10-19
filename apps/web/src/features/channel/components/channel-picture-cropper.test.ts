@@ -6,7 +6,7 @@ import {
   screen,
   waitFor,
 } from '@solidjs/testing-library';
-import { ok } from 'neverthrow';
+import { err, ok } from 'neverthrow';
 import { createComponent, createSignal } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChannelIdentityModal } from '../views/channel-identity-editor';
@@ -19,12 +19,8 @@ const cropper = vi.hoisted(() => ({
   finished: vi.fn(),
   construct: vi.fn(),
   exportFullCanvas: vi.fn(),
-  resetSelection: vi.fn(),
-  resize: vi.fn(),
+  rotate: vi.fn(),
   move: vi.fn(),
-  selectionBounds: { x: 100, y: 100, width: 400, height: 400 },
-  changeSelection:
-    vi.fn<(bounds: { width: number; height: number }) => boolean>(),
   zoom: vi.fn(),
   transform: vi.fn<(matrix: number[]) => void>(),
   matrix: [1, 0, 0, 1, 0, 0],
@@ -43,12 +39,15 @@ vi.mock('cropperjs', () => ({
       }),
       $toCanvas: cropper.exportFullCanvas,
     };
-    selection = Object.assign(new EventTarget(), {
+    selection = {
       $toCanvas: cropper.exportCanvas,
-      $reset: cropper.resetSelection,
-      $resize: cropper.resize,
-      getBoundingClientRect: () => cropper.selectionBounds,
-    });
+      getBoundingClientRect: () => ({
+        x: 100,
+        y: 100,
+        width: 400,
+        height: 400,
+      }),
+    };
     image = Object.assign(new EventTarget(), {
       $image: document.createElement('img'),
       $ready: cropper.ready,
@@ -71,7 +70,16 @@ vi.mock('cropperjs', () => ({
           0,
         ]);
       },
+      $resetTransform: () => {
+        cropper.transform([1, 0, 0, 1, 0, 0]);
+        return this.image;
+      },
       $center: () => cropper.transform([1, 0, 0, 1, 0, 0]),
+      $rotate: (angle: string) => {
+        cropper.rotate(angle);
+        const [a, b, c, d] = cropper.matrix;
+        cropper.transform([c, d, -a, -b, 0, 0]);
+      },
       $move: cropper.move,
     });
     constructor(
@@ -79,11 +87,6 @@ vi.mock('cropperjs', () => ({
       options: { container: HTMLElement; template: string }
     ) {
       options.container.innerHTML = options.template;
-      cropper.changeSelection.mockImplementation((detail) =>
-        this.selection.dispatchEvent(
-          new CustomEvent('change', { detail, cancelable: true })
-        )
-      );
       cropper.construct(image);
       Object.defineProperties(this.image.$image, {
         naturalWidth: { value: 800 },
@@ -123,7 +126,6 @@ vi.mock('@core/component/Toast/Toast', () => ({ toast: { failure: vi.fn() } }));
 beforeEach(() => {
   vi.clearAllMocks();
   cropper.matrix = [1, 0, 0, 1, 0, 0];
-  cropper.selectionBounds = { x: 100, y: 100, width: 400, height: 400 };
   cropper.ready.mockResolvedValue(document.createElement('img'));
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
 });
@@ -146,11 +148,11 @@ describe('channel picture crop lifecycle', () => {
         channelId: 'design',
         source: new File(['image'], 'team.png', { type: 'image/png' }),
         disabled: false,
-        onApply: vi.fn(),
+        onSave: vi.fn(),
         onCancel: vi.fn(),
       })
     );
-    await screen.findByRole('button', { name: 'Apply crop' });
+    await screen.findByRole('button', { name: 'Save' });
     expect(screen.getByLabelText('Zoom level').textContent).toBe('100%');
     fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
     expect(cropper.zoom).toHaveBeenLastCalledWith(0.1, 440, 240);
@@ -161,10 +163,9 @@ describe('channel picture crop lifecycle', () => {
     expect(cropper.zoom).toHaveBeenLastCalledWith(-0.1, 440, 240);
     fireEvent.click(screen.getByRole('button', { name: 'Reset crop' }));
     await screen.findByText('100%');
-    expect(cropper.resetSelection).toHaveBeenCalledOnce();
   });
 
-  it('supports keyboard resizing from each corner without moving the image', async () => {
+  it('rotates without changing zoom and resets rotation while keeping the crop fixed', async () => {
     const [disabled, setDisabled] = createSignal(false);
     render(() =>
       createComponent(ChannelPictureCropper, {
@@ -173,49 +174,25 @@ describe('channel picture crop lifecycle', () => {
         get disabled() {
           return disabled();
         },
-        onApply: vi.fn(),
+        onSave: vi.fn(),
         onCancel: vi.fn(),
       })
     );
-    await screen.findByRole('button', { name: 'Apply crop' });
-    const corners = ['top left', 'top right', 'bottom left', 'bottom right'];
-    const actions = ['nw-resize', 'ne-resize', 'sw-resize', 'se-resize'];
-    for (const [index, corner] of corners.entries()) {
-      const handle = screen.getByRole('button', {
-        name: `Resize crop from ${corner}`,
-      });
-      handle.focus();
-      fireEvent.keyDown(handle, { key: 'ArrowLeft' });
-      expect(cropper.resize).toHaveBeenLastCalledWith(actions[index], -10, 0);
-    }
-    expect(cropper.move).not.toHaveBeenCalled();
-    cropper.selectionBounds = { x: 120, y: 130, width: 200, height: 200 };
-    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
-    expect(cropper.zoom).toHaveBeenLastCalledWith(0.1, 360, 170);
-    setDisabled(true);
-    const handle = screen.getByRole('button', {
-      name: 'Resize crop from bottom right',
+    await screen.findByRole('button', { name: 'Save' });
+    expect(screen.queryByRole('button', { name: /Resize crop/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Rotate image' }));
+    expect(cropper.rotate).toHaveBeenCalledWith('90deg');
+    await screen.findByText('100%');
+    expect(cropper.matrix).toEqual([0, 1, -1, -0, 0, 0]);
+    fireEvent.keyDown(screen.getByRole('group', { name: 'Crop preview' }), {
+      key: 'ArrowLeft',
     });
-    expect(handle.getAttribute('aria-disabled')).toBe('true');
-    expect(handle.tabIndex).toBe(-1);
-    fireEvent.keyDown(handle, { key: 'ArrowRight' });
-    expect(cropper.resize).toHaveBeenCalledTimes(4);
-  });
-
-  it('rejects crops too small for the corner handles', async () => {
-    render(() =>
-      createComponent(ChannelPictureCropper, {
-        channelId: 'design',
-        source: new File(['image'], 'team.png', { type: 'image/png' }),
-        disabled: false,
-        onApply: vi.fn(),
-        onCancel: vi.fn(),
-      })
-    );
-    await screen.findByRole('button', { name: 'Apply crop' });
-    expect(cropper.changeSelection({ width: 95, height: 95 })).toBe(false);
-    expect(cropper.changeSelection({ width: 200, height: 95 })).toBe(false);
-    expect(cropper.changeSelection({ width: 96, height: 96 })).toBe(true);
+    expect(cropper.move).toHaveBeenCalledWith(-10, 0);
+    fireEvent.click(screen.getByRole('button', { name: 'Reset crop' }));
+    expect(cropper.matrix).toEqual([1, 0, 0, 1, 0, 0]);
+    setDisabled(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Rotate image' }));
+    expect(cropper.rotate).toHaveBeenCalledOnce();
   });
 
   it('loads a saved image with CORS and exports a PNG draft', async () => {
@@ -230,14 +207,14 @@ describe('channel picture crop lifecycle', () => {
         channelId: 'design',
         source: 'https://files.example.com/channel.png',
         disabled: false,
-        onApply: apply,
+        onSave: apply,
         onCancel: vi.fn(),
       })
     );
     const image: HTMLImageElement = cropper.construct.mock.calls[0][0];
     expect(image.src).toBe('https://files.example.com/channel.png');
     expect(image.crossOrigin).toBe('anonymous');
-    fireEvent.click(await screen.findByRole('button', { name: 'Apply crop' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
     await completed.promise;
     expect(apply.mock.calls[0][0].name).toBe('channel-picture.png');
   });
@@ -250,7 +227,7 @@ describe('channel picture crop lifecycle', () => {
         channelId: 'design',
         source: new File(['invalid'], 'team.png', { type: 'image/png' }),
         disabled: false,
-        onApply: vi.fn(),
+        onSave: vi.fn(),
         onCancel: cancel,
       })
     );
@@ -275,12 +252,12 @@ describe('channel picture crop lifecycle', () => {
           type: 'image/jpeg',
         }),
         disabled: false,
-        onApply: apply,
+        onSave: apply,
         onCancel: vi.fn(),
       })
     );
     expect(apply).not.toHaveBeenCalled();
-    fireEvent.click(await screen.findByRole('button', { name: 'Apply crop' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
     await completed.promise;
     expect(cropper.exportCanvas).toHaveBeenCalledWith({
       width: 1024,
@@ -305,11 +282,11 @@ describe('channel picture crop lifecycle', () => {
         channelId: 'design',
         source: new File(['original'], 'team.png', { type: 'image/png' }),
         disabled: false,
-        onApply: apply,
+        onSave: apply,
         onCancel: () => view.unmount(),
       })
     );
-    fireEvent.click(await screen.findByRole('button', { name: 'Apply crop' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     pending.resolve(exportedCanvas(new Blob(['cropped'])));
     await completed.promise;
@@ -331,11 +308,11 @@ describe('channel picture crop lifecycle', () => {
         get disabled() {
           return disabled();
         },
-        onApply: apply,
+        onSave: apply,
         onCancel: vi.fn(),
       })
     );
-    fireEvent.click(await screen.findByRole('button', { name: 'Apply crop' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
     setDisabled(true);
     pending.resolve(exportedCanvas(new Blob(['cropped'])));
     await completed.promise;
@@ -352,16 +329,15 @@ describe('channel picture crop lifecycle', () => {
         channelId: 'design',
         source: new File(['original'], 'team.png', { type: 'image/png' }),
         disabled: false,
-        onApply: apply,
+        onSave: apply,
         onCancel: vi.fn(),
       })
     );
-    fireEvent.click(await screen.findByRole('button', { name: 'Apply crop' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
     await completed.promise;
     expect(screen.getByRole('alert').textContent).toContain('Could not crop');
     expect(
-      screen.getByRole<HTMLButtonElement>('button', { name: 'Apply crop' })
-        .disabled
+      screen.getByRole<HTMLButtonElement>('button', { name: 'Save' }).disabled
     ).toBe(false);
     expect(apply).not.toHaveBeenCalled();
   });
@@ -389,7 +365,7 @@ describe('channel editor steps', () => {
     expect(
       await screen.findByRole('heading', { name: 'dropped.png' })
     ).toBeDefined();
-    await screen.findByRole('button', { name: 'Apply crop' });
+    await screen.findByRole('button', { name: 'Save' });
     expect(savePicture).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.queryByRole('img', { name: 'Channel picture' })).toBeNull();
@@ -403,9 +379,8 @@ describe('channel editor steps', () => {
     expect(
       await screen.findByRole('heading', { name: 'dropped.gif' })
     ).toBeDefined();
-    expect(screen.queryByRole('button', { name: 'Apply crop' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDefined();
     expect(savePicture).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(close).toHaveBeenCalledOnce());
     expect(savePicture).toHaveBeenCalledExactlyOnceWith(gif);
@@ -458,7 +433,6 @@ describe('channel editor steps', () => {
         'Drop one image at a time.'
       );
       expect(screen.queryByRole('heading', { name: 'first.png' })).toBeNull();
-      expect(screen.queryByRole('button', { name: 'Apply crop' })).toBeNull();
     }
   );
 
@@ -566,7 +540,6 @@ describe('channel editor steps', () => {
           items: [],
         },
       });
-      expect(screen.queryByRole('button', { name: 'Apply crop' })).toBeNull();
       expect(screen.queryByRole('heading', { name: 'blocked.png' })).toBeNull();
       expect(savePicture).not.toHaveBeenCalled();
     }
@@ -598,7 +571,7 @@ describe('channel editor steps', () => {
     fireEvent.change(picker, {
       target: { files: [new File(['new'], 'new.png', { type: 'image/png' })] },
     });
-    await screen.findByRole('button', { name: 'Apply crop' });
+    await screen.findByRole('button', { name: 'Save' });
     expect(
       screen.getByRole<HTMLButtonElement>('button', { name: 'Clear image' })
         .disabled
@@ -664,7 +637,7 @@ describe('channel editor steps', () => {
     await waitFor(() => expect(document.activeElement).toBe(trigger));
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
-    await screen.findByRole('button', { name: 'Apply crop' });
+    await screen.findByRole('button', { name: 'Save' });
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:replacement');
     fireEvent.change(screen.getByLabelText('Choose channel picture'), {
       target: {
@@ -684,15 +657,12 @@ describe('channel editor steps', () => {
     );
     fireEvent.keyDown(replacementPreview, { key: 'Escape' });
     await waitFor(() => expect(document.activeElement).toBe(imageTrigger));
-    expect(screen.getByRole('button', { name: 'Apply crop' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDefined();
     expect(close).not.toHaveBeenCalled();
     expect(savePicture).not.toHaveBeenCalled();
   });
 
-  it('re-crops the original saved image without saving or re-cropping its previous export', async () => {
-    cropper.exportCanvas.mockResolvedValue(
-      exportedCanvas(new Blob(['cropped'], { type: 'image/png' }))
-    );
+  it('reverts a replacement or cleared image without discarding name edits or writing', async () => {
     const saveName = vi.fn();
     const savePicture = vi.fn();
     render(() =>
@@ -708,77 +678,98 @@ describe('channel editor steps', () => {
         onClose: vi.fn(),
       })
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
-    expect(
-      await screen.findByRole('heading', { name: 'design-team.jpg' })
-    ).toBeDefined();
-    fireEvent.click(await screen.findByRole('button', { name: 'Apply crop' }));
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Edit channel image' })
-    );
-    const back = await screen.findByRole('button', { name: 'Back' });
+    fireEvent.input(screen.getByRole('textbox', { name: 'Channel name' }), {
+      target: { value: 'Design team' },
+    });
+    fireEvent.change(screen.getByLabelText('Choose channel picture'), {
+      target: { files: [new File(['new'], 'new.png', { type: 'image/png' })] },
+    });
+    await screen.findByRole('heading', { name: 'new.png' });
+    fireEvent.click(screen.getByRole('button', { name: 'Revert image' }));
+    await screen.findByRole('heading', { name: 'design-team.jpg' });
     expect(cropper.construct.mock.calls.at(-1)?.[0].src).toBe(
       'https://files.example.com/channel.png'
     );
-    fireEvent.click(back);
-    fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Clear image' }));
-    expect(screen.queryByRole('button', { name: 'Apply crop' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear image' }));
     expect(
-      screen.queryByRole('heading', { name: 'design-team.jpg' })
-    ).toBeNull();
+      screen.getByRole<HTMLButtonElement>('button', { name: 'Save' }).disabled
+    ).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Revert image' }));
+    await screen.findByRole('heading', { name: 'design-team.jpg' });
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(
-      screen.getByRole('heading', { name: 'Channel image' })
-    ).toBeDefined();
+      screen.getByRole<HTMLInputElement>('textbox', { name: 'Channel name' })
+        .value
+    ).toBe('Design team');
     expect(saveName).not.toHaveBeenCalled();
     expect(savePicture).not.toHaveBeenCalled();
   });
 
-  it('keeps the previous crop source after canceling a replacement image', async () => {
+  it('keeps Save visible with no image and saves an image removal directly', async () => {
+    const close = vi.fn();
+    const savePicture = vi.fn().mockResolvedValue(ok(undefined));
+    render(() =>
+      createComponent(ChannelIdentityModal, {
+        channelId: 'design',
+        name: 'Design',
+        pictureUrl: 'https://files.example.com/channel.png',
+        pictureSourceUrl: 'https://files.example.com/channel.png',
+        pictureLoading: false,
+        canEdit: true,
+        writer: { saveName: vi.fn(), savePicture },
+        onClose: close,
+      })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
+    await screen.findByRole('button', { name: 'Save' });
+    fireEvent.click(screen.getByRole('button', { name: 'Clear image' }));
+    const save = screen.getByRole<HTMLButtonElement>('button', {
+      name: 'Save',
+    });
+    expect(save.disabled).toBe(false);
+    expect(screen.getByText('Choose an image to get started.')).toBeDefined();
+    expect(savePicture).not.toHaveBeenCalled();
+    fireEvent.click(save);
+    await waitFor(() => expect(close).toHaveBeenCalledOnce());
+    expect(savePicture).toHaveBeenCalledExactlyOnceWith(null);
+  });
+
+  it('retries only the name after saving a crop when renaming fails', async () => {
     cropper.exportCanvas.mockResolvedValue(
       exportedCanvas(new Blob(['cropped'], { type: 'image/png' }))
     );
-    const original = new File(['original'], 'original.png', {
-      type: 'image/png',
-    });
-    const replacement = new File(['replacement'], 'replacement.png', {
-      type: 'image/png',
-    });
-    vi.spyOn(URL, 'createObjectURL').mockImplementation((file) =>
-      file === original
-        ? 'blob:original'
-        : file === replacement
-          ? 'blob:replacement'
-          : 'blob:draft'
-    );
+    const savePicture = vi.fn().mockResolvedValue(ok(undefined));
+    const saveName = vi
+      .fn()
+      .mockResolvedValueOnce(err({ kind: 'name' }))
+      .mockResolvedValueOnce(ok(undefined));
+    const close = vi.fn();
     render(() =>
       createComponent(ChannelIdentityModal, {
         channelId: 'design',
         name: 'Design',
         pictureLoading: false,
         canEdit: true,
-        writer: { saveName: vi.fn(), savePicture: vi.fn() },
-        onClose: vi.fn(),
+        writer: { saveName, savePicture },
+        onClose: close,
       })
     );
-    const picker = screen.getByLabelText('Choose channel picture');
-    fireEvent.change(picker, { target: { files: [original] } });
-    expect(
-      await screen.findByRole('heading', { name: 'original.png' })
-    ).toBeDefined();
-    fireEvent.click(await screen.findByRole('button', { name: 'Apply crop' }));
-    await screen.findByRole('button', { name: 'Edit channel image' });
-    fireEvent.change(picker, { target: { files: [replacement] } });
-    expect(
-      await screen.findByRole('heading', { name: 'replacement.png' })
-    ).toBeDefined();
-    fireEvent.click(await screen.findByRole('button', { name: 'Back' }));
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Edit channel image' })
+    fireEvent.input(screen.getByRole('textbox', { name: 'Channel name' }), {
+      target: { value: 'New design' },
+    });
+    fireEvent.change(screen.getByLabelText('Choose channel picture'), {
+      target: { files: [new File(['new'], 'new.png', { type: 'image/png' })] },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'picture was saved'
     );
-    await screen.findByRole('button', { name: 'Back' });
-    expect(cropper.construct.mock.calls.at(-1)?.[0].src).toBe('blob:original');
-    expect(screen.getByRole('heading', { name: 'original.png' })).toBeDefined();
+    expect(savePicture).toHaveBeenCalledOnce();
+    expect(close).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(close).toHaveBeenCalledOnce());
+    expect(savePicture).toHaveBeenCalledOnce();
+    expect(saveName).toHaveBeenCalledTimes(2);
   });
 
   it('retains name edits across crop steps and saves only after explicit Save', async () => {
@@ -807,7 +798,7 @@ describe('channel editor steps', () => {
     const file = new File(['original'], 'team.png', { type: 'image/png' });
     const picker = screen.getByLabelText('Choose channel picture');
     fireEvent.change(picker, { target: { files: [file] } });
-    await screen.findByRole('button', { name: 'Apply crop' });
+    await screen.findByRole('button', { name: 'Save' });
     expect(screen.queryByRole('textbox', { name: 'Channel name' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(
@@ -823,16 +814,8 @@ describe('channel editor steps', () => {
     expect(cropper.destroy).toHaveBeenCalledOnce();
     expect(cropper.exportCanvas).not.toHaveBeenCalled();
     fireEvent.change(picker, { target: { files: [file] } });
-    fireEvent.click(await screen.findByRole('button', { name: 'Apply crop' }));
-    const save = await screen.findByRole('button', { name: 'Save' });
-    expect(saveName).not.toHaveBeenCalled();
-    expect(savePicture).not.toHaveBeenCalled();
-    expect(
-      screen.getByRole<HTMLInputElement>('textbox', { name: 'Channel name' })
-        .value
-    ).toBe('Design team');
-    fireEvent.click(save);
-    expect(savePicture).toHaveBeenCalledOnce();
+    fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(savePicture).toHaveBeenCalledOnce());
     await saved.promise;
     expect(saveName).toHaveBeenCalledWith('Design team');
   });

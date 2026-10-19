@@ -72,7 +72,7 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
   const [editingImage, setEditingImage] = createSignal(false);
   const [previewSource, setPreviewSource] = createSignal<string>();
   const [previewOpen, setPreviewOpen] = createSignal(false);
-  // Keep the uncropped source for repeat edits until this dialog closes.
+  // Retain the uncropped source if saving fails and the user edits again.
   const [originalPicture, setOriginalPicture] = createSignal<File | string>();
   let input!: HTMLInputElement;
   let body!: HTMLDivElement;
@@ -162,11 +162,22 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
         fileName={imageFileName()}
         disabled={!props.canEdit || state.pending() || props.pictureLoading}
         canClear={Boolean(cropSource() || pictureUrl())}
+        canRevert={
+          state.picture() !== undefined ||
+          (cropSource() !== undefined &&
+            cropSource() !== props.pictureSourceUrl)
+        }
         canPreview={Boolean(imagePreviewUrl())}
         onPreview={previewPicture}
         error={state.error()}
         onPick={() => input.click()}
         onFilesDrop={dropPictures}
+        onRevert={() => {
+          state.revertPicture();
+          setOriginalPicture(undefined);
+          setCropSource(undefined);
+          editPicture();
+        }}
         onClear={() => {
           setOriginalPicture(undefined);
           setCropSource(undefined);
@@ -187,6 +198,7 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
   });
 
   function returnToDetails() {
+    if (state.pending()) return;
     setCropSource(undefined);
     setEditingImage(false);
     body
@@ -195,7 +207,7 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
   }
 
   async function save() {
-    if (!state.canSave() || props.pictureLoading || editingImage()) return;
+    if (!state.canSave() || props.pictureLoading) return;
     await Telemetry.span('channel.identity.save', async (span) => {
       span.setAttr('channel.id', props.channelId);
       span.setAttr(
@@ -311,14 +323,28 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
                         <ChannelImageEditorLayout
                           sidebar={<ImageActions />}
                           footer={
-                            <Button
-                              variant="ghost"
-                              size="md"
-                              class="touch:min-h-11"
-                              onClick={returnToDetails}
-                            >
-                              Back
-                            </Button>
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="md"
+                                class="touch:min-h-11"
+                                disabled={state.pending()}
+                                onClick={returnToDetails}
+                              >
+                                Back
+                              </Button>
+                              <Button
+                                variant="cta"
+                                size="md"
+                                class="touch:min-h-11"
+                                disabled={
+                                  !state.canSave() || props.pictureLoading
+                                }
+                                onClick={() => void save()}
+                              >
+                                {state.pending() ? 'Saving…' : 'Save'}
+                              </Button>
+                            </>
                           }
                         >
                           <div class="flex min-h-64 flex-col items-center justify-center gap-4 rounded-xl border border-edge-muted bg-control p-6 text-center">
@@ -363,10 +389,12 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
                             source={file}
                             disabled={!props.canEdit || state.pending()}
                             actions={<ImageActions />}
-                            onApply={(cropped) => {
+                            saveDisabled={!state.name().trim()}
+                            onSave={(cropped) => {
                               setOriginalPicture(cropSource());
                               state.changePicture(cropped);
                               returnToDetails();
+                              void save();
                             }}
                             onCancel={returnToDetails}
                           />
