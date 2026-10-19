@@ -19,6 +19,10 @@ export interface PostMessage {
   anchor?: PostMessageAnchor;
   /** Initial attachments. */
   attachments?: NewAttachment[];
+  /** When true and `thread_id` is set, also post a copy of this reply at
+the channel level so it appears in the main timeline (like Slack's
+"Also send to channel"). Only valid for channel parents. */
+  broadcast_to_channel?: boolean;
   /** Macro Markdown body. */
   content: string;
   /** Client-minted UUIDv7 for the new message, so an optimistic message
