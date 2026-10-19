@@ -20,7 +20,8 @@ soft pill corners, a fine border, and a 2px arrow shift on hover. `Talk to us` i
 soft grey secondary action; the header's `Open app` is a quiet text action
 without an arrow. As it lands in the footer, the same link reveals the
 original wider white pill, glass rim, and arrow. It follows the existing scroll
-animation and fits within phone widths.
+animation and fits within phone widths. Its header label fades out completely
+before the footer presentation fades in, so the two labels never overlap.
 The homepage primary adds a subtle satin gradient and inset edge, a quieter
 18px arrow, and a 1px hover lift; it remains a single link.
 Feedback uses 140ms CSS transitions, respects reduced motion, and does not
