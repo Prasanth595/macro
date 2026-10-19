@@ -3,9 +3,9 @@
 /* The hero keeps a quiet satin finish, with depth from edges rather than glow. */
 .site-nav-start.homepage-primary-cta {
   position: relative; isolation: isolate;
-  min-width: 174px; min-height: 54px; padding: 14px 24px; gap: 14px;
+  min-width: 190px; min-height: 58px; padding: 16px 28px; gap: 14px;
   font-family: 'Inter Variable', Inter, sans-serif;
-  font-size: 15px; font-weight: 550; letter-spacing: -.015em;
+  font-size: 16px; font-weight: 550; letter-spacing: -.015em;
   color: #252624;
   border-color: #ffffffc7;
   background: linear-gradient(180deg, #fff 0%, #f5f5f2 48%, #e7e8e4 100%);
