@@ -2,7 +2,7 @@
 .site-nav-start.homepage-hero-cta { font-family: 'Inter Variable', Inter, sans-serif; }
 /* The hero keeps a quiet satin finish, with depth from edges rather than glow. */
 .site-nav-start.homepage-primary-cta {
-  position: relative; isolation: isolate;
+  position: relative; isolation: isolate; overflow: hidden;
   min-width: 212px; min-height: 64px; padding: 18px 32px; gap: 14px;
   font-family: 'Inter Variable', Inter, sans-serif;
   font-size: 17px; font-weight: 550; letter-spacing: -.015em;
@@ -12,6 +12,20 @@
   box-shadow: inset 0 1px 0 #fff, inset 0 -1px 1px #0000000d,
     0 0 0 1px #ffffff1c, 0 5px 12px -6px #0000005c;
   transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+/* A brief light pass, then a long rest; transforms avoid layout work. */
+.site-nav-start.homepage-primary-cta::after {
+  content: ''; position: absolute; z-index: 0; pointer-events: none;
+  inset: -50% auto -50% 0; width: 40%;
+  background: linear-gradient(90deg, transparent, #ffffffb3, transparent);
+  opacity: 0; transform: translateX(-160%) skewX(-20deg);
+  animation: homepage-cta-glimmer 8s ease-in-out 2s infinite;
+}
+@keyframes homepage-cta-glimmer {
+  0% { opacity: 0; transform: translateX(-160%) skewX(-20deg); }
+  3% { opacity: .7; }
+  14% { opacity: 0; transform: translateX(360%) skewX(-20deg); }
+  100% { opacity: 0; transform: translateX(360%) skewX(-20deg); }
 }
 .site-nav-start.homepage-primary-cta > span, .site-nav-start.homepage-primary-cta > svg { position: relative; z-index: 1; }
 .site-nav-start.homepage-primary-cta svg { width: 18px; height: 18px; opacity: .72; }
@@ -37,6 +51,7 @@ html[data-palette='cream'] .site-nav-start.homepage-primary-cta:active {
 }
 @media (prefers-reduced-motion: reduce) {
   .site-nav-start.homepage-primary-cta { transition: none; }
+  .site-nav-start.homepage-primary-cta::after { animation: none; opacity: 0; }
   .site-nav-start.homepage-primary-cta:hover { transform: none; }
 }
 .homepage-hero-cta:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 4px; }
