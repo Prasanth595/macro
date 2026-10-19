@@ -4,9 +4,8 @@
  * The agent writes recipients and prose; the inbox has to be worked out. The
  * card cannot guess, because the sender is what the recipient sees and
  * replies to — so the From row it shows has to be the inbox the send will
- * really use. The last three cases below are the order the backend resolves
- * in (`resolve_sending_inbox` in the email domain), which is what keeps the
- * two in agreement for a draft that names no sender.
+ * really use. Unavailable explicit choices and unresolved replies never fall
+ * back to another inbox.
  */
 
 export type SelectableInbox = {
@@ -21,6 +20,8 @@ export type SendingInboxChoice = {
   draftFrom?: string | null;
   /** The inbox holding the message this draft replies to. */
   replyTargetInboxId?: string;
+  /** A reply cannot default to the primary inbox before its target resolves. */
+  isReply?: boolean;
   /** The viewer's own primary inbox. */
   primaryInboxId?: string;
 };
@@ -28,8 +29,8 @@ export type SendingInboxChoice = {
 /**
  * The inbox to send from, in precedence order: the user's own pick, the
  * sender the draft names, the inbox that received the message being replied
- * to, the viewer's primary inbox, then whatever is connected. `undefined`
- * only when nothing is.
+ * to, then the viewer's default inbox for a new email. `undefined` means the
+ * sender is unresolved or unavailable and sending must wait for a choice.
  */
 export function resolveSendingInbox<T extends SelectableInbox>(
   inboxes: readonly T[],
@@ -45,11 +46,10 @@ export function resolveSendingInbox<T extends SelectableInbox>(
     ? inboxes.find((inbox) => inbox.email_address.toLowerCase() === named)
     : undefined;
 
-  return (
-    byId(choice.chosenInboxId) ??
-    byAddress ??
-    byId(choice.replyTargetInboxId) ??
-    byId(choice.primaryInboxId) ??
-    inboxes[0]
-  );
+  if (choice.chosenInboxId !== undefined) return byId(choice.chosenInboxId);
+  if (named) return byAddress;
+  if (choice.isReply || choice.replyTargetInboxId !== undefined) {
+    return byId(choice.replyTargetInboxId);
+  }
+  return byId(choice.primaryInboxId) ?? inboxes[0];
 }

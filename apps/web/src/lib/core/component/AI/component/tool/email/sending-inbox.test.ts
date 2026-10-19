@@ -57,8 +57,7 @@ describe('resolveSendingInbox', () => {
     ).toBe(alt);
   });
 
-  it('falls back past anything no longer connected', () => {
-    // A draft stored before an inbox was disconnected still names it.
+  it('does not replace a user-selected inbox that is no longer connected', () => {
     expect(
       resolveSendingInbox(inboxes, {
         chosenInboxId: 'gone',
@@ -66,7 +65,33 @@ describe('resolveSendingInbox', () => {
         replyTargetInboxId: 'gone',
         primaryInboxId: 'primary',
       })
-    ).toBe(primary);
+    ).toBeUndefined();
+  });
+
+  it('does not replace an unavailable sender named by the draft', () => {
+    expect(
+      resolveSendingInbox(inboxes, {
+        draftFrom: 'gone@macro.com',
+        replyTargetInboxId: 'alt',
+        primaryInboxId: 'primary',
+      })
+    ).toBeUndefined();
+  });
+
+  it('waits for the receiving inbox instead of defaulting a reply', () => {
+    expect(
+      resolveSendingInbox(inboxes, {
+        isReply: true,
+        primaryInboxId: 'primary',
+      })
+    ).toBeUndefined();
+    expect(
+      resolveSendingInbox(inboxes, {
+        isReply: true,
+        replyTargetInboxId: 'gone',
+        primaryInboxId: 'primary',
+      })
+    ).toBeUndefined();
   });
 
   it('falls back to any connected inbox when none is the primary', () => {

@@ -102,16 +102,11 @@ function messageInboxQueryOptions(messageId: string | undefined) {
  * The inbox a message belongs to. For a surface that holds a message id but
  * not the account that received it — an AI-drafted reply, whose tool
  * arguments name the message it answers — this is how it can show the sender
- * the reply will actually go out as. `undefined` while it loads, or when the
- * message is not one the viewer can reach.
+ * the reply will actually go out as. Exposes loading, failure and retry so
+ * composers can require a known sender before sending.
  */
-export function useMessageInboxId(
-  messageId: Accessor<string | undefined>
-): Accessor<string | undefined> {
-  const query = useQuery(() => messageInboxQueryOptions(messageId()));
-  return createMemo(() =>
-    queryReadyGate(query) ? (query.data ?? undefined) : undefined
-  );
+export function useMessageInboxQuery(messageId: Accessor<string | undefined>) {
+  return useQuery(() => messageInboxQueryOptions(messageId()));
 }
 
 /** The `X-Email-Link-Id` value for a target inbox; see useNonPrimaryEmailLinkIdHeader. */

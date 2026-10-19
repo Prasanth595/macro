@@ -319,10 +319,14 @@ attachments, wait for the save, and reopen it; the attachments should remain vis
 AI email tool drafts persist body-only edits; changing recipients or the subject
 is not required to save the body.
 For an AI-drafted reply with no explicit sender, the backend selects the inbox
-that received the original message. Delay or fail the reply-inbox lookup, then
-edit or send: the tool arguments must omit `from` instead of persisting the
-primary inbox shown as a fallback. Choosing a From inbox or naming a sender in
-the draft must still include that explicit address. This applies on mobile too.
+that received the original message. Delay the reply-inbox lookup: the composer
+shows `Resolving sender...`, hides the signature, and disables Send (including
+the keyboard shortcut). Fail the lookup and check Retry; choosing a From inbox
+also enables sending immediately. A late lookup must not overwrite that choice.
+Implicit senders omit `from` on edits and sends. An explicit sender is preserved
+even while inboxes load or after disconnection; an unavailable sender blocks Send
+until another connected inbox is selected. New emails default to the primary
+inbox after inboxes load. Repeat on mobile using the expanded `Cc/Bcc, From:` row.
 
 With GraphQL draft queuing enabled, working copies and pending attachment bytes
 are saved on this device independently of the mutation queue. A failed server

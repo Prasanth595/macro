@@ -35,7 +35,7 @@ import {
   findPrimaryEmailLinkId,
   useEmailLinksQuery,
   useEmailSignature,
-  useMessageInboxId,
+  useMessageInboxQuery,
 } from '@queries/email/link';
 import { queryReadyGate } from '@queries/gate';
 import { fetchDocumentMetadata } from '@queries/storage/document-metadata';
@@ -44,7 +44,7 @@ import type { SendEmail } from '@service-cognition/generated/tools/types';
 import { FileTypeMap } from '@service-storage/fileTypeMap';
 import { debounce } from '@solid-primitives/scheduled';
 import { useQueryClient } from '@tanstack/solid-query';
-import { ComposerSurface, cn } from '@ui';
+import { Button, ComposerSurface, cn } from '@ui';
 import type { LexicalEditor } from 'lexical';
 import {
   type ComponentProps,
@@ -125,26 +125,57 @@ export function EmailDraftComposer(props: EmailDraftComposerProps) {
   const inboxes = createMemo(() =>
     queryReadyGate(emailLinksQuery) ? (emailLinksQuery.data.links ?? []) : []
   );
-  // A reply goes out from the inbox that received the message it answers, so
-  // a draft that names no sender has to resolve that inbox to show an honest
-  // "from" — the agent only names the message. The backend derives the same
-  // inbox from the same message, so the two always agree.
-  const replyTargetInboxId = useMessageInboxId(() =>
-    props.initialData.from?.trim()
-      ? undefined
-      : (props.initialData.replyingToId ?? undefined)
+  // Keep the selected address even if its inbox is later disconnected, so
+  // edits cannot silently replace an explicit sender.
+  const [chosenInbox, setChosenInbox] = createSignal<{
+    id: string;
+    address: string;
+  }>();
+  const explicitFrom = () =>
+    chosenInbox()?.address || props.initialData.from?.trim() || undefined;
+  const replyInboxQuery = useMessageInboxQuery(() =>
+    explicitFrom() ? undefined : (props.initialData.replyingToId ?? undefined)
   );
-  const [chosenInboxId, setChosenInboxId] = createSignal<string>();
   const sendingLink = createMemo(() => {
     const list = inboxes();
     return resolveSendingInbox(list, {
-      chosenInboxId: chosenInboxId(),
+      chosenInboxId: chosenInbox()?.id,
       draftFrom: props.initialData.from,
-      replyTargetInboxId: replyTargetInboxId(),
-      primaryInboxId: findPrimaryEmailLinkId(list, userId()),
+      isReply: Boolean(props.initialData.replyingToId),
+      replyTargetInboxId: queryReadyGate(replyInboxQuery)
+        ? (replyInboxQuery.data ?? undefined)
+        : undefined,
+      primaryInboxId:
+        findPrimaryEmailLinkId(list, userId()) ??
+        list.find((link) => link.macro_id === userId())?.id,
     });
   });
-  const fromAddress = () => sendingLink()?.email_address;
+  const fromAddress = () => explicitFrom() ?? sendingLink()?.email_address;
+  const senderNotice = () => {
+    if (sendingLink()) return undefined;
+    if (emailLinksQuery.isPending) return 'Resolving sender...';
+    if (!queryReadyGate(emailLinksQuery)) {
+      return 'Could not load your inboxes. Try again.';
+    }
+    if (explicitFrom()) {
+      return `${explicitFrom()} is unavailable. Choose a connected sending inbox.`;
+    }
+    if (props.initialData.replyingToId) {
+      if (replyInboxQuery.isPending || replyInboxQuery.isFetching) {
+        return 'Resolving sender...';
+      }
+      return 'Could not resolve the reply sender. Try again or choose a sending inbox.';
+    }
+    return 'Connect an inbox to send email.';
+  };
+  const canRetrySender = () =>
+    !sendingLink() &&
+    (emailLinksQuery.isError || (!explicitFrom() && replyInboxQuery.isError));
+  const retrySender = () => {
+    if (emailLinksQuery.isError) void emailLinksQuery.refetch();
+    if (!explicitFrom() && replyInboxQuery.isError)
+      void replyInboxQuery.refetch();
+  };
   const signature = useEmailSignature(() => sendingLink()?.id);
   const emailSignaturesFlag = useFeatureFlag(enableEmailSignatures);
   // Whether this email includes the signature. Defaults on; the preview's ✕
@@ -227,12 +258,8 @@ export function EmailDraftComposer(props: EmailDraftComposerProps) {
       subject: subject(),
       body: prepareEmailBody(editor())?.bodyHtml ?? '',
       replyingToId: props.initialData.replyingToId,
-      // Only persist an explicit choice. The displayed fallback must not
-      // override the backend's reply inbox while its lookup is pending or failed.
-      from:
-        chosenInboxId() !== undefined || props.initialData.from?.trim()
-          ? fromAddress()
-          : undefined,
+      // Preserve explicit choices; the backend resolves implicit senders.
+      from: explicitFrom(),
       // Omit to use the backend default policy; false only when dismissed.
       includeSignature: includeSignature() ? undefined : false,
       attachments: attachments.toToolArgs(),
@@ -273,7 +300,13 @@ export function EmailDraftComposer(props: EmailDraftComposerProps) {
   });
 
   async function handleSend() {
-    if (finalized || uiDisabled() || isSending() || attachments.uploading())
+    if (
+      finalized ||
+      uiDisabled() ||
+      isSending() ||
+      attachments.uploading() ||
+      !sendingLink()
+    )
       return;
     if (!validate()) return;
     debouncedEdit.clear();
@@ -342,7 +375,7 @@ export function EmailDraftComposer(props: EmailDraftComposerProps) {
     disabled: () => isSending() || uiDisabled(),
     // Send waits for files the user just added to finish becoming documents.
     primaryActionDisabled: () =>
-      isSending() || uiDisabled() || attachments.uploading(),
+      isSending() || uiDisabled() || attachments.uploading() || !sendingLink(),
     isSending,
     isSavingDraft: () => false,
     hasDraft: () => false,
@@ -361,8 +394,10 @@ export function EmailDraftComposer(props: EmailDraftComposerProps) {
     fromInboxes: () => fromInboxOptions(inboxes()),
     selectedInboxId: () => sendingLink()?.id,
     onSelectInbox: (inboxId) => {
-      if (uiDisabled()) return;
-      setChosenInboxId(inboxId);
+      if (uiDisabled() || isSending()) return;
+      const inbox = inboxes().find((link) => link.id === inboxId);
+      if (!inbox) return;
+      setChosenInbox({ id: inbox.id, address: inbox.email_address });
       scheduleUpdate();
     },
     recipients,
@@ -407,6 +442,28 @@ export function EmailDraftComposer(props: EmailDraftComposerProps) {
               '[&_button:disabled]:opacity-50 [&_button:disabled]:text-ink-disabled [&_input:disabled]:text-ink-muted'
           )}
           header={header()}
+          notice={
+            <Show when={!props.readOnly && senderNotice()}>
+              {(notice) => (
+                <div
+                  role="status"
+                  class="flex flex-wrap items-center gap-2 text-sm text-ink-muted"
+                >
+                  <span>{notice()}</span>
+                  <Show when={canRetrySender()}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={uiDisabled()}
+                      onClick={retrySender}
+                    >
+                      Retry
+                    </Button>
+                  </Show>
+                </div>
+              )}
+            </Show>
+          }
           toolbar={
             props.readOnly === true ? undefined : (
               <EmailComposeToolbar editor={editor} />
