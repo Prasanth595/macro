@@ -9,6 +9,7 @@ import {
 } from 'solid-js';
 import siteStyles from '../../../app/main/index.css?inline';
 import { DeferredDemo, DemoPlaceholder } from './DeferredDemo';
+import { DemoInteractionBoundary } from './DemoInteractionBoundary';
 import { DemoMention } from './DemoMention';
 import { HomepageAgentLogos } from './HomepageAgentLogos';
 import { HomepageBlog } from './HomepageBlog';
@@ -93,16 +94,20 @@ function Feature(props: {
       <Show when={conversation()}>
         {(messages) => <HomepageConversation messages={messages()} />}
       </Show>
-      <div class="homepage-feature-visual">
+      <DemoInteractionBoundary
+        label={props.title}
+        class="homepage-feature-visual"
+      >
         <div
           class={`homepage-feature-graphic homepage-enter homepage-feature-${props.id}`}
         >
           {props.children}
         </div>
-      </div>
+      </DemoInteractionBoundary>
       <Show when={props.productPages}>
         {(pages) => (
           <div class="homepage-feature-more-group">
+            <span class="homepage-feature-more-label">Learn more</span>
             <For each={pages()}>
               {(page) => (
                 <HomepageFeatureDetails title={page.title} path={page.path} />
@@ -290,8 +295,8 @@ export function HomepageSections() {
         <Feature
           id="crm"
           productPages={[{ title: 'CRM', path: '/crm' }]}
-          title="Sales and marketing"
-          description="Companies and contacts created from email. Agents update deal stages and draft customer follow-ups."
+          title="CRM"
+          description="Keep every customer conversation and next step together."
           messages={[
             {
               person: 'valentina',

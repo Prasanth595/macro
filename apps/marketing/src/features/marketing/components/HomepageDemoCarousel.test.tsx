@@ -225,3 +225,15 @@ it('keeps the dedicated scene and caption synchronized after an internal rail cl
       .getAttribute('aria-pressed')
   ).toBe('true');
 });
+
+it('stops cycling when the visitor enters the sample workspace', () => {
+  enableAutoplay();
+  mountCarousel();
+  fireEvent(
+    screen.getByRole('region'),
+    new CustomEvent('macro-demo-interaction', { bubbles: true })
+  );
+  openView.mockClear();
+  vi.advanceTimersByTime(30000);
+  expect(openView).not.toHaveBeenCalled();
+});

@@ -25,7 +25,7 @@ afterEach(() => {
 it('opens the actual product page and restores focus when closed', async () => {
   render(() => <HomepageFeatureDetails title="Email" path="/email" />);
   const opener = screen.getByRole('button', {
-    name: 'Learn more about email',
+    name: 'Learn more about Email',
   });
   fireEvent.click(opener);
   expect(await screen.findByRole('dialog', { name: 'Email' })).toBeTruthy();
@@ -40,7 +40,7 @@ it('opens the actual product page and restores focus when closed', async () => {
 
 it('handles Escape from the embedded page without stealing a nested dialog’s Escape', async () => {
   render(() => <HomepageFeatureDetails title="CRM" path="/crm" />);
-  fireEvent.click(screen.getByRole('button', { name: 'Learn more about crm' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Learn more about CRM' }));
   const frame = (await screen.findByTitle(
     'CRM product page'
   )) as HTMLIFrameElement;
@@ -65,7 +65,7 @@ it('opens Email and Chat as separate product pages', async () => {
     </>
   ));
   fireEvent.click(
-    screen.getByRole('button', { name: 'Learn more about email' })
+    screen.getByRole('button', { name: 'Learn more about Email' })
   );
   expect(
     (await screen.findByTitle('Email product page')).getAttribute('src')
@@ -73,7 +73,7 @@ it('opens Email and Chat as separate product pages', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Close product page' }));
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   fireEvent.click(
-    screen.getByRole('button', { name: 'Learn more about chat' })
+    screen.getByRole('button', { name: 'Learn more about Chat' })
   );
   expect(
     (await screen.findByTitle('Chat product page')).getAttribute('src')

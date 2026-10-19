@@ -1,5 +1,6 @@
 import MacroLogo from '@icon/macro-logo.svg';
 import { type JSX, type ParentProps, Show } from 'solid-js';
+import { DemoInteractionBoundary } from '../DemoInteractionBoundary';
 import { FeaturePage, FeaturePageCta } from '../FeaturePage';
 import '../email/email-hero.css';
 import './product-page.css';
@@ -61,7 +62,8 @@ export function ProductDemo(props: {
   mobileHeight?: number;
 }) {
   return (
-    <div
+    <DemoInteractionBoundary
+      label={props.label}
       ref={props.ref}
       class="product-demo-stage"
       role="group"
@@ -82,6 +84,6 @@ export function ProductDemo(props: {
       >
         <div class="dummy-main">{props.children}</div>
       </div>
-    </div>
+    </DemoInteractionBoundary>
   );
 }

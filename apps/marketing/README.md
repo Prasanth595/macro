@@ -57,7 +57,7 @@ Demo copy is illustrative, informed by the team's website feedback, rather
 than a publication of private messages.
 
 The homepage feature sections retain the centered headings, conversations,
-and demos from before the two-column layout experiment. Large Learn more buttons open the existing product pages. Email and Chat have
+and demos from before the two-column layout experiment. A shared Learn more label and compact, consistently capitalized product buttons open the existing pages. Email and Chat have
 separate buttons, as do Documents and Tasks. Agents and CRM each have one.
 The panel uses 55% of desktop width (at least 760px, bounded by the viewport),
 with a floating close control and no extra title bar. Sheets has no dedicated product page, so it has no extra link.
@@ -67,6 +67,18 @@ Normal product routes are unchanged. Escape in the embedded page closes the
 drawer unless a nested dialog or menu is open, and closing returns focus to the
 opening button. On phones the panel fills the viewport. Content is maintained
 in the product pages, not in a separate set of homepage explanations.
+
+Marketing demos use `DemoInteractionBoundary`: wheel and touch gestures scroll
+the surrounding page until the visitor clicks or enters with the keyboard. The
+preview contents stay mounted but inert, preventing internal scroll capture and
+automatic focus jumps. The first click activates the demo without triggering an
+underlying action. Keep this gate invisible, with an accessible keyboard entry
+but no activation badge or extra visible button. Escape (after closing any native menu), clicking outside, or
+moving keyboard focus outside returns to preview mode and preserves demo state.
+Nested previews share one boundary; the standalone `/demo` route uses
+`DemoInteractionScope` and remains immediately interactive. Apply this shared
+boundary to new marketing demos rather than adding custom wheel handlers.
+Entering the homepage workspace also stops its carousel from advancing.
 
 ## Ownership and dependency boundary
 
@@ -329,8 +341,8 @@ A benefit carousel fades the live preview into slab-serif headlines. The first
 highlight opens an email inside Home’s mixed activity feed; subsequent highlights
 show Chat, Docs, CRM, Tasks, and Agents. Arrows, dots, left/right keys, and swiping
 the caption select highlights without reloading the frame. Horizontal drags
-capture the pointer; vertical gestures keep scrolling the page. There is no autoplay.
-The workspace is always interactive. Clicking or typing inside it keeps the fade,
+capture the pointer; vertical gestures keep scrolling the page. Automatic cycling stops when the visitor selects or enters a demo.
+The shared interaction boundary keeps the page scrollable until entry. Clicking or typing inside it keeps the fade,
 headline, controls, and layout intact. Sidebar navigation updates the active
 highlight without overriding the visitor’s navigation. Slab headlines sit directly
 below the blue indicator and chevrons, without small category headers. Verify direct

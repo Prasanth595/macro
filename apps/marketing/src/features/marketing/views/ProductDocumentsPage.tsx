@@ -1,5 +1,6 @@
 import { setPageSeo } from '../../../app/utils/utilSeo';
 import { FeatureComparisons } from '../components/comparisons/FeatureComparisons';
+import { DemoInteractionBoundary } from '../components/DemoInteractionBoundary';
 import { DocumentOrganizationDemo } from '../components/documents/DocumentOrganizationDemo';
 import { DocumentProjectDemo } from '../components/documents/DocumentProjectDemo';
 import {
@@ -101,27 +102,27 @@ export function RouteDocuments() {
           title="Write alongside your agent."
           description="Ask it to use your emails and tasks to update the doc. Both of you can edit the same paragraph, with changes merging as you type."
         >
-          <div class="feature-page-visual">
+          <DemoInteractionBoundary class="feature-page-visual">
             <DocumentAgentDemo />
-          </div>
+          </DemoInteractionBoundary>
         </FeaturePageSection>
         <FeaturePageSection
           id="document-links"
           title="Open emails and tasks beside your doc."
           description="Link to the work you’re writing about. Open the original email, task, or conversation without closing your doc."
         >
-          <div class="feature-page-visual docs-wide-demo">
+          <DemoInteractionBoundary class="feature-page-visual docs-wide-demo">
             <DocumentMentionsDemo />
-          </div>
+          </DemoInteractionBoundary>
         </FeaturePageSection>
         <FeaturePageSection
           id="document-organization"
           title="Organize docs with folders and tags."
           description="Keep a doc in its folder and find it through any of its tags, alongside related emails and tasks."
         >
-          <div class="feature-page-visual">
+          <DemoInteractionBoundary class="feature-page-visual">
             <DocumentOrganizationDemo />
-          </div>
+          </DemoInteractionBoundary>
         </FeaturePageSection>
         <section
           id="documents-comparison"

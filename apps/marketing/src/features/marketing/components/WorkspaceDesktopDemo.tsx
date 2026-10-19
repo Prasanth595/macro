@@ -8,6 +8,7 @@ import {
 } from 'solid-js';
 import type { DummyData, WorkspaceView } from '../core/dummy-workspace';
 import { DeferredDemo } from './DeferredDemo';
+import { DemoInteractionBoundary } from './DemoInteractionBoundary';
 import './email/email-desktop-demo.css';
 
 const loadWorkspace = () => import('./workspace/DummyWorkspace');
@@ -86,7 +87,11 @@ export function WorkspaceDesktopDemo(props: {
               ↗
             </a>
           </div>
-          <div ref={content} class="email-desktop-content">
+          <DemoInteractionBoundary
+            label={props.label}
+            ref={content}
+            class="email-desktop-content"
+          >
             <div class="email-desktop-canvas">
               <Show
                 when={props.children}
@@ -116,7 +121,7 @@ export function WorkspaceDesktopDemo(props: {
                 {props.children}
               </Show>
             </div>
-          </div>
+          </DemoInteractionBoundary>
         </div>
       </div>
       <Show when={props.caption}>

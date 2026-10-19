@@ -1,4 +1,5 @@
 import MacroLogo from '@icon/macro-logo.svg';
+import { DemoInteractionBoundary } from '../../features/marketing/components/DemoInteractionBoundary';
 import { EmailAgenticEditingDemo } from '../../features/marketing/components/email/EmailAgenticEditingDemo';
 import { EmailAutoTagsDemo } from '../../features/marketing/components/email/EmailAutoTagsDemo';
 import { EmailComparison } from '../../features/marketing/components/email/EmailComparison';
@@ -140,9 +141,9 @@ export function RouteEmail() {
           'Macro tags incoming email by customer, project, or follow-up.\nUse tags to find the related conversations across your accounts.'
         }
       >
-        <div class="feature-page-visual">
+        <DemoInteractionBoundary class="feature-page-visual">
           <EmailAutoTagsDemo />
-        </div>
+        </DemoInteractionBoundary>
         <div class="email-feature-prose">
           <p>
             Automatic tags label incoming messages so you can browse email by
@@ -160,9 +161,9 @@ export function RouteEmail() {
           'Share the full email thread with your team.\nFuture replies appear in the shared thread automatically.'
         }
       >
-        <div class="feature-page-visual">
+        <DemoInteractionBoundary class="feature-page-visual">
           <EmailSharingDemo />
-        </div>
+        </DemoInteractionBoundary>
         <div class="email-feature-prose">
           <p>
             Choose a channel, add a note, and share the email. Channel members
@@ -180,9 +181,9 @@ export function RouteEmail() {
           'J and K to navigate. E to mark done.\nSearch all your connected accounts from one inbox.'
         }
       >
-        <div class="feature-page-visual">
+        <DemoInteractionBoundary class="feature-page-visual">
           <EmailKeyboardDemo />
-        </div>
+        </DemoInteractionBoundary>
         <div class="email-feature-prose">
           <p>
             Macro syncs email into its own database and search index. Search and
@@ -200,9 +201,9 @@ export function RouteEmail() {
           'Ask for a follow-up using the email thread and meeting transcript.\nReview the draft, recipients, and attachments before sending.'
         }
       >
-        <div class="feature-page-visual">
+        <DemoInteractionBoundary class="feature-page-visual">
           <EmailAgenticEditingDemo />
-        </div>
+        </DemoInteractionBoundary>
         <div class="email-feature-prose">
           <p>
             Agents can search past emails and read the documents and calls you

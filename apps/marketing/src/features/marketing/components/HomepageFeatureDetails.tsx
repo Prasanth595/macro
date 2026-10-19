@@ -1,4 +1,5 @@
 import { Dialog } from '@kobalte/core/dialog';
+import CaretRight from '@phosphor/caret-right.svg';
 import X from '@phosphor/x.svg';
 import { createSignal, onCleanup } from 'solid-js';
 import { createSitePalette } from '../../setup/sitePalette';
@@ -66,11 +67,11 @@ export function HomepageFeatureDetails(props: {
           ref={opener}
           type="button"
           aria-haspopup="dialog"
-          aria-label={`Learn more about ${props.title.toLowerCase()}`}
+          aria-label={`Learn more about ${props.title}`}
           onClick={() => changeOpen(true)}
         >
-          Learn more about {props.title.toLowerCase()}
-          <span aria-hidden="true">+</span>
+          {props.title}
+          <CaretRight aria-hidden="true" />
         </button>
       </div>
       <Dialog open={open()} onOpenChange={changeOpen} modal>
@@ -96,8 +97,7 @@ export function HomepageFeatureDetails(props: {
               <X aria-hidden="true" />
             </Dialog.CloseButton>
             <Dialog.Description class="sr-only">
-              Read the {props.title.toLowerCase()} product page without leaving
-              the homepage.
+              Read the {props.title} product page without leaving the homepage.
             </Dialog.Description>
             <div class="homepage-detail-page" aria-busy={!loaded()}>
               <iframe

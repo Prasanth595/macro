@@ -1,0 +1,190 @@
+import {
+  createContext,
+  createSignal,
+  type JSX,
+  onCleanup,
+  onMount,
+  type ParentProps,
+  Show,
+  splitProps,
+  useContext,
+} from 'solid-js';
+import './demo-interaction-boundary.css';
+
+const InteractionScope = createContext(false);
+export const DEMO_INTERACTION_EVENT = 'macro-demo-interaction';
+
+/** The standalone sample workspace is already an intentional app visit. */
+export function DemoInteractionScope(props: ParentProps) {
+  return (
+    <InteractionScope.Provider value={true}>
+      {props.children}
+    </InteractionScope.Provider>
+  );
+}
+
+/** Preview gestures belong to the page until the visitor explicitly enters a demo. */
+export function DemoInteractionBoundary(
+  props: JSX.HTMLAttributes<HTMLDivElement> & { label?: string }
+) {
+  const [local, rest] = splitProps(props, [
+    'children',
+    'class',
+    'ref',
+    'label',
+  ]);
+  const nested = useContext(InteractionScope);
+  const [active, setActive] = createSignal(false);
+  let root!: HTMLDivElement;
+  let content!: HTMLDivElement;
+  let entry: HTMLButtonElement | undefined;
+  const activate = () => {
+    if (active()) return;
+    setActive(true);
+    root.dispatchEvent(
+      new CustomEvent(DEMO_INTERACTION_EVENT, { bubbles: true })
+    );
+  };
+  const leave = (restoreFocus = false) => {
+    setActive(false);
+    if (restoreFocus)
+      queueMicrotask(() => entry?.focus({ preventScroll: true }));
+  };
+  onMount(() => {
+    if (nested) return;
+    const document = root.ownerDocument;
+    const insidePopup = (target: EventTarget | null) =>
+      target instanceof Element &&
+      !!target.closest('[role="dialog"], [role="menu"], [role="listbox"]');
+    const outside = (event: Event) => {
+      if (
+        event.type === 'focusin' &&
+        (event.target === document.body ||
+          event.target === document.documentElement)
+      )
+        return;
+      if (
+        !active() ||
+        (event.target instanceof Node && root.contains(event.target)) ||
+        insidePopup(event.target)
+      )
+        return;
+      leave();
+    };
+    const escapeFrom = (page: Document, event: KeyboardEvent) => {
+      if (!active() || event.key !== 'Escape' || event.defaultPrevented) return;
+      // Let native popups use the first Escape; the next exits the demo.
+      if (
+        page.querySelector('[role="menu"], [role="listbox"], [role="dialog"]')
+      )
+        return;
+      event.preventDefault();
+      leave(true);
+    };
+    const key = (event: KeyboardEvent) => {
+      if (event.target instanceof Node && root.contains(event.target))
+        escapeFrom(document, event);
+    };
+    document.addEventListener('pointerdown', outside, true);
+    document.addEventListener('focusin', outside);
+    document.addEventListener('keydown', key, true);
+
+    const frames = new Map<HTMLIFrameElement, () => void>();
+    const syncFrames = () => {
+      const current = new Set(root.querySelectorAll('iframe'));
+      for (const [frame, dispose] of frames)
+        if (!current.has(frame)) {
+          dispose();
+          frames.delete(frame);
+        }
+      for (const frame of current) {
+        if (frames.has(frame)) continue;
+        let releasePage: (() => void) | undefined;
+        const attach = () => {
+          releasePage?.();
+          releasePage = undefined;
+          let page: Document | null;
+          try {
+            page = frame.contentDocument;
+          } catch {
+            return;
+          }
+          if (!page) return;
+          const onKey = (event: KeyboardEvent) => escapeFrom(page, event);
+          page.addEventListener('keydown', onKey, true);
+          releasePage = () => page.removeEventListener('keydown', onKey, true);
+        };
+        frame.addEventListener('load', attach);
+        attach();
+        frames.set(frame, () => {
+          frame.removeEventListener('load', attach);
+          releasePage?.();
+        });
+      }
+    };
+    syncFrames();
+    const observer = new MutationObserver((records) => {
+      if (
+        records.some((record) =>
+          [...record.addedNodes, ...record.removedNodes].some(
+            (node) =>
+              node instanceof Element &&
+              (node.matches('iframe') || node.querySelector('iframe'))
+          )
+        )
+      )
+        syncFrames();
+    });
+    observer.observe(root, { childList: true, subtree: true });
+    onCleanup(() => {
+      observer.disconnect();
+      for (const dispose of frames.values()) dispose();
+      document.removeEventListener('pointerdown', outside, true);
+      document.removeEventListener('focusin', outside);
+      document.removeEventListener('keydown', key, true);
+    });
+  });
+
+  return (
+    <div
+      {...rest}
+      ref={(element) => {
+        root = element;
+        if (typeof local.ref === 'function') local.ref(element);
+      }}
+      class={`demo-interaction-boundary ${local.class ?? ''}`}
+      data-demo-active={nested || active()}
+      tabIndex={-1}
+    >
+      <div
+        ref={content}
+        class="demo-interaction-content"
+        inert={!nested && !active()}
+      >
+        <InteractionScope.Provider value={true}>
+          {local.children}
+        </InteractionScope.Provider>
+      </div>
+      <Show when={!nested && !active()}>
+        <button
+          ref={entry}
+          class="demo-interaction-activate"
+          type="button"
+          aria-label={`Interact with ${local.label ?? 'demo'}. Press Escape to return to page scrolling.`}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            activate();
+            if (event.detail === 0)
+              queueMicrotask(() => {
+                const first = content.querySelector<HTMLElement>(
+                  'iframe, button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href], [tabindex="0"], [contenteditable="true"]'
+                );
+                (first ?? root).focus({ preventScroll: true });
+              });
+            else root.focus({ preventScroll: true });
+          }}
+        />
+      </Show>
+    </div>
+  );
+}

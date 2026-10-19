@@ -7,6 +7,7 @@ import {
   ChannelThreadDemo,
 } from '../components/channels/ChannelStories';
 import { FeatureComparisons } from '../components/comparisons/FeatureComparisons';
+import { DemoInteractionBoundary } from '../components/DemoInteractionBoundary';
 import { FeaturePageFaq, FeaturePageSection } from '../components/FeaturePage';
 import { HomepageClosing } from '../components/HomepageClosing';
 import {
@@ -60,27 +61,27 @@ export function RouteChannels() {
         title="Open docs, tasks, and email straight from chat."
         description="Click a mention to open the work beside the conversation."
       >
-        <div class="feature-page-visual channel-wide-demo">
+        <DemoInteractionBoundary class="feature-page-visual channel-wide-demo">
           <ChannelSharedWorkDemo />
-        </div>
+        </DemoInteractionBoundary>
       </FeaturePageSection>
       <FeaturePageSection
         id="channel-access"
         title="Access follows the channel."
         description="Mention a doc, task, or email to give the channel access. New members get access too."
       >
-        <div class="feature-page-visual">
+        <DemoInteractionBoundary class="feature-page-visual">
           <ChannelPermissionsDemo />
-        </div>
+        </DemoInteractionBoundary>
       </FeaturePageSection>
       <FeaturePageSection
         id="channel-agents"
         title="Agents are first-class participants."
         description="Use Macro’s agents or bring your own. The team can follow the work in the channel."
       >
-        <div class="feature-page-visual">
+        <DemoInteractionBoundary class="feature-page-visual">
           <ChannelAgentDemo />
-        </div>
+        </DemoInteractionBoundary>
       </FeaturePageSection>
       <FeaturePageSection
         id="catch-up"
@@ -89,9 +90,9 @@ export function RouteChannels() {
       >
         <span id="channel-threads" />
         <span id="chat-inbox" />
-        <div class="feature-page-visual">
+        <DemoInteractionBoundary class="feature-page-visual">
           <ChannelThreadDemo />
-        </div>
+        </DemoInteractionBoundary>
       </FeaturePageSection>
       <FeatureComparisons comparisons={chatComparisons} />
       <FeaturePageFaq

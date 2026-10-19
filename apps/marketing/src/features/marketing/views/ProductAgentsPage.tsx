@@ -7,6 +7,7 @@ import {
   AgentMeetingStory,
   AgentTeamworkStory,
 } from '../components/agents/AgentWorkflowStories';
+import { DemoInteractionBoundary } from '../components/DemoInteractionBoundary';
 import { FeaturePageFaq, FeaturePageSection } from '../components/FeaturePage';
 import { HomepageClosing } from '../components/HomepageClosing';
 import {
@@ -111,27 +112,27 @@ export function RouteAgents() {
         title="An agent that knows where to look."
         description="Your agent can follow connections across your company’s work and act on what it finds. A question about tomorrow’s calls can draw on your calendar, earlier conversations, and the latest customer messages."
       >
-        <div class="feature-page-visual">
+        <DemoInteractionBoundary class="feature-page-visual">
           <AgentMeetingStory />
-        </div>
+        </DemoInteractionBoundary>
       </FeaturePageSection>
       <FeaturePageSection
         id="agent-actions"
         title="Work alongside your agent"
         description="Your team can open the same document, add context, and ask an agent to update it. Changes happen in the shared file."
       >
-        <div class="feature-page-visual">
+        <DemoInteractionBoundary class="feature-page-visual">
           <AgentDeliverableStory />
-        </div>
+        </DemoInteractionBoundary>
       </FeaturePageSection>
       <FeaturePageSection
         id="agent-collaboration"
         title="Bring your agents into team chat."
         description="Ask Macro for a mockup, give feedback, then tag Cursor to build it."
       >
-        <div class="feature-page-visual">
+        <DemoInteractionBoundary class="feature-page-visual">
           <AgentTeamworkStory />
-        </div>
+        </DemoInteractionBoundary>
       </FeaturePageSection>
       <FeaturePageSection
         id="existing-agents"

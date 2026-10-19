@@ -1,5 +1,6 @@
 import { createSignal, For, type JSX, onCleanup, onMount } from 'solid-js';
 import { HOMEPAGE_DEMO_EVENT } from '../core/homepage-demo-scenes';
+import { DEMO_INTERACTION_EVENT } from './DemoInteractionBoundary';
 
 const SLIDES = [
   {
@@ -194,6 +195,7 @@ export function HomepageDemoCarousel(props: {
         root.contains(event.relatedTarget);
       restartAutoplay();
     };
+    root.addEventListener(DEMO_INTERACTION_EVENT, pauseForUse);
     root.addEventListener('pointerenter', enter);
     root.addEventListener('pointerleave', leave);
     root.addEventListener('focusin', focus);
@@ -261,6 +263,7 @@ export function HomepageDemoCarousel(props: {
       observer.disconnect();
       visibility?.disconnect();
       clearTimeout(timer);
+      root.removeEventListener(DEMO_INTERACTION_EVENT, pauseForUse);
       root.removeEventListener('pointerenter', enter);
       root.removeEventListener('pointerleave', leave);
       root.removeEventListener('focusin', focus);

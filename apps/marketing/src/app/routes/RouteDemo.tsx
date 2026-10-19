@@ -1,5 +1,6 @@
 import { useSearchParams } from '@solidjs/router';
 import { lazy, Show, Suspense } from 'solid-js';
+import { DemoInteractionScope } from '../../features/marketing/components/DemoInteractionBoundary';
 import DummyWorkspace from '../../features/marketing/components/workspace/DummyWorkspace';
 import palette from '../../styles/dark-theme.css?inline';
 import uiStyles from '../../styles/site-ui.css?inline';
@@ -32,27 +33,29 @@ export default function RouteDemo() {
     noindex: true,
   });
   return (
-    <main
-      class="dummy-route"
-      data-theme-light={palette() === 'cream' ? 'true' : 'false'}
-      data-palette={palette() === 'cream' ? 'cream' : undefined}
-      data-embedded={params.embedded === 'true'}
-    >
-      <style>{properties}</style>
-      <style>{`@scope (.dummy-route) { ${styles} ${workspacePalette.replaceAll(':root', ':scope')} }`}</style>
-      <Show when={params.scene === 'homepage'} fallback={<DummyWorkspace />}>
-        <Suspense
-          fallback={
-            <div class="email-desktop-loading">Opening your workspace…</div>
-          }
-        >
-          <HomepageScene
-            initialView={
-              typeof params.view === 'string' ? params.view : undefined
+    <DemoInteractionScope>
+      <main
+        class="dummy-route"
+        data-theme-light={palette() === 'cream' ? 'true' : 'false'}
+        data-palette={palette() === 'cream' ? 'cream' : undefined}
+        data-embedded={params.embedded === 'true'}
+      >
+        <style>{properties}</style>
+        <style>{`@scope (.dummy-route) { ${styles} ${workspacePalette.replaceAll(':root', ':scope')} }`}</style>
+        <Show when={params.scene === 'homepage'} fallback={<DummyWorkspace />}>
+          <Suspense
+            fallback={
+              <div class="email-desktop-loading">Opening your workspace…</div>
             }
-          />
-        </Suspense>
-      </Show>
-    </main>
+          >
+            <HomepageScene
+              initialView={
+                typeof params.view === 'string' ? params.view : undefined
+              }
+            />
+          </Suspense>
+        </Show>
+      </main>
+    </DemoInteractionScope>
   );
 }

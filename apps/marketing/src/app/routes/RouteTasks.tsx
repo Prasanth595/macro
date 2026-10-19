@@ -1,4 +1,5 @@
 import jacobPhoto from '../../assets/people/jacob.webp';
+import { DemoInteractionBoundary } from '../../features/marketing/components/DemoInteractionBoundary';
 import {
   FeaturePageFaq,
   FeaturePageSection,
@@ -132,36 +133,36 @@ export function RouteTasks() {
           title="Turn a message into a task."
           description="Make a task from the request and give it an owner."
         >
-          <div class="feature-page-visual">
+          <DemoInteractionBoundary class="feature-page-visual">
             <TaskFromMessageDemo />
-          </div>
+          </DemoInteractionBoundary>
         </FeaturePageSection>
         <FeaturePageSection
           id="ask-macro"
           title="Ask your agent to handle updates."
           description="Macro can create the tasks, change an assignment, or check what’s still open."
         >
-          <div class="feature-page-visual">
+          <DemoInteractionBoundary class="feature-page-visual">
             <TaskAgentChannelDemo />
-          </div>
+          </DemoInteractionBoundary>
         </FeaturePageSection>
         <FeaturePageSection
           id="from-docs-and-email"
           title="Link the work inside the task."
           description={'Use @mentions to link docs, emails, and conversations.'}
         >
-          <div class="feature-page-visual">
+          <DemoInteractionBoundary class="feature-page-visual">
             <TaskContextDemo />
-          </div>
+          </DemoInteractionBoundary>
         </FeaturePageSection>
         <FeaturePageSection
           id="github"
           title="Tasks close themselves upon completion."
           description="Merge a linked pull request and Macro marks the task done."
         >
-          <div class="feature-page-visual">
+          <DemoInteractionBoundary class="feature-page-visual">
             <TaskGithubDemo />
-          </div>
+          </DemoInteractionBoundary>
         </FeaturePageSection>
         <TasksComparison />
         <FeaturePageFaq

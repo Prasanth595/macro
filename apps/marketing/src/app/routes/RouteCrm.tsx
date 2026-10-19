@@ -13,6 +13,7 @@ import {
   DeferredDemo,
   DemoPlaceholder,
 } from '../../features/marketing/components/DeferredDemo';
+import { DemoInteractionBoundary } from '../../features/marketing/components/DemoInteractionBoundary';
 import {
   FeaturePageFaq,
   FeaturePageSection,
@@ -118,14 +119,12 @@ export function RouteCrm() {
       </nav>
       <FeaturePageSection
         id="crm-from-email"
-        title="Nobody has to update the CRM."
-        description={
-          'Tell @Claude what happened on the call and it updates the stage, owner, and notes.\nOr let it read the email thread and work it out.'
-        }
+        title="Keep your CRM current."
+        description={'Update stages and owners from your conversations.'}
       >
-        <div class="feature-page-visual">
+        <DemoInteractionBoundary class="feature-page-visual">
           <CrmCaptureDemo />
-        </div>
+        </DemoInteractionBoundary>
         <ProductProse>
           <p>
             Every CRM is useful when it’s up to date, and every keystroke it
@@ -139,14 +138,12 @@ export function RouteCrm() {
       </FeaturePageSection>
       <FeaturePageSection
         id="crm-enrichment"
-        title="Every company, already researched."
-        description={
-          'New companies show up from your email with a description from public sources.\nYour team adds what only you know.'
-        }
+        title="Know who you’re meeting."
+        description={'Company details, filled in from the first email.'}
       >
-        <div class="feature-page-visual">
+        <DemoInteractionBoundary class="feature-page-visual">
           <CrmEnrichmentDemo />
-        </div>
+        </DemoInteractionBoundary>
         <ProductProse>
           <p>
             When you email someone new, Macro creates the contact and the
@@ -158,14 +155,12 @@ export function RouteCrm() {
       </FeaturePageSection>
       <FeaturePageSection
         id="crm-context"
-        title="The whole relationship in one record."
-        description={
-          'Emails, calls, files, and tasks for every company, one tab away.\nComments are threaded like chat, so notes don’t get lost in Slack.'
-        }
+        title="Keep the full picture."
+        description={'Emails, calls, files, and tasks together.'}
       >
-        <div class="feature-page-visual">
+        <DemoInteractionBoundary class="feature-page-visual">
           <CrmRecordDemo />
-        </div>
+        </DemoInteractionBoundary>
         <ProductProse>
           <p>
             Open a company and it’s all there: the people you talk to, every
@@ -179,12 +174,10 @@ export function RouteCrm() {
       </FeaturePageSection>
       <FeaturePageSection
         id="crm-agents"
-        title="Your agents get the same CRM."
-        description={
-          'Agents can read companies and their contacts and update company properties with the same tools you see in the app.\nUse them for outbound, research, or keeping the pipeline current.'
-        }
+        title="Move deals forward."
+        description={'Let agents research accounts and prepare the next step.'}
       >
-        <div class="feature-page-visual crm-agent-scene">
+        <DemoInteractionBoundary class="feature-page-visual crm-agent-scene">
           <HomepageConversation
             messages={[
               {
@@ -192,8 +185,8 @@ export function RouteCrm() {
                 text: (
                   <>
                     <span class="homepage-person-mention">@Claude</span>, update
-                    the pipeline from our sales sync. Northwind asked for a
-                    proposal, and Lumen signed.
+                    the pipeline from our sales sync. Keystone Mechanical asked
+                    for a proposal, and Bookend Retail signed.
                   </>
                 ),
               },
@@ -209,7 +202,7 @@ export function RouteCrm() {
               <PipelineDemo playbackControls={false} />
             </DeferredDemo>
           </div>
-        </div>
+        </DemoInteractionBoundary>
         <ProductProse>
           <p>
             We treat Macro’s MCP server as seriously as the interface. Agents
