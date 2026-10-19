@@ -20,12 +20,20 @@
 .homepage-crm-table tr:hover td { background: var(--color-hover); }
 .homepage-crm-value { width: 96px; padding: 7px; border: 0; border-radius: 4px; background: transparent; color: inherit; font: inherit; }
 .homepage-crm-value:focus { outline: 1px solid var(--color-accent); background: var(--color-surface); }
-.homepage-pipeline-board { display: flex; min-height: 100%; gap: 12px; padding: 16px; }
-.homepage-pipeline-board > section { width: 256px; flex: none; }
-.homepage-pipeline-board header { display: flex; align-items: center; gap: 8px; padding: 8px; font-size: 12px; color: var(--color-ink-muted); }
-.homepage-pipeline-board header > span { margin-left: auto; }
-.homepage-pipeline-board article { display: grid; gap: 12px; padding: 14px; margin-top: 8px; border: 1px solid var(--color-edge-muted); border-radius: 10px; background: var(--color-surface); }
-.homepage-pipeline-company { display: flex; align-items: center; gap: 8px; text-align: left; font-size: 14px; }
+/* Current database Kanban: 336px lanes, muted lane surfaces and 8px cards. */
+.homepage-pipeline-board { display: flex; align-items: flex-start; min-height: 100%; gap: 16px; padding: 16px 20px; }
+.homepage-pipeline-board > section { width: 336px; flex: none; padding: 8px; border: 1px solid var(--color-edge-frame); border-radius: 12px; background: color-mix(in oklch, var(--color-panel) 94%, var(--color-ink)); }
+.homepage-pipeline-board header { display: flex; align-items: center; gap: 8px; padding: 4px 8px 8px; font-size: 14px; font-weight: 500; color: var(--color-ink); }
+.homepage-pipeline-board header > span { font-size: 12px; font-weight: 400; color: var(--color-ink-muted); }
+.homepage-pipeline-board article { padding: 12px; margin-top: 12px; border: 1px solid var(--color-edge-muted); border-radius: 8px; background: var(--color-surface-3); box-shadow: 0 1px 2px #0001; }
+.homepage-pipeline-board article:hover { border-color: var(--color-edge); box-shadow: 0 2px 4px #0002; }
+.homepage-pipeline-company { display: flex; align-items: flex-start; gap: 8px; text-align: left; font-size: 14px; font-weight: 500; line-height: 24px; }
+.homepage-pipeline-company > svg { width: 24px; height: 24px; flex: none; padding: 4px; color: var(--color-ink-muted); }
+.homepage-pipeline-company:hover { text-decoration: underline; }
+.homepage-pipeline-fields { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding-top: 8px; padding-left: 32px; color: var(--color-ink-muted); font-size: 12px; }
+.homepage-pipeline-fields button { min-height: 24px; height: 24px; padding: 0 4px; font-size: 12px; }
+.homepage-pipeline-fields img { width: 16px; height: 16px; }
+.homepage-pipeline-revenue { padding: 2px 4px; font-size: 12px; }
 @media (max-width: 700px) { .homepage-crm-sidebar { width: 176px; } }
 
 .homepage-scene > .dummy-workspace[data-embedded=true],

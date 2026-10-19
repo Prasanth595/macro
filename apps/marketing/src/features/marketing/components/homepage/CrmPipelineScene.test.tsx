@@ -40,6 +40,10 @@ afterEach(() => {
 
 it('edits a pipeline deal without overwriting the company record fields', async () => {
   const view = render(() => <CrmPipelineScene />);
+  expect(
+    view.getByRole('region', { name: 'Sales pipeline board' })
+  ).toBeTruthy();
+  fireEvent.click(view.getByRole('button', { name: 'All records' }));
   fireEvent.keyDown(
     view.getByRole('button', { name: 'Stage for Northstar Design' }),
     { key: 'Enter' }
@@ -75,6 +79,10 @@ it('edits a pipeline deal without overwriting the company record fields', async 
 
 it('opens a linked company record and returns to the same pipeline', () => {
   const view = render(() => <CrmPipelineScene />);
+  expect(
+    view.getByRole('region', { name: 'Sales pipeline board' })
+  ).toBeTruthy();
+  fireEvent.click(view.getByRole('button', { name: 'All records' }));
   fireEvent.click(
     view.getByRole('button', { name: /The Meadow meadow.example/ })
   );

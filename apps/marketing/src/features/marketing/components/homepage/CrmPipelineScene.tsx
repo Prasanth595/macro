@@ -35,7 +35,7 @@ export default function CrmPipelineScene() {
   const w = createDummyWorkspace('crm');
   const [tab, setTab] = createSignal('pipeline');
   const [query, setQuery] = createSignal('');
-  const [board, setBoard] = createSignal(false);
+  const [board, setBoard] = createSignal(true);
   const [share, setShare] = createSignal(false);
   const [linked, setLinked] = createSignal<{
     view: WorkspaceView;
@@ -45,7 +45,7 @@ export default function CrmPipelineScene() {
   const [deals, setDeals] = createStore<Deal[]>(
     [...w.data.companies]
       .sort((a, b) => Number(b.id === 'meadow') - Number(a.id === 'meadow'))
-      .slice(0, 10)
+      .slice(0, 18)
       .map((company, index) => ({
         companyId: company.id,
         stage: (
@@ -455,7 +455,11 @@ export default function CrmPipelineScene() {
                     </table>
                   }
                 >
-                  <div class="homepage-pipeline-board">
+                  <div
+                    class="homepage-pipeline-board"
+                    role="region"
+                    aria-label="Sales pipeline board"
+                  >
                     <For
                       each={dealStages.filter(
                         (stage) =>
@@ -464,7 +468,7 @@ export default function CrmPipelineScene() {
                       )}
                     >
                       {(stage) => (
-                        <section>
+                        <section aria-label={`${stage} deals`}>
                           <header>
                             <StageIcon stage={stage} />
                             {stage}
@@ -490,10 +494,13 @@ export default function CrmPipelineScene() {
                                   <Building class="size-4" />
                                   {company(deal.companyId).name}
                                 </button>
-                                {stageCell(deal)}
-                                <div class="flex items-center justify-between">
+                                <div class="homepage-pipeline-fields">
                                   {ownerCell(deal)}
-                                  <span>
+                                  {stageCell(deal)}
+                                  <span
+                                    class="homepage-pipeline-revenue"
+                                    title="Revenue"
+                                  >
                                     $
                                     {Number(deal.revenue || 0).toLocaleString(
                                       'en-US'
