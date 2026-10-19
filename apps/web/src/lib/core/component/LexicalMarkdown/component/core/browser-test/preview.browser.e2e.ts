@@ -40,9 +40,9 @@ test('previews expose text once, route clicks to their row, and skip embedded co
     const row = page.getByTestId(id).getByRole('button').first();
     await expect(row).toBeVisible({ timeout: 30_000 });
     // Read Chromium's accessibility tree: DOM-based role queries don't model inert.
-    const document = await cdp.send('DOM.getDocument');
+    const cdpDocument = await cdp.send('DOM.getDocument');
     const { nodeId } = await cdp.send('DOM.querySelector', {
-      nodeId: document.root.nodeId,
+      nodeId: cdpDocument.root.nodeId,
       selector: `[data-testid="${id}"] [role="button"]`,
     });
     const { nodes } = await cdp.send('Accessibility.getPartialAXTree', {
