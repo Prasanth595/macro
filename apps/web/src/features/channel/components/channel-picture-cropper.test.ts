@@ -17,6 +17,7 @@ const cropper = vi.hoisted(() => ({
   destroy: vi.fn(),
   finished: vi.fn(),
   construct: vi.fn(),
+  zoom: vi.fn(),
   transform: vi.fn<(matrix: number[]) => void>(),
   matrix: [1, 0, 0, 1, 0, 0],
 }));
@@ -26,13 +27,26 @@ vi.mock('cropperjs', () => ({
       disabled: false,
       clientWidth: 400,
       clientHeight: 400,
+      getBoundingClientRect: () => ({
+        x: 100,
+        y: 100,
+        width: 400,
+        height: 400,
+      }),
       $toCanvas: cropper.exportCanvas,
     };
     image = Object.assign(new EventTarget(), {
       $image: document.createElement('img'),
       $ready: cropper.ready,
       $getTransform: () => cropper.matrix,
-      $zoom: (amount: number) => {
+      getBoundingClientRect: () => ({
+        x: -140,
+        y: 60,
+        width: 800,
+        height: 400,
+      }),
+      $zoom: (amount: number, x: number, y: number) => {
+        cropper.zoom(amount, x, y);
         const factor = amount > 0 ? 1 + amount : 1 / (1 - amount);
         cropper.transform([
           cropper.matrix[0] * factor,
@@ -111,9 +125,12 @@ describe('channel picture crop lifecycle', () => {
     await screen.findByRole('button', { name: 'Apply crop' });
     expect(screen.getByLabelText('Zoom level').textContent).toBe('100%');
     fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    expect(cropper.zoom).toHaveBeenLastCalledWith(0.1, 440, 240);
     await screen.findByText('110%');
     cropper.transform([1.5, 0, 0, 1.5, 0, 0]);
     await screen.findByText('150%');
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom out' }));
+    expect(cropper.zoom).toHaveBeenLastCalledWith(-0.1, 440, 240);
     fireEvent.click(screen.getByRole('button', { name: 'Reset crop' }));
     await screen.findByText('100%');
   });
@@ -338,9 +355,11 @@ describe('channel editor steps', () => {
     const trigger = screen.getByRole('button', { name: 'Preview image' });
     trigger.focus();
     fireEvent.click(trigger);
-    const preview = await screen.findByRole('dialog', {
-      name: 'Lightbox image viewer',
-    });
+    const preview = await screen.findByRole(
+      'dialog',
+      { name: 'Lightbox image viewer' },
+      { timeout: 5000 }
+    );
     expect(preview.querySelector('img')?.getAttribute('src')).toBe(
       'https://files.example.com/channel.png'
     );
@@ -355,6 +374,29 @@ describe('channel editor steps', () => {
         .value
     ).toBe('Draft team');
     await waitFor(() => expect(document.activeElement).toBe(trigger));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
+    await screen.findByRole('button', { name: 'Apply crop' });
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:replacement');
+    fireEvent.change(screen.getByLabelText('Choose channel picture'), {
+      target: {
+        files: [new File(['replacement'], 'new.png', { type: 'image/png' })],
+      },
+    });
+    const imageTrigger = await screen.findByRole('button', {
+      name: 'Preview image',
+    });
+    imageTrigger.focus();
+    fireEvent.click(imageTrigger);
+    const replacementPreview = await screen.findByRole('dialog', {
+      name: 'Lightbox image viewer',
+    });
+    expect(replacementPreview.querySelector('img')?.getAttribute('src')).toBe(
+      'blob:replacement'
+    );
+    fireEvent.keyDown(replacementPreview, { key: 'Escape' });
+    await waitFor(() => expect(document.activeElement).toBe(imageTrigger));
+    expect(screen.getByRole('button', { name: 'Apply crop' })).toBeDefined();
     expect(close).not.toHaveBeenCalled();
     expect(savePicture).not.toHaveBeenCalled();
   });

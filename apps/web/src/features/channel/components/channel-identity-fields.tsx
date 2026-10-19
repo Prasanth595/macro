@@ -10,40 +10,58 @@ import { Show } from 'solid-js';
 export function ChannelImageActions(props: {
   disabled: boolean;
   canClear: boolean;
+  canPreview: boolean;
   error?: string;
   onPick: () => void;
   onClear: () => void;
+  onPreview: (trigger: HTMLButtonElement) => void;
 }) {
   return (
     <div class="flex flex-col gap-3">
-      <div>
-        <h3 class="text-sm font-medium">Channel image</h3>
-        <p class="mt-1 text-xs text-ink-muted">
-          PNG, JPG, WebP or GIF up to 16 MB
-        </p>
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h3 class="text-sm font-medium">Channel image</h3>
+          <p class="mt-1 text-xs text-ink-muted">
+            PNG, JPG, WebP or GIF up to 16 MB
+          </p>
+        </div>
+        <Show when={props.canPreview}>
+          <Button
+            variant="outline"
+            size="icon-md"
+            label="Preview image"
+            disabled={props.disabled}
+            class="touch:min-h-11 touch:min-w-11"
+            onClick={(event) => props.onPreview(event.currentTarget)}
+          >
+            <ExpandIcon />
+          </Button>
+        </Show>
       </div>
-      <Button
-        variant="accent"
-        size="md"
-        fullWidth
-        disabled={props.disabled}
-        onClick={props.onPick}
-        class="touch:min-h-11"
-      >
-        <UploadIcon />
-        Change image
-      </Button>
-      <Button
-        variant="ghost"
-        size="md"
-        fullWidth
-        disabled={props.disabled || !props.canClear}
-        onClick={props.onClear}
-        class="text-failure not-touch:not-disabled:hover:text-failure touch:min-h-11"
-      >
-        <TrashIcon />
-        Clear image
-      </Button>
+      <div class="grid grid-cols-2 gap-2">
+        <Button
+          variant="accent"
+          size="md"
+          fullWidth
+          disabled={props.disabled}
+          onClick={props.onPick}
+          class="px-2 touch:min-h-11"
+        >
+          <UploadIcon class="size-4" />
+          Change image
+        </Button>
+        <Button
+          variant="ghost"
+          size="md"
+          fullWidth
+          disabled={props.disabled || !props.canClear}
+          onClick={props.onClear}
+          class="px-2 text-failure not-touch:not-disabled:hover:text-failure touch:min-h-11"
+        >
+          <TrashIcon class="size-4" />
+          Clear image
+        </Button>
+      </div>
       <Show when={props.error}>
         <p role="alert" class="text-sm text-failure-ink">
           {props.error}

@@ -1232,13 +1232,17 @@ visible on touch devices. The separate `Preview image` expand button opens the
 current saved or draft image in the shared lightbox, without saving changes.
 Escape, the close button, or the backdrop returns to the editor and restores
 focus to the preview button. Closing the lightbox preserves the draft.
+Right-clicking the dialog or its overlay never opens the split header's context
+menu. Text inputs keep their native context menu.
 
 The image-editing step puts the crop workspace on the left and a wider
 actions/details column on the right, without an outer bordered crop container.
 On narrow screens, the workspace appears above the controls. `Change image`
-uses the accent variant and `Clear image` is destructive ghost; both use
-medium-sized buttons with touch-friendly targets. Supported file types and size
-appear with these actions; image filenames are not shown.
+and `Clear image` sit side by side, using accent and destructive ghost variants
+respectively, with medium-sized, touch-friendly buttons. Supported file types
+and size appear above these actions; image filenames are not shown. The nearby
+`Preview image` button opens the image being edited, including a newly selected
+image before applying its crop.
 
 `Change image` opens the file chooser. PNG, JPG, WebP, and GIF files up to
 16 MB are supported. Selecting a still image opens its crop workspace. An empty
@@ -1249,10 +1253,12 @@ re-cropping while the editor stays open; canceling a replacement does not replac
 that source.
 
 The circular crop guide darkens the area outside it and reveals alignment guides
-on hover or focus. Drag to reposition or use the arrow keys to move. Zoom and
-reset controls show the current zoom percentage; the initial fit and Reset are
-100%, and wheel zoom updates it too. `Apply crop` adds the square PNG to the local
-draft and returns to details. `Back` or Escape returns without applying a pending
+on hover or focus. Drag to reposition or use the arrow keys to move. The current
+zoom percentage appears before the minus/plus controls, with Reset on the same
+row. The initial fit and Reset are 100%. Scroll-wheel zoom anchors to the cursor;
+the minus/plus buttons anchor to the center of the crop area, even after panning.
+`Apply crop` adds the square PNG to the local draft and returns to details.
+`Back` or Escape returns without applying a pending
 crop. Clearing an image or selecting a GIF updates only the draft. The cropper
 and lightbox load only when needed. Compact footer actions have an edge-to-edge
 divider above them.

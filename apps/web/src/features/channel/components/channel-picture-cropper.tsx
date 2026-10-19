@@ -58,7 +58,7 @@ export default function ChannelPictureCropper(props: {
       container,
       template: `
         <cropper-canvas style="width: 100%; height: 100%;">
-          <cropper-image initial-fit="cover" min-fit="cover" max-inset="0" zoom-around-center scalable translatable></cropper-image>
+          <cropper-image initial-fit="cover" min-fit="cover" max-inset="0" scalable translatable></cropper-image>
           <cropper-handle action="move" plain></cropper-handle>
         </cropper-canvas>
       `,
@@ -106,7 +106,16 @@ export default function ChannelPictureCropper(props: {
 
   function zoom(amount: number) {
     if (disabled()) return;
-    cropper?.getCropperImage()?.$zoom(amount);
+    const image = cropper?.getCropperImage();
+    const canvas = cropper?.getCropperCanvas();
+    if (!image || !canvas) return;
+    const imageBounds = image.getBoundingClientRect();
+    const canvasBounds = canvas.getBoundingClientRect();
+    image.$zoom(
+      amount,
+      canvasBounds.x + canvasBounds.width / 2 - imageBounds.x,
+      canvasBounds.y + canvasBounds.height / 2 - imageBounds.y
+    );
   }
 
   async function apply() {
@@ -156,14 +165,14 @@ export default function ChannelPictureCropper(props: {
       sidebar={
         <>
           {props.actions}
-          <div class="flex flex-col gap-3 border-t border-edge-muted pt-4">
-            <div>
-              <h3 class="text-sm font-medium">Position and zoom</h3>
-              <p class="mt-1 text-xs text-ink-muted">
-                Drag the image or use the arrow keys to reposition it.
-              </p>
-            </div>
-            <div class="flex items-center justify-center gap-2">
+          <div class="flex items-center gap-2 border-t border-edge-muted pt-4">
+            <output
+              aria-label="Zoom level"
+              class="min-w-12 text-sm tabular-nums text-ink-muted"
+            >
+              {ready() ? `${zoomPercent()}%` : '—'}
+            </output>
+            <div class="flex items-center gap-2">
               <Button
                 label="Zoom out"
                 size="icon-md"
@@ -173,12 +182,6 @@ export default function ChannelPictureCropper(props: {
               >
                 <MinusIcon />
               </Button>
-              <output
-                aria-label="Zoom level"
-                class="min-w-12 text-center text-sm tabular-nums text-ink-muted"
-              >
-                {ready() ? `${zoomPercent()}%` : '—'}
-              </output>
               <Button
                 label="Zoom in"
                 size="icon-md"

@@ -86,13 +86,28 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
   const pictureUrl = () =>
     state.picture() === null ? undefined : (localUrl() ?? props.pictureUrl);
 
+  const cropPreviewUrl = createMemo(() => {
+    const source = cropSource();
+    if (!(source instanceof File)) return source;
+    const url = URL.createObjectURL(source);
+    onCleanup(() => URL.revokeObjectURL(url));
+    return url;
+  });
+  const imagePreviewUrl = () =>
+    (editingImage() && cropPreviewUrl()) ||
+    (state.picture() !== null && (localUrl() ?? props.pictureSourceUrl)) ||
+    undefined;
   function previewPicture(trigger: HTMLButtonElement) {
-    const source = localUrl() ?? props.pictureSourceUrl;
-    if (!source || state.picture() === null) return;
+    const source = imagePreviewUrl();
+    if (!source) return;
     previewTrigger = trigger;
     void Telemetry.span('channel.picture.preview', async (span) => {
       span.setAttr('channel.id', props.channelId);
-      span.setAttr('image.is_draft', Boolean(state.picture()));
+      span.setAttr(
+        'image.is_draft',
+        Boolean(state.picture()) ||
+          (editingImage() && cropSource() instanceof File)
+      );
       setPreviewSource(source);
       setPreviewOpen(true);
     });
@@ -113,6 +128,8 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
       <ChannelImageActions
         disabled={!props.canEdit || state.pending() || props.pictureLoading}
         canClear={Boolean(cropSource() || pictureUrl())}
+        canPreview={Boolean(imagePreviewUrl())}
+        onPreview={previewPicture}
         error={state.error()}
         onPick={() => input.click()}
         onClear={() => {
