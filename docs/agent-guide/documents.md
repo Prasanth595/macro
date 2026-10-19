@@ -13,7 +13,9 @@ comments**, not a comment-fetch error or composer. Account-only lists, contacts,
 notifications, activity, and gateway/storage WebSockets must stay idle until
 sign-in; public document metadata, properties, and sync still load normally.
 Check that signing in restores account services and signing out stops them.
-Private files still prompt for sign-in.
+Private files still prompt for sign-in. Signed-out Drive list URLs (My Files,
+Recent, Shared with me, or folders without a document target) show **Sign in to
+view your files** with Login and Sign Up actions, never an indefinite loader.
 
 Opening a private file link while signed in shows **You don't have access to
 this file**, the signed-in email, and **Request access**. View is selected by

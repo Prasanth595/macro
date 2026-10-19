@@ -1,5 +1,4 @@
 import { listOwnedSlotName } from '@app/components/list';
-import { ViewBreadcrumbs, ViewShell } from '@app/components/view-shell';
 import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
 import {
   type FacetSelection,
@@ -7,14 +6,11 @@ import {
 } from '@app/features/soup';
 import { ViewTour } from '@app/features/tours/ViewTour';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
-import { SplitRouter } from '@app/lib/split-router';
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import {
   useSplitPanelOrThrow,
   withSplitPanelOwner,
 } from '@components/app/split-layout/layoutUtils';
-import { SplitPanel } from '@components/app/split-panel';
-import { LoadingBlock } from '@core/component/LoadingBlock';
 import { toast } from '@core/component/Toast/Toast';
 import { enableDatabases, enableForms } from '@core/constant/featureFlags';
 import { useUserId } from '@core/context/user';
@@ -27,7 +23,6 @@ import {
   on,
   onCleanup,
   onMount,
-  Show,
   Suspense,
 } from 'solid-js';
 import { DriveProvider } from './context/drive-context';
@@ -54,6 +49,7 @@ import { createDriveDataSource } from './queries/drive-data-source';
 import { createDriveSidebarSource } from './queries/drive-sidebar-source';
 import { documentsTour } from './tour';
 import { DriveLoading, DriveWorkspace } from './views/drive-workspace';
+import { SignedOutDriveWorkspace } from './views/signed-out-drive-workspace';
 
 export type DriveViewProps = { initialFacets?: FacetSelection };
 
@@ -203,30 +199,6 @@ export function SignedOutDriveView() {
     <DriveDetailNavigationProvider location={route.location}>
       <SignedOutDriveWorkspace />
     </DriveDetailNavigationProvider>
-  );
-}
-
-function SignedOutDriveWorkspace() {
-  const navigation = useDriveDetailNavigation();
-  return (
-    <ViewBreadcrumbs.Root
-      value={navigation.active()?.value ?? ''}
-      onChange={navigation.popTo}
-    >
-      <SplitPanel.Root>
-        <SplitPanel.Body>
-          <ViewShell.Root>
-            <ViewShell.Main>
-              <Show when={navigation.active()} fallback={<LoadingBlock />}>
-                <Suspense fallback={<DriveLoading />}>
-                  <SplitRouter.Outlet />
-                </Suspense>
-              </Show>
-            </ViewShell.Main>
-          </ViewShell.Root>
-        </SplitPanel.Body>
-      </SplitPanel.Root>
-    </ViewBreadcrumbs.Root>
   );
 }
 
