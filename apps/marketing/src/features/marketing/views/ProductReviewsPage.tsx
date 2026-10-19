@@ -106,7 +106,17 @@ export function RouteGithub() {
         <FeaturePageSection
           id="pr-links"
           title="See the code behind the chat"
-          description="Open a shared pull request to inspect the changes."
+          description="Share a GitHub pull request in chat and open it from the conversation. Read the discussion and inspect the code changes while the linked PR’s status stays up to date."
+          details={[
+            {
+              title: 'Pull requests in chat',
+              text: 'Paste a pull request into a conversation so teammates can open it from the discussion. The reference reflects its current status as the work progresses.',
+            },
+            {
+              title: 'Inspect the changes',
+              text: 'Open the PR in Macro to read the discussion and code diff. Your repositories, CI, and repository permissions stay on GitHub.',
+            },
+          ]}
         >
           <div class="feature-page-visual">
             <GithubConversationDemo />
@@ -115,7 +125,17 @@ export function RouteGithub() {
         <FeaturePageSection
           id="pr-tasks"
           title="Keep tasks in sync with code"
-          description="Linked tasks move from review to done as the PR updates."
+          description="Keep implementation and task tracking connected. Link a pull request to its task, then let opening, merging, or closing the PR update the task’s status for the team."
+          details={[
+            {
+              title: 'Connect by task ID',
+              text: 'Include the task ID in the branch name, pull request title, or description. The linked task and pull request stay connected as the change moves through review.',
+            },
+            {
+              title: 'Automatic status updates',
+              text: 'Opening the PR moves the task to In Review. A merge marks it Completed; closing the PR without merging returns it to Not Started.',
+            },
+          ]}
         >
           <div class="feature-page-visual">
             <GithubTaskDemo />
@@ -124,7 +144,17 @@ export function RouteGithub() {
         <FeaturePageSection
           id="coding-agents"
           title="Turn a bug report into a fix"
-          description="Tag Cursor in chat, then inspect its pull request."
+          description="Ask a connected coding agent to pick up a bug from the team conversation. Give it the context, then open its pull request in Macro to understand the changes and discuss the result."
+          details={[
+            {
+              title: 'Start from the bug report',
+              text: 'Tag Cursor in the channel with the problem and relevant context. The team can follow the request and continue the discussion where the bug was reported.',
+            },
+            {
+              title: 'Inspect the result',
+              text: 'Open the agent’s pull request to read the changes and related discussion. Submit approvals and review comments on GitHub using your existing repository permissions.',
+            },
+          ]}
         >
           <div class="feature-page-visual">
             <GithubConversationDemo agent />
@@ -133,7 +163,17 @@ export function RouteGithub() {
         <FeaturePageSection
           id="review-inbox"
           title="Know what needs your review"
-          description="Find GitHub requests and comments in your Macro inbox."
+          description="Keep GitHub review requests, comments, and mentions alongside your messages, tasks, and email. See what needs attention and open the relevant pull request from the same inbox."
+          details={[
+            {
+              title: 'Review requests',
+              text: 'Find the pull requests that need your attention alongside the rest of your work. Open a request to inspect the PR and understand what changed.',
+            },
+            {
+              title: 'Comments and mentions',
+              text: 'Follow GitHub comments and mentions from your Macro inbox. Keep the review conversation visible without switching to a separate stream of notifications.',
+            },
+          ]}
         >
           <div class="feature-page-visual">
             <ReviewInboxDemo />

@@ -1,31 +1,46 @@
-/* Lower product sections only. Hero demos and homepage keep their own layout. */
-.feature-page .feature-page-section {
-  width: min(1040px, calc(100% - 48px));
-  margin-inline: auto;
+/* Restore the original product-chapter rhythm on lower subpage sections only. */
+.feature-page[data-product-spacing=true] .feature-page-section {
+  position: relative;
+  width: min(1160px, calc(100vw - 80px));
+  margin-block: 0;
+  margin-inline: calc((100% - min(1160px, 100vw - 80px)) / 2);
+  padding-block: 88px 76px;
+}
+.feature-page[data-product-spacing=true] :is(.feature-page-jump-links, .tasks-founder-letter) + .feature-page-section {
+  margin-top: 48px;
+}
+
+.feature-page-section::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto auto 50%;
+  width: 100vw;
+  transform: translateX(-50%);
+  border-top: 1px solid color-mix(in srgb, var(--color-ink) 18%, transparent);
+  pointer-events: none;
 }
 
 .product-feature-intro {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: start;
-  gap: 24px 64px;
-  margin-bottom: 40px;
+  gap: 80px;
+  margin-bottom: 52px;
   text-align: left;
 }
 
 .product-feature-intro h2 {
   margin: 0;
-  max-width: 15em;
-  font: calc(315 + var(--cream-slab-weight-increase, 0)) clamp(28px, 2.8vw, 38px)/1.2 'Roboto Slab Variable', display, serif;
+  max-width: 14ch;
+  font: calc(330 + var(--cream-slab-weight-increase, 0)) clamp(32px, 3.4vw, 48px)/1.13 'Roboto Slab Variable', display, serif;
   letter-spacing: -.035em;
   text-wrap: balance;
 }
 
 .product-feature-intro p {
-  padding-top: 4px;
   max-width: 38ch;
   color: var(--color-ink-muted);
-  font: 400 18px/1.6 'Inter Variable', Inter, sans-serif;
+  font: 400 clamp(17px, 1.6vw, 21px)/1.55 'Inter Variable', Inter, sans-serif;
   text-wrap: pretty;
 }
 
@@ -33,29 +48,73 @@
   width: 100%;
 }
 
-.feature-page .feature-page-section > :is(.product-prose, .email-feature-prose) {
-  width: auto;
-  max-width: 65ch;
-  margin: 24px 0 0 auto;
-  padding: 0;
+/* Email's stages previously added a second inset and different top gaps. */
+.feature-page-section :is(.email-tag-stage, .mail-sharing-stage, .email-keyboard-stage, .email-editing-stage) {
+  padding-top: 0;
+  padding-inline: 0;
+}
+.feature-page-section .mail-sharing-stage .mail-share-scrim {
+  inset-inline: 0;
+  top: 0;
+}
+
+.product-feature-details {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 40px;
+  margin-top: 40px;
+  padding-top: 28px;
+  font: 400 15px/1.5 'Inter Variable', Inter, sans-serif;
+}
+.product-feature-details > p {
+  padding-top: 10px;
+  color: var(--color-ink-subtle);
+}
+.product-feature-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 4px 48px;
+  align-items: start;
+}
+.product-feature-detail-grid details { min-width: 0; }
+.product-feature-detail-grid summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 44px;
+  padding: 10px 0;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+  list-style: none;
+}
+.product-feature-detail-grid summary::-webkit-details-marker { display: none; }
+.product-feature-detail-grid summary:hover,
+.product-feature-detail-grid details[open] summary { color: var(--color-ink); }
+.product-feature-detail-grid summary > span { flex: none; color: var(--color-ink-subtle); }
+.product-feature-detail-grid details[open] summary > span { transform: rotate(45deg); }
+.product-feature-detail-grid details > p {
+  padding: 4px 0 16px;
   color: var(--color-ink-muted);
   font-size: 14px;
   line-height: 1.7;
 }
 
 @media (max-width: 799px) {
-  .product-feature-intro {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 14px;
-    margin-bottom: 28px;
+  .feature-page[data-product-spacing=true] .feature-page-section {
+    width: calc(100% - 36px);
+    margin-inline: auto;
+    padding-block: 56px;
   }
-
-  .product-feature-intro h2 { max-width: none; text-wrap: pretty; }
-  .product-feature-intro p { max-width: 50ch; padding-top: 0; font-size: 16px; }
+  .product-feature-intro { grid-template-columns: minmax(0, 1fr); gap: 24px; margin-bottom: 32px; }
+  .product-feature-intro h2 { max-width: 17ch; font-size: clamp(30px, 8vw, 42px); }
+  .product-feature-intro p { max-width: 42ch; font-size: 17px; }
+  .product-feature-details { grid-template-columns: minmax(0, 1fr); gap: 10px; margin-top: 24px; padding-top: 20px; }
+  .product-feature-detail-grid { gap: 0 24px; }
 }
-
 @media (max-width: 699px) {
-  .feature-page .feature-page-section { width: calc(100% - 36px); }
-  .feature-page .product-page .feature-page-section { width: 100%; }
-  .feature-page .feature-page-section > :is(.product-prose, .email-feature-prose) { margin-top: 20px; }
+  .feature-page[data-product-spacing=true] .product-page .feature-page-section { width: 100%; }
+}
+@media (max-width: 420px) {
+  .product-feature-detail-grid { grid-template-columns: minmax(0, 1fr); }
 }

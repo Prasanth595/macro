@@ -23,7 +23,6 @@ import { HomepageConversation } from '../../features/marketing/components/Homepa
 import {
   ProductHero,
   ProductPage,
-  ProductProse,
 } from '../../features/marketing/components/product/ProductPage';
 import { WorkspaceDesktopDemo } from '../../features/marketing/components/WorkspaceDesktopDemo';
 import { setPageSeo } from '../utils/utilSeo';
@@ -120,52 +119,74 @@ export function RouteCrm() {
       <FeaturePageSection
         id="crm-from-email"
         title="Keep your CRM current"
-        description="Update stages and owners from your conversations."
+        description="Your CRM lives beside your email, calls, and chat. Ask an agent to update stages, owners, and next steps from those conversations so your team can work from a current customer record."
+        details={[
+          {
+            title: 'Update from a conversation',
+            text: 'Tell your agent what changed after a customer email or call. It can update the relevant properties on the company record, including its stage and owner.',
+          },
+          {
+            title: 'Work from the record',
+            text: 'Keep the update with the customer it belongs to. Your team can open the record to see its properties, related work, and discussion in one place.',
+          },
+        ]}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <CrmCaptureDemo />
         </DemoInteractionBoundary>
-        <ProductProse>
-          <p>
-            Ask an agent to update a stage or owner using the email, call, or
-            conversation where the change happened.
-          </p>
-        </ProductProse>
       </FeaturePageSection>
       <FeaturePageSection
         id="crm-enrichment"
         title="Know who you’re meeting"
-        description="Company details, filled in from the first email."
+        description="When you email someone new, Macro creates the contact and company from their domain. Public company details fill in the record, so you have a starting point before the first meeting."
+        details={[
+          {
+            title: 'Contacts from email',
+            text: 'New email relationships become contacts and companies in Macro. Open the record to see who you’re talking to alongside the conversation that brought you together.',
+          },
+          {
+            title: 'Company enrichment',
+            text: 'Macro fills in publicly available company information. Review and edit the record as you learn more, keeping your team’s own notes alongside those details.',
+          },
+        ]}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <CrmEnrichmentDemo />
         </DemoInteractionBoundary>
-        <ProductProse>
-          <p>
-            New contacts and companies are created from email. Public company
-            details fill in the record automatically.
-          </p>
-        </ProductProse>
       </FeaturePageSection>
       <FeaturePageSection
         id="crm-context"
         title="See the whole relationship"
-        description="Keep emails, calls, files, and tasks on the customer record."
+        description="Open a company to see the people, emails, calls, files, and tasks behind the relationship. Keep notes on the customer record so the next person can understand what’s happened and what comes next."
+        details={[
+          {
+            title: 'The full relationship',
+            text: 'Move between a company’s contacts and related work from its record. Read the original conversation or open the supporting file without reconstructing the history yourself.',
+          },
+          {
+            title: 'Notes your team can find',
+            text: 'Use the record’s discussion for customer notes and follow-ups. Mention the company in a document or channel to link straight back to the same shared record.',
+          },
+        ]}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <CrmRecordDemo />
         </DemoInteractionBoundary>
-        <ProductProse>
-          <p>
-            Open a company to see its contacts and related work. Add notes to
-            the record so your team can find them later.
-          </p>
-        </ProductProse>
       </FeaturePageSection>
       <FeaturePageSection
         id="crm-agents"
         title="Keep deals moving"
-        description="Ask an agent to update your pipeline after a sales call."
+        description="After a sales call, tell your agent which deals moved and what needs updating. Agents can read customer records and change their properties, whether you use them in Macro or through a connected tool."
+        details={[
+          {
+            title: 'Update the pipeline',
+            text: 'Ask an agent to move a company to the next stage or change an owner. Its updates appear on the same records your team uses to manage the pipeline.',
+          },
+          {
+            title: 'Connect through MCP',
+            text: 'Macro’s MCP tools let connected agents list companies, read records, and update properties. Use them from an MCP client such as Claude, ChatGPT, or Cursor.',
+          },
+        ]}
       >
         <DemoInteractionBoundary class="feature-page-visual crm-agent-scene">
           <HomepageConversation
@@ -193,12 +214,6 @@ export function RouteCrm() {
             </DeferredDemo>
           </div>
         </DemoInteractionBoundary>
-        <ProductProse>
-          <p>
-            Agents can read customer records and update their properties from
-            Macro or a connected MCP client.
-          </p>
-        </ProductProse>
       </FeaturePageSection>
       <FeaturePageFaq
         id="crm-faq-title"

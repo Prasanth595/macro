@@ -59,7 +59,17 @@ export function RouteChannels() {
       <FeaturePageSection
         id="shared-work"
         title="Open the work from chat"
-        description="Read docs, tasks, and emails beside the conversation."
+        description="Share the work itself in your team’s conversation. Click a mention to open a document, task, or email beside chat, so the discussion and the thing you’re working on stay in view."
+        details={[
+          {
+            title: 'Open linked work',
+            text: 'Mention a document, task, or email directly in a message. Teammates can open the original item from the conversation instead of looking for a separate link or attachment.',
+          },
+          {
+            title: 'Work beside the discussion',
+            text: 'Keep the channel visible while you read an email or update a document. Return to the conversation with the source still close at hand.',
+          },
+        ]}
       >
         <DemoInteractionBoundary class="feature-page-visual channel-wide-demo">
           <ChannelSharedWorkDemo />
@@ -68,7 +78,17 @@ export function RouteChannels() {
       <FeaturePageSection
         id="channel-access"
         title="Share once with the team"
-        description="Mention a file to give the channel access."
+        description="Mention a document, task, or email to share it with the channel. The people in the conversation can open the work, and new channel members get access to those shared items too."
+        details={[
+          {
+            title: 'Share with the channel',
+            text: 'An item mentioned in a channel becomes accessible to its members. The team can follow the reference and work from the same document, task, or email thread.',
+          },
+          {
+            title: 'Bring new members up to speed',
+            text: 'People joining the channel can access its shared items. They can read the conversation and open the work that gives it context.',
+          },
+        ]}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <ChannelPermissionsDemo />
@@ -77,7 +97,17 @@ export function RouteChannels() {
       <FeaturePageSection
         id="channel-agents"
         title="Put agents in the conversation"
-        description="Ask an agent to help where your team is already talking."
+        description="Bring an agent into the conversation where your team is already working. Ask for help, add context, and follow the result together, using Macro’s agents or an agent you connect yourself."
+        details={[
+          {
+            title: 'Ask in the conversation',
+            text: 'Mention an agent with a request and references to the relevant work. Your teammates can see what you asked and respond in the same channel.',
+          },
+          {
+            title: 'Use your own agent',
+            text: 'Connect an agent you already use and bring it into your workspace. Its work stays part of the team conversation, where you can give feedback and follow up.',
+          },
+        ]}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <ChannelAgentDemo />
@@ -86,7 +116,17 @@ export function RouteChannels() {
       <FeaturePageSection
         id="catch-up"
         title="Catch up in one place"
-        description="Read replies and respond without opening every thread."
+        description="Read replies without opening every conversation separately. Follow the thread inline, see what the team said, and respond in the same place when something needs your attention."
+        details={[
+          {
+            title: 'Read replies inline',
+            text: 'Expand a thread to see its replies alongside the channel. Keep the surrounding conversation visible while you catch up on the details.',
+          },
+          {
+            title: 'Reply in context',
+            text: 'Add your response to the thread it belongs to. The discussion stays connected to the original message rather than becoming a separate conversation.',
+          },
+        ]}
       >
         <span id="channel-threads" />
         <span id="chat-inbox" />

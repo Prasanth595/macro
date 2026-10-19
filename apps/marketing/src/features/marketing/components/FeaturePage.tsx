@@ -56,6 +56,7 @@ export function FeaturePageSection(props: {
   id: string;
   title: string;
   description: string;
+  details: readonly { title: string; text: string }[];
   children: JSX.Element;
 }) {
   return (
@@ -69,6 +70,22 @@ export function FeaturePageSection(props: {
         <p>{props.description}</p>
       </header>
       {props.children}
+      <div class="product-feature-details">
+        <p>What you can do</p>
+        <div class="product-feature-detail-grid">
+          <For each={props.details}>
+            {(detail) => (
+              <details>
+                <summary>
+                  {detail.title}
+                  <span aria-hidden="true">+</span>
+                </summary>
+                <p>{detail.text}</p>
+              </details>
+            )}
+          </For>
+        </div>
+      </div>
     </section>
   );
 }

@@ -103,7 +103,17 @@ export function RouteCalls() {
         <FeaturePageSection
           id="call-start"
           title="Meet in a click"
-          description="Start a call straight from a channel or DM."
+          description="Start a call from a channel or direct message when talking is easier than typing. Your teammates can join from the conversation, and you can share a meeting link with someone outside Macro."
+          details={[
+            {
+              title: 'Call from chat',
+              text: 'Use the Call action in a channel or DM. Move from the written conversation to a live discussion without setting up a separate meeting first.',
+            },
+            {
+              title: 'Invite a guest',
+              text: 'Share the meeting link with a guest. They can join in their browser without creating a Macro account.',
+            },
+          ]}
         >
           <div class="feature-page-visual">
             <CallStartDemo />
@@ -112,7 +122,17 @@ export function RouteCalls() {
         <FeaturePageSection
           id="call-followup"
           title="Turn decisions into action"
-          description="Ask an agent to update tasks from your call."
+          description="Make the decisions from a call part of the work that follows. Ask your agent to read the transcript, update a task, and add the owner and next steps you agreed on."
+          details={[
+            {
+              title: 'Use the transcript',
+              text: 'Your agent can read calls you have access to. Reference the meeting when asking for an update so it can use the conversation as context.',
+            },
+            {
+              title: 'Update the task',
+              text: 'Ask for the changes discussed on the call to be applied to the shared task. Open it afterward to review the owner, description, and next steps.',
+            },
+          ]}
         >
           <div class="feature-page-visual">
             <CallFollowupDemo />
@@ -121,7 +141,17 @@ export function RouteCalls() {
         <FeaturePageSection
           id="call-default"
           title="Catch up after the call"
-          description="Share the recording, transcript, and summary."
+          description="Give teammates a way to catch up even if they missed the meeting. Share the call’s recording, transcript, and summary so they can find the decisions and revisit the details."
+          details={[
+            {
+              title: 'Recording and transcript',
+              text: 'Macro records and transcribes calls, with a notice to participants. Open the saved call to replay the conversation or read what was said.',
+            },
+            {
+              title: 'Share the summary',
+              text: 'Use the summary to review the main points, then open the transcript for detail. Access to the saved call follows its sharing settings.',
+            },
+          ]}
         >
           <div class="feature-page-visual">
             <CallTeamMemoryDemo />

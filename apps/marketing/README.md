@@ -246,13 +246,19 @@ changes to application routes, components, or providers.
 ## Feature-page pattern
 
 `FeaturePageSection` in `src/features/marketing/components/FeaturePage.tsx`
-provides the lower demo sections on Tasks, Email, Chat, Docs, Calls, CRM, Agents,
-and GitHub. A short slab heading sits beside a plain value statement, with the
-existing product demo below on a shared 1040px measure. At 799px and below the
-intro stacks; at phone widths it uses the page gutters. Keep this layout scoped
-to lower sections: the homepage, product heroes, and wallpaper demos retain
-their own layout. Do not add section eyebrows, divider rules, or demo chrome.
-Supporting copy should be brief and explain a useful detail beyond the heading.
+provides the lower demo chapters on Tasks, Email, Chat, Docs, Calls, CRM, Agents,
+and GitHub. Follow the original Linear-inspired chapter layout: full-width
+rules between sections, generous top and bottom spacing, a large slab heading
+beside a full explanatory paragraph, the existing native demo, and a quiet
+“What you can do” row with expandable details. Give each chapter a specific
+explanation of the workflow, not just a one-line slogan. Details expand inline
+with native `details`/`summary` controls and remain outside the demo interaction
+guard. Keep the middle of the chapter free of divider rules.
+
+Desktop chapters use a 1160px maximum measure. Below 800px the intro stacks;
+phone layouts keep the page gutters. Email stages share the chapter alignment
+without an extra inset. This pattern only applies to lower subpage sections;
+leave the homepage, product heroes, and wallpaper demos unchanged.
 FAQ disclosures retain the onboarding security section’s reading measure.
 Website UI utilities and the frozen dark palette are scoped to `.feature-page`,
 preserving the surrounding public-page styles.

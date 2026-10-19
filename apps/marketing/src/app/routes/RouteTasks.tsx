@@ -131,7 +131,17 @@ export function RouteTasks() {
         <FeaturePageSection
           id="from-a-message"
           title="Turn requests into tasks"
-          description="Give a message an owner and a next step."
+          description="Turn a request in chat into a task without copying it into another tool. Give it an owner, set the priority, and keep the original conversation close by."
+          details={[
+            {
+              title: 'Create from a message',
+              text: 'Use the Task action on a message to capture the request. The task stays connected to the conversation, so the person picking it up can read what was discussed.',
+            },
+            {
+              title: 'Assign the next step',
+              text: 'Add an assignee, status, and priority to make responsibility clear. Open the task to add details, a checklist, or links to the work it depends on.',
+            },
+          ]}
         >
           <DemoInteractionBoundary class="feature-page-visual">
             <TaskFromMessageDemo />
@@ -140,7 +150,17 @@ export function RouteTasks() {
         <FeaturePageSection
           id="ask-macro"
           title="Let agents handle updates"
-          description="Create tasks and change assignments from chat."
+          description="Tell your agent what needs doing in the conversation where you’re already working. It can create tasks, change an assignment, and check what’s still open for the team."
+          details={[
+            {
+              title: 'Create tasks in chat',
+              text: 'Ask Macro to turn a request into tasks and name the people responsible. The team can see the request and the resulting tasks in the same conversation.',
+            },
+            {
+              title: 'Change an assignment',
+              text: 'When plans change, ask your agent to update the owner. The change is made on the shared task, so everyone sees the current assignment.',
+            },
+          ]}
         >
           <DemoInteractionBoundary class="feature-page-visual">
             <TaskAgentChannelDemo />
@@ -149,7 +169,17 @@ export function RouteTasks() {
         <FeaturePageSection
           id="from-docs-and-email"
           title="Keep the context close"
-          description="Link the docs, emails, and conversations behind a task."
+          description="A task should include the information someone needs to do it. Link the brief, the customer email, or the team discussion directly in its description and open the source when you need it."
+          details={[
+            {
+              title: 'Link the source',
+              text: 'Use @mentions to reference documents, email threads, and conversations. Keep the original work available instead of pasting a copy that can become out of date.',
+            },
+            {
+              title: 'Open related work',
+              text: 'Follow a mention to read the linked item while working on the task. The original email or document gives you the details behind the next step.',
+            },
+          ]}
         >
           <DemoInteractionBoundary class="feature-page-visual">
             <TaskContextDemo />
@@ -158,7 +188,17 @@ export function RouteTasks() {
         <FeaturePageSection
           id="github"
           title="Merge code. Close the task."
-          description="Linked tasks update when a pull request merges."
+          description="Connect a task to its pull request and let the code update its status. The task moves into review when the PR opens and completes when the change merges."
+          details={[
+            {
+              title: 'Link a pull request',
+              text: 'Include the task ID in the branch name, pull request title, or description. Macro connects the PR to the task so you can follow the implementation.',
+            },
+            {
+              title: 'Keep status current',
+              text: 'Opening a linked PR moves the task to In Review. Merging marks it Completed; closing without a merge returns it to Not Started.',
+            },
+          ]}
         >
           <DemoInteractionBoundary class="feature-page-visual">
             <TaskGithubDemo />

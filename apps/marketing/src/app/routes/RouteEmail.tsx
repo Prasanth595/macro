@@ -137,62 +137,78 @@ export function RouteEmail() {
       <FeaturePageSection
         id="auto-tags"
         title="Find the right email"
-        description="Automatic tags organize email by customer and project."
+        description="Macro tags incoming email by customer, project, or follow-up. Find related conversations across your accounts and keep them connected to the documents and tasks your team is working on."
+        details={[
+          {
+            title: 'Automatic tags',
+            text: 'Incoming messages receive tags that help organize your inbox. You can add, remove, or change a tag yourself when a conversation belongs somewhere else.',
+          },
+          {
+            title: 'Related work together',
+            text: 'A thread can have several tags, such as a customer and a project. The same tags also work on documents and tasks, so related work is easier to find.',
+          },
+        ]}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <EmailAutoTagsDemo />
         </DemoInteractionBoundary>
-        <div class="email-feature-prose">
-          <p>
-            Add or change tags yourself. A thread can belong to both a customer
-            and a project, alongside related docs and tasks.
-          </p>
-        </div>
       </FeaturePageSection>
       <FeaturePageSection
         id="email-sharing"
         title="Bring your team into the thread"
-        description="Share an email in chat, with new replies included."
+        description="Bring a customer conversation into your team’s channel without forwarding a copy. Share the full email thread, discuss it together, and keep new replies available in the same place."
+        details={[
+          {
+            title: 'Share a live thread',
+            text: 'Choose a channel, add a note, and share the email. Channel members can open the original messages and attachments, including new replies as they arrive.',
+          },
+          {
+            title: 'Discuss it with your team',
+            text: 'Comment beside the email and mention the documents or tasks it relates to. Your team can read the customer’s words and agree on the next step together.',
+          },
+        ]}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <EmailSharingDemo />
         </DemoInteractionBoundary>
-        <div class="email-feature-prose">
-          <p>
-            Everyone in the channel can open the shared thread and its
-            attachments. New replies appear in the same place.
-          </p>
-        </div>
       </FeaturePageSection>
       <FeaturePageSection
         id="keyboard-speed"
         title="Move through your inbox"
-        description="Open, reply, and mark done from your keyboard."
+        description="Move through your inbox without reaching for the mouse. Open a thread, write a reply, and mark it done, with search across all your connected accounts in the same place."
+        details={[
+          {
+            title: 'Keyboard navigation',
+            text: 'Use J and K to move between threads, Enter to open one, and E to mark it done. Escape returns you to the list. Navigation also works with a thread open.',
+          },
+          {
+            title: 'Search across accounts',
+            text: 'Find messages across your connected Gmail accounts from one inbox. Open a result to read the conversation without switching between separate account windows.',
+          },
+        ]}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <EmailKeyboardDemo />
         </DemoInteractionBoundary>
-        <div class="email-feature-prose">
-          <p>
-            Use J and K to move between threads, E to mark done, and Escape to
-            return to the list.
-          </p>
-        </div>
       </FeaturePageSection>
       <FeaturePageSection
         id="agentic-editing"
         title="Start with a better draft"
-        description="Ask an agent to draft from your emails, docs, and calls."
+        description="Ask an agent to prepare a reply using the email thread, relevant documents, and meeting transcript. You get an editable draft with the context already included, ready for your review."
+        details={[
+          {
+            title: 'Draft with context',
+            text: 'Agents can search past emails and read the docs and calls you reference. Ask for a follow-up, a proposal attachment, or a reply that includes the people involved.',
+          },
+          {
+            title: 'Review before sending',
+            text: 'Check the subject, recipients, wording, and attachments in the draft. Make any changes and approve the send when you’re ready.',
+          },
+        ]}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <EmailAgenticEditingDemo />
         </DemoInteractionBoundary>
-        <div class="email-feature-prose">
-          <p>
-            Review the draft, recipients, and attachments. Edit anything before
-            approving the send.
-          </p>
-        </div>
       </FeaturePageSection>
       <EmailComparison />
       <FeaturePageFaq

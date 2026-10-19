@@ -100,7 +100,17 @@ export function RouteDocuments() {
         <FeaturePageSection
           id="document-agents"
           title="Write with your agent"
-          description="Turn emails and tasks into changes in your shared doc."
+          description="Ask your agent to update a brief using your emails and tasks, then keep writing together. Your team and your agent work in the same shared document, with changes merging as you type."
+          details={[
+            {
+              title: 'Use your workspace context',
+              text: 'Reference the email or task that changed the plan. Your agent can read that source and apply the update directly to the document you’re working on.',
+            },
+            {
+              title: 'Edit the same document',
+              text: 'Write alongside teammates and your agent in real time. Everyone works on the shared file, so you can review and refine changes where they happen.',
+            },
+          ]}
         >
           <DemoInteractionBoundary class="feature-page-visual">
             <DocumentAgentDemo />
@@ -109,7 +119,17 @@ export function RouteDocuments() {
         <FeaturePageSection
           id="document-links"
           title="Open the source beside you"
-          description="Read a linked email or task without leaving your doc."
+          description="Link to the work you’re writing about and open it beside your document. Read the original email, task, or conversation while you write, without copying the information into another file."
+          details={[
+            {
+              title: 'Mention related work',
+              text: 'Add an inline mention of an email, task, or conversation. The reference points to the original item so readers can find the context behind the document.',
+            },
+            {
+              title: 'Read side by side',
+              text: 'Open a linked source beside the doc. Check the customer’s wording or the task’s requirements while keeping your draft in view.',
+            },
+          ]}
         >
           <DemoInteractionBoundary class="feature-page-visual docs-wide-demo">
             <DocumentMentionsDemo />
@@ -118,7 +138,17 @@ export function RouteDocuments() {
         <FeaturePageSection
           id="document-organization"
           title="Find docs where you work"
-          description="Use folders and tags to keep related work together."
+          description="Keep documents in folders and use tags to find them across projects. A brief can stay in its home folder while appearing beside related emails and tasks under the tags your team uses."
+          details={[
+            {
+              title: 'Folders for structure',
+              text: 'Give documents a familiar home in your project folders. Browse the folder when you need the files your team has grouped together.',
+            },
+            {
+              title: 'Tags across your work',
+              text: 'Apply more than one tag to a document. Find it by project or topic alongside emails and tasks with the same tag.',
+            },
+          ]}
         >
           <DemoInteractionBoundary class="feature-page-visual">
             <DocumentOrganizationDemo />

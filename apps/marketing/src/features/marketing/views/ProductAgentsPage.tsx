@@ -110,7 +110,17 @@ export function RouteAgents() {
       <FeaturePageSection
         id="agent-sources"
         title="Get answers with context"
-        description="Let your agent find what matters across your work."
+        description="Ask a question that draws on more than one app’s worth of information. Your agent can use your calendar, earlier conversations, and customer messages to prepare an answer grounded in your work."
+        details={[
+          {
+            title: 'Find the relevant context',
+            text: 'Ask about tomorrow’s customer calls or a project you’re working on. The agent can look across the workspace items it has access to and use what it finds.',
+          },
+          {
+            title: 'Follow the sources',
+            text: 'Open the items referenced in the agent’s work to check the details. Continue the conversation with more context or ask it to take the next step.',
+          },
+        ]}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <AgentMeetingStory />
@@ -119,7 +129,17 @@ export function RouteAgents() {
       <FeaturePageSection
         id="agent-actions"
         title="Make progress together"
-        description="Your team and your agent can edit the same shared doc."
+        description="Work with your agent in the same file your team uses. Add context, ask for an update, and review the result in the shared document instead of moving drafts back and forth."
+        details={[
+          {
+            title: 'Edit shared work',
+            text: 'Ask your agent to change a document using the context you provide. The result appears in the shared file, where teammates can read and edit it too.',
+          },
+          {
+            title: 'Keep refining together',
+            text: 'Open the document, make your own edits, and ask for another pass. The conversation and the file give your team a shared place to review the work.',
+          },
+        ]}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <AgentDeliverableStory />
@@ -128,7 +148,17 @@ export function RouteAgents() {
       <FeaturePageSection
         id="agent-collaboration"
         title="Go from idea to implementation"
-        description="Ask Macro for a mockup, then tag Cursor to build it."
+        description="Bring design and implementation into the team conversation. Ask Macro for a mockup, give feedback together, then tag Cursor to build it using the context already in the channel."
+        details={[
+          {
+            title: 'Explore an idea',
+            text: 'Ask Macro to turn a brief into a mockup. Open the result from chat and give feedback where the rest of the team can follow the conversation.',
+          },
+          {
+            title: 'Hand off to a coding agent',
+            text: 'Tag a connected coding agent such as Cursor when you’re ready to build. Continue from the brief, mockup, and feedback already shared with the team.',
+          },
+        ]}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <AgentTeamworkStory />
@@ -137,7 +167,17 @@ export function RouteAgents() {
       <FeaturePageSection
         id="existing-agents"
         title="Bring your own agent"
-        description="Connect the agent you use to your work in Macro."
+        description="Keep the agents you already use and connect them to your work in Macro. Bring a locally running agent into the workspace, or give an external MCP client access to Macro’s tools and context."
+        details={[
+          {
+            title: 'Agents inside Macro',
+            text: 'Connect supported agents through macrod and keep them running on your own machine. Your connected agent follows its own runtime and permission settings.',
+          },
+          {
+            title: 'Macro in your MCP client',
+            text: 'Connect Macro’s MCP server to a supported client. The client can use the available tools to find, read, and work with your Macro content.',
+          },
+        ]}
       >
         <div class="agents-connections">
           <div class="agents-connection-paths">
