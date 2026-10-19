@@ -23,7 +23,9 @@ pub struct GuestChatBudget(ClientIp);
 impl<S: Send + Sync> RateLimitExtractable<S> for GuestChatBudget {
     fn config() -> RateLimitConfig {
         RateLimitConfig {
-            max_count: 6000,
+            // Twenty open guest chats poll 24,000 times/hour behind one NAT;
+            // leave headroom for sends, retries, and opening the panel.
+            max_count: 30_000,
             window: Duration::from_mins(60),
         }
     }
