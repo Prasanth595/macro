@@ -104,7 +104,7 @@ export function RouteCalls() {
         <FeaturePageSection
           id="call-start"
           title={['Start a call in channels,', 'DMs, or through', 'meeting links.']}
-          description="Start a call from a channel or direct message when talking is easier than typing. Your teammates can join from the conversation, and you can share a meeting link with someone outside Macro."
+          description="You can start calls from channels, DMs, or through meeting links. People outside of Macro can join your meeting links. Create your own booking links so people can set up times with you."
           details={callsGuides['call-start']}
         >
           <div class="feature-page-visual">
