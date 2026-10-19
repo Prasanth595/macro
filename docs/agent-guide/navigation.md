@@ -5,9 +5,8 @@ title bar's traffic-light controls. Drag this top strip to move the window, or
 double-click it to toggle zoom. The loading shell uses the same inset; browser,
 Windows, Linux, and mobile layouts do not add this space.
 
-Native desktop content keeps its rounded split frame even with only one split,
-and the app icon rail has no right divider. On macOS, Back and Forward arrows
-beside the traffic lights navigate the active split's history. Each arrow is
+On macOS, Back and Forward arrows beside the traffic lights navigate the active
+split's history. Each arrow is
 disabled when its direction has no entry. Sidebar controls remain inside each
 workspace. The top-right split icon opens another Home split, even
 when Home is already open, and is disabled when there is no room for a new split.
@@ -311,10 +310,10 @@ its existing navigation controls. Block detail panels (including Calendar) have
 **Hide side panel** in their own header and a hamburger **Show side panel** beside
 the main title when hidden, with separate preferences per block type.
 
-Multiple desktop splits appear as individually bordered, medium-rounded panels with
-6px top, right, and bottom insets and 6px resizable gaps.
-The leftmost panel sits flush against the app rail, whose divider is hidden while
-multiple splits are open. A single split stays edge to edge. Touch layouts keep their existing presentation.
+Desktop splits, including a single split in the browser or native app, appear as
+individually bordered, medium-rounded panels with 6px top, right, and bottom
+insets and 6px resizable gaps. The leftmost panel sits flush against the app rail,
+which has no right divider. Touch layouts keep their existing presentation.
 
 Split focus mode (`Shift+Esc`) floats the active split in a rounded, bordered
 panel over the same glass scrim as dialogs. Click the scrim or use the shortcut
