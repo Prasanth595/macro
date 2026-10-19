@@ -25,6 +25,11 @@ Feedback uses 140ms CSS transitions, respects reduced motion, and does not
 track the pointer. Mobile header actions retain 44px touch targets. The homepage scroll cue is a
 16px arrow inside a 44px button, inset 20px from the bottom while respecting safe areas.
 
+The homepage unification section uses a neutral charcoal spotlight in dark
+mode and an ivory spotlight in cream. Its first headline line is slightly
+muted so “with Macro” stays prominent. These styles are scoped to the homepage;
+onboarding constellations retain their own accent treatments.
+
 The homepage names Macro in the unification heading and introduces the live
 sample with short benefit-led captions overlapping the original bottom fade
 of the demo. The outer wallpaper and double border are removed so the product
