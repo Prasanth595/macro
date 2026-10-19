@@ -313,7 +313,7 @@ preserving the surrounding public-page styles.
 
 The email page reuses `HomepageEmailCompose`. Its other local demos freeze the
 presentation of the application’s `EmailSidebar`, `SearchBar`, entity email row
-layouts, `MessageCard`, share form, channel composer, and linked email cards. They
+layouts, `MessageCard`, share form, channel composer, and inline email mentions. They
 use website assets and local fixtures; they do not import those app modules.
 To verify the page: filter accounts, search and open an inbox thread, move an
 update to Noise and undo, share the example into the launch channel, and open
@@ -853,3 +853,8 @@ presentation. They open a local company record or its Team section through
 Closing restores focus to the mention. Editing a linked cell into plain text
 removes its reference; undo restores it. Check mouse and keyboard opening,
 Escape/close, and phone-width record tabs.
+
+The email-sharing result uses an inline email icon and linked subject from
+`DocMention`. Do not add a custom preview card, Live badge, sender summary,
+or reply-count footer. Opening the mention shows the complete sample thread,
+including subsequent replies.

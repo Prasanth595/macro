@@ -229,7 +229,6 @@ html[data-palette='cream'] :is(
   .email-tags-demo .mail-app,
   .email-keyboard-stage .mail-app,
   .mail-sharing-stage .mail-share-form,
-  .mail-shared-thread,
   .mail-arrived-reply,
   .crm-pipeline-frame,
   .tasks-conversation-demo .tlc-frame
@@ -250,7 +249,6 @@ html[data-palette='cream'] :is(
   box-shadow: inset 2px 0 var(--color-accent);
 }
 html[data-palette='cream'] :is(
-  .mail-shared-thread > strong,
   .chat-shortcut-dock > button:hover,
   .chat-shortcut-dock > button[data-active='true'],
   .email-keyboard-stage .email-shortcut-dock > button[data-active='true'],
@@ -284,10 +282,6 @@ html[data-palette='cream'] .homepage-history svg text { fill: var(--color-ink-mu
 html[data-palette='cream'] .homepage-history .docs-timeline-stamp { fill: #42658a; }
 html[data-palette='cream'] .homepage-embedded-loading { color: var(--color-ink-muted); }
 html[data-palette='cream'] :is(
-  .mail-shared-thread-label,
-  .mail-shared-thread-label > span,
-  .mail-shared-thread-preview,
-  .mail-shared-thread-footer,
   .mail-arrived-reply header span,
   .email-tag-count
 ) { color: var(--color-ink-muted); }

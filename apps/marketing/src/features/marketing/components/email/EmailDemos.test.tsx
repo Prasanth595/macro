@@ -156,14 +156,24 @@ it('keeps the live reply in the shared thread and stops at the completed result'
   const view = render(() => <EmailSharingDemo />);
   setVisible(true);
   vi.advanceTimersByTime(10650);
-  expect(view.getByText('2 messages · New reply from Valentina')).toBeTruthy();
+  expect(
+    view.getByRole('button', { name: 'Open shared email: Homepage feedback' })
+      .textContent
+  ).toBe('Homepage feedback');
+  expect(view.queryByText('Live')).toBeNull();
+  expect(view.queryByText(/2 messages|Open full thread/)).toBeNull();
   expect(
     view.queryByText(
       'Valentina replied. Your whole team is already up to date.'
     )
   ).toBeNull();
   vi.advanceTimersByTime(30000);
-  expect(view.getByText('2 messages · New reply from Valentina')).toBeTruthy();
+  expect(
+    view.getByRole('button', { name: 'Open shared email: Homepage feedback' })
+      .textContent
+  ).toBe('Homepage feedback');
+  expect(view.queryByText('Live')).toBeNull();
+  expect(view.queryByText(/2 messages|Open full thread/)).toBeNull();
   expect(vi.getTimerCount()).toBe(0);
   fireEvent.click(
     view.getByRole('button', {

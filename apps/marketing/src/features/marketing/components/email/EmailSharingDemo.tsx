@@ -6,6 +6,7 @@ import { Button } from '@ui';
 import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
 import { homepagePeople } from '../../core/homepage-demo-people';
 import { DemoCursor } from '../DemoCursor';
+import { DocMention } from '../documents/DocMention';
 import { HomepageConversation } from '../HomepageConversation';
 import { demoEmails } from './email-fixtures';
 import { ChannelComposer } from './frozen/ChannelComposer';
@@ -120,7 +121,7 @@ function ShareForm(props: {
   );
 }
 
-function ChannelResult(props: { onOpen: () => void; updated: boolean }) {
+function ChannelResult(props: { onOpen: () => void }) {
   const [messages, setMessages] = createSignal<string[]>([]);
   return (
     <div class="mail-channel">
@@ -151,27 +152,16 @@ function ChannelResult(props: { onOpen: () => void; updated: boolean }) {
               person: 'jacob',
               text: (
                 <>
-                  Valentina’s ready for Thursday. Here’s the conversation.
+                  Valentina’s ready for Thursday. Here’s the conversation:{' '}
                   <button
                     type="button"
                     class="mail-shared-thread"
                     onClick={props.onOpen}
                     aria-label="Open shared email: Homepage feedback"
                   >
-                    <span class="mail-shared-thread-label">
-                      <Envelope class="size-4" /> Email thread <span>Live</span>
-                    </span>
-                    <strong>Homepage feedback</strong>
-                    <span>Valentina · Jacob</span>
-                    <span class="mail-shared-thread-preview">
-                      {props.updated ? incomingReply : demoEmails[0].snippet}
-                    </span>
-                    <span class="mail-shared-thread-footer">
-                      {props.updated
-                        ? '2 messages · New reply from Valentina'
-                        : '1 message · Open full thread'}{' '}
-                      <span aria-hidden="true">↗</span>
-                    </span>
+                    <DocMention
+                      item={{ kind: 'email', label: 'Homepage feedback' }}
+                    />
                   </button>
                 </>
               ),
@@ -336,7 +326,6 @@ export function EmailSharingDemo(props: { onClose?: () => void } = {}) {
             }
           >
             <ChannelResult
-              updated={phase() >= 7}
               onOpen={() => {
                 clear();
                 setPlaying(false);
