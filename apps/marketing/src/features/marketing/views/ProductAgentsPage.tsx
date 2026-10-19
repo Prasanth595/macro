@@ -140,9 +140,8 @@ export function RouteAgents() {
       </FeaturePageSection>
       <FeaturePageSection
         id="existing-agents"
-        title={['Bring your', 'own agent']}
-        description="Keep the agents you already use and connect them to your work in Macro. Bring a locally running agent into the workspace, or give an external MCP client access to Macro’s tools and context."
-        details={agentsGuides['existing-agents']}
+        title="Bring your own agent."
+        description="Give the agent you already use access to the context and tools in Macro."
       >
         <div class="agents-connections">
           <div class="agents-connection-paths">

@@ -55,9 +55,9 @@ export function FeaturePageCta(props: { name: string; label?: string }) {
 
 export function FeaturePageSection(props: {
   id: string;
-  title: readonly string[];
+  title: string | readonly string[];
   description: string;
-  details: readonly ProductFeatureDetail[];
+  details?: readonly ProductFeatureDetail[];
   children: JSX.Element;
 }) {
   return (
@@ -68,15 +68,23 @@ export function FeaturePageSection(props: {
     >
       <header class="product-feature-intro">
         <h2 id={`${props.id}-title`}>
-          <For each={props.title}>{(line) => <span>{line}</span>}</For>
+          <For
+            each={typeof props.title === 'string' ? [props.title] : props.title}
+          >
+            {(line) => <span>{line}</span>}
+          </For>
         </h2>
         <p>{props.description}</p>
       </header>
       {props.children}
-      <ProductFeatureDetails
-        section={props.title.join(' ')}
-        details={props.details}
-      />
+      <Show when={props.details?.length}>
+        <ProductFeatureDetails
+          section={
+            typeof props.title === 'string' ? props.title : props.title.join(' ')
+          }
+          details={props.details ?? []}
+        />
+      </Show>
     </section>
   );
 }
