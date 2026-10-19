@@ -100,7 +100,7 @@ export function RouteDocuments() {
         </nav>
         <FeaturePageSection
           id="document-agents"
-          title={['Write with', 'your agent']}
+          title={['Write alongside', 'your agent.']}
           description="Ask your agent to update a brief using your emails and tasks, then keep writing together. Your team and your agent work in the same shared document, with changes merging as you type."
           details={documentsGuides['document-agents']}
         >
