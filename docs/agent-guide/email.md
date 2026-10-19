@@ -712,9 +712,10 @@ section when the user can pick one: `All inboxes` or a single address, never sev
 single-row header: title (with Signal/Noise tabs beside Inbox), inbox/filter
 controls, reading-pane option, New, and an expandable Search icon. Its outlined
 `New` button also sits directly
-below the sidebar title, above the accounts. Account rows select only that inbox.
-`Connect another account` starts the add-inbox flow from its own row below the
-scrolling list. `New email` prefills From with the selected inbox, or the primary
+below the sidebar title, above a flat, outlined **Accounts** group. Its selector shows
+the current account or `All inboxes` and opens a single-select dropdown of linked
+accounts and aliases. `Connect another account` starts the add-inbox flow from
+the group's separated footer. `New email` prefills From with the selected inbox, or the primary
 inbox when All inboxes is selected; reopening a draft keeps its saved sender.
 The From menu groups each connected inbox with its verified Gmail send-as aliases.
 Replies default to an address on the thread's own inbox: preserve an outgoing
@@ -751,12 +752,12 @@ to choose the sender. Selecting an available inbox clears the error and allows
 sending; the picker never displays another inbox as selected before that choice.
 With no explicit selection, an unavailable primary still falls back to
 the first linked inbox.
-Sidebar rows, including `All inboxes`, replace their icon with an accent-colored checkmark when
-selected. With exactly one connected inbox and no aliases, only its address appears as the selected
-row, followed by `Connect another account`; there is no `All inboxes` row, title
-inbox dropdown, or inbox section in the mobile filter drawer. The inbox section shows up to four rows (including `All inboxes`), then
-scrolls independently without overscroll so the email tabs stay in place. With many
-accounts, scroll to the last inbox and check that selecting it updates the header filter.
+The desktop account dropdown marks the selected inbox with a checkmark. With
+exactly one connected inbox and no aliases, the selector displays its address
+and omits `All inboxes`; the mobile filter drawer has no inbox section. The
+touch sidebar keeps its existing account rows and shows up to four before
+scrolling independently. With many accounts, scroll to the last inbox in the
+dropdown and check that selecting it updates the selector and header filter.
 Selecting one inbox also shows `from [email address]` beside the list title.
 The address is a borderless ghost dropdown with the title's font weight and a
 consistent 14px font size at all widths; `from` is 12px. Both align to the title's baseline, without
