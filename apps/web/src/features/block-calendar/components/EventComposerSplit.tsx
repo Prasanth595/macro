@@ -87,7 +87,7 @@ function EventComposerContent(
       <EventForm
         controller={controller}
         macroCallsEnabled={macroCallsEnabled()}
-        isEdit={isEdit() || editor.eventCreated()}
+        isEdit={isEdit()}
         saveError={editor.saveError()}
         disabledFields={editor.disabledFields()}
         showRecurringEditNotice={editor.showRecurringEditNotice()}
