@@ -5,7 +5,10 @@ import {
   useChannelPictureFileName,
 } from '@queries/channel/picture';
 import type { ChannelIdentityProps } from './channel-identity';
-import { createChannelIdentityWriter } from './queries/channel-identity';
+import {
+  createChannelIdentityTeamControls,
+  createChannelIdentityWriter,
+} from './queries/channel-identity';
 import { ChannelIdentityModal } from './views/channel-identity-editor';
 
 export default function ChannelIdentitySession(
@@ -15,6 +18,7 @@ export default function ChannelIdentitySession(
 ) {
   const picture = useChannelPicture(() => props.channelId);
   const pictureFileName = useChannelPictureFileName(picture.pictureId);
+  const teamControls = createChannelIdentityTeamControls(props.channelId);
   const writer = createChannelIdentityWriter({
     channelId: props.channelId,
     name: props.name,
@@ -44,6 +48,7 @@ export default function ChannelIdentitySession(
       return props.canEdit;
     },
     writer,
+    teamControls,
     onClose: props.onClose,
   };
 

@@ -32,6 +32,7 @@ vi.mock('@queries/channel/picture', () => ({
   useChannelPictureFileName: () => () => undefined,
 }));
 vi.mock('./queries/channel-identity', () => ({
+  createChannelIdentityTeamControls: () => () => undefined,
   createChannelIdentityWriter: (options: { channelId: string }) => ({
     saveName: (name: string) => testState.saveName(name, options.channelId),
     savePicture: (file: File | null) =>

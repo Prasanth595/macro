@@ -9,6 +9,7 @@ import { Dialog } from '@ui/components/Dialog';
 import { Panel } from '@ui/components/Panel';
 import { Stepper } from '@ui/components/Stepper';
 import {
+  type Accessor,
   createMemo,
   createSignal,
   lazy,
@@ -22,7 +23,11 @@ import {
 } from '../components/channel-identity-fields';
 import { ChannelImageEditorLayout } from '../components/channel-image-editor-layout';
 import { ChannelImagePreviewButton } from '../components/channel-image-preview-button';
-import type { ChannelIdentityWriter } from '../core/channel-identity';
+import { ChannelTeamSettingsFields } from '../components/channel-team-settings-fields';
+import type {
+  ChannelIdentityTeamControls,
+  ChannelIdentityWriter,
+} from '../core/channel-identity';
 import {
   CHANNEL_PICTURE_MIME_TYPES,
   channelPictureFileError,
@@ -47,6 +52,7 @@ export type ChannelIdentityEditorProps = {
   pictureLoading: boolean;
   canEdit: boolean;
   writer: ChannelIdentityWriter;
+  teamControls?: Accessor<ChannelIdentityTeamControls | undefined>;
   onClose: () => void;
 };
 
@@ -60,6 +66,7 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
     name: props.name,
     canEdit: () => props.canEdit,
     writer: props.writer,
+    teamControls: props.teamControls,
     onClose: () => {
       closing = true;
       props.onClose();
@@ -184,6 +191,55 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
       </Show>
     );
   }
+  function TeamControls() {
+    return (
+      <Show
+        when={
+          props.teamControls?.()?.canManage || state.teamChanges()
+            ? state.teamSettings()
+            : undefined
+        }
+      >
+        {(settings) => (
+          <div class="flex flex-col gap-3">
+            <ChannelTeamSettingsFields
+              isTeamChannel={settings().isTeamChannel}
+              autoJoinTeam={settings().autoJoinTeam}
+              canChangeChannelType={
+                !props.teamControls?.()?.settings.isTeamChannel &&
+                !!props.teamControls?.()?.canConvert
+              }
+              conversionUnavailableReason={
+                props.teamControls?.()?.conversionUnavailableReason
+              }
+              disabled={
+                !props.canEdit ||
+                state.pending() ||
+                !props.teamControls?.()?.canManage
+              }
+              onTeamChannelChange={state.changeTeamChannel}
+              onAutoJoinTeamChange={state.changeAutoJoinTeam}
+            />
+            <Show when={state.teamChanges() && !state.canSaveTeam()}>
+              <p class="text-xs text-ink-muted">
+                Team settings can no longer be saved. Discard them to save your
+                other changes.
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={state.pending()}
+                onClick={state.discardTeamChanges}
+              >
+                Discard team changes
+              </Button>
+            </Show>
+          </div>
+        )}
+      </Show>
+    );
+  }
 
   function closePreview() {
     window.removeEventListener('pointerup', closePreview);
@@ -208,6 +264,7 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
     if (!state.canSave() || props.pictureLoading) return;
     await Telemetry.span('channel.identity.save', async (span) => {
       span.setAttr('channel.id', props.channelId);
+      span.setAttr('channel.identity.team_changed', !!state.teamChanges());
       span.setAttr(
         'channel.identity.picture_changed',
         state.picture() !== undefined
@@ -303,6 +360,7 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
                     pending={state.pending()}
                     canSave={state.canSave()}
                     error={state.error()}
+                    teamControls={<TeamControls />}
                     onNameChange={state.changeName}
                     onEditPicture={editPicture}
                     onPickPicture={() => input.click()}
@@ -389,7 +447,9 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
                             disabled={!props.canEdit || state.pending()}
                             actions={<ImageActions />}
                             preview={<ImagePreview />}
-                            saveDisabled={!state.name().trim()}
+                            saveDisabled={
+                              !state.name().trim() || !state.canSaveTeam()
+                            }
                             canSave={state.canSave()}
                             hasImageDraft={state.picture() instanceof File}
                             onSave={(cropped) => {

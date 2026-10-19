@@ -1238,6 +1238,19 @@ focus to the preview button. Closing the lightbox preserves the draft.
 Right-clicking the dialog or its overlay never opens the split header's context
 menu. Text inputs keep their native context menu.
 
+For channel owners and admins, team controls appear below the channel name on
+desktop and mobile. Private and public channels offer `Team channel` when the
+current user belongs to a team. The switch can be turned back off before Save;
+saved team channels cannot be converted back from this dialog. `Team auto-join`
+appears for existing or draft team channels and adds current and future team
+members automatically. These controls share the dialog's Save and Cancel actions:
+opening, toggling, or canceling never writes changes. Failed team saves retain the
+draft, and retrying does not repeat successful name or image writes. Direct
+messages and ordinary channel members do not get team controls. The existing
+Participants team controls still apply changes immediately. If team access is
+lost while editing, discard the blocked team changes to keep and save the name
+and image edits.
+
 The image-editing step puts the crop workspace on the left and a wider
 actions/details column on the right, without an outer bordered crop container.
 On narrow screens, the workspace appears above the controls. Below the image

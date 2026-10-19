@@ -5,7 +5,7 @@ import TrashIcon from '@phosphor/trash.svg';
 import UploadIcon from '@phosphor/upload-simple.svg';
 import { Button } from '@ui/components/Button';
 import { TextField } from '@ui/components/TextField';
-import { createSignal, Show } from 'solid-js';
+import { createSignal, type JSX, Show } from 'solid-js';
 import { CHANNEL_PICTURE_MIME_TYPES } from '../core/channel-picture';
 import { ChannelImagePreviewButton } from './channel-image-preview-button';
 
@@ -104,6 +104,7 @@ export function ChannelIdentityFields(props: {
   pending: boolean;
   canSave: boolean;
   error?: string;
+  teamControls?: JSX.Element;
   onNameChange: (name: string) => void;
   onEditPicture: () => void;
   onPickPicture: () => void;
@@ -126,7 +127,7 @@ export function ChannelIdentityFields(props: {
     >
       <div class="flex flex-col gap-4 px-6 mobile:px-4">
         <div class="flex items-start gap-8 max-sm:flex-col max-sm:items-center max-sm:gap-6">
-          <div class="w-full min-w-0 flex-1">
+          <div class="flex w-full min-w-0 flex-1 flex-col gap-4">
             <TextField
               value={props.name}
               onChange={props.onNameChange}
@@ -140,6 +141,7 @@ export function ChannelIdentityFields(props: {
                 A channel name is required.
               </TextField.ErrorMessage>
             </TextField>
+            {props.teamControls}
           </div>
           <div class="order-first flex shrink-0 flex-col items-center gap-3">
             <div
