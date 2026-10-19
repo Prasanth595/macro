@@ -1,7 +1,7 @@
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import { Popover } from '@kobalte/core/popover';
-import { Button, Tooltip } from '@ui';
+import Check from '@phosphor/check.svg';
+import { Button, Dropdown, Tooltip } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
 import type {
   EffortChoice,
@@ -18,22 +18,17 @@ export function EffortSelector(props: {
   onCloseAutoFocus?: (event: Event) => void;
 }) {
   const [open, setOpen] = createSignal(false);
-  const [preview, setPreview] = createSignal<number>();
   const changeOpen = (value: boolean) => {
     setOpen(value);
-    setPreview(undefined);
     props.onOpenChange?.(value);
   };
   const choices = () => props.config?.options ?? [];
   const value = () => props.value ?? props.config?.currentValue;
   const index = () =>
-    preview() ??
     Math.max(
       0,
       choices().findIndex((choice) => choice.value === value())
     );
-  const segments = () =>
-    Array.from({ length: Math.ceil(choices().length / 2) });
   const label = () => choices()[index()]?.name ?? 'Default';
   const angle = () => {
     return -70 + (index() / Math.max(1, choices().length - 1)) * 140;
@@ -58,75 +53,33 @@ export function EffortSelector(props: {
       <circle cx="12" cy="14" r="2" fill="currentColor" />
     </svg>
   );
-  const options = () => (
-    <div>
-      <div class="mb-1 text-center text-sm text-ink-muted" aria-hidden="true">
-        {label()}
-      </div>
-      <div class="relative mx-3.5 h-9">
-        <div
-          class="pointer-events-none absolute inset-x-0 top-3 flex h-3 gap-1"
-          aria-hidden="true"
-        >
-          <For each={segments()}>
-            {(_, position) => (
-              <span class="relative flex-1 overflow-hidden rounded-[5px] bg-ink/15">
-                <span
-                  class="absolute inset-y-0 left-0 bg-ink/70"
-                  style={{
-                    width: `${Math.max(0, Math.min(1, ((index() + 1) / choices().length) * segments().length - position())) * 100}%`,
-                  }}
-                />
-              </span>
-            )}
-          </For>
-        </div>
-        <span
-          class="pointer-events-none absolute top-1 size-7 -translate-x-1/2 rounded-full bg-ink shadow-sm"
-          aria-hidden="true"
-          style={{
-            left: `calc(${((index() + 1) / choices().length) * 100}% + ${((index() + 1) / choices().length) * 4 - (index() === choices().length - 1 ? 4 : 2)}px)`,
-          }}
-        />
-        <input
-          type="range"
-          aria-label="Reasoning effort"
-          aria-valuetext={label()}
-          min={0}
-          max={choices().length - 1}
-          step={1}
-          value={index()}
-          disabled={props.disabled}
-          class="relative m-0 h-9 w-full appearance-none rounded bg-transparent outline-none disabled:opacity-50 [&::-webkit-slider-runnable-track]:h-3 [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-0 [&::-webkit-slider-thumb]:appearance-none [&::-moz-range-track]:h-3 [&::-moz-range-track]:bg-transparent [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-0 [&::-moz-range-thumb]:border-0"
-          onInput={(event) => setPreview(Number(event.currentTarget.value))}
-          onChange={(event) => {
-            const choice = choices()[Number(event.currentTarget.value)];
-            if (!props.disabled && props.config && choice)
-              props.onChange({
-                configId: props.config.id,
-                value: choice.value,
-                name: choice.name,
-              });
-            setPreview(undefined);
-          }}
-        />
-      </div>
-    </div>
+  const choose = (choice: SelectSessionConfigOption['options'][number]) => {
+    if (!props.config || props.disabled) return;
+    props.onChange({
+      configId: props.config.id,
+      value: choice.value,
+      name: choice.name,
+    });
+    changeOpen(false);
+  };
+  const optionLabel = (
+    choice: SelectSessionConfigOption['options'][number]
+  ) => (
+    <>
+      <span class="flex-1">{choice.name}</span>
+      <Show when={choice.value === value()}>
+        <Check class="size-4" />
+      </Show>
+    </>
   );
   return (
     <Show when={choices().length > 1}>
       <Show
         when={isTouchDevice()}
         fallback={
-          <Popover
-            open={open()}
-            onOpenChange={changeOpen}
-            placement="bottom"
-            gutter={8}
-          >
+          <Dropdown open={open()} onOpenChange={changeOpen} placement="bottom">
             <Tooltip label={`Effort: ${label()}`} disabled={open()}>
-              <Popover.Trigger
-                as={Button}
+              <Dropdown.Trigger
                 variant="ghost"
                 size="sm"
                 class="size-8 rounded-full p-0"
@@ -134,17 +87,23 @@ export function EffortSelector(props: {
                 aria-label={`Effort: ${label()}`}
               >
                 {contents()}
-              </Popover.Trigger>
+              </Dropdown.Trigger>
             </Tooltip>
-            <Popover.Portal>
-              <Popover.Content
-                class="menu-surface z-modal w-80 max-w-[calc(100vw-2rem)] p-3"
-                aria-label="Reasoning effort"
-              >
-                {options()}
-              </Popover.Content>
-            </Popover.Portal>
-          </Popover>
+            <Dropdown.Content class="w-48" aria-label="Reasoning effort">
+              <Dropdown.Group>
+                <For each={choices()}>
+                  {(choice) => (
+                    <Dropdown.Item
+                      disabled={props.disabled}
+                      onSelect={() => choose(choice)}
+                    >
+                      {optionLabel(choice)}
+                    </Dropdown.Item>
+                  )}
+                </For>
+              </Dropdown.Group>
+            </Dropdown.Content>
+          </Dropdown>
         }
       >
         <MobileDrawer
@@ -175,7 +134,22 @@ export function EffortSelector(props: {
                 Reasoning effort
               </MobileDrawer.Title>
               <MobileDrawer.ScrollBody>
-                <div class="px-5 pb-4">{options()}</div>
+                <MobileDrawer.Section
+                  role="group"
+                  aria-label="Reasoning effort"
+                >
+                  <For each={choices()}>
+                    {(choice) => (
+                      <MobileDrawer.Item
+                        aria-pressed={choice.value === value()}
+                        disabled={props.disabled}
+                        onClick={() => choose(choice)}
+                      >
+                        {optionLabel(choice)}
+                      </MobileDrawer.Item>
+                    )}
+                  </For>
+                </MobileDrawer.Section>
               </MobileDrawer.ScrollBody>
             </MobileDrawer.Content>
           </MobileDrawer.Portal>

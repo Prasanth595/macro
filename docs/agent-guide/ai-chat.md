@@ -431,7 +431,7 @@ the shimmer.
   with the repository bar below the input on desktop and above it on mobile.
   The plus attachment button stays at the far left: before the
   text in the compact row, and on the bottom control row when expanded. The editor sits above the controls, with attachments
-  on the left and the agent/model and Send on the right. An inset bar, 8 px narrower on each side than the input, holds Chat/Code in both modes at a stable 44 px height with 4 px vertical padding, with rounded outer corners
+  on the left and the agent/model and Send on the right. An inset bar, aligned to the full width of the input on mobile and desktop, holds Chat/Code in both modes at a stable 44 px height with 4 px vertical padding, with rounded outer corners
   and a subtle border, with a darker surface in dark mode.
   Selecting Chat hides the repository controls and keeps the mode switch in
   the inset bar, without remounting the editor or losing the draft. Reduced-motion
@@ -479,8 +479,8 @@ the shimmer.
   provider icons, search, **Suggested** first, and **More models** for the
   complete provider catalog. Desktop opens a submenu; phone widths show
   the catalog in place with a Back action. Search includes every model.
-- A compact **speedometer-style effort** button with a simple arc and needle beside the model selector opens a wide segmented slider with half as many visual segments as effort levels (rounded up) and a circular marker for the selected level from lower to higher effort, showing only the current level: a popover centered below the button on desktop, or its own bottom sheet on mobile. Mobile shows it alongside the model control after the input expands. It is hidden when the model has fewer than two effort choices.
-  Model-specific effort choices remain available in model submenus.
+- A compact **speedometer-style effort** button with a simple arc and needle beside the model selector opens a simple list of effort levels with a check beside the current choice: a popover centered below the button on desktop, or its own bottom sheet on mobile. Choosing a level applies it and closes the menu. Mobile shows it alongside the model control after the input expands. It is hidden when the model has fewer than two effort choices.
+  Model-specific effort choices remain available in desktop model submenus.
   Free and Pro users start new conversations at the lowest advertised level,
   unless they explicitly choose another. Existing sessions keep their current setting.
 - On desktop, chat agents' empty input types tips about connectors, skills,

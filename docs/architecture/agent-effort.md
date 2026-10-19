@@ -94,7 +94,7 @@ an external harness result.
 
 The selected model also has a **speedometer-style effort** button beside its model selector
 in new-chat and running-session composers. It opens a compact desktop popover
-or a dedicated bottom sheet on mobile. Its needle reflects the selected level. A segmented slider with half as many visual segments as effort levels (rounded up) and a circular marker for the selected level runs left to right from lower to higher effort, previews the current level while dragging, and applies it on release; models with fewer than two choices hide the button.
+or a dedicated bottom sheet on mobile. Its needle reflects the selected level. A simple list shows the supported effort levels and checks the current choice. Selecting a level applies it and closes the menu; models with fewer than two choices hide the button.
 
 On desktop, effort remains available in each model’s submenu.
 Discovery runs when the submenu opens, scoped to that model and harness;

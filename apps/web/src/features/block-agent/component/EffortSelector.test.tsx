@@ -47,19 +47,35 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 it.each([false, true])(
-  'previews effort while dragging and applies on release (touch=%s)',
+  'selects a named effort option and closes (touch=%s)',
   async (touch) => {
     vi.mocked(isTouchDevice).mockReturnValue(touch);
     const change = vi.fn();
-    render(() => <EffortSelector config={config} onChange={change} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Effort: Low' }));
-    const slider = await screen.findByRole('slider', {
-      name: 'Reasoning effort',
+    const openChange = vi.fn();
+    render(() => (
+      <EffortSelector
+        config={config}
+        onChange={change}
+        onOpenChange={openChange}
+      />
+    ));
+    const trigger = screen.getByRole('button', { name: 'Effort: Low' });
+    if (touch) fireEvent.click(trigger);
+    else fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    const high = await screen.findByRole(touch ? 'button' : 'menuitem', {
+      name: 'High',
     });
-    fireEvent.input(slider, { target: { value: '1' } });
-    expect(slider.getAttribute('aria-valuetext')).toBe('High');
-    expect(change).not.toHaveBeenCalled();
-    fireEvent.change(slider, { target: { value: '1' } });
+    if (touch) {
+      expect(
+        screen.getByRole('button', { name: 'Low' }).getAttribute('aria-pressed')
+      ).toBe('true');
+      expect(high.getAttribute('aria-pressed')).toBe('false');
+      fireEvent.click(high);
+    } else {
+      high.focus();
+      fireEvent.keyDown(high, { key: 'Enter' });
+    }
+    expect(openChange).toHaveBeenLastCalledWith(false);
     expect(change).toHaveBeenCalledExactlyOnceWith({
       configId: 'effort',
       value: 'high',
@@ -74,7 +90,7 @@ it('hides unsupported effort', () => {
 it('does not open while configuration is disabled', () => {
   render(() => <EffortSelector config={config} disabled onChange={vi.fn()} />);
   fireEvent.click(screen.getByRole('button', { name: 'Effort: Low' }));
-  expect(screen.queryByRole('slider')).toBeNull();
+  expect(screen.queryByRole('group', { name: 'Reasoning effort' })).toBeNull();
 });
 
 it('returns focus to the composer when the mobile chooser closes', async () => {
@@ -95,10 +111,8 @@ it('returns focus to the composer when the mobile chooser closes', async () => {
     </>
   ));
   fireEvent.click(screen.getByRole('button', { name: 'Effort: Low' }));
-  const slider = await screen.findByRole('slider', {
-    name: 'Reasoning effort',
-  });
-  await waitFor(() => expect(document.activeElement).toBe(slider));
-  fireEvent.keyDown(slider, { key: 'Escape' });
+  const low = await screen.findByRole('button', { name: 'Low' });
+  await waitFor(() => expect(document.activeElement).toBe(low));
+  fireEvent.keyDown(low, { key: 'Escape' });
   await waitFor(() => expect(document.activeElement).toBe(input));
 });

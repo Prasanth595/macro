@@ -271,7 +271,7 @@ export function ChatComposer(props: {
   const repositoryDrawer = () => (
     <Show when={props.drawer}>
       <div
-        class="composer-drawer mx-2"
+        class="composer-drawer"
         data-placement={isTouchDevice() ? 'top' : 'bottom'}
         data-open={drawerOpen() ? '' : undefined}
         aria-hidden={!drawerOpen()}
