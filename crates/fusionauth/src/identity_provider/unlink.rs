@@ -36,6 +36,9 @@ pub(crate) async fn unlink(
     match status {
         reqwest::StatusCode::OK => Ok(()),
         reqwest::StatusCode::NOT_FOUND => Err(FusionAuthClientError::NoIdentityProviderFound), // no idp to unlink
+        reqwest::StatusCode::BAD_REQUEST if super::link::is_missing_user(&body) => {
+            Err(FusionAuthClientError::UserDoesNotExist)
+        }
         _ => Err(FusionAuthClientError::Generic(GenericErrorResponse {
             message: body,
         })),

@@ -75,6 +75,11 @@ key issuance, and account merge/link flows.
 
 ## Gotchas
 
+- GitHub reconnect preserves the current link until OAuth completes. A different
+  account returns 409; disconnect first to switch accounts. Missing grants report
+  reauthentication, while infrastructure failures remain server errors.
+  Deploy grant-refresh support before releasing clients that omit the pre-OAuth
+  disconnect; older callbacks leave an existing grant unchanged.
 - The signup allowlist has a temporary Develop-only bypass
   (`DEVELOPMENT_BYPASS_SIGNUP_ALLOWLIST`) that overrides the allowlist even
   when present; see `README.md` before changing signup behavior.

@@ -39,6 +39,12 @@ passwordless/password flows against the FusionAuth HTTP API.
 
 - `cargo test -p fusionauth`.
 
+## Gotchas
+
+- Link lookup and unlink map HTTP 400 `userId` / `[invalid]userId` errors to
+  `UserDoesNotExist`; other validation, authentication, and server failures
+  must remain errors. Never log identity-provider link tokens.
+
 ## Related
 
 - Rules: `.agents/rules/config-and-service-urls.md` (FusionAuth base URL/keys
