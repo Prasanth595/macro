@@ -41,7 +41,7 @@ export function ChannelIdentityFields(props: {
           <Button
             type="button"
             variant="ghost"
-            class="size-20 shrink-0 rounded-full p-0 mobile:size-24"
+            class="group/channel-picture size-20 shrink-0 rounded-full p-0 mobile:size-24"
             label={props.canEdit ? 'Change channel picture' : 'Channel picture'}
             disabled={!props.canEdit || props.pending || props.pictureLoading}
             onClick={props.onPickPicture}
@@ -61,9 +61,9 @@ export function ChannelIdentityFields(props: {
             <Show when={props.canEdit}>
               <span
                 aria-hidden="true"
-                class="absolute -right-1 bottom-0 flex size-8 items-center justify-center rounded-full border border-edge bg-surface text-ink shadow-sm"
+                class="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-surface/60 text-ink opacity-0 transition-opacity not-touch:group-hover/channel-picture:opacity-100 group-focus-visible/channel-picture:opacity-100 touch:opacity-100"
               >
-                <UploadIcon class="size-4" />
+                <UploadIcon class="size-6" />
               </span>
             </Show>
           </Button>
@@ -90,7 +90,7 @@ export function ChannelIdentityFields(props: {
             </Show>
             <Show when={props.canEdit}>
               <p class="text-xs text-ink-muted">
-                PNG, JPG, WebP or GIF · up to 16 MB
+                PNG, JPG, WebP or GIF up to 16 MB
               </p>
             </Show>
           </div>
@@ -110,7 +110,7 @@ export function ChannelIdentityFields(props: {
             </Button>
             <Button
               type="button"
-              variant="danger"
+              variant="ghost"
               size="lg"
               class="grow touch:min-h-11"
               disabled={
@@ -160,7 +160,7 @@ export function ChannelIdentityFields(props: {
         <Show when={props.canEdit}>
           <Button
             type="submit"
-            variant="accent"
+            variant="cta"
             disabled={!props.canSave || props.pictureLoading}
             class="mobile:flex-1"
           >
