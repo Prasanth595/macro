@@ -101,7 +101,6 @@ export function RouteDocuments() {
           id="document-agents"
           title={['Write with', 'your agent']}
           description="Ask your agent to update a brief using your emails and tasks, then keep writing together. Your team and your agent work in the same shared document, with changes merging as you type."
-          detailLayout="cards"
           details={[
             {
               title: 'Update from an email',
@@ -123,7 +122,6 @@ export function RouteDocuments() {
           id="document-links"
           title={['Open the source', 'beside your doc']}
           description="Link to the work you’re writing about and open it beside your document. Read the original email, task, or conversation while you write, without copying the information into another file."
-          detailLayout="cards"
           details={[
             {
               title: 'Reference the email',
@@ -150,7 +148,6 @@ export function RouteDocuments() {
           id="document-organization"
           title={['Find docs', 'where you work']}
           description="Keep documents in folders and use tags to find them across projects. A brief can stay in its home folder while appearing beside related emails and tasks under the tags your team uses."
-          detailLayout="cards"
           details={[
             {
               title: 'Give docs a home',

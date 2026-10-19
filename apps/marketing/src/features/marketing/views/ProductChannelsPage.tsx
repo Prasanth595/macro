@@ -63,14 +63,17 @@ export function RouteChannels() {
         details={[
           {
             title: 'Read the customer email',
+            summary: 'Read the original thread beside the team discussion.',
             text: 'Click the shared email mention to read the original thread beside chat. Your team can discuss the request while looking at the customer’s words.',
           },
           {
             title: 'Edit the shared doc',
+            summary: 'Update the shared checklist without closing chat.',
             text: 'Open the document mentioned in the conversation and work on the shared file. Keep the channel next to the launch checklist as you update it.',
           },
           {
             title: 'Open the next task',
+            summary: 'Open the task that tracks the conversation’s next step.',
             text: 'Follow the task mention to see what needs doing. The link connects the conversation to the task that tracks the next step.',
           },
         ]}
@@ -86,10 +89,12 @@ export function RouteChannels() {
         details={[
           {
             title: 'Give the channel access',
+            summary: 'Mention an item so channel members can open it.',
             text: 'Mention a document, task, or email in the channel. Members can open that shared item directly from the conversation.',
           },
           {
             title: 'Include new members',
+            summary: 'Give new teammates access to the work already shared.',
             text: 'People who join the channel also get access to its shared items. They can read earlier discussion and open the work it refers to while catching up.',
           },
         ]}
@@ -105,14 +110,17 @@ export function RouteChannels() {
         details={[
           {
             title: 'Ask in front of the team',
+            summary: 'Make the request where teammates can follow along.',
             text: 'Mention an agent with your request in the channel. Teammates can see the request, add context, and follow its response.',
           },
           {
             title: 'Reference the actual work',
+            summary: 'Point the agent to the shared document or task.',
             text: 'Mention the document or task the agent should use. Give it the shared source so its response is grounded in the work being discussed.',
           },
           {
             title: 'Bring your own agent',
+            summary: 'Bring a connected agent into your team’s conversation.',
             text: 'Connect a supported agent you already use. It can participate in the workspace conversation while using its own runtime and permission settings.',
           },
         ]}
@@ -128,10 +136,13 @@ export function RouteChannels() {
         details={[
           {
             title: 'Expand a thread',
+            summary:
+              'Read replies without leaving the surrounding conversation.',
             text: 'Read replies inline while keeping the surrounding channel in view. You do not need to open a separate conversation just to understand the follow-up.',
           },
           {
             title: 'Reply where it belongs',
+            summary: 'Keep your response with the message it answers.',
             text: 'Respond in the original thread. Your reply stays with the message and discussion it answers, where the other participants can find it.',
           },
         ]}

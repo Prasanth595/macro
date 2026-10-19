@@ -1,64 +1,58 @@
 import { Dialog } from '@kobalte/core/dialog';
+import ArrowLeft from '@phosphor/arrow-left.svg';
 import ArrowRight from '@phosphor/arrow-right.svg';
-import CaretRight from '@phosphor/caret-right.svg';
 import X from '@phosphor/x.svg';
-import { createSignal, For, Show } from 'solid-js';
+import { createSignal, createUniqueId, For, Show } from 'solid-js';
+import { isEmbeddedProductPage } from './productPagePreview';
 import './product-feature-details.css';
 
 export type ProductFeatureDetail = {
   title: string;
+  summary: string;
   text: string;
-  summary?: string;
 };
 
-/** Details open above the page without resizing or remounting its demo. */
+/** Standalone drawer; inside the homepage drawer, reuse its whole viewport. */
 export function ProductFeatureDetails(props: {
   section: string;
   details: readonly ProductFeatureDetail[];
-  layout?: 'cards';
 }) {
+  const embedded = isEmbeddedProductPage();
   const [active, setActive] = createSignal<ProductFeatureDetail>();
   let opener: HTMLButtonElement | undefined;
   let closeButton: HTMLButtonElement | undefined;
 
   return (
     <>
-      <div class="product-feature-details" data-layout={props.layout}>
-        <Show when={props.layout !== 'cards'}>
-          <p>What you can do</p>
-        </Show>
+      <div class="product-feature-details">
         <div class="product-feature-detail-links">
           <For each={props.details}>
-            {(detail) => (
-              <button
-                type="button"
-                aria-haspopup="dialog"
-                onClick={(event) => {
-                  opener = event.currentTarget;
-                  setActive(detail);
-                }}
-              >
-                <Show
-                  when={props.layout === 'cards'}
-                  fallback={
-                    <>
-                      {detail.title}
-                      <CaretRight aria-hidden="true" />
-                    </>
-                  }
+            {(detail) => {
+              const id = createUniqueId();
+              return (
+                <button
+                  type="button"
+                  aria-haspopup="dialog"
+                  aria-labelledby={`${id}-title`}
+                  aria-describedby={`${id}-summary`}
+                  onClick={(event) => {
+                    opener = event.currentTarget;
+                    setActive(detail);
+                  }}
                 >
-                  <span class="product-feature-card-title">
+                  <span class="product-feature-card-title" id={`${id}-title`}>
                     {detail.title}
                     <ArrowRight aria-hidden="true" />
                   </span>
-                  <Show when={detail.summary}>
-                    <span class="product-feature-card-summary">
-                      {detail.summary}
-                    </span>
-                  </Show>
-                </Show>
-              </button>
-            )}
+                  <span
+                    class="product-feature-card-summary"
+                    id={`${id}-summary`}
+                  >
+                    {detail.summary}
+                  </span>
+                </button>
+              );
+            }}
           </For>
         </div>
       </div>
@@ -70,39 +64,53 @@ export function ProductFeatureDetails(props: {
         modal
       >
         <Dialog.Portal>
-          <Dialog.Overlay class="product-detail-backdrop" />
-          <div class="product-detail-positioner">
+          <Show when={!embedded}>
+            <Dialog.Overlay class="product-detail-backdrop" />
+          </Show>
+          <div
+            class="product-detail-positioner"
+            data-embedded={embedded ? 'true' : undefined}
+          >
             <Dialog.Content
-              class="product-detail-modal"
+              class="product-detail-panel"
               onOpenAutoFocus={(event) => {
                 event.preventDefault();
                 closeButton?.focus();
               }}
               onCloseAutoFocus={(event) => {
                 event.preventDefault();
-                if (opener?.isConnected) opener.focus();
+                if (opener?.isConnected) opener.focus({ preventScroll: true });
               }}
             >
               <Dialog.CloseButton
                 ref={closeButton}
-                class="product-detail-close"
-                aria-label="Close feature details"
+                class={
+                  embedded ? 'product-detail-back' : 'product-detail-close'
+                }
+                aria-label={
+                  embedded ? 'Back to product page' : 'Close feature details'
+                }
               >
-                <X aria-hidden="true" />
+                <Show when={embedded} fallback={<X aria-hidden="true" />}>
+                  <ArrowLeft aria-hidden="true" /> Back
+                </Show>
               </Dialog.CloseButton>
-              <p class="product-detail-context">{props.section}</p>
-              <Show when={active()}>
-                {(detail) => (
-                  <>
-                    <Dialog.Title class="product-detail-title">
-                      {detail().title}
-                    </Dialog.Title>
-                    <Dialog.Description class="product-detail-text">
-                      {detail().text}
-                    </Dialog.Description>
-                  </>
-                )}
-              </Show>
+              <div class="product-detail-body">
+                <p class="product-detail-context">{props.section}</p>
+                <Show when={active()}>
+                  {(detail) => (
+                    <>
+                      <Dialog.Title class="product-detail-title">
+                        {detail().title}
+                      </Dialog.Title>
+                      <p class="product-detail-lead">{detail().summary}</p>
+                      <Dialog.Description class="product-detail-text">
+                        {detail().text}
+                      </Dialog.Description>
+                    </>
+                  )}
+                </Show>
+              </div>
             </Dialog.Content>
           </div>
         </Dialog.Portal>

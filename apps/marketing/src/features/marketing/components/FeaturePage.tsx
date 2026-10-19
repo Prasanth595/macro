@@ -1,7 +1,6 @@
 import ArrowRight from '@phosphor/arrow-right.svg';
 import CaretDown from '@phosphor/caret-down.svg';
 import { For, type JSX, Show } from 'solid-js';
-import { isServer } from 'solid-js/web';
 import { ctaHref, handleCtaClick } from '../../../app/utils/utilCta';
 import palette from '../../../styles/dark-theme.css?inline';
 import uiStyles from '../../../styles/site-ui.css?inline';
@@ -13,6 +12,7 @@ import './workspace-story.css';
 import './feature-page.css';
 import './product-feature-section.css';
 import './product-page-preview.css';
+import { isEmbeddedProductPage } from './productPagePreview';
 
 // The frozen UI utilities and palette apply only inside this page. Legacy
 // public routes retain their own CSS; no authenticated app styles are loaded.
@@ -26,10 +26,7 @@ export function FeaturePage(props: {
   children: JSX.Element;
   productSpacing?: boolean;
 }) {
-  const embedded =
-    !isServer &&
-    window.self !== window.top &&
-    new URLSearchParams(window.location.search).get('embed') === 'feature';
+  const embedded = isEmbeddedProductPage();
   return (
     <main
       class="feature-page"
@@ -61,7 +58,6 @@ export function FeaturePageSection(props: {
   title: readonly [string, string];
   description: string;
   details: readonly ProductFeatureDetail[];
-  detailLayout?: 'cards';
   children: JSX.Element;
 }) {
   return (
@@ -80,7 +76,6 @@ export function FeaturePageSection(props: {
       <ProductFeatureDetails
         section={props.title.join(' ')}
         details={props.details}
-        layout={props.detailLayout}
       />
     </section>
   );

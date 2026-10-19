@@ -107,14 +107,17 @@ export function RouteCalls() {
           details={[
             {
               title: 'Call from a channel',
+              summary: 'Move the team conversation into a live call.',
               text: 'Choose Call in the channel when talking is easier than typing. Teammates can join from the same conversation.',
             },
             {
               title: 'Call from a DM',
+              summary: 'Talk to the person you’re already messaging.',
               text: 'Start a call with the person you are messaging. Move the discussion into a live conversation without arranging a separate meeting first.',
             },
             {
               title: 'Invite someone outside Macro',
+              summary: 'Let guests join in a browser with a meeting link.',
               text: 'Share the meeting link with a guest. They can join in their browser without creating a Macro account.',
             },
           ]}
@@ -130,10 +133,12 @@ export function RouteCalls() {
           details={[
             {
               title: 'Find the right call',
+              summary: 'Use the meeting transcript as context for the update.',
               text: 'Ask your agent to use the meeting you are referring to. It can find and read calls you have access to, rather than relying on notes pasted into the request.',
             },
             {
               title: 'Apply the agreed changes',
+              summary: 'Turn the agreed next steps into changes on the task.',
               text: 'Ask it to update the task’s owner and next steps from the transcript. Open the shared task afterward to review the changes.',
             },
           ]}
@@ -149,18 +154,24 @@ export function RouteCalls() {
           details={[
             {
               title: 'Replay the recording',
+              summary: 'Hear the conversation again when the details matter.',
               text: 'Open the saved recording when you need to hear the conversation again. Participants see a notice that the call is being recorded and transcribed.',
             },
             {
               title: 'Read the transcript',
+              summary:
+                'Read what was said without replaying the whole meeting.',
               text: 'Read what was said without watching the whole call. The transcript also gives your agents context for follow-up work.',
             },
             {
               title: 'Start with the summary',
+              summary:
+                'Review the main points before digging into the transcript.',
               text: 'Use the summary to find the main points, then open the transcript for the details behind a decision.',
             },
             {
               title: 'Share with a teammate',
+              summary: 'Give someone who missed the meeting a way to catch up.',
               text: 'Give a teammate access to the saved call so they can catch up. Access to the recording, transcript, and summary follows the call’s sharing settings.',
             },
           ]}

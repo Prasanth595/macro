@@ -110,14 +110,18 @@ export function RouteGithub() {
           details={[
             {
               title: 'Share the pull request',
+              summary: 'Keep the pull request linked to the team discussion.',
               text: 'Paste the PR into the team conversation. Its reference stays linked to the pull request and reflects its current status.',
             },
             {
               title: 'Read the diff',
+              summary: 'Inspect the code changes directly in Macro.',
               text: 'Open the PR in Macro to inspect the code changes alongside the discussion. Your repository, CI, and permissions remain on GitHub.',
             },
             {
               title: 'Merge in Macro',
+              summary:
+                'Confirm the merge with GitHub’s requirements still applied.',
               text: 'Use Merge on the pull request and confirm the action. GitHub still applies the repository’s permissions and merge requirements.',
             },
           ]}
@@ -133,18 +137,22 @@ export function RouteGithub() {
           details={[
             {
               title: 'Link the task ID',
+              summary: 'Connect the implementation to the work it completes.',
               text: 'Put the task ID in the branch name, PR title, or description to connect the task and implementation.',
             },
             {
               title: 'Open a PR',
+              summary: 'Move the linked task into review automatically.',
               text: 'When the linked pull request opens, the task moves to In Review so the team can see that implementation is ready for review.',
             },
             {
               title: 'Merge the change',
+              summary: 'Mark the task completed when the PR merges.',
               text: 'Merging the linked PR marks the task Completed. The status follows the code change instead of waiting for someone to update it manually.',
             },
             {
               title: 'Close without merging',
+              summary: 'Return the task to Not Started if the PR is closed.',
               text: 'If the pull request is closed without a merge, the linked task returns to Not Started. The task does not appear finished when the change did not ship.',
             },
           ]}
@@ -160,10 +168,13 @@ export function RouteGithub() {
           details={[
             {
               title: 'Assign the bug to Cursor',
+              summary:
+                'Give your coding agent the problem in the team conversation.',
               text: 'Tag Cursor in the conversation with the problem and the context it needs. The team can follow the request where the bug was reported.',
             },
             {
               title: 'Inspect the pull request',
+              summary: 'Read the agent’s changes and review the result.',
               text: 'Open the agent’s PR to read its changes and the discussion. Submit approvals and review comments on GitHub using your existing repository permissions.',
             },
           ]}
@@ -179,14 +190,18 @@ export function RouteGithub() {
           details={[
             {
               title: 'Review requests',
+              summary: 'Find the pull requests waiting for your review.',
               text: 'See pull requests waiting for your review alongside your other work. Open the request to inspect the PR and understand what changed.',
             },
             {
               title: 'Comments and mentions',
+              summary: 'See when a teammate needs your input on a PR.',
               text: 'Find GitHub comments and mentions in the same inbox. Open the relevant pull request when a teammate needs your input.',
             },
             {
               title: 'One inbox for the follow-up',
+              summary:
+                'Keep review requests alongside messages, tasks, and email.',
               text: 'Keep the review request beside the messages, tasks, and emails that may explain it. You can follow the work without keeping a separate notification stream open.',
             },
           ]}

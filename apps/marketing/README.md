@@ -254,17 +254,20 @@ beside a full explanatory paragraph, the existing native demo, and a quiet
 tuple. Keep both lines short enough to fit at phone widths without shrinking
 the type or clipping words.
 
-Use two to four details chosen for the specific demo, with concrete action
-labels and useful behavior or constraints. Vary the count with the workflow;
-do not repeat a generic pair of benefits in every chapter. Compact buttons
-with adjacent chevrons open `ProductFeatureDetails` in an accessible modal, so
-the demo and surrounding page do not change size. Escape, backdrop click, and
-the close button dismiss it and return focus to the triggering button. Keep
-these controls outside the demo interaction guard and retain the demo state.
-Keep the middle of the chapter free of divider rules. Documents currently
-uses `detailLayout="cards"` as a trial: a full-width row of soft feature cards with a
-short visible summary and an adjacent arrow. Each card opens the same modal.
-Keep this experiment on Documents until the user approves a broader rollout.
+Use two to four feature cards chosen for the specific demo, each with a concrete
+action label, a required short summary, and an adjacent arrow. All eight
+subpages use the same soft card layout; vary the content and count with the
+workflow rather than repeating generic benefits.
+
+`ProductFeatureDetails` opens an accessible right-side drawer on standalone
+product pages. In a homepage product preview (`embed=feature` inside an iframe),
+it fills the existing panel viewport and shows Back instead of opening a
+narrower drawer. The underlying product page stays mounted: Back or Escape
+restores the card focus and scroll position. The homepage’s outer close button
+still closes the product preview. Detect preview mode with
+`isEmbeddedProductPage`, shared with `FeaturePage`; the query alone does not
+activate it on a standalone page. Keep cards outside the demo interaction guard
+and leave the middle of the chapter free of divider rules.
 
 Desktop chapters use a 1160px maximum measure. Below 800px the intro stacks;
 phone layouts keep the page gutters. Email stages share the chapter alignment

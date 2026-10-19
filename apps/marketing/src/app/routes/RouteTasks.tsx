@@ -135,14 +135,17 @@ export function RouteTasks() {
           details={[
             {
               title: 'Capture the request',
+              summary: 'Make a task from the message that started the request.',
               text: 'Use the Task action on the message that contains the request. The task links back to the conversation, so its owner can read the original wording and the replies around it.',
             },
             {
               title: 'Choose an owner',
+              summary: 'Give the next step a clear owner and priority.',
               text: 'Assign the person responsible for the next step and set a priority. The task gives the request a clear owner and a place to track its progress.',
             },
             {
               title: 'Add the missing details',
+              summary: 'Add a brief, checklist, or links before work begins.',
               text: 'Open the task to add a description, checklist, or linked brief. Keep the original request as context while making the next step specific enough to act on.',
             },
           ]}
@@ -158,10 +161,12 @@ export function RouteTasks() {
           details={[
             {
               title: 'Create several tasks',
+              summary: 'Turn a proposal request into separate assignments.',
               text: 'Ask Macro to split the proposal into tasks and name the owners in the same message. Drafting the proposal and reviewing the pricing become separate assignments, each with its own owner.',
             },
             {
               title: 'Reassign in chat',
+              summary: 'Change a task’s owner from the team conversation.',
               text: 'When Julia takes over the draft, tell Macro in the channel. It updates the shared task’s assignee, so the change reaches the task itself as well as the people reading the conversation.',
             },
           ]}
@@ -177,14 +182,17 @@ export function RouteTasks() {
           details={[
             {
               title: 'Reference the customer email',
+              summary: 'Keep the customer’s original request with the task.',
               text: 'Mention the original email in the task description. The person doing the work can read the request and its attachments without relying on a pasted summary.',
             },
             {
               title: 'Open the brief beside the task',
+              summary: 'Read the shared brief while working on the task.',
               text: 'Follow a document mention to read the brief while working on the task. The link opens the original document, so later edits stay available.',
             },
             {
               title: 'Find the discussion',
+              summary: 'Go back to the conversation behind the decision.',
               text: 'Link the conversation where the decision was made. A new assignee can catch up on the reasoning and follow-up questions before starting.',
             },
           ]}
@@ -200,10 +208,12 @@ export function RouteTasks() {
           details={[
             {
               title: 'Link by task ID',
+              summary: 'Connect a pull request using the task’s ID.',
               text: 'Put the task ID in the branch name, pull request title, or description. Macro uses it to connect the implementation to the task.',
             },
             {
               title: 'Move through review',
+              summary: 'Let opening and merging a PR update the task.',
               text: 'Opening the linked pull request moves the task to In Review. Merging it marks the task Completed. Closing without a merge returns it to Not Started.',
             },
           ]}
