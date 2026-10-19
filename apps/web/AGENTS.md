@@ -98,7 +98,8 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   sidebar title and compact in list controls; retain each view's creation
   workflow and mobile controls. Use `ListHeader` for the single-row Email, Drive,
   and Tasks headers: title, filters, view options, New, expandable Search. Put sidebar search in
-  `ViewSidebar.Header` so its icon precedes collapse and its field opens above New.
+  `ViewSidebar.Header` so its icon precedes collapse and its field opens above New;
+  group the desktop search and collapse icons in an outlined `ButtonGroup`.
 - Keep desktop control groups flat or raised with outline borders; never use recessed/inset backgrounds.
 - All API/network calls live in service-clients.
 - Keep desktop Gmail and Outlook inbox consent in the system browser with a
