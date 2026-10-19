@@ -1,7 +1,8 @@
 import { useCompose } from '@app/features/email-compose/context/compose-context';
 import type { SendEmail } from '@service-cognition/generated/tools/types';
 import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
-import { type Accessor, createSignal, type JSX } from 'solid-js';
+import { createEditor } from 'lexical';
+import { type Accessor, createSignal, type JSX, onMount } from 'solid-js';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -93,6 +94,7 @@ vi.mock('@app/features/email-compose/primitives/prepare-email-body', () => ({
 vi.mock('@app/features/email-compose/views/compose-layout', () => ({
   ComposeLayout: (props: { notice?: JSX.Element }) => {
     const compose = useCompose();
+    onMount(() => compose.onEditorInitialized?.(createEditor()));
     return (
       <>
         {props.notice}
@@ -116,11 +118,15 @@ vi.mock('@app/features/email-compose/views/compose-layout', () => ({
   },
 }));
 
-import { EmailDraftComposer } from './DraftComposer';
+import {
+  EmailDraftComposer,
+  type EmailDraftComposerProps,
+} from './DraftComposer';
 
 function showDraft(
   from?: string,
-  replyingToId: string | null = 'received-in-secondary'
+  replyingToId: string | null = 'received-in-secondary',
+  registerSubmitReader?: EmailDraftComposerProps['registerSubmitReader']
 ) {
   const draft: SendEmail = {
     to: [{ email: 'recipient@example.com' }],
@@ -133,6 +139,7 @@ function showDraft(
     <EmailDraftComposer
       initialData={draft}
       debugName="sending-inbox-test"
+      registerSubmitReader={registerSubmitReader}
       sink={{
         canAct: () => true,
         lockedNotice: () => undefined,
@@ -328,6 +335,21 @@ it('defaults a new email to the primary inbox', async () => {
     expect.objectContaining({ from: undefined })
   );
 });
+
+it.each([undefined, 'disconnected@example.com'])(
+  'blocks batch submission until a sender is resolved (from: %j)',
+  async (from) => {
+    const register =
+      vi.fn<NonNullable<EmailDraftComposerProps['registerSubmitReader']>>();
+    showDraft(from, 'received-in-secondary', register);
+    const read = register.mock.calls[0][0];
+    expect(await read()).toBeUndefined();
+    await fireEvent.click(screen.getByText('Choose secondary'));
+    expect(await read()).toEqual(
+      expect.objectContaining({ from: 'secondary@example.com' })
+    );
+  }
+);
 
 it('does not discard an explicit address while the inbox list is loading', async () => {
   vi.useFakeTimers();
