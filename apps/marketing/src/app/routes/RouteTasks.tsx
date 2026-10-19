@@ -152,7 +152,7 @@ export function RouteTasks() {
         <FeaturePageSection
           id="from-docs-and-email"
           title={['Tag files, people,', 'and emails to your task']}
-          description="A task should include the information someone needs to do it. Link the brief, the customer email, or the team discussion directly in its description and open the source when you need it."
+          description="Tag emails, documents, images, and team discussion directly to your task so your team has the context it needs."
           details={tasksGuides['from-docs-and-email']}
         >
           <DemoInteractionBoundary class="feature-page-visual">
