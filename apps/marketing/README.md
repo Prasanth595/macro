@@ -250,10 +250,18 @@ provides the lower demo chapters on Tasks, Email, Chat, Docs, Calls, CRM, Agents
 and GitHub. Follow the original Linear-inspired chapter layout: full-width
 rules between sections, generous top and bottom spacing, a large slab heading
 beside a full explanatory paragraph, the existing native demo, and a quiet
-“What you can do” row with expandable details. Give each chapter a specific
-explanation of the workflow, not just a one-line slogan. Details expand inline
-with native `details`/`summary` controls and remain outside the demo interaction
-guard. Keep the middle of the chapter free of divider rules.
+“What you can do” row. Give every heading two explicit lines using its title
+tuple. Keep both lines short enough to fit at phone widths without shrinking
+the type or clipping words.
+
+Use two to four details chosen for the specific demo, with concrete action
+labels and useful behavior or constraints. Vary the count with the workflow;
+do not repeat a generic pair of benefits in every chapter. Compact buttons
+with adjacent chevrons open `ProductFeatureDetails` in an accessible modal, so
+the demo and surrounding page do not change size. Escape, backdrop click, and
+the close button dismiss it and return focus to the triggering button. Keep
+these controls outside the demo interaction guard and retain the demo state.
+Keep the middle of the chapter free of divider rules.
 
 Desktop chapters use a 1160px maximum measure. Below 800px the intro stacks;
 phone layouts keep the page gutters. Email stages share the chapter alignment

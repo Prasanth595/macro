@@ -105,16 +105,20 @@ export function RouteGithub() {
         </nav>
         <FeaturePageSection
           id="pr-links"
-          title="See the code behind the chat"
+          title={['See the code', 'behind the chat']}
           description="Share a GitHub pull request in chat and open it from the conversation. Read the discussion and inspect the code changes while the linked PR’s status stays up to date."
           details={[
             {
-              title: 'Pull requests in chat',
-              text: 'Paste a pull request into a conversation so teammates can open it from the discussion. The reference reflects its current status as the work progresses.',
+              title: 'Share the pull request',
+              text: 'Paste the PR into the team conversation. Its reference stays linked to the pull request and reflects its current status.',
             },
             {
-              title: 'Inspect the changes',
-              text: 'Open the PR in Macro to read the discussion and code diff. Your repositories, CI, and repository permissions stay on GitHub.',
+              title: 'Read the diff',
+              text: 'Open the PR in Macro to inspect the code changes alongside the discussion. Your repository, CI, and permissions remain on GitHub.',
+            },
+            {
+              title: 'Merge in Macro',
+              text: 'Use Merge on the pull request and confirm the action. GitHub still applies the repository’s permissions and merge requirements.',
             },
           ]}
         >
@@ -124,16 +128,24 @@ export function RouteGithub() {
         </FeaturePageSection>
         <FeaturePageSection
           id="pr-tasks"
-          title="Keep tasks in sync with code"
+          title={['Keep tasks', 'in sync with code']}
           description="Keep implementation and task tracking connected. Link a pull request to its task, then let opening, merging, or closing the PR update the task’s status for the team."
           details={[
             {
-              title: 'Connect by task ID',
-              text: 'Include the task ID in the branch name, pull request title, or description. The linked task and pull request stay connected as the change moves through review.',
+              title: 'Link the task ID',
+              text: 'Put the task ID in the branch name, PR title, or description to connect the task and implementation.',
             },
             {
-              title: 'Automatic status updates',
-              text: 'Opening the PR moves the task to In Review. A merge marks it Completed; closing the PR without merging returns it to Not Started.',
+              title: 'Open a PR',
+              text: 'When the linked pull request opens, the task moves to In Review so the team can see that implementation is ready for review.',
+            },
+            {
+              title: 'Merge the change',
+              text: 'Merging the linked PR marks the task Completed. The status follows the code change instead of waiting for someone to update it manually.',
+            },
+            {
+              title: 'Close without merging',
+              text: 'If the pull request is closed without a merge, the linked task returns to Not Started. The task does not appear finished when the change did not ship.',
             },
           ]}
         >
@@ -143,16 +155,16 @@ export function RouteGithub() {
         </FeaturePageSection>
         <FeaturePageSection
           id="coding-agents"
-          title="Turn a bug report into a fix"
+          title={['Turn bug reports', 'into fixes']}
           description="Ask a connected coding agent to pick up a bug from the team conversation. Give it the context, then open its pull request in Macro to understand the changes and discuss the result."
           details={[
             {
-              title: 'Start from the bug report',
-              text: 'Tag Cursor in the channel with the problem and relevant context. The team can follow the request and continue the discussion where the bug was reported.',
+              title: 'Assign the bug to Cursor',
+              text: 'Tag Cursor in the conversation with the problem and the context it needs. The team can follow the request where the bug was reported.',
             },
             {
-              title: 'Inspect the result',
-              text: 'Open the agent’s pull request to read the changes and related discussion. Submit approvals and review comments on GitHub using your existing repository permissions.',
+              title: 'Inspect the pull request',
+              text: 'Open the agent’s PR to read its changes and the discussion. Submit approvals and review comments on GitHub using your existing repository permissions.',
             },
           ]}
         >
@@ -162,16 +174,20 @@ export function RouteGithub() {
         </FeaturePageSection>
         <FeaturePageSection
           id="review-inbox"
-          title="Know what needs your review"
+          title={['Know what needs', 'your review']}
           description="Keep GitHub review requests, comments, and mentions alongside your messages, tasks, and email. See what needs attention and open the relevant pull request from the same inbox."
           details={[
             {
               title: 'Review requests',
-              text: 'Find the pull requests that need your attention alongside the rest of your work. Open a request to inspect the PR and understand what changed.',
+              text: 'See pull requests waiting for your review alongside your other work. Open the request to inspect the PR and understand what changed.',
             },
             {
               title: 'Comments and mentions',
-              text: 'Follow GitHub comments and mentions from your Macro inbox. Keep the review conversation visible without switching to a separate stream of notifications.',
+              text: 'Find GitHub comments and mentions in the same inbox. Open the relevant pull request when a teammate needs your input.',
+            },
+            {
+              title: 'One inbox for the follow-up',
+              text: 'Keep the review request beside the messages, tasks, and emails that may explain it. You can follow the work without keeping a separate notification stream open.',
             },
           ]}
         >

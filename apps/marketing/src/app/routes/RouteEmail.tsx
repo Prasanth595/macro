@@ -136,16 +136,20 @@ export function RouteEmail() {
       </nav>
       <FeaturePageSection
         id="auto-tags"
-        title="Find the right email"
+        title={['Find the', 'right email']}
         description="Macro tags incoming email by customer, project, or follow-up. Find related conversations across your accounts and keep them connected to the documents and tasks your team is working on."
         details={[
           {
-            title: 'Automatic tags',
-            text: 'Incoming messages receive tags that help organize your inbox. You can add, remove, or change a tag yourself when a conversation belongs somewhere else.',
+            title: 'Automatic tagging',
+            text: 'Incoming email gets tags such as customer, project, or follow-up. Those labels are applied as messages arrive, so you can find the conversation by what it relates to.',
           },
           {
-            title: 'Related work together',
-            text: 'A thread can have several tags, such as a customer and a project. The same tags also work on documents and tasks, so related work is easier to find.',
+            title: 'Adjust a tag',
+            text: 'Open Tags on a thread to add or remove a label yourself. Automatic organization is a starting point; you can correct it as the conversation changes.',
+          },
+          {
+            title: 'Find related work',
+            text: 'A thread can carry both a customer tag and a project tag. Those same tags work on documents and tasks, giving you another way to find everything connected to the conversation.',
           },
         ]}
       >
@@ -155,16 +159,20 @@ export function RouteEmail() {
       </FeaturePageSection>
       <FeaturePageSection
         id="email-sharing"
-        title="Bring your team into the thread"
+        title={['Bring your team', 'into the thread']}
         description="Bring a customer conversation into your team’s channel without forwarding a copy. Share the full email thread, discuss it together, and keep new replies available in the same place."
         details={[
           {
-            title: 'Share a live thread',
-            text: 'Choose a channel, add a note, and share the email. Channel members can open the original messages and attachments, including new replies as they arrive.',
+            title: 'Share the whole thread',
+            text: 'Choose a channel and add a note when sharing. Teammates can read the original email messages and attachments from the channel.',
           },
           {
-            title: 'Discuss it with your team',
-            text: 'Comment beside the email and mention the documents or tasks it relates to. Your team can read the customer’s words and agree on the next step together.',
+            title: 'Keep new replies together',
+            text: 'The shared item is the live thread. When the customer replies, that message becomes available in the same shared thread instead of requiring another forward.',
+          },
+          {
+            title: 'Discuss the next step',
+            text: 'Leave a comment alongside the email and mention the doc or task it relates to. Your internal discussion stays with the customer context your team needs.',
           },
         ]}
       >
@@ -174,16 +182,24 @@ export function RouteEmail() {
       </FeaturePageSection>
       <FeaturePageSection
         id="keyboard-speed"
-        title="Move through your inbox"
+        title={['Move through', 'your inbox']}
         description="Move through your inbox without reaching for the mouse. Open a thread, write a reply, and mark it done, with search across all your connected accounts in the same place."
         details={[
           {
-            title: 'Keyboard navigation',
-            text: 'Use J and K to move between threads, Enter to open one, and E to mark it done. Escape returns you to the list. Navigation also works with a thread open.',
+            title: 'Navigate with J and K',
+            text: 'Use J and K to move to the next or previous conversation. These shortcuts also work with a thread open, so you can keep moving through the inbox.',
           },
           {
-            title: 'Search across accounts',
-            text: 'Find messages across your connected Gmail accounts from one inbox. Open a result to read the conversation without switching between separate account windows.',
+            title: 'Open and return',
+            text: 'Press Enter to open the selected thread and Escape to return to the list. Keep your hands on the keyboard as you move between the inbox and its conversations.',
+          },
+          {
+            title: 'Mark it done',
+            text: 'Press E when a conversation no longer needs attention. The selected conversation leaves the active list so you can move to the next one.',
+          },
+          {
+            title: 'Search all accounts',
+            text: 'Search across your connected Gmail accounts from one inbox. Each result keeps its original account and sender when you open the conversation.',
           },
         ]}
       >
@@ -193,16 +209,20 @@ export function RouteEmail() {
       </FeaturePageSection>
       <FeaturePageSection
         id="agentic-editing"
-        title="Start with a better draft"
+        title={['Start with', 'a better draft']}
         description="Ask an agent to prepare a reply using the email thread, relevant documents, and meeting transcript. You get an editable draft with the context already included, ready for your review."
         details={[
           {
-            title: 'Draft with context',
-            text: 'Agents can search past emails and read the docs and calls you reference. Ask for a follow-up, a proposal attachment, or a reply that includes the people involved.',
+            title: 'Use the meeting context',
+            text: 'Ask for a follow-up that draws on the email thread and the meeting transcript. The agent can read the sources you reference before writing the draft.',
           },
           {
-            title: 'Review before sending',
-            text: 'Check the subject, recipients, wording, and attachments in the draft. Make any changes and approve the send when you’re ready.',
+            title: 'Include the right people',
+            text: 'Ask the agent to copy the people involved and include a relevant attachment. Recipients and attachments are part of the draft you can inspect before sending.',
+          },
+          {
+            title: 'Edit before sending',
+            text: 'Review the subject, wording, recipients, and attachments. You can change the draft yourself and approve the send when it is ready.',
           },
         ]}
       >

@@ -118,16 +118,20 @@ export function RouteCrm() {
       </nav>
       <FeaturePageSection
         id="crm-from-email"
-        title="Keep your CRM current"
+        title={['Keep your', 'CRM current']}
         description="Your CRM lives beside your email, calls, and chat. Ask an agent to update stages, owners, and next steps from those conversations so your team can work from a current customer record."
         details={[
           {
-            title: 'Update from a conversation',
-            text: 'Tell your agent what changed after a customer email or call. It can update the relevant properties on the company record, including its stage and owner.',
+            title: 'Move a deal’s stage',
+            text: 'Tell the agent what changed in the customer conversation. A request for a product demo can become a stage update on the company record.',
           },
           {
-            title: 'Work from the record',
-            text: 'Keep the update with the customer it belongs to. Your team can open the record to see its properties, related work, and discussion in one place.',
+            title: 'Set the account owner',
+            text: 'Include the new owner in the same request. The assignment is saved on the shared record so the team can see who is responsible.',
+          },
+          {
+            title: 'Record the next step',
+            text: 'Add the detail that matters for the handoff, such as who is coordinating the rollout. Keep that context on the customer record instead of only in the sales conversation.',
           },
         ]}
       >
@@ -137,16 +141,16 @@ export function RouteCrm() {
       </FeaturePageSection>
       <FeaturePageSection
         id="crm-enrichment"
-        title="Know who you’re meeting"
+        title={['Know who', 'you’re meeting']}
         description="When you email someone new, Macro creates the contact and company from their domain. Public company details fill in the record, so you have a starting point before the first meeting."
         details={[
           {
-            title: 'Contacts from email',
-            text: 'New email relationships become contacts and companies in Macro. Open the record to see who you’re talking to alongside the conversation that brought you together.',
+            title: 'Create contacts from email',
+            text: 'Emailing someone new creates a contact and a company from their domain. You can open the relationship from the conversation instead of entering the same person in a separate tool.',
           },
           {
-            title: 'Company enrichment',
-            text: 'Macro fills in publicly available company information. Review and edit the record as you learn more, keeping your team’s own notes alongside those details.',
+            title: 'Fill in company details',
+            text: 'Macro adds publicly available company information to the record. Review it and add what you learn yourself as the relationship develops.',
           },
         ]}
       >
@@ -156,16 +160,24 @@ export function RouteCrm() {
       </FeaturePageSection>
       <FeaturePageSection
         id="crm-context"
-        title="See the whole relationship"
+        title={['See the whole', 'relationship']}
         description="Open a company to see the people, emails, calls, files, and tasks behind the relationship. Keep notes on the customer record so the next person can understand what’s happened and what comes next."
         details={[
           {
-            title: 'The full relationship',
-            text: 'Move between a company’s contacts and related work from its record. Read the original conversation or open the supporting file without reconstructing the history yourself.',
+            title: 'People at the company',
+            text: 'Open the company’s contacts to see the people involved in the relationship. Keep the account context close when a new person joins the conversation.',
           },
           {
-            title: 'Notes your team can find',
-            text: 'Use the record’s discussion for customer notes and follow-ups. Mention the company in a document or channel to link straight back to the same shared record.',
+            title: 'Emails and calls',
+            text: 'Read customer threads and open related calls from the record. Go back to the original conversation when a summary does not give you enough detail.',
+          },
+          {
+            title: 'Files and tasks',
+            text: 'Find the documents shared with the company and the work still in progress. The record brings those references together without making another copy of the files.',
+          },
+          {
+            title: 'Customer notes',
+            text: 'Use the record’s discussion for notes your team needs later. Mention the company in a doc or channel to link colleagues back to the same shared record.',
           },
         ]}
       >
@@ -175,16 +187,16 @@ export function RouteCrm() {
       </FeaturePageSection>
       <FeaturePageSection
         id="crm-agents"
-        title="Keep deals moving"
+        title={['Keep deals', 'moving']}
         description="After a sales call, tell your agent which deals moved and what needs updating. Agents can read customer records and change their properties, whether you use them in Macro or through a connected tool."
         details={[
           {
-            title: 'Update the pipeline',
-            text: 'Ask an agent to move a company to the next stage or change an owner. Its updates appear on the same records your team uses to manage the pipeline.',
+            title: 'Update after the sales sync',
+            text: 'Tell an agent which deals moved and which stage each should be in. A short description of the sales meeting can update the shared pipeline without editing each record yourself.',
           },
           {
-            title: 'Connect through MCP',
-            text: 'Macro’s MCP tools let connected agents list companies, read records, and update properties. Use them from an MCP client such as Claude, ChatGPT, or Cursor.',
+            title: 'Work through MCP',
+            text: 'Connected agents can list companies, read records, and update their properties through Macro’s MCP server. Use the same customer data from Macro or a supported external client.',
           },
         ]}
       >

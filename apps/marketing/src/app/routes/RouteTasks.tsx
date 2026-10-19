@@ -130,16 +130,20 @@ export function RouteTasks() {
         </section>
         <FeaturePageSection
           id="from-a-message"
-          title="Turn requests into tasks"
+          title={['Turn requests', 'into tasks']}
           description="Turn a request in chat into a task without copying it into another tool. Give it an owner, set the priority, and keep the original conversation close by."
           details={[
             {
-              title: 'Create from a message',
-              text: 'Use the Task action on a message to capture the request. The task stays connected to the conversation, so the person picking it up can read what was discussed.',
+              title: 'Capture the request',
+              text: 'Use the Task action on the message that contains the request. The task links back to the conversation, so its owner can read the original wording and the replies around it.',
             },
             {
-              title: 'Assign the next step',
-              text: 'Add an assignee, status, and priority to make responsibility clear. Open the task to add details, a checklist, or links to the work it depends on.',
+              title: 'Choose an owner',
+              text: 'Assign the person responsible for the next step and set a priority. The task gives the request a clear owner and a place to track its progress.',
+            },
+            {
+              title: 'Add the missing details',
+              text: 'Open the task to add a description, checklist, or linked brief. Keep the original request as context while making the next step specific enough to act on.',
             },
           ]}
         >
@@ -149,16 +153,16 @@ export function RouteTasks() {
         </FeaturePageSection>
         <FeaturePageSection
           id="ask-macro"
-          title="Let agents handle updates"
+          title={['Let agents', 'handle updates']}
           description="Tell your agent what needs doing in the conversation where you’re already working. It can create tasks, change an assignment, and check what’s still open for the team."
           details={[
             {
-              title: 'Create tasks in chat',
-              text: 'Ask Macro to turn a request into tasks and name the people responsible. The team can see the request and the resulting tasks in the same conversation.',
+              title: 'Create several tasks',
+              text: 'Ask Macro to split the proposal into tasks and name the owners in the same message. Drafting the proposal and reviewing the pricing become separate assignments, each with its own owner.',
             },
             {
-              title: 'Change an assignment',
-              text: 'When plans change, ask your agent to update the owner. The change is made on the shared task, so everyone sees the current assignment.',
+              title: 'Reassign in chat',
+              text: 'When Julia takes over the draft, tell Macro in the channel. It updates the shared task’s assignee, so the change reaches the task itself as well as the people reading the conversation.',
             },
           ]}
         >
@@ -168,16 +172,20 @@ export function RouteTasks() {
         </FeaturePageSection>
         <FeaturePageSection
           id="from-docs-and-email"
-          title="Keep the context close"
+          title={['Keep the context', 'with the task']}
           description="A task should include the information someone needs to do it. Link the brief, the customer email, or the team discussion directly in its description and open the source when you need it."
           details={[
             {
-              title: 'Link the source',
-              text: 'Use @mentions to reference documents, email threads, and conversations. Keep the original work available instead of pasting a copy that can become out of date.',
+              title: 'Reference the customer email',
+              text: 'Mention the original email in the task description. The person doing the work can read the request and its attachments without relying on a pasted summary.',
             },
             {
-              title: 'Open related work',
-              text: 'Follow a mention to read the linked item while working on the task. The original email or document gives you the details behind the next step.',
+              title: 'Open the brief beside the task',
+              text: 'Follow a document mention to read the brief while working on the task. The link opens the original document, so later edits stay available.',
+            },
+            {
+              title: 'Find the discussion',
+              text: 'Link the conversation where the decision was made. A new assignee can catch up on the reasoning and follow-up questions before starting.',
             },
           ]}
         >
@@ -187,16 +195,16 @@ export function RouteTasks() {
         </FeaturePageSection>
         <FeaturePageSection
           id="github"
-          title="Merge code. Close the task."
+          title={['Merge code.', 'Close the task.']}
           description="Connect a task to its pull request and let the code update its status. The task moves into review when the PR opens and completes when the change merges."
           details={[
             {
-              title: 'Link a pull request',
-              text: 'Include the task ID in the branch name, pull request title, or description. Macro connects the PR to the task so you can follow the implementation.',
+              title: 'Link by task ID',
+              text: 'Put the task ID in the branch name, pull request title, or description. Macro uses it to connect the implementation to the task.',
             },
             {
-              title: 'Keep status current',
-              text: 'Opening a linked PR moves the task to In Review. Merging marks it Completed; closing without a merge returns it to Not Started.',
+              title: 'Move through review',
+              text: 'Opening the linked pull request moves the task to In Review. Merging it marks the task Completed. Closing without a merge returns it to Not Started.',
             },
           ]}
         >

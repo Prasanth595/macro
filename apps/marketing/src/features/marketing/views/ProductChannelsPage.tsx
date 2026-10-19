@@ -58,16 +58,20 @@ export function RouteChannels() {
       </nav>
       <FeaturePageSection
         id="shared-work"
-        title="Open the work from chat"
+        title={['Open the work', 'from chat']}
         description="Share the work itself in your team’s conversation. Click a mention to open a document, task, or email beside chat, so the discussion and the thing you’re working on stay in view."
         details={[
           {
-            title: 'Open linked work',
-            text: 'Mention a document, task, or email directly in a message. Teammates can open the original item from the conversation instead of looking for a separate link or attachment.',
+            title: 'Read the customer email',
+            text: 'Click the shared email mention to read the original thread beside chat. Your team can discuss the request while looking at the customer’s words.',
           },
           {
-            title: 'Work beside the discussion',
-            text: 'Keep the channel visible while you read an email or update a document. Return to the conversation with the source still close at hand.',
+            title: 'Edit the shared doc',
+            text: 'Open the document mentioned in the conversation and work on the shared file. Keep the channel next to the launch checklist as you update it.',
+          },
+          {
+            title: 'Open the next task',
+            text: 'Follow the task mention to see what needs doing. The link connects the conversation to the task that tracks the next step.',
           },
         ]}
       >
@@ -77,16 +81,16 @@ export function RouteChannels() {
       </FeaturePageSection>
       <FeaturePageSection
         id="channel-access"
-        title="Share once with the team"
+        title={['Share once', 'with the team']}
         description="Mention a document, task, or email to share it with the channel. The people in the conversation can open the work, and new channel members get access to those shared items too."
         details={[
           {
-            title: 'Share with the channel',
-            text: 'An item mentioned in a channel becomes accessible to its members. The team can follow the reference and work from the same document, task, or email thread.',
+            title: 'Give the channel access',
+            text: 'Mention a document, task, or email in the channel. Members can open that shared item directly from the conversation.',
           },
           {
-            title: 'Bring new members up to speed',
-            text: 'People joining the channel can access its shared items. They can read the conversation and open the work that gives it context.',
+            title: 'Include new members',
+            text: 'People who join the channel also get access to its shared items. They can read earlier discussion and open the work it refers to while catching up.',
           },
         ]}
       >
@@ -96,16 +100,20 @@ export function RouteChannels() {
       </FeaturePageSection>
       <FeaturePageSection
         id="channel-agents"
-        title="Put agents in the conversation"
+        title={['Work with agents', 'in chat']}
         description="Bring an agent into the conversation where your team is already working. Ask for help, add context, and follow the result together, using Macro’s agents or an agent you connect yourself."
         details={[
           {
-            title: 'Ask in the conversation',
-            text: 'Mention an agent with a request and references to the relevant work. Your teammates can see what you asked and respond in the same channel.',
+            title: 'Ask in front of the team',
+            text: 'Mention an agent with your request in the channel. Teammates can see the request, add context, and follow its response.',
           },
           {
-            title: 'Use your own agent',
-            text: 'Connect an agent you already use and bring it into your workspace. Its work stays part of the team conversation, where you can give feedback and follow up.',
+            title: 'Reference the actual work',
+            text: 'Mention the document or task the agent should use. Give it the shared source so its response is grounded in the work being discussed.',
+          },
+          {
+            title: 'Bring your own agent',
+            text: 'Connect a supported agent you already use. It can participate in the workspace conversation while using its own runtime and permission settings.',
           },
         ]}
       >
@@ -115,16 +123,16 @@ export function RouteChannels() {
       </FeaturePageSection>
       <FeaturePageSection
         id="catch-up"
-        title="Catch up in one place"
+        title={['Catch up', 'in one place']}
         description="Read replies without opening every conversation separately. Follow the thread inline, see what the team said, and respond in the same place when something needs your attention."
         details={[
           {
-            title: 'Read replies inline',
-            text: 'Expand a thread to see its replies alongside the channel. Keep the surrounding conversation visible while you catch up on the details.',
+            title: 'Expand a thread',
+            text: 'Read replies inline while keeping the surrounding channel in view. You do not need to open a separate conversation just to understand the follow-up.',
           },
           {
-            title: 'Reply in context',
-            text: 'Add your response to the thread it belongs to. The discussion stays connected to the original message rather than becoming a separate conversation.',
+            title: 'Reply where it belongs',
+            text: 'Respond in the original thread. Your reply stays with the message and discussion it answers, where the other participants can find it.',
           },
         ]}
       >

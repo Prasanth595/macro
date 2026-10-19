@@ -5,6 +5,10 @@ import { isServer } from 'solid-js/web';
 import { ctaHref, handleCtaClick } from '../../../app/utils/utilCta';
 import palette from '../../../styles/dark-theme.css?inline';
 import uiStyles from '../../../styles/site-ui.css?inline';
+import {
+  type ProductFeatureDetail,
+  ProductFeatureDetails,
+} from './ProductFeatureDetails';
 import './workspace-story.css';
 import './feature-page.css';
 import './product-feature-section.css';
@@ -54,9 +58,9 @@ export function FeaturePageCta(props: { name: string; label?: string }) {
 
 export function FeaturePageSection(props: {
   id: string;
-  title: string;
+  title: readonly [string, string];
   description: string;
-  details: readonly { title: string; text: string }[];
+  details: readonly ProductFeatureDetail[];
   children: JSX.Element;
 }) {
   return (
@@ -66,26 +70,16 @@ export function FeaturePageSection(props: {
       aria-labelledby={`${props.id}-title`}
     >
       <header class="product-feature-intro">
-        <h2 id={`${props.id}-title`}>{props.title}</h2>
+        <h2 id={`${props.id}-title`}>
+          <span>{props.title[0]}</span> <span>{props.title[1]}</span>
+        </h2>
         <p>{props.description}</p>
       </header>
       {props.children}
-      <div class="product-feature-details">
-        <p>What you can do</p>
-        <div class="product-feature-detail-grid">
-          <For each={props.details}>
-            {(detail) => (
-              <details>
-                <summary>
-                  {detail.title}
-                  <span aria-hidden="true">+</span>
-                </summary>
-                <p>{detail.text}</p>
-              </details>
-            )}
-          </For>
-        </div>
-      </div>
+      <ProductFeatureDetails
+        section={props.title.join(' ')}
+        details={props.details}
+      />
     </section>
   );
 }

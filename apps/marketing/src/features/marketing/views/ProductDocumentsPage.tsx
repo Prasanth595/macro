@@ -99,16 +99,16 @@ export function RouteDocuments() {
         </nav>
         <FeaturePageSection
           id="document-agents"
-          title="Write with your agent"
+          title={['Write with', 'your agent']}
           description="Ask your agent to update a brief using your emails and tasks, then keep writing together. Your team and your agent work in the same shared document, with changes merging as you type."
           details={[
             {
-              title: 'Use your workspace context',
-              text: 'Reference the email or task that changed the plan. Your agent can read that source and apply the update directly to the document you’re working on.',
+              title: 'Update from an email',
+              text: 'Point the agent to the pricing email and ask it to update the shared brief. It can read the source and change the document instead of giving you another block of text to paste.',
             },
             {
-              title: 'Edit the same document',
-              text: 'Write alongside teammates and your agent in real time. Everyone works on the shared file, so you can review and refine changes where they happen.',
+              title: 'Edit together',
+              text: 'You, your teammates, and the agent work in the same document. Changes merge as you type, so you can review and refine the draft where the work is happening.',
             },
           ]}
         >
@@ -118,16 +118,20 @@ export function RouteDocuments() {
         </FeaturePageSection>
         <FeaturePageSection
           id="document-links"
-          title="Open the source beside you"
+          title={['Open the source', 'beside your doc']}
           description="Link to the work you’re writing about and open it beside your document. Read the original email, task, or conversation while you write, without copying the information into another file."
           details={[
             {
-              title: 'Mention related work',
-              text: 'Add an inline mention of an email, task, or conversation. The reference points to the original item so readers can find the context behind the document.',
+              title: 'Reference the email',
+              text: 'Add an inline mention of the email that contains the source information. Readers can open the original thread to check the wording or understand a decision.',
+            },
+            {
+              title: 'Check the task',
+              text: 'Mention the task that tracks a next step. Open it from the doc to see the requirements and status while keeping the plan in view.',
             },
             {
               title: 'Read side by side',
-              text: 'Open a linked source beside the doc. Check the customer’s wording or the task’s requirements while keeping your draft in view.',
+              text: 'Open a linked item beside the document. You can check the source as you write without moving between separate browser tabs.',
             },
           ]}
         >
@@ -137,16 +141,16 @@ export function RouteDocuments() {
         </FeaturePageSection>
         <FeaturePageSection
           id="document-organization"
-          title="Find docs where you work"
+          title={['Find docs', 'where you work']}
           description="Keep documents in folders and use tags to find them across projects. A brief can stay in its home folder while appearing beside related emails and tasks under the tags your team uses."
           details={[
             {
-              title: 'Folders for structure',
-              text: 'Give documents a familiar home in your project folders. Browse the folder when you need the files your team has grouped together.',
+              title: 'Give docs a home',
+              text: 'Put the brief, notes, and supporting files in a project folder. Browse that folder when you want the work your team has deliberately grouped together.',
             },
             {
-              title: 'Tags across your work',
-              text: 'Apply more than one tag to a document. Find it by project or topic alongside emails and tasks with the same tag.',
+              title: 'Find them by tag',
+              text: 'Apply more than one tag to a document. It can stay in its folder and also appear with related emails and tasks under a shared project or topic.',
             },
           ]}
         >

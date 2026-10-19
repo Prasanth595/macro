@@ -102,15 +102,19 @@ export function RouteCalls() {
         </nav>
         <FeaturePageSection
           id="call-start"
-          title="Meet in a click"
+          title={['Meet in', 'a click']}
           description="Start a call from a channel or direct message when talking is easier than typing. Your teammates can join from the conversation, and you can share a meeting link with someone outside Macro."
           details={[
             {
-              title: 'Call from chat',
-              text: 'Use the Call action in a channel or DM. Move from the written conversation to a live discussion without setting up a separate meeting first.',
+              title: 'Call from a channel',
+              text: 'Choose Call in the channel when talking is easier than typing. Teammates can join from the same conversation.',
             },
             {
-              title: 'Invite a guest',
+              title: 'Call from a DM',
+              text: 'Start a call with the person you are messaging. Move the discussion into a live conversation without arranging a separate meeting first.',
+            },
+            {
+              title: 'Invite someone outside Macro',
               text: 'Share the meeting link with a guest. They can join in their browser without creating a Macro account.',
             },
           ]}
@@ -121,16 +125,16 @@ export function RouteCalls() {
         </FeaturePageSection>
         <FeaturePageSection
           id="call-followup"
-          title="Turn decisions into action"
+          title={['Turn decisions', 'into action']}
           description="Make the decisions from a call part of the work that follows. Ask your agent to read the transcript, update a task, and add the owner and next steps you agreed on."
           details={[
             {
-              title: 'Use the transcript',
-              text: 'Your agent can read calls you have access to. Reference the meeting when asking for an update so it can use the conversation as context.',
+              title: 'Find the right call',
+              text: 'Ask your agent to use the meeting you are referring to. It can find and read calls you have access to, rather than relying on notes pasted into the request.',
             },
             {
-              title: 'Update the task',
-              text: 'Ask for the changes discussed on the call to be applied to the shared task. Open it afterward to review the owner, description, and next steps.',
+              title: 'Apply the agreed changes',
+              text: 'Ask it to update the task’s owner and next steps from the transcript. Open the shared task afterward to review the changes.',
             },
           ]}
         >
@@ -140,16 +144,24 @@ export function RouteCalls() {
         </FeaturePageSection>
         <FeaturePageSection
           id="call-default"
-          title="Catch up after the call"
+          title={['Catch up', 'after the call']}
           description="Give teammates a way to catch up even if they missed the meeting. Share the call’s recording, transcript, and summary so they can find the decisions and revisit the details."
           details={[
             {
-              title: 'Recording and transcript',
-              text: 'Macro records and transcribes calls, with a notice to participants. Open the saved call to replay the conversation or read what was said.',
+              title: 'Replay the recording',
+              text: 'Open the saved recording when you need to hear the conversation again. Participants see a notice that the call is being recorded and transcribed.',
             },
             {
-              title: 'Share the summary',
-              text: 'Use the summary to review the main points, then open the transcript for detail. Access to the saved call follows its sharing settings.',
+              title: 'Read the transcript',
+              text: 'Read what was said without watching the whole call. The transcript also gives your agents context for follow-up work.',
+            },
+            {
+              title: 'Start with the summary',
+              text: 'Use the summary to find the main points, then open the transcript for the details behind a decision.',
+            },
+            {
+              title: 'Share with a teammate',
+              text: 'Give a teammate access to the saved call so they can catch up. Access to the recording, transcript, and summary follows the call’s sharing settings.',
             },
           ]}
         >

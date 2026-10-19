@@ -109,16 +109,20 @@ export function RouteAgents() {
       </nav>
       <FeaturePageSection
         id="agent-sources"
-        title="Get answers with context"
+        title={['Get answers', 'with context']}
         description="Ask a question that draws on more than one app’s worth of information. Your agent can use your calendar, earlier conversations, and customer messages to prepare an answer grounded in your work."
         details={[
           {
-            title: 'Find the relevant context',
-            text: 'Ask about tomorrow’s customer calls or a project you’re working on. The agent can look across the workspace items it has access to and use what it finds.',
+            title: 'Prepare for a meeting',
+            text: 'Ask what you should know before tomorrow’s customer calls. Your agent can start from the calendar and gather the context needed for a useful brief.',
           },
           {
-            title: 'Follow the sources',
-            text: 'Open the items referenced in the agent’s work to check the details. Continue the conversation with more context or ask it to take the next step.',
+            title: 'Connect the conversations',
+            text: 'The agent can read earlier discussions and customer messages it has access to. It can combine those sources instead of treating the meeting as an isolated calendar event.',
+          },
+          {
+            title: 'Check the sources',
+            text: 'Open the items referenced in the result to check a detail yourself. Continue the conversation with more context or ask the agent to take the next step.',
           },
         ]}
       >
@@ -128,16 +132,16 @@ export function RouteAgents() {
       </FeaturePageSection>
       <FeaturePageSection
         id="agent-actions"
-        title="Make progress together"
+        title={['Make progress', 'together']}
         description="Work with your agent in the same file your team uses. Add context, ask for an update, and review the result in the shared document instead of moving drafts back and forth."
         details={[
           {
-            title: 'Edit shared work',
-            text: 'Ask your agent to change a document using the context you provide. The result appears in the shared file, where teammates can read and edit it too.',
+            title: 'Change the shared file',
+            text: 'Ask the agent to update the document your team is using. Its work appears in that file instead of becoming a separate draft you need to move across.',
           },
           {
-            title: 'Keep refining together',
-            text: 'Open the document, make your own edits, and ask for another pass. The conversation and the file give your team a shared place to review the work.',
+            title: 'Keep refining it',
+            text: 'Open the document, edit it yourself, and ask for another pass. Your teammates can contribute to the same file as the work develops.',
           },
         ]}
       >
@@ -147,16 +151,20 @@ export function RouteAgents() {
       </FeaturePageSection>
       <FeaturePageSection
         id="agent-collaboration"
-        title="Go from idea to implementation"
+        title={['From idea', 'to working code']}
         description="Bring design and implementation into the team conversation. Ask Macro for a mockup, give feedback together, then tag Cursor to build it using the context already in the channel."
         details={[
           {
-            title: 'Explore an idea',
-            text: 'Ask Macro to turn a brief into a mockup. Open the result from chat and give feedback where the rest of the team can follow the conversation.',
+            title: 'Make a mockup',
+            text: 'Ask Macro to turn the client brief into a mockup. Open the result directly from the conversation to see what it produced.',
           },
           {
-            title: 'Hand off to a coding agent',
-            text: 'Tag a connected coding agent such as Cursor when you’re ready to build. Continue from the brief, mockup, and feedback already shared with the team.',
+            title: 'Give feedback together',
+            text: 'Discuss what to change in the channel. The team can see the mockup and the feedback that should guide the next version.',
+          },
+          {
+            title: 'Bring in Cursor',
+            text: 'Tag the connected coding agent when the direction is clear. It can continue from the brief, mockup, and conversation already shared with the team.',
           },
         ]}
       >
@@ -166,16 +174,20 @@ export function RouteAgents() {
       </FeaturePageSection>
       <FeaturePageSection
         id="existing-agents"
-        title="Bring your own agent"
+        title={['Bring your', 'own agent']}
         description="Keep the agents you already use and connect them to your work in Macro. Bring a locally running agent into the workspace, or give an external MCP client access to Macro’s tools and context."
         details={[
           {
-            title: 'Agents inside Macro',
-            text: 'Connect supported agents through macrod and keep them running on your own machine. Your connected agent follows its own runtime and permission settings.',
+            title: 'Connect through macrod',
+            text: 'Bring a supported agent such as Claude Code, OpenCode, OpenClaw, or Hermes into Macro while it runs on your machine. The setup links above cover connection instructions.',
           },
           {
-            title: 'Macro in your MCP client',
-            text: 'Connect Macro’s MCP server to a supported client. The client can use the available tools to find, read, and work with your Macro content.',
+            title: 'Use Macro through MCP',
+            text: 'Connect Macro’s MCP server to Claude, ChatGPT, Cursor, or another supported client. Work with the available Macro search, reading, and editing tools from that client.',
+          },
+          {
+            title: 'Keep your runtime',
+            text: 'A connected agent uses the models and permission settings supported by its own runtime. Connecting it to Macro does not mean switching to a different coding subscription.',
           },
         ]}
       >
