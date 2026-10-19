@@ -1133,13 +1133,19 @@ switching options, keyboard recipient selection, external email chips,
 cancellation, and focus restoration before sending invites.
 
 On desktop, click the channel avatar/name to expand **Channel details** on the
-right. Its rounded tabs contain `Attachments`, `Calls`, and `Participants`;
+right. The full-height column sits beside both the conversation and its header,
+so opening it moves the title and all header actions left. This holds in narrow
+desktop splits too; the panel does not overlay the conversation. Its top has the
+channel avatar, name, and participant count. Quiet unframed tabs contain
+`Attachments`, `Calls`, and `Participants`;
 switching them keeps the conversation and any unsent message mounted. The panel
 starts closed, keeps its selected tab when reopened, and closes from the name,
 the close button, or Escape within the panel. Closing from the panel restores
-focus to the name. In wide panes it sits beside the conversation; in narrow
-desktop splits it overlays the right side. Participant controls stack in this
-narrow panel, and the people list remains visible above team settings and bots.
+focus to the name. Attachments use flat sections with one `No attachments yet`
+state when empty. Call history uses a quiet `No calls yet` state, without a
+large illustration. Participants shows a compact searchable list; its add icon
+reveals the invite form, and `Manage channel` reveals invite links, team settings,
+and bots. Bot-invitation shortcuts open that management disclosure automatically.
 
 `Ask Macro`, `Invite`, and `Call` actions remain in the header. The
 `Messages` / live `Call` switch appears there only while a call is available;
@@ -1179,12 +1185,12 @@ Disconnect and server cleanup continue after that switch; slow or failed RTC
 teardown must not leave the channel showing the join screen.
 
 On desktop, `Participants` in Channel details has a scrollable panel with a
-bounded people list, followed by team access and bots. Mobile keeps its existing
+bounded people list and optional management controls. Mobile keeps its existing
 participant layout. Search uses the shared
 input group; add, invite, and new-bot actions use neutral outline buttons.
 The bots section stays compact with few or no bots. Search by display name,
 email, or role and clear the search to restore the list; scrolling a long member
-list must leave its search and invite controls visible. Scroll the details panel
+list must leave its search and invite controls visible. Expand `Manage channel`
 to reach team settings and bots.
 
 `Participants` tab:

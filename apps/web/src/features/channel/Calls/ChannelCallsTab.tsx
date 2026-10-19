@@ -253,6 +253,14 @@ function ChannelCallsList(props: { channelId: string; embedded?: boolean }) {
   const rows = source.items;
 
   const searchQuery = () => searchText().trim();
+  const emptyTitle = () =>
+    !searchQuery()
+      ? props.embedded
+        ? 'No calls yet'
+        : 'No calls in this channel'
+      : validateSearchServiceText(searchQuery())
+        ? `No results for "${searchQuery()}"`
+        : 'Keep typing to search';
 
   return (
     <MaybeSoupEntityActionDrawerManager>
@@ -260,15 +268,25 @@ function ChannelCallsList(props: { channelId: string; embedded?: boolean }) {
         ref={props.embedded ? attachHotkeys : undefined}
         class="flex size-full min-h-0 min-w-0 flex-col"
       >
-        <div class="shrink-0 pb-2">
-          <SearchBar
-            label="Search calls"
-            placeholder="Search calls"
-            value={searchText()}
-            onValueChange={setSearchText}
-            onEscape={() => grid()?.focus()}
-          />
-        </div>
+        <Show
+          when={
+            !props.embedded ||
+            rows().length > 0 ||
+            searchText().length > 0 ||
+            source.isLoading() ||
+            source.error()
+          }
+        >
+          <div class="shrink-0 pb-2">
+            <SearchBar
+              label="Search calls"
+              placeholder="Search calls"
+              value={searchText()}
+              onValueChange={setSearchText}
+              onEscape={() => grid()?.focus()}
+            />
+          </div>
+        </Show>
         <div
           ref={setGrid}
           role="grid"
@@ -316,28 +334,31 @@ function ChannelCallsList(props: { channelId: string; embedded?: boolean }) {
 
               <Match when={forceEmptyState() || rows().length === 0}>
                 <div class="min-h-0 flex-1 overflow-y-auto">
-                  <EmptyStatePanel
-                    graphic={
-                      searchQuery()
-                        ? EmptyStateNoSearchMatchGraphic
-                        : EmptyStateCallsGraphic
+                  <Show
+                    when={props.embedded}
+                    fallback={
+                      <EmptyStatePanel
+                        graphic={
+                          searchQuery()
+                            ? EmptyStateNoSearchMatchGraphic
+                            : EmptyStateCallsGraphic
+                        }
+                        title={emptyTitle()}
+                        description={
+                          !searchQuery()
+                            ? 'Recordings, transcriptions, and summaries of calls in this channel will appear here.'
+                            : validateSearchServiceText(searchQuery())
+                              ? 'Search matches call names and transcripts in this channel.'
+                              : 'Call search starts at 3 characters and matches names and transcripts.'
+                        }
+                        documentationUrl={LIST_VIEW_DOCS_URL.calls}
+                      />
                     }
-                    title={
-                      !searchQuery()
-                        ? 'No calls in this channel'
-                        : validateSearchServiceText(searchQuery())
-                          ? `No results for "${searchQuery()}"`
-                          : 'Keep typing to search'
-                    }
-                    description={
-                      !searchQuery()
-                        ? 'Recordings, transcriptions, and summaries of calls in this channel will appear here.'
-                        : validateSearchServiceText(searchQuery())
-                          ? 'Search matches call names and transcripts in this channel.'
-                          : 'Call search starts at 3 characters and matches names and transcripts.'
-                    }
-                    documentationUrl={LIST_VIEW_DOCS_URL.calls}
-                  />
+                  >
+                    <p class="px-4 py-10 text-center text-sm text-ink-muted">
+                      {emptyTitle()}
+                    </p>
+                  </Show>
                 </div>
               </Match>
 

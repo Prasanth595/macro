@@ -1,13 +1,23 @@
+import { ChannelTopIcon } from '@channel/components/ChannelTopIcon';
+import { useChannelName, useChannelType } from '@core/context/channels';
 import XIcon from '@phosphor/x.svg';
+import { useChannelParticipantsQuery } from '@queries/channel/channel-participants';
 import { Button, Tabs } from '@ui';
 import { type ParentProps, Show } from 'solid-js';
 import { useChannelTab } from './ChannelTabContext';
 import { CHANNEL_TABS, isChannelInfoTab } from './channel-tabs';
 import { useChannelTabItems } from './use-channel-tab-items';
 
-/** Keeps channel information beside the conversation, or over it in a narrow split. */
-export function ChannelInfoPanel(props: ParentProps<{ channelId: string }>) {
+/** Full-height channel information beside both the conversation and its header. */
+export function ChannelInfoPanel(
+  props: ParentProps<{ channelId: string; fallbackName?: string }>
+) {
   const { infoPanel } = useChannelTab();
+  const name = useChannelName(props.channelId, props.fallbackName);
+  const channelType = useChannelType(props.channelId);
+  const participantsQuery = useChannelParticipantsQuery(() => props.channelId);
+  const participants = () =>
+    participantsQuery.isSuccess ? (participantsQuery.data ?? []) : [];
   const availableTabs = useChannelTabItems(props.channelId);
   const tabs = () =>
     CHANNEL_TABS.filter(
@@ -23,7 +33,7 @@ export function ChannelInfoPanel(props: ParentProps<{ channelId: string }>) {
           id={panel().id}
           aria-label="Channel details"
           hidden={!panel().isOpen()}
-          class="absolute inset-y-0 right-0 z-20 w-full max-w-96 min-h-0 flex-col border-l border-edge-muted bg-surface @min-[800px]/channel-detail:static @min-[800px]/channel-detail:w-96 @min-[800px]/channel-detail:shrink-0"
+          class="w-80 max-w-[45%] min-h-0 min-w-0 shrink-0 flex-col border-l border-edge-muted bg-surface"
           classList={{ flex: panel().isOpen() }}
           onKeyDown={(event) => {
             if (event.key !== 'Escape' || event.defaultPrevented) return;
@@ -32,8 +42,7 @@ export function ChannelInfoPanel(props: ParentProps<{ channelId: string }>) {
             panel().close();
           }}
         >
-          <div class="flex h-12 shrink-0 items-center justify-between px-4">
-            <h2 class="text-sm font-semibold">Channel details</h2>
+          <div class="flex h-12 shrink-0 items-center justify-end px-3">
             <Button
               variant="ghost"
               size="icon-sm"
@@ -43,10 +52,27 @@ export function ChannelInfoPanel(props: ParentProps<{ channelId: string }>) {
               <XIcon />
             </Button>
           </div>
-          <div class="shrink-0 px-3 pb-3">
+          <div class="flex shrink-0 flex-col items-center gap-3 px-4 pb-5 pt-2 text-center">
+            <ChannelTopIcon
+              channelId={props.channelId}
+              channelType={channelType()}
+              participants={participants()}
+              size="lg"
+            />
+            <div class="w-full min-w-0">
+              <h2 class="text-lg font-semibold leading-tight break-words">
+                {name() ?? 'New Channel'}
+              </h2>
+              <Show when={participantsQuery.isSuccess}>
+                <p class="mt-1 text-xs text-ink-muted">
+                  {participants().length} participants
+                </p>
+              </Show>
+            </div>
+          </div>
+          <div class="mx-4 shrink-0 overflow-x-auto border-b border-edge-muted pb-2">
             <Tabs
-              variant="segmented"
-              fullWidth
+              variant="plain"
               aria-label="Channel information"
               list={tabs()}
               value={panel().activeTab()}

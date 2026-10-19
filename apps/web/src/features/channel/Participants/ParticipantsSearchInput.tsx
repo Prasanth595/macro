@@ -5,11 +5,12 @@ export function ParticipantsSearchInput(props: {
   value: string;
   placeholder?: string;
   embedded?: boolean;
+  compact?: boolean;
   onInput: (value: string) => void;
 }) {
   return (
     <InputGroup
-      size="lg"
+      size={props.compact ? 'md' : 'lg'}
       variant={props.embedded ? 'bare' : 'outline'}
       class={props.embedded ? 'h-full rounded-none border-0' : 'rounded-full'}
     >

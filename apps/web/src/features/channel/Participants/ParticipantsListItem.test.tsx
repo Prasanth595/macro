@@ -28,7 +28,7 @@ const participant: ChannelParticipant = {
   role: 'member',
 };
 
-function setup(overrides: Partial<ChannelParticipant> = {}) {
+function setup(overrides: Partial<ChannelParticipant> = {}, compact = false) {
   const onClick = vi.fn();
   const onRemove = vi.fn();
   render(() => (
@@ -36,6 +36,7 @@ function setup(overrides: Partial<ChannelParticipant> = {}) {
       participant={{ ...participant, ...overrides }}
       currentUserId="macro|me@example.com"
       editable
+      compact={compact}
       onClick={onClick}
       onRemove={onRemove}
     />
@@ -76,5 +77,15 @@ describe('ParticipantsListItem', () => {
     fireEvent.click(remove);
     expect(onRemove).not.toHaveBeenCalled();
     expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('keeps compact owner rows navigable without an unavailable remove button', () => {
+    const { onClick } = setup({ role: 'owner' }, true);
+    fireEvent.click(screen.getByRole('link', { name: 'Message Alex Smith' }));
+    expect(onClick).toHaveBeenCalledOnce();
+    expect(screen.getByText('Owner')).toBeTruthy();
+    expect(
+      screen.queryByRole('button', { name: 'Cannot remove participant' })
+    ).toBeNull();
   });
 });

@@ -446,7 +446,10 @@ function ChannelDetailContent(props: ChannelDetailProps) {
     <Switch>
       <Match when={tab() === 'attachments'}>
         <DebugSuspense name="ChannelDetail.attachments">
-          <ChannelAttachmentsTab channelId={channelId} />
+          <ChannelAttachmentsTab
+            channelId={channelId}
+            compact={!isTouchDevice()}
+          />
         </DebugSuspense>
       </Match>
       <Match when={tab() === 'calls' && ENABLE_CALLS}>
@@ -487,17 +490,17 @@ function ChannelDetailContent(props: ChannelDetailProps) {
             onHandled={() => setPendingJoinCall(false)}
           />
         </DebugSuspense>
-        <div class="flex size-full min-h-0 flex-col">
-          <DebugSuspense name="ChannelDetail.header">
-            <ChannelDetailHeader
-              render={props.children}
-              context={{
-                channelId,
-                name: () => channelName() ?? 'New Channel',
-              }}
-            />
-          </DebugSuspense>
-          <div class="@container/channel-detail relative flex min-h-0 flex-1">
+        <div class="flex size-full min-h-0">
+          <div class="flex min-h-0 min-w-0 flex-1 flex-col" data-channel-main>
+            <DebugSuspense name="ChannelDetail.header">
+              <ChannelDetailHeader
+                render={props.children}
+                context={{
+                  channelId,
+                  name: () => channelName() ?? 'New Channel',
+                }}
+              />
+            </DebugSuspense>
             <div
               class="flex min-h-0 min-w-0 flex-1 flex-col px-2"
               data-channel-tab-content
@@ -521,14 +524,17 @@ function ChannelDetailContent(props: ChannelDetailProps) {
                 </Match>
               </Switch>
             </div>
-            <Show when={!isTouchDevice()}>
-              <DebugSuspense name="ChannelDetail.info-panel">
-                <ChannelInfoPanel channelId={channelId}>
-                  {infoContent(infoTab)}
-                </ChannelInfoPanel>
-              </DebugSuspense>
-            </Show>
           </div>
+          <Show when={!isTouchDevice()}>
+            <DebugSuspense name="ChannelDetail.info-panel">
+              <ChannelInfoPanel
+                channelId={channelId}
+                fallbackName={props.fallbackName}
+              >
+                {infoContent(infoTab)}
+              </ChannelInfoPanel>
+            </DebugSuspense>
+          </Show>
         </div>
       </ChannelTabProvider>
     </ChannelSurface>

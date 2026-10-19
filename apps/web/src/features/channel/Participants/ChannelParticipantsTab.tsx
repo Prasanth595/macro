@@ -3,6 +3,8 @@ import { useChannel, useChannelType } from '@core/context/channels';
 import { useUserId } from '@core/context/user';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { getDisplayName, idToEmail, tryMacroId } from '@core/user';
+import CaretUpIcon from '@phosphor/caret-up.svg';
+import PlusIcon from '@phosphor/plus.svg';
 
 import { useChannelParticipantsQuery } from '@queries/channel/channel-participants';
 import { usePatchChannelMutation } from '@queries/channel/channels';
@@ -14,7 +16,7 @@ import {
 import { useCurrentTeamQuery } from '@queries/team/teams';
 import { ChannelType } from '@service-storage/generated/schemas/channelType';
 import { ParticipantRole } from '@service-storage/generated/schemas/participantRole';
-import { Panel } from '@ui';
+import { Button, cn, Panel } from '@ui';
 import { createSignal, Show } from 'solid-js';
 import { ChannelBotsPanel } from './ChannelBotsPanel';
 import { ChannelJoinLinkButton } from './ChannelJoinLinkButton';
@@ -43,6 +45,10 @@ export function ChannelParticipantsTab(props: {
   const removeParticipantsMutation = useRemoveParticipantsMutation();
   const getOrCreateDmMutation = useGetOrCreateDirectMessageMutation();
   const [searchQuery, setSearchQuery] = createSignal('');
+  const [inviteOpen, setInviteOpen] = createSignal(false);
+  const [management, setManagement] = createSignal({ open: false, request: 0 });
+  const managementOpen = () =>
+    management().open || props.inviteBotFocusRequest > management().request;
 
   const participants = () => participantsQuery.data ?? [];
   const currentParticipant = () =>
@@ -175,6 +181,7 @@ export function ChannelParticipantsTab(props: {
 
   const participantList = () => (
     <ParticipantsList
+      compact={props.compact}
       participants={filteredParticipants}
       searchQuery={searchQuery}
       currentUserId={userId() ?? undefined}
@@ -188,25 +195,79 @@ export function ChannelParticipantsTab(props: {
     return (
       <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
         <div class="flex flex-col gap-3">
-          <Show when={channelType() === ChannelType.private}>
-            <div class="flex justify-end">
-              <ChannelJoinLinkButton channelId={props.channelId} />
+          <div class="flex items-center gap-2 pt-3">
+            <div class="min-w-0 flex-1">
+              <ParticipantsSearchInput
+                compact
+                value={searchQuery()}
+                onInput={setSearchQuery}
+              />
             </div>
-          </Show>
-          <Show when={isEditable()}>
+            <Show when={isEditable()}>
+              <Button
+                variant="ghost"
+                size="icon-md"
+                label="Add participants"
+                aria-expanded={inviteOpen()}
+                onClick={() => setInviteOpen((open) => !open)}
+              >
+                <PlusIcon />
+              </Button>
+            </Show>
+          </div>
+          <Show when={isEditable() && inviteOpen()}>
             <ParticipantsAddPanel
               compact
               participants={participants}
-              onAddParticipants={addParticipants}
+              onAddParticipants={(ids) =>
+                addParticipants(ids, () => setInviteOpen(false))
+              }
             />
           </Show>
-          <ParticipantsSearchInput
-            value={searchQuery()}
-            onInput={setSearchQuery}
-          />
-          <div class="relative h-64 shrink-0">{participantList()}</div>
-          {teamSettings()}
-          <Show when={props.botManagementEnabled}>{bots()}</Show>
+          <div
+            class="relative shrink-0"
+            style={{
+              height: `${Math.min(360, Math.max(96, filteredParticipants().length * 56 + 8))}px`,
+            }}
+          >
+            {participantList()}
+          </div>
+          <Show
+            when={
+              props.botManagementEnabled ||
+              (canManageChannel() && supportsTeamSettings()) ||
+              channelType() === ChannelType.private
+            }
+          >
+            <div class="border-t border-edge-muted pt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                class="w-full justify-between text-ink-muted"
+                aria-expanded={managementOpen()}
+                onClick={() =>
+                  setManagement({
+                    open: !managementOpen(),
+                    request: props.inviteBotFocusRequest,
+                  })
+                }
+              >
+                Manage channel{' '}
+                <CaretUpIcon
+                  class={cn('size-3', managementOpen() && 'rotate-180')}
+                />
+              </Button>
+              <Show when={managementOpen()}>
+                <div class="flex flex-col gap-3 pt-3">
+                  <Show when={channelType() === ChannelType.private}>
+                    <ChannelJoinLinkButton channelId={props.channelId} />
+                  </Show>
+                  {teamSettings()}
+                  <Show when={props.botManagementEnabled}>{bots()}</Show>
+                </div>
+              </Show>
+            </div>
+          </Show>
         </div>
       </div>
     );

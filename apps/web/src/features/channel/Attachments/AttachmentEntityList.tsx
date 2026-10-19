@@ -26,7 +26,7 @@ export function AttachmentEntityList(props: {
     >
       <div class="grid grid-cols-1">
         <Show when={!hasDocuments()}>
-          <div class="px-6 py-3 text-sm text-ink-subtle">
+          <div class="px-[var(--attachment-content-padding,1.5rem)] py-3 text-sm text-ink-subtle">
             No documents in this channel yet.
           </div>
         </Show>

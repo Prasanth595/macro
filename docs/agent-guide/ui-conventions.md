@@ -13,9 +13,10 @@ Low-emphasis right-aligned split-header actions (including Calendar's touch/prev
 New event and Channel's idle Call and Ask Macro) are borderless with a rounded-xl
 background on hover. Emphasized variants retain their treatment, including an
 active call's green ink and outline frame. Desktop channel details open from the
-channel name and put Attachments, Calls, and Participants in rounded tabs in the
-right panel. Company, contact, and project content tabs use inset controls in the
-top bar. Button sizes do not change variant colors or framing; individual
+channel name and put Attachments, Calls, and Participants in unframed tabs in a
+full-height right column that also pushes the top bar left. Company, contact,
+and project content tabs use inset controls in the top bar. Button sizes do not
+change variant colors or framing; individual
 framed controls default to glass on touch and flat on desktop. Use `glass={true}`
 to enable glass on all devices, or `glass={false}` to disable it everywhere.
 Embedded and low-emphasis actions use `ghost`; inline calendar-invitation text
@@ -30,6 +31,8 @@ and dialogs use their semantic fill with the same uniform edge and the compact
 
 Segmented tabs use the same control fill and border for the selected pill,
 inside a transparent outlined track, without a separate active tint or shadow.
+Plain tabs use the same selected fill with no border or enclosing track for
+quiet navigation inside information panels.
 
 Reuse `Button`, `Input`, `InputGroup`, `Tabs`, `ComposerSurface`, `menu-surface`, and
 `elevated-surface` instead of introducing one-off surface styling. Settings

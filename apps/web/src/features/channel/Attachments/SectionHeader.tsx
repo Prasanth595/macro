@@ -1,6 +1,14 @@
 import Spinner from '@phosphor-icons/core/bold/spinner-gap-bold.svg?component-solid';
 import { Button, cn, Panel } from '@ui';
-import { type Accessor, type JSX, Show } from 'solid-js';
+import {
+  type Accessor,
+  createContext,
+  type JSX,
+  Show,
+  useContext,
+} from 'solid-js';
+
+export const FlatAttachmentSections = createContext(false);
 
 export function AttachmentSection(props: {
   contentClass?: string;
@@ -12,6 +20,26 @@ export function AttachmentSection(props: {
    * list) owns the scroll container instead of `Panel.Body`. */
   fillBody?: boolean;
 }) {
+  const flat = useContext(FlatAttachmentSections);
+  if (flat) {
+    return (
+      <section class={cn('flex min-h-0 shrink-0 flex-col', props.class)}>
+        <header class="flex min-h-10 shrink-0 items-center justify-between gap-2">
+          <h3 class="text-xs font-medium text-ink-muted">{props.label}</h3>
+          {props.action}
+        </header>
+        <div
+          class={cn(
+            'min-h-0 flex-1',
+            props.fillBody ? 'flex flex-col' : 'overflow-y-auto',
+            props.contentClass
+          )}
+        >
+          {props.children}
+        </div>
+      </section>
+    );
+  }
   return (
     <Panel depth={2} class={cn('h-auto shrink-0', props.class)}>
       <Panel.Header class="justify-between px-6">
