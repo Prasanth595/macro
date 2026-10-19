@@ -59,7 +59,7 @@ export function RouteChannels() {
       </nav>
       <FeaturePageSection
         id="shared-work"
-        title={['Open files, emails,', 'and tasks straight from your chats.']}
+        title={['Open files, emails,', 'and tasks from your chats.']}
         description="Share the work itself in your team’s conversation. Click a mention to open a document, task, or email beside chat, so the discussion and the thing you’re working on stay in view."
         details={channelsGuides['shared-work']}
       >
