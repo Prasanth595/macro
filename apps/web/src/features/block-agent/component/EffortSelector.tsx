@@ -94,7 +94,7 @@ export function EffortSelector(props: {
           step={1}
           value={index()}
           disabled={props.disabled}
-          class="relative m-0 h-9 w-full appearance-none rounded bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-edge-focus disabled:opacity-50 [&::-webkit-slider-runnable-track]:h-3 [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-0 [&::-webkit-slider-thumb]:appearance-none [&::-moz-range-track]:h-3 [&::-moz-range-track]:bg-transparent [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-0 [&::-moz-range-thumb]:border-0"
+          class="relative m-0 h-9 w-full appearance-none rounded bg-transparent outline-none disabled:opacity-50 [&::-webkit-slider-runnable-track]:h-3 [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-0 [&::-webkit-slider-thumb]:appearance-none [&::-moz-range-track]:h-3 [&::-moz-range-track]:bg-transparent [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-0 [&::-moz-range-thumb]:border-0"
           onInput={(event) => setPreview(Number(event.currentTarget.value))}
           onChange={(event) => {
             const choice = choices()[Number(event.currentTarget.value)];
