@@ -1224,24 +1224,31 @@ one-to-one direct messages continue to show the other person's user picture.
 
 On desktop, click the channel name in either the split topbar or an inline detail
 topbar to open the `Edit channel` dialog. Hovering or focusing the title does not
-open an editor. The roomier dialog loads on demand. It shows a larger circular
-picture with an upload-icon overlay on image hover or keyboard focus when editing
-is allowed (always visible on touch devices). Secondary `Change image` and
-destructive ghost `Clear image` buttons stay side by side, beside the picture on
-wide screens or below it on narrow screens (including narrow desktop windows).
-Their labels stay on one line without clipping at 320px, with or without touch.
-Supported file types and size appear beneath the actions; image filenames are
-not shown. A channel-name input follows the picture controls. Both footer actions
-have larger touch-friendly targets.
+open an editor. The roomier dialog loads on demand. It shows the channel name
+first, then a larger circular picture with an upload-icon overlay on image hover
+or keyboard focus when editing is allowed (always visible on touch devices).
+Secondary `Change image` and destructive ghost `Clear image` buttons stay side by
+side, beside the picture on wide screens or below it on narrow screens (including
+narrow desktop windows). Their labels stay on one line without clipping at 320px,
+with or without touch. Supported file types and size appear beneath the actions;
+image filenames are not shown. Compact footer actions keep touch-friendly targets,
+with an edge-to-edge divider above them.
 
 Clicking the picture or `Change image` opens the file chooser. PNG, JPG, WebP,
 and GIF files up to 16 MB are supported. Selecting a still image slides to a crop
-step inside the dialog using the shared Stepper. The framed workspace shows a
-circular crop guide, dims the corners, and reveals alignment guides on hover or
-focus. Drag to reposition, use the arrow keys to move, or use the zoom and reset
-controls. `Apply crop` adds the square PNG to the local draft; `Back` or Escape
-slides back without replacing the draft picture. GIFs skip cropping to preserve
-animation. The cropper loads only when needed.
+step inside the dialog using the shared Stepper. The `Crop image` icon on an
+existing picture also opens this step, including after applying a draft crop.
+Cropping a saved picture loads its full stored image, not its resized preview.
+The original source remains available for re-cropping while this editor stays
+open; canceling a replacement image does not replace that source.
+
+The framed crop workspace shows a circular guide, darkens the area outside it,
+and reveals alignment guides on hover or focus. Drag to reposition or use the
+arrow keys to move. Centered zoom and reset controls show the current zoom
+percentage; the initial fit and Reset are 100%, and wheel zoom updates it too.
+`Apply crop` adds the square PNG to the local draft; `Back` or Escape slides back
+without replacing the draft picture. Newly selected GIFs skip automatic cropping
+to preserve animation. The cropper loads only when needed.
 
 Selecting a file, applying a crop, clearing the picture, or changing the name
 only updates the draft. The filled CTA `Save` button persists the changes;

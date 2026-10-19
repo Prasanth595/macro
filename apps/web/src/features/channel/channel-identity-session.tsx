@@ -1,3 +1,4 @@
+import { staticFileIdEndpoint } from '@core/constant/servers';
 import { createStaticFile } from '@core/util/create';
 import { useChannelPicture } from '@queries/channel/picture';
 import type { ChannelIdentityProps } from './channel-identity';
@@ -21,6 +22,10 @@ export default function ChannelIdentitySession(
     },
     get pictureUrl() {
       return picture.largeUrl();
+    },
+    get pictureSourceUrl() {
+      const id = picture.pictureId();
+      return id ? staticFileIdEndpoint(id) : undefined;
     },
     get channelId() {
       return props.channelId;

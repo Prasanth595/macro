@@ -31,6 +31,7 @@ export type ChannelIdentityEditorProps = {
   channelId: string;
   name: string;
   pictureUrl?: string;
+  pictureSourceUrl?: string;
   pictureLoading: boolean;
   canEdit: boolean;
   writer: ChannelIdentityWriter;
@@ -56,7 +57,9 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
   onCleanup(() => {
     disposed = true;
   });
-  const [cropFile, setCropFile] = createSignal<File>();
+  const [cropSource, setCropSource] = createSignal<File | string>();
+  // Keep the uncropped source for repeat edits until this dialog closes.
+  const [originalPicture, setOriginalPicture] = createSignal<File | string>();
   let input!: HTMLInputElement;
   let body!: HTMLDivElement;
   const localUrl = createMemo(() => {
@@ -70,14 +73,14 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
     state.picture() === null ? undefined : (localUrl() ?? props.pictureUrl);
 
   function returnToDetails() {
-    setCropFile(undefined);
+    setCropSource(undefined);
     body
       .querySelector<HTMLButtonElement>('button')
       ?.focus({ preventScroll: true });
   }
 
   async function save() {
-    if (!state.canSave() || props.pictureLoading || cropFile()) return;
+    if (!state.canSave() || props.pictureLoading || cropSource()) return;
     await Telemetry.span('channel.identity.save', async (span) => {
       span.setAttr('channel.id', props.channelId);
       span.setAttr(
@@ -112,7 +115,7 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
           opener.focus({ preventScroll: true });
       }}
       onEscapeKeyDown={(event) => {
-        if (!cropFile()) return;
+        if (!cropSource()) return;
         event.preventDefault();
         returnToDetails();
       }}
@@ -120,10 +123,10 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
     >
       <Panel depth={2} class="rounded-xl">
         <Panel.Body>
-          <div class="flex max-h-[calc(100dvh-64px)] flex-col gap-6 overflow-y-auto p-6 mobile:max-h-none mobile:overflow-visible mobile:p-4">
-            <div class="flex items-center justify-between gap-4">
+          <div class="flex max-h-[calc(100dvh-64px)] flex-col gap-6 overflow-y-auto py-6 mobile:max-h-none mobile:overflow-visible mobile:py-4">
+            <div class="flex items-center justify-between gap-4 px-6 mobile:px-4">
               <Dialog.Title class="text-xl font-semibold">
-                {cropFile() ? 'Crop channel image' : 'Edit channel'}
+                {cropSource() ? 'Crop channel image' : 'Edit channel'}
               </Dialog.Title>
               <Dialog.CloseButton
                 as={Button}
@@ -154,18 +157,20 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
                   event.currentTarget.value = '';
                   if (!file) return;
                   // Keep animated GIFs intact; canvas cropping produces a still image.
-                  if (
-                    channelPictureFileError(file) ||
-                    file.type === 'image/gif'
-                  ) {
+                  if (channelPictureFileError(file)) {
                     state.changePicture(file);
                     return;
                   }
-                  setCropFile(file);
+                  if (file.type === 'image/gif') {
+                    setOriginalPicture(undefined);
+                    state.changePicture(file);
+                    return;
+                  }
+                  setCropSource(file);
                 }}
               />
               <Stepper
-                step={cropFile() ? 1 : 0}
+                step={cropSource() ? 1 : 0}
                 transition={Stepper.transitions.slide}
                 keepMounted
                 class="overflow-clip"
@@ -181,26 +186,42 @@ export function ChannelIdentityModal(props: ChannelIdentityEditorProps) {
                     error={state.error()}
                     onNameChange={state.changeName}
                     onPickPicture={() => input.click()}
-                    onClearPicture={() => state.changePicture(null)}
+                    canCrop={
+                      state.picture() !== null &&
+                      Boolean(state.picture() ?? props.pictureSourceUrl) &&
+                      state.picture()?.type !== 'image/gif'
+                    }
+                    onCropPicture={() =>
+                      setCropSource(
+                        originalPicture() ??
+                          state.picture() ??
+                          props.pictureSourceUrl
+                      )
+                    }
+                    onClearPicture={() => {
+                      setOriginalPicture(undefined);
+                      state.changePicture(null);
+                    }}
                     onCancel={state.close}
                     onSave={() => void save()}
                   />
                 </Stepper.Step>
                 <Stepper.Step>
-                  <Show when={cropFile()} keyed>
+                  <Show when={cropSource()} keyed>
                     {(file) => (
                       <Suspense
                         fallback={
-                          <p class="text-sm text-ink-muted">
+                          <p class="px-6 text-sm text-ink-muted mobile:px-4">
                             Loading image editor…
                           </p>
                         }
                       >
                         <ChannelPictureCropper
                           channelId={props.channelId}
-                          file={file}
+                          source={file}
                           disabled={!props.canEdit || state.pending()}
                           onApply={(cropped) => {
+                            setOriginalPicture(cropSource());
                             state.changePicture(cropped);
                             returnToDetails();
                           }}

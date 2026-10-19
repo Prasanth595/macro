@@ -16,7 +16,7 @@ import {
 
 export default function ChannelPictureCropper(props: {
   channelId: string;
-  file: File;
+  source: File | string;
   disabled: boolean;
   onApply: (file: File) => void;
   onCancel: () => void;
@@ -27,6 +27,7 @@ export default function ChannelPictureCropper(props: {
   const [ready, setReady] = createSignal(false);
   const [exporting, setExporting] = createSignal(false);
   const [error, setError] = createSignal<string>();
+  const [zoomPercent, setZoomPercent] = createSignal(100);
   const disabled = () => props.disabled || exporting() || !ready();
 
   onCleanup(() => {
@@ -44,9 +45,11 @@ export default function ChannelPictureCropper(props: {
   );
 
   onMount(() => {
-    const url = URL.createObjectURL(props.file);
-    onCleanup(() => URL.revokeObjectURL(url));
+    const source = props.source;
+    const url = source instanceof File ? URL.createObjectURL(source) : source;
+    if (source instanceof File) onCleanup(() => URL.revokeObjectURL(url));
     const image = new Image();
+    image.crossOrigin = 'anonymous';
     image.src = url;
     cropper = new Cropper(image, {
       container,
@@ -59,6 +62,13 @@ export default function ChannelPictureCropper(props: {
     });
     const canvas = cropper.getCropperCanvas();
     if (canvas) canvas.disabled = props.disabled;
+    const cropperImage = cropper.getCropperImage();
+    // Cropper emits before committing a transform, and can reject the change.
+    const onTransform = () => queueMicrotask(updateZoom);
+    cropperImage?.addEventListener('transform', onTransform);
+    onCleanup(() =>
+      cropperImage?.removeEventListener('transform', onTransform)
+    );
     container.focus({ preventScroll: true });
     void loadImage();
   });
@@ -74,7 +84,21 @@ export default function ChannelPictureCropper(props: {
       setError('Could not read this image. Go back and choose another image.');
       return;
     }
+    updateZoom();
     setReady(true);
+  }
+
+  function updateZoom() {
+    if (disposed) return;
+    const image = cropper?.getCropperImage();
+    const canvas = cropper?.getCropperCanvas();
+    if (!image || !canvas || !image.$image.naturalWidth) return;
+    const fit = Math.max(
+      canvas.clientWidth / image.$image.naturalWidth,
+      canvas.clientHeight / image.$image.naturalHeight
+    );
+    if (!fit) return;
+    setZoomPercent(Math.round((image.$getTransform()[0] / fit) * 100));
   }
 
   function zoom(amount: number) {
@@ -89,7 +113,9 @@ export default function ChannelPictureCropper(props: {
     setError(undefined);
     await Telemetry.span('channel.picture.crop', async (span) => {
       span.setAttr('channel.id', props.channelId);
-      span.setAttr('image.input_bytes', props.file.size);
+      if (props.source instanceof File) {
+        span.setAttr('image.input_bytes', props.source.size);
+      }
       const result = await ResultAsync.fromPromise(
         (async () => {
           const image = await canvas.$toCanvas({ width: 1024, height: 1024 });
@@ -111,7 +137,9 @@ export default function ChannelPictureCropper(props: {
       props.onApply(
         new File(
           [result.value],
-          `${props.file.name.replace(/\.[^.]+$/, '')}.png`,
+          props.source instanceof File
+            ? `${props.source.name.replace(/\.[^.]+$/, '')}.png`
+            : 'channel-picture.png',
           {
             type: 'image/png',
           }
@@ -122,95 +150,102 @@ export default function ChannelPictureCropper(props: {
 
   return (
     <div class="flex flex-col gap-4">
-      <div class="rounded-xl border border-edge-muted bg-control p-4 mobile:p-3">
-        <div class="group/crop relative mx-auto aspect-square w-full max-w-80 overflow-hidden rounded-lg">
-          <div
-            ref={container}
-            role="group"
-            aria-label="Crop preview"
-            aria-busy={!ready() || exporting()}
-            tabIndex={0}
-            class="size-full outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-edge-focus"
-            onKeyDown={(event) => {
-              if (disabled()) return;
-              const moves: Record<string, [number, number]> = {
-                ArrowLeft: [-10, 0],
-                ArrowRight: [10, 0],
-                ArrowUp: [0, -10],
-                ArrowDown: [0, 10],
-              };
-              const move = moves[event.key];
-              if (!move) return;
-              event.preventDefault();
-              event.stopPropagation();
-              cropper?.getCropperImage()?.$move(...move);
-            }}
-          />
-          <div
-            aria-hidden="true"
-            class="pointer-events-none absolute inset-0 rounded-full border-2 border-accent/80 shadow-[0_0_0_999px_var(--color-modal-overlay)]"
-          >
-            <div class="absolute inset-0 overflow-hidden rounded-full opacity-0 transition-opacity not-touch:group-hover/crop:opacity-100 group-focus-within/crop:opacity-100">
-              <div class="absolute inset-y-0 left-1/3 w-1/3 border-x border-accent/40" />
-              <div class="absolute inset-x-0 top-1/3 h-1/3 border-y border-accent/40" />
+      <div class="flex flex-col gap-4 px-6 mobile:px-4">
+        <div class="rounded-xl border border-edge-muted bg-control p-4 mobile:p-3">
+          <div class="group/crop relative mx-auto aspect-square w-full max-w-80 overflow-hidden rounded-lg">
+            <div
+              ref={container}
+              role="group"
+              aria-label="Crop preview"
+              aria-busy={!ready() || exporting()}
+              tabIndex={0}
+              class="size-full outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-edge-focus"
+              onKeyDown={(event) => {
+                if (disabled()) return;
+                const moves: Record<string, [number, number]> = {
+                  ArrowLeft: [-10, 0],
+                  ArrowRight: [10, 0],
+                  ArrowUp: [0, -10],
+                  ArrowDown: [0, 10],
+                };
+                const move = moves[event.key];
+                if (!move) return;
+                event.preventDefault();
+                event.stopPropagation();
+                cropper?.getCropperImage()?.$move(...move);
+              }}
+            />
+            <div
+              aria-hidden="true"
+              class="pointer-events-none absolute inset-0 rounded-full border-2 border-accent/80 shadow-[0_0_0_999px_rgb(from_var(--color-modal-overlay)_r_g_b_/_75%)]"
+            >
+              <div class="absolute inset-0 overflow-hidden rounded-full opacity-0 transition-opacity not-touch:group-hover/crop:opacity-100 group-focus-within/crop:opacity-100">
+                <div class="absolute inset-y-0 left-1/3 w-1/3 border-x border-accent/40" />
+                <div class="absolute inset-x-0 top-1/3 h-1/3 border-y border-accent/40" />
+              </div>
             </div>
           </div>
+          <p class="mt-3 text-center text-xs text-ink-muted">
+            Drag to reposition or use the arrow keys.
+          </p>
         </div>
-        <p class="mt-3 text-center text-xs text-ink-muted">
-          Drag to reposition or use the arrow keys.
-        </p>
-      </div>
-      <div class="flex items-center justify-between gap-3">
-        <div class="flex items-center gap-2">
-          <span class="mr-1 text-sm text-ink-muted">Zoom</span>
+        <div class="flex items-center justify-center gap-3">
+          <div class="flex items-center gap-2">
+            <Button
+              label="Zoom out"
+              size="icon-lg"
+              variant="outline"
+              disabled={disabled()}
+              onClick={() => zoom(-0.1)}
+            >
+              <MinusIcon />
+            </Button>
+            <output
+              aria-label="Zoom level"
+              class="min-w-12 text-center text-sm tabular-nums text-ink-muted"
+            >
+              {ready() ? `${zoomPercent()}%` : '—'}
+            </output>
+            <Button
+              label="Zoom in"
+              size="icon-lg"
+              variant="outline"
+              disabled={disabled()}
+              onClick={() => zoom(0.1)}
+            >
+              <PlusIcon />
+            </Button>
+          </div>
           <Button
-            label="Zoom out"
-            size="icon-lg"
-            variant="outline"
+            label="Reset crop"
+            size="lg"
+            variant="ghost"
             disabled={disabled()}
-            onClick={() => zoom(-0.1)}
+            onClick={() => cropper?.getCropperImage()?.$center('cover')}
           >
-            <MinusIcon />
-          </Button>
-          <Button
-            label="Zoom in"
-            size="icon-lg"
-            variant="outline"
-            disabled={disabled()}
-            onClick={() => zoom(0.1)}
-          >
-            <PlusIcon />
+            <ArrowCounterClockwiseIcon />
+            Reset
           </Button>
         </div>
-        <Button
-          label="Reset crop"
-          size="lg"
-          variant="ghost"
-          disabled={disabled()}
-          onClick={() => cropper?.getCropperImage()?.$center('cover')}
-        >
-          <ArrowCounterClockwiseIcon />
-          Reset
-        </Button>
+        <Show when={error()}>
+          <p role="alert" class="text-sm text-failure-ink">
+            {error()}
+          </p>
+        </Show>
       </div>
-      <Show when={error()}>
-        <p role="alert" class="text-sm text-failure-ink">
-          {error()}
-        </p>
-      </Show>
-      <div class="flex justify-end gap-3 border-t border-edge-muted pt-5">
+      <div class="flex justify-end gap-2 border-t border-edge-muted px-6 pt-4 mobile:px-4">
         <Button
           variant="ghost"
-          size="xl"
-          class="min-w-28 mobile:min-w-0 mobile:flex-1"
+          size="md"
+          class="touch:min-h-11"
           onClick={props.onCancel}
         >
           Back
         </Button>
         <Button
           variant="cta"
-          size="xl"
-          class="min-w-28 mobile:min-w-0 mobile:flex-1"
+          size="md"
+          class="touch:min-h-11"
           disabled={disabled()}
           onClick={() => void apply()}
         >

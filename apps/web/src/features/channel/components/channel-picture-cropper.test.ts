@@ -10,15 +10,51 @@ const cropper = vi.hoisted(() => ({
   exportCanvas: vi.fn(),
   destroy: vi.fn(),
   finished: vi.fn(),
+  construct: vi.fn(),
+  transform: vi.fn<(matrix: number[]) => void>(),
+  matrix: [1, 0, 0, 1, 0, 0],
 }));
 vi.mock('cropperjs', () => ({
   default: class {
-    canvas = { disabled: false, $toCanvas: cropper.exportCanvas };
+    canvas = {
+      disabled: false,
+      clientWidth: 400,
+      clientHeight: 400,
+      $toCanvas: cropper.exportCanvas,
+    };
+    image = Object.assign(new EventTarget(), {
+      $image: document.createElement('img'),
+      $ready: cropper.ready,
+      $getTransform: () => cropper.matrix,
+      $zoom: (amount: number) => {
+        const factor = amount > 0 ? 1 + amount : 1 / (1 - amount);
+        cropper.transform([
+          cropper.matrix[0] * factor,
+          0,
+          0,
+          cropper.matrix[3] * factor,
+          0,
+          0,
+        ]);
+      },
+      $center: () => cropper.transform([1, 0, 0, 1, 0, 0]),
+    });
+    constructor(image: HTMLImageElement) {
+      cropper.construct(image);
+      Object.defineProperties(this.image.$image, {
+        naturalWidth: { value: 800 },
+        naturalHeight: { value: 400 },
+      });
+      cropper.transform.mockImplementation((matrix) => {
+        this.image.dispatchEvent(new Event('transform'));
+        cropper.matrix = matrix;
+      });
+    }
     getCropperCanvas() {
       return this.canvas;
     }
     getCropperImage() {
-      return { $ready: cropper.ready };
+      return this.image;
     }
     destroy = cropper.destroy;
   },
@@ -39,6 +75,7 @@ vi.mock('@core/component/Toast/Toast', () => ({ toast: { failure: vi.fn() } }));
 
 beforeEach(() => {
   vi.clearAllMocks();
+  cropper.matrix = [1, 0, 0, 1, 0, 0];
   cropper.ready.mockResolvedValue(document.createElement('img'));
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
 });
@@ -54,13 +91,57 @@ function exportedCanvas(blob: Blob | null) {
 }
 
 describe('channel picture crop lifecycle', () => {
+  it('reports committed zoom changes from buttons, wheel transforms, and reset', async () => {
+    render(() =>
+      createComponent(ChannelPictureCropper, {
+        channelId: 'design',
+        source: new File(['image'], 'team.png', { type: 'image/png' }),
+        disabled: false,
+        onApply: vi.fn(),
+        onCancel: vi.fn(),
+      })
+    );
+    await screen.findByRole('button', { name: 'Apply crop' });
+    expect(screen.getByLabelText('Zoom level').textContent).toBe('100%');
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    await screen.findByText('110%');
+    cropper.transform([1.5, 0, 0, 1.5, 0, 0]);
+    await screen.findByText('150%');
+    fireEvent.click(screen.getByRole('button', { name: 'Reset crop' }));
+    await screen.findByText('100%');
+  });
+
+  it('loads a saved image with CORS and exports a PNG draft', async () => {
+    const completed = Promise.withResolvers<void>();
+    cropper.finished.mockImplementation(() => completed.resolve());
+    cropper.exportCanvas.mockResolvedValue(
+      exportedCanvas(new Blob(['cropped'], { type: 'image/png' }))
+    );
+    const apply = vi.fn();
+    render(() =>
+      createComponent(ChannelPictureCropper, {
+        channelId: 'design',
+        source: 'https://files.example.com/channel.png',
+        disabled: false,
+        onApply: apply,
+        onCancel: vi.fn(),
+      })
+    );
+    const image: HTMLImageElement = cropper.construct.mock.calls[0][0];
+    expect(image.src).toBe('https://files.example.com/channel.png');
+    expect(image.crossOrigin).toBe('anonymous');
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply crop' }));
+    await completed.promise;
+    expect(apply.mock.calls[0][0].name).toBe('channel-picture.png');
+  });
+
   it('shows a recoverable error when the image cannot be decoded', async () => {
     cropper.ready.mockRejectedValueOnce(new Error('Invalid image'));
     const cancel = vi.fn();
     render(() =>
       createComponent(ChannelPictureCropper, {
         channelId: 'design',
-        file: new File(['invalid'], 'team.png', { type: 'image/png' }),
+        source: new File(['invalid'], 'team.png', { type: 'image/png' }),
         disabled: false,
         onApply: vi.fn(),
         onCancel: cancel,
@@ -83,7 +164,9 @@ describe('channel picture crop lifecycle', () => {
     render(() =>
       createComponent(ChannelPictureCropper, {
         channelId: 'design',
-        file: new File(['original'], 'team.photo.jpg', { type: 'image/jpeg' }),
+        source: new File(['original'], 'team.photo.jpg', {
+          type: 'image/jpeg',
+        }),
         disabled: false,
         onApply: apply,
         onCancel: vi.fn(),
@@ -112,7 +195,7 @@ describe('channel picture crop lifecycle', () => {
     const view = render(() =>
       createComponent(ChannelPictureCropper, {
         channelId: 'design',
-        file: new File(['original'], 'team.png', { type: 'image/png' }),
+        source: new File(['original'], 'team.png', { type: 'image/png' }),
         disabled: false,
         onApply: apply,
         onCancel: () => view.unmount(),
@@ -136,7 +219,7 @@ describe('channel picture crop lifecycle', () => {
     render(() =>
       createComponent(ChannelPictureCropper, {
         channelId: 'design',
-        file: new File(['original'], 'team.png', { type: 'image/png' }),
+        source: new File(['original'], 'team.png', { type: 'image/png' }),
         get disabled() {
           return disabled();
         },
@@ -159,7 +242,7 @@ describe('channel picture crop lifecycle', () => {
     render(() =>
       createComponent(ChannelPictureCropper, {
         channelId: 'design',
-        file: new File(['original'], 'team.png', { type: 'image/png' }),
+        source: new File(['original'], 'team.png', { type: 'image/png' }),
         disabled: false,
         onApply: apply,
         onCancel: vi.fn(),
@@ -177,6 +260,76 @@ describe('channel picture crop lifecycle', () => {
 });
 
 describe('channel editor steps', () => {
+  it('re-crops the original saved image without saving or re-cropping its previous export', async () => {
+    cropper.exportCanvas.mockResolvedValue(
+      exportedCanvas(new Blob(['cropped'], { type: 'image/png' }))
+    );
+    const saveName = vi.fn();
+    const savePicture = vi.fn();
+    render(() =>
+      createComponent(ChannelIdentityModal, {
+        channelId: 'design',
+        name: 'Design',
+        pictureUrl: 'https://files.example.com/channel.png?size=1080',
+        pictureSourceUrl: 'https://files.example.com/channel.png',
+        pictureLoading: false,
+        canEdit: true,
+        writer: { saveName, savePicture },
+        onClose: vi.fn(),
+      })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Crop image' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply crop' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Crop image' }));
+    const back = await screen.findByRole('button', { name: 'Back' });
+    expect(cropper.construct.mock.calls.at(-1)?.[0].src).toBe(
+      'https://files.example.com/channel.png'
+    );
+    fireEvent.click(back);
+    fireEvent.click(screen.getByRole('button', { name: 'Clear image' }));
+    expect(screen.queryByRole('button', { name: 'Crop image' })).toBeNull();
+    expect(saveName).not.toHaveBeenCalled();
+    expect(savePicture).not.toHaveBeenCalled();
+  });
+
+  it('keeps the previous crop source after canceling a replacement image', async () => {
+    cropper.exportCanvas.mockResolvedValue(
+      exportedCanvas(new Blob(['cropped'], { type: 'image/png' }))
+    );
+    const original = new File(['original'], 'original.png', {
+      type: 'image/png',
+    });
+    const replacement = new File(['replacement'], 'replacement.png', {
+      type: 'image/png',
+    });
+    vi.spyOn(URL, 'createObjectURL').mockImplementation((file) =>
+      file === original
+        ? 'blob:original'
+        : file === replacement
+          ? 'blob:replacement'
+          : 'blob:draft'
+    );
+    render(() =>
+      createComponent(ChannelIdentityModal, {
+        channelId: 'design',
+        name: 'Design',
+        pictureLoading: false,
+        canEdit: true,
+        writer: { saveName: vi.fn(), savePicture: vi.fn() },
+        onClose: vi.fn(),
+      })
+    );
+    const picker = screen.getByLabelText('Choose channel picture');
+    fireEvent.change(picker, { target: { files: [original] } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply crop' }));
+    await screen.findByRole('button', { name: 'Crop image' });
+    fireEvent.change(picker, { target: { files: [replacement] } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Back' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Crop image' }));
+    await screen.findByRole('button', { name: 'Back' });
+    expect(cropper.construct.mock.calls.at(-1)?.[0].src).toBe('blob:original');
+  });
+
   it('retains name edits across crop steps and saves only after explicit Save', async () => {
     cropper.exportCanvas.mockResolvedValue(
       exportedCanvas(new Blob(['cropped'], { type: 'image/png' }))
