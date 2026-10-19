@@ -247,6 +247,7 @@ describe('channel title editing', () => {
         files: [new File(['image'], 'design.gif', { type: 'image/gif' })],
       },
     });
+    fireEvent.click(await screen.findByRole('button', { name: 'Back' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     setChannel({ id: 'marketing', name: 'Marketing' });
     pending.resolve(ok(undefined));
@@ -291,6 +292,7 @@ describe('channel title editing', () => {
         files: [new File(['image'], 'design.gif', { type: 'image/gif' })],
       },
     });
+    fireEvent.click(await screen.findByRole('button', { name: 'Back' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     setChannel({ id: 'marketing', name: 'Marketing' });
     pending.resolve(err({ kind: 'picture' }));

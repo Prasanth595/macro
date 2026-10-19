@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@solidjs/testing-library';
 import { ok } from 'neverthrow';
 import { createComponent, createSignal } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -82,6 +88,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 function exportedCanvas(blob: Blob | null) {
@@ -260,6 +267,98 @@ describe('channel picture crop lifecycle', () => {
 });
 
 describe('channel editor steps', () => {
+  it('opens the empty image step and returns without changing the draft', async () => {
+    const saveName = vi.fn();
+    const savePicture = vi.fn();
+    render(() =>
+      createComponent(ChannelIdentityModal, {
+        channelId: 'design',
+        name: 'Design',
+        pictureLoading: false,
+        canEdit: true,
+        writer: { saveName, savePicture },
+        onClose: vi.fn(),
+      })
+    );
+    fireEvent.input(screen.getByRole('textbox', { name: 'Channel name' }), {
+      target: { value: 'Draft team' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
+    await screen.findByText('Choose an image to get started.');
+    expect(screen.queryByRole('button', { name: 'Apply crop' })).toBeNull();
+    expect(
+      screen.getByRole<HTMLButtonElement>('button', { name: 'Clear image' })
+        .disabled
+    ).toBe(true);
+    fireEvent.change(screen.getByLabelText('Choose channel picture'), {
+      target: { files: [new File(['new'], 'new.png', { type: 'image/png' })] },
+    });
+    await screen.findByRole('button', { name: 'Apply crop' });
+    expect(
+      screen.getByRole<HTMLButtonElement>('button', { name: 'Clear image' })
+        .disabled
+    ).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Clear image' }));
+    await screen.findByText('Choose an image to get started.');
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(
+      screen.getByRole<HTMLInputElement>('textbox', { name: 'Channel name' })
+        .value
+    ).toBe('Draft team');
+    expect(saveName).not.toHaveBeenCalled();
+    expect(savePicture).not.toHaveBeenCalled();
+  });
+
+  it('closes only the lightbox on Escape and restores its trigger', async () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    );
+    const close = vi.fn();
+    const savePicture = vi.fn();
+    render(() =>
+      createComponent(ChannelIdentityModal, {
+        channelId: 'design',
+        name: 'Design',
+        pictureUrl: 'https://files.example.com/channel.png?size=1080',
+        pictureSourceUrl: 'https://files.example.com/channel.png',
+        pictureLoading: false,
+        canEdit: true,
+        writer: { saveName: vi.fn(), savePicture },
+        onClose: close,
+      })
+    );
+    fireEvent.input(screen.getByRole('textbox', { name: 'Channel name' }), {
+      target: { value: 'Draft team' },
+    });
+    const trigger = screen.getByRole('button', { name: 'Preview image' });
+    trigger.focus();
+    fireEvent.click(trigger);
+    const preview = await screen.findByRole('dialog', {
+      name: 'Lightbox image viewer',
+    });
+    expect(preview.querySelector('img')?.getAttribute('src')).toBe(
+      'https://files.example.com/channel.png'
+    );
+    fireEvent.keyDown(preview, { key: 'Escape' });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('dialog', { name: 'Lightbox image viewer' })
+      ).toBeNull()
+    );
+    expect(
+      screen.getByRole<HTMLInputElement>('textbox', { name: 'Channel name' })
+        .value
+    ).toBe('Draft team');
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+    expect(close).not.toHaveBeenCalled();
+    expect(savePicture).not.toHaveBeenCalled();
+  });
+
   it('re-crops the original saved image without saving or re-cropping its previous export', async () => {
     cropper.exportCanvas.mockResolvedValue(
       exportedCanvas(new Blob(['cropped'], { type: 'image/png' }))
@@ -278,18 +377,19 @@ describe('channel editor steps', () => {
         onClose: vi.fn(),
       })
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Adjust image' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Apply crop' }));
     fireEvent.click(
-      await screen.findByRole('button', { name: 'Adjust image' })
+      await screen.findByRole('button', { name: 'Edit channel image' })
     );
     const back = await screen.findByRole('button', { name: 'Back' });
     expect(cropper.construct.mock.calls.at(-1)?.[0].src).toBe(
       'https://files.example.com/channel.png'
     );
     fireEvent.click(back);
-    fireEvent.click(screen.getByRole('button', { name: 'Clear image' }));
-    expect(screen.queryByRole('button', { name: 'Adjust image' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Clear image' }));
+    expect(screen.queryByRole('button', { name: 'Apply crop' })).toBeNull();
     expect(saveName).not.toHaveBeenCalled();
     expect(savePicture).not.toHaveBeenCalled();
   });
@@ -324,11 +424,11 @@ describe('channel editor steps', () => {
     const picker = screen.getByLabelText('Choose channel picture');
     fireEvent.change(picker, { target: { files: [original] } });
     fireEvent.click(await screen.findByRole('button', { name: 'Apply crop' }));
-    await screen.findByRole('button', { name: 'Adjust image' });
+    await screen.findByRole('button', { name: 'Edit channel image' });
     fireEvent.change(picker, { target: { files: [replacement] } });
     fireEvent.click(await screen.findByRole('button', { name: 'Back' }));
     fireEvent.click(
-      await screen.findByRole('button', { name: 'Adjust image' })
+      await screen.findByRole('button', { name: 'Edit channel image' })
     );
     await screen.findByRole('button', { name: 'Back' });
     expect(cropper.construct.mock.calls.at(-1)?.[0].src).toBe('blob:original');
@@ -371,7 +471,7 @@ describe('channel editor steps', () => {
       ).value
     ).toBe('Design team');
     expect(document.activeElement).toBe(
-      screen.getByRole('button', { name: 'Change channel picture' })
+      screen.getByRole('button', { name: 'Edit channel image' })
     );
     expect(cropper.destroy).toHaveBeenCalledOnce();
     expect(cropper.exportCanvas).not.toHaveBeenCalled();

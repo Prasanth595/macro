@@ -1224,32 +1224,38 @@ one-to-one direct messages continue to show the other person's user picture.
 
 On desktop, click the channel name in either the split topbar or an inline detail
 topbar to open the `Edit channel` dialog. Hovering or focusing the title does not
-open an editor. The roomier dialog loads on demand. It shows the channel name
-first, then a larger circular picture with an upload-icon overlay on image hover
-or keyboard focus when editing is allowed (always visible on touch devices).
-Secondary `Change image` and destructive ghost `Clear image` buttons stay side by
-side, beside the picture on wide screens or below it on narrow screens (including
-narrow desktop windows). Their labels stay on one line without clipping at 320px,
-with or without touch. Supported file types and size appear beneath the actions;
-image filenames are not shown. Compact footer actions keep touch-friendly targets,
-with an edge-to-edge divider above them.
+open an editor. The dialog loads on demand. Its details step places a larger
+circular picture on the left and top-aligns the channel name input on the right.
+On narrow screens, the picture appears above the name. Click the picture to open
+the image-editing step; its pencil overlay appears on hover or focus and stays
+visible on touch devices. The separate `Preview image` expand button opens the
+current saved or draft image in the shared lightbox, without saving changes.
+Escape, the close button, or the backdrop returns to the editor and restores
+focus to the preview button. Closing the lightbox preserves the draft.
 
-Clicking the picture or `Change image` opens the file chooser. PNG, JPG, WebP,
-and GIF files up to 16 MB are supported. Selecting a still image slides to a crop
-step inside the dialog using the shared Stepper. The `Adjust` button (labeled
-`Adjust image`) appears before `Change image` and `Clear image`, with a sliders
-icon. It opens this step for an existing picture or an applied draft crop.
-Cropping a saved picture loads its full stored image, not its resized preview.
-The original source remains available for re-cropping while this editor stays
-open; canceling a replacement image does not replace that source.
+The image-editing step puts the crop workspace on the left and a wider
+actions/details column on the right, without an outer bordered crop container.
+On narrow screens, the workspace appears above the controls. `Change image`
+uses the accent variant and `Clear image` is destructive ghost; both use
+medium-sized buttons with touch-friendly targets. Supported file types and size
+appear with these actions; image filenames are not shown.
 
-The framed crop workspace shows a circular guide, darkens the area outside it,
-and reveals alignment guides on hover or focus. Drag to reposition or use the
-arrow keys to move. Centered zoom and reset controls show the current zoom
-percentage; the initial fit and Reset are 100%, and wheel zoom updates it too.
-`Apply crop` adds the square PNG to the local draft; `Back` or Escape slides back
-without replacing the draft picture. Newly selected GIFs skip automatic cropping
-to preserve animation. The cropper loads only when needed.
+`Change image` opens the file chooser. PNG, JPG, WebP, and GIF files up to
+16 MB are supported. Selecting a still image opens its crop workspace. An empty
+image step offers the same chooser, and newly selected GIFs show an animated
+preview instead of cropping. Cropping a saved picture loads its full stored
+image, not its resized preview. The original source remains available for
+re-cropping while the editor stays open; canceling a replacement does not replace
+that source.
+
+The circular crop guide darkens the area outside it and reveals alignment guides
+on hover or focus. Drag to reposition or use the arrow keys to move. Zoom and
+reset controls show the current zoom percentage; the initial fit and Reset are
+100%, and wheel zoom updates it too. `Apply crop` adds the square PNG to the local
+draft and returns to details. `Back` or Escape returns without applying a pending
+crop. Clearing an image or selecting a GIF updates only the draft. The cropper
+and lightbox load only when needed. Compact footer actions have an edge-to-edge
+divider above them.
 
 Selecting a file, applying a crop, clearing the picture, or changing the name
 only updates the draft. The filled CTA `Save` button persists the changes;

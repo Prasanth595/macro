@@ -8,16 +8,19 @@ import { ResultAsync } from 'neverthrow';
 import {
   createEffect,
   createSignal,
+  type JSX,
   on,
   onCleanup,
   onMount,
   Show,
 } from 'solid-js';
+import { ChannelImageEditorLayout } from './channel-image-editor-layout';
 
 export default function ChannelPictureCropper(props: {
   channelId: string;
   source: File | string;
   disabled: boolean;
+  actions?: JSX.Element;
   onApply: (file: File) => void;
   onCancel: () => void;
 }) {
@@ -149,113 +152,122 @@ export default function ChannelPictureCropper(props: {
   }
 
   return (
-    <div class="flex flex-col gap-4">
-      <div class="flex flex-col gap-4 px-6 mobile:px-4">
-        <div class="rounded-xl border border-edge-muted bg-control p-4 mobile:p-3">
-          <div class="group/crop relative mx-auto aspect-square w-full max-w-80 overflow-hidden rounded-lg">
-            <div
-              ref={container}
-              role="group"
-              aria-label="Crop preview"
-              aria-busy={!ready() || exporting()}
-              tabIndex={0}
-              class="size-full outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-edge-focus"
-              onKeyDown={(event) => {
-                if (disabled()) return;
-                const moves: Record<string, [number, number]> = {
-                  ArrowLeft: [-10, 0],
-                  ArrowRight: [10, 0],
-                  ArrowUp: [0, -10],
-                  ArrowDown: [0, 10],
-                };
-                const move = moves[event.key];
-                if (!move) return;
-                event.preventDefault();
-                event.stopPropagation();
-                cropper?.getCropperImage()?.$move(...move);
-              }}
-            />
-            <div
-              aria-hidden="true"
-              class="pointer-events-none absolute inset-0 rounded-full border-2 border-accent/80 shadow-[0_0_0_999px_rgb(from_var(--color-modal-overlay)_r_g_b_/_75%)]"
+    <ChannelImageEditorLayout
+      sidebar={
+        <>
+          {props.actions}
+          <div class="flex flex-col gap-3 border-t border-edge-muted pt-4">
+            <div>
+              <h3 class="text-sm font-medium">Position and zoom</h3>
+              <p class="mt-1 text-xs text-ink-muted">
+                Drag the image or use the arrow keys to reposition it.
+              </p>
+            </div>
+            <div class="flex items-center justify-center gap-2">
+              <Button
+                label="Zoom out"
+                size="icon-md"
+                variant="outline"
+                disabled={disabled()}
+                onClick={() => zoom(-0.1)}
+              >
+                <MinusIcon />
+              </Button>
+              <output
+                aria-label="Zoom level"
+                class="min-w-12 text-center text-sm tabular-nums text-ink-muted"
+              >
+                {ready() ? `${zoomPercent()}%` : '—'}
+              </output>
+              <Button
+                label="Zoom in"
+                size="icon-md"
+                variant="outline"
+                disabled={disabled()}
+                onClick={() => zoom(0.1)}
+              >
+                <PlusIcon />
+              </Button>
+            </div>
+            <Button
+              label="Reset crop"
+              size="md"
+              variant="ghost"
+              disabled={disabled()}
+              onClick={() => cropper?.getCropperImage()?.$center('cover')}
             >
-              <div class="absolute inset-0 overflow-hidden rounded-full opacity-0 transition-opacity not-touch:group-hover/crop:opacity-100 group-focus-within/crop:opacity-100">
-                <div class="absolute inset-y-0 left-1/3 w-1/3 border-x border-accent/40" />
-                <div class="absolute inset-x-0 top-1/3 h-1/3 border-y border-accent/40" />
-              </div>
+              <ArrowCounterClockwiseIcon />
+              Reset
+            </Button>
+          </div>
+          <Show when={error()}>
+            <p role="alert" class="text-sm text-failure-ink">
+              {error()}
+            </p>
+          </Show>
+        </>
+      }
+      footer={
+        <>
+          <Button
+            variant="ghost"
+            size="md"
+            class="touch:min-h-11"
+            onClick={props.onCancel}
+          >
+            Back
+          </Button>
+          <Button
+            variant="cta"
+            size="md"
+            class="touch:min-h-11"
+            disabled={disabled()}
+            onClick={() => void apply()}
+          >
+            {exporting()
+              ? 'Applying…'
+              : !ready() && !error()
+                ? 'Loading…'
+                : 'Apply crop'}
+          </Button>
+        </>
+      }
+    >
+      <div class="flex justify-center">
+        <div class="group/crop relative mx-auto aspect-square w-full max-w-80 overflow-hidden rounded-lg">
+          <div
+            ref={container}
+            role="group"
+            aria-label="Crop preview"
+            aria-busy={!ready() || exporting()}
+            tabIndex={0}
+            class="size-full outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-edge-focus"
+            onKeyDown={(event) => {
+              if (disabled()) return;
+              const moves: Record<string, [number, number]> = {
+                ArrowLeft: [-10, 0],
+                ArrowRight: [10, 0],
+                ArrowUp: [0, -10],
+                ArrowDown: [0, 10],
+              };
+              const move = moves[event.key];
+              if (!move) return;
+              event.preventDefault();
+              event.stopPropagation();
+              cropper?.getCropperImage()?.$move(...move);
+            }}
+          />
+          <div
+            aria-hidden="true"
+            class="pointer-events-none absolute inset-0 rounded-full border-2 border-accent/80 shadow-[0_0_0_999px_rgb(from_var(--color-modal-overlay)_r_g_b_/_75%)]"
+          >
+            <div class="absolute inset-0 overflow-hidden rounded-full opacity-0 transition-opacity not-touch:group-hover/crop:opacity-100 group-focus-within/crop:opacity-100">
+              <div class="absolute inset-y-0 left-1/3 w-1/3 border-x border-accent/40" />
+              <div class="absolute inset-x-0 top-1/3 h-1/3 border-y border-accent/40" />
             </div>
           </div>
-          <p class="mt-3 text-center text-xs text-ink-muted">
-            Drag to reposition or use the arrow keys.
-          </p>
         </div>
-        <div class="flex items-center justify-center gap-3">
-          <div class="flex items-center gap-2">
-            <Button
-              label="Zoom out"
-              size="icon-lg"
-              variant="outline"
-              disabled={disabled()}
-              onClick={() => zoom(-0.1)}
-            >
-              <MinusIcon />
-            </Button>
-            <output
-              aria-label="Zoom level"
-              class="min-w-12 text-center text-sm tabular-nums text-ink-muted"
-            >
-              {ready() ? `${zoomPercent()}%` : '—'}
-            </output>
-            <Button
-              label="Zoom in"
-              size="icon-lg"
-              variant="outline"
-              disabled={disabled()}
-              onClick={() => zoom(0.1)}
-            >
-              <PlusIcon />
-            </Button>
-          </div>
-          <Button
-            label="Reset crop"
-            size="lg"
-            variant="ghost"
-            disabled={disabled()}
-            onClick={() => cropper?.getCropperImage()?.$center('cover')}
-          >
-            <ArrowCounterClockwiseIcon />
-            Reset
-          </Button>
-        </div>
-        <Show when={error()}>
-          <p role="alert" class="text-sm text-failure-ink">
-            {error()}
-          </p>
-        </Show>
       </div>
-      <div class="flex justify-end gap-2 border-t border-edge-muted px-6 pt-4 mobile:px-4">
-        <Button
-          variant="ghost"
-          size="md"
-          class="touch:min-h-11"
-          onClick={props.onCancel}
-        >
-          Back
-        </Button>
-        <Button
-          variant="cta"
-          size="md"
-          class="touch:min-h-11"
-          disabled={disabled()}
-          onClick={() => void apply()}
-        >
-          {exporting()
-            ? 'Applying…'
-            : !ready() && !error()
-              ? 'Loading…'
-              : 'Apply crop'}
-        </Button>
-      </div>
-    </div>
+    </ChannelImageEditorLayout>
   );
 }

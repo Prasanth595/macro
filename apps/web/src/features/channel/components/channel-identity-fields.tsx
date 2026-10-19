@@ -1,10 +1,57 @@
+import ExpandIcon from '@phosphor/arrows-out-simple.svg';
 import PictureIcon from '@phosphor/image.svg';
-import SlidersIcon from '@phosphor/sliders-horizontal.svg';
+import PencilIcon from '@phosphor/pencil-simple.svg';
 import TrashIcon from '@phosphor/trash.svg';
 import UploadIcon from '@phosphor/upload-simple.svg';
 import { Button } from '@ui/components/Button';
 import { TextField } from '@ui/components/TextField';
 import { Show } from 'solid-js';
+
+export function ChannelImageActions(props: {
+  disabled: boolean;
+  canClear: boolean;
+  error?: string;
+  onPick: () => void;
+  onClear: () => void;
+}) {
+  return (
+    <div class="flex flex-col gap-3">
+      <div>
+        <h3 class="text-sm font-medium">Channel image</h3>
+        <p class="mt-1 text-xs text-ink-muted">
+          PNG, JPG, WebP or GIF up to 16 MB
+        </p>
+      </div>
+      <Button
+        variant="accent"
+        size="md"
+        fullWidth
+        disabled={props.disabled}
+        onClick={props.onPick}
+        class="touch:min-h-11"
+      >
+        <UploadIcon />
+        Change image
+      </Button>
+      <Button
+        variant="ghost"
+        size="md"
+        fullWidth
+        disabled={props.disabled || !props.canClear}
+        onClick={props.onClear}
+        class="text-failure not-touch:not-disabled:hover:text-failure touch:min-h-11"
+      >
+        <TrashIcon />
+        Clear image
+      </Button>
+      <Show when={props.error}>
+        <p role="alert" class="text-sm text-failure-ink">
+          {props.error}
+        </p>
+      </Show>
+    </div>
+  );
+}
 
 export function ChannelIdentityFields(props: {
   name: string;
@@ -12,133 +59,94 @@ export function ChannelIdentityFields(props: {
   pictureLoading: boolean;
   canEdit: boolean;
   pending: boolean;
-  canCrop: boolean;
   canSave: boolean;
   error?: string;
   onNameChange: (name: string) => void;
-  onPickPicture: () => void;
-  onClearPicture: () => void;
-  onCropPicture: () => void;
+  onEditPicture: () => void;
+  onPreviewPicture: (trigger: HTMLButtonElement) => void;
   onCancel: () => void;
   onSave: () => void;
 }) {
   return (
     <form
-      class="flex w-full flex-col gap-5 text-sm text-ink mobile:gap-6"
+      class="flex w-full flex-col gap-6 text-sm text-ink"
       aria-label="Edit channel"
       onSubmit={(event) => {
         event.preventDefault();
         props.onSave();
       }}
-      onKeyDown={(event) => {
-        if (event.key !== 'Escape') return;
-        event.preventDefault();
-        event.stopPropagation();
-        props.onCancel();
-      }}
     >
-      <div class="flex flex-col gap-5 px-6 mobile:gap-6 mobile:px-4">
-        <TextField
-          value={props.name}
-          onChange={props.onNameChange}
-          readOnly={!props.canEdit}
-          disabled={props.pending}
-          validationState={props.name.trim() ? 'valid' : 'invalid'}
-        >
-          <TextField.Label>Channel name</TextField.Label>
-          <TextField.Input placeholder="Channel name" size="lg" required />
-          <TextField.ErrorMessage>
-            A channel name is required.
-          </TextField.ErrorMessage>
-        </TextField>
-        <div class="flex items-center gap-5 max-sm:flex-col max-sm:gap-4">
-          <div class="shrink-0">
-            <Button
-              type="button"
-              variant="ghost"
-              class="group/channel-picture size-24 shrink-0 rounded-full p-0"
-              label={
-                props.canEdit ? 'Change channel picture' : 'Channel picture'
-              }
-              disabled={!props.canEdit || props.pending || props.pictureLoading}
-              onClick={props.onPickPicture}
+      <div class="flex flex-col gap-4 px-6 mobile:px-4">
+        <div class="flex items-start gap-8 max-sm:flex-col max-sm:items-center max-sm:gap-6">
+          <div class="w-full min-w-0 flex-1">
+            <TextField
+              value={props.name}
+              onChange={props.onNameChange}
+              readOnly={!props.canEdit}
+              disabled={props.pending}
+              validationState={props.name.trim() ? 'valid' : 'invalid'}
             >
-              <Show
-                when={props.pictureUrl}
-                fallback={<PictureIcon class="size-9 text-ink-placeholder" />}
-              >
-                {(url) => (
-                  <img
-                    src={url()}
-                    alt="Channel picture"
-                    class="size-full rounded-full object-cover"
-                  />
-                )}
-              </Show>
-              <Show when={props.canEdit}>
-                <span
-                  aria-hidden="true"
-                  class="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-surface/60 text-ink opacity-0 transition-opacity not-touch:group-hover/channel-picture:opacity-100 group-focus-visible/channel-picture:opacity-100 touch:opacity-100"
-                >
-                  <UploadIcon class="size-6" />
-                </span>
-              </Show>
-            </Button>
+              <TextField.Label>Channel name</TextField.Label>
+              <TextField.Input placeholder="Channel name" size="lg" required />
+              <TextField.ErrorMessage>
+                A channel name is required.
+              </TextField.ErrorMessage>
+            </TextField>
           </div>
-          <div class="flex min-w-0 flex-1 flex-col items-start gap-3 max-sm:w-full max-sm:items-center">
-            <Show when={props.canEdit}>
-              <div class="flex items-center gap-2 max-sm:gap-1">
-                <Show when={props.canCrop}>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="lg"
-                    label="Adjust image"
-                    class="touch:min-h-11 max-sm:gap-1 max-sm:px-0.5 max-sm:text-xs"
-                    disabled={props.pending || props.pictureLoading}
-                    onClick={props.onCropPicture}
-                  >
-                    <SlidersIcon class="size-5 max-sm:size-4" />
-                    Adjust
-                  </Button>
+          <div class="order-first flex shrink-0 flex-col items-center gap-3">
+            <div class="relative">
+              <Button
+                type="button"
+                variant="ghost"
+                class="group/channel-picture size-40 rounded-full p-0"
+                label={props.canEdit ? 'Edit channel image' : 'Channel picture'}
+                disabled={
+                  !props.canEdit || props.pending || props.pictureLoading
+                }
+                onClick={props.onEditPicture}
+              >
+                <Show
+                  when={props.pictureUrl}
+                  fallback={
+                    <PictureIcon class="size-12 text-ink-placeholder" />
+                  }
+                >
+                  {(url) => (
+                    <img
+                      src={url()}
+                      alt="Channel picture"
+                      class="size-full rounded-full object-cover"
+                    />
+                  )}
                 </Show>
+                <Show when={props.canEdit}>
+                  <span
+                    aria-hidden="true"
+                    class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-full bg-surface/60 text-ink opacity-0 transition-opacity not-touch:group-hover/channel-picture:opacity-100 group-focus-visible/channel-picture:opacity-100 touch:opacity-100"
+                  >
+                    <PencilIcon class="size-6" />
+                    <span class="text-xs font-medium">Edit image</span>
+                  </span>
+                </Show>
+              </Button>
+              <Show when={props.pictureUrl}>
                 <Button
                   type="button"
                   variant="outline"
-                  size="lg"
-                  class="touch:min-h-11 max-sm:gap-1 max-sm:px-0.5 max-sm:text-xs"
+                  size="icon-md"
+                  label="Preview image"
+                  class="absolute right-0 bottom-0 touch:min-h-11 touch:min-w-11"
                   disabled={props.pending || props.pictureLoading}
-                  onClick={props.onPickPicture}
-                >
-                  <UploadIcon class="size-5 max-sm:size-4" />
-                  Change image
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="lg"
-                  class="text-failure not-touch:not-disabled:hover:text-failure touch:min-h-11 max-sm:gap-1 max-sm:px-0.5 max-sm:text-xs"
-                  disabled={
-                    props.pending || props.pictureLoading || !props.pictureUrl
+                  onClick={(event) =>
+                    props.onPreviewPicture(event.currentTarget)
                   }
-                  onClick={props.onClearPicture}
                 >
-                  <TrashIcon class="size-5 max-sm:size-4" />
-                  Clear image
+                  <ExpandIcon />
                 </Button>
-              </div>
-              <p class="text-xs text-ink-muted max-sm:text-center">
-                PNG, JPG, WebP or GIF up to 16 MB
-              </p>
-            </Show>
-            <Show when={!props.canEdit}>
-              <p class="text-xs text-ink-muted">
-                {props.pictureLoading
-                  ? 'Loading picture…'
-                  : props.pictureUrl
-                    ? 'Channel picture'
-                    : 'No channel picture'}
-              </p>
+              </Show>
+            </div>
+            <Show when={props.canEdit}>
+              <p class="text-xs text-ink-muted">Click the image to edit</p>
             </Show>
           </div>
         </div>
