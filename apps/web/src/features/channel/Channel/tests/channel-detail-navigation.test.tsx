@@ -125,11 +125,22 @@ const messageRequests = () =>
   );
 
 beforeEach(() => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+  );
   mocks.requests.length = 0;
   mocks.joinRequested = false;
   mocks.touch = false;
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe('channel detail navigation', () => {
   it('opens channel information from the name without replacing the conversation', () => {

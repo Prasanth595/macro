@@ -51,7 +51,7 @@ import {
   Show,
   Switch,
 } from 'solid-js';
-import { ChannelInfoPanel } from './ChannelInfoPanel';
+import { ChannelInfoLayout, ChannelInfoPanel } from './ChannelInfoPanel';
 import {
   ChannelMessages,
   ChannelSurface,
@@ -490,8 +490,22 @@ function ChannelDetailContent(props: ChannelDetailProps) {
             onHandled={() => setPendingJoinCall(false)}
           />
         </DebugSuspense>
-        <div class="flex size-full min-h-0">
-          <div class="flex min-h-0 min-w-0 flex-1 flex-col" data-channel-main>
+        <ChannelInfoLayout
+          panel={
+            <DebugSuspense name="ChannelDetail.info-panel">
+              <ChannelInfoPanel
+                channelId={channelId}
+                fallbackName={props.fallbackName}
+              >
+                {infoContent(infoTab)}
+              </ChannelInfoPanel>
+            </DebugSuspense>
+          }
+        >
+          <div
+            class="flex size-full min-h-0 min-w-0 flex-col"
+            data-channel-main
+          >
             <DebugSuspense name="ChannelDetail.header">
               <ChannelDetailHeader
                 render={props.children}
@@ -525,17 +539,7 @@ function ChannelDetailContent(props: ChannelDetailProps) {
               </Switch>
             </div>
           </div>
-          <Show when={!isTouchDevice()}>
-            <DebugSuspense name="ChannelDetail.info-panel">
-              <ChannelInfoPanel
-                channelId={channelId}
-                fallbackName={props.fallbackName}
-              >
-                {infoContent(infoTab)}
-              </ChannelInfoPanel>
-            </DebugSuspense>
-          </Show>
-        </div>
+        </ChannelInfoLayout>
       </ChannelTabProvider>
     </ChannelSurface>
   );

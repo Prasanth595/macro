@@ -1,12 +1,50 @@
+import { usePreference } from '@app/preferences/use-preference';
 import { ChannelTopIcon } from '@channel/components/ChannelTopIcon';
+import { Resize } from '@core/component/Resize/Resize';
 import { useChannelName, useChannelType } from '@core/context/channels';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import XIcon from '@phosphor/x.svg';
 import { useChannelParticipantsQuery } from '@queries/channel/channel-participants';
 import { Button, Tabs } from '@ui';
-import { type ParentProps, Show } from 'solid-js';
+import { type JSX, type ParentProps, Show } from 'solid-js';
 import { useChannelTab } from './ChannelTabContext';
 import { CHANNEL_TABS, isChannelInfoTab } from './channel-tabs';
 import { useChannelTabItems } from './use-channel-tab-items';
+
+/** The full channel column resizes with its details, including the top bar. */
+export function ChannelInfoLayout(props: ParentProps<{ panel: JSX.Element }>) {
+  const { infoPanel } = useChannelTab();
+  const [width, setWidth] = usePreference('macro:pref:channels:details-width', {
+    default: 480,
+  });
+
+  return (
+    <Show
+      when={!isTouchDevice() && infoPanel}
+      fallback={<div class="flex size-full min-h-0">{props.children}</div>}
+    >
+      {(panel) => (
+        <Resize.Zone direction="horizontal" gutter={1}>
+          <Resize.Panel id="channel-main" index={0} minSize={320}>
+            {props.children}
+          </Resize.Panel>
+          <Resize.Panel
+            id="channel-details"
+            index={1}
+            minSize={320}
+            maxSize={960}
+            target={{ kind: 'px', px: width() }}
+            redistributionPreferredSize={width()}
+            hidden={() => !panel().isOpen()}
+            onSizeChangeEnd={setWidth}
+          >
+            {props.panel}
+          </Resize.Panel>
+        </Resize.Zone>
+      )}
+    </Show>
+  );
+}
 
 /** Full-height channel information beside both the conversation and its header. */
 export function ChannelInfoPanel(
@@ -33,7 +71,7 @@ export function ChannelInfoPanel(
           id={panel().id}
           aria-label="Channel details"
           hidden={!panel().isOpen()}
-          class="w-80 max-w-[45%] min-h-0 min-w-0 shrink-0 flex-col border-l border-edge-muted bg-surface"
+          class="size-full min-h-0 min-w-0 flex-col bg-surface"
           classList={{ flex: panel().isOpen() }}
           onKeyDown={(event) => {
             if (event.key !== 'Escape' || event.defaultPrevented) return;

@@ -1136,9 +1136,12 @@ On desktop, click the channel avatar/name to expand **Channel details** on the
 right. The full-height column sits beside both the conversation and its header,
 so opening it moves the title and all header actions left. This holds in narrow
 desktop splits too; the panel does not overlay the conversation. Its top has the
-channel avatar, name, and participant count. Quiet unframed tabs contain
-`Attachments`, `Calls`, and `Participants`;
-switching them keeps the conversation and any unsent message mounted. The panel
+channel avatar, name, and participant count. The panel starts 480px wide. Drag
+the divider to resize it, or focus the divider and use the arrow keys (Shift
+for larger steps). Width is remembered across closing, reopening, and channels;
+the layout keeps space for the conversation in narrower splits. Quiet unframed
+tabs contain `Attachments`, `Calls`, and `Participants`; switching them keeps the
+conversation and any unsent message mounted. The panel
 starts closed, keeps its selected tab when reopened, and closes from the name,
 the close button, or Escape within the panel. Closing from the panel restores
 focus to the name. Attachments use flat sections with one `No attachments yet`
