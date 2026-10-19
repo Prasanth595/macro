@@ -22,8 +22,9 @@ checked-in `min-native-build.json` enforce this end to end.
 
    Until both hold, the check fails and the PR cannot merge. On same-repo
    PRs, the gate maintains one status comment with the version/build, current
-   App Store state, next steps, and a workflow link. Infrastructure failures
-   are reported as an inability to verify the release, separately from a
+   App Store state, next steps, and a workflow link. Infrastructure failures,
+   including an unavailable native-tree hash, are reported as an inability
+   to verify the release without instructions to release again, separately from a
    confirmed release requirement. Each gate run refreshes the comment; a
    successful watcher-triggered recheck marks the release verified. Fork PRs
    retain the check logs because their token cannot write PR comments.

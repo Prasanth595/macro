@@ -33,7 +33,7 @@ globalThis.fetch = async (url) => {
 };
 `;
 
-for (const [state, expected, attachedBuild, stamp] of [
+for (const [state, expected, attachedBuild, stamp, nativeTree = tree] of [
   ['MISSING', 'release-required', '188', tree],
   ['IN_REVIEW', 'waiting', '188', tree],
   ['PENDING_DEVELOPER_RELEASE', 'waiting', '188', tree],
@@ -42,6 +42,7 @@ for (const [state, expected, attachedBuild, stamp] of [
   ['READY_FOR_DISTRIBUTION', 'live', '188', tree],
   ['READY_FOR_DISTRIBUTION', 'mismatch', '187', tree],
   ['READY_FOR_DISTRIBUTION', 'mismatch', '188', 'b'.repeat(40)],
+  ['READY_FOR_DISTRIBUTION', null, '188', tree, null],
   ['API_ERROR', null, '188', tree],
 ]) {
   test(`status reports ${expected} for ${state}, build ${attachedBuild}, tree ${stamp[0]}`, () => {
@@ -53,19 +54,25 @@ for (const [state, expected, attachedBuild, stamp] of [
       writeFileSync(output, '');
       const child = spawnSync(process.execPath, [
         '--import', pathToFileURL(fixture).href, script, 'status', '--require-live',
-        '--version', '2.0.10', '--build', '188', '--native-tree', tree,
+        '--version', '2.0.10', '--build', '188',
+        ...(nativeTree ? ['--native-tree', nativeTree] : []),
       ], {
         env: {
           ...process.env, GITHUB_OUTPUT: output,
           APPLE_API_KEY: 'fixture', APPLE_API_ISSUER: 'fixture',
           APPLE_API_KEY_P8: privateKey.export({ type: 'pkcs8', format: 'pem' }),
           TEST_STATE: state, TEST_BUILD: attachedBuild, TEST_TREE: stamp,
+          ...(!nativeTree ? { GIT_DIR: path.join(dir, 'missing.git') } : {}),
         }, encoding: 'utf8', timeout: 10000,
       });
       assert.equal(child.status, expected === 'live' ? 0 : 1, child.stderr);
       const text = readFileSync(output, 'utf8');
       if (!expected) {
-        assert.equal(text, '', 'an API failure must not emit an App Store conclusion');
+        assert.equal(text, '', 'failed verification must not emit an App Store conclusion');
+        if (!nativeTree) {
+          assert.match(child.stderr, /Could not compute.*native tree/);
+          assert.doesNotMatch(child.stderr, /bump|ios-update|release again/i);
+        }
       } else {
         const result = JSON.parse(text.trim().slice('gate_result='.length));
         assert.equal(result.kind, expected);

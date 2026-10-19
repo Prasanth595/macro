@@ -1096,11 +1096,18 @@ ${distributionUrl}`);
   }
   const stamp = (await buildStamp(attachedBuild.data.id))?.tree ?? null;
   const ours = nativeTreeHash();
-  if (!ours || stamp !== ours) {
+  if (!ours) {
+    console.error(
+      "Could not compute this checkout's native tree; the live build could not be verified. " +
+        "Check the Git checkout and rerun the check.",
+    );
+    exit(1);
+  }
+  if (stamp !== ours) {
     report("mismatch", "The live build does not match this PR's current merge result.", state);
     console.error(`App Store version ${version} (${build}) is live, but that build was not built from
 the native code this merge would produce: its stamp is ${stamp ?? "missing (uploaded outside the release flow)"},
-the merge result's native tree (${NATIVE_TREE_PATH}) is ${ours ?? "unknown"}.
+the merge result's native tree (${NATIVE_TREE_PATH}) is ${ours}.
 Either native commits were pushed to this PR after the release, native code landed
 on main since the release (so the merge would contain code the shipped build lacks),
 or another PR / a hand release shipped the same version + build number. Merging main
