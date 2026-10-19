@@ -7,10 +7,12 @@ import { Sdk as ContactsSdk } from '../../generated/contacts/sdk.gen';
 import { Sdk as EmailSdk } from '../../generated/email/sdk.gen';
 import { Sdk as NotificationSdk } from '../../generated/notification/sdk.gen';
 import { Sdk as PropertiesSdk } from '../../generated/properties/sdk.gen';
+import { Sdk as ScheduledActionSdk } from '../../generated/scheduled-action/sdk.gen';
 import { Sdk as SearchSdk } from '../../generated/search/sdk.gen';
 import { createClient } from '../../generated/storage/client';
 import { Sdk as StorageSdk } from '../../generated/storage/sdk.gen';
 import type { Bot } from '../../generated/storage/types.gen';
+import { Sdk as UnfurlSdk } from '../../generated/unfurl/sdk.gen';
 import {
   type Env,
   HOSTS,
@@ -95,6 +97,8 @@ export async function requestAuthHeaders(
 }
 
 export class MacroClient {
+  readonly scheduledAction: ScheduledActionSdk;
+  readonly unfurl: UnfurlSdk;
   readonly agentHarness: AgentHarnessSdk;
   readonly auth: AuthSdk;
   readonly calendar: CalendarSdk;
@@ -141,6 +145,18 @@ export class MacroClient {
     }
     this.wsVerify = opts.wsVerify;
 
+    this.scheduledAction = observeSdk(
+      new ScheduledActionSdk({
+        client: this.makeClient(hosts['scheduled-action']),
+      }),
+      'scheduled-action',
+      opts.onRequest,
+    );
+    this.unfurl = observeSdk(
+      new UnfurlSdk({ client: this.makeClient(hosts.unfurl) }),
+      'unfurl',
+      opts.onRequest,
+    );
     this.agentHarness = observeSdk(
       new AgentHarnessSdk({
         client: this.makeClient(hosts['agent-harness']),

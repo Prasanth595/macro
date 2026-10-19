@@ -27,6 +27,7 @@ import { MacroApiError, MacroError, unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { MacroEntity } from '../entity';
 import type { PropertyDefinition } from '../properties/property-definition';
+import { EntityAccess } from '../sharing/access';
 import { User } from '../users/user';
 import { DatabaseColumn } from './column';
 import type { DatabaseRow } from './row';
@@ -241,6 +242,8 @@ function soleResult<
  * loads lazily on first field access and is dropped after any mutation.
  */
 export class Database extends MacroEntity<DatabaseDetail> {
+  /** Access requests and direct user grants. */
+  readonly access = new EntityAccess(this.client, 'database', this);
   protected async fetch(): Promise<DatabaseDetail> {
     return unwrap(
       await this.client.storage.getDatabase({ path: { id: this.id } }),

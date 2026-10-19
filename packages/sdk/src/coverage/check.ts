@@ -18,6 +18,8 @@ const ROOT = join(import.meta.dir, '..', '..');
 // ...). A service that is not wired into MacroClient cannot be wrapped.
 const ACCESSORS: Partial<Record<(typeof services)[number], string>> = {
   'agent-harness': 'agentHarness',
+  'scheduled-action': 'scheduledAction',
+  unfurl: 'unfurl',
   auth: 'auth',
   calendar: 'calendar',
   cognition: 'cognition',
