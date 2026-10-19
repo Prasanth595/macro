@@ -3,11 +3,12 @@ import {
   ListGroupDropdown,
   ListSortDropdown,
   useViewControlHotkeys,
-  ViewLayoutDropdown,
+  type ViewLayout,
 } from '@app/components/view-shell';
 import { ListHeaderGroup } from '@app/components/view-shell/ListHeader';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import { SegmentedControl } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
 import { createSignal, Show } from 'solid-js';
 import { TASK_GROUP_OPTIONS, TASK_SORT_OPTIONS } from '../constants';
@@ -103,15 +104,20 @@ function DesktopTasksControls() {
           </Show>
         </div>
       </ListHeaderGroup>
+      <SegmentedControl<ViewLayout>
+        aria-label="Task layout"
+        class="shrink-0 border-edge-button bg-control"
+        value={state.layout}
+        options={[
+          { value: 'list', label: 'List' },
+          { value: 'board', label: 'Board' },
+          ...(ganttEnabled()
+            ? [{ value: 'gantt' as const, label: 'Gantt' }]
+            : []),
+        ]}
+        onChange={(layout) => setState('layout', layout)}
+      />
       <ListHeaderGroup label="Task view options">
-        <ViewLayoutDropdown
-          label="Task layout"
-          value={state.layout}
-          layouts={
-            ganttEnabled() ? ['list', 'board', 'gantt'] : ['list', 'board']
-          }
-          onChange={(layout) => setState('layout', layout)}
-        />
         <Show
           when={!isBoardSearch()}
           fallback={

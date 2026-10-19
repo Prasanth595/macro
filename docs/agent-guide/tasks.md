@@ -3,8 +3,9 @@
 ## Surface
 
 `Go to Tasks` → `/app/component/tasks`. Tabs: `My tasks`, `Created by me`, `Team tasks`, and `Projects`.
-The single-row desktop header contains the title, `Filter`, an icon-only
-`Task layout` dropdown, `Sort`, `Group`, `New`, and an expandable Search icon
+The single-row desktop header contains the title, `Filter`, a separate
+`Task layout` single-select group for `List`, `Board`, and enabled `Gantt`,
+`Sort`, `Group`, `New`, and an expandable Search icon
 (`Ctrl+F` opens it);
 the filter uses the legacy compact option rows and searchable Assignee, Created by,
 and Tags submenus. Multi-select choices keep the menu open; Escape dismisses it.
@@ -103,7 +104,7 @@ the optimistic tag. Repeat with an existing assignment and with removal.
 
 ## Gantt layout
 
-Choose **Gantt** from the **Task layout** dropdown to see task timelines.
+Choose **Gantt** in the **Task layout** group to see task timelines.
 The same option is available in a project's Tasks section. The timeline uses
 Created at as the start and Due date as the end; no separate Start date is
 created or saved. Bars without a due date fade to transparent at the right edge.
@@ -241,8 +242,8 @@ Gantt persists in `tasks.layout` or `projectTasks.layout`, just like List and Bo
 
 ## Board layout
 
-Open the icon-only **Task layout** dropdown in the toolbar and choose **Board**
-(or **List** to switch back). Its icon reflects the current layout. **Group by**
+Choose **Board** in the **Task layout** group in the toolbar
+(or **List** to switch back). One segment is selected at a time. **Group by**
 offers Status, Priority, Assignee, and (when Projects is enabled) Project.
 Both layouts share one grouping, which restores with the Tasks navigation entry.
 List-only None and Date groupings display Status columns in Board; switching
@@ -677,7 +678,7 @@ tasks whose Project property names the project.
 
 The project's Tasks tab starts with task search, controls, and the selected List or
 Board layout; the project title and property pills appear only on Overview.
-Use the same icon-only **Task layout** dropdown to choose a layout. Both layouts
+Use the same **Task layout** group to choose a layout. Both layouts
 show only tasks linked to the current project and use the same filters and editors.
 Layout, sort direction, and grouping use `projectTasks.layout`, `projectTasks.sort`,
 `projectTasks.sortReversed`, and `projectTasks.groupBy` URL parameters, independent
