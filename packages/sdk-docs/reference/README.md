@@ -79,6 +79,37 @@ opens the methods and exact request and response types for that namespace.
 | [macro.events](src/events/receiver/classes/MacroEvents.md) | Live entity events your application can subscribe to through a stream or webhook receiver. |
 | [macro.webhooks](src/entities/webhooks/namespace/classes/WebhooksNamespace.md) | Persistent subscriptions that deliver events to your application's URL. |
 
+### Automation and resource management
+
+Routines, configurable agents and their hosts use typed handles:
+[macro.routines](src/entities/routines/namespace/classes/RoutineNamespace.md),
+[macro.agents](src/entities/agents/namespace/classes/AgentNamespace.md) and
+[macro.harnesses](src/entities/harnesses/namespace/classes/HarnessNamespace.md).
+Routine triggers can reference entities, and executions return transcript handles.
+Agent conversations and tool approvals retain channel/session scope.
+
+Use [macro.initiatives](src/entities/initiatives/namespace/classes/InitiativeNamespace.md)
+for task initiatives, [macro.meetings](src/entities/meetings/namespace/classes/MeetingNamespace.md)
+for schedules and invitations, and
+[macro.apiKeys](src/entities/api-keys/namespace/classes/ApiKeyNamespace.md) for credentials.
+API key creation returns the secret separately; handles serialize metadata only.
+
+CRM pipelines live at `macro.crm.pipelines`; tables, columns and rows retain their
+pipeline authorization boundary. Email supports editable drafts, upload and
+forwarded attachment handles, scheduled sends, importance filters and follow-ups.
+Draft writes retain the selected inbox, and plain HTML is encoded for the wire.
+
+Shareable resources expose `.access` for revision-aware requests and direct grants.
+Message-bearing resources expose `messageThreadById` and `timelinePage`; timeline
+messages are seeded handles. Calendar occurrence iteration seeds event handles and
+preserves its viewport while paging. Document versions and PDF annotations are
+scoped to their parent document.
+
+GitHub pull request snapshots and diffs use `macro.githubPullRequests`. Cross-resource
+mentions use `macro.entityMentions`, with typed source and target references.
+`macro.unfurls` reads URL metadata; `chat.send` returns a generation with a response
+message handle and explicit cancellation. `macro.ai.usage` reads usage summaries.
+
 ## How to use entity handles
 
 `macro.documents.byId(id)` creates a handle to an existing document. Creating
