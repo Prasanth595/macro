@@ -5,7 +5,7 @@ use macro_user_id::email::EmailStr;
 
 fn link(owner: &str, address: &str) -> Link {
     Link {
-        id: uuid::Uuid::new_v4(),
+        id: uuid::Uuid::now_v7(),
         macro_id: MacroUserIdStr::try_from_email(owner).unwrap(),
         fusionauth_user_id: "fa-user".to_owned(),
         email_address: EmailStr::try_from(address.to_owned()).unwrap(),

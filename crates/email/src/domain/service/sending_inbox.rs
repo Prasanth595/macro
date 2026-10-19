@@ -24,7 +24,6 @@ where
     T: EmailRepo,
     anyhow::Error: From<T::Err>,
 {
-    #[tracing::instrument(skip_all)]
     pub(crate) async fn resolve_sending_inbox_impl(
         &self,
         macro_id: MacroUserIdStr<'_>,
