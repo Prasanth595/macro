@@ -19,9 +19,20 @@ import TextB from '@phosphor/text-b.svg';
 import TextItalic from '@phosphor/text-italic.svg';
 import TextStrikethrough from '@phosphor/text-strikethrough.svg';
 import TextUnderline from '@phosphor/text-underline.svg';
-import { createMemo, createSignal, For, type JSX, Show } from 'solid-js';
+import {
+  createMemo,
+  createSignal,
+  For,
+  type JSX,
+  lazy,
+  Show,
+  Suspense,
+} from 'solid-js';
+import { DocMention } from './documents/DocMention';
 import { CUSTOMERS, type DemoCell } from './spreadsheet-demo-data';
 import './homepage-spreadsheet.css';
+
+const LinkedRecord = lazy(() => import('./SpreadsheetRecordPreview'));
 
 const NAME = 'Customers to reach';
 const COLUMNS = Array.from({ length: 26 }, (_, column) =>
@@ -85,6 +96,12 @@ export default function HomepageSpreadsheet() {
   const [rows, setRows] = createSignal(200);
   const [firstRow, setFirstRow] = createSignal(0);
   const [notice, setNotice] = createSignal('');
+  const [record, setRecord] = createSignal<DemoCell['reference']>();
+  let mentionTrigger: HTMLButtonElement | undefined;
+  const closeRecord = () => {
+    setRecord(undefined);
+    queueMicrotask(() => mentionTrigger?.focus({ preventScroll: true }));
+  };
   let grid: HTMLDivElement | undefined;
   let editInput: HTMLInputElement | undefined;
   const active = () => cells()[selected()] ?? { value: '' };
@@ -104,7 +121,10 @@ export default function HomepageSpreadsheet() {
   function commit() {
     if (!editing()) return;
     if (draft() !== active().value)
-      change({ ...cells(), [selected()]: { ...active(), value: draft() } });
+      change({
+        ...cells(),
+        [selected()]: { ...active(), value: draft(), reference: undefined },
+      });
     setEditing(false);
   }
   function select(next: string) {
@@ -193,6 +213,19 @@ export default function HomepageSpreadsheet() {
 
   return (
     <div class="relative pb-24">
+      <Show when={record()}>
+        {(reference) => (
+          <Suspense>
+            <LinkedRecord
+              company={cells()[`B${reference().row}`]?.value ?? ''}
+              person={cells()[`A${reference().row}`]?.value ?? ''}
+              email={cells()[`C${reference().row}`]?.value ?? ''}
+              kind={reference().kind}
+              onClose={closeRecord}
+            />
+          </Suspense>
+        )}
+      </Show>
       <div class="workspace-demo homepage-spreadsheet">
         <div class="homepage-compose-status">
           <span>{NAME}</span>
@@ -427,7 +460,11 @@ export default function HomepageSpreadsheet() {
                 event.preventDefault();
                 change({
                   ...cells(),
-                  [selected()]: { ...active(), value: '' },
+                  [selected()]: {
+                    ...active(),
+                    value: '',
+                    reference: undefined,
+                  },
                 });
               } else if (
                 event.key.length === 1 &&
@@ -513,7 +550,39 @@ export default function HomepageSpreadsheet() {
                           >
                             <Show
                               when={editing() && selected() === key}
-                              fallback={display(cell())}
+                              fallback={
+                                <Show
+                                  when={cell()?.reference}
+                                  fallback={display(cell())}
+                                >
+                                  {(reference) => (
+                                    <button
+                                      type="button"
+                                      class="homepage-sheet-mention"
+                                      aria-label={`Open ${cell()?.value}`}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        select(key);
+                                        mentionTrigger = event.currentTarget;
+                                        setRecord(reference());
+                                      }}
+                                      onDblClick={(event) =>
+                                        event.stopPropagation()
+                                      }
+                                      onKeyDown={(event) =>
+                                        event.stopPropagation()
+                                      }
+                                    >
+                                      <DocMention
+                                        item={{
+                                          kind: reference().kind,
+                                          label: cell()?.value ?? '',
+                                        }}
+                                      />
+                                    </button>
+                                  )}
+                                </Show>
+                              }
                             >
                               <input
                                 ref={editInput}

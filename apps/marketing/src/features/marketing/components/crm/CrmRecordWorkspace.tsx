@@ -1,4 +1,4 @@
-import { Match, Switch } from 'solid-js';
+import { type JSX, Match, Switch } from 'solid-js';
 import type { DummyWorkspace } from '../../primitives/createDummyWorkspace';
 import {
   type CompanySection,
@@ -16,6 +16,8 @@ import '../workspace/dummy-workspace.css';
 export function CrmRecordWorkspace(props: {
   workspace: DummyWorkspace;
   initialPanelOpen?: boolean;
+  pipeline?: JSX.Element;
+  hideCopyLink?: boolean;
   section?: CompanySection;
   onSectionChange?: (section: CompanySection) => void;
 }) {
@@ -25,7 +27,9 @@ export function CrmRecordWorkspace(props: {
       fallback={
         <WorkspaceCompanies
           workspace={w}
+          hideCopyLink={props.hideCopyLink}
           initialPanelOpen={props.initialPanelOpen}
+          pipeline={() => props.pipeline}
           section={props.section}
           onSectionChange={props.onSectionChange}
         />

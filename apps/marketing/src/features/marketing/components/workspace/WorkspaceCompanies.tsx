@@ -1,5 +1,5 @@
 import BuildingOffice from '@phosphor/building-office.svg';
-import { createEffect, createSignal, For, on, Show } from 'solid-js';
+import { createEffect, createSignal, For, type JSX, on, Show } from 'solid-js';
 import type { WorkspaceView } from '../../core/dummy-workspace';
 import { homepagePeople } from '../../core/homepage-demo-people';
 import { dealStages, type SampleCompany } from '../../core/workspace-fixtures';
@@ -32,6 +32,8 @@ const byRecency = (a: SampleCompany, b: SampleCompany) =>
  */
 export function WorkspaceCompanies(props: {
   workspace: DummyWorkspace;
+  hideCopyLink?: boolean;
+  pipeline?: (company: SampleCompany) => JSX.Element;
   /** The floating details panel is closed by default, as in the app. */
   initialPanelOpen?: boolean;
   section?: CompanySection;
@@ -207,6 +209,8 @@ export function WorkspaceCompanies(props: {
         <CompanyRecord
           workspace={w}
           company={company()}
+          hideCopyLink={props.hideCopyLink}
+          pipeline={props.pipeline?.(company())}
           section={props.section ?? localSection()}
           onSectionChange={(section) => {
             setLocalSection(section);

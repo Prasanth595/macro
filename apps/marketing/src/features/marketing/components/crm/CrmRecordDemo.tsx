@@ -1,9 +1,12 @@
 import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
-import { createDummyWorkspace } from '../../primitives/createDummyWorkspace';
+import { createStore } from 'solid-js/store';
+import type { SampleCompany } from '../../core/workspace-fixtures';
+import { createCrmDemoWorkspace } from '../../primitives/createCrmDemoWorkspace';
 import { createProductWalkthrough } from '../../primitives/createProductWalkthrough';
 import { DemoCursor } from '../DemoCursor';
 import { ProductDemo } from '../product/ProductPage';
 import type { CompanySection } from '../workspace/WorkspaceCompanies';
+import { CompanyPipelineEntry } from './CompanyPipelineEntry';
 import { CrmRecordWorkspace } from './CrmRecordWorkspace';
 
 /** Tab the walkthrough points at, then opens, for each step. */
@@ -17,11 +20,14 @@ const tour: (CompanySection | undefined)[] = [
   'overview',
 ];
 
-/** The Meadow's record: Emails, then Calls, then back to the Discussion. */
+/** Parlor Studio's record: Emails, then Calls, then back to the Discussion. */
 export function CrmRecordDemo() {
   let frame!: HTMLDivElement;
-  const w = createDummyWorkspace('crm');
+  const w = createCrmDemoWorkspace();
   w.open('crm', 'meadow');
+  const [deal, setDeal] = createStore<
+    Pick<SampleCompany, 'stage' | 'owner' | 'revenue'>
+  >({ stage: 'Demo', owner: 'jacob', revenue: '18000' });
   const [section, setSection] = createSignal<CompanySection>('overview');
   const [phase, setPhase] = createSignal(0);
   const [automatic, setAutomatic] = createSignal(true);
@@ -83,13 +89,14 @@ export function CrmRecordDemo() {
   return (
     <div ref={frame} class="crm-demo-frame" onFocusIn={pause}>
       <ProductDemo
-        label="The Meadow’s emails, calls, and team discussion in one record"
+        label="Parlor Studio’s emails, calls, and team discussion in one record"
         onInteract={pause}
         height={520}
         mobileHeight={600}
       >
         <CrmRecordWorkspace
           workspace={w}
+          pipeline={<CompanyPipelineEntry value={deal} onChange={setDeal} />}
           section={section()}
           onSectionChange={setSection}
         />

@@ -93,9 +93,9 @@ it('shows the described company and note at once with reduced motion', () => {
   expect(view.container.querySelector('.demo-cursor')).toBeNull();
 });
 
-it('tours The Meadow’s emails and calls, then returns to its Discussion', () => {
+it('tours Parlor Studio’s emails and calls, then returns to its Discussion', () => {
   const view = render(() => <CrmRecordDemo />);
-  expect(view.getByText(/Valentina asked about pricing/)).toBeTruthy();
+  expect(view.getByText(/Ava Chen asked about pricing/)).toBeTruthy();
   visible(true);
   vi.advanceTimersByTime(1400);
   expect(section(view)).toBe('Emails');
@@ -106,7 +106,7 @@ it('tours The Meadow’s emails and calls, then returns to its Discussion', () =
   expect(section(view)).toBe('Calls');
   expect(
     within(view.getByLabelText('Company calls')).getByText(
-      'Rollout check-in with The Meadow'
+      'Rollout check-in with Parlor Studio'
     )
   ).toBeTruthy();
   vi.advanceTimersByTime(2000);
@@ -119,20 +119,20 @@ it('filters the Emails tab by Signal and by your own threads', () => {
   const view = render(() => <CrmRecordDemo />);
   fireEvent.pointerDown(
     view.getByRole('group', {
-      name: 'The Meadow’s emails, calls, and team discussion in one record',
+      name: 'Parlor Studio’s emails, calls, and team discussion in one record',
     })
   );
   fireEvent.click(view.getByRole('radio', { name: 'Emails' }));
   const list = () => within(view.getByLabelText('Company emails'));
-  expect(list().getByText('Invitation: The Meadow · Demo')).toBeTruthy();
+  expect(list().getByText('Invitation: Parlor Studio · Demo')).toBeTruthy();
   fireEvent.click(view.getByRole('radio', { name: 'Signal' }));
-  expect(list().queryByText('Invitation: The Meadow · Demo')).toBeNull();
+  expect(list().queryByText('Invitation: Parlor Studio · Demo')).toBeNull();
   expect(list().getByText('Seats for the studio team')).toBeTruthy();
   fireEvent.click(view.getByRole('radio', { name: 'Me' }));
   expect(list().queryByText('Seats for the studio team')).toBeNull();
   expect(list().getByText('Recap from today')).toBeTruthy();
   fireEvent.click(view.getByRole('radio', { name: 'All' }));
-  expect(list().getByText('Invitation: The Meadow · Demo')).toBeTruthy();
+  expect(list().getByText('Invitation: Parlor Studio · Demo')).toBeTruthy();
   vi.advanceTimersByTime(20000);
   expect(section(view)).toBe('Emails');
 });
@@ -141,21 +141,21 @@ it('lists the record’s team, files, and tasks', () => {
   const view = render(() => <CrmRecordDemo />);
   fireEvent.pointerDown(
     view.getByRole('group', {
-      name: 'The Meadow’s emails, calls, and team discussion in one record',
+      name: 'Parlor Studio’s emails, calls, and team discussion in one record',
     })
   );
   fireEvent.click(view.getByRole('radio', { name: 'Team' }));
   const contacts = within(view.getByLabelText('Contacts'));
-  expect(contacts.getByText('alex@coparse.com')).toBeTruthy();
+  expect(contacts.getByText('alex@parlorstudio.example')).toBeTruthy();
   fireEvent.input(view.getByRole('textbox', { name: 'Search contacts' }), {
     target: { value: 'priya' },
   });
-  expect(contacts.queryByText('Valentina')).toBeNull();
+  expect(contacts.queryByText('Ava')).toBeNull();
   fireEvent.click(view.getByRole('radio', { name: 'Files' }));
   expect(
     view.getByRole('button', { name: 'Team rollout plan 9:30 AM' })
   ).toBeTruthy();
-  expect(view.getByText('The Meadow order form.pdf')).toBeTruthy();
+  expect(view.getByText('Parlor Studio order form.pdf')).toBeTruthy();
   fireEvent.click(view.getByRole('radio', { name: 'Tasks' }));
   expect(
     within(view.getByLabelText('Company tasks')).getByText(

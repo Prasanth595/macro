@@ -153,16 +153,12 @@ it('keeps the landing pipeline to three stages with clickable records and no sid
   expect(view.getByRole('region', { name: 'Negotiation deals' })).toBeTruthy();
   expect(view.getByRole('region', { name: 'Customer deals' })).toBeTruthy();
   expect(view.queryByRole('region', { name: 'Lead deals' })).toBeNull();
-  fireEvent.click(
-    view.getByRole('button', { name: 'Parlor Studio', exact: true })
-  );
+  fireEvent.click(view.getByRole('button', { name: 'Parlor Studio' }));
   expect(
     (view.getByRole('textbox', { name: 'Company name' }) as HTMLInputElement)
       .value
   ).toBe('Parlor Studio');
-  fireEvent.click(
-    view.getByRole('button', { name: 'Sales pipeline', exact: true })
-  );
+  fireEvent.click(view.getByRole('button', { name: 'Sales pipeline' }));
   expect(
     view.getByRole('region', { name: 'Sales pipeline board' })
   ).toBeTruthy();
@@ -176,14 +172,14 @@ it('moves deals, opens their context, and stops when a visitor takes over', () =
   expect(
     within(view.getByRole('region', { name: 'Negotiation deals' })).getByRole(
       'button',
-      { name: 'Parlor Studio', exact: true }
+      { name: 'Parlor Studio' }
     )
   ).toBeTruthy();
   vi.advanceTimersByTime(3300);
   expect(
     within(view.getByRole('region', { name: 'Customer deals' })).getByRole(
       'button',
-      { name: 'Bookend Retail', exact: true }
+      { name: 'Bookend Retail' }
     )
   ).toBeTruthy();
   vi.advanceTimersByTime(2000);
@@ -205,11 +201,50 @@ it('shows the email context and returns to the compact board when untouched', ()
     (
       view.getByRole('radio', {
         name: 'Emails',
-        exact: true,
       }) as HTMLInputElement
     ).checked
   ).toBe(true);
   vi.advanceTimersByTime(4500);
+  expect(
+    view.getByRole('region', { name: 'Sales pipeline board' })
+  ).toBeTruthy();
+});
+
+it('edits the linked pipeline entry from a company record and returns to the same table', async () => {
+  const view = render(() => <CrmPipelineScene />);
+  fireEvent.click(view.getByRole('button', { name: 'All records' }));
+  fireEvent.click(view.getByRole('button', { name: 'Parlor Studio' }));
+  const entry = within(
+    view.getByRole('article', { name: 'Sales pipeline entry' })
+  );
+  fireEvent.keyDown(entry.getByRole('button', { name: 'Change Stage' }), {
+    key: 'Enter',
+  });
+  fireEvent.keyDown(
+    await screen.findByRole('menuitem', { name: 'Negotiation' }),
+    { key: 'Enter' }
+  );
+  fireEvent.change(entry.getByRole('textbox', { name: 'Pipeline revenue' }), {
+    target: { value: '21000' },
+  });
+  fireEvent.click(entry.getByRole('button', { name: 'Open Sales pipeline' }));
+  expect(
+    view.getByRole('button', { name: 'Stage for Parlor Studio' }).textContent
+  ).toContain('Negotiation');
+  expect(
+    (
+      view.getByRole('textbox', {
+        name: 'Revenue for Parlor Studio',
+      }) as HTMLInputElement
+    ).value
+  ).toBe('21000');
+});
+
+it('keeps a mobile Back control available from every record tab', () => {
+  const view = render(() => <CrmPipelineScene />);
+  fireEvent.click(view.getByRole('button', { name: 'Parlor Studio' }));
+  fireEvent.click(view.getByRole('radio', { name: 'Team' }));
+  fireEvent.click(view.getByRole('button', { name: 'Back to Sales pipeline' }));
   expect(
     view.getByRole('region', { name: 'Sales pipeline board' })
   ).toBeTruthy();

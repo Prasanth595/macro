@@ -1,3 +1,4 @@
+import ArrowLeft from '@phosphor/arrow-left.svg';
 import BuildingOffice from '@phosphor/building-office.svg';
 import CaretDown from '@phosphor/caret-down.svg';
 import CaretRight from '@phosphor/caret-right.svg';
@@ -814,6 +815,8 @@ export function CompanyRecord(props: {
   panelOpen: boolean;
   onPanelChange: (open: boolean) => void;
   onOpenItem: (view: WorkspaceView, id: string) => void;
+  pipeline?: JSX.Element;
+  hideCopyLink?: boolean;
 }) {
   const w = props.workspace;
   const update = (patch: Partial<SampleCompany>) =>
@@ -839,6 +842,15 @@ export function CompanyRecord(props: {
       data-panel-open={props.panelOpen ? 'true' : 'false'}
     >
       <div class="sample-company-topbar">
+        <Button
+          class="sample-company-mobile-back"
+          variant="ghost"
+          size="icon-sm"
+          label={`Back to ${w.companyFilter()}`}
+          onClick={() => w.open('crm')}
+        >
+          <ArrowLeft />
+        </Button>
         <nav aria-label="CRM record location" class="sample-company-crumbs">
           <button
             type="button"
@@ -885,22 +897,24 @@ export function CompanyRecord(props: {
           />
         </div>
         <div class="ml-auto flex shrink-0 items-center gap-1">
-          <Button
-            variant="outline"
-            size="sm"
-            class="sample-company-copy shrink-0 bg-surface"
-            label="Copy company link"
-            onClick={() =>
-              void navigator.clipboard
-                ?.writeText(
-                  `${location.origin}/demo#company-${props.company.id}`
-                )
-                .catch(() => {})
-            }
-          >
-            <LinkIcon class="size-3.5" />
-            <span>Copy link</span>
-          </Button>
+          <Show when={!props.hideCopyLink}>
+            <Button
+              variant="outline"
+              size="sm"
+              class="sample-company-copy shrink-0 bg-surface"
+              label="Copy company link"
+              onClick={() =>
+                void navigator.clipboard
+                  ?.writeText(
+                    `${location.origin}/demo#company-${props.company.id}`
+                  )
+                  .catch(() => {})
+              }
+            >
+              <LinkIcon class="size-3.5" />
+              <span>Copy link</span>
+            </Button>
+          </Show>
           <Button
             variant="ghost"
             size="icon-md"
@@ -950,6 +964,7 @@ export function CompanyRecord(props: {
                   {(text) => <Description text={text()} />}
                 </Show>
               </div>
+              {props.pipeline}
               <Discussion
                 comments={props.company.comments}
                 onChange={(comments) => update({ comments })}

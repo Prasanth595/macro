@@ -17,20 +17,18 @@
 
 /* The agent section keeps the homepage pipeline and its request. */
 .crm-agent-scene .homepage-conversation { width: 100%; margin-bottom: 40px; }
-.crm-pipeline-frame { position: relative; overflow: hidden; border-radius: 16px; background: #121315; box-shadow: var(--glass-shadow); }
-.product-page .homepage-crm .mdf-frame { height: auto; padding: 0; background: transparent; overflow: visible; border-radius: 0; }
-.product-page .homepage-crm .mds-card { height: auto; max-width: none; background: transparent; box-shadow: none; border-radius: 0; }
-.product-page .homepage-crm .mdf-frame::before, .product-page .homepage-crm .mds-card::before { content: none; }
-.product-page .homepage-crm-footer { border: 0; }
 
 @media (max-width: 699px) {
   .crm-feature-links a { font-size: 12px; }
   .crm-feature-illustration { width: 150px; height: auto; aspect-ratio: 5 / 3; }
   .crm-agent-scene .homepage-conversation { margin-bottom: 24px; }
-  .product-page .homepage-crm-viewport { height: 290px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .crm-demo-pointer { display: none; }
   .crm-demo-frame [data-thread-id] > .sample-message-row,
   .crm-demo-frame .sample-thread-replies .sample-message-row:last-child { animation: none; }
 }
+
+/* Keep CRM on the product surface instead of the desktop wallpaper. */
+:root body .crm-hero-demo .email-desktop-demo[data-hero-frame=true] .email-desktop-wallpaper { padding: 0; border: 0; border-radius: 16px; background: none; box-shadow: none; }
+:root body .crm-hero-demo .email-desktop-demo[data-hero-frame=true] .email-desktop-wallpaper::before, :root body .crm-hero-demo .email-desktop-demo[data-hero-frame=true] .email-desktop-wallpaper::after { display: none; }

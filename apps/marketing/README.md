@@ -338,11 +338,19 @@ until the visitor enters a demo. `HomepageEmailCompose` retains the existing
 homepage appearance; the wallpaper hero is unchanged.
 
 `/crm` follows the same reading width, left-aligned slab headings, glass edges,
-and homepage closing animation. `WorkspaceDesktopDemo` supplies the shared Mac
-window and desktop background for both email and CRM. CRM demonstrates message-driven
+and homepage closing animation. `WorkspaceDesktopDemo` supplies the shared
+window chrome; CRM uses a plain product surface instead of the desktop wallpaper. CRM demonstrates message-driven
 record updates using the shared company UI, company enrichment, an editable customer record, company
-mentions in documents and chat, and an agent updating the pipeline. Keep these demos local and check the record interactions
-at both desktop and mobile widths.
+mentions in documents and chat, and an agent updating the pipeline. The hero and
+agent section both use `CrmPipelineScene`: the hero has the CRM navigation,
+board/table switch, and record search; the lower scene shows the focused animated
+pipeline. Its open-workspace link selects `/demo?scene=homepage&view=CRM`.
+`createCrmDemoWorkspace` supplies the same fictional accounts throughout the page.
+`CompanyPipelineEntry` follows `crm/components/pipeline-entry-cards` and appears
+between the company header and Discussion. Pipeline edits remain separate from
+company properties. Verify board/table switching, moving a deal, editing its
+pipeline entry from a record, and the mobile Back control. Keep these demos local
+and check the record interactions at both desktop and mobile widths.
 
 FAQ answers and the collapsed comparison are rendered in the initial HTML.
 The comparison uses a native `details` disclosure for both people and crawlers.
@@ -556,8 +564,14 @@ functional FAQs after moving or adding a comparison.
 - A personal agent progressively checks the calendar, reads the email and call,
   then presents its findings and creates the brief. Visitors can inspect those
   sources. Reduced motion shows the finished brief; interaction stops playback.
-- Macro produces a mockup from the client brief; the person then says only
-  “@Cursor, build this.” The attachment uses FolderComposerMockup, a static copy
+- The hero includes Macro’s source summary, a specific request to Cursor, and
+  Julia’s follow-up so both people and agents participate in the same channel.
+- Macro produces a folder-upload mockup from the client brief. Julia asks to
+  preserve nested folders; Macro clarifies the design before Jacob asks Cursor
+  to build it. Cursor acknowledges the request, returns a PR, and Julia checks
+  the preview. The sequence stops on interaction and completes without motion
+  when reduced motion is enabled. The attachment uses FolderComposerMockup,
+  a static copy
   of the app’s FolderComposer/EntityComposer presentation, not a hand-drawn SVG.
   The agent identity in that follow-up is a user mention, without a sparkle icon.
 
@@ -830,3 +844,12 @@ Julia’s Cc address is `julia@macro.com`. Spreadsheet and pipeline contacts use
 their company’s domain; fictional companies use reserved `.example` domains.
 
 Homepage feature dividers align with the heading text, above the description; coding agent logos sit in a separate row above the dividers. The document animation renders saved scheduling links as calendar mentions with a short label, matching Macro’s booking link presentation.
+
+### Linked homepage spreadsheet cells
+
+The company and person cells in `HomepageSpreadsheet` use the editor’s mention
+presentation. They open a local company record or its Team section through
+`SpreadsheetRecordPreview`, leaving the sheet selection and edits in place.
+Closing restores focus to the mention. Editing a linked cell into plain text
+removes its reference; undo restores it. Check mouse and keyboard opening,
+Escape/close, and phone-width record tabs.

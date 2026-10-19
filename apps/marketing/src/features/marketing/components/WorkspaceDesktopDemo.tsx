@@ -19,6 +19,7 @@ export function WorkspaceDesktopDemo(props: {
   view: WorkspaceView;
   label: string;
   heroFrame?: boolean;
+  demoHref?: string;
   /** Keep a desktop canvas intact inside a smaller marketing frame. */
   desktopWidth?: number;
   initialDocument?: string;
@@ -73,11 +74,12 @@ export function WorkspaceDesktopDemo(props: {
             <span>Macro</span>
             <a
               href={
-                props.agentShowcase
+                props.demoHref ??
+                (props.agentShowcase
                   ? '/demo?scene=agents'
                   : props.tasksShowcase
                     ? '/demo?scene=tasks'
-                    : '/demo'
+                    : '/demo')
               }
               target="_blank"
               rel="noreferrer"

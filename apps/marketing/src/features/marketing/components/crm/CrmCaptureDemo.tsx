@@ -1,22 +1,24 @@
 import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
+import { createStore } from 'solid-js/store';
 import type { WorkspaceComment } from '../../core/dummy-workspace';
 import type { SampleCompany } from '../../core/workspace-fixtures';
-import { createDummyWorkspace } from '../../primitives/createDummyWorkspace';
+import { createCrmDemoWorkspace } from '../../primitives/createCrmDemoWorkspace';
 import { createProductWalkthrough } from '../../primitives/createProductWalkthrough';
 import { DemoCursor } from '../DemoCursor';
 import { ProductDemo } from '../product/ProductPage';
+import { CompanyPipelineEntry } from './CompanyPipelineEntry';
 import { CrmRecordWorkspace } from './CrmRecordWorkspace';
 
 const request: WorkspaceComment = {
   id: 'capture-request',
   person: 'jacob',
-  body: '@[Claude](demo-mention:claude) just got off a call with Valentina. They want a demo Thursday at 9 for the studio team. Move The Meadow to Demo, make me the owner, and note that Alex is running the rollout on their side.',
+  body: '@[Claude](demo-mention:claude) just got off a call with Ava. They want a demo Thursday at 9 for the studio team. Move Parlor Studio to Demo, make me the owner, and note that Alex is running the rollout on their side.',
   time: '9:51 AM',
 };
 const reply: WorkspaceComment = {
   id: 'capture-reply',
   person: 'claude',
-  body: 'Done. The Meadow is in Demo and you’re the owner. From the call: demo Thursday at 9 with the studio team, and Alex (alex@coparse.com) is running the rollout on their side.',
+  body: 'Done. Parlor Studio is in Demo and you’re the owner. From the call: demo Thursday at 9 with the studio team, and Alex (alex@parlorstudio.example) is running the rollout on their side.',
   time: '9:52 AM',
   replyTo: 'capture-request',
 };
@@ -28,16 +30,20 @@ const reply: WorkspaceComment = {
  */
 export function CrmCaptureDemo() {
   let frame!: HTMLDivElement;
-  const w = createDummyWorkspace('crm');
+  const w = createCrmDemoWorkspace();
   const meadow = (patch: Partial<SampleCompany>) =>
     w.setData('companies', (company) => company.id === 'meadow', patch);
-  meadow({ stage: 'Lead', owner: '', comments: [request] });
+  meadow({ comments: [request] });
+  const [deal, setDeal] = createStore<
+    Pick<SampleCompany, 'stage' | 'owner' | 'revenue'>
+  >({ stage: 'Lead', owner: '', revenue: '18000' });
   w.open('crm', 'meadow');
   const [phase, setPhase] = createSignal(0);
   const [automatic, setAutomatic] = createSignal(true);
   const [pointer, setPointer] = createSignal<{ x: number; y: number }>();
   const finish = () => {
-    meadow({ stage: 'Demo', owner: 'jacob', comments: [request, reply] });
+    setDeal({ stage: 'Demo', owner: 'jacob' });
+    meadow({ comments: [request, reply] });
     setPhase(6);
   };
   const playback = createProductWalkthrough({
@@ -50,8 +56,8 @@ export function CrmCaptureDemo() {
     },
     delay: (step) => [0, 900, 900, 1000, 900, 1000, 900][step] ?? 1000,
     advance: (step) => {
-      if (step === 2) meadow({ stage: 'Demo' });
-      if (step === 4) meadow({ owner: 'jacob' });
+      if (step === 2) setDeal({ stage: 'Demo' });
+      if (step === 4) setDeal({ owner: 'jacob' });
       if (step === 6) {
         finish();
         setAutomatic(false);
@@ -115,13 +121,16 @@ export function CrmCaptureDemo() {
   return (
     <div ref={frame} class="crm-demo-frame" onFocusIn={pause}>
       <ProductDemo
-        label="Claude updates The Meadow from a comment in its Discussion"
+        label="Claude updates Parlor Studio from a comment in its Discussion"
         onInteract={pause}
         action={action()}
         height={600}
         mobileHeight={700}
       >
-        <CrmRecordWorkspace workspace={w} initialPanelOpen />
+        <CrmRecordWorkspace
+          workspace={w}
+          pipeline={<CompanyPipelineEntry value={deal} onChange={setDeal} />}
+        />
       </ProductDemo>
       <Show when={automatic() && pointer()}>
         {(p) => (

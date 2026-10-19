@@ -1,9 +1,16 @@
-import { cleanup, fireEvent, render } from '@solidjs/testing-library';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@solidjs/testing-library';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import HomepageEmailCompose from './HomepageEmailCompose';
 import HomepageSpreadsheet from './HomepageSpreadsheet';
 
 beforeEach(() => {
+  vi.stubGlobal('scrollTo', vi.fn());
   vi.stubGlobal('matchMedia', () => ({
     matches: true,
     addEventListener: vi.fn(),
@@ -13,6 +20,14 @@ beforeEach(() => {
     'IntersectionObserver',
     class {
       observe() {}
+      disconnect() {}
+    }
+  );
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
       disconnect() {}
     }
   );
@@ -76,6 +91,49 @@ describe('standalone website demos', () => {
       target: { files: [largeFile] },
     });
     expect(view.getByRole('alert').textContent).toContain('18 MB');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('opens company and person mentions locally and preserves the sheet on return', async () => {
+    const view = render(() => <HomepageSpreadsheet />);
+    const company = view.getByRole('button', { name: 'Open Coparse' });
+    fireEvent.click(company);
+    const dialog = await screen.findByRole('dialog', { name: 'Coparse' });
+    expect(
+      (
+        within(dialog).getByRole('textbox', {
+          name: 'Company name',
+        }) as HTMLInputElement
+      ).value
+    ).toBe('Coparse');
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: 'Close linked record' })
+    );
+    expect(
+      view
+        .getByRole('gridcell', { name: 'B2: Coparse' })
+        .getAttribute('aria-selected')
+    ).toBe('true');
+    fireEvent.click(view.getByRole('button', { name: 'Open Valentina' }));
+    const contact = await screen.findByRole('dialog', {
+      name: 'Valentina · Coparse',
+    });
+    expect(within(contact).getByText('valentina@coparse.com')).toBeTruthy();
+    fireEvent.click(
+      within(contact).getByRole('button', { name: 'Close linked record' })
+    );
+    const cell = view.getByRole('gridcell', { name: 'B2: Coparse' });
+    fireEvent.click(cell);
+    fireEvent.dblClick(cell);
+    fireEvent.input(view.getByRole('textbox', { name: 'Edit B2' }), {
+      target: { value: 'New company' },
+    });
+    fireEvent.keyDown(view.getByRole('textbox', { name: 'Edit B2' }), {
+      key: 'Enter',
+    });
+    expect(view.queryByRole('button', { name: 'Open New company' })).toBeNull();
+    fireEvent.click(view.getByRole('button', { name: 'Undo' }));
+    expect(view.getByRole('button', { name: 'Open Coparse' })).toBeTruthy();
     expect(fetch).not.toHaveBeenCalled();
   });
 

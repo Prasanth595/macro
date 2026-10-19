@@ -59,7 +59,7 @@ const owner = (view: ReturnType<typeof render>) =>
 
 it('lets Claude set the stage and owner, then answer in the Discussion thread', () => {
   const view = render(() => <CrmCaptureDemo />);
-  expect(view.getByText(/just got off a call with Valentina/)).toBeTruthy();
+  expect(view.getByText(/just got off a call with Ava/)).toBeTruthy();
   expect(stage(view)).toContain('Lead');
   expect(owner(view)).toContain('Empty');
   vi.advanceTimersByTime(10000);
@@ -74,13 +74,13 @@ it('lets Claude set the stage and owner, then answer in the Discussion thread', 
   visible(true);
   vi.advanceTimersByTime(1900);
   expect(owner(view)).toContain('Jacob');
-  expect(view.queryByText(/The Meadow is in Demo/)).toBeNull();
+  expect(view.queryByText(/Parlor Studio is in Demo/)).toBeNull();
   vi.advanceTimersByTime(1900);
   const thread = view.container.querySelector<HTMLElement>(
     '[data-thread-id="capture-request"]'
   );
   expect(
-    within(thread!).getByText(/The Meadow is in Demo and you’re the owner/)
+    within(thread!).getByText(/Parlor Studio is in Demo and you’re the owner/)
   ).toBeTruthy();
   expect(within(thread!).getByText('Agent')).toBeTruthy();
   expect(view.container.querySelector('.demo-cursor')).toBeNull();
@@ -92,13 +92,13 @@ it('stops the walkthrough when a visitor takes over the record', () => {
   vi.advanceTimersByTime(900);
   fireEvent.pointerDown(
     view.getByRole('group', {
-      name: 'Claude updates The Meadow from a comment in its Discussion',
+      name: 'Claude updates Parlor Studio from a comment in its Discussion',
     })
   );
   vi.advanceTimersByTime(20000);
   expect(stage(view)).toContain('Lead');
   expect(owner(view)).toContain('Empty');
-  expect(view.queryByText(/The Meadow is in Demo/)).toBeNull();
+  expect(view.queryByText(/Parlor Studio is in Demo/)).toBeNull();
   expect(view.container.querySelector('.demo-cursor')).toBeNull();
 });
 
@@ -107,7 +107,7 @@ it('shows the updated record and the reply at once with reduced motion', () => {
   const view = render(() => <CrmCaptureDemo />);
   expect(stage(view)).toContain('Demo');
   expect(owner(view)).toContain('Jacob');
-  expect(view.getByText(/The Meadow is in Demo/)).toBeTruthy();
+  expect(view.getByText(/Parlor Studio is in Demo/)).toBeTruthy();
   expect(view.container.querySelector('.demo-cursor')).toBeNull();
 });
 
@@ -116,10 +116,10 @@ it('posts a visitor’s comment and thread reply in the company Discussion', () 
   const comment = view.getByRole('textbox', { name: 'Comment on company' });
   expect(comment.getAttribute('placeholder')).toBe('Leave a comment...');
   fireEvent.input(comment, {
-    target: { value: 'Valentina confirmed 12 seats.' },
+    target: { value: 'Ava confirmed 12 seats.' },
   });
   fireEvent.keyDown(comment, { key: 'Enter' });
-  expect(view.getByText('Valentina confirmed 12 seats.')).toBeTruthy();
+  expect(view.getByText('Ava confirmed 12 seats.')).toBeTruthy();
   const thread = view.container.querySelector<HTMLElement>(
     '[data-thread-id="capture-request"]'
   );

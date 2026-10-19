@@ -28,9 +28,10 @@ import { WorkspaceDesktopDemo } from '../../features/marketing/components/Worksp
 import { crmGuides } from '../../features/marketing/content/feature-guides/crm';
 import { setPageSeo } from '../utils/utilSeo';
 import '../../features/marketing/components/crm/crm-page.css';
+import '../../features/marketing/components/homepage-pipeline-demo.css';
 
 const loadPipeline = () =>
-  import('../../features/marketing/components/HomepageCrm');
+  import('../../features/marketing/components/homepage/CrmPipelineScene');
 const PipelineDemo = lazy(loadPipeline);
 
 const faqItems = [
@@ -82,7 +83,21 @@ export function RouteCrm() {
         ]}
         cta="crm_hero_get_started"
       />
-      <WorkspaceDesktopDemo heroFrame view="crm" label="Explore Macro CRM" />
+      <div class="crm-hero-demo">
+        <WorkspaceDesktopDemo
+          heroFrame
+          view="crm"
+          label="Explore Macro CRM"
+          demoHref="/demo?scene=homepage&view=CRM"
+        >
+          <DeferredDemo
+            preload={loadPipeline}
+            fallback={<DemoPlaceholder label="Sales pipeline" />}
+          >
+            <PipelineDemo />
+          </DeferredDemo>
+        </WorkspaceDesktopDemo>
+      </div>
       <nav
         class="feature-page-jump-links crm-feature-links"
         aria-label="On this page"
@@ -156,21 +171,21 @@ export function RouteCrm() {
                 text: (
                   <>
                     <span class="homepage-person-mention">@Claude</span>, update
-                    the pipeline from our sales sync. Keystone Mechanical asked
-                    for a proposal, and Bookend Retail signed.
+                    the pipeline from our sales sync. Parlor Studio asked for a
+                    proposal, and Bookend Retail signed.
                   </>
                 ),
               },
             ]}
           />
-          <div class="crm-pipeline-frame glass-input">
+          <div class="homepage-pipeline-demo workspace-demo">
             <DeferredDemo
               preload={loadPipeline}
               fallback={
                 <DemoPlaceholder label="Agent updates the customer pipeline" />
               }
             >
-              <PipelineDemo playbackControls={false} />
+              <PipelineDemo compact />
             </DeferredDemo>
           </div>
         </DemoInteractionBoundary>

@@ -15,8 +15,9 @@ import {
   homepagePeople,
 } from '../../core/homepage-demo-people';
 import { type DealStage, dealStages } from '../../core/workspace-fixtures';
-import { createDummyWorkspace } from '../../primitives/createDummyWorkspace';
+import { createCrmDemoWorkspace } from '../../primitives/createCrmDemoWorkspace';
 import { createProductWalkthrough } from '../../primitives/createProductWalkthrough';
+import { CompanyPipelineEntry } from '../crm/CompanyPipelineEntry';
 import { DemoCursor } from '../DemoCursor';
 import { ViewSidebar } from '../DemoViewSidebar';
 import { ViewShell } from '../DemoWorkspaceChrome';
@@ -64,52 +65,9 @@ export default function CrmPipelineScene(props: { compact?: boolean } = {}) {
     dx: number;
     dy: number;
   }>();
-  const w = createDummyWorkspace('crm');
+  const w = createCrmDemoWorkspace();
   const [recordSection, setRecordSection] =
     createSignal<CompanySection>('overview');
-  // Fictional accounts for the public demo; IDs retain the linked sample records.
-  const accountNames: Record<string, string> = {
-    northstar: 'Miller & Rowe',
-    harbor: 'Juniper Dental',
-    ridgeline: 'Eastbank Architecture',
-    copperleaf: 'Acorn Accounting',
-    orbit: 'Fieldstone Software',
-    tidewater: 'Cedar Grove Physio',
-    fernway: 'Roamwell Travel',
-    meadow: 'Parlor Studio',
-    bluebird: 'Westport Freight',
-    sable: 'Paperhouse Creative',
-    lumen: 'Bookend Retail',
-    foxglove: 'Atelier Finch',
-    northwind: 'Keystone Mechanical',
-    granite: 'Benton Legal',
-    relay: 'Replywell',
-    pallet: 'Canopy Coffee',
-    fieldnote: 'Panelwork Research',
-    cedar: 'Studio Morrow',
-    fieldwork: 'Commonroom Offices',
-    brightline: 'Oaklane Tutoring',
-  };
-  let sampleData = JSON.stringify(w.data);
-  for (const entry of w.data.companies) {
-    const name = accountNames[entry.id];
-    if (name) sampleData = sampleData.replaceAll(entry.name, name);
-  }
-  sampleData = sampleData
-    .replaceAll('Valentina', 'Ava Chen')
-    .replaceAll('valentina@coparse.com', 'ava@parlorstudio.example');
-  w.setData(JSON.parse(sampleData));
-  w.setData('companies', (entries) =>
-    entries.map((entry) => ({
-      ...entry,
-      owner: entry.owner === 'valentina' ? 'gabriel' : entry.owner,
-      domain: `${(accountNames[entry.id] ?? entry.name).toLowerCase().replace(/[^a-z0-9]/g, '')}.example`,
-      contacts: entry.contacts.map((contact) => ({
-        ...contact,
-        email: `${contact.email.split('@')[0]}@${(accountNames[entry.id] ?? entry.name).toLowerCase().replace(/[^a-z0-9]/g, '')}.example`,
-      })),
-    }))
-  );
 
   const [sidebarOpen, setSidebarOpen] = createSignal(false);
   const [tab, setTab] = createSignal('pipeline');
@@ -424,6 +382,29 @@ export default function CrmPipelineScene(props: { compact?: boolean } = {}) {
             fallback={
               <WorkspaceCompanies
                 workspace={w}
+                pipeline={(record) => {
+                  const deal = () =>
+                    deals.find((entry) => entry.companyId === record.id);
+                  return (
+                    <Show when={deal()}>
+                      {(entry) => (
+                        <CompanyPipelineEntry
+                          value={entry()}
+                          onChange={(patch) =>
+                            setDeals(
+                              (item) => item.companyId === record.id,
+                              patch
+                            )
+                          }
+                          onOpen={() => {
+                            w.open('crm');
+                            setTab('pipeline');
+                          }}
+                        />
+                      )}
+                    </Show>
+                  );
+                }}
                 section={props.compact ? recordSection() : undefined}
                 onSectionChange={props.compact ? setRecordSection : undefined}
                 onOpenItem={(view, id) => setLinked({ view, id })}
@@ -798,7 +779,7 @@ export default function CrmPipelineScene(props: { compact?: boolean } = {}) {
               </span>
             </div>
             <div class="homepage-pipeline-fields">
-              <Show when={card().owner}>
+              <Show when={card().owner || undefined}>
                 {(owner) => (
                   <span class="homepage-pipeline-field">
                     <Users class="size-3.5" />

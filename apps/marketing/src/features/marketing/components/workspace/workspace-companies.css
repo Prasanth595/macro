@@ -117,3 +117,6 @@ button.sample-record-row:hover, div.sample-record-row:hover { background: var(--
   .sample-company-row[data-header] > span { white-space: nowrap; }
   .sample-company-row > :nth-child(3), .sample-company-row > :nth-child(4), .sample-company-row-domain { display: none; }
 }
+
+.sample-company-mobile-back { display: none; }
+@media (max-width: 699px) { .sample-company-mobile-back { display: inline-flex; flex: none; } }

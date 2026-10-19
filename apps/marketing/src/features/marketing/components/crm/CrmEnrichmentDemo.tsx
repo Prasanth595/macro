@@ -1,7 +1,7 @@
 import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
 import type { WorkspaceComment } from '../../core/dummy-workspace';
 import type { SampleCompany } from '../../core/workspace-fixtures';
-import { createDummyWorkspace } from '../../primitives/createDummyWorkspace';
+import { createCrmDemoWorkspace } from '../../primitives/createCrmDemoWorkspace';
 import { createProductWalkthrough } from '../../primitives/createProductWalkthrough';
 import { DemoCursor } from '../DemoCursor';
 import { ProductDemo } from '../product/ProductPage';
@@ -19,7 +19,7 @@ const kestrel: SampleCompany = {
   updated: '10:08 AM',
   lastInteracted: '2 minutes ago',
   unread: true,
-  contacts: [{ name: 'Priya Shah', email: 'priya@coparse.com' }],
+  contacts: [{ name: 'Priya Shah', email: 'priya@kestrel.example' }],
   comments: [],
   emailIds: [],
   emails: [
@@ -48,7 +48,7 @@ const note: WorkspaceComment = {
  */
 export function CrmEnrichmentDemo() {
   let frame!: HTMLDivElement;
-  const w = createDummyWorkspace('crm');
+  const w = createCrmDemoWorkspace();
   w.setCompanyLayout('List');
   const [phase, setPhase] = createSignal(0);
   const [automatic, setAutomatic] = createSignal(true);
