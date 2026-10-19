@@ -87,6 +87,7 @@ function Header(
         <div
           ref={searchArea}
           class="min-w-0 px-(--sidebar-gutter) pt-(--sidebar-gutter)"
+          style={{ '--view-search-height': 'var(--sidebar-row-height)' }}
           data-sidebar-search=""
         >
           {local.search?.()}

@@ -685,8 +685,11 @@ function CalendarSearchControl(props: {
           </Popover.Trigger>
         }
       >
-        <div class="relative h-10 min-w-0 w-full flex-1">
-          <Popover.Anchor as="div" class="h-10 w-full">
+        <div class="relative h-[var(--view-search-height,2.5rem)] min-w-0 w-full flex-1">
+          <Popover.Anchor
+            as="div"
+            class="h-[var(--view-search-height,2.5rem)] w-full"
+          >
             <Show when={props.expanded === false}>
               <Button
                 ref={searchButton}
