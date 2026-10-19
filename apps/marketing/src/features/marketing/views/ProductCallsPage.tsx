@@ -113,7 +113,7 @@ export function RouteCalls() {
         </FeaturePageSection>
         <FeaturePageSection
           id="call-followup"
-          title={['Turn what was said on your calls', 'into action']}
+          title={['Turn what was said on', 'your calls into action']}
           description="Make the decisions from a call part of the work that follows. Ask your agent to read the transcript, update a task, and add the owner and next steps you agreed on."
           details={callsGuides['call-followup']}
         >
