@@ -131,7 +131,7 @@ export function RouteTasks() {
         </section>
         <FeaturePageSection
           id="from-a-message"
-          title={['Turn requests', 'into tasks.']}
+          title={['Turn requests in chat', 'into tasks.']}
           description="Turn a request in chat into a task without copying it into another tool. Give it an owner, set the priority, and keep the original conversation close by."
           details={tasksGuides['from-a-message']}
         >
