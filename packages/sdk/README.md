@@ -186,7 +186,27 @@ Databases are collections of tables. Tables, columns, and views are parts of
 a database, not entities of their own, so they come back as handles that
 resolve through the database's schema.
 
-Every write to a database's schema or rows is an op sent to one endpoint,
+SQL is available through `database.query(sql)` or
+`macro.databases.query(sql, { database })`. The scoped database resolves
+unqualified names; joins can reach any other database the caller can view.
+Results contain discriminated cell values, typed source rows and table-version
+handles. SQL can also write; a statement executes once without automatic retries.
+
+```ts
+const database = macro.databases.byId('database-id');
+const result = await database.query('SELECT "Name" FROM "Guests"');
+console.log(result.result?.rows);
+await database.query(`UPDATE "Guests" SET "Status" = 'Going' WHERE "Name" = 'Sam'`, {
+  baseVersions: result.readVersions,
+});
+```
+
+`baseVersions` guards written tables atomically. Check `truncatedTables`:
+nonempty means a read hit the row cap and aggregates may be partial. SQL schemas
+are dynamic, so result cells use a generated tagged union rather than an inferred
+TypeScript interface for each table. The HTTP route is `POST /databases/query`.
+
+The SDK's schema methods write typed ops through one endpoint,
 `POST /databases/{id}/ops`. The methods below each send a one-op batch: the
 SDK mints the new table, column, and option ids (UUIDv7) itself and builds the
 handle it returns from the op's result.

@@ -311,6 +311,25 @@ Adopt a first-value type only while the owned column is empty and inferable.
 
 ***
 
+### query()
+
+> **query**(`sql`, `options?`): `Promise`\<[`DatabaseQueryResult`](../../query/interfaces/DatabaseQueryResult.md)\>
+
+Run one SQL statement with this database as the default name scope.
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `sql` | `string` |
+| `options?` | `Omit`\<[`DatabaseQueryOptions`](../../query/interfaces/DatabaseQueryOptions.md), `"database"`\> |
+
+#### Returns
+
+`Promise`\<[`DatabaseQueryResult`](../../query/interfaces/DatabaseQueryResult.md)\>
+
+***
+
 ### renameColumn()
 
 > **renameColumn**(`column`, `name`): `Promise`\<`number`\>

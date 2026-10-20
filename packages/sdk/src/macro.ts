@@ -252,6 +252,14 @@ export {
   PipelineRow,
   PipelineTable,
 } from './entities/crm/pipeline';
+export type {
+  DatabaseQueryOptions,
+  DatabaseQueryResult,
+  QueryColumn,
+  QueryResultSet,
+  QueryStatement,
+  QueryTableVersion,
+} from './entities/databases/query';
 export { DocumentAnchor } from './entities/documents/anchor';
 export { DocumentVersion } from './entities/documents/version';
 export {

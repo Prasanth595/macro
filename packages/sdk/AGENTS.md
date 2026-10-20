@@ -13,6 +13,7 @@ enforced by the ordinary backend APIs.
 - `src/entities/workspace/namespace.ts`: filtered activity pages and iteration.
 - `src/entities/routines/`, `agents/`, `harnesses/`: automation and agent hosts.
 - `src/entities/sharing/`, `messages/`: scoped access requests and message threads.
+- `src/entities/databases/query.ts`: SQL statements, typed table/row references and version guards.
 - `src/entities/crm/pipeline.ts`: pipeline-authorized table/row handles.
 - `services.ts`, `openapi-ts.config.ts`: generated service contract inputs.
 
@@ -48,3 +49,5 @@ excluded from source linting.
 - Pipeline schema reads share the parent's cache; successful op batches clear it.
 - Email sends and other writes against hosted data are real actions; use mocks
   for automated SDK mutation tests.
+
+- SQL result schemas are dynamic typed-cell unions; inspect `truncatedTables` before interpreting aggregates. Queries can write and are never retried automatically.

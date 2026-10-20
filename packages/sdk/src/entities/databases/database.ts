@@ -30,6 +30,11 @@ import type { PropertyDefinition } from '../properties/property-definition';
 import { EntityAccess } from '../sharing/access';
 import { User } from '../users/user';
 import { DatabaseColumn } from './column';
+import {
+  type DatabaseQueryOptions,
+  type DatabaseQueryResult,
+  queryDatabases,
+} from './query';
 import type { DatabaseRow } from './row';
 import { DatabaseTable } from './table';
 import type { DatabaseView } from './view';
@@ -279,6 +284,22 @@ export class Database extends MacroEntity<DatabaseDetail> {
   static async list(client: MacroClient): Promise<Database[]> {
     const listed = unwrap(await client.storage.listDatabases());
     return listed.map((entry) => new Database(client, entry.database.id));
+  }
+
+  /** Run one SQL statement with this database as the default name scope. */
+  query(
+    sql: string,
+    options?: Omit<DatabaseQueryOptions, 'database'>,
+  ): Promise<DatabaseQueryResult> {
+    return queryDatabases(this.client, Database.byId, sql, {
+      ...options,
+      database: this,
+    });
+  }
+
+  /** @internal Drop the schema snapshot after a successful SQL write. */
+  invalidateSchema(): void {
+    this.detail.clear();
   }
 
   /**

@@ -43,7 +43,7 @@ opens the methods and exact request and response types for that namespace.
 | [macro.tasks](src/entities/tasks/namespace/classes/TaskNamespace.md) | Work to track and complete, with assignees, due dates, and status. |
 | [macro.projects](src/entities/projects/namespace/classes/ProjectNamespace.md) | Collections that organize documents and other workspace items. |
 | [macro.workspace](src/entities/workspace/namespace/classes/WorkspaceNamespace.md) | A view across workspace activity, filtered by entity type, time, properties, or inbox state. |
-| [macro.databases](src/entities/databases/namespace/classes/DatabaseNamespace.md) | Structured information in tables, with columns, rows, cells, and views. |
+| [macro.databases](src/entities/databases/namespace/classes/DatabaseNamespace.md) | Structured information in tables, with typed handles, SQL queries, atomic version-guarded writes, and views. |
 | [macro.forms](src/entities/forms/namespace/classes/FormNamespace.md) | Questions that collect responses into a database without giving respondents access to its other rows. |
 | [macro.properties](src/entities/properties/namespace/classes/PropertiesNamespace.md) | Custom fields and their options, used to describe and filter entities. |
 | [macro.foreignEntities](src/entities/foreign/namespace/classes/ForeignEntityNamespace.md) | References to items in external systems that are linked into Macro. |

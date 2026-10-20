@@ -57,6 +57,7 @@
 - [src/entities/databases/column](src/entities/databases/column/README.md)
 - [src/entities/databases/database](src/entities/databases/database/README.md)
 - [src/entities/databases/namespace](src/entities/databases/namespace/README.md)
+- [src/entities/databases/query](src/entities/databases/query/README.md)
 - [src/entities/databases/row](src/entities/databases/row/README.md)
 - [src/entities/databases/table](src/entities/databases/table/README.md)
 - [src/entities/databases/view](src/entities/databases/view/README.md)

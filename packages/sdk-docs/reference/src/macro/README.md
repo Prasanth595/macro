@@ -124,6 +124,18 @@ Re-exports [CrmPipeline](../entities/crm/pipeline/classes/CrmPipeline.md)
 
 ***
 
+### DatabaseQueryOptions
+
+Re-exports [DatabaseQueryOptions](../entities/databases/query/interfaces/DatabaseQueryOptions.md)
+
+***
+
+### DatabaseQueryResult
+
+Re-exports [DatabaseQueryResult](../entities/databases/query/interfaces/DatabaseQueryResult.md)
+
+***
+
 ### DecisionRequest
 
 Re-exports [DecisionRequest](../../generated/cognition/types.gen/type-aliases/DecisionRequest.md)
@@ -451,6 +463,30 @@ Re-exports [PipelineTable](../entities/crm/pipeline/classes/PipelineTable.md)
 ### PullRequestChangeset
 
 Re-exports [PullRequestChangeset](../entities/github-pull-requests/pull-request/classes/PullRequestChangeset.md)
+
+***
+
+### QueryColumn
+
+Re-exports [QueryColumn](../entities/databases/query/type-aliases/QueryColumn.md)
+
+***
+
+### QueryResultSet
+
+Re-exports [QueryResultSet](../entities/databases/query/interfaces/QueryResultSet.md)
+
+***
+
+### QueryStatement
+
+Re-exports [QueryStatement](../entities/databases/query/type-aliases/QueryStatement.md)
+
+***
+
+### QueryTableVersion
+
+Re-exports [QueryTableVersion](../entities/databases/query/interfaces/QueryTableVersion.md)
 
 ***
 

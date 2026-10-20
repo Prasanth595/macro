@@ -424,6 +424,7 @@
   "storage.createDatabase": "Create Database",
   "storage.saveDatabaseQuery": "Save Database Query",
   "storage.getDatabaseQuery": "Get Database Query",
+  "storage.queryDatabases": "Query Databases",
   "storage.ensureStarterHandler": "Ensure Starter",
   "storage.deliverDatabaseWebhook": "Deliver Database Webhook",
   "storage.getDatabase": "Get Database",

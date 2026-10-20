@@ -100,3 +100,29 @@ export type EntityOutputContracts = [
     >
   >,
 ];
+
+/** SQL scopes and write guards accept database/table handles rather than raw IDs. */
+export type QueryInputContracts = [
+  AssertFalse<
+    Accepts<
+      NonNullable<Parameters<Macro['databases']['query']>[1]>['database'],
+      string
+    >
+  >,
+  AssertFalse<
+    Accepts<
+      NonNullable<
+        NonNullable<Parameters<Macro['databases']['query']>[1]>['baseVersions']
+      >[number]['table'],
+      string
+    >
+  >,
+  AssertTrue<
+    Accepts<
+      NonNullable<
+        NonNullable<Parameters<Macro['databases']['query']>[1]>['baseVersions']
+      >[number],
+      Awaited<ReturnType<Macro['databases']['query']>>['readVersions'][number]
+    >
+  >,
+];
