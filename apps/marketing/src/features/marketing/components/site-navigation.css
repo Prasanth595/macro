@@ -60,8 +60,17 @@
 .site-header a.site-nav-open {
   --cta-footer-width: 172px;
   position: relative; isolation: isolate;
-  min-width: 0; padding-inline: 12px; gap: 8px;
+  min-width: 0; padding-inline: 18px; gap: 8px;
   background: transparent; border-color: transparent; color: var(--nav-ink); box-shadow: none;
+}
+/* A quiet filled pill that fades with its label during the footer transition. */
+.site-header a.site-nav-open::before {
+  content: ''; position: absolute; inset: -1px; z-index: -1; pointer-events: none;
+  border: 1px solid color-mix(in srgb, var(--nav-ink) 18%, transparent);
+  border-radius: inherit; background: color-mix(in srgb, var(--nav-ink) 14%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--nav-ink) 7%, transparent);
+  opacity: clamp(0, calc(1 - var(--cta-landing, 0) * 2), 1);
+  transition: background-color 140ms ease, border-color 140ms ease;
 }
 /* Fade the header label out fully before the footer presentation appears. */
 .site-nav-open-label { opacity: clamp(0, calc(1 - var(--cta-landing, 0) * 2), 1); }
@@ -90,12 +99,14 @@
   .site-nav-start:hover { background-color: #fff; border-color: #fff; }
   .site-nav-start:hover svg { transform: translateX(2px); }
   .site-nav-demo:hover { background-color: color-mix(in srgb, var(--nav-ink) 12%, transparent); border-color: color-mix(in srgb, var(--nav-ink) 25%, transparent); }
-  .site-header a.site-nav-open:hover { background-color: color-mix(in srgb, var(--nav-ink) 5%, transparent); border-color: transparent; }
+  .site-header a.site-nav-open:hover { background-color: transparent; border-color: transparent; }
+  .site-header a.site-nav-open:hover::before { background-color: color-mix(in srgb, var(--nav-ink) 20%, transparent); border-color: color-mix(in srgb, var(--nav-ink) 24%, transparent); }
 }
 .site-nav-open:active .site-nav-open-footer { filter: brightness(.93); }
 .site-nav-start:active { background-color: #e9e6df; box-shadow: inset 0 1px 2px #0000001a; }
 .site-nav-demo:active { background-color: color-mix(in srgb, var(--nav-ink) 16%, transparent); }
-.site-header a.site-nav-open:active { background-color: color-mix(in srgb, var(--nav-ink) 9%, transparent); }
+.site-header a.site-nav-open:active { background-color: transparent; box-shadow: none; }
+.site-header a.site-nav-open:active::before { background-color: color-mix(in srgb, var(--nav-ink) 11%, transparent); }
 .site-nav-start:focus-visible, .site-nav-demo:focus-visible { outline: 2px solid var(--nav-ink, var(--color-ink)); outline-offset: 4px; }
 @keyframes site-menu-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
 .site-header :focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
@@ -108,13 +119,13 @@
   .site-header :is(.site-nav-start, .site-nav-demo) { min-height: 44px; padding: 9px 12px; font-size: 13px; }
   .site-nav-start { min-width: 144px; min-height: 48px; padding: 10px 18px; gap: 12px; font-size: 15px; }
   .site-nav-start svg { width: 22px; height: 22px; }
-  .site-header a.site-nav-open { padding-inline: 10px; gap: 8px; }
+  .site-header a.site-nav-open { padding-inline: 14px; gap: 8px; }
   .site-header .site-nav-start svg { width: 18px; height: 18px; }
   .site-menu-panel { grid-template-columns: 1fr 1.2fr; width: calc(100vw - 32px); max-height: calc(100dvh - 96px); padding: 20px 14px; gap: 20px 12px; }
   .site-menu-group:first-child { grid-row: span 2; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .site-menu-trigger, .site-menu-mark > span, .site-nav-start, .site-nav-demo, .site-nav-start svg { transition: none; }
+  .site-menu-trigger, .site-menu-mark > span, .site-nav-start, .site-nav-demo, .site-nav-start svg, .site-header a.site-nav-open::before { transition: none; }
   .site-menu-panel { animation: none; }
 }
 .site-menu-mark > span:nth-child(1) { clip-path: polygon(12.500% 20.833%, 50.000% 20.833%, 87.500% 20.833%, 87.500% 25.000%, 87.500% 29.167%, 50.000% 29.167%, 12.500% 29.167%, 12.500% 25.000%, 12.500% 20.833%); }

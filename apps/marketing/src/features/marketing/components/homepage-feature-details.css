@@ -1,34 +1,11 @@
 .homepage-feature-more-group { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; margin-top: 16px; }
 .homepage-feature-more-label { margin-right: 6px; color: var(--color-ink-muted); font: 400 14px/1.5 'Inter Variable', Inter, sans-serif; }
 .homepage-feature-more { display: flex; justify-content: center; }
-.homepage-feature-more > button { display: inline-flex; align-items: center; justify-content: center; gap: 14px; min-height: 46px; padding: 10px 16px; border: 1px solid color-mix(in srgb, var(--color-ink) 10%, transparent); border-radius: 8px; background: color-mix(in srgb, var(--color-ink) 3%, transparent); color: var(--color-ink); font: 500 15px/1.5 'Inter Variable', Inter, sans-serif; cursor: pointer; }
-.homepage-feature-more > button:hover { background: color-mix(in srgb, var(--color-ink) 7%, transparent); }
-.homepage-feature-more > button > svg { width: 14px; height: 14px; color: var(--color-ink-muted); }
-.homepage-feature-more > button:focus-visible { outline: 2px solid var(--color-ink-muted); outline-offset: 3px; }
-.homepage-detail-backdrop { position: fixed; inset: 0; z-index: 10000; background: rgb(0 0 0 / 38%); }
-.homepage-detail-panel { position: fixed; inset: 12px 12px 12px auto; z-index: 10001; display: flex; flex-direction: column; width: min(calc(100vw - 24px), max(55vw, 760px)); min-height: 0; color: #eee; background: #111; border: 1px solid #ffffff18; border-radius: 12px; box-shadow: -12px 0 48px #0003; overflow: hidden; outline: none; font: 400 14px/1.5 'Inter Variable', Inter, sans-serif; }
-.homepage-detail-close { position: absolute; top: 12px; right: 12px; z-index: 2; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: #111d; color: #aaa; cursor: pointer; }
-.homepage-detail-close:hover { color: #fff; background: #222; }
-.homepage-detail-close:focus-visible { outline: 2px solid #aaa; outline-offset: 2px; }
-.homepage-detail-close svg { width: 20px; height: 20px; }
-.homepage-detail-page { position: relative; flex: 1; min-height: 0; }
-.homepage-detail-page iframe { display: block; width: 100%; height: 100%; border: 0; background: #000; }
-.homepage-detail-page > p { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: #999; background: #111; pointer-events: none; }
-html[data-palette='cream'] .homepage-detail-panel { color: #1d1c1a; background: #faf8f3; border-color: #1d1c1a20; }
-html[data-palette='cream'] .homepage-detail-close { color: #68655e; background: #faf8f3e6; }
-html[data-palette='cream'] .homepage-detail-close:hover { color: #1d1c1a; background: #eeebe3; }
-html[data-palette='cream'] .homepage-detail-page iframe, html[data-palette='cream'] .homepage-detail-page > p { background: #f5f1e8; }
-.homepage-detail-backdrop[data-expanded] { animation: homepage-detail-dim 160ms ease-out; }
-.homepage-detail-panel[data-expanded] { animation: homepage-detail-enter 180ms ease-out; }
-.homepage-detail-backdrop[data-closed], .homepage-detail-panel[data-closed] { animation: none; }
-@keyframes homepage-detail-dim { from { opacity: 0; } }
-@keyframes homepage-detail-enter { from { opacity: 0; transform: translateX(16px); } }
-@media (max-width: 767px) {
-  .homepage-detail-panel { inset: 0; width: 100%; border: 0; border-radius: 0; }
-  .homepage-detail-close { top: max(12px, env(safe-area-inset-top)); }
-}
+.homepage-feature-more > a { display: inline-flex; align-items: center; justify-content: center; gap: 14px; min-height: 46px; padding: 10px 16px; border: 1px solid color-mix(in srgb, var(--color-ink) 10%, transparent); border-radius: 8px; background: color-mix(in srgb, var(--color-ink) 3%, transparent); color: var(--color-ink); font: 500 15px/1.5 'Inter Variable', Inter, sans-serif; cursor: pointer; text-decoration: none; }
+.homepage-feature-more > a:hover { background: color-mix(in srgb, var(--color-ink) 7%, transparent); }
+.homepage-feature-more > a > svg { width: 14px; height: 14px; color: var(--color-ink-muted); }
+.homepage-feature-more > a:focus-visible { outline: 2px solid var(--color-ink-muted); outline-offset: 3px; }
 @media (max-width: 479px) {
   .homepage-feature-more-label { width: 100%; margin: 0; text-align: center; }
-  .homepage-feature-more > button { min-width: 116px; }
+  .homepage-feature-more > a { min-width: 116px; }
 }
-@media (prefers-reduced-motion: reduce) { .homepage-detail-backdrop[data-expanded], .homepage-detail-panel[data-expanded] { animation: none; } }

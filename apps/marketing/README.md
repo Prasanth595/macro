@@ -17,8 +17,9 @@ Slab display copy uses warm near-black (`#1d1c1a`) in the cream palette.
 
 Public calls to action use the shared `site-nav-start` treatment: warm white,
 soft pill corners, a fine border, and a 2px arrow shift on hover. `Talk to us` is a
-soft grey secondary action; the header's `Open app` is a quiet text action
-without an arrow. As it lands in the footer, the same link reveals the
+soft grey secondary action; the header's `Open app` has a slightly stronger grey
+fill, a fine border, and no arrow. Its fill fades with the header label during
+the footer transition. As it lands in the footer, the same link reveals the
 original wider white pill, glass rim, and arrow. It follows the existing scroll
 animation and fits within phone widths. Its header label fades out completely
 before the footer presentation fades in, so the two labels never overlap.
@@ -40,16 +41,13 @@ finish but has no looping glimmer. Cream typography from PR #8299 is preserved.
 
 The homepage feature sections retain the original centered headings, descriptions,
 conversations, and demos, with rules beside the descriptions. The CRM section
-uses the original standalone pipeline illustration and corrected fictional company names. A shared Learn more label and compact, consistently capitalized product buttons open the existing pages. Email and Chat have
-separate buttons, as do Documents and Tasks. Agents and CRM each have one.
-The panel uses 55% of desktop width (at least 760px, bounded by the viewport),
-with a floating close control and no extra title bar. Sheets has no dedicated product page, so it has no extra link.
-The drawer uses an iframe with `embed=feature`; product pages hide duplicate site
-navigation, closing CTA, and the viewport vignette only when embedded this way.
-Normal product routes are unchanged. Escape in the embedded page closes the
-drawer unless a nested dialog or menu is open, and closing returns focus to the
-opening button. On phones the panel fills the viewport. Content is maintained
-in the product pages, not in a separate set of homepage explanations.
+uses the original standalone pipeline illustration and corrected fictional company names.
+A shared Learn more label and styled product links open the full product pages in
+the same tab. Email and Chat link separately to `/email` and `/channels`, as do
+Documents and Tasks to their routes. Agents and CRM each have one link. Sheets
+has no dedicated product page, so it has no extra link. These are normal anchors,
+with browser Back and modifier-click behavior; the homepage no longer opens
+product pages in side panels or iframes.
 
 Marketing demos use `DemoInteractionBoundary`: wheel and touch gestures scroll
 the surrounding page until the visitor clicks or enters with the keyboard. The
@@ -299,11 +297,11 @@ navigation from the home link. Touch and narrow layouts have a separate menu
 toggle, so tapping the mark still goes home. Escape returns focus to the opener.
 
 `ProductFeatureDetails` opens an accessible right-side drawer on standalone
-product pages. In a homepage product preview (`embed=feature` inside an iframe),
+product pages. In a legacy embedded preview (`embed=feature` inside an iframe),
 it fills the existing panel viewport and shows Back instead of opening a
 narrower drawer. The underlying product page stays mounted: Back or Escape
-restores the card focus and scroll position. The homepage’s outer close button
-still closes the product preview. Detect preview mode with
+restores the card focus and scroll position. The homepage now links directly to full product pages instead of creating these
+previews. Detect legacy preview mode with
 `isEmbeddedProductPage`, shared with `FeaturePage`; the query alone does not
 activate it on a standalone page. Keep cards outside the demo interaction guard
 and leave the middle of the chapter free of divider rules.
