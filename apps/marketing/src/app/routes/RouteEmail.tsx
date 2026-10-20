@@ -7,7 +7,7 @@ import {
   AgenticEditingGraphic,
   EmailSharingGraphic,
   KeyboardSpeedGraphic,
-  OneInboxGraphic,
+  AutoTagsGraphic,
 } from '../../features/marketing/components/email/EmailFeatureGraphics';
 import { EmailKeyboardDemo } from '../../features/marketing/components/email/EmailKeyboardDemo';
 import { EmailSharingDemo } from '../../features/marketing/components/email/EmailSharingDemo';
@@ -115,7 +115,7 @@ export function RouteEmail() {
         aria-label="On this page"
       >
         <a href="#auto-tags">
-          <OneInboxGraphic />
+          <AutoTagsGraphic />
           <span>Tags</span>
         </a>
         <a href="#email-sharing">
@@ -163,7 +163,7 @@ export function RouteEmail() {
       </FeaturePageSection>
       <FeaturePageSection
         id="agentic-editing"
-        title={['Draft emails that', 'sound like you.']}
+        title={['Draft emails in your', 'voice with an agent.']}
         description="Ask an agent to prepare a reply using the email thread, relevant documents, meeting transcripts, and team conversations. Review and edit the draft before sending."
         details={emailGuides['agentic-editing']}
       >
