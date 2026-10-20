@@ -116,7 +116,7 @@ export function RouteEmail() {
       >
         <a href="#auto-tags">
           <OneInboxGraphic />
-          <span>All inboxes</span>
+          <span>Tags</span>
         </a>
         <a href="#email-sharing">
           <EmailSharingGraphic />
@@ -124,17 +124,17 @@ export function RouteEmail() {
         </a>
         <a href="#keyboard-speed">
           <KeyboardSpeedGraphic />
-          <span>Keyboard shortcuts</span>
+          <span>Superhuman speed</span>
         </a>
         <a href="#agentic-editing">
           <AgenticEditingGraphic />
-          <span>Draft with context</span>
+          <span>Agentic editing</span>
         </a>
       </nav>
       <FeaturePageSection
         id="auto-tags"
-        title={['All your inboxes.', 'One place to work.']}
-        description="Connect your Gmail and Google Workspace accounts. Read them together, focus on one account, and search across them without switching tabs."
+        title={['Make your inboxes', 'manageable.']}
+        description="Connect your personal and work inboxes across Gmail, Outlook, and more. Organize them with tags for customers, projects, and follow-ups."
         details={emailGuides['auto-tags']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
@@ -163,7 +163,7 @@ export function RouteEmail() {
       </FeaturePageSection>
       <FeaturePageSection
         id="agentic-editing"
-        title={['A reply with', 'the context built in.']}
+        title={['Draft emails that', 'sound like you.']}
         description="Ask an agent to prepare a reply using the email thread, relevant documents, meeting transcripts, and team conversations. Review and edit the draft before sending."
         details={emailGuides['agentic-editing']}
       >
