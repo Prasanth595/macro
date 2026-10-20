@@ -210,11 +210,11 @@ Left nav (feature and platform gates still apply):
 - **Workspace**: Team, Tags, Integrations (personal Gmail/GitHub accounts).
 - **Developer**: Agent connections, Runtimes, MCP server, API Keys, Bots.
 
-**Desktop App** (`/app/settings/desktop-app`) shows a compact version and
-build-date card in the desktop app. The date is when the running app bundle was
-built, not when it was installed on the computer. In the browser it links to the
-latest desktop release on GitHub, and only appears when the `desktop-app` PostHog
-flag is enabled. Native desktop always shows this section regardless of the flag;
+**Desktop App** (`/app/settings/desktop-app`) is titled
+**Desktop App (Alpha)** and shows a compact version and build-date card in the
+desktop app. The date is when the running app bundle was built, not when it was
+installed on the computer. In the browser it links to the latest desktop release
+on GitHub, and only appears when the `desktop-app` PostHog flag is enabled. Native desktop always shows this section regardless of the flag;
 native mobile never shows it.
 
 The **Mobile App** page is titled **Mobile app (Alpha)** and offers a QR code
@@ -434,11 +434,18 @@ Profile, Behavior, Runtime, Connections, Channels, Share. Connections is a radio
 connected) or `Specific apps`, which reveals a `Search connectors` box over the whole
 Pipedream catalog (results are `option` rows; picking one adds it) and a row per picked app
 with a connected / not-connected dot for the *current viewer* plus an inline `Connect`
-that opens the Pipedream Connect flow inside the page. Unconnected picks never block
+that opens the Pipedream Connect flow inside the web page. Native apps open
+consent in the system browser; choose **Return to Macro** after authorization
+to save the connection in the waiting app. Unconnected picks never block
 saving; each teammate connects their own account. An agent session that calls a picked
 but unconnected app gets a tool result saying so, and the agent's reply renders a
 `Connect <app>` chip that opens Agents → Connections for that app. The same page
 is also available as Settings → Agent connections.
+
+Reference captures from an isolated browser fixture: [native waiting dialog](media/pipedream/native-waiting.png)
+and [browser return page](media/pipedream/browser-return.png). The fixture uses
+the real UI and iframe messaging with simulated provider consent and native IPC;
+it does not exercise a real provider account or the operating system's app launch.
 
 To change an agent's picture, open `Edit <name>`, choose an image with `Upload`,
 wait for `Uploading…` to finish, then click `Save changes`. Images up to 16 MB
@@ -536,14 +543,3 @@ OAuth token.
 The Codex section and its auth/config requests were exercised in Chromium with
 mocked backend responses on 2026-09-15. Provider login and a full deployed Macro
 session were not exercised by that UI check.
-
-### GitHub reconnect recovery
-
-When GitHub reports that reauthentication is required, reconnect starts OAuth
-without first deleting the current Macro link. Cancelling OAuth preserves it.
-Selecting a different GitHub account fails without changing the connection; use
-Disconnect first to switch accounts.
-A successful callback refreshes the grant; if its old FusionAuth identity was
-deleted, all Macro accounts sharing that GitHub account move to the new grant.
-Verify reconnect both as the original linker and as another sharing account,
-and verify an upstream outage leaves the current links intact and reports an error.

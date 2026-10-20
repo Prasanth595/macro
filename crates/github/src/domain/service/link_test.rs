@@ -1,5 +1,4 @@
 mod lookup;
-mod recovery;
 use std::sync::{Arc, Mutex};
 
 use chrono::Utc;
@@ -23,12 +22,12 @@ use macro_user_id::{
 use crate::domain::{
     models::{
         EnrichedGithubPullRequest, GITHUB_PULL_REQUEST_FOREIGN_ENTITY_SOURCE, GithubAccessToken,
-        GithubDraftOutcome, GithubError, GithubExchangeTokenResponse, GithubGrantLinkOutcome,
-        GithubLink, GithubMergeMethod, GithubMergeOutcome, GithubMergeRejection,
-        GithubPullRequestDetails, GithubPullRequestMerge, GithubPullRequestMergeability,
-        GithubPullRequestMergeabilityEntry, GithubPullRequestNumber, GithubPullRequestRef,
-        GithubPullRequestUpdateRejection, GithubRepositoryMergeSettings, GithubUserInfo,
-        MergeGithubPullRequestRequest, SetGithubPullRequestDraftRequest,
+        GithubDraftOutcome, GithubError, GithubExchangeTokenResponse, GithubLink,
+        GithubMergeMethod, GithubMergeOutcome, GithubMergeRejection, GithubPullRequestDetails,
+        GithubPullRequestMerge, GithubPullRequestMergeability, GithubPullRequestMergeabilityEntry,
+        GithubPullRequestNumber, GithubPullRequestRef, GithubPullRequestUpdateRejection,
+        GithubRepositoryMergeSettings, GithubUserInfo, MergeGithubPullRequestRequest,
+        SetGithubPullRequestDraftRequest,
     },
     ports::{Auth, GithubLinkService, GithubOauth, GithubRepo},
 };
@@ -37,7 +36,6 @@ use super::{GithubLinkConfig, GithubLinkServiceImpl};
 
 #[derive(Clone)]
 struct StubGithubRepo {
-    account_lock: Arc<tokio::sync::Mutex<()>>,
     state: Arc<Mutex<StubGithubRepoState>>,
 }
 
@@ -70,7 +68,6 @@ impl StubGithubRepo {
     fn new(state: StubGithubRepoState) -> Self {
         Self {
             state: Arc::new(Mutex::new(state)),
-            account_lock: Arc::new(tokio::sync::Mutex::new(())),
         }
     }
 
@@ -115,19 +112,6 @@ impl StubGithubRepo {
 
 impl GithubRepo for StubGithubRepo {
     type Err = anyhow::Error;
-    type LinkGuard = Option<tokio::sync::OwnedMutexGuard<()>>;
-
-    async fn lock_user_link(&self, _user_id: &str) -> Result<Self::LinkGuard, Self::Err> {
-        Ok(None)
-    }
-    async fn lock_github_account(
-        &self,
-        guard: &mut Self::LinkGuard,
-        _github_user_id: &str,
-    ) -> Result<(), Self::Err> {
-        *guard = Some(self.account_lock.clone().lock_owned().await);
-        Ok(())
-    }
 
     async fn get_github_link_by_user_id<'a>(
         &self,
@@ -156,26 +140,6 @@ impl GithubRepo for StubGithubRepo {
 
     async fn insert_github_link(&self, link: &GithubLink) -> Result<(), Self::Err> {
         self.state.lock().unwrap().inserted_links.push(link.clone());
-        Ok(())
-    }
-
-    async fn reassign_github_grant(
-        &self,
-        github_user_id: &str,
-        previous_owner: &uuid::Uuid,
-        new_owner: &uuid::Uuid,
-    ) -> Result<(), Self::Err> {
-        let mut state = self.state.lock().unwrap();
-        for link in [&mut state.link_by_user_id].into_iter().flatten() {
-            if link.github_user_id == github_user_id && link.fusionauth_user_id == *previous_owner {
-                link.fusionauth_user_id = *new_owner;
-            }
-        }
-        if let Some(link) = &mut state.link_by_github_user_id {
-            if link.github_user_id == github_user_id && link.fusionauth_user_id == *previous_owner {
-                link.fusionauth_user_id = *new_owner;
-            }
-        }
         Ok(())
     }
 
@@ -499,11 +463,6 @@ struct StubAuthState {
     link_user_calls: u32,
     delete_user_link_calls: u32,
     access_token_error: Option<String>,
-    missing_access_token: bool,
-    missing_identity: Option<uuid::Uuid>,
-    link_error: Option<String>,
-    linked_identities: Vec<uuid::Uuid>,
-    link_barrier: Option<(Arc<tokio::sync::Notify>, Arc<tokio::sync::Notify>)>,
 }
 
 impl StubAuth {
@@ -533,27 +492,14 @@ impl Auth for StubAuth {
 
     async fn link_user(
         &self,
-        fusionauth_user_id: &uuid::Uuid,
+        _fusionauth_user_id: &uuid::Uuid,
         _idp_id: &str,
         _github_user_id: &str,
         _username: &str,
         _access_token: &str,
-    ) -> Result<GithubGrantLinkOutcome, Self::Err> {
-        let barrier = self.state.lock().unwrap().link_barrier.take();
-        if let Some((started, finish)) = barrier {
-            started.notify_one();
-            finish.notified().await;
-        }
-        let mut state = self.state.lock().unwrap();
-        state.link_user_calls += 1;
-        state.linked_identities.push(*fusionauth_user_id);
-        if state.missing_identity == Some(*fusionauth_user_id) {
-            return Ok(GithubGrantLinkOutcome::IdentityMissing);
-        }
-        if let Some(error) = &state.link_error {
-            return Err(anyhow::anyhow!(error.clone()));
-        }
-        Ok(GithubGrantLinkOutcome::Linked)
+    ) -> Result<(), Self::Err> {
+        self.state.lock().unwrap().link_user_calls += 1;
+        Ok(())
     }
 
     async fn delete_user_link(
@@ -569,15 +515,11 @@ impl Auth for StubAuth {
         &self,
         _fusionauth_user_id: &uuid::Uuid,
         _github_idp_id: &str,
-        _github_user_id: &str,
-    ) -> Result<Option<GithubAccessToken>, Self::Err> {
+    ) -> Result<GithubAccessToken, Self::Err> {
         if let Some(error) = &self.state.lock().unwrap().access_token_error {
             return Err(anyhow::anyhow!(error.clone()));
         }
-        if self.state.lock().unwrap().missing_access_token {
-            return Ok(None);
-        }
-        Ok(Some(GithubAccessToken::new(self.access_token.clone())))
+        Ok(GithubAccessToken::new(self.access_token.clone()))
     }
 }
 
@@ -1476,7 +1418,7 @@ async fn get_pull_request_mergeability_rejects_too_many_pull_requests() {
 }
 
 #[tokio::test]
-async fn link_user_as_sharer_refreshes_owner_grant() {
+async fn link_user_as_sharer_reuses_owner_grant_without_calling_auth() {
     let user_id = test_user_id();
     let owner_fusionauth_user_id = uuid::Uuid::from_u128(0xAAAA_AAAA_AAAA_AAAA_AAAA_AAAA_AAAA_AAAA);
     let arg_fusionauth_user_id = uuid::Uuid::from_u128(0xBBBB_BBBB_BBBB_BBBB_BBBB_BBBB_BBBB_BBBB);
@@ -1503,7 +1445,7 @@ async fn link_user_as_sharer_refreshes_owner_grant() {
     assert_eq!(inserted[0].fusionauth_user_id, owner_fusionauth_user_id);
     assert_ne!(inserted[0].fusionauth_user_id, arg_fusionauth_user_id);
 
-    assert_eq!(auth.link_user_calls(), 1);
+    assert_eq!(auth.link_user_calls(), 0);
     assert_eq!(repo.delete_in_progress_user_link_calls(), 1);
 }
 
@@ -1512,7 +1454,7 @@ async fn link_user_idempotent_relink_same_account_skips_insert() {
     let user_id = test_user_id();
     let existing = test_link(&user_id);
 
-    let repo = StubGithubRepo::linked(existing.clone()).with_account_owner(existing.clone());
+    let repo = StubGithubRepo::linked(existing.clone());
     let auth = StubAuth::new("valid-token");
     let service = service(repo.clone(), StubGithubOauth::new(false), auth.clone());
 
@@ -1532,7 +1474,7 @@ async fn link_user_idempotent_relink_same_account_skips_insert() {
     assert_eq!(link.github_user_id, existing.github_user_id);
     assert_eq!(link.fusionauth_user_id, existing.fusionauth_user_id);
 
-    assert_eq!(auth.link_user_calls(), 1);
+    assert_eq!(auth.link_user_calls(), 0);
     assert_eq!(repo.inserted_links().len(), 0);
     assert_eq!(repo.delete_in_progress_user_link_calls(), 1);
 }

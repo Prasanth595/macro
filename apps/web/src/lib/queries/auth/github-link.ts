@@ -87,11 +87,18 @@ export function useGithubLinkStatusQuery(
   });
 }
 
-export function invalidateGithubLinkStatus() {
-  return queryClient.invalidateQueries({
-    queryKey: authKeys.githubLinkStatus.queryKey,
-    refetchType: 'all',
+export async function invalidateGithubLinkStatus() {
+  const options = githubLinkStatusQueryOptions();
+  // A pre-OAuth request must not overwrite the newly verified connection.
+  await queryClient.cancelQueries({ queryKey: options.queryKey });
+  await queryClient.invalidateQueries({
+    queryKey: options.queryKey,
+    refetchType: 'none',
   });
+  // Invalidation skips queries whose observers are all disabled (for example,
+  // skipPreviewFetch mentions). Explicit fetching refreshes those readers too.
+  // Keep refresh failures in query state, not in the completed OAuth result.
+  return queryClient.prefetchQuery({ ...options, staleTime: 0 });
 }
 
 export function useInitGithubLinkMutation() {
