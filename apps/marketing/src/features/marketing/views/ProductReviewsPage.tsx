@@ -127,7 +127,7 @@ export function RouteGithub() {
         <FeaturePageSection
           id="coding-agents"
           title={['Ask an agent', 'to fix bugs.']}
-          description="Ask a connected coding agent to pick up a bug from the team conversation. Give it the context, then open its pull request in Macro to understand the changes and discuss the result."
+          description="Ask your coding agent to fix a bug as it comes up in your team conversations. It’ll see what was said and understand your request, then put up a PR."
           details={githubGuides['coding-agents']}
         >
           <div class="feature-page-visual">
