@@ -102,7 +102,7 @@ async fn unfinished_and_failed_replies_do_not_starve_later_recovery(pool: PgPool
         .await
         .unwrap();
     sqlx::query!("INSERT INTO agent_session (id, owner_id, bot_id, model, harness, workspace, for_warming) VALUES ($1, $2, $3, 'fixed', 'macrod', '/workspace', false)", session.as_uuid(), user.as_ref(), bot_id::MACRO_NEW_BOT_ID.as_uuid()).execute(&pool).await.unwrap();
-    let store = PgExternalReplyStore::new(pool);
+    let store = PgExternalReplyStore::new(pool.clone());
     let target = ExternalReplyTarget {
         origin: AnnounceOrigin {
             reuse_origin_message: false,
@@ -149,4 +149,63 @@ async fn unfinished_and_failed_replies_do_not_starve_later_recovery(pool: PgPool
             .unwrap()
             .finalized
     );
+
+    // Old unmatched replies back off but remain eligible for late answers.
+    let action = first[0].action_id;
+    sqlx::query!("UPDATE agent_external_replies SET created_at = now() - interval '25 hours', updated_at = now() WHERE session_id = $1 AND action_id = $2", session.as_uuid(), action.as_uuid()).execute(&pool).await.unwrap();
+    assert!(
+        !store
+            .pending(200)
+            .await
+            .unwrap()
+            .iter()
+            .any(|row| row.action_id == action)
+    );
+    sqlx::query!("UPDATE agent_external_replies SET updated_at = now() - interval '2 hours' WHERE session_id = $1 AND action_id = $2", session.as_uuid(), action.as_uuid()).execute(&pool).await.unwrap();
+    assert!(
+        store
+            .pending(200)
+            .await
+            .unwrap()
+            .iter()
+            .any(|row| row.action_id == action)
+    );
+    drop(store.claim(session, action).await.unwrap().unwrap());
+    assert!(
+        !store
+            .pending(200)
+            .await
+            .unwrap()
+            .iter()
+            .any(|row| row.action_id == action)
+    );
+    store.mark_announced(session, action).await.unwrap();
+    let created_at = store
+        .get(session, action)
+        .await
+        .unwrap()
+        .unwrap()
+        .created_at;
+    let completion = ExternalReplyCompletion {
+        turn: TurnId(0),
+        outcome: ReplyOutcome::Answered("Late answer".into()),
+    };
+    store.complete(session, action, &completion).await.unwrap();
+    assert!(
+        store
+            .pending(200)
+            .await
+            .unwrap()
+            .iter()
+            .any(|row| row.action_id == action)
+    );
+    store.reserve(session, action, &target).await.unwrap();
+    let row = store.get(session, action).await.unwrap().unwrap();
+    assert!(!row.finalized);
+    assert!(row.announced);
+    assert_eq!(row.created_at, created_at);
+    assert_eq!(row.completion.unwrap().outcome, completion.outcome);
+    store.finalize(session, action).await.unwrap();
+    store.complete(session, action, &completion).await.unwrap();
+    assert!(store.get(session, action).await.unwrap().unwrap().finalized);
 }

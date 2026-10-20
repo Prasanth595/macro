@@ -107,6 +107,12 @@ impl ExternalReplyStore for PgExternalReplyStore {
         })))
     }
 
+    async fn mark_announced(&self, session: AgentSessionId, action: AgentActionId) -> Result<()> {
+        sqlx::query!("UPDATE agent_external_replies SET announced = TRUE WHERE session_id = $1 AND action_id = $2", session.as_uuid(), action.as_uuid())
+            .execute(&self.pool).await.map_err(anyhow::Error::from)?;
+        Ok(())
+    }
+
     async fn finalize(&self, session: AgentSessionId, action: AgentActionId) -> Result<()> {
         sqlx::query!("UPDATE agent_external_replies SET finalized = TRUE, updated_at = now() WHERE session_id = $1 AND action_id = $2 AND target IS NOT NULL", session.as_uuid(), action.as_uuid())
             .execute(&self.pool).await.map_err(anyhow::Error::from)?;
@@ -114,7 +120,9 @@ impl ExternalReplyStore for PgExternalReplyStore {
     }
 
     async fn pending(&self, limit: u16) -> Result<Vec<ExternalReply>> {
-        sqlx::query_scalar!(r#"SELECT to_jsonb(reply) AS "value!" FROM agent_external_replies reply WHERE target IS NOT NULL AND NOT finalized ORDER BY updated_at, session_id, action_id LIMIT $1"#, i64::from(limit))
+        // Keep old unmatched replies recoverable, but don't rescan their logs
+        // every tick. A newly persisted completion bypasses this backoff.
+        sqlx::query_scalar!(r#"SELECT to_jsonb(reply) AS "value!" FROM agent_external_replies reply WHERE target IS NOT NULL AND NOT finalized AND (completion IS NOT NULL OR created_at > now() - interval '24 hours' OR updated_at <= now() - interval '1 hour') ORDER BY updated_at, session_id, action_id LIMIT $1"#, i64::from(limit))
             .fetch_all(&self.pool).await.map_err(anyhow::Error::from)?.into_iter().map(decode).collect()
     }
 }

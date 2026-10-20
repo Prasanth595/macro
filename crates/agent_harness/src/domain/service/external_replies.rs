@@ -51,11 +51,14 @@ where
     }
 
     /// Retry channel updates only; recovery never prompts the runtime again.
+    #[tracing::instrument(skip_all, fields(external_reply.pending = tracing::field::Empty), err)]
     pub async fn recover_external_replies(&self) -> Result<()> {
         let Some(store) = &self.inner.external_replies else {
             return Ok(());
         };
-        for reply in store.pending(100).await? {
+        let pending = store.pending(100).await?;
+        tracing::Span::current().record("external_reply.pending", pending.len());
+        for reply in pending {
             if let Err(error) = self
                 .inner
                 .reconcile_external_reply(reply.session_id, reply.action_id)
@@ -138,6 +141,7 @@ where
 
     /// Keep the terminal result before touching the channel, including when
     /// the observed trigger has not reached this replica yet.
+    #[tracing::instrument(skip_all, fields(%session_id, %action_id, ?turn))]
     pub(super) async fn complete_external_reply(
         &self,
         session_id: AgentSessionId,
@@ -168,7 +172,7 @@ where
         }
     }
 
-    #[tracing::instrument(skip(self), fields(%session_id, %action_id), err)]
+    #[tracing::instrument(skip(self), fields(%session_id, %action_id, external_reply.claimed = false), err)]
     async fn reconcile_external_reply(
         &self,
         session_id: AgentSessionId,
@@ -180,6 +184,7 @@ where
         let Some(_lease) = store.claim(session_id, action_id).await? else {
             return Ok(());
         };
+        tracing::Span::current().record("external_reply.claimed", true);
         let Some(mut reply) = store.get(session_id, action_id).await? else {
             return Ok(());
         };
@@ -224,22 +229,25 @@ where
         let session = self.sessions.get_session(session_id).await?;
         // Posting a reserved ID is idempotent and never overwrites a completed
         // or deleted message. A lost post response can therefore be retried.
-        self.announcer
-            .announce(SessionAnnouncement {
-                reply_message_id: Some(target.message_id),
-                reply_placement: target.origin.reply_placement,
-                reuse_origin_message: false,
-                session_id,
-                bot_id: session.bot_id,
-                is_coding: false,
-                origin_parent: target.origin.parent.clone(),
-                origin_thread_id: target.origin.thread_id,
-                origin_message_id: target.origin.message_id,
-                prompted_message_id: MessageId::first(AuthorKind::User),
-                prompted_content: String::new(),
-                triggered_by: target.actor.clone(),
-            })
-            .await?;
+        if !reply.announced {
+            self.announcer
+                .announce(SessionAnnouncement {
+                    reply_message_id: Some(target.message_id),
+                    reply_placement: target.origin.reply_placement,
+                    reuse_origin_message: false,
+                    session_id,
+                    bot_id: session.bot_id,
+                    is_coding: false,
+                    origin_parent: target.origin.parent.clone(),
+                    origin_thread_id: target.origin.thread_id,
+                    origin_message_id: target.origin.message_id,
+                    prompted_message_id: MessageId::first(AuthorKind::User),
+                    prompted_content: String::new(),
+                    triggered_by: target.actor.clone(),
+                })
+                .await?;
+            store.mark_announced(session_id, action_id).await?;
+        }
         if let Some(completion) = reply.completion {
             self.announcer
                 .resolve(ResolvedReply {

@@ -559,6 +559,8 @@ the shimmer.
   never opened. Follow-up messages get their own replies. This requires a macrod
   build that sends source message IDs as control action IDs, together with the
   backend external-reply journal; older daemons do not supply that correlation.
+  Replies older than 24 hours whose completion callback was lost are recovered
+  hourly, plus any recovery backlog. Normal completion handling remains immediate.
   The agent form retains sharing, name, `@tag`, runtime, default model, connections,
   channels, instructions, and permission policy.
   Runtime and short model lists use styled dropdown buttons: open the field and

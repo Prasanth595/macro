@@ -38,6 +38,10 @@ pub struct ExternalReply {
     pub target: Option<ExternalReplyTarget>,
     /// Absent while the runtime is still working.
     pub completion: Option<ExternalReplyCompletion>,
+    /// First reservation/result time; retries never reset the recovery backoff.
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    /// Whether the pending message was successfully posted.
+    pub announced: bool,
     /// Whether the reply was shown or its destination permanently disappeared.
     pub finalized: bool,
 }
@@ -75,6 +79,8 @@ pub trait ExternalReplyStore: Send + Sync + 'static {
         session: AgentSessionId,
         action: AgentActionId,
     ) -> Result<Option<Box<dyn ExternalReplyLease>>>;
+    /// Remember a successful post; a lost response still retries the reserved ID.
+    async fn mark_announced(&self, session: AgentSessionId, action: AgentActionId) -> Result<()>;
     /// Finish after posting succeeds or the origin is permanently invalid.
     async fn finalize(&self, session: AgentSessionId, action: AgentActionId) -> Result<()>;
     /// Bounded recovery of unfinished replies, including missing completion callbacks.

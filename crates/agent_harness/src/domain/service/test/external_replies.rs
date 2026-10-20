@@ -35,6 +35,8 @@ impl ExternalReplyStore for ReplyStore {
                 action_id: action,
                 target: None,
                 completion: None,
+                created_at: chrono::Utc::now(),
+                announced: false,
                 finalized: false,
             })
             .target
@@ -47,19 +49,19 @@ impl ExternalReplyStore for ReplyStore {
         action: AgentActionId,
         completion: &ExternalReplyCompletion,
     ) -> agent_session::domain::error::Result<()> {
-        self.rows
-            .lock()
-            .unwrap()
-            .entry((session, action))
-            .or_insert(ExternalReply {
-                session_id: session,
-                action_id: action,
-                target: None,
-                completion: None,
-                finalized: false,
-            })
-            .completion
-            .get_or_insert(completion.clone());
+        let mut rows = self.rows.lock().unwrap();
+        let row = rows.entry((session, action)).or_insert(ExternalReply {
+            session_id: session,
+            action_id: action,
+            target: None,
+            completion: None,
+            created_at: chrono::Utc::now(),
+            announced: false,
+            finalized: false,
+        });
+        if row.completion.is_none() {
+            row.completion = Some(completion.clone());
+        }
         Ok(())
     }
     async fn get(
@@ -80,6 +82,19 @@ impl ExternalReplyStore for ReplyStore {
             .try_lock_owned()
             .ok()
             .map(|lease| Box::new(lease) as Box<dyn ExternalReplyLease>))
+    }
+    async fn mark_announced(
+        &self,
+        session: AgentSessionId,
+        action: AgentActionId,
+    ) -> agent_session::domain::error::Result<()> {
+        self.rows
+            .lock()
+            .unwrap()
+            .get_mut(&(session, action))
+            .unwrap()
+            .announced = true;
+        Ok(())
     }
     async fn finalize(
         &self,
@@ -296,6 +311,13 @@ async fn recovery_rebuilds_a_missed_completion_from_the_durable_protocol_log() {
         session.id,
         &agent_fold::testing::TURN.replace("prompt-1", &source.to_string()),
     ));
+    store
+        .rows
+        .lock()
+        .unwrap()
+        .get_mut(&(session.id, AgentActionId::from_uuid(source)))
+        .unwrap()
+        .created_at -= chrono::TimeDelta::hours(25);
     let restarted = harness_sharing_repo(repo).with_external_replies(store.clone());
     // A retry can beat the periodic recovery worker; the durable prompt alone
     // must prevent re-executing it.
@@ -318,6 +340,80 @@ async fn recovery_rebuilds_a_missed_completion_from_the_durable_protocol_log() {
     assert_eq!(replies.len(), 1);
     assert_eq!(replies[0].message_id, original);
     assert_eq!(replies[0].outcome, ReplyOutcome::Answered("Done.".into()));
+    assert!(store.pending(100).await.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn successful_announcements_are_not_repeated_after_restart() {
+    let repo = InMemoryAgentSessionRepo::new();
+    let store = Arc::new(ReplyStore::default());
+    let mut service = harness_sharing_repo(repo.clone()).with_external_replies(store.clone());
+    Arc::get_mut(&mut service.inner).unwrap().coding_agents = Box::new(ChosenCodingAgents(false));
+    let session = service
+        .open_external_session(open_external_request("/workspace"))
+        .await
+        .unwrap();
+    let source = macro_uuid::generate_uuid_v7();
+    let action = AgentActionId::from_uuid(source);
+    service
+        .announce_external_prompt(
+            session.id,
+            AnnouncePrompt {
+                bot_id: session.bot_id,
+                origin: AnnounceOrigin {
+                    reuse_origin_message: false,
+                    reply_placement: Default::default(),
+                    parent: MessageParent::Channel(Uuid::from_u128(100)),
+                    thread_id: source,
+                    message_id: source,
+                },
+                content: "hello".into(),
+                sender: sender(),
+            },
+        )
+        .await
+        .unwrap();
+    let original = service.inner.announcer.announced_messages()[0].message_id;
+    let restarted = harness_sharing_repo(repo).with_external_replies(store.clone());
+    restarted.recover_external_replies().await.unwrap();
+    assert!(restarted.inner.announcer.announced().is_empty());
+    assert!(restarted.inner.announcer.resolved().is_empty());
+    store
+        .rows
+        .lock()
+        .unwrap()
+        .get_mut(&(session.id, action))
+        .unwrap()
+        .created_at -= chrono::TimeDelta::hours(25);
+    restarted.recover_external_replies().await.unwrap();
+    assert_eq!(store.pending(100).await.unwrap().len(), 1);
+    assert!(
+        store
+            .get(session.id, action)
+            .await
+            .unwrap()
+            .unwrap()
+            .completion
+            .is_none()
+    );
+    assert!(restarted.inner.announcer.resolved().is_empty());
+    restarted
+        .inner
+        .complete_external_reply(
+            session.id,
+            action,
+            TurnId(0),
+            ReplyOutcome::Answered("Late answer".into()),
+        )
+        .await;
+    let replies = restarted.inner.announcer.resolved();
+    assert_eq!(replies.len(), 1);
+    assert_eq!(replies[0].message_id, original);
+    assert_eq!(
+        replies[0].outcome,
+        ReplyOutcome::Answered("Late answer".into())
+    );
+    assert!(restarted.inner.announcer.announced().is_empty());
     assert!(store.pending(100).await.unwrap().is_empty());
 }
 
@@ -577,6 +673,16 @@ async fn recovery_finishes_a_turn_interrupted_before_an_acp_response() {
         .join("\n")
         .replace("prompt-1", &source.to_string());
     repo.extend_log(agent_fold::testing::parse_log_as(session.id, &interrupted));
+    store
+        .rows
+        .lock()
+        .unwrap()
+        .get_mut(&(session.id, AgentActionId::from_uuid(source)))
+        .unwrap()
+        .created_at -= chrono::TimeDelta::hours(25);
+    service.recover_external_replies().await.unwrap();
+    assert!(service.inner.announcer.resolved().is_empty());
+    assert_eq!(store.pending(100).await.unwrap().len(), 1);
     service
         .inner
         .sessions

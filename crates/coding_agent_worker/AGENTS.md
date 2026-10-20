@@ -49,8 +49,9 @@ external chat replies depend on it. Direct session controls still mint IDs.
 - `cargo test -p coding_agent_worker` (`SQLX_OFFLINE` unset).
 - `just run` (from this directory) to run the daemon against `macrod.toml` at
   the repo root.
-- `just build-static` to build and smoke-test the release `macrod` the way
+- `OPENSSL_NO_VENDOR=0 just build-static` to build and smoke-test the release `macrod` the way
   the tag workflow does (needs the Nix devshell: cargo-zigbuild, zig, cmake).
+  The override enables bundled OpenSSL for the musl target in the devshell.
 
 ## Gotchas
 
