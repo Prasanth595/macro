@@ -3,12 +3,18 @@ import { ChannelTopIcon } from '@channel/components/ChannelTopIcon';
 import { Resize } from '@core/component/Resize/Resize';
 import { useChannelName, useChannelType } from '@core/context/channels';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import { Accordion } from '@kobalte/core/accordion';
+import CaretRightIcon from '@phosphor/caret-right.svg';
 import XIcon from '@phosphor/x.svg';
 import { useChannelParticipantsQuery } from '@queries/channel/channel-participants';
-import { Button, Tabs } from '@ui';
-import { type JSX, type ParentProps, Show } from 'solid-js';
+import { Button } from '@ui';
+import { For, type JSX, type ParentProps, Show } from 'solid-js';
 import { useChannelTab } from './ChannelTabContext';
-import { CHANNEL_TABS, isChannelInfoTab } from './channel-tabs';
+import {
+  CHANNEL_TABS,
+  type ChannelInfoTab,
+  isChannelInfoTab,
+} from './channel-tabs';
 import { useChannelTabItems } from './use-channel-tab-items';
 
 /** The full channel column resizes with its details, including the top bar. */
@@ -49,9 +55,11 @@ export function ChannelInfoLayout(props: ParentProps<{ panel: JSX.Element }>) {
 }
 
 /** Full-height channel information beside both the conversation and its header. */
-export function ChannelInfoPanel(
-  props: ParentProps<{ channelId: string; fallbackName?: string }>
-) {
+export function ChannelInfoPanel(props: {
+  channelId: string;
+  fallbackName?: string;
+  children: (section: ChannelInfoTab) => JSX.Element;
+}) {
   const { infoPanel } = useChannelTab();
   const name = useChannelName(props.channelId, props.fallbackName);
   const channelType = useChannelType(props.channelId);
@@ -59,12 +67,14 @@ export function ChannelInfoPanel(
   const participants = () =>
     participantsQuery.isSuccess ? (participantsQuery.data ?? []) : [];
   const availableTabs = useChannelTabItems(props.channelId);
-  const tabs = () =>
-    CHANNEL_TABS.filter(
-      (tab) =>
-        isChannelInfoTab(tab.value) &&
-        availableTabs().some((available) => available.value === tab.value)
-    );
+  const sections = () =>
+    CHANNEL_TABS.flatMap((tab) => {
+      const value = tab.value;
+      return isChannelInfoTab(value) &&
+        availableTabs().some((available) => available.value === value)
+        ? [{ value, label: tab.label }]
+        : [];
+    });
 
   return (
     <Show when={infoPanel}>
@@ -75,7 +85,7 @@ export function ChannelInfoPanel(
           data-channel-info-panel
           inert={!panel().isOpen()}
           aria-hidden={!panel().isOpen()}
-          class="flex size-full min-h-0 min-w-0 flex-col bg-surface"
+          class="flex size-full min-h-0 min-w-0 flex-col p-3"
           onKeyDown={(event) => {
             if (event.key !== 'Escape' || event.defaultPrevented) return;
             event.preventDefault();
@@ -83,47 +93,63 @@ export function ChannelInfoPanel(
             panel().close();
           }}
         >
-          <div class="flex h-12 shrink-0 items-center justify-end px-3">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Close channel details"
-              onClick={() => panel().close()}
-            >
-              <XIcon />
-            </Button>
-          </div>
-          <div class="flex shrink-0 flex-col items-center gap-3 px-4 pb-5 pt-2 text-center">
-            <ChannelTopIcon
-              channelId={props.channelId}
-              channelType={channelType()}
-              participants={participants()}
-              size="lg"
-            />
-            <div class="w-full min-w-0">
-              <h2 class="text-lg font-semibold leading-tight break-words">
-                {name() ?? 'New Channel'}
-              </h2>
-              <Show when={participantsQuery.isSuccess}>
-                <p class="mt-1 text-xs text-ink-muted">
-                  {participants().length} participants
-                </p>
-              </Show>
+          <div class="flex max-h-full min-h-0 flex-col overflow-hidden rounded-xl border border-edge-frame bg-surface shadow-menu">
+            <div class="flex shrink-0 items-center gap-3 border-b border-edge-muted p-3">
+              <ChannelTopIcon
+                channelId={props.channelId}
+                channelType={channelType()}
+                participants={participants()}
+              />
+              <div class="min-w-0 flex-1">
+                <h2 class="text-sm font-medium leading-tight break-words">
+                  {name() ?? 'New Channel'}
+                </h2>
+                <Show when={participantsQuery.isSuccess}>
+                  <p class="mt-1 text-xs text-ink-muted">
+                    {participants().length} participants
+                  </p>
+                </Show>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Close channel details"
+                onClick={() => panel().close()}
+              >
+                <XIcon />
+              </Button>
             </div>
-          </div>
-          <div class="mx-4 shrink-0 overflow-x-auto border-b border-edge-muted pb-2">
-            <Tabs
-              variant="plain"
-              aria-label="Channel information"
-              list={tabs()}
-              value={panel().activeTab()}
-              onChange={(tab) => {
-                if (isChannelInfoTab(tab)) panel().setActiveTab(tab);
-              }}
-            />
-          </div>
-          <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <Show when={panel().isPresent()}>{props.children}</Show>
+            <div class="min-h-0 overflow-y-auto overscroll-contain">
+              <Accordion
+                multiple
+                collapsible
+                value={panel().openSections()}
+                onChange={(values) =>
+                  panel().setOpenSections(values.filter(isChannelInfoTab))
+                }
+              >
+                <For each={sections()}>
+                  {(section) => (
+                    <Accordion.Item
+                      value={section.value}
+                      class="border-b border-edge-muted last:border-b-0"
+                    >
+                      <Accordion.Header>
+                        <Accordion.Trigger class="group flex w-full items-center justify-between gap-3 px-3 py-3 text-left text-sm text-ink-muted outline-none hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent">
+                          {section.label}
+                          <CaretRightIcon class="size-3 shrink-0 transition-transform duration-90 group-data-expanded:rotate-90 motion-reduce:transition-none" />
+                        </Accordion.Trigger>
+                      </Accordion.Header>
+                      <Accordion.Content class="overflow-hidden data-expanded:animate-accordion-down data-closed:animate-accordion-up motion-reduce:animate-none">
+                        <Show when={panel().isPresent()}>
+                          {props.children(section.value)}
+                        </Show>
+                      </Accordion.Content>
+                    </Accordion.Item>
+                  )}
+                </For>
+              </Accordion>
+            </div>
           </div>
         </aside>
       )}

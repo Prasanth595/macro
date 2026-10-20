@@ -364,20 +364,22 @@ function ChannelDetailContent(props: ChannelDetailProps) {
     setIsInfoAnimating(true);
     animateInfo(() => setIsInfoOpenInternal(open));
   };
-  const [infoTab, setInfoTab] = createSignal<ChannelInfoTab>('attachments');
+  const [openInfoSections, setOpenInfoSections] = createSignal<
+    ChannelInfoTab[]
+  >(['attachments']);
   let infoTrigger: HTMLButtonElement | undefined;
   const infoPanel: ChannelInfoPanelState = {
     id: `channel-details-${createUniqueId()}`,
     isOpen: isInfoOpen,
     isPresent: () => isInfoOpen() || isInfoAnimating(),
     layoutRef: setInfoLayout,
-    activeTab: infoTab,
+    openSections: openInfoSections,
     toggle: () => setIsInfoOpen(!isInfoOpen()),
     close: () => {
       setIsInfoOpen(false);
       infoTrigger?.focus();
     },
-    setActiveTab: setInfoTab,
+    setOpenSections: setOpenInfoSections,
     triggerRef: (element) => {
       infoTrigger = element;
     },
@@ -389,7 +391,9 @@ function ChannelDetailContent(props: ChannelDetailProps) {
         ? DEFAULT_CHANNEL_TAB
         : normalizeChannelTab(tab);
     if (!isTouchDevice() && isChannelInfoTab(nextTab)) {
-      setInfoTab(nextTab);
+      setOpenInfoSections((sections) =>
+        sections.includes(nextTab) ? sections : [...sections, nextTab]
+      );
       setIsInfoOpen(true);
       return;
     }
@@ -510,7 +514,7 @@ function ChannelDetailContent(props: ChannelDetailProps) {
                 channelId={channelId}
                 fallbackName={props.fallbackName}
               >
-                {infoContent(infoTab)}
+                {(section) => infoContent(() => section)}
               </ChannelInfoPanel>
             </DebugSuspense>
           }

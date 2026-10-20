@@ -13,8 +13,9 @@ Low-emphasis right-aligned split-header actions (including Calendar's touch/prev
 New event and Channel's idle Call and Ask Macro) are borderless with a rounded-xl
 background on hover. Emphasized variants retain their treatment, including an
 active call's green ink and outline frame. Desktop channel details open from the
-channel name and put Attachments, Calls, and Participants in unframed tabs in a
-full-height right column that also pushes the top bar left. Company, contact,
+channel name and put Attachments, Calls, and Participants in independent
+disclosures inside one rounded, outlined card with muted dividers. Its
+full-height right column also pushes the top bar left. Company, contact,
 and project content tabs use inset controls in the top bar. Button sizes do not
 change variant colors or framing; individual
 framed controls default to glass on touch and flat on desktop. Use `glass={true}`
