@@ -225,6 +225,14 @@ impl SoupService for MockSoup {
 struct MockEmail;
 
 impl EmailService for MockEmail {
+    async fn resolve_thread_read_id(
+        &self,
+        _macro_id: MacroUserIdStr<'_>,
+        thread_id: Uuid,
+    ) -> Result<Uuid, EmailErr> {
+        Ok(thread_id)
+    }
+
     async fn resolve_message_operation(
         &self,
         _actor: macro_user_id::user_id::MacroUserIdStr<'static>,
@@ -720,6 +728,14 @@ struct MockEmailLinkResult {
 }
 
 impl EmailService for MockEmailLinkResult {
+    async fn resolve_thread_read_id(
+        &self,
+        _macro_id: MacroUserIdStr<'_>,
+        thread_id: Uuid,
+    ) -> Result<Uuid, EmailErr> {
+        Ok(thread_id)
+    }
+
     async fn resolve_message_operation(
         &self,
         _actor: macro_user_id::user_id::MacroUserIdStr<'static>,

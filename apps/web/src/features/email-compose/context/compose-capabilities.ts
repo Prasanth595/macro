@@ -18,6 +18,9 @@ export interface EmailInbox extends SenderInbox {
 
 /** Identity returned by a successful save or send. Transport envelopes stay in adapters. */
 export interface PersistedEmailIdentity {
+  /** Present when durable send admission owns this message. */
+  sendAttemptId?: string;
+  persistence?: 'committed' | 'queued';
   draftId?: string;
   threadId?: string;
   inboxId: string;
@@ -82,8 +85,15 @@ export interface DeleteEmailDraft {
   completingThread?: boolean;
 }
 export interface SendEmailDraft {
-  clientHandles?: DraftClientHandles;
   message: EmailDraft;
+  clientHandles?: DraftClientHandles;
+  /** The exact working-copy version persisted for this submission. */
+  expectedLocalVersion?: Pick<LocalDraft, 'generation' | 'revision'>;
+  attachmentIds?: string[];
+  forwardedAttachmentIds?: string[];
+  restoreBodyHtml?: string | null;
+  restoreBodyText?: string | null;
+  restoreBodyMacro?: string | null;
   inboxId?: string;
   completingThread?: boolean;
 }
@@ -105,6 +115,10 @@ export interface EmailAttachmentChange {
 export class DraftTransferAborted extends Error {}
 
 export interface EmailDraftStorage {
+  /** Explicit restoration may replace editor content; ordinary cache updates never do. */
+  watchRestorations?(
+    changed: (restoration: EmailDraftRestoration) => void
+  ): () => void;
   /** Reload canonical provider content after an explicit conflict resolution. */
   reloadDraft?(
     draftId: string,
@@ -163,6 +177,15 @@ export interface EmailDraftStorage {
   }): Promise<void>;
 }
 
+export interface EmailDraftRestoration {
+  draftId: string;
+  originalDraftId: string;
+  threadId: string;
+  inboxId?: string;
+  replyingToId?: string | null;
+  includeSignature?: boolean | null;
+}
+
 export interface EmailAttachmentStorage {
   completeAttachment(input: EmailAttachmentChange): Promise<void>;
   uploadAttachments(input: UploadEmailAttachments): Promise<void>;
@@ -176,6 +199,10 @@ export interface EmailAttachmentStorage {
 }
 
 export interface EmailDelivery {
+  /** Whether sends can be persisted and replayed without connectivity. */
+  queueActive?: (inboxId?: string) => boolean;
+  /** Persisted locks, scoped to the composing surface's owner. */
+  sendLocked?: (draftId: string | undefined) => boolean;
   sendMessage(input: SendEmailDraft): Promise<PersistedEmailIdentity>;
   unschedule(input: {
     draftId: string;
@@ -196,10 +223,11 @@ export interface EmailDelivery {
     inboxId?: string
   ): Promise<void>;
   undoSend(input: {
+    sendAttemptId?: string;
     threadId?: string;
     draftId: string;
     inboxId: string | undefined;
-    onUndone: () => Promise<void> | void;
+    onUndone: (result?: { draftRestored: boolean }) => Promise<void> | void;
   }): Promise<void>;
 }
 
@@ -217,6 +245,7 @@ export type EmailDraftLifecycleState =
       threadId: string;
       inboxId: string;
       sendTime: string;
+      deliveryStatus?: 'pending' | 'sending' | 'failed' | 'unconfirmed';
       observedAt: number;
     }
   | {

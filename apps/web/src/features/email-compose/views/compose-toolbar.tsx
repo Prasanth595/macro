@@ -34,7 +34,7 @@ export function EmailComposeToolbar(props: {
       when={props.inline || !ctx.isMobile()}
       fallback={<MobileToolbar status={props.status} />}
     >
-      <Show when={showFormatRibbon()}>
+      <Show when={showFormatRibbon() && !ctx.disabled()}>
         <div class="flex flex-row w-full gap-2 items-center p-2 -ml-3">
           <FormatButtons
             selectionState={() => defaultSelectionData}
@@ -131,6 +131,7 @@ function MobileToolbar(props: { status?: JSX.Element }) {
               operation={ctx.schedule.operation()}
               onSelectTime={ctx.schedule.onSelect}
               onCancelSchedule={ctx.schedule.onCancel}
+              onCheckStatus={ctx.schedule.onCheckStatus}
             />
           </HeaderIsland>
         </Show>
