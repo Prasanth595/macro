@@ -67,7 +67,7 @@ export function RouteDocuments() {
       <div class="docs-page">
         <ProductHero
           product="Docs"
-          title={['Write with your team', 'and agents.']}
+          title={['Write with your team', 'and your agents.']}
           description={[
             'Write together using your emails, tasks,',
             'and conversations already in Macro.',
