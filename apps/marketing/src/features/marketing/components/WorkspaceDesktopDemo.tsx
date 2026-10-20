@@ -19,6 +19,8 @@ export function WorkspaceDesktopDemo(props: {
   view: WorkspaceView;
   label: string;
   heroFrame?: boolean;
+  /** Omit simulated browser chrome while retaining the shared hero dimensions. */
+  windowChrome?: boolean;
   demoHref?: string;
   /** Keep a desktop canvas intact inside a smaller marketing frame. */
   desktopWidth?: number;
@@ -55,6 +57,7 @@ export function WorkspaceDesktopDemo(props: {
     <section
       class="email-desktop-demo"
       aria-label={props.label}
+      data-window-chrome={props.windowChrome === false ? 'false' : undefined}
       data-hero-frame={props.heroFrame ? 'true' : undefined}
       data-desktop-canvas={!!props.desktopWidth}
       data-agent-showcase={props.agentShowcase ? 'true' : undefined}
@@ -65,29 +68,31 @@ export function WorkspaceDesktopDemo(props: {
     >
       <div class="email-desktop-wallpaper">
         <div class="email-desktop-window">
-          <div class="email-desktop-titlebar">
-            <div class="email-desktop-traffic-lights" aria-hidden="true">
-              <span />
-              <span />
-              <span />
+          <Show when={props.windowChrome !== false}>
+            <div class="email-desktop-titlebar">
+              <div class="email-desktop-traffic-lights" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </div>
+              <span>Macro</span>
+              <a
+                href={
+                  props.demoHref ??
+                  (props.agentShowcase
+                    ? '/demo?scene=agents'
+                    : props.tasksShowcase
+                      ? '/demo?scene=tasks'
+                      : '/demo')
+                }
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Open the sample workspace in a new tab"
+              >
+                ↗
+              </a>
             </div>
-            <span>Macro</span>
-            <a
-              href={
-                props.demoHref ??
-                (props.agentShowcase
-                  ? '/demo?scene=agents'
-                  : props.tasksShowcase
-                    ? '/demo?scene=tasks'
-                    : '/demo')
-              }
-              target="_blank"
-              rel="noreferrer"
-              aria-label="Open the sample workspace in a new tab"
-            >
-              ↗
-            </a>
-          </div>
+          </Show>
           <DemoInteractionBoundary
             label={props.label}
             ref={content}

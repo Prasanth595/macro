@@ -28,7 +28,3 @@
   .crm-demo-frame [data-thread-id] > .sample-message-row,
   .crm-demo-frame .sample-thread-replies .sample-message-row:last-child { animation: none; }
 }
-
-/* Keep CRM on the product surface instead of the desktop wallpaper. */
-:root body .crm-hero-demo .email-desktop-demo[data-hero-frame=true] .email-desktop-wallpaper { padding: 0; border: 0; border-radius: 16px; background: none; box-shadow: none; }
-:root body .crm-hero-demo .email-desktop-demo[data-hero-frame=true] .email-desktop-wallpaper::before, :root body .crm-hero-demo .email-desktop-demo[data-hero-frame=true] .email-desktop-wallpaper::after { display: none; }

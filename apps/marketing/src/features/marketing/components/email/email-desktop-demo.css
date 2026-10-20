@@ -69,6 +69,7 @@
 /* Opt-in hero frame: lower-page demos keep their own layout. */
 :root body .email-desktop-demo[data-hero-frame=true] {
   --desktop-stage-width: min(1200px, calc(100vw - 48px));
+  --hero-content-height: 640px;
 }
 :root body .email-desktop-demo[data-hero-frame=true] .email-desktop-wallpaper {
   position: relative;
@@ -95,7 +96,10 @@
   background: #171717;
 }
 :root body .email-desktop-demo[data-hero-frame=true] .email-desktop-content {
-  height: 640px;
+  height: var(--hero-content-height);
+}
+:root body .email-desktop-demo[data-hero-frame=true][data-window-chrome=false] .email-desktop-content {
+  height: calc(var(--hero-content-height) + 36px);
 }
 :root body .email-desktop-demo[data-hero-frame=true] .email-desktop-content .product-demo {
   height: 100%;
@@ -112,6 +116,7 @@
 @media (max-width: 699px) {
   :root body .email-desktop-demo[data-hero-frame=true] {
     --desktop-stage-width: calc(100vw - 24px);
+    --hero-content-height: 580px;
   }
   :root body .email-desktop-demo[data-hero-frame=true] .email-desktop-wallpaper {
     padding: 16px;
@@ -119,8 +124,5 @@
   }
   :root body .email-desktop-demo[data-hero-frame=true] .email-desktop-window {
     border-radius: 12px;
-  }
-  :root body .email-desktop-demo[data-hero-frame=true] .email-desktop-content {
-    height: 580px;
   }
 }

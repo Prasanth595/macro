@@ -83,21 +83,19 @@ export function RouteCrm() {
         ]}
         cta="crm_hero_get_started"
       />
-      <div class="crm-hero-demo">
-        <WorkspaceDesktopDemo
-          heroFrame
-          view="crm"
-          label="Explore Macro CRM"
-          demoHref="/demo?scene=homepage&view=CRM"
+      <WorkspaceDesktopDemo
+        heroFrame
+        windowChrome={false}
+        view="crm"
+        label="Explore Macro CRM"
+      >
+        <DeferredDemo
+          preload={loadPipeline}
+          fallback={<DemoPlaceholder label="Sales pipeline" />}
         >
-          <DeferredDemo
-            preload={loadPipeline}
-            fallback={<DemoPlaceholder label="Sales pipeline" />}
-          >
-            <PipelineDemo />
-          </DeferredDemo>
-        </WorkspaceDesktopDemo>
-      </div>
+          <PipelineDemo />
+        </DeferredDemo>
+      </WorkspaceDesktopDemo>
       <nav
         class="feature-page-jump-links crm-feature-links"
         aria-label="On this page"
@@ -130,7 +128,7 @@ export function RouteCrm() {
       <FeaturePageSection
         id="crm-from-email"
         title={['Keep your CRM', 'up to date with agents.']}
-        description="Tell your agent what changed in your customer conversations. The agent can update stages, owners, and next steps so your CRM stays current."
+        description="Your agent can read customer emails, calls, and chats, then update stages, owners, and next steps in your CRM."
         details={crmGuides['crm-from-email']}
       >
         <DemoInteractionBoundary class="feature-page-visual">

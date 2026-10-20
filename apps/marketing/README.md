@@ -363,12 +363,15 @@ sharing, draft edits, keyboard scope, reduced motion, and timer cleanup.
 
 `/crm` follows the same reading width, left-aligned slab headings, glass edges,
 and homepage closing animation. `WorkspaceDesktopDemo` supplies the shared
-window chrome; CRM uses a plain product surface instead of the desktop wallpaper. CRM demonstrates message-driven
+hero dimensions, wallpaper, padding, and shadows on CRM as on the other product pages.
+CRM passes `windowChrome={false}` to omit the simulated browser bar; the content
+uses that space so the outer frame stays the same height. Do not add CRM-specific
+hero background or sizing overrides. CRM demonstrates message-driven
 record updates using the shared company UI, company enrichment, an editable customer record, company
 mentions in documents and chat, and an agent updating the pipeline. The hero and
 agent section both use `CrmPipelineScene`: the hero has the CRM navigation,
 board/table switch, and record search; the lower scene shows the focused animated
-pipeline. Its open-workspace link selects `/demo?scene=homepage&view=CRM`.
+pipeline.
 `createCrmDemoWorkspace` supplies the same fictional accounts throughout the page.
 `CompanyPipelineEntry` follows `crm/components/pipeline-entry-cards` and appears
 between the company header and Discussion. Pipeline edits remain separate from
