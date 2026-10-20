@@ -260,6 +260,7 @@ export function EmailSharingDemo(props: { onClose?: () => void } = {}) {
     { delay: 650, run: () => click(() => setPhase(6)) },
     { delay: 350, run: () => setClicking(false) },
     { delay: 2600, run: finish },
+    { delay: 2000, run: () => setPhase(8) },
   ];
   const playback = createEmailWalkthrough({
     root: () => root,
@@ -280,7 +281,7 @@ export function EmailSharingDemo(props: { onClose?: () => void } = {}) {
           el.scrollTop = 0;
         });
     },
-    reduced: () => setPhase(7),
+    reduced: () => setPhase(8),
     advance: (step) => actions[step - 1].run(),
   });
   const manual = (next: number) => {
@@ -345,7 +346,7 @@ export function EmailSharingDemo(props: { onClose?: () => void } = {}) {
             <section class="mail-sharing-chat" aria-label="Team conversation">
               <ChannelResult
                 shared={phase() >= 6}
-                updated={phase() >= 7}
+                updated={phase() >= 8}
                 onOpen={() => {
                   playback.pause();
                   setOpened(true);

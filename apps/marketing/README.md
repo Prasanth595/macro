@@ -396,7 +396,9 @@ controls. Reduced motion shows the usable final state. Do not add replay buttons
 animated cursors, explanatory captions, or decorative backgrounds.
 
 Sharing shows the customer email and channel as two app splits on desktop, then
-adds the linked email and a later reply. Below 800px, show one pane at a time;
+adds the linked email and a later reply. Wait two seconds after Valentina’s
+email reply before showing Julia’s channel response. Reduced motion shows both
+immediately. Below 800px, show one pane at a time;
 opening the email reference and going back preserves the channel conversation.
 Keep message objects stable across walkthrough steps; only newly appended messages
 should mount and animate, preserving existing bubbles, controls, and composer state.

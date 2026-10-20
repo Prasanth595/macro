@@ -350,3 +350,28 @@ it('keeps the same pointer while opening Share, choosing a channel, and typing t
     view.queryByRole('button', { name: 'Open shared email: Thursday demo' })
   ).toBeNull();
 });
+
+it('leaves two seconds between Valentina’s reply and Julia’s response', () => {
+  const view = render(() => <EmailSharingDemo />);
+  setVisible(true);
+  advanceTo(
+    () =>
+      view.container
+        .querySelector('.mail-sharing-demo')
+        ?.getAttribute('data-phase') === '7'
+  );
+  expect(
+    view.getByText(/Could you also send a short setup guide/)
+  ).toBeTruthy();
+  expect(
+    view.queryByText('I’ll send the setup guide before the call.')
+  ).toBeNull();
+  vi.advanceTimersByTime(1900);
+  expect(
+    view.queryByText('I’ll send the setup guide before the call.')
+  ).toBeNull();
+  vi.advanceTimersByTime(100);
+  expect(
+    view.getByText('I’ll send the setup guide before the call.')
+  ).toBeTruthy();
+});
