@@ -73,6 +73,9 @@ key issuance, and account merge/link flows.
 - Deploy the eligibility endpoint before web clients that require it; otherwise
   the clients keep Pro checkout disabled until the lookup can succeed.
 
+API-token exchange preserves verified incoming agent attribution; query/body
+inputs cannot select an agent, and ordinary user credentials remain unattributed.
+
 ## Gotchas
 
 - GitHub reconnect preserves the current link until OAuth completes. A different
