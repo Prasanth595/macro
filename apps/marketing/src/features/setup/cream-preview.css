@@ -226,7 +226,8 @@ html[data-palette='cream'] .site-menu-trigger { color: #1d1c1a; }
    as the homepage, including the menus revealed by interaction. */
 html[data-palette='cream'] :is(
   .mail-sharing-stage .mail-app,
-  .email-tags-demo .mail-app,
+  .email-accounts-demo .mail-app,
+  .email-editing-stage .mail-app,
   .email-keyboard-stage .mail-app,
   .mail-sharing-stage .mail-share-form,
   .mail-arrived-reply,
@@ -236,13 +237,7 @@ html[data-palette='cream'] :is(
   background: var(--color-surface-1) !important;
   color: var(--color-ink);
 }
-html[data-palette='cream'] .email-tags-demo .email-auto-tag-menu {
-  background: var(--color-surface-2);
-  border-color: var(--color-edge);
-  box-shadow: 0 16px 40px #1d1c1a26;
-}
 html[data-palette='cream'] :is(
-  .email-tags-demo .mail-row[aria-current='true'],
   .email-keyboard-stage .mail-row[aria-current='true']
 ) {
   background: var(--color-active);

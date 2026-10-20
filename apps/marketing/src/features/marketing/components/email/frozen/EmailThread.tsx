@@ -6,6 +6,7 @@ import Link from '@phosphor/link.svg';
 import Users from '@phosphor/users-three.svg';
 import { Button } from '@ui';
 import { createSignal, type JSX, Show } from 'solid-js';
+import { demoMailAccounts } from '../../../core/demo-email';
 import { homepagePeople } from '../../../core/homepage-demo-people';
 import type { DemoEmail } from '../email-fixtures';
 import { EmailAvatar } from './EmailAvatar';
@@ -117,7 +118,10 @@ export function EmailThread(props: {
               <div class="py-3 border-y border-ink-muted/8 text-xs text-ink-muted">
                 From: {sender()}
                 <br />
-                To: {sent() ? props.email.sender : 'Jacob <jacob@coparse.com>'}
+                To:{' '}
+                {sent()
+                  ? props.email.sender
+                  : `Jacob <${demoMailAccounts.find((account) => account.id === props.email.account)?.label}>`}
               </div>
             </Show>
             <div class="mail-message-text text-base text-ink pr-4">

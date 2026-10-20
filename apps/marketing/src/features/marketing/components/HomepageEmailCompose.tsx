@@ -2,7 +2,7 @@ import ArrowUp from '@phosphor/arrow-up.svg';
 import Paperclip from '@phosphor/paperclip.svg';
 import TextAa from '@phosphor/text-aa.svg';
 import { Button, ComposerSurface, SendButton } from '@ui';
-import { createSignal, For, onCleanup, Show } from 'solid-js';
+import { createSignal, For, type JSX, onCleanup, Show } from 'solid-js';
 import { Dynamic, render } from 'solid-js/web';
 import { homepagePeople } from '../core/homepage-demo-people';
 import {
@@ -17,6 +17,8 @@ export default function HomepageEmailCompose(
   props: {
     appChrome?: boolean;
     readOnly?: boolean;
+    /** Optional rich body for a prefilled local draft. */
+    bodyContent?: JSX.Element;
     draft?: {
       subject: string;
       to: string;
@@ -240,7 +242,7 @@ export default function HomepageEmailCompose(
             aria-multiline="true"
             aria-disabled={generating() || props.readOnly}
           >
-            {initialBody}
+            {props.bodyContent ?? initialBody}
           </div>
           <For each={attachments()}>
             {(file) => (

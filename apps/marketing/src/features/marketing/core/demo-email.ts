@@ -1,4 +1,9 @@
 // Demonstration data only; no customer inbox content or app service access.
+export const demoMailAccounts = [
+  { id: 'work', label: 'jacob@macro.com' },
+  { id: 'personal', label: 'jacob@gmail.com' },
+  { id: 'outlook', label: 'jacob@outlook.com' },
+] as const;
 export const emailTags = [
   { id: 'launch', label: 'Launch', color: '#F5D90A' },
   { id: 'customers', label: 'Customers', color: '#E93D82' },
@@ -13,7 +18,7 @@ export type DemoEmail = {
   subject: string;
   snippet: string;
   time: string;
-  account: 'work' | 'personal';
+  account: 'work' | 'personal' | 'outlook';
   tags?: EmailTagId[];
   favorite?: boolean;
   unread?: boolean;

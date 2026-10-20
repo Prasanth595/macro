@@ -11,6 +11,10 @@ const disconnect = vi.fn();
 beforeEach(() => {
   reducedMotion = false;
   vi.useFakeTimers();
+  Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+    configurable: true,
+    value: vi.fn(),
+  });
   vi.stubGlobal('fetch', vi.fn());
   vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
   vi.stubGlobal('matchMedia', () => ({
@@ -50,9 +54,7 @@ it('combines account, tab and search filters and preserves them after opening a 
   const view = render(() => <EmailInboxDemo />);
   const accounts = within(view.getByRole('navigation', { name: 'Inboxes' }));
   const tabs = within(view.getByRole('navigation', { name: 'Email tabs' }));
-  fireEvent.click(
-    accounts.getByRole('button', { name: 'jacob.beckerman@coparse.com' })
-  );
+  fireEvent.click(accounts.getByRole('button', { name: 'jacob@gmail.com' }));
   expect(view.getAllByRole('button', { name: /^Read / })).toHaveLength(3);
   fireEvent.click(tabs.getByRole('button', { name: 'Noise' }));
   expect(view.getAllByRole('button', { name: /^Read / })).toHaveLength(2);
@@ -112,10 +114,10 @@ it('shares into a channel, sends a local message, and opens the original convers
   expect(send.hasAttribute('disabled')).toBe(true);
   fireEvent.click(
     view.getByRole('button', {
-      name: 'Open shared email: Homepage feedback',
+      name: 'Open shared email: Thursday demo',
     })
   );
-  expect(view.getByText('Hi Jacob,')).toBeTruthy();
+  expect(view.getByText(/Hi Jacob,/)).toBeTruthy();
   fireEvent.click(view.getByRole('button', { name: 'Back to inbox' }));
   expect(view.getByRole('textbox', { name: 'Message #launch' })).toBeTruthy();
 });
@@ -157,9 +159,9 @@ it('keeps the live reply in the shared thread and stops at the completed result'
   setVisible(true);
   vi.advanceTimersByTime(10650);
   expect(
-    view.getByRole('button', { name: 'Open shared email: Homepage feedback' })
+    view.getByRole('button', { name: 'Open shared email: Thursday demo' })
       .textContent
-  ).toBe('Homepage feedback');
+  ).toBe('Thursday demo');
   expect(view.queryByText('Live')).toBeNull();
   expect(view.queryByText(/2 messages|Open full thread/)).toBeNull();
   expect(
@@ -169,20 +171,20 @@ it('keeps the live reply in the shared thread and stops at the completed result'
   ).toBeNull();
   vi.advanceTimersByTime(30000);
   expect(
-    view.getByRole('button', { name: 'Open shared email: Homepage feedback' })
+    view.getByRole('button', { name: 'Open shared email: Thursday demo' })
       .textContent
-  ).toBe('Homepage feedback');
+  ).toBe('Thursday demo');
   expect(view.queryByText('Live')).toBeNull();
   expect(view.queryByText(/2 messages|Open full thread/)).toBeNull();
   expect(vi.getTimerCount()).toBe(0);
   fireEvent.click(
     view.getByRole('button', {
-      name: 'Open shared email: Homepage feedback',
+      name: 'Open shared email: Thursday demo',
     })
   );
-  expect(view.getByText('Hi Jacob,')).toBeTruthy();
+  expect(view.getByText(/Hi Jacob,/)).toBeTruthy();
   expect(
-    view.getByText(/One more thing: could you include the onboarding guide/)
+    view.getByText(/Could you also send a short setup guide/)
   ).toBeTruthy();
   const messageDetails = view.getAllByRole('button', {
     name: 'Message details',
@@ -191,9 +193,9 @@ it('keeps the live reply in the shared thread and stops at the completed result'
   fireEvent.click(messageDetails[1]);
   expect(messageDetails[1].getAttribute('aria-expanded')).toBe('true');
   expect(messageDetails[0].getAttribute('aria-expanded')).toBe('false');
-  expect(
-    view.getAllByRole('heading', { name: 'Homepage feedback' })
-  ).toHaveLength(1);
+  expect(view.getAllByRole('heading', { name: 'Thursday demo' })).toHaveLength(
+    1
+  );
   expect(view.queryByRole('button', { name: /Play|Pause|Replay/ })).toBeNull();
 });
 
@@ -203,7 +205,7 @@ it('shows the shared result without autoplay for reduced motion', () => {
   setVisible(true);
   expect(
     view.getByRole('button', {
-      name: 'Open shared email: Homepage feedback',
+      name: 'Open shared email: Thursday demo',
     })
   ).toBeTruthy();
   expect(
@@ -212,7 +214,7 @@ it('shows the shared result without autoplay for reduced motion', () => {
   vi.advanceTimersByTime(10000);
   expect(
     view.getByRole('button', {
-      name: 'Open shared email: Homepage feedback',
+      name: 'Open shared email: Thursday demo',
     })
   ).toBeTruthy();
 });

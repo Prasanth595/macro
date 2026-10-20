@@ -330,31 +330,34 @@ FAQ disclosures retain the onboarding security section’s reading measure.
 Website UI utilities and the frozen dark palette are scoped to `.feature-page`,
 preserving the surrounding public-page styles.
 
-The email page reuses `HomepageEmailCompose`. Its other local demos freeze the
-presentation of the application’s `EmailSidebar`, `SearchBar`, entity email row
-layouts, `MessageCard`, share form, channel composer, and inline email mentions. They
-use website assets and local fixtures; they do not import those app modules.
-To verify the page: filter accounts, search and open an inbox thread, move an
-update to Noise and undo, share the example into the launch channel, and open
-its linked thread. The composer, sharing, and edits stay local. No demo sends
-mail or changes a workspace. Playback pauses offscreen and when the page is
-hidden; reduced-motion mode shows the completed share. The animations run once
-without playback controls. Test opening a shared email, plus typing and sending
-a local channel message.
+The email page reuses `HomepageEmailCompose` and frozen presentation from
+`EmailInboxSelector`, `EmailSidebar`, `SearchBar`, entity email rows, `MessageCard`,
+the share form, and channel composer. Keep headings and descriptions unchanged
+in demo-only passes. These demos use local fixtures, with no live account, email,
+sharing, or agent requests.
 
-The email sharing walkthrough measures its controls to position an animated mouse
-pointer. Manual pointer or keyboard interaction stops it. Email, channel, and
-new-reply views share a fixed-height viewport with internal scrolling, so the
-section below stays in place.
+`email-demo-story.ts` supplies 31 emails for the hero and multi-account story,
+with Macro, Gmail, and Outlook sample addresses. `EmailAccountsDemo` adds two
+sample accounts, selects All inboxes, focuses an account, then returns to the combined
+list. Google authorization is deliberately omitted from this local demonstration;
+the requested Outlook address is illustrative, not an implemented Outlook connector. Account, Signal/Noise, tag, and search filters
+remain interactive. Keyboard triage uses 14 messages and demonstrates selection,
+reading, returning, and archiving in that order.
 
-The four feature links have inline SVG illustrations. Lower email demos share
-one neutral app surface, 48px toolbars, and the frozen inbox row spacing. Do not
-add glass gradients, dotted backgrounds, fading masks, or per-scene row chrome.
-Thread messages, including new replies, use the same `MessageCard` presentation.
-The drafting story places channel messages beside the existing email composer
-in two connected panes, stacked below 800px. Keep the surrounding page scrollable
-until the visitor enters a demo. `HomepageEmailCompose` retains the existing
-homepage appearance; the wallpaper hero is unchanged.
+`createEmailWalkthrough` starts each finite story only when enough of its frame
+is visible. Pause offscreen, in hidden tabs, and when entering a demo or using its
+controls. Reduced motion shows the usable final state. Do not add replay buttons,
+animated cursors, explanatory captions, or decorative backgrounds.
+
+Sharing shows the customer email and channel as two app splits on desktop, then
+adds the linked email and a later reply. Below 800px, show one pane at a time;
+opening the email reference and going back preserves the channel conversation.
+The agent story shows the request, its call/document context, and the editable
+draft in the actual chat order. Rich sample links use the existing composer’s
+optional `bodyContent`; ordinary drafts and the homepage keep their current behavior.
+Use one neutral surface, fixed-height frames, scoped vertical scrolling, and short
+opacity transitions. Test both palettes and mobile account selection, plus local
+sharing, draft edits, keyboard scope, reduced motion, and timer cleanup.
 
 `/crm` follows the same reading width, left-aligned slab headings, glass edges,
 and homepage closing animation. `WorkspaceDesktopDemo` supplies the shared

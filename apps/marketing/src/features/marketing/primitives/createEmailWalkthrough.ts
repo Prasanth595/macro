@@ -76,11 +76,14 @@ export function createEmailWalkthrough(options: {
       { threshold: options.visibilityThreshold ?? 0.25 }
     );
     observer.observe(options.root());
+    const boundary = options.root().closest('.demo-interaction-boundary');
+    boundary?.addEventListener('macro-demo-interaction', pause);
     media.addEventListener('change', sync);
     document.addEventListener('visibilitychange', schedule);
     onCleanup(() => {
       clear();
       observer.disconnect();
+      boundary?.removeEventListener('macro-demo-interaction', pause);
       media.removeEventListener('change', sync);
       document.removeEventListener('visibilitychange', schedule);
     });

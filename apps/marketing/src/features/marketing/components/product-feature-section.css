@@ -49,7 +49,7 @@
 }
 
 /* Email's stages previously added a second inset and different top gaps. */
-.feature-page-section :is(.email-tag-stage, .mail-sharing-stage, .email-keyboard-stage, .email-editing-stage) {
+.feature-page-section :is(.email-accounts-demo, .mail-sharing-stage, .email-keyboard-stage, .email-editing-stage) {
   padding-top: 0;
   padding-inline: 0;
 }
