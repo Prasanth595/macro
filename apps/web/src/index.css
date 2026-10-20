@@ -73,7 +73,7 @@
      (solid-site `.home-hero-cta-bar`). The look is four things layered on a
      translucent surface: a backdrop blur, a bright inner top edge, a dark
      inner bottom edge, and a diagonal specular rim. Touch surfaces use only
-     the diagonal reflections so the other two corners stay dark.
+     the diagonal reflections with short, dimmer opposing corners.
 
      Split in two so the size scale and the theme stay independent:
 
@@ -95,6 +95,7 @@
   --glass-rim-strong-base: 13.5%;
   --glass-rim-soft-base: 9%;
   --glass-rim-shade-base: 0%;
+  --glass-rim-gap-ratio: 0;
   /* Mobile chrome has two diagonal reflections with quiet opposing corners. */
   --island-rim-strong: 28%;
   --island-rim-soft: 12%;
@@ -125,6 +126,8 @@ html[data-theme-light='true'] {
   --glass-rim-soft-base: 30%;
   /* A faint ink rim keeps white reflections legible on pale surfaces. */
   --glass-rim-shade-base: 7%;
+  /* Keep quiet corners close to the highlight instead of exposing a dark rim. */
+  --glass-rim-gap-ratio: 0.85;
   --island-rim-strong: 75%;
   --island-rim-soft: 40%;
 }
@@ -753,15 +756,15 @@ html[data-theme-light='false'] {
       var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
 
-  /* Corner-relative direction keeps the top-right and bottom-left dark even
-     on wide pills. Glass owns the rim's geometry and mask. */
+  /* Keep a bright rim around most of the shape, with short soft gaps at the
+     top-right and bottom-left, including wide pills. Glass owns the mask. */
   --glass-rim-background: linear-gradient(
     to bottom right,
     color-mix(in oklch, var(--glass-tint) var(--island-rim-strong), transparent) 0%,
-    color-mix(in oklch, var(--glass-tint) var(--island-rim-soft), transparent) 18%,
-    transparent 40%,
-    transparent 60%,
-    color-mix(in oklch, var(--glass-tint) var(--island-rim-soft), transparent) 82%,
+    color-mix(in oklch, var(--glass-tint) var(--island-rim-soft), transparent) 42%,
+    color-mix(in oklch, var(--glass-tint) calc(var(--island-rim-soft) * var(--glass-rim-gap-ratio)), transparent) 49%,
+    color-mix(in oklch, var(--glass-tint) calc(var(--island-rim-soft) * var(--glass-rim-gap-ratio)), transparent) 51%,
+    color-mix(in oklch, var(--glass-tint) var(--island-rim-soft), transparent) 58%,
     color-mix(in oklch, var(--glass-tint) var(--island-rim-strong), transparent) 100%
   );
 }
@@ -771,15 +774,17 @@ html[data-theme-light='false'] {
    length). Shape and background come from the consumer, so this composes with
    any radius — the rim inherits it — and with variants (`mobile:glass`).
 
-   Desktop glass uses the marketing site's hero-ring geometry. Consumers can
+   Glass shares a corner-relative diagonal rim. Consumers can
    override --glass-rim-background to customize the rim without owning its
    pseudo-element. The palette stays in :root; the gradient reads those tokens. */
 @utility glass {
   --glass-rim-background: linear-gradient(
     to bottom right,
     color-mix(in oklch, var(--glass-tint) calc(var(--glass-rim-strong-base) * var(--glass-scale)), transparent) 0%,
-    transparent 24%,
-    transparent 76%,
+    color-mix(in oklch, var(--glass-tint) calc(var(--glass-rim-soft-base) * var(--glass-scale)), transparent) 42%,
+    color-mix(in oklch, var(--glass-tint) calc(var(--glass-rim-soft-base) * var(--glass-scale) * var(--glass-rim-gap-ratio)), transparent) 49%,
+    color-mix(in oklch, var(--glass-tint) calc(var(--glass-rim-soft-base) * var(--glass-scale) * var(--glass-rim-gap-ratio)), transparent) 51%,
+    color-mix(in oklch, var(--glass-tint) calc(var(--glass-rim-soft-base) * var(--glass-scale)), transparent) 58%,
     color-mix(in oklch, var(--glass-tint) calc(var(--glass-rim-soft-base) * var(--glass-scale)), transparent) 100%
   );
   position: relative;
