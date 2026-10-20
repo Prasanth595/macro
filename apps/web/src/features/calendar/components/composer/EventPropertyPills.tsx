@@ -19,7 +19,7 @@ import { PropertyCaret } from '@property/extractors/PropertyCaret';
 import { PropertyEditTrigger } from '@property/extractors/PropertyEditTrigger';
 import type { EntityProperty } from '@property/types';
 import type { EventType } from '@service-storage/generated/schemas/eventType';
-import { Button, cn, Layer, Select } from '@ui';
+import { Button, cn, Layer, RadioGroup, Select } from '@ui';
 import { type Accessor, createMemo, createSignal, For, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import {
@@ -647,81 +647,66 @@ export interface EventComposerKindPillProps {
   disabled?: boolean;
   /** The provider event type is immutable, so edits show the kind fixed. */
   readOnly?: boolean;
-  hideIcon?: boolean;
-  /** Fit the editor header instead of the property value column. */
-  compact?: boolean;
 }
 
-/** Compact selector for the kind of event being created. */
+/** Inline, mutually exclusive event-type pills; provider types stay immutable on edits. */
 export function EventComposerKindPill(props: EventComposerKindPillProps) {
-  // A read-only pill displays whatever type the event has, including
-  // status types the composer cannot create.
-  const options = createMemo<EventComposerKindOption[]>(() =>
-    props.readOnly
-      ? [
-          {
-            value: eventKindOf(props.eventType),
-            label: eventKindLabel(props.eventType),
-          },
-        ]
-      : EVENT_KIND_OPTIONS
-  );
-  const selectedOption = () =>
-    options().find((option) => option.value === eventKindOf(props.eventType)) ??
-    options()[0];
-  const icon = () =>
-    props.eventType === 'out_of_office' ? CalendarXIcon : CalendarBlankIcon;
-
   return (
     <Show
       when={props.readOnly}
       fallback={
-        <Select<EventComposerKindOption>
-          class={cn('min-w-0', props.compact ? 'w-fit max-w-48' : 'w-full')}
-          options={options()}
-          value={selectedOption()}
-          onChange={(option) => {
-            if (option && !props.readOnly) props.onChange(option.value);
-          }}
-          optionValue="value"
-          optionTextValue="label"
-          optionDisabled={() => props.readOnly === true}
+        <RadioGroup
+          aria-label="Event type"
+          orientation="horizontal"
+          value={eventKindOf(props.eventType)}
           disabled={props.disabled}
+          onChange={(value) => {
+            const option = EVENT_KIND_OPTIONS.find(
+              (option) => option.value === value
+            );
+            if (option && !props.disabled && !props.readOnly)
+              props.onChange(option.value);
+          }}
+          class="flex-row flex-wrap gap-1.5"
         >
-          <Select.Trigger
-            aria-label="Event kind"
-            aria-readonly={props.readOnly || undefined}
-            class={cn(
-              PROPERTY_TRIGGER_CLASS,
-              props.compact && 'h-8 w-auto gap-2 py-1'
+          <For each={EVENT_KIND_OPTIONS}>
+            {(option) => (
+              <RadioGroup.Item
+                value={option.value}
+                class="min-h-7 gap-0 rounded-full border border-transparent px-2.5 py-1 text-xs text-ink-muted hover:bg-hover has-[:focus-visible]:bg-active data-checked:border-accent/20 data-checked:bg-accent/10 data-checked:text-accent data-disabled:opacity-50 touch:min-h-[44px]"
+              >
+                <RadioGroup.ItemControl class="sr-only" />
+                <RadioGroup.ItemLabel class="inline-flex items-center gap-1.5">
+                  <Dynamic
+                    component={
+                      option.value === 'out_of_office'
+                        ? CalendarXIcon
+                        : CalendarBlankIcon
+                    }
+                    aria-hidden="true"
+                    class="size-3.5 shrink-0"
+                  />
+                  {option.label}
+                </RadioGroup.ItemLabel>
+              </RadioGroup.Item>
             )}
-          >
-            <Show when={!props.hideIcon}>
-              <Dynamic
-                component={icon()}
-                aria-hidden="true"
-                class="size-3.5 shrink-0 text-ink-extra-muted"
-              />
-            </Show>
-            <Select.Value<EventComposerKindOption>>
-              {(selectState) => selectState.selectedOption().label}
-            </Select.Value>
-            <Select.Icon />
-          </Select.Trigger>
-          <Select.Content portalScope="local">
-            <Select.Listbox />
-          </Select.Content>
-        </Select>
+          </For>
+        </RadioGroup>
       }
     >
-      <span class="inline-flex min-h-8 items-center gap-2 select-text">
-        <Show when={!props.hideIcon}>
-          <Dynamic
-            component={icon()}
-            aria-hidden="true"
-            class="size-3.5 shrink-0 text-ink-extra-muted"
-          />
-        </Show>
+      <span
+        class="inline-flex min-h-7 items-center gap-1.5 select-text"
+        aria-label="Event type"
+      >
+        <Dynamic
+          component={
+            props.eventType === 'out_of_office'
+              ? CalendarXIcon
+              : CalendarBlankIcon
+          }
+          aria-hidden="true"
+          class="size-3.5 shrink-0 text-ink-extra-muted"
+        />
         {eventKindLabel(props.eventType)}
       </span>
     </Show>

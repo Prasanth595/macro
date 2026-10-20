@@ -3,7 +3,7 @@
  */
 
 import { recipientEntityMapper } from '@core/user';
-import { cleanup, render, screen } from '@solidjs/testing-library';
+import { cleanup, render, screen, within } from '@solidjs/testing-library';
 import userEvent from '@testing-library/user-event';
 import { Dialog } from '@ui';
 import { createSignal } from 'solid-js';
@@ -12,6 +12,7 @@ import { EventDateTimeRangeFields } from './EventDateTimeRangeFields';
 import {
   EventComposerConferencePill,
   EventComposerGuestsPill,
+  EventComposerKindPill,
 } from './EventPropertyPills';
 import type {
   EventEditorConferenceChoice,
@@ -92,8 +93,7 @@ describe('composer popovers inside a dialog', () => {
             start={start()}
             end="2026-10-06T10:00"
             allDay={false}
-            onStartChange={setStart}
-            onEndChange={vi.fn()}
+            onRangeChange={setStart}
             onAllDayChange={vi.fn()}
           />
         </Dialog>
@@ -101,7 +101,7 @@ describe('composer popovers inside a dialog', () => {
     });
     screen.getByLabelText('Title').focus();
     const trigger = screen.getByRole('button', {
-      name: 'Edit event start date and time',
+      name: 'Edit event date and time range',
     });
     await user.click(trigger);
     const time = screen.getByLabelText('Start time');
@@ -113,7 +113,7 @@ describe('composer popovers inside a dialog', () => {
   });
   it('keeps locked dates as text while the editable end remains interactive', async () => {
     const user = userEvent.setup();
-    const onEndChange = vi.fn();
+    const onRangeChange = vi.fn();
     render(() => (
       <EventDateTimeRangeFields
         start="2026-10-06T09:00"
@@ -121,24 +121,80 @@ describe('composer popovers inside a dialog', () => {
         allDay={false}
         startReadOnly
         allDayReadOnly
-        onStartChange={vi.fn()}
-        onEndChange={onEndChange}
+        onRangeChange={onRangeChange}
         onAllDayChange={vi.fn()}
       />
     ));
-    expect(
-      screen.queryByRole('button', { name: 'Edit event start date and time' })
-    ).toBeNull();
+    await user.click(
+      screen.getByRole('button', { name: 'Edit event date and time range' })
+    );
     expect(screen.getByLabelText('Start date and time').textContent).toContain(
       '9:00 AM'
     );
+    expect(screen.queryByLabelText('Start time')).toBeNull();
     expect(screen.queryByRole('switch', { name: 'All day' })).toBeNull();
     await user.click(
-      screen.getByRole('button', { name: 'Edit event end date and time' })
+      within(screen.getAllByRole('grid')[0]).getByRole('gridcell', {
+        name: '9',
+      })
+    );
+    expect(onRangeChange).toHaveBeenLastCalledWith(
+      '2026-10-06T09:00',
+      '2026-10-09T10:00'
     );
     await user.click(screen.getByLabelText('End time'));
     await user.click(screen.getByRole('option', { name: /10:30 AM/ }));
-    expect(onEndChange).toHaveBeenCalledWith('2026-10-06T10:30');
+    expect(onRangeChange).toHaveBeenLastCalledWith(
+      '2026-10-06T09:00',
+      '2026-10-06T10:30'
+    );
+  });
+
+  it('selects one connected range across months without publishing a partial range', async () => {
+    const user = userEvent.setup();
+    const onRangeChange = vi.fn();
+    render(() => (
+      <EventDateTimeRangeFields
+        start="2026-10-06T09:00"
+        end="2026-10-06T10:00"
+        allDay={false}
+        onRangeChange={onRangeChange}
+        onAllDayChange={vi.fn()}
+      />
+    ));
+    const trigger = screen.getByRole('button', {
+      name: 'Edit event date and time range',
+    });
+    await user.click(trigger);
+    const grids = screen.getAllByRole('grid');
+    expect(grids).toHaveLength(2);
+    await user.click(within(grids[0]).getByRole('gridcell', { name: '20' }));
+    expect(onRangeChange).not.toHaveBeenCalled();
+    await user.click(within(grids[1]).getByRole('gridcell', { name: '12' }));
+    expect(onRangeChange).toHaveBeenCalledExactlyOnceWith(
+      '2026-10-20T09:00',
+      '2026-11-12T10:00'
+    );
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('keeps a fully locked range as plain content', () => {
+    render(() => (
+      <EventDateTimeRangeFields
+        start="2026-10-06"
+        end="2026-10-09"
+        allDay
+        startReadOnly
+        endReadOnly
+        allDayReadOnly
+        onRangeChange={vi.fn()}
+        onAllDayChange={vi.fn()}
+      />
+    ));
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(
+      screen.getByLabelText('Event date and time range').textContent
+    ).toContain('All day');
   });
 });
 
@@ -184,6 +240,52 @@ describe('EventComposerGuestsPill', () => {
   });
 });
 
+describe('EventComposerKindPill', () => {
+  it('selects a type and blocks changes while saving', async () => {
+    const user = userEvent.setup();
+    const [eventType, setEventType] = createSignal<'default' | 'out_of_office'>(
+      'default'
+    );
+    const [pending, setPending] = createSignal(false);
+    render(() => (
+      <EventComposerKindPill
+        eventType={eventType()}
+        onChange={setEventType}
+        disabled={pending()}
+      />
+    ));
+    const event = screen.getByRole('radio', { name: /^Event$/ });
+    const away = screen.getByRole('radio', {
+      name: /^Out of office$/,
+    });
+    expect(event).toHaveProperty('checked', true);
+    await user.click(screen.getByText('Out of office', { exact: true }));
+    expect(eventType()).toBe('out_of_office');
+    expect(away).toHaveProperty('checked', true);
+    setPending(true);
+    await user.click(screen.getByText('Event', { exact: true }));
+    expect(eventType()).toBe('out_of_office');
+    expect(event.hasAttribute('disabled')).toBe(true);
+    expect(away.hasAttribute('disabled')).toBe(true);
+  });
+
+  it('shows an immutable provider type as plain content instead of editable pills', () => {
+    const onChange = vi.fn();
+    render(() => (
+      <EventComposerKindPill
+        eventType="focus_time"
+        readOnly
+        onChange={onChange}
+      />
+    ));
+    expect(screen.getByLabelText('Event type').textContent).toContain(
+      'Focus time'
+    );
+    expect(screen.queryByRole('radiogroup')).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
 describe('EventComposerConferencePill', () => {
   it('offers Macro only after the host flag resolves enabled', async () => {
     const user = userEvent.setup();

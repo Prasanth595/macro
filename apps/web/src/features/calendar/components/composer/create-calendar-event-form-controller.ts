@@ -383,6 +383,9 @@ export function createCalendarEventFormController(
       state().allDay ? moveAllDayRange(state(), start) : { ...state(), start }
     );
 
+  const setDateRange = (start: string, end: string) =>
+    replaceState({ ...state(), start, end });
+
   const setAllDay = (allDay: boolean) =>
     replaceState(convertTimesForAllDay(state(), allDay));
 
@@ -547,6 +550,7 @@ export function createCalendarEventFormController(
     setReminderMinutes,
     setField,
     setStart,
+    setDateRange,
     setAllDay,
     eventKind,
     isOutOfOffice,

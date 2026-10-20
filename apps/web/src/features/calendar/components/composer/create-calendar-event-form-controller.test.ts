@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import { createRoot, createSignal } from 'solid-js';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   type CreateCalendarEventFormControllerOptions,
   createCalendarEventFormController,
@@ -47,7 +47,7 @@ function controllerFor(
   options?: Partial<
     Pick<
       CreateCalendarEventFormControllerOptions,
-      'isEdit' | 'calendarOptions' | 'defaultCalendarId'
+      'isEdit' | 'calendarOptions' | 'defaultCalendarId' | 'onChange'
     >
   >
 ) {
@@ -67,6 +67,38 @@ function controllerFor(
   });
 }
 
+describe('connected date range updates', () => {
+  it('publishes both all-day dates once and saves an exclusive end', () => {
+    const onChange = vi.fn();
+    const controller = controllerFor(
+      {
+        title: 'Conference',
+        allDay: true,
+        start: '2030-10-01',
+        end: '2030-10-03',
+      },
+      { onChange }
+    );
+    controller.setDateRange('2030-10-30', '2030-11-02');
+    expect(onChange).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        start: '2030-10-30',
+        end: '2030-11-02',
+      })
+    );
+    expect(controller.submitValues()?.time).toEqual({
+      kind: 'allDay',
+      startDate: '2030-10-30',
+      endDate: '2030-11-03',
+    });
+    controller.setDateRange('2030-11-02', '2030-11-02');
+    expect(controller.submitValues()?.time).toEqual({
+      kind: 'allDay',
+      startDate: '2030-11-02',
+      endDate: '2030-11-03',
+    });
+  });
+});
 describe('recurring edit scope', () => {
   it('keeps repeat-rule changes scoped to all events until the rule is restored', () => {
     const controller = controllerFor(

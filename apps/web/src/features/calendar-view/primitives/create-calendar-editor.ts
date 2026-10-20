@@ -3,6 +3,7 @@ import type { EventEditorInitialValues } from '../../calendar/components/compose
 import type { CalendarEvent } from '../../calendar/types';
 import type { CalendarEditorRequest } from '../types';
 
+export type CalendarEditorPresentation = 'popover' | 'sidebar';
 export interface CalendarEditorDraft {
   event?: CalendarEvent;
   initialValues?: EventEditorInitialValues;
@@ -34,11 +35,19 @@ export function createCalendarEditorRequest(
 
 export function createCalendarEditor() {
   const [draft, setDraft] = createSignal<CalendarEditorDraft>();
+  const [surface, setSurface] =
+    createSignal<CalendarEditorPresentation>('popover');
   let beforeReplace: (() => Promise<boolean>) | undefined;
 
-  const open = (next: CalendarEditorDraft = {}) => {
+  const open = (
+    next: CalendarEditorDraft = {},
+    presentation: CalendarEditorPresentation = 'popover'
+  ) => {
     if (draft()) return false;
-    setDraft(next);
+    batch(() => {
+      setSurface(presentation);
+      setDraft(next);
+    });
     return true;
   };
   const close = () => {
@@ -66,6 +75,10 @@ export function createCalendarEditor() {
 
   return {
     draft,
+    surface,
+    moveToSidebar: () => {
+      if (draft()) setSurface('sidebar');
+    },
     open,
     close,
     replace,

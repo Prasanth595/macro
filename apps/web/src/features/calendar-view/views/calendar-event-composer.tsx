@@ -1,6 +1,5 @@
 import { createCalendarEventFormController } from '@app/features/calendar/components/composer/create-calendar-event-form-controller';
 import { EventForm } from '@app/features/calendar/components/composer/EventForm';
-import { EventComposerKindPill } from '@app/features/calendar/components/composer/EventPropertyPills';
 import { defaultEditorInitialValues } from '@app/features/calendar/components/composer/event-form-model';
 import { useEventEditor } from '@app/features/calendar/hooks/use-event-editor';
 import { useQuickCallsFlag } from '@app/features/meetings/use-quick-calls-flag';
@@ -65,7 +64,13 @@ function CalendarEditorLoading(props: {
 }) {
   const composer = useCalendarEditor();
   return (
-    <CalendarEditorSurface {...props} pending={false} onClose={composer.close}>
+    <CalendarEditorSurface
+      {...props}
+      surface={composer.surface()}
+      onMoveToSidebar={composer.moveToSidebar}
+      pending={false}
+      onClose={composer.close}
+    >
       <p role="status" class="p-4">
         Loading event…
       </p>
@@ -143,18 +148,10 @@ function CalendarEditorContent(props: {
       draft={props.draft}
       pending={editor.pending()}
       onClose={requestClose}
-      headerStart={
-        <EventComposerKindPill
-          eventType={controller.state().eventType}
-          onChange={controller.setEventKind}
-          disabled={editor.pending()}
-          readOnly={props.draft.event !== undefined || editor.eventCreated()}
-          compact
-        />
-      }
+      surface={composer.surface()}
+      onMoveToSidebar={composer.moveToSidebar}
     >
       <EventForm
-        showEventKind={false}
         controller={controller}
         macroCallsEnabled={props.macroCallsEnabled()}
         isEdit={props.draft.event !== undefined || editor.eventCreated()}
@@ -173,7 +170,7 @@ function CalendarEditorContent(props: {
               async (span) => {
                 span.setAttr(
                   'calendar.surface',
-                  isMobile() ? 'sheet' : 'popover'
+                  isMobile() ? 'sheet' : composer.surface()
                 );
                 if (values.calendarId)
                   span.setAttr('calendar.id', values.calendarId);

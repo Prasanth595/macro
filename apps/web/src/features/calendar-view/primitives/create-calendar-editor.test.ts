@@ -24,6 +24,26 @@ describe('calendar composer draft', () => {
     });
   });
 
+  it('moves the same draft to the sidebar without firing lifecycle callbacks', () => {
+    const composer = createCalendarEditor();
+    const onClose = vi.fn();
+    const draft = { onClose };
+    composer.open(draft);
+    expect(composer.surface()).toBe('popover');
+    composer.moveToSidebar();
+    expect(composer.surface()).toBe('sidebar');
+    expect(composer.draft()).toBe(draft);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(composer.open({})).toBe(false);
+    expect(composer.surface()).toBe('sidebar');
+    composer.close();
+    expect(onClose).toHaveBeenCalledOnce();
+    composer.open({}, 'sidebar');
+    expect(composer.surface()).toBe('sidebar');
+    composer.close();
+    composer.open();
+    expect(composer.surface()).toBe('popover');
+  });
   it('closes a draft once and opens a fresh draft afterward', () => {
     createRoot((dispose) => {
       const composer = createCalendarEditor();
@@ -64,7 +84,7 @@ describe('calendar composer draft', () => {
     const composer = createCalendarEditor();
     const onClose = vi.fn();
     const current = { onClose };
-    composer.open(current);
+    composer.open(current, 'sidebar');
     const confirmDiscard = vi
       .fn()
       .mockResolvedValueOnce(false)
@@ -79,9 +99,11 @@ describe('calendar composer draft', () => {
     const next = { initialValues: undefined };
     expect(await composer.replace(next)).toBe(false);
     expect(composer.draft()).toBe(current);
+    expect(composer.surface()).toBe('sidebar');
     expect(onClose).not.toHaveBeenCalled();
     expect(await composer.replace(next)).toBe(true);
     expect(composer.draft()).toBe(next);
+    expect(composer.surface()).toBe('popover');
     expect(onClose).toHaveBeenCalledOnce();
     expect(confirmDiscard).toHaveBeenCalledTimes(2);
   });
@@ -154,6 +176,7 @@ describe('calendar composer draft', () => {
     });
     try {
       expect(first.composer?.draft()).toBeDefined();
+      expect(first.composer?.surface()).toBe('sidebar');
       first.composer?.draft()?.onCalendarChange?.('work', '#123456');
       expect(onCalendarChange).toHaveBeenCalledWith('work', '#123456');
       expect(request.consume()).toBe(false);

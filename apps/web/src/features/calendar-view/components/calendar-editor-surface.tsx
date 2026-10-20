@@ -2,45 +2,60 @@ import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import { focusPopoverInput } from '@components/app/split-layout/utils/focusPopoverInput';
 import { useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { isMobile } from '@core/mobile/isMobile';
+import { Dialog as KobalteDialog } from '@kobalte/core/dialog';
 import { Popover } from '@kobalte/core/popover';
+import SidebarIcon from '@phosphor/sidebar-simple.svg';
 import CloseIcon from '@phosphor/x.svg';
 import { Button, Layer } from '@ui';
 import { type JSX, Show } from 'solid-js';
-import type { CalendarEditorDraft } from '../primitives/create-calendar-editor';
+import type {
+  CalendarEditorDraft,
+  CalendarEditorPresentation,
+} from '../primitives/create-calendar-editor';
 
 export function CalendarEditorSurface(props: {
   boundary: HTMLElement;
   draft: CalendarEditorDraft;
+  surface: CalendarEditorPresentation;
   pending: boolean;
   onClose: () => void;
-  headerStart?: JSX.Element;
+  onMoveToSidebar: () => void;
   children: JSX.Element;
 }) {
   const label = () => (props.draft.event ? 'Edit event' : 'New event');
   const Header = () => {
     const [attachHotkeys] = useHotkeyDOMScope('event-composer', true);
     return (
-      <div
-        ref={attachHotkeys}
-        data-event-editor-header
-        class="flex shrink-0 items-center justify-between gap-2 px-3 pb-2 pt-2"
-      >
-        <div class="min-w-0">{props.headerStart}</div>
-        <div class="flex items-center gap-1">
-          <Show when={!isMobile()}>
+      <Show when={!isMobile()}>
+        <div
+          ref={attachHotkeys}
+          data-event-editor-header
+          class="flex shrink-0 items-center justify-end gap-1 px-3 pb-1 pt-2"
+        >
+          <Show when={props.surface === 'popover'}>
             <Button
               type="button"
-              label="Close event editor"
+              label="Move to sidebar"
               variant="ghost"
               size="icon-sm"
               disabled={props.pending}
-              onClick={props.onClose}
+              onClick={props.onMoveToSidebar}
             >
-              <CloseIcon class="size-4" />
+              <SidebarIcon class="size-4" />
             </Button>
           </Show>
+          <Button
+            type="button"
+            label="Close event editor"
+            variant="ghost"
+            size="icon-sm"
+            disabled={props.pending}
+            onClick={props.onClose}
+          >
+            <CloseIcon class="size-4" />
+          </Button>
         </div>
-      </div>
+      </Show>
     );
   };
 
@@ -48,14 +63,43 @@ export function CalendarEditorSurface(props: {
     <Show
       when={isMobile()}
       fallback={
-        <EditorPopover
-          boundary={props.boundary}
-          draft={props.draft}
-          onClose={props.onClose}
+        <Show
+          when={props.surface === 'popover'}
+          fallback={
+            // The editor sidebar must leave the calendar interactive.
+            <KobalteDialog
+              open
+              modal={false}
+              onOpenChange={(open) => !open && props.onClose()}
+            >
+              <Layer depth={3}>
+                <KobalteDialog.Content
+                  as="aside"
+                  aria-label={label()}
+                  class="portal-scope z-20 m-3 flex min-h-0 w-[min(25rem,calc(100%-1.5rem))] shrink-0 flex-col overflow-hidden rounded-xl border border-edge-muted glass bg-menu-glass text-ink outline-none"
+                  onOpenAutoFocus={focusEditorTitle}
+                  onInteractOutside={(event) => event.preventDefault()}
+                  onCloseAutoFocus={(event) => event.preventDefault()}
+                >
+                  <KobalteDialog.Title class="sr-only">
+                    {label()}
+                  </KobalteDialog.Title>
+                  <Header />
+                  <EditorFormBody>{props.children}</EditorFormBody>
+                </KobalteDialog.Content>
+              </Layer>
+            </KobalteDialog>
+          }
         >
-          <Header />
-          <EditorFormBody>{props.children}</EditorFormBody>
-        </EditorPopover>
+          <EditorPopover
+            boundary={props.boundary}
+            draft={props.draft}
+            onClose={props.onClose}
+          >
+            <Header />
+            <EditorFormBody>{props.children}</EditorFormBody>
+          </EditorPopover>
+        </Show>
       }
     >
       <MobileDrawer
@@ -143,7 +187,7 @@ function EditorPopover(props: {
   );
 }
 
-// The type selector precedes Title, but creation still starts typing there.
+// Creation starts typing in Title instead of focusing the surface controls.
 function focusEditorTitle(event: Event) {
   const container = event.target;
   if (!(container instanceof HTMLElement)) return;

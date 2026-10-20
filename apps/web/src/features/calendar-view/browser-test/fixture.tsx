@@ -22,7 +22,6 @@ import {
   EventForm,
   type EventFormProps,
 } from '../../calendar/components/composer/EventForm';
-import { EventComposerKindPill } from '../../calendar/components/composer/EventPropertyPills';
 
 import {
   calendarEventToEditorInitialValues,
@@ -37,6 +36,7 @@ import { CalendarEditorSurface } from '../components/calendar-editor-surface';
 import { createCalendarDraftDismissal } from '../primitives/create-calendar-draft-dismissal';
 import {
   type CalendarEditorDraft,
+  type CalendarEditorPresentation,
   createCalendarEditor,
 } from '../primitives/create-calendar-editor';
 
@@ -94,7 +94,9 @@ function Fixture() {
     <div class="flex h-dvh flex-col bg-page p-4 text-ink">
       <ImperativeDialogHost />
       <header class="flex shrink-0 gap-2 pb-4">
-        <Button onClick={() => composer.open()}>Create event</Button>
+        <Button onClick={() => composer.open({}, 'sidebar')}>
+          Create event
+        </Button>
         <Button
           onClick={() => {
             grid()?.api()?.next();
@@ -182,6 +184,8 @@ function Fixture() {
                 <FixtureEditor
                   boundary={element()}
                   draft={draft}
+                  surface={composer.surface()}
+                  onMoveToSidebar={composer.moveToSidebar}
                   registerBeforeReplace={composer.registerBeforeReplace}
                   onClose={composer.close}
                   onSubmit={(values, scope) => setSubmitted({ values, scope })}
@@ -198,6 +202,8 @@ function Fixture() {
 function FixtureEditor(props: {
   boundary: HTMLElement;
   draft: CalendarEditorDraft;
+  surface: CalendarEditorPresentation;
+  onMoveToSidebar: () => void;
   registerBeforeReplace: ReturnType<
     typeof createCalendarEditor
   >['registerBeforeReplace'];
@@ -253,18 +259,15 @@ function FixtureEditor(props: {
       {...props}
       pending={pending()}
       onClose={requestClose}
-      headerStart={
-        <EventComposerKindPill
-          eventType={controller.state().eventType}
-          onChange={controller.setEventKind}
-          disabled={pending()}
-          readOnly={props.draft.event !== undefined}
-          compact
-        />
-      }
     >
+      <output aria-label="Draft date range" class="sr-only">
+        {JSON.stringify({
+          start: controller.state().start,
+          end: controller.state().end,
+          allDay: controller.state().allDay,
+        })}
+      </output>
       <EventForm
-        showEventKind={false}
         controller={controller}
         macroCallsEnabled
         isEdit={props.draft.event !== undefined}

@@ -9,7 +9,6 @@ import ChatTextIcon from '@phosphor/chat-text.svg';
 import MapPinIcon from '@phosphor/map-pin.svg';
 import RepeatIcon from '@phosphor/repeat.svg';
 import SpinnerIcon from '@phosphor/spinner.svg';
-import SquaresFourIcon from '@phosphor/squares-four.svg';
 import TextAlignLeftIcon from '@phosphor/text-align-left.svg';
 import UsersIcon from '@phosphor/users.svg';
 import VideoCameraIcon from '@phosphor/video-camera.svg';
@@ -55,8 +54,6 @@ import { outOfOfficeNoticeFor } from './out-of-office';
 
 export interface EventFormProps {
   controller: CalendarEventFormController;
-  /** Calendar-owned surfaces place the kind selector in their header. */
-  showEventKind?: boolean;
   /** Whether this host can create and attach Macro call links. */
   macroCallsEnabled: boolean;
   isEdit?: boolean;
@@ -183,8 +180,7 @@ export function EventForm(props: EventFormProps) {
         start={state().start}
         end={state().end}
         allDay={state().allDay}
-        onStartChange={controller.setStart}
-        onEndChange={(end) => controller.setField('end', end)}
+        onRangeChange={controller.setDateRange}
         onAllDayChange={controller.setAllDay}
         startDisabled={fieldIsDisabled('start')}
         endDisabled={fieldIsDisabled('end')}
@@ -194,7 +190,6 @@ export function EventForm(props: EventFormProps) {
         allDayReadOnly={fieldIsReadOnly('allDay')}
         invalid={controller.dateRangeError() !== undefined}
         describedBy={dateRangeDescribedBy()}
-        stacked
       />
       <Show when={controller.dateRangeError()}>
         {(error) => (
@@ -258,7 +253,6 @@ export function EventForm(props: EventFormProps) {
         onChange={controller.setEventKind}
         disabled={formIsDisabled()}
         readOnly={isEdit()}
-        hideIcon
       />
     ),
     calendar: () => (
@@ -432,12 +426,7 @@ export function EventForm(props: EventFormProps) {
     >
       <div class="min-h-0 flex-1 overflow-y-auto scrollbar-hidden">
         <div class="flex min-w-0 flex-col gap-3 p-1 text-sm text-ink-muted sm:gap-2 sm:text-xs">
-          <Show when={props.showEventKind !== false}>
-            <PropertyRow label="Event type" icon={SquaresFourIcon}>
-              {controls.kind()}
-            </PropertyRow>
-          </Show>
-          <div class="grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-x-2 sm:grid-cols-[1rem_minmax(0,1fr)]">
+          <div class="grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-x-2 gap-y-1 sm:grid-cols-[1rem_minmax(0,1fr)]">
             <span aria-hidden="true" class="flex items-center justify-center">
               <Show when={controller.selectedCalendarOption()}>
                 {(calendar) => (
@@ -449,6 +438,7 @@ export function EventForm(props: EventFormProps) {
               </Show>
             </span>
             {titleField()}
+            <div class="col-start-2 min-w-0 px-2 pb-1">{controls.kind()}</div>
           </div>
           <Show when={!isOutOfOffice()}>
             <PropertyRow label="Description" icon={TextAlignLeftIcon}>
