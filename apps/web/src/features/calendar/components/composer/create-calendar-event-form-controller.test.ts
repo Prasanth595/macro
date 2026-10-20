@@ -67,6 +67,64 @@ function controllerFor(
   });
 }
 
+describe('recurring edit scope', () => {
+  it('keeps repeat-rule changes scoped to all events until the rule is restored', () => {
+    const controller = controllerFor(
+      {
+        title: 'Weekly review',
+        start: '2030-10-21T10:00',
+        end: '2030-10-21T11:00',
+        recurrenceLines: ['RRULE:FREQ=WEEKLY;BYDAY=MO'],
+      },
+      { isEdit: true }
+    );
+    controller.changeRecurrenceChoice('daily');
+    controller.setEditScope('this_event');
+    expect(controller.editScope()).toBe('all');
+    expect(controller.submitValues()?.recurrenceLines?.join(';')).toContain(
+      'FREQ=DAILY'
+    );
+    controller.changeRecurrenceChoice('weekly');
+    controller.setEditScope('this_event');
+    expect(controller.editScope()).toBe('this_event');
+  });
+
+  it('still permits a single-occurrence reschedule without an intentional rule change', () => {
+    const controller = controllerFor(
+      {
+        title: 'Weekly review',
+        start: '2030-10-21T10:00',
+        end: '2030-10-21T11:00',
+        recurrenceLines: ['RRULE:FREQ=WEEKLY;BYDAY=MO'],
+      },
+      { isEdit: true }
+    );
+    controller.setStart('2030-10-22T10:00');
+    controller.setField('end', '2030-10-22T11:00');
+    controller.setEditScope('this_event');
+    expect(controller.editScope()).toBe('this_event');
+    expect(controller.canSave()).toBe(true);
+  });
+
+  it('cannot submit a rule change introduced under single-occurrence scope', () => {
+    const controller = controllerFor(
+      {
+        title: 'Weekly review',
+        start: '2030-10-21T10:00',
+        end: '2030-10-21T11:00',
+        recurrenceLines: ['RRULE:FREQ=WEEKLY;BYDAY=MO'],
+      },
+      { isEdit: true }
+    );
+    controller.setEditScope('this_event');
+    controller.changeRecurrenceChoice('daily');
+    expect(controller.submitValues()).toBeUndefined();
+    controller.setEditScope('all');
+    expect(controller.submitValues()?.recurrenceLines?.join(';')).toContain(
+      'FREQ=DAILY'
+    );
+  });
+});
 it('never uses an imported point baseline to create a new zero-duration event', () => {
   const controller = controllerFor({
     title: 'New point',

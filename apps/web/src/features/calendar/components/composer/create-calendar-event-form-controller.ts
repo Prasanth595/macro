@@ -162,6 +162,7 @@ export function createCalendarEventFormController(
     recurrenceTimeZone: options.recurrenceTimeZone,
     isEdit: options.isEdit,
   });
+  const [recurrenceTouched, setRecurrenceTouched] = createSignal(false);
 
   const isOutOfOffice = () => state().eventType === 'out_of_office';
   const eventKind = () => eventKindOf(state().eventType);
@@ -253,6 +254,12 @@ export function createCalendarEventFormController(
 
   const effectiveRecurrenceLines = () =>
     recurrence.recurrenceLines() ?? initialValue().recurrenceLines;
+  const hasRecurrenceEdits = () =>
+    recurrenceTouched() &&
+    !recurrenceLinesEqual(
+      initialValue().recurrenceLines,
+      effectiveRecurrenceLines()
+    );
 
   const value = createMemo<EventEditorInitialValues>(() => {
     const reminders = reminderUpdate();
@@ -419,11 +426,13 @@ export function createCalendarEventFormController(
   };
 
   const changeRecurrenceChoice = (choice: string) => {
+    setRecurrenceTouched(true);
     recurrence.changeRecurrenceChoice(choice);
     notifyChange();
   };
 
   const setCustomConfig: typeof recurrence.setCustomConfig = (next) => {
+    setRecurrenceTouched(true);
     recurrence.setCustomConfig(next);
     notifyChange();
   };
@@ -457,6 +466,7 @@ export function createCalendarEventFormController(
 
   const canSave = () =>
     recurrence.canSave() &&
+    !(editScope() === 'this_event' && hasRecurrenceEdits()) &&
     (!options.defaultCalendarId ||
       availableCalendarOptions().some(
         (option) => option.id === effectiveCalendarId()
@@ -510,6 +520,7 @@ export function createCalendarEventFormController(
       setInitialGuestEmails(guests.map(guestEmail));
       setSelectedGuestsState(guests);
       setReminderEdits(undefined);
+      setRecurrenceTouched(false);
       setEditScope('all');
       recurrence.replaceInitialValues(cloned);
     });
@@ -519,7 +530,11 @@ export function createCalendarEventFormController(
     state,
     value,
     editScope,
-    setEditScope,
+    setEditScope: (scope: CalendarUpdateScope) => {
+      if (scope === 'this_event' && hasRecurrenceEdits()) return;
+      setEditScope(scope);
+    },
+    hasRecurrenceEdits,
     calendarOptions: availableCalendarOptions,
     guestOptions: options.guestOptions,
     selectedGuests,

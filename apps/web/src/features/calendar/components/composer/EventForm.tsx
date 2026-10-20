@@ -472,6 +472,13 @@ export function EventForm(props: EventFormProps) {
           {props.saveError}
         </p>
       </Show>
+      <Show
+        when={props.showRecurringEditNotice && controller.hasRecurrenceEdits()}
+      >
+        <p role="status" class="text-xs text-ink-muted">
+          Repeat changes apply to all events.
+        </p>
+      </Show>
       <div class="flex shrink-0 items-center justify-end gap-3">
         <Show when={props.showRecurringEditNotice}>
           <RadioGroup
@@ -483,7 +490,14 @@ export function EventForm(props: EventFormProps) {
           >
             <For each={RECURRING_EDIT_SCOPE_OPTIONS}>
               {(option) => (
-                <RadioGroup.Item value={option.scope} class="gap-1.5">
+                <RadioGroup.Item
+                  value={option.scope}
+                  disabled={
+                    option.scope === 'this_event' &&
+                    controller.hasRecurrenceEdits()
+                  }
+                  class="gap-1.5"
+                >
                   <RadioGroup.ItemControl class="size-3.5" />
                   <RadioGroup.ItemLabel>{option.label}</RadioGroup.ItemLabel>
                 </RadioGroup.Item>
