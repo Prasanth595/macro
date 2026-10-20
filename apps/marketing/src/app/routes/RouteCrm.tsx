@@ -93,7 +93,7 @@ export function RouteCrm() {
           preload={loadPipeline}
           fallback={<DemoPlaceholder label="Sales pipeline" />}
         >
-          <PipelineDemo />
+          <PipelineDemo hero />
         </DeferredDemo>
       </WorkspaceDesktopDemo>
       <nav
@@ -137,7 +137,7 @@ export function RouteCrm() {
       </FeaturePageSection>
       <FeaturePageSection
         id="crm-enrichment"
-        title={['Turn a new email into', 'a company record.']}
+        title={['Automatically add and', 'enrich new contacts.']}
         description="When you email someone new, Macro creates the contact and company from their domain. Public company details fill in the record, so you have a starting point before the first meeting."
         details={crmGuides['crm-enrichment']}
       >
