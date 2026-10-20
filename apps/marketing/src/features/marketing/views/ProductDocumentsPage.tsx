@@ -139,7 +139,7 @@ export function RouteDocuments() {
           aria-label="Compare Macro and Notion"
         >
           <FeatureComparisons
-            title="Compare Document Editors"
+            title="Compare Workspaces"
             comparisons={documentComparisons}
           />
         </section>

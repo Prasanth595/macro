@@ -9,15 +9,26 @@ const comparisons: readonly FeatureComparison[] = [
     question: 'How does Macro compare with Google Meet?',
     competitor: 'Google Meet',
     rows: [
-      { feature: 'Video calls', macro: true, competitor: true },
-      { feature: 'Recording playback', macro: true, competitor: true },
       {
-        feature: 'Transcripts and AI summaries',
+        feature: 'Recorded calls with searchable transcripts',
+        macro: true,
+        competitor: true,
+      },
+      { feature: 'Ask AI about past meetings', macro: true, competitor: true },
+      {
+        feature: 'Create tasks and email drafts from a call',
         macro: true,
         competitor: true,
       },
       {
-        feature: 'Capture notes from other meeting apps',
+        feature: 'Built-in CRM for customer follow-ups',
+        macro: true,
+        competitor: 'partial',
+        competitorNote:
+          'Customer records and pipeline follow-ups use a connected CRM alongside Google Workspace.',
+      },
+      {
+        feature: 'Capture notes in other meeting apps',
         macro: false,
         competitor: false,
       },
@@ -26,6 +37,7 @@ const comparisons: readonly FeatureComparison[] = [
       'https://docs.macro.com/product/calls',
       'https://docs.macro.com/product/agents',
       'https://support.google.com/meet/answer/9308681',
+      'https://support.google.com/meet/answer/18481437',
       'https://support.google.com/meet/answer/14754931',
       'https://support.google.com/meet/answer/16024610',
     ],
@@ -35,15 +47,30 @@ const comparisons: readonly FeatureComparison[] = [
     question: 'How does Macro compare with Granola?',
     competitor: 'Granola',
     rows: [
-      { feature: 'Video calls', macro: true, competitor: false },
-      { feature: 'Recording playback', macro: true, competitor: false },
       {
-        feature: 'Transcripts and AI summaries',
+        feature: 'Recorded calls with searchable transcripts',
         macro: true,
-        competitor: true,
+        competitor: 'partial',
+        competitorNote:
+          'Granola transcribes meetings and keeps notes, but does not retain audio or video recordings for playback.',
+      },
+      { feature: 'Ask AI about past meetings', macro: true, competitor: true },
+      {
+        feature: 'Create tasks and email drafts from a call',
+        macro: true,
+        competitor: 'partial',
+        competitorNote:
+          'Granola supplies meeting context through MCP and integrations; tasks and email drafts are created in connected tools.',
       },
       {
-        feature: 'Capture notes from other meeting apps',
+        feature: 'Built-in CRM for customer follow-ups',
+        macro: true,
+        competitor: 'partial',
+        competitorNote:
+          'Granola sends meeting context to connected CRMs such as Attio and HubSpot; it is not itself a CRM.',
+      },
+      {
+        feature: 'Capture notes in other meeting apps',
         macro: false,
         competitor: true,
       },
@@ -51,6 +78,8 @@ const comparisons: readonly FeatureComparison[] = [
     sources: [
       'https://docs.granola.ai/help-center/feature-requests',
       'https://www.granola.ai/security',
+      'https://www.granola.ai/mcp',
+      'https://www.granola.ai/integrations',
       'https://docs.granola.ai/help-center/consent-security-privacy/security-privacy-data-faqs',
       'https://docs.granola.ai/help-center/sharing/integrations/mcp',
     ],

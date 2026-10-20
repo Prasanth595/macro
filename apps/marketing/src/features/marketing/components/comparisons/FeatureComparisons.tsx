@@ -112,7 +112,7 @@ function FeatureComparisonKey(props: {
       </span>
       <Show when={props.partial}>
         <span>
-          <PartialMark /> Partial / via connected tools
+          <PartialMark /> Partial
         </span>
       </Show>
       <Show when={props.unavailable}>

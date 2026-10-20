@@ -9,7 +9,6 @@
   --comparison-accent: var(--color-ink);
   --comparison-macro-case: none;
   --comparison-partial-height: 2px;
-  --comparison-partial-transform: rotate(-55deg);
   position: relative;
   display: grid;
   gap: 20px;

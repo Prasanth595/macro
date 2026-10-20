@@ -629,12 +629,16 @@ FAQs, and the overview's horizontal scrolling.
 Use the framed comparison layout across the six existing product tables: a
 category title (Compare CRMs, Compare Task Managers, etc.), a continuous Features
 header, readable rows, and plain competitor names with the standard Macro mark.
-Keep checks for verifiable capabilities and slashes for partial or connected-tool support.
+Keep checks for verifiable capabilities and horizontal dashes labeled Partial for partial support.
 Give partial cells a concise accessible description explaining the difference.
 Keep pricing disclaimers off the tables and show only legend symbols used in
-that table. Compare shared category basics before
-one workspace difference, include meaningful competitor strengths, and remove
-repetitive or narrowly worded rows that manufacture an advantage. Paid features
+that table. Lead with concrete workflow and setup differences, retain useful
+shared capabilities and competitor strengths, and remove generic filler or
+repetitive rows. A partial mark must identify a real scope, setup, or platform difference;
+never downgrade a competitor based on an unmeasured quality or speed claim.
+For Gmail, distinguish shortcut navigation from a searchable command menu. For
+Notion, credit task databases, sprints, and CRM templates while distinguishing
+them from dedicated task and CRM tools. Paid features
 and supported integrations count unless a row explicitly says built-in. A check
 indicates availability, not equivalent depth. Keep dated source notes with the
 comparison data and recheck claims before changing cells.

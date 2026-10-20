@@ -2,6 +2,7 @@ import { cleanup, render, within } from '@solidjs/testing-library';
 import { afterEach, expect, it } from 'vitest';
 import { setViewportWidth } from '../../../../app/utils/utilBreakpoint';
 import {
+  documentComparisons,
   emailComparisons,
   taskComparisons,
 } from '../../core/feature-comparisons';
@@ -25,7 +26,9 @@ it('shows one table with all email competitors with a heading and no disclosure'
   ).toBeTruthy();
   expect(within(table).getByText('Superhuman Mail')).toBeTruthy();
   expect(within(table).getByText('Gmail')).toBeTruthy();
-  expect(within(table).getAllByText('Keyboard shortcuts')).toHaveLength(1);
+  expect(
+    within(table).getAllByText('Keyboard navigation and command menu')
+  ).toHaveLength(1);
   expect(
     within(table).getAllByRole('img', { name: 'Yes' }).length
   ).toBeGreaterThan(0);
@@ -81,9 +84,57 @@ it('credits shared CRM capabilities and competitors’ dedicated reporting', () 
     cell = cell?.nextElementSibling ?? null;
     expect(cell?.querySelector('[aria-label="Yes"]')).toBeTruthy();
   }
-  expect(view.getByText('Partial / via connected tools')).toBeTruthy();
+  expect(view.getByText('Partial')).toBeTruthy();
   expect(view.queryByText('Not included')).toBeNull();
   expect(table.tabIndex).toBe(0);
   expect(table.style.overflowX).toBe('auto');
   expect(view.queryByText(/Includes paid features/)).toBeNull();
+});
+
+it('explains Gmail’s partial keyboard workflow without denying its shortcuts', () => {
+  setViewportWidth(1440);
+  const view = render(() => (
+    <FeatureComparisons
+      title="Compare Email Clients"
+      comparisons={emailComparisons}
+    />
+  ));
+  const keyboard = view.getByText('Keyboard navigation and command menu');
+  const gmail =
+    keyboard.nextElementSibling?.nextElementSibling?.nextElementSibling;
+  expect(
+    gmail
+      ?.querySelector('[aria-label="Partial"]')
+      ?.getAttribute('aria-description')
+  ).toContain('Gmail supports navigation and action shortcuts');
+});
+
+it('credits Notion’s task and CRM databases while explaining the setup difference', () => {
+  setViewportWidth(1440);
+  const view = render(() => (
+    <FeatureComparisons
+      title="Compare Workspaces"
+      comparisons={documentComparisons}
+    />
+  ));
+  const task = view.getByText('Dedicated task manager');
+  const crm = view.getByText('Dedicated CRM');
+  const taskMark = task.nextElementSibling?.nextElementSibling?.querySelector(
+    '[aria-label="Partial"]'
+  );
+  const crmMark = crm.nextElementSibling?.nextElementSibling?.querySelector(
+    '[aria-label="Partial"]'
+  );
+  expect(taskMark?.getAttribute('aria-description')).toContain(
+    'task databases, My tasks, and sprints'
+  );
+  expect(crmMark?.getAttribute('aria-description')).toContain(
+    'databases and templates'
+  );
+  const collaboration = view.getByText('Live document collaboration');
+  expect(
+    collaboration.nextElementSibling?.nextElementSibling?.querySelector(
+      '[aria-label="Yes"]'
+    )
+  ).toBeTruthy();
 });
