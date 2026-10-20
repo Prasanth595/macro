@@ -151,7 +151,7 @@ export function RouteTasks() {
         </FeaturePageSection>
         <FeaturePageSection
           id="from-docs-and-email"
-          title={['Tag files, people,', 'and emails to your task.']}
+          title={['Attach files, people,', 'and emails to your task.']}
           description="Tag emails, documents, images, and team discussion directly to your task so your team has the context it needs to complete the task."
           details={tasksGuides['from-docs-and-email']}
         >
