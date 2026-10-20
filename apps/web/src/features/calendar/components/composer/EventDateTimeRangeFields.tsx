@@ -6,7 +6,7 @@ import { Calendar } from '@ui/components/Calendar';
 import { Layer } from '@ui/components/Layer';
 import { ToggleSwitch } from '@ui/components/ToggleSwitch';
 import { cn } from '@ui/utils/classname';
-import { createSignal, createUniqueId } from 'solid-js';
+import { createSignal, createUniqueId, Show } from 'solid-js';
 import { formatLocalDate, parseLocalDate } from '../../utils/calendar-date';
 import { EventComposerPopoverPortal } from './EventComposerPopoverPortal';
 import { dateLabelFormatter, EventTimeInput } from './EventDateTimeInputs';
@@ -38,6 +38,7 @@ interface EventDateTimeDropdownProps {
   onDateChange: (value: string) => void;
   onTimeChange: (value: string) => void;
   fieldDisabled?: boolean;
+  readOnly?: boolean;
   invalid?: boolean;
   describedBy?: string;
   placement: 'bottom-start' | 'bottom-end';
@@ -84,91 +85,100 @@ function EventDateTimeDropdown(props: EventDateTimeDropdownProps) {
   };
 
   return (
-    <Popover
-      open={open() && !props.fieldDisabled}
-      onOpenChange={(nextOpen) => setOpen(!props.fieldDisabled && nextOpen)}
-      placement={props.placement}
-      gutter={4}
-      flip
-      slide
-    >
-      <Popover.Trigger
-        disabled={props.fieldDisabled}
-        aria-label={`Edit event ${props.label.toLowerCase()} date and time`}
-        aria-invalid={props.invalid || undefined}
-        aria-describedby={props.describedBy}
-        class={cn(
-          'group inline-flex h-7 w-fit max-w-48 min-w-0 items-center justify-between gap-1.5 rounded-lg border border-edge-muted bg-control px-2 py-1 text-left text-xs leading-tight text-ink-muted hover:bg-hover hover:text-ink focus-visible:bg-active focus-visible:text-ink focus-visible:ring-accent/10 data-expanded:bg-hover data-expanded:text-ink',
-          props.fullWidth && 'w-full max-w-none',
-          open() && 'bg-hover text-ink',
-          props.invalid &&
-            'border-failure text-failure hover:text-failure focus-visible:text-failure data-expanded:text-failure'
-        )}
-      >
-        <CalendarBlankIcon
-          class={cn(
-            'size-3.5 shrink-0',
-            props.invalid
-              ? 'text-failure'
-              : 'text-ink-extra-muted group-hover:text-ink-muted group-focus-visible:text-ink-muted'
-          )}
-        />
-        <span class="min-w-0 flex-1 truncate">{label()}</span>
-        <CaretDownIcon
-          class={cn(
-            'size-3 shrink-0',
-            props.invalid
-              ? 'text-failure'
-              : 'text-ink-extra-muted group-hover:text-ink-muted group-focus-visible:text-ink-muted'
-          )}
-        />
-      </Popover.Trigger>
-
-      <EventComposerPopoverPortal>
-        <Layer depth={3}>
-          <Popover.Content
-            class="portal-scope z-action-menu w-72 max-w-[calc(100vw-1rem)] rounded-xl border border-edge bg-menu-glass glass menu-open-animation"
-            on:keydown={(event: KeyboardEvent) => {
-              if (event.key !== 'Escape') return;
-              event.preventDefault();
-              event.stopPropagation();
-              setOpen(false);
-            }}
-            onOpenAutoFocus={(event) => event.preventDefault()}
-            onCloseAutoFocus={(event) => event.preventDefault()}
+    <Show
+      when={props.readOnly}
+      fallback={
+        <Popover
+          open={open() && !props.fieldDisabled}
+          onOpenChange={(nextOpen) => setOpen(!props.fieldDisabled && nextOpen)}
+          placement={props.placement}
+          gutter={4}
+          flip
+          slide
+        >
+          <Popover.Trigger
+            disabled={props.fieldDisabled}
+            aria-label={`Edit event ${props.label.toLowerCase()} date and time`}
+            aria-invalid={props.invalid || undefined}
+            aria-describedby={props.describedBy}
+            class={cn(
+              'group inline-flex h-7 w-fit max-w-48 min-w-0 items-center justify-between gap-1.5 rounded-none border border-edge-muted bg-control px-2 py-1 text-left text-xs leading-tight text-ink-muted hover:bg-hover hover:text-ink focus-visible:bg-active focus-visible:text-ink focus-visible:ring-accent/10 data-expanded:bg-hover data-expanded:text-ink',
+              props.fullWidth && 'w-full max-w-none',
+              open() && 'bg-hover text-ink',
+              props.invalid &&
+                'border-failure text-failure hover:text-failure focus-visible:text-failure data-expanded:text-failure'
+            )}
           >
-            <Popover.Title class="px-3 pt-3 text-xs font-medium text-ink">
-              {props.label} {props.allDay ? 'date' : 'date and time'}
-            </Popover.Title>
-            <div class="p-3">
-              <Calendar
-                required
-                fixedWeeks
-                value={selectedDate()}
-                onValueChange={(date) => {
-                  if (!date || props.fieldDisabled) return;
-                  props.onDateChange(formatLocalDate(date));
-                }}
-              />
-            </div>
+            <CalendarBlankIcon
+              class={cn(
+                'size-3.5 shrink-0',
+                props.invalid
+                  ? 'text-failure'
+                  : 'text-ink-extra-muted group-hover:text-ink-muted group-focus-visible:text-ink-muted'
+              )}
+            />
+            <span class="min-w-0 flex-1 truncate">{label()}</span>
+            <CaretDownIcon
+              class={cn(
+                'size-3 shrink-0',
+                props.invalid
+                  ? 'text-failure'
+                  : 'text-ink-extra-muted group-hover:text-ink-muted group-focus-visible:text-ink-muted'
+              )}
+            />
+          </Popover.Trigger>
 
-            <div class="border-t border-edge p-3">
-              <div class={cn(props.allDay && 'opacity-50')}>
-                <EventTimeInput
-                  id={props.id}
-                  label={`${props.label} time`}
-                  value={parts().time}
-                  options={timeOptions()}
-                  selectedId={selectedTimeId()}
-                  onChange={changeTime}
-                  disabled={props.fieldDisabled || props.allDay}
-                />
-              </div>
-            </div>
-          </Popover.Content>
-        </Layer>
-      </EventComposerPopoverPortal>
-    </Popover>
+          <EventComposerPopoverPortal>
+            <Layer depth={3}>
+              <Popover.Content
+                class="portal-scope z-action-menu w-72 max-w-[calc(100vw-1rem)] rounded-xl border border-edge bg-menu-glass glass menu-open-animation"
+                on:keydown={(event: KeyboardEvent) => {
+                  if (event.key !== 'Escape') return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setOpen(false);
+                }}
+                onOpenAutoFocus={(event) => event.preventDefault()}
+                onCloseAutoFocus={(event) => event.preventDefault()}
+              >
+                <Popover.Title class="px-3 pt-3 text-xs font-medium text-ink">
+                  {props.label} {props.allDay ? 'date' : 'date and time'}
+                </Popover.Title>
+                <div class="p-3">
+                  <Calendar
+                    required
+                    fixedWeeks
+                    value={selectedDate()}
+                    onValueChange={(date) => {
+                      if (!date || props.fieldDisabled) return;
+                      props.onDateChange(formatLocalDate(date));
+                    }}
+                  />
+                </div>
+
+                <div class="border-t border-edge p-3">
+                  <div class={cn(props.allDay && 'opacity-50')}>
+                    <EventTimeInput
+                      id={props.id}
+                      label={`${props.label} time`}
+                      value={parts().time}
+                      options={timeOptions()}
+                      selectedId={selectedTimeId()}
+                      onChange={changeTime}
+                      disabled={props.fieldDisabled || props.allDay}
+                    />
+                  </div>
+                </div>
+              </Popover.Content>
+            </Layer>
+          </EventComposerPopoverPortal>
+        </Popover>
+      }
+    >
+      <span aria-label={`${props.label} date and time`} class="select-text">
+        {label()}
+      </span>
+    </Show>
   );
 }
 
@@ -182,6 +192,9 @@ export interface EventDateTimeRangeFieldsProps {
   startDisabled?: boolean;
   endDisabled?: boolean;
   allDayDisabled?: boolean;
+  startReadOnly?: boolean;
+  endReadOnly?: boolean;
+  allDayReadOnly?: boolean;
   invalid?: boolean;
   describedBy?: string;
   stacked?: boolean;
@@ -194,8 +207,10 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
   return (
     <div
       class={cn(
-        'flex w-full justify-between gap-3',
-        props.stacked ? 'items-start' : 'items-center'
+        'flex w-full gap-3',
+        props.stacked
+          ? 'flex-col items-stretch'
+          : 'items-center justify-between'
       )}
     >
       <div
@@ -216,6 +231,7 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
           }
           onTimeChange={props.onStartChange}
           fieldDisabled={props.startDisabled}
+          readOnly={props.startReadOnly}
           invalid={props.invalid}
           describedBy={props.describedBy}
           placement="bottom-start"
@@ -242,21 +258,31 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
           }
           onTimeChange={props.onEndChange}
           fieldDisabled={props.endDisabled}
+          readOnly={props.endReadOnly}
           invalid={props.invalid}
           describedBy={props.describedBy}
           placement="bottom-end"
           fullWidth={props.stacked}
         />
       </div>
-      <ToggleSwitch
-        checked={props.allDay}
-        disabled={props.allDayDisabled}
-        onChange={props.onAllDayChange}
-        size="sm"
-        label="All day"
-        labelClass="whitespace-nowrap text-xs text-ink-muted"
-        class="shrink-0"
-      />
+      <Show
+        when={props.allDayReadOnly}
+        fallback={
+          <ToggleSwitch
+            checked={props.allDay}
+            disabled={props.allDayDisabled}
+            onChange={props.onAllDayChange}
+            size="sm"
+            label="All day"
+            labelClass="whitespace-nowrap text-xs text-ink-muted"
+            class="shrink-0"
+          />
+        }
+      >
+        <span class="select-text whitespace-nowrap text-xs text-ink-muted">
+          {props.allDay ? 'All day' : 'Timed event'}
+        </span>
+      </Show>
     </div>
   );
 }

@@ -111,6 +111,35 @@ describe('composer popovers inside a dialog', () => {
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
     expect(screen.getByLabelText('Title')).toBeTruthy();
   });
+  it('keeps locked dates as text while the editable end remains interactive', async () => {
+    const user = userEvent.setup();
+    const onEndChange = vi.fn();
+    render(() => (
+      <EventDateTimeRangeFields
+        start="2026-10-06T09:00"
+        end="2026-10-06T10:00"
+        allDay={false}
+        startReadOnly
+        allDayReadOnly
+        onStartChange={vi.fn()}
+        onEndChange={onEndChange}
+        onAllDayChange={vi.fn()}
+      />
+    ));
+    expect(
+      screen.queryByRole('button', { name: 'Edit event start date and time' })
+    ).toBeNull();
+    expect(screen.getByLabelText('Start date and time').textContent).toContain(
+      '9:00 AM'
+    );
+    expect(screen.queryByRole('switch', { name: 'All day' })).toBeNull();
+    await user.click(
+      screen.getByRole('button', { name: 'Edit event end date and time' })
+    );
+    await user.click(screen.getByLabelText('End time'));
+    await user.click(screen.getByRole('option', { name: /10:30 AM/ }));
+    expect(onEndChange).toHaveBeenCalledWith('2026-10-06T10:30');
+  });
 });
 
 afterEach(() => {
@@ -131,6 +160,27 @@ describe('EventComposerGuestsPill', () => {
     // trigger) is aria-hidden while the list is open.
     expect(guests.getAttribute('aria-expanded')).toBe('true');
     expect(screen.getByPlaceholderText('Add guests...')).toBeTruthy();
+  });
+  it('closes the selector when guests become read-only and displays their values directly', async () => {
+    const user = userEvent.setup();
+    const [readOnly, setReadOnly] = createSignal(false);
+    const onChange = vi.fn();
+    render(() => (
+      <EventComposerGuestsPill
+        options={() => [guest('ada@example.com', 'Ada Lovelace')]}
+        selected={[guest('ada@example.com', 'Ada Lovelace')]}
+        readOnly={readOnly()}
+        onChange={onChange}
+      />
+    ));
+    await user.click(screen.getByRole('button', { name: 'Guests' }));
+    expect(screen.getByPlaceholderText('Add guests...')).toBeTruthy();
+    setReadOnly(true);
+    expect(screen.queryByRole('button', { name: 'Guests' })).toBeNull();
+    expect(screen.queryByPlaceholderText('Add guests...')).toBeNull();
+    await user.click(screen.getByText('Ada Lovelace'));
+    expect(screen.getByText('ada@example.com')).toBeTruthy();
+    expect(onChange).not.toHaveBeenCalled();
   });
 });
 

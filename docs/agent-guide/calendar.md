@@ -96,16 +96,25 @@ Desktop click/drag creation opens a non-modal popover near the selected range.
 The popover's `Move to sidebar` action keeps the same draft in a right-hand editor;
 `New → Event` opens that sidebar directly. Editing from event details opens the
 same anchored popover, not a separate split dialog. Both create and edit show the
-event type above the title, the description immediately below it, and icon-led
-rows for guests, meeting link, direct location input, and calendar settings.
+event type above the title. Icon-led rows follow the details popover's order:
+date/time when visible, recurrence, meeting link, direct location input,
+description, notifications, calendar, then guests. Every row uses the same
+responsive spacing. Permission-locked values are plain read-only content, not
+control-shaped pills or disabled inputs. Editable dropdown selectors fill the
+value column and have square corners, including date selectors in the sidebar
+and phone sheet. The custom-repeat action sits below its full-width selector.
 The popover has no visible `New event` heading or date range. Move to the sidebar
 to change dates, times, or All day. The primary Create event and Save actions use
 the CTA button style.
 
-Scrolling, paging, changing period, outside clicks, and another empty-timeslot
-selection leave the active draft unchanged. External create/edit requests retain
-caller lifecycle callbacks and are single-use: a workspace remount must not
-reopen a draft after it was saved or dismissed.
+Scrolling, paging, changing period, and outside clicks that do not select a
+calendar range leave the active draft unchanged. Clicking or dragging another
+empty timeslot immediately replaces an untouched draft. For a changed draft,
+the shared `confirmDialog` offers `Keep editing` or `Discard`: keeping preserves
+the original draft, while discarding opens the newly selected range. A pending
+save cannot be replaced. External create/edit requests retain caller lifecycle
+callbacks and are single-use: a workspace remount must not reopen a draft after
+it was saved or dismissed.
 
 Custom repeat rules open in a separate `Custom recurrence` dialog. Changes remain
 local until `Done`; Cancel or Escape preserves the prior choice and rule.
@@ -114,20 +123,25 @@ intervals or occurrence counts cannot be applied.
 
 On phones, creation and editing fill the same bottom sheet, retaining date/time
 controls and the shared layout. Custom recurrence uses a nested sheet.
-Close, Cancel, Escape, and mobile sheet dismissal ask before discarding a changed
-draft. A pending save cannot be dismissed. Leaving Calendar or reloading protects
-unsaved changes too.
+Close, Cancel, Escape, and mobile sheet dismissal use the shared `confirmDialog`
+before discarding a changed draft. A pending save cannot be dismissed. Leaving
+Calendar or reloading protects unsaved changes too.
 
 Verify a click and a multi-slot drag in Week and Month. Enter a title, description,
 guest, location, and custom recurrence; move the popover to the sidebar and confirm
 all values survive and date controls appear. Cancel a new custom rule and changes
 to an existing rule; confirm neither changes the event. Scroll the original slot
-away, navigate several weeks, change period, click another empty slot, and confirm
-the original draft stays open and unchanged. Cancel dismissal with `Keep editing`,
-then discard explicitly. Repeat from `New → Event` and on a phone. Open each nested
+away, navigate several weeks, and change period; confirm the draft stays open.
+Click or drag another empty slot: verify immediate replacement for a clean draft,
+then both `Keep editing` and `Discard` for a dirty draft. Check that Discard opens
+the newly selected range. Verify explicit dismissal separately.
+Repeat from `New → Event` and on a phone. Open each nested
 menu or dialog and press Escape: dismiss the top layer first, not the editor.
 Edit an existing recurring event, move it to the sidebar, and check both recurring
-scopes. Do not save test events to shared dev data. Call-link retry behavior remains
+scopes. Intentional repeat-rule changes require `All events`; `This event` stays
+unavailable until the original rule is restored. Moving a single occurrence's
+date without editing the rule still allows `This event`. Do not save test events
+to shared dev data. Call-link retry behavior remains
 owned by the shared event editor.
 
 The isolated fixture mounts the real grid, create/edit hosts, form, and controller
@@ -140,6 +154,7 @@ CALENDAR_PREVIEW_URL=https://localhost:3000 node src/features/calendar-view/brow
 ```
 
 Set `CALENDAR_BROWSER_CDP=http://localhost:9222` to use an existing Chromium.
+Pass `--grid-only` to check selection replacement without the form-layout suite.
 
 On phones, event details use inset round action buttons and a transparent RSVP
 footer. Answering a recurring invitation opens a rounded glass sheet: choose
@@ -407,8 +422,8 @@ shrink to fit the pane; long details scroll while the RSVP row stays visible.
 
 The event type control above the title chooses between `Event` and `Out of office`.
 Picking `Out of office` hides the guests, conferencing, and location controls and
-the description field (Google rejects them for this event type). It forces a
-timed (not all-day) range, restricts the calendar
+the description field (Google rejects them for this event type). Google stores a
+full-day timed range when All day is selected. The form restricts the calendar
 pill to primary calendars, and shows a `Decline meetings` pill (`Don't decline meetings` /
 `Decline new meetings` / `Decline all meetings`) plus, when declining, an optional
 `Decline message` pill; a warning note discloses the away/auto-decline effect before saving.

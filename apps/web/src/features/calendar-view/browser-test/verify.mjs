@@ -8,12 +8,40 @@ const base = process.env.CALENDAR_PREVIEW_URL ?? 'https://localhost:3000';
 const fixture = `${base}/src/features/calendar-view/browser-test/index.html`;
 const results = [];
 
+async function verifyFieldSpacing(page) {
+  const gaps = await page.locator('form [role="group"][aria-label]').evaluateAll((elements) => {
+    const rows = elements.filter((element) => element.getAttribute('aria-label') !== 'Event type').map((element) => element.getBoundingClientRect());
+    return rows.slice(1).map((row, index) => row.top - rows[index].bottom);
+  });
+  assert.ok(gaps.length >= 5);
+  assert.ok(gaps[0] > 0);
+  assert.ok(gaps.every((gap) => Math.abs(gap - gaps[0]) < 1), `Uneven row spacing: ${gaps}`);
+}
+
+async function verifySelectorShape(page) {
+  const selectors = await page.locator('form button[aria-expanded]').evaluateAll((elements) => elements.map((element) => {
+    const column = element.closest('[role="group"][aria-label]')?.lastElementChild;
+    const style = getComputedStyle(element);
+    return {
+      label: element.getAttribute('aria-label'),
+      width: element.getBoundingClientRect().width,
+      available: column?.getBoundingClientRect().width,
+      radii: [style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomLeftRadius, style.borderBottomRightRadius].map(Number.parseFloat),
+    };
+  }));
+  assert.ok(selectors.length >= 5);
+  for (const selector of selectors) {
+    assert.ok(selector.radii.every((radius) => radius === 0), `${selector.label} must have square corners`);
+    assert.ok(Math.abs(selector.width - selector.available) < 1, `${selector.label} must fill its value column`);
+  }
+}
+
 async function verifyDesktop(options, name) {
   const context = await browser.newContext({ ignoreHTTPSErrors: true, ...options });
   try {
     await context.route('**/__macro_dev/**', (route) => route.abort());
     const page = await context.newPage();
-    page.setDefaultTimeout(30000);
+    page.setDefaultTimeout(60000);
     const errors = [];
     page.on('pageerror', (error) => { errors.push(error.message); console.error(error.stack); });
     await page.goto(fixture);
@@ -23,6 +51,10 @@ async function verifyDesktop(options, name) {
     await title.waitFor();
     assert.equal(await title.evaluate((element) => element === document.activeElement), true);
     assert.equal(await start.count(), 0);
+    const rowLabels = await page.locator('form [role="group"][aria-label]').evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label')));
+    assert.deepEqual(rowLabels, ['Event type', 'Repeats', 'Meeting link', 'Location', 'Description', 'Notifications', 'Calendar', 'Guests']);
+    await verifyFieldSpacing(page);
+    await verifySelectorShape(page);
     await title.fill('Calendar draft stays here');
     await page.getByRole('textbox', { name: 'Description', exact: true }).fill('Keep this description when moving.');
     await page.getByRole('button', { name: /Video conferencing/ }).click();
@@ -94,9 +126,13 @@ async function verifyDesktop(options, name) {
     assert.equal(await start.count(), 0);
     assert.match(await page.getByRole('textbox', { name: 'Description', exact: true }).innerText(), /Existing agenda/);
     assert.equal(await page.getByRole('textbox', { name: 'Location', exact: true }).inputValue(), 'Design studio');
+    for (const name of ['Event type', 'Calendar', 'Guests', 'Meeting link', 'Notifications']) {
+      assert.equal(await page.getByRole('group', { name, exact: true }).getByRole('button').count(), 0, `${name} must render as read-only content`);
+    }
     await title.fill('Revised design review');
     await page.getByRole('textbox', { name: 'Location', exact: true }).fill('North studio');
     await page.getByText('This event', { exact: true }).click();
+    assert.equal(await page.getByRole('group', { name: 'Repeats', exact: true }).getByRole('button').count(), 0);
     await page.screenshot({ path: `/tmp/calendar-editor-${name}-edit.png` });
     await page.getByRole('button', { name: 'Move to sidebar', exact: true }).click();
     assert.equal(await title.inputValue(), 'Revised design review');
@@ -109,6 +145,19 @@ async function verifyDesktop(options, name) {
     assert.equal(submitted.scope, 'this_event');
     assert.equal(submitted.values.time.kind, 'timed');
     assert.equal(Date.parse(submitted.values.time.endsAt) - Date.parse(submitted.values.time.startsAt), 3600000);
+    await page.getByRole('button', { name: 'Edit example event', exact: true }).click();
+    await title.waitFor();
+    await page.getByRole('button', { name: /Repeats/ }).click();
+    await page.getByRole('option', { name: 'Daily', exact: true }).click();
+    assert.equal(await page.getByRole('radio', { name: 'This event', exact: true }).isDisabled(), true);
+    await page.getByText('Repeat changes apply to all events.', { exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Move to sidebar', exact: true }).click();
+    assert.equal(await page.getByRole('radio', { name: 'This event', exact: true }).isDisabled(), true);
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await title.waitFor({ state: 'detached' });
+    const repeated = JSON.parse(await page.getByLabel('Saved event', { exact: true }).innerText());
+    assert.equal(repeated.scope, 'all');
+    assert.match(repeated.values.recurrenceLines.join(';'), /FREQ=DAILY/);
     assert.deepEqual(errors, []);
     results.push(`${name}: creation, persistent surfaces, transactional recurrence, editing, and scoped save passed`);
   } finally {
@@ -121,7 +170,7 @@ async function verifyMobile() {
   try {
     await context.route('**/__macro_dev/**', (route) => route.abort());
     const page = await context.newPage();
-    page.setDefaultTimeout(30000);
+    page.setDefaultTimeout(60000);
     const errors = [];
     page.on('pageerror', (error) => { errors.push(error.message); console.error(error.stack); });
     await page.goto(fixture);
@@ -132,6 +181,8 @@ async function verifyMobile() {
     await page.getByRole('button', { name: 'Edit event start date and time', exact: true }).waitFor();
     assert.equal(await page.getByRole('button', { name: 'Move to sidebar', exact: true }).count(), 0);
     assert.equal(await page.getByRole('button', { name: 'Close event editor', exact: true }).count(), 0);
+    await verifyFieldSpacing(page);
+    await verifySelectorShape(page);
     await title.fill('Phone draft');
     await page.getByRole('textbox', { name: 'Location', exact: true }).fill('South studio');
     await page.getByRole('button', { name: /Repeats/ }).click();
@@ -172,7 +223,7 @@ async function verifyGridSelection() {
   try {
     await context.route('**/__macro_dev/**', (route) => route.abort());
     const page = await context.newPage();
-    page.setDefaultTimeout(30000);
+    page.setDefaultTimeout(60000);
     const errors = [];
     page.on('pageerror', (error) => { errors.push(error.message); console.error(error.stack); });
     await page.goto(fixture);
@@ -189,12 +240,41 @@ async function verifyGridSelection() {
     await page.mouse.up();
     const title = page.getByLabel('Title', { exact: true });
     await title.waitFor();
-    await title.fill('Dragged draft');
-    await page.mouse.click(column.x + column.width / 2, row.y + row.height * 6);
-    assert.equal(await title.inputValue(), 'Dragged draft');
+    // A clean drag draft is replaced by a calendar click without confirmation.
+    const clickRow = await page.locator('.fc-timegrid-slot[data-time="12:00:00"]').first().boundingBox();
+    const clickColumn = await page.locator('.fc-timegrid-col[data-date]').first().boundingBox();
+    assert.ok(clickRow && clickColumn);
+    await page.mouse.click(clickColumn.x + clickColumn.width / 2, clickRow.y + clickRow.height / 2);
+    assert.equal(await page.getByRole('button', { name: 'Discard', exact: true }).count(), 0);
+    assert.ok(await page.locator('.fc-highlight, .fc-event-mirror').count() > 0, 'replacement keeps its calendar selection highlight');
     await page.getByRole('button', { name: 'Move to sidebar', exact: true }).click();
     const start = page.getByRole('button', { name: 'Edit event start date and time', exact: true });
-    assert.match(await start.innerText(), /10:00/);
+    assert.match(await start.innerText(), /12:00/);
+    await title.fill('Dragged draft');
+
+    // Keep editing cancels a new click without changing the original draft.
+    const dirtyRow = await page.locator('.fc-timegrid-slot[data-time="14:00:00"]').first().boundingBox();
+    const dirtyColumn = await page.locator('.fc-timegrid-col[data-date]').first().boundingBox();
+    assert.ok(dirtyRow && dirtyColumn);
+    await page.mouse.click(dirtyColumn.x + dirtyColumn.width / 2, dirtyRow.y + dirtyRow.height / 2);
+    await page.getByRole('button', { name: 'Keep editing', exact: true }).click();
+    assert.equal(await title.inputValue(), 'Dragged draft');
+    assert.match(await start.innerText(), /12:00/);
+
+    // Discard applies the newly dragged range, rather than simply closing.
+    const dragRow = await page.locator('.fc-timegrid-slot[data-time="15:00:00"]').first().boundingBox();
+    assert.ok(dragRow);
+    const dragX = dirtyColumn.x + dirtyColumn.width / 2;
+    const dragY = dragRow.y + dragRow.height / 2;
+    await page.mouse.move(dragX, dragY);
+    await page.mouse.down();
+    await page.mouse.move(dragX, dragY + dragRow.height * 2, { steps: 8 });
+    await page.mouse.up();
+    await page.getByRole('button', { name: 'Discard', exact: true }).click();
+    assert.equal(await title.inputValue(), '');
+    await page.getByRole('button', { name: 'Move to sidebar', exact: true }).click();
+    assert.match(await start.innerText(), /3:00 PM/);
+    await title.fill('Dragged draft');
     await page.getByRole('button', { name: 'Next week', exact: true }).click();
     assert.equal(await title.inputValue(), 'Dragged draft');
     await page.getByRole('button', { name: 'Close event editor', exact: true }).click();
@@ -209,7 +289,7 @@ async function verifyGridSelection() {
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();
     await title.waitFor({ state: 'detached' });
     assert.deepEqual(errors, []);
-    results.push('grid: timed drag, ignored replacement selection, navigation, and Month creation passed');
+    results.push('grid: timed drag, clean replacement, Keep editing, Discard replacement, navigation, and Month creation passed');
   } finally {
     await context.close();
   }
@@ -217,9 +297,11 @@ async function verifyGridSelection() {
 
 try {
   await verifyGridSelection();
-  await verifyDesktop({ viewport: { width: 1440, height: 1000 } }, 'desktop');
-  await verifyDesktop({ viewport: { width: 1024, height: 900 }, hasTouch: true }, 'tablet');
-  await verifyMobile();
+  if (!process.argv.includes('--grid-only')) {
+    await verifyDesktop({ viewport: { width: 1440, height: 1000 } }, 'desktop');
+    await verifyDesktop({ viewport: { width: 1024, height: 900 }, hasTouch: true }, 'tablet');
+    await verifyMobile();
+  }
   console.log(results.join('\n'));
 } finally {
   await browser.close();

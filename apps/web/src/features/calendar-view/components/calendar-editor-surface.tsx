@@ -1,4 +1,5 @@
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
+import { focusPopoverInput } from '@components/app/split-layout/utils/focusPopoverInput';
 import { useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { isMobile } from '@core/mobile/isMobile';
 import { Dialog as KobalteDialog } from '@kobalte/core/dialog';
@@ -203,8 +204,5 @@ function EditorPopover(props: {
 function focusEditorTitle(event: Event) {
   const container = event.target;
   if (!(container instanceof HTMLElement)) return;
-  const title = container.querySelector<HTMLInputElement>('input[autofocus]');
-  if (!title) return;
-  event.preventDefault();
-  title.focus();
+  focusPopoverInput(event, container);
 }

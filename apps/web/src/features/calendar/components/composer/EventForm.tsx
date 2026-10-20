@@ -27,7 +27,13 @@ import { Dynamic } from 'solid-js/web';
 import {
   calendarDescriptionToEditorHtml,
   exportCalendarDescription,
+  sanitizeCalendarDescription,
 } from '../../utils/calendar-description';
+import {
+  formatReminderOffset,
+  REMINDER_METHOD_POPUP,
+  resolveReminderOverrides,
+} from '../../utils/event-reminders';
 import type { CalendarEventFormController } from './create-calendar-event-form-controller';
 import { EventDateTimeRangeFields } from './EventDateTimeRangeFields';
 import {
@@ -145,21 +151,33 @@ export function EventForm(props: EventFormProps) {
   };
 
   const titleField = () => (
-    <Input
-      type="text"
-      value={state().title}
-      onInput={(event) =>
-        controller.setField('title', event.currentTarget.value)
+    <Show
+      when={fieldIsReadOnly('title')}
+      fallback={
+        <Input
+          type="text"
+          value={state().title}
+          onInput={(event) =>
+            controller.setField('title', event.currentTarget.value)
+          }
+          placeholder="New event"
+          aria-label="Title"
+          autofocus={!isEdit() && !isMobile()}
+          disabled={fieldIsDisabled('title')}
+          class="h-9 w-full border-0 rounded-none shadow-none bg-transparent px-0 text-lg font-semibold leading-snug text-ink outline-none placeholder:text-ink-placeholder sm:text-base"
+        />
       }
-      placeholder="New event"
-      aria-label="Title"
-      autofocus={!isEdit() && !isMobile()}
-      disabled={fieldIsDisabled('title')}
-      class="h-9 w-full border-0 rounded-none shadow-none bg-transparent px-2 text-lg font-semibold leading-snug text-ink outline-none placeholder:text-ink-placeholder"
-    />
+    >
+      <span
+        aria-label="Title"
+        class="select-text text-lg font-semibold leading-snug text-ink sm:text-base"
+      >
+        {state().title}
+      </span>
+    </Show>
   );
   const dateFields = () => (
-    <div class="flex min-w-0 flex-col gap-1">
+    <div class="flex w-full min-w-0 flex-col gap-1">
       <EventDateTimeRangeFields
         start={state().start}
         end={state().end}
@@ -170,6 +188,9 @@ export function EventForm(props: EventFormProps) {
         startDisabled={fieldIsDisabled('start')}
         endDisabled={fieldIsDisabled('end')}
         allDayDisabled={fieldIsDisabled('allDay')}
+        startReadOnly={fieldIsReadOnly('start')}
+        endReadOnly={fieldIsReadOnly('end')}
+        allDayReadOnly={fieldIsReadOnly('allDay')}
         invalid={controller.dateRangeError() !== undefined}
         describedBy={dateRangeDescribedBy()}
         stacked
@@ -191,32 +212,42 @@ export function EventForm(props: EventFormProps) {
     </div>
   );
   const descriptionField = () => (
-    <Show when={!isOutOfOffice()}>
-      <div class="h-16 min-w-0 flex-1 overflow-y-auto">
-        <MarkdownTextarea
-          resolveAppLink={resolveAppLink}
-          type="calendar"
-          initialHtml={calendarDescriptionToEditorHtml(initialDescription)}
-          editable={() => !fieldIsDisabled('description')}
-          onInitialized={(editor) => {
-            loadedDescription = exportCalendarDescription(editor);
-          }}
-          onChange={(_markdown, editor) => {
-            if (!editor) return;
-            const next = exportCalendarDescription(editor);
-            controller.setField(
-              'description',
-              next === loadedDescription ? initialDescription : next
-            );
-          }}
-          placeholder="Add description..."
-          portalScope="local"
-          domRef={(element) =>
-            element.setAttribute('aria-label', 'Description')
-          }
-          class="h-full w-full bg-transparent px-2 text-sm text-ink outline-none"
-        />
-      </div>
+    <Show
+      when={fieldIsReadOnly('description')}
+      fallback={
+        <div class="min-h-7 min-w-0 w-full max-h-36 overflow-y-auto">
+          <MarkdownTextarea
+            resolveAppLink={resolveAppLink}
+            type="calendar"
+            initialHtml={calendarDescriptionToEditorHtml(initialDescription)}
+            editable={() => !fieldIsDisabled('description')}
+            onInitialized={(editor) => {
+              loadedDescription = exportCalendarDescription(editor);
+            }}
+            onChange={(_markdown, editor) => {
+              if (!editor) return;
+              const next = exportCalendarDescription(editor);
+              controller.setField(
+                'description',
+                next === loadedDescription ? initialDescription : next
+              );
+            }}
+            placeholder="Add description..."
+            portalScope="local"
+            domRef={(element) =>
+              element.setAttribute('aria-label', 'Description')
+            }
+            class="min-h-7 w-full bg-transparent px-0 text-sm text-ink outline-none sm:text-xs"
+          />
+        </div>
+      }
+    >
+      <div
+        class="min-w-0 select-text break-words leading-relaxed [&_a]:text-accent [&_a]:underline [&_ol]:list-decimal [&_ol]:pl-4 [&_p+p]:mt-1 [&_ul]:list-disc [&_ul]:pl-4"
+        innerHTML={
+          sanitizeCalendarDescription(state().description) || 'No description'
+        }
+      />
     </Show>
   );
   const controls = {
@@ -271,22 +302,32 @@ export function EventForm(props: EventFormProps) {
         macroCallsEnabled={props.macroCallsEnabled}
         canKeepExisting={controller.initialConferenceChoice() === 'existing'}
         onChange={(conference) => controller.setField('conference', conference)}
-        disabled={fieldIsDisabled('conference')}
+        disabled={formIsDisabled()}
+        readOnly={fieldIsReadOnly('conference')}
         hideIcon
       />
     ),
     location: () => (
-      <Input
-        type="text"
-        value={state().location}
-        onInput={(event) =>
-          controller.setField('location', event.currentTarget.value)
+      <Show
+        when={fieldIsReadOnly('location')}
+        fallback={
+          <Input
+            type="text"
+            value={state().location}
+            onInput={(event) =>
+              controller.setField('location', event.currentTarget.value)
+            }
+            placeholder="Add location..."
+            aria-label="Location"
+            disabled={fieldIsDisabled('location')}
+            class="h-7 min-w-0 w-full max-w-72 border-0 bg-transparent px-0 text-sm text-ink shadow-none placeholder:text-ink-placeholder sm:text-xs"
+          />
         }
-        placeholder="Add location..."
-        aria-label="Location"
-        disabled={fieldIsDisabled('location')}
-        class="h-8 min-w-0 w-full max-w-72 border-0 bg-transparent px-2 text-sm text-ink shadow-none placeholder:text-ink-placeholder"
-      />
+      >
+        <span class="select-text break-words">
+          {state().location || 'No location'}
+        </span>
+      </Show>
     ),
     decline: () => (
       <EventComposerDeclinePill
@@ -318,17 +359,40 @@ export function EventForm(props: EventFormProps) {
       </Show>
     ),
     reminders: () => (
-      <EventComposerRemindersPill
-        minutes={controller.reminderMinutes()}
-        usedSlots={
-          controller.reminderMinutes().length +
-          controller.preservedReminderCount()
+      <Show
+        when={fieldIsReadOnly('reminders')}
+        fallback={
+          <EventComposerRemindersPill
+            minutes={controller.reminderMinutes()}
+            usedSlots={
+              controller.reminderMinutes().length +
+              controller.preservedReminderCount()
+            }
+            canAdd={controller.canAddReminder()}
+            onChange={controller.setReminderMinutes}
+            disabled={fieldIsDisabled('reminders')}
+            hideIcon
+          />
         }
-        canAdd={controller.canAddReminder()}
-        onChange={controller.setReminderMinutes}
-        disabled={fieldIsDisabled('reminders')}
-        hideIcon
-      />
+      >
+        <div class="flex select-text flex-col gap-0.5">
+          <For
+            each={resolveReminderOverrides(
+              state().reminders,
+              controller.selectedCalendarOption()?.defaultReminders,
+              state().reminderEventType ?? state().eventType
+            )}
+            fallback={<span>No notifications</span>}
+          >
+            {(reminder) => (
+              <span>
+                {formatReminderOffset(reminder.minutes)}
+                {reminder.method === REMINDER_METHOD_POPUP ? '' : ' (email)'}
+              </span>
+            )}
+          </For>
+        </div>
+      </Show>
     ),
   };
   const PropertyRow = (row: {
@@ -339,14 +403,14 @@ export function EventForm(props: EventFormProps) {
     <div
       role="group"
       aria-label={row.label}
-      class="grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-x-4 py-1 sm:grid-cols-[1rem_minmax(0,1fr)] sm:gap-x-3"
+      class="grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-x-4 sm:grid-cols-[1rem_minmax(0,1fr)] sm:gap-x-3"
     >
       <Dynamic
         component={row.icon}
         aria-hidden="true"
-        class="mt-1 size-5 text-ink-extra-muted sm:size-4"
+        class="mt-1.5 size-5 text-ink-extra-muted sm:size-4"
       />
-      <div class="flex min-w-0 w-full flex-wrap items-center gap-2">
+      <div class="flex min-h-7 min-w-0 w-full flex-wrap items-center gap-2">
         {row.children}
       </div>
     </div>
@@ -363,19 +427,12 @@ export function EventForm(props: EventFormProps) {
         submit();
       }}
     >
-      <div class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto scrollbar-hidden">
-        <div class="flex min-w-0 flex-col gap-4 text-sm text-ink-muted">
-          <div class="flex min-w-0 flex-col gap-1">
-            <PropertyRow label="Event type" icon={SquaresFourIcon}>
-              {controls.kind()}
-            </PropertyRow>
-            <div class="min-w-0 pl-9 sm:pl-7">{titleField()}</div>
-            <Show when={!isOutOfOffice()}>
-              <PropertyRow label="Description" icon={TextAlignLeftIcon}>
-                {descriptionField()}
-              </PropertyRow>
-            </Show>
-          </div>
+      <div class="min-h-0 flex-1 overflow-y-auto scrollbar-hidden">
+        <div class="flex min-w-0 flex-col gap-5 p-1 text-sm text-ink-muted sm:gap-3 sm:text-xs">
+          <PropertyRow label="Event type" icon={SquaresFourIcon}>
+            {controls.kind()}
+          </PropertyRow>
+          <div class="min-w-0 pl-9 sm:pl-7">{titleField()}</div>
           <Show when={props.showDateRange !== false}>
             <PropertyRow label="Date and time" icon={CalendarBlankIcon}>
               {dateFields()}
@@ -397,41 +454,46 @@ export function EventForm(props: EventFormProps) {
               </p>
             )}
           </Show>
-          <div class="flex min-w-0 flex-col">
-            <Show when={!isOutOfOffice()}>
-              <PropertyRow label="Guests" icon={UsersIcon}>
-                {controls.guests()}
-              </PropertyRow>
-              <PropertyRow label="Meeting link" icon={VideoCameraIcon}>
-                {controls.conference()}
-              </PropertyRow>
-              <PropertyRow label="Location" icon={MapPinIcon}>
-                {controls.location()}
-              </PropertyRow>
-            </Show>
-            <Show when={isOutOfOffice()}>
-              <PropertyRow label="Decline" icon={CalendarXIcon}>
-                {controls.decline()}
-              </PropertyRow>
+          <PropertyRow label="Repeats" icon={RepeatIcon}>
+            {controls.recurrence()}
+          </PropertyRow>
+          <Show when={!isOutOfOffice()}>
+            <PropertyRow label="Meeting link" icon={VideoCameraIcon}>
+              {controls.conference()}
+            </PropertyRow>
+            <PropertyRow label="Location" icon={MapPinIcon}>
+              {controls.location()}
+            </PropertyRow>
+            <PropertyRow label="Description" icon={TextAlignLeftIcon}>
+              {descriptionField()}
+            </PropertyRow>
+          </Show>
+          <Show when={isOutOfOffice()}>
+            <PropertyRow label="Decline" icon={CalendarXIcon}>
+              {controls.decline()}
+            </PropertyRow>
+            <Show
+              when={
+                state().outOfOffice &&
+                state().outOfOffice?.autoDeclineMode !== 'decline_none'
+              }
+            >
               <PropertyRow label="Reply" icon={ChatTextIcon}>
                 {controls.declineMessage()}
               </PropertyRow>
             </Show>
-            <section
-              aria-label="Calendar settings"
-              class="mt-3 border-t border-edge-muted pt-3"
-            >
-              <PropertyRow label="Calendar" icon={CalendarDotsIcon}>
-                {controls.calendar()}
-              </PropertyRow>
-              <PropertyRow label="Repeats" icon={RepeatIcon}>
-                {controls.recurrence()}
-              </PropertyRow>
-              <PropertyRow label="Notifications" icon={BellSimpleIcon}>
-                {controls.reminders()}
-              </PropertyRow>
-            </section>
-          </div>
+          </Show>
+          <PropertyRow label="Notifications" icon={BellSimpleIcon}>
+            {controls.reminders()}
+          </PropertyRow>
+          <PropertyRow label="Calendar" icon={CalendarDotsIcon}>
+            {controls.calendar()}
+          </PropertyRow>
+          <Show when={!isOutOfOffice()}>
+            <PropertyRow label="Guests" icon={UsersIcon}>
+              {controls.guests()}
+            </PropertyRow>
+          </Show>
           <Show when={outOfOfficeNotice()}>
             {(notice) => (
               <div
