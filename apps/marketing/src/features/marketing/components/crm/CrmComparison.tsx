@@ -1,9 +1,12 @@
-import CaretDown from '@phosphor/caret-down.svg';
 import {
-  ComparisonLegend,
   type ComparisonRow,
   ComparisonTable,
 } from '../../../../app/components/sections/ComparisonTable';
+
+import {
+  ComparisonMacroLogo,
+  FeatureComparisonKey,
+} from '../comparisons/FeatureComparisons';
 
 const comparisonRows: ComparisonRow[] = [
   {
@@ -43,24 +46,24 @@ const comparisonRows: ComparisonRow[] = [
 
 export function CrmComparison() {
   return (
-    <details class="feature-page-comparison">
-      <summary>
-        <span>Compare CRM tools</span>
-        <CaretDown aria-hidden="true" />
-      </summary>
-      <div class="feature-page-comparison-content">
-        <ComparisonTable
-          columns={['Macro', 'Salesforce', 'HubSpot', 'Attio'].map((label) => ({
-            label,
-          }))}
-          rows={comparisonRows}
-        />
-        <ComparisonLegend />
-        <p>
-          Availability varies by product and plan. See{' '}
-          <a href="/pricing">Macro pricing</a> for current plans and limits.
-        </p>
-      </div>
-    </details>
+    <section class="feature-comparisons" aria-label="Compare CRM tools">
+      <ComparisonTable
+        columns={[
+          { label: 'Macro', macro: true, icon: <ComparisonMacroLogo /> },
+          { label: 'Salesforce' },
+          { label: 'HubSpot' },
+          { label: 'Attio' },
+        ]}
+        rows={comparisonRows}
+        mobileCellWidth={100}
+        mobileMinWidth={620}
+        scrollLabel="Compare Macro"
+      />
+      <FeatureComparisonKey partial />
+      <p class="feature-comparison-note">
+        Availability varies by product and plan. See{' '}
+        <a href="/pricing">Macro pricing</a> for current plans and limits.
+      </p>
+    </section>
   );
 }

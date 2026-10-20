@@ -5,6 +5,7 @@ import {
   emailComparisons,
   taskComparisons,
 } from '../../core/feature-comparisons';
+import { CrmComparison } from '../crm/CrmComparison';
 import { FeatureComparisons } from './FeatureComparisons';
 
 afterEach(cleanup);
@@ -40,4 +41,23 @@ it('combines Linear and Jira in one mobile-scrollable table', () => {
   expect(table.style.overflowX).toBe('auto');
   expect(view.container.querySelector('#compare-linear')).toBeTruthy();
   expect(view.container.querySelector('#compare-jira')).toBeTruthy();
+});
+
+it('shows the CRM comparison without a disclosure and preserves partial support', () => {
+  setViewportWidth(390);
+  const view = render(() => <CrmComparison />);
+  const table = view.getByRole('region', { name: 'Compare Macro' });
+  expect(view.container.querySelector('details')).toBeNull();
+  for (const label of ['Macro', 'Salesforce', 'HubSpot', 'Attio']) {
+    expect(within(table).getByText(label)).toBeTruthy();
+  }
+  expect(
+    within(table).getAllByRole('img', { name: 'Partial' }).length
+  ).toBeGreaterThan(0);
+  expect(view.getByText('Partial / limited')).toBeTruthy();
+  expect(table.tabIndex).toBe(0);
+  expect(table.style.overflowX).toBe('auto');
+  expect(
+    view.getByRole('link', { name: 'Macro pricing' }).getAttribute('href')
+  ).toBe('/pricing');
 });

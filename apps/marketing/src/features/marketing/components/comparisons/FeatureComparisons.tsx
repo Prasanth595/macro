@@ -1,9 +1,11 @@
-import { For, onCleanup, onMount } from 'solid-js';
+import MacroLogo from '@icon/macro-logo.svg';
+import { For, onCleanup, onMount, Show } from 'solid-js';
 import {
   CheckMark,
   type ComparisonColumn,
   ComparisonTable,
   CrossMark,
+  PartialMark,
 } from '../../../../app/components/sections/ComparisonTable';
 import Gmail from '../../../../assets/icons/logo-gmail.svg';
 import Jira from '../../../../assets/icons/logo-jira.svg';
@@ -69,7 +71,7 @@ export function FeatureComparisons(props: {
     });
   });
   return (
-    <div ref={container} class="feature-page-reading feature-comparisons">
+    <div ref={container} class="feature-comparisons">
       <For each={props.comparisons}>
         {(comparison) => (
           <span
@@ -80,7 +82,7 @@ export function FeatureComparisons(props: {
       </For>
       <ComparisonTable
         columns={[
-          { label: 'Macro', macro: true },
+          { label: 'Macro', macro: true, icon: <ComparisonMacroLogo /> },
           ...props.comparisons.map((comparison) => ({
             label: comparison.competitor,
             logo: logos[comparison.id],
@@ -92,14 +94,29 @@ export function FeatureComparisons(props: {
         mobileMinWidth={props.comparisons.length > 1 ? 520 : 390}
         scrollLabel="Compare Macro"
       />
-      <div class="feature-comparison-key">
+      <FeatureComparisonKey />
+    </div>
+  );
+}
+
+export function ComparisonMacroLogo() {
+  return <MacroLogo class="feature-comparison-macro-logo" aria-hidden="true" />;
+}
+
+export function FeatureComparisonKey(props: { partial?: boolean }) {
+  return (
+    <div class="feature-comparison-key">
+      <span>
+        <CheckMark /> Available
+      </span>
+      <Show when={props.partial}>
         <span>
-          <CheckMark /> Available
+          <PartialMark /> Partial / limited
         </span>
-        <span>
-          <CrossMark /> Not offered as a built-in tool
-        </span>
-      </div>
+      </Show>
+      <span>
+        <CrossMark /> Not offered as a built-in tool
+      </span>
     </div>
   );
 }

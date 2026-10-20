@@ -81,7 +81,7 @@ export function CheckMark() {
       <path
         d="M1.5 6.5 L5.8 11 L14.5 1.6"
         fill="none"
-        stroke="var(--a0)"
+        stroke="var(--comparison-accent, var(--a0))"
         stroke-width="2.4"
         stroke-linecap="round"
         stroke-linejoin="round"
@@ -192,7 +192,9 @@ function ComparisonCell(props: {
       >
         <span
           style={{
-            color: props.macro ? 'var(--a0)' : 'var(--c2)',
+            color: props.macro
+              ? 'var(--comparison-accent, var(--a0))'
+              : 'var(--c2)',
             'font-family': "'Inter', body",
             'font-size': mobile() ? '10px' : '11px',
             'font-weight': '400',
@@ -246,18 +248,25 @@ function ComparisonHeader(props: { column: ComparisonColumn; macro: boolean }) {
           </Show>
         }
       >
-        <MacroMarkIcon
-          aria-hidden="true"
-          style={{
-            color: 'var(--a0)',
-            display: 'block',
-            fill: 'currentColor',
-            flex: 'none',
-            height: mobile() ? '13px' : '15px',
-            overflow: 'visible',
-            stroke: 'none',
-          }}
-        />
+        <Show
+          when={props.column.icon}
+          fallback={
+            <MacroMarkIcon
+              aria-hidden="true"
+              style={{
+                color: 'var(--comparison-accent, var(--a0))',
+                display: 'block',
+                fill: 'currentColor',
+                flex: 'none',
+                height: mobile() ? '13px' : '15px',
+                overflow: 'visible',
+                stroke: 'none',
+              }}
+            />
+          }
+        >
+          {props.column.icon}
+        </Show>
       </Show>
       <span>{props.column.label}</span>
     </span>
@@ -338,7 +347,9 @@ export function ComparisonTable(props: ComparisonTableProps) {
                       ? `1px solid ${GRID_LINE}`
                       : '0',
                   'border-top': `1px solid ${GRID_LINE}`,
-                  color: macro() ? 'var(--a0)' : 'var(--c2)',
+                  color: macro()
+                    ? 'var(--comparison-accent, var(--a0))'
+                    : 'var(--c2)',
                   display: 'flex',
                   'font-family': "'Inter', body",
                   'font-size': mobile() ? '9px' : '11px',
@@ -348,7 +359,9 @@ export function ComparisonTable(props: ComparisonTableProps) {
                   'line-height': 1.1,
                   padding: mobile() ? '10px 6px' : '12px',
                   'text-align': 'center',
-                  'text-transform': macro() ? 'uppercase' : 'none',
+                  'text-transform': macro()
+                    ? 'var(--comparison-macro-case, uppercase)'
+                    : 'none',
                 }}
               >
                 <ComparisonHeader column={column} macro={macro()} />

@@ -408,8 +408,8 @@ company properties. Verify board/table switching, moving a deal, editing its
 pipeline entry from a record, and the mobile Back control. Keep these demos local
 and check the record interactions at both desktop and mobile widths.
 
-FAQ answers and the collapsed comparison are rendered in the initial HTML.
-The comparison uses a native `details` disclosure for both people and crawlers.
+FAQ answers and the always-visible comparison are rendered in the initial HTML.
+The CRM comparison appears above the FAQ, using the shared product table styling.
 Retain FAQ class markers so prerendering emits matching FAQPage structured data.
 
 ## Paid-social landing page
@@ -602,7 +602,9 @@ FAQs, and the overview's horizontal scrolling.
 
 `core/feature-comparisons.ts` owns the fact-checked boolean rows and maintainer
 source URLs. `FeatureComparisons` renders one always-visible table above each FAQ, without a heading or dropdown:
-Superhuman/Gmail on Email; Notion on Docs; Linear/Jira on Tasks; Slack on Chat. ClickUp
+Superhuman/Gmail on Email; Notion on Docs; Linear/Jira on Tasks; Slack on Chat;
+Google Meet/Granola on Calls. CRM uses the same visible layout and legend, with
+its existing partial-support values for Salesforce, HubSpot, and Attio. ClickUp
 stays in the migration overview. Overview links scroll to the matching product
 comparison; verify both initial-load and client-side navigation hashes. Keep
 cells to Yes/No and labels precise about
@@ -610,6 +612,12 @@ built-in tools. Retain detailed article links when an article exists. Source URL
 are not shown in the UI. Icon-only comparison tables are not exported as prose
 FAQ answers. Verify table columns, keyboard focus, scrolling, and existing
 functional FAQs after moving or adding a comparison.
+
+Match each comparison’s outer edges to the 1160px demo chapter above it and
+use the same mobile gutters. Keep horizontal overflow inside the keyboard-focusable
+table. Use neutral check marks, text, and competitor marks with the standard Macro
+logo; white on dark pages and dark ink on cream pages. Comparison accent tokens
+are scoped to product tables so legacy migration tables retain their styling.
 
 
 ## Agents page and shared agent sample

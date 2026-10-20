@@ -175,6 +175,7 @@ export function RouteCrm() {
           </DeferredDemo>
         </DemoInteractionBoundary>
       </FeaturePageSection>
+      <CrmComparison />
       <FeaturePageFaq
         id="crm-faq-title"
         title="Questions about Macro CRM"
@@ -186,7 +187,6 @@ export function RouteCrm() {
         }
         items={faqItems}
       />
-      <CrmComparison />
       <HomepageClosing />
     </ProductPage>
   );
