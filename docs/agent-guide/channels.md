@@ -265,7 +265,12 @@ opens a menu on desktop and a bottom drawer on mobile: `Mention` (opens the `@` 
 picker; the iOS media picker on iOS), then under `Create` the same actions as
 `/task`, `/poll`, `/form` and `/document` (poll and form only with forms on),
 then `Ask Macro` (inserts an `@Macro` mention) and, in a channel, `Start a call`
-(`Join call` while one is live).
+(`Join call` while one is live). On phones, starting a new call opens a
+confirmation sheet with centered participant avatars, notification copy, and a
+full-width green **Start call** button, without a divider or close/cancel buttons.
+Drag the handle, tap the backdrop, or press Escape to dismiss without starting a
+call. Only confirming notifies participants; joining a live call skips the sheet.
+Check both DMs and channels, including long names, in light and dark themes.
 Input action and formatting buttons show the app tooltip without a second
 native browser tooltip.
 On desktop, select draft text to open the floating formatting toolbar. Its
