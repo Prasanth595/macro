@@ -103,6 +103,9 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Route explicit call exits using the server's `callEnded` result: ended calls
   open their record; ongoing channel and scheduled calls return to the channel
   and Calendar. Preserve the session ID before disconnecting.
+- Diagnose browser call media with `call.media.*` spans and the `meeting.setup.id`
+  on `meeting.join`; keep provider messages, device labels/IDs, and call-link
+  tokens out of telemetry. See [call diagnostics](../../docs/agent-guide/calls.md#browser-call-diagnostics).
 - Keep desktop Gmail and Outlook inbox consent in the system browser with a
   `macro:///inbox-link-callback` return; webview origins are not desktop callbacks.
 - Draft autosaves preserve active email thread messages; evict inactive legacy
