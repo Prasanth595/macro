@@ -160,7 +160,11 @@ export function createGraphqlDirectoryGroupQueries(args: Args) {
         initialPageParam: null,
         variables: (cursor) => ({ input: inputFor(cursor) }),
         enabled: activated() && args.enabled(),
-        requestPolicy: args.networkPaused?.() ? 'cache-only' : 'cache-first',
+        // Inactive filters can retain membership from before a property edit.
+        // Revalidate activated pages while keeping their cached rows visible.
+        requestPolicy: args.networkPaused?.()
+          ? 'cache-only'
+          : 'cache-and-network',
         getNextPageParam: (page) =>
           mapGraphqlGroupedSoupPage(page).groups.find(
             (group) => group.key === key

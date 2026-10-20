@@ -235,6 +235,41 @@ function setup(
 }
 
 describe('lazy GraphQL group pages', () => {
+  it('revalidates cached membership when returning to a filter without loading unopened groups', async () => {
+    const { fake, grouped, setBody } = setup();
+    const directory = page([group('a', [], null), group('b', [], null)], []);
+    fake.executions[0].next(directory);
+    const first = grouped.map().get('a')!.fetchNextPage();
+    const oldPage = page([group('a', ['starter'], null)], [item('starter')]);
+    fake.executions[1].next(oldPage);
+    await first;
+
+    setBody({ df: { l: { ns: 'unseen' } } });
+    fake.executions[2].next(directory);
+    setBody({});
+    fake.executions[3].next(directory);
+    const a = grouped.map().get('a')!;
+    const returning = a.fetchNextPage();
+    const execution = fake.executions[4];
+    // Inactive filters can retain membership from before an assignment.
+    // A cache-first hit would never discover the newly matching task.
+    expect(execution.policy).toBe('cache-and-network');
+    execution.next(oldPage, { stale: true });
+    expect(entityIds(a)).toEqual(['starter']);
+    expect(a.isFetchingNextPage()).toBe(true);
+    execution.next(
+      page(
+        [group('a', ['starter', 'assigned'], null)],
+        [item('starter'), item('assigned')]
+      )
+    );
+    await returning;
+    expect(entityIds(a)).toEqual(['starter', 'assigned']);
+    expect(a.hasNextPage()).toBe(false);
+    expect(grouped.map().get('b')!.data()).toBeUndefined();
+    expect(fake.executions).toHaveLength(5);
+  });
+
   it('does not treat retained directory metadata as current after filters change', () => {
     const { fake, parent, grouped, setBody } = setup({}, false, true);
     fake.executions[0].next(page([group('a', [], null)], []));
@@ -325,7 +360,7 @@ describe('lazy GraphQL group pages', () => {
     const resumed = fake.executions
       .filter((execution) => execution.variables.input.startGroup)
       .at(-1)!;
-    expect(resumed.policy).toBe('cache-first');
+    expect(resumed.policy).toBe('cache-and-network');
     expect(entityIds(a)).toEqual(['a-1']);
     resumed.next(page([group('a', ['a-1'], 'next')], [item('a-1')]));
     await completion;

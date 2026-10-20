@@ -336,6 +336,13 @@ also usable. An initial cache miss still shows failure; HTTP and GraphQL errors
 remain visible even with cached rows. Change filters while retaining prior rows:
 those older results must not hide a failure for the new, uncached query.
 
+Returning to a saved filter or reloading the page revalidates each activated
+group's task membership while showing its cached rows. To check this, open
+**My Tasks** with **Not Started**, **In Progress**, and **In Review** selected,
+assign another task to yourself from **Created by me**, then return. The task
+must appear without changing the status filters or clearing browser storage.
+Repeat after a reload; unopened groups must still wait for viewport demand.
+
 ## Automatic pagination
 
 With GraphQL tasks enabled, Status, Priority, Assignee, and Project grouping in
