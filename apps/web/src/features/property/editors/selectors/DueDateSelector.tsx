@@ -1,6 +1,6 @@
 import { DatePickerUI } from '@core/component/DatePicker/DatePickerUI';
 import { Button } from '@ui';
-import { addDays, addWeeks, endOfDay, isSameDay } from 'date-fns';
+import { addDays, addWeeks, isSameDay, startOfDay } from 'date-fns';
 import { For, Show } from 'solid-js';
 
 type DueDateSelectorProps = {
@@ -12,7 +12,7 @@ type DueDateSelectorProps = {
 /** Shortcut row plus the month, for a due date. Other dates keep the search picker. */
 export function DueDateSelector(props: DueDateSelectorProps) {
   const shortcuts = () => {
-    const today = endOfDay(new Date());
+    const today = startOfDay(new Date());
     return [
       { label: 'Today', date: today },
       { label: 'Tomorrow', date: addDays(today, 1) },

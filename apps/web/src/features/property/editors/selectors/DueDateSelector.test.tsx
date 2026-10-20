@@ -23,7 +23,10 @@ describe('DueDateSelector', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Today' }));
 
     expect(onSelectDate).toHaveBeenCalledOnce();
-    expect(isSameDay(onSelectDate.mock.calls[0][0], new Date())).toBe(true);
+    const picked = onSelectDate.mock.calls[0][0] as Date;
+    expect(isSameDay(picked, new Date())).toBe(true);
+    expect(picked.getHours()).toBe(0);
+    expect(picked.getMinutes()).toBe(0);
     expect(onClose).toHaveBeenCalledOnce();
   });
 
