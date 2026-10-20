@@ -154,7 +154,7 @@ it('pauses playback offscreen and after interaction, and cleans up its timer', (
   expect(vi.getTimerCount()).toBe(0);
 });
 
-it('keeps the live reply in the shared thread and stops at the completed result', () => {
+it('holds the live reply for reading before replay and keeps it available after takeover', () => {
   const view = render(() => <EmailSharingDemo />);
   setVisible(true);
   vi.advanceTimersByTime(10650);
@@ -169,14 +169,14 @@ it('keeps the live reply in the shared thread and stops at the completed result'
       'Valentina replied. Your whole team is already up to date.'
     )
   ).toBeNull();
-  vi.advanceTimersByTime(30000);
+  vi.advanceTimersByTime(3000);
   expect(
     view.getByRole('button', { name: 'Open shared email: Thursday demo' })
       .textContent
   ).toBe('Thursday demo');
   expect(view.queryByText('Live')).toBeNull();
   expect(view.queryByText(/2 messages|Open full thread/)).toBeNull();
-  expect(vi.getTimerCount()).toBe(0);
+  expect(vi.getTimerCount()).toBeGreaterThan(0);
   fireEvent.click(
     view.getByRole('button', {
       name: 'Open shared email: Thursday demo',

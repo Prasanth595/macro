@@ -122,30 +122,46 @@ it('returns to the task list if the sample task is deleted', async () => {
   expect(await view.findByText('No matching tasks.')).toBeTruthy();
 });
 
-it('types the sharing line, opens mentions at @, and ends with the channel inserted', () => {
+it('inserts the document, email, and channel through their mention menus, then resets the full sequence', () => {
   reduced = false;
   vi.useFakeTimers();
   const view = render(() => <TaskContextDemo />);
-  const input = view.getByRole('textbox', { name: 'Task sharing instruction' });
-  expect(input.textContent).toBe('');
   for (const callback of intersections)
     callback(
       [{ isIntersecting: true } as IntersectionObserverEntry],
       {} as IntersectionObserver
     );
-  vi.advanceTimersByTime(1600);
-  expect(input.textContent).toContain('Share the draft for review in');
-  expect(view.queryByRole('listbox')).toBeNull();
-  vi.advanceTimersByTime(250);
-  expect(view.getByRole('listbox', { name: 'Mentions' })).toBeTruthy();
+  vi.advanceTimersByTime(2150);
+  expect(view.getByRole('option', { name: 'Customer brief' })).toBeTruthy();
+  vi.advanceTimersByTime(1100);
+  expect(
+    view.getByRole('button', { name: 'Open Customer brief' })
+  ).toBeTruthy();
+  expect(
+    view.queryByRole('button', { name: 'Open Proposal request' })
+  ).toBeNull();
+  vi.advanceTimersByTime(2600);
+  expect(view.getByRole('option', { name: 'Proposal request' })).toBeTruthy();
+  vi.advanceTimersByTime(1100);
+  expect(
+    view.getByRole('button', { name: 'Open Proposal request' })
+  ).toBeTruthy();
+  vi.advanceTimersByTime(3000);
   expect(view.getByRole('option', { name: 'sales' })).toBeTruthy();
-  vi.advanceTimersByTime(1200);
-  expect(view.queryByRole('listbox')).toBeNull();
+  vi.advanceTimersByTime(1100);
   expect(view.getByRole('button', { name: 'Open sales' })).toBeTruthy();
+  expect(view.queryByRole('listbox')).toBeNull();
   expect(
     view.getByRole('textbox', { name: 'Task sharing instruction' }).textContent
   ).toContain('Share the draft for review in sales.');
-  vi.advanceTimersByTime(20000);
+  vi.advanceTimersByTime(6500);
+  expect(
+    view.queryByRole('button', { name: 'Open Customer brief' })
+  ).toBeNull();
+  expect(
+    view.queryByRole('button', { name: 'Open Proposal request' })
+  ).toBeNull();
+  expect(view.queryByRole('button', { name: 'Open sales' })).toBeNull();
   expect(view.queryByRole('region', { name: 'Linked task source' })).toBeNull();
 });
 

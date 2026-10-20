@@ -427,5 +427,5 @@ it('uses the toolbar hang-up control and a cursor to walk through team memory', 
   expect(pointer).toBeTruthy();
   vi.advanceTimersByTime(9000);
   expect(playerTime(view.container)).toContain('1:02');
-  expect(view.container.querySelector('.call-memory-pointer')).toBe(pointer);
+  expect(view.container.querySelector('.call-memory-pointer')).toBeNull();
 });

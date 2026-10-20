@@ -67,6 +67,7 @@ export function EmailAccountsDemo() {
     steps: 7,
     visibilityThreshold: 0.45,
     delay: (step) => [1500, 900, 1400, 900, 1600, 2000, 1800][step - 1],
+    loop: { hold: 8000 },
     reset: () => {
       setAccountCount(1);
       setAccount('work');

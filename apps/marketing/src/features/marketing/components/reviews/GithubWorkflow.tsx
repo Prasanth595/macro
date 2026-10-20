@@ -47,6 +47,11 @@ export function GithubPrHero() {
 export function GithubConversationDemo(props: { agent?: boolean }) {
   const w = createGithubWorkspace(props.agent);
   const task = () => w.data.tasks.find((item) => item.id === GITHUB_TASK)!;
+  const initialTask = {
+    status: task().status,
+    steps: task().steps.map((step) => ({ ...step })),
+  };
+  const initialMessages = [...w.data.channels[0].messages];
   let root!: HTMLDivElement;
   let trigger: HTMLElement | undefined;
   const [share, setShare] = createSignal(false);
@@ -91,7 +96,16 @@ export function GithubConversationDemo(props: { agent?: boolean }) {
   const playback = createProductWalkthrough({
     root: () => root,
     steps: props.agent ? 2 : 5,
-    reset: () => {},
+    loop: { hold: 8500 },
+    reset: () => {
+      w.updateTask(GITHUB_TASK, initialTask);
+      w.setData('channels', 0, 'messages', [...initialMessages]);
+      setPhase(0);
+      setDetail(undefined);
+      setChanges(false);
+      setShare(false);
+      setAutomatic(true);
+    },
     reduced: () => {
       if (props.agent) reply();
       else {
@@ -348,7 +362,6 @@ export function GithubConversationDemo(props: { agent?: boolean }) {
       <Show when={pointer()}>
         {(point) => (
           <DemoCursor
-            label="Julia"
             class="review-flow-pointer"
             clicking={phase() === 2 || phase() === 4}
             style={{ transform: `translate(${point().x}px, ${point().y}px)` }}
@@ -384,7 +397,18 @@ export function GithubTaskDemo() {
   const playback = createProductWalkthrough({
     root: () => root,
     steps: 8,
-    reset: () => {},
+    loop: { hold: 8000 },
+    reset: () => {
+      setLinked(false);
+      setMerged(false);
+      setPrOpen(false);
+      setConfirm(false);
+      setPhase(0);
+      setAutomatic(true);
+      setShare(false);
+      setSource(false);
+      w.updateTask(GITHUB_TASK, { status: 'In Progress' });
+    },
     reduced: () => {
       link();
       merge();
@@ -514,7 +538,6 @@ export function GithubTaskDemo() {
       <Show when={pointer()}>
         {(point) => (
           <DemoCursor
-            label="Julia"
             class="review-flow-pointer"
             clicking={[3, 5, 7].includes(phase())}
             style={{ transform: `translate(${point().x}px, ${point().y}px)` }}

@@ -153,7 +153,7 @@ it('reads the sources before editing and keeps both collaborators in one paragra
   expect(human).toBeTruthy();
   expect(agent?.parentElement).toBe(human?.parentElement);
   expect(view.container.querySelector('[data-search-hit="email"]')).toBe(hit);
-  vi.advanceTimersByTime(20000);
+  vi.advanceTimersByTime(6000);
   expect(body(view).textContent).toContain('Annual plans get two months free');
   expect(body(view).textContent).toContain(
     'Link to the billing FAQ below the table.'
@@ -207,7 +207,7 @@ it('merges an offline edit with the teammate edit on reconnect', () => {
   expect(body(view).textContent).not.toContain('Julia has the email ready');
   vi.advanceTimersByTime(800);
   expect(view.getByRole('status', { name: 'Reconnecting' })).toBeTruthy();
-  vi.advanceTimersByTime(10000);
+  vi.advanceTimersByTime(2000);
   expect(view.queryByRole('status')).toBeNull();
   expect(body(view).textContent).toContain(
     'Julia has the email ready. Send it tomorrow. Add a screenshot'
@@ -319,7 +319,7 @@ it('keeps source playback stopped after closing a split', () => {
 it('compacts completed tool calls and lets the visitor reopen them', () => {
   const view = render(() => <DocumentAgentDemo />);
   visible(true);
-  vi.advanceTimersByTime(20000);
+  vi.advanceTimersByTime(12000);
   const toggle = view.getByRole('button', { name: 'Called 4 tools' });
   expect(toggle.getAttribute('aria-expanded')).toBe('false');
   fireEvent.click(toggle);

@@ -42,7 +42,6 @@ export function TaskNotebook(props: {
   hideCollectionNavigation?: boolean;
   /** Extra pills in the property row, e.g. linked GitHub pull requests. */
   pills?: JSX.Element;
-  statusPlayback?: Parameters<typeof TaskStatusMenu>[0]['playback'];
 }) {
   const [panel, setPanel] = createSignal<boolean>();
   const save = (patch: Partial<WorkspaceTask>) =>
@@ -259,7 +258,6 @@ export function TaskNotebook(props: {
               <div class="mb-6 flex flex-row flex-wrap items-center gap-2 text-sm empty:hidden">
                 <TaskStatusMenu
                   task={props.task}
-                  playback={props.statusPlayback}
                   onSave={(status) => save({ status })}
                 />
                 <TaskPriorityMenu

@@ -6,21 +6,21 @@
   z-index: 8;
   font-size: 20px;
   pointer-events: none;
-  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.4));
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.25));
   transition: transform 520ms cubic-bezier(.25, .75, .25, 1);
 }
 
 .demo-cursor > svg {
   display: block;
-  width: 24px;
-  height: 26px;
+  width: 20px;
+  height: 23px;
   overflow: visible;
 }
 
 .demo-cursor > svg path {
-  fill: oklch(0.96 0 59);
-  stroke: #252525;
-  stroke-width: 1;
+  fill: #151515;
+  stroke: #fff;
+  stroke-width: 1.2;
   stroke-linejoin: round;
 }
 

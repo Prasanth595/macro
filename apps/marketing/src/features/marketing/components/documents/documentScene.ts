@@ -26,7 +26,12 @@ export function createSceneClock(options: {
     root: options.root,
     visibilityThreshold: options.visibilityThreshold,
     steps: Math.ceil(options.end / tick),
-    reset: () => {},
+    loop: { hold: 8000 },
+    reset: () => {
+      setT(0);
+      setLive(true);
+    },
+    onTakeover: () => setLive(false),
     reduced: () => {
       setReduced(true);
       setLive(false);

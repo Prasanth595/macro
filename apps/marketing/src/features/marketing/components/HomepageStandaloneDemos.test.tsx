@@ -98,7 +98,12 @@ describe('standalone website demos', () => {
     const view = render(() => <HomepageSpreadsheet />);
     const company = view.getByRole('button', { name: 'Open Coparse' });
     fireEvent.click(company);
-    const dialog = await screen.findByRole('dialog', { name: 'Coparse' });
+    // The first linked record loads a separate chunk; include its cold test transform.
+    const dialog = await screen.findByRole(
+      'dialog',
+      { name: 'Coparse' },
+      { timeout: 3000 }
+    );
     expect(
       (
         within(dialog).getByRole('textbox', {

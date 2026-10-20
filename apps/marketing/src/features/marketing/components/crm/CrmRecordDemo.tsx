@@ -35,7 +35,14 @@ export function CrmRecordDemo() {
   const playback = createProductWalkthrough({
     root: () => frame,
     steps: 6,
-    reset: () => {},
+    loop: { hold: 6500 },
+    reset: () => {
+      setPhase(0);
+      setSection('overview');
+      setAutomatic(true);
+      const scroll = frame.querySelector('.sample-company-scroll');
+      if (scroll) scroll.scrollTop = 0;
+    },
     reduced: () => {
       setAutomatic(false);
       setSection('overview');
@@ -85,7 +92,6 @@ export function CrmRecordDemo() {
       <Show when={automatic() && pointer()}>
         {(p) => (
           <DemoCursor
-            label="Jacob"
             class="crm-demo-pointer"
             clicking={phase() % 2 === 0}
             style={{ transform: `translate(${p().x}px, ${p().y}px)` }}

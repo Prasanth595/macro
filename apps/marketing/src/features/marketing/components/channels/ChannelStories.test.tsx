@@ -136,8 +136,13 @@ it('shows multiple conversations without a navigation sidebar', () => {
 
 it('shows channel access in Share and retains the chosen permission after reopening', () => {
   const view = render(() => <ChannelPermissionsDemo />);
+  expect(
+    view.container.querySelector('[data-document-share]')?.textContent
+  ).toContain('Share');
   visible(true);
-  vi.advanceTimersByTime(1900);
+  vi.advanceTimersByTime(1300);
+  expect(view.container.querySelector('.channel-demo-cursor')).toBeTruthy();
+  vi.advanceTimersByTime(600);
   const access = view.getByRole('combobox', {
     name: 'Access for Julia, Teo, Gabriel +1 other',
   });

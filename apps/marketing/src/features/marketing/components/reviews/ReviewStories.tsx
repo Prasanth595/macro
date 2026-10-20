@@ -38,7 +38,12 @@ export function ReviewInboxDemo() {
   const playback = createProductWalkthrough({
     root: () => root,
     steps: 3,
-    reset: () => {},
+    loop: { hold: 8500 },
+    reset: () => {
+      inbox.reset();
+      setPhase(0);
+      setAutomatic(true);
+    },
     // A still frame is most useful with the pull request open.
     reduced: openRequest,
     delay: (step) => [0, 900, 1200, 800, 2600][step] ?? 1400,
@@ -94,7 +99,6 @@ export function ReviewInboxDemo() {
         <Show when={pointer()}>
           {(p) => (
             <DemoCursor
-              label="Jacob"
               class="review-flow-pointer"
               clicking={phase() === 3}
               style={{ transform: `translate(${p().x}px, ${p().y}px)` }}

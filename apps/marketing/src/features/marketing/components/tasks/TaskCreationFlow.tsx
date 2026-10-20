@@ -1,4 +1,4 @@
-import { createSignal, Show } from 'solid-js';
+import { createSignal, onCleanup, onMount, Show } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import type { WorkspaceTask } from '../../core/dummy-workspace';
 import { createDemoPointer } from '../../primitives/createDemoPointer';
@@ -15,7 +15,7 @@ import {
 } from './taskProject';
 import './task-creation-flow.css';
 
-/** One request becomes an owned task, then a completed link in the plan. */
+/** A channel request becomes an owned task connected to its original brief. */
 export function TaskCreationFlow() {
   let root!: HTMLDivElement;
   let frame!: HTMLDivElement;
@@ -28,8 +28,7 @@ export function TaskCreationFlow() {
   const [target, setTarget] = createSignal<string>();
   const [clicking, setClicking] = createSignal(false);
   const [priorityOpen, setPriorityOpen] = createSignal(false);
-  const [statusOpen, setStatusOpen] = createSignal(false);
-  const [draft, setDraft] = createStore<WorkspaceTask>({
+  const initialDraft: WorkspaceTask = {
     id: 'task-draft',
     title: REQUEST_TASK,
     description: '',
@@ -41,13 +40,20 @@ export function TaskCreationFlow() {
     tags: [],
     steps: [],
     comments: [],
-  });
+  };
+  const [draft, setDraft] = createStore<WorkspaceTask>({ ...initialDraft });
   const create = () => {
     let id = taskId();
     if (!id) {
       id = 'proposal';
       w.setData('tasks', [
-        { ...draft, id, description: REQUEST_CONTEXT, tags: ['Customers'] },
+        {
+          ...draft,
+          id,
+          description: REQUEST_CONTEXT,
+          tags: ['Customers'],
+          relatedDocumentIds: ['customer-brief'],
+        },
       ]);
       w.setData('channels', 0, 'messages', 1, 'taskId', id);
       setTaskId(id);
@@ -63,11 +69,8 @@ export function TaskCreationFlow() {
   };
   const finish = () => {
     if (!taskId()) create();
-    w.updateTask(taskId()!, {
-      status: 'Completed',
-      description: 'Proposal ready: scope, pricing, and a delivery timeline.',
-    });
-    setPhase(6);
+    w.open('tasks', taskId());
+    setPhase(4);
   };
   const updateDraft = (patch: Partial<WorkspaceTask>) => setDraft(patch);
   const openComposer = () => setPhase(2);
@@ -84,6 +87,16 @@ export function TaskCreationFlow() {
     log?.scrollTo({ top: 0, behavior: 'smooth' });
     setPhase(1);
   };
+  let scrollFrame = 0;
+  const showRequest = () => {
+    cancelAnimationFrame(scrollFrame);
+    scrollFrame = requestAnimationFrame(() => {
+      const log = frame.querySelector<HTMLElement>('[role="log"]');
+      if (log) log.scrollTop = 0;
+    });
+  };
+  onMount(showRequest);
+  onCleanup(() => cancelAnimationFrame(scrollFrame));
   // Delays are reading/movement time BEFORE the named action.
   const actions = [
     { delay: 1400, run: revealRequest },
@@ -108,52 +121,35 @@ export function TaskCreationFlow() {
     },
     { delay: 650, run: () => approach('[data-task-submit]') },
     { delay: 650, run: () => click(create) },
-    { delay: 2200, run: () => approach('[aria-label="Change status"]') },
-    { delay: 650, run: () => click(() => setStatusOpen(true)) },
-    {
-      delay: 450,
-      run: () => approach('[data-demo-property-value="status:In Progress"]'),
-    },
-    {
-      delay: 650,
-      run: () =>
-        click(() => {
-          w.updateTask(taskId()!, {
-            status: 'In Progress',
-            description: 'Adding pricing and delivery dates to the proposal.',
-          });
-          setStatusOpen(false);
-          setPhase(5);
-        }),
-    },
-    { delay: 2500, run: () => approach('[aria-label="Change status"]') },
-    { delay: 650, run: () => click(() => setStatusOpen(true)) },
-    {
-      delay: 450,
-      run: () => approach('[data-demo-property-value="status:Completed"]'),
-    },
-    {
-      delay: 650,
-      run: () =>
-        click(() => {
-          setStatusOpen(false);
-          finish();
-        }),
-    },
-    { delay: 2400, run: () => approach('.task-plan-link') },
+    { delay: 2200, run: () => approach('.task-plan-link') },
     {
       delay: 650,
       run: () =>
         click(() => {
           w.open('documents', 'customer-brief');
-          setPhase(7);
+          setPhase(5);
         }),
     },
+    { delay: 2600, run: () => approach('.sample-task-mention-inline') },
+    { delay: 650, run: () => click(finish) },
   ];
   const playback = createProductWalkthrough({
     root: () => root,
     steps: actions.length,
-    reset: () => {},
+    loop: { hold: 6500 },
+    reset: () => {
+      w.setData('tasks', []);
+      w.setData('channels', 0, 'messages', 1, 'taskId', undefined);
+      w.open('messages', 'sales');
+      setTaskId(undefined);
+      setDraft({ ...initialDraft });
+      setPhase(0);
+      setAutomatic(true);
+      setPriorityOpen(false);
+      setTarget(undefined);
+      setClicking(false);
+      showRequest();
+    },
     reduced: () => {
       finish();
       setAutomatic(false);
@@ -197,24 +193,12 @@ export function TaskCreationFlow() {
         }}
       >
         <ProductDemo
-          label="Follow a request from message to completion"
+          label="Create a task from a request and open its linked brief"
           onInteract={pause}
           height={560}
           mobileHeight={620}
         >
-          <Show
-            when={phase() < 4}
-            fallback={
-              <TaskProjectView
-                workspace={w}
-                statusPlayback={{
-                  open: statusOpen(),
-                  onOpenChange: setStatusOpen,
-                  automatic: automatic(),
-                }}
-              />
-            }
-          >
+          <Show when={phase() < 4} fallback={<TaskProjectView workspace={w} />}>
             <WorkspaceChannel
               workspace={w}
               hoveredMessage={phase() === 1 ? 'proposal-request' : undefined}
@@ -234,6 +218,7 @@ export function TaskCreationFlow() {
                 <TaskComposer
                   draft={draft}
                   sourceChannel="sales"
+                  dueDateLabel="Friday"
                   update={updateDraft}
                   priorityPlayback={{
                     open: priorityOpen(),

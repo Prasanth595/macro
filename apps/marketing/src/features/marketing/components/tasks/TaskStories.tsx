@@ -176,7 +176,20 @@ export function TaskAgentChannelDemo() {
       root.querySelector<HTMLElement>('.sample-chat-composer') ?? root,
     visibilityThreshold: 1,
     steps: steps.length,
-    reset: () => {},
+    loop: { hold: 8500 },
+    reset: () => {
+      if (scrollFrame !== undefined) cancelAnimationFrame(scrollFrame);
+      scrollFrame = undefined;
+      writeDraft('');
+      setReplyTarget(undefined);
+      w.setData('tasks', []);
+      w.setData('channels', 0, 'messages', []);
+      w.setChannelThread(undefined);
+      ids = [];
+      setTyping(false);
+      const log = root.querySelector('[role="log"]');
+      if (log) log.scrollTop = 0;
+    },
     reduced: () => {
       smooth = false;
       sendRequest();
@@ -269,7 +282,12 @@ export function TaskGithubDemo() {
   const playback = createProductWalkthrough({
     root: () => root,
     steps: 3,
-    reset: () => {},
+    loop: { hold: 8000 },
+    reset: () => {
+      setPr('none');
+      w.updateTask('invite', { status: 'In Progress' });
+      w.open('tasks', 'invite');
+    },
     reduced: () => {
       move('merged', 'Completed');
     },

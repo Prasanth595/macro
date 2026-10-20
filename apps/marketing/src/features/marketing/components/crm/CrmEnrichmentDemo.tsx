@@ -73,7 +73,15 @@ export function CrmEnrichmentDemo() {
   const playback = createProductWalkthrough({
     root: () => frame,
     steps: 6,
-    reset: () => {},
+    loop: { hold: 8000 },
+    reset: () => {
+      w.open('crm');
+      w.setData('companies', (companies) =>
+        companies.filter((company) => company.id !== kestrel.id)
+      );
+      setPhase(0);
+      setAutomatic(true);
+    },
     reduced: () => {
       setAutomatic(false);
       finish();
@@ -120,7 +128,6 @@ export function CrmEnrichmentDemo() {
       <Show when={automatic() && pointer()}>
         {(p) => (
           <DemoCursor
-            label="Jacob"
             class="crm-demo-pointer"
             clicking={phase() === 3}
             style={{ transform: `translate(${p().x}px, ${p().y}px)` }}

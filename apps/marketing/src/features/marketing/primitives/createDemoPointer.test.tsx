@@ -97,3 +97,25 @@ it('does not bring the demonstration pointer back after visitor takeover', () =>
   vi.advanceTimersByTime(32);
   expect(view.container.querySelector('.demo-cursor')).toBeNull();
 });
+
+it('hides the pointer during the result hold and starts fresh for the next untouched sequence', () => {
+  const view = render(Scene);
+  const frame = view.container.querySelector('[data-frame]')!;
+  vi.advanceTimersByTime(32);
+  expect(view.container.querySelector('.demo-cursor')).toBeTruthy();
+  frame.dispatchEvent(
+    new CustomEvent('macro-demo-finished', { bubbles: true })
+  );
+  resize();
+  vi.advanceTimersByTime(32);
+  expect(view.container.querySelector('.demo-cursor')).toBeNull();
+  frame.dispatchEvent(new CustomEvent('macro-demo-reset', { bubbles: true }));
+  vi.advanceTimersByTime(32);
+  expect(view.container.querySelector('.demo-cursor')).toBeTruthy();
+  view.container
+    .querySelector('.demo-interaction-boundary')!
+    .dispatchEvent(new CustomEvent('macro-demo-interaction'));
+  frame.dispatchEvent(new CustomEvent('macro-demo-reset', { bubbles: true }));
+  vi.advanceTimersByTime(32);
+  expect(view.container.querySelector('.demo-cursor')).toBeNull();
+});

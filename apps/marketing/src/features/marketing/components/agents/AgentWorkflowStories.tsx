@@ -466,7 +466,34 @@ export function AgentDeliverableStory() {
     root: () => root,
     steps: frames.length + 3,
     visibilityThreshold: 0.5,
-    reset: () => {},
+    loop: { hold: 9000 },
+    reset: () => {
+      if (pendingFrame !== undefined) cancelAnimationFrame(pendingFrame);
+      pendingFrame = undefined;
+      w.setData(
+        'documents',
+        (doc) => doc.id === FEEDBACK_BRIEF,
+        'body',
+        original
+      );
+      w.setData(
+        'documents',
+        (doc) => doc.id === FEEDBACK_BRIEF,
+        'comments',
+        (comments) =>
+          comments.filter((comment) => comment.id !== 'brief-update-result')
+      );
+      setTyping(false);
+      setCaret(undefined);
+      setResponseState('ready');
+      root
+        .querySelectorAll<HTMLElement>(
+          '.dummy-scroll, [aria-label="Document discussion"]'
+        )
+        .forEach((el) => {
+          el.scrollTop = 0;
+        });
+    },
     delay: (step) => {
       if (step <= 2) return 1600;
       if (step === frames.length + 3) return 260;
@@ -582,7 +609,19 @@ export function AgentMeetingStory() {
     root: () => root,
     steps: 6,
     visibilityThreshold: 0.5,
-    reset: () => {},
+    loop: { hold: 9000 },
+    reset: () => {
+      if (pendingFrame !== undefined) cancelAnimationFrame(pendingFrame);
+      pendingFrame = undefined;
+      w.setData('documents', (docs) =>
+        docs.filter((doc) => doc.id !== MEETING_BRIEF)
+      );
+      setPhase(0);
+      setToolsOpen(true);
+      setTurns([]);
+      const log = frame.querySelector('.agent-transcript');
+      if (log) log.scrollTop = 0;
+    },
     delay: (step) => (step === 5 ? 700 : step === 6 ? 450 : 1300),
     reduced: finish,
     advance: (step) => {
@@ -803,7 +842,14 @@ export function AgentTeamworkStory() {
   const playback = createProductWalkthrough({
     root: () => root,
     steps: 6,
-    reset: () => {},
+    loop: { hold: 10000 },
+    reset: () => {
+      advance(0);
+      setDetail(undefined);
+      setSessionTurns([]);
+      const log = root.querySelector('.sample-chat-log');
+      if (log) log.scrollTop = 0;
+    },
     delay: (step) => (step === 5 ? 3500 : 2600),
     reduced: () => advance(6),
     advance: (step) => {

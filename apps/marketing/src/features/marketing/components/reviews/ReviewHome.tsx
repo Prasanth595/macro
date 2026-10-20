@@ -269,6 +269,19 @@ export function createHomeInbox(options: {
     toast,
     dismissToast: () => setToast(undefined),
     rowsOf,
+    reset: () =>
+      batch(() => {
+        setRead([]);
+        setDone([]);
+        setPending(options.pending ?? []);
+        setToast(undefined);
+        home();
+        const initial = all.find((item) => item.id === options.initial);
+        if (initial) {
+          open(initial);
+          setPane('list');
+        }
+      }),
     reveal: (id: string) => {
       if (pending().includes(id))
         setPending((ids) => ids.filter((x) => x !== id));

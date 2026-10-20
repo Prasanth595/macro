@@ -201,9 +201,15 @@ export function EmailSharingDemo(props: { onClose?: () => void } = {}) {
     steps: 7,
     visibilityThreshold: 0.45,
     delay: (step) => phaseDuration[step - 1],
+    loop: { hold: 8000 },
     reset: () => {
       setPhase(0);
       setOpened(false);
+      root
+        .querySelectorAll<HTMLElement>('.mail-thread-body, [role="log"]')
+        .forEach((el) => {
+          el.scrollTop = 0;
+        });
     },
     reduced: () => setPhase(7),
     advance: (step) => {

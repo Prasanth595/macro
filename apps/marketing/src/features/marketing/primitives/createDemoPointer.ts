@@ -1,4 +1,8 @@
 import { createEffect, createSignal, onCleanup, onMount } from 'solid-js';
+import {
+  DEMO_SEQUENCE_FINISHED,
+  DEMO_SEQUENCE_RESET,
+} from './createEmailWalkthrough';
 import { observeDemoTakeover } from './observeDemoTakeover';
 
 export type DemoPoint = { x: number; y: number };
@@ -15,11 +19,12 @@ export function createDemoPointer(options: {
 }) {
   const [point, setPoint] = createSignal<DemoPoint>();
   let stopped = false;
+  let finished = false;
   onMount(() => {
     const frame = options.frame();
     if (!frame) return;
     const measure = () => {
-      if (stopped || options.active?.() === false) {
+      if (stopped || finished || options.active?.() === false) {
         setPoint(undefined);
         return;
       }
@@ -68,6 +73,7 @@ export function createDemoPointer(options: {
         measure();
         if (
           !stopped &&
+          !finished &&
           options.active?.() !== false &&
           options.followAnimation?.()
         )
@@ -101,12 +107,31 @@ export function createDemoPointer(options: {
       setPoint(undefined);
     };
     const releaseTakeover = observeDemoTakeover(frame, stop);
+    const endSequence = (event: Event) => {
+      const target = event.target;
+      if (
+        !(target instanceof Element) ||
+        (!frame.contains(target) && !target.contains(frame))
+      )
+        return;
+      finished = event.type === DEMO_SEQUENCE_FINISHED;
+      cancelAnimationFrame(raf);
+      setPoint(undefined);
+      if (!finished && !stopped) requestMeasure();
+    };
+    frame.ownerDocument.addEventListener(DEMO_SEQUENCE_FINISHED, endSequence);
+    frame.ownerDocument.addEventListener(DEMO_SEQUENCE_RESET, endSequence);
     frame.addEventListener('scroll', requestMeasure, true);
     onCleanup(() => {
       cancelAnimationFrame(raf);
       resize.disconnect();
       mutation.disconnect();
       releaseTakeover();
+      frame.ownerDocument.removeEventListener(
+        DEMO_SEQUENCE_FINISHED,
+        endSequence
+      );
+      frame.ownerDocument.removeEventListener(DEMO_SEQUENCE_RESET, endSequence);
       frame.removeEventListener('scroll', requestMeasure, true);
     });
   });

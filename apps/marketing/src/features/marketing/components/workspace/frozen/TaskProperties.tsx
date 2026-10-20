@@ -125,16 +125,10 @@ export function TaskStatusMenu(props: {
   task: WorkspaceTask;
   onSave: (value: TaskStatus) => void;
   inline?: boolean;
-  playback?: {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    automatic?: boolean;
-  };
 }) {
   return (
     <PropertyMenu
       label="status"
-      playback={props.playback}
       value={props.task.status}
       options={Object.keys(STATUS_IDS) as TaskStatus[]}
       onSave={props.onSave}

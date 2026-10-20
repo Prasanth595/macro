@@ -234,7 +234,7 @@ it('replies to Julia before visibly writing a substantive checklist', () => {
   expect(body().textContent).toContain('Before sharing with clients');
   expect(body().textContent).toContain('Send a file');
   expect(body().textContent).not.toContain('Check that the client can see');
-  vi.advanceTimersByTime(20000);
+  vi.advanceTimersByTime(7000);
   expect(body().textContent).toContain(
     'Check that the client can see who is reviewing the file.'
   );

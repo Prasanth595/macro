@@ -1,6 +1,9 @@
 import { createSignal, onCleanup, onMount } from 'solid-js';
 import { observeDemoTakeover } from './observeDemoTakeover';
 
+export const DEMO_SEQUENCE_FINISHED = 'macro-demo-finished';
+export const DEMO_SEQUENCE_RESET = 'macro-demo-reset';
+
 /** Finite, visibility-aware playback for the isolated email feature demos. */
 export function createEmailWalkthrough(options: {
   root: () => HTMLElement;
@@ -64,6 +67,13 @@ export function createEmailWalkthrough(options: {
         return;
       }
       options.advance(++step);
+      if (step >= options.steps) {
+        options
+          .root()
+          .dispatchEvent(
+            new CustomEvent(DEMO_SEQUENCE_FINISHED, { bubbles: true })
+          );
+      }
       if (step >= options.steps && !options.loop) pauseClock();
       else schedule();
     }, remaining);
@@ -74,6 +84,9 @@ export function createEmailWalkthrough(options: {
     remaining = undefined;
     step = 0;
     options.reset();
+    options
+      .root()
+      .dispatchEvent(new CustomEvent(DEMO_SEQUENCE_RESET, { bubbles: true }));
     if (reducedMotion()) {
       options.reduced();
       return;
@@ -97,6 +110,11 @@ export function createEmailWalkthrough(options: {
       if (media.matches && !takenOver) {
         pauseClock();
         options.reduced();
+        options
+          .root()
+          .dispatchEvent(
+            new CustomEvent(DEMO_SEQUENCE_FINISHED, { bubbles: true })
+          );
       }
     };
     sync();
@@ -105,10 +123,10 @@ export function createEmailWalkthrough(options: {
         visible =
           entry.isIntersecting &&
           (entry.intersectionRatio ?? 1) >=
-            (options.visibilityThreshold ?? 0.25);
+            (options.visibilityThreshold ?? 0.5);
         schedule();
       },
-      { threshold: options.visibilityThreshold ?? 0.25 }
+      { threshold: options.visibilityThreshold ?? 0.5 }
     );
     observer.observe(options.root());
     const root = options.root();

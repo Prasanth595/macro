@@ -40,6 +40,7 @@ export function EmailAgenticEditingDemo() {
     steps: 3,
     visibilityThreshold: 0.45,
     delay: (step) => [1600, 1600, 2200][step - 1],
+    loop: { hold: 8000 },
     reset: () => {
       setPhase(0);
       setPrompt(request);

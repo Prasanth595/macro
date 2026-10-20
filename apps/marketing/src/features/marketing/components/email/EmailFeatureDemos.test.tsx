@@ -125,7 +125,7 @@ it('waits for visibility, introduces the second inbox, and finishes with both ac
   expect(
     accounts.getByRole('button', { name: 'jacob@outlook.com' })
   ).toBeTruthy();
-  expect(vi.getTimerCount()).toBe(0);
+  expect(vi.getTimerCount()).toBeGreaterThan(0);
 });
 
 it('navigates with J/K, opens threads and archives the selection through the empty state', () => {
@@ -208,6 +208,7 @@ it('shows the source context before the editable draft and preserves edits', () 
   const body = view.getByRole('textbox', { name: 'Email body' });
   expect(body.getAttribute('contenteditable')).toBe('true');
   expect(body.textContent).toContain('Thursday at 9');
+  fireEvent.pointerDown(view.getByLabelText('Subject'));
   fireEvent.input(view.getByLabelText('Subject'), {
     target: { value: 'Thursday meeting details' },
   });

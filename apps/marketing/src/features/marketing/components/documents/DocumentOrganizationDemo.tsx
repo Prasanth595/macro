@@ -367,7 +367,6 @@ export function DocumentOrganizationDemo() {
       <Show when={pointer()}>
         {(p) => (
           <DemoCursor
-            label="Julia"
             class="doc-organize-pointer"
             style={{ transform: `translate(${p().x}px, ${p().y}px)` }}
           />

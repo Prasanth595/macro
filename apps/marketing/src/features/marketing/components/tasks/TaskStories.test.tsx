@@ -102,8 +102,9 @@ it('turns a message into a task with its title, assignee, and source channel', (
   expect(
     view.getAllByRole('button', { name: 'Change priority' })[0].textContent
   ).toContain('High');
+  expect(vi.getTimerCount()).toBeGreaterThan(0);
+  fireEvent.pointerDown(view.getByRole('textbox', { name: 'Task title' }));
   vi.advanceTimersByTime(30000);
-  expect(vi.getTimerCount()).toBe(0);
 });
 
 it('keeps a visitor’s task draft instead of advancing over it', () => {
@@ -195,25 +196,33 @@ it('moves the task to In Review, then Completed, as its pull request changes', (
   expect(view.getByText('company/website#491')).toBeTruthy();
 });
 
-it('finishes the human task and keeps its completed status in the plan', () => {
+it('opens the linked brief and returns through its inline task mention without completing the work', () => {
   const view = render(() => <TaskFromMessageDemo />);
   visible(true);
-  vi.advanceTimersByTime(18000);
-  fireEvent.click(
-    view.getByRole('button', { name: 'Prepare the customer proposal' })
-  );
+  vi.advanceTimersByTime(10000);
+  const link = view.getByRole('button', {
+    name: 'Prepare the customer proposal',
+  });
+  expect(link.classList.contains('sample-task-mention-inline')).toBe(true);
+  expect(link.classList.contains('dummy-entity-link')).toBe(false);
+  fireEvent.pointerDown(link);
+  fireEvent.click(link);
   expect(
     view.getAllByRole('button', { name: 'Change status' })[0].textContent
-  ).toContain('Completed');
+  ).toContain('Not Started');
   expect(
     view.getByRole('textbox', { name: 'Task description' }).textContent
-  ).toContain('Proposal ready: scope, pricing');
+  ).toContain('They need a proposal by Friday.');
+  const documentLink = view.getByRole('button', { name: 'Customer brief' });
+  expect(
+    documentLink.querySelector('.demo-inline-mention.mention-document')
+  ).toBeTruthy();
 });
 
 it('changes the existing proposal task to Julia after an explicit request', () => {
   const view = render(() => <TaskAgentChannelDemo />);
   visible(true);
-  vi.advanceTimersByTime(24000);
+  vi.advanceTimersByTime(11000);
   expect(
     view
       .getByText('The proposal is now assigned to Julia.')
@@ -237,6 +246,33 @@ it('changes the existing proposal task to Julia after an explicit request', () =
   expect(
     view.getAllByRole('button', { name: 'Change assignee' })[0].textContent
   ).toContain('Julia');
+});
+
+it('keeps edits to the linked brief and reflects its new name on the task', () => {
+  const w = createTaskProject();
+  const view = render(() => <TaskProjectView workspace={w} />);
+  fireEvent.click(view.getByRole('button', { name: 'Customer brief' }));
+  const title = view.getByRole('textbox', { name: 'Document title' });
+  Object.defineProperty(title, 'innerText', {
+    value: 'Customer scope',
+    configurable: true,
+  });
+  fireEvent.blur(title);
+  const body = view.getByRole('textbox', { name: 'Document body' });
+  body.innerHTML = '<p>Include the mobile signup flow.</p>';
+  fireEvent.blur(body);
+  fireEvent.click(view.getByRole('button', { name: 'Back to task' }));
+  const link = view.getByRole('button', { name: 'Customer scope' });
+  expect(
+    link.querySelector('.demo-inline-mention.mention-document')
+  ).toBeTruthy();
+  fireEvent.click(link);
+  expect(
+    view.getByRole('textbox', { name: 'Document title' }).textContent
+  ).toBe('Customer scope');
+  expect(
+    view.getByRole('textbox', { name: 'Document body' }).textContent
+  ).toContain('Include the mobile signup flow.');
 });
 
 it('does not perform the scripted reassignment after the visitor takes over', () => {
@@ -324,7 +360,7 @@ it('resumes the same agent draft after leaving view without skipping or duplicat
   expect(input.textContent).toBe(draft);
   expect(view.queryByText('Created and assigned both tasks.')).toBeNull();
   visible(true);
-  vi.advanceTimersByTime(20000);
+  vi.advanceTimersByTime(10000);
   expect(
     view.getByRole('log', { name: 'Channel sales' }).querySelectorAll('article')
   ).toHaveLength(4);

@@ -46,6 +46,7 @@ export function ChannelHero() {
 export function ChannelSharedWorkDemo() {
   let root!: HTMLDivElement;
   let frame: HTMLDivElement | undefined;
+  let resetSurface = () => {};
   const w = createChannelChecklist();
   const [aim, setAim] = createSignal<string>();
   const [clicking, setClicking] = createSignal(false);
@@ -81,7 +82,14 @@ export function ChannelSharedWorkDemo() {
     root: () => root,
     visibilityThreshold: 0.5,
     steps: 9,
-    reset: () => {},
+    loop: { hold: 8000 },
+    reset: () => {
+      resetSurface();
+      setAim(undefined);
+      setClicking(false);
+      setCursorVisible(false);
+      scrollToMessage('shared-plan', false);
+    },
     reduced: () => {
       clickMention('shared-plan');
       clickMention('welcome');
@@ -145,11 +153,15 @@ export function ChannelSharedWorkDemo() {
         height={620}
         mobileHeight={600}
       >
-        <ChannelWorkSurface workspace={w} />
+        <ChannelWorkSurface
+          workspace={w}
+          onReady={(reset) => {
+            resetSurface = reset;
+          }}
+        />
       </ProductDemo>
       <Show when={cursorVisible() && pointer()}>
         <DemoCursor
-          label="Jacob"
           clicking={clicking()}
           class="channel-demo-cursor"
           style={{
@@ -175,7 +187,11 @@ export function ChannelPermissionsDemo() {
   const playback = createProductWalkthrough({
     root: () => root,
     steps: 2,
-    reset: () => {},
+    loop: { hold: 8000 },
+    reset: () => {
+      setSharing(false);
+      setStep(0);
+    },
     reduced: share,
     delay: (step) => (step === 1 ? 1200 : 650),
     advance: (step) => {
@@ -334,6 +350,8 @@ export function ChannelAgentDemo() {
   const [sessionOpen, setSessionOpen] = createSignal(false);
   let root!: HTMLDivElement;
   const w = createChannelProject();
+  const initialTasks = structuredClone(unwrap(w.data.tasks));
+  let resetSurface = () => {};
   const initial = [
     ...structuredClone(channelHistory.slice(10)),
     {
@@ -430,7 +448,17 @@ export function ChannelAgentDemo() {
     root: () => root,
     visibilityThreshold: 0.5,
     steps: 3,
-    reset: () => {},
+    loop: { hold: 8500 },
+    reset: () => {
+      resetSurface();
+      w.setData('tasks', structuredClone(initialTasks));
+      w.setData('channels', (channel) => channel.id === 'launch', 'messages', [
+        ...initial,
+      ]);
+      w.setChannelThread(undefined);
+      const log = root.querySelector('[role="log"]');
+      if (log) log.scrollTop = log.scrollHeight;
+    },
     reduced: () => {
       createFollowUp();
       bringCursor();
@@ -456,6 +484,9 @@ export function ChannelAgentDemo() {
         fallback={
           <ChannelWorkSurface
             workspace={w}
+            onReady={(reset) => {
+              resetSurface = reset;
+            }}
             renderMessageDetails={(message) =>
               message.id === 'cursor-finding' ? (
                 <DemoAgentChip
