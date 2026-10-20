@@ -50,9 +50,9 @@ function userMentionIndexedText(data: UserMentionData) {
     return data.displayName || data.email || 'Bot';
   }
   if (userId.startsWith('macro|')) {
-    return userId.slice('macro|'.length) || data.email || '';
+    return userId.slice('macro|'.length) || 'Guest';
   }
-  return data.email || 'Guest';
+  return 'Guest';
 }
 
 export function parseContactMentions(text: string): string {

@@ -405,9 +405,17 @@ describe('parseUserMentionsForSearch', () => {
     expect(parseUserMentionsForSearch(input)).toBe('Cursor');
   });
 
-  it('names other principals Guest', () => {
-    const input = '<m-user-mention>{"userId":"guest|abc"}</m-user-mention>';
-    expect(parseUserMentionsForSearch(input)).toBe('Guest');
+  it('names other principals Guest, even with an email', () => {
+    expect(
+      parseUserMentionsForSearch(
+        '<m-user-mention>{"userId":"guest|abc","email":"guest@example.com"}</m-user-mention>'
+      )
+    ).toBe('Guest');
+    expect(
+      parseUserMentionsForSearch(
+        '<m-user-mention>{"userId":"macro|","email":"gab@macro.com"}</m-user-mention>'
+      )
+    ).toBe('Guest');
   });
 
   it('returns empty string for invalid JSON', () => {
