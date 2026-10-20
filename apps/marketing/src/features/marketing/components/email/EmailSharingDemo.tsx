@@ -6,8 +6,10 @@ import { Button } from '@ui';
 import { createSignal, Show } from 'solid-js';
 import { meetingEmail, meetingReply } from '../../core/email-demo-story';
 import { homepagePeople } from '../../core/homepage-demo-people';
+import { createDemoPointer } from '../../primitives/createDemoPointer';
 import { createEmailWalkthrough } from '../../primitives/createEmailWalkthrough';
 import { demoTypingActions } from '../../primitives/demoTypingActions';
+import { DemoCursor } from '../DemoCursor';
 import { DocMention } from '../documents/DocMention';
 import {
   HomepageConversation,
@@ -83,7 +85,10 @@ function ShareForm(props: {
           </button>
         </Show>
         <div class="grow shrink min-h-0 flex flex-col w-full border-t border-edge-muted">
-          <div class="grow shrink min-h-20 px-4 py-1.5 w-full text-sm">
+          <div
+            class="grow shrink min-h-20 px-4 py-1.5 w-full text-sm"
+            data-share-message-input
+          >
             <Show
               when={props.phase >= 4}
               fallback={
@@ -198,6 +203,17 @@ export function EmailSharingDemo(props: { onClose?: () => void } = {}) {
   const [query, setQuery] = createSignal('');
   const [message, setMessage] = createSignal('');
   let root!: HTMLDivElement;
+  const [target, setTarget] = createSignal<string>();
+  const [clicking, setClicking] = createSignal(false);
+  const approach = (selector: string) => {
+    setClicking(false);
+    setTarget(selector);
+  };
+  const click = (run: () => void) => {
+    setClicking(true);
+    run();
+  };
+
   const finish = () => {
     setPhase(7);
     queueMicrotask(() => {
@@ -208,26 +224,41 @@ export function EmailSharingDemo(props: { onClose?: () => void } = {}) {
     });
   };
   const actions = [
-    { delay: 1800, run: () => setPhase(1) },
+    { delay: 1200, run: () => approach('[data-demo-share-trigger]') },
+    { delay: 650, run: () => click(() => setPhase(1)) },
+    { delay: 350, run: () => approach('.mail-recipient-input') },
+    { delay: 650, run: () => click(() => {}) },
     ...demoTypingActions(
       'launch',
       (text) => {
+        setClicking(false);
         setPhase(2);
         setQuery(text);
       },
       800
     ),
-    { delay: 1000, run: () => setPhase(3) },
+    { delay: 550, run: () => approach('.mail-recipient-option') },
+    { delay: 650, run: () => click(() => setPhase(3)) },
+    { delay: 350, run: () => approach('[data-share-message-input]') },
+    { delay: 650, run: () => click(() => {}) },
     ...demoTypingActions(
       shareMessage,
       (text) => {
+        setClicking(false);
         setPhase(4);
         setMessage(text);
       },
       700
     ),
-    { delay: 800, run: () => setPhase(5) },
-    { delay: 450, run: () => setPhase(6) },
+    {
+      delay: 700,
+      run: () => {
+        approach('.mail-share-submit');
+        setPhase(5);
+      },
+    },
+    { delay: 650, run: () => click(() => setPhase(6)) },
+    { delay: 350, run: () => setClicking(false) },
     { delay: 2600, run: finish },
   ];
   const playback = createEmailWalkthrough({
@@ -237,6 +268,8 @@ export function EmailSharingDemo(props: { onClose?: () => void } = {}) {
     delay: (step) => actions[step - 1].delay,
     loop: { hold: 8000 },
     reset: () => {
+      setTarget(undefined);
+      setClicking(false);
       setPhase(0);
       setOpened(false);
       setQuery('');
@@ -257,6 +290,11 @@ export function EmailSharingDemo(props: { onClose?: () => void } = {}) {
     setQuery('launch');
     setMessage(shareMessage);
   };
+  const pointer = createDemoPointer({
+    frame: () => root,
+    target,
+    active: () => playback.playing() && !playback.reducedMotion(),
+  });
   return (
     <div
       ref={root}
@@ -323,6 +361,15 @@ export function EmailSharingDemo(props: { onClose?: () => void } = {}) {
             Back to inbox
           </Button>
         </div>
+      </Show>
+      <Show when={pointer()}>
+        {(point) => (
+          <DemoCursor
+            class="email-demo-pointer"
+            clicking={clicking()}
+            style={{ transform: `translate(${point().x}px, ${point().y}px)` }}
+          />
+        )}
       </Show>
     </div>
   );

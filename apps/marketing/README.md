@@ -156,6 +156,11 @@ resets apply to every character. Preserve existing conversation history and
 loaded records; incoming messages and values copied by a control are not human
 typing. Keep agent-generated content distinct from human input.
 Express scene steps as ordered actions with reading time before each action.
+Every automated mouse action must show the shared pointer before changing the
+UI, including account connection, inbox selection, Share, and Send. On phones,
+open the actual inbox menu before selecting its controls. Keep the pointer above
+local menu surfaces; keyboard shortcuts and background agent updates do not
+simulate mouse input.
 Approach a real control, click, show its menu, approach an option, select it, and
 hold the result. Share the local controls and save handlers with manual input;
 prevent menu autofocus during playback only. The task-creation scene is the

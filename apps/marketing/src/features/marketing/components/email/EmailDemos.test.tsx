@@ -138,13 +138,13 @@ it('pauses playback offscreen and after interaction, and cleans up its timer', (
   vi.advanceTimersByTime(10000);
   expect(phase()).toBe('0');
   setVisible(true);
-  vi.advanceTimersByTime(1800);
+  advanceTo(() => phase() === '1');
   expect(phase()).toBe('1');
   setVisible(false);
   vi.advanceTimersByTime(10000);
   expect(phase()).toBe('1');
   setVisible(true);
-  vi.advanceTimersByTime(1100);
+  advanceTo(() => phase() === '2');
   expect(phase()).toBe('2');
   fireEvent.click(view.getByRole('button', { name: 'Close share preview' }));
   vi.advanceTimersByTime(10000);
@@ -275,7 +275,9 @@ it('keeps existing channel messages mounted while the email walkthrough advances
     name: 'Open shared email: Thursday demo',
   });
   const sharedMessage = shared.closest('li');
-  vi.advanceTimersByTime(2600);
+  advanceTo(() =>
+    view.queryByText('I’ll send the setup guide before the call.')
+  );
   expect(question()).toBe(original);
   expect(
     view.getByRole('button', { name: 'Open shared email: Thursday demo' })
@@ -304,7 +306,11 @@ function advanceTo(reached: () => unknown) {
 it('types the share destination and message progressively and stops mid-draft on interaction', () => {
   const view = render(() => <EmailSharingDemo />);
   setVisible(true);
-  vi.advanceTimersByTime(2600);
+  advanceTo(
+    () =>
+      view.container.querySelector('.mail-recipient-input .text-ink')
+        ?.textContent
+  );
   expect(
     view.container.querySelector('.mail-recipient-input .text-ink')?.textContent
   ).toBe('l');
@@ -314,6 +320,32 @@ it('types the share destination and message progressively and stops mid-draft on
   fireEvent.pointerDown(message);
   vi.advanceTimersByTime(30000);
   expect(message.textContent).toBe('H');
+  expect(
+    view.queryByRole('button', { name: 'Open shared email: Thursday demo' })
+  ).toBeNull();
+});
+
+it('keeps the same pointer while opening Share, choosing a channel, and typing the message', () => {
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+    function (this: HTMLElement) {
+      return this.matches('.mail-sharing-demo')
+        ? new DOMRect(0, 0, 1000, 600)
+        : new DOMRect(20, 20, 120, 32);
+    }
+  );
+  const view = render(() => <EmailSharingDemo />);
+  setVisible(true);
+  vi.advanceTimersByTime(1250);
+  const pointer = view.container.querySelector('.demo-cursor');
+  expect(pointer).toBeTruthy();
+  expect(view.queryByRole('group', { name: 'Share email preview' })).toBeNull();
+  advanceTo(() => view.queryByRole('group', { name: 'Share email preview' }));
+  expect(view.container.querySelector('.demo-cursor')).toBe(pointer);
+  advanceTo(() => view.container.querySelector('[data-share-message]'));
+  expect(view.container.querySelector('.demo-cursor')).toBe(pointer);
+  fireEvent.pointerDown(view.getByRole('button', { name: 'Cancel' }));
+  vi.advanceTimersByTime(20000);
+  expect(view.container.querySelector('.demo-cursor')).toBeNull();
   expect(
     view.queryByRole('button', { name: 'Open shared email: Thursday demo' })
   ).toBeNull();

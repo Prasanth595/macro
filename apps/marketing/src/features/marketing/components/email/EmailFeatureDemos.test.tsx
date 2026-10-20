@@ -105,7 +105,12 @@ it('waits for visibility, introduces the second inbox, and finishes with both ac
     accounts.queryByRole('button', { name: 'jacob@gmail.com' })
   ).toBeNull();
   setVisible(true);
-  vi.advanceTimersByTime(2400);
+  advanceTo(
+    () =>
+      view.container
+        .querySelector('.email-accounts-demo')
+        ?.getAttribute('data-step') === '2'
+  );
   expect(
     view.container
       .querySelector('.email-accounts-demo')
@@ -116,7 +121,12 @@ it('waits for visibility, introduces the second inbox, and finishes with both ac
   vi.advanceTimersByTime(20000);
   expect(view.getByRole('status')).toBeTruthy();
   setVisible(true);
-  vi.advanceTimersByTime(7700);
+  advanceTo(
+    () =>
+      view.container
+        .querySelector('.email-accounts-demo')
+        ?.getAttribute('data-step') === '7'
+  );
   expect(
     accounts
       .getByRole('button', { name: 'All inboxes' })
@@ -179,6 +189,7 @@ it('finishes keyboard playback and cleans up its timer', () => {
   expect(view.getAllByRole('button', { name: /^Read / })).toHaveLength(13);
   expect(view.queryByRole('button', { name: /Play|Pause|Replay/ })).toBeNull();
   view.unmount();
+  vi.advanceTimersByTime(20);
   expect(vi.getTimerCount()).toBe(0);
   expect(disconnect).toHaveBeenCalled();
 });
@@ -188,6 +199,7 @@ it('shows all inboxes without autoplay for reduced motion', () => {
   const view = render(() => <EmailAccountsDemo />);
   setVisible(true);
   expect(view.getByRole('button', { name: 'jacob@gmail.com' })).toBeTruthy();
+  vi.advanceTimersByTime(20);
   expect(vi.getTimerCount()).toBe(0);
 });
 
@@ -195,7 +207,7 @@ it('shows the source context before the editable draft and preserves edits', () 
   const view = render(() => <EmailAgenticEditingDemo />);
   expect(view.queryByRole('textbox', { name: 'Email body' })).toBeNull();
   setVisible(true);
-  vi.advanceTimersByTime(1500);
+  vi.advanceTimersByTime(2100);
   const input = view.getByRole<HTMLTextAreaElement>('textbox', {
     name: 'Message the email agent',
   });
@@ -272,6 +284,7 @@ it('shows an editable draft immediately with reduced motion', () => {
       .getByRole('textbox', { name: 'Email body' })
       .getAttribute('contenteditable')
   ).toBe('true');
+  vi.advanceTimersByTime(20);
   expect(vi.getTimerCount()).toBe(0);
 });
 
@@ -280,3 +293,41 @@ function advanceTo(reached: () => unknown) {
     vi.advanceTimersByTime(50);
   expect(!!reached()).toBe(true);
 }
+
+it('keeps one operating pointer through account connection and removes it on takeover', () => {
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+    function (this: HTMLElement) {
+      if (this.matches('.email-accounts-mobile')) return new DOMRect();
+      if (this.matches('.email-accounts-demo'))
+        return new DOMRect(0, 0, 1000, 560);
+      return new DOMRect(20, 20, 100, 32);
+    }
+  );
+  const view = render(() => <EmailAccountsDemo />);
+  setVisible(true);
+  vi.advanceTimersByTime(1450);
+  const pointer = view.container.querySelector('.demo-cursor');
+  expect(pointer).toBeTruthy();
+  expect(
+    view.container
+      .querySelector('.email-accounts-demo')
+      ?.getAttribute('data-step')
+  ).toBe('0');
+  advanceTo(
+    () =>
+      view.container
+        .querySelector('.email-accounts-demo')
+        ?.getAttribute('data-step') === '2'
+  );
+  expect(view.container.querySelector('.demo-cursor')).toBe(pointer);
+  fireEvent.pointerDown(
+    view.getByRole('button', { name: 'Connect another account' })
+  );
+  vi.advanceTimersByTime(20000);
+  expect(view.container.querySelector('.demo-cursor')).toBeNull();
+  expect(
+    view.container
+      .querySelector('.email-accounts-demo')
+      ?.getAttribute('data-step')
+  ).toBe('2');
+});

@@ -11,7 +11,9 @@ import {
   emailTags,
 } from '../../core/demo-email';
 import { emailPageInbox } from '../../core/email-demo-story';
+import { createDemoPointer } from '../../primitives/createDemoPointer';
 import { createEmailWalkthrough } from '../../primitives/createEmailWalkthrough';
+import { DemoCursor } from '../DemoCursor';
 import HomepageEmailCompose from '../HomepageEmailCompose';
 import { EmailRows } from './frozen/EmailRows';
 import {
@@ -28,6 +30,17 @@ import './email-accounts-demo.css';
 /** EmailInboxList/EmailInboxMenu presentation with local sample accounts only. */
 export function EmailAccountsDemo() {
   let root!: HTMLDivElement;
+  const [target, setTarget] = createSignal<string>();
+  const [clicking, setClicking] = createSignal(false);
+  const approach = (selector: string) => {
+    setClicking(false);
+    setTarget(selector);
+  };
+  const click = (run: () => void) => {
+    setClicking(true);
+    run();
+  };
+
   const [accountCount, setAccountCount] = createSignal(1);
   const [account, setAccount] = createSignal('work');
   const [tab, setTab] = createSignal<MailTab>('important');
@@ -57,37 +70,109 @@ export function EmailAccountsDemo() {
           .includes(query().toLowerCase())
     );
   const finish = () => {
+    setMenuOpen(false);
+    setTarget(undefined);
+    setClicking(false);
     setAccountCount(3);
     setAccount('all');
     setTab('important');
     setStep(7);
   };
+  const [menuOpen, setMenuOpen] = createSignal(false);
+  const mobile = () =>
+    (root
+      .querySelector<HTMLElement>('.email-accounts-mobile')
+      ?.getBoundingClientRect().width ?? 0) > 0;
+  const applyAccount = (id: string) => {
+    setAccount(id);
+    setSelected(undefined);
+    setCompose(false);
+  };
+  const connectAccount = () => {
+    setAccountCount((count) => Math.min(count + 1, 3));
+    applyAccount('all');
+  };
+  const selectControl = (selector: string, run: () => void, hold = 1400) => [
+    {
+      delay: hold,
+      run: () => approach(mobile() ? '[data-email-inbox-menu]' : selector),
+    },
+    {
+      delay: 650,
+      run: () => {
+        if (mobile()) click(() => setMenuOpen(true));
+      },
+    },
+    { delay: 300, run: () => approach(selector) },
+    {
+      delay: 650,
+      run: () =>
+        click(() => {
+          run();
+          setMenuOpen(false);
+        }),
+    },
+  ];
+  const actions = [
+    ...selectControl('[data-email-connect]', () => setStep(1)),
+    {
+      delay: 900,
+      run: () => {
+        connectAccount();
+        setStep(2);
+      },
+    },
+    ...selectControl('[data-email-connect]', () => setStep(3)),
+    {
+      delay: 900,
+      run: () => {
+        connectAccount();
+        setStep(4);
+      },
+    },
+    ...selectControl('[data-email-account="all"]', () => {
+      applyAccount('all');
+      setStep(5);
+    }),
+    ...selectControl(
+      '[data-email-account="personal"]',
+      () => {
+        applyAccount('personal');
+        setStep(6);
+      },
+      2200
+    ),
+    ...selectControl(
+      '[data-email-account="all"]',
+      () => {
+        applyAccount('all');
+        setStep(7);
+      },
+      2200
+    ),
+    { delay: 400, run: () => setClicking(false) },
+  ];
   const playback = createEmailWalkthrough({
     root: () => root,
-    steps: 7,
+    steps: actions.length,
     visibilityThreshold: 0.45,
-    delay: (step) => [1500, 900, 1400, 900, 1600, 2000, 1800][step - 1],
+    delay: (step) => actions[step - 1].delay,
     loop: { hold: 8000 },
     reset: () => {
+      setTarget(undefined);
+      setClicking(false);
+      setMenuOpen(false);
       setAccountCount(1);
       setAccount('work');
       setTab('important');
       setStep(0);
     },
     reduced: finish,
-    advance: (next) => {
-      setStep(next);
-      if (next === 2) setAccountCount(2);
-      if (next === 4) setAccountCount(3);
-      if (next === 5 || next === 7) setAccount('all');
-      if (next === 6) setAccount('personal');
-    },
+    advance: (next) => actions[next - 1].run(),
   });
   const chooseAccount = (id: string) => {
     playback.pause();
-    setAccount(id);
-    setSelected(undefined);
-    setCompose(false);
+    applyAccount(id);
   };
   const chooseTab = (id: MailTab) => {
     playback.pause();
@@ -98,10 +183,14 @@ export function EmailAccountsDemo() {
   };
   const connect = () => {
     playback.pause();
-    setAccountCount((count) => Math.min(count + 1, 3));
-    setAccount('all');
+    connectAccount();
     setStep(7);
   };
+  const pointer = createDemoPointer({
+    frame: () => root,
+    target,
+    active: () => playback.playing() && !playback.reducedMotion(),
+  });
   return (
     <div
       ref={root}
@@ -156,30 +245,57 @@ export function EmailAccountsDemo() {
             <span class="email-account-scope">from {accountLabel()}</span>
           </Show>
           <div class="email-accounts-mobile">
-            <Dropdown placement="bottom-end">
+            <Dropdown
+              placement="bottom-end"
+              modal={false}
+              open={menuOpen()}
+              onOpenChange={setMenuOpen}
+            >
               <Dropdown.Trigger
                 variant="ghost"
                 size="icon-sm"
                 aria-label={`Inbox: ${accountLabel()}`}
+                data-email-inbox-menu
               >
                 <Tray />
               </Dropdown.Trigger>
-              <Dropdown.Content>
+              <Dropdown.Content
+                class="min-w-56"
+                mount={root?.querySelector<HTMLElement>('.mail-app') ?? root}
+                onOpenAutoFocus={(event) => {
+                  if (playback.playing()) event.preventDefault();
+                }}
+                onCloseAutoFocus={(event) => {
+                  if (playback.playing()) event.preventDefault();
+                }}
+              >
                 <Dropdown.RadioGroup value={account()} onChange={chooseAccount}>
-                  <Dropdown.RadioItem value="all" closeOnSelect>
+                  <Dropdown.RadioItem
+                    value="all"
+                    data-email-account="all"
+                    closeOnSelect
+                  >
                     All inboxes
                   </Dropdown.RadioItem>
                   <For each={accounts()}>
                     {(a) => (
-                      <Dropdown.RadioItem value={a.id} closeOnSelect>
+                      <Dropdown.RadioItem
+                        value={a.id}
+                        data-email-account={a.id}
+                        closeOnSelect
+                      >
                         {a.label}
                       </Dropdown.RadioItem>
                     )}
                   </For>
                 </Dropdown.RadioGroup>
                 <Show when={accountCount() < 3}>
-                  <Dropdown.Item onSelect={connect} closeOnSelect>
-                    <Plus />
+                  <Dropdown.Item
+                    onSelect={connect}
+                    data-email-connect
+                    closeOnSelect
+                  >
+                    <Plus class="size-4 shrink-0" />
                     Connect another account
                   </Dropdown.Item>
                 </Show>
@@ -261,6 +377,15 @@ export function EmailAccountsDemo() {
           </div>
         </Show>
       </EmailShell>
+      <Show when={pointer()}>
+        {(point) => (
+          <DemoCursor
+            class="email-demo-pointer"
+            clicking={clicking()}
+            style={{ transform: `translate(${point().x}px, ${point().y}px)` }}
+          />
+        )}
+      </Show>
     </div>
   );
 }

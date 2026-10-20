@@ -138,3 +138,7 @@
   .email-feature-demo .mail-thread-body { padding: 24px 12px; }
   .email-feature-demo .mail-rows { padding-inline: 0; }
 }
+
+/* Keep the operating pointer above local menus and inside its demo frame. */
+.email-accounts-demo, .email-editing-stage { position: relative; }
+.email-feature-demo > .email-demo-pointer { z-index: calc(var(--z-index-action-menu, 150) + 1); }

@@ -112,6 +112,7 @@ export function EmailSidebar(props: {
                 active={props.account === 'all'}
                 aria-current={props.account === 'all' ? 'true' : undefined}
                 onClick={() => props.onAccount('all')}
+                data-email-account="all"
               >
                 <ViewSidebar.Icon>
                   <Show when={props.account === 'all'} fallback={<Tray />}>
@@ -129,6 +130,7 @@ export function EmailSidebar(props: {
                     props.account === account.id ? 'true' : undefined
                   }
                   onClick={() => props.onAccount(account.id)}
+                  data-email-account={account.id}
                   title={account.label}
                 >
                   <ViewSidebar.Icon>
@@ -153,6 +155,7 @@ export function EmailSidebar(props: {
           <Show when={props.onConnect}>
             <ViewSidebar.Item
               onClick={props.onConnect}
+              data-email-connect
               data-connecting={props.connecting}
             >
               <ViewSidebar.Icon>

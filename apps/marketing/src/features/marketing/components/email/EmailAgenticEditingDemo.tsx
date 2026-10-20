@@ -2,8 +2,10 @@ import Sparkle from '@phosphor/sparkle.svg';
 import { UserMessageBubble } from '@ui/components/UserMessageBubble';
 import { createSignal, Show } from 'solid-js';
 import { meetingDraft } from '../../core/email-demo-story';
+import { createDemoPointer } from '../../primitives/createDemoPointer';
 import { createEmailWalkthrough } from '../../primitives/createEmailWalkthrough';
 import { demoTypingActions } from '../../primitives/demoTypingActions';
+import { DemoCursor } from '../DemoCursor';
 import HomepageEmailCompose from '../HomepageEmailCompose';
 import { HomepageMention } from '../HomepageMention';
 import {
@@ -20,6 +22,17 @@ const request =
 /** User request → source context → editable email, as in the app's agent chat. */
 export function EmailAgenticEditingDemo() {
   let root!: HTMLDivElement;
+  const [target, setTarget] = createSignal<string>();
+  const [clicking, setClicking] = createSignal(false);
+  const approach = (selector: string) => {
+    setClicking(false);
+    setTarget(selector);
+  };
+  const click = (run: () => void) => {
+    setClicking(true);
+    run();
+  };
+
   let scroll!: HTMLDivElement;
   let draft!: HTMLDivElement;
   let composer: ChannelComposerHandle | undefined;
@@ -37,14 +50,30 @@ export function EmailAgenticEditingDemo() {
     });
   };
   const actions = [
-    ...demoTypingActions(request, (text) => composer?.setText(text), 1200),
     {
-      delay: 800,
-      run: () => {
-        setPhase(1);
-        composer?.setText('');
-      },
+      delay: 900,
+      run: () => approach('[aria-label="Message the email agent"]'),
     },
+    { delay: 650, run: () => click(() => {}) },
+    ...demoTypingActions(
+      request,
+      (text) => {
+        setClicking(false);
+        setTarget(undefined);
+        composer?.setText(text);
+      },
+      250
+    ),
+    { delay: 700, run: () => approach('[aria-label="Send demo message"]') },
+    {
+      delay: 650,
+      run: () =>
+        click(() => {
+          setPhase(1);
+          composer?.setText('');
+        }),
+    },
+    { delay: 200, run: () => setClicking(false) },
     { delay: 1600, run: () => setPhase(2) },
     { delay: 2200, run: showDraft },
   ];
@@ -55,6 +84,8 @@ export function EmailAgenticEditingDemo() {
     delay: (step) => actions[step - 1].delay,
     loop: { hold: 8000 },
     reset: () => {
+      setTarget(undefined);
+      setClicking(false);
       setPhase(0);
       setPrompt(request);
       composer?.setText('');
@@ -64,6 +95,11 @@ export function EmailAgenticEditingDemo() {
       composer?.setText('');
     },
     advance: (step) => actions[step - 1].run(),
+  });
+  const pointer = createDemoPointer({
+    frame: () => root,
+    target,
+    active: () => playback.playing() && !playback.reducedMotion(),
   });
   return (
     <div
@@ -159,6 +195,15 @@ export function EmailAgenticEditingDemo() {
           />
         </div>
       </EmailShell>
+      <Show when={pointer()}>
+        {(point) => (
+          <DemoCursor
+            class="email-demo-pointer"
+            clicking={clicking()}
+            style={{ transform: `translate(${point().x}px, ${point().y}px)` }}
+          />
+        )}
+      </Show>
     </div>
   );
 }
