@@ -711,7 +711,7 @@ are scoped to product tables so legacy migration tables retain their styling.
   Julia’s follow-up so both people and agents participate in the same channel.
 - Macro produces a folder-upload mockup from the client brief. Julia asks to
   preserve nested folders; Macro clarifies the design before Jacob asks Cursor
-  to build it. Cursor acknowledges the request, returns a PR, and Julia checks
+  to build it. Cursor returns one completed PR card, and Julia checks
   the preview. The sequence stops on interaction and completes without motion
   when reduced motion is enabled. The attachment uses FolderComposerMockup,
   a static copy
@@ -940,8 +940,10 @@ available content width equally among all open panes; widths below 240px per
 pane switch to one active pane. Each pane keeps its own selection and edits.
 Smaller frames show one active pane at a time;
 Back to channel retains open items, while Close removes only that pane. Email
-uses the full workspace email view and an original two-message thread. Share uses the document Share UI and
-shows the channel's grant, separately from public-link access. The agent story
+uses the full workspace email view and an original two-message thread. Share types and selects #launch in the document Share UI, sends a short message,
+shows the channel's access grant, then opens the delivered file from the channel.
+Autoplay and manual sharing use the same form actions. Reset both the grant and
+the delivered message between untouched loops; public-link access stays separate. The agent story
 continues from Macro creating Julia’s task to Julia mentioning Cursor and Cursor
 investigating in the same thread with one response. Keep Julia as owner while work starts.
 The final catch-up demo focuses on inline replies in a full-width channel,
@@ -962,9 +964,10 @@ channel without discarding its conversation. The task demo links the PR before
 moving to In Review, illustrates a confirmed merge, and updates Completed without
 changing checklist items. Inbox playback holds the opened request for 8.5 seconds
 before resetting its pending/read state; marking an item done stops the loop.
-Keep Julia’s coding request, Cursor’s acknowledgment, and its result under the
-original bug thread. Open that thread initially so the report and reproduction
-are visible before the agent responds. The result retains its session and PR link.
+Keep Julia’s coding request and Cursor’s single completed result under the
+original bug thread. Show the report and reproduction before the PR arrives.
+Do not add a separate acknowledgment or duplicate prose reply from Cursor; the
+completed agent card retains its session and PR link.
 
 GitHub presentation follows `block-pr/PrDetail` and `features/changes` at
 `e2bd582d5f991896bbc69921ee2447def7360636`. Diffs are frozen Pierre renderer output,
