@@ -42,10 +42,13 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: var(--color-ink);
+  color: color-mix(in srgb, var(--color-ink) 78%, var(--color-ink-muted));
   font-size: 18px;
   font-weight: 500;
   line-height: 1.4;
+}
+.product-feature-detail-links > button:hover .product-feature-card-title {
+  color: var(--color-ink);
 }
 .product-feature-card-title > svg {
   flex: none;
