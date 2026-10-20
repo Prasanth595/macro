@@ -4,10 +4,6 @@ import { For, type JSX, Show } from 'solid-js';
 import { ctaHref, handleCtaClick } from '../../../app/utils/utilCta';
 import palette from '../../../styles/dark-theme.css?inline';
 import uiStyles from '../../../styles/site-ui.css?inline';
-import {
-  type ProductFeatureDetail,
-  ProductFeatureDetails,
-} from './ProductFeatureDetails';
 import './workspace-story.css';
 import './feature-page.css';
 import './product-feature-section.css';
@@ -57,7 +53,6 @@ export function FeaturePageSection(props: {
   id: string;
   title: string | readonly string[];
   description: string;
-  details?: readonly ProductFeatureDetail[];
   children: JSX.Element;
 }) {
   return (
@@ -77,9 +72,6 @@ export function FeaturePageSection(props: {
         <p>{props.description}</p>
       </header>
       {props.children}
-      <Show when={props.details?.length}>
-        <ProductFeatureDetails details={props.details ?? []} />
-      </Show>
     </section>
   );
 }

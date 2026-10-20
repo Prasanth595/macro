@@ -1,6 +1,6 @@
 import Sparkle from '@phosphor/sparkle.svg';
 import { UserMessageBubble } from '@ui/components/UserMessageBubble';
-import { createSignal, lazy, Show } from 'solid-js';
+import { createSignal, lazy, Show, Suspense } from 'solid-js';
 import { meetingDraft } from '../../core/email-demo-story';
 import { createDemoPointer } from '../../primitives/createDemoPointer';
 import { createDummyWorkspace } from '../../primitives/createDummyWorkspace';
@@ -148,16 +148,20 @@ export function EmailAgenticEditingDemo() {
                 class="email-agent-source workspace-demo dummy-workspace"
                 aria-label="Linked source"
               >
-                <EmailDemoSource
-                  source={kind}
-                  workspace={workspace}
-                  onBack={closeSource}
-                  onReady={() =>
-                    root
-                      .querySelector<HTMLElement>('.email-agent-source button')
-                      ?.focus({ preventScroll: true })
-                  }
-                />
+                <Suspense fallback={<p role="status">Opening source…</p>}>
+                  <EmailDemoSource
+                    source={kind}
+                    workspace={workspace}
+                    onBack={closeSource}
+                    onReady={() =>
+                      root
+                        .querySelector<HTMLElement>(
+                          '.email-agent-source button'
+                        )
+                        ?.focus({ preventScroll: true })
+                    }
+                  />
+                </Suspense>
               </section>
             )}
           </Show>

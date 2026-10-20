@@ -95,8 +95,10 @@ export function TaskCreationFlow() {
       if (log) log.scrollTop = 0;
     });
   };
-  onMount(showRequest);
-  onCleanup(() => cancelAnimationFrame(scrollFrame));
+  onMount(() => {
+    showRequest();
+    onCleanup(() => cancelAnimationFrame(scrollFrame));
+  });
   // Delays are reading/movement time BEFORE the named action.
   const actions = [
     { delay: 1400, run: revealRequest },

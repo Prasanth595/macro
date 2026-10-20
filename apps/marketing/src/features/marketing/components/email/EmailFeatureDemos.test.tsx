@@ -360,6 +360,8 @@ it('opens the setup document from the draft without losing the visitor’s email
   body.textContent = 'Keep my edited email.';
   fireEvent.input(body);
   fireEvent.click(view.getAllByRole('link', { name: 'Setup plan' })[0]);
+  expect(body.isConnected).toBe(true);
+  expect(view.getByRole('textbox', { name: 'Email body' })).toBe(body);
   const title = await view.findByRole(
     'textbox',
     { name: 'Document title' },

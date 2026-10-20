@@ -229,7 +229,7 @@ it('uses only the task’s mention picker when typing a channel reference', asyn
   fireEvent.input(input);
   await Promise.resolve();
   expect(view.getAllByRole('listbox')).toHaveLength(1);
-  expect(view.getByRole('option', { name: 'sales', exact: true })).toBeTruthy();
+  expect(view.getByRole('option', { name: 'sales' })).toBeTruthy();
   fireEvent.keyDown(input, { key: 'Enter' });
   expect(view.getByRole('button', { name: 'Open sales' })).toBeTruthy();
   expect(view.queryByRole('listbox')).toBeNull();

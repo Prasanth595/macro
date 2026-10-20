@@ -269,6 +269,12 @@ app deployment does not automatically publish `apps/marketing/dist/`; the public
 needs its own deployment step. Website development and builds do not require
 changes to application routes, components, or providers.
 
+`vite preview` uses the same directory-index mapping for extensionless public
+URLs as the production CDN. `/crm` must serve `dist/crm/index.html`, never the
+homepage hydration entry. Unknown preview routes return 404. The build smoke
+check verifies phone touch entry and exit for every product demo, in addition
+to homepage hydration and initial styling in dark and cream palettes.
+
 ## Feature-page pattern
 
 `FeaturePageSection` in `src/features/marketing/components/FeaturePage.tsx`
@@ -296,44 +302,8 @@ Outside clicks and Escape dismiss immediately. ArrowDown opens and focuses
 navigation from the home link. Touch and narrow layouts have a separate menu
 toggle, so tapping the mark still goes home. Escape returns focus to the opener.
 
-`ProductFeatureDetails` opens an accessible right-side drawer on standalone
-product pages. In a legacy embedded preview (`embed=feature` inside an iframe),
-it fills the existing panel viewport and shows Back instead of opening a
-narrower drawer. The underlying product page stays mounted: Back or Escape
-restores the card focus and scroll position. The homepage now links directly to full product pages instead of creating these
-previews. Detect legacy preview mode with
-`isEmbeddedProductPage`, shared with `FeaturePage`; the query alone does not
-activate it on a standalone page. Keep cards outside the demo interaction guard
-and leave the middle of the chapter free of divider rules.
-
-Feature-card content lives in `src/features/marketing/content/feature-guides/`,
-with one file per product. Every guide has a plain-language introduction,
-subject-specific sections, and direct links to the relevant Macro docs. Choose
-paragraphs, numbered steps, definition rows, and concrete examples to suit the
-feature; do not pad every guide into the same template. Explain what someone
-can do, what they need to start, and any access or availability detail that
-changes the result. Keep short card summaries separate from the fuller guide.
-Use no em dashes or invented product controls in this copy.
-Keep each panel focused on a distinct action; consolidate overlapping cards and
-remove sections that restate the introduction. Use `prompt` for agent requests,
-with the visible label “Example prompt”; reserve `example` for human messages or
-sample notes. Do not add captions beneath prompts. Keep access and availability
-details only where they affect the action described.
-
-The guides were checked against `apps/docs`, the current app agent guide, and
-implementation at upstream commit `c5cba006` on October 19, 2026. Source comments
-in each content file identify the relevant references. In particular, CRM
-company properties differ from pipeline-entry fields, shared email is readable
-without granting send access, and macrod's setup guide currently marks local
-agents as coming soon. Verify these claims again when the product changes.
-
-Keep the guide toolbar limited to Close or Back; do not repeat the parent
-section title above the article. Keep already-clear guide titles unchanged.
-The guide panel has a fixed navigation row and an independently scrollable,
-keyboard-focusable article. Definition rows stack on phones; the header remains
-available at every scroll position. Documentation links open separately so
-reading a guide does not discard the product demo underneath it. Check standalone
-and embedded Back/Escape paths, both palettes, and phone wrapping after changes.
+Feature chapters rely on their heading, description, and working demo. Do not
+reintroduce unused feature-card guides or duplicate explanatory drawers.
 
 Desktop chapters use a 1160px maximum measure and shared typography: two
 heading lines and three description lines share a height, with a wider
