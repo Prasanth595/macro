@@ -5,9 +5,9 @@ import {
 
 import {
   ComparisonMacroLogo,
-  FeatureComparisonHeading,
   FeatureComparisonKey,
 } from '../comparisons/FeatureComparisons';
+import './crm-comparison.css';
 
 const comparisonRows: ComparisonRow[] = [
   {
@@ -47,9 +47,13 @@ const comparisonRows: ComparisonRow[] = [
 
 export function CrmComparison() {
   return (
-    <section class="feature-comparisons" aria-label="Compare CRM tools">
-      <FeatureComparisonHeading />
+    <section
+      class="feature-comparisons crm-comparison"
+      aria-label="Compare CRM tools"
+    >
+      <h2 class="feature-comparison-heading">Compare CRM tools</h2>
       <ComparisonTable
+        presentation="framed"
         columns={[
           { label: 'Macro', macro: true, icon: <ComparisonMacroLogo /> },
           { label: 'Salesforce' },
@@ -57,8 +61,8 @@ export function CrmComparison() {
           { label: 'Attio' },
         ]}
         rows={comparisonRows}
-        mobileCellWidth={100}
-        mobileMinWidth={620}
+        mobileCellWidth={110}
+        mobileMinWidth={680}
         scrollLabel="Compare Macro"
       />
       <FeatureComparisonKey partial />

@@ -32,6 +32,7 @@ export type ComparisonTableProps = {
   sortRows?: boolean;
   valueWrap?: 'normal' | 'nowrap';
   scrollLabel?: string;
+  presentation?: 'framed';
 };
 
 function isPriceRow(row: ComparisonRow) {
@@ -303,6 +304,7 @@ export function ComparisonTable(props: ComparisonTableProps) {
   return (
     <div
       class="comparison-table-scroll"
+      data-presentation={props.presentation}
       tabIndex={props.scrollLabel ? 0 : undefined}
       role={props.scrollLabel ? 'region' : undefined}
       aria-label={props.scrollLabel}
@@ -323,15 +325,18 @@ export function ComparisonTable(props: ComparisonTableProps) {
           'min-width': mobile()
             ? `${props.mobileMinWidth ?? Math.max(480, 132 + columns().length * (props.mobileCellWidth ?? 58))}px`
             : 'auto',
-          overflow: 'hidden',
+          overflow: props.presentation === 'framed' ? 'visible' : 'hidden',
         }}
       >
         <div
           style={{
-            'background-color': 'transparent',
+            'background-color': 'var(--comparison-header-bg, transparent)',
             'border-bottom': `1px solid ${GRID_LINE}`,
           }}
-        />
+          class="comparison-feature-label"
+        >
+          {props.presentation === 'framed' ? 'Features' : null}
+        </div>
         <For each={columns()}>
           {(column, index) => {
             const macro = () => isMacro(column, index());
@@ -339,32 +344,50 @@ export function ComparisonTable(props: ComparisonTableProps) {
               <div
                 style={{
                   'align-items': 'center',
-                  'background-color': 'transparent',
+                  'background-color':
+                    'var(--comparison-header-bg, transparent)',
                   'border-bottom': `1px solid ${GRID_LINE}`,
-                  'border-left': `1px solid ${GRID_LINE}`,
+                  'border-left':
+                    props.presentation === 'framed'
+                      ? '0'
+                      : `1px solid ${GRID_LINE}`,
                   'border-right':
+                    props.presentation !== 'framed' &&
                     index() === columns().length - 1
                       ? `1px solid ${GRID_LINE}`
                       : '0',
-                  'border-top': `1px solid ${GRID_LINE}`,
+                  'border-top':
+                    props.presentation === 'framed'
+                      ? '0'
+                      : `1px solid ${GRID_LINE}`,
                   color: macro()
                     ? 'var(--comparison-accent, var(--a0))'
                     : 'var(--c2)',
                   display: 'flex',
                   'font-family': "'Inter', body",
-                  'font-size': mobile() ? '9px' : '11px',
+                  'font-size': `var(--comparison-header-size, ${mobile() ? '9px' : '11px'})`,
                   'font-weight': '400',
                   'justify-content': 'center',
                   'letter-spacing': '0.04em',
                   'line-height': 1.1,
-                  padding: mobile() ? '10px 6px' : '12px',
+                  padding: `var(--comparison-header-padding, ${mobile() ? '10px 6px' : '12px'})`,
                   'text-align': 'center',
                   'text-transform': macro()
                     ? 'var(--comparison-macro-case, uppercase)'
                     : 'none',
                 }}
               >
-                <ComparisonHeader column={column} macro={macro()} />
+                <Show
+                  when={props.presentation === 'framed'}
+                  fallback={
+                    <ComparisonHeader column={column} macro={macro()} />
+                  }
+                >
+                  <span class="comparison-inline-brand">
+                    {column.icon}
+                    {column.label}
+                  </span>
+                </Show>
               </div>
             );
           }}
@@ -378,13 +401,16 @@ export function ComparisonTable(props: ComparisonTableProps) {
                   'background-color':
                     rowIndex() % 2 === 1 ? ROW_TINT : 'var(--b0)',
                   'border-bottom': `1px solid ${GRID_LINE}`,
-                  'border-left': `1px solid ${GRID_LINE}`,
+                  'border-left':
+                    props.presentation === 'framed'
+                      ? '0'
+                      : `1px solid ${GRID_LINE}`,
                   color: 'var(--c2)',
                   display: 'flex',
-                  'font-size': mobile() ? '10px' : '12px',
+                  'font-size': `var(--comparison-row-size, ${mobile() ? '10px' : '12px'})`,
                   left: mobile() ? '0' : 'auto',
                   'line-height': 1.25,
-                  padding: mobile() ? '9px 12px 9px 14px' : '10px 20px',
+                  padding: `var(--comparison-label-padding, ${mobile() ? '9px 12px 9px 14px' : '10px 20px'})`,
                   position: mobile() ? 'sticky' : 'static',
                   'z-index': mobile() ? 1 : 'auto',
                 }}
@@ -399,14 +425,18 @@ export function ComparisonTable(props: ComparisonTableProps) {
                       'background-color':
                         rowIndex() % 2 === 1 ? ROW_TINT : 'var(--b0)',
                       'border-bottom': `1px solid ${GRID_LINE}`,
-                      'border-left': `1px solid ${GRID_LINE}`,
+                      'border-left':
+                        props.presentation === 'framed'
+                          ? '0'
+                          : `1px solid ${GRID_LINE}`,
                       'border-right':
+                        props.presentation !== 'framed' &&
                         cellIndex() === row.cells.length - 1
                           ? `1px solid ${GRID_LINE}`
                           : '0',
                       display: 'flex',
                       'justify-content': 'center',
-                      padding: mobile() ? '9px 6px' : '10px 12px',
+                      padding: `var(--comparison-cell-padding, ${mobile() ? '9px 6px' : '10px 12px'})`,
                     }}
                   >
                     <ComparisonCell

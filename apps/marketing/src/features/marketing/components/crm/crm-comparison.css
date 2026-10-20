@@ -1,0 +1,39 @@
+/* CRM-only comparison trial; other product tables retain their current layout. */
+.crm-comparison {
+  --comparison-header-bg: color-mix(in srgb, var(--color-ink) 5%, var(--b0));
+  --comparison-header-size: 17px;
+  --comparison-header-padding: 24px 16px;
+  --comparison-row-size: 15px;
+  --comparison-label-padding: 20px 24px;
+  --comparison-cell-padding: 20px 16px;
+}
+.crm-comparison .feature-comparison-heading {
+  margin-bottom: 8px;
+  font-size: clamp(28px, 2.5vw, 36px);
+  line-height: 1.2;
+  letter-spacing: -.035em;
+}
+.crm-comparison .comparison-table-scroll {
+  border: 1px solid color-mix(in srgb, var(--color-ink) 12%, transparent);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.crm-comparison .comparison-feature-label {
+  display: flex;
+  align-items: center;
+  padding: var(--comparison-header-padding);
+  padding-left: 24px;
+  font-size: var(--comparison-header-size);
+  color: var(--color-ink-muted);
+}
+.comparison-inline-brand { display: inline-flex; align-items: center; gap: 9px; }
+@media (max-width: 699px) {
+  .crm-comparison {
+    --comparison-header-size: 14px;
+    --comparison-header-padding: 20px 12px;
+    --comparison-row-size: 13px;
+    --comparison-label-padding: 16px;
+    --comparison-cell-padding: 16px 12px;
+  }
+  .crm-comparison .comparison-feature-label { padding-left: 16px; position: sticky; left: 0; z-index: 2; }
+}

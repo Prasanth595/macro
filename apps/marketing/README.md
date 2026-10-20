@@ -626,6 +626,11 @@ FAQs, and the overview's horizontal scrolling.
 
 ## Product comparisons
 
+CRM trials a framed comparison with “Compare CRM tools”, a continuous Features
+header row, larger type and row padding, and plain competitor names instead of
+placeholder logos. Other product comparisons keep the shared compact layout.
+
+
 `core/feature-comparisons.ts` owns the fact-checked boolean rows and maintainer
 source URLs. `FeatureComparisons` renders one always-visible table above each FAQ, with the shared
 “How Macro compares” heading and no subtitle or dropdown:

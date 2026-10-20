@@ -49,10 +49,12 @@ it('shows the CRM comparison without a disclosure and preserves partial support'
   setViewportWidth(390);
   const view = render(() => <CrmComparison />);
   expect(
-    view.getByRole('heading', { name: 'How Macro compares', level: 2 })
+    view.getByRole('heading', { name: 'Compare CRM tools', level: 2 })
   ).toBeTruthy();
   const table = view.getByRole('region', { name: 'Compare Macro' });
   expect(view.container.querySelector('details')).toBeNull();
+  expect(within(table).getByText('Features')).toBeTruthy();
+  expect(table.querySelector('[title$="logo placeholder"]')).toBeNull();
   for (const label of ['Macro', 'Salesforce', 'HubSpot', 'Attio']) {
     expect(within(table).getByText(label)).toBeTruthy();
   }
