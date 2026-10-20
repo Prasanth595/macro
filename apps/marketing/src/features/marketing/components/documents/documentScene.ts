@@ -14,6 +14,7 @@ export function createSceneClock(options: {
   /** Wait before the first frame once the demo is on screen. */
   lead?: number;
   tick?: number;
+  visibilityThreshold?: number;
 }) {
   const tick = options.tick ?? 50;
   const [t, setT] = createSignal(0);
@@ -22,6 +23,7 @@ export function createSceneClock(options: {
   const finish = () => setT(options.end);
   const playback = createProductWalkthrough({
     root: options.root,
+    visibilityThreshold: options.visibilityThreshold,
     steps: Math.ceil(options.end / tick),
     reset: () => {},
     reduced: () => {

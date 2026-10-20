@@ -52,7 +52,7 @@ export const documentsGuides = {
     },
     {
       title: 'Edit together',
-      summary: 'Write with teammates and agents in the same document.',
+      summary: 'See edits from teammates and agents as they happen.',
       intro:
         'Write with teammates and agents in the same document. Changes merge as you work, including edits to the same line.',
       sections: [

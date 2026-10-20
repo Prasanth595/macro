@@ -687,7 +687,16 @@ command. The closing FAQ answers model, access, review, and background-work ques
 ## Docs page walkthrough
 
 `/documents` introduces collaborative writing, then agent edits, source splits,
-and folders and tags. Offline editing and CRDT merging are explained in the FAQ. All examples use a page-owned Website brief,
+and folders and tags. The hero's `DocumentProjectDemo teamEditing` variant puts
+Julia and Jacob's simultaneous insertions in the first paragraph, followed by
+a brief text selection and bold formatting. Start only when half the document
+is visible, play once, and clear remote carets on the first activation or edit.
+This is a local illustrative walkthrough, not a live CRDT session or a latency
+benchmark; the visitor can type directly in its existing editable document.
+The homepage retains the original checklist sequence. Keep the speed message
+in the hero copy and the Edit together card, rather than adding a fourth
+section. Agent editing, linked sources, and organization retain their own demos.
+Offline editing and CRDT merging are explained in the FAQ. All examples use a page-owned Website brief,
 Pricing changes email, Update pricing page task, and #website conversation.
 `DocumentOrganizationDemo` adapts the app folder list and tag-filtered search:
 one folder location, several tags, and one persistent document when reopened.

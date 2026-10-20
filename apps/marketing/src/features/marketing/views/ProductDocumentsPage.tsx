@@ -68,9 +68,7 @@ export function RouteDocuments() {
         <ProductHero
           product="Docs"
           title={['Fast collaborative docs', 'for your team and agents.']}
-          description={[
-          'Link emails, chats, tasks, and files to your documents.',
-          ]}
+          description="Link emails, chats, tasks, and files to your documents."
           cta="documents_hero_get_started"
         />
         <WorkspaceDesktopDemo

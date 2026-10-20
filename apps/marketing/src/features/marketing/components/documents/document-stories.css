@@ -235,6 +235,11 @@
 .docs-wide-demo .doc-story-title { font-size: 24px; }
 .docs-wide-demo .doc-story-scroll { padding-inline: 24px; }
 .doc-edit-measure::before { content: attr(data-content); }
+
+/* The Docs hero keeps both human edits in its first visible paragraph. */
+.doc-team-edit .doc-caret[data-caret='jacob'] { --doc-caret: var(--color-accent); }
+.doc-team-format[data-selecting=true] { background: color-mix(in oklch, var(--color-accent) 25%, transparent); }
+.doc-team-format[data-bold=true] { font-weight: 600; }
 .doc-agent-tools { transition: min-height 380ms ease; }
 .doc-agent-tools[data-open=false] { min-height: 32px; }
 @media (prefers-reduced-motion: reduce) { .doc-agent-tools { transition: none; } }
