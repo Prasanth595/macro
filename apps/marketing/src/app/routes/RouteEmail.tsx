@@ -155,7 +155,7 @@ export function RouteEmail() {
       <FeaturePageSection
         id="keyboard-speed"
         title={['Manage your inbox', 'with keyboard shortcuts.']}
-        description="Move through your inbox without reaching for the mouse. Open a thread, write a reply, and mark it done, with search across all your connected accounts in the same place."
+        description="Open, reply to, and archive emails with keyboard shortcuts so you can move through your inbox faster."
         details={emailGuides['keyboard-speed']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
