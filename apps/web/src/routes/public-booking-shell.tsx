@@ -13,7 +13,7 @@ export function PublicBookingShell(props: ParentProps) {
   return (
     <div class="min-h-0 flex-1 overflow-y-auto bg-page text-ink">
       <Show when={showBack()}>
-        <header class="sticky top-0 z-10 flex bg-panel/95 pb-2 pt-[calc(var(--safe-top,0px)+0.5rem)] pl-[calc(var(--safe-left,0px)+0.5rem)] pr-[calc(var(--safe-right,0px)+0.5rem)] backdrop-blur-sm">
+        <header class="sticky top-0 z-10 flex bg-panel/95 px-2 pb-2 pt-[calc(var(--safe-top,0px)+0.5rem)] backdrop-blur-sm">
           <Button
             variant="ghost"
             size="icon-md"
