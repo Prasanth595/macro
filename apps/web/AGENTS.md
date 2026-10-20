@@ -81,7 +81,10 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Keep signed-out Drive document routes on the shared detail viewer without
   mounting private list/sidebar sources; let document access checks decide visibility.
 - Gate account-only queries, comment readers, and account WebSockets on confirmed
-  authentication; keep public document loading independent of those services.
+  authentication; keep public document loading independent of those services
+  and distinguish unresolved identity from confirmed sign-out in UI prompts.
+- Probe identity on deploy-preview origins even without a local login hint;
+  shared HttpOnly dev cookies are not visible to JavaScript or localStorage.
 - Disable GraphQL cache sessions and clear login hints on confirmed auth 401s,
   even with retained user data; preserve session state on transient failures.
 - Mobile dock search owns transient category/mode state in `features/command/mobile`; reuse the shared entity source and explicit full-text adapter rather than overlaying the dock query on view tabs or saved facets. See `docs/agent-guide/search.md` at the repository root.
@@ -95,7 +98,11 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Preserve focused chrome editors during deferred split insertion/removal autofocus; explicit return-focus commands may still focus the pane.
 - Reconcile global focus when focused DOM subtrees are removed; iOS can omit blur events, otherwise floating creation actions stay hidden after search or editor teardown.
 - Mount the floating mobile AI composer only on the Agents view; other views keep their New action or their own reply/comment composer.
+- Keep native booking exit navigation in the route shell, outside page loading boundaries, and use the router so the native hash route stays intact.
 - All API/network calls live in service-clients.
+- Route explicit call exits using the server's `callEnded` result: ended calls
+  open their record; ongoing channel and scheduled calls return to the channel
+  and Calendar. Preserve the session ID before disconnecting.
 - Keep desktop Gmail and Outlook inbox consent in the system browser with a
   `macro:///inbox-link-callback` return; webview origins are not desktop callbacks.
 - Draft autosaves preserve active email thread messages; evict inactive legacy
@@ -106,6 +113,13 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   reply transitions preserve the card's focus target and return to natural height.
 - Shared server-state queries and mutations live in `src/lib/queries`; keep
   feature-specific query orchestration with its owning feature.
+- Refresh the channel list's bounded unread edge when opening a conversation,
+  including an empty unread result after a read on another device.
+- Route supported move, trash, restore, permanent-delete, duplicate, and share-policy
+  writes through `queries/storage/entity-mutations` when GraphQL Soup is enabled;
+  never retry failed GraphQL writes through REST. Preserve non-owner history removal
+  and version-specific markdown forks on their existing paths. Confirmed restores
+  clear earlier deletion markers without clearing a newer delete's intent.
 - Preserve loaded block content on initial access confirmation when its loader
   supplies no permissions; reload only on a later confirmed permission change.
   Apply shared access in place only after a successful permissionless load.

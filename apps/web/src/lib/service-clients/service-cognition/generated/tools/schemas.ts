@@ -2491,7 +2491,10 @@ export const CreateForm = z.object({
   name: z.string(),
   source: z.any().superRefine((x, ctx) => {
     const schemas = [
-      z.object({ kind: z.literal('new') }),
+      z.object({
+        isHiddenInDrive: z.boolean().optional(),
+        kind: z.literal('new'),
+      }),
       z.object({
         databaseId: z.string().uuid(),
         tableId: z.string().uuid(),
@@ -3291,6 +3294,7 @@ export const MutationResult = z.object({
           confirmationMessage: z.string(),
           createdAt: z.string().datetime({ offset: true }),
           updatedAt: z.string().datetime({ offset: true }),
+          isHiddenInDrive: z.boolean(),
         }),
         layout: z.object({
           sections: z.array(
@@ -10078,6 +10082,7 @@ export const ListResult = z.object({
         confirmationMessage: z.string(),
         createdAt: z.string().datetime({ offset: true }),
         updatedAt: z.string().datetime({ offset: true }),
+        isHiddenInDrive: z.boolean(),
       }),
       access: z.any().superRefine((x, ctx) => {
         const schemas = [
@@ -12467,6 +12472,7 @@ export const ReadResult = z.any().superRefine((x, ctx) => {
           confirmationMessage: z.string(),
           createdAt: z.string().datetime({ offset: true }),
           updatedAt: z.string().datetime({ offset: true }),
+          isHiddenInDrive: z.boolean(),
         }),
         layout: z.object({
           sections: z.array(
@@ -13040,6 +13046,7 @@ export const ReadResult = z.any().superRefine((x, ctx) => {
           confirmationMessage: z.string(),
           createdAt: z.string().datetime({ offset: true }),
           updatedAt: z.string().datetime({ offset: true }),
+          isHiddenInDrive: z.boolean(),
         }),
         access: z.any().superRefine((x, ctx) => {
           const schemas = [
