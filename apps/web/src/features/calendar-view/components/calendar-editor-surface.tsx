@@ -77,7 +77,7 @@ export function CalendarEditorSurface(props: {
                 <KobalteDialog.Content
                   as="aside"
                   aria-label={label()}
-                  class="portal-scope z-20 m-3 flex min-h-0 w-[min(25rem,calc(100%-1.5rem))] shrink-0 flex-col overflow-hidden rounded-xl border border-edge-muted bg-surface text-ink outline-none"
+                  class="portal-scope z-20 m-3 flex min-h-0 w-[min(25rem,calc(100%-1.5rem))] shrink-0 flex-col overflow-hidden rounded-xl border border-edge-muted glass bg-menu-glass text-ink outline-none"
                   onOpenAutoFocus={focusEditorTitle}
                   onInteractOutside={(event) => event.preventDefault()}
                   onCloseAutoFocus={(event) => event.preventDefault()}

@@ -49,18 +49,23 @@ async function verifySidebarSurface(page) {
     const parent = element.offsetParent;
     const boundary = parent.getBoundingClientRect();
     const reference = document.createElement('div');
-    reference.style.backgroundColor = 'var(--color-surface-3)';
+    reference.className = 'glass bg-menu-glass';
     element.append(reference);
-    const raisedColor = getComputedStyle(reference).backgroundColor;
+    const referenceStyle = getComputedStyle(reference);
+    const detailsBackground = referenceStyle.backgroundColor;
+    const detailsBackdropFilter = referenceStyle.backdropFilter;
     reference.remove();
     return {
       background: style.backgroundColor,
-      raisedColor,
+      detailsBackground,
+      backdropFilter: style.backdropFilter,
+      detailsBackdropFilter,
       radii: [style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomLeftRadius, style.borderBottomRightRadius].map(Number.parseFloat),
       insets: [box.top - boundary.top - parent.clientTop, boundary.left + parent.clientLeft + parent.clientWidth - box.right, boundary.top + parent.clientTop + parent.clientHeight - box.bottom, Number.parseFloat(style.marginLeft)],
     };
   });
-  assert.equal(surface.background, surface.raisedColor, 'Sidebar must use a raised surface background');
+  assert.equal(surface.background, surface.detailsBackground, 'Sidebar must match the details popover background');
+  assert.equal(surface.backdropFilter, surface.detailsBackdropFilter, 'Sidebar must match the details popover glass effect');
   assert.ok(surface.radii.every((radius) => radius >= 12), 'Sidebar must have rounded corners');
   assert.ok(surface.insets.every((inset) => Math.abs(inset - 12) < 1), `Sidebar must have 12px space around every side: ${surface.insets}`);
 }
@@ -371,7 +376,7 @@ async function verifyDesktop(options, name) {
     assert.match(repeated.values.recurrenceLines.join(';'), /FREQ=DAILY/);
     await verifyPendingSave(page);
     assert.deepEqual(errors, []);
-    results.push(`${name}: aligned title, compact icon gaps, raised inset sidebar, calendar swatches, header type, selectors, loading button, persistent surfaces, recurrence, editing, and scoped save passed`);
+    results.push(`${name}: aligned title, compact icon gaps, details-matched inset sidebar, calendar swatches, header type, selectors, loading button, persistent surfaces, recurrence, editing, and scoped save passed`);
   } finally {
     await context.close();
   }

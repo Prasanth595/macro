@@ -94,10 +94,10 @@ new session from the same meeting link must start a separate chat thread.
 
 Desktop click/drag creation opens a non-modal popover near the selected range.
 The popover's `Move to sidebar` action keeps the same draft in a right-hand editor;
-`New → Event` opens that sidebar directly. The sidebar uses a raised depth-3
-surface, 12px rounded corners, and 12px of space on every side; the calendar stays
-interactive beside it. Editing from event details opens the
-same anchored popover, not a separate split dialog. Create and edit place the
+`New → Event` opens that sidebar directly. The sidebar matches the details
+popover's glass menu background, with 12px rounded corners and 12px of space on
+every side; the calendar stays interactive beside it. Editing from event details
+opens the same anchored popover, not a separate split dialog. Create and edit place the
 event type in a compact selector at the top-left of the header, using the selected
 type's icon. Existing events keep their type read-only. The selected calendar's
 color swatch sits beside the title, aligned with the property icons. Keep an 8px
@@ -149,7 +149,8 @@ guest, location, and custom recurrence; move the popover to the sidebar and conf
 all values survive and date controls appear. Change the selected calendar and
 confirm the menu, trigger, and title swatches match. Check title, description, and
 location text alignment and 8px icon-to-value gaps on desktop, tablet, and phone.
-Verify the sidebar's raised background, rounded corners, and surrounding space.
+Verify the sidebar's details-matched glass background, rounded corners, and
+surrounding space.
 Check the actual description placeholder and first text line when empty, filled,
 and multiline, not just the outer container edges.
 Cancel a new custom rule and changes to an existing rule; confirm neither changes
