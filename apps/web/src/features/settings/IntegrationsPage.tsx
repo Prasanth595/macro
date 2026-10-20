@@ -1,10 +1,13 @@
 import { ENABLE_EMAIL } from '@core/constant/featureFlags';
 import { useSettingsState } from '@core/constant/SettingsState';
 import { useSettingsTabAvailable } from '@core/constant/settingsTabsConfig';
+import { usePipedreamMcpFlag } from '@core/pipedream/flag';
 import { Button } from '@ui';
 import { Show, Suspense } from 'solid-js';
+import { IntegrationsView } from './connections/integrations-view';
 import { EmailCard } from './Email';
 import { GitHubCard } from './GitHub';
+import { IntegrationsSection } from './Integrations';
 import {
   SettingsCard,
   SettingsPage,
@@ -12,15 +15,37 @@ import {
   SettingsSection,
 } from './primitives';
 
-/** Personal account links. Agent MCP integrations live in Connections. */
-export function ConnectedAccounts() {
+/** Personal accounts and agent tools share one Integrations settings page. */
+export function IntegrationsPage() {
+  const pipedreamMcp = usePipedreamMcpFlag();
+  const { openSettings } = useSettingsState();
+  return (
+    <Show
+      when={pipedreamMcp()}
+      fallback={
+        <SettingsPage
+          title="Integrations"
+          description="Connect your accounts and tools to Macro."
+        >
+          <AccountConnections />
+          <Suspense>
+            <IntegrationsSection />
+          </Suspense>
+        </SettingsPage>
+      }
+    >
+      <IntegrationsView onOpenMacroMcp={() => openSettings('Agent')}>
+        <AccountConnections />
+      </IntegrationsView>
+    </Show>
+  );
+}
+
+function AccountConnections() {
   const { openSettings } = useSettingsState();
   const isAvailable = useSettingsTabAvailable();
   return (
-    <SettingsPage
-      title="Integrations"
-      description="Connect your accounts so Macro can work across the tools you already use."
-    >
+    <>
       <SettingsSection title="Accounts">
         <div class="flex flex-col gap-3">
           <Show when={ENABLE_EMAIL}>
@@ -60,17 +85,8 @@ export function ConnectedAccounts() {
               </Button>
             </SettingsRow>
           </Show>
-          <SettingsRow label="Apps and tools for agents">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => openSettings('Connections')}
-            >
-              Agent connections
-            </Button>
-          </SettingsRow>
         </SettingsCard>
       </SettingsSection>
-    </SettingsPage>
+    </>
   );
 }

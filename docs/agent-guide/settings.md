@@ -215,8 +215,8 @@ Left nav (feature and platform gates still apply):
 
 - **Blocks**: Email, Calendar, Agents, CRM.
 - **Personal**: Account, Appearance, Notifications, Keyboard shortcuts, Usage, Billing, Desktop App, Mobile App.
-- **Workspace**: Team, Tags, Integrations (personal Gmail/GitHub accounts).
-- **Developer**: Agent connections, Runtimes, MCP server, API Keys, Bots.
+- **Workspace**: Team, Tags, Integrations (personal Gmail/GitHub accounts and agent tools).
+- **Developer**: Runtimes, MCP server, API Keys, Bots.
 
 **Desktop App** (`/app/settings/desktop-app`) is titled
 **Desktop App (Alpha)** and shows a compact version and build-date card in the
@@ -279,7 +279,7 @@ theme pill, then import it on another device or share it in a message for
 others to copy and import.
 
 Existing settings URLs remain valid; `connections` still opens Integrations,
-`agent-connections` opens Agent connections, and `harness` aliases Runtimes.
+`agent-connections` aliases Integrations, and `harness` aliases Runtimes.
 
 `Usage` appears directly above Billing, including for Free accounts. In
 production, the `enable-ai-usage-billing` PostHog flag controls activation. While
@@ -448,7 +448,7 @@ to save the connection in the waiting app. Unconnected picks never block
 saving; each teammate connects their own account. An agent session that calls a picked
 but unconnected app gets a tool result saying so, and the agent's reply renders a
 `Connect <app>` chip that opens Agents → Connections for that app. The same page
-is also available as Settings → Agent connections.
+is also available as Settings → Integrations.
 
 Reference captures from an isolated browser fixture: [native waiting dialog](media/pipedream/native-waiting.png)
 and [browser return page](media/pipedream/browser-return.png). The fixture uses
@@ -463,15 +463,17 @@ the picture after reopening settings and after a page reload, then type `@` and
 the agent's name in a channel to check its mention-menu picture. Team agents
 available in all channels should refresh there without reloading the channel.
 
-With `pipedream-mcp` enabled, Connections (in Agents or Settings) has `Connected` and `Discover`
-tabs. Connected groups GitHub, Linear, Notion, and Slack tool grants by provider,
+With `pipedream-mcp` enabled, Settings → Integrations displays installed tools on
+the left and Discover on the right, without tabs. On narrow screens these stack
+with installed tools first. The Agents workspace opens this same Integrations
+page. Installed groups GitHub, Linear, Notion, and Slack tool grants by provider,
 lists other catalog connections alongside them, and puts custom MCP servers in
 a separate section. Discover offers featured providers, a searchable catalog,
 and `Add custom MCP`. Pipedream Slack OAuth is available in production and
 development from the featured Slack provider. Connecting Slack here grants tool
 access; channel import is a separate action where the user chooses channels.
-Provider Back returns to the tab that opened it; navigation is local to each
-Connections page and starts at Connected on a fresh visit.
+Provider Back returns to the combined installed-and-discover overview; navigation
+is local to each mounted Integrations page.
 
 Macro agents and external AI clients using Macro's MCP server can run
 `ImportNotionPage` and the shared import ledger tools against the user's
@@ -498,7 +500,7 @@ owner's custom servers.
 An agent reply's `Connect <app>` chip still starts that app's connection flow.
 Cursor stays in Agents → Runtimes with its API key and default model controls; it is not
 featured or offered in the Connections catalog. Personal Gmail and GitHub account
-links remain in Settings → Integrations. The native-only Connections page remains
+links appear below installed agent tools on Settings → Integrations. The native-only integrations section remains
 available when `pipedream-mcp` is disabled.
 Open Settings with the rail's gear button or `Ctrl+;`; leave it by picking any other rail item.
 

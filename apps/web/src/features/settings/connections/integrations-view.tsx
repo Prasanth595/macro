@@ -1,4 +1,3 @@
-import { TabsInset } from '@core/component/TabsInset';
 import { toast } from '@core/component/Toast/Toast';
 import {
   clearPendingConnectApp,
@@ -7,8 +6,15 @@ import {
 import { fireAndForget } from '@core/util/fireAndForget';
 import { connectPipedreamApp } from '@queries/pipedream-connectors';
 import { Button } from '@ui';
-import { createEffect, createSignal, on, Show, Suspense } from 'solid-js';
-import { SettingsPage } from '../primitives';
+import {
+  createEffect,
+  createSignal,
+  on,
+  type ParentProps,
+  Show,
+  Suspense,
+} from 'solid-js';
+import { SettingsPage, SettingsSection } from '../primitives';
 import { ConnectedView } from './ConnectedView';
 import { DiscoverView } from './DiscoverView';
 import { capabilitiesFor } from './model';
@@ -32,15 +38,19 @@ function MacroMcpSignpost(props: { onOpen: () => void }) {
   );
 }
 
-export function ConnectionsPage(props: { onOpenMacroMcp: () => void }) {
+type IntegrationsViewProps = ParentProps<{
+  onOpenMacroMcp: () => void;
+}>;
+
+export function IntegrationsView(props: IntegrationsViewProps) {
   return (
     <ConnectionsViewProvider>
-      <ConnectionsContent onOpenMacroMcp={props.onOpenMacroMcp} />
+      <ConnectionsContent {...props} />
     </ConnectionsViewProvider>
   );
 }
 
-function ConnectionsContent(props: { onOpenMacroMcp: () => void }) {
+function ConnectionsContent(props: IntegrationsViewProps) {
   const { model, ready, error, partialError, retry } = useConnectionsModel();
   const view = useConnectionsView();
   const [importSlackChannels, setImportSlackChannels] = createSignal(false);
@@ -74,8 +84,7 @@ function ConnectionsContent(props: { onOpenMacroMcp: () => void }) {
         capability.mechanism === 'pipedream' &&
         capability.status === 'connected'
     );
-  const description =
-    "Connect the tools your team already uses so Macro's agent can work in them.";
+  const description = 'Connect your accounts and tools to Macro.';
 
   return (
     <Show
@@ -85,11 +94,12 @@ function ConnectionsContent(props: { onOpenMacroMcp: () => void }) {
           when={!error()}
           fallback={
             <SettingsPage
-              title="Agent connections"
+              title="Integrations"
               description={description}
               onBack={view.provider() ? view.closeProvider : undefined}
-              backLabel="Connections"
+              backLabel="Integrations"
             >
+              {props.children}
               <div class="flex items-center gap-3 text-sm text-ink-muted">
                 Couldn't load Connections.
                 <Button variant="outline" size="sm" depth={3} onClick={retry}>
@@ -104,23 +114,10 @@ function ConnectionsContent(props: { onOpenMacroMcp: () => void }) {
             keyed
             fallback={
               <SettingsPage
-                title="Agent connections"
+                title="Integrations"
                 description={description}
                 signpost={<MacroMcpSignpost onOpen={props.onOpenMacroMcp} />}
               >
-                <TabsInset
-                  fullWidth
-                  list={[
-                    { value: 'connected', label: 'Connected' },
-                    { value: 'discover', label: 'Discover' },
-                  ]}
-                  value={view.mode()}
-                  onChange={(value) =>
-                    value === 'discover'
-                      ? view.showDiscover()
-                      : view.showOverview()
-                  }
-                />
                 <Show when={partialError()}>
                   <div
                     role="status"
@@ -143,12 +140,24 @@ function ConnectionsContent(props: { onOpenMacroMcp: () => void }) {
                     <p class="text-sm text-ink-muted">Loading Connections…</p>
                   }
                 >
-                  <Show
-                    when={view.mode() === 'discover'}
-                    fallback={<ConnectedView model={model()} />}
-                  >
-                    <DiscoverView model={model()} />
-                  </Show>
+                  <div class="grid min-w-0 grid-cols-1 items-start gap-10 @[760px]/settings-page:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+                    <div class="flex min-w-0 flex-col gap-10">
+                      <SettingsSection
+                        title="Installed"
+                        description="Manage the tools connected to Macro."
+                      >
+                        <ConnectedView model={model()} />
+                      </SettingsSection>
+                      {props.children}
+                    </div>
+                    <SettingsSection
+                      title="Discover"
+                      description="Find tools for your agents to work with."
+                      class="min-w-0"
+                    >
+                      <DiscoverView model={model()} />
+                    </SettingsSection>
+                  </div>
                 </Show>
               </SettingsPage>
             }

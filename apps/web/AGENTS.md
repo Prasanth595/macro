@@ -78,6 +78,8 @@ without changing the active route. Backend registration still verifies account
 ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 
 ### General
+- Keep personal accounts and agent tool connections together in Settings → Integrations;
+  preserve `agent-connections` as an alias for existing links.
 - Label the notification permission toast **Enable Desktop Notifications** in
   the desktop app and keep its Enable action on the native notification provider.
 - Keep signed-out Drive document routes on the shared detail viewer without
