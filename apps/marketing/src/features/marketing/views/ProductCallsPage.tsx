@@ -80,7 +80,7 @@ export function RouteCalls() {
         <ProductHero
           cta="calls_hero_get_started"
           product="Calls"
-          title={['Call from anywhere in Macro.', 'Get automatic recordings, transcripts, and summaries.']}
+          title={['Call from anywhere in Macro', 'with every call recorded.']}
           description={[
             'Macro records and transcribes your calls.',
             'Ask your agent to handle the follow-up.',
