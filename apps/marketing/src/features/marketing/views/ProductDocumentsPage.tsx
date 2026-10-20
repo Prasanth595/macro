@@ -69,8 +69,8 @@ export function RouteDocuments() {
           product="Docs"
           title={['Write with your team', 'and your agents.']}
           description={[
-            'Write together using your emails, tasks,',
-            'and conversations already in Macro.',
+            'Fast, collaborative docs connected',
+            'to the rest of your work.',
           ]}
           cta="documents_hero_get_started"
         />
