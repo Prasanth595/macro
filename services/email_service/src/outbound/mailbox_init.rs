@@ -360,7 +360,7 @@ impl MailboxInitializationRepository for PgMailboxInitialization {
             // resumes them, with their pending state, instead of abandoning them.
             sqlx::query!(r#"
                 UPDATE email_mailbox_commands SET generation = $2,lease_id = NULL,lease_until = NULL,
-                    status = CASE WHEN status = 'running' THEN 'pending' ELSE status END,available_at = now(),updated_at = now()
+                    status = 'pending',available_at = now(),updated_at = now()
                 WHERE link_id = $1 AND generation <> $2 AND status IN ('pending','running','confirming')
             "#,link_id,link.sync_generation).execute(&mut *tx).await.map_err(unavailable)?;
         }

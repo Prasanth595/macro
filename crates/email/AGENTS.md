@@ -61,8 +61,9 @@ tools — hexagonal, heavily feature-gated.
 - Sender discovery authorizes the inbox first. Gmail aliases use the sender
   provider; Outlook exposes its verified primary address without a Gmail lookup.
 - Outlook organization commands only run in their link's current
-  `sync_generation`. Anything that bumps it must rebind unfinished commands, as
-  reconnect (`email_service` `mailbox_init.rs`) and `rebind_work` in
+  `sync_generation`. Anything that bumps it must rebind unfinished commands as
+  `pending`, since claims skip `confirming` ones while those still block later
+  commands, as reconnect (`email_service` `mailbox_init.rs`) and `rebind_work` in
   `outbound/mailbox_pg/lifecycle.rs` do; thread operations omit older generations.
 
 ## Related
