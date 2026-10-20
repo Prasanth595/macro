@@ -348,6 +348,14 @@ leave the homepage, product heroes, and wallpaper demos unchanged.
 FAQ disclosures retain the onboarding security section’s reading measure.
 Use “Questions about Macro [product]” for every product FAQ title, matching the
 page’s product name (Mail, Chat, Docs, Tasks, Calls, CRM, Agents, or for GitHub).
+Put FAQ questions directly below that title without an introduction or second
+heading. Order questions by setup and compatibility, core capabilities, sharing
+and permissions, practical limitations, then pricing. Lead each answer with the
+answer, keep useful detail in the relevant question, and link to the specific
+Macro product, setup guide, migration page, privacy policy, or pricing page.
+Verify permissions and availability against current app guides before making
+claims; distinguish pipeline fields from company properties, and channel-call
+team sharing from standalone meeting access.
 Website UI utilities and the frozen dark palette are scoped to `.feature-page`,
 preserving the surrounding public-page styles.
 
@@ -725,7 +733,7 @@ benchmark; the visitor can type directly in its existing editable document.
 The homepage retains the original checklist sequence. Keep the speed message
 in the hero copy and the Edit together card, rather than adding a fourth
 section. Agent editing, linked sources, and organization retain their own demos.
-Offline editing and CRDT merging are explained in the FAQ. All examples use a page-owned Website brief,
+The FAQ explains offline editing and simultaneous edits in plain language. All examples use a page-owned Website brief,
 Pricing changes email, Update pricing page task, and #website conversation.
 `DocumentOrganizationDemo` adapts the app folder list and tag-filtered search:
 one folder location, several tags, and one persistent document when reopened.
@@ -744,8 +752,8 @@ Verified against `block-project/component/Block.tsx`,
 `property/tags/tagNavigation.ts`, `block-md/component/MarkdownDocument.tsx`, and
 `crates/projects/src/inbound/toolset/move_to_project.rs` at e2bd582d.
 Folders and tags are separate organization mechanisms, not multiple physical
-copies or nested docs. Notion supports subpages, backlinks, and database views;
-the FAQ compares the organization model without claiming it lacks flexibility.
+copies or nested docs. Keep competitor comparisons in the comparison table;
+the FAQ leads with writing, importing, collaboration, and sharing in Macro.
 
 Verify folder and tag navigation, search, source open/close with Escape and focus
 restoration, edits surviving navigation, local sharing, tool inspection,

@@ -58,7 +58,7 @@ export function RouteChannels() {
       </nav>
       <FeaturePageSection
         id="shared-work"
-          title={['Open all your work', 'straight from chat.']}
+        title={['Open all your work', 'straight from chat.']}
         description="Share work in your team channels. Click on a document, task, email, company, person, or any file to see it beside your chat."
       >
         <DemoInteractionBoundary class="feature-page-visual channel-wide-demo">
@@ -76,7 +76,7 @@ export function RouteChannels() {
       </FeaturePageSection>
       <FeaturePageSection
         id="channel-agents"
-          title={['Bring your agents', 'into the conversation.']}
+        title={['Bring your agents', 'into the conversation.']}
         description="Tag your agent to ask for help, add context, assign a task, or get something done. You can use the Macro agent or bring your own."
       >
         <DemoInteractionBoundary class="feature-page-visual">
@@ -85,7 +85,7 @@ export function RouteChannels() {
       </FeaturePageSection>
       <FeaturePageSection
         id="catch-up"
-          title={['Read and reply to', 'every thread inline.']}
+        title={['Read and reply to', 'every thread inline.']}
         description="Read replies inline, follow the full thread, and respond without opening each conversation."
       >
         <span id="channel-threads" />
@@ -100,52 +100,55 @@ export function RouteChannels() {
         title="Questions about Macro Chat"
         items={[
           {
-            q: 'What happens when I share an email?',
+            q: 'How do I start a channel with my team?',
+            a: 'Create a channel and invite people by name or email. Choose a team channel for conversations teammates can discover, or a private channel for invited people only.',
+          },
+          {
+            q: 'Can I bring conversations from another app?',
             a: (
               <>
-                The channel can read the full thread, including new replies. See{' '}
+                See <a href="/migrate">migration options</a> for supported
+                imports and what carries over. Importing conversation history is
+                separate from keeping another app in sync.
+              </>
+            ),
+          },
+          {
+            q: 'Can I share emails, documents, and tasks in chat?',
+            a: (
+              <>
+                Yes. Mention workspace items to open them beside the
+                conversation. A shared email includes the thread and later
+                replies, but does not let recipients send from your mailbox. See{' '}
                 <a href="/email">email sharing</a>.
               </>
             ),
           },
           {
-            q: 'Can a message become a task?',
+            q: 'Can agents help in a channel?',
             a: (
               <>
-                Yes. Use a message’s Task action, or ask an agent to create one.
-                See <a href="/tasks">Macro Tasks</a>.
+                Yes. Mention an available agent to answer questions, draft work,
+                or create and update tasks from the conversation. See{' '}
+                <a href="/agents">Macro Agents</a>.
               </>
             ),
           },
           {
-            q: 'Can I quiet a noisy channel?',
-            a: 'Yes. Mute or snooze notifications for any channel from its menu.',
+            q: 'Who can see a channel and its files?',
+            a: 'Team channels are discoverable by the team; private channels are limited to invited members. New members can read the channel’s history. Sharing files in a channel gives members access, so check membership before sharing sensitive work.',
           },
           {
-            q: 'Which agents can I mention?',
-            a: (
-              <>
-                Macro’s agents, or agents you connect to your workspace. See how
-                to <a href="/agents">bring your own agent</a>.
-              </>
-            ),
+            q: 'Can I mute a busy channel?',
+            a: 'Yes. Mute or snooze its notifications from the channel menu without leaving the conversation.',
           },
           {
-            q: 'How do we get started?',
+            q: 'Can I try Macro for free?',
             a: (
               <>
-                Create a channel and invite your team by email. Bringing work
-                over from another app? See{' '}
-                <a href="/migrate">how to move to Macro</a>.
-              </>
-            ),
-          },
-          {
-            q: 'Can I join as a Guest for free?',
-            a: (
-              <>
-                Yes. Guest access is free. See <a href="/pricing">pricing</a>{' '}
-                for current access and limits.
+                Yes. Macro has a free plan with usage limits. See{' '}
+                <a href="/pricing">plans and limits</a> before choosing a plan
+                for your team.
               </>
             ),
           },

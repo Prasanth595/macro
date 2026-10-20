@@ -5,9 +5,9 @@ import { EmailComparison } from '../../features/marketing/components/email/Email
 import { EmailDesktopDemo } from '../../features/marketing/components/email/EmailDesktopDemo';
 import {
   AgenticEditingGraphic,
+  AutoTagsGraphic,
   EmailSharingGraphic,
   KeyboardSpeedGraphic,
-  AutoTagsGraphic,
 } from '../../features/marketing/components/email/EmailFeatureGraphics';
 import { EmailKeyboardDemo } from '../../features/marketing/components/email/EmailKeyboardDemo';
 import { EmailSharingDemo } from '../../features/marketing/components/email/EmailSharingDemo';
@@ -24,63 +24,80 @@ import '../../features/marketing/components/email/email-hero.css';
 
 const faqItems = [
   {
-    q: 'Does Macro work with my existing email account?',
-    a: 'Macro supports Gmail and Google Workspace. Connect your existing account to read and send email in Macro. You can continue using Gmail alongside it.',
+    q: 'Which email accounts can I connect?',
+    a: (
+      <>
+        Macro supports Gmail and Google Workspace. Connect an account in
+        Settings and keep using Gmail alongside Macro. See the{' '}
+        <a href="https://docs.macro.com/product/email">email setup guide</a>.
+      </>
+    ),
   },
   {
-    q: 'Can I connect more than one account?',
-    a: 'Yes. View connected accounts in one inbox, or filter to a single account. Each message keeps its original sender and account.',
+    q: 'Can I use my personal and work inboxes together?',
+    a: (
+      <>
+        Yes. Connect multiple accounts, view them together, or filter to one
+        inbox. When composing, choose which connected address to send from.
+        Account limits depend on your <a href="/pricing">plan</a>.
+      </>
+    ),
   },
   {
-    q: 'What can an agent do with my email?',
-    a: 'An agent can help draft and edit replies using email and the workspace context available to it. Review the draft, make changes, and approve it before sending.',
+    q: 'Can an agent draft replies for me?',
+    a: (
+      <>
+        Yes. Ask an agent to draft a reply using the email thread and relevant
+        workspace context. Review and edit the draft before sending. Learn more
+        about <a href="/agents">Macro Agents</a>.
+      </>
+    ),
   },
   {
     q: 'How do Signal and Noise work?',
-    a: 'Signal keeps important conversations together. Noise groups lower-priority mail, such as newsletters and automated updates. You can move a thread between the two views.',
+    a: 'Signal groups important conversations; Noise groups lower-priority mail such as newsletters and promotions. Right-click a thread to change how its sender is classified.',
   },
   {
-    q: 'Can I share an email with a channel?',
-    a: 'Yes. Share a thread with your team and link it in a channel. Teammates with access can open the conversation, including later replies, without forwarding a separate copy.',
+    q: 'Can my team read an email I share?',
+    a: (
+      <>
+        Yes. Sharing gives recipients access to the full thread, including new
+        replies. It does not let them send replies from your mailbox. See{' '}
+        <a href="/channels">sharing email in team chat</a>.
+      </>
+    ),
+  },
+  {
+    q: 'Does Macro get my Google password?',
+    a: 'No. You authorize the connection on Google, and Macro receives access tokens rather than your password.',
   },
   {
     q: 'Is my email used to train AI?',
-    a: 'Data received through Google Workspace APIs is not used to develop or train generalized AI models. Macro maintains zero data retention agreements with OpenAI and Anthropic for model processing.',
+    a: (
+      <>
+        Data received through Google Workspace APIs is not used to train
+        generalized AI models. See our <a href="/privacy">Privacy Policy</a> for
+        data use details.
+      </>
+    ),
   },
   {
-    q: 'Can I disconnect my account?',
+    q: 'How do I disconnect an account?',
     a: (
       <>
         Disconnect in Macro’s Settings or revoke access from your Google
-        account. Revoking access and deleting data already stored in Macro are
-        separate actions. Our <a href="/privacy">Privacy Policy</a> explains
-        data deletion.
+        account. Disconnecting does not delete data already stored in Macro. See
+        the <a href="/privacy">Privacy Policy</a> for deletion details.
       </>
     ),
   },
   {
-    q: 'Is Macro open source?',
+    q: 'Can I try Macro for free?',
     a: (
       <>
-        Yes. You can inspect the application code on{' '}
-        <a
-          href="https://github.com/macro-inc/macro"
-          target="_blank"
-          rel="noreferrer"
-        >
-          GitHub
-        </a>
-        . Open source does not make your email or workspace public.
-      </>
-    ),
-  },
-  {
-    q: 'Can I join as a Guest for free?',
-    a: (
-      <>
-        Yes. Guest access includes email alongside chat, documents, tasks, and
-        AI, with usage limits. See <a href="/pricing">pricing</a> for current
-        account, storage, and AI limits.
+        Yes. Macro has a free plan with usage limits. See{' '}
+        <a href="/pricing">plans and limits</a> before choosing a plan for your
+        team.
       </>
     ),
   },
@@ -170,15 +187,6 @@ export function RouteEmail() {
       <FeaturePageFaq
         id="email-faq-title"
         title="Questions about Macro Mail"
-        introduction={
-          <p>
-            Macro connects to your existing Google account. You can read,
-            organize, and reply to email alongside your team’s work. You approve
-            the connection on Google. Macro does not receive your Google
-            password. Email agents show you the draft and ask for approval
-            before sending.
-          </p>
-        }
         items={faqItems}
       />
       <HomepageClosing />

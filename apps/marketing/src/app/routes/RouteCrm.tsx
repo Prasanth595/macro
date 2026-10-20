@@ -24,6 +24,7 @@ import {
   ProductPage,
 } from '../../features/marketing/components/product/ProductPage';
 import { WorkspaceDesktopDemo } from '../../features/marketing/components/WorkspaceDesktopDemo';
+import { DEMO_BOOKING_URL } from '../../features/marketing/core/navigation';
 import { setPageSeo } from '../utils/utilSeo';
 import '../../features/marketing/components/crm/crm-page.css';
 import '../../features/marketing/components/homepage-pipeline-demo.css';
@@ -40,32 +41,58 @@ const FollowupDemo = lazy(loadFollowup);
 
 const faqItems = [
   {
-    q: 'How are companies and contacts created?',
-    a: 'From your email. When someone on your team emails a person at a new domain, Macro creates the contact and the company, and groups everyone from that domain under it. Personal addresses like Gmail don’t become companies. You can also add companies by hand or import a CSV.',
+    q: 'How do I start using CRM?',
+    a: 'Open Customers in Macro. Your team needs CRM enabled; a new team can enable it from CRM settings. You can then add companies, contacts, and pipelines.',
   },
   {
-    q: 'What is automatic enrichment?',
-    a: 'When Macro creates a company, it looks up the domain and adds a short description from public sources, so you know who they are without opening another tab. Stage, owner, revenue, and everything else you know about the deal are yours to fill in.',
+    q: 'How are companies and contacts added?',
+    a: 'Macro creates company and contact records from your team’s primary connected email accounts. You can also add records manually or import a CSV. Personal email domains do not become companies.',
   },
   {
-    q: 'Can I update records myself?',
-    a: 'Yes. Drag a company to a new stage on the board, or open it and change Stage, Owner, Revenue, or any custom property you’ve added. Agents edit the same properties, so their changes and yours end up in the same place.',
+    q: 'Can I track deals in a board or table?',
+    a: 'Yes. Create a pipeline and use table or kanban views. Drag a card between stages or edit its fields directly. Pipeline stages, owners, and revenue are separate from the company record’s properties.',
   },
   {
-    q: 'Where does the team discuss a customer?',
-    a: 'On the company. Every company has a Discussion that works like a thread in a channel: reply, react, and @mention people, docs, or tasks. The pricing conversation stays with the customer instead of scrolling away in #sales.',
+    q: 'What does automatic enrichment add?',
+    a: 'Macro uses a company’s domain to add public company information. Deal details such as stage, owner, and revenue come from you or your agents.',
   },
   {
-    q: 'Can I mention a company in a document or channel?',
-    a: 'Yes. Type @ and pick it from Companies. The mention links to the company’s record, and opening it follows the record’s normal access rules.',
+    q: 'What customer context can my agent use?',
+    a: (
+      <>
+        Agents can read accessible customer emails, calls, chats, files, and
+        tasks to draft follow-ups and identify next steps. They can also update
+        CRM fields. See <a href="/agents">Macro Agents</a> or{' '}
+        <a href="https://docs.macro.com/AI/mcp/overview">
+          connect an AI client through MCP
+        </a>
+        .
+      </>
+    ),
   },
   {
-    q: 'What can agents do with the CRM?',
-    a: 'Agents can list companies, read a record with its contacts and properties, and set Stage, Owner, Revenue, or your custom properties. @mention Claude in a company’s Discussion, or ask in a channel after your sales sync. The same tools are on our MCP server, so Claude, ChatGPT, and Cursor can use them too.',
+    q: 'Where can my team discuss a customer?',
+    a: (
+      <>
+        Use the company’s Discussion to keep notes and replies with the record.
+        Mention teammates, files, or tasks, and link the company from a{' '}
+        <a href="/channels">channel</a> or <a href="/documents">document</a>.
+      </>
+    ),
   },
   {
-    q: 'Is CRM available for my account?',
-    a: 'We’re rolling it out. If you don’t see Customers in your sidebar yet, it hasn’t reached your account. And being open source doesn’t make your data public: Macro’s code is AGPLv3, but your companies, contacts, and emails stay private to your team.',
+    q: 'Who can see a pipeline I share?',
+    a: 'Share a pipeline with your team, specific people, or a channel and choose their access level. Viewers can read it; editors can update it. Review the Share dialog before sharing customer information.',
+  },
+  {
+    q: 'Where can I check pricing and CRM access?',
+    a: (
+      <>
+        See <a href="/pricing">Macro’s current plans and limits</a>. If you need
+        help enabling CRM for your team,{' '}
+        <a href={DEMO_BOOKING_URL}>talk to us</a>.
+      </>
+    ),
   },
 ];
 
@@ -174,12 +201,6 @@ export function RouteCrm() {
       <FeaturePageFaq
         id="crm-faq-title"
         title="Questions about Macro CRM"
-        introduction={
-          <p>
-            If you’re coming from HubSpot, Attio, or a spreadsheet, here’s
-            what’s different.
-          </p>
-        }
         items={faqItems}
       />
       <HomepageClosing />

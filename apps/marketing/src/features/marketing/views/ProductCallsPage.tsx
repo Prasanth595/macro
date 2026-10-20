@@ -18,27 +18,47 @@ import './calls-page.css';
 
 const callsFaq = [
   {
-    q: 'Can I bring my Granola transcripts into Macro?',
-    a: 'Yes. Bring your Granola transcripts into Macro so your agents can use them alongside your tasks, docs, and email. You can keep using Granola with your current meeting app.',
-  },
-  {
-    q: 'Are calls recorded automatically?',
-    a: 'Yes. Macro records, transcribes, and summarizes calls. Participants see a recording and transcription notice.',
-  },
-  {
-    q: 'Who can access the recording and transcript?',
-    a: 'The organizer and signed-in participants have access to the saved call. Additional access depends on the call’s sharing settings. Agents can only read calls you have access to.',
-  },
-  {
-    q: 'Can guests join without a Macro account?',
-    a: 'Yes. Share a link to an instant or scheduled meeting and guests can join in their browser without creating an account.',
-  },
-  {
-    q: 'Are calls included in the free plan?',
+    q: 'How do I start a call?',
     a: (
       <>
-        Calls, recording, and transcription are included in the paid plan. See{' '}
-        <a href="/pricing">pricing</a> for details.
+        Start from Calls, a channel, or a direct message. You can also create a
+        meeting link for an instant or scheduled call. See the{' '}
+        <a href="https://docs.macro.com/product/calls">calls guide</a>.
+      </>
+    ),
+  },
+  {
+    q: 'Can someone join without a Macro account?',
+    a: 'Yes. Guests can join standalone meeting links in their browser without an account. Channel-linked calls require sign-in.',
+  },
+  {
+    q: 'Are calls recorded and transcribed?',
+    a: 'Yes. Participants see a recording and transcription notice. After the call, open its recording, transcript, and summary in Calls.',
+  },
+  {
+    q: 'Can an agent turn a call into next steps?',
+    a: (
+      <>
+        Yes. Ask an agent to use an accessible transcript to draft a follow-up,
+        create tasks, or update customer records. See{' '}
+        <a href="/agents">Macro Agents</a>.
+      </>
+    ),
+  },
+  {
+    q: 'Who can read the recording and transcript?',
+    a: 'Channel calls share with the creator’s team by default; turn off Share with team to prevent that. Standalone meetings are not shared to the wider team automatically. Signed-in participants retain access to their recordings.',
+  },
+  {
+    q: 'Can I use transcripts from another meeting app?',
+    a: 'You can bring a transcript into Macro as a document and use it as agent context. This is separate from recording a call in Macro.',
+  },
+  {
+    q: 'Which plan includes calls?',
+    a: (
+      <>
+        Calls, recording, and transcription are included in paid plans. See{' '}
+        <a href="/pricing">current pricing</a> for details.
       </>
     ),
   },
@@ -81,8 +101,8 @@ export function RouteCalls() {
           product="Calls"
           title={['Call from anywhere in Macro', 'with every call recorded.']}
           description={[
-          'Macro records and transcribes your calls',
-          'so your agent can handle what comes next.',
+            'Macro records and transcribes your calls',
+            'so your agent can handle what comes next.',
           ]}
         />
         <CallHeroDemo />
@@ -102,7 +122,10 @@ export function RouteCalls() {
         </nav>
         <FeaturePageSection
           id="call-start"
-          title={['Start a call in channels, DMs,', 'or through meeting links.']}
+          title={[
+            'Start a call in channels, DMs,',
+            'or through meeting links.',
+          ]}
           description="You can start calls from channels, DMs, or through meeting links. People outside of Macro can join your meeting links. Create your own booking links so people can set up times with you."
         >
           <div class="feature-page-visual">

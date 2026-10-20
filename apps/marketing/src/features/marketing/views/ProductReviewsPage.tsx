@@ -19,41 +19,48 @@ import { WorkspaceDesktopDemo } from '../components/WorkspaceDesktopDemo';
 const githubFaq = [
   {
     q: 'How do I connect GitHub?',
-    a: 'Link your GitHub account in Settings under Account.',
+    a: 'Link your GitHub account in Macro’s Settings. Your GitHub permissions determine which repositories and pull requests you can access.',
   },
   {
-    q: 'What stays on GitHub?',
-    a: 'Your repositories, branches, CI, and repository permissions stay on GitHub. Macro brings pull requests, code changes, and review discussions into your workspace. Submit approvals and review comments on GitHub.',
+    q: 'What can I do with pull requests in Macro?',
+    a: 'Open a linked pull request from chat, inspect its changes, and read the discussion alongside your work. Your repositories, branches, CI, and repository settings stay on GitHub.',
   },
   {
-    q: 'How do pull requests link to tasks?',
+    q: 'How do pull requests update tasks?',
     a: (
       <>
         Include the task ID in the branch name, PR title, or description.
-        Opening the PR moves the linked task to In Review. Merging it marks the
-        task Completed. Closing it without merging returns the task to Not
-        Started. <a href="/tasks">More about tasks</a>.
+        Opening the PR moves the task to In Review; merging completes it.
+        Closing without merging returns it to Not Started. See{' '}
+        <a href="/tasks">Macro Tasks</a>.
       </>
     ),
   },
   {
-    q: 'Can I merge a pull request in Macro?',
-    a: 'Yes. Open the PR and choose Merge. You confirm before it merges, and GitHub applies your repository permissions and merge requirements.',
-  },
-  {
-    q: 'Which coding agents can I use?',
+    q: 'Can a coding agent work from a team conversation?',
     a: (
       <>
-        Bring coding agents such as Cursor or Claude Code into your channels.{' '}
-        <a href="/agents">See how to connect your agents</a>.
+        Yes. Give an available coding agent the conversation and relevant work
+        as context. It can prepare a change and link the resulting pull request.
+        See <a href="/agents">agent connections and availability</a>.
       </>
     ),
   },
   {
-    q: 'Is there a free plan?',
+    q: 'Who can merge a pull request?',
+    a: 'Users with the required GitHub access can merge eligible pull requests in Macro after confirming. GitHub’s branch protections still apply. Macro’s Merge button requires a ready PR with passing checks.',
+  },
+  {
+    q: 'Can I submit a code review in Macro?',
+    a: 'You can inspect changes and read the review discussion in Macro. Submit formal approvals and review comments on GitHub.',
+  },
+  {
+    q: 'Can I try Macro for free?',
     a: (
       <>
-        Yes. See <a href="/pricing">pricing</a> for current limits.
+        Yes. Macro has a free plan with usage limits. See{' '}
+        <a href="/pricing">plans and limits</a> before choosing a plan for your
+        team.
       </>
     ),
   },
