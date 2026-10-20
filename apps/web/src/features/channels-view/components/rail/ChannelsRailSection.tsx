@@ -125,7 +125,7 @@ function CollapsibleSectionRoot(props: {
           props.open && sizing() === 'fill' && 'flex-1',
           props.open &&
             sizing() === 'half' &&
-            'shrink max-h-[calc((100%-var(--sidebar-section-gap))/2)]',
+            'shrink max-h-[calc((100%_-_var(--sidebar-section-gap))/2)]',
           props.open && sizing() === 'content' && 'shrink-0 max-h-1/3',
           props.class
         )}
