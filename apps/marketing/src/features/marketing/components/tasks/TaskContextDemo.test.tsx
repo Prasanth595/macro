@@ -131,7 +131,11 @@ it('inserts the document, email, and channel through their mention menus, then r
       [{ isIntersecting: true } as IntersectionObserverEntry],
       {} as IntersectionObserver
     );
-  vi.advanceTimersByTime(2150);
+  vi.advanceTimersByTime(1900);
+  expect(
+    view.getByRole('textbox', { name: 'Task document reference' }).textContent
+  ).toBe('Us');
+  advanceTo(() => view.queryByRole('option', { name: 'Customer brief' }));
   expect(view.getByRole('option', { name: 'Customer brief' })).toBeTruthy();
   vi.advanceTimersByTime(1100);
   expect(
@@ -140,21 +144,26 @@ it('inserts the document, email, and channel through their mention menus, then r
   expect(
     view.queryByRole('button', { name: 'Open Proposal request' })
   ).toBeNull();
-  vi.advanceTimersByTime(2600);
+  advanceTo(() => view.queryByRole('option', { name: 'Proposal request' }));
   expect(view.getByRole('option', { name: 'Proposal request' })).toBeTruthy();
   vi.advanceTimersByTime(1100);
   expect(
     view.getByRole('button', { name: 'Open Proposal request' })
   ).toBeTruthy();
-  vi.advanceTimersByTime(3000);
+  advanceTo(() => view.queryByRole('option', { name: 'sales' }));
   expect(view.getByRole('option', { name: 'sales' })).toBeTruthy();
   vi.advanceTimersByTime(1100);
   expect(view.getByRole('button', { name: 'Open sales' })).toBeTruthy();
   expect(view.queryByRole('listbox')).toBeNull();
+  advanceTo(() =>
+    view
+      .getByRole('textbox', { name: 'Task sharing instruction' })
+      .textContent?.endsWith('sales.')
+  );
   expect(
     view.getByRole('textbox', { name: 'Task sharing instruction' }).textContent
   ).toContain('Share the draft for review in sales.');
-  vi.advanceTimersByTime(6500);
+  advanceTo(() => !view.queryByRole('button', { name: 'Open Customer brief' }));
   expect(
     view.queryByRole('button', { name: 'Open Customer brief' })
   ).toBeNull();
@@ -182,3 +191,9 @@ it('keeps a visitor’s sharing instruction instead of continuing playback', () 
   expect(input.textContent).toBe('Keep my own instruction.');
   expect(view.queryByRole('button', { name: 'Open sales' })).toBeNull();
 });
+
+function advanceTo(reached: () => unknown) {
+  for (let elapsed = 0; elapsed < 30000 && !reached(); elapsed += 50)
+    vi.advanceTimersByTime(50);
+  expect(!!reached()).toBe(true);
+}

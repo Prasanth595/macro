@@ -6,6 +6,7 @@ import type {
 } from '../../core/dummy-workspace';
 import { createDummyWorkspace } from '../../primitives/createDummyWorkspace';
 import { createProductWalkthrough } from '../../primitives/createProductWalkthrough';
+import { demoTypingActions } from '../../primitives/demoTypingActions';
 import { PrStatusIcon } from '../DemoPrDocument';
 import type { ChannelComposerHandle } from '../email/frozen/ChannelComposer';
 import { ProductDemo } from '../product/ProductPage';
@@ -157,17 +158,12 @@ export function TaskAgentChannelDemo() {
     ]);
     follow();
   };
-  const typeMessage = (text: string, delay: number) =>
-    Array.from({ length: Math.ceil(text.length / 2) }, (_, index) => ({
-      delay: index === 0 ? delay : 35,
-      run: () => writeDraft(text.slice(0, (index + 1) * 2)),
-    }));
   const steps = [
-    ...typeMessage(firstRequest, 600),
+    ...demoTypingActions(firstRequest, writeDraft, 600),
     { delay: 450, run: sendRequest },
     { delay: 1400, run: create },
     { delay: 2200, run: beginReply },
-    ...typeMessage(secondRequest, 300),
+    ...demoTypingActions(secondRequest, writeDraft, 300),
     { delay: 450, run: requestUpdate },
     { delay: 1400, run: update },
   ];

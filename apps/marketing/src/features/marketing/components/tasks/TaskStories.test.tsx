@@ -140,10 +140,14 @@ it('types Jacob’s requests into the composer before sending them', () => {
   vi.advanceTimersByTime(1400);
   expect(input.textContent).toContain('@Macro');
   expect(log.queryByText(/make tasks for this proposal/)).toBeNull();
-  vi.advanceTimersByTime(2300);
+  advanceTo(() => log.queryByText(/make tasks for this proposal/));
   expect(input.textContent).toBe('');
   expect(log.getByText(/make tasks for this proposal/)).toBeTruthy();
-  vi.advanceTimersByTime(3100);
+  advanceTo(() =>
+    view
+      .queryByRole('textbox', { name: 'Thread reply' })
+      ?.textContent?.includes('Julia')
+  );
   const threadInput = view.getByRole('textbox', { name: 'Thread reply' });
   expect(threadInput.textContent).toContain('Julia');
   expect(threadInput.textContent).not.toContain('@Macro');
@@ -222,7 +226,7 @@ it('opens the linked brief and returns through its inline task mention without c
 it('changes the existing proposal task to Julia after an explicit request', () => {
   const view = render(() => <TaskAgentChannelDemo />);
   visible(true);
-  vi.advanceTimersByTime(11000);
+  advanceTo(() => view.queryByText('The proposal is now assigned to Julia.'));
   expect(
     view
       .getByText('The proposal is now assigned to Julia.')
@@ -360,9 +364,15 @@ it('resumes the same agent draft after leaving view without skipping or duplicat
   expect(input.textContent).toBe(draft);
   expect(view.queryByText('Created and assigned both tasks.')).toBeNull();
   visible(true);
-  vi.advanceTimersByTime(10000);
+  advanceTo(() => view.queryByText('The proposal is now assigned to Julia.'));
   expect(
     view.getByRole('log', { name: 'Channel sales' }).querySelectorAll('article')
   ).toHaveLength(4);
   expect(view.getByText('The proposal is now assigned to Julia.')).toBeTruthy();
 });
+
+function advanceTo(reached: () => unknown) {
+  for (let elapsed = 0; elapsed < 30000 && !reached(); elapsed += 50)
+    vi.advanceTimersByTime(50);
+  expect(!!reached()).toBe(true);
+}

@@ -195,7 +195,13 @@ it('shows the source context before the editable draft and preserves edits', () 
   const view = render(() => <EmailAgenticEditingDemo />);
   expect(view.queryByRole('textbox', { name: 'Email body' })).toBeNull();
   setVisible(true);
-  vi.advanceTimersByTime(3200);
+  vi.advanceTimersByTime(1500);
+  const input = view.getByRole<HTMLTextAreaElement>('textbox', {
+    name: 'Message the email agent',
+  });
+  expect(input.value).toBe('Draft ');
+  expect(view.queryByRole('link', { name: 'Demo call' })).toBeNull();
+  advanceTo(() => view.queryByRole('link', { name: 'Demo call' }));
   expect(view.getByRole('link', { name: 'Demo call' })).toBeTruthy();
   expect(view.queryByRole('textbox', { name: 'Email body' })).toBeNull();
   vi.advanceTimersByTime(2200);
@@ -220,8 +226,12 @@ it('shows the source context before the editable draft and preserves edits', () 
   ).toBe('Thursday meeting details');
 });
 
-it('lets the visitor send the sample request without waiting for autoplay', () => {
+it('lets the visitor type and send their own request without waiting for autoplay', () => {
   const view = render(() => <EmailAgenticEditingDemo />);
+  fireEvent.input(
+    view.getByRole('textbox', { name: 'Message the email agent' }),
+    { target: { value: 'Draft a follow-up for Thursday.' } }
+  );
   fireEvent.click(view.getByRole('button', { name: 'Send demo message' }));
   expect(view.getByRole('textbox', { name: 'Email body' })).toBeTruthy();
   expect(vi.getTimerCount()).toBeLessThanOrEqual(1);
@@ -264,3 +274,9 @@ it('shows an editable draft immediately with reduced motion', () => {
   ).toBe('true');
   expect(vi.getTimerCount()).toBe(0);
 });
+
+function advanceTo(reached: () => unknown) {
+  for (let elapsed = 0; elapsed < 30000 && !reached(); elapsed += 50)
+    vi.advanceTimersByTime(50);
+  expect(!!reached()).toBe(true);
+}

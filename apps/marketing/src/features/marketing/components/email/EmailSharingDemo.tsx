@@ -7,6 +7,7 @@ import { createSignal, Show } from 'solid-js';
 import { meetingEmail, meetingReply } from '../../core/email-demo-story';
 import { homepagePeople } from '../../core/homepage-demo-people';
 import { createEmailWalkthrough } from '../../primitives/createEmailWalkthrough';
+import { demoTypingActions } from '../../primitives/demoTypingActions';
 import { DocMention } from '../documents/DocMention';
 import {
   HomepageConversation,
@@ -19,13 +20,15 @@ import './email-feature-demos.css';
 import './email-demos.css';
 import './email-sharing-stage.css';
 
-const phaseDuration = [1800, 800, 1000, 1000, 1300, 450, 2600];
+const shareMessage = 'Here’s the email for Thursday.';
 
 // The Share form's markup/classes come from TopBar/ShareButton.tsx and
 // ForwardToChannel.tsx. The animation changes fixture state only; it never
 // invokes share permissions, sends messages, or mounts a live app context.
 function ShareForm(props: {
   phase: number;
+  query: string;
+  message: string;
   advance: () => void;
   cancel: () => void;
 }) {
@@ -56,10 +59,7 @@ function ShareForm(props: {
               when={props.phase >= 3}
               fallback={
                 <span class="text-ink-placeholder">
-                  To:{' '}
-                  <span class="text-ink">
-                    {props.phase >= 2 ? 'launch' : ''}
-                  </span>
+                  To: <span class="text-ink">{props.query}</span>
                   <span class="mail-typing-caret" />
                 </span>
               }
@@ -90,7 +90,7 @@ function ShareForm(props: {
                 <span class="text-ink-placeholder">Optional message</span>
               }
             >
-              Here’s the email for Thursday.
+              <span data-share-message>{props.message}</span>
             </Show>
           </div>
           <div class="shrink-0 flex w-full items-center px-4 py-4 gap-3 flex-wrap">
@@ -195,16 +195,52 @@ function ChannelResult(props: {
 export function EmailSharingDemo(props: { onClose?: () => void } = {}) {
   const [phase, setPhase] = createSignal(0);
   const [opened, setOpened] = createSignal(false);
+  const [query, setQuery] = createSignal('');
+  const [message, setMessage] = createSignal('');
   let root!: HTMLDivElement;
+  const finish = () => {
+    setPhase(7);
+    queueMicrotask(() => {
+      const body = root.querySelector<HTMLElement>(
+        '.mail-sharing-email > .mail-thread > .mail-thread-body'
+      );
+      body?.scrollTo({ top: body.scrollHeight, behavior: 'smooth' });
+    });
+  };
+  const actions = [
+    { delay: 1800, run: () => setPhase(1) },
+    ...demoTypingActions(
+      'launch',
+      (text) => {
+        setPhase(2);
+        setQuery(text);
+      },
+      800
+    ),
+    { delay: 1000, run: () => setPhase(3) },
+    ...demoTypingActions(
+      shareMessage,
+      (text) => {
+        setPhase(4);
+        setMessage(text);
+      },
+      700
+    ),
+    { delay: 800, run: () => setPhase(5) },
+    { delay: 450, run: () => setPhase(6) },
+    { delay: 2600, run: finish },
+  ];
   const playback = createEmailWalkthrough({
     root: () => root,
-    steps: 7,
+    steps: actions.length,
     visibilityThreshold: 0.45,
-    delay: (step) => phaseDuration[step - 1],
+    delay: (step) => actions[step - 1].delay,
     loop: { hold: 8000 },
     reset: () => {
       setPhase(0);
       setOpened(false);
+      setQuery('');
+      setMessage('');
       root
         .querySelectorAll<HTMLElement>('.mail-thread-body, [role="log"]')
         .forEach((el) => {
@@ -212,24 +248,14 @@ export function EmailSharingDemo(props: { onClose?: () => void } = {}) {
         });
     },
     reduced: () => setPhase(7),
-    advance: (step) => {
-      setPhase(step);
-      if (step === 7)
-        queueMicrotask(() => {
-          const body = root.querySelector<HTMLElement>(
-            '.mail-sharing-email > .mail-thread > .mail-thread-body'
-          );
-          body?.scrollTo({
-            top: body.scrollHeight,
-            behavior: playback.reducedMotion() ? 'instant' : 'smooth',
-          });
-        });
-    },
+    advance: (step) => actions[step - 1].run(),
   });
   const manual = (next: number) => {
     playback.pause();
     setPhase(next);
     setOpened(false);
+    setQuery('launch');
+    setMessage(shareMessage);
   };
   return (
     <div
@@ -271,6 +297,8 @@ export function EmailSharingDemo(props: { onClose?: () => void } = {}) {
               <Show when={phase() >= 1 && phase() <= 5}>
                 <ShareForm
                   phase={phase()}
+                  query={query()}
+                  message={message()}
                   advance={() => manual(phase() < 3 ? 3 : 6)}
                   cancel={() => manual(0)}
                 />

@@ -4,6 +4,7 @@ import type { WorkspaceComment } from '../../core/dummy-workspace';
 import type { SampleCompany } from '../../core/workspace-fixtures';
 import { createCrmDemoWorkspace } from '../../primitives/createCrmDemoWorkspace';
 import { createProductWalkthrough } from '../../primitives/createProductWalkthrough';
+import { demoTypingActions } from '../../primitives/demoTypingActions';
 import type { ChannelComposerHandle } from '../email/frozen/ChannelComposer';
 import { ProductDemo } from '../product/ProductPage';
 import { CompanyPipelineEntry } from './CompanyPipelineEntry';
@@ -36,11 +37,12 @@ export function CrmCaptureDemo() {
   >({ stage: 'Lead', owner: '', revenue: '18000' });
   w.open('crm', 'meadow');
   const [phase, setPhase] = createSignal(0);
-  const words =
-    request.body
-      .replace('@[Claude](demo-mention:claude)', '@Claude')
-      .match(/\S+\s*/g) ?? [];
-  const sent = words.length + 1;
+  const typing = demoTypingActions(
+    request.body.replace('@[Claude](demo-mention:claude)', '@Claude'),
+    (text) => composer?.setText(text),
+    1200
+  );
+  const sent = typing.length + 1;
   const acknowledgment: WorkspaceComment = {
     id: 'capture-working',
     person: 'claude',
@@ -79,11 +81,11 @@ export function CrmCaptureDemo() {
     },
     reduced: finish,
     delay: (step) =>
-      step === 1 ? 1200 : step < sent ? 85 : step === sent ? 900 : 1400,
+      step < sent ? typing[step - 1].delay : step === sent ? 900 : 1400,
     advance: (step) => {
       setPhase(step);
       if (step < sent) {
-        composer?.setText(words.slice(0, step).join(''));
+        typing[step - 1].run();
         if (step === 1) scrollTo('[data-discussion-composer]');
       } else if (step === sent) {
         // Use the same send path as the visitor, then attach the scripted thread ID.

@@ -13,6 +13,7 @@ import {
 import { createStore } from 'solid-js/store';
 import type { WorkspaceView } from '../../core/dummy-workspace';
 import { createProductWalkthrough } from '../../primitives/createProductWalkthrough';
+import { demoTypingActions } from '../../primitives/demoTypingActions';
 import { createDemoPointer } from '../agents/createDemoPointer';
 import { DemoCursor } from '../DemoCursor';
 import { ViewShell } from '../DemoWorkspaceChrome';
@@ -88,10 +89,16 @@ export function TaskContextDemo() {
   const [automatic, setAutomatic] = createSignal(true);
   const [target, setTarget] = createSignal<string>();
   const [clicking, setClicking] = createSignal(false);
-  const selectSource = (id: Source) => {
+  const [suffixes, setSuffixes] = createStore<Record<Source, string>>({
+    brief: '',
+    email: '',
+    channel: '',
+  });
+  const selectSource = (id: Source, manual = true) => {
     setLinked(id, true);
     setPicker(undefined);
-    setTyping(undefined);
+    setTyping(manual ? undefined : id);
+    if (manual) setSuffixes(id, lines.find((line) => line.id === id)!.suffix);
   };
   const actions = lines.flatMap((line) => [
     {
@@ -108,13 +115,7 @@ export function TaskContextDemo() {
         setTyping(line.id);
       },
     },
-    ...Array.from(
-      { length: Math.ceil(line.prefix.length / 2) },
-      (_, index) => ({
-        delay: 55,
-        run: () => setDrafts(line.id, line.prefix.slice(0, (index + 1) * 2)),
-      })
-    ),
+    ...demoTypingActions(line.prefix, (text) => setDrafts(line.id, text)),
     {
       delay: 250,
       run: () => {
@@ -133,9 +134,18 @@ export function TaskContextDemo() {
       delay: 650,
       run: () => {
         setClicking(true);
-        selectSource(line.id);
+        selectSource(line.id, false);
       },
     },
+    ...demoTypingActions(
+      line.suffix,
+      (text) => {
+        setClicking(false);
+        setSuffixes(line.id, text);
+      },
+      350
+    ),
+    { delay: 200, run: () => setTyping(undefined) },
   ]);
   const playback = createProductWalkthrough({
     root: () =>
@@ -145,6 +155,7 @@ export function TaskContextDemo() {
     loop: { hold: 6500 },
     reset: () => {
       setDrafts({ brief: '', email: '', channel: '' });
+      setSuffixes({ brief: '', email: '', channel: '' });
       setLinked({ brief: false, email: false, channel: false });
       setPicker(undefined);
       setTyping(undefined);
@@ -156,6 +167,7 @@ export function TaskContextDemo() {
     },
     reduced: () => {
       setLinked({ brief: true, email: true, channel: true });
+      for (const line of lines) setSuffixes(line.id, line.suffix);
       setPicker(undefined);
       setTyping(undefined);
       setAutomatic(false);
@@ -326,10 +338,11 @@ export function TaskContextDemo() {
                               role="textbox"
                               aria-label={line.label}
                               class="task-context-sharing-editor"
+                              data-typing={automatic() && typing() === line.id}
                             >
                               {line.prefix}
                               {mention(line.id)}
-                              {line.suffix}
+                              {suffixes[line.id]}
                             </p>
                           </Show>
                           <Show when={picker() === line.id}>

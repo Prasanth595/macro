@@ -65,7 +65,7 @@ it('types the request before sending, acknowledges it, updates the record, then 
   expect((input as HTMLTextAreaElement).value).toBe('');
   visible(true);
   vi.advanceTimersByTime(1500);
-  expect((input as HTMLTextAreaElement).value).toMatch(/^@Claude /);
+  expect((input as HTMLTextAreaElement).value).toBe('@Claud');
   expect(view.queryByText(/I’ll update the stage/)).toBeNull();
   visible(false);
   const draft = (input as HTMLTextAreaElement).value;
@@ -75,7 +75,7 @@ it('types the request before sending, acknowledges it, updates the record, then 
   // Observe each actual transition, including the acknowledgment before updates.
   for (
     let elapsed = 0;
-    elapsed < 7000 && !view.queryByText(/I’ll update the stage/);
+    elapsed < 20000 && !view.queryByText(/I’ll update the stage/);
     elapsed += 100
   )
     vi.advanceTimersByTime(100);
@@ -141,4 +141,20 @@ it('posts a visitor’s comment and thread reply in the company Discussion', () 
   fireEvent.input(reply, { target: { value: 'On it.' } });
   fireEvent.keyDown(reply, { key: 'Enter' });
   expect(within(thread!).getByText('On it.')).toBeTruthy();
+});
+
+it('preserves a visitor’s edit in the middle of the typed CRM request', () => {
+  const view = render(() => <CrmCaptureDemo />);
+  visible(true);
+  vi.advanceTimersByTime(2000);
+  const input = view.getByRole<HTMLTextAreaElement>('textbox', {
+    name: 'Comment on company',
+  });
+  expect(input.value.startsWith('@Claude')).toBe(true);
+  expect(input.value.includes('rollout')).toBe(false);
+  fireEvent.pointerDown(input);
+  fireEvent.input(input, { target: { value: 'Keep my own request.' } });
+  vi.advanceTimersByTime(30000);
+  expect(input.value).toBe('Keep my own request.');
+  expect(stage(view)).toContain('Lead');
 });

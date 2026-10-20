@@ -149,6 +149,12 @@ outputs, and scroll positions together before the next sequence. Never animate
 completed work backward. Hide the operating pointer during the result hold;
 retain it between actions within a sequence. Live-call previews and static
 workspace heroes remain available for exploration without automatic resets.
+Use `demoTypingActions` for new human-authored input: reveal one character at a
+time with short word and punctuation pauses, then hold briefly before sending.
+Schedule typing on the scene's shared clock so offscreen pauses, takeover, and
+resets apply to every character. Preserve existing conversation history and
+loaded records; incoming messages and values copied by a control are not human
+typing. Keep agent-generated content distinct from human input.
 Express scene steps as ordered actions with reading time before each action.
 Approach a real control, click, show its menu, approach an option, select it, and
 hold the result. Share the local controls and save handlers with manual input;

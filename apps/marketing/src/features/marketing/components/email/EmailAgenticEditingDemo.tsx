@@ -3,6 +3,7 @@ import { UserMessageBubble } from '@ui/components/UserMessageBubble';
 import { createSignal, Show } from 'solid-js';
 import { meetingDraft } from '../../core/email-demo-story';
 import { createEmailWalkthrough } from '../../primitives/createEmailWalkthrough';
+import { demoTypingActions } from '../../primitives/demoTypingActions';
 import HomepageEmailCompose from '../HomepageEmailCompose';
 import { HomepageMention } from '../HomepageMention';
 import {
@@ -35,26 +36,34 @@ export function EmailAgenticEditingDemo() {
         });
     });
   };
+  const actions = [
+    ...demoTypingActions(request, (text) => composer?.setText(text), 1200),
+    {
+      delay: 800,
+      run: () => {
+        setPhase(1);
+        composer?.setText('');
+      },
+    },
+    { delay: 1600, run: () => setPhase(2) },
+    { delay: 2200, run: showDraft },
+  ];
   const playback = createEmailWalkthrough({
     root: () => root,
-    steps: 3,
+    steps: actions.length,
     visibilityThreshold: 0.45,
-    delay: (step) => [1600, 1600, 2200][step - 1],
+    delay: (step) => actions[step - 1].delay,
     loop: { hold: 8000 },
     reset: () => {
       setPhase(0);
       setPrompt(request);
-      composer?.setText(request);
+      composer?.setText('');
     },
     reduced: () => {
       setPhase(3);
       composer?.setText('');
     },
-    advance: (step) => {
-      if (step === 3) return showDraft();
-      setPhase(step);
-      composer?.setText('');
-    },
+    advance: (step) => actions[step - 1].run(),
   });
   return (
     <div
@@ -141,7 +150,6 @@ export function EmailAgenticEditingDemo() {
             placeholder="Ask a follow-up..."
             onReady={(handle) => {
               composer = handle;
-              if (phase() === 0) composer?.setText(request);
             }}
             onSend={(text) => {
               playback.pause();
