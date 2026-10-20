@@ -130,10 +130,6 @@ export function EmailAccountsDemo() {
         setStep(4);
       },
     },
-    ...selectControl('[data-email-account="all"]', () => {
-      applyAccount('all');
-      setStep(5);
-    }),
     ...selectControl(
       '[data-email-account="personal"]',
       () => {

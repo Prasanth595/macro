@@ -97,7 +97,7 @@ it('adds a sample account, filters inboxes, and preserves a manual selection', (
   expect(view.getAllByRole('button', { name: /^Read / })).toHaveLength(1);
 });
 
-it('waits for visibility, introduces the second inbox, and finishes with both accounts', () => {
+it('connects one inbox per click, then switches to an individual inbox and back', () => {
   const view = render(() => <EmailAccountsDemo />);
   const accounts = within(view.getByRole('navigation', { name: 'Inboxes' }));
   vi.advanceTimersByTime(20000);
@@ -117,10 +117,31 @@ it('waits for visibility, introduces the second inbox, and finishes with both ac
       ?.getAttribute('data-step')
   ).toBe('2');
   expect(view.getByRole('status').textContent).toBe('Account connected');
+  expect(
+    accounts.getByRole('button', { name: 'jacob@gmail.com' })
+  ).toBeTruthy();
+  expect(
+    accounts.queryByRole('button', { name: 'jacob@outlook.com' })
+  ).toBeNull();
   setVisible(false);
   vi.advanceTimersByTime(20000);
   expect(view.getByRole('status')).toBeTruthy();
   setVisible(true);
+  advanceTo(
+    () =>
+      view.container
+        .querySelector('.email-accounts-demo')
+        ?.getAttribute('data-step') === '4'
+  );
+  expect(
+    accounts.getByRole('button', { name: 'jacob@outlook.com' })
+  ).toBeTruthy();
+  advanceTo(
+    () =>
+      accounts
+        .getByRole('button', { name: 'jacob@gmail.com' })
+        .getAttribute('aria-current') === 'true'
+  );
   advanceTo(
     () =>
       view.container

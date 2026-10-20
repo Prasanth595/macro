@@ -383,8 +383,9 @@ sharing, or agent requests.
 
 `email-demo-story.ts` supplies 31 emails for the hero and multi-account story,
 with Macro, Gmail, and Outlook sample addresses. `EmailAccountsDemo` adds two
-sample accounts, selects All inboxes, focuses an account, then returns to the combined
-list. Google authorization is deliberately omitted from this local demonstration;
+sample accounts, one per connection click. It stays in All inboxes, focuses an
+individual account, then returns to the combined list. Do not click All inboxes
+while it is already selected. Google authorization is deliberately omitted from this local demonstration;
 the requested Outlook address is illustrative, not an implemented Outlook connector. Account, Signal/Noise, tag, and search filters
 remain interactive. Keyboard triage uses 14 messages and demonstrates selection,
 reading, returning, and archiving in that order.
