@@ -11,7 +11,7 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 20px;
+  gap: 14px;
   align-items: stretch;
 }
 .product-feature-detail-links > button {
@@ -24,11 +24,11 @@
   justify-content: flex-start;
   gap: 10px;
   max-width: 100%;
-  min-height: 156px;
-  padding: 28px;
+  min-height: 92px;
+  padding: 22px 24px;
   border: 1px solid transparent;
   border-radius: 12px;
-  background: color-mix(in srgb, var(--color-ink) 5%, transparent);
+  background: transparent;
   color: var(--color-ink-muted);
   font: inherit;
   text-align: left;
@@ -44,7 +44,7 @@
   gap: 8px;
   color: var(--color-ink);
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.4;
 }
 .product-feature-card-title > svg {
@@ -53,10 +53,7 @@
   height: 18px;
 }
 .product-feature-card-summary {
-  max-width: 42ch;
-  color: var(--color-ink-muted);
-  font-size: 16px;
-  line-height: 1.6;
+  display: none;
 }
 @media (max-width: 599px) {
   .product-feature-details {
@@ -68,7 +65,7 @@
   .product-feature-detail-links > button {
     flex-basis: 100%;
     min-height: 0;
-    padding: 24px;
+    padding: 20px 24px;
   }
 }
 
