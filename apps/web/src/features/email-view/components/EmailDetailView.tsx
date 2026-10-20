@@ -7,7 +7,10 @@ import { createEmailThreadSource } from '@app/features/email-thread/queries/thre
 import { useBlockEntityCommands } from '@app/features/next-soup/actions';
 import { createSearchParams, useRouteParams } from '@app/lib/split-router';
 import { emailThreadRoute } from '@app/routes/routes';
-import { EmailThreadControls } from '@block-email/component/EmailThreadControls';
+import {
+  EmailThreadControlGroups,
+  EmailThreadHeaderActions,
+} from '@block-email/component/EmailThreadHeaderActions';
 import { EmailThreadLoadGate } from '@block-email/component/EmailThreadLoadGate';
 import {
   type EmailThreadToolsOptions,
@@ -18,7 +21,6 @@ import { registerEmailHotkeys } from '@block-email/util/emailHotkeys';
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import { SidePanel } from '@components/app/side-panel';
 import { SplitFileMenu } from '@components/app/split-layout/components/SplitFileMenu';
-import { ListNavigationButtons } from '@components/app/split-layout/components/SplitHeader';
 import {
   useCanAutofocusSplitContent,
   useSplitDisplayName,
@@ -38,7 +40,6 @@ import { fireAndForget } from '@core/util/fireAndForget';
 import { buildEntityData } from '@entity';
 import { useThreadQuery } from '@queries/email/thread';
 import { representativeThreadMessage } from '@queries/email/thread-subject';
-import { ButtonGroup } from '@ui';
 import { createEffect, createMemo, createSignal, Show } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { emailDetailSearch } from '../email-route';
@@ -97,21 +98,10 @@ function EmailDetailHeader(
       <Show when={props.controlsMount}>
         {(mount) => (
           <Portal mount={mount()}>
-            <div class="flex items-center gap-2 touch:hidden">
-              <ButtonGroup variant="outline" size="icon-md">
-                <EmailThreadControls {...controls} />
-              </ButtonGroup>
-              <Show when={props.listNavigation}>
-                {(navigation) => (
-                  <ButtonGroup variant="outline" size="icon-md">
-                    <ListNavigationButtons
-                      navigation={navigation()}
-                      class="gap-0"
-                    />
-                  </ButtonGroup>
-                )}
-              </Show>
-            </div>
+            <EmailThreadControlGroups
+              controls={controls}
+              navigation={props.listNavigation}
+            />
           </Portal>
         )}
       </Show>
@@ -255,48 +245,19 @@ export function EmailDetailView(props: {
             aria-label="Email location"
             fallback={<EntityDetailBreadcrumbSkeleton />}
           />
-          <div class="ml-auto flex shrink-0 items-center gap-2 touch:gap-1 @max-[900px]/split-header:[&_[data-header-action]]:w-8 @max-[900px]/split-header:[&_[data-header-action]]:p-0 @max-[900px]/split-header:[&_[data-header-action-label]]:hidden">
-            <div ref={setControlsMount} class="flex items-center" />
-            <Show
-              when={!isTouchDevice()}
-              fallback={<SidePanel.HeaderActionsOutlet />}
-            >
-              <ButtonGroup
-                variant="outline"
-                size="icon-md"
-                class="has-[[data-side-panel-header-actions]:empty]:hidden [&_[data-header-action]]:size-8 [&_[data-header-action]]:p-0 [&_[data-header-action-label]]:hidden"
-              >
-                <SidePanel.HeaderActionsOutlet />
-              </ButtonGroup>
-            </Show>
-            <Show when={ENABLE_EMAIL_SHARING}>
-              <Show
-                when={!isTouchDevice()}
-                fallback={
-                  <ShareTrigger
-                    onClick={openShare}
-                    id={props.thread.id}
-                    blockType="email"
-                    hotkeyScope={keyScope}
-                  />
-                }
-              >
-                <ButtonGroup
-                  variant="outline"
-                  size="icon-md"
-                  class="[&_[data-header-action]]:w-auto! [&_[data-header-action]]:px-3! [&_[data-header-action-label]]:inline!"
-                >
-                  <ShareTrigger
-                    onClick={openShare}
-                    id={props.thread.id}
-                    blockType="email"
-                    hotkeyScope={keyScope}
-                  />
-                </ButtonGroup>
+          <EmailThreadHeaderActions
+            controls={<div ref={setControlsMount} class="flex items-center" />}
+            share={
+              <Show when={ENABLE_EMAIL_SHARING}>
+                <ShareTrigger
+                  onClick={openShare}
+                  id={props.thread.id}
+                  blockType="email"
+                  hotkeyScope={keyScope}
+                />
               </Show>
-            </Show>
-            <SidePanel.Toggle />
-          </div>
+            }
+          />
         </ViewShell.TopBar>
         <div
           ref={container}

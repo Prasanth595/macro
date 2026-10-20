@@ -30,6 +30,7 @@ import { tourTarget } from '@ui/components/Tour';
 import {
   createMemo,
   createSignal,
+  type JSX,
   Match,
   onCleanup,
   Show,
@@ -76,9 +77,12 @@ function createLocalToday() {
   return today;
 }
 
-export function Header(props: { presentation: 'workspace' | 'preview' }) {
+export function Header(props: {
+  presentation: 'workspace' | 'preview';
+  leading?: JSX.Element;
+}) {
   const panel = useSplitPanelOrThrow();
-  // PreviewFrame owns its own top bar and may sit inside another view shell.
+  // Inline previews use the host's shell, not Calendar's sidebar state.
   const shell = props.presentation === 'workspace' ? useViewShell() : undefined;
   const calendarPager = useCalendarPager();
   const calendarView = useCalendarView();
@@ -154,8 +158,7 @@ export function Header(props: { presentation: 'workspace' | 'preview' }) {
   );
   const isNarrow = () => shell?.aside.isCollapsed() ?? true;
   const showBookingLinks = () => isMobile() || !shell?.breakpoints.narrow?.();
-  const usesSplitHeader = () =>
-    props.presentation === 'preview' || isTouchDevice();
+  const usesSplitHeader = () => isTouchDevice();
   const createItems = () => (
     <>
       <CalendarCreateEventItem />
@@ -164,11 +167,7 @@ export function Header(props: { presentation: 'workspace' | 'preview' }) {
   );
   const headerCreateMenu = () => (
     <CalendarCreateMenu
-      presentation={
-        !isTouchDevice() && props.presentation === 'workspace'
-          ? 'toolbar'
-          : undefined
-      }
+      presentation={!isTouchDevice() ? 'toolbar' : undefined}
       size={breakpoints.labeledNew() ? 'md' : 'icon-md'}
       label="New"
       class={cn(
@@ -308,6 +307,7 @@ export function Header(props: { presentation: 'workspace' | 'preview' }) {
           class="@container/calendar-toolbar h-auto min-h-12 flex-wrap gap-x-2 gap-y-2 py-2 [--view-search-height:2rem]"
         >
           <div class="relative flex min-w-0 flex-1 items-center gap-2">
+            {props.leading}
             <h1
               class="min-w-0 truncate text-[clamp(1rem,calc(0.75rem+1cqw),1.5rem)] font-semibold leading-tight tracking-[-0.03em] text-ink transition-opacity duration-150 motion-reduce:transition-none"
               classList={{

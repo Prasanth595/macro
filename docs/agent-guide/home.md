@@ -142,6 +142,11 @@ arrow-key browsing keeps it open. Preview headers start with **Home >**. Clickin
 sidebar visibility. Use the hamburger to reopen the feed. Mobile continues to
 show the activity list alone.
 
+Desktop previews use the same header controls as their standalone views, with
+the **Home >** return breadcrumb added. Calendar shares its date, search,
+navigation, view, and New controls; email shares its action, navigation, AI/task,
+and Share groups. Touch previews retain their existing compact headers.
+
 Document previews opened from Home expose **Share** and **Copy Share Link** before
 the details toggle, including tasks, snippets, skills, canvases, PDFs, images,
 code, and videos. Share uses the selected item's permissions and updates when
