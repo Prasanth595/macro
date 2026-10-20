@@ -106,7 +106,7 @@ export function RouteGithub() {
         </nav>
         <FeaturePageSection
           id="pr-links"
-          title={['See the code', 'behind the chat']}
+          title={['Review pull requests', 'in chat.']}
           description="Share a GitHub pull request in chat and open it from the conversation. Read the discussion and inspect the code changes while the linked PR’s status stays up to date."
           details={githubGuides['pr-links']}
         >
