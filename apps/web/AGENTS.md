@@ -81,7 +81,8 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Keep signed-out Drive document routes on the shared detail viewer without
   mounting private list/sidebar sources; let document access checks decide visibility.
 - Gate account-only queries, comment readers, and account WebSockets on confirmed
-  authentication; keep public document loading independent of those services.
+  authentication; keep public document loading independent of those services
+  and distinguish unresolved identity from confirmed sign-out in UI prompts.
 - Probe identity on deploy-preview origins even without a local login hint;
   shared HttpOnly dev cookies are not visible to JavaScript or localStorage.
 - Disable GraphQL cache sessions and clear login hints on confirmed auth 401s,
