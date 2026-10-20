@@ -8,12 +8,7 @@ import { IntegrationsView } from './connections/integrations-view';
 import { EmailCard } from './Email';
 import { GitHubCard } from './GitHub';
 import { IntegrationsSection } from './Integrations';
-import {
-  SettingsCard,
-  SettingsPage,
-  SettingsRow,
-  SettingsSection,
-} from './primitives';
+import { SettingsPage } from './primitives';
 
 /** Personal accounts and agent tools share one Integrations settings page. */
 export function IntegrationsPage() {
@@ -45,48 +40,49 @@ function AccountConnections() {
   const { openSettings } = useSettingsState();
   const isAvailable = useSettingsTabAvailable();
   return (
-    <>
-      <SettingsSection title="Accounts">
-        <div class="flex flex-col gap-3">
-          <Show when={ENABLE_EMAIL}>
-            <Suspense>
-              <EmailCard />
-            </Suspense>
-          </Show>
-          <Suspense>
-            <GitHubCard />
-          </Suspense>
+    <section
+      data-settings-target="accounts"
+      tabIndex={-1}
+      class="border-t border-edge-muted pt-6 outline-none"
+    >
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-base font-medium text-ink">Account connections</h2>
+          <p class="mt-1 text-sm text-ink-muted">
+            Email and repository sync for your Macro workspace.
+          </p>
         </div>
-      </SettingsSection>
-      <SettingsSection
-        title="Related settings"
-        description="Manage the same accounts where you use them."
-      >
-        <SettingsCard>
+        <div class="flex items-center gap-2">
           <Show when={ENABLE_EMAIL}>
-            <SettingsRow label="Email accounts and signatures">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => openSettings('Email')}
-              >
-                Email settings
-              </Button>
-            </SettingsRow>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => openSettings('Email')}
+            >
+              Email settings
+            </Button>
           </Show>
           <Show when={isAvailable('Calendar')}>
-            <SettingsRow label="Calendar connections and colors">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => openSettings('Calendar')}
-              >
-                Calendar settings
-              </Button>
-            </SettingsRow>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => openSettings('Calendar')}
+            >
+              Calendar settings
+            </Button>
           </Show>
-        </SettingsCard>
-      </SettingsSection>
-    </>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 items-start gap-4 @[760px]/settings-page:grid-cols-2">
+        <Show when={ENABLE_EMAIL}>
+          <Suspense>
+            <EmailCard />
+          </Suspense>
+        </Show>
+        <Suspense>
+          <GitHubCard />
+        </Suspense>
+      </div>
+    </section>
   );
 }

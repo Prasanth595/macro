@@ -14,7 +14,7 @@ import {
   Show,
   Suspense,
 } from 'solid-js';
-import { SettingsPage, SettingsSection } from '../primitives';
+import { SettingsPage } from '../primitives';
 import { ConnectedView } from './ConnectedView';
 import { DiscoverView } from './DiscoverView';
 import { capabilitiesFor } from './model';
@@ -116,7 +116,7 @@ function ConnectionsContent(props: IntegrationsViewProps) {
               <SettingsPage
                 title="Integrations"
                 description={description}
-                signpost={<MacroMcpSignpost onOpen={props.onOpenMacroMcp} />}
+                contentClass="max-w-[1200px]"
               >
                 <Show when={partialError()}>
                   <div
@@ -140,24 +140,25 @@ function ConnectionsContent(props: IntegrationsViewProps) {
                     <p class="text-sm text-ink-muted">Loading Connections…</p>
                   }
                 >
-                  <div class="grid min-w-0 grid-cols-1 items-start gap-10 @[760px]/settings-page:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-                    <div class="flex min-w-0 flex-col gap-10">
-                      <SettingsSection
-                        title="Installed"
-                        description="Manage the tools connected to Macro."
-                      >
-                        <ConnectedView model={model()} />
-                      </SettingsSection>
-                      {props.children}
-                    </div>
-                    <SettingsSection
-                      title="Discover"
-                      description="Find tools for your agents to work with."
-                      class="min-w-0"
+                  <div class="grid min-w-0 grid-cols-1 items-start gap-8 @[760px]/settings-page:grid-cols-[260px_minmax(0,1fr)]">
+                    <section
+                      aria-label="Installed integrations"
+                      class="min-w-0 rounded-xl border border-edge-muted bg-panel"
                     >
+                      <div class="border-b border-edge-muted px-4 py-3">
+                        <h2 class="text-sm font-medium text-ink">Installed</h2>
+                      </div>
+                      <ConnectedView model={model()} />
+                    </section>
+                    <section aria-label="Discover integrations" class="min-w-0">
+                      <h2 class="mb-4 text-base font-medium text-ink">
+                        Discover
+                      </h2>
                       <DiscoverView model={model()} />
-                    </SettingsSection>
+                    </section>
                   </div>
+                  {props.children}
+                  <MacroMcpSignpost onOpen={props.onOpenMacroMcp} />
                 </Show>
               </SettingsPage>
             }

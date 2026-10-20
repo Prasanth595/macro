@@ -28,6 +28,8 @@ export const SettingsSheetContext = createContext(false);
  */
 export function SettingsPage(props: {
   title: string;
+  /** Layout width and spacing for the page content. */
+  contentClass?: string;
   /** Inline subpages need their own heading beneath the mobile sheet chrome. */
   showTitleInSheet?: boolean;
   /** Optional one-line subtitle; accepts text or inline markup (e.g. a link). */
@@ -58,7 +60,8 @@ export function SettingsPage(props: {
           'mx-auto w-full max-w-[960px]',
           inSheet
             ? '@container px-3 pt-2 pb-[max(24px,var(--mobile-sheet-safe-padding))]'
-            : '@container px-12 pt-8 pb-24 @max-[480px]/settings-page:px-4 touch:px-5 touch:pt-[calc(var(--mobile-content-inset-top,0px)+2rem)] touch:pb-[calc(var(--mobile-content-inset-bottom,0px)+3rem)]'
+            : '@container px-12 pt-8 pb-24 @max-[480px]/settings-page:px-4 touch:px-5 touch:pt-[calc(var(--mobile-content-inset-top,0px)+2rem)] touch:pb-[calc(var(--mobile-content-inset-bottom,0px)+3rem)]',
+          props.contentClass
         )}
       >
         <Show when={props.onBack}>

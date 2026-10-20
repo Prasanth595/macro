@@ -465,7 +465,9 @@ available in all channels should refresh there without reloading the channel.
 
 With `pipedream-mcp` enabled, Settings → Integrations displays installed tools on
 the left and Discover on the right, without tabs. On narrow screens these stack
-with installed tools first. The Agents workspace opens this same Integrations
+with installed tools first. Installed tools use a compact status list; Discover
+has a search field and Custom MCP action above featured cards and the app list.
+Account connections and their settings links are a separate section below. The Agents workspace opens this same Integrations
 page. Installed groups GitHub, Linear, Notion, and Slack tool grants by provider,
 lists other catalog connections alongside them, and puts custom MCP servers in
 a separate section. Discover offers featured providers, a searchable catalog,
@@ -500,7 +502,7 @@ owner's custom servers.
 An agent reply's `Connect <app>` chip still starts that app's connection flow.
 Cursor stays in Agents → Runtimes with its API key and default model controls; it is not
 featured or offered in the Connections catalog. Personal Gmail and GitHub account
-links appear below installed agent tools on Settings → Integrations. The native-only integrations section remains
+links appear below the installed-and-discover columns on Settings → Integrations. The native-only integrations section remains
 available when `pipedream-mcp` is disabled.
 Open Settings with the rail's gear button or `Ctrl+;`; leave it by picking any other rail item.
 

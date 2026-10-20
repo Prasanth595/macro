@@ -11,10 +11,10 @@ import PlusIcon from '@phosphor/plus.svg';
 import SpinnerIcon from '@phosphor/spinner-gap.svg';
 import XIcon from '@phosphor/x.svg';
 import type { PipedreamCatalogEntryResponse } from '@service-cognition/client';
-import { Button } from '@ui';
+import { Button, Tooltip } from '@ui';
 import { createMemo, createSignal, For, Show } from 'solid-js';
 import { ConnectAction } from '../integration-ui';
-import { IntegrationRow, SettingsCard, SettingsSection } from '../primitives';
+import { IntegrationRow } from '../primitives';
 import { AddCustomMcpDialog } from './add-custom-mcp-dialog';
 import type { ConnectionsModel } from './model';
 import {
@@ -60,34 +60,46 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
   });
 
   return (
-    <div class="flex flex-col gap-10">
-      <label class="relative block">
-        <span class="sr-only">Search Connections</span>
-        <input
-          type="search"
-          value={catalog.searchInput()}
-          onInput={(event) => catalog.onSearchInput(event.currentTarget.value)}
-          placeholder="Search Connections"
-          class="settings-input h-11 w-full pr-10 [&::-webkit-search-cancel-button]:hidden"
-        />
-        <Show when={catalog.searchInput()}>
-          <button
-            type="button"
-            aria-label="Clear search"
-            class="absolute top-1/2 right-2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-ink-muted outline-none hover:bg-ink/4 hover:text-ink focus-visible:bg-ink/6"
-            onPointerDown={(event) => event.preventDefault()}
-            onClick={() => catalog.onSearchInput('')}
-          >
-            <XIcon class="size-4" />
-          </button>
-        </Show>
-      </label>
+    <div class="@container/catalog flex flex-col gap-6">
+      <div class="flex flex-wrap items-center gap-2">
+        <label class="relative block min-w-40 flex-1">
+          <span class="sr-only">Search integrations</span>
+          <input
+            type="search"
+            value={catalog.searchInput()}
+            onInput={(event) =>
+              catalog.onSearchInput(event.currentTarget.value)
+            }
+            placeholder="Search integrations"
+            class="settings-input h-11 w-full pr-10 [&::-webkit-search-cancel-button]:hidden"
+          />
+          <Show when={catalog.searchInput()}>
+            <button
+              type="button"
+              aria-label="Clear search"
+              class="absolute top-1/2 right-2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-ink-muted outline-none hover:bg-ink/4 hover:text-ink focus-visible:bg-ink/6"
+              onPointerDown={(event) => event.preventDefault()}
+              onClick={() => catalog.onSearchInput('')}
+            >
+              <XIcon class="size-4" />
+            </button>
+          </Show>
+        </label>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setAddingCustom(true)}
+        >
+          <PlusIcon class="size-4" /> Custom MCP
+        </Button>
+      </div>
 
-      <SettingsSection title="Featured" class="@container">
-        <div class="grid grid-cols-1 gap-3 @[460px]:grid-cols-2">
+      <section aria-label="Featured integrations">
+        <h3 class="mb-3 text-xs font-medium text-ink-muted">Featured</h3>
+        <div class="grid grid-cols-1 gap-2 @[440px]/catalog:grid-cols-2">
           <For each={featured()}>
             {(item) => (
-              <SettingsCard class="@container">
+              <div class="@container overflow-hidden rounded-xl border border-edge-muted">
                 <button
                   type="button"
                   class="flex h-full w-full flex-col items-stretch text-left outline-none hover:bg-ink/4 focus-visible:bg-ink/6"
@@ -96,7 +108,14 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
                   <IntegrationRow
                     icon={providerIcon(item.id)}
                     title={item.name}
-                    description={item.note}
+                    class="gap-2 px-3 py-3"
+                    description={
+                      <Tooltip label={item.note}>
+                        <span class="not-touch:line-clamp-2 text-xs">
+                          {item.note}
+                        </span>
+                      </Tooltip>
+                    }
                   >
                     <Show when={alreadyHave().has(item.id)}>
                       <AddedMark />
@@ -104,17 +123,18 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
                     <CaretRightIcon class="size-4 text-ink-extra-muted" />
                   </IntegrationRow>
                 </button>
-              </SettingsCard>
+              </div>
             )}
           </For>
         </div>
         <Show when={featured().length === 0}>
           <p class="text-sm text-ink-muted">No featured Connections match.</p>
         </Show>
-      </SettingsSection>
+      </section>
 
-      <SettingsSection title="Browse">
-        <SettingsCard>
+      <section aria-label="All integrations">
+        <h3 class="mb-3 text-xs font-medium text-ink-muted">All apps</h3>
+        <div class="overflow-hidden rounded-xl border border-edge-muted divide-y divide-edge-muted">
           <Show when={catalog.query.isError}>
             <div class="px-6 py-6 text-center text-sm text-ink-muted">
               Couldn't load the connector catalog.
@@ -182,24 +202,8 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
               </div>
             </Show>
           </Show>
-        </SettingsCard>
-      </SettingsSection>
-
-      <SettingsCard>
-        <button
-          type="button"
-          class="w-full text-left outline-none hover:bg-ink/4 focus-visible:bg-ink/6"
-          onClick={() => setAddingCustom(true)}
-        >
-          <IntegrationRow
-            icon={<PlusIcon />}
-            title="Add custom MCP"
-            description="Give Macro's agent access to the tools your team already uses."
-          >
-            <CaretRightIcon class="size-4 text-ink-extra-muted" />
-          </IntegrationRow>
-        </button>
-      </SettingsCard>
+        </div>
+      </section>
 
       <AddCustomMcpDialog
         open={addingCustom()}
@@ -213,7 +217,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
 function AddedMark() {
   return (
     <span
-      class="inline-flex shrink-0 items-center gap-1 text-sm text-ink-muted"
+      class="inline-flex shrink-0 items-center gap-1 text-xs text-ink-muted"
       aria-label="Added"
     >
       <CheckIcon class="size-3.5" />
@@ -246,8 +250,15 @@ function CatalogRow(props: {
           class="size-8"
         />
       }
+      class="gap-3 px-4 py-3"
       title={name()}
-      description={<span id={descriptionId}>{description}</span>}
+      description={
+        <Tooltip label={description}>
+          <span id={descriptionId} class="not-touch:line-clamp-2 text-xs">
+            {description}
+          </span>
+        </Tooltip>
+      }
     >
       <Show
         when={props.added}
