@@ -15,6 +15,7 @@ import {
   crmDemoFrame,
 } from '../core/crm-demo';
 import { homepagePeople } from '../core/homepage-demo-people';
+import { observeDemoTakeover } from '../primitives/observeDemoTakeover';
 import {
   CompanyKanbanCardSurface,
   CompanyKanbanColumn,
@@ -71,6 +72,9 @@ export default function HomepageCrm(
     CRM_DEMO_COMPANIES.find((c) => c.id === frame().company)!;
 
   onMount(() => {
+    const releaseTakeover = viewport()
+      ? observeDemoTakeover(viewport()!, () => setPaused(true))
+      : undefined;
     const media = matchMedia('(prefers-reduced-motion: reduce)');
     const sync = () => {
       setReduced(media.matches);
@@ -89,6 +93,7 @@ export default function HomepageCrm(
     );
     if (viewport()) observer.observe(viewport()!);
     onCleanup(() => {
+      releaseTakeover?.();
       observer.disconnect();
       media.removeEventListener('change', sync);
     });

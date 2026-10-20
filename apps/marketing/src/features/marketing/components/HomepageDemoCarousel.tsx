@@ -1,58 +1,41 @@
-import { createSignal, For, type JSX, onCleanup, onMount } from 'solid-js';
-import { HOMEPAGE_DEMO_EVENT } from '../core/homepage-demo-scenes';
-import {
-  DEMO_INTERACTION_EVENT,
-  DEMO_REPLAY_EVENT,
-} from './DemoInteractionBoundary';
+import { createSignal, For, onCleanup, onMount } from 'solid-js';
 
 const SLIDES = [
   {
     label: 'Inbox',
     target: 'Home',
-    title: 'See what’s happening across your workspace.',
+    title: 'One inbox for emails, agents,\ntasks, and messages',
   },
   {
     label: 'Chat',
     target: 'Chat',
-    title: 'Chat with your team and your agents.',
+    title: 'Agents are first-class participants\nin channels and DMs',
   },
   {
     label: 'Docs',
     target: 'Drive',
-    title: 'Write, edit, and discuss in one place.',
+    title: 'Agents can edit docs\nas collaborative peers',
   },
   {
     label: 'CRM',
     target: 'Customers',
-    title: 'See every deal and the work behind it.',
+    title: 'Agents keep deals current\nfrom email and chat',
   },
   {
     label: 'Tasks',
     target: 'Tasks',
-    title: 'Keep every task connected to the work.',
+    title: 'Tasks from messages and email,\nassigned to people and agents',
   },
   {
     label: 'Agents',
     target: 'Agents',
-    title: 'Put agents to work with your company’s context.',
+    title: 'Agents with memory built\nfrom your workspace',
   },
 ];
 
 function CarouselCaret(props: { direction: 'left' | 'right' }) {
   return (
     <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24">
-      <defs>
-        <linearGradient
-          id={`homepage-arrow-${props.direction}`}
-          x1="0"
-          y1="0"
-          x2="0"
-          y2="1"
-        >
-          <stop offset="0" stop-color="currentColor" />
-          <stop offset="1" stop-color="currentColor" stop-opacity="0.55" />
-        </linearGradient>
-      </defs>
       <path
         d={
           props.direction === 'left'
@@ -60,7 +43,7 @@ function CarouselCaret(props: { direction: 'left' | 'right' }) {
             : 'M9.5 5.5 16 12l-6.5 6.5'
         }
         fill="none"
-        stroke={`url(#homepage-arrow-${props.direction})`}
+        stroke="currentColor"
         stroke-width="2"
         stroke-linecap="round"
         stroke-linejoin="round"
@@ -69,18 +52,13 @@ function CarouselCaret(props: { direction: 'left' | 'right' }) {
   );
 }
 
-/** The live-site highlights over a workspace that is always interactive. */
+/** Manual highlights over the sample workspace. */
 export function HomepageDemoCarousel(props: {
   frame: () => HTMLIFrameElement;
-  children?: JSX.Element;
 }) {
   const [active, setActive] = createSignal(0);
   const [ready, setReady] = createSignal(false);
-  const [arrowsInView, setArrowsInView] = createSignal(false);
-  const [autoplay, setAutoplay] = createSignal(true);
   let root!: HTMLDivElement;
-  let previousArrow!: HTMLButtonElement;
-  let restartAutoplay = () => {};
   let document: Document | null = null;
   let transition: Animation | undefined;
   let swipe: { x: number; y: number; pointerId: number } | undefined;
@@ -90,15 +68,16 @@ export function HomepageDemoCarousel(props: {
       `.dummy-rail button[aria-label="${target}"]`
     );
   const showView = () => {
-    if (document?.querySelector('[data-homepage-demo]')) {
-      props
-        .frame()
-        .contentWindow?.dispatchEvent(
-          new CustomEvent(HOMEPAGE_DEMO_EVENT, { detail: slide().label })
-        );
-      return;
-    }
     buttonFor(slide().target)?.click();
+    // Show an email within Home, keeping its mixed activity sidebar visible.
+    if (active() === 0) {
+      const email = Array.from(
+        document?.querySelectorAll<HTMLButtonElement>(
+          '.dummy-sidebar button'
+        ) ?? []
+      ).find((button) => button.textContent?.trim() === 'Homepage feedback');
+      email?.click();
+    }
     if (slide().target === 'Drive') {
       Array.from(
         document?.querySelectorAll<HTMLButtonElement>('.dummy-main button') ??
@@ -117,22 +96,14 @@ export function HomepageDemoCarousel(props: {
         ?.click();
     }
     if (slide().target === 'Agents') {
-      Array.from(
-        document?.querySelectorAll<HTMLButtonElement>(
-          '.dummy-sidebar button'
-        ) ?? []
-      )
-        .find(
-          (button) => button.textContent?.trim() === 'Fix the deploy pipeline'
-        )
+      document
+        ?.querySelector<HTMLButtonElement>('[data-agent-session-row="deploy"]')
         ?.click();
     }
   };
-  const select = (index: number, manual = true) => {
-    if (manual) setAutoplay(false);
+  const select = (index: number) => {
     setActive((index + SLIDES.length) % SLIDES.length);
     showView();
-    restartAutoplay();
     transition?.cancel();
     if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       transition = props.frame().animate([{ opacity: 0.25 }, { opacity: 1 }], {
@@ -143,69 +114,8 @@ export function HomepageDemoCarousel(props: {
   };
 
   onMount(() => {
-    const resume = () => {
-      setAutoplay(true);
-      restartAutoplay();
-    };
-    root.addEventListener(DEMO_REPLAY_EVENT, resume);
-    onCleanup(() => root.removeEventListener(DEMO_REPLAY_EVENT, resume));
     const frame = props.frame();
-    const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    if (motion.matches) setAutoplay(false);
     let visible = typeof IntersectionObserver === 'undefined';
-    let hovered = false;
-    let focused = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    restartAutoplay = () => {
-      clearTimeout(timer);
-      if (
-        !ready() ||
-        !autoplay() ||
-        !visible ||
-        hovered ||
-        focused ||
-        window.document.hidden ||
-        motion.matches
-      )
-        return;
-      const duration =
-        slide().label === 'Agents'
-          ? 16000
-          : slide().label === 'Docs'
-            ? 14000
-            : slide().label === 'CRM'
-              ? 12000
-              : slide().label === 'Tasks'
-                ? 10000
-                : 10000;
-      timer = setTimeout(() => select(active() + 1, false), duration);
-    };
-    const motionChanged = () => {
-      if (motion.matches) setAutoplay(false);
-      restartAutoplay();
-    };
-    const pauseForUse = () => {
-      setAutoplay(false);
-      restartAutoplay();
-    };
-    const enter = () => {
-      hovered = true;
-      restartAutoplay();
-    };
-    const leave = () => {
-      hovered = false;
-      restartAutoplay();
-    };
-    const focus = () => {
-      focused = true;
-      pauseForUse();
-    };
-    const blur = (event: FocusEvent) => {
-      focused =
-        event.relatedTarget instanceof Node &&
-        root.contains(event.relatedTarget);
-      restartAutoplay();
-    };
     const navigateWithKeyboard = (event: KeyboardEvent) => {
       if (
         !ready() ||
@@ -240,40 +150,17 @@ export function HomepageDemoCarousel(props: {
       select(active() + (event.key === 'ArrowRight' ? 1 : -1));
     };
     window.document.addEventListener('keydown', navigateWithKeyboard);
-    root.addEventListener(DEMO_INTERACTION_EVENT, pauseForUse);
-    root.addEventListener('pointerenter', enter);
-    root.addEventListener('pointerleave', leave);
-    root.addEventListener('focusin', focus);
-    root.addEventListener('focusout', blur);
-    window.document.addEventListener('visibilitychange', restartAutoplay);
-    motion.addEventListener?.('change', motionChanged);
     const visibility =
       typeof IntersectionObserver === 'undefined'
         ? undefined
         : new IntersectionObserver(
             ([entry]) => {
               visible = entry.isIntersecting && entry.intersectionRatio >= 0.35;
-              restartAutoplay();
             },
             { threshold: 0.35 }
           );
-    visibility?.observe(root);
-    // Keep arrows visible only while the demo is centered in the viewport.
-    const arrowVisibility =
-      typeof IntersectionObserver === 'undefined'
-        ? undefined
-        : new IntersectionObserver(
-            ([entry]) => {
-              setArrowsInView(entry.isIntersecting);
-            },
-            {
-              rootMargin: `-${Math.round(window.innerHeight * 0.4)}px 0px -${Math.round(window.innerHeight * 0.4)}px 0px`,
-              threshold: 0,
-            }
-          );
-    if (arrowVisibility) arrowVisibility.observe(previousArrow);
-    else setArrowsInView(true);
-    onCleanup(() => arrowVisibility?.disconnect());
+    visibility?.observe(root.previousElementSibling ?? root);
+
     const followNavigation = (event: Event) => {
       const target = event.target as Element | null;
       const button = target?.closest('.dummy-rail button[aria-label]');
@@ -281,38 +168,22 @@ export function HomepageDemoCarousel(props: {
       const index = SLIDES.findIndex(
         (item) => item.target === button.getAttribute('aria-label')
       );
-      if (index >= 0) {
-        if (document?.querySelector('[data-homepage-demo]')) select(index);
-        else setActive(index);
-      }
+      if (index >= 0) setActive(index);
     };
     const observer = new MutationObserver(() => {
-      if (
-        !buttonFor('Home') &&
-        !document?.querySelector('[data-homepage-demo]')
-      )
-        return;
+      if (!buttonFor('Home')) return;
       observer.disconnect();
       setReady(true);
       showView();
-      restartAutoplay();
     });
     const attach = () => {
       observer.disconnect();
       document?.removeEventListener('click', followNavigation);
-      document?.removeEventListener('pointerdown', pauseForUse);
-      document?.removeEventListener('keydown', pauseForUse);
       document = frame.contentDocument;
       document?.addEventListener('click', followNavigation);
-      document?.addEventListener('pointerdown', pauseForUse);
-      document?.addEventListener('keydown', pauseForUse);
-      if (
-        buttonFor('Home') ||
-        document?.querySelector('[data-homepage-demo]')
-      ) {
+      if (buttonFor('Home')) {
         setReady(true);
         showView();
-        restartAutoplay();
       } else if (document?.body) {
         observer.observe(document.body, { childList: true, subtree: true });
       }
@@ -323,17 +194,7 @@ export function HomepageDemoCarousel(props: {
       document?.removeEventListener('click', followNavigation);
       observer.disconnect();
       visibility?.disconnect();
-      clearTimeout(timer);
       window.document.removeEventListener('keydown', navigateWithKeyboard);
-      root.removeEventListener(DEMO_INTERACTION_EVENT, pauseForUse);
-      root.removeEventListener('pointerenter', enter);
-      root.removeEventListener('pointerleave', leave);
-      root.removeEventListener('focusin', focus);
-      root.removeEventListener('focusout', blur);
-      window.document.removeEventListener('visibilitychange', restartAutoplay);
-      motion.removeEventListener?.('change', motionChanged);
-      document?.removeEventListener('pointerdown', pauseForUse);
-      document?.removeEventListener('keydown', pauseForUse);
       transition?.cancel();
       frame.removeEventListener('load', attach);
     });
@@ -344,7 +205,6 @@ export function HomepageDemoCarousel(props: {
       ref={root}
       class="homepage-demo-carousel"
       data-active-scene={slide().label}
-      data-arrows-visible={ready() && arrowsInView()}
       aria-roledescription="carousel"
       role="region"
       aria-label="What you can do with Macro"
@@ -379,52 +239,46 @@ export function HomepageDemoCarousel(props: {
         swipe = undefined;
       }}
     >
-      <div class="homepage-demo-stage-shell">
-        <div class="homepage-demo-caption">
-          <div class="homepage-demo-slide-controls">
-            <For each={SLIDES}>
-              {(item, index) => (
-                <button
-                  type="button"
-                  class="homepage-demo-slide-dot"
-                  aria-label={`Show ${item.label} highlight`}
-                  aria-pressed={active() === index()}
-                  disabled={!ready()}
-                  onClick={() => select(index())}
-                >
-                  <span />
-                </button>
-              )}
-            </For>
-          </div>
-          <div
-            class="homepage-demo-slide-copy"
-            aria-live={autoplay() ? 'off' : 'polite'}
-            aria-atomic="true"
-          >
-            <h2>{slide().title.replaceAll('\n', ' ')}</h2>
-          </div>
-        </div>
+      <div class="homepage-demo-slide-controls">
         <button
           type="button"
-          ref={previousArrow}
-          class="homepage-demo-arrow homepage-demo-arrow-previous"
+          class="homepage-demo-arrow"
           aria-label="Previous highlight"
           disabled={!ready()}
           onClick={() => select(active() - 1)}
         >
           <CarouselCaret direction="left" />
         </button>
-        {props.children}
+        <For each={SLIDES}>
+          {(item, index) => (
+            <button
+              type="button"
+              class="homepage-demo-slide-dot"
+              aria-label={`Show ${item.label} highlight`}
+              aria-pressed={active() === index()}
+              disabled={!ready()}
+              onClick={() => select(index())}
+            >
+              <span />
+            </button>
+          )}
+        </For>
         <button
           type="button"
-          class="homepage-demo-arrow homepage-demo-arrow-next"
+          class="homepage-demo-arrow"
           aria-label="Next highlight"
           disabled={!ready()}
           onClick={() => select(active() + 1)}
         >
           <CarouselCaret direction="right" />
         </button>
+      </div>
+      <div
+        class="homepage-demo-slide-copy"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        <h2>{slide().title}</h2>
       </div>
     </div>
   );

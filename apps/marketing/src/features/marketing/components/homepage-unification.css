@@ -54,15 +54,3 @@
   .homepage-unification .feature-flow-expanded .feature-flow-icon svg { width: 21px; height: 21px; }
   .homepage-unification .feature-flow-expanded .feature-flow-node > span { font-size: 10px; top: calc(100% + 10px); }
 }
-
-/* Keep the homepage constellation neutral; its motion carries the story. */
-.homepage-unification { --unification-glow: #171819; }
-html[data-palette='cream'] .homepage-unification { --unification-glow: #fffdf8; }
-.homepage-unification .feature-flow-expanded .feature-flow-light {
-  inset: -20% -10%;
-  mask-image: none;
-  background: radial-gradient(ellipse at 50% 45%, var(--unification-glow) 0%, transparent 68%);
-}
-.homepage-unification .feature-flow-expanded .feature-flow-light::after { content: none; }
-.homepage-unification .feature-flow-expanded .feature-flow-halo { display: none; }
-.unification-heading-prefix { opacity: .85; }

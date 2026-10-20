@@ -35,7 +35,7 @@ const SHOW_SIDEBAR_BREAKDOWN = false;
 const loadPullRequest = () => import('./HomepagePullRequest');
 const loadEmailCompose = () => import('./HomepageEmailCompose');
 const loadCollaborativeDoc = () => import('./HomepageCollaborativeDoc');
-const loadCrm = () => import('./HomepagePipelineDemo');
+const loadCrm = () => import('./HomepageCrm');
 const HomepageCrm = lazy(loadCrm);
 const loadSpreadsheet = () => import('./HomepageSpreadsheet');
 
@@ -186,7 +186,7 @@ export function HomepageSections() {
             { title: 'Chat', path: '/channels' },
           ]}
           title="Email and chat"
-          description="Turn conversations into email drafts."
+          description="Share live email threads in channels. Ask agents to draft from your emails, documents, and calls."
           messages={[
             {
               person: 'julia',
@@ -227,7 +227,7 @@ export function HomepageSections() {
             { title: 'Tasks', path: '/tasks' },
           ]}
           title="Documents and tasks"
-          description="Write together. Keep tasks connected."
+          description="CRDT documents with live agent edits. Create tasks from messages and link them to the specification."
           messages={[
             {
               person: 'jacob',
@@ -264,7 +264,7 @@ export function HomepageSections() {
           productPages={[{ title: 'Agents', path: '/agents' }]}
           title="Coding agents"
           titleAdornment={<HomepageAgentLogos />}
-          description="Give agents tasks. Review the work together."
+          description="Use your coding agent subscriptions in channels. Read the diff and follow the task through to a pull request."
           render={() => (
             <DeferredDemo
               preload={loadPullRequest}
@@ -277,7 +277,7 @@ export function HomepageSections() {
         <Feature
           id="spreadsheet"
           title="Sheets and databases"
-          description="One shared place for your team’s data."
+          description="Live collaboration with humans and agents. Import your Google Sheets and Notion databases."
           messages={[
             {
               person: 'claude',
@@ -302,7 +302,7 @@ export function HomepageSections() {
           id="crm"
           productPages={[{ title: 'CRM', path: '/crm' }]}
           title="CRM"
-          description="Every customer conversation, in one place."
+          description="Companies and contacts created from email. Agents update deal stages and draft customer follow-ups."
           messages={[
             {
               person: 'jacob',
@@ -313,11 +313,11 @@ export function HomepageSections() {
                   <HomepageMention
                     kind="call"
                     label="Sales sync"
-                    description="Today’s sales call · Parlor Studio asked for pricing, and Bookend Retail signed."
+                    description="Today’s sales call · Keystone Mechanical asked for a proposal, and Bookend Retail signed."
                     href="#crm"
                   />
-                  . Parlor Studio asked for pricing, and Bookend Retail signed.
-                  Update their stages.
+                  . Keystone Mechanical asked for a proposal, and Bookend Retail
+                  signed. Update their stages.
                 </>
               ),
             },

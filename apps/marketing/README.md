@@ -28,39 +28,19 @@ Feedback uses 140ms CSS transitions, respects reduced motion, and does not
 track the pointer. Mobile header actions retain 44px touch targets. The homepage scroll cue is a
 16px arrow inside a 44px button, inset 20px from the bottom while respecting safe areas.
 
-The homepage unification section uses a neutral charcoal spotlight in dark
-mode and an ivory spotlight in cream. Its first headline line is slightly
-muted so “with Macro” stays prominent. These styles are scoped to the homepage;
-onboarding constellations retain their own accent treatments.
+The homepage keeps the original colored constellation and grainy demo backdrop,
+with “with Macro” in the unification heading. The original sample workspace is
+embedded at `/demo?embedded=true`; shared UI fixes and corrected sample names
+remain in place. Compact arrows and dots sit above the original, fuller captions
+at the bottom of the frame. Slide selection is manual: arrows, dots, caption
+swipes, and page-level left/right keys. There is no timed cycling or oversized
+side-arrow treatment. The existing scroll entrance, reduced-motion behavior,
+and interaction boundary remain. The primary button keeps its larger satin
+finish but has no looping glimmer. Cream typography from PR #8299 is preserved.
 
-The homepage names Macro in the unification heading and introduces the live
-sample with short benefit-led captions overlapping the original bottom fade
-of the demo. The outer wallpaper and double border are removed so the product
-sits directly against the page, with a soft fade at the bottom. Progress indicators sit above the overlaid heading; large previous/next
-arrows remain beside the frame. The slideshow gives longer scenes time to finish (14 seconds for Docs, 12 for
-CRM, 10 for Tasks, and 16 for Agents; 10 for the other views). It runs only while visible, pauses
-on hover, and stops when keyboard focus enters, someone selects a view, or uses the embedded workspace.
-Reduced motion disables automatic cycling. The large side arrows use a subtle
-static highlight. They fade in only after the workspace is ready and the
-arrows reach the center of the viewport, then fade out when the demo moves
-away. Reduced motion switches visibility without a fade. The view label and heading follow the selected
-Inbox, Chat, Docs, CRM, Tasks, or Agents view. Inbox opens the native Home view. The frame
-blends into the surrounding black or cream page. It embeds the existing
-`/demo?scene=homepage` entry. The Home view keeps
-the same mixed activity sidebar and agent composer. Docs reuses the Docs page's
-collaborative editor, Tasks uses its existing task/project showcase, and Agents
-plays the existing meeting-preparation story with source reads and a linked
-brief. CRM reflects the records/pipelines split in the app: pipeline fields
-are separate from company fields. Its sidebar and table follow
-`apps/web/src/features/crm` and the shared database toolbar at GitHub commit
-`31d0eb0a962fad149f11c62907eed7b577194434`. Each scene keeps data local.
-The sample launch story
-uses Valentina consistently.
-Demo copy is illustrative, informed by the team's website feedback, rather
-than a publication of private messages.
-
-The homepage feature sections retain the centered headings, conversations,
-and demos from before the two-column layout experiment. A shared Learn more label and compact, consistently capitalized product buttons open the existing pages. Email and Chat have
+The homepage feature sections retain the original centered headings, descriptions,
+conversations, and demos, with rules beside the descriptions. The CRM section
+uses the original standalone pipeline illustration and corrected fictional company names. A shared Learn more label and compact, consistently capitalized product buttons open the existing pages. Email and Chat have
 separate buttons, as do Documents and Tasks. Agents and CRM each have one.
 The panel uses 55% of desktop width (at least 760px, bounded by the viewport),
 with a floating close control and no extra title bar. Sheets has no dedicated product page, so it has no extra link.
@@ -81,7 +61,7 @@ moving keyboard focus outside returns to preview mode and preserves demo state.
 Nested previews share one boundary; the standalone `/demo` route uses
 `DemoInteractionScope` and remains immediately interactive. Apply this shared
 boundary to new marketing demos rather than adding custom wheel handlers.
-Entering the homepage workspace also stops its carousel from advancing.
+The homepage carousel advances only when the visitor selects a highlight.
 
 ## Ownership and dependency boundary
 
@@ -548,7 +528,7 @@ A benefit carousel fades the live preview into slab-serif headlines. The first
 highlight opens an email inside Home’s mixed activity feed; subsequent highlights
 show Chat, Docs, CRM, Tasks, and Agents. Arrows, dots, left/right keys, and swiping
 the caption select highlights without reloading the frame. Page-level left/right keys work while at least 35% of the carousel is visible, without first focusing an arrow. Editors, other focused controls, open dialogs, modified keys, and keys inside the iframe keep their native behavior. Horizontal drags
-capture the pointer; vertical gestures keep scrolling the page. Automatic cycling stops when the visitor selects or enters a demo.
+capture the pointer; vertical gestures keep scrolling the page. The carousel never advances on a timer.
 The shared interaction boundary keeps the page scrollable until entry. Clicking or typing inside it keeps the fade,
 headline, controls, and layout intact. Sidebar navigation updates the active
 highlight without overriding the visitor’s navigation. Slab headlines sit directly

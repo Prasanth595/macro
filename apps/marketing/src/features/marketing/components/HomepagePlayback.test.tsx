@@ -119,3 +119,24 @@ it('stops generating email on preview activation and preserves the visitor draft
   expect(body.textContent).toBe('My follow-up draft');
   expect(composer.getAttribute('data-generation')).toBe('complete');
 });
+
+it('pauses the restored CRM illustration when the visitor enters it', () => {
+  const view = render(() => (
+    <DemoInteractionBoundary>
+      <HomepageCrm />
+    </DemoInteractionBoundary>
+  ));
+  const scene = view.getByRole('img', {
+    name: /Claude moves Keystone Mechanical/,
+  });
+  show(scene, 1);
+  view.container
+    .querySelector('.demo-interaction-boundary')!
+    .dispatchEvent(new CustomEvent('macro-demo-interaction'));
+  vi.advanceTimersByTime(15000);
+  expect(
+    view.container
+      .querySelector('[data-crm-company="northwind"]')!
+      .getAttribute('data-crm-stage')
+  ).toBe('Qualified');
+});

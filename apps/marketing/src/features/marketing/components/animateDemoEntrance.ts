@@ -154,6 +154,12 @@ export function animateDemoEntrance(
       500,
       950
     );
+    animate(
+      section.querySelector('.homepage-demo-carousel')!,
+      [{ opacity: 0 }, { opacity: 1 }],
+      250,
+      1200
+    );
   };
   const update = () => {
     // A live edit can replace the constellation without remounting this

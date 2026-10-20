@@ -8,10 +8,14 @@ beforeEach(() => {
   vi.stubGlobal('matchMedia', () => ({ matches: true }));
   frame = document.createElement('iframe');
   document.body.append(frame);
-  frame.contentDocument!.body.innerHTML = `<div class="dummy-rail">${['Home', 'Chat', 'Drive', 'Tasks', 'Customers', 'Agents'].map((label) => `<button aria-label="${label}">${label}</button>`).join('')}</div><div class="dummy-sidebar"><button>Homepage feedback</button><button>Fix the deploy pipeline</button></div>`;
+  frame.contentDocument!.body.innerHTML = `<div class="dummy-rail">${['Home', 'Chat', 'Drive', 'Tasks', 'Customers', 'Agents'].map((label) => `<button aria-label="${label}">${label}</button>`).join('')}</div><div class="dummy-sidebar"><button>Homepage feedback</button><button data-agent-session-row="deploy">Fix the deploy pipeline<span>12m · PR #482</span></button></div>`;
   openView = vi.fn();
   frame.contentDocument!.querySelectorAll('button').forEach((button) => {
-    button.addEventListener('click', () => openView(button.textContent));
+    button.addEventListener('click', () =>
+      openView(
+        button.getAttribute('data-agent-session-row') ?? button.textContent
+      )
+    );
   });
 });
 afterEach(() => {
@@ -25,19 +29,22 @@ function mountCarousel() {
 }
 it('starts with the unified Home example and wraps the highlights with keyboard navigation', () => {
   mountCarousel();
-  expect(openView.mock.calls.map((call) => call[0])).toEqual(['Home']);
+  expect(openView.mock.calls.map((call) => call[0])).toEqual([
+    'Home',
+    'Homepage feedback',
+  ]);
   fireEvent.click(screen.getByRole('button', { name: 'Previous highlight' }));
   expect(
     screen
       .getByRole('button', { name: 'Show Agents highlight' })
       .getAttribute('aria-pressed')
   ).toBe('true');
-  expect(openView).toHaveBeenLastCalledWith('Fix the deploy pipeline');
+  expect(openView).toHaveBeenLastCalledWith('deploy');
   fireEvent.keyDown(screen.getByRole('button', { name: 'Next highlight' }), {
     key: 'ArrowRight',
   });
   expect(screen.getByRole('heading').textContent).toContain(
-    'See what’s happening across your workspace.'
+    'One inbox for emails, agents,\ntasks, and messages'
   );
 });
 it('keeps the carousel in place during iframe interaction and cleans up load listeners', () => {
@@ -57,7 +64,7 @@ it('keeps the carousel in place during iframe interaction and cleans up load lis
     .contentDocument!.querySelector<HTMLButtonElement>('[aria-label=Chat]')!
     .click();
   expect(screen.getByRole('heading').textContent).toContain(
-    'Chat with your team and your agents.'
+    'Agents are first-class participants\nin channels and DMs'
   );
   view.unmount();
   openView.mockClear();
@@ -93,26 +100,26 @@ it('captures horizontal drags and ignores vertical or cancelled gestures', () =>
   expect(capture).toHaveBeenCalledWith(1);
   pointer('pointerup', carousel, { ...down, clientX: 200 });
   expect(screen.getByRole('heading').textContent).toContain(
-    'Chat with your team and your agents.'
+    'Agents are first-class participants\nin channels and DMs'
   );
 
   pointer('pointerdown', carousel, down);
   pointer('pointerup', carousel, { ...down, clientX: 400 });
   expect(screen.getByRole('heading').textContent).toContain(
-    'See what’s happening across your workspace.'
+    'One inbox for emails, agents,\ntasks, and messages'
   );
 
   pointer('pointerdown', carousel, down);
   pointer('pointerup', carousel, { ...down, clientX: 200, clientY: 250 });
   expect(screen.getByRole('heading').textContent).toContain(
-    'See what’s happening across your workspace.'
+    'One inbox for emails, agents,\ntasks, and messages'
   );
 
   pointer('pointerdown', carousel, down);
   pointer('pointercancel', carousel, down);
   pointer('pointerup', carousel, { ...down, clientX: 200 });
   expect(screen.getByRole('heading').textContent).toContain(
-    'See what’s happening across your workspace.'
+    'One inbox for emails, agents,\ntasks, and messages'
   );
 });
 
@@ -141,45 +148,18 @@ function enableAutoplay() {
   );
 }
 
-it('gives simple scenes ten seconds and longer stories time to finish before wrapping', () => {
-  enableAutoplay();
-  mountCarousel();
-  vi.advanceTimersByTime(9999);
-  expect(openView).toHaveBeenLastCalledWith('Home');
-  vi.advanceTimersByTime(1);
-  expect(openView).toHaveBeenLastCalledWith('Chat');
-  vi.advanceTimersByTime(62000);
-  expect(openView).toHaveBeenLastCalledWith('Home');
-});
-
-it('pauses on hover, resumes after leaving, and stops when the workspace is used', () => {
-  enableAutoplay();
-  mountCarousel();
-  const carousel = screen.getByRole('region');
-  fireEvent.pointerEnter(carousel);
-  vi.advanceTimersByTime(16000);
-  expect(openView).toHaveBeenLastCalledWith('Home');
-  fireEvent.pointerLeave(carousel);
-  vi.advanceTimersByTime(10000);
-  expect(openView).toHaveBeenLastCalledWith('Chat');
-  frame.contentDocument!.dispatchEvent(
-    new Event('pointerdown', { bubbles: true })
-  );
-  openView.mockClear();
-  vi.advanceTimersByTime(24000);
-  expect(openView).not.toHaveBeenCalled();
-  expect(screen.queryByRole('button', { name: 'Pause slideshow' })).toBeNull();
-});
-
-it('does not start automatic cycling for reduced motion', () => {
+it('keeps the selected highlight stable for reduced motion', () => {
   vi.useFakeTimers();
   mountCarousel();
   vi.advanceTimersByTime(24000);
-  expect(openView.mock.calls.map((call) => call[0])).toEqual(['Home']);
+  expect(openView.mock.calls.map((call) => call[0])).toEqual([
+    'Home',
+    'Homepage feedback',
+  ]);
   expect(screen.queryByRole('button', { name: 'Pause slideshow' })).toBeNull();
 });
 
-it('stops automatic cycling after a manual arrow selection', () => {
+it('keeps the selected highlight stable without reduced motion', () => {
   enableAutoplay();
   mountCarousel();
   fireEvent.click(screen.getByRole('button', { name: 'Next highlight' }));
@@ -189,88 +169,20 @@ it('stops automatic cycling after a manual arrow selection', () => {
   expect(openView).not.toHaveBeenCalled();
 });
 
-it('selects a dedicated homepage scene instead of forcing legacy app controls', () => {
-  frame.contentDocument!.body.innerHTML = '<div data-homepage-demo></div>';
-  const selectScene = vi.fn();
-  frame.contentWindow!.addEventListener(
-    'macro-homepage-demo-view',
-    selectScene
-  );
-  mountCarousel();
-  expect(selectScene).toHaveBeenCalledTimes(1);
-  expect(selectScene.mock.calls[0][0].detail).toBe('Inbox');
-  fireEvent.click(screen.getByRole('button', { name: 'Show Tasks highlight' }));
-  expect(selectScene.mock.calls.at(-1)![0].detail).toBe('Tasks');
-  expect(openView).not.toHaveBeenCalled();
-});
-
-it('keeps the dedicated scene and caption synchronized after an internal rail click', () => {
-  frame.contentDocument!.body.insertAdjacentHTML(
-    'afterbegin',
-    '<div data-homepage-demo></div>'
-  );
-  const selectScene = vi.fn();
-  frame.contentWindow!.addEventListener(
-    'macro-homepage-demo-view',
-    selectScene
-  );
-  mountCarousel();
-  frame
-    .contentDocument!.querySelector<HTMLButtonElement>('[aria-label=Drive]')!
-    .click();
-  expect(selectScene.mock.calls.at(-1)![0].detail).toBe('Docs');
-  expect(
-    screen
-      .getByRole('button', { name: 'Show Docs highlight' })
-      .getAttribute('aria-pressed')
-  ).toBe('true');
-});
-
-it('stops cycling when the visitor enters the sample workspace', () => {
+it('does not advance after entering or replaying the sample workspace', () => {
   enableAutoplay();
   mountCarousel();
   fireEvent(
     screen.getByRole('region'),
     new CustomEvent('macro-demo-interaction', { bubbles: true })
   );
+  fireEvent(
+    screen.getByRole('region'),
+    new CustomEvent('macro-demo-replay', { bubbles: true })
+  );
   openView.mockClear();
   vi.advanceTimersByTime(30000);
   expect(openView).not.toHaveBeenCalled();
-});
-
-it('reveals arrows only while the ready demo is centered', () => {
-  let reveal: IntersectionObserverCallback | undefined;
-  vi.stubGlobal(
-    'IntersectionObserver',
-    class {
-      constructor(
-        callback: IntersectionObserverCallback,
-        options: IntersectionObserverInit
-      ) {
-        if (options.rootMargin) reveal = callback;
-      }
-      observe() {}
-      disconnect() {}
-    }
-  );
-  mountCarousel();
-  const carousel = screen.getByRole('region');
-  expect(carousel.getAttribute('data-arrows-visible')).toBe('false');
-  reveal?.(
-    [{ isIntersecting: false } as IntersectionObserverEntry],
-    {} as IntersectionObserver
-  );
-  expect(carousel.getAttribute('data-arrows-visible')).toBe('false');
-  reveal?.(
-    [{ isIntersecting: true } as IntersectionObserverEntry],
-    {} as IntersectionObserver
-  );
-  expect(carousel.getAttribute('data-arrows-visible')).toBe('true');
-  reveal?.(
-    [{ isIntersecting: false } as IntersectionObserverEntry],
-    {} as IntersectionObserver
-  );
-  expect(carousel.getAttribute('data-arrows-visible')).toBe('false');
 });
 
 it('handles page arrow keys without focusing an arrow and releases the listener on unmount', () => {
@@ -278,7 +190,7 @@ it('handles page arrow keys without focusing an arrow and releases the listener 
   fireEvent.keyDown(document.body, { key: 'ArrowRight' });
   expect(openView).toHaveBeenLastCalledWith('Chat');
   fireEvent.keyDown(document.body, { key: 'ArrowLeft' });
-  expect(openView).toHaveBeenLastCalledWith('Home');
+  expect(openView).toHaveBeenLastCalledWith('Homepage feedback');
   view.unmount();
   openView.mockClear();
   fireEvent.keyDown(document.body, { key: 'ArrowRight' });
@@ -369,4 +281,17 @@ it('does not restart automatic cycling after keyboard focus leaves the demo', ()
   openView.mockClear();
   vi.advanceTimersByTime(60000);
   expect(openView).not.toHaveBeenCalled();
+});
+
+it('opens the email in the mixed Home feed using the current fixture title', () => {
+  const email = frame.contentDocument!.querySelector<HTMLButtonElement>(
+    '.dummy-sidebar button'
+  )!;
+  const openEmail = vi.fn();
+  email.addEventListener('click', openEmail);
+  mountCarousel();
+  expect(openEmail).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Next highlight' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Previous highlight' }));
+  expect(openEmail).toHaveBeenCalledTimes(2);
 });

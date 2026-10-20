@@ -39,8 +39,8 @@ function DesktopHomepageOpenSource(props: {
         // palette pinned with `?theme=` carries over.
         const pinned = pinnedPalette();
         frame.src = pinned
-          ? `/demo?embedded=true&scene=homepage&theme=${pinned}`
-          : '/demo?embedded=true&scene=homepage';
+          ? `/demo?embedded=true&theme=${pinned}`
+          : '/demo?embedded=true';
       },
       { rootMargin: '1250px 0px' }
     );
@@ -114,30 +114,29 @@ function DesktopHomepageOpenSource(props: {
         aria-label="Explore Macro interactively"
         id="interactive-demo"
       >
-        <HomepageDemoCarousel frame={() => frame}>
-          <div class="homepage-embedded-stage">
-            <div class="homepage-embedded-wallpaper">
-              <div class="homepage-embedded-window">
-                <DemoInteractionBoundary
-                  label={'Macro sample workspace'}
-                  class="homepage-embedded-content"
-                >
-                  <Show when={!loaded()}>
-                    <div class="homepage-embedded-loading" role="status">
-                      Opening your workspace…
-                    </div>
-                  </Show>
-                  <iframe
-                    ref={frame}
-                    title="Embedded Macro sample workspace"
-                    // Ignore the initial about:blank load before src is set.
-                    onLoad={() => frame.src && setLoaded(true)}
-                  />
-                </DemoInteractionBoundary>
-              </div>
+        <div class="homepage-embedded-stage">
+          <div class="homepage-embedded-wallpaper">
+            <div class="homepage-embedded-window">
+              <DemoInteractionBoundary
+                label={'Macro sample workspace'}
+                class="homepage-embedded-content"
+              >
+                <Show when={!loaded()}>
+                  <div class="homepage-embedded-loading" role="status">
+                    Opening your workspace…
+                  </div>
+                </Show>
+                <iframe
+                  ref={frame}
+                  title="Embedded Macro sample workspace"
+                  // Ignore the initial about:blank load before src is set.
+                  onLoad={() => frame.src && setLoaded(true)}
+                />
+              </DemoInteractionBoundary>
             </div>
           </div>
-        </HomepageDemoCarousel>
+        </div>
+        <HomepageDemoCarousel frame={() => frame} />
         <HomepageGithub />
       </section>
       <Show when={props.showSidebarBreakdown}>
