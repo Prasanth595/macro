@@ -148,9 +148,11 @@ calendars. Phones and narrow windows keep both time inputs side by side below.
 Adjacent-month dates remain visible and muted. Each month heading opens a month/year
 chooser with a month grid, year-grid drill-down, paging, and This month. Navigating
 these controls changes only the displayed months, never the selected event dates.
-The chooser opens with the current month focused. Arrow keys work immediately,
-including after reopening. Year navigation is limited to 1000 through 9999; linked
-panels stay inside those four-digit boundaries without changing the event range.
+The chooser and its controls use background-only keyboard focus, without outlines
+or rings. It opens with the current month focused. Arrow keys work immediately,
+including after reopening. All date navigation stays within years 1000 through
+9999: the chooser clamps linked panels, arrows disable at the boundary, and keyboard
+navigation cannot reach unsupported dates. Browsing never changes the event range.
 The Selected range label is small secondary text with compact spacing below the
 calendar, without introductory “choose a start day” instructions.
 The primary Create event

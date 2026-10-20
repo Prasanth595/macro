@@ -130,12 +130,38 @@ export type RangeCalendarProps = Omit<
 export function RangeCalendar(props: RangeCalendarProps) {
   const [local, calendarProps] = splitProps(props, ['class']);
   const fallback = calendarProps.value?.from ?? new Date();
+  const numberOfMonths = () => calendarProps.numberOfMonths ?? 2;
+  const earliestMonth = new Date(MIN_CALENDAR_YEAR, 0, 1);
+  const latestMonth = () =>
+    new Date(MAX_CALENDAR_YEAR, 12 - numberOfMonths(), 1);
+  const boundMonth = (month: Date) => {
+    const start = new Date(month.getFullYear(), month.getMonth(), 1);
+    return start < earliestMonth
+      ? earliestMonth
+      : start > latestMonth()
+        ? latestMonth()
+        : month;
+  };
+  const [month, setMonth] = createSignal(
+    calendarProps.initialMonth ?? fallback
+  );
+  const changeMonth = (next: Date) => {
+    const bounded = boundMonth(next);
+    if (calendarProps.month === undefined) setMonth(bounded);
+    calendarProps.onMonthChange?.(bounded);
+  };
   return (
     <CorvuCalendar
       mode="range"
       {...calendarProps}
-      numberOfMonths={calendarProps.numberOfMonths ?? 2}
-      initialMonth={calendarProps.initialMonth ?? fallback}
+      numberOfMonths={numberOfMonths()}
+      month={boundMonth(calendarProps.month ?? month())}
+      onMonthChange={changeMonth}
+      disabled={(day) =>
+        day.getFullYear() < MIN_CALENDAR_YEAR ||
+        day.getFullYear() > MAX_CALENDAR_YEAR ||
+        (calendarProps.disabled?.(day) ?? false)
+      }
       initialFocusedDay={calendarProps.initialFocusedDay ?? fallback}
     >
       {(calendar) => (
@@ -166,19 +192,7 @@ export function RangeCalendar(props: RangeCalendarProps) {
                             selectedMonth.getMonth() - index,
                             1
                           );
-                          const earliest = new Date(MIN_CALENDAR_YEAR, 0, 1);
-                          const latest = new Date(
-                            MAX_CALENDAR_YEAR,
-                            12 - calendar.numberOfMonths,
-                            1
-                          );
-                          calendar.setMonth(
-                            firstMonth < earliest
-                              ? earliest
-                              : firstMonth > latest
-                                ? latest
-                                : firstMonth
-                          );
+                          calendar.setMonth(boundMonth(firstMonth));
                         }}
                       />
                     </CorvuCalendar.Label>
@@ -187,14 +201,28 @@ export function RangeCalendar(props: RangeCalendarProps) {
                         <CorvuCalendar.Nav
                           action="prev-month"
                           aria-label="Go to previous month"
-                          class="flex size-7 items-center justify-center rounded-md text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:ring focus-visible:ring-accent touch:size-9"
+                          disabled={
+                            new Date(
+                              calendar.month.getFullYear(),
+                              calendar.month.getMonth(),
+                              1
+                            ) <= earliestMonth
+                          }
+                          class="flex size-7 items-center justify-center rounded-md text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:bg-active focus-visible:ring-0 disabled:opacity-30 touch:size-9"
                         >
                           <CaretLeftIcon class="size-3" />
                         </CorvuCalendar.Nav>
                         <CorvuCalendar.Nav
                           action="next-month"
                           aria-label="Go to next month"
-                          class="flex size-7 items-center justify-center rounded-md text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:ring focus-visible:ring-accent touch:size-9"
+                          disabled={
+                            new Date(
+                              calendar.month.getFullYear(),
+                              calendar.month.getMonth(),
+                              1
+                            ) >= latestMonth()
+                          }
+                          class="flex size-7 items-center justify-center rounded-md text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:bg-active focus-visible:ring-0 disabled:opacity-30 touch:size-9"
                         >
                           <CaretRightIcon class="size-3" />
                         </CorvuCalendar.Nav>

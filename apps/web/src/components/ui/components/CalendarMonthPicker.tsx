@@ -146,7 +146,7 @@ export function CalendarMonthPicker(props: CalendarMonthPickerProps) {
         variant="ghost"
         size="md"
         aria-label={`Choose month and year, currently ${formatMonth(props.month)}`}
-        class="h-7 max-w-full min-w-0 justify-start gap-1 rounded-lg px-1 text-xs font-medium touch:min-h-[44px]"
+        class="h-7 max-w-full min-w-0 justify-start gap-1 rounded-lg px-1 text-xs font-medium focus-visible:bg-active focus-visible:outline-none focus-visible:ring-0 touch:min-h-[44px]"
       >
         <span class="min-w-0 truncate">{formatMonth(props.month)}</span>
         <CaretDownIcon class="size-4 shrink-0 text-ink-extra-muted" />
@@ -154,7 +154,7 @@ export function CalendarMonthPicker(props: CalendarMonthPickerProps) {
       <KPopover.Portal>
         <Layer depth={4}>
           <KPopover.Content
-            class="portal-scope z-action-menu w-64 max-w-[var(--kb-popper-content-available-width)] max-h-[var(--kb-popper-content-available-height)] overflow-y-auto rounded-2xl border border-edge bg-menu-glass p-4 text-ink glass menu-open-animation"
+            class="portal-scope z-action-menu w-64 max-w-[var(--kb-popper-content-available-width)] max-h-[var(--kb-popper-content-available-height)] overflow-y-auto rounded-2xl border border-edge bg-menu-glass p-4 text-ink outline-none glass menu-open-animation"
             onOpenAutoFocus={(event) => {
               event.preventDefault();
               // Kobalte dispatches autofocus inside an effect; do not subscribe it to picker state.
@@ -174,6 +174,7 @@ export function CalendarMonthPicker(props: CalendarMonthPickerProps) {
               <Button
                 size="icon-md"
                 variant="ghost"
+                class="focus-visible:bg-active focus-visible:outline-none focus-visible:ring-0"
                 aria-label={showingYears() ? 'Previous years' : 'Previous year'}
                 disabled={
                   showingYears()
@@ -187,7 +188,7 @@ export function CalendarMonthPicker(props: CalendarMonthPickerProps) {
               <Button
                 size="md"
                 variant="ghost"
-                class="min-w-0 flex-1 gap-2 font-medium tabular-nums"
+                class="min-w-0 flex-1 gap-2 font-medium tabular-nums focus-visible:bg-active focus-visible:outline-none focus-visible:ring-0"
                 aria-label={
                   showingYears()
                     ? `Show months for ${year()}`
@@ -204,6 +205,7 @@ export function CalendarMonthPicker(props: CalendarMonthPickerProps) {
               <Button
                 size="icon-md"
                 variant="ghost"
+                class="focus-visible:bg-active focus-visible:outline-none focus-visible:ring-0"
                 aria-label={showingYears() ? 'Next years' : 'Next year'}
                 disabled={
                   showingYears()
@@ -247,7 +249,7 @@ export function CalendarMonthPicker(props: CalendarMonthPickerProps) {
                                 cells[index()] = element;
                               }}
                               variant={selected() ? 'accent' : 'ghost'}
-                              class="relative h-10 w-full rounded-lg px-2 font-normal tabular-nums touch:min-h-[44px]"
+                              class="relative h-10 w-full rounded-lg px-2 font-normal tabular-nums focus-visible:bg-active focus-visible:outline-none focus-visible:ring-0 touch:min-h-[44px]"
                               aria-label={
                                 showingYears()
                                   ? String(yearPage() + index())
@@ -280,7 +282,7 @@ export function CalendarMonthPicker(props: CalendarMonthPickerProps) {
               <Button
                 size="md"
                 variant="ghost"
-                class="w-full"
+                class="w-full focus-visible:bg-active focus-visible:outline-none focus-visible:ring-0"
                 onClick={() =>
                   chooseMonth(
                     calendarMonth(today.getFullYear(), today.getMonth())

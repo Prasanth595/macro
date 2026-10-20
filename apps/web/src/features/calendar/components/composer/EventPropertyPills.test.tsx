@@ -5,7 +5,7 @@
 import { recipientEntityMapper } from '@core/user';
 import { cleanup, render, screen, within } from '@solidjs/testing-library';
 import userEvent from '@testing-library/user-event';
-import { Dialog } from '@ui';
+import { Dialog, RangeCalendar } from '@ui';
 import { createSignal } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventDateTimeRangeFields } from './EventDateTimeRangeFields';
@@ -332,6 +332,10 @@ describe('composer popovers inside a dialog', () => {
       expected: ['January 1000', 'February 1000'],
       selectedStart: '1000-01-20T09:00',
       selectedEnd: '1000-01-21T10:00',
+      disabledNavigation: 'Go to previous month',
+      boundaryGrid: 0,
+      boundaryDay: '1',
+      boundaryKey: '{ArrowLeft}{PageUp}',
     },
     {
       start: '9999-10-01T09:00',
@@ -341,6 +345,10 @@ describe('composer popovers inside a dialog', () => {
       expected: ['November 9999', 'December 9999'],
       selectedStart: '9999-11-20T09:00',
       selectedEnd: '9999-11-21T10:00',
+      disabledNavigation: 'Go to next month',
+      boundaryGrid: 1,
+      boundaryDay: '31',
+      boundaryKey: '{ArrowRight}{PageDown}',
     },
   ])(
     'keeps the connected month window supported when choosing $month',
@@ -352,6 +360,10 @@ describe('composer popovers inside a dialog', () => {
       expected,
       selectedStart,
       selectedEnd,
+      disabledNavigation,
+      boundaryGrid,
+      boundaryDay,
+      boundaryKey,
     }) => {
       const user = userEvent.setup();
       const onRangeChange = vi.fn();
@@ -397,6 +409,23 @@ describe('composer popovers inside a dialog', () => {
         ).toBeTruthy();
       }
       expect(onRangeChange).not.toHaveBeenCalled();
+      expect(
+        screen.getByRole('button', { name: disabledNavigation })
+      ).toHaveProperty('disabled', true);
+      const edge = within(screen.getAllByRole('grid')[boundaryGrid])
+        .getAllByRole('gridcell', { name: boundaryDay })
+        .find((day) => !day.hasAttribute('disabled'));
+      expect(edge).toBeDefined();
+      edge?.focus();
+      await user.keyboard(boundaryKey);
+      for (const label of expected) {
+        expect(
+          screen.getByRole('button', {
+            name: `Choose month and year, currently ${label}`,
+          })
+        ).toBeTruthy();
+      }
+      expect(onRangeChange).not.toHaveBeenCalled();
       const calendar = within(screen.getAllByRole('grid')[0]);
       await user.click(calendar.getByRole('gridcell', { name: '20' }));
       await user.click(calendar.getByRole('gridcell', { name: '21' }));
@@ -406,6 +435,69 @@ describe('composer popovers inside a dialog', () => {
       );
     }
   );
+
+  it('keeps the month window bounded when keyboard navigation reaches its last supported month', async () => {
+    const user = userEvent.setup();
+    const onRangeChange = vi.fn();
+    render(() => (
+      <EventDateTimeRangeFields
+        start="9999-10-01T09:00"
+        end="9999-11-02T10:00"
+        allDay={false}
+        onRangeChange={onRangeChange}
+        onAllDayChange={vi.fn()}
+      />
+    ));
+    await user.click(
+      screen.getByRole('button', { name: 'Edit event date and time range' })
+    );
+    const november = within(screen.getAllByRole('grid')[1]);
+    const day = november
+      .getAllByRole('gridcell', { name: '30' })
+      .find((day) => !day.hasAttribute('disabled'));
+    expect(day).toBeDefined();
+    day?.focus();
+    await user.keyboard('{ArrowRight}');
+    expect(
+      screen.getByRole('button', {
+        name: 'Choose month and year, currently November 9999',
+      })
+    ).toBeTruthy();
+    expect(
+      screen.getByRole('button', {
+        name: 'Choose month and year, currently December 9999',
+      })
+    ).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: 'Go to next month' })
+    ).toHaveProperty('disabled', true);
+    expect(onRangeChange).not.toHaveBeenCalled();
+  });
+
+  it('enforces month limits when the range calendar owns its visible month', async () => {
+    const user = userEvent.setup();
+    render(() => <RangeCalendar initialMonth={new Date(9999, 9, 1)} />);
+    const next = screen.getByRole('button', { name: 'Go to next month' });
+    expect(next).toHaveProperty('disabled', false);
+    await user.click(next);
+    expect(next).toHaveProperty('disabled', true);
+    expect(
+      screen.getByRole('button', {
+        name: 'Choose month and year, currently November 9999',
+      })
+    ).toBeTruthy();
+    expect(
+      screen.getByRole('button', {
+        name: 'Choose month and year, currently December 9999',
+      })
+    ).toBeTruthy();
+    await user.click(next);
+    expect(
+      screen.queryByRole('button', {
+        name: 'Choose month and year, currently January 10000',
+      })
+    ).toBeNull();
+  });
 
   it('keeps a fully locked range as plain content', () => {
     render(() => (

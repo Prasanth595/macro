@@ -116,6 +116,22 @@ async function verifySidebarGeometry(page) {
   }
   assert.equal(geometry.radius, 12);
 }
+async function verifyMonthControlFocus(control) {
+  await control.page().keyboard.press('Tab');
+  await control.focus();
+  const style = await control.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      outline: style.outlineStyle,
+      shadowWidths: Array.from(style.boxShadow.matchAll(/(-?[\d.]+)px/g), (match) => Number(match[1])),
+      background: style.backgroundColor,
+    };
+  });
+  assert.equal(style.outline, 'none', 'Month controls must not draw focus outlines');
+  assert.ok(style.shadowWidths.every((width) => width === 0), 'Month controls must not draw focus rings');
+  assert.notEqual(style.background, 'rgba(0, 0, 0, 0)', `Keyboard focus must retain background feedback: ${await control.getAttribute('aria-label')}`);
+}
+
 async function verifyDateRange(page, monthCount) {
   const trigger = page.getByRole('button', { name: 'Edit event date and time range', exact: true });
   const picker = page.getByRole('dialog', { name: 'Event date and time', exact: true });
@@ -148,7 +164,14 @@ async function verifyDateRange(page, monthCount) {
   await picker.getByRole('button', { name: /^Choose month and year,/ }).last().click();
   const monthPicker = page.getByRole('dialog', { name: 'Choose month and year', exact: true });
   assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-label')), initialMonths === 2 ? 'November 2030' : 'October 2030', 'Opening the chooser must focus its current month');
+  await page.keyboard.press('Tab');
+  for (const control of await monthPicker.getByRole('button').all()) {
+    if (await control.isEnabled()) await verifyMonthControlFocus(control);
+  }
   await monthPicker.getByRole('button', { name: 'Choose year, currently 2030' }).click();
+  for (const control of await monthPicker.getByRole('button').all()) {
+    if (await control.isEnabled()) await verifyMonthControlFocus(control);
+  }
   await monthPicker.getByRole('button', { name: 'Next years', exact: true }).click();
   await monthPicker.getByRole('button', { name: '2032', exact: true }).click();
   await monthPicker.getByRole('button', { name: 'November 2032', exact: true }).focus();
@@ -170,6 +193,9 @@ async function verifyDateRange(page, monthCount) {
   await page.keyboard.press('Escape');
   await monthPicker.waitFor({ state: 'detached' });
   assert.equal(await picker.isVisible(), true, 'Escape from the month selector must retain the date picker');
+  await verifyMonthControlFocus(picker.getByRole('button', { name: /^Choose month and year,/ }).first());
+  await verifyMonthControlFocus(picker.getByRole('button', { name: 'Go to previous month', exact: true }));
+  await verifyMonthControlFocus(picker.getByRole('button', { name: 'Go to next month', exact: true }));
   assert.deepEqual(await state(), before);
   await day(0, 30).click();
   assert.deepEqual(await state(), before, 'A partial range must not change the event dates');
