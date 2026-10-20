@@ -214,9 +214,9 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
                   />
                   <div
                     role="status"
-                    class="mt-4 border-t border-edge-muted pt-3"
+                    class="mt-2 border-t border-edge-muted pt-2"
                   >
-                    <span class="block text-sm font-medium text-ink-muted">
+                    <span class="block text-xs font-medium text-ink-muted">
                       Selected range
                     </span>
                     <p class="mt-1 text-sm text-ink">

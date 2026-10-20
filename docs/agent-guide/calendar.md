@@ -139,8 +139,11 @@ The date picker portals globally outside the editor/sidebar at depth 4. Same-day
 ranges show one month and the start/end times; multi-day ranges show two connected
 months on desktop/tablet. Phones always show one navigable month. Month panels
 remain side by side when there is room in the window, regardless of sidebar width.
-The Selected range label uses normal readable text, without introductory
-“choose a start day” instructions.
+Adjacent-month dates remain visible and muted. Each month heading opens a month/year
+chooser with a month grid, year-grid drill-down, paging, and This month. Navigating
+these controls changes only the displayed months, never the selected event dates.
+The Selected range label is small secondary text with compact spacing below the
+calendar, without introductory “choose a start day” instructions.
 The primary Create event
 and Save actions use the CTA button style and keep their dimensions while showing
 a loading spinner.
@@ -186,6 +189,11 @@ for a multi-day desktop range, including expanding across a month boundary.
 Verify both months and both time inputs remain side by side from the sidebar
 when the window is wide enough. Check the range summary after each day click.
 Resize a non-touch window to verify constrained month panels stack without overflow.
+Check visible adjacent-month dates and the compact, secondary Selected range label.
+Use either month's heading to select a year and month; confirm the panels remain
+consecutive and the event dates do not change. Test arrow-key navigation and Enter
+in the month/year grid. Escape must dismiss only that chooser, leaving the date
+picker and event editor open.
 Select a range across the month boundary and check that both months highlight the
 covered days. Confirm selecting only its first day leaves the prior event range
 unchanged. On a phone, navigate between months to select the same connected range.

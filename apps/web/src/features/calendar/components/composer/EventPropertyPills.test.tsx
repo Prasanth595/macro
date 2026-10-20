@@ -234,6 +234,89 @@ describe('composer popovers inside a dialog', () => {
     expect(screen.getByLabelText('End time')).toHaveProperty('value', '10:00');
   });
 
+  it('shows adjacent-month dates without publishing them as a range', async () => {
+    const user = userEvent.setup();
+    const onRangeChange = vi.fn();
+    render(() => (
+      <EventDateTimeRangeFields
+        start="2026-10-06T09:00"
+        end="2026-10-06T10:00"
+        allDay={false}
+        onRangeChange={onRangeChange}
+        onAllDayChange={vi.fn()}
+      />
+    ));
+    await user.click(
+      screen.getByRole('button', { name: 'Edit event date and time range' })
+    );
+    const calendar = screen.getByRole('grid');
+    const outsideDays = calendar.querySelectorAll('button[data-outside-month]');
+    expect(outsideDays.length).toBeGreaterThan(0);
+    for (const day of outsideDays) expect(day).toHaveProperty('disabled', true);
+    await user.click(
+      within(calendar).getAllByRole('gridcell', { name: '30' })[0]
+    );
+    expect(onRangeChange).not.toHaveBeenCalled();
+  });
+
+  it('jumps months and years from either connected panel without changing the selected range', async () => {
+    const user = userEvent.setup();
+    const onRangeChange = vi.fn();
+    render(() => (
+      <EventDateTimeRangeFields
+        start="2026-10-30T09:00"
+        end="2026-11-02T10:00"
+        allDay={false}
+        onRangeChange={onRangeChange}
+        onAllDayChange={vi.fn()}
+      />
+    ));
+    await user.click(
+      screen.getByRole('button', { name: 'Edit event date and time range' })
+    );
+    const secondMonth = screen.getByRole('button', {
+      name: 'Choose month and year, currently November 2026',
+    });
+    await user.click(secondMonth);
+    await user.click(
+      screen.getByRole('button', { name: 'Choose year, currently 2026' })
+    );
+    await user.click(screen.getByRole('button', { name: 'Next years' }));
+    await user.click(screen.getByRole('button', { name: '2032' }));
+    expect(document.activeElement?.getAttribute('aria-label')).toBe(
+      'November 2032'
+    );
+    await user.keyboard('{ArrowRight}{Enter}');
+    expect(
+      screen.getByRole('button', {
+        name: 'Choose month and year, currently November 2032',
+      })
+    ).toBeTruthy();
+    expect(
+      screen.getByRole('button', {
+        name: 'Choose month and year, currently December 2032',
+      })
+    ).toBeTruthy();
+    expect(onRangeChange).not.toHaveBeenCalled();
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Choose month and year, currently November 2032',
+      })
+    );
+    await user.keyboard('{Escape}');
+    expect(
+      screen
+        .getByRole('button', {
+          name: 'Choose month and year, currently November 2032',
+        })
+        .getAttribute('aria-expanded')
+    ).toBe('false');
+    expect(
+      screen.getByRole('dialog', { name: 'Event date and time' })
+    ).toBeTruthy();
+    expect(onRangeChange).not.toHaveBeenCalled();
+  });
+
   it('keeps a fully locked range as plain content', () => {
     render(() => (
       <EventDateTimeRangeFields

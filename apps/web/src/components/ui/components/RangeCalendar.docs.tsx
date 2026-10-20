@@ -16,8 +16,8 @@ function RangeDemo() {
         value={range()}
         onValueChange={setRange}
       />
-      <div class="mt-4 border-t border-edge-muted pt-3">
-        <span class="block text-xxs font-medium text-ink-muted">
+      <div class="mt-2 border-t border-edge-muted pt-2">
+        <span class="block text-xs font-medium text-ink-muted">
           Selected range
         </span>
         <p class="mt-1 text-sm text-ink">
@@ -35,7 +35,7 @@ export default defineDoc({
   category: 'Inputs',
   status: 'stable',
   description:
-    'Connected month grids with shared range selection and keyboard navigation.',
+    'Connected month grids with adjacent-month dates, month/year drill-down, shared range selection, and keyboard navigation.',
   exports: ['RangeCalendar'],
   import: "import { RangeCalendar } from '@ui';",
   demos: [

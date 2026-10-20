@@ -132,8 +132,42 @@ async function verifyDateRange(page, monthCount) {
   }));
   assert.equal(portal.global, true, 'Date picker must portal outside the sidebar or editor');
   assert.equal(portal.depth, '4');
-  assert.ok(portal.labelSize >= 14);
+  assert.equal(portal.labelSize, 12, 'Selected range label must stay secondary');
   assert.equal(await picker.getByText('Choose a start day, then an end day.', { exact: true }).count(), 0);
+  const outsideDays = picker.locator('table').first().locator('[data-outside-month]');
+  assert.ok(await outsideDays.count() > 0, 'Show dates from adjacent months');
+  for (const outsideDay of await outsideDays.all()) {
+    assert.equal(await outsideDay.isVisible(), true);
+    assert.notEqual(await outsideDay.evaluate((element) => getComputedStyle(element).visibility), 'hidden');
+  }
+  const summaryGap = await picker.getByRole('status').evaluate((element) => {
+    const table = Array.from(element.previousElementSibling.querySelectorAll('table')).at(-1);
+    return element.getBoundingClientRect().top - table.getBoundingClientRect().bottom;
+  });
+  assert.ok(summaryGap <= 9, 'Keep the summary close to the calendar');
+  await picker.getByRole('button', { name: /^Choose month and year,/ }).last().click();
+  const monthPicker = page.getByRole('dialog', { name: 'Choose month and year', exact: true });
+  await monthPicker.getByRole('button', { name: 'Choose year, currently 2030' }).click();
+  await monthPicker.getByRole('button', { name: '2032', exact: true }).click();
+  await monthPicker.getByRole('button', { name: 'November 2032', exact: true }).focus();
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Enter');
+  await monthPicker.waitFor({ state: 'detached' });
+  await picker.getByRole('button', { name: 'Choose month and year, currently December 2032', exact: true }).waitFor();
+  if (initialMonths === 2) {
+    await picker.getByRole('button', { name: 'Choose month and year, currently November 2032', exact: true }).waitFor();
+  }
+  assert.deepEqual(await state(), before, 'Month and year navigation must not change event dates');
+  await picker.getByRole('button', { name: /^Choose month and year,/ }).first().click();
+  await monthPicker.getByRole('button', { name: 'Choose year, currently 2032' }).click();
+  await monthPicker.getByRole('button', { name: '2030', exact: true }).click();
+  await monthPicker.getByRole('button', { name: 'October 2030', exact: true }).click();
+  await monthPicker.waitFor({ state: 'detached' });
+  await picker.getByRole('button', { name: /^Choose month and year,/ }).first().click();
+  await page.keyboard.press('Escape');
+  await monthPicker.waitFor({ state: 'detached' });
+  assert.equal(await picker.isVisible(), true, 'Escape from the month selector must retain the date picker');
+  assert.deepEqual(await state(), before);
   await day(0, 30).click();
   assert.deepEqual(await state(), before, 'A partial range must not change the event dates');
   assert.match(await picker.getByRole('status').innerText(), /Oct 30, 2030/);

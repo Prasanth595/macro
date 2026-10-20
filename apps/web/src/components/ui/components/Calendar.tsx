@@ -20,6 +20,7 @@ import {
 import { Virtualizer, type VirtualizerHandle } from 'virtua/solid';
 import { cn } from '../utils/classname';
 import { Button } from './Button';
+import { CalendarMonthPicker } from './CalendarMonthPicker';
 import { Dropdown } from './Dropdown';
 
 const formatWeekdayLong = new Intl.DateTimeFormat(undefined, {
@@ -151,12 +152,19 @@ export function RangeCalendar(props: RangeCalendarProps) {
                       'first:pb-4 last:pt-4 @lg:first:pb-0 @lg:first:pr-4 @lg:last:pt-0 @lg:last:pl-4'
                   )}
                 >
-                  <div class="flex h-7 items-center gap-1">
-                    <CorvuCalendar.Label
-                      index={index}
-                      class="min-w-0 flex-1 truncate text-xs font-medium text-ink-muted"
-                    >
-                      {formatCalendarMonth(shown().month)}
+                  <div class="flex min-h-7 items-center gap-1">
+                    <CorvuCalendar.Label index={index} class="min-w-0 flex-1">
+                      <CalendarMonthPicker
+                        month={shown().month}
+                        onChange={(selectedMonth) => {
+                          const firstMonth = new Date(selectedMonth);
+                          firstMonth.setMonth(
+                            selectedMonth.getMonth() - index,
+                            1
+                          );
+                          calendar.setMonth(firstMonth);
+                        }}
+                      />
                     </CorvuCalendar.Label>
                     <Show when={index === calendar.numberOfMonths - 1}>
                       <div class="flex shrink-0 items-center gap-0.5">
@@ -247,11 +255,6 @@ function CalendarMonthGrid(props: {
                       props.range &&
                         'data-highlighted-range:bg-accent/10 data-highlighted-range-start:rounded-l-xl data-highlighted-range-end:rounded-r-xl'
                     )}
-                    classList={{
-                      invisible:
-                        props.range &&
-                        day().getMonth() !== props.month.getMonth(),
-                    }}
                     data-highlighted-range={
                       isDateInRange(day(), props.highlightedRange)
                         ? ''
@@ -269,6 +272,11 @@ function CalendarMonthGrid(props: {
                     <CorvuCalendar.CellTrigger
                       day={day()}
                       month={props.month}
+                      data-outside-month={
+                        day().getMonth() !== props.month.getMonth()
+                          ? ''
+                          : undefined
+                      }
                       data-highlighted-range={
                         isDateInRange(day(), props.highlightedRange)
                           ? ''
@@ -277,7 +285,7 @@ function CalendarMonthGrid(props: {
                       class={cn(
                         'mx-auto flex size-7 items-center justify-center rounded-md text-xs text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:ring focus-visible:ring-accent disabled:pointer-events-none disabled:opacity-30 data-today:border data-today:border-accent data-today:font-semibold data-highlighted-range:text-ink',
                         props.range
-                          ? 'size-9 rounded-xl text-sm data-range-start:bg-accent! data-range-start:text-surface! data-range-end:bg-accent! data-range-end:text-surface!'
+                          ? 'size-9 rounded-xl text-sm data-outside-month:text-ink-extra-muted data-range-start:bg-accent! data-range-start:text-surface! data-range-end:bg-accent! data-range-end:text-surface!'
                           : 'data-selected:bg-accent! data-selected:text-surface!'
                       )}
                     >
