@@ -9,8 +9,9 @@ import '@fontsource-variable/inter';
 import '../../../index.css';
 import { recipientEntityMapper } from '@core/user';
 import { fireAndForget } from '@core/util/fireAndForget';
+import type { DateSelectArg } from '@fullcalendar/core';
 import { Button, confirmDialog, ImperativeDialogHost } from '@ui';
-import { createSignal, getOwner, Show } from 'solid-js';
+import { createSignal, getOwner, onCleanup, Show } from 'solid-js';
 import { render } from 'solid-js/web';
 import {
   CalendarGrid,
@@ -71,17 +72,19 @@ function Fixture() {
   const [period, setPeriod] = createSignal(0);
   const [grid, setGrid] = createSignal<CalendarGridHandle>();
   const [month, setMonth] = createSignal(false);
+  let latestSelection: DateSelectArg | undefined;
   const [submitted, setSubmitted] = createSignal<{
     values: EventEditorSubmitValues;
     scope?: string;
   }>();
-  const openSlot = (event: MouseEvent) =>
-    composer.open({
-      initialValues: defaultEditorInitialValues(
-        new Date('2030-10-21T10:00:00')
-      ),
-      anchor: { x: event.clientX, y: event.clientY, width: 80, height: 30 },
-    });
+  const openSlot = (event: MouseEvent, start = '2030-10-21T10:00:00') =>
+    fireAndForget(
+      composer.replace({
+        initialValues: defaultEditorInitialValues(new Date(start)),
+        anchor: { x: event.clientX, y: event.clientY, width: 80, height: 30 },
+      }),
+      'calendar-editor-fixture'
+    );
 
   return (
     <div class="flex h-dvh flex-col bg-page p-4 text-ink">
@@ -121,8 +124,10 @@ function Fixture() {
           aria-label="Calendar grid"
         >
           <div class="flex shrink-0 flex-wrap gap-2 p-2">
-            <Button onClick={openSlot}>Select 10 AM</Button>
-            <Button onClick={openSlot}>Select another timeslot</Button>
+            <Button onClick={(event) => openSlot(event)}>Select 10 AM</Button>
+            <Button onClick={(event) => openSlot(event, '2030-10-21T14:00:00')}>
+              Select another timeslot
+            </Button>
             <Button
               onClick={(event) =>
                 composer.open({
@@ -149,20 +154,27 @@ function Fixture() {
               }}
               selection={{
                 color: '#4285f4',
-                allowDateSelection: () => !composer.draft(),
                 onDateSelect: (selection) => {
+                  latestSelection = selection;
                   const pointer = selection.jsEvent;
-                  composer.open({
-                    initialValues:
-                      calendarSelectionToEditorInitialValues(selection),
-                    anchor: {
-                      x: pointer?.clientX ?? 200,
-                      y: pointer?.clientY ?? 200,
-                      width: 1,
-                      height: 1,
-                    },
-                    onClose: () => selection.view.calendar.unselect(),
-                  });
+                  const openSelection = async () => {
+                    const opened = await composer.replace({
+                      initialValues:
+                        calendarSelectionToEditorInitialValues(selection),
+                      anchor: {
+                        x: pointer?.clientX ?? 200,
+                        y: pointer?.clientY ?? 200,
+                        width: 1,
+                        height: 1,
+                      },
+                      onClose: () => {
+                        if (latestSelection === selection)
+                          selection.view.calendar.unselect();
+                      },
+                    });
+                    if (!opened) selection.view.calendar.unselect();
+                  };
+                  fireAndForget(openSelection(), 'calendar-grid-fixture');
                 },
               }}
             >
@@ -181,6 +193,7 @@ function Fixture() {
                   boundary={element()}
                   draft={draft}
                   surface={composer.surface()}
+                  registerBeforeReplace={composer.registerBeforeReplace}
                   onMoveToSidebar={composer.moveToSidebar}
                   onClose={composer.close}
                   onSubmit={(values, scope) => setSubmitted({ values, scope })}
@@ -198,6 +211,9 @@ function FixtureEditor(props: {
   boundary: HTMLElement;
   draft: CalendarEditorDraft;
   surface: 'popover' | 'sidebar';
+  registerBeforeReplace: ReturnType<
+    typeof createCalendarEditor
+  >['registerBeforeReplace'];
   onMoveToSidebar: () => void;
   onClose: () => void;
   onSubmit: EventFormProps['onSubmit'];
@@ -231,8 +247,8 @@ function FixtureEditor(props: {
     confirmDiscard: () =>
       confirmDialog(
         {
-          title: 'You still have remaining changes',
-          body: 'Closing this event will discard your changes.',
+          title: 'Discard event changes?',
+          body: 'Your unsaved changes will be lost.',
           confirmLabel: 'Discard',
           cancelLabel: 'Keep editing',
           tone: 'danger',
@@ -240,6 +256,7 @@ function FixtureEditor(props: {
         { owner }
       ),
   });
+  onCleanup(props.registerBeforeReplace(mayDismiss));
   const close = async () => {
     if (await mayDismiss()) props.onClose();
   };
@@ -251,7 +268,16 @@ function FixtureEditor(props: {
         controller={controller}
         macroCallsEnabled
         isEdit={props.draft.event !== undefined}
-        disabledFields={props.draft.event ? { calendar: true } : undefined}
+        disabledFields={
+          props.draft.event
+            ? {
+                calendar: true,
+                guests: true,
+                conference: true,
+                reminders: true,
+              }
+            : undefined
+        }
         showRecurringEditNotice={Boolean(
           props.draft.event?.recurrenceLines.length
         )}

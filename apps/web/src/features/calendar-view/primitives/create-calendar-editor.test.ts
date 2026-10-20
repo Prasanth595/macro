@@ -12,7 +12,7 @@ import {
 } from './create-calendar-editor';
 
 describe('calendar composer draft', () => {
-  it('keeps the current draft when another timeslot or create action is selected', () => {
+  it('keeps the current draft for duplicate open commands', () => {
     createRoot((dispose) => {
       const composer = createCalendarEditor();
       const draft = { anchor: { x: 100, y: 200, width: 80, height: 30 } };
@@ -49,6 +49,95 @@ describe('calendar composer draft', () => {
       expect(composer.surface()).toBe('sidebar');
       dispose();
     });
+  });
+  it('replaces an untouched draft and closes its selection once', async () => {
+    const composer = createCalendarEditor();
+    const onClose = vi.fn();
+    const confirmDiscard = vi.fn();
+    composer.open({ onClose });
+    composer.registerBeforeReplace(
+      createCalendarDraftDismissal({
+        dirty: () => false,
+        pending: () => false,
+        confirmDiscard,
+      })
+    );
+    const next = { anchor: { x: 200, y: 300, width: 80, height: 30 } };
+    expect(await composer.replace(next)).toBe(true);
+    expect(composer.draft()).toBe(next);
+    expect(composer.surface()).toBe('popover');
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(confirmDiscard).not.toHaveBeenCalled();
+  });
+
+  it('keeps a dirty draft after Keep editing and replaces it after Discard', async () => {
+    const composer = createCalendarEditor();
+    const onClose = vi.fn();
+    const current = { onClose };
+    composer.open(current);
+    const confirmDiscard = vi
+      .fn()
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+    composer.registerBeforeReplace(
+      createCalendarDraftDismissal({
+        dirty: () => true,
+        pending: () => false,
+        confirmDiscard,
+      })
+    );
+    const next = { anchor: { x: 200, y: 300, width: 80, height: 30 } };
+    expect(await composer.replace(next)).toBe(false);
+    expect(composer.draft()).toBe(current);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(await composer.replace(next)).toBe(true);
+    expect(composer.draft()).toBe(next);
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(confirmDiscard).toHaveBeenCalledTimes(2);
+  });
+
+  it('blocks replacement while saving even when the draft is untouched', async () => {
+    const composer = createCalendarEditor();
+    const current = {};
+    composer.open(current);
+    const confirmDiscard = vi.fn();
+    composer.registerBeforeReplace(
+      createCalendarDraftDismissal({
+        dirty: () => false,
+        pending: () => true,
+        confirmDiscard,
+      })
+    );
+    expect(await composer.replace({})).toBe(false);
+    expect(composer.draft()).toBe(current);
+    expect(confirmDiscard).not.toHaveBeenCalled();
+  });
+
+  it('does not apply an old confirmation to a newer draft', async () => {
+    const composer = createCalendarEditor();
+    composer.open();
+    let resolve: (confirmed: boolean) => void = () => {};
+    composer.registerBeforeReplace(
+      () =>
+        new Promise<boolean>((done) => {
+          resolve = done;
+        })
+    );
+    const decision = composer.replace({});
+    composer.close();
+    const newer = { anchor: { x: 200, y: 300, width: 80, height: 30 } };
+    composer.open(newer);
+    resolve(true);
+    expect(await decision).toBe(false);
+    expect(composer.draft()).toBe(newer);
+  });
+  it('keeps the newer dismissal guard when the old form cleans up', async () => {
+    const composer = createCalendarEditor();
+    composer.open();
+    const unregister = composer.registerBeforeReplace(async () => true);
+    composer.registerBeforeReplace(async () => false);
+    unregister();
+    expect(await composer.replace({})).toBe(false);
   });
   it('consumes delivered requests so a dismissed draft does not reopen after remount', () => {
     const onCalendarChange = vi.fn();

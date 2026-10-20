@@ -37,6 +37,7 @@ export function createCalendarEditorRequest(
 export function createCalendarEditor() {
   const [draft, setDraft] = createSignal<CalendarEditorDraft>();
   const [surface, setSurface] = createSignal<'popover' | 'sidebar'>('sidebar');
+  let beforeReplace: (() => Promise<boolean>) | undefined;
 
   const open = (next: CalendarEditorDraft = {}) => {
     if (draft()) return false;
@@ -53,11 +54,29 @@ export function createCalendarEditor() {
     current.onClose?.();
   };
 
+  const registerBeforeReplace = (guard: () => Promise<boolean>) => {
+    beforeReplace = guard;
+    return () => {
+      if (beforeReplace === guard) beforeReplace = undefined;
+    };
+  };
+  const replace = async (next: CalendarEditorDraft) => {
+    const current = draft();
+    if (current && beforeReplace && !(await beforeReplace())) return false;
+    if (draft() !== current) return false;
+    return batch(() => {
+      close();
+      return open(next);
+    });
+  };
+
   return {
     draft,
     surface,
     open,
     close,
+    replace,
+    registerBeforeReplace,
     moveToSidebar: () => setSurface('sidebar'),
   };
 }

@@ -96,7 +96,6 @@ export interface CalendarGridSettings {
 export interface CalendarGridSelection {
   color: string;
   eventId?: string;
-  allowDateSelection?: () => boolean;
   onDateSelect?: (selection: DateSelectArg) => void;
   onEventSelect?: (event: CalendarEvent, element: HTMLElement) => void;
 }
@@ -278,7 +277,6 @@ export function CalendarGrid(props: CalendarGridProps) {
         )
       }
       selectable={props.selection.onDateSelect !== undefined}
-      selectAllow={() => props.selection.allowDateSelection?.() ?? true}
       unselectAuto={false}
       selectMirror
       // A zero-distance selection lets a click create one snapped time slot,

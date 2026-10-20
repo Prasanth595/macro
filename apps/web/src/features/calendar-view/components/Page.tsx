@@ -249,12 +249,14 @@ export function Page(props: {
     () => new Map(visibleEvents().map((event) => [event.id, event]))
   );
   const updateEventTime = useUpdateCalendarEventMutation();
+  let latestSelection: DateSelectArg | undefined;
   const handleSelect = (selection: DateSelectArg) => {
     if (!isActive()) return;
-    if (composer.draft() || consumeSuppressedCalendarDateSelection()) {
+    if (consumeSuppressedCalendarDateSelection()) {
       selection.view.calendar.unselect();
       return;
     }
+    latestSelection = selection;
     const calendar = firstWritableCalendar();
     const pointer = selection.jsEvent;
     const target = pointer?.target;
@@ -265,30 +267,38 @@ export function Page(props: {
             ?.querySelector<HTMLElement>('.fc-event-mirror, .fc-highlight')
         : undefined;
     const rect = preview?.getBoundingClientRect();
-    setSelectionColor(calendar?.color ?? DEFAULT_CALENDAR_SOURCE.color);
-    calendarView.closeEventDetails();
-    composer.open({
-      initialValues: {
-        ...calendarSelectionToEditorInitialValues(
-          selection,
-          quickCalls().enabled && !quickCalls().loading
-        ),
-        ...(calendar ? { calendarId: calendar.id } : {}),
-      },
-      anchor: rect
-        ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
-        : {
-            x: pointer?.clientX ?? 0,
-            y: pointer?.clientY ?? 0,
-            width: 0,
-            height: 0,
-          },
-      onCalendarChange: (_calendarId, color) => setSelectionColor(color),
-      onClose: () => {
+    const openSelection = async () => {
+      const opened = await composer.replace({
+        initialValues: {
+          ...calendarSelectionToEditorInitialValues(
+            selection,
+            quickCalls().enabled && !quickCalls().loading
+          ),
+          ...(calendar ? { calendarId: calendar.id } : {}),
+        },
+        anchor: rect
+          ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+          : {
+              x: pointer?.clientX ?? 0,
+              y: pointer?.clientY ?? 0,
+              width: 0,
+              height: 0,
+            },
+        onCalendarChange: (_calendarId, color) => setSelectionColor(color),
+        onClose: () => {
+          // A replaced draft must not clear the newly selected range.
+          if (latestSelection === selection) selection.view.calendar.unselect();
+          setSelectionColor(undefined);
+        },
+      });
+      if (!opened) {
         selection.view.calendar.unselect();
-        setSelectionColor(undefined);
-      },
-    });
+        return;
+      }
+      setSelectionColor(calendar?.color ?? DEFAULT_CALENDAR_SOURCE.color);
+      calendarView.closeEventDetails();
+    };
+    fireAndForget(openSelection(), 'calendar-event-selection');
     // The grid mirror is decoration only; the draft survives page recycling.
   };
 
@@ -363,7 +373,6 @@ export function Page(props: {
         selection={{
           color: effectiveSelectionColor(),
           eventId: isActive() ? calendarView.selectedEvent()?.id : undefined,
-          allowDateSelection: () => !composer.draft(),
           onDateSelect: isMobile() ? undefined : handleSelect,
           onEventSelect: (event, element) => {
             if (isActive()) calendarView.selectEvent(event, element);

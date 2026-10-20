@@ -116,8 +116,8 @@ function CalendarEditorContent(props: {
     confirmDiscard: () =>
       confirmDialog(
         {
-          title: 'You still have remaining changes',
-          body: 'Closing this event will discard your changes.',
+          title: 'Discard event changes?',
+          body: 'Your unsaved changes will be lost.',
           confirmLabel: 'Discard',
           cancelLabel: 'Keep editing',
           tone: 'danger',
@@ -125,6 +125,7 @@ function CalendarEditorContent(props: {
         { owner }
       ),
   });
+  onCleanup(composer.registerBeforeReplace(mayDismiss));
   const close = async () => {
     if (await mayDismiss()) composer.close();
   };
