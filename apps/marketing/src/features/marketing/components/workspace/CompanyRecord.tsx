@@ -47,6 +47,7 @@ import {
   type SampleCompany,
 } from '../../core/workspace-fixtures';
 import type { DummyWorkspace } from '../../primitives/createDummyWorkspace';
+import type { ChannelComposerHandle } from '../email/frozen/ChannelComposer';
 import { ChannelComposer } from '../email/frozen/ChannelComposer';
 import { SearchBar } from '../email/frozen/SearchBar';
 import { PanelGrid, PanelRow } from './frozen/DetailPanel';
@@ -170,6 +171,7 @@ function Description(props: { text: string }) {
 function Discussion(props: {
   comments: WorkspaceComment[];
   onChange: (comments: WorkspaceComment[]) => void;
+  onComposerReady?: (handle: ChannelComposerHandle | undefined) => void;
 }) {
   const [expanded, setExpanded] = createSignal(true);
   const [replying, setReplying] = createSignal<string>();
@@ -299,6 +301,7 @@ function Discussion(props: {
         <div class="mt-4" data-discussion-composer>
           <ChannelComposer
             label="Comment on company"
+            onReady={props.onComposerReady}
             placeholder="Leave a comment..."
             onSend={(body) => send(body)}
           />
@@ -825,6 +828,7 @@ export function CompanyRecord(props: {
   onPanelChange: (open: boolean) => void;
   onOpenItem: (view: WorkspaceView, id: string) => void;
   pipeline?: JSX.Element;
+  onComposerReady?: (handle: ChannelComposerHandle | undefined) => void;
   hideCopyLink?: boolean;
   onOpenCall?: (id: string) => void;
   onOpenTask?: (id: string) => void;
@@ -977,6 +981,7 @@ export function CompanyRecord(props: {
               </div>
               {props.pipeline}
               <Discussion
+                onComposerReady={props.onComposerReady}
                 comments={props.company.comments}
                 onChange={(comments) => update({ comments })}
               />

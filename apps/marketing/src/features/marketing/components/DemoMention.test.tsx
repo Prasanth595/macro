@@ -104,3 +104,27 @@ it('keeps pasted HTML out of the draft and preserves existing mention nodes', ()
   expect(editor.querySelector('[data-demo-mention="teo"]')).toBeTruthy();
   expect(editor.textContent).toBe('@Teo plain text');
 });
+
+it('renders Claude and Cursor as person mentions in both editors and sent messages', () => {
+  render(() => (
+    <>
+      <DemoMentionMenu />
+      <div class="workspace-demo">
+        <ChannelComposer richMentions label="Message" onSend={() => {}} />
+      </div>
+    </>
+  ));
+  const editor = screen.getByRole('textbox', { name: 'Message' });
+  for (const name of ['claude', 'cursor']) {
+    typeAtEnd(editor, `@${name}`);
+    fireEvent.keyDown(editor, { key: 'Enter' });
+  }
+  expect(editor.textContent).toBe('@Claude @Cursor ');
+  expect(editor.querySelectorAll('.mention-person')).toHaveLength(2);
+  expect(editor.querySelector('.demo-mention-icon')).toBeNull();
+  const result = render(() => (
+    <DemoMentionText text={serializeDemoEditor(editor)} />
+  ));
+  expect(result.container.textContent).toBe('@Claude @Cursor ');
+  expect(result.container.querySelector('.demo-mention-icon')).toBeNull();
+});

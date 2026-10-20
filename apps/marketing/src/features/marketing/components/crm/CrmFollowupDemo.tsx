@@ -72,11 +72,23 @@ export function CrmFollowupDemo() {
   };
   const playback = createProductWalkthrough({
     root: () => frame,
-    steps: 9,
+    steps: 10,
     visibilityThreshold: 0.45,
-    reset: () => {},
+    loop: { hold: 10000 },
+    reset: () => {
+      setPhase(0);
+      setSource('company');
+      setSection('overview');
+      setToolsOpen(true);
+      w.open('crm', followupIds.company);
+      frame
+        .querySelectorAll<HTMLElement>('.agent-transcript, .dummy-scroll')
+        .forEach((el) => {
+          el.scrollTop = 0;
+        });
+    },
     reduced: finish,
-    delay: (step) => (step === 1 ? 1200 : step === 9 ? 3200 : 1800),
+    delay: (step) => (step === 1 ? 1200 : step >= 9 ? 6500 : 1800),
     advance: (step) => {
       setPhase(step);
       if (step === 1) w.open('crm', followupIds.company);
@@ -87,10 +99,21 @@ export function CrmFollowupDemo() {
       if (step === 6) setSource('chat');
       if (step === 7) setSource('pr');
       if (step === 8) finish();
-      if (step === 9)
+      if (step >= 9)
         queueMicrotask(() => {
           const log = frame.querySelector<HTMLElement>('.agent-transcript');
-          log?.scrollTo({ top: log.scrollHeight, behavior: 'smooth' });
+          const draft = frame.querySelector<HTMLElement>(
+            '.homepage-email-demo'
+          );
+          if (!log) return;
+          const top =
+            step === 9 && draft
+              ? log.scrollTop +
+                draft.getBoundingClientRect().top -
+                log.getBoundingClientRect().top -
+                16
+              : log.scrollHeight;
+          log.scrollTo({ top, behavior: 'smooth' });
         });
     },
   });

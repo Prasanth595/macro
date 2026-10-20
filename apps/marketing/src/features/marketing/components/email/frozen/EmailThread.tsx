@@ -78,13 +78,13 @@ export function EmailThread(props: {
           allowHover={false}
           isTouch={false}
         >
-          <div class="flex flex-col min-w-0 gap-2 overflow-hidden">
+          <div class="mail-message-content flex flex-col min-w-0 gap-2 overflow-hidden">
             <div class="flex items-center min-h-6 gap-2">
               <EmailAvatar name={sender()} />
               <div class="flex flex-row w-full min-w-0 flex-1 items-center gap-2 text-sm">
                 <div class="flex flex-row items-center gap-1.5 min-w-0 flex-1">
                   <span class="text-ink font-medium truncate">{sender()}</span>
-                  <span class="text-ink-extra-muted/60 shrink-0">
+                  <span class="mail-message-recipient text-ink-extra-muted/60 shrink-0">
                     to {sent() ? props.email.sender : 'me'}
                   </span>
                   <Button

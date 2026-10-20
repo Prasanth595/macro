@@ -16,7 +16,10 @@ import { Layout } from './ComposerLayout';
 
 // The actual ChannelInput layout, ComposerSurface, InputActionButton and
 // SendAction presentation with a website-local draft instead of app commands.
-export type ChannelComposerHandle = { setText: (text: string) => void };
+export type ChannelComposerHandle = {
+  setText: (text: string) => void;
+  send: () => void;
+};
 
 export function ChannelComposer(props: {
   onSend: (message: string) => void;
@@ -41,6 +44,7 @@ export function ChannelComposer(props: {
   };
   onMount(() => {
     props.onReady?.({
+      send: () => send(),
       setText: (text) => {
         if (!input) return;
         if (input instanceof HTMLTextAreaElement) input.value = text;

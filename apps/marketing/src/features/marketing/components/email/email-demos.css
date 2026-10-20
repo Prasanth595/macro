@@ -130,3 +130,10 @@
 
 /* Preserve dark arrow contrast when the shared button's generic hover applies. */
 .feature-page [data-input-action=send]:not(:disabled) { color: var(--color-composer-action-ink); }
+
+/* Keep sender names readable when the same email opens in a narrow split. */
+.mail-message-content { container: mail-message / inline-size; }
+@container mail-message (max-width: 320px) {
+  .mail-message-recipient { display: none; }
+  .mail-message-text { padding-right: 0; }
+}

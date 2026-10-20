@@ -57,33 +57,47 @@ const stage = (view: ReturnType<typeof render>) =>
 const owner = (view: ReturnType<typeof render>) =>
   view.getByRole('button', { name: 'Change Owner' }).textContent;
 
-it('lets Claude set the stage and owner, then answer in the Discussion thread', () => {
+it('types the request before sending, acknowledges it, updates the record, then confirms and loops', () => {
   const view = render(() => <CrmCaptureDemo />);
-  expect(view.getByText(/just got off a call with Ava/)).toBeTruthy();
+  const input = view.getByRole('textbox', { name: 'Comment on company' });
+  expect((input as HTMLTextAreaElement).value).toBe('');
+  vi.advanceTimersByTime(10000);
+  expect((input as HTMLTextAreaElement).value).toBe('');
+  visible(true);
+  vi.advanceTimersByTime(1500);
+  expect((input as HTMLTextAreaElement).value).toMatch(/^@Claude /);
+  expect(view.queryByText(/I’ll update the stage/)).toBeNull();
+  visible(false);
+  const draft = (input as HTMLTextAreaElement).value;
+  vi.advanceTimersByTime(10000);
+  expect((input as HTMLTextAreaElement).value).toBe(draft);
+  visible(true);
+  // Observe each actual transition, including the acknowledgment before updates.
+  for (
+    let elapsed = 0;
+    elapsed < 7000 && !view.queryByText(/I’ll update the stage/);
+    elapsed += 100
+  )
+    vi.advanceTimersByTime(100);
+  expect(view.getByText(/I’ll update the stage/)).toBeTruthy();
+  expect((input as HTMLTextAreaElement).value).toBe('');
+  expect(view.getByText('@Claude')).toBeTruthy();
   expect(stage(view)).toContain('Lead');
   expect(owner(view)).toContain('Empty');
-  vi.advanceTimersByTime(10000);
-  expect(stage(view)).toContain('Lead');
-  visible(true);
-  vi.advanceTimersByTime(1900);
+  vi.advanceTimersByTime(1400);
   expect(stage(view)).toContain('Demo');
   expect(owner(view)).toContain('Empty');
-  visible(false);
-  vi.advanceTimersByTime(10000);
-  expect(owner(view)).toContain('Empty');
-  visible(true);
-  vi.advanceTimersByTime(1900);
+  vi.advanceTimersByTime(1400);
   expect(owner(view)).toContain('Jacob');
-  expect(view.queryByText(/Parlor Studio is in Demo/)).toBeNull();
-  vi.advanceTimersByTime(1900);
-  const thread = view.container.querySelector<HTMLElement>(
-    '[data-thread-id="capture-request"]'
-  );
-  expect(
-    within(thread!).getByText(/Parlor Studio is in Demo and you’re the owner/)
-  ).toBeTruthy();
-  expect(within(thread!).getByText('Agent')).toBeTruthy();
+  expect(view.queryByText(/Done. Parlor Studio/)).toBeNull();
+  vi.advanceTimersByTime(1400);
+  expect(view.getByText(/Done. Parlor Studio/)).toBeTruthy();
   expect(view.container.querySelector('.demo-cursor')).toBeNull();
+  vi.advanceTimersByTime(8000);
+  expect(stage(view)).toContain('Lead');
+  expect(owner(view)).toContain('Empty');
+  expect((input as HTMLTextAreaElement).value).toBe('');
+  expect(view.queryByText(/Done. Parlor Studio/)).toBeNull();
 });
 
 it('stops the walkthrough when a visitor takes over the record', () => {
@@ -120,9 +134,7 @@ it('posts a visitor’s comment and thread reply in the company Discussion', () 
   });
   fireEvent.keyDown(comment, { key: 'Enter' });
   expect(view.getByText('Ava confirmed 12 seats.')).toBeTruthy();
-  const thread = view.container.querySelector<HTMLElement>(
-    '[data-thread-id="capture-request"]'
-  );
+  const thread = view.container.querySelector<HTMLElement>('[data-thread-id]');
   fireEvent.click(within(thread!).getByRole('button', { name: 'Reply' }));
   const reply = view.getByRole('textbox', { name: 'Thread reply' });
   expect(reply.getAttribute('placeholder')).toBe('Send a reply');

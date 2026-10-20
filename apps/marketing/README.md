@@ -121,7 +121,7 @@ Demos are faithful to the signed-in app: its labels, layout, icons, and
 hover-only controls (the message toolbar appears on hover, as in the app).
 Don't invent chrome such as step chips or explanatory labels inside a mock, and
 don't show features the app doesn't have. Operating pointers use `DemoCursor`
-and `primitives/createDemoPointer`: a 24px mouse arrow with a stable hotspot,
+and `primitives/createDemoPointer`: a standard 20px dark mouse arrow with a stable hotspot,
 restrained click feedback, and element-relative positioning. Keep its last
 position when a target disappears; changing content or opening a menu must not
 remount the pointer. Use actor labels only when they explain who is editing,
@@ -141,9 +141,14 @@ while offscreen or hidden, and show a useful static result for reduced motion.
 `observeDemoTakeover` gives the visitor permanent control on pointer/keyboard
 input or entry through any containing preview boundary. A later visibility or
 motion-preference change must never overwrite visitor edits. Page scrolling
-alone does not enter a demo. Longer creation stories finish once; short reversible
-scenes can opt into `loop: { hold: 5500 }` only with a complete reset of their
-content, menus, selections, and scroll positions. Never reverse finished edits.
+alone does not enter a demo. The default start threshold is half the frame;
+scenes targeting a composer can require that input area to be fully visible.
+Repeatable feature stories use `loop` with a 6–10 second result hold (the short
+keyboard and folder tours use 5.5 seconds). Reset content, menus, selections,
+outputs, and scroll positions together before the next sequence. Never animate
+completed work backward. Hide the operating pointer during the result hold;
+retain it between actions within a sequence. Live-call previews and static
+workspace heroes remain available for exploration without automatic resets.
 Express scene steps as ordered actions with reading time before each action.
 Approach a real control, click, show its menu, approach an option, select it, and
 hold the result. Share the local controls and save handlers with manual input;
@@ -430,7 +435,15 @@ reduced motion shows the settled board. The animation uses the shared
 `createProductWalkthrough` lifecycle and `pipeline-transfer.css`.
 `CompanyPipelineEntry` follows `crm/components/pipeline-entry-cards` and appears
 between the company header and Discussion. Pipeline edits remain separate from
-company properties. Verify board/table switching, moving a deal, editing its
+company properties. The CRM update example types and sends through the company
+Discussion composer, shows Claude acknowledging the request, updates Stage and
+Owner, then posts the completion reply. Agent actions do not use a simulated
+mouse. Render agent mentions such as `@Claude` and `@Cursor` as person mentions,
+never document links or sparkle chips. The follow-up example holds its source
+summary, email draft, and next steps separately so the draft is readable before
+scrolling. Narrow email panes preserve the sender name; message details expose
+the recipient information.
+Verify board/table switching, moving a deal, editing its
 pipeline entry from a record, and the mobile Back control. Keep these demos local
 and check the record interactions at both desktop and mobile widths.
 
@@ -749,7 +762,8 @@ command. The closing FAQ answers model, access, review, and background-work ques
 and folders and tags. The hero's `DocumentProjectDemo teamEditing` variant puts
 Julia and Jacob's simultaneous insertions in the first paragraph, followed by
 a brief text selection and bold formatting. Start only when half the document
-is visible, play once, and clear remote carets on the first activation or edit.
+is visible, hold the completed edits for eight seconds before replaying, and clear
+remote carets on the first activation or edit.
 This is a local illustrative walkthrough, not a live CRDT session or a latency
 benchmark; the visitor can type directly in its existing editable document.
 The homepage retains the original checklist sequence. Keep the speed message
@@ -804,8 +818,9 @@ it rests between those actions. Agent follow-up updates do not simulate a mouse.
 and agent-assisted task update. Calls-only fixtures live in `calls/call-fixtures.ts`
 and `calls/call-project.ts`; shared workspace data stays unchanged. The hero's
 In the call / After the call controls sit outside the product frame. The hero
-stays in the call until the visitor switches scenes or leaves. Other call walkthroughs
-run once while visible and stop permanently on visitor interaction. Participants are illustrative; playback is
+stays in the call until the visitor switches scenes or leaves. The follow-up and
+saved-record walkthroughs hold their result for nine seconds before replaying;
+visitor interaction permanently stops them. Participants are illustrative; playback is
 local and has no call audio or network effects.
 
 The hero shows camera-off participants and call controls, with no screen-share
@@ -866,12 +881,16 @@ Composer handles and explicit reply state drive playback; no synthetic input or
 Reply/Cancel button clicks are used. Keep composer geometry stable during typing. Visitor input stops typing and preserves the draft.
 The message-to-task walkthrough first scrolls its request into view. Its persistent
 pointer opens the task composer, selects High from the real priority menu, creates
-the task, selects In Progress and Completed from the status menu, and opens the
-linked plan. Menu presentation and saves are shared with the interactive controls;
-only automatic menu opens suppress focus.
-The context demo types its final sharing instruction, opens the mention picker
-at @, selects #sales, and stops with the link inserted. It starts only when the
-line is visible; the picker opens above the line to stay inside the demo.
+the task, opens its linked brief, and returns through the inline task mention.
+Do not mark a freshly created task complete just to finish the animation.
+Use `DocMention`, `TaskMention inline`, and the editable `WorkspaceDocuments` viewer here;
+generic boxed entity buttons do not match mentions inside a document.
+Menu presentation and saves are shared with the interactive controls; only
+automatic menu opens suppress focus.
+The context demo types and inserts the Customer brief, Proposal request email,
+and #sales references using three mention-menu selections. The picker opens
+above each line to stay inside the demo. Hold all three completed references
+without a parked pointer, then reset all three together for the next loop.
 Visitor input stops playback permanently;
 reduced motion shows the result. Inline task mentions open their linked documents, emails, and conversations. PR playback updates status, never the task’s checklist. Focused task-detail
 frames grow to fit the discussion and composer above the decorative fade; verify
@@ -919,8 +938,9 @@ playback begins unsplit, opens the inline PR, then opens Changes; interaction
 stops playback. Narrow panes show the active view, and Back/Escape return to the
 channel without discarding its conversation. The task demo links the PR before
 moving to In Review, illustrates a confirmed merge, and updates Completed without
-changing checklist items. Inbox playback holds the opened request until the
-visitor marks it done. Cursor contributes one result with a session and PR link.
+changing checklist items. Inbox playback holds the opened request for 8.5 seconds
+before resetting its pending/read state; marking an item done stops the loop.
+Cursor contributes one result with a session and PR link.
 
 GitHub presentation follows `block-pr/PrDetail` and `features/changes` at
 `e2bd582d5f991896bbc69921ee2447def7360636`. Diffs are frozen Pierre renderer output,

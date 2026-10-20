@@ -4,6 +4,7 @@ import type { WorkspaceView } from '../../core/dummy-workspace';
 import { homepagePeople } from '../../core/homepage-demo-people';
 import { dealStages, type SampleCompany } from '../../core/workspace-fixtures';
 import type { DummyWorkspace } from '../../primitives/createDummyWorkspace';
+import type { ChannelComposerHandle } from '../email/frozen/ChannelComposer';
 import { SearchBar } from '../email/frozen/SearchBar';
 import { CompanyRecord, type CompanySection, StageIcon } from './CompanyRecord';
 
@@ -33,6 +34,7 @@ const byRecency = (a: SampleCompany, b: SampleCompany) =>
 export function WorkspaceCompanies(props: {
   workspace: DummyWorkspace;
   hideCopyLink?: boolean;
+  onComposerReady?: (handle: ChannelComposerHandle | undefined) => void;
   onOpenCall?: (id: string) => void;
   onOpenTask?: (id: string) => void;
   pipeline?: (company: SampleCompany) => JSX.Element;
@@ -209,6 +211,7 @@ export function WorkspaceCompanies(props: {
     >
       {(company) => (
         <CompanyRecord
+          onComposerReady={props.onComposerReady}
           workspace={w}
           company={company()}
           onOpenCall={props.onOpenCall}
