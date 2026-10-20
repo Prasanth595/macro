@@ -171,6 +171,42 @@
 }
 .tasks-founder-card-article > span:last-child { color: #aaa; white-space: nowrap; }
 .tasks-founder-card:hover .tasks-founder-card-article > span:last-child { color: #fff; }
+
+/* Task links use a lighter title-and-arrow treatment than the long-form guides. */
+.tasks-page .product-feature-details { margin-top: 32px; }
+.tasks-page .product-feature-card-summary { display: none; }
+.tasks-page .product-feature-detail-links { gap: 14px; }
+.tasks-page .product-feature-detail-links > button {
+  min-height: 92px;
+  padding: 22px 24px;
+  justify-content: center;
+  border-radius: 14px;
+  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+.tasks-page .product-feature-detail-links > button:nth-child(1) {
+  border-color: transparent;
+  background: transparent;
+}
+.tasks-page .product-feature-detail-links > button:nth-child(2) {
+  border-color: #ffffff14;
+  background: #ffffff08;
+}
+.tasks-page .product-feature-detail-links > button:nth-child(3) {
+  border-color: #ffffff28;
+  background: transparent;
+}
+.tasks-page .product-feature-detail-links > button:nth-child(4) {
+  border-color: #ffffff14;
+  background: #ffffff05;
+}
+.tasks-page .product-feature-detail-links > button:hover {
+  border-color: #ffffff45;
+  background: #ffffff0d;
+  transform: translateY(-1px);
+}
+.tasks-page .product-feature-detail-links > button:nth-child(1):hover {
+  background: #ffffff08;
+}
 @media (max-width: 699px) {
   .tasks-founder-card-body { padding: 24px; }
   .tasks-page .tasks-founder-card h2 { font-size: 25px; margin-bottom: 18px; }
