@@ -352,6 +352,8 @@ animated cursors, explanatory captions, or decorative backgrounds.
 Sharing shows the customer email and channel as two app splits on desktop, then
 adds the linked email and a later reply. Below 800px, show one pane at a time;
 opening the email reference and going back preserves the channel conversation.
+Keep message objects stable across walkthrough steps; only newly appended messages
+should mount and animate, preserving existing bubbles, controls, and composer state.
 The agent story shows the request, its call/document context, and the editable
 draft in the actual chat order. Rich sample links use the existing composer’s
 optional `bodyContent`; ordinary drafts and the homepage keep their current behavior.

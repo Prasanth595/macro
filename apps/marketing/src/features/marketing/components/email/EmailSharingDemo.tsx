@@ -8,7 +8,10 @@ import { meetingEmail, meetingReply } from '../../core/email-demo-story';
 import { homepagePeople } from '../../core/homepage-demo-people';
 import { createEmailWalkthrough } from '../../primitives/createEmailWalkthrough';
 import { DocMention } from '../documents/DocMention';
-import { HomepageConversation } from '../HomepageConversation';
+import {
+  HomepageConversation,
+  type HomepageMessage,
+} from '../HomepageConversation';
 import { ChannelComposer } from './frozen/ChannelComposer';
 import { EmailShell } from './frozen/EmailShell';
 import { EmailThread } from './frozen/EmailThread';
@@ -124,7 +127,32 @@ function ChannelResult(props: {
   updated: boolean;
   onOpen: () => void;
 }) {
-  const [messages, setMessages] = createSignal<string[]>([]);
+  // Solid's For keys by object identity. Keep existing messages stable across phases.
+  const question: HomepageMessage = {
+    person: 'julia',
+    text: 'What does Valentina need before Thursday?',
+  };
+  const sharedEmail: HomepageMessage = {
+    person: 'jacob',
+    text: (
+      <>
+        Here’s the email for Thursday:{' '}
+        <button
+          type="button"
+          class="mail-shared-thread"
+          onClick={() => props.onOpen()}
+          aria-label="Open shared email: Thursday demo"
+        >
+          <DocMention item={{ kind: 'email', label: 'Thursday demo' }} />
+        </button>
+      </>
+    ),
+  };
+  const followUp: HomepageMessage = {
+    person: 'julia',
+    text: 'I’ll send the setup guide before the call.',
+  };
+  const [messages, setMessages] = createSignal<HomepageMessage[]>([]);
   return (
     <div class="mail-channel">
       <header class="flex h-12 items-center gap-2 px-4 text-sm">
@@ -146,47 +174,18 @@ function ChannelResult(props: {
       <div class="mail-channel-messages">
         <HomepageConversation
           messages={[
-            {
-              person: 'julia',
-              text: 'What does Valentina need before Thursday?',
-            },
-            ...(props.shared
-              ? [
-                  {
-                    person: 'jacob' as const,
-                    text: (
-                      <>
-                        Here’s the email for Thursday:{' '}
-                        <button
-                          type="button"
-                          class="mail-shared-thread"
-                          onClick={props.onOpen}
-                          aria-label="Open shared email: Thursday demo"
-                        >
-                          <DocMention
-                            item={{ kind: 'email', label: 'Thursday demo' }}
-                          />
-                        </button>
-                      </>
-                    ),
-                  },
-                ]
-              : []),
-            ...(props.updated
-              ? [
-                  {
-                    person: 'julia' as const,
-                    text: 'I’ll send the setup guide before the call.',
-                  },
-                ]
-              : []),
-            ...messages().map((text) => ({ person: 'jacob' as const, text })),
+            question,
+            ...(props.shared ? [sharedEmail] : []),
+            ...(props.updated ? [followUp] : []),
+            ...messages(),
           ]}
         />
       </div>
       <div class="mail-channel-composer">
         <ChannelComposer
-          onSend={(message) => setMessages([...messages(), message])}
+          onSend={(text) =>
+            setMessages((previous) => [...previous, { person: 'jacob', text }])
+          }
         />
       </div>
     </div>

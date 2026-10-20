@@ -257,3 +257,38 @@ it('does not send while composing text or inserting a line break', () => {
   fireEvent.keyDown(input, { key: 'Enter' });
   expect(onSend).toHaveBeenCalledWith('Ready for review');
 });
+
+it('keeps existing channel messages mounted while the email walkthrough advances', () => {
+  const view = render(() => <EmailSharingDemo />);
+  const question = () =>
+    view.getByText('What does Valentina need before Thursday?').closest('li');
+  const original = question();
+  const composer = view.getByRole('textbox', { name: 'Message #launch' });
+  setVisible(true);
+  vi.advanceTimersByTime(1800);
+  expect(question()).toBe(original);
+  vi.advanceTimersByTime(4550);
+  expect(question()).toBe(original);
+  const shared = view.getByRole('button', {
+    name: 'Open shared email: Thursday demo',
+  });
+  const sharedMessage = shared.closest('li');
+  vi.advanceTimersByTime(2600);
+  expect(question()).toBe(original);
+  expect(
+    view.getByRole('button', { name: 'Open shared email: Thursday demo' })
+  ).toBe(shared);
+  expect(shared.closest('li')).toBe(sharedMessage);
+  const reply = view
+    .getByText('I’ll send the setup guide before the call.')
+    .closest('li');
+  expect(view.getByRole('textbox', { name: 'Message #launch' })).toBe(composer);
+  fireEvent.input(composer, { target: { value: 'Thanks, I’ll check it.' } });
+  fireEvent.click(view.getByRole('button', { name: 'Send demo message' }));
+  expect(view.getByText('Thanks, I’ll check it.')).toBeTruthy();
+  expect(question()).toBe(original);
+  expect(shared.closest('li')).toBe(sharedMessage);
+  expect(
+    view.getByText('I’ll send the setup guide before the call.').closest('li')
+  ).toBe(reply);
+});

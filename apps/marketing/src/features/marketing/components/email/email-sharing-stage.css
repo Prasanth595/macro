@@ -18,7 +18,9 @@
 .mail-sharing-stage .mail-channel-composer { flex-shrink: 0; }
 .mail-sharing-stage .mail-channel-messages { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 24px 20px; align-items: flex-start; scrollbar-width: thin; }
 .mail-sharing-stage .mail-channel-messages .homepage-conversation { width: 100%; margin: 0; gap: 24px; }
-.mail-sharing-stage .mail-channel-messages .homepage-message { max-width: 100%; }
+.mail-sharing-stage .mail-channel-messages .homepage-message { max-width: 100%; animation: mail-share-enter 180ms ease-out both; }
+/* One restrained entrance per new message, with no second bubble animation. */
+.mail-sharing-stage .mail-channel-messages .homepage-message [data-user-message-bubble] { animation: none; }
 .mail-sharing-stage .mail-channel-composer { width: 100%; padding: 12px 16px 20px; }
 .mail-shared-thread { display: inline; max-width: 100%; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; }
 .mail-shared-thread:hover .demo-mention-name { text-decoration-color: currentColor; }
@@ -34,6 +36,6 @@
 }
 @media (prefers-reduced-motion: reduce) {
  .mail-sharing-stage .mail-thread-body .mail-thread,
- .mail-sharing-stage .mail-channel-messages .homepage-message:last-child,
+ .mail-sharing-stage .mail-channel-messages .homepage-message,
  .mail-sharing-stage .mail-share-form { animation: none; }
 }
