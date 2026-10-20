@@ -2,6 +2,8 @@ import { useCrmContactDiscovery } from '@app/features/crm/record-adapter';
 import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
 import { projectRouteId } from '@app/features/projects/core/route';
 import { createSoupRowStore } from '@app/features/soup/collection/row-store';
+import { MobileTopEdgeFade } from '@components/app/mobile/MobileEdgeFade';
+import { MobileViewsRow } from '@components/app/mobile/MobileViewsRow';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
@@ -98,7 +100,7 @@ function MobileNameResults() {
   return (
     <div
       ref={setContainer}
-      class="flex h-full min-h-0 flex-col px-3 mobile:pt-(--mobile-content-inset-top) mobile:pb-(--mobile-content-inset-bottom)"
+      class="flex h-full min-h-0 flex-col px-3 touch:pt-(--mobile-content-inset-top) touch:pb-(--mobile-content-inset-bottom)"
     >
       <Show when={SearchState.query().trim() && category() !== 'projects'}>
         <div
@@ -208,7 +210,7 @@ function MobileFullTextResults() {
       role="region"
       aria-label="Search results"
       onScroll={loadMoreNearEnd}
-      class="soup-list h-full overflow-y-auto overscroll-none mobile:pt-(--mobile-content-inset-top) mobile:pb-(--mobile-content-inset-bottom)"
+      class="soup-list h-full overflow-y-auto overscroll-none touch:pt-(--mobile-content-inset-top) touch:pb-(--mobile-content-inset-bottom)"
     >
       <ListEntityMetadataQueryProvider>
         <ListLayoutProvider ref={container}>
@@ -261,13 +263,28 @@ function MobileFullTextResults() {
 /** The dock owns the input; only the result subtree changes search modes. */
 export function MobileSearchResults() {
   return (
-    <Suspense fallback={<p role="status">Loading…</p>}>
-      <Show
-        when={SearchState.mode() === 'full-text'}
-        fallback={<MobileNameResults />}
+    <div
+      class="relative size-full min-h-0 min-w-0"
+      style={{
+        '--mobile-content-inset-top': 'calc(var(--safe-top, 0px) + 3.75rem)',
+      }}
+    >
+      <MobileViewsRow />
+      <Suspense
+        fallback={
+          <p role="status" class="px-3 touch:pt-(--mobile-content-inset-top)">
+            Loading…
+          </p>
+        }
       >
-        <MobileFullTextResults />
-      </Show>
-    </Suspense>
+        <Show
+          when={SearchState.mode() === 'full-text'}
+          fallback={<MobileNameResults />}
+        >
+          <MobileFullTextResults />
+        </Show>
+      </Suspense>
+      <MobileTopEdgeFade />
+    </div>
   );
 }
