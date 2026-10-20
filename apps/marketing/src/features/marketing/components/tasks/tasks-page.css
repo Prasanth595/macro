@@ -183,19 +183,19 @@
   border-radius: 14px;
   transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
 }
-.tasks-page .product-feature-detail-links > button:nth-child(1) {
+.tasks-page #from-a-message .product-feature-detail-links > button {
   border-color: transparent;
   background: transparent;
 }
-.tasks-page .product-feature-detail-links > button:nth-child(2) {
+.tasks-page #ask-macro .product-feature-detail-links > button {
   border-color: #ffffff14;
   background: #ffffff08;
 }
-.tasks-page .product-feature-detail-links > button:nth-child(3) {
+.tasks-page #from-docs-and-email .product-feature-detail-links > button {
   border-color: #ffffff28;
   background: transparent;
 }
-.tasks-page .product-feature-detail-links > button:nth-child(4) {
+.tasks-page #github .product-feature-detail-links > button {
   border-color: #ffffff14;
   background: #ffffff05;
 }
@@ -204,7 +204,7 @@
   background: #ffffff0d;
   transform: translateY(-1px);
 }
-.tasks-page .product-feature-detail-links > button:nth-child(1):hover {
+.tasks-page #from-a-message .product-feature-detail-links > button:hover {
   background: #ffffff08;
 }
 @media (max-width: 699px) {
