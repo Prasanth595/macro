@@ -117,7 +117,7 @@ export function RouteGithub() {
         <FeaturePageSection
           id="pr-tasks"
           title={['Link pull requests', 'to tasks.']}
-          description="Keep implementation and task tracking connected. Link a pull request to its task, then let opening, merging, or closing the PR update the task’s status for the team."
+          description="Keep implementation and task tracking connected. Link a pull request to its task, then let opening, merging, or closing the PR update the task’s status."
           details={githubGuides['pr-tasks']}
         >
           <div class="feature-page-visual">
