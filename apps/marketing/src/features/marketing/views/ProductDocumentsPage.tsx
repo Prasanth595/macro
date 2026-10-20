@@ -69,8 +69,7 @@ export function RouteDocuments() {
           product="Docs"
           title={['Fast shared docs for your', 'team and agents.']}
           description={[
-            'Fast, collaborative docs connected',
-            'to the rest of your work.',
+          'Link emails, chats, tasks, and files to your documents.',
           ]}
           cta="documents_hero_get_started"
         />
