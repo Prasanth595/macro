@@ -83,7 +83,8 @@ export function RouteCrm() {
         product="CRM"
         title={['The CRM connected', 'to your team’s work.']}
         description={[
-          'Agents automatically update customer records from emails, calls, chats, and tasks.',
+          'Agents automatically update customer records',
+          'from emails, calls, chats, and tasks.',
         ]}
         cta="crm_hero_get_started"
       />
