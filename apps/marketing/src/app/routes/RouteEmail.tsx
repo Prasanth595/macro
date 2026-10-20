@@ -104,9 +104,9 @@ export function RouteEmail() {
           <span>humans and agents.</span>
         </h1>
         <p class="email-page-hero-description">
-          All your accounts in one inbox. Search across them.
-          <br class="email-page-hero-break" /> Share threads. Let agents draft
-          your replies.
+          Bring all your email accounts into one inbox. Find what matters fast.
+          <br class="email-page-hero-break" /> Share threads with your team and
+          draft replies with the context of your work.
         </p>
         <FeaturePageCta name="email_hero_get_started" />
       </header>
