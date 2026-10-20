@@ -147,7 +147,7 @@ export function RouteCrm() {
       </FeaturePageSection>
       <FeaturePageSection
         id="crm-context"
-        title={['Automatically connect', 'emails, calls, files, and', 'tasks to each customer.']}
+        title={['Automatically connect', 'calls, emails, and tasks', 'to each customer.']}
         description="Open a company to see the people, emails, calls, files, and tasks behind the relationship. Keep notes on the customer record so the next person can understand what’s happened and what comes next."
         details={crmGuides['crm-context']}
       >
