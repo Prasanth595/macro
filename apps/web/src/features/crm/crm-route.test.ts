@@ -185,13 +185,41 @@ describe('pipeline links', () => {
   });
 });
 
-describe('legacy pipeline URLs', () => {
+const legacyEntry = (type: string, id: string): Entry => ({
+  id: 'entry',
+  location: {
+    route: paneRoute({ id: legacyContentRoute.id, params: { type, id } }),
+  },
+});
+
+const recordEntry = (
+  recordType: 'company' | 'contact',
+  recordId: string,
+  pipelineId?: string
+): Entry => ({
+  id: 'entry',
+  location: {
+    route: pipelineId
+      ? paneRoute(
+          { id: companiesRoute.id, params: {} },
+          { id: crmPipelineRoute.id, params: { pipelineId } },
+          { id: crmPipelineRecordRoute.id, params: { recordType, recordId } }
+        )
+      : paneRoute(
+          { id: companiesRoute.id, params: {} },
+          { id: crmRecordRoute.id, params: { recordType, recordId } }
+        ),
+  },
+});
+
+describe('legacy CRM URLs', () => {
   const run = (
     to: Entry,
     options: {
       touch?: boolean;
       cause?: NavigationCause;
       externalSearch?: string;
+      path?: string;
     } = {}
   ) => {
     const middleware = createAppSplitRouterMiddleware({
@@ -202,7 +230,7 @@ describe('legacy pipeline URLs', () => {
         routes,
         from: undefined,
         to,
-        path: '',
+        path: options.path ?? '',
         cause: options.cause ?? 'navigate',
         externalSearch: options.externalSearch,
         signal: new AbortController().signal,
@@ -283,5 +311,48 @@ describe('legacy pipeline URLs', () => {
         },
       })
     ).toBeUndefined();
+  });
+
+  it.each([
+    ['company', companyId],
+    ['contact', contactId],
+  ])('opens a %s link in Customers on desktop', (type, id) => {
+    expect(run(legacyEntry(type, id))).toEqual({
+      type: 'redirect',
+      to: `/companies/${type}/${id}`,
+    });
+  });
+
+  it('keeps company and contact links on their own pages on touch', () => {
+    expect(run(legacyEntry('company', companyId), { touch: true })).toBe(
+      undefined
+    );
+    expect(run(legacyEntry('contact', contactId), { touch: true })).toBe(
+      undefined
+    );
+  });
+
+  it('shows Customers record URLs on their own pages on touch', () => {
+    expect(run(recordEntry('company', companyId), { touch: true })).toEqual({
+      type: 'redirect',
+      to: `/company/${companyId}`,
+    });
+    expect(
+      run(recordEntry('contact', contactId, pipelineId), { touch: true })
+    ).toEqual({ type: 'redirect', to: `/contact/${contactId}` });
+    expect(run(recordEntry('company', companyId))).toBeUndefined();
+  });
+
+  it('carries a linked Discussion message into the record on entry', () => {
+    const path = `/companies/company/${companyId}`;
+    const result = run(recordEntry('company', companyId), {
+      cause: 'external',
+      externalSearch: 'comment_id=message',
+      path,
+    });
+    if (result?.type !== 'redirect') throw new Error('Expected a redirect');
+    const url = new URL(result.to, window.location.origin);
+    expect(url.pathname).toBe(path);
+    expect(url.searchParams.get('s0.crm-record.commentId')).toBe('message');
   });
 });

@@ -24,6 +24,13 @@ export type CrmSearchParams = z.infer<typeof crmSearch.schema>;
 
 export const crmSearchCodec = createSearchParamsCodec(crmSearch);
 
+/** The Discussion message an open record shows; a new `seek` repeats a request. */
+export const crmRecordSearch = {
+  namespace: 'crm-record',
+  schema: z.object({ commentId: z.string(), seek: z.string() }),
+  defaults: { commentId: '', seek: '' },
+};
+
 export const crmPipelineParams = z.object({ pipelineId: z.string().min(1) });
 
 /** A company or contact opened inside Customers; no section is its Overview. */
