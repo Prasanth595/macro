@@ -153,7 +153,7 @@ export function RouteCrm() {
       <FeaturePageSection
         id="crm-context"
         title={['Connect calls, emails, and', 'tasks to each customer.']}
-        description="Open a company to see its emails, calls, and tasks. Add notes so your team knows what happened and what comes next."
+        description="Open a company to see the people, emails, calls, files, and tasks behind the relationship. Keep notes on the customer record so the next person can understand what’s happened and what comes next."
         details={crmGuides['crm-context']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
