@@ -721,6 +721,12 @@ html[data-theme-light='false'] {
   --color-composer: var(--color-surface-4);
 }
 
+/* Light floating surfaces need a close contact shadow against near-white
+   content, rather than the longer shadow used over dark backgrounds. */
+html[data-theme-light='true']:not([data-touch-device='true']) {
+  --shadow-menu: 0 1px 3px rgb(0 0 0 / 0.05), 0 3px 8px rgb(0 0 0 / 0.04);
+}
+
 /* Right-side header actions share a quiet, hover-only background. Touch header
    islands own their controls' chrome (the compose island's filled send button,
    say), so the flattening stops at an island boundary. */
@@ -832,6 +838,10 @@ html[data-theme-light='false'] {
     --glass-rim-background: linear-gradient(var(--color-edge-button), var(--color-edge-button));
     --glass-rim-shade-base: 0%;
     --glass-shadow: var(--shadow-menu);
+  }
+
+  &:where(html[data-theme-light="true"]:not([data-touch-device="true"]) *) {
+    --glass-rim-background: linear-gradient(var(--color-edge-frame), var(--color-edge-frame));
   }
 }
 
