@@ -5,6 +5,7 @@ import {
 
 import {
   ComparisonMacroLogo,
+  FeatureComparisonHeading,
   FeatureComparisonKey,
 } from '../comparisons/FeatureComparisons';
 
@@ -47,6 +48,7 @@ const comparisonRows: ComparisonRow[] = [
 export function CrmComparison() {
   return (
     <section class="feature-comparisons" aria-label="Compare CRM tools">
+      <FeatureComparisonHeading />
       <ComparisonTable
         columns={[
           { label: 'Macro', macro: true, icon: <ComparisonMacroLogo /> },

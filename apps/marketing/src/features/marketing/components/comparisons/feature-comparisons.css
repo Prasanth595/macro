@@ -26,3 +26,13 @@
 @media (max-width: 699px) {
   .feature-page .product-page .feature-comparisons { width: 100%; }
 }
+
+.feature-comparison-heading {
+  margin: 0 0 8px;
+  font: 500 24px/32px 'Inter Variable', Inter, sans-serif;
+  letter-spacing: -.025em;
+  text-align: left;
+}
+@media (max-width: 699px) {
+  .feature-comparison-heading { font-size: 23px; }
+}

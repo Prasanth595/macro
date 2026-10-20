@@ -80,6 +80,7 @@ export function FeatureComparisons(props: {
           />
         )}
       </For>
+      <FeatureComparisonHeading />
       <ComparisonTable
         columns={[
           { label: 'Macro', macro: true, icon: <ComparisonMacroLogo /> },
@@ -97,6 +98,10 @@ export function FeatureComparisons(props: {
       <FeatureComparisonKey />
     </div>
   );
+}
+
+export function FeatureComparisonHeading() {
+  return <h2 class="feature-comparison-heading">How Macro compares</h2>;
 }
 
 export function ComparisonMacroLogo() {

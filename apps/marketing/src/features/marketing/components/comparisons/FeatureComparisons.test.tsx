@@ -10,14 +10,16 @@ import { FeatureComparisons } from './FeatureComparisons';
 
 afterEach(cleanup);
 
-it('shows one table with all email competitors and no disclosure or heading', () => {
+it('shows one table with all email competitors with a heading and no disclosure', () => {
   setViewportWidth(1440);
   const view = render(() => (
     <FeatureComparisons comparisons={emailComparisons} />
   ));
   const table = view.getByRole('region', { name: 'Compare Macro' });
   expect(view.container.querySelector('details')).toBeNull();
-  expect(view.queryByRole('heading')).toBeNull();
+  expect(
+    view.getByRole('heading', { name: 'How Macro compares', level: 2 })
+  ).toBeTruthy();
   expect(within(table).getByText('Superhuman Mail')).toBeTruthy();
   expect(within(table).getByText('Gmail')).toBeTruthy();
   expect(within(table).getAllByText('Keyboard shortcuts')).toHaveLength(1);
@@ -46,6 +48,9 @@ it('combines Linear and Jira in one mobile-scrollable table', () => {
 it('shows the CRM comparison without a disclosure and preserves partial support', () => {
   setViewportWidth(390);
   const view = render(() => <CrmComparison />);
+  expect(
+    view.getByRole('heading', { name: 'How Macro compares', level: 2 })
+  ).toBeTruthy();
   const table = view.getByRole('region', { name: 'Compare Macro' });
   expect(view.container.querySelector('details')).toBeNull();
   for (const label of ['Macro', 'Salesforce', 'HubSpot', 'Attio']) {

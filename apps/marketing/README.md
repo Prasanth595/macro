@@ -627,7 +627,8 @@ FAQs, and the overview's horizontal scrolling.
 ## Product comparisons
 
 `core/feature-comparisons.ts` owns the fact-checked boolean rows and maintainer
-source URLs. `FeatureComparisons` renders one always-visible table above each FAQ, without a heading or dropdown:
+source URLs. `FeatureComparisons` renders one always-visible table above each FAQ, with the shared
+“How Macro compares” heading and no subtitle or dropdown:
 Superhuman/Gmail on Email; Notion on Docs; Linear/Jira on Tasks; Slack on Chat;
 Google Meet/Granola on Calls. CRM uses the same visible layout and legend, with
 its existing partial-support values for Salesforce, HubSpot, and Attio. ClickUp
