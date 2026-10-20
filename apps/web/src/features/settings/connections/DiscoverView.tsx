@@ -7,6 +7,7 @@ import {
 import { fireAndForget } from '@core/util/fireAndForget';
 import CaretRightIcon from '@phosphor/caret-right.svg';
 import CheckIcon from '@phosphor/check.svg';
+import MagnifyingGlassIcon from '@phosphor/magnifying-glass.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import SpinnerIcon from '@phosphor/spinner-gap.svg';
 import XIcon from '@phosphor/x.svg';
@@ -61,9 +62,13 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
 
   return (
     <div class="@container/catalog flex flex-col gap-6">
-      <div class="flex flex-wrap items-center gap-2">
-        <label class="relative block min-w-40 flex-1">
+      <div class="grid grid-cols-1 gap-2 @[440px]/catalog:grid-cols-[minmax(0,1fr)_auto]">
+        <label class="relative block min-w-0">
           <span class="sr-only">Search integrations</span>
+          <MagnifyingGlassIcon
+            class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted"
+            aria-hidden="true"
+          />
           <input
             type="search"
             value={catalog.searchInput()}
@@ -71,7 +76,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
               catalog.onSearchInput(event.currentTarget.value)
             }
             placeholder="Search integrations"
-            class="settings-input h-11 w-full pr-10 [&::-webkit-search-cancel-button]:hidden"
+            class="h-10 w-full rounded-lg border border-edge-muted bg-panel pr-10 pl-9 text-sm text-ink outline-none placeholder:text-ink-muted focus-visible:border-edge-focus focus-visible:ring-1 focus-visible:ring-edge-focus [&::-webkit-search-cancel-button]:hidden"
           />
           <Show when={catalog.searchInput()}>
             <button
@@ -87,10 +92,11 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
         </label>
         <Button
           variant="outline"
-          size="sm"
+          size="md"
+          class="h-10 rounded-lg px-4"
           onClick={() => setAddingCustom(true)}
         >
-          <PlusIcon class="size-4" /> Custom MCP
+          <PlusIcon class="size-4" /> Add custom MCP
         </Button>
       </div>
 

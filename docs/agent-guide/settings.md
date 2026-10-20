@@ -466,7 +466,8 @@ available in all channels should refresh there without reloading the channel.
 With `pipedream-mcp` enabled, Settings → Integrations displays installed tools on
 the left and Discover on the right, without tabs. On narrow screens these stack
 with installed tools first. Installed tools use a compact status list; Discover
-has a search field and Custom MCP action above featured cards and the app list.
+has a search field and Add custom MCP action above featured cards and the app
+list. These controls share a height and stack on narrow screens.
 Account connections and their settings links are a separate section below. The Agents workspace opens this same Integrations
 page. Installed groups GitHub, Linear, Notion, and Slack tool grants by provider,
 lists other catalog connections alongside them, and puts custom MCP servers in
