@@ -23,6 +23,34 @@ afterEach(() => {
 });
 
 describe('native WebView startup diagnostics', () => {
+  it.each(['android', 'windows', 'linux'])(
+    'does not claim termination coverage for %s',
+    (os) => {
+      recordNativeWebviewStart({
+        identity: {
+          instanceId: 'native-launch',
+          nativeVersion: '2.0',
+          recordingId: null,
+          tracesUrl: null,
+          os,
+          hostPid: 123,
+        },
+        samples: [],
+        droppedSamples: 0,
+        webContent: { terminations: 0, lastTerminationMs: null },
+      });
+      expect(telemetry.track).toHaveBeenCalledWith(
+        'native_webview_started',
+        expect.objectContaining({
+          native_diagnostics_available: true,
+          native_termination_reporting_available: false,
+          native_web_content_terminations: undefined,
+          native_last_termination_ms: undefined,
+        })
+      );
+    }
+  );
+
   it('correlates replacement documents with their native launch and termination history', () => {
     const meta = document.createElement('meta');
     meta.name = 'macro-bundle-build';

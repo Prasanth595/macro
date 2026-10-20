@@ -1,3 +1,4 @@
+import { Telemetry } from '@macro-inc/observability';
 import { Channel, invoke } from '@tauri-apps/api/core';
 import { match, P } from 'ts-pattern';
 import { isTauri } from '../../internal/platform';
@@ -113,9 +114,7 @@ export class TauriWebSocketWrapper implements MinimalWebSocket {
 
       const handleMessage = (message: ReplayEnvelope['message']) => {
         match(message)
-          .with(P.string, (error) =>
-            this.handleFailure(error, 'Receive failed')
-          )
+          .with(P.string, () => this.handleFailure('receive'))
           .with({ type: 'Text' }, ({ data }) => {
             this.handleMessage(data);
           })
@@ -451,10 +450,19 @@ export class TauriWebSocketWrapper implements MinimalWebSocket {
       });
   }
 
-  private handleFailure(error: unknown, reason: string) {
+  private handleFailure(operation: 'receive' | 'send') {
     if (this._readyState === this.CLOSING || this._readyState === this.CLOSED)
       return;
-    console.error(`Tauri WebSocket ${reason}:`, error);
+    const reason = operation === 'send' ? 'Send failed' : 'Receive failed';
+    const span = Telemetry.span('websocket.transport.failure');
+    span.setAttr('websocket.transport', 'tauri');
+    if (this.socketId !== null)
+      span.setAttr('websocket.socket_id', this.socketId);
+    span.setAttr('websocket.operation', operation);
+    span.setAttr('websocket.outcome', 'closed');
+    // Native errors may contain URLs or payloads. Record only the operation.
+    span.error(reason);
+    span.end();
     this._readyState = this.CLOSED;
     this.removeListener?.();
     if (this.socketId !== null) this.disconnectSocket().catch(() => {});
@@ -477,8 +485,8 @@ export class TauriWebSocketWrapper implements MinimalWebSocket {
 
     if (typeof data === 'string') {
       // Send as text message
-      this.sendMessage({ type: 'Text', data }).catch((e: unknown) =>
-        this.handleFailure(e, 'Send failed')
+      this.sendMessage({ type: 'Text', data }).catch(() =>
+        this.handleFailure('send')
       );
     } else {
       // Convert binary data to number array for Tauri
@@ -511,7 +519,7 @@ export class TauriWebSocketWrapper implements MinimalWebSocket {
 
       // Send as binary message with number array
       this.sendMessage({ type: 'Binary', data: Array.from(uint8Array) }).catch(
-        (e: unknown) => this.handleFailure(e, 'Send failed')
+        () => this.handleFailure('send')
       );
     }
   }

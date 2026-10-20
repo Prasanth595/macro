@@ -46,6 +46,9 @@ connection resets after iOS suspension) into one `error` followed by an abnormal
 `close` (1006). The same handling applies to recovered replay messages. Consumers
 can reconnect normally; a transport error must never escape as a pattern-match
 exception or leave the wrapper reporting `OPEN`.
+Read/send failures emit one `websocket.transport.failure` span with the native
+socket ID when assigned, operation, and closed outcome. URLs, message payloads,
+and raw provider errors are excluded.
 
 ```typescript
 const ws = new WebsocketBuilder(url)

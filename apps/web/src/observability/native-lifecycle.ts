@@ -10,14 +10,19 @@ export function recordNativeWebviewStart(
     .querySelector('meta[name="macro-bundle-build"]')
     ?.getAttribute('content');
   const navigation = performance.getEntriesByType('navigation')[0];
+  // Native snapshots include this field on every platform, but only Apple's
+  // WebKit termination callback records it. Other platforms remain unknown.
+  const webContent =
+    snapshot?.identity.os === 'ios' || snapshot?.identity.os === 'macos'
+      ? snapshot.webContent
+      : undefined;
   const attributes = {
     native_instance_id: snapshot?.identity.instanceId,
     native_version: snapshot?.identity.nativeVersion,
     native_diagnostics_available: snapshot !== undefined,
-    native_termination_reporting_available: snapshot?.webContent !== undefined,
-    native_web_content_terminations: snapshot?.webContent?.terminations,
-    native_last_termination_ms:
-      snapshot?.webContent?.lastTerminationMs ?? undefined,
+    native_termination_reporting_available: webContent !== undefined,
+    native_web_content_terminations: webContent?.terminations,
+    native_last_termination_ms: webContent?.lastTerminationMs ?? undefined,
     native_bundle_reload_dispatches: snapshot?.bundleReloads?.dispatches,
     native_bundle_reload_last_source:
       snapshot?.bundleReloads?.lastSource ?? undefined,
