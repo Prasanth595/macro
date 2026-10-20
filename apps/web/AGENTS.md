@@ -80,6 +80,7 @@ Then trigger the interaction and read `window.__inst.log`. `'1,2,3' → '' → '
 - Reconcile global focus when focused DOM subtrees are removed; iOS can omit blur events, otherwise floating creation actions stay hidden after search or editor teardown.
 - Mount the floating mobile AI composer only on the Agents view; other views keep their New action or their own reply/comment composer.
 - Passive PR mentions must not retry failed GitHub status requests on remount; keep error and pending data reads out of their parent Suspense boundary.
+- Diagnose native full reloads with `native_webview_started` and native launch/termination/update counters; a pageview alone also includes SPA navigation. See `tauri/src-tauri/README.md`.
 - All API/network calls live in service-clients.
 - Draft autosaves preserve active email thread messages; evict inactive legacy
   caches on save and the active cache on thread exit. Revalidate GraphQL thread
