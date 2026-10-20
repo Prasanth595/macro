@@ -12,14 +12,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MobileDockRow } from './MobileDockRow';
 import { isMobileNavViewId } from './mobile-nav-views';
 
-const { navigate, toggleSettings, reviewsFlag, schedulingFlag, foreground } =
-  vi.hoisted(() => ({
-    navigate: vi.fn(),
-    toggleSettings: vi.fn(),
-    reviewsFlag: { enabled: false },
-    schedulingFlag: { enabled: false },
-    foreground: { id: 'tasks' },
-  }));
+const {
+  navigate,
+  toggleSettings,
+  reviewsFlag,
+  schedulingFlag,
+  foreground,
+  unreadViews,
+} = vi.hoisted(() => ({
+  navigate: vi.fn(),
+  toggleSettings: vi.fn(),
+  reviewsFlag: { enabled: false },
+  schedulingFlag: { enabled: false },
+  foreground: { id: 'tasks' },
+  unreadViews: { enabled: false },
+}));
 vi.mock('@core/context/user', () => ({
   useUserId: () => () => 'dock-test-user',
 }));
@@ -38,6 +45,10 @@ vi.mock('@ui', async () => ({
   cn: (...values: unknown[]) => values.filter(Boolean).join(' '),
   Layer: (props: ParentProps) => props.children,
 }));
+const [unreadIds, setUnreadIds] = createSignal<string[]>([]);
+vi.mock('../use-navigation-unread', () => ({
+  useNavigationUnread: () => (id: string) => unreadIds().includes(id),
+}));
 const [islandWidth, setIslandWidth] = createSignal(80);
 vi.mock('@solid-primitives/resize-observer', () => ({
   createElementSize: () => ({
@@ -53,6 +64,9 @@ vi.mock('./use-mobile-nav', () => ({
 }));
 vi.mock('./mobile-dock-views', () => ({
   MOBILE_DOCK_VIEWS: [
+    'home',
+    'mail',
+    'channels',
     'calendar',
     'documents',
     'tasks',
@@ -61,6 +75,15 @@ vi.mock('./mobile-dock-views', () => ({
     'booking-links',
   ].map((id) => ({ id })),
   useMobileDockViews: () => {
+    if (unreadViews.enabled) {
+      const views = [
+        { id: 'home', label: 'Notifications', icon: () => <svg /> },
+        { id: 'mail', label: 'Email', icon: () => <svg /> },
+        { id: 'channels', label: 'Channels', icon: () => <svg /> },
+        { id: 'documents', label: 'Files', icon: () => <svg /> },
+      ];
+      return () => views;
+    }
     const views = [
       { id: 'calendar', label: 'Calendar', icon: () => <svg /> },
       { id: 'documents', label: 'Files', icon: () => <svg /> },
@@ -83,6 +106,8 @@ beforeEach(() => {
   reviewsFlag.enabled = false;
   schedulingFlag.enabled = false;
   foreground.id = 'tasks';
+  unreadViews.enabled = false;
+  setUnreadIds([]);
   localStorage.clear();
   setIslandWidth(80);
   drawerStyles = document.createElement('style');
@@ -231,4 +256,93 @@ it('returns from customization to More without navigating', async () => {
   expect(document.activeElement).toBe(
     screen.getByRole('button', { name: 'Customize dock' })
   );
+});
+
+describe('dock unread indicators', () => {
+  it('reacts to the shared unread source without clearing indicators just for navigation', () => {
+    unreadViews.enabled = true;
+    setIslandWidth(160);
+    render(() => <MobileDockRow />);
+    const notifications = screen.getByRole('button', { name: 'Notifications' });
+    const email = screen.getByRole('button', { name: 'Email' });
+    const channels = screen.getByRole('button', { name: 'Channels' });
+    expect(email.getAttribute('aria-description')).toBeNull();
+    setUnreadIds(['home', 'mail', 'channels']);
+    for (const button of [notifications, email, channels]) {
+      expect(button.getAttribute('aria-description')).toBe('Unread items');
+      expect(button.querySelector('[aria-hidden="true"]')).not.toBeNull();
+    }
+    fireEvent.click(email);
+    expect(navigate).toHaveBeenCalledExactlyOnceWith('mail');
+    expect(email.getAttribute('aria-description')).toBe('Unread items');
+    setUnreadIds(['channels']);
+    expect(email.getAttribute('aria-description')).toBeNull();
+    expect(notifications.getAttribute('aria-description')).toBeNull();
+    expect(channels.getAttribute('aria-description')).toBe('Unread items');
+    expect(screen.getByRole('button', { name: 'Email' })).toBe(email);
+    expect(
+      screen
+        .getByRole('button', { name: 'Search' })
+        .getAttribute('aria-description')
+    ).toBeNull();
+    expect(
+      screen
+        .getByRole('button', { name: 'More views' })
+        .getAttribute('aria-description')
+    ).toBeNull();
+  });
+
+  it('moves unread indicators between the dock and More as capacity and ordering change', async () => {
+    unreadViews.enabled = true;
+    setUnreadIds(['channels']);
+    setIslandWidth(80);
+    render(() => <MobileDockRow />);
+    const more = screen.getByRole('button', { name: 'More views' });
+    expect(more.getAttribute('aria-description')).toBe('Unread items');
+    fireEvent.click(more);
+    const drawer = within(screen.getByRole('dialog', { name: 'More views' }));
+    expect(
+      drawer
+        .getByRole('button', { name: 'Channels' })
+        .getAttribute('aria-description')
+    ).toBe('Unread items');
+    expect(
+      drawer
+        .getByRole('button', { name: 'Email' })
+        .getAttribute('aria-description')
+    ).toBeNull();
+    setUnreadIds([]);
+    expect(more.getAttribute('aria-description')).toBeNull();
+    expect(
+      drawer
+        .getByRole('button', { name: 'Channels' })
+        .getAttribute('aria-description')
+    ).toBeNull();
+    setUnreadIds(['channels']);
+    fireEvent.click(drawer.getByRole('button', { name: 'Views' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    setIslandWidth(160);
+    expect(
+      screen
+        .getByRole('button', { name: 'Channels' })
+        .getAttribute('aria-description')
+    ).toBe('Unread items');
+    expect(more.getAttribute('aria-description')).toBeNull();
+    setIslandWidth(80);
+    fireEvent.click(more);
+    fireEvent.click(screen.getByRole('button', { name: 'Customize dock' }));
+    const handle = await screen.findByRole('button', {
+      name: 'Reorder Channels',
+    });
+    fireEvent.keyDown(handle, { key: 'ArrowUp' });
+    fireEvent.keyDown(handle, { key: 'ArrowUp' });
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(
+      screen
+        .getByRole('button', { name: 'Channels' })
+        .getAttribute('aria-description')
+    ).toBe('Unread items');
+    expect(more.getAttribute('aria-description')).toBeNull();
+  });
 });

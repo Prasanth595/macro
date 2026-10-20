@@ -6,6 +6,7 @@ import { useUserId } from '@core/context/user';
 import { triggerFocusInput } from '@core/directive/focusInput';
 import { hapticImpact } from '@core/mobile/haptics';
 import { lazyNamed } from '@core/util/lazyNamed';
+import { UnreadIndicator } from '@entity/components/UnreadIndicator';
 import { Telemetry } from '@macro-inc/observability';
 import CaretUpIcon from '@phosphor/caret-up.svg';
 import DotsSixVerticalIcon from '@phosphor/dots-six-vertical.svg';
@@ -15,6 +16,7 @@ import { createElementSize } from '@solid-primitives/resize-observer';
 import { cn } from '@ui';
 import { createMemo, createSignal, For, Show, Suspense } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
+import { useNavigationUnread } from '../use-navigation-unread';
 
 import { MobileDockButton } from './MobileDockButton';
 import { MobileDockIsland } from './MobileDockIsland';
@@ -42,6 +44,7 @@ function MoreViewsDrawer(props: {
   visibleCount: number;
   onMove: (from: number, to: number) => void;
   isActive: (id: MobileDockNavId) => boolean;
+  hasUnread: (id: MobileDockNavId) => boolean;
   onNavigate: (id: MobileDockNavId) => void;
 }) {
   const { settingsOpen, toggleSettings } = useSettingsState();
@@ -63,6 +66,9 @@ function MoreViewsDrawer(props: {
         as={MobileDockButton}
         ariaLabel="More views"
         icon={CaretUpIcon}
+        unread={props.views
+          .slice(props.visibleCount)
+          .some((view) => props.hasUnread(view.id))}
       />
       <MobileDrawer.Portal>
         <MobileDrawer.Overlay />
@@ -104,6 +110,10 @@ function MoreViewsDrawer(props: {
                       <MobileDrawer.Close
                         as={MobileDrawer.Item}
                         aria-label={view.label}
+                        aria-description={
+                          props.hasUnread(view.id) ? 'Unread items' : undefined
+                        }
+                        data-unread={props.hasUnread(view.id) ? '' : undefined}
                         class={
                           props.isActive(view.id) ? 'text-accent' : undefined
                         }
@@ -120,6 +130,11 @@ function MoreViewsDrawer(props: {
                           class="size-4 shrink-0"
                         />
                         <span>{view.label}</span>
+                        <Show when={props.hasUnread(view.id)}>
+                          <span aria-hidden="true" class="ml-auto">
+                            <UnreadIndicator active class="size-1.5" />
+                          </span>
+                        </Show>
                       </MobileDrawer.Close>
                     )}
                   </For>
@@ -163,6 +178,7 @@ function MobileNavigationDockRow() {
   const navigate = useMobileNavNavigate();
   const foregroundView = useForegroundMobileView();
   const availableViews = useMobileDockViews();
+  const hasUnread = useNavigationUnread();
   const userId = useUserId();
   const preferences = createMemo(() =>
     createMobileDockOrder(
@@ -218,6 +234,7 @@ function MobileNavigationDockRow() {
               }
               ariaLabel={button.label}
               active={foregroundView() === button.id}
+              unread={hasUnread(button.id)}
               onClick={() => navigate(button.id)}
             />
           )}
@@ -227,6 +244,7 @@ function MobileNavigationDockRow() {
           visibleCount={visibleCount()}
           onMove={move}
           isActive={(id) => foregroundView() === id}
+          hasUnread={hasUnread}
           onNavigate={navigate}
         />
       </MobileDockIsland>

@@ -553,6 +553,13 @@ in its own island at the right edge and opens the persistent Search… input and
 entity category pills (see [Search](search.md)). Once every view fits, the
 navigation island stops growing.
 
+Notifications, Email, and Channels use the same reactive unread-presence checks
+as the desktop sidebar, via `useNavigationUnread`. Their accent dots clear when
+the represented items are read or completed, not merely when opening a view.
+Overflow destinations keep their dots in More; More itself has a dot when any
+hidden destination is unread. Resizing or reordering moves the indicator with
+its destination. These remain presence indicators, with no extra pagination.
+
 Open **More views → Customize dock** to change the order. Drag a row's handle immediately,
 without holding first, and move it across the **In dock** / **In More** boundary. The counts use the
 same live measurement as the dock and update on resize or rotation. Swiping
