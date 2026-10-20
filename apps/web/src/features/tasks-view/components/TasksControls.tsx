@@ -84,9 +84,10 @@ function DesktopTasksControls() {
   return (
     <>
       <ListHeaderGroup label="Task filters">
-        <div class="relative shrink-0" ref={tourTarget(TASKS_TOUR.filter)}>
+        <div class="shrink-0" ref={tourTarget(TASKS_TOUR.filter)}>
           <ListFilterDropdown
             label="Filter tasks"
+            activeCount={filters.activeCount()}
             groups={filters.groups()}
             open={openMenu() === 'filters'}
             onOpenChange={handleMenuOpenChange('filters')}
@@ -99,11 +100,6 @@ function DesktopTasksControls() {
               onSubmit: filters.applyDescription,
             }}
           />
-          <Show when={filters.activeCount() > 0}>
-            <span class="pointer-events-none absolute -top-0.5 right-0 z-10 flex size-4 translate-x-1/2 not-touch:top-0.5 not-touch:right-0.5 not-touch:size-3.5 not-touch:translate-x-0 items-center justify-center rounded-full bg-accent text-xxs font-medium leading-none text-surface">
-              {filters.activeCount()}
-            </span>
-          </Show>
         </div>
       </ListHeaderGroup>
       <ListHeaderGroup label="Task layout">

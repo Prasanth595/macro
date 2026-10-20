@@ -16,7 +16,7 @@ import { For, Show, Suspense } from 'solid-js';
 import type { EventType } from './core/types';
 import { useSchedulingProfileWithAutoSetupQuery } from './queries/source';
 
-function Actions(props: { sidebar?: boolean }) {
+function Actions(props: { sidebar?: boolean; compact?: boolean }) {
   const user = useUserId();
   const navigate = useNavigate();
   const source = useSchedulingProfileWithAutoSetupQuery(
@@ -55,8 +55,8 @@ function Actions(props: { sidebar?: boolean }) {
   return (
     <Dropdown placement={props.sidebar ? 'bottom-start' : 'bottom-end'}>
       <Dropdown.Trigger
-        variant="ghost"
-        size={props.sidebar ? 'md' : 'lg'}
+        variant={props.compact ? 'outline' : 'ghost'}
+        size={props.sidebar || props.compact ? 'md' : 'lg'}
         class={
           props.sidebar
             ? 'h-(--sidebar-row-height) w-full justify-start gap-(--sidebar-label-gap) rounded-lg px-(--sidebar-item-inset) text-left font-normal touch:h-11'
@@ -120,11 +120,14 @@ function Actions(props: { sidebar?: boolean }) {
     </Dropdown>
   );
 }
-export function CalendarSchedulingActions(props: { sidebar?: boolean }) {
+export function CalendarSchedulingActions(props: {
+  sidebar?: boolean;
+  compact?: boolean;
+}) {
   return (
     <ShowFeatureFlag flag={enableCalendarScheduling}>
       <Suspense>
-        <Actions sidebar={props.sidebar} />
+        <Actions sidebar={props.sidebar} compact={props.compact} />
       </Suspense>
     </ShowFeatureFlag>
   );

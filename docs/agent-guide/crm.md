@@ -18,9 +18,10 @@ Browser Back and Forward restore the tab and close an open record.
 
 Companies lists every visible company, grouped by Stage by default, with Owner,
 Revenue and Last Interaction columns. A Stage column is off by default; turn it
-on, or hide Owner or Revenue, under **Display options**. Its toolbar holds
-sort, group, filter, display options, saved views, and the shared **New** menu
-at the right end, with the same options as the sidebar.
+on, or hide Owner or Revenue, under **Display options**. Its single-row desktop
+header matches Tasks: title, filter group, view-options group (sort, group,
+display options, and saved views), then the shared **New** menu and expandable
+Search. New has the same options as the sidebar.
 
 People lists contacts across every CRM-enabled team the viewer belongs to, from
 the same Soup query with only CRM contacts opted in (`crmf`). The server collapses
@@ -28,16 +29,18 @@ duplicate full email addresses (case-insensitive) to one contact. Hidden contact
 and contacts under hidden companies are excluded. Columns are Person (name and
 email), Company and Last contacted (sortable). `Search people` matches name or
 email on the server after a short typing pause, so results include contacts not
-yet scrolled into view. The desktop toolbar ends with the shared **New** menu;
-choose **Contact**. On touch, **New contact** is unchanged. The contact dialog asks for a company through a **Choose a company** pill (searchable by name
+yet scrolled into view. The desktop header has the title, shared **New** menu,
+and expandable Search; choose **Contact** from New. On touch, **New contact**
+is unchanged. The contact dialog asks for a company through a **Choose a company** pill (searchable by name
 or domain, from the up to 500 most relevant companies with a domain) and fixes
 the email to that company's primary domain; **Add contact** on a company's Team
 tab skips the company pill. The company, contact and pipeline dialogs share the
 task/project composer layout: name on the first row beside **Close**, details
 below, and a **Create …** button that also submits on Command-Enter.
 
-`Search companies` and `Search people` use the shared Email/Tasks search bar.
-Command-F focuses it, `Clear search` resets it, and Escape leaves the field.
+Desktop `Search companies` and `Search people` start as outlined icon buttons
+and expand into the shared Email/Tasks search bar. Command-F expands and focuses
+the field; Close or Escape clears the query and returns to the icon.
 
 On touch devices, CRM uses the same scrollable pill tabs as Tasks in the top
 header: Companies, People, available pipelines, and enabled lists. Swipe the

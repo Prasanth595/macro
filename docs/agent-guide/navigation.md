@@ -413,7 +413,8 @@ is unread, and that completing the last one clears it. Query bounds and
 pagination are unchanged.
 
 The Agents sidebar opens with a **Work** / **Code** switch (radio group
-"Agents mode") under its title; Work is the default and the choice is remembered
+"Agents mode") under New, using the shared fully rounded segmented tabs on
+desktop; touch keeps its existing tabs. Work is the default and the choice is remembered
 per user across reloads. Work lists chat sessions and legacy chats; Code lists
 coding sessions only, newest first. Each mode's empty state is its own ("No
 conversations yet." / "No coding conversations yet."). Opening a session of the

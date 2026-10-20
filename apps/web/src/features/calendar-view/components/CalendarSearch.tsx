@@ -694,15 +694,15 @@ function CalendarSearchControl(props: {
               <Button
                 ref={searchButton}
                 type="button"
-                variant="ghost"
-                size="icon-lg"
+                variant="outline"
+                size="icon-md"
                 label="Search events"
                 hotkey={TOKENS.calendar.search}
                 aria-expanded="false"
                 aria-haspopup="dialog"
                 onClick={props.onExpand}
               >
-                <SearchIcon class="size-5" />
+                <SearchIcon class="size-4" />
               </Button>
             </Show>
             {/* Keep the input mounted while its width animates; inert removes collapsed controls from keyboard navigation. */}

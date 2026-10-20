@@ -25,7 +25,7 @@ import CaretRightIcon from '@phosphor/caret-right.svg';
 import ListIcon from '@phosphor/list.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import { createElementSize } from '@solid-primitives/resize-observer';
-import { Button, cn } from '@ui';
+import { Button, ButtonGroup, cn } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
 import {
   createMemo,
@@ -190,37 +190,38 @@ export function Header(props: { presentation: 'workspace' | 'preview' }) {
     </CalendarCreateMenu>
   );
 
-  const previous = () => (
+  const previous = (compact = false) => (
     <Button
       variant="ghost"
-      size="icon-lg"
+      size={compact ? 'icon-md' : 'icon-lg'}
       class="border-transparent bg-transparent"
       label={`Previous ${periodLabel()}`}
       hotkey={TOKENS.calendar.period.previous}
       onClick={calendarPager.previousPeriod}
     >
-      <CaretLeftIcon class="size-5" />
+      <CaretLeftIcon class={compact ? 'size-4' : 'size-5'} />
     </Button>
   );
-  const next = () => (
+  const next = (compact = false) => (
     <Button
       variant="ghost"
-      size="icon-lg"
+      size={compact ? 'icon-md' : 'icon-lg'}
       class="border-transparent bg-transparent"
       label={`Next ${periodLabel()}`}
       hotkey={TOKENS.calendar.period.next}
       onClick={calendarPager.nextPeriod}
     >
-      <CaretRightIcon class="size-5" />
+      <CaretRightIcon class={compact ? 'size-4' : 'size-5'} />
     </Button>
   );
-  const todayButton = (mobile: boolean) => (
+  const todayButton = (mobile: boolean, compact = false) => (
     <Button
-      variant={mobile ? 'ghost' : 'outline'}
-      size={mobile ? 'icon-lg' : 'lg'}
+      variant={mobile || compact ? 'ghost' : 'outline'}
+      size={compact ? (mobile ? 'icon-md' : 'md') : mobile ? 'icon-lg' : 'lg'}
       class={cn(
         mobile && 'relative',
-        !mobile && 'border-edge-button bg-transparent px-3 text-sm'
+        !mobile && 'bg-transparent px-3 text-sm',
+        !mobile && !compact && 'border-edge-button'
       )}
       label="Go to today"
       hotkey={TOKENS.calendar.period.today}
@@ -303,7 +304,7 @@ export function Header(props: { presentation: 'workspace' | 'preview' }) {
       <Match when={!usesSplitHeader()}>
         <ViewShell.TopBar
           ref={setHeaderElement}
-          class="@container/calendar-toolbar h-auto min-h-12 flex-wrap gap-x-2 gap-y-2 py-2"
+          class="@container/calendar-toolbar h-auto min-h-12 flex-wrap gap-x-2 gap-y-2 py-2 [--view-search-height:2rem]"
         >
           <div class="relative flex min-w-0 flex-1 items-center gap-2">
             <h1
@@ -317,9 +318,9 @@ export function Header(props: { presentation: 'workspace' | 'preview' }) {
             <div
               onTransitionEnd={handleSearchTransitionEnd}
               class={cn(
-                'ml-auto h-10 shrink-0',
+                'ml-auto h-8 shrink-0',
                 searchOverlaysTitle()
-                  ? 'w-10'
+                  ? 'w-8'
                   : 'transition-[width] duration-200 ease-out motion-reduce:transition-none'
               )}
               style={
@@ -328,21 +329,21 @@ export function Header(props: { presentation: 'workspace' | 'preview' }) {
                   : {
                       width: searchExpanded()
                         ? 'clamp(22rem, 40cqw, 28rem)'
-                        : '2.5rem',
+                        : '2rem',
                     }
               }
             >
               <div
                 onTransitionEnd={handleSearchTransitionEnd}
                 class={cn(
-                  'h-10',
+                  'h-8',
                   searchOverlaysTitle() &&
                     'absolute right-0 top-0 transition-[width] duration-200 ease-out motion-reduce:transition-none'
                 )}
                 style={
                   searchOverlaysTitle()
                     ? {
-                        width: searchExpanded() ? 'min(100%, 28rem)' : '2.5rem',
+                        width: searchExpanded() ? 'min(100%, 28rem)' : '2rem',
                       }
                     : undefined
                 }
@@ -360,7 +361,7 @@ export function Header(props: { presentation: 'workspace' | 'preview' }) {
           </div>
           <div
             class={cn(
-              'flex shrink-0 items-center justify-end gap-1',
+              'flex shrink-0 items-center justify-end gap-2',
               isCompactHeader() ? 'basis-full' : 'ml-4'
             )}
             data-calendar-period-controls=""
@@ -368,12 +369,20 @@ export function Header(props: { presentation: 'workspace' | 'preview' }) {
             onClick={() => setSearchExpanded(false)}
           >
             <Show when={showBookingLinks()}>
-              <CalendarSchedulingActions />
+              <CalendarSchedulingActions compact />
             </Show>
-            {todayButton(!breakpoints.labeledToday())}
-            <PeriodSelector isNarrow={isNarrow()} />
-            {previous()}
-            {next()}
+            <div role="group" aria-label="Calendar navigation">
+              <ButtonGroup variant="outline" size="icon-md">
+                {todayButton(!breakpoints.labeledToday(), true)}
+                {previous(true)}
+                {next(true)}
+              </ButtonGroup>
+            </div>
+            <div role="group" aria-label="Calendar view">
+              <ButtonGroup variant="outline" size="md">
+                <PeriodSelector isNarrow={isNarrow()} compact />
+              </ButtonGroup>
+            </div>
             {headerCreateMenu()}
           </div>
         </ViewShell.TopBar>

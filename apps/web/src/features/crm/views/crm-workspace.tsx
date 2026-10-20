@@ -4,6 +4,11 @@ import {
   useViewShell,
   ViewShell,
 } from '@app/components/view-shell';
+import {
+  ListHeader,
+  ListHeaderGroup,
+  ListHeaderSearch,
+} from '@app/components/view-shell/ListHeader';
 import { VIEW_SHELL_TOUR } from '@app/components/view-shell/tour';
 import { NIL_UUID } from '@app/features/next-soup/filters/filter-store';
 import { getViewPreset } from '@app/features/next-soup/sidebar/soup-filter-presets';
@@ -178,6 +183,35 @@ function PeopleSearchBar(props: {
       onEscape={view.host.focus}
       hotkey="cmd+f"
       class="max-w-md flex-1"
+    />
+  );
+}
+
+function CrmHeaderSearch(props: {
+  label: string;
+  value: string;
+  onValueChange: (value: string) => void;
+}) {
+  const view = useCrmWorkspace();
+  let focusSearch: (() => void) | undefined;
+  useViewControlHotkeys({
+    scopeId: view.host.scopeId,
+    enabled: view.host.isActive,
+    search: {
+      description: props.label,
+      run: () => {
+        focusSearch?.();
+        return true;
+      },
+    },
+  });
+  return (
+    <ListHeaderSearch
+      label={props.label}
+      value={props.value}
+      onValueChange={props.onValueChange}
+      onEscape={view.host.focus}
+      registerFocus={(focus) => (focusSearch = focus)}
     />
   );
 }
@@ -540,55 +574,54 @@ export function CrmWorkspaceView(props: {
           </div>
         </Show>
         <Show when={!selectedRecord() && !pipelineId()}>
-          <Show when={!isTouchDevice() || peopleActive()}>
-            <Show when={!isTouchDevice()}>
-              <div class="flex h-12 shrink-0 items-center gap-3 px-4">
-                <NavigationToggle onExpand={() => setCollapsed(false)}>
-                  {(close) => <Suspense>{sidebar(close)}</Suspense>}
-                </NavigationToggle>
-                <h1
-                  class="flex h-7 min-w-0 flex-1 items-center px-1 text-sm font-semibold tracking-[-0.03em]"
-                  title={title()}
-                >
-                  <span class="truncate">{title()}</span>
-                </h1>
-              </div>
-            </Show>
-            <Show
-              when={!peopleActive()}
-              fallback={
+          <Show
+            when={!isTouchDevice()}
+            fallback={
+              <Show when={peopleActive()}>
                 <ViewShell.Header class="touch:pt-0">
                   <div class="flex min-w-0 items-center justify-between gap-3">
                     <PeopleSearchBar
                       value={peopleSearch()}
                       onValueChange={searchPeople}
                     />
-                    <Show
-                      when={!isTouchDevice()}
-                      fallback={
-                        <Button
-                          variant="outline"
-                          class="ml-auto shrink-0"
-                          onClick={() => openCreateContactModal()}
-                        >
-                          <PlusIcon class="size-4" />
-                          New contact
-                        </Button>
-                      }
+                    <Button
+                      variant="outline"
+                      class="ml-auto shrink-0"
+                      onClick={() => openCreateContactModal()}
                     >
-                      {toolbarCreateMenu()}
-                    </Show>
+                      <PlusIcon class="size-4" />
+                      New contact
+                    </Button>
                   </div>
                 </ViewShell.Header>
+              </Show>
+            }
+          >
+            <ListHeader
+              title={
+                <div class="flex min-w-0 items-center gap-3">
+                  <NavigationToggle onExpand={() => setCollapsed(false)}>
+                    {(close) => <Suspense>{sidebar(close)}</Suspense>}
+                  </NavigationToggle>
+                  <h1
+                    class="min-w-0 truncate text-sm font-semibold"
+                    title={title()}
+                  >
+                    {title()}
+                  </h1>
+                </div>
               }
             >
-              <ViewShell.Header>
-                <div class="flex min-w-0 items-center justify-between gap-3">
-                  <CrmSearchBar />
-                  <div class="ml-auto flex shrink-0 items-center gap-2 [&_button]:h-8 [&_button]:min-w-8 [&_button>svg]:size-4!">
+              <Show when={!peopleActive()}>
+                <ListHeaderGroup label="Company filters">
+                  <div class="[&_button]:size-8 [&_button>svg]:size-4!">
+                    <UnifiedFilterDropdown hideLabel variant="ghost" />
+                  </div>
+                </ListHeaderGroup>
+                <ListHeaderGroup label="Company view options">
+                  <div class="flex items-center [&_button]:h-8 [&_button]:min-w-8 [&_button>svg]:size-4!">
                     <SoupViewContextSort />
                     <SoupViewContextGroup hideLabel variant="ghost" />
-                    <UnifiedFilterDropdown hideLabel variant="ghost" />
                     <CompanyDisplayMenu />
                     <Suspense>
                       <CompanyViewsMenu hideLabel />
@@ -610,10 +643,21 @@ export function CrmWorkspaceView(props: {
                         </Button>
                       )}
                     </Show>
-                    {toolbarCreateMenu()}
                   </div>
-                </div>
-              </ViewShell.Header>
+                </ListHeaderGroup>
+              </Show>
+              {toolbarCreateMenu()}
+              <CrmHeaderSearch
+                label={peopleActive() ? 'Search people' : 'Search companies'}
+                value={peopleActive() ? peopleSearch() : view.searchText()}
+                onValueChange={(value) =>
+                  peopleActive()
+                    ? searchPeople(value)
+                    : view.setSearchText(value)
+                }
+              />
+            </ListHeader>
+            <Show when={!peopleActive()}>
               <Suspense>
                 <CrmFilterChips onReset={() => navigate(active())} />
               </Suspense>

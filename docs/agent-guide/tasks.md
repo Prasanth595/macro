@@ -6,7 +6,8 @@
 The single-row desktop header contains the title, `Filter`, a separate
 `Task layout` single-select icon group for `List`, `Board`, and enabled `Gantt`,
 `Sort`, `Group`, `New`, and an expandable Search icon
-(`Ctrl+F` opens it);
+(`Ctrl+F` opens it). The active-filter count sits beside the filter icon inside
+its button, without overlapping the icon or the group border;
 the filter uses the legacy compact option rows and searchable Assignee, Created by,
 and Tags submenus. Multi-select choices keep the menu open; Escape dismisses it.
 The top of the `Filter` menu is a `Filter with AI…` textbox, focused when the menu opens: type a plain-English

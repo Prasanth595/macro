@@ -284,6 +284,7 @@ export function AgentsSidebar(props: AgentsSidebarProps) {
         >
           <Tabs
             aria-label="Agents mode"
+            variant={isTouchDevice() ? 'pill' : 'segmented'}
             fullWidth
             list={(['chat', 'code'] as const).map((mode) => ({
               value: mode,
