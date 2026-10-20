@@ -130,7 +130,7 @@ export function RouteDocuments() {
         <div>
           <FeaturePageFaq
             id="documents-faq-title"
-            title="Frequently asked questions"
+            title="Questions about Macro Docs"
             items={documentsFaq}
           />
         </div>

@@ -169,7 +169,7 @@ export function RouteEmail() {
       <EmailComparison />
       <FeaturePageFaq
         id="email-faq-title"
-        title="Gmail accounts and agent permissions"
+        title="Questions about Macro Mail"
         introduction={
           <p>
             Macro connects to your existing Google account. You can read,

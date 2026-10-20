@@ -330,6 +330,8 @@ stacks; phone layouts keep the page gutters. Email stages share the chapter alig
 without an extra inset. This pattern only applies to lower subpage sections;
 leave the homepage, product heroes, and wallpaper demos unchanged.
 FAQ disclosures retain the onboarding security section’s reading measure.
+Use “Questions about Macro [product]” for every product FAQ title, matching the
+page’s product name (Mail, Chat, Docs, Tasks, Calls, CRM, Agents, or for GitHub).
 Website UI utilities and the frozen dark palette are scoped to `.feature-page`,
 preserving the surrounding public-page styles.
 

@@ -185,7 +185,7 @@ export function RouteAgents() {
       </FeaturePageSection>
       <FeaturePageFaq
         id="agents-faq-title"
-        title="Models, permissions, and control."
+        title="Questions about Macro Agents"
         items={agentsFaq}
       />
       <HomepageClosing />

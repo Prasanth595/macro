@@ -97,7 +97,7 @@ export function RouteChannels() {
       <FeatureComparisons comparisons={chatComparisons} />
       <FeaturePageFaq
         id="channels-faq-title"
-        title="FAQ"
+        title="Questions about Macro Chat"
         items={[
           {
             q: 'What happens when I share an email?',

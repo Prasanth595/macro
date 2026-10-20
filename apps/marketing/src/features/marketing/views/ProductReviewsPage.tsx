@@ -141,7 +141,7 @@ export function RouteGithub() {
         </FeaturePageSection>
         <FeaturePageFaq
           id="github-faq"
-          title="Frequently asked questions"
+          title="Questions about Macro for GitHub"
           items={githubFaq}
         />
       </div>
