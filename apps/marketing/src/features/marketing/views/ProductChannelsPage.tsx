@@ -59,7 +59,7 @@ export function RouteChannels() {
       </nav>
       <FeaturePageSection
         id="shared-work"
-        title={['Open anything straight', 'from your chats.']}
+          title={['Open all your work', 'straight from chat.']}
         description="Share work in your team channels. Click on a document, task, email, company, person, or any file to see it beside your chat."
         details={channelsGuides['shared-work']}
       >
