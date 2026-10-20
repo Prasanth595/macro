@@ -6,6 +6,8 @@ mod link;
 mod login;
 mod lookup;
 mod search;
+#[cfg(test)]
+mod test;
 mod unlink;
 
 pub use link::{IdentityProviderLink, Link, LinkUserRequest, RetrieveLinkResponse};

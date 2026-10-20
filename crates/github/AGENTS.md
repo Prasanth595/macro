@@ -48,6 +48,13 @@ link flow, following the hexagonal architecture pattern.
 
 ## Gotchas
 
+- Missing FusionAuth identities/grants require reauthentication; infrastructure
+  errors remain errors. After OAuth proves GitHub identity, refresh the grant
+  before returning an existing link. Reassign every sharer when its grant owner
+  is gone, using the old owner as a compare-and-swap condition. Hold the user
+  guard then the GitHub account guard through OAuth grant writes and DB changes;
+  disconnect follows the same order. Cache tokens by identity and GitHub account.
+
 - Webhook signature verification uses `hmac`/`subtle` for constant-time
   comparison — don't swap in a plain `==` when touching
   `github_sync_router.rs`.

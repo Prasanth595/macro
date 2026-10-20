@@ -319,3 +319,97 @@ async fn test_delete_in_progress_user_link_nonexistent(pool: Pool<Postgres>) {
     // Deleting a nonexistent row should not error (DELETE affects 0 rows)
     repo.delete_in_progress_user_link(&id).await.unwrap();
 }
+
+#[sqlx::test(
+    migrator = "MACRO_DB_MIGRATIONS",
+    fixtures(path = "../../../fixtures", scripts("github_test_data"))
+)]
+async fn reassign_grant_moves_all_sharers_without_overwriting_other_accounts_or_repairs(
+    pool: Pool<Postgres>,
+) {
+    let repo = PgGithubRepo::new(pool);
+    let original = repo
+        .get_github_link_by_github_user_id("12345")
+        .await
+        .unwrap()
+        .unwrap();
+    let old_owner = original.fusionauth_user_id;
+    let new_owner = uuid::Uuid::from_u128(42);
+    let mut sharer = original.clone();
+    sharer.id = uuid::Uuid::from_u128(43);
+    sharer.macro_id = MacroUserIdStr::parse_from_str("macro|sharer@user.com")
+        .unwrap()
+        .into_owned();
+    repo.insert_github_link(&sharer).await.unwrap();
+    let mut unrelated = original.clone();
+    unrelated.id = uuid::Uuid::from_u128(44);
+    unrelated.github_user_id = "67890".into();
+    repo.insert_github_link(&unrelated).await.unwrap();
+
+    repo.reassign_github_grant("12345", &old_owner, &new_owner)
+        .await
+        .unwrap();
+    // A late repair based on the former owner must not undo the completed repair.
+    repo.reassign_github_grant("12345", &old_owner, &uuid::Uuid::from_u128(45))
+        .await
+        .unwrap();
+
+    assert_eq!(
+        repo.get_github_link_by_id(&original.id)
+            .await
+            .unwrap()
+            .fusionauth_user_id,
+        new_owner
+    );
+    assert_eq!(
+        repo.get_github_link_by_id(&sharer.id)
+            .await
+            .unwrap()
+            .fusionauth_user_id,
+        new_owner
+    );
+    assert_eq!(
+        repo.get_github_link_by_id(&unrelated.id)
+            .await
+            .unwrap()
+            .fusionauth_user_id,
+        old_owner
+    );
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn link_guard_holds_user_and_shared_account_locks_until_operation_finishes(
+    pool: Pool<Postgres>,
+) {
+    let repo = PgGithubRepo::new(pool.clone());
+    let mut guard = repo.lock_user_link("macro|user@example.com").await.unwrap();
+    repo.lock_github_account(&mut guard, "1").await.unwrap();
+    let mut other = pool.begin().await.unwrap();
+    for key in [
+        "github-link-user:macro|user@example.com",
+        "github-link-account:1",
+    ] {
+        let locked = sqlx::query_scalar!(
+            r#"SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0)) AS "locked!""#,
+            key
+        )
+        .fetch_one(&mut *other)
+        .await
+        .unwrap();
+        assert!(!locked);
+    }
+    guard.rollback().await.unwrap();
+    for key in [
+        "github-link-user:macro|user@example.com",
+        "github-link-account:1",
+    ] {
+        let locked = sqlx::query_scalar!(
+            r#"SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0)) AS "locked!""#,
+            key
+        )
+        .fetch_one(&mut *other)
+        .await
+        .unwrap();
+        assert!(locked);
+    }
+}
