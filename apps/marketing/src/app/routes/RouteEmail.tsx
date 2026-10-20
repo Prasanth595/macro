@@ -134,8 +134,8 @@ export function RouteEmail() {
       </nav>
       <FeaturePageSection
         id="auto-tags"
-        title={['Make your inbox', 'manageable.']}
-        description="Use tags to organize email by customer, project, or follow-up. Find related conversations across your accounts and connect them to the documents and tasks your team is working on."
+        title={['Make your inboxes', 'manageable.']}
+        description="Connect multiple email inboxes and organize them with tags for customers, projects, and follow-ups."
         details={emailGuides['auto-tags']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
