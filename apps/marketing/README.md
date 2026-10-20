@@ -906,7 +906,11 @@ Menu presentation and saves are shared with the interactive controls; only
 automatic menu opens suppress focus.
 The context demo types and inserts the Customer brief, Proposal request email,
 and #sales references using three mention-menu selections. The picker opens
-above each line to stay inside the demo. Hold all three completed references
+above the typed mention, clamped to the editor width to stay inside the demo.
+Mark these owned editors with `data-demo-mentions="off"` so the global demo
+mention menu cannot open a second picker or intercept Enter. Keep inline icons
+and underline offsets proportional to the editor font, as in DocumentMention.
+Hold all three completed references
 without a parked pointer, then reset all three together for the next loop.
 Visitor input stops playback permanently;
 reduced motion shows the result. Inline task mentions open their linked documents, emails, and conversations. PR playback updates status, never the task’s checklist. Focused task-detail

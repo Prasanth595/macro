@@ -2,6 +2,7 @@ import Envelope from '@phosphor/envelope.svg';
 import X from '@phosphor/x.svg';
 import { Button } from '@ui';
 import {
+  createEffect,
   createSignal,
   For,
   Match,
@@ -85,6 +86,34 @@ export function TaskContextDemo() {
     channel: false,
   });
   const [picker, setPicker] = createSignal<Source>();
+  const [pickerOffset, setPickerOffset] = createSignal(0);
+  const positionPicker = () => {
+    const current = picker();
+    if (!current || !root?.isConnected) return;
+    const line = root.querySelector<HTMLElement>(
+      `[data-context-line="${current}"]`
+    );
+    const editor = line?.querySelector<HTMLElement>('[role="textbox"]');
+    if (!line || !editor) return;
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    const rects = range.getClientRects();
+    const lastLine = rects[rects.length - 1];
+    const bounds = line.getBoundingClientRect();
+    const menuWidth = Math.min(320, line.clientWidth);
+    setPickerOffset(
+      Math.max(
+        0,
+        Math.min(
+          (lastLine?.right ?? bounds.left) - bounds.left,
+          line.clientWidth - menuWidth
+        )
+      )
+    );
+  };
+  createEffect(() => {
+    if (picker()) queueMicrotask(positionPicker);
+  });
   const [typing, setTyping] = createSignal<Source>();
   const [automatic, setAutomatic] = createSignal(true);
   const [target, setTarget] = createSignal<string>();
@@ -214,7 +243,10 @@ export function TaskContextDemo() {
     </button>
   );
   onMount(() => {
-    const measure = () => setNarrow(root.clientWidth < 760);
+    const measure = () => {
+      setNarrow(root.clientWidth < 760);
+      positionPicker();
+    };
     const observer = new ResizeObserver(measure);
     observer.observe(root);
     measure();
@@ -290,6 +322,7 @@ export function TaskContextDemo() {
                         <div
                           class="task-context-reference task-context-share-line"
                           data-context-line={line.id}
+                          data-demo-mentions="off"
                         >
                           <Show
                             when={linked[line.id]}
@@ -304,15 +337,16 @@ export function TaskContextDemo() {
                                   automatic() && typing() === line.id
                                 }
                                 textContent={drafts[line.id]}
-                                onInput={(event) =>
+                                onInput={(event) => {
                                   setPicker(
                                     (
                                       event.currentTarget.textContent ?? ''
                                     ).includes('@')
                                       ? line.id
                                       : undefined
-                                  )
-                                }
+                                  );
+                                  queueMicrotask(positionPicker);
+                                }}
                                 onKeyDown={(event) => {
                                   if (
                                     picker() === line.id &&
@@ -367,7 +401,7 @@ export function TaskContextDemo() {
                                 selected={0}
                                 style={{
                                   position: 'absolute',
-                                  left: '0',
+                                  left: `${pickerOffset()}px`,
                                   bottom: 'calc(100% + 6px)',
                                   width: 'min(320px, 100%)',
                                 }}

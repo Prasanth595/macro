@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render } from '@solidjs/testing-library';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { DemoMentionMenu } from '../DemoMentionMenu';
 import { TaskContextDemo } from './TaskContextDemo';
 
 let reduced = true;
@@ -7,6 +8,10 @@ let intersections: IntersectionObserverCallback[];
 beforeEach(() => {
   reduced = true;
   intersections = [];
+  Object.defineProperty(Range.prototype, 'getClientRects', {
+    configurable: true,
+    value: () => [],
+  });
   vi.stubGlobal(
     'IntersectionObserver',
     class {
@@ -39,6 +44,8 @@ afterEach(() => {
   expect(fetch).not.toHaveBeenCalled();
   vi.unstubAllGlobals();
   vi.useRealTimers();
+  Reflect.deleteProperty(Range.prototype, 'getClientRects');
+  Reflect.deleteProperty(Range.prototype, 'getBoundingClientRect');
 });
 
 it('opens the brief from an inline task mention and restores focus on close', async () => {
@@ -197,3 +204,34 @@ function advanceTo(reached: () => unknown) {
     vi.advanceTimersByTime(50);
   expect(!!reached()).toBe(true);
 }
+
+it('uses only the task’s mention picker when typing a channel reference', async () => {
+  reduced = false;
+  Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => new DOMRect(),
+  });
+  const view = render(() => (
+    <>
+      <DemoMentionMenu />
+      <TaskContextDemo />
+    </>
+  ));
+  const input = view.getByRole('textbox', { name: 'Task sharing instruction' });
+  fireEvent.pointerDown(input);
+  input.focus();
+  input.textContent = 'Share the draft for review in @';
+  const range = document.createRange();
+  range.selectNodeContents(input);
+  range.collapse(false);
+  window.getSelection()?.removeAllRanges();
+  window.getSelection()?.addRange(range);
+  fireEvent.input(input);
+  await Promise.resolve();
+  expect(view.getAllByRole('listbox')).toHaveLength(1);
+  expect(view.getByRole('option', { name: 'sales', exact: true })).toBeTruthy();
+  fireEvent.keyDown(input, { key: 'Enter' });
+  expect(view.getByRole('button', { name: 'Open sales' })).toBeTruthy();
+  expect(view.queryByRole('listbox')).toBeNull();
+  Reflect.deleteProperty(Range.prototype, 'getBoundingClientRect');
+});
