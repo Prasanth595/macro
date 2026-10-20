@@ -1,13 +1,13 @@
 import { DemoInteractionBoundary } from '../../features/marketing/components/DemoInteractionBoundary';
+import { EmailAccountsDemo } from '../../features/marketing/components/email/EmailAccountsDemo';
 import { EmailAgenticEditingDemo } from '../../features/marketing/components/email/EmailAgenticEditingDemo';
-import { EmailAutoTagsDemo } from '../../features/marketing/components/email/EmailAutoTagsDemo';
 import { EmailComparison } from '../../features/marketing/components/email/EmailComparison';
 import { EmailDesktopDemo } from '../../features/marketing/components/email/EmailDesktopDemo';
 import {
   AgenticEditingGraphic,
-  AutoTagsGraphic,
   EmailSharingGraphic,
   KeyboardSpeedGraphic,
+  OneInboxGraphic,
 } from '../../features/marketing/components/email/EmailFeatureGraphics';
 import { EmailKeyboardDemo } from '../../features/marketing/components/email/EmailKeyboardDemo';
 import { EmailSharingDemo } from '../../features/marketing/components/email/EmailSharingDemo';
@@ -104,9 +104,8 @@ export function RouteEmail() {
           <span>humans and agents.</span>
         </h1>
         <p class="email-page-hero-description">
-          All your accounts in one inbox. Search across them.
-          <br class="email-page-hero-break" /> Share threads. Let agents draft
-          your replies.
+          Keep your inbox clean, move through emails quickly, and have agents
+          draft good replies.
         </p>
         <FeaturePageCta name="email_hero_get_started" />
       </header>
@@ -116,8 +115,8 @@ export function RouteEmail() {
         aria-label="On this page"
       >
         <a href="#auto-tags">
-          <AutoTagsGraphic />
-          <span>Tags</span>
+          <OneInboxGraphic />
+          <span>All inboxes</span>
         </a>
         <a href="#email-sharing">
           <EmailSharingGraphic />
@@ -125,21 +124,21 @@ export function RouteEmail() {
         </a>
         <a href="#keyboard-speed">
           <KeyboardSpeedGraphic />
-          <span>Superhuman speed</span>
+          <span>Keyboard shortcuts</span>
         </a>
         <a href="#agentic-editing">
           <AgenticEditingGraphic />
-          <span>Agentic editing</span>
+          <span>Draft with context</span>
         </a>
       </nav>
       <FeaturePageSection
         id="auto-tags"
-        title={['Make your inboxes', 'manageable.']}
-        description="Connect multiple email inboxes and organize them with tags for customers, projects, and follow-ups."
+        title={['All your inboxes.', 'One place to work.']}
+        description="Connect your Gmail and Google Workspace accounts. Read them together, focus on one account, and search across them without switching tabs."
         details={emailGuides['auto-tags']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
-          <EmailAutoTagsDemo />
+          <EmailAccountsDemo />
         </DemoInteractionBoundary>
       </FeaturePageSection>
       <FeaturePageSection
@@ -164,7 +163,7 @@ export function RouteEmail() {
       </FeaturePageSection>
       <FeaturePageSection
         id="agentic-editing"
-        title={['Draft emails that', 'sound like you.']}
+        title={['A reply with', 'the context built in.']}
         description="Ask an agent to prepare a reply using the email thread, relevant documents, meeting transcripts, and team conversations. Review and edit the draft before sending."
         details={emailGuides['agentic-editing']}
       >
