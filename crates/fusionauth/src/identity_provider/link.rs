@@ -92,11 +92,17 @@ pub(crate) async fn get_links(
         url.push_str(&format!("&identityProviderId={id}"));
     }
 
-    let res = client.client().get(url).send().await.map_err(|e| {
-        FusionAuthClientError::Generic(GenericErrorResponse {
-            message: e.to_string(),
-        })
-    })?;
+    let res = client
+        .client()
+        .get(url)
+        .timeout(super::LINK_REQUEST_TIMEOUT)
+        .send()
+        .await
+        .map_err(|e| {
+            FusionAuthClientError::Generic(GenericErrorResponse {
+                message: e.to_string(),
+            })
+        })?;
 
     let status = res.status();
     match status {
@@ -166,6 +172,7 @@ pub(crate) async fn link_user(
     let res = client
         .client()
         .post(format!("{base_url}/api/identity-provider/link",))
+        .timeout(super::LINK_REQUEST_TIMEOUT)
         .json(&request)
         .send()
         .await

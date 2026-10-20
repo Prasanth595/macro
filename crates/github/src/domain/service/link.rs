@@ -437,7 +437,7 @@ impl<R: GithubRepo, U: GithubOauth, F: Auth, E: GithubPullRequestService> Github
         Ok(())
     }
 
-    #[tracing::instrument(skip(self, code), err)]
+    #[tracing::instrument(skip(self, user_id, code, redirect_uri), err)]
     async fn link_user(
         &self,
         user_id: &MacroUserId<Lowercase<'static>>,

@@ -18,6 +18,7 @@ pub(crate) async fn unlink(
         .delete(format!(
             "{base_url}/api/identity-provider/link?identityProviderId={idp_id}&identityProviderUserId={idp_user_id}&userId={user_id}",
         ))
+        .timeout(super::LINK_REQUEST_TIMEOUT)
         .send()
         .await
         .map_err(|e| {

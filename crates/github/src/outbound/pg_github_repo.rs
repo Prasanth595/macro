@@ -9,6 +9,7 @@ use macro_user_id::{
     user_id::{MacroUserId, MacroUserIdStr},
 };
 use sqlx::PgPool;
+use std::time::Duration;
 use uuid::Uuid;
 
 use crate::domain::{models::GithubLink, ports::GithubRepo};
@@ -26,7 +27,12 @@ impl PgGithubRepo {
         // Locks span external HTTP calls; keep waiters out of the data pool.
         let locks = sqlx::postgres::PgPoolOptions::new()
             .max_connections(5)
-            .connect_lazy_with((*pool.connect_options()).clone());
+            .acquire_timeout(Duration::from_secs(5))
+            .connect_lazy_with(
+                (*pool.connect_options())
+                    .clone()
+                    .options([("lock_timeout", "5s"), ("statement_timeout", "10s")]),
+            );
         Self { locks, pool }
     }
 

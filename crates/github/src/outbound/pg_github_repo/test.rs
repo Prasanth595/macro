@@ -413,3 +413,50 @@ async fn link_guard_holds_user_and_shared_account_locks_until_operation_finishes
         assert!(locked);
     }
 }
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn contended_link_locks_time_out_and_release_the_waiters_user_lock(pool: Pool<Postgres>) {
+    let repo = PgGithubRepo::new(pool);
+    let mut owner = repo
+        .lock_user_link("macro|owner@example.com")
+        .await
+        .unwrap();
+    repo.lock_github_account(&mut owner, "1").await.unwrap();
+
+    let user_error = tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        repo.lock_user_link("macro|owner@example.com"),
+    )
+    .await
+    .expect("user lock wait must be bounded")
+    .unwrap_err();
+    assert_eq!(
+        user_error.as_database_error().unwrap().code().as_deref(),
+        Some("55P03")
+    );
+
+    let mut waiter = repo
+        .lock_user_link("macro|waiter@example.com")
+        .await
+        .unwrap();
+    let account_error = tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        repo.lock_github_account(&mut waiter, "1"),
+    )
+    .await
+    .expect("account lock wait must be bounded")
+    .unwrap_err();
+    assert_eq!(
+        account_error.as_database_error().unwrap().code().as_deref(),
+        Some("55P03")
+    );
+    drop(waiter);
+    // The failed transaction must not leave the waiter's user lock behind.
+    let recovered = repo
+        .lock_user_link("macro|waiter@example.com")
+        .await
+        .unwrap();
+    recovered.rollback().await.unwrap();
+    owner.rollback().await.unwrap();
+    repo.locks.close().await;
+}

@@ -119,6 +119,81 @@ async fn refresh_stores_fresh_token_and_identical_token_is_idempotent() {
 }
 
 #[tokio::test]
+async fn reconnect_recreates_a_grant_after_replacement_and_restoration_fail() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "identityProviderLinks": [grant("1", "old-token")]
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("DELETE"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&server)
+        .await;
+    // Both the replacement and its best-effort restoration fail.
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(503))
+        .expect(2)
+        .mount(&server)
+        .await;
+    let client = client(&server);
+    assert!(
+        refresh_grant(
+            &client,
+            &uuid::Uuid::nil(),
+            "github",
+            "1",
+            "octocat",
+            "new-token"
+        )
+        .await
+        .is_err()
+    );
+    server.verify().await;
+    server.reset().await;
+
+    // A crash after unlink leaves the same persistent state: an absent grant.
+    // A subsequent verified OAuth attempt must recreate it without an unlink.
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(404))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(body_partial_json(json!({
+            "identityProviderLink": { "identityProviderUserId": "1", "token": "retry-token" }
+        })))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&server)
+        .await;
+    assert_eq!(
+        refresh_grant(
+            &client,
+            &uuid::Uuid::nil(),
+            "github",
+            "1",
+            "octocat",
+            "retry-token"
+        )
+        .await
+        .unwrap(),
+        GithubGrantLinkOutcome::Linked
+    );
+    let requests = server.received_requests().await.unwrap();
+    assert_eq!(
+        requests
+            .iter()
+            .map(|request| request.method.as_str())
+            .collect::<Vec<_>>(),
+        ["GET", "POST"]
+    );
+}
+
+#[tokio::test]
 async fn deleted_identity_is_reported_without_writes() {
     let server = MockServer::start().await;
     Mock::given(method("GET"))
@@ -160,7 +235,7 @@ async fn delayed_lookup_cannot_overwrite_reconnected_token() {
         .unwrap()
         .get_multiplexed_async_connection()
         .await
-        .unwrap();
+        .expect("GitHub integration tests require local Redis or REDIS_URL; see docs/development/database.md");
     let identity = macro_uuid::generate_uuid_v7();
     // Legacy identity-only entries must not be used for another account.
     let legacy_key = format!("github_access_token_key:{identity}");
