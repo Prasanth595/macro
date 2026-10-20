@@ -161,7 +161,7 @@ export function RouteTasks() {
         </FeaturePageSection>
         <FeaturePageSection
           id="github"
-          title={['Your tasks will close after', 'completion.']}
+          title={['Keep tasks in sync', 'with your code.']}
           description="Connect a task to its pull request and let the code update its status. The task moves into review when the PR opens and completes when the change merges."
           details={tasksGuides['github']}
         >
