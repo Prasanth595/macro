@@ -78,8 +78,7 @@ export function RouteCrm() {
         product="CRM"
         title={['The CRM connected', 'to your team’s work.']}
         description={[
-          'Built from your email and calls, kept current by agents.',
-          'Right in your workspace, so there’s no separate tool to check.',
+          'Keep customer context connected across email, calls, chat, tasks, and files.',
         ]}
         cta="crm_hero_get_started"
       />
