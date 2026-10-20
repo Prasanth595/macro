@@ -1,4 +1,3 @@
 /* Local walkthrough indicators, outside the frozen inbox presentation. */
 .email-tag-stage { position: relative; }
 .email-tags-demo .mail-app { min-height: 360px; }
-.email-tag-count { margin-left: auto; color: var(--color-ink-extra-muted); font-size: 11px; white-space: nowrap; }

@@ -109,10 +109,6 @@ export function EmailAutoTagsDemo() {
               </Button>
               <span class="truncate">{email().subject}</span>
             </Show>
-            <span class="email-tag-count" role="status">
-              {Object.values(tags()).filter((value) => value.length).length} /{' '}
-              {incoming.length} tagged
-            </span>
             <Button
               variant="ghost"
               size="sm"
