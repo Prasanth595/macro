@@ -94,7 +94,10 @@ export function RouteChannels() {
           <ChannelThreadDemo />
         </DemoInteractionBoundary>
       </FeaturePageSection>
-      <FeatureComparisons comparisons={chatComparisons} />
+      <FeatureComparisons
+        title="Compare Team Chat Apps"
+        comparisons={chatComparisons}
+      />
       <FeaturePageFaq
         id="channels-faq-title"
         title="Questions about Macro Chat"

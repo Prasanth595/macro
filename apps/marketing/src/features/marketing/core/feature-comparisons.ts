@@ -2,7 +2,13 @@ export type FeatureComparison = {
   id: string;
   question: string;
   competitor: string;
-  rows: readonly { feature: string; macro: boolean; competitor: boolean }[];
+  rows: readonly {
+    feature: string;
+    macro: boolean | 'partial';
+    competitor: boolean | 'partial';
+    macroNote?: string;
+    competitorNote?: string;
+  }[];
   article?: { label: string; href: string };
   /** Evidence for maintainers; the public table stays compact. */
   sources: readonly string[];
@@ -19,21 +25,10 @@ export const emailComparisons: readonly FeatureComparison[] = [
         macro: true,
         competitor: true,
       },
-      { feature: 'Multiple email accounts', macro: true, competitor: true },
-      {
-        feature: 'Unified inbox across email accounts',
-        macro: true,
-        competitor: false,
-      },
       { feature: 'Keyboard shortcuts', macro: true, competitor: true },
       { feature: 'AI email drafting', macro: true, competitor: true },
       {
-        feature: 'Agents that draft and send email',
-        macro: true,
-        competitor: true,
-      },
-      {
-        feature: 'Share individual live threads without forwarding',
+        feature: 'Share live threads without forwarding',
         macro: true,
         competitor: true,
       },
@@ -66,12 +61,7 @@ export const emailComparisons: readonly FeatureComparison[] = [
       { feature: 'Keyboard shortcuts', macro: true, competitor: true },
       { feature: 'AI email drafting', macro: true, competitor: true },
       {
-        feature: 'Read email beside your inbox',
-        macro: true,
-        competitor: true,
-      },
-      {
-        feature: 'Share individual live threads without forwarding',
+        feature: 'Share live threads without forwarding',
         macro: true,
         competitor: false,
       },
@@ -80,7 +70,6 @@ export const emailComparisons: readonly FeatureComparison[] = [
         macro: true,
         competitor: false,
       },
-      { feature: 'Open source', macro: true, competitor: false },
     ],
     sources: [
       'https://support.google.com/mail/answer/6594',
@@ -104,34 +93,16 @@ export const documentComparisons: readonly FeatureComparison[] = [
         competitor: true,
       },
       { feature: 'Markdown import and export', macro: true, competitor: true },
+      { feature: 'Offline document editing', macro: true, competitor: true },
       {
-        feature: 'Upload PDFs, images, and other files',
-        macro: true,
-        competitor: true,
-      },
-      {
-        feature: 'Organize docs and files in folders',
-        macro: true,
-        competitor: false,
-      },
-      {
-        feature: 'One set of tags across docs, email, and tasks',
-        macro: true,
-        competitor: false,
-      },
-      {
-        feature: 'Read live email threads beside a doc',
-        macro: true,
-        competitor: false,
-      },
-      {
-        feature: 'Share doc access through channel mentions',
+        feature: 'Read live email beside a document',
         macro: true,
         competitor: false,
       },
     ],
     article: { label: 'Macro vs. Notion', href: '/posts/notion-alternative' },
     sources: [
+      'https://www.notion.com/help/use-pages-offline',
       'https://www.notion.com/help/images-files-and-media',
       'https://www.notion.com/help/import-data-into-notion',
       'https://www.notion.com/help/export-your-content',
@@ -157,22 +128,15 @@ export const taskComparisons: readonly FeatureComparison[] = [
       },
       { feature: 'Create tasks from email', macro: true, competitor: true },
       {
-        feature: 'Create tasks from chat messages',
-        macro: true,
-        competitor: true,
-      },
-      {
         feature: 'Update task status from GitHub',
         macro: true,
         competitor: true,
       },
-      { feature: 'Full email client', macro: true, competitor: false },
       {
-        feature: 'Built-in team chat / channels',
+        feature: 'Built-in email and team chat',
         macro: true,
         competitor: false,
       },
-      { feature: 'Open source', macro: true, competitor: false },
     ],
     article: { label: 'Macro vs. Linear', href: '/posts/linear-alternative' },
     sources: [
@@ -191,20 +155,17 @@ export const taskComparisons: readonly FeatureComparison[] = [
         macro: true,
         competitor: true,
       },
-      { feature: 'Task due dates', macro: true, competitor: true },
       { feature: 'Create tasks from email', macro: true, competitor: true },
       {
         feature: 'Update task status from GitHub',
         macro: true,
         competitor: true,
       },
-      { feature: 'Full email client', macro: true, competitor: false },
       {
-        feature: 'Built-in team chat / channels',
+        feature: 'Built-in email and team chat',
         macro: true,
         competitor: false,
       },
-      { feature: 'Open source', macro: true, competitor: false },
     ],
     sources: [
       'https://support.atlassian.com/jira-cloud-administration/docs/create-issues-and-comments-from-email/',
@@ -226,11 +187,6 @@ export const chatComparisons: readonly FeatureComparison[] = [
         competitor: true,
       },
       {
-        feature: 'Thread replies shown inline by default',
-        macro: true,
-        competitor: false,
-      },
-      {
         feature: 'Share docs and tasks with a channel',
         macro: true,
         competitor: true,
@@ -241,7 +197,6 @@ export const chatComparisons: readonly FeatureComparison[] = [
         macro: true,
         competitor: true,
       },
-      { feature: 'Full email client', macro: true, competitor: false },
       {
         feature: 'Email, tasks, and chat in one inbox',
         macro: true,
@@ -254,6 +209,129 @@ export const chatComparisons: readonly FeatureComparison[] = [
       'https://slack.com/help/articles/15678967614611-Manage-access-permissions-for-canvases-and-lists',
       'https://slack.com/help/articles/4402059015315-Use-huddles-in-Slack',
       'https://slack.com/help/articles/202026038-How-to-work-with-Slackbot',
+    ],
+  },
+];
+
+// Reviewed 2026-10-20 against the sources below and docs/agent-guide/crm.md.
+// A partial reporting mark means agent-generated summaries, not dedicated dashboards.
+// Connected workspace tools receive partial credit rather than a cross.
+export const crmComparisons: readonly FeatureComparison[] = [
+  {
+    id: 'salesforce',
+    question: 'How does Macro compare with Salesforce?',
+    competitor: 'Salesforce',
+    rows: [
+      { feature: 'Company and contact records', macro: true, competitor: true },
+      {
+        feature: 'Sales pipelines and board views',
+        macro: true,
+        competitor: true,
+      },
+      { feature: 'Custom fields', macro: true, competitor: true },
+      {
+        feature: 'Email history on customer records',
+        macro: true,
+        competitor: true,
+      },
+      {
+        feature: 'Email, chat, and docs alongside CRM',
+        macro: true,
+        competitor: 'partial',
+        competitorNote:
+          'Available through connected collaboration tools rather than one built-in workspace.',
+      },
+      {
+        feature: 'Sales reporting',
+        macro: 'partial',
+        macroNote:
+          'Agent-generated pipeline summaries; no dedicated sales reporting dashboard.',
+        competitor: true,
+      },
+    ],
+    sources: [
+      'https://www.salesforce.com/sales/cloud/guide/',
+      'https://help.salesforce.com/s/articleView?id=sf.collaboration_admin_welcome.htm&language=en_US&type=5',
+      'https://trailhead.salesforce.com/content/learn/projects/customize-a-sales-path-for-your-team/work-with-opportunities-in-the-kanban-view',
+      'https://help.salesforce.com/s/articleView?id=xcloud.lex_pro_tips_activity_timeline.htm&language=en_US&type=5',
+    ],
+  },
+  {
+    id: 'hubspot',
+    question: 'How does Macro compare with HubSpot?',
+    competitor: 'HubSpot',
+    rows: [
+      { feature: 'Company and contact records', macro: true, competitor: true },
+      {
+        feature: 'Sales pipelines and board views',
+        macro: true,
+        competitor: true,
+      },
+      { feature: 'Custom fields', macro: true, competitor: true },
+      {
+        feature: 'Email history on customer records',
+        macro: true,
+        competitor: true,
+      },
+      {
+        feature: 'Email, chat, and docs alongside CRM',
+        macro: true,
+        competitor: 'partial',
+        competitorNote:
+          'Available through connected collaboration tools rather than one built-in workspace.',
+      },
+      {
+        feature: 'Sales reporting',
+        macro: 'partial',
+        macroNote:
+          'Agent-generated pipeline summaries; no dedicated sales reporting dashboard.',
+        competitor: true,
+      },
+    ],
+    sources: [
+      'https://knowledge.hubspot.com/object-settings/select-properties-to-show-on-records-in-board-view',
+      'https://www.hubspot.com/products/email-integration',
+      'https://www.hubspot.com/products/sales/sales-reports',
+      'https://knowledge.hubspot.com/integrations/connect-google-drive-to-hubspot',
+    ],
+  },
+  {
+    id: 'attio',
+    question: 'How does Macro compare with Attio?',
+    competitor: 'Attio',
+    rows: [
+      { feature: 'Company and contact records', macro: true, competitor: true },
+      {
+        feature: 'Sales pipelines and board views',
+        macro: true,
+        competitor: true,
+      },
+      { feature: 'Custom fields', macro: true, competitor: true },
+      {
+        feature: 'Email history on customer records',
+        macro: true,
+        competitor: true,
+      },
+      {
+        feature: 'Email, chat, and docs alongside CRM',
+        macro: true,
+        competitor: 'partial',
+        competitorNote:
+          'Available through connected collaboration tools rather than one built-in workspace.',
+      },
+      {
+        feature: 'Sales reporting',
+        macro: 'partial',
+        macroNote:
+          'Agent-generated pipeline summaries; no dedicated sales reporting dashboard.',
+        competitor: true,
+      },
+    ],
+    sources: [
+      'https://attio.com/help/reference/managing-your-data/attributes/create-manage-attributes',
+      'https://attio.com/help/academy/introduction/reports',
+      'https://attio.com/help/reference/apps/communication-apps/slack-app',
+      'https://attio.com/help/reference/apps/data-and-enrichment-apps/notion-app',
     ],
   },
 ];

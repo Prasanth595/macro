@@ -13,12 +13,15 @@ afterEach(cleanup);
 it('shows one table with all email competitors with a heading and no disclosure', () => {
   setViewportWidth(1440);
   const view = render(() => (
-    <FeatureComparisons comparisons={emailComparisons} />
+    <FeatureComparisons
+      title="Compare Email Clients"
+      comparisons={emailComparisons}
+    />
   ));
   const table = view.getByRole('region', { name: 'Compare Macro' });
   expect(view.container.querySelector('details')).toBeNull();
   expect(
-    view.getByRole('heading', { name: 'How Macro compares', level: 2 })
+    view.getByRole('heading', { name: 'Compare Email Clients', level: 2 })
   ).toBeTruthy();
   expect(within(table).getByText('Superhuman Mail')).toBeTruthy();
   expect(within(table).getByText('Gmail')).toBeTruthy();
@@ -34,7 +37,10 @@ it('shows one table with all email competitors with a heading and no disclosure'
 it('combines Linear and Jira in one mobile-scrollable table', () => {
   setViewportWidth(390);
   const view = render(() => (
-    <FeatureComparisons comparisons={taskComparisons} />
+    <FeatureComparisons
+      title="Compare Task Managers"
+      comparisons={taskComparisons}
+    />
   ));
   const table = view.getByRole('region', { name: 'Compare Macro' });
   expect(within(table).getByText('Linear')).toBeTruthy();
@@ -45,11 +51,11 @@ it('combines Linear and Jira in one mobile-scrollable table', () => {
   expect(view.container.querySelector('#compare-jira')).toBeTruthy();
 });
 
-it('shows the CRM comparison without a disclosure and preserves partial support', () => {
+it('credits shared CRM capabilities and competitors’ dedicated reporting', () => {
   setViewportWidth(390);
   const view = render(() => <CrmComparison />);
   expect(
-    view.getByRole('heading', { name: 'Compare CRM tools', level: 2 })
+    view.getByRole('heading', { name: 'Compare CRMs', level: 2 })
   ).toBeTruthy();
   const table = view.getByRole('region', { name: 'Compare Macro' });
   expect(view.container.querySelector('details')).toBeNull();
@@ -58,13 +64,26 @@ it('shows the CRM comparison without a disclosure and preserves partial support'
   for (const label of ['Macro', 'Salesforce', 'HubSpot', 'Attio']) {
     expect(within(table).getByText(label)).toBeTruthy();
   }
+  const contacts = within(table).getByText('Company and contact records');
+  let cell = contacts.nextElementSibling;
+  for (let index = 0; index < 4; index++) {
+    expect(cell?.querySelector('[aria-label="Yes"]')).toBeTruthy();
+    cell = cell?.nextElementSibling ?? null;
+  }
+  const reports = within(table).getByText('Sales reporting');
+  cell = reports.nextElementSibling;
   expect(
-    within(table).getAllByRole('img', { name: 'Partial' }).length
-  ).toBeGreaterThan(0);
-  expect(view.getByText('Partial / limited')).toBeTruthy();
+    cell
+      ?.querySelector('[aria-label="Partial"]')
+      ?.getAttribute('aria-description')
+  ).toContain('no dedicated sales reporting dashboard');
+  for (let index = 0; index < 3; index++) {
+    cell = cell?.nextElementSibling ?? null;
+    expect(cell?.querySelector('[aria-label="Yes"]')).toBeTruthy();
+  }
+  expect(view.getByText('Partial / via connected tools')).toBeTruthy();
+  expect(view.queryByText('Not included')).toBeNull();
   expect(table.tabIndex).toBe(0);
   expect(table.style.overflowX).toBe('auto');
-  expect(
-    view.getByRole('link', { name: 'Macro pricing' }).getAttribute('href')
-  ).toBe('/pricing');
+  expect(view.queryByText(/Includes paid features/)).toBeNull();
 });

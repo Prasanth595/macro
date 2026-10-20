@@ -2,31 +2,16 @@ import MacroLogo from '@icon/macro-logo.svg';
 import { For, onCleanup, onMount, Show } from 'solid-js';
 import {
   CheckMark,
-  type ComparisonColumn,
   ComparisonTable,
   CrossMark,
   PartialMark,
 } from '../../../../app/components/sections/ComparisonTable';
-import Gmail from '../../../../assets/icons/logo-gmail.svg';
-import Jira from '../../../../assets/icons/logo-jira.svg';
-import Linear from '../../../../assets/icons/logo-linear.svg';
-import Notion from '../../../../assets/icons/logo-notion.svg';
-import Slack from '../../../../assets/icons/logo-slack.svg';
-import Superhuman from '../../../../assets/icons/logo-superhuman.svg';
 import type { FeatureComparison } from '../../core/feature-comparisons';
 import './feature-comparisons.css';
 
-const logos: Record<string, ComparisonColumn['logo']> = {
-  gmail: Gmail,
-  jira: Jira,
-  linear: Linear,
-  notion: Notion,
-  slack: Slack,
-  superhuman: Superhuman,
-};
-
 /** One visible table per page, with competitors side by side. */
 export function FeatureComparisons(props: {
+  title: string;
   comparisons: readonly FeatureComparison[];
 }) {
   let container!: HTMLDivElement;
@@ -39,6 +24,15 @@ export function FeatureComparisons(props: {
       )
       .map((row) => ({
         feature: row.feature,
+        cellNotes: [
+          row.macroNote,
+          ...props.comparisons.map(
+            (comparison) =>
+              comparison.rows.find(
+                (candidate) => candidate.feature === row.feature
+              )?.competitorNote
+          ),
+        ],
         cells: [
           row.macro,
           ...props.comparisons.map(
@@ -80,35 +74,37 @@ export function FeatureComparisons(props: {
           />
         )}
       </For>
-      <FeatureComparisonHeading />
+      <h2 class="feature-comparison-heading">{props.title}</h2>
       <ComparisonTable
+        presentation="framed"
         columns={[
           { label: 'Macro', macro: true, icon: <ComparisonMacroLogo /> },
           ...props.comparisons.map((comparison) => ({
             label: comparison.competitor,
-            logo: logos[comparison.id],
           })),
         ]}
         rows={rows()}
         sortRows={false}
-        mobileCellWidth={100}
-        mobileMinWidth={props.comparisons.length > 1 ? 520 : 390}
+        mobileCellWidth={110}
+        mobileMinWidth={240 + (props.comparisons.length + 1) * 110}
         scrollLabel="Compare Macro"
       />
-      <FeatureComparisonKey />
+      <FeatureComparisonKey
+        partial={rows().some((row) => row.cells.includes('partial'))}
+        unavailable={rows().some((row) => row.cells.includes(false))}
+      />
     </div>
   );
-}
-
-export function FeatureComparisonHeading() {
-  return <h2 class="feature-comparison-heading">How Macro compares</h2>;
 }
 
 export function ComparisonMacroLogo() {
   return <MacroLogo class="feature-comparison-macro-logo" aria-hidden="true" />;
 }
 
-export function FeatureComparisonKey(props: { partial?: boolean }) {
+function FeatureComparisonKey(props: {
+  partial: boolean;
+  unavailable: boolean;
+}) {
   return (
     <div class="feature-comparison-key">
       <span>
@@ -116,12 +112,14 @@ export function FeatureComparisonKey(props: { partial?: boolean }) {
       </span>
       <Show when={props.partial}>
         <span>
-          <PartialMark /> Partial / limited
+          <PartialMark /> Partial / via connected tools
         </span>
       </Show>
-      <span>
-        <CrossMark /> Not offered as a built-in tool
-      </span>
+      <Show when={props.unavailable}>
+        <span>
+          <CrossMark /> Not included
+        </span>
+      </Show>
     </div>
   );
 }

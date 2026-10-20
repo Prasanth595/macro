@@ -23,6 +23,7 @@ export type ComparisonColumn = {
 export type ComparisonRow = {
   feature: JSX.Element;
   cells: readonly ComparisonCellValue[];
+  cellNotes?: readonly (string | undefined)[];
 };
 export type ComparisonTableProps = {
   columns: readonly ComparisonColumn[];
@@ -91,16 +92,20 @@ export function CheckMark() {
   );
 }
 
-export function PartialMark() {
+export function PartialMark(props: { description?: string } = {}) {
   return (
     <span
       aria-label="Partial"
+      aria-description={props.description}
+      title={props.description}
+      tabIndex={props.description ? 0 : undefined}
       role="img"
       style={{
         'background-color': 'color-mix(in srgb, var(--c4) 55%, transparent)',
         'border-radius': '999px',
         display: 'block',
-        height: '4px',
+        height: 'var(--comparison-partial-height, 4px)',
+        transform: 'var(--comparison-partial-transform, none)',
         width: '14px',
       }}
     />
@@ -163,6 +168,7 @@ function ComparisonCell(props: {
   value: ComparisonCellValue;
   macro: boolean;
   valueWrap: 'normal' | 'nowrap';
+  description?: string;
 }) {
   const textValue = () =>
     typeof props.value === 'string' && props.value !== 'partial';
@@ -183,7 +189,7 @@ function ComparisonCell(props: {
             when={props.value === true}
             fallback={
               <Show when={props.value === 'partial'} fallback={<CrossMark />}>
-                <PartialMark />
+                <PartialMark description={props.description} />
               </Show>
             }
           >
@@ -441,6 +447,7 @@ export function ComparisonTable(props: ComparisonTableProps) {
                   >
                     <ComparisonCell
                       value={cell}
+                      description={row.cellNotes?.[cellIndex()]}
                       macro={isMacro(columns()[cellIndex()]!, cellIndex())}
                       valueWrap={props.valueWrap ?? 'nowrap'}
                     />

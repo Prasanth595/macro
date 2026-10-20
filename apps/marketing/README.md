@@ -626,21 +626,28 @@ FAQs, and the overview's horizontal scrolling.
 
 ## Product comparisons
 
-CRM trials a framed comparison with “Compare CRM tools”, a continuous Features
-header row, larger type and row padding, and plain competitor names instead of
-placeholder logos. Other product comparisons keep the shared compact layout.
+Use the framed comparison layout across the six existing product tables: a
+category title (Compare CRMs, Compare Task Managers, etc.), a continuous Features
+header, readable rows, and plain competitor names with the standard Macro mark.
+Keep checks for verifiable capabilities and slashes for partial or connected-tool support.
+Give partial cells a concise accessible description explaining the difference.
+Keep pricing disclaimers off the tables and show only legend symbols used in
+that table. Compare shared category basics before
+one workspace difference, include meaningful competitor strengths, and remove
+repetitive or narrowly worded rows that manufacture an advantage. Paid features
+and supported integrations count unless a row explicitly says built-in. A check
+indicates availability, not equivalent depth. Keep dated source notes with the
+comparison data and recheck claims before changing cells.
 
-
-`core/feature-comparisons.ts` owns the fact-checked boolean rows and maintainer
-source URLs. `FeatureComparisons` renders one always-visible table above each FAQ, with the shared
-“How Macro compares” heading and no subtitle or dropdown:
+`core/feature-comparisons.ts` owns the fact-checked availability rows and maintainer
+source URLs. `FeatureComparisons` renders one always-visible table above each FAQ, with a category heading and no subtitle or dropdown:
 Superhuman/Gmail on Email; Notion on Docs; Linear/Jira on Tasks; Slack on Chat;
 Google Meet/Granola on Calls. CRM uses the same visible layout and legend, with
-its existing partial-support values for Salesforce, HubSpot, and Attio. ClickUp
+Salesforce, HubSpot, and Attio. Its shared core capabilities are all checked;
+sales reporting is checked for those CRMs and partial for Macro’s agent summaries.
+Connected collaboration tools receive partial credit alongside Macro’s native workspace. ClickUp
 stays in the migration overview. Overview links scroll to the matching product
-comparison; verify both initial-load and client-side navigation hashes. Keep
-cells to Yes/No and labels precise about
-built-in tools. Retain detailed article links when an article exists. Source URLs
+comparison; verify both initial-load and client-side navigation hashes. Keep cells to checks, crosses, or explained partial marks and label built-in tools explicitly. Retain detailed article links when an article exists. Source URLs
 are not shown in the UI. Icon-only comparison tables are not exported as prose
 FAQ answers. Verify table columns, keyboard focus, scrolling, and existing
 functional FAQs after moving or adding a comparison.

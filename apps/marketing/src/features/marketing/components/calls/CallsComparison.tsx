@@ -1,7 +1,7 @@
 import type { FeatureComparison } from '../../core/feature-comparisons';
 import { FeatureComparisons } from '../comparisons/FeatureComparisons';
 
-// Availability includes paid plans. Compare built-in tools, not integrations.
+// Availability includes paid plans; Granola complements existing meeting apps.
 // Granola explicitly rules out audio/video playback in its feature-request docs.
 const comparisons: readonly FeatureComparison[] = [
   {
@@ -17,13 +17,8 @@ const comparisons: readonly FeatureComparison[] = [
         competitor: true,
       },
       {
-        feature: 'Calls, tasks, and docs in one app',
-        macro: true,
-        competitor: false,
-      },
-      {
-        feature: 'Agents update tasks and docs in the app',
-        macro: true,
+        feature: 'Capture notes from other meeting apps',
+        macro: false,
         competitor: false,
       },
     ],
@@ -48,18 +43,14 @@ const comparisons: readonly FeatureComparison[] = [
         competitor: true,
       },
       {
-        feature: 'Calls, tasks, and docs in one app',
-        macro: true,
-        competitor: false,
-      },
-      {
-        feature: 'Agents update tasks and docs in the app',
-        macro: true,
-        competitor: false,
+        feature: 'Capture notes from other meeting apps',
+        macro: false,
+        competitor: true,
       },
     ],
     sources: [
       'https://docs.granola.ai/help-center/feature-requests',
+      'https://www.granola.ai/security',
       'https://docs.granola.ai/help-center/consent-security-privacy/security-privacy-data-faqs',
       'https://docs.granola.ai/help-center/sharing/integrations/mcp',
     ],
@@ -67,5 +58,10 @@ const comparisons: readonly FeatureComparison[] = [
 ];
 
 export function CallsComparison() {
-  return <FeatureComparisons comparisons={comparisons} />;
+  return (
+    <FeatureComparisons
+      title="Compare Meeting Tools"
+      comparisons={comparisons}
+    />
+  );
 }

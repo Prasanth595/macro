@@ -138,7 +138,10 @@ export function RouteDocuments() {
           id="documents-comparison"
           aria-label="Compare Macro and Notion"
         >
-          <FeatureComparisons comparisons={documentComparisons} />
+          <FeatureComparisons
+            title="Compare Document Editors"
+            comparisons={documentComparisons}
+          />
         </section>
         <div>
           <FeaturePageFaq

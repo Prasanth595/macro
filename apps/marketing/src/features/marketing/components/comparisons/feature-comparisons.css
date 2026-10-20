@@ -1,6 +1,15 @@
 .feature-page .feature-comparisons {
+  --comparison-header-bg: color-mix(in srgb, var(--color-ink) 5%, var(--b0));
+  --comparison-header-size: 17px;
+  --comparison-header-padding: 24px 16px;
+  --comparison-row-size: 15px;
+  --comparison-label-padding: 20px 24px;
+  --comparison-cell-padding: 20px 16px;
+
   --comparison-accent: var(--color-ink);
   --comparison-macro-case: none;
+  --comparison-partial-height: 2px;
+  --comparison-partial-transform: rotate(-55deg);
   position: relative;
   display: grid;
   gap: 20px;
@@ -18,8 +27,6 @@
 .feature-comparison-key > span { display: inline-flex; gap: 8px; align-items: center; }
 .feature-comparison-key svg { flex: none; }
 .feature-comparisons .comparison-table-scroll svg { filter: grayscale(1); }
-.feature-comparison-note { color: var(--color-ink-subtle); font-size: 12px; line-height: 1.6; }
-.feature-comparison-note a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 @media (max-width: 799px) {
   .feature-page .feature-comparisons { width: calc(100% - 36px); margin-inline: auto; margin-bottom: 48px; }
 }
@@ -27,12 +34,35 @@
   .feature-page .product-page .feature-comparisons { width: 100%; }
 }
 
-.feature-comparison-heading {
-  margin: 0 0 8px;
-  font: 500 24px/32px 'Inter Variable', Inter, sans-serif;
-  letter-spacing: -.025em;
-  text-align: left;
+
+
+.feature-comparisons .feature-comparison-heading {
+  margin-bottom: 8px;
+  font-size: clamp(28px, 2.5vw, 36px);
+  line-height: 1.2;
+  letter-spacing: -.035em;
 }
+.feature-comparisons .comparison-table-scroll {
+  border: 1px solid color-mix(in srgb, var(--color-ink) 12%, transparent);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.feature-comparisons .comparison-feature-label {
+  display: flex;
+  align-items: center;
+  padding: var(--comparison-header-padding);
+  padding-left: 24px;
+  font-size: var(--comparison-header-size);
+  color: var(--color-ink-muted);
+}
+.comparison-inline-brand { display: inline-flex; align-items: center; gap: 9px; }
 @media (max-width: 699px) {
-  .feature-comparison-heading { font-size: 23px; }
+  .feature-page .feature-comparisons {
+    --comparison-header-size: 14px;
+    --comparison-header-padding: 20px 12px;
+    --comparison-row-size: 13px;
+    --comparison-label-padding: 16px;
+    --comparison-cell-padding: 16px 12px;
+  }
+  .feature-comparisons .comparison-feature-label { padding-left: 16px; position: sticky; left: 0; z-index: 2; }
 }
