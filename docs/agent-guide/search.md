@@ -14,8 +14,8 @@ the query input stays in the bottom dock. Projects respects its feature flag.
 Categories filter entities directly,
 independently of view tabs, mailbox selections, and saved facets. Commands and
 creation shortcuts are excluded. Empty queries show recent entities.
-On phones, name-result icons and avatars are 25% larger than desktop while
-preserving row height and text alignment.
+On phones, name-result icons and avatars are scaled to 137.5% (16px artwork
+becomes 22px), preserving row height and text alignment.
 
 For a nonempty query, **Search full text for “…”** appears above name results,
 including when there are no matches. It retains the query and category and stays
