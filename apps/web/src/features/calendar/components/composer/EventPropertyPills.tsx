@@ -580,6 +580,19 @@ export function EventComposerCalendarPill(
           optionTextValue="label"
           optionDisabled={() => props.readOnly === true}
           disabled={props.disabled}
+          itemComponent={(itemProps) => (
+            <Select.Item item={itemProps.item}>
+              <span
+                aria-hidden="true"
+                class="size-3 shrink-0 rounded-sm"
+                style={{ 'background-color': itemProps.item.rawValue.color }}
+              />
+              <Select.ItemLabel>
+                {itemProps.item.rawValue.label}
+              </Select.ItemLabel>
+              <Select.ItemIndicator />
+            </Select.Item>
+          )}
         >
           <Select.Trigger
             aria-label="Calendar"
@@ -590,7 +603,20 @@ export function EventComposerCalendarPill(
               <CalendarDotsIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
             </Show>
             <Select.Value<EventEditorCalendarOption>>
-              {(selectState) => selectState.selectedOption().label}
+              {(selectState) => (
+                <span class="flex min-w-0 items-center gap-2">
+                  <span
+                    aria-hidden="true"
+                    class="size-3 shrink-0 rounded-sm"
+                    style={{
+                      'background-color': selectState.selectedOption().color,
+                    }}
+                  />
+                  <span class="truncate">
+                    {selectState.selectedOption().label}
+                  </span>
+                </span>
+              )}
             </Select.Value>
             <Select.Icon />
           </Select.Trigger>

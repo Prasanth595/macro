@@ -25,6 +25,63 @@ async function verifyDescriptionPosition(page) {
   );
   assert.equal(directlyUnderTitle, true, 'Description must sit directly below the title');
 }
+
+async function verifyCalendarColors(page) {
+  const titleSwatch = page.getByLabel('Title', { exact: true }).locator('..').locator('[aria-hidden="true"] > span');
+  const calendar = page.getByRole('button', { name: /^Calendar / });
+  const expected = [['Personal', 'rgb(66, 133, 244)'], ['Work', 'rgb(156, 39, 176)']];
+  const colorOf = (locator) => locator.evaluate((element) => getComputedStyle(element).backgroundColor);
+  assert.equal(await colorOf(titleSwatch), expected[0][1]);
+  await calendar.click();
+  for (const [name, color] of expected) {
+    assert.equal(await colorOf(page.getByRole('option', { name, exact: true }).locator(':scope > span[aria-hidden="true"]')), color);
+  }
+  await page.getByRole('option', { name: 'Work', exact: true }).click();
+  assert.equal(await colorOf(titleSwatch), expected[1][1]);
+  assert.equal(await colorOf(calendar.locator('[aria-hidden="true"][style]')), expected[1][1]);
+  const alignment = await titleSwatch.evaluate((element) => {
+    const swatch = element.getBoundingClientRect();
+    const icon = document.querySelector('form [role="group"][aria-label="Description"] svg').getBoundingClientRect();
+    const title = document.querySelector('[aria-label="Title"]').getBoundingClientRect();
+    return {
+      horizontal: Math.abs(swatch.x + swatch.width / 2 - icon.x - icon.width / 2),
+      vertical: Math.abs(swatch.y + swatch.height / 2 - title.y - title.height / 2),
+    };
+  });
+  assert.ok(alignment.horizontal < 1 && alignment.vertical < 1, 'Title calendar swatch must align with row icons and title');
+  await calendar.click();
+  await page.getByRole('option', { name: 'Personal', exact: true }).click();
+  assert.equal(await colorOf(titleSwatch), expected[0][1]);
+}
+
+async function verifyTextContainers(page) {
+  const fields = await page.locator('form [role="group"][aria-label]').evaluateAll((rows) =>
+    rows.filter((row) => ['Description', 'Location', 'Repeats'].includes(row.getAttribute('aria-label'))).map((row) => {
+      const value = row.lastElementChild;
+      const control = value.querySelector('button[aria-expanded]') ?? value.firstElementChild;
+      const style = getComputedStyle(control);
+      const box = control.getBoundingClientRect();
+      const icon = row.querySelector('svg').getBoundingClientRect();
+      return {
+        label: row.getAttribute('aria-label'),
+        width: box.width,
+        available: value.getBoundingClientRect().width,
+        textStart: box.x + Number.parseFloat(style.borderLeftWidth) + Number.parseFloat(style.paddingLeft),
+        background: style.backgroundColor,
+        radius: Number.parseFloat(style.borderTopLeftRadius),
+        height: box.height,
+        iconOffset: Math.abs(icon.y + icon.height / 2 - box.y - Math.min(box.height, matchMedia('(pointer: coarse)').matches ? 44 : 36) / 2),
+      };
+    })
+  );
+  assert.equal(fields.length, 3);
+  for (const field of fields.filter((field) => field.label !== 'Repeats')) {
+    assert.equal(field.background, fields[1].background, 'Text fields must match selector backgrounds');
+    assert.ok(field.radius >= 12 && Math.abs(field.width - field.available) < 1, 'Text fields must use rounded full-width containers');
+    assert.ok(Math.abs(field.textStart - fields[1].textStart) < 1, 'Text must align with selector text');
+    assert.ok(field.iconOffset < 1, 'Text-field icons must align with the first control line');
+  }
+}
 async function verifySelectorShape(page) {
   const minimumHeight = await page.evaluate(() => matchMedia('(pointer: coarse)').matches ? 44 : 36);
   const selectors = await page.locator('form button[aria-expanded]').evaluateAll((elements) => elements.map((element) => {
@@ -125,6 +182,8 @@ async function verifyDesktop(options, name) {
     await verifyDescriptionPosition(page);
     await verifyFieldSpacing(page);
     await verifySelectorShape(page);
+    await verifyCalendarColors(page);
+    await verifyTextContainers(page);
     await title.fill('Calendar draft stays here');
     await page.getByRole('textbox', { name: 'Description', exact: true }).fill('Keep this description when moving.');
     await page.getByRole('button', { name: /Video conferencing/ }).click();
@@ -164,6 +223,7 @@ async function verifyDesktop(options, name) {
     assert.equal(await title.inputValue(), 'Calendar draft stays here');
     await verifyDescriptionPosition(page);
     await verifySelectorShape(page);
+    await verifyTextContainers(page);
     assert.match(await page.getByRole('button', { name: 'Guests', exact: true }).innerText(), /Ada Lovelace/);
     assert.match(await page.getByRole('textbox', { name: 'Description', exact: true }).innerText(), /Keep this description/);
     assert.equal(await page.getByRole('textbox', { name: 'Location', exact: true }).inputValue(), 'Design studio');
@@ -235,7 +295,7 @@ async function verifyDesktop(options, name) {
     assert.match(repeated.values.recurrenceLines.join(';'), /FREQ=DAILY/);
     await verifyPendingSave(page);
     assert.deepEqual(errors, []);
-    results.push(`${name}: header type, rounded selectors, stable loading button, persistent surfaces, recurrence, editing, and scoped save passed`);
+    results.push(`${name}: calendar swatches, aligned text containers, header type, rounded selectors, stable loading button, persistent surfaces, recurrence, editing, and scoped save passed`);
   } finally {
     await context.close();
   }
@@ -252,6 +312,7 @@ async function verifyMobile() {
     await page.getByRole('button', { name: 'Create event', exact: true }).click();
     const title = page.getByLabel('Title', { exact: true });
     await title.waitFor();
+    await page.locator('[data-corvu-drawer-content][data-transitioning]').waitFor({ state: 'detached' });
     assert.equal(await title.evaluate((element) => element === document.activeElement), false);
     await page.getByRole('button', { name: 'Edit event start date and time', exact: true }).waitFor();
     assert.equal(await page.getByRole('button', { name: 'Move to sidebar', exact: true }).count(), 0);
@@ -260,6 +321,8 @@ async function verifyMobile() {
     await verifyFieldSpacing(page);
     await verifyDescriptionPosition(page);
     await verifySelectorShape(page);
+    await verifyCalendarColors(page);
+    await verifyTextContainers(page);
     await title.fill('Phone draft');
     await page.getByRole('textbox', { name: 'Location', exact: true }).fill('South studio');
     await page.getByRole('button', { name: /Repeats/ }).click();
@@ -292,7 +355,7 @@ async function verifyMobile() {
     assert.equal(submitted.scope, 'all');
     await verifyPendingSave(page);
     assert.deepEqual(errors, []);
-    results.push('phone: header type, stable loading button, full-height create/edit sheet, date controls, recurrence, and discard protection passed');
+    results.push('phone: calendar swatches, aligned text containers, header type, stable loading button, full-height create/edit sheet, date controls, recurrence, and discard protection passed');
   } finally {
     await context.close();
   }

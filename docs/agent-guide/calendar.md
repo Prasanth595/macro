@@ -97,8 +97,12 @@ The popover's `Move to sidebar` action keeps the same draft in a right-hand edit
 `New → Event` opens that sidebar directly. Editing from event details opens the
 same anchored popover, not a separate split dialog. Create and edit place the
 event type in a compact selector at the top-left of the header, using the selected
-type's icon. Existing events keep their type read-only. Description stays directly
-beneath the title. The remaining icon-led rows follow the details popover's order:
+type's icon. Existing events keep their type read-only. The selected calendar's
+color swatch sits beside the title, aligned with the property icons. Calendar
+options and the selected calendar trigger show their color swatches. Description
+stays directly beneath the title. Editable description and location use the same
+full-width rounded containers and horizontal text padding as the selectors.
+The remaining icon-led rows follow the details popover's order:
 date/time when visible, recurrence, meeting link, direct location input, notifications,
 calendar, then guests. Field gaps are compact: 8px on desktop and 12px on phones.
 Center each row icon on its first selector, including touch-sized selectors and
@@ -136,9 +140,12 @@ Calendar or reloading protects unsaved changes too.
 
 Verify a click and a multi-slot drag in Week and Month. Enter a title, description,
 guest, location, and custom recurrence; move the popover to the sidebar and confirm
-all values survive and date controls appear. Cancel a new custom rule and changes
-to an existing rule; confirm neither changes the event. Scroll the original slot
-away, navigate several weeks, and change period; confirm the draft stays open.
+all values survive and date controls appear. Change the selected calendar and
+confirm the menu, trigger, and title swatches match. Check description and location
+text alignment against the selectors on desktop, tablet, and phone.
+Cancel a new custom rule and changes to an existing rule; confirm neither changes
+the event. Scroll the original slot away, navigate several weeks, and change
+period; confirm the draft stays open.
 Click or drag another empty slot: verify immediate replacement for a clean draft,
 then both `Keep editing` and `Discard` for a dirty draft. Check that Discard opens
 the newly selected range. Verify explicit dismissal separately.

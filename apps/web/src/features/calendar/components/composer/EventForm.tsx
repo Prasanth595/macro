@@ -217,7 +217,7 @@ export function EventForm(props: EventFormProps) {
     <Show
       when={fieldIsReadOnly('description')}
       fallback={
-        <div class="min-h-7 min-w-0 w-full max-h-36 overflow-y-auto">
+        <div class="min-h-9 min-w-0 w-full max-h-36 overflow-y-auto rounded-xl border border-edge-muted bg-control px-2 touch:min-h-[44px] touch:py-1">
           <MarkdownTextarea
             resolveAppLink={resolveAppLink}
             type="calendar"
@@ -239,7 +239,7 @@ export function EventForm(props: EventFormProps) {
             domRef={(element) =>
               element.setAttribute('aria-label', 'Description')
             }
-            class="min-h-7 w-full bg-transparent px-0 text-sm text-ink outline-none sm:text-xs"
+            class="min-h-[34px] w-full bg-transparent px-0 text-sm leading-tight text-ink outline-none sm:text-xs"
           />
         </div>
       }
@@ -322,7 +322,7 @@ export function EventForm(props: EventFormProps) {
             placeholder="Add location..."
             aria-label="Location"
             disabled={fieldIsDisabled('location')}
-            class="h-7 min-w-0 w-full max-w-72 border-0 bg-transparent px-0 text-sm text-ink shadow-none placeholder:text-ink-placeholder sm:text-xs"
+            class="h-9 min-w-0 w-full rounded-xl border-edge-muted bg-control px-2 py-2 text-sm leading-tight text-ink shadow-none placeholder:text-ink-placeholder focus-visible:bg-active focus-visible:outline-none focus-visible:ring-0 sm:text-xs touch:min-h-[44px]"
           />
         }
       >
@@ -407,7 +407,7 @@ export function EventForm(props: EventFormProps) {
       aria-label={row.label}
       class="group/field grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-x-4 sm:grid-cols-[1rem_minmax(0,1fr)] sm:gap-x-3"
     >
-      <div class="flex h-7 items-center justify-center group-has-[button[aria-expanded]]/field:h-9 touch:group-has-[button[aria-expanded]]/field:min-h-[44px]">
+      <div class="flex h-7 items-center justify-center group-has-[button[aria-expanded],input,[role=textbox]]/field:h-9 touch:group-has-[button[aria-expanded],input,[role=textbox]]/field:min-h-[44px]">
         <Dynamic
           component={row.icon}
           aria-hidden="true"
@@ -438,7 +438,19 @@ export function EventForm(props: EventFormProps) {
               {controls.kind()}
             </PropertyRow>
           </Show>
-          <div class="min-w-0 pl-9 sm:pl-7">{titleField()}</div>
+          <div class="grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-x-4 sm:grid-cols-[1rem_minmax(0,1fr)] sm:gap-x-3">
+            <span aria-hidden="true" class="flex items-center justify-center">
+              <Show when={controller.selectedCalendarOption()}>
+                {(calendar) => (
+                  <span
+                    class="size-4 rounded-sm sm:size-3"
+                    style={{ 'background-color': calendar().color }}
+                  />
+                )}
+              </Show>
+            </span>
+            {titleField()}
+          </div>
           <Show when={!isOutOfOffice()}>
             <PropertyRow label="Description" icon={TextAlignLeftIcon}>
               {descriptionField()}
