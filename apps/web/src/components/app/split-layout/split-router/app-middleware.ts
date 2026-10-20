@@ -7,6 +7,7 @@ import {
 import { CALENDAR_VIEW_ID } from '@app/features/calendar-view/types';
 import { channelsSearch } from '@app/features/channels-view/channels-route';
 import {
+  crmPeopleSearch,
   crmRecordSearch,
   legacyCrmPipelineId,
 } from '@app/features/crm/crm-route';
@@ -133,9 +134,14 @@ function redirectLegacyRoutes(
     .with({ type: 'task' }, ({ id }) => `/tasks/${encodeURIComponent(id)}`)
     .with(
       { type: 'company' },
-      { type: 'contact' },
-      ({ type, id }) => `/companies/${type}/${encodeURIComponent(id)}`
+      ({ id }) => `/companies/company/${encodeURIComponent(id)}`
     )
+    // A contact opens from People, whose list its breadcrumb returns to.
+    .with({ type: 'contact' }, ({ id }) => {
+      const query = new URLSearchParams();
+      replacePaneSearchParams(query, [crmPeopleSearch]);
+      return `/companies/contact/${encodeURIComponent(id)}?${query}`;
+    })
     // Like a task, a project opens in Tasks, under its Projects tab.
     .with({ type: 'initiative' }, ({ id }) => {
       const query = new URLSearchParams();

@@ -113,6 +113,8 @@ it.each(records)(
             ],
           },
           search: {
+            // A contact opens from People.
+            ...(recordType === 'contact' ? { crm: { tab: ['people'] } } : {}),
             'crm-record': {
               commentId: ['message'],
               seek: [expect.any(String)],

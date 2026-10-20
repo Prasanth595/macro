@@ -1,6 +1,6 @@
 import { paneRoute } from '@app/routes/app-route';
 import type { SplitContent } from '@components/app/split-layout/layoutManager';
-import { crmRecordSearch } from './crm-route';
+import { crmPeopleSearch, crmRecordSearch } from './crm-route';
 
 /** Customers showing `pipelineId`, without mounting a legacy pipeline block. */
 export function crmPipelineContent(pipelineId: string): SplitContent {
@@ -32,14 +32,17 @@ export function crmRecordContent(
           params: { recordType: record.type, recordId: record.id },
         }
       ),
-      search: commentId
-        ? {
-            [crmRecordSearch.namespace]: {
-              commentId: [commentId],
-              seek: [crypto.randomUUID()],
-            },
-          }
-        : undefined,
+      search: {
+        ...(record.type === 'contact' ? crmPeopleSearch : {}),
+        ...(commentId
+          ? {
+              [crmRecordSearch.namespace]: {
+                commentId: [commentId],
+                seek: [crypto.randomUUID()],
+              },
+            }
+          : {}),
+      },
     },
   };
 }

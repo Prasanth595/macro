@@ -313,13 +313,15 @@ describe('legacy CRM URLs', () => {
     ).toBeUndefined();
   });
 
-  it.each([
-    ['company', companyId],
-    ['contact', contactId],
-  ])('opens a %s link in Customers on desktop', (type, id) => {
-    expect(run(legacyEntry(type, id))).toEqual({
+  it('opens company and contact links in Customers on desktop', () => {
+    expect(run(legacyEntry('company', companyId))).toEqual({
       type: 'redirect',
-      to: `/companies/${type}/${id}`,
+      to: `/companies/company/${companyId}`,
+    });
+    // A contact opens from People.
+    expect(run(legacyEntry('contact', contactId))).toEqual({
+      type: 'redirect',
+      to: `/companies/contact/${contactId}?s0.crm.tab=people`,
     });
   });
 

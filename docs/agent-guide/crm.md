@@ -69,8 +69,9 @@ to it. Shift-click still opens the record in a separate split, also inside
 Customers. On desktop, every other way to a company or contact opens it inside
 Customers too: `/app/company/<uuid>` and `/app/contact/<uuid>` links (which
 **Copy link** still copies), `@` mentions, search and Command-K results,
-favorites, and CRM discussion notifications. A split already showing that record
-is brought forward instead. Touch devices keep the standalone pages, and a
+favorites, and CRM discussion notifications. A contact opens under People, so its
+breadcrumb returns to People. A split already showing that record is brought
+forward instead. Touch devices keep the standalone pages, and a
 Customers record URL opened on touch redirects to its standalone page.
 Each record opened from the details appends a breadcrumb and a history entry: a
 contact from a company's Team tab gives `Companies > <company> > <contact>`, and

@@ -24,6 +24,11 @@ export type CrmSearchParams = z.infer<typeof crmSearch.schema>;
 
 export const crmSearchCodec = createSearchParamsCodec(crmSearch);
 
+/** The Customers pane search of the People list, where contacts open from. */
+export const crmPeopleSearch: SplitSearchState = {
+  [crmSearch.namespace]: { tab: ['people'] },
+};
+
 /** The Discussion message an open record shows; a new `seek` repeats a request. */
 export const crmRecordSearch = {
   namespace: 'crm-record',
