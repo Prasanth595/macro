@@ -165,7 +165,7 @@ export function RouteEmail() {
       <FeaturePageSection
         id="agentic-editing"
         title={['Draft emails that', 'sound like you.']}
-        description="Ask an agent to prepare a reply using the email thread, relevant documents, meeting transcripts, and team conversations."
+        description="Ask an agent to prepare a reply using the email thread, relevant documents, meeting transcripts, and team conversations. Review and edit the draft before sending."
         details={emailGuides['agentic-editing']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
