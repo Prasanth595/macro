@@ -1,5 +1,4 @@
 import { ViewShell } from '@app/components/view-shell';
-import { createSidebarMotion } from '@app/components/view-shell/create-sidebar-motion';
 import { ChatWithAgentButton } from '@app/features/chat/ChatWithAgentButton';
 import { ChannelAttachmentsTab } from '@channel/Attachments/ChannelAttachmentsTab';
 import { useChannelBotManagement } from '@channel/Bots/use-channel-bot-management';
@@ -34,17 +33,13 @@ import {
   useChannelName,
   useChannelType,
 } from '@core/context/channels';
-import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { createMethodRegistration } from '@core/orchestrator';
-import CaretRightIcon from '@phosphor/caret-right.svg';
 import { useChannelParticipantsQuery } from '@queries/channel/channel-participants';
-import { Button, ButtonGroup } from '@ui';
 import {
   type Accessor,
   children,
   createComputed,
   createSignal,
-  createUniqueId,
   type JSX,
   Match,
   on,
@@ -52,25 +47,15 @@ import {
   Show,
   Switch,
 } from 'solid-js';
-import { ChannelInfoLayout, ChannelInfoPanel } from './ChannelInfoPanel';
 import {
   ChannelMessages,
   ChannelSurface,
   type ChannelTargetRequest,
 } from './ChannelSurface';
-import {
-  type ChannelInfoPanelState,
-  ChannelTabProvider,
-  useChannelTab,
-} from './ChannelTabContext';
+import { ChannelTabProvider, useChannelTab } from './ChannelTabContext';
 import { ChannelLiveIndicators } from './ChannelTopBarLiveIndicators';
 import { toIconTabItems } from './channel-tab-icons';
-import {
-  type ChannelInfoTab,
-  type ChannelTabId,
-  DEFAULT_CHANNEL_TAB,
-  isChannelInfoTab,
-} from './channel-tabs';
+import { type ChannelTabId, DEFAULT_CHANNEL_TAB } from './channel-tabs';
 import {
   isJoinCallRequested,
   isOpenCallTabRequested,
@@ -113,14 +98,13 @@ type ChannelDetailHeaderProps = {
 };
 
 export function ChannelDetailTitle(props: ChannelDetailHeaderProps) {
-  const { infoPanel } = useChannelTab();
   const channelName = useChannelName(props.channelId, props.fallbackName);
   const channelType = useChannelType(props.channelId);
   const participantsQuery = useChannelParticipantsQuery(() => props.channelId);
   const participants = () =>
     participantsQuery.isSuccess ? (participantsQuery.data ?? []) : [];
 
-  const title = () => (
+  return (
     <div class="ph-no-capture flex min-w-0 shrink items-center gap-2">
       <ChannelTopIcon
         channelId={props.channelId}
@@ -132,36 +116,10 @@ export function ChannelDetailTitle(props: ChannelDetailHeaderProps) {
       </span>
     </div>
   );
-
-  return (
-    <Show when={!isTouchDevice() && infoPanel} fallback={title()}>
-      {(panel) => (
-        <Button
-          ref={panel().triggerRef}
-          variant="outline"
-          size="md"
-          class="min-w-0 gap-2 px-2"
-          aria-label={
-            panel().isOpen() ? 'Hide channel details' : 'Show channel details'
-          }
-          aria-expanded={panel().isOpen()}
-          aria-controls={panel().id}
-          tooltip={
-            panel().isOpen() ? 'Hide channel details' : 'Show channel details'
-          }
-          onClick={() => panel().toggle()}
-        >
-          {title()}
-          <CaretRightIcon class="size-3 shrink-0" />
-        </Button>
-      )}
-    </Show>
-  );
 }
 
 /**
- * The live-call switch on desktop, or all channel views on touch. Given the
- * top bar's `collapser`, the strip
+ * The channel's tab strip. Given the top bar's `collapser`, the strip
  * registers as its first item to give up space, dropping text labels for
  * icons when the bar overflows and taking them back as room returns.
  */
@@ -171,10 +129,6 @@ export function ChannelDetailTabs(props: {
 }) {
   const { activeTab, setActiveTab } = useChannelTab();
   const tabs = useChannelTabItems(props.channelId);
-  const headerTabs = () =>
-    isTouchDevice()
-      ? tabs()
-      : tabs().filter((tab) => !isChannelInfoTab(tab.value));
   const isCollapsed = props.collapser
     ? useRegisterPriorityCollapseItem(props.collapser, {
         id: 'channel-tabs',
@@ -183,14 +137,12 @@ export function ChannelDetailTabs(props: {
     : () => false;
 
   return (
-    <Show when={headerTabs().length > 1}>
-      <TabsInset
-        class="shrink-0"
-        list={isCollapsed() ? toIconTabItems(headerTabs()) : headerTabs()}
-        value={activeTab()}
-        onChange={(value) => setActiveTab(value as ChannelTabId)}
-      />
-    </Show>
+    <TabsInset
+      class="shrink-0"
+      list={isCollapsed() ? toIconTabItems(tabs()) : tabs()}
+      value={activeTab()}
+      onChange={(value) => setActiveTab(value as ChannelTabId)}
+    />
   );
 }
 
@@ -213,37 +165,31 @@ export function ChannelDetailActions(props: ChannelDetailHeaderProps) {
   };
 
   return (
-    <div class="header-actions ml-auto flex shrink-0 items-center gap-2">
+    <div class="header-actions ml-auto flex shrink-0 items-center gap-1">
       <DebugSuspense name="ChannelDetail.live-indicators">
         <ChannelLiveIndicators channelId={props.channelId} />
       </DebugSuspense>
-      <ButtonGroup
-        variant="outline"
-        size="icon-md"
-        class="[&:not(:has([data-header-action]))]:hidden"
+      <DebugSuspense name="ChannelDetail.invite">
+        <ChannelInviteButton
+          channelId={props.channelId}
+          channelName={channelName() ?? 'New Channel'}
+          channelType={channelType()}
+        />
+      </DebugSuspense>
+      <Show
+        when={ENABLE_CALLS && !channel()?.agent_dm && !call.isInThisChannel()}
       >
-        <DebugSuspense name="ChannelDetail.invite">
-          <ChannelInviteButton
-            channelId={props.channelId}
-            channelName={channelName() ?? 'New Channel'}
-            channelType={channelType()}
-          />
+        <DebugSuspense name="ChannelDetail.call-button">
+          <ChannelCallButton channelId={props.channelId} />
         </DebugSuspense>
-        <Show
-          when={ENABLE_CALLS && !channel()?.agent_dm && !call.isInThisChannel()}
-        >
-          <DebugSuspense name="ChannelDetail.call-button">
-            <ChannelCallButton channelId={props.channelId} />
+      </Show>
+      <Show when={askMacroEntity()}>
+        {(entity) => (
+          <DebugSuspense name="ChannelDetail.ask-macro">
+            <ChatWithAgentButton entity={entity()} label="Ask Macro" />
           </DebugSuspense>
-        </Show>
-        <Show when={askMacroEntity()}>
-          {(entity) => (
-            <DebugSuspense name="ChannelDetail.ask-macro">
-              <ChatWithAgentButton entity={entity()} label="Ask Macro" />
-            </DebugSuspense>
-          )}
-        </Show>
-      </ButtonGroup>
+        )}
+      </Show>
     </div>
   );
 }
@@ -351,49 +297,13 @@ function ChannelDetailContent(props: ChannelDetailProps) {
   const [activeTab, setActiveTabInternal] = createSignal<ChannelTabId>(
     normalizeChannelTab(hasActiveCallHere ? 'call' : DEFAULT_CHANNEL_TAB)
   );
-  const [isInfoOpen, setIsInfoOpenInternal] = createSignal(false);
-  const [infoLayout, setInfoLayout] = createSignal<HTMLDivElement>();
-  const [isInfoAnimating, setIsInfoAnimating] = createSignal(false);
-  const animateInfo = createSidebarMotion(infoLayout, {
-    asideSelector: '[data-channel-info-panel]',
-    edge: 'right',
-    onComplete: () => setIsInfoAnimating(false),
-  });
-  const setIsInfoOpen = (open: boolean) => {
-    if (isInfoOpen() === open) return;
-    setIsInfoAnimating(true);
-    animateInfo(() => setIsInfoOpenInternal(open));
-  };
-  const [infoTab, setInfoTab] = createSignal<ChannelInfoTab>('attachments');
-  let infoTrigger: HTMLButtonElement | undefined;
-  const infoPanel: ChannelInfoPanelState = {
-    id: `channel-details-${createUniqueId()}`,
-    isOpen: isInfoOpen,
-    isPresent: () => isInfoOpen() || isInfoAnimating(),
-    layoutRef: setInfoLayout,
-    activeTab: infoTab,
-    toggle: () => setIsInfoOpen(!isInfoOpen()),
-    close: () => {
-      setIsInfoOpen(false);
-      infoTrigger?.focus();
-    },
-    setActiveTab: setInfoTab,
-    triggerRef: (element) => {
-      infoTrigger = element;
-    },
-  };
   const setActiveTab = (tab: ChannelTabId) => {
-    const nextTab =
+    setActiveTabInternal(
       conversationChannel()?.agent_dm &&
-      ['call', 'calls', 'participants'].includes(tab)
+        ['call', 'calls', 'participants'].includes(tab)
         ? DEFAULT_CHANNEL_TAB
-        : normalizeChannelTab(tab);
-    if (!isTouchDevice() && isChannelInfoTab(nextTab)) {
-      setInfoTab(nextTab);
-      setIsInfoOpen(true);
-      return;
-    }
-    setActiveTabInternal(nextTab);
+        : normalizeChannelTab(tab)
+    );
   };
   createComputed(() => {
     if (
@@ -455,46 +365,12 @@ function ChannelDetailContent(props: ChannelDetailProps) {
     openParticipants: () => setActiveTab('participants'),
   });
 
-  const infoContent = (tab: Accessor<ChannelTabId>) => (
-    <Switch>
-      <Match when={tab() === 'attachments'}>
-        <DebugSuspense name="ChannelDetail.attachments">
-          <ChannelAttachmentsTab
-            channelId={channelId}
-            compact={!isTouchDevice()}
-          />
-        </DebugSuspense>
-      </Match>
-      <Match when={tab() === 'calls' && ENABLE_CALLS}>
-        <DebugSuspense name="ChannelDetail.calls">
-          <ChannelCallsTab channelId={channelId} embedded={!isTouchDevice()} />
-        </DebugSuspense>
-      </Match>
-      <Match when={tab() === 'participants'}>
-        <DebugSuspense name="ChannelDetail.participants">
-          <ChannelParticipantsTab
-            compact={!isTouchDevice()}
-            channelId={channelId}
-            botManagementEnabled={botManagement.enabled()}
-            onCreateBot={botManagement.openCreateBot}
-            inviteBotFocusRequest={botManagement.inviteFocusRequest()}
-            onOpenBot={botManagement.openBot}
-          />
-        </DebugSuspense>
-      </Match>
-    </Switch>
-  );
-
   return (
     <ChannelSurface channelId={channelId} targetRequest={targetRequest()}>
       <DebugSuspense name="ChannelDetail.call-event-sync">
         <CallEventSync />
       </DebugSuspense>
-      <ChannelTabProvider
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        infoPanel={infoPanel}
-      >
+      <ChannelTabProvider activeTab={activeTab} setActiveTab={setActiveTab}>
         <DebugSuspense name="ChannelDetail.auto-join">
           <ChannelCallAutoJoin
             canCall={canCall}
@@ -503,56 +379,58 @@ function ChannelDetailContent(props: ChannelDetailProps) {
             onHandled={() => setPendingJoinCall(false)}
           />
         </DebugSuspense>
-        <ChannelInfoLayout
-          panel={
-            <DebugSuspense name="ChannelDetail.info-panel">
-              <ChannelInfoPanel
-                channelId={channelId}
-                fallbackName={props.fallbackName}
-              >
-                {infoContent(infoTab)}
-              </ChannelInfoPanel>
-            </DebugSuspense>
-          }
-        >
+        <div class="flex size-full min-h-0 flex-col">
+          <DebugSuspense name="ChannelDetail.header">
+            <ChannelDetailHeader
+              render={props.children}
+              context={{
+                channelId,
+                name: () => channelName() ?? 'New Channel',
+              }}
+            />
+          </DebugSuspense>
           <div
-            class="flex size-full min-h-0 min-w-0 flex-col"
-            data-channel-main
+            class="flex min-h-0 flex-1 flex-col px-2"
+            data-channel-tab-content
           >
-            <DebugSuspense name="ChannelDetail.header">
-              <ChannelDetailHeader
-                render={props.children}
-                context={{
-                  channelId,
-                  name: () => channelName() ?? 'New Channel',
-                }}
-              />
-            </DebugSuspense>
-            <div
-              class="flex min-h-0 min-w-0 flex-1 flex-col px-2"
-              data-channel-tab-content
-            >
-              <Switch>
-                <Match when={activeTab() === 'messages'}>
-                  <DebugSuspense name="ChannelDetail.messages">
-                    <ChannelMessages autofocus={props.autofocus ?? false} />
-                  </DebugSuspense>
-                </Match>
-                <Match when={isChannelInfoTab(activeTab())}>
-                  {infoContent(activeTab)}
-                </Match>
-                <Match when={activeTab() === 'call' && canUseInlineCallTab()}>
-                  <DebugSuspense name="ChannelDetail.call">
-                    <ChannelCallTab
-                      channelId={channelId}
-                      pendingJoin={pendingJoinCall}
-                    />
-                  </DebugSuspense>
-                </Match>
-              </Switch>
-            </div>
+            <Switch>
+              <Match when={activeTab() === 'messages'}>
+                <DebugSuspense name="ChannelDetail.messages">
+                  <ChannelMessages autofocus={props.autofocus ?? false} />
+                </DebugSuspense>
+              </Match>
+              <Match when={activeTab() === 'attachments'}>
+                <DebugSuspense name="ChannelDetail.attachments">
+                  <ChannelAttachmentsTab channelId={channelId} />
+                </DebugSuspense>
+              </Match>
+              <Match when={activeTab() === 'calls' && ENABLE_CALLS}>
+                <DebugSuspense name="ChannelDetail.calls">
+                  <ChannelCallsTab channelId={channelId} />
+                </DebugSuspense>
+              </Match>
+              <Match when={activeTab() === 'participants'}>
+                <DebugSuspense name="ChannelDetail.participants">
+                  <ChannelParticipantsTab
+                    channelId={channelId}
+                    botManagementEnabled={botManagement.enabled()}
+                    onCreateBot={botManagement.openCreateBot}
+                    inviteBotFocusRequest={botManagement.inviteFocusRequest()}
+                    onOpenBot={botManagement.openBot}
+                  />
+                </DebugSuspense>
+              </Match>
+              <Match when={activeTab() === 'call' && canUseInlineCallTab()}>
+                <DebugSuspense name="ChannelDetail.call">
+                  <ChannelCallTab
+                    channelId={channelId}
+                    pendingJoin={pendingJoinCall}
+                  />
+                </DebugSuspense>
+              </Match>
+            </Switch>
           </div>
-        </ChannelInfoLayout>
+        </div>
       </ChannelTabProvider>
     </ChannelSurface>
   );

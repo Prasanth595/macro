@@ -65,12 +65,12 @@ export function MediaGallery(props: {
       <Show
         when={hasMedia()}
         fallback={
-          <div class="px-[var(--attachment-content-padding,1.5rem)] py-3 text-sm text-ink-subtle">
+          <div class="px-6 py-3 text-sm text-ink-subtle">
             No photos or videos in this channel yet.
           </div>
         }
       >
-        <div class="flex min-h-0 flex-1 flex-col px-[var(--attachment-content-padding,1.5rem)] py-2">
+        <div class="flex min-h-0 flex-1 flex-col px-6 py-2">
           <div
             ref={setContainerRef}
             aria-label="Photos and videos gallery"

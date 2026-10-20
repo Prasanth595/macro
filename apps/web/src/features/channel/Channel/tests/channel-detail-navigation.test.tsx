@@ -1,5 +1,5 @@
 import { createBlockOrchestrator } from '@core/orchestrator';
-import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
+import { cleanup, render } from '@solidjs/testing-library';
 import { type Accessor, createComputed, type JSX } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChannelTargetRequest } from '../ChannelSurface';
@@ -11,7 +11,6 @@ const mocks = vi.hoisted(() => ({
   pass: (props: { children?: JSX.Element }) => props.children,
   requests: [] as (ChannelTargetRequest | undefined)[],
   joinRequested: false,
-  touch: false,
 }));
 
 vi.mock('@channel/Channel/ChannelSurface', () => ({
@@ -23,10 +22,7 @@ vi.mock('@channel/Channel/ChannelSurface', () => ({
     createComputed(() => mocks.requests.push(props.targetRequest));
     return props.children;
   },
-  ChannelMessages: () => <textarea aria-label="Message draft" />,
-}));
-vi.mock('@core/mobile/isTouchDevice', () => ({
-  isTouchDevice: () => mocks.touch,
+  ChannelMessages: () => null,
 }));
 vi.mock('@app/components/view-shell', () => ({
   ViewShell: { TopBar: mocks.pass },
@@ -35,7 +31,7 @@ vi.mock('@app/features/chat/ChatWithAgentButton', () => ({
   ChatWithAgentButton: () => null,
 }));
 vi.mock('@channel/Attachments/ChannelAttachmentsTab', () => ({
-  ChannelAttachmentsTab: () => <p>Channel attachments</p>,
+  ChannelAttachmentsTab: () => null,
 }));
 vi.mock('@channel/Bots/use-channel-bot-management', () => ({
   useChannelBotManagement: () => ({
@@ -71,7 +67,7 @@ vi.mock('@channel/components/ChannelTopIcon', () => ({
   ChannelTopIcon: () => null,
 }));
 vi.mock('@channel/Participants/ChannelParticipantsTab', () => ({
-  ChannelParticipantsTab: () => <p>Channel participants</p>,
+  ChannelParticipantsTab: () => null,
 }));
 vi.mock('@components/app/GlobalAppState', () => ({
   useGlobalBlockOrchestrator: () => orchestrator,
@@ -80,6 +76,7 @@ vi.mock('@components/app/split-layout/layoutUtils', () => ({
   useSplitDisplayName: () => {},
   useSplitPanelOrThrow: () => ({ splitHotkeyScope: 'test-scope' }),
 }));
+vi.mock('@ui/components/Tabs', () => ({ Tabs: () => null }));
 vi.mock('@core/context/channels', () => ({
   useChannel: () => () => undefined,
   useChannelCanCall: () => () => true,
@@ -102,14 +99,10 @@ vi.mock('../ChannelTopBarLiveIndicators', () => ({
 vi.mock('../use-channel-tab-items', () => ({
   canUseInlineCallTab: () => false,
   normalizeChannelTab: (tab: string) => tab,
-  useChannelTabItems: () => () => [
-    { value: 'messages', label: 'Messages' },
-    { value: 'attachments', label: 'Attachments' },
-    { value: 'participants', label: 'Participants' },
-  ],
+  useChannelTabItems: () => () => [],
 }));
 
-import { ChannelDetail, ChannelDetailTitle } from '../ChannelDetail';
+import { ChannelDetail } from '../ChannelDetail';
 
 const CHANNEL_ID = 'channel-1';
 
@@ -125,88 +118,12 @@ const messageRequests = () =>
   );
 
 beforeEach(() => {
-  vi.stubGlobal(
-    'ResizeObserver',
-    class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    }
-  );
   mocks.requests.length = 0;
   mocks.joinRequested = false;
-  mocks.touch = false;
 });
-afterEach(() => {
-  cleanup();
-  vi.unstubAllGlobals();
-});
+afterEach(cleanup);
 
 describe('channel detail navigation', () => {
-  it('opens channel information from the name without replacing the conversation', () => {
-    render(() => (
-      <ChannelDetail channelId={CHANNEL_ID}>
-        {() => <ChannelDetailTitle channelId={CHANNEL_ID} />}
-      </ChannelDetail>
-    ));
-    const draft = screen.getByRole('textbox', { name: 'Message draft' });
-    fireEvent.input(draft, { target: { value: 'Unsent message' } });
-    expect(screen.queryByText('Channel attachments')).toBeNull();
-
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Show channel details' })
-    );
-    expect(screen.getByText('Channel attachments')).toBeTruthy();
-    fireEvent.click(screen.getByText('Participants', { exact: true }));
-    expect(screen.getByText('Channel participants')).toBeTruthy();
-    expect(screen.getByRole('textbox', { name: 'Message draft' })).toBe(draft);
-    expect(draft).toEqual(expect.objectContaining({ value: 'Unsent message' }));
-
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Close channel details' })
-    );
-    const title = screen.getByRole('button', { name: 'Show channel details' });
-    expect(document.activeElement).toBe(title);
-    expect(
-      screen.queryByRole('complementary', { name: 'Channel details' })
-    ).toBeNull();
-    fireEvent.click(title);
-    expect(screen.getByText('Channel participants')).toBeTruthy();
-    fireEvent.keyDown(screen.getByLabelText('Channel details'), {
-      key: 'Escape',
-    });
-    expect(document.activeElement).toBe(title);
-    expect(draft).toEqual(expect.objectContaining({ value: 'Unsent message' }));
-  });
-
-  it('keeps mobile information views in the main content', () => {
-    mocks.touch = true;
-    render(() => (
-      <ChannelDetail channelId={CHANNEL_ID}>
-        {() => {
-          const { setActiveTab } = useChannelTab();
-          return (
-            <>
-              <ChannelDetailTitle channelId={CHANNEL_ID} />
-              <button onClick={() => setActiveTab('attachments')}>
-                Open attachments
-              </button>
-            </>
-          );
-        }}
-      </ChannelDetail>
-    ));
-    expect(
-      screen.queryByRole('button', { name: 'Show channel details' })
-    ).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Open attachments' }));
-    expect(screen.getByText('Channel attachments')).toBeTruthy();
-    expect(screen.queryByRole('textbox', { name: 'Message draft' })).toBeNull();
-    expect(
-      screen.queryByRole('complementary', { name: 'Channel details' })
-    ).toBeNull();
-  });
-
   it('measures tab content against the height left after channel chrome', () => {
     const view = render(() => (
       <ChannelDetail channelId={CHANNEL_ID}>{() => null}</ChannelDetail>

@@ -4,24 +4,11 @@ import {
   type ParentProps,
   useContext,
 } from 'solid-js';
-import type { ChannelInfoTab, ChannelTabId } from './channel-tabs';
-
-export type ChannelInfoPanelState = {
-  id: string;
-  isOpen: Accessor<boolean>;
-  isPresent: Accessor<boolean>;
-  layoutRef: (element: HTMLDivElement) => void;
-  activeTab: Accessor<ChannelInfoTab>;
-  toggle: () => void;
-  close: () => void;
-  setActiveTab: (tab: ChannelInfoTab) => void;
-  triggerRef: (element: HTMLButtonElement) => void;
-};
+import type { ChannelTabId } from './channel-tabs';
 
 type ChannelTabContextValue = {
   activeTab: Accessor<ChannelTabId>;
   setActiveTab: (tab: ChannelTabId) => void;
-  infoPanel?: ChannelInfoPanelState;
 };
 
 const ChannelTabContext = createContext<ChannelTabContextValue>();
@@ -30,16 +17,11 @@ export function ChannelTabProvider(
   props: ParentProps<{
     activeTab: Accessor<ChannelTabId>;
     setActiveTab: (tab: ChannelTabId) => void;
-    infoPanel?: ChannelInfoPanelState;
   }>
 ) {
   return (
     <ChannelTabContext.Provider
-      value={{
-        activeTab: props.activeTab,
-        setActiveTab: props.setActiveTab,
-        infoPanel: props.infoPanel,
-      }}
+      value={{ activeTab: props.activeTab, setActiveTab: props.setActiveTab }}
     >
       {props.children}
     </ChannelTabContext.Provider>

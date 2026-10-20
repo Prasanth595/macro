@@ -10,7 +10,6 @@ export function ParticipantsList(props: {
   searchQuery: Accessor<string>;
   currentUserId?: string;
   editable: boolean;
-  compact?: boolean;
   onParticipantClick: (
     participantId: string,
     event: MouseEvent
@@ -33,7 +32,6 @@ export function ParticipantsList(props: {
           >
             {(participant) => (
               <ParticipantsListItem
-                compact={props.compact}
                 participant={participant}
                 currentUserId={props.currentUserId}
                 editable={props.editable}

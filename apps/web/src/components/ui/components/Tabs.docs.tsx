@@ -8,7 +8,7 @@ const options = [
   { value: 'threads', label: 'Threads' },
 ];
 
-function TabsDemo(props: { variant: 'pill' | 'segmented' | 'plain' }) {
+function TabsDemo(props: { variant: 'pill' | 'segmented' }) {
   const [value, setValue] = createSignal('all');
 
   return (
@@ -29,7 +29,7 @@ export default defineDoc({
   name: 'Tabs',
   category: 'Navigation',
   description:
-    'Single-choice view navigation with a sliding pill, an outlined segmented track, or quiet unframed choices.',
+    'Single-choice view navigation with either a sliding pill or a flat segmented track.',
   status: 'stable',
   exports: ['Tabs'],
   import: "import { Tabs } from '@ui';",
@@ -40,13 +40,6 @@ export default defineDoc({
       title: 'Pill',
       description: 'The default borderless track with a sliding selection.',
       render: () => <TabsDemo variant="pill" />,
-    },
-    {
-      id: 'plain',
-      title: 'Plain',
-      description:
-        'Unframed navigation with a quiet 32px selected pill, for information panels.',
-      render: () => <TabsDemo variant="plain" />,
     },
     {
       id: 'segmented',

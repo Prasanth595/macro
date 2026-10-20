@@ -23,7 +23,6 @@ import {
   useSplitPanelOrThrow,
   withSplitPanelOwner,
 } from '@components/app/split-layout/layoutUtils';
-import { useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { fireAndForget } from '@core/util/fireAndForget';
 import EmptyStateCallsGraphic from '@design/empty-state-calls.svg';
@@ -60,28 +59,20 @@ type ChannelCallsActivationMetadata = {
   newSplit?: boolean;
 };
 
-export function ChannelCallsTab(props: {
-  channelId: string;
-  embedded?: boolean;
-}) {
+export function ChannelCallsTab(props: { channelId: string }) {
   return (
     <div class="relative flex h-full min-h-0 flex-1 justify-center overflow-hidden p-2 touch:pb-(--mobile-content-inset-bottom)">
       <div class="macro-message-width size-full min-h-0">
         <ListEntityMetadataQueryProvider>
-          <ChannelCallsList
-            channelId={props.channelId}
-            embedded={props.embedded}
-          />
+          <ChannelCallsList channelId={props.channelId} />
         </ListEntityMetadataQueryProvider>
       </div>
     </div>
   );
 }
 
-function ChannelCallsList(props: { channelId: string; embedded?: boolean }) {
+function ChannelCallsList(props: { channelId: string }) {
   const panel = useSplitPanelOrThrow();
-  const [attachHotkeys, localScope] = useHotkeyDOMScope('channel-call-history');
-  const hotkeyScope = props.embedded ? localScope : panel.splitHotkeyScope;
   const forceEmptyState = useDebugSetting(
     DEBUG_SETTING_KEYS.FORCE_EMPTY_STATES
   );
@@ -149,7 +140,7 @@ function ChannelCallsList(props: { channelId: string; embedded?: boolean }) {
 
   withSplitPanelOwner(listOwnedSlotName('navigation-hotkeys'), () => {
     useSoupListNavigationHotkeys({
-      splitHotkeyScope: hotkeyScope,
+      splitHotkeyScope: panel.splitHotkeyScope,
       viewId: 'calls',
       dataSource: source,
       controller: list,
@@ -196,7 +187,7 @@ function ChannelCallsList(props: { channelId: string; embedded?: boolean }) {
 
   useListInteractions({
     controller: list,
-    scopeId: hotkeyScope,
+    scopeId: panel.splitHotkeyScope,
     enabled: panel.isPanelActive,
     scrollHandle: virtualizer,
     navigation: {
@@ -216,7 +207,7 @@ function ChannelCallsList(props: { channelId: string; embedded?: boolean }) {
   });
 
   useEntityActionHotkeys({
-    scopeId: hotkeyScope,
+    scopeId: panel.splitHotkeyScope,
     list: actionState,
     selectedEntities,
     focusedEntity: () => {
@@ -253,40 +244,19 @@ function ChannelCallsList(props: { channelId: string; embedded?: boolean }) {
   const rows = source.items;
 
   const searchQuery = () => searchText().trim();
-  const emptyTitle = () =>
-    !searchQuery()
-      ? props.embedded
-        ? 'No calls yet'
-        : 'No calls in this channel'
-      : validateSearchServiceText(searchQuery())
-        ? `No results for "${searchQuery()}"`
-        : 'Keep typing to search';
 
   return (
     <MaybeSoupEntityActionDrawerManager>
-      <div
-        ref={props.embedded ? attachHotkeys : undefined}
-        class="flex size-full min-h-0 min-w-0 flex-col"
-      >
-        <Show
-          when={
-            !props.embedded ||
-            rows().length > 0 ||
-            searchText().length > 0 ||
-            source.isLoading() ||
-            source.error()
-          }
-        >
-          <div class="shrink-0 pb-2">
-            <SearchBar
-              label="Search calls"
-              placeholder="Search calls"
-              value={searchText()}
-              onValueChange={setSearchText}
-              onEscape={() => grid()?.focus()}
-            />
-          </div>
-        </Show>
+      <div class="flex size-full min-h-0 min-w-0 flex-col">
+        <div class="shrink-0 pb-2">
+          <SearchBar
+            label="Search calls"
+            placeholder="Search calls"
+            value={searchText()}
+            onValueChange={setSearchText}
+            onEscape={() => grid()?.focus()}
+          />
+        </div>
         <div
           ref={setGrid}
           role="grid"
@@ -334,31 +304,28 @@ function ChannelCallsList(props: { channelId: string; embedded?: boolean }) {
 
               <Match when={forceEmptyState() || rows().length === 0}>
                 <div class="min-h-0 flex-1 overflow-y-auto">
-                  <Show
-                    when={props.embedded}
-                    fallback={
-                      <EmptyStatePanel
-                        graphic={
-                          searchQuery()
-                            ? EmptyStateNoSearchMatchGraphic
-                            : EmptyStateCallsGraphic
-                        }
-                        title={emptyTitle()}
-                        description={
-                          !searchQuery()
-                            ? 'Recordings, transcriptions, and summaries of calls in this channel will appear here.'
-                            : validateSearchServiceText(searchQuery())
-                              ? 'Search matches call names and transcripts in this channel.'
-                              : 'Call search starts at 3 characters and matches names and transcripts.'
-                        }
-                        documentationUrl={LIST_VIEW_DOCS_URL.calls}
-                      />
+                  <EmptyStatePanel
+                    graphic={
+                      searchQuery()
+                        ? EmptyStateNoSearchMatchGraphic
+                        : EmptyStateCallsGraphic
                     }
-                  >
-                    <p class="px-4 py-10 text-center text-sm text-ink-muted">
-                      {emptyTitle()}
-                    </p>
-                  </Show>
+                    title={
+                      !searchQuery()
+                        ? 'No calls in this channel'
+                        : validateSearchServiceText(searchQuery())
+                          ? `No results for "${searchQuery()}"`
+                          : 'Keep typing to search'
+                    }
+                    description={
+                      !searchQuery()
+                        ? 'Recordings, transcriptions, and summaries of calls in this channel will appear here.'
+                        : validateSearchServiceText(searchQuery())
+                          ? 'Search matches call names and transcripts in this channel.'
+                          : 'Call search starts at 3 characters and matches names and transcripts.'
+                    }
+                    documentationUrl={LIST_VIEW_DOCS_URL.calls}
+                  />
                 </div>
               </Match>
 
