@@ -10,15 +10,19 @@ import {
   onMount,
   Show,
 } from 'solid-js';
+import type { DemoMention } from '../../../core/demo-mentions';
 import { createDemoComposerLayout } from '../../../primitives/createDemoComposerLayout';
-import { serializeDemoEditor } from '../../DemoMention';
+import {
+  createDemoMentionElement,
+  serializeDemoEditor,
+} from '../../DemoMention';
 import { InputActionButton } from './ActionButton';
 import { Layout } from './ComposerLayout';
 
 // The actual ChannelInput layout, ComposerSurface, InputActionButton and
 // SendAction presentation with a website-local draft instead of app commands.
 export type ChannelComposerHandle = {
-  setText: (text: string) => void;
+  setText: (text: string, leadingMention?: DemoMention) => void;
   send: () => void;
 };
 
@@ -47,11 +51,33 @@ export function ChannelComposer(props: {
   onMount(() => {
     props.onReady?.({
       send: () => send(),
-      setText: (text) => {
+      setText: (text, leadingMention) => {
         if (!input) return;
-        if (input instanceof HTMLTextAreaElement) input.value = text;
-        else input.textContent = text;
-        setDraft(text);
+        const prefix = leadingMention
+          ? `@${leadingMention.shortName ?? leadingMention.label}`
+          : undefined;
+        if (input instanceof HTMLTextAreaElement) {
+          input.value = text;
+          setDraft(text);
+        } else {
+          if (leadingMention && prefix && text.startsWith(prefix)) {
+            const token = input.firstElementChild;
+            if (
+              token?.getAttribute('data-demo-mention') !== leadingMention.id
+            ) {
+              input.replaceChildren(
+                createDemoMentionElement(leadingMention),
+                document.createTextNode('')
+              );
+            }
+            // Preserve the selected mention while the rest of the draft grows.
+            const suffix = input.lastChild;
+            if (suffix) suffix.textContent = text.slice(prefix.length);
+          } else {
+            input.textContent = text;
+          }
+          setDraft(serializeDemoEditor(input));
+        }
         queueMicrotask(resize);
       },
     });

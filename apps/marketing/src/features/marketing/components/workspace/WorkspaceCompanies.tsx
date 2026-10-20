@@ -35,6 +35,7 @@ export function WorkspaceCompanies(props: {
   workspace: DummyWorkspace;
   hideCopyLink?: boolean;
   onComposerReady?: (handle: ChannelComposerHandle | undefined) => void;
+  richComposer?: boolean;
   onOpenCall?: (id: string) => void;
   onOpenTask?: (id: string) => void;
   pipeline?: (company: SampleCompany) => JSX.Element;
@@ -212,6 +213,7 @@ export function WorkspaceCompanies(props: {
       {(company) => (
         <CompanyRecord
           onComposerReady={props.onComposerReady}
+          richComposer={props.richComposer}
           workspace={w}
           company={company()}
           onOpenCall={props.onOpenCall}

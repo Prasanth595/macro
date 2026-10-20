@@ -60,17 +60,17 @@ const owner = (view: ReturnType<typeof render>) =>
 it('types the request before sending, acknowledges it, updates the record, then confirms and loops', () => {
   const view = render(() => <CrmCaptureDemo />);
   const input = view.getByRole('textbox', { name: 'Comment on company' });
-  expect((input as HTMLTextAreaElement).value).toBe('');
+  expect(input.textContent).toBe('');
   vi.advanceTimersByTime(10000);
-  expect((input as HTMLTextAreaElement).value).toBe('');
+  expect(input.textContent).toBe('');
   visible(true);
   vi.advanceTimersByTime(1500);
-  expect((input as HTMLTextAreaElement).value).toBe('@Claud');
+  expect(input.textContent).toBe('@Claud');
   expect(view.queryByText(/I’ll update the stage/)).toBeNull();
   visible(false);
-  const draft = (input as HTMLTextAreaElement).value;
+  const draft = input.textContent;
   vi.advanceTimersByTime(10000);
-  expect((input as HTMLTextAreaElement).value).toBe(draft);
+  expect(input.textContent).toBe(draft);
   visible(true);
   // Observe each actual transition, including the acknowledgment before updates.
   for (
@@ -80,7 +80,7 @@ it('types the request before sending, acknowledges it, updates the record, then 
   )
     vi.advanceTimersByTime(100);
   expect(view.getByText(/I’ll update the stage/)).toBeTruthy();
-  expect((input as HTMLTextAreaElement).value).toBe('');
+  expect(input.textContent).toBe('');
   expect(view.getByText('@Claude')).toBeTruthy();
   expect(stage(view)).toContain('Lead');
   expect(owner(view)).toContain('Empty');
@@ -96,7 +96,7 @@ it('types the request before sending, acknowledges it, updates the record, then 
   vi.advanceTimersByTime(8000);
   expect(stage(view)).toContain('Lead');
   expect(owner(view)).toContain('Empty');
-  expect((input as HTMLTextAreaElement).value).toBe('');
+  expect(input.textContent).toBe('');
   expect(view.queryByText(/Done. Parlor Studio/)).toBeNull();
 });
 
@@ -128,10 +128,9 @@ it('shows the updated record and the reply at once with reduced motion', () => {
 it('posts a visitor’s comment and thread reply in the company Discussion', () => {
   const view = render(() => <CrmCaptureDemo />);
   const comment = view.getByRole('textbox', { name: 'Comment on company' });
-  expect(comment.getAttribute('placeholder')).toBe('Leave a comment...');
-  fireEvent.input(comment, {
-    target: { value: 'Ava confirmed 12 seats.' },
-  });
+  expect(comment.getAttribute('data-placeholder')).toBe('Leave a comment...');
+  comment.textContent = 'Ava confirmed 12 seats.';
+  fireEvent.input(comment);
   fireEvent.keyDown(comment, { key: 'Enter' });
   expect(view.getByText('Ava confirmed 12 seats.')).toBeTruthy();
   const thread = view.container.querySelector<HTMLElement>('[data-thread-id]');
@@ -147,14 +146,34 @@ it('preserves a visitor’s edit in the middle of the typed CRM request', () => 
   const view = render(() => <CrmCaptureDemo />);
   visible(true);
   vi.advanceTimersByTime(2000);
-  const input = view.getByRole<HTMLTextAreaElement>('textbox', {
+  const input = view.getByRole<HTMLElement>('textbox', {
     name: 'Comment on company',
   });
-  expect(input.value.startsWith('@Claude')).toBe(true);
-  expect(input.value.includes('rollout')).toBe(false);
+  expect(input.textContent?.startsWith('@Claude')).toBe(true);
+  expect(input.textContent?.includes('rollout')).toBe(false);
   fireEvent.pointerDown(input);
-  fireEvent.input(input, { target: { value: 'Keep my own request.' } });
+  input.textContent = 'Keep my own request.';
+  fireEvent.input(input);
   vi.advanceTimersByTime(30000);
-  expect(input.value).toBe('Keep my own request.');
+  expect(input.textContent).toBe('Keep my own request.');
   expect(stage(view)).toContain('Lead');
+});
+
+it('renders Claude as a stable inline mention while the request is still being typed', () => {
+  const view = render(() => <CrmCaptureDemo />);
+  visible(true);
+  vi.advanceTimersByTime(2000);
+  const input = view.getByRole('textbox', { name: 'Comment on company' });
+  const mention = input.querySelector('[data-demo-mention="claude"]');
+  expect(mention).toBeTruthy();
+  expect(mention?.textContent).toBe('@Claude');
+  expect(mention?.getAttribute('contenteditable')).toBe('false');
+  expect(view.queryByRole('listbox')).toBeNull();
+  expect(
+    view.container.querySelector('[data-thread-id="capture-request"]')
+  ).toBeNull();
+  const before = input.textContent;
+  vi.advanceTimersByTime(500);
+  expect(input.querySelector('[data-demo-mention="claude"]')).toBe(mention);
+  expect(input.textContent?.length).toBeGreaterThan(before?.length ?? 0);
 });

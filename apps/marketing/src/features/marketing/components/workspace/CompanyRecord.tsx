@@ -172,6 +172,7 @@ function Discussion(props: {
   comments: WorkspaceComment[];
   onChange: (comments: WorkspaceComment[]) => void;
   onComposerReady?: (handle: ChannelComposerHandle | undefined) => void;
+  richComposer?: boolean;
 }) {
   const [expanded, setExpanded] = createSignal(true);
   const [replying, setReplying] = createSignal<string>();
@@ -301,6 +302,7 @@ function Discussion(props: {
         <div class="mt-4" data-discussion-composer>
           <ChannelComposer
             label="Comment on company"
+            richMentions={props.richComposer}
             onReady={props.onComposerReady}
             placeholder="Leave a comment..."
             onSend={(body) => send(body)}
@@ -829,6 +831,7 @@ export function CompanyRecord(props: {
   onOpenItem: (view: WorkspaceView, id: string) => void;
   pipeline?: JSX.Element;
   onComposerReady?: (handle: ChannelComposerHandle | undefined) => void;
+  richComposer?: boolean;
   hideCopyLink?: boolean;
   onOpenCall?: (id: string) => void;
   onOpenTask?: (id: string) => void;
@@ -982,6 +985,7 @@ export function CompanyRecord(props: {
               {props.pipeline}
               <Discussion
                 onComposerReady={props.onComposerReady}
+                richComposer={props.richComposer}
                 comments={props.company.comments}
                 onChange={(comments) => update({ comments })}
               />

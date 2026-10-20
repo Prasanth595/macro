@@ -21,6 +21,7 @@ export function CrmRecordWorkspace(props: {
   pipeline?: JSX.Element;
   hideCopyLink?: boolean;
   onComposerReady?: (handle: ChannelComposerHandle | undefined) => void;
+  richComposer?: boolean;
   onOpenItem?: (view: WorkspaceView, id: string) => void;
   onOpenCall?: (id: string) => void;
   onOpenTask?: (id: string) => void;
@@ -33,6 +34,7 @@ export function CrmRecordWorkspace(props: {
       fallback={
         <WorkspaceCompanies
           onComposerReady={props.onComposerReady}
+          richComposer={props.richComposer}
           workspace={w}
           onOpenItem={props.onOpenItem}
           onOpenCall={props.onOpenCall}

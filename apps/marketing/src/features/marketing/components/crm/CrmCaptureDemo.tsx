@@ -1,5 +1,6 @@
 import { createSignal } from 'solid-js';
 import { createStore } from 'solid-js/store';
+import { demoMentions } from '../../core/demo-mentions';
 import type { WorkspaceComment } from '../../core/dummy-workspace';
 import type { SampleCompany } from '../../core/workspace-fixtures';
 import { createCrmDemoWorkspace } from '../../primitives/createCrmDemoWorkspace';
@@ -37,9 +38,10 @@ export function CrmCaptureDemo() {
   >({ stage: 'Lead', owner: '', revenue: '18000' });
   w.open('crm', 'meadow');
   const [phase, setPhase] = createSignal(0);
+  const claude = demoMentions.find((item) => item.id === 'claude');
   const typing = demoTypingActions(
     request.body.replace('@[Claude](demo-mention:claude)', '@Claude'),
-    (text) => composer?.setText(text),
+    (text) => composer?.setText(text, claude),
     1200
   );
   const sent = typing.length + 1;
@@ -118,6 +120,7 @@ export function CrmCaptureDemo() {
         mobileHeight={700}
       >
         <CrmRecordWorkspace
+          richComposer
           workspace={w}
           onComposerReady={(handle) => {
             composer = handle;
