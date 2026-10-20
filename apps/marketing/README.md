@@ -373,6 +373,16 @@ agent section both use `CrmPipelineScene`: the hero has the CRM navigation,
 board/table switch, and record search; the lower scene shows the focused animated
 pipeline.
 `createCrmDemoWorkspace` supplies the same fictional accounts throughout the page.
+The CRM hero opts into `CrmPipelineScene`'s `hero` fixtures: New business,
+Studio partnerships, Q4 renewals, and Team expansion, plus three populated
+company lists. Pipeline edits are scoped to the selected pipeline, and lists
+show their actual membership counts. `CrmHeroSidebar` follows the CRM sidebar
+and collapsible section spacing at GitHub commit
+`682c26541e6d8d89904e58266c06b99ab6c2f56c`. Its 32px rows, icon slots, and
+section insets use the shared sidebar tokens. On phones, use the existing
+navigation toggle; selecting a pipeline or list closes the sidebar.
+Keep these fixtures and spacing scoped to the hero; compact landing scenes
+retain their three-stage story.
 `CompanyPipelineEntry` follows `crm/components/pipeline-entry-cards` and appears
 between the company header and Discussion. Pipeline edits remain separate from
 company properties. Verify board/table switching, moving a deal, editing its

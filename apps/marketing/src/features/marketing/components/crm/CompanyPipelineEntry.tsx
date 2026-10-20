@@ -22,6 +22,8 @@ const owners = ['jacob', 'julia', 'teo', 'gabriel'] as const;
 
 /** Frozen crm/components/pipeline-entry-cards: the deal stays separate from company properties. */
 export function CompanyPipelineEntry(props: {
+  name?: string;
+  stages?: readonly DealStage[];
   value: PipelineValues;
   onChange: (patch: Partial<PipelineValues>) => void;
   onOpen?: () => void;
@@ -43,16 +45,16 @@ export function CompanyPipelineEntry(props: {
       <Show when={expanded()}>
         <article
           class="sample-pipeline-entry"
-          aria-label="Sales pipeline entry"
+          aria-label={`${props.name ?? 'Sales pipeline'} entry`}
         >
           <header>
             <Table class="size-4" />
-            <span>Sales pipeline</span>
+            <span>{props.name ?? 'Sales pipeline'}</span>
             <Show when={props.onOpen}>
               <Button
                 size="icon-sm"
                 variant="ghost"
-                label="Open Sales pipeline"
+                label={`Open ${props.name ?? 'Sales pipeline'}`}
                 onClick={() => props.onOpen?.()}
               >
                 <ArrowUpRight />
@@ -77,7 +79,7 @@ export function CompanyPipelineEntry(props: {
                 </Dropdown.Trigger>
                 <Dropdown.Content portalScope="local">
                   <Dropdown.Group>
-                    <For each={dealStages}>
+                    <For each={props.stages ?? dealStages}>
                       {(stage) => (
                         <Dropdown.Item
                           onSelect={() => props.onChange({ stage })}

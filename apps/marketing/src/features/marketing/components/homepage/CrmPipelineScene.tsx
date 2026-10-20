@@ -18,6 +18,8 @@ import { type DealStage, dealStages } from '../../core/workspace-fixtures';
 import { createCrmDemoWorkspace } from '../../primitives/createCrmDemoWorkspace';
 import { createProductWalkthrough } from '../../primitives/createProductWalkthrough';
 import { CompanyPipelineEntry } from '../crm/CompanyPipelineEntry';
+import { CrmHeroSidebar } from '../crm/CrmHeroSidebar';
+import { crmHeroLists, crmHeroPipelines } from '../crm/crm-hero-data';
 import { DemoCursor } from '../DemoCursor';
 import { ViewSidebar } from '../DemoViewSidebar';
 import { ViewShell } from '../DemoWorkspaceChrome';
@@ -33,6 +35,7 @@ import { WorkspaceEmail } from '../workspace/WorkspaceEmail';
 import './homepage-scenes.css';
 
 type Deal = {
+  pipelineId?: string;
   companyId: string;
   stage: DealStage;
   owner: HomepagePersonId | '';
@@ -41,7 +44,9 @@ type Deal = {
 const owners = ['julia', 'jacob', 'gabriel', 'teo'] as const;
 
 /** Website-owned presentation from CRM's records, pipeline sidebar and database toolbar. */
-export default function CrmPipelineScene(props: { compact?: boolean } = {}) {
+export default function CrmPipelineScene(
+  props: { compact?: boolean; hero?: boolean } = {}
+) {
   let scene!: HTMLDivElement;
   const compactStages: DealStage[] = ['Demo', 'Negotiation', 'Customer'];
   const compactIds = [
@@ -53,7 +58,17 @@ export default function CrmPipelineScene(props: { compact?: boolean } = {}) {
     'relay',
     'pallet',
   ];
-  const stages = () => (props.compact ? compactStages : dealStages);
+  const [pipelineId, setPipelineId] = createSignal(crmHeroPipelines[0].id);
+  const selectedPipeline = () =>
+    crmHeroPipelines.find((pipeline) => pipeline.id === pipelineId())!;
+  const pipelineName = () =>
+    props.hero ? selectedPipeline().name : 'Sales pipeline';
+  const stages = () =>
+    props.compact
+      ? compactStages
+      : props.hero
+        ? selectedPipeline().stages
+        : dealStages;
   const [transfer, setTransfer] = createSignal<{
     id: string;
     name: string;
@@ -80,22 +95,30 @@ export default function CrmPipelineScene(props: { compact?: boolean } = {}) {
   }>();
   // Pipeline fields belong to the deal, independently of the company record.
   const [deals, setDeals] = createStore<Deal[]>(
-    w.data.companies
-      .filter(
-        (entry) =>
-          entry.stage !== 'Churned' &&
-          (!props.compact || compactIds.includes(entry.id))
-      )
-      .map((entry) => ({
-        companyId: entry.id,
-        stage:
-          props.compact && entry.id === 'lumen' ? 'Negotiation' : entry.stage,
-        owner: entry.owner,
-        revenue: (entry.revenue ?? '').replaceAll(',', ''),
-      }))
+    props.hero
+      ? crmHeroPipelines.flatMap((pipeline) =>
+          pipeline.deals.map((deal) => ({ ...deal, pipelineId: pipeline.id }))
+        )
+      : w.data.companies
+          .filter(
+            (entry) =>
+              entry.stage !== 'Churned' &&
+              (!props.compact || compactIds.includes(entry.id))
+          )
+          .map((entry) => ({
+            companyId: entry.id,
+            stage:
+              props.compact && entry.id === 'lumen'
+                ? 'Negotiation'
+                : entry.stage,
+            owner: entry.owner,
+            revenue: (entry.revenue ?? '').replaceAll(',', ''),
+          }))
   );
+  const matchesDeal = (deal: Deal, id: string) =>
+    deal.companyId === id && (!props.hero || deal.pipelineId === pipelineId());
   const move = (id: string, stage: DealStage) => {
-    setDeals((deal) => deal.companyId === id, 'stage', stage);
+    setDeals((deal) => matchesDeal(deal, id), 'stage', stage);
     if (props.compact)
       w.setData('companies', (entry) => entry.id === id, 'stage', stage);
   };
@@ -164,14 +187,30 @@ export default function CrmPipelineScene(props: { compact?: boolean } = {}) {
   const company = (id: string) =>
     w.data.companies.find((item) => item.id === id)!;
   const shownDeals = () =>
-    deals.filter((deal) =>
-      company(deal.companyId).name.toLowerCase().includes(query().toLowerCase())
+    deals.filter(
+      (deal) =>
+        (!props.hero || deal.pipelineId === pipelineId()) &&
+        company(deal.companyId)
+          .name.toLowerCase()
+          .includes(query().toLowerCase())
     );
+  const selectedList = () =>
+    crmHeroLists.find((list) => tab() === `list:${list.id}`);
+  const collectionName = () =>
+    tab() === 'pipeline'
+      ? pipelineName()
+      : tab() === 'contacts'
+        ? 'Contacts'
+        : tab() === 'customers'
+          ? 'Customers'
+          : (selectedList()?.name ?? 'All companies');
   const shownCompanies = () =>
-    w.data.companies.filter((item) =>
-      `${item.name} ${item.domain}`
-        .toLowerCase()
-        .includes(query().toLowerCase())
+    w.data.companies.filter(
+      (item) =>
+        (!selectedList() || selectedList()!.companyIds.includes(item.id)) &&
+        `${item.name} ${item.domain}`
+          .toLowerCase()
+          .includes(query().toLowerCase())
     );
   const navigate = (next: string) => {
     setTab(next);
@@ -183,9 +222,7 @@ export default function CrmPipelineScene(props: { compact?: boolean } = {}) {
   const openCompany = (id: string) => {
     takeOver();
     setRecordSection('overview');
-    w.setCompanyFilter(
-      tab() === 'pipeline' ? 'Sales pipeline' : 'All companies'
-    );
+    w.setCompanyFilter(collectionName());
     w.open('crm', id);
   };
   const linkedWorkspace = {
@@ -208,12 +245,16 @@ export default function CrmPipelineScene(props: { compact?: boolean } = {}) {
       </Dropdown.Trigger>
       <Dropdown.Content portalScope="local">
         <Dropdown.Group>
-          <For each={dealStages.filter((stage) => stage !== 'No stage')}>
+          <For
+            each={(props.hero ? stages() : dealStages).filter(
+              (stage) => stage !== 'No stage'
+            )}
+          >
             {(stage) => (
               <Dropdown.Item
                 onSelect={() =>
                   setDeals(
-                    (item) => item.companyId === deal.companyId,
+                    (item) => matchesDeal(item, deal.companyId),
                     'stage',
                     stage
                   )
@@ -254,7 +295,7 @@ export default function CrmPipelineScene(props: { compact?: boolean } = {}) {
               <Dropdown.Item
                 onSelect={() =>
                   setDeals(
-                    (item) => item.companyId === deal.companyId,
+                    (item) => matchesDeal(item, deal.companyId),
                     'owner',
                     owner
                   )
@@ -278,7 +319,7 @@ export default function CrmPipelineScene(props: { compact?: boolean } = {}) {
         const value = event.currentTarget.value.replace(/[$,\s]/g, '');
         if (value === '' || /^\d+(\.\d{0,2})?$/.test(value))
           setDeals(
-            (item) => item.companyId === deal.companyId,
+            (item) => matchesDeal(item, deal.companyId),
             'revenue',
             value
           );
@@ -291,63 +332,79 @@ export default function CrmPipelineScene(props: { compact?: boolean } = {}) {
       ref={scene}
       class="dummy-workspace homepage-crm-scene portal-scope"
       data-compact={props.compact}
+      data-hero={props.hero}
       data-sidebar-open={sidebarOpen()}
       onPointerDown={takeOver}
       onKeyDown={takeOver}
     >
       <Show when={!props.compact}>
         <aside class="homepage-crm-sidebar">
-          <ViewSidebar.Root aria-label="CRM navigation">
-            <ViewSidebar.Header>
-              <ViewSidebar.Title>Customers</ViewSidebar.Title>
-            </ViewSidebar.Header>
-            <ViewSidebar.Content>
-              <section>
-                <p class="homepage-crm-section-label">Records</p>
-                <ViewSidebar.Nav>
-                  <ViewSidebar.Item
-                    active={tab() === 'companies'}
-                    onClick={() => navigate('companies')}
-                  >
-                    <Building class="size-4" />
-                    Companies
-                  </ViewSidebar.Item>
-                  <ViewSidebar.Item
-                    active={tab() === 'contacts'}
-                    onClick={() => navigate('contacts')}
-                  >
-                    <Users class="size-4" />
-                    Contacts
-                  </ViewSidebar.Item>
-                </ViewSidebar.Nav>
-              </section>
-              <section>
-                <p class="homepage-crm-section-label">Pipelines</p>
-                <ViewSidebar.Nav>
-                  <ViewSidebar.Item
-                    active={tab() === 'pipeline'}
-                    onClick={() => navigate('pipeline')}
-                  >
-                    <Table class="size-4" />
-                    <span class="flex-1">Sales pipeline</span>
-                    <span class="text-xs text-ink-extra-muted">Team</span>
-                  </ViewSidebar.Item>
-                </ViewSidebar.Nav>
-              </section>
-              <section>
-                <p class="homepage-crm-section-label">Lists</p>
-                <ViewSidebar.Nav>
-                  <ViewSidebar.Item
-                    active={tab() === 'customers'}
-                    onClick={() => navigate('customers')}
-                  >
-                    <Users class="size-4" />
-                    Customers
-                  </ViewSidebar.Item>
-                </ViewSidebar.Nav>
-              </section>
-            </ViewSidebar.Content>
-          </ViewSidebar.Root>
+          <Show
+            when={!props.hero}
+            fallback={
+              <CrmHeroSidebar
+                tab={tab()}
+                pipelineId={pipelineId()}
+                onNavigate={navigate}
+                onPipeline={(id) => {
+                  setPipelineId(id);
+                  navigate('pipeline');
+                }}
+              />
+            }
+          >
+            <ViewSidebar.Root aria-label="CRM navigation">
+              <ViewSidebar.Header>
+                <ViewSidebar.Title>Customers</ViewSidebar.Title>
+              </ViewSidebar.Header>
+              <ViewSidebar.Content>
+                <section>
+                  <p class="homepage-crm-section-label">Records</p>
+                  <ViewSidebar.Nav>
+                    <ViewSidebar.Item
+                      active={tab() === 'companies'}
+                      onClick={() => navigate('companies')}
+                    >
+                      <Building class="size-4" />
+                      Companies
+                    </ViewSidebar.Item>
+                    <ViewSidebar.Item
+                      active={tab() === 'contacts'}
+                      onClick={() => navigate('contacts')}
+                    >
+                      <Users class="size-4" />
+                      Contacts
+                    </ViewSidebar.Item>
+                  </ViewSidebar.Nav>
+                </section>
+                <section>
+                  <p class="homepage-crm-section-label">Pipelines</p>
+                  <ViewSidebar.Nav>
+                    <ViewSidebar.Item
+                      active={tab() === 'pipeline'}
+                      onClick={() => navigate('pipeline')}
+                    >
+                      <Table class="size-4" />
+                      <span class="flex-1">Sales pipeline</span>
+                      <span class="text-xs text-ink-extra-muted">Team</span>
+                    </ViewSidebar.Item>
+                  </ViewSidebar.Nav>
+                </section>
+                <section>
+                  <p class="homepage-crm-section-label">Lists</p>
+                  <ViewSidebar.Nav>
+                    <ViewSidebar.Item
+                      active={tab() === 'customers'}
+                      onClick={() => navigate('customers')}
+                    >
+                      <Users class="size-4" />
+                      Customers
+                    </ViewSidebar.Item>
+                  </ViewSidebar.Nav>
+                </section>
+              </ViewSidebar.Content>
+            </ViewSidebar.Root>
+          </Show>
         </aside>
       </Show>
       <main class="dummy-main homepage-crm-main">
@@ -384,15 +441,17 @@ export default function CrmPipelineScene(props: { compact?: boolean } = {}) {
                 workspace={w}
                 pipeline={(record) => {
                   const deal = () =>
-                    deals.find((entry) => entry.companyId === record.id);
+                    deals.find((entry) => matchesDeal(entry, record.id));
                   return (
                     <Show when={deal()}>
                       {(entry) => (
                         <CompanyPipelineEntry
+                          name={pipelineName()}
+                          stages={props.hero ? stages() : undefined}
                           value={entry()}
                           onChange={(patch) =>
                             setDeals(
-                              (item) => item.companyId === record.id,
+                              (item) => matchesDeal(item, record.id),
                               patch
                             )
                           }
@@ -424,15 +483,7 @@ export default function CrmPipelineScene(props: { compact?: boolean } = {}) {
                   <Sidebar class="size-4" />
                 </Button>
               </Show>
-              <h1 class="text-sm font-semibold flex-1">
-                {tab() === 'pipeline'
-                  ? 'Sales pipeline'
-                  : tab() === 'contacts'
-                    ? 'Contacts'
-                    : tab() === 'customers'
-                      ? 'Customers'
-                      : 'All companies'}
-              </h1>
+              <h1 class="text-sm font-semibold flex-1">{collectionName()}</h1>
               <Show when={tab() === 'pipeline'}>
                 <Button
                   variant="plain"
@@ -476,12 +527,14 @@ export default function CrmPipelineScene(props: { compact?: boolean } = {}) {
                       By stage
                     </Button>
                   </div>
-                  <SearchBar
-                    label="Search pipeline"
-                    placeholder="Search"
-                    value={query()}
-                    onValueChange={setQuery}
-                  />
+                  <div class={props.hero ? 'crm-hero-search' : undefined}>
+                    <SearchBar
+                      label="Search pipeline"
+                      placeholder="Search"
+                      value={query()}
+                      onValueChange={setQuery}
+                    />
+                  </div>
                 </div>
               </Show>
             </Show>
@@ -577,7 +630,7 @@ export default function CrmPipelineScene(props: { compact?: boolean } = {}) {
                   fallback={
                     <table
                       class="homepage-crm-table"
-                      aria-label="Sales pipeline"
+                      aria-label={pipelineName()}
                     >
                       <thead>
                         <tr>
@@ -618,7 +671,7 @@ export default function CrmPipelineScene(props: { compact?: boolean } = {}) {
                   <div
                     class="homepage-pipeline-board"
                     role="region"
-                    aria-label="Sales pipeline board"
+                    aria-label={`${pipelineName()} board`}
                   >
                     <For each={stages()}>
                       {(stage) => (
@@ -631,7 +684,7 @@ export default function CrmPipelineScene(props: { compact?: boolean } = {}) {
                               event.dataTransfer?.getData('text/plain');
                             if (id)
                               setDeals(
-                                (deal) => deal.companyId === id,
+                                (deal) => matchesDeal(deal, id),
                                 'stage',
                                 stage
                               );
@@ -704,8 +757,10 @@ export default function CrmPipelineScene(props: { compact?: boolean } = {}) {
                                               onSelect={() =>
                                                 setDeals(
                                                   (entry) =>
-                                                    entry.companyId ===
-                                                    deal.companyId,
+                                                    matchesDeal(
+                                                      entry,
+                                                      deal.companyId
+                                                    ),
                                                   'stage',
                                                   destination
                                                 )
@@ -801,7 +856,7 @@ export default function CrmPipelineScene(props: { compact?: boolean } = {}) {
       </Show>
       <DocumentShareSheet
         open={share()}
-        title="Sales pipeline"
+        title={pipelineName()}
         entityLabel="pipeline"
         onClose={() => setShare(false)}
       />

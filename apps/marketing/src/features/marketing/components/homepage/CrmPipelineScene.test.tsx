@@ -55,6 +55,94 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+it('switches hero pipelines and keeps each deal’s edits independent', async () => {
+  const view = render(() => <CrmPipelineScene hero />);
+  fireEvent.click(view.getByRole('button', { name: 'All records' }));
+  fireEvent.change(
+    view.getByRole('textbox', { name: 'Revenue for Parlor Studio' }),
+    {
+      target: { value: '22000' },
+    }
+  );
+  fireEvent.click(
+    view.getByRole('button', { name: 'Studio partnerships Team' })
+  );
+  expect(
+    view.queryByRole('textbox', { name: 'Revenue for Miller & Rowe' })
+  ).toBeNull();
+  expect(
+    (
+      view.getByRole('textbox', {
+        name: 'Revenue for Parlor Studio',
+      }) as HTMLInputElement
+    ).value
+  ).toBe('36000');
+  fireEvent.click(
+    view.getByRole('button', { name: 'Parlor Studio' })
+  );
+  expect(
+    view.getByRole('article', { name: 'Studio partnerships entry' })
+  ).toBeTruthy();
+  fireEvent.keyDown(view.getByRole('button', { name: 'Change Stage' }), {
+    key: 'Enter',
+  });
+  expect(
+    await screen.findByRole('menuitem', { name: 'Customer' })
+  ).toBeTruthy();
+  expect(screen.queryByRole('menuitem', { name: 'Trial' })).toBeNull();
+  fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Customer' }), {
+    key: 'Enter',
+  });
+  fireEvent.click(
+    view.getByRole('button', { name: 'Back to Studio partnerships' })
+  );
+  expect(view.getByRole('table', { name: 'Studio partnerships' })).toBeTruthy();
+  fireEvent.click(view.getByRole('button', { name: 'New business Team' }));
+  expect(
+    (
+      view.getByRole('textbox', {
+        name: 'Revenue for Parlor Studio',
+      }) as HTMLInputElement
+    ).value
+  ).toBe('22000');
+});
+
+it('opens populated hero lists, searches them, and returns from a company', () => {
+  const view = render(() => <CrmPipelineScene hero />);
+  fireEvent.click(view.getByRole('button', { name: 'Design partners 4' }));
+  expect(view.getByRole('heading', { name: 'Design partners' })).toBeTruthy();
+  expect(view.getAllByRole('row')).toHaveLength(5);
+  expect(view.queryByRole('button', { name: /Bookend Retail/ })).toBeNull();
+  fireEvent.input(view.getByRole('searchbox', { name: 'Search records' }), {
+    target: { value: 'Parlor' },
+  });
+  expect(view.getAllByRole('row')).toHaveLength(2);
+  fireEvent.click(view.getByRole('button', { name: /Parlor Studio/ }));
+  fireEvent.click(
+    view.getByRole('button', { name: 'Back to Design partners' })
+  );
+  expect(view.getByRole('heading', { name: 'Design partners' })).toBeTruthy();
+  fireEvent.click(view.getByRole('button', { name: 'Q4 renewals Team' }));
+  expect(view.getByRole('region', { name: 'Q4 renewals board' })).toBeTruthy();
+  expect(view.getByRole('button', { name: 'Bookend Retail' })).toBeTruthy();
+});
+
+it('collapses the hero pipeline section without losing the active pipeline', () => {
+  const view = render(() => <CrmPipelineScene hero />);
+  fireEvent.click(view.getByRole('button', { name: 'Team expansion Private' }));
+  fireEvent.click(view.getByRole('button', { name: 'Pipelines' }));
+  expect(view.queryByRole('navigation', { name: 'CRM pipelines' })).toBeNull();
+  expect(
+    view.getByRole('region', { name: 'Team expansion board' })
+  ).toBeTruthy();
+  fireEvent.click(view.getByRole('button', { name: 'Pipelines' }));
+  expect(
+    view
+      .getByRole('button', { name: 'Team expansion Private' })
+      .getAttribute('aria-current')
+  ).toBe('page');
+});
+
 it('edits a pipeline deal without overwriting the company record fields', async () => {
   const view = render(() => <CrmPipelineScene />);
   expect(
