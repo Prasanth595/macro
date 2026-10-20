@@ -73,8 +73,12 @@ vi.mock('@service-connection/client', () => ({
   useRefreshTrackedEntitiesOnFocus: () => {},
   useReopenTrackedEntitiesOnReconnect: () => {},
 }));
+vi.mock('@service-storage/websocket', () => ({
+  storageWS: { reconnectIfDisconnected: () => {} },
+  createWebSocketJob: () => {},
+}));
 vi.mock('@service-connection/websocket', () => ({
-  ws: {},
+  ws: { addEventListener: () => {}, removeEventListener: () => {} },
   createConnectionWebsocketEffect: () => {},
 }));
 
