@@ -78,8 +78,8 @@ export function RouteCrm() {
         product="CRM"
         title={['The CRM connected', 'to your team’s work.']}
         description={[
-          'Keep customer context connected across email and calls,',
-          'chat, tasks, and files.',
+          'Keep customer context connected across email',
+          'and calls, chat, tasks, and files.',
         ]}
         cta="crm_hero_get_started"
       />
