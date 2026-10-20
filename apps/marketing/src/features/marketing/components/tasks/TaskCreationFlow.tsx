@@ -1,6 +1,7 @@
-import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
+import { createSignal, Show } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import type { WorkspaceTask } from '../../core/dummy-workspace';
+import { createDemoPointer } from '../../primitives/createDemoPointer';
 import { createProductWalkthrough } from '../../primitives/createProductWalkthrough';
 import { DemoCursor } from '../DemoCursor';
 import { ProductDemo } from '../product/ProductPage';
@@ -24,7 +25,10 @@ export function TaskCreationFlow() {
   const [phase, setPhase] = createSignal(0);
   const [automatic, setAutomatic] = createSignal(true);
   const [taskId, setTaskId] = createSignal<string>();
-  const [pointer, setPointer] = createSignal<{ x: number; y: number }>();
+  const [target, setTarget] = createSignal<string>();
+  const [clicking, setClicking] = createSignal(false);
+  const [priorityOpen, setPriorityOpen] = createSignal(false);
+  const [statusOpen, setStatusOpen] = createSignal(false);
   const [draft, setDraft] = createStore<WorkspaceTask>({
     id: 'task-draft',
     title: REQUEST_TASK,
@@ -38,7 +42,6 @@ export function TaskCreationFlow() {
     steps: [],
     comments: [],
   });
-  const [dueDate, setDueDate] = createSignal<string>();
   const create = () => {
     let id = taskId();
     if (!id) {
@@ -65,71 +68,108 @@ export function TaskCreationFlow() {
       description: 'Proposal ready: scope, pricing, and a delivery timeline.',
     });
     setPhase(6);
-    setAutomatic(false);
   };
+  const updateDraft = (patch: Partial<WorkspaceTask>) => setDraft(patch);
+  const openComposer = () => setPhase(2);
+  const approach = (selector: string) => {
+    setClicking(false);
+    setTarget(selector);
+  };
+  const click = (run: () => void) => {
+    setClicking(true);
+    run();
+  };
+  const revealRequest = () => {
+    const log = frame.querySelector<HTMLElement>('[role="log"]');
+    log?.scrollTo({ top: 0, behavior: 'smooth' });
+    setPhase(1);
+  };
+  // Delays are reading/movement time BEFORE the named action.
+  const actions = [
+    { delay: 1400, run: revealRequest },
+    {
+      delay: 650,
+      run: () => approach('[data-hovered=true] [aria-label="Task"]'),
+    },
+    { delay: 650, run: () => click(openComposer) },
+    { delay: 900, run: () => approach('[aria-label="Change priority"]') },
+    { delay: 650, run: () => click(() => setPriorityOpen(true)) },
+    {
+      delay: 450,
+      run: () => approach('[data-demo-property-value="priority:High"]'),
+    },
+    {
+      delay: 650,
+      run: () =>
+        click(() => {
+          updateDraft({ priority: 'High' });
+          setPriorityOpen(false);
+        }),
+    },
+    { delay: 650, run: () => approach('[data-task-submit]') },
+    { delay: 650, run: () => click(create) },
+    { delay: 2200, run: () => approach('[aria-label="Change status"]') },
+    { delay: 650, run: () => click(() => setStatusOpen(true)) },
+    {
+      delay: 450,
+      run: () => approach('[data-demo-property-value="status:In Progress"]'),
+    },
+    {
+      delay: 650,
+      run: () =>
+        click(() => {
+          w.updateTask(taskId()!, {
+            status: 'In Progress',
+            description: 'Adding pricing and delivery dates to the proposal.',
+          });
+          setStatusOpen(false);
+          setPhase(5);
+        }),
+    },
+    { delay: 2500, run: () => approach('[aria-label="Change status"]') },
+    { delay: 650, run: () => click(() => setStatusOpen(true)) },
+    {
+      delay: 450,
+      run: () => approach('[data-demo-property-value="status:Completed"]'),
+    },
+    {
+      delay: 650,
+      run: () =>
+        click(() => {
+          setStatusOpen(false);
+          finish();
+        }),
+    },
+    { delay: 2400, run: () => approach('.task-plan-link') },
+    {
+      delay: 650,
+      run: () =>
+        click(() => {
+          w.open('documents', 'customer-brief');
+          setPhase(7);
+        }),
+    },
+  ];
   const playback = createProductWalkthrough({
     root: () => root,
-    steps: 7,
+    steps: actions.length,
     reset: () => {},
-    reduced: finish,
-    delay: (step) =>
-      [0, 1200, 1600, 1500, 1500, 2200, 2500, 2400][step] ?? 1400,
-    advance: (step) => {
-      if (step === 3) {
-        setDraft('priority', 'High');
-        setDueDate('Friday');
-      }
-      if (step === 4) create();
-      else if (step === 5) {
-        w.updateTask(taskId()!, {
-          status: 'In Progress',
-          description: 'Adding pricing and delivery dates to the proposal.',
-        });
-        setPhase(step);
-      } else if (step === 6) finish();
-      else if (step === 7) {
-        w.open('documents', 'customer-brief');
-        setPhase(step);
-      } else setPhase(step);
+    reduced: () => {
+      finish();
+      setAutomatic(false);
     },
+    onTakeover: () => setAutomatic(false),
+    delay: (step) => actions[step - 1].delay,
+    advance: (step) => actions[step - 1].run(),
   });
   const pause = () => {
     setAutomatic(false);
     playback.pause();
   };
-  onMount(() => {
-    const position = () => {
-      const selector = [
-        undefined,
-        '[data-hovered=true] [aria-label="Task"]',
-        '[aria-label="Change priority"]',
-        '[data-task-submit]',
-        '[aria-label="Task description"]',
-        '[aria-label="Change status"]',
-      ][phase()];
-      const target = selector
-        ? frame.querySelector<HTMLElement>(selector)
-        : undefined;
-      if (!automatic() || !target) {
-        setPointer(undefined);
-        return;
-      }
-      const bounds = target.getBoundingClientRect();
-      const parent = frame.getBoundingClientRect();
-      setPointer({
-        x: bounds.left - parent.left + Math.min(bounds.width / 2, 40),
-        y: bounds.top - parent.top + bounds.height / 2,
-      });
-    };
-    createEffect(() => {
-      phase();
-      automatic();
-      const timer = requestAnimationFrame(position);
-      onCleanup(() => cancelAnimationFrame(timer));
-    });
-    const resize = new ResizeObserver(position);
-    resize.observe(frame);
-    onCleanup(() => resize.disconnect());
+  const pointer = createDemoPointer({
+    frame: () => frame,
+    target,
+    active: automatic,
   });
   return (
     <div ref={root} class="task-creation-flow">
@@ -162,7 +202,19 @@ export function TaskCreationFlow() {
           height={560}
           mobileHeight={620}
         >
-          <Show when={phase() < 4} fallback={<TaskProjectView workspace={w} />}>
+          <Show
+            when={phase() < 4}
+            fallback={
+              <TaskProjectView
+                workspace={w}
+                statusPlayback={{
+                  open: statusOpen(),
+                  onOpenChange: setStatusOpen,
+                  automatic: automatic(),
+                }}
+              />
+            }
+          >
             <WorkspaceChannel
               workspace={w}
               hoveredMessage={phase() === 1 ? 'proposal-request' : undefined}
@@ -174,7 +226,7 @@ export function TaskCreationFlow() {
                     ? REQUEST_TASK
                     : message.body
                 );
-                setPhase(2);
+                openComposer();
               }}
             />
             <Show when={phase() >= 2}>
@@ -182,8 +234,12 @@ export function TaskCreationFlow() {
                 <TaskComposer
                   draft={draft}
                   sourceChannel="sales"
-                  dueDateLabel={dueDate()}
-                  update={(patch) => setDraft(patch)}
+                  update={updateDraft}
+                  priorityPlayback={{
+                    open: priorityOpen(),
+                    onOpenChange: setPriorityOpen,
+                    automatic: automatic(),
+                  }}
                   submit={() => {
                     pause();
                     create();
@@ -200,9 +256,8 @@ export function TaskCreationFlow() {
         <Show when={automatic() && pointer()}>
           {(p) => (
             <DemoCursor
-              label={phase() >= 4 ? 'Julia' : 'Jacob'}
               class="task-flow-pointer"
-              clicking={phase() === 3}
+              clicking={clicking()}
               style={{ transform: `translate(${p().x}px, ${p().y}px)` }}
             />
           )}

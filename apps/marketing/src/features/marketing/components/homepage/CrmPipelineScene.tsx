@@ -16,6 +16,7 @@ import {
 } from '../../core/homepage-demo-people';
 import { type DealStage, dealStages } from '../../core/workspace-fixtures';
 import { createCrmDemoWorkspace } from '../../primitives/createCrmDemoWorkspace';
+import { createDemoPointer } from '../../primitives/createDemoPointer';
 import { createProductWalkthrough } from '../../primitives/createProductWalkthrough';
 import { CompanyPipelineEntry } from '../crm/CompanyPipelineEntry';
 import { CrmHeroSidebar } from '../crm/CrmHeroSidebar';
@@ -51,10 +52,8 @@ export default function CrmPipelineScene(
 ) {
   let scene!: HTMLDivElement;
   let collectionScroll!: HTMLDivElement;
-  const [viewPointer, setViewPointer] = createSignal<{
-    x: number;
-    y: number;
-  }>();
+  const [pointerTarget, setPointerTarget] = createSignal<string>();
+  const [operating, setOperating] = createSignal(true);
   const compactStages: DealStage[] = ['Demo', 'Negotiation', 'Customer'];
   const compactIds = [
     'meadow',
@@ -138,36 +137,50 @@ export default function CrmPipelineScene(
     );
     if (!card || !lane) return;
     const root = scene.getBoundingClientRect();
+    const scaleX = scene.offsetWidth ? root.width / scene.offsetWidth : 1;
+    const scaleY = scene.offsetHeight ? root.height / scene.offsetHeight : 1;
     const from = card.getBoundingClientRect();
     const to = lane.getBoundingClientRect();
     const first = lane.querySelector('article')?.getBoundingClientRect();
     const deal = deals.find((entry) => matchesDeal(entry, id));
+    setPointerTarget('.landing-pipeline-transfer .homepage-pipeline-grip');
     setTransfer({
       id,
       name: w.data.companies.find((entry) => entry.id === id)?.name ?? '',
       owner: deal?.owner ?? '',
       revenue: deal?.revenue ?? '',
-      x: from.left - root.left,
-      y: from.top - root.top,
-      width: from.width,
-      dx: (first?.left ?? to.left + 9) - from.left,
-      dy: (first?.top ?? to.top + 54) - from.top,
+      x: (from.left - root.left) / scaleX,
+      y: (from.top - root.top) / scaleY,
+      width: from.width / scaleX,
+      dx: ((first?.left ?? to.left + 9 * scaleX) - from.left) / scaleX,
+      dy: ((first?.top ?? to.top + 54 * scaleY) - from.top) / scaleY,
     });
   };
-  const showViewPointer = (view: 'table' | 'board') => {
-    const target = scene.querySelector<HTMLElement>(
-      `[data-crm-view="${view}"]`
+  const approachCard = (id: string) => {
+    const card = scene.querySelector<HTMLElement>(
+      `[data-pipeline-company="${id}"]`
     );
-    if (!target) return;
-    const root = scene.getBoundingClientRect();
-    const bounds = target.getBoundingClientRect();
-    setViewPointer({
-      x: bounds.left - root.left + bounds.width * 0.6,
-      y: bounds.top - root.top + bounds.height * 0.7,
-    });
+    if (card && collectionScroll) {
+      const bounds = card.getBoundingClientRect();
+      const viewport = collectionScroll.getBoundingClientRect();
+      if (bounds.left < viewport.left || bounds.right > viewport.right)
+        collectionScroll.scrollTo({
+          left: collectionScroll.scrollLeft + bounds.left - viewport.left - 16,
+          behavior: 'smooth',
+        });
+    }
+    setPointerTarget(`[data-pipeline-company="${id}"] .homepage-pipeline-grip`);
   };
+  const showViewPointer = (view: 'table' | 'board') =>
+    setPointerTarget(`[data-crm-view="${view}"]`);
+  const pointer = createDemoPointer({
+    frame: () => scene,
+    target: pointerTarget,
+    active: operating,
+    followAnimation: () => !!transfer(),
+  });
   const previewView = (showBoard: boolean) => {
-    setViewPointer(undefined);
+    setPointerTarget(undefined);
     setBoard(showBoard);
     collectionScroll.scrollLeft = 0;
     collectionScroll.scrollTop = 0;
@@ -175,51 +188,65 @@ export default function CrmPipelineScene(
   const walkthrough = props.compact
     ? createProductWalkthrough({
         root: () => scene,
-        steps: 7,
+        steps: 12,
         visibilityThreshold: 0.5,
         reset: () => {},
         delay: (step) =>
-          [0, 1800, 1500, 1800, 1500, 2000, 3500, 4500][step] ?? 1400,
+          [
+            0, 1800, 800, 1500, 1800, 800, 1500, 1800, 650, 2200, 650, 3500,
+            650,
+          ][step] ?? 1400,
         reduced: () => {
           move('meadow', 'Negotiation');
           move('lumen', 'Customer');
           setTransfer(undefined);
         },
         advance: (step) => {
-          if (step === 1) startTransfer('meadow', 'Negotiation');
-          if (step === 2) {
+          if (step === 1) approachCard('meadow');
+          if (step === 4) approachCard('lumen');
+          if (step === 2) startTransfer('meadow', 'Negotiation');
+          if (step === 3) {
             move('meadow', 'Negotiation');
             setTransfer(undefined);
           }
-          if (step === 3) startTransfer('lumen', 'Customer');
-          if (step === 4) {
+          if (step === 5) startTransfer('lumen', 'Customer');
+          if (step === 6) {
             move('lumen', 'Customer');
             setTransfer(undefined);
           }
-          if (step === 5) {
+          if (step === 7) {
+            setPointerTarget(
+              '[data-pipeline-company="meadow"] .homepage-pipeline-company'
+            );
+          }
+          if (step === 8) {
             w.setCompanyFilter('Sales pipeline');
             w.open('crm', 'meadow');
           }
-          if (step === 6) setRecordSection('emails');
-          if (step === 7) w.open('crm');
+          if (step === 9) setPointerTarget('[data-record-tab="emails"]');
+          if (step === 10) setRecordSection('emails');
+          if (step === 11)
+            setPointerTarget('[aria-label="Back to Sales pipeline"]');
+          if (step === 12) w.open('crm');
         },
       })
     : props.hero
       ? createProductWalkthrough({
           root: () => scene,
-          steps: 6,
+          steps: 7,
           visibilityThreshold: 0.5,
           reset: () => {},
-          delay: (step) => [0, 3000, 1500, 2200, 600, 3000, 600][step],
+          delay: (step) => [0, 2200, 800, 1500, 2200, 600, 3000, 600][step],
           reduced: () => {
             move('northstar', 'Qualified');
             setTransfer(undefined);
-            setViewPointer(undefined);
+            setPointerTarget(undefined);
             setBoard(true);
           },
           advance: (step) => {
-            if (step === 1) startTransfer('northstar', 'Qualified');
-            if (step === 2) {
+            if (step === 1) approachCard('northstar');
+            if (step === 2) startTransfer('northstar', 'Qualified');
+            if (step === 3) {
               move('northstar', 'Qualified');
               setTransfer(undefined);
               const lane = scene.querySelector<HTMLElement>(
@@ -240,20 +267,21 @@ export default function CrmPipelineScene(
                 }
               }
             }
-            if (step === 3) showViewPointer('table');
-            if (step === 4) previewView(false);
-            if (step === 5) showViewPointer('board');
-            if (step === 6) previewView(true);
+            if (step === 4) showViewPointer('table');
+            if (step === 5) previewView(false);
+            if (step === 6) showViewPointer('board');
+            if (step === 7) previewView(true);
           },
         })
       : undefined;
   const takeOver = () => {
+    setOperating(false);
     walkthrough?.pause();
     setTransfer(undefined);
-    setViewPointer(undefined);
+    setPointerTarget(undefined);
   };
   onMount(() => {
-    if (!props.hero) return;
+    if (!props.hero && !props.compact) return;
     const boundary = scene.closest('.demo-interaction-boundary');
     boundary?.addEventListener(DEMO_INTERACTION_EVENT, takeOver);
     onCleanup(() =>
@@ -930,17 +958,17 @@ export default function CrmPipelineScene(
                 </span>
               </Show>
             </div>
-            <DemoCursor label={props.hero ? 'Jacob' : 'Claude'} />
           </div>
         )}
       </Show>
-      <Show when={viewPointer()}>
-        {(pointer) => (
+      <Show when={pointer()}>
+        {(point) => (
           <DemoCursor
-            label="Jacob"
             class="crm-hero-pointer"
-            clicking
-            style={{ left: `${pointer().x}px`, top: `${pointer().y}px` }}
+            style={{
+              transform: `translate(${point().x}px, ${point().y}px)`,
+              transition: transfer() ? 'none' : undefined,
+            }}
           />
         )}
       </Show>

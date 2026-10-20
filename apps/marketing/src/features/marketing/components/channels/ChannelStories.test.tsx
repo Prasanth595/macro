@@ -25,6 +25,17 @@ beforeEach(() => {
   reduced = false;
   hidden = false;
   vi.useFakeTimers();
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+    x: 0,
+    y: 0,
+    left: 0,
+    top: 0,
+    width: 800,
+    height: 600,
+    right: 800,
+    bottom: 600,
+    toJSON: () => ({}),
+  });
   vi.stubGlobal('fetch', vi.fn());
   vi.spyOn(document, 'hidden', 'get').mockImplementation(() => hidden);
   vi.stubGlobal('matchMedia', () => ({
@@ -126,7 +137,7 @@ it('shows multiple conversations without a navigation sidebar', () => {
 it('shows channel access in Share and retains the chosen permission after reopening', () => {
   const view = render(() => <ChannelPermissionsDemo />);
   visible(true);
-  vi.advanceTimersByTime(1300);
+  vi.advanceTimersByTime(1900);
   const access = view.getByRole('combobox', {
     name: 'Access for Julia, Teo, Gabriel +1 other',
   });

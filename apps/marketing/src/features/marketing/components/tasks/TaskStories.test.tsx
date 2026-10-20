@@ -78,7 +78,7 @@ function reduce() {
 it('turns a message into a task with its title, assignee, and source channel', () => {
   const view = render(() => <TaskFromMessageDemo />);
   visible(true);
-  vi.advanceTimersByTime(1300);
+  vi.advanceTimersByTime(1500);
   expect(
     view.container.querySelector('[data-hovered="true"] [aria-label="Task"]')
   ).toBeTruthy();
@@ -90,7 +90,11 @@ it('turns a message into a task with its title, assignee, and source channel', (
   expect(
     view.getAllByRole('button', { name: 'Change assignee' })[0].textContent
   ).toContain('Julia');
-  vi.advanceTimersByTime(3200);
+  vi.advanceTimersByTime(1500);
+  expect(view.getByRole('menu')).toBeTruthy();
+  expect(view.getByRole('menuitem', { name: 'High' })).toBeTruthy();
+  vi.advanceTimersByTime(2300);
+  expect(view.queryByRole('menu')).toBeNull();
   expect(view.getByRole('textbox', { name: 'Task title' }).textContent).toBe(
     'Prepare the customer proposal'
   );
@@ -194,7 +198,7 @@ it('moves the task to In Review, then Completed, as its pull request changes', (
 it('finishes the human task and keeps its completed status in the plan', () => {
   const view = render(() => <TaskFromMessageDemo />);
   visible(true);
-  vi.advanceTimersByTime(15000);
+  vi.advanceTimersByTime(18000);
   fireEvent.click(
     view.getByRole('button', { name: 'Prepare the customer proposal' })
   );

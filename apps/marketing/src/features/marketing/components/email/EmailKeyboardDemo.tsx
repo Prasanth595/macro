@@ -50,12 +50,15 @@ export function EmailKeyboardDemo() {
     root: () => root,
     steps: 6,
     visibilityThreshold: 0.45,
+    loop: { hold: 5500 },
     delay: (step) => [1300, 900, 1000, 2600, 900, 1000][step - 1],
     reset: () => {
       setArchived([]);
       setIndex(0);
       setOpened(false);
       setLastKey(undefined);
+      const list = root.querySelector<HTMLElement>('.email-keyboard-content');
+      if (list) list.scrollTop = 0;
     },
     reduced: () => {
       setOpened(false);

@@ -13,7 +13,7 @@
 
 /* Walkthrough pointers sit over the product window they act in. */
 .crm-demo-frame { position: relative; }
-.crm-demo-pointer { position: absolute; top: 0; left: 0; z-index: 9; pointer-events: none; transition: transform 600ms cubic-bezier(.2, .8, .2, 1); }
+.crm-demo-pointer { position: absolute; top: 0; left: 0; z-index: 9; pointer-events: none; }
 .product-demo[data-action=stage] [data-company-property=stage],
 .product-demo[data-action=owner] [data-company-property=owner] { background: #ffffff25; box-shadow: 0 0 0 3px #ffffff0d; }
 .crm-demo-frame [data-thread-id] > .sample-message-row,

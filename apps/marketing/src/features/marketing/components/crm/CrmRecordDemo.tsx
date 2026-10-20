@@ -1,7 +1,8 @@
-import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
+import { createSignal, Show } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import type { SampleCompany } from '../../core/workspace-fixtures';
 import { createCrmDemoWorkspace } from '../../primitives/createCrmDemoWorkspace';
+import { createDemoPointer } from '../../primitives/createDemoPointer';
 import { createProductWalkthrough } from '../../primitives/createProductWalkthrough';
 import { DemoCursor } from '../DemoCursor';
 import { ProductDemo } from '../product/ProductPage';
@@ -31,7 +32,6 @@ export function CrmRecordDemo() {
   const [section, setSection] = createSignal<CompanySection>('overview');
   const [phase, setPhase] = createSignal(0);
   const [automatic, setAutomatic] = createSignal(true);
-  const [pointer, setPointer] = createSignal<{ x: number; y: number }>();
   const playback = createProductWalkthrough({
     root: () => frame,
     steps: 6,
@@ -59,32 +59,13 @@ export function CrmRecordDemo() {
     setAutomatic(false);
     playback.pause();
   };
-  onMount(() => {
-    const position = () => {
+  const pointer = createDemoPointer({
+    frame: () => frame,
+    active: automatic,
+    target: () => {
       const tab = tour[phase()];
-      const target = tab
-        ? frame.querySelector<HTMLElement>(`[data-record-tab="${tab}"]`)
-        : undefined;
-      if (!automatic() || !target) {
-        setPointer(undefined);
-        return;
-      }
-      const bounds = target.getBoundingClientRect();
-      const parent = frame.getBoundingClientRect();
-      setPointer({
-        x: bounds.left - parent.left + bounds.width / 2,
-        y: bounds.top - parent.top + bounds.height * 0.7,
-      });
-    };
-    createEffect(() => {
-      phase();
-      automatic();
-      const timer = requestAnimationFrame(position);
-      onCleanup(() => cancelAnimationFrame(timer));
-    });
-    const resize = new ResizeObserver(position);
-    resize.observe(frame);
-    onCleanup(() => resize.disconnect());
+      return tab ? `[data-record-tab="${tab}"]` : undefined;
+    },
   });
   return (
     <div ref={frame} class="crm-demo-frame" onFocusIn={pause}>

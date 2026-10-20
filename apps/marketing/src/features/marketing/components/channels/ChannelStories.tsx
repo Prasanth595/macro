@@ -1,6 +1,7 @@
-import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
+import { createSignal, onCleanup, onMount, Show } from 'solid-js';
 import { unwrap } from 'solid-js/store';
 import type { WorkspaceComment } from '../../core/dummy-workspace';
+import { createDemoPointer } from '../../primitives/createDemoPointer';
 import { createProductWalkthrough } from '../../primitives/createProductWalkthrough';
 import {
   DocumentShareSheet,
@@ -23,48 +24,6 @@ import {
 } from './channelProject';
 import '../workspace/dummy-workspace.css';
 import './channel-stories.css';
-
-/** Measures `selector` inside `frame` and returns the cursor's tip position. */
-function createCursorTarget(
-  frame: () => HTMLElement | undefined,
-  selector: () => string | undefined
-) {
-  const [point, setPoint] = createSignal<{ x: number; y: number }>();
-  onMount(() => {
-    const measure = () => {
-      const root = frame();
-      const query = selector();
-      const target = query
-        ? root?.querySelector<HTMLElement>(query)
-        : undefined;
-      if (!root || !target) return setPoint(undefined);
-      const bounds = target.getBoundingClientRect();
-      const parent = root.getBoundingClientRect();
-      setPoint({
-        x: bounds.left - parent.left + Math.min(bounds.width / 2, 48),
-        y: bounds.top - parent.top + bounds.height / 2,
-      });
-    };
-    createEffect(() => {
-      selector();
-      const id = requestAnimationFrame(measure);
-      onCleanup(() => cancelAnimationFrame(id));
-    });
-    const observer = new ResizeObserver(measure);
-    const root = frame();
-    if (root) {
-      observer.observe(root);
-      const conversation = root.querySelector('.channel-work-conversation');
-      if (conversation) observer.observe(conversation);
-      root.addEventListener('scroll', measure, true);
-    }
-    onCleanup(() => {
-      observer.disconnect();
-      root?.removeEventListener('scroll', measure, true);
-    });
-  });
-  return point;
-}
 
 /** Full chat navigation makes the hero recognizable as a channel. */
 export function ChannelHero() {
@@ -91,7 +50,6 @@ export function ChannelSharedWorkDemo() {
   const [aim, setAim] = createSignal<string>();
   const [clicking, setClicking] = createSignal(false);
   const [cursorVisible, setCursorVisible] = createSignal(false);
-  const [cursorOrigin, setCursorOrigin] = createSignal({ x: 0, y: 200 });
   const scrollToMessage = (id: string, smooth = true) => {
     const log = root?.querySelector<HTMLElement>(
       '.channel-work-conversation [role="log"]'
@@ -117,7 +75,6 @@ export function ChannelSharedWorkDemo() {
       )
       ?.click();
     setClicking(false);
-    setCursorVisible(false);
     setAim(undefined);
   };
   const playback = createProductWalkthrough({
@@ -135,7 +92,7 @@ export function ChannelSharedWorkDemo() {
     advance: (step) => {
       if (step === 1) {
         scrollToMessage('shared-plan');
-        setCursorOrigin({ x: root.clientWidth * 0.68, y: 260 });
+        setAim('shared-plan');
         setCursorVisible(true);
       }
       if (step === 2) setAim('shared-plan');
@@ -148,7 +105,7 @@ export function ChannelSharedWorkDemo() {
             ?.getAttribute('data-narrow') === 'true';
         if (narrow) setAim('close');
         else scrollToMessage('welcome');
-        setCursorOrigin({ x: Math.min(root.clientWidth * 0.7, 360), y: 180 });
+
         setCursorVisible(true);
       }
       if (step === 6) {
@@ -164,15 +121,16 @@ export function ChannelSharedWorkDemo() {
       if (step === 9) clickMention('welcome');
     },
   });
-  const pointer = createCursorTarget(
-    () => frame,
-    () =>
+  const pointer = createDemoPointer({
+    frame: () => frame,
+    active: cursorVisible,
+    target: () =>
       aim() === 'close'
         ? '.channel-work-back'
         : aim()
           ? `[data-thread-id="${aim()}"] .sample-inline-reference`
-          : undefined
-  );
+          : undefined,
+  });
   return (
     <div ref={frame} class="channel-demo-frame">
       <ProductDemo
@@ -189,13 +147,13 @@ export function ChannelSharedWorkDemo() {
       >
         <ChannelWorkSurface workspace={w} />
       </ProductDemo>
-      <Show when={cursorVisible()}>
+      <Show when={cursorVisible() && pointer()}>
         <DemoCursor
           label="Jacob"
           clicking={clicking()}
           class="channel-demo-cursor"
           style={{
-            transform: `translate(${(pointer() ?? cursorOrigin()).x}px, ${(pointer() ?? cursorOrigin()).y}px)`,
+            transform: `translate(${pointer()!.x}px, ${pointer()!.y}px)`,
           }}
         />
       </Show>
@@ -206,21 +164,32 @@ export function ChannelSharedWorkDemo() {
 /** Show the actual channel grant in Share, with the document behind it. */
 export function ChannelPermissionsDemo() {
   let root!: HTMLDivElement;
+  let frame!: HTMLDivElement;
   let shareTrigger: HTMLButtonElement | undefined;
   const w = createChannelChecklist();
   w.open('documents', 'plan');
   const [sharing, setSharing] = createSignal(false);
   const [manual, setManual] = createSignal(false);
+  const [step, setStep] = createSignal(0);
+  const share = () => setSharing(true);
   const playback = createProductWalkthrough({
     root: () => root,
-    steps: 1,
+    steps: 2,
     reset: () => {},
-    reduced: () => setSharing(true),
-    delay: () => 1200,
-    advance: () => setSharing(true),
+    reduced: share,
+    delay: (step) => (step === 1 ? 1200 : 650),
+    advance: (step) => {
+      setStep(step);
+      if (step === 2) share();
+    },
+  });
+  const pointer = createDemoPointer({
+    frame: () => frame,
+    target: () => (step() ? '[data-document-share]' : undefined),
+    active: () => !manual(),
   });
   return (
-    <div class="channel-permissions-demo">
+    <div ref={frame} class="channel-permissions-demo channel-demo-frame">
       <ProductDemo
         ref={(el) => (root = el)}
         label="The document is shared with the channel"
@@ -240,7 +209,7 @@ export function ChannelPermissionsDemo() {
                 '[data-view-shell-top-bar] button'
               ),
             ].find((button) => button.textContent?.trim() === 'Share');
-            setSharing(true);
+            share();
           }}
         />
         <DocumentShareSheet
@@ -254,6 +223,15 @@ export function ChannelPermissionsDemo() {
           }}
         />
       </ProductDemo>
+      <Show when={pointer()}>
+        {(point) => (
+          <DemoCursor
+            class="channel-demo-cursor"
+            clicking={step() === 2}
+            style={{ transform: `translate(${point().x}px, ${point().y}px)` }}
+          />
+        )}
+      </Show>
     </div>
   );
 }

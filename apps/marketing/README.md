@@ -120,9 +120,13 @@ competitor by name when the comparison is specific, and why we built it.
 Demos are faithful to the signed-in app: its labels, layout, icons, and
 hover-only controls (the message toolbar appears on hover, as in the app).
 Don't invent chrome such as step chips or explanatory labels inside a mock, and
-don't show features the app doesn't have. Every animated cursor is
-`DemoCursor`, the homepage CRM pipeline's pointer and name tag: label it
-“Claude” when an agent acts and with the person's first name otherwise. Size
+don't show features the app doesn't have. Operating pointers use `DemoCursor`
+and `primitives/createDemoPointer`: a 24px mouse arrow with a stable hotspot,
+restrained click feedback, and element-relative positioning. Keep its last
+position when a target disappears; changing content or opening a menu must not
+remount the pointer. Use actor labels only when they explain who is editing,
+and use the caret variant for collaborator text insertion. Background agent
+updates do not need a simulated mouse. Size
 each `ProductDemo` to its scene with `height`/`mobileHeight` so a window is
 never mostly empty, and seed enough content that the first frame already
 reads as a real workspace.
@@ -131,9 +135,20 @@ Product stories live in their feature's `components/*/*Stories.tsx` files.
 They reuse frozen product presentation and local workspace data. Call records
 and GitHub review details port the smallest presentation needed from the app;
 they do not initialize calls, run checks, post GitHub comments, or merge code.
-`createProductWalkthrough` runs once while visible, pauses when the document is
-hidden, shows the completed result for reduced motion, and permanently gives
-control to the visitor after pointer or keyboard input. Interaction tests cover
+`createProductWalkthrough` and `createEmailWalkthrough` share the same clock:
+start when the configured portion is visible, preserve the remaining step delay
+while offscreen or hidden, and show a useful static result for reduced motion.
+`observeDemoTakeover` gives the visitor permanent control on pointer/keyboard
+input or entry through any containing preview boundary. A later visibility or
+motion-preference change must never overwrite visitor edits. Page scrolling
+alone does not enter a demo. Longer creation stories finish once; short reversible
+scenes can opt into `loop: { hold: 5500 }` only with a complete reset of their
+content, menus, selections, and scroll positions. Never reverse finished edits.
+Express scene steps as ordered actions with reading time before each action.
+Approach a real control, click, show its menu, approach an option, select it, and
+hold the result. Share the local controls and save handlers with manual input;
+prevent menu autofocus during playback only. The task-creation scene is the
+reference for this sequence. Interaction tests cover
 that handoff, source links, thread replies, access selection, Sent drafts,
 transcript selection, and review filters. All changes stay local.
 
@@ -176,8 +191,9 @@ cards and open records themselves. Desktop lanes fit the frame; phones scroll
 only the three stages. There is no wallpaper, replay button, or status caption.
 The CRM product
 page retains its separate animated walkthrough. Enabling reduced motion
-mid-playback settles the document at its completed state, while leaving manual
-history scrubbing available. Scroll-driven entrances keep their native pacing.
+mid-playback settles an untouched document at its completed state. After visitor
+takeover, the current document/history position stays intact. Manual history
+scrubbing remains available. Scroll-driven entrances keep their native pacing.
 
 ## Develop and validate
 
@@ -398,7 +414,7 @@ navigation toggle; selecting a pipeline or list closes the sidebar.
 Keep these fixtures and spacing scoped to the hero; compact landing scenes
 retain their three-stage story.
 The hero plays once after half the scene becomes visible: hold the board for
-three seconds, move Miller & Rowe from Lead to Qualified with Jacob's cursor,
+three seconds, move Miller & Rowe from Lead to Qualified with the operating pointer,
 show All records for three seconds, then return to the board. On narrow screens,
 the board scrolls to reveal the destination lane. The first activation click,
 pointer input, or keyboard focus permanently stops playback and clears the cursor;
@@ -750,13 +766,15 @@ The start-call story replays on returning to view until the visitor interacts;
 it never loops while visible or replays for reduced motion. The sequence briefly holds
 the chat, then an unnamed pointer moves to Call and clicks. Connecting and
 participants follow, completing in about eight and a half seconds. Interaction cancels the
-staged transition and hides the pointer. Other Calls demos have no animated cursor.
+staged transition and hides the pointer. The saved-call walkthrough also uses the
+same pointer for hanging up, opening the record, and selecting a transcript line;
+it rests between those actions. Agent follow-up updates do not simulate a mouse.
 
 `/calls` follows a simple Thursday training handoff across a live call, saved record,
 and agent-assisted task update. Calls-only fixtures live in `calls/call-fixtures.ts`
 and `calls/call-project.ts`; shared workspace data stays unchanged. The hero's
 In the call / After the call controls sit outside the product frame. The hero
-stays in the call until the visitor switches scenes or leaves. Other walkthroughs
+stays in the call until the visitor switches scenes or leaves. Other call walkthroughs
 run once while visible and stop permanently on visitor interaction. Participants are illustrative; playback is
 local and has no call audio or network effects.
 
@@ -816,6 +834,11 @@ waits 1.4 seconds before each agent reply and holds the first result for 2.2
 seconds before the follow-up. It starts when the main composer is fully visible.
 Composer handles and explicit reply state drive playback; no synthetic input or
 Reply/Cancel button clicks are used. Keep composer geometry stable during typing. Visitor input stops typing and preserves the draft.
+The message-to-task walkthrough first scrolls its request into view. Its persistent
+pointer opens the task composer, selects High from the real priority menu, creates
+the task, selects In Progress and Completed from the status menu, and opens the
+linked plan. Menu presentation and saves are shared with the interactive controls;
+only automatic menu opens suppress focus.
 The context demo types its final sharing instruction, opens the mention picker
 at @, selects #sales, and stops with the link inserted. It starts only when the
 line is visible; the picker opens above the line to stay inside the demo.

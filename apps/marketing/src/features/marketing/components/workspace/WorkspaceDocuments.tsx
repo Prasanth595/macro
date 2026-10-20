@@ -77,6 +77,7 @@ export function WorkspaceDocuments(props: {
             <Button
               size="sm"
               class="ml-auto"
+              data-document-share
               onClick={() => {
                 const id = crypto.randomUUID();
                 w.setData('documents', (docs) => [

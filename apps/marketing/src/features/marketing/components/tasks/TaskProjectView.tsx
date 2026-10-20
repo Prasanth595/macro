@@ -26,6 +26,7 @@ export function TaskDueDate() {
 export function TaskProjectView(props: {
   workspace: DummyWorkspace;
   documentSource?: boolean;
+  statusPlayback?: Parameters<typeof TaskNotebook>[0]['statusPlayback'];
 }) {
   const w = props.workspace;
   let root!: HTMLDivElement;
@@ -83,6 +84,7 @@ export function TaskProjectView(props: {
           {(task) => (
             <TaskNotebook
               workspace={w}
+              statusPlayback={props.statusPlayback}
               task={task()}
               hideCollectionNavigation={props.documentSource}
               sourceContent={

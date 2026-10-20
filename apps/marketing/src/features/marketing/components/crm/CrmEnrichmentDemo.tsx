@@ -1,7 +1,8 @@
-import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
+import { createSignal, Show } from 'solid-js';
 import type { WorkspaceComment } from '../../core/dummy-workspace';
 import type { SampleCompany } from '../../core/workspace-fixtures';
 import { createCrmDemoWorkspace } from '../../primitives/createCrmDemoWorkspace';
+import { createDemoPointer } from '../../primitives/createDemoPointer';
 import { createProductWalkthrough } from '../../primitives/createProductWalkthrough';
 import { DemoCursor } from '../DemoCursor';
 import { ProductDemo } from '../product/ProductPage';
@@ -52,7 +53,6 @@ export function CrmEnrichmentDemo() {
   w.setCompanyLayout('List');
   const [phase, setPhase] = createSignal(0);
   const [automatic, setAutomatic] = createSignal(true);
-  const [pointer, setPointer] = createSignal<{ x: number; y: number }>();
   const arrive = () => {
     if (!w.data.companies.some((company) => company.id === 'kestrel'))
       w.setData('companies', (companies) => [...companies, { ...kestrel }]);
@@ -93,9 +93,11 @@ export function CrmEnrichmentDemo() {
     setAutomatic(false);
     playback.pause();
   };
-  onMount(() => {
-    const position = () => {
-      const selector = [
+  const pointer = createDemoPointer({
+    frame: () => frame,
+    active: automatic,
+    target: () => {
+      return [
         undefined,
         undefined,
         '[data-company-row="kestrel"] .truncate',
@@ -103,29 +105,7 @@ export function CrmEnrichmentDemo() {
         undefined,
         '[data-discussion-composer]',
       ][phase()];
-      const target = selector
-        ? frame.querySelector<HTMLElement>(selector)
-        : undefined;
-      if (!automatic() || !target) {
-        setPointer(undefined);
-        return;
-      }
-      const bounds = target.getBoundingClientRect();
-      const parent = frame.getBoundingClientRect();
-      setPointer({
-        x: bounds.left - parent.left + Math.min(bounds.width * 0.6, 160),
-        y: bounds.top - parent.top + bounds.height / 2,
-      });
-    };
-    createEffect(() => {
-      phase();
-      automatic();
-      const timer = requestAnimationFrame(position);
-      onCleanup(() => cancelAnimationFrame(timer));
-    });
-    const resize = new ResizeObserver(position);
-    resize.observe(frame);
-    onCleanup(() => resize.disconnect());
+    },
   });
   return (
     <div ref={frame} class="crm-demo-frame" onFocusIn={pause}>

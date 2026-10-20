@@ -1,10 +1,9 @@
-import { createEffect, createSignal, onCleanup, onMount, Show } from 'solid-js';
+import { createSignal } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import type { WorkspaceComment } from '../../core/dummy-workspace';
 import type { SampleCompany } from '../../core/workspace-fixtures';
 import { createCrmDemoWorkspace } from '../../primitives/createCrmDemoWorkspace';
 import { createProductWalkthrough } from '../../primitives/createProductWalkthrough';
-import { DemoCursor } from '../DemoCursor';
 import { ProductDemo } from '../product/ProductPage';
 import { CompanyPipelineEntry } from './CompanyPipelineEntry';
 import { CrmRecordWorkspace } from './CrmRecordWorkspace';
@@ -39,8 +38,6 @@ export function CrmCaptureDemo() {
   >({ stage: 'Lead', owner: '', revenue: '18000' });
   w.open('crm', 'meadow');
   const [phase, setPhase] = createSignal(0);
-  const [automatic, setAutomatic] = createSignal(true);
-  const [pointer, setPointer] = createSignal<{ x: number; y: number }>();
   const finish = () => {
     setDeal({ stage: 'Demo', owner: 'jacob' });
     meadow({ comments: [request, reply] });
@@ -51,7 +48,6 @@ export function CrmCaptureDemo() {
     steps: 6,
     reset: () => {},
     reduced: () => {
-      setAutomatic(false);
       finish();
     },
     delay: (step) => [0, 900, 900, 1000, 900, 1000, 900][step] ?? 1000,
@@ -60,7 +56,6 @@ export function CrmCaptureDemo() {
       if (step === 4) setDeal({ owner: 'jacob' });
       if (step === 6) {
         finish();
-        setAutomatic(false);
         // Like a chat, the record scrolls to the new reply when it lands
         // below the fold (or under the phone's details sheet).
         requestAnimationFrame(() => {
@@ -71,7 +66,6 @@ export function CrmCaptureDemo() {
     },
   });
   const pause = () => {
-    setAutomatic(false);
     playback.pause();
   };
   const action = () =>
@@ -80,44 +74,6 @@ export function CrmCaptureDemo() {
       : phase() === 3 || phase() === 4
         ? 'owner'
         : undefined;
-  onMount(() => {
-    const position = () => {
-      const selector = [
-        undefined,
-        '[data-company-property="stage"]',
-        '[data-company-property="stage"]',
-        '[data-company-property="owner"]',
-        '[data-company-property="owner"]',
-        '[data-thread-id="capture-request"] .sample-message-row',
-      ][phase()];
-      const target = selector
-        ? frame.querySelector<HTMLElement>(selector)
-        : undefined;
-      if (!automatic() || !target) {
-        setPointer(undefined);
-        return;
-      }
-      const bounds = target.getBoundingClientRect();
-      const parent = frame.getBoundingClientRect();
-      const thread = phase() === 5;
-      setPointer({
-        x: bounds.left - parent.left + (thread ? 56 : bounds.width * 0.6),
-        y:
-          bounds.top -
-          parent.top +
-          (thread ? bounds.height + 18 : bounds.height / 2),
-      });
-    };
-    createEffect(() => {
-      phase();
-      automatic();
-      const timer = requestAnimationFrame(position);
-      onCleanup(() => cancelAnimationFrame(timer));
-    });
-    const resize = new ResizeObserver(position);
-    resize.observe(frame);
-    onCleanup(() => resize.disconnect());
-  });
   return (
     <div ref={frame} class="crm-demo-frame" onFocusIn={pause}>
       <ProductDemo
@@ -132,16 +88,6 @@ export function CrmCaptureDemo() {
           pipeline={<CompanyPipelineEntry value={deal} onChange={setDeal} />}
         />
       </ProductDemo>
-      <Show when={automatic() && pointer()}>
-        {(p) => (
-          <DemoCursor
-            label="Claude"
-            class="crm-demo-pointer"
-            clicking={phase() === 2 || phase() === 4}
-            style={{ transform: `translate(${p().x}px, ${p().y}px)` }}
-          />
-        )}
-      </Show>
     </div>
   );
 }

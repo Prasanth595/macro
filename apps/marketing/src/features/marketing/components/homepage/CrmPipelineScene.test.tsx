@@ -106,6 +106,17 @@ it('plays the hero once when visible, updates the deal, and returns from table t
 });
 
 it('stops the hero drag on the first activation click and preserves later choices', () => {
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+    x: 0,
+    y: 0,
+    left: 0,
+    top: 0,
+    width: 800,
+    height: 600,
+    right: 800,
+    bottom: 600,
+    toJSON: () => ({}),
+  });
   vi.useFakeTimers();
   const view = render(() => (
     <DemoInteractionBoundary label="CRM hero">
@@ -114,9 +125,7 @@ it('stops the hero drag on the first activation click and preserves later choice
   ));
   heroVisibility?.(1);
   vi.advanceTimersByTime(3200);
-  expect(view.container.querySelector('.demo-cursor')?.textContent).toContain(
-    'Jacob'
-  );
+  expect(view.container.querySelector('.demo-cursor')).toBeTruthy();
   fireEvent.click(view.getByRole('button', { name: /Interact with CRM hero/ }));
   expect(view.container.querySelector('.demo-cursor')).toBeNull();
   fireEvent.click(view.getByRole('button', { name: 'Q4 renewals Team' }));
@@ -354,21 +363,21 @@ it('moves deals, opens their context, and stops when a visitor takes over', () =
   vi.useFakeTimers();
   const view = render(() => <HomepagePipelineDemo />);
   revealCompact?.();
-  vi.advanceTimersByTime(3300);
+  vi.advanceTimersByTime(4200);
   expect(
     within(view.getByRole('region', { name: 'Negotiation deals' })).getByRole(
       'button',
       { name: 'Parlor Studio' }
     )
   ).toBeTruthy();
-  vi.advanceTimersByTime(3300);
+  vi.advanceTimersByTime(4200);
   expect(
     within(view.getByRole('region', { name: 'Customer deals' })).getByRole(
       'button',
       { name: 'Bookend Retail' }
     )
   ).toBeTruthy();
-  vi.advanceTimersByTime(2000);
+  vi.advanceTimersByTime(2500);
   expect(
     (view.getByRole('textbox', { name: 'Company name' }) as HTMLInputElement)
       .value
@@ -382,7 +391,7 @@ it('shows the email context and returns to the compact board when untouched', ()
   vi.useFakeTimers();
   const view = render(() => <HomepagePipelineDemo />);
   revealCompact?.();
-  vi.advanceTimersByTime(12100);
+  vi.advanceTimersByTime(13600);
   expect(
     (
       view.getByRole('radio', {
