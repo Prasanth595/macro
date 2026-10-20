@@ -100,7 +100,7 @@ export function RouteDocuments() {
         </nav>
         <FeaturePageSection
           id="document-agents"
-          title={['Write alongside', 'your agent.']}
+          title={['Edit docs with your agent', 'in real time.']}
           description="Ask your agent to update a doc and watch it update in real time. You and your team can continue editing the document while the agent writes."
           details={documentsGuides['document-agents']}
         >
