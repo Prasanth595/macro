@@ -325,6 +325,23 @@ describe('legacy CRM URLs', () => {
     });
   });
 
+  it('keeps the Discussion message an in-app contact open carries', () => {
+    const entry = legacyEntry('contact', contactId);
+    const result = run({
+      ...entry,
+      location: {
+        ...entry.location,
+        search: { 'crm-record': { commentId: ['message'], seek: ['s'] } },
+      },
+    });
+    if (result?.type !== 'redirect') throw new Error('Expected a redirect');
+    const url = new URL(result.to, window.location.origin);
+    expect(url.pathname).toBe(`/companies/contact/${contactId}`);
+    expect(url.searchParams.get('s0.crm.tab')).toBe('people');
+    expect(url.searchParams.get('s0.crm-record.commentId')).toBe('message');
+    expect(url.searchParams.get('s0.crm-record.seek')).toBe('s');
+  });
+
   it('keeps company and contact links on their own pages on touch', () => {
     expect(run(legacyEntry('company', companyId), { touch: true })).toBe(
       undefined

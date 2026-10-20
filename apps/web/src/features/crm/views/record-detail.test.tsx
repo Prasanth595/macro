@@ -206,4 +206,7 @@ it('hands the Discussion each request for a linked message', () => {
   // The same message asked for again scrolls again.
   setCommentTarget({ commentId: 'message-1', seek: 'second' });
   expect(linked()).toBe('message-1:2');
+  // Leaving the target, as another tab of the record does, forgets it.
+  setCommentTarget(undefined);
+  expect(linked()).toBe('-:2');
 });

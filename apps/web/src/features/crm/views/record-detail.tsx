@@ -267,7 +267,10 @@ function RecordContent(props: {
         `${props.commentTarget.commentId}:${props.commentTarget.seek}`,
       () => {
         const target = untrack(() => props.commentTarget);
-        if (target) params.navigate({ [COMMENT_LINK_PARAM]: target.commentId });
+        // Without a target, a remounted Discussion must not show the last one.
+        params.navigate(
+          target ? { [COMMENT_LINK_PARAM]: target.commentId } : {}
+        );
       }
     )
   );

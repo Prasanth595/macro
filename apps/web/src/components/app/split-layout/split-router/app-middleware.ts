@@ -139,7 +139,10 @@ function redirectLegacyRoutes(
     // A contact opens from People, whose list its breadcrumb returns to.
     .with({ type: 'contact' }, ({ id }) => {
       const query = new URLSearchParams();
-      replacePaneSearchParams(query, [crmPeopleSearch]);
+      // An explicit query replaces the entry's search, so keep what it carries.
+      replacePaneSearchParams(query, [
+        { ...to.location.search, ...crmPeopleSearch },
+      ]);
       return `/companies/contact/${encodeURIComponent(id)}?${query}`;
     })
     // Like a task, a project opens in Tasks, under its Projects tab.
