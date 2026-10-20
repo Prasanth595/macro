@@ -110,7 +110,7 @@ export function RouteAgents() {
       </nav>
       <FeaturePageSection
         id="agent-sources"
-        title={['Give your agent the full', 'context of your team’s', 'work.']}
+        title={['Give your agent the full', 'context of your team’s work.']}
         description="Macro gives your agent access to your team’s calendar, conversations, and files, so it can use the full context of your work to help you get more done."
         details={agentsGuides['agent-sources']}
       >

@@ -103,7 +103,7 @@ export function RouteCalls() {
         </nav>
         <FeaturePageSection
           id="call-start"
-          title={['Start a call in channels,', 'DMs, or through', 'meeting links.']}
+          title={['Start a call in channels, DMs,', 'or through meeting links.']}
           description="You can start calls from channels, DMs, or through meeting links. People outside of Macro can join your meeting links. Create your own booking links so people can set up times with you."
           details={callsGuides['call-start']}
         >

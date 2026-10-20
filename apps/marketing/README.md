@@ -322,12 +322,11 @@ available at every scroll position. Documentation links open separately so
 reading a guide does not discard the product demo underneath it. Check standalone
 and embedded Back/Escape paths, both palettes, and phone wrapping after changes.
 
-CRM trials a matched text rhythm from 1200px: two heading lines and three
-description lines share a height, using a wider description column without copy
-changes. Below 1200px its intro stacks and wraps naturally.
-
-Desktop chapters use a 1160px maximum measure. Below 800px the intro stacks;
-phone layouts keep the page gutters. Email stages share the chapter alignment
+Desktop chapters use a 1160px maximum measure and shared typography: two
+heading lines and three description lines share a height, with a wider
+description column. Let shorter or longer copy wrap naturally without clipping,
+fixed heights, or copy changes to force a line count. Below 1200px the intro
+stacks; phone layouts keep the page gutters. Email stages share the chapter alignment
 without an extra inset. This pattern only applies to lower subpage sections;
 leave the homepage, product heroes, and wallpaper demos unchanged.
 FAQ disclosures retain the onboarding security section’s reading measure.
