@@ -270,6 +270,9 @@ Use only the feature cards needed for the specific demo, each with a concrete
 action label, a required short summary, and an adjacent arrow. All eight
 subpages use the same soft card layout; vary the content and count with the
 workflow rather than repeating generic benefits.
+Keep cards at the three-column width with equal gaps, centering rows with one
+or two cards. Wrap at narrow widths without stretching the final row; stack
+full-width cards on phones. Allow height to grow when text needs more room.
 
 `ProductFeatureDetails` opens an accessible right-side drawer on standalone
 product pages. In a homepage product preview (`embed=feature` inside an iframe),
