@@ -602,11 +602,13 @@ arrives. Repeat after reopening the channel to cover both cold and cached data.
 For PR mentions, also fail a GitHub connection-status request, scroll through
 virtualized rows repeatedly, and verify remounts make no new status requests.
 An explicit retry or completed OAuth must still refresh the status, even if all
-mentions have unmounted. Then paste a
+mentions have unmounted or only disabled preview observers remain. Then paste a
 mention while the retry is held pending. The composer must stay visible and
 focused, and messages containing PR mentions must render immediately. Resolve
 the retry as linked, unlinked, or failed: none should hide the surrounding UI;
 only a confirmed unlinked/reauthentication status changes the chip to a link.
+After a confirmed unlinked status, fail a refetch and remount the mention: it
+must remain a plain GitHub link without hiding the surrounding UI.
 Scrolling a collapsed thread into view must keep its timeline preview unchanged,
 without fetching or revealing the full reply list. Cached replies from a previous
 expansion must not enlarge that preview either. Explicit expansion, replying,

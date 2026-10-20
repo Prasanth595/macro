@@ -46,7 +46,7 @@ impl GithubRepo for PgGithubRepo {
     type Err = sqlx::Error;
     type LinkGuard = sqlx::Transaction<'static, sqlx::Postgres>;
 
-    #[tracing::instrument(skip(self), err)]
+    #[tracing::instrument(skip(self, user_id), err)]
     async fn lock_user_link(&self, user_id: &str) -> Result<Self::LinkGuard, Self::Err> {
         Self::lock(&self.locks, &format!("github-link-user:{user_id}")).await
     }
