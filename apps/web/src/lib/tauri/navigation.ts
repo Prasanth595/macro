@@ -3,6 +3,7 @@ import { fireAndForget } from '@core/util/fireAndForget';
 import { getNativeMobilePlatform } from '@core/util/platform';
 import { setPostLoginRedirect } from '@core/util/postLoginRedirect';
 import { Telemetry } from '@macro-inc/observability';
+import { triggerNotificationNavigation } from '@notifications/notification-navigation-intent';
 import { useNavigate } from '@solidjs/router';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -26,6 +27,21 @@ export function useTauriNavigationEffect() {
 
     const unlisten = listen<NavigateEvent>('navigate', (ev) => {
       if (handlePipedreamCallback(ev.payload.path, ev.payload.query)) return;
+      if (ev.payload.path === '/notification') {
+        const notificationId = new URLSearchParams(ev.payload.query).get(
+          'notificationId'
+        );
+        if (notificationId) {
+          const span = Telemetry.span('notification.activate');
+          try {
+            span.setAttr('notification.id', notificationId);
+            span.run(() => triggerNotificationNavigation(notificationId));
+          } finally {
+            span.end();
+          }
+        }
+        return;
+      }
       const path = ev.payload.query
         ? `${ev.payload.path}?${ev.payload.query}`
         : ev.payload.path;
