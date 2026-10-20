@@ -24,6 +24,7 @@ import { taskGridColumnCount } from '@app/features/tasks-view/components/task-li
 import { toast } from '@core/component/Toast/Toast';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { compareDateDesc } from '@core/util/date';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { EntitySelectionToolbarModal } from '@entity/EntitySelectionToolbarModal';
 import CalendarIcon from '@phosphor/calendar.svg';
 import PlusIcon from '@phosphor/plus.svg';
@@ -183,7 +184,7 @@ export function ProjectsCollection(props: {
           !collection.loadingMore() &&
           (!event.result || list.items.count() - event.result.index <= 4)
         )
-          void collection.loadMore();
+          fireAndForget(collection.loadMore(), 'projects');
       },
     },
   });
@@ -298,7 +299,7 @@ export function ProjectsCollection(props: {
         }
         onRename={(row) => setRenaming(row)}
         onSetOption={(rows, property, optionId) =>
-          void setOption(rows, property, optionId)
+          fireAndForget(setOption(rows, property, optionId), 'projects')
         }
         onCopyLink={(row) => props.onCopyLink(row.project.id)}
         onCopyId={(row) => props.onCopyId(row.project.id)}
@@ -415,7 +416,7 @@ export function ProjectsCollection(props: {
       collection.hasMore() &&
       !collection.loadingMore()
     )
-      void collection.loadMore();
+      fireAndForget(collection.loadMore(), 'projects');
   };
   const sourceError = () => {
     const state = collection.state();
@@ -602,7 +603,11 @@ export function ProjectsCollection(props: {
                     class="grid flex-1 place-items-center gap-3 text-sm text-ink-muted"
                   >
                     <span>Projects couldn’t be loaded.</span>
-                    <Button onClick={() => void collection.refresh()}>
+                    <Button
+                      onClick={() =>
+                        fireAndForget(collection.refresh(), 'projects')
+                      }
+                    >
                       Try again
                     </Button>
                   </div>
@@ -840,7 +845,9 @@ export function ProjectsCollection(props: {
               onOpenChange={(open) => {
                 if (!open) setDeleting(undefined);
               }}
-              onDelete={() => void deleteProjects(request().rows)}
+              onDelete={() =>
+                fireAndForget(deleteProjects(request().rows), 'projects')
+              }
               onCloseAutoFocus={returnFocusToList}
             />
           )}

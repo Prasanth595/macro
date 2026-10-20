@@ -105,12 +105,12 @@ function selectOption(element: HTMLElement, shiftKey = false) {
   );
 }
 
-function pressOption(element: HTMLElement) {
+function pressOption(element: HTMLElement, shiftKey: boolean) {
   fireEvent(
     element,
-    new MouseEvent('pointerdown', { button: 0, bubbles: true })
+    new MouseEvent('pointerdown', { button: 0, bubbles: true, shiftKey })
   );
-  selectOption(element);
+  selectOption(element, shiftKey);
 }
 
 async function openSubmenu() {
@@ -651,7 +651,7 @@ it('keeps an option selectable when the group list is rebuilt mid-press', async 
   const option = await screen.findByRole('menuitemcheckbox', { name: 'Alice' });
   option.addEventListener('pointerdown', () => setRevision((n) => n + 1));
 
-  pressOption(option);
+  pressOption(option, true);
   expect(selected()).toEqual(['alice']);
   expect(open()).toBe(true);
 });
