@@ -66,9 +66,34 @@ export function GithubConversationDemo(props: { agent?: boolean }) {
       const log = root?.querySelector<HTMLElement>(
         '.github-conversation [role="log"]'
       );
-      if (log) log.scrollTop = log.scrollHeight;
+      if (!log) return;
+      const issue = log.querySelector<HTMLElement>('[data-thread-id="bug"]');
+      if (props.agent && phase() === 0 && issue) {
+        log.scrollTop +=
+          issue.getBoundingClientRect().top -
+          log.getBoundingClientRect().top -
+          16;
+      } else log.scrollTop = log.scrollHeight;
     });
   });
+  const acknowledge = () => {
+    if (
+      w.data.channels[0].messages.some(
+        (message) => message.id === 'agent-working'
+      )
+    )
+      return;
+    w.setData('channels', 0, 'messages', (all) => [
+      ...all,
+      {
+        id: 'agent-working',
+        person: 'cursor' as const,
+        time: '9:55 AM',
+        body: 'I’ll check the mobile submit handler and add a regression test.',
+        replyTo: 'bug',
+      },
+    ]);
+  };
   const reply = () => {
     w.updateTask(GITHUB_TASK, {
       status: 'In Review',
@@ -84,7 +109,7 @@ export function GithubConversationDemo(props: { agent?: boolean }) {
           person: 'cursor' as const,
           time: '10:14 AM',
           body: '',
-          replyTo: 'request',
+          replyTo: 'bug',
         },
       ]);
       queueMicrotask(() => {
@@ -95,7 +120,7 @@ export function GithubConversationDemo(props: { agent?: boolean }) {
   };
   const playback = createProductWalkthrough({
     root: () => root,
-    steps: props.agent ? 2 : 5,
+    steps: props.agent ? 3 : 5,
     loop: { hold: 8500 },
     reset: () => {
       w.updateTask(GITHUB_TASK, initialTask);
@@ -107,8 +132,10 @@ export function GithubConversationDemo(props: { agent?: boolean }) {
       setAutomatic(true);
     },
     reduced: () => {
-      if (props.agent) reply();
-      else {
+      if (props.agent) {
+        acknowledge();
+        reply();
+      } else {
         setDetail('pr');
         setChanges(true);
       }
@@ -116,13 +143,14 @@ export function GithubConversationDemo(props: { agent?: boolean }) {
     },
     delay: (step) =>
       props.agent
-        ? ([0, 3500, 1200][step] ?? 1000)
+        ? ([0, 1400, 2800, 1400][step] ?? 1000)
         : ([0, 2600, 1000, 1600, 900, 1000][step] ?? 1000),
     advance: (step) => {
       setPhase(step);
       if (props.agent) {
-        if (step === 1) reply();
-        if (step === 2) setAutomatic(false);
+        if (step === 1) acknowledge();
+        if (step === 2) reply();
+        if (step === 3) setAutomatic(false);
       } else {
         if (step === 2) setDetail('pr');
         if (step === 4) setChanges(true);
@@ -320,7 +348,11 @@ export function GithubConversationDemo(props: { agent?: boolean }) {
                   <AgentTurn>
                     <AgentToolGroup
                       calls={[
-                        { kind: 'read-channel', channel: 'website', count: 7 },
+                        {
+                          kind: 'read-channel',
+                          channel: 'website',
+                          count: initialMessages.length,
+                        },
                         { kind: 'read-document', title: 'Fix mobile sign-in' },
                         {
                           kind: 'action',

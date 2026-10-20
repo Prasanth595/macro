@@ -981,7 +981,9 @@ channel without discarding its conversation. The task demo links the PR before
 moving to In Review, illustrates a confirmed merge, and updates Completed without
 changing checklist items. Inbox playback holds the opened request for 8.5 seconds
 before resetting its pending/read state; marking an item done stops the loop.
-Cursor contributes one result with a session and PR link.
+Keep Julia’s coding request, Cursor’s acknowledgment, and its result under the
+original bug thread. Open that thread initially so the report and reproduction
+are visible before the agent responds. The result retains its session and PR link.
 
 GitHub presentation follows `block-pr/PrDetail` and `features/changes` at
 `e2bd582d5f991896bbc69921ee2447def7360636`. Diffs are frozen Pierre renderer output,
