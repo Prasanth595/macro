@@ -126,7 +126,7 @@ export function RouteGithub() {
         </FeaturePageSection>
         <FeaturePageSection
           id="coding-agents"
-          title={['Turn bug reports and feature', 'requests into PRs.']}
+          title={['Turn bug reports and', 'feature requests into PRs.']}
           description="Ask your coding agent to fix a bug as it comes up in your team conversations. It’ll see what was said and understand your request, then put up a PR."
           details={githubGuides['coding-agents']}
         >
