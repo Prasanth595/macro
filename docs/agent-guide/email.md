@@ -341,10 +341,13 @@ separators and 16px side gutters; collapsed previews show one line. Desktop
 keeps rounded cards matching the chat composer: soft shadows in light mode,
 the same subtle 3D rim in dark mode, and a faint hover tint. Desktop selection
 does not add an accent-colored ring; keyboard focus has a neutral outline.
+On touch, the floating Reply, Forward, previous/next email, and done controls
+use the mobile dock's chrome fill and icon color in both themes.
 Replies appear inline on desktop and in a full-screen composer on touch devices,
 including tablets. Reply, Reply all, and Forward use the same grouped header
-actions as new email: attach, schedule, and send. The Back control returns to
-the thread; when a reply has content, choose Save Draft or Delete Draft. Escape
+actions as new email: attach, schedule, and send. The schedule clock matches
+Attach's touch icon size. The Back control returns to the thread; when a reply
+has content, choose Save Draft or Delete Draft. Escape
 and Android Back follow the same close flow. Saving must finish before leaving;
 a failed local save keeps the composer and draft options open. The message list
 stays mounted underneath so closing a reply preserves its scroll position.
