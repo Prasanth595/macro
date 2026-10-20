@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   graphql: true,
+  showPaywall: vi.fn(),
   metadata: vi.fn(),
   edit: vi.fn(),
   trash: vi.fn(),
@@ -21,10 +22,7 @@ vi.mock('@core/constant/featureFlags', () => ({
   isFeatureEnabled: () => mocks.graphql,
 }));
 vi.mock('@core/constant/PaywallState', () => ({
-  usePaywallState: () => ({ showPaywall: vi.fn() }),
-}));
-vi.mock('@core/util/handlePaymentError', () => ({
-  isPaymentError: () => false,
+  usePaywallState: () => ({ showPaywall: mocks.showPaywall }),
 }));
 vi.mock('@queries/history/history', () => ({
   removeHistoryItem: mocks.removeHistory,
@@ -206,6 +204,48 @@ describe('flagged entity callers', () => {
         ],
       });
       expect(mocks.copy).not.toHaveBeenCalled();
+      expect(mocks.showPaywall).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    [true, 'chat', 'FORBIDDEN', 1],
+    [false, 'chat', 'FORBIDDEN', 1],
+    [true, 'document', 'FORBIDDEN', 0],
+    [false, 'document', 'FORBIDDEN', 0],
+    [true, 'chat', 'NOT_FOUND', 0],
+    [true, 'chat', 'INTERNAL', 0],
+  ] as const)(
+    'preserves copy paywall behavior (graphql=%s, item=%s, error=%s)',
+    async (graphql, itemType, errorCode, paywallCalls) => {
+      mocks.graphql = graphql;
+      mocks.mutation.mockReturnValue({
+        toPromise: async () => ({
+          data: {
+            duplicateEntities: {
+              results: [
+                {
+                  __typename: 'GraphqlMutationError',
+                  errorCode,
+                  message: 'Copy refused',
+                },
+              ],
+            },
+          },
+        }),
+      });
+      mocks.copy.mockResolvedValue(
+        err([{ code: errorCode, message: 'Copy refused' }])
+      );
+
+      expect(
+        await copyItem({ itemType, id: 'source', name: 'Original' })
+      ).toBeNull();
+      expect(mocks.showPaywall).toHaveBeenCalledTimes(paywallCalls);
+      expect(mocks.mutation).toHaveBeenCalledTimes(graphql ? 1 : 0);
+      expect(mocks.copy).toHaveBeenCalledTimes(graphql ? 0 : 1);
+      expect(mocks.resources).not.toHaveBeenCalled();
+      expect(mocks.refresh).not.toHaveBeenCalled();
     }
   );
 

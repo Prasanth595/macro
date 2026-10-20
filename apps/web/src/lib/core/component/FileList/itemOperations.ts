@@ -414,6 +414,7 @@ export async function copyItem(args: {
         itemType === 'document' ? createCopyName(name) : undefined
       )
     );
+    if (itemType === 'chat' && isPaymentError(result)) showPaywall();
     if (result.isErr()) return null;
     newId = result.value;
   } else
