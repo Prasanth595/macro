@@ -61,6 +61,7 @@ import {
   useCalendarFocus,
 } from '../calendar-focus-target';
 import { useCalendarEditor } from '../context/calendar-editor-context';
+import { calendarSelectionAnchor } from '../primitives/calendar-editor-anchor';
 import { CalendarLoadingSkeleton } from './CalendarLoadingSkeleton';
 
 interface CalendarScrollTarget {
@@ -218,6 +219,18 @@ export function Page(props: {
     selectionColor() ??
     firstWritableCalendar()?.color ??
     DEFAULT_CALENDAR_SOURCE.color;
+  const draftPreview = createMemo(() => {
+    const preview = composer.preview();
+    if (!preview) return;
+    const time = preview.time;
+    return {
+      title: preview.title,
+      color: preview.color ?? effectiveSelectionColor(),
+      start: time.kind === 'allDay' ? time.startDate : time.startsAt,
+      end: time.kind === 'allDay' ? time.endDate : time.endsAt,
+      allDay: time.kind === 'allDay',
+    };
+  });
   const isActive = () => pager.isActive(props.id);
   const useNarrowWeekdayHeaders = () =>
     props.useNarrowDayHeaders && !isMobile();
@@ -258,8 +271,10 @@ export function Page(props: {
     }
     latestSelection = selection;
     const calendar = firstWritableCalendar();
+    const anchor = calendarSelectionAnchor(selection);
     const openSelection = async () => {
       const opened = await composer.replace({
+        anchor,
         initialValues: {
           ...calendarSelectionToEditorInitialValues(
             selection,
@@ -278,6 +293,7 @@ export function Page(props: {
         selection.view.calendar.unselect();
         return;
       }
+      selection.view.calendar.unselect();
       setSelectionColor(calendar?.color ?? DEFAULT_CALENDAR_SOURCE.color);
       calendarView.closeEventDetails();
     };
@@ -343,6 +359,7 @@ export function Page(props: {
     >
       <CalendarGrid
         initialDate={props.initialDate}
+        draft={draftPreview()}
         events={visibleEvents()}
         eventsById={eventsById()}
         settings={{
@@ -393,7 +410,13 @@ function CalendarPageHost(props: {
   const pager = useCalendarPager();
   const calendarView = useCalendarView();
   const calendarFocus = useCalendarFocus();
+  const composer = useCalendarEditor();
   const isActive = () => pager.isActive(props.id);
+
+  createEffect(() => {
+    const element = props.grid.draftElement();
+    if (isActive()) composer.setPreviewAnchor(element);
+  });
 
   // A block navigation request pages this calendar instance to one occurrence
   // and opens its details once FullCalendar has mounted the target chip.

@@ -7,9 +7,9 @@ export function createCalendarDraftDismissal(options: {
   confirmDiscard: () => Promise<boolean>;
 }) {
   let confirming = false;
-  return async () => {
+  return async (confirmUnchanged = false) => {
     if (options.pending() || confirming) return false;
-    if (!options.dirty()) return true;
+    if (!options.dirty() && !confirmUnchanged) return true;
     confirming = true;
     try {
       const confirmed = await options.confirmDiscard();

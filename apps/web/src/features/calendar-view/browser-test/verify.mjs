@@ -75,29 +75,25 @@ async function verifyPopoverGeometry(page) {
       const popover = element.getBoundingClientRect();
       const boundaryElement = document.querySelector('[aria-label="Calendar grid"]').parentElement;
       const boundary = boundaryElement.getBoundingClientRect();
+      const anchor = boundaryElement.querySelector('[data-calendar-editor-anchor]').getBoundingClientRect();
+      const visibleAnchor = anchor.right >= boundary.left && anchor.left <= boundary.right && anchor.bottom >= boundary.top && anchor.top <= boundary.bottom;
+      const room = Math.max(boundary.right - anchor.right, anchor.left - boundary.left);
       return {
-        horizontal: Math.abs((popover.left + popover.right) / 2 - (boundary.left + boundary.right) / 2),
-        bottom: boundary.top + boundaryElement.clientTop + boundaryElement.clientHeight - popover.bottom,
+        contained: popover.left >= boundary.left + 11 && popover.right <= boundary.right - 11 && popover.top >= boundary.top + 11 && popover.bottom <= boundary.bottom - 11,
+        adjacent: Math.min(Math.abs(popover.left - anchor.right - 8), Math.abs(anchor.left - popover.right - 8)) < 2,
+        mustBeAdjacent: visibleAnchor && room >= popover.width + 20,
       };
     };
-    // Floating UI updates its position after ResizeObserver delivers the new bounds.
     const timeout = AbortSignal.timeout(5000);
-    const finish = () => {
-      observer.disconnect();
-      timeout.removeEventListener('abort', finish);
-      resolve(measure());
-    };
-    const observer = new MutationObserver(() => {
-      const current = measure();
-      if (current.horizontal < 1 && Math.abs(current.bottom - 12) < 1) finish();
-    });
+    const finish = () => { observer.disconnect(); timeout.removeEventListener('abort', finish); resolve(measure()); };
+    const ready = () => { const value = measure(); return value.contained && (!value.mustBeAdjacent || value.adjacent); };
+    const observer = new MutationObserver(() => { if (ready()) finish(); });
     observer.observe(element.parentElement, { attributes: true, attributeFilter: ['style'] });
     timeout.addEventListener('abort', finish, { once: true });
-    const current = measure();
-    if (current.horizontal < 1 && Math.abs(current.bottom - 12) < 1) finish();
+    if (ready()) finish();
   }));
-  assert.ok(geometry.horizontal < 1, `Popover must be horizontally centered: ${JSON.stringify(geometry)}`);
-  assert.ok(Math.abs(geometry.bottom - 12) < 1, `Popover must sit 12px above the calendar boundary bottom: ${JSON.stringify(geometry)}`);
+  assert.equal(geometry.contained, true, `Editor must fit the calendar: ${JSON.stringify(geometry)}`);
+  assert.ok(!geometry.mustBeAdjacent || geometry.adjacent, `Editor must sit beside the event or slot: ${JSON.stringify(geometry)}`);
 }
 
 async function verifySidebarGeometry(page) {
@@ -127,13 +123,30 @@ async function verifyDateRange(page, monthCount) {
   const day = (month, number) => picker.locator('table').nth(month).locator('button:not(:disabled)').filter({ hasText: new RegExp(`^${number}$`) });
   const before = await state();
   await trigger.click();
-  assert.equal(await picker.locator('table').count(), monthCount, 'Month grids must match the chosen responsive layout');
+  const initialMonths = before.start.slice(0, 10) === before.end.slice(0, 10) ? 1 : monthCount;
+  assert.equal(await picker.locator('table').count(), initialMonths, 'A same-day range shows one calendar');
+  const portal = await picker.evaluate((element) => ({
+    global: !element.closest('[aria-label="New event"], [aria-label="Edit event"], [data-corvu-drawer-content]'),
+    depth: element.closest('[data-depth]')?.getAttribute('data-depth'),
+    labelSize: Number.parseFloat(getComputedStyle(Array.from(element.querySelectorAll('span')).find((span) => span.textContent === 'Selected range')).fontSize),
+  }));
+  assert.equal(portal.global, true, 'Date picker must portal outside the sidebar or editor');
+  assert.equal(portal.depth, '4');
+  assert.ok(portal.labelSize >= 14);
+  assert.equal(await picker.getByText('Choose a start day, then an end day.', { exact: true }).count(), 0);
   await day(0, 30).click();
   assert.deepEqual(await state(), before, 'A partial range must not change the event dates');
   assert.match(await picker.getByRole('status').innerText(), /Oct 30, 2030/);
   assert.match(await picker.getByRole('status').innerText(), /Select an end date/);
-  if (monthCount === 1) await picker.getByRole('button', { name: 'Go to next month', exact: true }).click();
-  await day(monthCount - 1, 2).click();
+  if (initialMonths === 1) await picker.getByRole('button', { name: 'Go to next month', exact: true }).click();
+  await day(initialMonths - 1, 2).click();
+  assert.equal(await picker.locator('table').count(), monthCount, 'Multiple days use connected months on desktop');
+  if (monthCount === 2 && page.viewportSize().width >= 640) {
+    const panels = await picker.locator('table').evaluateAll((tables) => tables.map((table) => ({ x: table.getBoundingClientRect().x, y: table.getBoundingClientRect().y })));
+    assert.ok(Math.abs(panels[0].y - panels[1].y) < 1 && panels[1].x > panels[0].x, 'The sidebar must not force month panels into a vertical stack');
+  }
+  const times = await Promise.all([picker.getByLabel('Start time', { exact: true }).boundingBox(), picker.getByLabel('End time', { exact: true }).boundingBox()]);
+  assert.ok(times[0] && times[1] && Math.abs(times[0].y - times[1].y) < 1, 'Start and end time controls must be side by side');
   const selected = await state();
   assert.equal(selected.start, `2030-10-30${before.start.slice(10)}`);
   assert.equal(selected.end, `2030-11-02${before.end.slice(10)}`);
@@ -405,6 +418,10 @@ async function verifyDesktop(options, name) {
     await verifySelectorShape(page);
 
     await page.getByRole('button', { name: 'Next week', exact: true }).click();
+    await page.getByRole('button', { name: 'Next week', exact: true }).click();
+    await page.getByRole('button', { name: 'Previous week', exact: true }).click();
+    await page.locator('.fc-event').filter({ hasText: 'Calendar draft stays here' }).first().waitFor();
+    assert.equal(await title.inputValue(), 'Calendar draft stays here', 'Period navigation must retain the draft preview and editor');
     await verifyPopoverGeometry(page);
     await page.locator('.fc-scroller').evaluateAll((elements) => {
       for (const element of elements) element.scrollTop = element.scrollHeight;
@@ -421,6 +438,9 @@ async function verifyDesktop(options, name) {
     const draftRange = await page.getByLabel('Draft date range', { exact: true }).innerText();
     await page.getByRole('button', { name: 'Move to sidebar', exact: true }).click();
     await verifySidebarGeometry(page);
+    await page.getByRole('button', { name: 'Leave calendar', exact: true }).click();
+    await page.getByRole('button', { name: 'Keep editing', exact: true }).click();
+    assert.equal(await title.inputValue(), 'Calendar draft stays here', 'Sidebar navigation must preserve edits after Keep editing');
     await page.getByRole('button', { name: 'Next week', exact: true }).click();
     await page.locator('header > span').click();
     await verifySidebarGeometry(page);
@@ -581,6 +601,8 @@ async function verifyNarrowDatePicker() {
     await page.getByRole('button', { name: 'Select 10 AM', exact: true }).click();
     await page.getByRole('button', { name: 'Edit event date and time range', exact: true }).click();
     const picker = page.getByRole('dialog', { name: 'Event date and time', exact: true });
+    await picker.locator('table').first().locator('button').filter({ hasText: /^20$/ }).click();
+    await picker.locator('table').first().locator('button').filter({ hasText: /^22$/ }).click();
     const months = await picker.locator('table').evaluateAll((tables) => tables.map((table) => {
       const box = table.getBoundingClientRect();
       return { x: box.x, top: box.top, bottom: box.bottom, width: box.width };
@@ -614,17 +636,17 @@ async function verifyShortCalendarDatePicker(height) {
     await picker.getByRole('button', { name: 'Go to previous month', exact: true }).click();
     const bounds = await picker.evaluate((element) => {
       const box = element.getBoundingClientRect();
-      const boundary = document.querySelector('[aria-label="Calendar grid"]').parentElement.getBoundingClientRect();
-      return { top: box.top - boundary.top, bottom: boundary.bottom - box.bottom };
+      return { top: box.top, bottom: innerHeight - box.bottom, left: box.left, right: innerWidth - box.right };
     });
-    assert.ok(bounds.top >= 0 && bounds.bottom >= 0, `Date picker must fit the ${height}px calendar pane: ${JSON.stringify(bounds)}`);
+    assert.ok(Object.values(bounds).every((value) => value >= 0), `Global date picker must fit the ${height}px viewport: ${JSON.stringify(bounds)}`);
     await picker.getByRole('button', { name: 'Go to next month', exact: true }).click();
     const days = picker.locator('table').first().locator('button:not(:disabled)');
     await days.filter({ hasText: /^21$/ }).click();
     await days.filter({ hasText: /^22$/ }).click();
-    await picker.getByRole('textbox', { name: 'End time', exact: true }).fill('12:30');
-    await page.getByRole('dialog', { name: 'Choose end time', exact: true }).waitFor();
-    await page.keyboard.press('Escape');
+    await picker.getByRole('textbox', { name: 'End time', exact: true }).fill('12:15');
+    const timeMenu = page.getByRole('dialog', { name: 'Choose end time', exact: true });
+    await timeMenu.waitFor();
+    await timeMenu.getByRole('option', { name: /12:30 PM/ }).first().click();
     await page.getByRole('dialog', { name: 'Choose end time', exact: true }).waitFor({ state: 'detached' });
     assert.equal(await picker.isVisible(), true);
     await page.keyboard.press('Escape');
@@ -661,6 +683,7 @@ async function verifyGridSelection() {
     await page.mouse.up();
     const title = page.getByLabel('Title', { exact: true });
     await title.waitFor();
+    await verifyPopoverGeometry(page);
     // A clean drag draft is replaced by a calendar click without confirmation.
     const clickRow = await page.locator('.fc-timegrid-slot[data-time="12:00:00"]').first().boundingBox();
     const clickColumn = await page.locator('.fc-timegrid-col[data-date]').first().boundingBox();
@@ -696,6 +719,8 @@ async function verifyGridSelection() {
     await title.fill('Dragged draft');
     await page.getByRole('button', { name: 'Next week', exact: true }).click();
     assert.equal(await title.inputValue(), 'Dragged draft');
+    await page.getByRole('button', { name: 'Previous week', exact: true }).click();
+    await page.locator('.fc-event').filter({ hasText: 'Dragged draft' }).first().waitFor();
     await page.getByRole('button', { name: 'Close event editor', exact: true }).click();
     await page.getByRole('button', { name: 'Discard', exact: true }).click();
     await title.waitFor({ state: 'detached' });
@@ -709,22 +734,40 @@ async function verifyGridSelection() {
     await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();
     await title.waitFor({ state: 'detached' });
+    await page.getByRole('button', { name: 'Change period', exact: true }).click();
+    const rightSlot = await page.locator('.fc-timegrid-slot[data-time="10:00:00"]').first().boundingBox();
+    const rightDay = await page.locator('.fc-timegrid-col[data-date]').last().boundingBox();
+    assert.ok(rightSlot && rightDay);
+    await page.mouse.click(rightDay.x + rightDay.width / 2, rightSlot.y + rightSlot.height / 2);
+    await title.waitFor();
+    await verifyPopoverGeometry(page);
+    const flipped = await page.getByRole('dialog', { name: 'New event', exact: true }).evaluate((element) => element.getBoundingClientRect().right <= document.querySelector('[data-calendar-editor-anchor]').getBoundingClientRect().left);
+    assert.equal(flipped, true, 'Right-edge selections must flip the editor to the left');
+    await page.getByRole('button', { name: 'Leave calendar', exact: true }).click();
+    await page.getByRole('button', { name: 'Keep editing', exact: true }).click();
+    await title.waitFor();
+    await page.getByRole('button', { name: 'Leave calendar', exact: true }).click();
+    await page.getByRole('button', { name: 'Discard', exact: true }).click();
+    await page.getByText('Left calendar', { exact: true }).waitFor();
     assert.deepEqual(errors, []);
     results.push('grid: timed drag, clean replacement, Keep editing, Discard replacement, navigation, and Month creation passed');
   } finally {
     await context.close();
   }
 }
-
 try {
-  await verifyGridSelection();
-  if (!process.argv.includes('--grid-only')) {
-    await verifyDesktop({ viewport: { width: 1440, height: 1000 } }, 'desktop');
-    await verifyDesktop({ viewport: { width: 1024, height: 900 }, hasTouch: true }, 'tablet');
-    await verifyShortCalendarDatePicker(550);
-    await verifyNarrowDatePicker();
-    await verifyShortCalendarDatePicker(360);
+  if (process.argv.includes('--phone-only')) {
     await verifyMobile();
+  } else {
+    await verifyGridSelection();
+    if (!process.argv.includes('--grid-only')) {
+      await verifyDesktop({ viewport: { width: 1440, height: 1000 } }, 'desktop');
+      await verifyDesktop({ viewport: { width: 1024, height: 900 }, hasTouch: true }, 'tablet');
+      await verifyShortCalendarDatePicker(550);
+      await verifyNarrowDatePicker();
+      await verifyShortCalendarDatePicker(360);
+      await verifyMobile();
+    }
   }
 } finally {
   console.log(results.join('\n'));

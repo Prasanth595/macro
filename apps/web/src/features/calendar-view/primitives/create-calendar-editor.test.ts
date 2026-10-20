@@ -1,4 +1,4 @@
-import { createComponent, createRoot } from 'solid-js';
+import { createComponent, createRoot, createSignal } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -22,6 +22,51 @@ describe('calendar composer draft', () => {
       expect(composer.draft()).toBe(draft);
       dispose();
     });
+  });
+
+  it('keeps a live preview through sidebar transfer and clears it on dismissal', () => {
+    createRoot((dispose) => {
+      const composer = createCalendarEditor();
+      const [title, setTitle] = createSignal('Draft event');
+      composer.open();
+      const unregister = composer.registerPreview(() => ({
+        title: title(),
+        color: '#4285f4',
+        time: {
+          kind: 'allDay',
+          startDate: '2030-10-21',
+          endDate: '2030-10-23',
+        },
+      }));
+      expect(composer.preview()?.title).toBe('Draft event');
+      composer.moveToSidebar();
+      setTitle('Updated draft');
+      expect(composer.preview()).toEqual({
+        title: 'Updated draft',
+        color: '#4285f4',
+        time: {
+          kind: 'allDay',
+          startDate: '2030-10-21',
+          endDate: '2030-10-23',
+        },
+      });
+      composer.close();
+      expect(composer.preview()).toBeUndefined();
+      unregister();
+      dispose();
+    });
+  });
+
+  it('keeps the new preview when an old editor cleans up', () => {
+    const composer = createCalendarEditor();
+    composer.open();
+    const unregister = composer.registerPreview(() => undefined);
+    composer.registerPreview(() => ({
+      title: 'New draft',
+      time: { kind: 'allDay', startDate: '2030-10-21', endDate: '2030-10-22' },
+    }));
+    unregister();
+    expect(composer.preview()?.title).toBe('New draft');
   });
 
   it('moves the same draft to the sidebar without firing lifecycle callbacks', () => {

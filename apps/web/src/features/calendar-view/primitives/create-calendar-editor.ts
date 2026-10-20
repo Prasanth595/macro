@@ -1,10 +1,21 @@
-import { batch, createSignal } from 'solid-js';
-import type { EventEditorInitialValues } from '../../calendar/components/composer/event-form-model';
+import { type Accessor, batch, createSignal } from 'solid-js';
+import type {
+  EventEditorInitialValues,
+  EventEditorSubmitValues,
+} from '../../calendar/components/composer/event-form-model';
 import type { CalendarEvent } from '../../calendar/types';
 import type { CalendarEditorRequest } from '../types';
+import type { CalendarEditorAnchor } from './calendar-editor-anchor';
 
 export type CalendarEditorPresentation = 'popover' | 'sidebar';
+export interface CalendarEditorPreview {
+  title: string;
+  color?: string;
+  time: EventEditorSubmitValues['time'];
+}
 export interface CalendarEditorDraft {
+  /** Event or selected-slot anchor with a snapshot for recycled grid pages. */
+  anchor?: CalendarEditorAnchor;
   event?: CalendarEvent;
   initialValues?: EventEditorInitialValues;
   onCalendarChange?: (calendarId: string, color: string) => void;
@@ -35,6 +46,9 @@ export function createCalendarEditorRequest(
 
 export function createCalendarEditor() {
   const [draft, setDraft] = createSignal<CalendarEditorDraft>();
+  const [previewAnchor, setPreviewAnchor] = createSignal<HTMLElement>();
+  const [previewSource, setPreviewSource] =
+    createSignal<Accessor<CalendarEditorPreview | undefined>>();
   const [surface, setSurface] =
     createSignal<CalendarEditorPresentation>('popover');
   let beforeReplace: (() => Promise<boolean>) | undefined;
@@ -57,6 +71,14 @@ export function createCalendarEditor() {
     current.onClose?.();
   };
 
+  const registerPreview = (
+    source: Accessor<CalendarEditorPreview | undefined>
+  ) => {
+    setPreviewSource(() => source);
+    return () => {
+      if (previewSource() === source) setPreviewSource(undefined);
+    };
+  };
   const registerBeforeReplace = (guard: () => Promise<boolean>) => {
     beforeReplace = guard;
     return () => {
@@ -74,6 +96,10 @@ export function createCalendarEditor() {
   };
 
   return {
+    preview: () => (draft() ? previewSource()?.() : undefined),
+    registerPreview,
+    previewAnchor,
+    setPreviewAnchor,
     draft,
     surface,
     moveToSidebar: () => {

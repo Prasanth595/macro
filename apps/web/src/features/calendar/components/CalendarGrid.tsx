@@ -48,6 +48,7 @@ import { mergeWorkingLocationEvents } from '../utils/working-location-events';
 import { EventContent } from './EventContent';
 import '../calendar.css';
 
+const DRAFT_EVENT_ID = 'calendar-editor-draft';
 const formatWeekdayHeader = {
   narrow: new Intl.DateTimeFormat(undefined, {
     weekday: 'narrow',
@@ -78,6 +79,7 @@ export interface CalendarGridHandle extends FullCalendarContextValue {
   element: Accessor<HTMLDivElement | undefined>;
   eventElements: Map<string, HTMLElement>;
   chipMounts: Accessor<undefined>;
+  draftElement: Accessor<HTMLElement | undefined>;
 }
 
 export interface CalendarGridSettings {
@@ -101,6 +103,13 @@ export interface CalendarGridSelection {
 }
 
 export interface CalendarGridProps {
+  draft?: {
+    title: string;
+    start: string;
+    end: string;
+    allDay: boolean;
+    color: string;
+  };
   initialDate: Date;
   events: CalendarEvent[];
   eventsById: Map<string, CalendarEvent>;
@@ -134,6 +143,10 @@ function CalendarGridHost(props: {
     element,
     eventElements: props.eventElements,
     chipMounts: props.chipMounts,
+    draftElement: () => {
+      props.chipMounts();
+      return props.eventElements.get(DRAFT_EVENT_ID);
+    },
   };
 
   return (
@@ -156,7 +169,7 @@ export function CalendarGrid(props: CalendarGridProps) {
   // FullCalendar only consumes initialView on mount. Tracking route changes
   // here resets every page's options before the pager can schedule changeView.
   const initialView = untrack(() => props.settings.initialView);
-  const mappedEvents = createMemo<EventInput[]>(() =>
+  const calendarEvents = createMemo<EventInput[]>(() =>
     mergeWorkingLocationEvents(props.events).map(({ event, occurrenceIds }) => {
       const mapped = mapCalendarEventToFullCalendar(event);
       const emphasized = occurrenceIds.some((id) =>
@@ -182,6 +195,22 @@ export function CalendarGrid(props: CalendarGridProps) {
       };
     })
   );
+  const mappedEvents = createMemo<EventInput[]>(() => {
+    const draft = props.draft;
+    if (!draft) return calendarEvents();
+    return [
+      ...calendarEvents(),
+      {
+        ...draft,
+        id: DRAFT_EVENT_ID,
+        title: draft.title || 'New event',
+        editable: false,
+        startEditable: false,
+        durationEditable: false,
+        classNames: ['fc-event-mirror'],
+      },
+    ];
+  });
   const [eventInteractionActive, setEventInteractionActive] =
     createSignal(false);
   const renderedEvents = createMemo<EventInput[]>(
@@ -216,8 +245,11 @@ export function CalendarGrid(props: CalendarGridProps) {
     const eventsById = props.eventsById;
     for (const [id, el] of eventElements) {
       const event = eventsById.get(id);
-      if (event) {
-        el.style.setProperty('--event-calendar-color', event.calendar.color);
+      const color =
+        event?.calendar.color ??
+        (id === DRAFT_EVENT_ID ? props.draft?.color : undefined);
+      if (color) {
+        el.style.setProperty('--event-calendar-color', color);
       }
     }
   });
@@ -298,6 +330,15 @@ export function CalendarGrid(props: CalendarGridProps) {
       }
       eventDidMount={({ el, event, isMirror }) => {
         const eventId = calendarEventRenderId(event);
+        if (eventId === DRAFT_EVENT_ID) {
+          el.style.setProperty(
+            '--event-calendar-color',
+            props.draft?.color ?? ''
+          );
+          eventElements.set(eventId, el);
+          notifyChipMount();
+          return;
+        }
         const calendarEvent = eventByRenderId(eventId);
         if (calendarEvent) {
           el.style.setProperty(
@@ -324,6 +365,7 @@ export function CalendarGrid(props: CalendarGridProps) {
             eventElements.delete(id);
           }
         }
+        if (event.id === DRAFT_EVENT_ID) notifyChipMount();
       }}
       datesSet={(info) => props.onDatesSet?.(info)}
       dayHeaderFormat={{
@@ -381,14 +423,19 @@ export function CalendarGrid(props: CalendarGridProps) {
           );
           if (
             !event &&
-            (isMultiDaySelectionPreview(renderProps.event) ||
+            (renderProps.event.id === DRAFT_EVENT_ID ||
+              isMultiDaySelectionPreview(renderProps.event) ||
               (renderProps.isMirror &&
                 !renderProps.isDragging &&
                 !renderProps.isResizing))
           ) {
             return (
               <div class="calendar-event-selection-preview flex h-full min-w-0 flex-col overflow-hidden px-1 py-0.5 text-xs leading-tight">
-                <span class="truncate font-semibold">New event</span>
+                <span class="truncate font-semibold">
+                  {renderProps.event.id === DRAFT_EVENT_ID
+                    ? renderProps.event.title
+                    : 'New event'}
+                </span>
                 <Show when={renderProps.timeText}>
                   <span class="truncate">{renderProps.timeText}</span>
                 </Show>

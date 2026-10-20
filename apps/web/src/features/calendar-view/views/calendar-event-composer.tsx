@@ -67,6 +67,7 @@ function CalendarEditorLoading(props: {
     <CalendarEditorSurface
       {...props}
       surface={composer.surface()}
+      anchor={composer.previewAnchor()}
       onMoveToSidebar={composer.moveToSidebar}
       pending={false}
       onClose={composer.close}
@@ -110,6 +111,18 @@ function CalendarEditorContent(props: {
     calendarOptions: editor.calendarOptions,
     guestOptions: editor.guestOptions,
   });
+  onCleanup(
+    composer.registerPreview(() => {
+      if (props.draft.event) return;
+      const time = controller.eventTime();
+      if (!time) return;
+      return {
+        title: controller.state().title,
+        color: controller.selectedCalendarOption()?.color,
+        time,
+      };
+    })
+  );
   const mayDismiss = createCalendarDraftDismissal({
     dirty: controller.isDirty,
     pending: editor.pending,
@@ -130,9 +143,10 @@ function CalendarEditorContent(props: {
     if (await mayDismiss()) composer.close();
   };
   const requestClose = () => fireAndForget(close(), 'calendar-event-composer');
-  useBeforeLeave(() => mayDismiss());
+  // A selected slot is still an unsaved event, even before the user edits it.
+  useBeforeLeave(() => mayDismiss(props.draft.event === undefined));
   const beforeUnload = (event: BeforeUnloadEvent) => {
-    if (!controller.isDirty() && !editor.pending()) return;
+    if (props.draft.event && !controller.isDirty() && !editor.pending()) return;
     event.preventDefault();
     event.returnValue = '';
   };
@@ -149,6 +163,7 @@ function CalendarEditorContent(props: {
       pending={editor.pending()}
       onClose={requestClose}
       surface={composer.surface()}
+      anchor={composer.previewAnchor()}
       onMoveToSidebar={composer.moveToSidebar}
     >
       <EventForm

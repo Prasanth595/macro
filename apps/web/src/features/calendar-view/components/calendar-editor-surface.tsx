@@ -16,6 +16,7 @@ import type {
 export function CalendarEditorSurface(props: {
   boundary: HTMLElement;
   draft: CalendarEditorDraft;
+  anchor?: HTMLElement;
   surface: CalendarEditorPresentation;
   pending: boolean;
   onClose: () => void;
@@ -94,6 +95,7 @@ export function CalendarEditorSurface(props: {
           <EditorPopover
             boundary={props.boundary}
             draft={props.draft}
+            anchor={props.anchor}
             onClose={props.onClose}
           >
             <Header />
@@ -141,27 +143,57 @@ function EditorFormBody(props: { children: JSX.Element }) {
 function EditorPopover(props: {
   boundary: HTMLElement;
   draft: CalendarEditorDraft;
+  anchor?: HTMLElement;
   onClose: () => void;
   children: JSX.Element;
 }) {
-  // Calendar-owned positioning survives scrolling and recycled grid pages.
+  // Keep a calendar-owned fallback when a selected grid element is recycled.
+  const boundary = props.boundary.getBoundingClientRect();
+  const rect = props.draft.anchor?.rect;
+  const left = rect
+    ? rect.left - boundary.left - props.boundary.clientLeft
+    : props.boundary.clientWidth / 2;
+  const top = rect
+    ? rect.top - boundary.top - props.boundary.clientTop
+    : props.boundary.clientHeight / 2;
   let anchor: HTMLSpanElement | undefined;
   return (
     <>
       <span
         ref={anchor}
         aria-hidden="true"
-        class="pointer-events-none absolute bottom-3 left-1/2 size-0"
+        data-calendar-editor-anchor
+        class="pointer-events-none absolute"
+        style={{
+          left: `${left}px`,
+          top: `${top}px`,
+          width: `${rect?.width ?? 0}px`,
+          height: `${rect?.height ?? 0}px`,
+        }}
       />
       <Popover
+        getAnchorRect={() => {
+          const element = props.anchor ?? props.draft.anchor?.element;
+          if (!element?.isConnected) return anchor?.getBoundingClientRect();
+          const current = element.getBoundingClientRect();
+          if (anchor) {
+            const boundary = props.boundary.getBoundingClientRect();
+            anchor.style.left = `${current.left - boundary.left - props.boundary.clientLeft}px`;
+            anchor.style.top = `${current.top - boundary.top - props.boundary.clientTop}px`;
+            anchor.style.width = `${current.width}px`;
+            anchor.style.height = `${current.height}px`;
+          }
+          return current;
+        }}
         open
         modal={false}
-        anchorRef={() => anchor}
+        anchorRef={() => props.anchor ?? props.draft.anchor?.element ?? anchor}
         boundary={() => props.boundary}
-        placement="top"
-        gutter={0}
-        flip={false}
+        placement="right-start"
+        gutter={8}
+        flip
         slide
+        overlap
         fitViewport
         overflowPadding={12}
         onOpenChange={(open) => !open && props.onClose()}

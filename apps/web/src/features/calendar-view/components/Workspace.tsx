@@ -118,7 +118,15 @@ function CalendarPages() {
                 event={calendarView.selectedEvent}
                 timeFormat={() => calendarView.displaySettings.timeFormat}
                 onClose={calendarView.closeEventDetails}
-                onEdit={(event) => composer.open({ event })}
+                onEdit={(event) => {
+                  const element = calendarView.selectedEventAnchor();
+                  composer.open({
+                    event,
+                    anchor: element
+                      ? { element, rect: element.getBoundingClientRect() }
+                      : undefined,
+                  });
+                }}
               />
             )}
           </Show>
