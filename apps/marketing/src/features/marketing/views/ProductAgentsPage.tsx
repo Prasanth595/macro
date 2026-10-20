@@ -121,7 +121,7 @@ export function RouteAgents() {
       <FeaturePageSection
         id="agent-actions"
         title={['Work with your agent', 'across the workspace.']}
-        description="Work with your agent in the same file your team uses. Add context, ask for an update, and review the result in the shared document instead of moving drafts back and forth."
+        description="Work with your agent in the chats and documents your team already uses. Add context, ask for updates, and review the result without leaving your workspace."
         details={agentsGuides['agent-actions']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
