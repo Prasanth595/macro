@@ -1,3 +1,4 @@
+import CaretDown from '@phosphor/caret-down.svg';
 import { createSignal, For, onCleanup, onMount, Show } from 'solid-js';
 import {
   DEMO_BOOKING_URL,
@@ -42,8 +43,11 @@ function NavigationGroup(props: {
 /** Shared public navigation and app entry. */
 export function SiteHeader(props: { hideOpenApp?: boolean }) {
   let menu!: HTMLDivElement;
-  let trigger!: HTMLButtonElement;
+  let trigger!: HTMLAnchorElement;
+  let menuOpener: HTMLElement | undefined;
   const [open, setOpen] = createSignal(false);
+  const hasHoverMenu = () =>
+    window.matchMedia('(min-width: 768px) and (hover: hover)').matches;
 
   onMount(() => {
     const outside = (event: PointerEvent) => {
@@ -58,6 +62,20 @@ export function SiteHeader(props: { hideOpenApp?: boolean }) {
       <div
         ref={menu}
         class="site-menu"
+        onPointerEnter={(event) => {
+          if (event.pointerType === 'mouse' && hasHoverMenu()) {
+            menuOpener = trigger;
+            setOpen(true);
+          }
+        }}
+        onPointerLeave={(event) => {
+          if (
+            event.pointerType === 'mouse' &&
+            hasHoverMenu() &&
+            !menu.querySelector('nav')?.contains(document.activeElement)
+          )
+            setOpen(false);
+        }}
         onFocusOut={(event) => {
           if (!menu.contains(event.relatedTarget as Node)) setOpen(false);
         }}
@@ -65,7 +83,7 @@ export function SiteHeader(props: { hideOpenApp?: boolean }) {
           if (event.key === 'Escape' && open()) {
             event.preventDefault();
             setOpen(false);
-            trigger.focus();
+            (menuOpener ?? trigger).focus();
           }
           if (
             event.key === 'Tab' &&
@@ -84,20 +102,42 @@ export function SiteHeader(props: { hideOpenApp?: boolean }) {
           }
         }}
       >
-        <button
+        <a
           ref={trigger}
-          type="button"
+          href="/"
+          target="_self"
           class="site-menu-trigger"
-          aria-label={open() ? 'Close navigation' : 'Open navigation'}
+          aria-label="Macro home"
           aria-expanded={open()}
           aria-controls="site-main-navigation"
-          onClick={() => setOpen(!open())}
+          aria-keyshortcuts="ArrowDown"
+          onClick={() => setOpen(false)}
+          onKeyDown={(event) => {
+            if (event.key !== 'ArrowDown') return;
+            event.preventDefault();
+            menuOpener = trigger;
+            setOpen(true);
+            menu.querySelector<HTMLAnchorElement>('nav a')?.focus();
+          }}
         >
           <span class="site-menu-mark" aria-hidden="true">
             <span />
             <span />
             <span />
           </span>
+        </a>
+        <button
+          type="button"
+          class="site-menu-toggle"
+          aria-label={open() ? 'Close navigation' : 'Open navigation'}
+          aria-expanded={open()}
+          aria-controls="site-main-navigation"
+          onClick={(event) => {
+            menuOpener = event.currentTarget;
+            setOpen(!open());
+          }}
+        >
+          <CaretDown aria-hidden="true" />
         </button>
         <nav
           id="site-main-navigation"

@@ -274,6 +274,13 @@ Keep cards at the three-column width with equal gaps, centering rows with one
 or two cards. Wrap at narrow widths without stretching the final row; stack
 full-width cards on phones. Allow height to grow when text needs more room.
 
+`SiteHeader` keeps the top-left mark as a normal `href="/"` link with
+`target="_self"`, so clicking returns to the landing page instead of signup.
+Mouse hover opens the navigation and preserves the existing logo morph; keep the
+hover path connected across the gap to the dropdown. ArrowDown opens and focuses
+navigation from the home link. Touch and narrow layouts have a separate menu
+toggle, so tapping the mark still goes home. Escape returns focus to the opener.
+
 `ProductFeatureDetails` opens an accessible right-side drawer on standalone
 product pages. In a homepage product preview (`embed=feature` inside an iframe),
 it fills the existing panel viewport and shows Back instead of opening a
