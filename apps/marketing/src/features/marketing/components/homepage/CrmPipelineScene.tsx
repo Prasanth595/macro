@@ -329,7 +329,17 @@ export default function CrmPipelineScene(props: { compact?: boolean } = {}) {
                     onClick={() => navigate('pipeline')}
                   >
                     <Table class="size-4" />
-                    <span class="flex-1">Sales pipeline</span>
+                    <span class="flex-1">New business</span>
+                    <span class="text-xs text-ink-extra-muted">Team</span>
+                  </ViewSidebar.Item>
+                  <ViewSidebar.Item onClick={() => navigate('pipeline')}>
+                    <Table class="size-4" />
+                    <span class="flex-1">Expansion</span>
+                    <span class="text-xs text-ink-extra-muted">Team</span>
+                  </ViewSidebar.Item>
+                  <ViewSidebar.Item onClick={() => navigate('pipeline')}>
+                    <Table class="size-4" />
+                    <span class="flex-1">Renewals</span>
                     <span class="text-xs text-ink-extra-muted">Team</span>
                   </ViewSidebar.Item>
                 </ViewSidebar.Nav>
