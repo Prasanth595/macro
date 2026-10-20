@@ -928,6 +928,9 @@ On touch layouts, Channels shows only the Recent conversation feed, with channel
 and DM message previews. There are no view tabs or reserved tab-header space;
 older saved tab selections and mobile-tab links cannot change the list. It loads
 more as the list approaches the end and supports pull to refresh.
+Rows use the same touch highlight as Home and Email: taps retain feedback while
+opening, holds stay highlighted for the action menu, and scrolling or cancelling
+a touch clears the press highlight.
 The mobile dock Search button opens the independent Search route. Its Channels
 and People categories search cached channel names and people directly; the
 conversation list does not constrain results. Full-text search is explicit,
