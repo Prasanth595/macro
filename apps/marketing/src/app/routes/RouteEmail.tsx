@@ -1,4 +1,3 @@
-import MacroLogo from '@icon/macro-logo.svg';
 import { DemoInteractionBoundary } from '../../features/marketing/components/DemoInteractionBoundary';
 import { EmailAgenticEditingDemo } from '../../features/marketing/components/email/EmailAgenticEditingDemo';
 import { EmailAutoTagsDemo } from '../../features/marketing/components/email/EmailAutoTagsDemo';
@@ -19,6 +18,7 @@ import {
   FeaturePageSection,
 } from '../../features/marketing/components/FeaturePage';
 import { HomepageClosing } from '../../features/marketing/components/HomepageClosing';
+import { ProductBrand } from '../../features/marketing/components/product/ProductPage';
 import { emailGuides } from '../../features/marketing/content/feature-guides/email';
 import { setPageSeo } from '../utils/utilSeo';
 import '../../features/marketing/components/email/email-hero.css';
@@ -98,10 +98,7 @@ export function RouteEmail() {
   return (
     <FeaturePage productSpacing>
       <header class="feature-page-hero email-page-hero">
-        <p class="email-page-hero-label">
-          <MacroLogo aria-hidden="true" />
-          <span>Macro Mail</span>
-        </p>
+        <ProductBrand product="Mail" />
         <h1>
           <span>Extremely fast email for</span>
           <span>humans and agents.</span>
@@ -137,7 +134,7 @@ export function RouteEmail() {
       </nav>
       <FeaturePageSection
         id="auto-tags"
-        title={['Find the', 'right email']}
+        title={['Make your inbox', 'manageable.']}
         description="Use tags to organize email by customer, project, or follow-up. Find related conversations across your accounts and connect them to the documents and tasks your team is working on."
         details={emailGuides['auto-tags']}
       >
