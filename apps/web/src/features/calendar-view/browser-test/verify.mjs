@@ -14,7 +14,8 @@ async function verifyFieldSpacing(page) {
     return rows.slice(1).map((row, index) => row.top - rows[index].bottom);
   });
   assert.ok(gaps.length >= 5);
-  assert.ok(gaps[0] > 0);
+  const expectedGap = await page.evaluate(() => matchMedia('(min-width: 640px)').matches ? 8 : 12);
+  assert.equal(gaps[0], expectedGap, 'Field spacing must stay compact');
   assert.ok(gaps.every((gap) => Math.abs(gap - gaps[0]) < 1), `Uneven row spacing: ${gaps}`);
 }
 
@@ -29,12 +30,16 @@ async function verifySelectorShape(page) {
   const selectors = await page.locator('form button[aria-expanded]').evaluateAll((elements) => elements.map((element) => {
     const column = element.closest('[role="group"][aria-label]')?.lastElementChild;
     const style = getComputedStyle(element);
+    const row = element.closest('[role="group"][aria-label]');
+    const icon = row?.querySelector(':scope > svg, :scope > div:first-child > svg')?.getBoundingClientRect();
+    const firstTrigger = row?.querySelector('button[aria-expanded]')?.getBoundingClientRect();
     return {
       label: element.getAttribute('aria-label'),
       width: element.getBoundingClientRect().width,
       height: element.getBoundingClientRect().height,
       available: column?.getBoundingClientRect().width,
       radii: [style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomLeftRadius, style.borderBottomRightRadius].map(Number.parseFloat),
+      iconOffset: icon && firstTrigger ? Math.abs(icon.top + icon.height / 2 - firstTrigger.top - firstTrigger.height / 2) : null,
     };
   }));
   assert.ok(selectors.length >= 5);
@@ -42,6 +47,7 @@ async function verifySelectorShape(page) {
     assert.ok(selector.radii.every((radius) => radius > 0), `${selector.label} must have rounded corners`);
     assert.ok(selector.height >= minimumHeight, `${selector.label} must meet the ${minimumHeight}px trigger height`);
     assert.ok(Math.abs(selector.width - selector.available) < 1, `${selector.label} must fill its value column`);
+    assert.ok(selector.iconOffset !== null && selector.iconOffset < 1, `${selector.label} row icon must be centered on its first selector; offset: ${selector.iconOffset}px`);
   }
   await page.keyboard.press('Tab');
   const triggers = page.locator('form button[aria-expanded]');
@@ -106,6 +112,7 @@ async function verifyDesktop(options, name) {
     await interval.fill('2');
     await recurrence.getByRole('button', { name: 'Done', exact: true }).click();
     await recurrence.waitFor({ state: 'detached' });
+    await verifySelectorShape(page);
 
     await page.getByRole('button', { name: 'Next week', exact: true }).click();
     await page.locator('.fc-scroller').evaluateAll((elements) => {
@@ -221,6 +228,7 @@ async function verifyMobile() {
     await recurrence.getByRole('spinbutton', { name: 'Repeat interval', exact: true }).fill('2');
     await recurrence.getByRole('button', { name: 'Done', exact: true }).click();
     await recurrence.waitFor({ state: 'detached' });
+    await verifySelectorShape(page);
     assert.equal(await title.inputValue(), 'Phone draft');
     await page.locator('[data-corvu-drawer-content][data-transitioning]').waitFor({ state: 'detached' });
     await page.screenshot({ path: '/tmp/calendar-editor-phone.png' });

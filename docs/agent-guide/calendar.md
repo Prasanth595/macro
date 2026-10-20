@@ -99,7 +99,9 @@ same anchored popover, not a separate split dialog. Both create and edit show th
 event type above the title, with description directly beneath the title. The
 remaining icon-led rows follow the details popover's order: date/time when
 visible, recurrence, meeting link, direct location input, notifications,
-calendar, then guests. Every row uses the same responsive spacing.
+calendar, then guests. Field gaps are compact: 8px on desktop and 12px on phones.
+Center each row icon on its first selector, including touch-sized selectors and
+rows with extra controls below, rather than on the combined row height.
 Permission-locked values are plain read-only content, not control-shaped pills
 or disabled inputs. Editable dropdown selectors fill the value column with
 taller, rounded triggers, including date selectors in the sidebar and phone

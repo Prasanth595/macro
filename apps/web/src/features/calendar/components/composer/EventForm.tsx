@@ -403,13 +403,15 @@ export function EventForm(props: EventFormProps) {
     <div
       role="group"
       aria-label={row.label}
-      class="grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-x-4 sm:grid-cols-[1rem_minmax(0,1fr)] sm:gap-x-3"
+      class="group/field grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-x-4 sm:grid-cols-[1rem_minmax(0,1fr)] sm:gap-x-3"
     >
-      <Dynamic
-        component={row.icon}
-        aria-hidden="true"
-        class="mt-1.5 size-5 text-ink-extra-muted sm:size-4"
-      />
+      <div class="flex h-7 items-center justify-center group-has-[button[aria-expanded]]/field:h-9 touch:group-has-[button[aria-expanded]]/field:min-h-[44px]">
+        <Dynamic
+          component={row.icon}
+          aria-hidden="true"
+          class="size-5 text-ink-extra-muted sm:size-4"
+        />
+      </div>
       <div class="flex min-h-7 min-w-0 w-full flex-wrap items-center gap-2">
         {row.children}
       </div>
@@ -428,7 +430,7 @@ export function EventForm(props: EventFormProps) {
       }}
     >
       <div class="min-h-0 flex-1 overflow-y-auto scrollbar-hidden">
-        <div class="flex min-w-0 flex-col gap-5 p-1 text-sm text-ink-muted sm:gap-3 sm:text-xs">
+        <div class="flex min-w-0 flex-col gap-3 p-1 text-sm text-ink-muted sm:gap-2 sm:text-xs">
           <PropertyRow label="Event type" icon={SquaresFourIcon}>
             {controls.kind()}
           </PropertyRow>
