@@ -734,7 +734,10 @@ a supported filter plus created/updated sort, their combined server membership
 is the baseline for the same predicate adapter used by flat Soup. Selected
 normalized rows then derive date, project and property memberships (including
 multi-value and scoped property joins); entity-type bins retain their invariant
-server keys. Missing grouping evidence retains the old membership. Unsupported
+server keys. Missing grouping evidence retains the old membership. When local selection is
+incomplete, display fields come from current merged server pages before falling
+back to the original evidence; current page fields do not rebase membership or
+count evidence. Unsupported
 filters/sorts or hosts retain the merged live server pages. Cached Mail keeps its
 separate date-grouping policy.
 
@@ -765,7 +768,8 @@ Run `bun scripts/benchmark-grouped-soup.ts /tmp/grouped-soup.json` from
 It bundles the production functions into an isolated Chromium page: 20 warmups
 and 100 samples per case, with 100/1,000/5,000 unique loaded rows, property
 (single and three-value), project and date groups. Projection reads real Solid
-store proxies inside a tracked memo; deterministic rows move groups or fail the
+store proxies inside a tracked memo and indexes current page items for display
+fallback; deterministic rows move groups or fail the
 filter. Page merging uses ten-row continuations. Flat materialization is a
 comparison, not equivalent grouped behavior.
 
@@ -777,12 +781,12 @@ Measured on an Intel Xeon Platinum 8581C with Chromium 155.0.8059.79:
 
 | Loaded rows, three-value properties | Group projection p95 | Flat materialization p95 | Page merge p95, before → after |
 | --- | --- | --- | --- |
-| 100 | 0.7 ms | 0.1 ms | 0.2 → 0.1 ms |
-| 1,000 | 5.6 ms | 0.6 ms | 10.0 → 0.4 ms |
-| 5,000 | 27.2 ms | 2.9 ms | 258.1 → 1.8 ms |
-| 100, 4× throttle | 3.5 ms | 0.8 ms | 0.9 → 0.7 ms |
-| 1,000, 4× throttle | 22.9 ms | 2.9 ms | 41.5 → 1.8 ms |
-| 5,000, 4× throttle | 116.9 ms | 12.7 ms | 1,067.2 → 7.7 ms |
+| 100 | 0.8 ms | 0.2 ms | 0.2 → 0.1 ms |
+| 1,000 | 6.0 ms | 0.7 ms | 10.0 → 0.4 ms |
+| 5,000 | 30.8 ms | 3.4 ms | 258.1 → 1.8 ms |
+| 100, 4× throttle | 2.8 ms | 0.8 ms | 0.9 → 0.7 ms |
+| 1,000, 4× throttle | 25.3 ms | 3.0 ms | 41.5 → 1.8 ms |
+| 5,000, 4× throttle | 129.7 ms | 14.0 ms | 1,067.2 → 7.8 ms |
 
 Page merging now accumulates each bin once instead of copying all earlier pages
 for every continuation. The identity-read regression test guards linear work

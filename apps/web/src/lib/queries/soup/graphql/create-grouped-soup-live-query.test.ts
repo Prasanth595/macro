@@ -246,6 +246,60 @@ describe('grouped Soup live ownership', () => {
     expect(state.executions).toHaveLength(1);
   });
 
+  it.each([false, true])(
+    'keeps current initial and continuation fields when selection is incomplete (unknown membership: %s)',
+    async (unknown) => {
+      const state = setup();
+      const initial = groupedDocument('a');
+      const continued = groupedDocument('b');
+      state.executions[0].publish(page([initial]));
+      const next = state.query.paging.fetchNextPage('todo');
+      state.executions[1].publish(page([continued], null));
+      await next;
+      const keys = [initial, continued].map(soupItemKey);
+      const request = state.requests.at(-1)!;
+      request.resolve({
+        ...update([]),
+        keys,
+        retainedKeys: unknown ? keys : [],
+      });
+      await request.promise;
+
+      state.executions[0].publish(
+        page([
+          { ...groupedDocument('a', ['done']), displayName: 'Renamed initial' },
+        ]),
+        undefined,
+        'normalized-cache-patch'
+      );
+      state.executions[1].publish(
+        page(
+          [
+            {
+              ...groupedDocument('b', ['done']),
+              displayName: 'Renamed continuation',
+            },
+          ],
+          null
+        ),
+        undefined,
+        'normalized-cache-patch'
+      );
+      expect(
+        state.query
+          .data()
+          ?.user.groupSoup.bins[0].items.map((item) => item.displayName)
+      ).toEqual(['Renamed initial', 'Renamed continuation']);
+      // Display updates are not new evidence for moving rows or changing counts.
+      expect(ids(state.query.data())).toEqual([
+        { key: 'todo', ids: ['a', 'b'], count: 20, cursor: 'next' },
+      ]);
+      expect(state.query.paging.hasNextPage('todo')).toBe(false);
+      expect(state.requests.at(-1)).toBe(request);
+      expect(state.executions).toHaveLength(2);
+    }
+  );
+
   it('ignores an obsolete evaluation after filters change', async () => {
     const state = setup();
     state.executions[0].publish(page([groupedDocument('old')]));

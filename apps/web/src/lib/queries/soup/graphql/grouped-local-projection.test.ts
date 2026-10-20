@@ -103,6 +103,7 @@ describe('local grouped Soup projection', () => {
     const next = groupedDocument('a', ['done']);
     const result = projectLocalGroupedSoup(
       baseline,
+      new Map(),
       snapshot([next], [soupItemKey(unknown)]),
       input,
       now
@@ -113,6 +114,49 @@ describe('local grouped Soup projection', () => {
     ]);
     expect(result[1].items[0]).toBe(next);
     expect(baseline[0].items).toEqual([a, b, unknown]);
+  });
+
+  it('prefers selected then current display fields without changing baseline membership', () => {
+    const selectedBefore = groupedDocument('selected');
+    const retained = groupedDocument('retained');
+    const missing = groupedDocument('missing');
+    const excluded = groupedDocument('excluded');
+    const selected = { ...selectedBefore, displayName: 'Selected name' };
+    const current = {
+      ...groupedDocument('retained', ['done']),
+      displayName: 'Current name',
+    };
+    const currentItems = new Map([
+      [
+        soupItemKey(selectedBefore),
+        { ...selectedBefore, displayName: 'Older name' },
+      ],
+      [soupItemKey(retained), current],
+      [soupItemKey(excluded), excluded],
+    ]);
+    expect(
+      projectLocalGroupedSoup(
+        [
+          {
+            key: 'todo',
+            items: [selectedBefore, retained, missing, excluded],
+            totalCount: 30,
+            nextCursor: 'more',
+          },
+        ],
+        currentItems,
+        snapshot([selected], [soupItemKey(retained), soupItemKey(missing)]),
+        input,
+        now
+      )
+    ).toEqual([
+      {
+        key: 'todo',
+        items: [selected, current, missing],
+        totalCount: 29,
+        nextCursor: 'more',
+      },
+    ]);
   });
 
   it('uses complete old multi-value membership rather than just loaded bins for count deltas', () => {
@@ -129,6 +173,7 @@ describe('local grouped Soup projection', () => {
           },
           { key: 'done', items: [], totalCount: 20, nextCursor: 'done-more' },
         ],
+        new Map(),
         snapshot([after]),
         input,
         now
@@ -143,6 +188,7 @@ describe('local grouped Soup projection', () => {
     expect(
       projectLocalGroupedSoup(
         [],
+        new Map(),
         snapshot([groupedDocument('new')]),
         input,
         now
@@ -155,6 +201,7 @@ describe('local grouped Soup projection', () => {
     expect(
       projectLocalGroupedSoup(
         [{ key: 'today', items: [row], totalCount: 8, nextCursor: 'more' }],
+        new Map(),
         snapshot([row]),
         { ...input, groupBy: { field: 'DATE' } },
         now

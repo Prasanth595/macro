@@ -44,6 +44,8 @@ sort, loaded grouped rows also reconcile locally. Initial and per-group “load
 more” pages share one owner. Property edits (including multiple assignees),
 project changes and UTC date rollover can move loaded rows between bins; proven
 filter nonmatches leave the view. Unknown evidence keeps the previous membership.
+If local selection is incomplete, normalized display-field updates from initial
+and continuation pages remain visible without changing counts or server cursors.
 This is not a complete offline grouping query: uncached/unloaded candidates are
 not added, and counts preserve unseen server rows rather than counting only the
 loaded page. Unsupported sorts/filters retain server membership.

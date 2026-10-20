@@ -139,6 +139,7 @@ export function mergeGroupedSoupBins(
 /** Apply the maintained filter result without treating bounded candidates as complete bins. */
 export function projectLocalGroupedSoup(
   baseline: readonly GroupedSoupBin[],
+  currentItems: ReadonlyMap<string, SoupItemFieldsFragment>,
   snapshot: LiveQuerySnapshot<SoupItemFieldsFragment>,
   input: GroupedSoupInitialInput,
   now: Date,
@@ -196,7 +197,8 @@ export function projectLocalGroupedSoup(
     totalCount: bin.totalCount,
     nextCursor: bin.nextCursor,
     items: bin.itemIds.flatMap((key) => {
-      const item = selected.get(key) ?? original.get(key);
+      const item =
+        selected.get(key) ?? currentItems.get(key) ?? original.get(key);
       return item ? [item] : [];
     }),
   }));

@@ -33,7 +33,7 @@ import {
   projectLocalGroupedSoup,
 } from './grouped-local-projection';
 import { createGroupedPageEvidence } from './grouped-page-evidence';
-import { soupReconciliationBaseline } from './reconciliation';
+import { soupItemKey, soupReconciliationBaseline } from './reconciliation';
 
 /** Paging capabilities; rows for all loaded groups are owned by the parent source. */
 export type GroupedSoupPaging = {
@@ -303,8 +303,14 @@ export function createGroupedSoupLiveQuery(
       return mergeGroupedSoupBins(serverPages());
     const span = Telemetry.span('graphql_cache.soup_grouped_local_evaluation');
     try {
+      const currentItems = new Map<string, SoupItemFieldsFragment>();
+      for (const page of serverPages())
+        for (const bin of page.user.groupSoup.bins)
+          for (const item of bin.items)
+            currentItems.set(soupItemKey(item), item);
       const result = projectLocalGroupedSoup(
         evidence.bins,
+        currentItems,
         snapshot,
         initial,
         now(),

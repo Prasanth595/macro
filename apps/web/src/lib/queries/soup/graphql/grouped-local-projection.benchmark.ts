@@ -4,6 +4,7 @@ import { INITIAL_CACHE_REVISION } from '../../../graphql-cache/protocol';
 import type {
   GroupedSoupInitialInput,
   GroupSoupQuery,
+  SoupItemFieldsFragment,
 } from '../../../service-clients/service-storage/graphql/generated/graphql';
 import {
   localSoupGroupKeys,
@@ -131,8 +132,14 @@ export function runGroupedSoupBenchmark() {
           // Measure tracked reads of actual Solid store proxies, not just plain JSON.
           const grouped = createMemo(() => {
             tick();
+            const currentItems = new Map<string, SoupItemFieldsFragment>();
+            for (const page of data.pages)
+              for (const bin of page.user.groupSoup.bins)
+                for (const item of bin.items)
+                  currentItems.set(soupItemKey(item), item);
             return projectLocalGroupedSoup(
               data.baseline,
+              currentItems,
               data.snapshot,
               data.input,
               now
