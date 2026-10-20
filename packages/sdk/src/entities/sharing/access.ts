@@ -106,7 +106,11 @@ export class EntityAccess {
     request: AccessRequest,
     resolution: ResolveRequest,
   ): Promise<RequestRecord> {
-    if (request.access !== this)
+    const owner = request.access.toJSON();
+    if (
+      owner.entity_type !== this.entityType ||
+      owner.entity_id !== this.entity.id
+    )
       throw new Error('Access request belongs to another entity');
     return unwrap(
       await this.client.storage.accessRequestsResolve({

@@ -113,9 +113,9 @@ export class CalendarNamespace {
       await this.client.storage.listTeamCalendar({ query: options }),
     );
     return {
-      items: page.items.map((item) => ({
+      items: page.items.map(({ ownerId, ...item }) => ({
         ...item,
-        owner: User.byId(this.client, item.ownerId),
+        owner: User.byId(this.client, ownerId),
       })),
       members: page.members.map((member) => ({
         user: User.byId(this.client, member.userId),

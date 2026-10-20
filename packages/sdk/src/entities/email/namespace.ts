@@ -47,9 +47,10 @@ export class EmailNamespace {
     pageSize?: number;
     inbox?: Link;
   }): AsyncGenerator<EmailDraft> {
-    const limit = options?.pageSize ?? 100;
-    if (!Number.isInteger(limit) || limit < 1)
+    const requestedLimit = options?.pageSize ?? 100;
+    if (!Number.isInteger(requestedLimit) || requestedLimit < 1)
       throw new Error('pageSize must be positive');
+    const limit = Math.min(requestedLimit, 1000);
     for (let offset = 0; ; offset += limit) {
       const page = unwrap(
         await this.client.email.getScheduledMessages({
@@ -115,9 +116,9 @@ export class EmailNamespace {
         }),
       );
       return {
-        items: page.items.map((item) => ({
+        items: page.items.map(({ threadId, ...item }) => ({
           ...item,
-          thread: EmailThread.byId(this.client, item.threadId),
+          thread: EmailThread.byId(this.client, threadId),
         })),
         nextCursor: page.nextCursor,
       };

@@ -316,7 +316,7 @@ An empty committed result fences the old move so it cannot commit later.
 
 ### reminders()
 
-> **reminders**(`options?`): `AsyncGenerator`\<\{ `followup`: [`EmailFollowup`](../../../../../generated/storage/types.gen/type-aliases/EmailFollowup.md); `thread`: [`EmailThread`](../../thread/classes/EmailThread.md); `threadId`: `string`; \}, `any`, `any`\>
+> **reminders**(`options?`): `AsyncGenerator`\<\{ `followup`: [`EmailFollowup`](../../../../../generated/storage/types.gen/type-aliases/EmailFollowup.md); `thread`: [`EmailThread`](../../thread/classes/EmailThread.md); \}, `any`, `any`\>
 
 Follow-up reminders with thread handles, automatically paginated.
 
@@ -328,7 +328,7 @@ Follow-up reminders with thread handles, automatically paginated.
 
 #### Returns
 
-`AsyncGenerator`\<\{ `followup`: [`EmailFollowup`](../../../../../generated/storage/types.gen/type-aliases/EmailFollowup.md); `thread`: [`EmailThread`](../../thread/classes/EmailThread.md); `threadId`: `string`; \}, `any`, `any`\>
+`AsyncGenerator`\<\{ `followup`: [`EmailFollowup`](../../../../../generated/storage/types.gen/type-aliases/EmailFollowup.md); `thread`: [`EmailThread`](../../thread/classes/EmailThread.md); \}, `any`, `any`\>
 
 ***
 
