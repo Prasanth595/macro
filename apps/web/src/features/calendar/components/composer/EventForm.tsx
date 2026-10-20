@@ -55,7 +55,6 @@ import { outOfOfficeNoticeFor } from './out-of-office';
 
 export interface EventFormProps {
   controller: CalendarEventFormController;
-  showDateRange?: boolean;
   /** Calendar-owned surfaces place the kind selector in their header. */
   showEventKind?: boolean;
   /** Whether this host can create and attach Macro call links. */
@@ -456,27 +455,9 @@ export function EventForm(props: EventFormProps) {
               {descriptionField()}
             </PropertyRow>
           </Show>
-          <Show when={props.showDateRange !== false}>
-            <PropertyRow label="Date and time" icon={CalendarBlankIcon}>
-              {dateFields()}
-            </PropertyRow>
-          </Show>
-          <Show
-            when={props.showDateRange === false && controller.dateRangeError()}
-          >
-            {(error) => (
-              <p role="alert" class="text-xs text-failure">
-                {error()}
-              </p>
-            )}
-          </Show>
-          <Show when={props.showDateRange === false && pastEventWarning()}>
-            {(warning) => (
-              <p role="status" class="text-xs text-warning">
-                {warning()}
-              </p>
-            )}
-          </Show>
+          <PropertyRow label="Date and time" icon={CalendarBlankIcon}>
+            {dateFields()}
+          </PropertyRow>
           <PropertyRow label="Repeats" icon={RepeatIcon}>
             {controls.recurrence()}
           </PropertyRow>

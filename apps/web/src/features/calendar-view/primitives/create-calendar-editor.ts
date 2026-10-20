@@ -6,8 +6,6 @@ import type { CalendarEditorRequest } from '../types';
 export interface CalendarEditorDraft {
   event?: CalendarEvent;
   initialValues?: EventEditorInitialValues;
-  /** Snapshot in viewport coordinates, independent of disposable grid elements. */
-  anchor?: { x: number; y: number; width: number; height: number };
   onCalendarChange?: (calendarId: string, color: string) => void;
   onClose?: () => void;
 }
@@ -36,15 +34,11 @@ export function createCalendarEditorRequest(
 
 export function createCalendarEditor() {
   const [draft, setDraft] = createSignal<CalendarEditorDraft>();
-  const [surface, setSurface] = createSignal<'popover' | 'sidebar'>('sidebar');
   let beforeReplace: (() => Promise<boolean>) | undefined;
 
   const open = (next: CalendarEditorDraft = {}) => {
     if (draft()) return false;
-    batch(() => {
-      setSurface(next.anchor ? 'popover' : 'sidebar');
-      setDraft(next);
-    });
+    setDraft(next);
     return true;
   };
   const close = () => {
@@ -72,11 +66,9 @@ export function createCalendarEditor() {
 
   return {
     draft,
-    surface,
     open,
     close,
     replace,
     registerBeforeReplace,
-    moveToSidebar: () => setSurface('sidebar'),
   };
 }

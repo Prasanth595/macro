@@ -50,7 +50,7 @@ interface SelectedEventDetailsProps {
   event: Accessor<CalendarEvent | undefined>;
   timeFormat: Accessor<CalendarTimeFormat>;
   onClose: () => void;
-  onEdit: (event: CalendarEvent, anchor?: DOMRect) => void;
+  onEdit: (event: CalendarEvent) => void;
 }
 
 /**
@@ -137,7 +137,7 @@ interface EventDetailsOverlayProps {
   timeFormat: CalendarTimeFormat;
   defaultReminders?: EventReminderOverride[];
   onOpenChange: (open: boolean) => void;
-  onEdit: (event: CalendarEvent, anchor?: DOMRect) => void;
+  onEdit: (event: CalendarEvent) => void;
 }
 
 function EveryoneElseDeclinedNotice(props: {
@@ -468,7 +468,7 @@ function EventDetailsPopover(props: EventDetailsPopoverProps) {
     !props.event.isReadOnly &&
     !props.event.isCancelled;
   const openEditor = () => {
-    props.onEdit(props.event, props.anchor.getBoundingClientRect());
+    props.onEdit(props.event);
     props.onOpenChange(false);
   };
 

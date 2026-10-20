@@ -95,6 +95,8 @@ function EventDateTimeDropdown(props: EventDateTimeDropdownProps) {
           gutter={4}
           flip
           slide
+          overlap
+          fitViewport
         >
           <Popover.Trigger
             disabled={props.fieldDisabled}
@@ -131,7 +133,7 @@ function EventDateTimeDropdown(props: EventDateTimeDropdownProps) {
           <EventComposerPopoverPortal>
             <Layer depth={3}>
               <Popover.Content
-                class="portal-scope z-action-menu w-72 max-w-[calc(100vw-1rem)] rounded-xl border border-edge bg-menu-glass glass menu-open-animation"
+                class="portal-scope z-action-menu flex max-h-[var(--kb-popper-content-available-height)] w-72 max-w-[calc(100vw-1rem)] flex-col rounded-xl border border-edge bg-menu-glass glass menu-open-animation"
                 on:keydown={(event: KeyboardEvent) => {
                   if (event.key !== 'Escape') return;
                   event.preventDefault();
@@ -141,32 +143,34 @@ function EventDateTimeDropdown(props: EventDateTimeDropdownProps) {
                 onOpenAutoFocus={(event) => event.preventDefault()}
                 onCloseAutoFocus={(event) => event.preventDefault()}
               >
-                <Popover.Title class="px-3 pt-3 text-xs font-medium text-ink">
-                  {props.label} {props.allDay ? 'date' : 'date and time'}
-                </Popover.Title>
-                <div class="p-3">
-                  <Calendar
-                    required
-                    fixedWeeks
-                    value={selectedDate()}
-                    onValueChange={(date) => {
-                      if (!date || props.fieldDisabled) return;
-                      props.onDateChange(formatLocalDate(date));
-                    }}
-                  />
-                </div>
-
-                <div class="border-t border-edge p-3">
-                  <div class={cn(props.allDay && 'opacity-50')}>
-                    <EventTimeInput
-                      id={props.id}
-                      label={`${props.label} time`}
-                      value={parts().time}
-                      options={timeOptions()}
-                      selectedId={selectedTimeId()}
-                      onChange={changeTime}
-                      disabled={props.fieldDisabled || props.allDay}
+                <div class="min-h-0 overflow-y-auto rounded-xl">
+                  <Popover.Title class="px-3 pt-3 text-xs font-medium text-ink">
+                    {props.label} {props.allDay ? 'date' : 'date and time'}
+                  </Popover.Title>
+                  <div class="p-3">
+                    <Calendar
+                      required
+                      fixedWeeks
+                      value={selectedDate()}
+                      onValueChange={(date) => {
+                        if (!date || props.fieldDisabled) return;
+                        props.onDateChange(formatLocalDate(date));
+                      }}
                     />
+                  </div>
+
+                  <div class="border-t border-edge p-3">
+                    <div class={cn(props.allDay && 'opacity-50')}>
+                      <EventTimeInput
+                        id={props.id}
+                        label={`${props.label} time`}
+                        value={parts().time}
+                        options={timeOptions()}
+                        selectedId={selectedTimeId()}
+                        onChange={changeTime}
+                        disabled={props.fieldDisabled || props.allDay}
+                      />
+                    </div>
                   </div>
                 </div>
               </Popover.Content>

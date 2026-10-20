@@ -15,38 +15,29 @@ describe('calendar composer draft', () => {
   it('keeps the current draft for duplicate open commands', () => {
     createRoot((dispose) => {
       const composer = createCalendarEditor();
-      const draft = { anchor: { x: 100, y: 200, width: 80, height: 30 } };
+      const draft = { initialValues: undefined };
       expect(composer.open(draft)).toBe(true);
-      expect(composer.surface()).toBe('popover');
-      expect(
-        composer.open({ anchor: { x: 400, y: 500, width: 80, height: 30 } })
-      ).toBe(false);
+      expect(composer.open({})).toBe(false);
       expect(composer.open()).toBe(false);
       expect(composer.draft()).toBe(draft);
-      expect(composer.surface()).toBe('popover');
       dispose();
     });
   });
 
-  it('moves the same draft to the sidebar without closing and cleans up only once', () => {
+  it('closes a draft once and opens a fresh draft afterward', () => {
     createRoot((dispose) => {
       const composer = createCalendarEditor();
       const onClose = vi.fn();
-      const draft = {
-        anchor: { x: 100, y: 200, width: 80, height: 30 },
-        onClose,
-      };
+      const draft = { onClose };
       composer.open(draft);
-      composer.moveToSidebar();
       expect(composer.draft()).toBe(draft);
-      expect(composer.surface()).toBe('sidebar');
       expect(onClose).not.toHaveBeenCalled();
       composer.close();
       composer.close();
       expect(onClose).toHaveBeenCalledOnce();
       expect(composer.draft()).toBeUndefined();
-      composer.open();
-      expect(composer.surface()).toBe('sidebar');
+      expect(composer.open()).toBe(true);
+      expect(composer.draft()).toBeDefined();
       dispose();
     });
   });
@@ -62,10 +53,9 @@ describe('calendar composer draft', () => {
         confirmDiscard,
       })
     );
-    const next = { anchor: { x: 200, y: 300, width: 80, height: 30 } };
+    const next = { initialValues: undefined };
     expect(await composer.replace(next)).toBe(true);
     expect(composer.draft()).toBe(next);
-    expect(composer.surface()).toBe('popover');
     expect(onClose).toHaveBeenCalledOnce();
     expect(confirmDiscard).not.toHaveBeenCalled();
   });
@@ -86,7 +76,7 @@ describe('calendar composer draft', () => {
         confirmDiscard,
       })
     );
-    const next = { anchor: { x: 200, y: 300, width: 80, height: 30 } };
+    const next = { initialValues: undefined };
     expect(await composer.replace(next)).toBe(false);
     expect(composer.draft()).toBe(current);
     expect(onClose).not.toHaveBeenCalled();
@@ -125,7 +115,7 @@ describe('calendar composer draft', () => {
     );
     const decision = composer.replace({});
     composer.close();
-    const newer = { anchor: { x: 200, y: 300, width: 80, height: 30 } };
+    const newer = { initialValues: undefined };
     composer.open(newer);
     resolve(true);
     expect(await decision).toBe(false);

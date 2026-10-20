@@ -258,15 +258,6 @@ export function Page(props: {
     }
     latestSelection = selection;
     const calendar = firstWritableCalendar();
-    const pointer = selection.jsEvent;
-    const target = pointer?.target;
-    const preview =
-      target instanceof Element
-        ? target
-            .closest('.fc')
-            ?.querySelector<HTMLElement>('.fc-event-mirror, .fc-highlight')
-        : undefined;
-    const rect = preview?.getBoundingClientRect();
     const openSelection = async () => {
       const opened = await composer.replace({
         initialValues: {
@@ -276,14 +267,6 @@ export function Page(props: {
           ),
           ...(calendar ? { calendarId: calendar.id } : {}),
         },
-        anchor: rect
-          ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
-          : {
-              x: pointer?.clientX ?? 0,
-              y: pointer?.clientY ?? 0,
-              width: 0,
-              height: 0,
-            },
         onCalendarChange: (_calendarId, color) => setSelectionColor(color),
         onClose: () => {
           // A replaced draft must not clear the newly selected range.

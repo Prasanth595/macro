@@ -22,7 +22,7 @@ import { useCalendarEditor } from '../context/calendar-editor-context';
 import { createCalendarDraftDismissal } from '../primitives/create-calendar-draft-dismissal';
 import type { CalendarEditorDraft } from '../primitives/create-calendar-editor';
 
-/** The controller and mutation state survive every presentation change. */
+/** The calendar owns the controller and mutation state independently of grid pages. */
 export function CalendarEventComposer(props: { boundary: HTMLElement }) {
   const composer = useCalendarEditor();
   return (
@@ -65,13 +65,7 @@ function CalendarEditorLoading(props: {
 }) {
   const composer = useCalendarEditor();
   return (
-    <CalendarEditorSurface
-      {...props}
-      surface={composer.surface()}
-      pending={false}
-      onClose={composer.close}
-      onMoveToSidebar={composer.moveToSidebar}
-    >
+    <CalendarEditorSurface {...props} pending={false} onClose={composer.close}>
       <p role="status" class="p-4">
         Loading event…
       </p>
@@ -147,10 +141,8 @@ function CalendarEditorContent(props: {
     <CalendarEditorSurface
       boundary={props.boundary}
       draft={props.draft}
-      surface={composer.surface()}
       pending={editor.pending()}
       onClose={requestClose}
-      onMoveToSidebar={composer.moveToSidebar}
       headerStart={
         <EventComposerKindPill
           eventType={controller.state().eventType}
@@ -163,7 +155,6 @@ function CalendarEditorContent(props: {
     >
       <EventForm
         showEventKind={false}
-        showDateRange={isMobile() || composer.surface() !== 'popover'}
         controller={controller}
         macroCallsEnabled={props.macroCallsEnabled()}
         isEdit={props.draft.event !== undefined || editor.eventCreated()}
@@ -182,7 +173,7 @@ function CalendarEditorContent(props: {
               async (span) => {
                 span.setAttr(
                   'calendar.surface',
-                  isMobile() ? 'sheet' : composer.surface()
+                  isMobile() ? 'sheet' : 'popover'
                 );
                 if (values.calendarId)
                   span.setAttr('calendar.id', values.calendarId);

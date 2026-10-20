@@ -92,12 +92,10 @@ an agent reply appears, and messages remain in the saved history; starting a
 new session from the same meeting link must start a separate chat thread.
 
 
-Desktop click/drag creation opens a non-modal popover near the selected range.
-The popover's `Move to sidebar` action keeps the same draft in a right-hand editor;
-`New → Event` opens that sidebar directly. The sidebar matches the details
-popover's glass menu background, with 12px rounded corners and 12px of space on
-every side; the calendar stays interactive beside it. Editing from event details
-opens the same anchored popover, not a separate split dialog. Create and edit place the
+Every desktop creation and editing entry point opens the same non-modal popover,
+centered horizontally with its bottom 12px above the calendar boundary bottom.
+The popover follows the boundary during scroll, navigation, and resize. The
+calendar remains interactive behind it. Create and edit place the
 event type in a compact selector at the top-left of the header, using the selected
 type's icon. Existing events keep their type read-only. The selected calendar's
 color swatch sits beside the title, aligned with the property icons. Keep an 8px
@@ -109,20 +107,21 @@ full-width rounded containers and horizontal text padding as the selectors.
 Align the description placeholder and first text line with selector typography
 and vertical text position, including multiline descriptions and touch sizing.
 The remaining icon-led rows follow the details popover's order:
-date/time when visible, recurrence, meeting link, direct location input, notifications,
+date/time, recurrence, meeting link, direct location input, notifications,
 calendar, then guests. Field gaps are compact: 8px on desktop and 12px on phones.
 Center each row icon on its first selector, including touch-sized selectors and
 rows with extra controls below, rather than on the combined row height.
 Permission-locked values are plain read-only content, not control-shaped pills
 or disabled inputs. Property dropdown selectors fill the value column with
-taller triggers and 12px rounded corners, including date selectors in the sidebar
+taller triggers and 12px rounded corners, including date selectors in the popover
 and phone sheet. The event-type header selector stays compact. Triggers omit focus
 outlines and rings, retaining background feedback for keyboard focus; touch
 triggers keep a 44px minimum height. The custom-repeat
 action sits below its full-width selector.
-The popover has no visible `New event` heading or date range. Move to the sidebar
-to change dates, times, or All day. The primary Create event and Save actions use
-the CTA button style and keep their dimensions while showing a loading spinner.
+The popover has no visible `New event` heading. Date, time, and All day
+controls remain available in every editor presentation. The primary Create event
+and Save actions use the CTA button style and keep their dimensions while showing
+a loading spinner.
 
 Scrolling, paging, changing period, and outside clicks that do not select a
 calendar range leave the active draft unchanged. Clicking or dragging another
@@ -145,12 +144,15 @@ before discarding a changed draft. A pending save cannot be dismissed. Leaving
 Calendar or reloading protects unsaved changes too.
 
 Verify a click and a multi-slot drag in Week and Month. Enter a title, description,
-guest, location, and custom recurrence; move the popover to the sidebar and confirm
-all values survive and date controls appear. Change the selected calendar and
+guest, location, and custom recurrence; confirm date and time controls remain
+visible in the popover. Change the selected calendar and
 confirm the menu, trigger, and title swatches match. Check title, description, and
 location text alignment and 8px icon-to-value gaps on desktop, tablet, and phone.
-Verify the sidebar's details-matched glass background, rounded corners, and
-surrounding space.
+Verify the popover remains bottom-centered with 12px clearance after scrolling
+the grid, navigating weeks, changing period, and resizing the boundary. In a short
+calendar pane (including a 360px-high window), open the end-date picker and verify
+both month-navigation buttons, date selection, and the time input remain reachable
+without clipping. The picker scrolls internally when its full contents do not fit.
 Check the actual description placeholder and first text line when empty, filled,
 and multiline, not just the outer container edges.
 Cancel a new custom rule and changes to an existing rule; confirm neither changes
@@ -161,8 +163,8 @@ then both `Keep editing` and `Discard` for a dirty draft. Check that Discard ope
 the newly selected range. Verify explicit dismissal separately.
 Repeat from `New → Event` and on a phone. Open each nested
 menu or dialog and press Escape: dismiss the top layer first, not the editor.
-Edit an existing recurring event, move it to the sidebar, and check both recurring
-scopes. Intentional repeat-rule changes require `All events`; `This event` stays
+Edit an existing recurring event and check both recurring scopes. Intentional
+repeat-rule changes require `All events`; `This event` stays
 unavailable until the original rule is restored. Moving a single occurrence's
 date without editing the rule still allows `This event`. Do not save test events
 to shared dev data. Call-link retry behavior remains
@@ -409,7 +411,7 @@ does not silently send the invitation from another connected inbox.
 Failed calendar or account queries show `Could not load your calendars.` with
 `Try again`, rather than offering consent or presenting the failure as backfill.
 
-`New → Event` opens the shared editor sidebar, with All day in the date/time fields.
+`New → Event` opens the shared desktop editor popover, with All day in the date/time fields.
 The meeting-link selector lists `Macro call`, `Google Meet`, then `No meeting link`
 for new events, defaulting to `Macro call` when quick calls are enabled. Keeping
 that selection creates and attaches a Macro call after the event saves. Selecting

@@ -3,7 +3,6 @@ import { ChannelsContextProvider } from '@core/context/channels';
 import { EmailLinksContextProvider } from '@core/context/emailLinks';
 import { QuickAccessContextProvider } from '@core/context/quickAccess/context';
 import { UserContextProvider } from '@core/context/user';
-import { isMobile } from '@core/mobile/isMobile';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
 import '@fontsource-variable/inter';
@@ -83,11 +82,10 @@ function Fixture() {
     values: EventEditorSubmitValues;
     scope?: string;
   }>();
-  const openSlot = (event: MouseEvent, start = '2030-10-21T10:00:00') =>
+  const openSlot = (start = '2030-10-21T10:00:00') =>
     fireAndForget(
       composer.replace({
         initialValues: defaultEditorInitialValues(new Date(start)),
-        anchor: { x: event.clientX, y: event.clientY, width: 80, height: 30 },
       }),
       'calendar-editor-fixture'
     );
@@ -130,18 +128,11 @@ function Fixture() {
           aria-label="Calendar grid"
         >
           <div class="flex shrink-0 flex-wrap gap-2 p-2">
-            <Button onClick={(event) => openSlot(event)}>Select 10 AM</Button>
-            <Button onClick={(event) => openSlot(event, '2030-10-21T14:00:00')}>
+            <Button onClick={() => openSlot()}>Select 10 AM</Button>
+            <Button onClick={() => openSlot('2030-10-21T14:00:00')}>
               Select another timeslot
             </Button>
-            <Button
-              onClick={(event) =>
-                composer.open({
-                  event: exampleEvent,
-                  anchor: event.currentTarget.getBoundingClientRect(),
-                })
-              }
-            >
+            <Button onClick={() => composer.open({ event: exampleEvent })}>
               Edit example event
             </Button>
           </div>
@@ -162,17 +153,10 @@ function Fixture() {
                 color: '#4285f4',
                 onDateSelect: (selection) => {
                   latestSelection = selection;
-                  const pointer = selection.jsEvent;
                   const openSelection = async () => {
                     const opened = await composer.replace({
                       initialValues:
                         calendarSelectionToEditorInitialValues(selection),
-                      anchor: {
-                        x: pointer?.clientX ?? 200,
-                        y: pointer?.clientY ?? 200,
-                        width: 1,
-                        height: 1,
-                      },
                       onClose: () => {
                         if (latestSelection === selection)
                           selection.view.calendar.unselect();
@@ -198,9 +182,7 @@ function Fixture() {
                 <FixtureEditor
                   boundary={element()}
                   draft={draft}
-                  surface={composer.surface()}
                   registerBeforeReplace={composer.registerBeforeReplace}
-                  onMoveToSidebar={composer.moveToSidebar}
                   onClose={composer.close}
                   onSubmit={(values, scope) => setSubmitted({ values, scope })}
                 />
@@ -216,11 +198,9 @@ function Fixture() {
 function FixtureEditor(props: {
   boundary: HTMLElement;
   draft: CalendarEditorDraft;
-  surface: 'popover' | 'sidebar';
   registerBeforeReplace: ReturnType<
     typeof createCalendarEditor
   >['registerBeforeReplace'];
-  onMoveToSidebar: () => void;
   onClose: () => void;
   onSubmit: EventFormProps['onSubmit'];
 }) {
@@ -285,7 +265,6 @@ function FixtureEditor(props: {
     >
       <EventForm
         showEventKind={false}
-        showDateRange={isMobile() || props.surface !== 'popover'}
         controller={controller}
         macroCallsEnabled
         isEdit={props.draft.event !== undefined}

@@ -14,15 +14,12 @@ export const [CalendarEditorProvider, useCalendarEditor] =
           (id) => {
             const request = props.request;
             if (!id || !request || !request.consume()) return;
-            if (
-              !composer.open({
-                event: request.event,
-                initialValues: request.initialValues,
-                onCalendarChange: request.onCalendarChange,
-                onClose: request.onClose,
-              })
-            )
-              composer.moveToSidebar();
+            composer.open({
+              event: request.event,
+              initialValues: request.initialValues,
+              onCalendarChange: request.onCalendarChange,
+              onClose: request.onClose,
+            });
           }
         )
       );

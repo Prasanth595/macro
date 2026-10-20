@@ -118,10 +118,7 @@ function CalendarPages() {
                 event={calendarView.selectedEvent}
                 timeFormat={() => calendarView.displaySettings.timeFormat}
                 onClose={calendarView.closeEventDetails}
-                onEdit={(event, anchor) => {
-                  if (!composer.open({ event, anchor }))
-                    composer.moveToSidebar();
-                }}
+                onEdit={(event) => composer.open({ event })}
               />
             )}
           </Show>

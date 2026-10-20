@@ -16,7 +16,7 @@ export function CalendarCreateEventItem(props: CreateItemProps) {
       closeOnSelect
       onSelect={() => {
         props.onSelect?.();
-        if (!composer.open()) composer.moveToSidebar();
+        composer.open();
       }}
     >
       <CalendarIcon class="size-4" />
