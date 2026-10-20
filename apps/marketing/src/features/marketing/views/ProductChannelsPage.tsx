@@ -79,7 +79,7 @@ export function RouteChannels() {
       </FeaturePageSection>
       <FeaturePageSection
         id="channel-agents"
-        title={['Bring your agents', 'into the chats.']}
+          title={['Bring your agents', 'into the conversation.']}
         description="Tag your agent to ask for help, add context, assign a task, or get something done. You can use the Macro agent or bring your own."
         details={channelsGuides['channel-agents']}
       >
