@@ -438,6 +438,9 @@ mention while the rest of the request types, without a dropdown. Preserve that
 mention node until sending or resetting, and stop typing on visitor input.
 `CrmRecordDemo` tours Emails, Calls, Files, and Tasks before returning to the
 company discussion. It shares the follow-up fixtures so the evidence matches.
+Keep the record populated with readable emails, documents, and tasks across
+multiple statuses. Task rows use the native ListChecks entity icon; status
+symbols belong in the group headings. Open the selected source by its own ID.
 The final section defers `CrmFollowupDemo` until it approaches the viewport:
 its automatic walkthrough stays in the agent chat, showing source reads before
 presenting an editable email and concrete next steps. Use the real record tabs; do not invent Chat or PR

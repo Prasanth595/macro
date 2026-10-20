@@ -1,3 +1,4 @@
+import type { CompanyFile } from '../../core/workspace-fixtures';
 import type { DummyWorkspace } from '../../primitives/createDummyWorkspace';
 import type { SampleCall } from '../calls/call-fixtures';
 import type { DemoPullRequest } from '../reviews/review-fixtures';
@@ -88,6 +89,42 @@ export function seedCrmFollowup(w: DummyWorkspace) {
       body: 'Hi Jacob,\n\nThursday at 9 works. Is the folder-upload issue fixed? Could you send the setup guide and let us know what you need before the demo?\n\nThanks,\nAva',
       replies: [],
     },
+    {
+      id: 'followup-attendees',
+      sender: 'Ava Chen',
+      subject: 'Who is joining on Thursday',
+      snippet: 'Three people from our design team will join.',
+      time: 'Yesterday',
+      account: 'work',
+      folder: 'inbox',
+      unread: false,
+      body: 'Hi Julia, three people from our design team will join on Thursday. I will send their names once everyone confirms.',
+      replies: [],
+    },
+    {
+      id: 'followup-upload-report',
+      sender: 'Ava Chen',
+      subject: 'Folder upload issue',
+      snippet: 'Nested folders are missing after upload.',
+      time: 'Mon',
+      account: 'work',
+      folder: 'inbox',
+      unread: false,
+      body: 'Hi Jacob, we tried uploading a sample project. The top-level files appear, but the nested folders are missing. Can your team take a look?',
+      replies: [],
+    },
+    {
+      id: 'followup-intro',
+      sender: 'Jacob',
+      subject: 'Getting started with Macro',
+      snippet: 'A short walkthrough for your team.',
+      time: 'Fri',
+      account: 'work',
+      folder: 'inbox',
+      unread: false,
+      body: 'Hi Ava, happy to walk your team through shared files and email. Bring a sample project and we can try it together.',
+      replies: [],
+    },
   ]);
   w.setData('documents', (docs) => [
     ...docs,
@@ -95,6 +132,21 @@ export function seedCrmFollowup(w: DummyWorkspace) {
       id: followupIds.file,
       title: 'Setup guide',
       body: '# Before the demo\n\n1. Connect your work email.\n2. Send Julia the names of the people joining.\n3. Bring a sample folder to try after the upload fix is verified.\n\nJulia will help with setup on Thursday at 9.',
+      comments: [],
+    },
+  ]);
+  w.setData('documents', (docs) => [
+    ...docs,
+    {
+      id: 'followup-agenda',
+      title: 'Thursday demo agenda',
+      body: '# Thursday demo\n\n## Plan\n- Connect the team’s work email.\n- Share a customer thread.\n- Try a sample project folder after Teo confirms the fix.\n\n## Attendees\nAva is confirming three people from the design team.',
+      comments: [],
+    },
+    {
+      id: 'followup-notes',
+      title: 'Customer discovery notes',
+      body: '# Discovery notes\n\nThe team shares project files and customer feedback across email. They want one place to find the latest conversation and the right version of each file.\n\n## Next step\nUse a real project in Thursday’s walkthrough.',
       comments: [],
     },
   ]);
@@ -112,6 +164,51 @@ export function seedCrmFollowup(w: DummyWorkspace) {
       tags: [],
       channel: followupIds.chat,
       relatedDocumentIds: [followupIds.file],
+      steps: [],
+      comments: [],
+    },
+  ]);
+  w.setData('tasks', (tasks) => [
+    ...tasks,
+    {
+      id: 'followup-attendees-task',
+      title: 'Confirm Thursday’s attendees',
+      description:
+        'Ask Ava for the three attendee names and send the calendar invite.',
+      status: 'Not Started',
+      priority: 'Medium',
+      owner: 'julia',
+      creator: 'jacob',
+      tags: [],
+      channel: followupIds.chat,
+      steps: [],
+      comments: [],
+    },
+    {
+      id: 'followup-agenda-task',
+      title: 'Prepare the demo project',
+      description:
+        'Pick a small project with nested folders for the walkthrough.',
+      status: 'In Progress',
+      priority: 'Medium',
+      owner: 'jacob',
+      creator: 'jacob',
+      tags: [],
+      channel: followupIds.chat,
+      steps: [],
+      comments: [],
+    },
+    {
+      id: 'followup-repro-task',
+      title: 'Reproduce the folder upload issue',
+      description:
+        'Confirmed that nested folders were missing. Fix merged in PR #248; production verification is tracked separately.',
+      status: 'Completed',
+      priority: 'High',
+      owner: 'teo',
+      creator: 'jacob',
+      tags: [],
+      channel: followupIds.chat,
       steps: [],
       comments: [],
     },
@@ -148,26 +245,42 @@ export function seedCrmFollowup(w: DummyWorkspace) {
     lastInteracted: 'today',
     updated: '9:40 AM',
     contacts: [{ name: 'Ava Chen', email: 'ava@parlorstudio.example' }],
-    emailIds: [followupIds.email],
+    emailIds: [
+      followupIds.email,
+      'followup-attendees',
+      'followup-upload-report',
+      'followup-intro',
+    ],
     emails: [],
-    files: [
-      {
-        id: followupIds.file,
-        title: 'Setup guide',
-        kind: 'document',
-        time: 'Today',
-        documentId: followupIds.file,
-      },
-    ],
-    tasks: [
-      {
-        id: followupIds.task,
-        title: 'Verify folder uploads in production',
-        status: 'In Progress',
-        priority: 'High',
-        owner: 'teo',
-      },
-    ],
+    files: w.data.documents
+      .filter((doc) =>
+        [followupIds.file, 'followup-agenda', 'followup-notes'].includes(doc.id)
+      )
+      .map(
+        (doc): CompanyFile => ({
+          id: doc.id,
+          title: doc.title,
+          kind: 'document',
+          time: doc.id === followupIds.file ? 'Today' : 'Yesterday',
+          documentId: doc.id,
+        })
+      ),
+    tasks: w.data.tasks
+      .filter((task) =>
+        [
+          followupIds.task,
+          'followup-attendees-task',
+          'followup-agenda-task',
+          'followup-repro-task',
+        ].includes(task.id)
+      )
+      .map((task) => ({
+        id: task.id,
+        title: task.title,
+        status: task.status,
+        priority: task.priority,
+        owner: task.owner,
+      })),
     calls: [
       {
         id: followupIds.call,

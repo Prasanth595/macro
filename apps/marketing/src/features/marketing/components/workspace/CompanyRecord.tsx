@@ -12,6 +12,7 @@ import Files from '@phosphor/files.svg';
 import Globe from '@phosphor/globe.svg';
 import LinkIcon from '@phosphor/link.svg';
 import ListBullets from '@phosphor/list-bullets.svg';
+import ListChecks from '@phosphor/list-checks.svg';
 import Phone from '@phosphor/phone.svg';
 import PhoneCall from '@phosphor/phone-call.svg';
 import Plus from '@phosphor/plus.svg';
@@ -769,9 +770,9 @@ function CompanyTasks(props: {
                       class="sample-record-task"
                       onClick={() => props.onOpen?.(task.id)}
                     >
-                      <PropertyValueIcon
-                        optionId={STATUS_IDS[task.status]}
-                        class="size-4"
+                      <ListChecks
+                        class="size-4 shrink-0 text-task"
+                        aria-label="Task"
                       />
                       <span class="truncate font-medium">{task.title}</span>
                       <span class="sample-record-task-priority">

@@ -175,3 +175,31 @@ it('shows the same files and tasks in the preceding customer-record tour', () =>
   vi.advanceTimersByTime(20000);
   expect(view.getByLabelText('Company files')).toBeTruthy();
 });
+
+it('populates customer sources and opens the selected task rather than the first task', () => {
+  reduced = true;
+  const view = render(() => <CrmFollowupDemo />);
+  fireEvent.click(view.getByRole('button', { name: 'Open Parlor Studio' }));
+  fireEvent.click(view.getByRole('radio', { name: 'Tasks' }));
+  const tasks = view.getByLabelText('Company tasks');
+  expect(tasks.querySelectorAll('.sample-record-task')).toHaveLength(4);
+  expect(tasks.querySelectorAll('[aria-label="Task"]')).toHaveLength(4);
+  fireEvent.click(
+    view.getByRole('button', { name: /Confirm Thursday’s attendees/ })
+  );
+  expect(
+    view.getByText(
+      'Ask Ava for the three attendee names and send the calendar invite.'
+    )
+  ).toBeTruthy();
+  fireEvent.click(view.getByRole('button', { name: 'Back to follow-up' }));
+  fireEvent.click(view.getByRole('button', { name: 'Open Parlor Studio' }));
+  fireEvent.click(view.getByRole('radio', { name: 'Emails' }));
+  expect(
+    view.getByLabelText('Company emails').querySelectorAll('.sample-record-row')
+  ).toHaveLength(4);
+  fireEvent.click(view.getByRole('radio', { name: 'Files' }));
+  expect(
+    view.getByLabelText('Company files').querySelectorAll('button')
+  ).toHaveLength(3);
+});

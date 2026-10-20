@@ -52,6 +52,7 @@ export function CrmFollowupDemo() {
   seedCrmFollowup(w);
   const [phase, setPhase] = createSignal(0);
   const [source, setSource] = createSignal<Source | undefined>();
+  const [sourceId, setSourceId] = createSignal<string>();
   const [section, setSection] = createSignal<CompanySection>('overview');
   const [toolsOpen, setToolsOpen] = createSignal(true);
   const callPlayback = createCallPlayback(followupCall.duration);
@@ -115,7 +116,8 @@ export function CrmFollowupDemo() {
     playback.pause();
     callPlayback.pause();
   };
-  const open = (kind: Source, trigger?: HTMLButtonElement) => {
+  const open = (kind: Source, trigger?: HTMLButtonElement, id?: string) => {
+    setSourceId(id);
     pause();
     if (!source() || !opener?.isConnected) {
       opener =
@@ -153,11 +155,11 @@ export function CrmFollowupDemo() {
       target?.focus({ preventScroll: true });
     });
   };
-  const openItem = (view: WorkspaceView) => {
-    if (view === 'email') open('email');
-    if (view === 'documents') open('file');
-    if (view === 'tasks') open('task');
-    if (view === 'messages') open('chat');
+  const openItem = (view: WorkspaceView, id?: string) => {
+    if (view === 'email') open('email', undefined, id);
+    if (view === 'documents') open('file', undefined, id);
+    if (view === 'tasks') open('task', undefined, id);
+    if (view === 'messages') open('chat', undefined, id);
   };
   const sourceView = (): WorkspaceView =>
     source() === 'email'
@@ -170,13 +172,14 @@ export function CrmFollowupDemo() {
             ? 'messages'
             : 'crm';
   const selected = () =>
-    source() === 'email'
+    sourceId() ??
+    (source() === 'email'
       ? followupIds.email
       : source() === 'file'
         ? followupIds.file
         : source() === 'task'
           ? followupIds.task
-          : followupIds.company;
+          : followupIds.company);
   const linked: DummyWorkspace = {
     ...w,
     view: sourceView,
@@ -249,7 +252,7 @@ export function CrmFollowupDemo() {
                       }}
                       onOpenItem={openItem}
                       onOpenCall={() => open('call')}
-                      onOpenTask={() => open('task')}
+                      onOpenTask={(id) => open('task', undefined, id)}
                     />
                   </Match>
                   <Match when={source() === 'email'}>
