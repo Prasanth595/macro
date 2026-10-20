@@ -1,6 +1,6 @@
 .product-feature-details {
   display: block;
-  margin-top: 32px;
+  margin-top: 40px;
   padding-top: 0;
   font:
     400 15px / 1.5 "Inter Variable",
@@ -11,7 +11,7 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 14px;
+  gap: 20px;
   align-items: stretch;
 }
 .product-feature-detail-links > button {
@@ -24,8 +24,8 @@
   justify-content: flex-start;
   gap: 10px;
   max-width: 100%;
-  min-height: 92px;
-  padding: 22px 24px;
+  min-height: 156px;
+  padding: 28px;
   border: 1px solid transparent;
   border-radius: 12px;
   background: color-mix(in srgb, var(--color-ink) 5%, transparent);
@@ -44,7 +44,7 @@
   gap: 8px;
   color: var(--color-ink);
   font-size: 18px;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.4;
 }
 .product-feature-card-title > svg {
@@ -53,11 +53,14 @@
   height: 18px;
 }
 .product-feature-card-summary {
-  display: none;
+  max-width: 42ch;
+  color: var(--color-ink-muted);
+  font-size: 16px;
+  line-height: 1.6;
 }
 @media (max-width: 599px) {
   .product-feature-details {
-    margin-top: 24px;
+    margin-top: 28px;
   }
   .product-feature-detail-links {
     gap: 12px;
@@ -65,7 +68,7 @@
   .product-feature-detail-links > button {
     flex-basis: 100%;
     min-height: 0;
-    padding: 20px;
+    padding: 24px;
   }
 }
 
