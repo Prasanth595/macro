@@ -309,6 +309,9 @@ avatars and status; previews refresh periodically while the browser tab is activ
 to update titles and access.
 
 Placeholder `Type @ to share with #<name>`. Click it, `type_text`, press Enter to send.
+On touch devices, Send activates on release, not when pressed down. Holding or
+cancelling a press does not send; releasing outside the button keeps the draft.
+The composer keeps keyboard focus when sending.
 The message renders immediately with avatar, email, timestamp. Composer extras: `Attach
 files` and the `Send message` button. Replies also include a close-reply control.
 
