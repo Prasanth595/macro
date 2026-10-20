@@ -211,7 +211,7 @@ it('uses completed local states for reduced motion', () => {
   expect(view.container.querySelector('.demo-cursor')).toBeNull();
 });
 
-it('keeps Julia’s request and Cursor’s progress and PR in the original bug thread', () => {
+it('keeps Julia’s request and one completed Cursor PR response in the original bug thread', () => {
   const view = render(() => <GithubConversationDemo agent />);
   const thread = view.container.querySelector<HTMLElement>(
     '[data-thread-id="bug"]'
@@ -225,14 +225,11 @@ it('keeps Julia’s request and Cursor’s progress and PR in the original bug t
   expect(view.container.querySelector('[data-thread-id="request"]')).toBeNull();
   visible(true);
   vi.advanceTimersByTime(1400);
-  expect(
-    within(thread).getByText(
-      'I’ll check the mobile submit handler and add a regression test.'
-    )
-  ).toBeTruthy();
+  expect(thread.querySelectorAll('[data-agent="cursor"]')).toHaveLength(0);
   expect(within(thread).queryByText('#491 · Fix mobile sign-in')).toBeNull();
   vi.advanceTimersByTime(2800);
   expect(within(thread).getByText('#491 · Fix mobile sign-in')).toBeTruthy();
+  expect(thread.querySelectorAll('[data-agent="cursor"]')).toHaveLength(1);
   expect(within(thread).queryByText(/more replies/)).toBeNull();
   vi.advanceTimersByTime(9900);
   expect(within(thread).queryByText('#491 · Fix mobile sign-in')).toBeNull();

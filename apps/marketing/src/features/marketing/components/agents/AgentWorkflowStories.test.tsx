@@ -177,6 +177,12 @@ it('shows the completed collaboration without animation for reduced motion', () 
   const view = render(() => <AgentTeamworkStory />);
   expect(view.getAllByText(/build this\./)).toHaveLength(1);
   expect(view.getByRole('button', { name: 'Open session' })).toBeTruthy();
+  expect(view.container.querySelectorAll('[data-agent="cursor"]')).toHaveLength(
+    1
+  );
+  expect(
+    view.queryByText(/On it. I found the existing upload component/)
+  ).toBeNull();
   expect(
     view.queryByRole('heading', { name: 'Improve the client upload flow' })
   ).toBeNull();

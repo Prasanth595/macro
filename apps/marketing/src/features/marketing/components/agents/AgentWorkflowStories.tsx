@@ -776,18 +776,11 @@ export function AgentTeamworkStory() {
       body: '@Cursor, build this. Reuse the upload flow and preserve nested folders. Julia will check the preview.',
     },
     {
-      id: 'code-progress',
-      replyTo: 'design-request',
-      person: 'cursor',
-      time: '10:09 AM',
-      body: 'On it. I found the existing upload component. I’ll reuse it and check nested folders and mobile file selection.',
-    },
-    {
       id: 'code-result',
       replyTo: 'design-request',
       person: 'cursor',
       time: '10:14 AM',
-      body: 'The preview is ready. Files and folders both work, and the folder structure stays intact.',
+      body: '',
     },
   ];
   const teamHistory: WorkspaceComment[] = [
@@ -826,7 +819,7 @@ export function AgentTeamworkStory() {
     w.setData('channels', (c) => c.id === 'client-files', 'messages', [
       ...teamHistory,
       ...sceneMessages.slice(0, step + 2),
-      ...(step === 6
+      ...(step === 5
         ? [
             {
               id: 'design-followup',
@@ -841,7 +834,7 @@ export function AgentTeamworkStory() {
   };
   const playback = createProductWalkthrough({
     root: () => root,
-    steps: 6,
+    steps: 5,
     loop: { hold: 10000 },
     reset: () => {
       advance(0);
@@ -850,8 +843,8 @@ export function AgentTeamworkStory() {
       const log = root.querySelector('.sample-chat-log');
       if (log) log.scrollTop = 0;
     },
-    delay: (step) => (step === 5 ? 3500 : 2600),
-    reduced: () => advance(6),
+    delay: (step) => (step >= 4 ? 3500 : 2600),
+    reduced: () => advance(5),
     advance: (step) => {
       advance(step);
       queueMicrotask(() => {
