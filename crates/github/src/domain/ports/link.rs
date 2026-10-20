@@ -4,12 +4,11 @@ use std::future::Future;
 
 use crate::domain::models::{
     EnrichedGithubPullRequest, GithubAccessToken, GithubDraftOutcome, GithubError,
-    GithubExchangeTokenResponse, GithubGrantLinkOutcome, GithubLink, GithubLinkStatus,
-    GithubMergeMethod, GithubMergeOutcome, GithubPullRequestDetails,
-    GithubPullRequestMergeabilityEntry, GithubPullRequestNumber, GithubPullRequestRef,
-    GithubRepositoryMergeSettings, GithubUserInfo, MergeGithubPullRequestRequest,
-    MergeGithubPullRequestResponse, SetGithubPullRequestDraftRequest,
-    SetGithubPullRequestDraftResponse,
+    GithubExchangeTokenResponse, GithubLink, GithubLinkStatus, GithubMergeMethod,
+    GithubMergeOutcome, GithubPullRequestDetails, GithubPullRequestMergeabilityEntry,
+    GithubPullRequestNumber, GithubPullRequestRef, GithubRepositoryMergeSettings, GithubUserInfo,
+    MergeGithubPullRequestRequest, MergeGithubPullRequestResponse,
+    SetGithubPullRequestDraftRequest, SetGithubPullRequestDraftResponse,
 };
 use macro_user_id::{lowercased::Lowercase, user_id::MacroUserId};
 
@@ -17,26 +16,10 @@ use macro_user_id::{lowercased::Lowercase, user_id::MacroUserId};
 ///
 /// All methods perform database operations — SQL queries are written
 /// directly in the outbound adapter implementation.
-#[cfg_attr(test, mockall::automock(type Err = anyhow::Error; type LinkGuard = ();))]
+#[cfg_attr(test, mockall::automock(type Err = anyhow::Error;))]
 pub trait GithubRepo: Send + Sync + 'static {
     /// The error type returned by repository operations.
     type Err: Into<anyhow::Error> + Send + std::fmt::Debug;
-
-    /// Held until the complete cross-system link operation finishes.
-    type LinkGuard: Send;
-
-    /// Serializes callbacks and disconnects for one Macro user.
-    fn lock_user_link(
-        &self,
-        user_id: &str,
-    ) -> impl Future<Output = Result<Self::LinkGuard, Self::Err>> + Send;
-
-    /// Serializes mutations of a grant shared by multiple Macro users.
-    fn lock_github_account(
-        &self,
-        guard: &mut Self::LinkGuard,
-        github_user_id: &str,
-    ) -> impl Future<Output = Result<(), Self::Err>> + Send;
 
     /// Gets the github link by the macro user id, or `None` when the user has
     /// not linked GitHub.
@@ -68,15 +51,6 @@ pub trait GithubRepo: Send + Sync + 'static {
     fn insert_github_link(
         &self,
         link: &GithubLink,
-    ) -> impl Future<Output = Result<(), Self::Err>> + Send;
-
-    /// Repoints links sharing a missing grant after OAuth proves ownership of that GitHub account.
-    /// Only links still referencing `previous_owner` are changed.
-    fn reassign_github_grant(
-        &self,
-        github_user_id: &str,
-        previous_owner: &uuid::Uuid,
-        new_owner: &uuid::Uuid,
     ) -> impl Future<Output = Result<(), Self::Err>> + Send;
 
     /// deletes the in progress user link
@@ -187,7 +161,7 @@ pub trait Auth: Send + Sync + 'static {
     /// The error type returned by repository operations.
     type Err: Into<anyhow::Error> + Send + std::fmt::Debug;
 
-    /// Creates or refreshes the grant after OAuth has verified the GitHub account.
+    /// Links the github account to the auth user
     fn link_user(
         &self,
         fusionauth_user_id: &uuid::Uuid,
@@ -195,7 +169,7 @@ pub trait Auth: Send + Sync + 'static {
         github_user_id: &str,
         username: &str,
         access_token: &str,
-    ) -> impl Future<Output = Result<GithubGrantLinkOutcome, Self::Err>> + Send;
+    ) -> impl Future<Output = Result<(), Self::Err>> + Send;
 
     /// Deletes the github link for a auth user
     fn delete_user_link(
@@ -204,13 +178,12 @@ pub trait Auth: Send + Sync + 'static {
         github_idp_id: &str,
     ) -> impl Future<Output = Result<(), Self::Err>> + Send;
 
-    /// Retrieves the GitHub token, or `None` if the identity or grant no longer exists.
+    /// Retreives the users github access token
     fn retreive_access_token(
         &self,
         fusionauth_user_id: &uuid::Uuid,
         github_idp_id: &str,
-        github_user_id: &str,
-    ) -> impl Future<Output = Result<Option<GithubAccessToken>, Self::Err>> + Send;
+    ) -> impl Future<Output = Result<GithubAccessToken, Self::Err>> + Send;
 }
 
 /// Service interface for github link operations (OAuth and account linking).

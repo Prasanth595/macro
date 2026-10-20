@@ -22,10 +22,6 @@ impl axum::response::IntoResponse for crate::domain::models::GithubError {
                 StatusCode::PRECONDITION_REQUIRED,
                 "ReauthenticationRequired".into(),
             ),
-            crate::domain::models::GithubError::AccountMismatch => (
-                StatusCode::CONFLICT,
-                "Disconnect the current GitHub account before linking a different account.".into(),
-            ),
             crate::domain::models::GithubError::NoRefreshTokenProvided => (
                 StatusCode::UNPROCESSABLE_ENTITY,
                 "no refresh token was provided".into(),

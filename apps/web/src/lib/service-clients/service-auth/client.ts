@@ -12,7 +12,7 @@ import {
 import { Telemetry } from '@macro-inc/observability';
 
 import { makePersisted } from '@solid-primitives/storage';
-import { ok } from 'neverthrow';
+import { err, ok } from 'neverthrow';
 import { createSignal } from 'solid-js';
 import type {
   AiPlanCatalog,
@@ -1112,7 +1112,11 @@ export const authServiceClient = {
   },
 
   async reauthenticateGithub(originalUrl?: string) {
-    // The OAuth callback refreshes the grant after verifying the GitHub account.
+    const deleteResult = await authServiceClient.deleteGithubLink();
+    if (deleteResult.isErr()) {
+      return err(deleteResult.error);
+    }
+
     return authServiceClient.initGithubLink(originalUrl);
   },
 

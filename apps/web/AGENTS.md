@@ -101,6 +101,9 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Passive PR mentions must not retry initial GitHub status failures on remount; preserve confirmed status through refetch errors and keep pending data reads out of their parent Suspense boundary.
 - Keep native booking exit navigation in the route shell, outside page loading boundaries, and use the router so the native hash route stays intact.
 - All API/network calls live in service-clients.
+- Route explicit call exits using the server's `callEnded` result: ended calls
+  open their record; ongoing channel and scheduled calls return to the channel
+  and Calendar. Preserve the session ID before disconnecting.
 - Keep desktop Gmail and Outlook inbox consent in the system browser with a
   `macro:///inbox-link-callback` return; webview origins are not desktop callbacks.
 - Draft autosaves preserve active email thread messages; evict inactive legacy
