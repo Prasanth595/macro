@@ -31,7 +31,7 @@ export function RouteChannels() {
     <ProductPage>
       <ProductHero
         product="Chat"
-        title={['Team chat, wired into', 'everything else.']}
+        title={['Team chat connected to', 'the rest of your work.']}
         description={[
           '@mention a doc, task, person, or company',
           'and the whole channel can open it natively.',
