@@ -130,7 +130,7 @@ export function RouteCrm() {
       <FeaturePageSection
         id="crm-from-email"
         title={['Keep your CRM', 'up to date with agents.']}
-        description="Your CRM lives beside your email, calls, and chat. Ask an agent to update stages, owners, and next steps from those conversations so your team can work from a current customer record."
+        description="Tell your agent what changed in your customer conversations. The agent can update stages, owners, and next steps so your CRM stays current."
         details={crmGuides['crm-from-email']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
