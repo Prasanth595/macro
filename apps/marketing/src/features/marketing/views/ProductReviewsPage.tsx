@@ -116,7 +116,7 @@ export function RouteGithub() {
         </FeaturePageSection>
         <FeaturePageSection
           id="pr-tasks"
-          title={['Keep tasks', 'in sync with code']}
+          title={['Link pull requests', 'to tasks.']}
           description="Keep implementation and task tracking connected. Link a pull request to its task, then let opening, merging, or closing the PR update the task’s status for the team."
           details={githubGuides['pr-tasks']}
         >
@@ -126,7 +126,7 @@ export function RouteGithub() {
         </FeaturePageSection>
         <FeaturePageSection
           id="coding-agents"
-          title={['Turn bug reports', 'into fixes']}
+          title={['Ask an agent', 'to fix bugs.']}
           description="Ask a connected coding agent to pick up a bug from the team conversation. Give it the context, then open its pull request in Macro to understand the changes and discuss the result."
           details={githubGuides['coding-agents']}
         >
@@ -136,7 +136,7 @@ export function RouteGithub() {
         </FeaturePageSection>
         <FeaturePageSection
           id="review-inbox"
-          title={['Know what needs', 'your review']}
+          title={['See review requests', 'in one inbox.']}
           description="Keep GitHub review requests, comments, and mentions alongside your messages, tasks, and email. See what needs attention and open the relevant pull request from the same inbox."
           details={githubGuides['review-inbox']}
         >
