@@ -8,7 +8,6 @@ import { ToggleSwitch } from '@ui/components/ToggleSwitch';
 import { cn } from '@ui/utils/classname';
 import { createSignal, createUniqueId, Show } from 'solid-js';
 import { formatLocalDate, parseLocalDate } from '../../utils/calendar-date';
-import { EventComposerPopoverPortal } from './EventComposerPopoverPortal';
 import { dateLabelFormatter, EventTimeInput } from './EventDateTimeInputs';
 import {
   DAY_TIME_OPTIONS,
@@ -50,6 +49,8 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
   const endParts = () => splitLocalDateTime(props.end);
   const startDate = () => parseLocalDate(startParts().date);
   const endDate = () => parseLocalDate(endParts().date);
+  const [month, setMonth] = createSignal(startDate() ?? new Date());
+  const singleMonth = () => isMobile() || startParts().date === endParts().date;
   const canStart = () => !props.startReadOnly && !props.startDisabled;
   const canEnd = () => !props.endReadOnly && !props.endDisabled;
   const canAllDay = () => !props.allDayReadOnly && !props.allDayDisabled;
@@ -72,6 +73,7 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
   const rangeDayLabel = (date: Date | null, fallback: string) =>
     date ? dateLabelFormatter.format(date) : fallback;
   const changeOpen = (next: boolean) => {
+    if (next) setMonth(startDate() ?? new Date());
     setSelection(undefined);
     setOpen(next && editable());
   };
@@ -92,6 +94,13 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
       if (!range.from || !range.to) {
         setSelection(range);
         return;
+      }
+      if (
+        !isMobile() &&
+        singleMonth() &&
+        range.from.getTime() !== range.to.getTime()
+      ) {
+        setMonth(range.from);
       }
       publishRange(
         dateValue(props.start, range.from),
@@ -139,6 +148,7 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
       }
     >
       <Popover
+        modal
         open={open() && editable()}
         onOpenChange={changeOpen}
         placement="bottom-start"
@@ -172,10 +182,13 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
           </span>
           <CaretDownIcon class="size-3 shrink-0 text-ink-extra-muted" />
         </Popover.Trigger>
-        <EventComposerPopoverPortal>
-          <Layer depth={3}>
+        <Popover.Portal>
+          <Layer depth={4}>
             <Popover.Content
-              class="portal-scope z-action-menu flex max-h-[var(--kb-popper-content-available-height)] w-[40rem] max-w-[var(--kb-popper-content-available-width,calc(100vw-1rem))] min-w-0 flex-col overflow-hidden rounded-2xl border border-edge bg-menu-glass glass menu-open-animation mobile:w-80"
+              class={cn(
+                'portal-scope z-action-menu flex max-h-[var(--kb-popper-content-available-height)] max-w-[var(--kb-popper-content-available-width,calc(100vw-1rem))] min-w-0 flex-col overflow-hidden rounded-2xl border border-edge bg-menu-glass glass menu-open-animation',
+                singleMonth() ? 'w-80' : 'w-[40rem]'
+              )}
               onKeyDown={(event) => {
                 if (event.key !== 'Escape') return;
                 event.preventDefault();
@@ -189,17 +202,12 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
                   Event date and time
                 </Popover.Title>
                 <div class="px-4 pb-4 pt-3">
-                  <p class="mb-3 text-xs text-ink-muted">
-                    {canStart() && canEnd()
-                      ? 'Choose a start day, then an end day.'
-                      : canStart()
-                        ? 'Choose the start day.'
-                        : 'Choose the end day.'}
-                  </p>
                   <RangeCalendar
                     required
                     fixedWeeks
-                    numberOfMonths={isMobile() ? 1 : 2}
+                    numberOfMonths={singleMonth() ? 1 : 2}
+                    month={month()}
+                    onMonthChange={setMonth}
                     value={currentRange()}
                     disabled={() => !canStart() && !canEnd()}
                     onValueChange={changeRange}
@@ -208,7 +216,7 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
                     role="status"
                     class="mt-4 border-t border-edge-muted pt-3"
                   >
-                    <span class="block text-xxs font-medium text-ink-muted">
+                    <span class="block text-sm font-medium text-ink-muted">
                       Selected range
                     </span>
                     <p class="mt-1 text-sm text-ink">
@@ -306,7 +314,7 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
               </div>
             </Popover.Content>
           </Layer>
-        </EventComposerPopoverPortal>
+        </Popover.Portal>
       </Popover>
     </Show>
   );

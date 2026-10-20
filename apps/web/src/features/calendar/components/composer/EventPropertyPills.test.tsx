@@ -88,14 +88,16 @@ describe('composer popovers inside a dialog', () => {
       const [start, setStart] = createSignal('2026-10-06T09:00');
       return (
         <Dialog open>
-          <input aria-label="Title" />
-          <EventDateTimeRangeFields
-            start={start()}
-            end="2026-10-06T10:00"
-            allDay={false}
-            onRangeChange={setStart}
-            onAllDayChange={vi.fn()}
-          />
+          <div data-testid="composer-sidebar" class="portal-scope">
+            <input aria-label="Title" />
+            <EventDateTimeRangeFields
+              start={start()}
+              end="2026-10-06T10:00"
+              allDay={false}
+              onRangeChange={setStart}
+              onAllDayChange={vi.fn()}
+            />
+          </div>
         </Dialog>
       );
     });
@@ -104,6 +106,11 @@ describe('composer popovers inside a dialog', () => {
       name: 'Edit event date and time range',
     });
     await user.click(trigger);
+    expect(
+      screen
+        .getByTestId('composer-sidebar')
+        .contains(screen.getByRole('dialog', { name: 'Event date and time' }))
+    ).toBe(false);
     const time = screen.getByLabelText('Start time');
     await user.click(time);
     await user.click(screen.getByRole('option', { name: '9:30 AM' }));
@@ -166,16 +173,65 @@ describe('composer popovers inside a dialog', () => {
       name: 'Edit event date and time range',
     });
     await user.click(trigger);
-    const grids = screen.getAllByRole('grid');
-    expect(grids).toHaveLength(2);
-    await user.click(within(grids[0]).getByRole('gridcell', { name: '20' }));
+    expect(screen.getAllByRole('grid')).toHaveLength(1);
+    await user.click(
+      within(screen.getByRole('grid')).getByRole('gridcell', { name: '20' })
+    );
     expect(onRangeChange).not.toHaveBeenCalled();
-    await user.click(within(grids[1]).getByRole('gridcell', { name: '12' }));
+    await user.click(screen.getByRole('button', { name: 'Go to next month' }));
+    await user.click(
+      within(screen.getByRole('grid')).getByRole('gridcell', { name: '12' })
+    );
     expect(onRangeChange).toHaveBeenCalledExactlyOnceWith(
       '2026-10-20T09:00',
       '2026-11-12T10:00'
     );
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('expands for multiple days and returns to one calendar for a same-day range', async () => {
+    const user = userEvent.setup();
+    render(() => {
+      const [range, setRange] = createSignal({
+        start: '2026-10-06T09:00',
+        end: '2026-10-06T10:00',
+      });
+      return (
+        <EventDateTimeRangeFields
+          start={range().start}
+          end={range().end}
+          allDay={false}
+          onRangeChange={(start, end) => setRange({ start, end })}
+          onAllDayChange={vi.fn()}
+        />
+      );
+    });
+    await user.click(
+      screen.getByRole('button', { name: 'Edit event date and time range' })
+    );
+    expect(screen.getAllByRole('grid')).toHaveLength(1);
+    expect(
+      screen.queryByText('Choose a start day, then an end day.')
+    ).toBeNull();
+    await user.click(
+      within(screen.getByRole('grid')).getByRole('gridcell', { name: '20' })
+    );
+    await user.click(screen.getByRole('button', { name: 'Go to next month' }));
+    await user.click(
+      within(screen.getByRole('grid')).getByRole('gridcell', { name: '22' })
+    );
+    expect(screen.getAllByRole('grid')).toHaveLength(2);
+    expect(screen.getByText('October 2026')).toBeTruthy();
+    expect(screen.getByText('November 2026')).toBeTruthy();
+    const firstMonth = within(screen.getAllByRole('grid')[0]);
+    await user.click(firstMonth.getByRole('gridcell', { name: '21' }));
+    await user.click(firstMonth.getByRole('gridcell', { name: '21' }));
+    expect(screen.getAllByRole('grid')).toHaveLength(1);
+    expect(screen.getByLabelText('Start time')).toHaveProperty(
+      'value',
+      '09:00'
+    );
+    expect(screen.getByLabelText('End time')).toHaveProperty('value', '10:00');
   });
 
   it('keeps a fully locked range as plain content', () => {
