@@ -102,7 +102,7 @@ function EventDateTimeDropdown(props: EventDateTimeDropdownProps) {
             aria-invalid={props.invalid || undefined}
             aria-describedby={props.describedBy}
             class={cn(
-              'group inline-flex h-7 w-fit max-w-48 min-w-0 items-center justify-between gap-1.5 rounded-none border border-edge-muted bg-control px-2 py-1 text-left text-xs leading-tight text-ink-muted hover:bg-hover hover:text-ink focus-visible:bg-active focus-visible:text-ink focus-visible:ring-accent/10 data-expanded:bg-hover data-expanded:text-ink',
+              'group inline-flex h-9 w-fit max-w-48 min-w-0 items-center justify-between gap-1.5 rounded-md border border-edge-muted bg-control px-2 py-2 text-left text-xs leading-tight text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:bg-active focus-visible:text-ink focus-visible:outline-none focus-visible:ring-0 data-expanded:bg-hover data-expanded:text-ink touch:min-h-[44px]',
               props.fullWidth && 'w-full max-w-none',
               open() && 'bg-hover text-ink',
               props.invalid &&

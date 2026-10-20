@@ -18,21 +18,46 @@ async function verifyFieldSpacing(page) {
   assert.ok(gaps.every((gap) => Math.abs(gap - gaps[0]) < 1), `Uneven row spacing: ${gaps}`);
 }
 
+async function verifyDescriptionPosition(page) {
+  const directlyUnderTitle = await page.getByRole('group', { name: 'Description', exact: true }).evaluate((element) =>
+    Boolean(element.previousElementSibling?.querySelector('[aria-label="Title"]'))
+  );
+  assert.equal(directlyUnderTitle, true, 'Description must sit directly below the title');
+}
 async function verifySelectorShape(page) {
+  const minimumHeight = await page.evaluate(() => matchMedia('(pointer: coarse)').matches ? 44 : 36);
   const selectors = await page.locator('form button[aria-expanded]').evaluateAll((elements) => elements.map((element) => {
     const column = element.closest('[role="group"][aria-label]')?.lastElementChild;
     const style = getComputedStyle(element);
     return {
       label: element.getAttribute('aria-label'),
       width: element.getBoundingClientRect().width,
+      height: element.getBoundingClientRect().height,
       available: column?.getBoundingClientRect().width,
       radii: [style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomLeftRadius, style.borderBottomRightRadius].map(Number.parseFloat),
     };
   }));
   assert.ok(selectors.length >= 5);
   for (const selector of selectors) {
-    assert.ok(selector.radii.every((radius) => radius === 0), `${selector.label} must have square corners`);
+    assert.ok(selector.radii.every((radius) => radius > 0), `${selector.label} must have rounded corners`);
+    assert.ok(selector.height >= minimumHeight, `${selector.label} must meet the ${minimumHeight}px trigger height`);
     assert.ok(Math.abs(selector.width - selector.available) < 1, `${selector.label} must fill its value column`);
+  }
+  await page.keyboard.press('Tab');
+  const triggers = page.locator('form button[aria-expanded]');
+  for (const trigger of await triggers.all()) {
+    await trigger.focus();
+    const focus = await trigger.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        visible: element.matches(':focus-visible'),
+        outline: style.outlineStyle,
+        shadowPixels: style.boxShadow.match(/-?[0-9.]+px/g)?.map(Number.parseFloat) ?? [],
+      };
+    });
+    assert.equal(focus.visible, true);
+    assert.equal(focus.outline, 'none');
+    assert.ok(focus.shadowPixels.every((value) => value === 0), 'Triggers must not draw a focus ring');
   }
 }
 
@@ -52,7 +77,8 @@ async function verifyDesktop(options, name) {
     assert.equal(await title.evaluate((element) => element === document.activeElement), true);
     assert.equal(await start.count(), 0);
     const rowLabels = await page.locator('form [role="group"][aria-label]').evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label')));
-    assert.deepEqual(rowLabels, ['Event type', 'Repeats', 'Meeting link', 'Location', 'Description', 'Notifications', 'Calendar', 'Guests']);
+    assert.deepEqual(rowLabels, ['Event type', 'Description', 'Repeats', 'Meeting link', 'Location', 'Notifications', 'Calendar', 'Guests']);
+    await verifyDescriptionPosition(page);
     await verifyFieldSpacing(page);
     await verifySelectorShape(page);
     await title.fill('Calendar draft stays here');
@@ -91,6 +117,8 @@ async function verifyDesktop(options, name) {
 
     await page.getByRole('button', { name: 'Move to sidebar', exact: true }).click();
     assert.equal(await title.inputValue(), 'Calendar draft stays here');
+    await verifyDescriptionPosition(page);
+    await verifySelectorShape(page);
     assert.match(await page.getByRole('button', { name: 'Guests', exact: true }).innerText(), /Ada Lovelace/);
     assert.match(await page.getByRole('textbox', { name: 'Description', exact: true }).innerText(), /Keep this description/);
     assert.equal(await page.getByRole('textbox', { name: 'Location', exact: true }).inputValue(), 'Design studio');
@@ -123,6 +151,7 @@ async function verifyDesktop(options, name) {
     await page.getByRole('button', { name: 'Edit example event', exact: true }).click();
     await title.waitFor();
     assert.equal(await title.inputValue(), 'Weekly design review');
+    await verifyDescriptionPosition(page);
     assert.equal(await start.count(), 0);
     assert.match(await page.getByRole('textbox', { name: 'Description', exact: true }).innerText(), /Existing agenda/);
     assert.equal(await page.getByRole('textbox', { name: 'Location', exact: true }).inputValue(), 'Design studio');
@@ -182,6 +211,7 @@ async function verifyMobile() {
     assert.equal(await page.getByRole('button', { name: 'Move to sidebar', exact: true }).count(), 0);
     assert.equal(await page.getByRole('button', { name: 'Close event editor', exact: true }).count(), 0);
     await verifyFieldSpacing(page);
+    await verifyDescriptionPosition(page);
     await verifySelectorShape(page);
     await title.fill('Phone draft');
     await page.getByRole('textbox', { name: 'Location', exact: true }).fill('South studio');
@@ -204,6 +234,7 @@ async function verifyMobile() {
     await page.getByRole('button', { name: 'Edit example event', exact: true }).click();
     await title.waitFor();
     assert.equal(await title.inputValue(), 'Weekly design review');
+    await verifyDescriptionPosition(page);
     await page.getByRole('button', { name: 'Edit event start date and time', exact: true }).waitFor();
     await page.getByRole('textbox', { name: 'Location', exact: true }).fill('Phone studio');
     await page.getByRole('button', { name: 'Save', exact: true }).click();

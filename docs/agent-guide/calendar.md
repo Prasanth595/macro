@@ -96,13 +96,16 @@ Desktop click/drag creation opens a non-modal popover near the selected range.
 The popover's `Move to sidebar` action keeps the same draft in a right-hand editor;
 `New → Event` opens that sidebar directly. Editing from event details opens the
 same anchored popover, not a separate split dialog. Both create and edit show the
-event type above the title. Icon-led rows follow the details popover's order:
-date/time when visible, recurrence, meeting link, direct location input,
-description, notifications, calendar, then guests. Every row uses the same
-responsive spacing. Permission-locked values are plain read-only content, not
-control-shaped pills or disabled inputs. Editable dropdown selectors fill the
-value column and have square corners, including date selectors in the sidebar
-and phone sheet. The custom-repeat action sits below its full-width selector.
+event type above the title, with description directly beneath the title. The
+remaining icon-led rows follow the details popover's order: date/time when
+visible, recurrence, meeting link, direct location input, notifications,
+calendar, then guests. Every row uses the same responsive spacing.
+Permission-locked values are plain read-only content, not control-shaped pills
+or disabled inputs. Editable dropdown selectors fill the value column with
+taller, rounded triggers, including date selectors in the sidebar and phone
+sheet. Triggers omit focus outlines and rings, retaining background feedback
+for keyboard focus; touch triggers keep a 44px minimum height. The custom-repeat
+action sits below its full-width selector.
 The popover has no visible `New event` heading or date range. Move to the sidebar
 to change dates, times, or All day. The primary Create event and Save actions use
 the CTA button style.

@@ -4,6 +4,7 @@ import { EmailLinksContextProvider } from '@core/context/emailLinks';
 import { QuickAccessContextProvider } from '@core/context/quickAccess/context';
 import { UserContextProvider } from '@core/context/user';
 import { isMobile } from '@core/mobile/isMobile';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { QueryClient, QueryClientProvider } from '@tanstack/solid-query';
 import '@fontsource-variable/inter';
 import '../../../index.css';
@@ -40,6 +41,9 @@ import {
 
 for (const [key, value] of Object.entries(themeCssVars(macroLightTheme)))
   document.documentElement.style.setProperty(key, value);
+
+// Match the application bootstrap so touch sizing is exercised in the fixture.
+document.documentElement.dataset.touchDevice = String(isTouchDevice());
 
 const exampleEvent: CalendarEvent = {
   id: 'fixture-occurrence',

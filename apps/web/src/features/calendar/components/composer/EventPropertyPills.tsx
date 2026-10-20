@@ -42,7 +42,7 @@ import {
 } from './out-of-office';
 
 const PROPERTY_TRIGGER_CLASS =
-  'group flex h-7 w-full min-w-0 overflow-hidden items-center justify-between gap-1.5 rounded-none border border-edge-muted bg-control px-2 py-1 text-left text-xs leading-tight text-ink-muted hover:bg-hover hover:text-ink focus-visible:bg-active focus-visible:text-ink focus-visible:ring-accent/10 data-expanded:bg-hover data-expanded:text-ink';
+  'group flex h-9 w-full min-w-0 overflow-hidden items-center justify-between gap-1.5 rounded-md border border-edge-muted bg-control px-2 py-2 text-left text-xs leading-tight text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:bg-active focus-visible:text-ink focus-visible:outline-none focus-visible:ring-0 data-expanded:bg-hover data-expanded:text-ink touch:min-h-[44px]';
 const PROPERTY_VALUE_CLASS =
   'group-hover:text-ink group-focus-visible:text-ink group-data-expanded:text-ink';
 

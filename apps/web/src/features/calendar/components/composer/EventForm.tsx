@@ -433,6 +433,11 @@ export function EventForm(props: EventFormProps) {
             {controls.kind()}
           </PropertyRow>
           <div class="min-w-0 pl-9 sm:pl-7">{titleField()}</div>
+          <Show when={!isOutOfOffice()}>
+            <PropertyRow label="Description" icon={TextAlignLeftIcon}>
+              {descriptionField()}
+            </PropertyRow>
+          </Show>
           <Show when={props.showDateRange !== false}>
             <PropertyRow label="Date and time" icon={CalendarBlankIcon}>
               {dateFields()}
@@ -463,9 +468,6 @@ export function EventForm(props: EventFormProps) {
             </PropertyRow>
             <PropertyRow label="Location" icon={MapPinIcon}>
               {controls.location()}
-            </PropertyRow>
-            <PropertyRow label="Description" icon={TextAlignLeftIcon}>
-              {descriptionField()}
             </PropertyRow>
           </Show>
           <Show when={isOutOfOffice()}>
