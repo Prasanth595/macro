@@ -93,8 +93,8 @@ export function RouteTasks() {
           product="Tasks"
           title={['Task tracking without', 'the busywork.']}
           description={[
-            'Turn requests from chat, email, and docs into',
-            'tasks your team can act on.',
+            'Turn requests from chat, email, and docs',
+            'into tasks your team can act on.',
           ]}
         />
         <TaskHeroDemo />
