@@ -221,7 +221,7 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
       return;
     }
     if (collectDraft()) setDraftBackMenuOpen(true);
-    else props.mobileCompose?.onClose();
+    else fireAndForget(deleteDraftAndReset(), 'email-compose');
   };
   const saveAndClose = async () => {
     try {
@@ -368,6 +368,10 @@ function LoadedReplyInputView(props: ReplyInputViewProps) {
         scopeId: composeHotkeyScope,
         description: 'Close reply',
         keyDownHandler: () => {
+          if (isMobileCompose()) {
+            requestClose();
+            return true;
+          }
           const draft = collectDraft();
           const isEmpty = draft === null;
 
