@@ -89,7 +89,7 @@ export function RouteChannels() {
       </FeaturePageSection>
       <FeaturePageSection
         id="catch-up"
-        title={['Keep up with every', 'conversation.']}
+          title={['Read and reply to', 'every thread inline.']}
         description="Read replies inline, follow the full thread, and respond without opening each conversation."
         details={channelsGuides['catch-up']}
       >

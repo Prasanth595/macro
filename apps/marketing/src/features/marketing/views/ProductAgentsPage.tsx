@@ -130,7 +130,7 @@ export function RouteAgents() {
       </FeaturePageSection>
       <FeaturePageSection
         id="agent-collaboration"
-        title={['Turn conversations', 'into deliverables.']}
+          title={['Turn conversations', 'into finished work.']}
         description="Bring design and implementation into the team conversation. Ask Macro for a mockup, give feedback together, then tag Cursor to build it using the context already in the channel."
         details={agentsGuides['agent-collaboration']}
       >
