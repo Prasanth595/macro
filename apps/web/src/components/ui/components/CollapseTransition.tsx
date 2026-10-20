@@ -200,6 +200,11 @@ export function CollapseTransition(props: CollapseTransitionProps) {
     );
   }
 
+  function resolveFromOpacity(opening: boolean) {
+    if (running) return getComputedStyle(running.content).opacity;
+    return opening ? '0' : '1';
+  }
+
   function animate(element: Element, opening: boolean, done: () => void) {
     if (disposed || !(element instanceof HTMLElement) || opening !== props.open)
       return done();
@@ -207,11 +212,7 @@ export function CollapseTransition(props: CollapseTransitionProps) {
     props.onPresenceChange?.(true);
     const target = props.container?.() ?? element;
     const collapsedSize = props.collapsedSize ?? 0;
-    const fromOpacity = running
-      ? getComputedStyle(running.content).opacity
-      : opening
-        ? '0'
-        : '1';
+    const fromOpacity = resolveFromOpacity(opening);
     const from = resolveFromSize(opening, target, collapsedSize);
     // Capture neighbors before releasing an interrupted animation's styles.
     const companions = untrack(() =>
