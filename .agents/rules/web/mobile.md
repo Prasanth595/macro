@@ -28,6 +28,7 @@ read their code, and follow that pattern rather than inventing a new one.
 - Gate hover and press styles with `not-touch:`; iOS leaves hover stuck.
 - No action lives only behind hover. `HoverCard` renders nothing on touch,
   so give it a tap path that opens a sheet, as `UserCardTrigger` does.
+- Keep tooltips disabled on touch devices, including focus and controlled-open states.
 - Keep `@ui` Button's touch sizing (no `noTouchResize` without cause); rows
   are 44px on touch (`touch:min-h-[44px]`).
 - Long-press goes through the `touchHandler` directive. On scrollable rows,
