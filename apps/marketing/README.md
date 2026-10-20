@@ -17,8 +17,8 @@ Slab display copy uses warm near-black (`#1d1c1a`) in the cream palette.
 
 Public calls to action use the shared `site-nav-start` treatment: warm white,
 soft pill corners, a fine border, and a 2px arrow shift on hover. `Book a demo` is a
-soft grey secondary action; the header's `Open app` has a slightly stronger grey
-fill, a fine border, and no arrow. Its fill fades with the header label during
+soft grey secondary action; the header's `Open app` uses a warm-white fill with
+near-black text, a fine border, and no arrow. Its fill fades with the header label during
 the footer transition. As it lands in the footer, the same link reveals the
 original wider white pill, glass rim, and arrow. It follows the existing scroll
 animation and fits within phone widths. Its header label fades out completely

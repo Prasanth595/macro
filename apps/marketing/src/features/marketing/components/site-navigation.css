@@ -61,14 +61,14 @@
   --cta-footer-width: 172px;
   position: relative; isolation: isolate;
   min-width: 0; padding-inline: 18px; gap: 8px;
-  background: transparent; border-color: transparent; color: var(--nav-ink); box-shadow: none;
+  background: transparent; border-color: transparent; color: #1d1c1a; box-shadow: none;
 }
-/* A quiet filled pill that fades with its label during the footer transition. */
+/* Match the primary action palette and fade with the label at the footer. */
 .site-header a.site-nav-open::before {
   content: ''; position: absolute; inset: -1px; z-index: -1; pointer-events: none;
-  border: 1px solid color-mix(in srgb, var(--nav-ink) 18%, transparent);
-  border-radius: inherit; background: color-mix(in srgb, var(--nav-ink) 18%, transparent);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--nav-ink) 7%, transparent);
+  border: 1px solid #1d1c1a26;
+  border-radius: inherit; background: #f5f3ee;
+  box-shadow: inset 0 1px 0 #fff, 0 1px 2px #00000014;
   opacity: clamp(0, calc(1 - var(--cta-landing, 0) * 2), 1);
   transition: background-color 140ms ease, border-color 140ms ease;
 }
@@ -100,13 +100,13 @@
   .site-nav-start:hover svg { transform: translateX(2px); }
   .site-nav-demo:hover { background-color: color-mix(in srgb, var(--nav-ink) 12%, transparent); border-color: color-mix(in srgb, var(--nav-ink) 25%, transparent); }
   .site-header a.site-nav-open:hover { background-color: transparent; border-color: transparent; }
-  .site-header a.site-nav-open:hover::before { background-color: color-mix(in srgb, var(--nav-ink) 24%, transparent); border-color: color-mix(in srgb, var(--nav-ink) 24%, transparent); }
+  .site-header a.site-nav-open:hover::before { background-color: #fff; }
 }
 .site-nav-open:active .site-nav-open-footer { filter: brightness(.93); }
 .site-nav-start:active { background-color: #e9e6df; box-shadow: inset 0 1px 2px #0000001a; }
 .site-nav-demo:active { background-color: color-mix(in srgb, var(--nav-ink) 16%, transparent); }
 .site-header a.site-nav-open:active { background-color: transparent; box-shadow: none; }
-.site-header a.site-nav-open:active::before { background-color: color-mix(in srgb, var(--nav-ink) 11%, transparent); }
+.site-header a.site-nav-open:active::before { background-color: #e9e6df; }
 .site-nav-start:focus-visible, .site-nav-demo:focus-visible { outline: 2px solid var(--nav-ink, var(--color-ink)); outline-offset: 4px; }
 @keyframes site-menu-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
 .site-header :focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
