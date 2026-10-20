@@ -1,6 +1,7 @@
-import { cleanup, fireEvent, render, within } from '@solidjs/testing-library';
+import { cleanup, fireEvent, render } from '@solidjs/testing-library';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { CrmFollowupDemo } from './CrmFollowupDemo';
+import { CrmRecordDemo } from './CrmRecordDemo';
 
 let observe: IntersectionObserverCallback;
 let reduced = false;
@@ -20,7 +21,7 @@ beforeEach(() => {
     class {
       constructor(private callback: IntersectionObserverCallback) {}
       observe(target: HTMLElement) {
-        if (target.classList.contains('crm-followup-demo'))
+        if (target.classList.contains('crm-demo-frame'))
           observe = this.callback;
       }
       disconnect() {}
@@ -65,70 +66,37 @@ function visible(value: boolean) {
   );
 }
 
-it('opens the company and reads all six source types before drafting', () => {
+it('reads every source in chat without automatically opening a second workspace', () => {
   const view = render(() => <CrmFollowupDemo />);
-  vi.advanceTimersByTime(20000);
-  expect(view.queryByRole('textbox', { name: 'Company name' })).toBeNull();
   visible(true);
-  vi.advanceTimersByTime(1200);
+  for (const delay of [1200, 1800, 1800, 1800, 1800, 1800, 1800]) {
+    vi.advanceTimersByTime(delay);
+    expect(view.queryByRole('region', { name: 'Customer context' })).toBeNull();
+    expect(view.getByRole('region', { name: 'Follow-up agent' })).toBeTruthy();
+  }
   expect(
-    view.getByRole<HTMLInputElement>('textbox', { name: 'Company name' }).value
-  ).toBe('Parlor Studio');
-  vi.advanceTimersByTime(1800);
-  expect(
-    within(view.getByLabelText('Company emails')).getByText('Thursday demo')
+    view.getByText('Read task: Verify folder uploads in production')
   ).toBeTruthy();
-  vi.advanceTimersByTime(1800);
   expect(
-    within(view.getByLabelText('Company calls')).getByText('Thursday demo prep')
+    view.getByText('Read pull request #248: Fix folder uploads')
   ).toBeTruthy();
-  vi.advanceTimersByTime(1800);
-  expect(
-    within(view.getByLabelText('Company files')).getByText('Setup guide')
-  ).toBeTruthy();
-  vi.advanceTimersByTime(1800);
-  expect(
-    within(view.getByLabelText('Company tasks')).getByText(
-      'Verify folder uploads in production'
-    )
-  ).toBeTruthy();
-  vi.advanceTimersByTime(1800);
-  expect(
-    view.getByText(/is merged. I’m checking the production release/)
-  ).toBeTruthy();
-  vi.advanceTimersByTime(1800);
-  expect(
-    view.getByRole('heading', { name: 'Fix folder uploads' })
-  ).toBeTruthy();
-  expect(view.getByText('Merged')).toBeTruthy();
   vi.advanceTimersByTime(1800);
   expect(
     view.getByRole<HTMLInputElement>('textbox', { name: 'To' }).value
   ).toBe('Ava Chen <ava@parlorstudio.example>');
-  expect(
-    view.getByRole('textbox', { name: 'Email body' }).textContent
-  ).toContain('checking the production release');
   expect(view.getByText('Next steps')).toBeTruthy();
-  expect(
-    view.getByRole('button', { name: 'production verification' })
-  ).toBeTruthy();
-  expect(
-    view.queryByText(/update the pipeline from our sales sync/)
-  ).toBeNull();
 });
 
-it('pauses offscreen and leaves manual company navigation alone', () => {
+it('pauses the chat walkthrough offscreen', () => {
   const view = render(() => <CrmFollowupDemo />);
   visible(true);
   vi.advanceTimersByTime(1200);
   visible(false);
-  vi.advanceTimersByTime(10000);
-  expect(view.getByRole('textbox', { name: 'Company name' })).toBeTruthy();
-  fireEvent.click(view.getByRole('radio', { name: 'Files' }));
-  visible(true);
   vi.advanceTimersByTime(20000);
-  expect(view.getByLabelText('Company files')).toBeTruthy();
   expect(view.queryByRole('textbox', { name: 'Email body' })).toBeNull();
+  visible(true);
+  vi.advanceTimersByTime(12600);
+  expect(view.getByRole('textbox', { name: 'Email body' })).toBeTruthy();
 });
 
 it('opens every cited source and preserves an edited draft when returning', () => {
@@ -190,4 +158,20 @@ it('opens linked tasks and calls from the real company tabs', () => {
       .querySelector('.crm-followup-demo')
       ?.getAttribute('data-source')
   ).toBe('call');
+});
+
+it('shows the same files and tasks in the preceding customer-record tour', () => {
+  const view = render(() => <CrmRecordDemo />);
+  visible(true);
+  vi.advanceTimersByTime(5400);
+  expect(view.getByLabelText('Company files').textContent).toContain(
+    'Setup guide'
+  );
+  vi.advanceTimersByTime(2000);
+  expect(view.getByLabelText('Company tasks').textContent).toContain(
+    'Verify folder uploads in production'
+  );
+  fireEvent.click(view.getByRole('radio', { name: 'Files' }));
+  vi.advanceTimersByTime(20000);
+  expect(view.getByLabelText('Company files')).toBeTruthy();
 });

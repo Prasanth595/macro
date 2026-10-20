@@ -9,6 +9,7 @@ import { ProductDemo } from '../product/ProductPage';
 import type { CompanySection } from '../workspace/WorkspaceCompanies';
 import { CompanyPipelineEntry } from './CompanyPipelineEntry';
 import { CrmRecordWorkspace } from './CrmRecordWorkspace';
+import { seedCrmFollowup } from './crm-followup-data';
 
 /** Tab the walkthrough points at, then opens, for each step. */
 const tour: (CompanySection | undefined)[] = [
@@ -17,14 +18,19 @@ const tour: (CompanySection | undefined)[] = [
   'emails',
   'calls',
   'calls',
+  'files',
+  'files',
+  'tasks',
+  'tasks',
   'overview',
   'overview',
 ];
 
-/** Parlor Studio's record: Emails, then Calls, then back to the Discussion. */
+/** Tour the linked email, calls, files, tasks, and team discussion. */
 export function CrmRecordDemo() {
   let frame!: HTMLDivElement;
   const w = createCrmDemoWorkspace();
+  seedCrmFollowup(w);
   w.open('crm', 'meadow');
   const [deal, setDeal] = createStore<
     Pick<SampleCompany, 'stage' | 'owner' | 'revenue'>
@@ -34,9 +40,10 @@ export function CrmRecordDemo() {
   const [automatic, setAutomatic] = createSignal(true);
   const playback = createProductWalkthrough({
     root: () => frame,
-    steps: 6,
+    steps: 10,
     loop: { hold: 6500 },
     reset: () => {
+      w.open('crm', 'meadow');
       setPhase(0);
       setSection('overview');
       setAutomatic(true);
@@ -52,7 +59,7 @@ export function CrmRecordDemo() {
       setPhase(step);
       const tab = tour[step];
       if (step % 2 === 0 && tab) setSection(tab);
-      if (step === 6) {
+      if (step === 10) {
         setAutomatic(false);
         // Back on Overview, bring the team's thread into view.
         requestAnimationFrame(() => {
@@ -77,7 +84,7 @@ export function CrmRecordDemo() {
   return (
     <div ref={frame} class="crm-demo-frame" onFocusIn={pause}>
       <ProductDemo
-        label="Parlor Studio’s emails, calls, and team discussion in one record"
+        label="Parlor Studio’s emails, calls, files, tasks, and team discussion in one record"
         onInteract={pause}
         height={520}
         mobileHeight={600}

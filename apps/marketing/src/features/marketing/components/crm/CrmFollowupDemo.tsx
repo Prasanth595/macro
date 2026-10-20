@@ -44,14 +44,14 @@ import './crm-followup-demo.css';
 
 type Source = 'company' | 'email' | 'call' | 'file' | 'task' | 'chat' | 'pr';
 
-/** Native record and source viewers beside an agent session; all edits stay local. */
+/** Chat-first walkthrough; linked sources open only on visitor request. */
 export function CrmFollowupDemo() {
   let frame!: HTMLDivElement;
   let opener: HTMLElement | undefined;
   const w = createCrmDemoWorkspace();
   seedCrmFollowup(w);
   const [phase, setPhase] = createSignal(0);
-  const [source, setSource] = createSignal<Source | undefined>('company');
+  const [source, setSource] = createSignal<Source | undefined>();
   const [section, setSection] = createSignal<CompanySection>('overview');
   const [toolsOpen, setToolsOpen] = createSignal(true);
   const callPlayback = createCallPlayback(followupCall.duration);
@@ -77,7 +77,7 @@ export function CrmFollowupDemo() {
     loop: { hold: 10000 },
     reset: () => {
       setPhase(0);
-      setSource('company');
+      setSource(undefined);
       setSection('overview');
       setToolsOpen(true);
       w.open('crm', followupIds.company);
@@ -92,12 +92,6 @@ export function CrmFollowupDemo() {
     advance: (step) => {
       setPhase(step);
       if (step === 1) w.open('crm', followupIds.company);
-      if (step === 2) setSection('emails');
-      if (step === 3) setSection('calls');
-      if (step === 4) setSection('files');
-      if (step === 5) setSection('tasks');
-      if (step === 6) setSource('chat');
-      if (step === 7) setSource('pr');
       if (step === 8) finish();
       if (step >= 9)
         queueMicrotask(() => {

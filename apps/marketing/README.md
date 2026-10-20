@@ -436,10 +436,11 @@ uses `CrmPipelineScene` with CRM navigation, board/table switching, and record s
 `CrmCaptureDemo` turns the completed @Claude name into the native inline user
 mention while the rest of the request types, without a dropdown. Preserve that
 mention node until sending or resetting, and stop typing on visitor input.
+`CrmRecordDemo` tours Emails, Calls, Files, and Tasks before returning to the
+company discussion. It shares the follow-up fixtures so the evidence matches.
 The final section defers `CrmFollowupDemo` until it approaches the viewport:
-it opens a company, reads its linked
-email/call/file/task tabs, follows the team chat and PR, then presents an editable
-email and concrete next steps. Use the real record tabs; do not invent Chat or PR
+its automatic walkthrough stays in the agent chat, showing source reads before
+presenting an editable email and concrete next steps. Use the real record tabs; do not invent Chat or PR
 tabs on the company. Linked items reuse the existing source viewers, and returning
 to the agent preserves draft edits. In the compact email source row, align the
 sender, envelope, unread dot, and time on the first line; keep the subject and
@@ -448,7 +449,8 @@ Company-call and task rows accept optional
 open handlers so this story can navigate locally without changing other records.
 The sample PR is merged but its production check remains open; the draft must not
 promise availability. Keep the evidence, reply, and next steps consistent in
-`crm-followup-data.ts`. Desktop uses app splits; phones show one pane at a time.
+`crm-followup-data.ts`. Source links open one full-width viewer only on request, on desktop and phones;
+returning restores the chat. Do not automatically open a second workspace.
 Playback stops on interaction and shows the result immediately for reduced motion.
 `createCrmDemoWorkspace` supplies the same fictional accounts throughout the page.
 The CRM hero opts into `CrmPipelineScene`'s `hero` fixtures: New business,
