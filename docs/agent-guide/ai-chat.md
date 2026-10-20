@@ -1598,8 +1598,9 @@ must stay hidden; subsequent live messages must still appear.
   permission policy selector. The backend enforces these policies.
 
 Locally sent user messages in both AI implementations enter with a short upward
-slide and fade. History and remounted messages stay
-still; reduced-motion preferences disable the transition.
+slide and fade. On touch devices, messages lift into place with a gentle settle;
+the text reaches full opacity early and keeps its final size. History and
+remounted messages stay still; reduced-motion preferences disable the transition.
 
 On phones, the chat model control appears as a provider icon while the software
 keyboard is open. Its accessible name is `Choose model, <model name>`. It opens

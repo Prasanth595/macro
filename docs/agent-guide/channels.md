@@ -311,7 +311,9 @@ to update titles and access.
 Placeholder `Type @ to share with #<name>`. Click it, `type_text`, press Enter to send.
 On touch devices, Send activates on release, not when pressed down. Holding or
 cancelling a press does not send; releasing outside the button keeps the draft.
-The composer keeps keyboard focus when sending.
+The composer keeps keyboard focus when sending. New local messages lift into place
+with a gentle settle on touch devices; history stays still and Reduce Motion
+disables the entrance animation.
 The message renders immediately with avatar, email, timestamp. Composer extras: `Attach
 files` and the `Send message` button. Replies also include a close-reply control.
 
