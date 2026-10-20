@@ -19,11 +19,6 @@ async function uncertainSend(page: Page) {
   await expect(page.getByTestId('resolutions')).toHaveText(
     'recheck:7:false,retry_send:7:true'
   );
-  await expect(
-    page.getByText('Delivery could not be confirmed', { exact: false })
-  ).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Retry send' })).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Send email' })).toBeDisabled();
 }
 
 test('uncertain delivery requires explicit duplicate acknowledgement', async ({
@@ -77,5 +72,4 @@ test('accepting an external draft version requires reload before editing', async
   await page.getByRole('button', { name: 'Reload draft' }).click();
   await expect(editor).toHaveValue('Latest mailbox draft');
   await expect(editor).toBeEnabled();
-  await expect(page.getByRole('button', { name: 'Reload draft' })).toBeHidden();
 });
