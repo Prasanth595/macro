@@ -46,12 +46,27 @@ export function SiteHeader(props: { hideOpenApp?: boolean }) {
   let trigger!: HTMLAnchorElement;
   let menuOpener: HTMLElement | undefined;
   const [open, setOpen] = createSignal(false);
+  let closeTimer: ReturnType<typeof setTimeout> | undefined;
+  let pointerInside = false;
+  const cancelClose = () => {
+    clearTimeout(closeTimer);
+    closeTimer = undefined;
+  };
+  const closeMenu = () => {
+    cancelClose();
+    setOpen(false);
+  };
+  const openMenu = () => {
+    cancelClose();
+    setOpen(true);
+  };
+  onCleanup(cancelClose);
   const hasHoverMenu = () =>
     window.matchMedia('(min-width: 768px) and (hover: hover)').matches;
 
   onMount(() => {
     const outside = (event: PointerEvent) => {
-      if (!menu.contains(event.target as Node)) setOpen(false);
+      if (!menu.contains(event.target as Node)) closeMenu();
     };
     document.addEventListener('pointerdown', outside);
     onCleanup(() => document.removeEventListener('pointerdown', outside));
@@ -64,25 +79,33 @@ export function SiteHeader(props: { hideOpenApp?: boolean }) {
         class="site-menu"
         onPointerEnter={(event) => {
           if (event.pointerType === 'mouse' && hasHoverMenu()) {
+            pointerInside = true;
             menuOpener = trigger;
-            setOpen(true);
+            openMenu();
           }
         }}
         onPointerLeave={(event) => {
-          if (
-            event.pointerType === 'mouse' &&
-            hasHoverMenu() &&
-            !menu.querySelector('nav')?.contains(document.activeElement)
-          )
-            setOpen(false);
+          if (event.pointerType !== 'mouse' || !hasHoverMenu()) return;
+          pointerInside = false;
+          cancelClose();
+          closeTimer = setTimeout(() => {
+            closeTimer = undefined;
+            if (
+              !pointerInside &&
+              !menu.querySelector('nav')?.contains(document.activeElement)
+            ) {
+              setOpen(false);
+            }
+          }, 350);
         }}
         onFocusOut={(event) => {
-          if (!menu.contains(event.relatedTarget as Node)) setOpen(false);
+          if (!pointerInside && !menu.contains(event.relatedTarget as Node))
+            closeMenu();
         }}
         onKeyDown={(event) => {
           if (event.key === 'Escape' && open()) {
             event.preventDefault();
-            setOpen(false);
+            closeMenu();
             (menuOpener ?? trigger).focus();
           }
           if (
@@ -111,12 +134,12 @@ export function SiteHeader(props: { hideOpenApp?: boolean }) {
           aria-expanded={open()}
           aria-controls="site-main-navigation"
           aria-keyshortcuts="ArrowDown"
-          onClick={() => setOpen(false)}
+          onClick={closeMenu}
           onKeyDown={(event) => {
             if (event.key !== 'ArrowDown') return;
             event.preventDefault();
             menuOpener = trigger;
-            setOpen(true);
+            openMenu();
             menu.querySelector<HTMLAnchorElement>('nav a')?.focus();
           }}
         >
@@ -134,7 +157,8 @@ export function SiteHeader(props: { hideOpenApp?: boolean }) {
           aria-controls="site-main-navigation"
           onClick={(event) => {
             menuOpener = event.currentTarget;
-            setOpen(!open());
+            if (open()) closeMenu();
+            else openMenu();
           }}
         >
           <CaretDown aria-hidden="true" />
@@ -144,21 +168,27 @@ export function SiteHeader(props: { hideOpenApp?: boolean }) {
           class="site-menu-panel"
           hidden={!open()}
           aria-label="Main navigation"
+          onPointerEnter={(event) => {
+            if (event.pointerType === 'mouse' && hasHoverMenu()) {
+              pointerInside = true;
+              cancelClose();
+            }
+          }}
         >
           <NavigationGroup
             label="Features"
             links={FEATURE_PAGES}
-            onNavigate={() => setOpen(false)}
+            onNavigate={closeMenu}
           />
           <NavigationGroup
             label="Resources"
             links={RESOURCE_PAGES}
-            onNavigate={() => setOpen(false)}
+            onNavigate={closeMenu}
           />
           <NavigationGroup
             label="Explore"
             links={EXPLORE_PAGES}
-            onNavigate={() => setOpen(false)}
+            onNavigate={closeMenu}
           />
         </nav>
       </div>

@@ -11,6 +11,7 @@ import { SiteHeader } from './SiteHeader';
 // Booking is independent of the public navigation interaction.
 vi.mock('./DemoBookingDialog', () => ({ DemoBookingDialog: () => null }));
 beforeEach(() => {
+  vi.useFakeTimers();
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: query === '(min-width: 768px) and (hover: hover)',
     media: query,
@@ -24,6 +25,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -47,6 +49,8 @@ it('opens on mouse hover and keeps the mark linked to the landing page', () => {
     within(nav).getByRole('link', { name: 'Tasks' }).getAttribute('href')
   ).toBe('/tasks');
   fireEvent(home.parentElement!, mousePointer('pointerleave'));
+  expect(screen.getByRole('navigation')).toBeTruthy();
+  vi.advanceTimersByTime(350);
   expect(screen.queryByRole('navigation')).toBeNull();
 });
 
@@ -113,4 +117,49 @@ it('keeps narrow-screen keyboard navigation inside the open menu', () => {
   expect(document.activeElement).toBe(last);
   fireEvent.keyDown(last, { key: 'Tab' });
   expect(document.activeElement).toBe(home);
+});
+
+it('allows crossing the gap and cancels dismissal while over the dropdown', () => {
+  render(() => <SiteHeader />);
+  const menu = screen.getByRole('link', { name: 'Macro home' }).parentElement!;
+  fireEvent(menu, mousePointer('pointerenter'));
+  fireEvent(menu, mousePointer('pointerleave'));
+  vi.advanceTimersByTime(300);
+  const nav = screen.getByRole('navigation');
+  fireEvent(nav, mousePointer('pointerenter'));
+  vi.advanceTimersByTime(1000);
+  expect(screen.getByRole('navigation')).toBe(nav);
+  fireEvent(menu, mousePointer('pointerleave'));
+  vi.advanceTimersByTime(200);
+  fireEvent(menu, mousePointer('pointerenter'));
+  vi.advanceTimersByTime(1000);
+  expect(screen.getByRole('navigation')).toBe(nav);
+  fireEvent(menu, mousePointer('pointerleave'));
+  vi.advanceTimersByTime(350);
+  expect(screen.queryByRole('navigation')).toBeNull();
+});
+
+it('cancels a pending close when keyboard navigation opens and dismisses immediately on Escape', () => {
+  render(() => <SiteHeader />);
+  const home = screen.getByRole('link', { name: 'Macro home' });
+  fireEvent(home.parentElement!, mousePointer('pointerenter'));
+  fireEvent(home.parentElement!, mousePointer('pointerleave'));
+  vi.advanceTimersByTime(200);
+  fireEvent.keyDown(home, { key: 'ArrowDown' });
+  vi.advanceTimersByTime(350);
+  expect(screen.getByRole('navigation')).toBeTruthy();
+  fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+  expect(screen.queryByRole('navigation')).toBeNull();
+  vi.advanceTimersByTime(350);
+  expect(screen.queryByRole('navigation')).toBeNull();
+});
+
+it('cleans up the dismissal timer on unmount', () => {
+  const view = render(() => <SiteHeader />);
+  const menu = screen.getByRole('link', { name: 'Macro home' }).parentElement!;
+  fireEvent(menu, mousePointer('pointerenter'));
+  fireEvent(menu, mousePointer('pointerleave'));
+  expect(vi.getTimerCount()).toBe(1);
+  view.unmount();
+  expect(vi.getTimerCount()).toBe(0);
 });
