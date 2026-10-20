@@ -434,6 +434,7 @@
       "crates/teams",
       "crates/trigger_context",
       "crates/unfurl",
+      "crates/upstream_error",
       "crates/user_quota",
       "crates/workspace-hack"
     ],
@@ -586,6 +587,7 @@
       "crates/teams",
       "crates/trigger_context",
       "crates/unfurl",
+      "crates/upstream_error",
       "crates/user_quota",
       "crates/workspace-hack"
     ],
@@ -773,6 +775,7 @@
       "crates/teams",
       "crates/trigger_context",
       "crates/unfurl",
+      "crates/upstream_error",
       "crates/user_quota",
       "crates/workspace-hack",
       "services/agent_harness_service"
@@ -948,6 +951,7 @@
       "crates/teams",
       "crates/trigger_context",
       "crates/unfurl",
+      "crates/upstream_error",
       "crates/user_quota",
       "crates/workspace-hack"
     ],
@@ -2267,6 +2271,7 @@
       "crates/teams",
       "crates/trigger_context",
       "crates/unfurl",
+      "crates/upstream_error",
       "crates/user_quota",
       "crates/workspace-hack",
       "services/authentication_service"
@@ -5376,6 +5381,7 @@
       "crates/teams",
       "crates/trigger_context",
       "crates/unfurl",
+      "crates/upstream_error",
       "crates/user_api_key",
       "crates/user_quota",
       "crates/webhook",
@@ -7011,6 +7017,7 @@
     ],
     "fusionauth": [
       "crates/fusionauth",
+      "crates/upstream_error",
       "crates/workspace-hack"
     ],
     "genai_telemetry": [
@@ -7151,6 +7158,7 @@
       "crates/teams",
       "crates/trigger_context",
       "crates/unfurl",
+      "crates/upstream_error",
       "crates/user_quota",
       "crates/workspace-hack"
     ],
@@ -9754,6 +9762,7 @@
       "crates/macro_env_var",
       "crates/macro_user_id",
       "crates/remote_env_var",
+      "crates/upstream_error",
       "crates/workspace-hack",
       "services/mcp_auth_proxy"
     ],
@@ -9981,6 +9990,7 @@
       "crates/teams",
       "crates/trigger_context",
       "crates/unfurl",
+      "crates/upstream_error",
       "crates/user_quota",
       "crates/workspace-hack",
       "services/mcp_auth_proxy",
@@ -11387,6 +11397,7 @@
       "crates/teams",
       "crates/trigger_context",
       "crates/unfurl",
+      "crates/upstream_error",
       "crates/user_quota",
       "crates/workspace-hack",
       "services/preview_gateway"
@@ -12453,6 +12464,7 @@
       "crates/sync_service_client",
       "crates/system_properties",
       "crates/trigger_context",
+      "crates/upstream_error",
       "crates/user_quota",
       "crates/workspace-hack",
       "tooling/seed_cli"
@@ -13983,6 +13995,10 @@
       "crates/unfurl",
       "crates/workspace-hack",
       "services/upload_extractor_lambda_trigger"
+    ],
+    "upstream_error": [
+      "crates/upstream_error",
+      "crates/workspace-hack"
     ],
     "user_api_key": [
       "crates/bot_id",
