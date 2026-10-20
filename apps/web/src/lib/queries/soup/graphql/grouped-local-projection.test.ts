@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { parseCacheRevision } from '../../../graphql-cache/protocol';
 import type {
   GroupedSoupInitialInput,
+  GroupSoupQuery,
   SoupItemFieldsFragment,
 } from '../../../service-clients/service-storage/graphql/generated/graphql';
 import {
   localSoupGroupKeys,
+  mergeGroupedSoupBins,
   projectLocalGroupedSoup,
 } from './grouped-local-projection';
 import { groupedDocument } from './grouped-test-fixtures';
@@ -32,6 +34,58 @@ function snapshot(
     })),
   };
 }
+
+describe('loaded grouped pages', () => {
+  it('merges overlapping pages without rescanning earlier item identities', () => {
+    let identityReads = 0;
+    const items = Array.from({ length: 200 }, (_, index) => ({
+      ...groupedDocument(String(index)),
+      get id() {
+        identityReads += 1;
+        return String(index);
+      },
+    }));
+    const pages: GroupSoupQuery[] = Array.from({ length: 20 }, (_, index) => ({
+      user: {
+        id: 'viewer',
+        groupSoup: {
+          bins: [
+            {
+              key: 'todo',
+              totalCount: 300 - index * 10,
+              nextCursor: `page-${index + 1}`,
+              items: items.slice(index * 10, index * 10 + 10),
+            },
+          ],
+        },
+      },
+    }));
+    pages.push({
+      user: {
+        id: 'viewer',
+        groupSoup: {
+          bins: [
+            {
+              key: 'todo',
+              totalCount: 0,
+              nextCursor: null,
+              items: [groupedDocument('0', ['done'])],
+            },
+          ],
+        },
+      },
+    });
+    const merged = mergeGroupedSoupBins(pages);
+    expect(identityReads).toBeLessThanOrEqual(items.length * 2);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].items).toHaveLength(200);
+    expect(merged[0].items[0]).toBe(items[0]);
+    expect(merged[0].items[199]).toBe(items[199]);
+    expect(merged[0].totalCount).toBe(300);
+    expect(merged[0].nextCursor).toBe('page-1');
+    expect(pages[0].user.groupSoup.bins[0].items).toHaveLength(10);
+  });
+});
 
 describe('local grouped Soup projection', () => {
   it('moves normalized rows and removes filter nonmatches without losing unknown rows', () => {

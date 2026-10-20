@@ -758,6 +758,40 @@ Date rollover uses the original server bin as old membership. The
 `graphql_cache.soup_grouped_local_evaluation` span records grouping field,
 loaded baseline size and resulting bin count.
 
+#### Grouped projection performance
+
+Run `bun scripts/benchmark-grouped-soup.ts /tmp/grouped-soup.json` from
+`apps/web` (set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` for a system Chromium).
+It bundles the production functions into an isolated Chromium page: 20 warmups
+and 100 samples per case, with 100/1,000/5,000 unique loaded rows, property
+(single and three-value), project and date groups. Projection reads real Solid
+store proxies inside a tracked memo; deterministic rows move groups or fail the
+filter. Page merging uses ten-row continuations. Flat materialization is a
+comparison, not equivalent grouped behavior.
+
+The measurements isolate main-thread projection and page merging; they exclude
+worker predicate execution, IPC, network, UI mapping and DOM rendering. A 4× CPU
+throttle is a stress case, not a claim about any particular mobile device.
+
+Measured on an Intel Xeon Platinum 8581C with Chromium 155.0.8059.79:
+
+| Loaded rows, three-value properties | Group projection p95 | Flat materialization p95 | Page merge p95, before → after |
+| --- | --- | --- | --- |
+| 100 | 0.7 ms | 0.1 ms | 0.2 → 0.1 ms |
+| 1,000 | 5.6 ms | 0.6 ms | 10.0 → 0.4 ms |
+| 5,000 | 27.2 ms | 2.9 ms | 258.1 → 1.8 ms |
+| 100, 4× throttle | 3.5 ms | 0.8 ms | 0.9 → 0.7 ms |
+| 1,000, 4× throttle | 22.9 ms | 2.9 ms | 41.5 → 1.8 ms |
+| 5,000, 4× throttle | 116.9 ms | 12.7 ms | 1,067.2 → 7.7 ms |
+
+Page merging now accumulates each bin once instead of copying all earlier pages
+for every continuation. The identity-read regression test guards linear work
+without a machine-dependent timing assertion. Small loaded views have modest
+projection cost; the 5,000-row reconciliation ceiling is not a frame-time budget.
+Full property regrouping at that depth still exceeds a 16.7 ms frame, especially
+under throttling, and needs incremental projection before claiming smooth bulk
+updates at the ceiling.
+
 Network responses must provide the schema's identity fields (usually `id`, and
 `__typename` for abstract types) for normalization. They are not automatically
 injected. Queries against other schemas, incremental `@defer`/`@stream` delivery

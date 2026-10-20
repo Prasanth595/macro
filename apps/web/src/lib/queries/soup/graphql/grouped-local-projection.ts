@@ -113,19 +113,27 @@ export function localSoupGroupKeys(
 export function mergeGroupedSoupBins(
   pages: readonly GroupSoupQuery[]
 ): GroupedSoupBin[] {
-  const bins = new Map<string, GroupedSoupBin>();
+  const bins = new Map<
+    string,
+    { metadata: GroupedSoupBin; items: Map<string, SoupItemFieldsFragment> }
+  >();
   for (const page of pages) {
     for (const bin of page.user.groupSoup.bins) {
-      const previous = bins.get(bin.key);
-      const items = new Map(
-        (previous?.items ?? []).map((item) => [soupItemKey(item), item])
-      );
-      for (const item of bin.items)
-        if (!items.has(soupItemKey(item))) items.set(soupItemKey(item), item);
-      bins.set(bin.key, { ...(previous ?? bin), items: [...items.values()] });
+      let merged = bins.get(bin.key);
+      if (!merged) {
+        merged = { metadata: bin, items: new Map() };
+        bins.set(bin.key, merged);
+      }
+      for (const item of bin.items) {
+        const key = soupItemKey(item);
+        if (!merged.items.has(key)) merged.items.set(key, item);
+      }
     }
   }
-  return [...bins.values()];
+  return [...bins.values()].map(({ metadata, items }) => ({
+    ...metadata,
+    items: [...items.values()],
+  }));
 }
 
 /** Apply the maintained filter result without treating bounded candidates as complete bins. */
