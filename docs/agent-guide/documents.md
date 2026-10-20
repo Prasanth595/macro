@@ -780,6 +780,20 @@ client. A viewer's edit must fail; a concurrent manual edit must force a fresh
 read. These tool calls require the updated AI backend, AI editing worker, and sync
 service; the frontend alone cannot test their hosted path.
 
+## Desktop file drops
+
+In a rebuilt macOS desktop app, drag a PNG and a PDF from Finder into a
+disposable Markdown document, then into channel and AI chat attachment inputs.
+Check that each drop shows the upload feedback and adds each file once, with
+images rendered inline in Markdown and attachments visible in the composers.
+Try multiple files and a second drop after the first completes. Discard unsent
+drafts after checking. Also check that the file picker still attaches files.
+
+Use an actual Finder drag for this check: synthetic browser events bypass
+Tauri's native interception and cannot verify the desktop window configuration.
+The setting and native rebuild requirement are documented in the
+[web agent guide](../../apps/web/AGENTS.md#desktop-file-drops).
+
 ## Folder uploads
 
 Dropping a folder (or choosing one with the folder picker) zips it in the browser
@@ -2290,7 +2304,9 @@ table cells is preserved in paragraphs when the editor opens the document.
 
 `@` opens the mention menu wherever the caret starts a word, including directly
 in front of existing text — the menu opens empty there instead of searching for
-the word ahead of the caret. Typed inside a word (`he@llo`) it stays literal text.
+the word ahead of the caret. It also opens immediately after a soft line break:
+type a word, press Shift+Enter, then type `@` and a name to filter the menu.
+Typed inside a word (`he@llo`) it stays literal text.
 On Android, verify this with the software keyboard: tap `@`, type a name to
 filter, and tap a result to insert a single mention. The menu should remain
 visible above the keyboard while typing.
@@ -2567,6 +2583,15 @@ editor and comments arriving after it. Once loaded, click elsewhere in the
 document, then click the same notification again: it should revisit the comment,
 while background comment refreshes should leave the user's position alone.
 
+A document row keeps pointing at its newest comment notification until that
+notification is done, so on desktop the row opens the document at that comment.
+On touch the thread is a drawer over the whole page rather than a margin card,
+so a row tap opens the document itself: no drawer, with the comment's highlight
+still in the text. Verify this from Home, Inbox, and Files with a comment
+notification that has already been read — the drawer must not reappear on every
+open. Tapping the highlighted text still offers `Show comment`, and opening the
+notification itself still opens the thread.
+
 When checking desktop margin placement, scroll a long document while an embed
 or image above the highlighted text changes height. Scroll anchoring may keep
 the text at the same screen position; its comment card should stay aligned
@@ -2645,6 +2670,22 @@ comment button in the selection menu; placeable comments come from the toolbar
 highlight; deleting a placeable's discussion removes the placeable. An anchor bound only
 to a legacy annotation thread that was never imported stays hidden rather than
 shown as a bare highlight.
+
+## PDF signatures
+
+Choose **Signature** in the PDF toolbar, then click the page where it should go.
+The **Draw signature** dialog opens over the active PDF. Drag across the canvas
+with a mouse, pen, or finger; **Use signature** becomes available after drawing.
+Confirm to place the signature, then drag it to adjust its position. **Cancel
+signature**, Escape, or clicking outside discards the unfinished placement.
+Signatures are saved into that PDF through its normal save flow; reusable saved
+signatures are not available yet.
+
+When verifying this flow, draw near the right and bottom edges as well as the
+center. Check at desktop and phone widths and at 2x pixel density; strokes should
+stay under the pointer, survive resizing, and appear on the PDF after confirming.
+Reopen the dialog and verify it stays centered during its opening animation and
+starts with an empty canvas. Cancelling must leave no empty signature box.
 
 ## Word (DOCX) editor
 
