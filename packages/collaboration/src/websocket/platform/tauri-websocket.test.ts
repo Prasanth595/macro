@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { invoke } from '@tauri-apps/api/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 type ReplayEnvelope = { seq: number; message: unknown };
@@ -56,6 +57,88 @@ afterEach(() => {
 });
 
 describe('TauriWebSocketWrapper', () => {
+  it('handles a disconnect replayed after the WebView resumes', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    const listen = vi.spyOn(document, 'addEventListener');
+    const socket = new TauriWebSocketWrapper('wss://dss.test/ws');
+    const events = track(socket);
+    plugin.connects[0].resolve(7);
+    await Promise.resolve();
+    const resume = listen.mock.calls.find(
+      ([event]) => event === 'visibilitychange'
+    )?.[1];
+    if (typeof resume !== 'function')
+      throw new Error('Missing resume listener');
+    vi.mocked(invoke).mockResolvedValueOnce({
+      messages: [
+        { seq: 1, message: 'IO error: Socket is not connected (os error 57)' },
+        { seq: 2, message: { type: 'Text', data: 'stale message' } },
+      ],
+      gap: false,
+    });
+    const onMessage = vi.fn();
+    socket.onmessage = onMessage;
+    resume.call(document, new Event('visibilitychange'));
+    await Promise.resolve();
+
+    expect(events).toEqual(['open', 'error', 'close:1006']);
+    expect(onMessage).not.toHaveBeenCalled();
+    expect(socket.readyState).toBe(socket.CLOSED);
+  });
+
+  it('reports native read errors as an abnormal closure so callers can reconnect', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const socket = new TauriWebSocketWrapper('wss://dss.test/ws');
+    const events = track(socket);
+    const onMessage = plugin.connects[0].args.onMessage;
+    plugin.connects[0].resolve(7);
+    await Promise.resolve();
+
+    expect(() =>
+      onMessage.onmessage?.({
+        seq: 1,
+        message: 'IO error: Socket is not connected (os error 57)',
+      })
+    ).not.toThrow();
+    expect(socket.readyState).toBe(socket.CLOSED);
+    expect(events).toEqual(['open', 'error', 'close:1006']);
+    onMessage.onmessage?.({
+      seq: 2,
+      message:
+        'WebSocket protocol error: Connection reset without closing handshake',
+    });
+    expect(events).toEqual(['open', 'error', 'close:1006']);
+  });
+
+  it('does not open a socket when a native read error arrives before connect resolves', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const socket = new TauriWebSocketWrapper('wss://dss.test/ws');
+    const events = track(socket);
+    expect(() =>
+      plugin.connects[0].args.onMessage.onmessage?.({
+        seq: 1,
+        message: 'IO error: Socket is not connected (os error 57)',
+      })
+    ).not.toThrow();
+    plugin.connects[0].resolve(7);
+    await Promise.resolve();
+
+    expect(events).toEqual(['error', 'close:1006']);
+    expect(socket.readyState).toBe(socket.CLOSED);
+    expect(plugin.sent).toEqual([
+      {
+        id: 7,
+        message: {
+          type: 'Close',
+          data: { code: 1000, reason: 'Disconnected by client' },
+        },
+      },
+    ]);
+  });
+
   it('can stand in for the WebSocket constructor', () => {
     expect(TauriWebSocketWrapper.CONNECTING).toBe(0);
     expect(TauriWebSocketWrapper.OPEN).toBe(1);
