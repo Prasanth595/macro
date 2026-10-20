@@ -113,7 +113,7 @@
   flex: none;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 16px;
   min-height: 68px;
   padding: 10px 20px 10px 40px;
@@ -330,6 +330,7 @@ html[data-palette="cream"] .product-detail-panel {
   box-shadow: none;
 }
 .product-detail-positioner[data-embedded="true"] .product-detail-toolbar {
+  justify-content: flex-start;
   padding-left: 20px;
   padding-right: 76px;
 }

@@ -78,12 +78,7 @@ export function FeaturePageSection(props: {
       </header>
       {props.children}
       <Show when={props.details?.length}>
-        <ProductFeatureDetails
-          section={
-            typeof props.title === 'string' ? props.title : props.title.join(' ')
-          }
-          details={props.details ?? []}
-        />
+        <ProductFeatureDetails details={props.details ?? []} />
       </Show>
     </section>
   );

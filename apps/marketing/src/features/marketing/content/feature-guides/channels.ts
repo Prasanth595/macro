@@ -121,7 +121,7 @@ export const channelsGuides = {
   ],
   'channel-access': [
     {
-      title: 'Give the channel access',
+      title: 'Share with the channel',
       summary: 'Share documents with channel members, including new teammates.',
       intro:
         'Share a document in a channel to give its members access. New members can read the full channel history and open documents shared there.',
@@ -167,7 +167,7 @@ export const channelsGuides = {
   ],
   'channel-agents': [
     {
-      title: 'Ask in front of the team',
+      title: 'Ask an agent in chat',
       summary: 'Let teammates see the request and follow the agent’s answer.',
       intro:
         'Mention @Macro in a channel to ask an agent for help. The team can see the request, add context, and follow the answer.',
@@ -197,7 +197,7 @@ export const channelsGuides = {
       ],
     },
     {
-      title: 'Reference the actual work',
+      title: 'Mention a source',
       summary: 'Give the agent the exact document, email, or task to use.',
       intro:
         'Use @ to select the document, email, or task the agent should work with.',

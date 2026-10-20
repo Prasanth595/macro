@@ -314,6 +314,8 @@ company properties differ from pipeline-entry fields, shared email is readable
 without granting send access, and macrod's setup guide currently marks local
 agents as coming soon. Verify these claims again when the product changes.
 
+Keep the guide toolbar limited to Close or Back; do not repeat the parent
+section title above the article. Keep already-clear guide titles unchanged.
 The guide panel has a fixed navigation row and an independently scrollable,
 keyboard-focusable article. Definition rows stack on phones; the header remains
 available at every scroll position. Documentation links open separately so

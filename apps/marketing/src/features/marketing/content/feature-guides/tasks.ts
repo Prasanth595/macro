@@ -5,7 +5,7 @@ import type { ProductFeatureDetail } from '../../core/product-feature-guide';
 export const tasksGuides = {
   'from-a-message': [
     {
-      title: 'Capture the request',
+      title: 'Create a task from a message',
       summary: 'Make a task from the message that started the work.',
       intro:
         'Turn a channel message into a task with an owner and a link back to the original conversation.',

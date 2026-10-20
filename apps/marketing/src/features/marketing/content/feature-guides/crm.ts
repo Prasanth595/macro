@@ -6,7 +6,7 @@ import type { ProductFeatureDetail } from '../../core/product-feature-guide';
 export const crmGuides = {
   'crm-from-email': [
     {
-      title: 'Update a customer’s stage',
+      title: 'Update a deal’s stage',
       summary:
         'Move the deal to the right stage after a customer conversation.',
       intro:

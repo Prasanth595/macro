@@ -78,7 +78,6 @@ function GuideSection(props: { section: ProductGuideSection }) {
 
 /** Standalone drawer; inside the homepage drawer, reuse its whole viewport. */
 export function ProductFeatureDetails(props: {
-  section: string;
   details: readonly ProductFeatureDetail[];
 }) {
   const embedded = isEmbeddedProductPage();
@@ -147,9 +146,6 @@ export function ProductFeatureDetails(props: {
               }}
             >
               <header class="product-detail-toolbar">
-                <Show when={!embedded}>
-                  <span>{props.section}</span>
-                </Show>
                 <Dialog.CloseButton
                   ref={closeButton}
                   class={

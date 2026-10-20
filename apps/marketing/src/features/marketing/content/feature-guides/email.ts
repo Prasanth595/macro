@@ -295,7 +295,7 @@ export const emailGuides = {
   ],
   'agentic-editing': [
     {
-      title: 'Use the meeting context',
+      title: 'Draft a meeting follow-up',
       summary:
         'Draft a follow-up from the email and what was agreed on the call.',
       intro:

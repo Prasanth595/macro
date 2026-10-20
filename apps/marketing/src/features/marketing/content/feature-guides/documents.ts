@@ -213,7 +213,7 @@ export const documentsGuides = {
   ],
   'document-organization': [
     {
-      title: 'Give docs a home',
+      title: 'Organize docs in folders',
       summary: 'Group the files a team or project uses in a folder.',
       intro:
         'Put a project’s plan, brief, and supporting files in a folder so the team has a place to start.',
@@ -256,7 +256,7 @@ export const documentsGuides = {
       ],
     },
     {
-      title: 'Find them by tag',
+      title: 'Find docs by tag',
       summary: 'Find related documents, emails, and tasks with the same tag.',
       intro:
         'Use a project or customer tag to find related documents, emails, tasks, and calls across Macro.',

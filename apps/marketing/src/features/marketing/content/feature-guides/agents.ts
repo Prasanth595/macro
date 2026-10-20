@@ -104,7 +104,7 @@ export const agentsGuides = {
   ],
   'agent-actions': [
     {
-      title: 'Change the shared file',
+      title: 'Edit a shared document',
       summary: 'Have the agent update the document your team already uses.',
       intro:
         'Ask an agent to edit the document your team already uses. Keep writing, leave comments, or ask for another pass in that same file.',

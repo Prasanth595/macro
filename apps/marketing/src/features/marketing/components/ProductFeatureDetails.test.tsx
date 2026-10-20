@@ -34,7 +34,6 @@ it('uses Back inside a homepage preview and preserves the underlying page', asyn
     <>
       <input aria-label="Demo draft" value="My edited brief" />
       <ProductFeatureDetails
-        section="Write with your agent"
         details={[
           {
             title: 'Edit together',
@@ -73,7 +72,6 @@ afterEach(() => {
 it('shows the selected detail in a drawer and restores its trigger on close', async () => {
   render(() => (
     <ProductFeatureDetails
-      section="Move through your inbox"
       details={[
         {
           title: 'Navigate with J and K',
@@ -120,10 +118,7 @@ it('shows the selected detail in a drawer and restores its trigger on close', as
 
 it('opens a complete guide with its example, steps, and direct documentation links', async () => {
   render(() => (
-    <ProductFeatureDetails
-      section="Write with your agent"
-      details={documentsGuides['document-agents']}
-    />
+    <ProductFeatureDetails details={documentsGuides['document-agents']} />
   ));
   fireEvent.click(screen.getByRole('button', { name: 'Update from an email' }));
   const dialog = await screen.findByRole('dialog', {
@@ -153,9 +148,7 @@ it('opens a complete guide with its example, steps, and direct documentation lin
 });
 
 it('labels an agent prompt separately from instructions and sample human messages', async () => {
-  render(() => (
-    <ProductFeatureDetails section="Email" details={emailGuides['auto-tags']} />
-  ));
+  render(() => <ProductFeatureDetails details={emailGuides['auto-tags']} />);
   fireEvent.click(screen.getByRole('button', { name: 'Organize with tags' }));
   const dialog = await screen.findByRole('dialog', {
     name: 'Organize with tags',
@@ -188,9 +181,9 @@ it.each([
   ['GitHub', githubGuides],
 ] as const)(
   'opens each %s guide and returns to its card',
-  async (section, groups) => {
+  async (_section, groups) => {
     const details = Object.values(groups).flat();
-    render(() => <ProductFeatureDetails section={section} details={details} />);
+    render(() => <ProductFeatureDetails details={details} />);
     for (const detail of details) {
       const card = screen.getByRole('button', {
         name: detail.title,
@@ -200,6 +193,9 @@ it.each([
         name: detail.title,
       });
       expect(within(dialog).getByText(detail.intro)).toBeTruthy();
+      expect(dialog.querySelector('.product-detail-toolbar')?.textContent).toBe(
+        ''
+      );
       expect(within(dialog).getAllByRole('link').length).toBeGreaterThan(0);
       fireEvent.keyDown(dialog, { key: 'Escape' });
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
