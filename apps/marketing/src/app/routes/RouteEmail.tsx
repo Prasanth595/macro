@@ -133,7 +133,7 @@ export function RouteEmail() {
       </nav>
       <FeaturePageSection
         id="auto-tags"
-        title={['Make your inboxes', 'manageable.']}
+        title={['Keep all your inboxes', 'organized.']}
         description="Connect your personal and work inboxes across Gmail, Outlook, and more. Organize them with tags for customers, projects, and follow-ups."
         details={emailGuides['auto-tags']}
       >
