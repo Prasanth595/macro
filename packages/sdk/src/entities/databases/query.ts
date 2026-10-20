@@ -144,7 +144,7 @@ export async function queryDatabases(
     return DatabaseTable.byId(database(databaseId), id);
   };
   const writtenDatabases = new Set(
-    Object.keys(response.newVersions).map((id) => response.tableDatabases[id]),
+    Object.keys(response.newVersions).map((id) => table(id).database.id),
   );
   if (response.statement.kind === 'schema')
     writtenDatabases.add(response.statement.databaseId);
