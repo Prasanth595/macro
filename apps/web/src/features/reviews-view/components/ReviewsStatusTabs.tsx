@@ -1,8 +1,10 @@
 import { TabsInset } from '@core/component/TabsInset';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import GitMergeIcon from '@phosphor/git-merge.svg';
 import GitPullRequestIcon from '@phosphor/git-pull-request.svg';
 import StackIcon from '@phosphor/stack.svg';
-import type { Component } from 'solid-js';
+import { Tabs } from '@ui';
+import { type Component, Show } from 'solid-js';
 import { match } from 'ts-pattern';
 import type { ReviewsStatusTabId } from '../reviews-types';
 
@@ -22,27 +24,46 @@ export function ReviewsStatusTabs(props: {
   onChange: (value: ReviewsStatusTabId) => void;
   class?: string;
 }) {
-  return (
-    <TabsInset
-      aria-label="Pull request status"
-      fullWidth
-      class={props.class ?? 'h-auto'}
-      labelClass="gap-1.5 py-1.5"
-      list={STATUS_TABS.map((tab) => ({
+  const tabProps = {
+    'aria-label': 'Pull request status',
+    get list() {
+      return STATUS_TABS.map((tab) => ({
         value: tab.value,
-        label: (
+        label: () => (
           <>
             <tab.icon class="size-3.5 shrink-0" aria-hidden="true" />
             {tab.label}
           </>
         ),
-      }))}
-      value={props.value ?? ''}
-      onChange={(value) =>
-        match(value)
-          .with('open', 'closed', 'all', (status) => props.onChange(status))
-          .otherwise(() => undefined)
+      }));
+    },
+    get value() {
+      return props.value ?? '';
+    },
+    onChange: (value: string) =>
+      match(value)
+        .with('open', 'closed', 'all', (status) => props.onChange(status))
+        .otherwise(() => undefined),
+  };
+  return (
+    <Show
+      when={isTouchDevice()}
+      fallback={
+        <Tabs
+          {...tabProps}
+          variant="segmented"
+          class={props.class}
+          labelClass="gap-1.5 px-3"
+        />
       }
-    />
+    >
+      <TabsInset
+        {...tabProps}
+        list={tabProps.list.map((tab) => ({ ...tab, label: tab.label() }))}
+        fullWidth
+        class={props.class ?? 'h-auto'}
+        labelClass="gap-1.5 py-1.5"
+      />
+    </Show>
   );
 }

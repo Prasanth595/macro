@@ -60,7 +60,9 @@ function Actions(props: { sidebar?: boolean; compact?: boolean }) {
         class={
           props.sidebar
             ? 'h-(--sidebar-row-height) w-full justify-start gap-(--sidebar-label-gap) rounded-lg px-(--sidebar-item-inset) text-left font-normal touch:h-11'
-            : 'shrink-0 px-2 text-sm lg:px-3'
+            : props.compact
+              ? 'shrink-0 px-2 text-sm'
+              : 'shrink-0 px-2 text-sm lg:px-3'
         }
         label="Booking links"
       >

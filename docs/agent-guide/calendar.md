@@ -235,7 +235,8 @@ splits to a maximum of 24px, with a compact `New` menu at the right end of the c
 An outlined `Search events` icon button sits before the other controls. All
 desktop controls are 32px tall and use the shared button surface: Today and the
 previous/next arrows share a navigation group, the period selector has its own
-view group, and Booking links and New have separate outlined buttons.
+view group, and Booking links and New have separate outlined buttons. Adjacent
+controls and groups have a uniform 8px gap, with matching text-button padding.
 Click Search or press Cmd/Ctrl+F to expand and focus the wider inline search field.
 The field slides out with a short width transition and focuses immediately.
 The results popup stays hidden until the field contains non-whitespace text,
@@ -455,10 +456,11 @@ row has a checkmark; the list scrolls when more teams are present. Selecting
 a row switches the owner for the entire workspace; ownership badges appear only
 in the top header, not on cards or tab content. Owner changes discard link/schedule drafts and stay disabled during saves.
 Each tab's heading appears in the main topbar, with its description available
-through an info tooltip rather than a separate large header. Booking links uses the
-shared ViewShell search bar below the topbar, with **New** on the same
-row at the far right. New opens the manual editor; a separate **Create with
-agent** button sits beside it. On touch devices, the header has separate
+through an info tooltip rather than a separate large header. Desktop Booking links
+uses one header row: title and owner, a grouped **Create with agent** icon,
+outlined **New**, and expandable Search. Command-F expands and focuses the
+search field; Close or Escape clears it and returns to the icon. New opens the
+manual editor. On touch devices, the header has separate
 sparkle and plus buttons for agent and manual creation. Create with agent opens an editable,
 unsent request in an agent conversation and carries the selected Personal/team
 owner privately. The agent reads current settings and asks for approval before
@@ -558,8 +560,9 @@ Public booking URLs remain unchanged. Calendar connections and integration
 shortcuts continue to open Settings → Calendar.
 Booking status filters use the same segmented control as the CRM sidebar.
 In Availability, the topbar reads **Availability** and shows the selected owner.
-The shared toolbar contains **Search schedules** (name or time zone) and **New**
-(**New schedule**); on touch devices, New moves into the header island.
+The same desktop header row contains **New** (**New schedule**) and an expandable
+**Search schedules** icon (name or time zone); on touch devices, New moves into
+the header island and search keeps its existing full field.
 Schedule cards show the default badge, time zone, a Monday-first
 week preview, grouped hours, and booking-link/date-exception counts. **Preview**
 uses an eye icon and opens all weekly hours and date exceptions without editing,

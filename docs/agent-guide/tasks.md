@@ -360,14 +360,17 @@ review requests.
 `Authored by me`, `Assigned to me`, and `Review requests` match the linked
 GitHub user ID. If the link-status endpoint has no identity, the list explains
 why the tab is unavailable.
-The sidebar starts with a **Search reviews** field (styled like Settings' search)
-and, on pointer devices, a **Board**/**List** toggle (`aria-label="Pull request
-layout"`); List is the default and the choice is remembered. When the sidebar is
-collapsed or narrow, the search moves above the list under the scope heading.
-Filter and sort controls appear above the list. Below the layout toggle, an
+The sidebar offers **Search reviews** above its navigation. On desktop the
+**List**/**Board** icon group lives in the header; List is the default and the
+choice is remembered. The desktop header always offers an expandable Search icon; Command-F expands and
+focuses it. The single row contains the selected scope, status tabs, grouped
+filter and sort controls, New, and Search. Active-filter counts sit beside the
+filter icon inside its button. A separate
 **Open** / **Closed** / **All** toggle with icons (`aria-label="Pull request
-status"`) picks the status; it moves above the list on touch devices or when the
-sidebar is hidden, and the board hides it. Open is the default; Closed includes
+status"`) picks the status in the desktop header and above the list on touch
+devices, and the board hides it. The desktop sidebar has no layout or status
+switches. Status tabs size to their labels with even horizontal padding and use
+the shared fully rounded segmented style. Open is the default; Closed includes
 both closed and merged PRs, and All shows every status. The filter dropdown and mobile drawer also
 offer independent Open, Closed, and Merged selections. Custom multi-status
 selections hide the toggle, except the combined Closed preset keeps it visible.
@@ -376,9 +379,8 @@ Status combines with other filters, counts toward filter badges, and applies
 before pagination. Clearing filters resets to Open. Other filters cover
 priority, linked work, started from, repository, author, assignee, label, and,
 when a GitHub identity is linked, reviews (Reviewed by you, Not reviewed by you,
-and Awaiting review from you). The list topbar says
-Reviews when narrow or when the sidebar is collapsed; the selected scope stays
-visible as a heading above search.
+and Awaiting review from you). The selected scope remains in the desktop header
+when the sidebar is collapsed; there is no separate title or search row.
 Saved review selections stay inactive, including their filter badge and empty-state
 copy, while the GitHub identity is unavailable; they resume when it returns.
 Sort offers Priority, Recently updated, Least recently updated, Newest, and Oldest;

@@ -220,7 +220,8 @@ export function Header(props: { presentation: 'workspace' | 'preview' }) {
       size={compact ? (mobile ? 'icon-md' : 'md') : mobile ? 'icon-lg' : 'lg'}
       class={cn(
         mobile && 'relative',
-        !mobile && 'bg-transparent px-3 text-sm',
+        !mobile && 'bg-transparent text-sm',
+        !mobile && (compact ? 'px-2' : 'px-3'),
         !mobile && !compact && 'border-edge-button'
       )}
       label="Go to today"
@@ -362,7 +363,7 @@ export function Header(props: { presentation: 'workspace' | 'preview' }) {
           <div
             class={cn(
               'flex shrink-0 items-center justify-end gap-2',
-              isCompactHeader() ? 'basis-full' : 'ml-4'
+              isCompactHeader() && 'basis-full'
             )}
             data-calendar-period-controls=""
             ref={tourTarget(CALENDAR_TOUR.period)}
@@ -371,15 +372,19 @@ export function Header(props: { presentation: 'workspace' | 'preview' }) {
             <Show when={showBookingLinks()}>
               <CalendarSchedulingActions compact />
             </Show>
-            <div role="group" aria-label="Calendar navigation">
+            <div
+              role="group"
+              aria-label="Calendar navigation"
+              class="flex shrink-0"
+            >
               <ButtonGroup variant="outline" size="icon-md">
                 {todayButton(!breakpoints.labeledToday(), true)}
                 {previous(true)}
                 {next(true)}
               </ButtonGroup>
             </div>
-            <div role="group" aria-label="Calendar view">
-              <ButtonGroup variant="outline" size="md">
+            <div role="group" aria-label="Calendar view" class="flex shrink-0">
+              <ButtonGroup variant="outline" size="icon-md">
                 <PeriodSelector isNarrow={isNarrow()} compact />
               </ButtonGroup>
             </div>

@@ -1,4 +1,10 @@
 import { SearchBar, ViewShell, ViewSidebar } from '@app/components/view-shell';
+import {
+  ListHeader,
+  ListHeaderGroup,
+  ListHeaderSearch,
+} from '@app/components/view-shell/ListHeader';
+import { ViewCreateButton } from '@app/components/view-shell/ViewCreateButton';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { fireAndForget } from '@core/util/fireAndForget';
 import PageIcon from '@phosphor/browser.svg';
@@ -19,6 +25,7 @@ import {
   createMemo,
   createSignal,
   For,
+  type JSX,
   mapArray,
   on,
   onCleanup,
@@ -78,6 +85,7 @@ export function BookingWorkspaceView(props: {
   registerBeforeLeave?: (
     guard: (signal: AbortSignal) => boolean | Promise<boolean>
   ) => void | (() => void);
+  registerSearchFocus?: (focus: (() => boolean) | undefined) => void;
 }) {
   const capabilities = useScheduling();
   const search = props.search;
@@ -122,6 +130,17 @@ export function BookingWorkspaceView(props: {
   const tab = () => TABS.find((item) => item.value === search.tab) ?? TABS[0];
   const editingSchedule = () =>
     search.tab === 'availability' && !!owner()?.schedule();
+  const hasListHeader = () =>
+    !isTouchDevice() &&
+    (search.tab === 'links' ||
+      (search.tab === 'availability' && !editingSchedule()));
+  let focusSearch: (() => void) | undefined;
+  props.registerSearchFocus?.(() => {
+    if (!hasListHeader() || !focusSearch) return false;
+    focusSearch();
+    return true;
+  });
+  onCleanup(() => props.registerSearchFocus?.(undefined));
   const isSaving = () => owners().some((item) => item.source.saving());
   const discardEditors = () => {
     for (const current of owners()) current.discardEditors();
@@ -368,7 +387,64 @@ export function BookingWorkspaceView(props: {
             onCreate={(opener) => fireAndForget(create(opener), 'scheduling')}
           />
         </Show>
-        <ViewShell.TopBar>
+        <SchedulingHeader
+          list={hasListHeader()}
+          actions={
+            <>
+              <Show when={owner()?.scope().canEdit}>
+                <Show when={search.tab === 'links'}>
+                  <ListHeaderGroup label="Booking link tools">
+                    <Button
+                      label="Create with agent"
+                      variant="ghost"
+                      size="icon-md"
+                      disabled={
+                        !owner()?.source.profile() ||
+                        isSaving() ||
+                        startingAgent()
+                      }
+                      onClick={() =>
+                        fireAndForget(createWithAgent(), 'scheduling')
+                      }
+                    >
+                      <SparkleIcon class="size-4" />
+                    </Button>
+                  </ListHeaderGroup>
+                </Show>
+                <ViewCreateButton
+                  presentation="toolbar"
+                  aria-label={
+                    search.tab === 'availability'
+                      ? 'New schedule'
+                      : 'New booking link'
+                  }
+                  disabled={
+                    !owner()?.source.profile() || isSaving() || startingAgent()
+                  }
+                  onClick={(event) =>
+                    fireAndForget(create(event.currentTarget), 'scheduling')
+                  }
+                />
+              </Show>
+              <ListHeaderSearch
+                label={
+                  search.tab === 'availability'
+                    ? 'Search schedules'
+                    : 'Search booking links'
+                }
+                value={
+                  search.tab === 'availability' ? availabilitySearch() : query()
+                }
+                onValueChange={(value) =>
+                  search.tab === 'availability'
+                    ? setAvailabilitySearch(value)
+                    : setQuery(value)
+                }
+                registerFocus={(focus) => (focusSearch = focus)}
+              />
+            </>
+          }
+        >
           <Show
             when={search.tab === 'availability'}
             fallback={
@@ -418,11 +494,12 @@ export function BookingWorkspaceView(props: {
               </Show>
             </div>
           </Show>
-        </ViewShell.TopBar>
+        </SchedulingHeader>
         <Show
           when={
-            search.tab === 'links' ||
-            (search.tab === 'availability' && !editingSchedule())
+            isTouchDevice() &&
+            (search.tab === 'links' ||
+              (search.tab === 'availability' && !editingSchedule()))
           }
         >
           <ViewShell.Header class="touch:pt-0">
@@ -597,5 +674,20 @@ export function BookingWorkspaceView(props: {
         </ViewShell.Content>
       </ViewShell.Main>
     </ViewShell.Root>
+  );
+}
+
+function SchedulingHeader(props: {
+  list: boolean;
+  children: JSX.Element;
+  actions: JSX.Element;
+}) {
+  return (
+    <Show
+      when={props.list}
+      fallback={<ViewShell.TopBar>{props.children}</ViewShell.TopBar>}
+    >
+      <ListHeader title={props.children}>{props.actions}</ListHeader>
+    </Show>
   );
 }
