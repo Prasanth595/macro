@@ -23,6 +23,8 @@ import {
   EventForm,
   type EventFormProps,
 } from '../../calendar/components/composer/EventForm';
+import { EventComposerKindPill } from '../../calendar/components/composer/EventPropertyPills';
+
 import {
   calendarEventToEditorInitialValues,
   calendarSelectionToEditorInitialValues,
@@ -223,6 +225,7 @@ function FixtureEditor(props: {
   onSubmit: EventFormProps['onSubmit'];
 }) {
   const owner = getOwner();
+  const [pending, setPending] = createSignal(false);
   const calendars = [
     { id: 'personal', label: 'Personal', color: '#4285f4', isPrimary: true },
     { id: 'work', label: 'Work', color: '#9c27b0' },
@@ -247,7 +250,7 @@ function FixtureEditor(props: {
   });
   const mayDismiss = createCalendarDraftDismissal({
     dirty: controller.isDirty,
-    pending: () => false,
+    pending,
     confirmDiscard: () =>
       confirmDialog(
         {
@@ -266,8 +269,22 @@ function FixtureEditor(props: {
   };
   const requestClose = () => fireAndForget(close(), 'calendar-editor-fixture');
   return (
-    <CalendarEditorSurface {...props} pending={false} onClose={requestClose}>
+    <CalendarEditorSurface
+      {...props}
+      pending={pending()}
+      onClose={requestClose}
+      headerStart={
+        <EventComposerKindPill
+          eventType={controller.state().eventType}
+          onChange={controller.setEventKind}
+          disabled={pending()}
+          readOnly={props.draft.event !== undefined}
+          compact
+        />
+      }
+    >
       <EventForm
+        showEventKind={false}
         showDateRange={isMobile() || props.surface !== 'popover'}
         controller={controller}
         macroCallsEnabled
@@ -285,9 +302,13 @@ function FixtureEditor(props: {
         showRecurringEditNotice={Boolean(
           props.draft.event?.recurrenceLines.length
         )}
-        pending={false}
+        pending={pending()}
         onCancel={requestClose}
         onSubmit={(values, scope) => {
+          if (new URLSearchParams(location.search).has('pending-save')) {
+            setPending(true);
+            return;
+          }
           props.onSubmit(values, scope);
           props.onClose();
         }}

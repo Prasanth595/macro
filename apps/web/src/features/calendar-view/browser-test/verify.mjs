@@ -3,7 +3,7 @@ import { chromium } from 'playwright';
 
 const browser = process.env.CALENDAR_BROWSER_CDP
   ? await chromium.connectOverCDP(process.env.CALENDAR_BROWSER_CDP)
-  : await chromium.launch({ headless: true });
+  : await chromium.launch({ headless: true, executablePath: process.env.CALENDAR_BROWSER_EXECUTABLE });
 const base = process.env.CALENDAR_PREVIEW_URL ?? 'https://localhost:3000';
 const fixture = `${base}/src/features/calendar-view/browser-test/index.html`;
 const results = [];
@@ -44,13 +44,13 @@ async function verifySelectorShape(page) {
   }));
   assert.ok(selectors.length >= 5);
   for (const selector of selectors) {
-    assert.ok(selector.radii.every((radius) => radius > 0), `${selector.label} must have rounded corners`);
+    assert.ok(selector.radii.every((radius) => radius >= 12), `${selector.label} must have more rounded corners`);
     assert.ok(selector.height >= minimumHeight, `${selector.label} must meet the ${minimumHeight}px trigger height`);
     assert.ok(Math.abs(selector.width - selector.available) < 1, `${selector.label} must fill its value column`);
     assert.ok(selector.iconOffset !== null && selector.iconOffset < 1, `${selector.label} row icon must be centered on its first selector; offset: ${selector.iconOffset}px`);
   }
   await page.keyboard.press('Tab');
-  const triggers = page.locator('form button[aria-expanded]');
+  const triggers = page.locator('form button[aria-expanded], [data-event-editor-header] button[aria-expanded]');
   for (const trigger of await triggers.all()) {
     await trigger.focus();
     const focus = await trigger.evaluate((element) => {
@@ -67,10 +67,47 @@ async function verifySelectorShape(page) {
   }
 }
 
+async function verifyHeader(page) {
+  const header = page.locator('[data-event-editor-header]');
+  const kind = header.getByRole('button', { name: /^Event kind/ });
+  const bounds = await kind.boundingBox();
+  const headerBounds = await header.boundingBox();
+  const titleBounds = await page.getByLabel('Title', { exact: true }).boundingBox();
+  assert.ok(bounds && headerBounds && titleBounds);
+  assert.ok(bounds.width < headerBounds.width / 2, 'Event type must use a compact header selector');
+  assert.ok(bounds.x < titleBounds.x && bounds.y + bounds.height <= titleBounds.y, 'Event type belongs at the top left');
+  assert.equal(await page.getByRole('group', { name: 'Event type', exact: true }).count(), 0);
+  const originalIcon = await kind.locator('svg').first().innerHTML();
+  await kind.click();
+  await page.getByRole('option', { name: 'Out of office', exact: true }).click();
+  assert.match(await kind.innerText(), /Out of office/);
+  assert.notEqual(await kind.locator('svg').first().innerHTML(), originalIcon, 'Selected event type must change its icon');
+  await page.getByRole('group', { name: 'Decline', exact: true }).waitFor();
+  await kind.click();
+  await page.getByRole('option', { name: 'Event', exact: true }).click();
+  assert.equal(await kind.locator('svg').first().innerHTML(), originalIcon);
+}
+
+async function verifyPendingSave(page) {
+  await page.goto(fixture + '?pending-save');
+  await page.getByRole('button', { name: 'Create event', exact: true }).click();
+  await page.getByLabel('Title', { exact: true }).fill('Pending fixture event');
+  const save = page.locator('form').getByRole('button', { name: 'Create event', exact: true });
+  const before = await save.boundingBox();
+  await save.click();
+  await page.locator('form button[aria-busy="true"]').waitFor();
+  const after = await save.boundingBox();
+  assert.ok(before && after);
+  assert.ok(Math.abs(before.width - after.width) < 1, 'Loading must preserve the Create button width');
+  assert.ok(Math.abs(before.height - after.height) < 1, 'Loading must preserve the Create button height');
+  assert.equal(await save.isDisabled(), true);
+  assert.equal(await save.locator('svg').isVisible(), true);
+  assert.equal(await page.getByRole('button', { name: /^Event kind/ }).isDisabled(), true);
+}
+
 async function verifyDesktop(options, name) {
   const context = await browser.newContext({ ignoreHTTPSErrors: true, ...options });
   try {
-    await context.route('**/__macro_dev/**', (route) => route.abort());
     const page = await context.newPage();
     page.setDefaultTimeout(60000);
     const errors = [];
@@ -83,7 +120,8 @@ async function verifyDesktop(options, name) {
     assert.equal(await title.evaluate((element) => element === document.activeElement), true);
     assert.equal(await start.count(), 0);
     const rowLabels = await page.locator('form [role="group"][aria-label]').evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label')));
-    assert.deepEqual(rowLabels, ['Event type', 'Description', 'Repeats', 'Meeting link', 'Location', 'Notifications', 'Calendar', 'Guests']);
+    assert.deepEqual(rowLabels, ['Description', 'Repeats', 'Meeting link', 'Location', 'Notifications', 'Calendar', 'Guests']);
+    await verifyHeader(page);
     await verifyDescriptionPosition(page);
     await verifyFieldSpacing(page);
     await verifySelectorShape(page);
@@ -162,7 +200,8 @@ async function verifyDesktop(options, name) {
     assert.equal(await start.count(), 0);
     assert.match(await page.getByRole('textbox', { name: 'Description', exact: true }).innerText(), /Existing agenda/);
     assert.equal(await page.getByRole('textbox', { name: 'Location', exact: true }).inputValue(), 'Design studio');
-    for (const name of ['Event type', 'Calendar', 'Guests', 'Meeting link', 'Notifications']) {
+    assert.equal(await page.getByRole('button', { name: /^Event kind/ }).count(), 0);
+    for (const name of ['Calendar', 'Guests', 'Meeting link', 'Notifications']) {
       assert.equal(await page.getByRole('group', { name, exact: true }).getByRole('button').count(), 0, `${name} must render as read-only content`);
     }
     await title.fill('Revised design review');
@@ -194,8 +233,9 @@ async function verifyDesktop(options, name) {
     const repeated = JSON.parse(await page.getByLabel('Saved event', { exact: true }).innerText());
     assert.equal(repeated.scope, 'all');
     assert.match(repeated.values.recurrenceLines.join(';'), /FREQ=DAILY/);
+    await verifyPendingSave(page);
     assert.deepEqual(errors, []);
-    results.push(`${name}: creation, persistent surfaces, transactional recurrence, editing, and scoped save passed`);
+    results.push(`${name}: header type, rounded selectors, stable loading button, persistent surfaces, recurrence, editing, and scoped save passed`);
   } finally {
     await context.close();
   }
@@ -204,7 +244,6 @@ async function verifyDesktop(options, name) {
 async function verifyMobile() {
   const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   try {
-    await context.route('**/__macro_dev/**', (route) => route.abort());
     const page = await context.newPage();
     page.setDefaultTimeout(60000);
     const errors = [];
@@ -217,6 +256,7 @@ async function verifyMobile() {
     await page.getByRole('button', { name: 'Edit event start date and time', exact: true }).waitFor();
     assert.equal(await page.getByRole('button', { name: 'Move to sidebar', exact: true }).count(), 0);
     assert.equal(await page.getByRole('button', { name: 'Close event editor', exact: true }).count(), 0);
+    await verifyHeader(page);
     await verifyFieldSpacing(page);
     await verifyDescriptionPosition(page);
     await verifySelectorShape(page);
@@ -250,8 +290,9 @@ async function verifyMobile() {
     const submitted = JSON.parse(await page.getByLabel('Saved event', { exact: true }).innerText());
     assert.equal(submitted.values.location, 'Phone studio');
     assert.equal(submitted.scope, 'all');
+    await verifyPendingSave(page);
     assert.deepEqual(errors, []);
-    results.push('phone: full-height create/edit sheet, date controls, recurrence dialog, and discard protection passed');
+    results.push('phone: header type, stable loading button, full-height create/edit sheet, date controls, recurrence, and discard protection passed');
   } finally {
     await context.close();
   }
@@ -260,7 +301,6 @@ async function verifyMobile() {
 async function verifyGridSelection() {
   const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 1000 } });
   try {
-    await context.route('**/__macro_dev/**', (route) => route.abort());
     const page = await context.newPage();
     page.setDefaultTimeout(60000);
     const errors = [];

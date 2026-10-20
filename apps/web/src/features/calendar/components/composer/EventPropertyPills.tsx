@@ -2,12 +2,12 @@ import { UserIcon } from '@core/component/UserIcon';
 import { type IUser, idToEmail, recipientEntityMapper } from '@core/user';
 import { Popover } from '@kobalte/core/popover';
 import BellSimpleIcon from '@phosphor/bell-simple.svg';
+import CalendarBlankIcon from '@phosphor/calendar-blank.svg';
 import CalendarDotsIcon from '@phosphor/calendar-dots.svg';
 import CalendarXIcon from '@phosphor/calendar-x.svg';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import ChatTextIcon from '@phosphor/chat-text.svg';
 import RepeatIcon from '@phosphor/repeat.svg';
-import SquaresFourIcon from '@phosphor/squares-four.svg';
 import UsersIcon from '@phosphor/users.svg';
 import VideoCameraIcon from '@phosphor/video-camera.svg';
 import { useProperty } from '@property/core/context';
@@ -21,6 +21,7 @@ import type { EntityProperty } from '@property/types';
 import type { EventType } from '@service-storage/generated/schemas/eventType';
 import { Button, cn, Layer, Select } from '@ui';
 import { type Accessor, createMemo, createSignal, For, Show } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 import {
   formatReminderOffset,
   REMINDER_OVERRIDES_MAX,
@@ -42,7 +43,7 @@ import {
 } from './out-of-office';
 
 const PROPERTY_TRIGGER_CLASS =
-  'group flex h-9 w-full min-w-0 overflow-hidden items-center justify-between gap-1.5 rounded-md border border-edge-muted bg-control px-2 py-2 text-left text-xs leading-tight text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:bg-active focus-visible:text-ink focus-visible:outline-none focus-visible:ring-0 data-expanded:bg-hover data-expanded:text-ink touch:min-h-[44px]';
+  'group flex h-9 w-full min-w-0 overflow-hidden items-center justify-between gap-1.5 rounded-xl border border-edge-muted bg-control px-2 py-2 text-left text-xs leading-tight text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:bg-active focus-visible:text-ink focus-visible:outline-none focus-visible:ring-0 data-expanded:bg-hover data-expanded:text-ink touch:min-h-[44px]';
 const PROPERTY_VALUE_CLASS =
   'group-hover:text-ink group-focus-visible:text-ink group-data-expanded:text-ink';
 
@@ -621,6 +622,8 @@ export interface EventComposerKindPillProps {
   /** The provider event type is immutable, so edits show the kind fixed. */
   readOnly?: boolean;
   hideIcon?: boolean;
+  /** Fit the editor header instead of the property value column. */
+  compact?: boolean;
 }
 
 /** Compact selector for the kind of event being created. */
@@ -640,13 +643,15 @@ export function EventComposerKindPill(props: EventComposerKindPillProps) {
   const selectedOption = () =>
     options().find((option) => option.value === eventKindOf(props.eventType)) ??
     options()[0];
+  const icon = () =>
+    props.eventType === 'out_of_office' ? CalendarXIcon : CalendarBlankIcon;
 
   return (
     <Show
       when={props.readOnly}
       fallback={
         <Select<EventComposerKindOption>
-          class="w-full min-w-0"
+          class={cn('min-w-0', props.compact ? 'w-fit max-w-48' : 'w-full')}
           options={options()}
           value={selectedOption()}
           onChange={(option) => {
@@ -660,10 +665,17 @@ export function EventComposerKindPill(props: EventComposerKindPillProps) {
           <Select.Trigger
             aria-label="Event kind"
             aria-readonly={props.readOnly || undefined}
-            class={PROPERTY_TRIGGER_CLASS}
+            class={cn(
+              PROPERTY_TRIGGER_CLASS,
+              props.compact && 'h-8 w-auto gap-2 py-1'
+            )}
           >
             <Show when={!props.hideIcon}>
-              <SquaresFourIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
+              <Dynamic
+                component={icon()}
+                aria-hidden="true"
+                class="size-3.5 shrink-0 text-ink-extra-muted"
+              />
             </Show>
             <Select.Value<EventComposerKindOption>>
               {(selectState) => selectState.selectedOption().label}
@@ -676,7 +688,16 @@ export function EventComposerKindPill(props: EventComposerKindPillProps) {
         </Select>
       }
     >
-      <span class="select-text">{eventKindLabel(props.eventType)}</span>
+      <span class="inline-flex min-h-8 items-center gap-2 select-text">
+        <Show when={!props.hideIcon}>
+          <Dynamic
+            component={icon()}
+            aria-hidden="true"
+            class="size-3.5 shrink-0 text-ink-extra-muted"
+          />
+        </Show>
+        {eventKindLabel(props.eventType)}
+      </span>
     </Show>
   );
 }

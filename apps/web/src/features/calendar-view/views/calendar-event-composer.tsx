@@ -1,5 +1,6 @@
 import { createCalendarEventFormController } from '@app/features/calendar/components/composer/create-calendar-event-form-controller';
 import { EventForm } from '@app/features/calendar/components/composer/EventForm';
+import { EventComposerKindPill } from '@app/features/calendar/components/composer/EventPropertyPills';
 import { defaultEditorInitialValues } from '@app/features/calendar/components/composer/event-form-model';
 import { useEventEditor } from '@app/features/calendar/hooks/use-event-editor';
 import { useQuickCallsFlag } from '@app/features/meetings/use-quick-calls-flag';
@@ -150,8 +151,18 @@ function CalendarEditorContent(props: {
       pending={editor.pending()}
       onClose={requestClose}
       onMoveToSidebar={composer.moveToSidebar}
+      headerStart={
+        <EventComposerKindPill
+          eventType={controller.state().eventType}
+          onChange={controller.setEventKind}
+          disabled={editor.pending()}
+          readOnly={props.draft.event !== undefined || editor.eventCreated()}
+          compact
+        />
+      }
     >
       <EventForm
+        showEventKind={false}
         showDateRange={isMobile() || composer.surface() !== 'popover'}
         controller={controller}
         macroCallsEnabled={props.macroCallsEnabled()}

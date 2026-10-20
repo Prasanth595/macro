@@ -56,6 +56,8 @@ import { outOfOfficeNoticeFor } from './out-of-office';
 export interface EventFormProps {
   controller: CalendarEventFormController;
   showDateRange?: boolean;
+  /** Calendar-owned surfaces place the kind selector in their header. */
+  showEventKind?: boolean;
   /** Whether this host can create and attach Macro call links. */
   macroCallsEnabled: boolean;
   isEdit?: boolean;
@@ -431,9 +433,11 @@ export function EventForm(props: EventFormProps) {
     >
       <div class="min-h-0 flex-1 overflow-y-auto scrollbar-hidden">
         <div class="flex min-w-0 flex-col gap-3 p-1 text-sm text-ink-muted sm:gap-2 sm:text-xs">
-          <PropertyRow label="Event type" icon={SquaresFourIcon}>
-            {controls.kind()}
-          </PropertyRow>
+          <Show when={props.showEventKind !== false}>
+            <PropertyRow label="Event type" icon={SquaresFourIcon}>
+              {controls.kind()}
+            </PropertyRow>
+          </Show>
           <div class="min-w-0 pl-9 sm:pl-7">{titleField()}</div>
           <Show when={!isOutOfOffice()}>
             <PropertyRow label="Description" icon={TextAlignLeftIcon}>
@@ -585,12 +589,16 @@ export function EventForm(props: EventFormProps) {
           depth={3}
           disabled={!controller.canSave() || formIsDisabled()}
           aria-label={isEdit() ? 'Save' : 'Create event'}
+          aria-busy={props.pending}
         >
-          <Show
-            when={props.pending}
-            fallback={isEdit() ? 'Save' : 'Create event'}
-          >
-            <SpinnerIcon class="size-4 animate-spin" />
+          <span class={cn(props.pending && 'invisible')}>
+            {isEdit() ? 'Save' : 'Create event'}
+          </span>
+          <Show when={props.pending}>
+            <SpinnerIcon
+              aria-hidden="true"
+              class="absolute inset-0 m-auto size-4 animate-spin"
+            />
           </Show>
         </Button>
       </div>

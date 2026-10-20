@@ -95,22 +95,24 @@ new session from the same meeting link must start a separate chat thread.
 Desktop click/drag creation opens a non-modal popover near the selected range.
 The popover's `Move to sidebar` action keeps the same draft in a right-hand editor;
 `New → Event` opens that sidebar directly. Editing from event details opens the
-same anchored popover, not a separate split dialog. Both create and edit show the
-event type above the title, with description directly beneath the title. The
-remaining icon-led rows follow the details popover's order: date/time when
-visible, recurrence, meeting link, direct location input, notifications,
+same anchored popover, not a separate split dialog. Create and edit place the
+event type in a compact selector at the top-left of the header, using the selected
+type's icon. Existing events keep their type read-only. Description stays directly
+beneath the title. The remaining icon-led rows follow the details popover's order:
+date/time when visible, recurrence, meeting link, direct location input, notifications,
 calendar, then guests. Field gaps are compact: 8px on desktop and 12px on phones.
 Center each row icon on its first selector, including touch-sized selectors and
 rows with extra controls below, rather than on the combined row height.
 Permission-locked values are plain read-only content, not control-shaped pills
-or disabled inputs. Editable dropdown selectors fill the value column with
-taller, rounded triggers, including date selectors in the sidebar and phone
-sheet. Triggers omit focus outlines and rings, retaining background feedback
-for keyboard focus; touch triggers keep a 44px minimum height. The custom-repeat
+or disabled inputs. Property dropdown selectors fill the value column with
+taller triggers and 12px rounded corners, including date selectors in the sidebar
+and phone sheet. The event-type header selector stays compact. Triggers omit focus
+outlines and rings, retaining background feedback for keyboard focus; touch
+triggers keep a 44px minimum height. The custom-repeat
 action sits below its full-width selector.
 The popover has no visible `New event` heading or date range. Move to the sidebar
 to change dates, times, or All day. The primary Create event and Save actions use
-the CTA button style.
+the CTA button style and keep their dimensions while showing a loading spinner.
 
 Scrolling, paging, changing period, and outside clicks that do not select a
 calendar range leave the active draft unchanged. Clicking or dragging another
@@ -158,7 +160,11 @@ and phone interactions without signing in or writing dev data:
 CALENDAR_PREVIEW_URL=https://localhost:3000 node src/features/calendar-view/browser-test/verify.mjs
 ```
 
-Set `CALENDAR_BROWSER_CDP=http://localhost:9222` to use an existing Chromium.
+Set `CALENDAR_BROWSER_CDP=http://localhost:9222` to use an existing Chromium, or
+`CALENDAR_BROWSER_EXECUTABLE=/path/to/chromium` to launch an installed browser.
+The fixture uses disabled query defaults and local sample data. Avoid broad request
+interception, which disables Chromium's cache during the large Vite module load.
+Add `?pending-save` to the fixture URL to hold a submitted draft in its loading state.
 Pass `--grid-only` to check selection replacement without the form-layout suite.
 
 On phones, event details use inset round action buttons and a transparent RSVP

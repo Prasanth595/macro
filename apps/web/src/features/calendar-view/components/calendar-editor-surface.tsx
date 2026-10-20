@@ -18,38 +18,47 @@ export function CalendarEditorSurface(props: {
   pending: boolean;
   onClose: () => void;
   onMoveToSidebar: () => void;
+  headerStart?: JSX.Element;
   children: JSX.Element;
 }) {
   const label = () => (props.draft.event ? 'Edit event' : 'New event');
-  const header = () => (
-    <div class="order-first flex shrink-0 items-center justify-end gap-1 px-3 pb-1 pt-2">
-      <div class="flex items-center gap-1">
-        <Show when={!isMobile() && props.surface === 'popover'}>
-          <Button
-            type="button"
-            label="Move to sidebar"
-            variant="ghost"
-            size="icon-sm"
-            onClick={props.onMoveToSidebar}
-          >
-            <SidebarIcon class="size-4" />
-          </Button>
-        </Show>
-        <Show when={!isMobile()}>
-          <Button
-            type="button"
-            label="Close event editor"
-            variant="ghost"
-            size="icon-sm"
-            disabled={props.pending}
-            onClick={props.onClose}
-          >
-            <CloseIcon class="size-4" />
-          </Button>
-        </Show>
+  const Header = () => {
+    const [attachHotkeys] = useHotkeyDOMScope('event-composer', true);
+    return (
+      <div
+        ref={attachHotkeys}
+        data-event-editor-header
+        class="flex shrink-0 items-center justify-between gap-2 px-3 pb-2 pt-2"
+      >
+        <div class="min-w-0">{props.headerStart}</div>
+        <div class="flex items-center gap-1">
+          <Show when={!isMobile() && props.surface === 'popover'}>
+            <Button
+              type="button"
+              label="Move to sidebar"
+              variant="ghost"
+              size="icon-sm"
+              onClick={props.onMoveToSidebar}
+            >
+              <SidebarIcon class="size-4" />
+            </Button>
+          </Show>
+          <Show when={!isMobile()}>
+            <Button
+              type="button"
+              label="Close event editor"
+              variant="ghost"
+              size="icon-sm"
+              disabled={props.pending}
+              onClick={props.onClose}
+            >
+              <CloseIcon class="size-4" />
+            </Button>
+          </Show>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <Show
@@ -76,8 +85,8 @@ export function CalendarEditorSurface(props: {
                   <KobalteDialog.Title class="sr-only">
                     {label()}
                   </KobalteDialog.Title>
+                  <Header />
                   <EditorFormBody>{props.children}</EditorFormBody>
-                  {header()}
                 </KobalteDialog.Content>
               </Layer>
             </KobalteDialog>
@@ -88,8 +97,8 @@ export function CalendarEditorSurface(props: {
             draft={props.draft}
             onClose={props.onClose}
           >
+            <Header />
             <EditorFormBody>{props.children}</EditorFormBody>
-            {header()}
           </EditorPopover>
         </Show>
       }
@@ -110,6 +119,7 @@ export function CalendarEditorSurface(props: {
           >
             <MobileDrawer.Handle />
             <MobileDrawer.Title class="sr-only">{label()}</MobileDrawer.Title>
+            <Header />
             <MobileDrawer.ScrollBody>
               <EditorFormBody>{props.children}</EditorFormBody>
             </MobileDrawer.ScrollBody>
