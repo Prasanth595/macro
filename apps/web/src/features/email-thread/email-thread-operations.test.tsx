@@ -44,6 +44,18 @@ it('does not announce the mark-as-read that opening a thread queues', () => {
   ));
   expect(screen.queryByText(/Mark as read/)).toBeNull();
 });
+it('announces a pending mark-as-read the user asked for', () => {
+  const read = { kind: 'read', value: true } as const;
+  render(() => (
+    <MailboxOperationsNotice
+      operations={[operation('pending', read)]}
+      announceRead
+    />
+  ));
+  expect(screen.getByText(/Mark as read/).textContent).toContain(
+    'Waiting for mailbox confirmation'
+  );
+});
 it('reports a mark-as-read that the mailbox rejected', () => {
   const read = { kind: 'read', value: true } as const;
   render(() => (

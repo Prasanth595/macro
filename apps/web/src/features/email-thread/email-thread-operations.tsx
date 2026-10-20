@@ -24,16 +24,19 @@ function actionDescription(action: MailboxAction): string {
 
 /**
  * Organization changes remain visibly pending until provider confirmation.
- * Opening a thread marks it read, so only that change's failure is announced.
+ * Opening a thread also marks it read, so a pending mark-as-read is announced
+ * only when the user asked for one; its failure is always announced.
  */
 export function MailboxOperationsNotice(props: {
   operations: MailboxOperation[];
+  announceRead?: boolean;
 }) {
   const unresolved = () =>
     props.operations.filter(
       (operation) =>
         operation.state !== 'applied' &&
         !(
+          !props.announceRead &&
           operation.state === 'pending' &&
           operation.action.kind === 'read' &&
           operation.action.value
@@ -63,10 +66,16 @@ export function MailboxOperationsNotice(props: {
 export function EmailThreadOperations(props: {
   threadId: string;
   enabled: boolean;
+  announceRead: boolean;
 }) {
   const query = useThreadOperations(
     () => props.threadId,
     () => props.enabled
   );
-  return <MailboxOperationsNotice operations={query.data ?? []} />;
+  return (
+    <MailboxOperationsNotice
+      operations={query.data ?? []}
+      announceRead={props.announceRead}
+    />
+  );
 }
