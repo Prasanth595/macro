@@ -17,7 +17,6 @@ import {
   TaskGithubDemo,
 } from '../../features/marketing/components/tasks/TaskStories';
 import { TasksComparison } from '../../features/marketing/components/tasks/TasksComparison';
-import { tasksGuides } from '../../features/marketing/content/feature-guides/tasks';
 import { DEMO_BOOKING_URL } from '../../features/marketing/core/navigation';
 import '../../features/marketing/components/tasks/tasks-page.css';
 import { setPageSeo } from '../utils/utilSeo';
@@ -133,7 +132,6 @@ export function RouteTasks() {
           id="from-a-message"
           title={['Turn requests in chat', 'into tasks.']}
           description="Turn a request in chat into a task without copying it into another tool. Give it an owner, set the priority, and keep the original conversation close by."
-          details={tasksGuides['from-a-message']}
         >
           <DemoInteractionBoundary class="feature-page-visual">
             <TaskFromMessageDemo />
@@ -143,7 +141,6 @@ export function RouteTasks() {
           id="ask-macro"
           title={['Keep your tasks', 'up to date with agents.']}
           description="Tell your agent what your team needs to get done in your team channels. The agent can create tasks, change who’s assigned, and check what tasks are still incomplete."
-          details={tasksGuides['ask-macro']}
         >
           <DemoInteractionBoundary class="feature-page-visual">
             <TaskAgentChannelDemo />
@@ -153,7 +150,6 @@ export function RouteTasks() {
           id="from-docs-and-email"
           title={['Attach files, people,', 'and emails to your task.']}
           description="Tag emails, documents, images, and team discussion directly to your task so your team has the context it needs to complete the task."
-          details={tasksGuides['from-docs-and-email']}
         >
           <DemoInteractionBoundary class="feature-page-visual">
             <TaskContextDemo />
@@ -163,7 +159,6 @@ export function RouteTasks() {
           id="github"
           title={['Keep tasks in sync', 'with your code.']}
           description="Connect a task to its pull request and let the code update its status. The task moves into review when the PR opens and completes when the change merges."
-          details={tasksGuides['github']}
         >
           <DemoInteractionBoundary class="feature-page-visual">
             <TaskGithubDemo />

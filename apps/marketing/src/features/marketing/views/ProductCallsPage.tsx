@@ -14,7 +14,6 @@ import {
   LinkedWorkGraphic,
 } from '../components/product/ProductGraphics';
 import { ProductHero, ProductPage } from '../components/product/ProductPage';
-import { callsGuides } from '../content/feature-guides/calls';
 import './calls-page.css';
 
 const callsFaq = [
@@ -105,7 +104,6 @@ export function RouteCalls() {
           id="call-start"
           title={['Start a call in channels, DMs,', 'or through meeting links.']}
           description="You can start calls from channels, DMs, or through meeting links. People outside of Macro can join your meeting links. Create your own booking links so people can set up times with you."
-          details={callsGuides['call-start']}
         >
           <div class="feature-page-visual">
             <CallStartDemo />
@@ -115,7 +113,6 @@ export function RouteCalls() {
           id="call-followup"
           title={['Turn what was said on', 'your calls into next steps.']}
           description="Tell your agent to turn what was said on a call into tasks, follow-up emails, and CRM updates. Your agent can read the transcript and determine who said what."
-          details={callsGuides['call-followup']}
         >
           <div class="feature-page-visual">
             <CallFollowupDemo />
@@ -125,7 +122,6 @@ export function RouteCalls() {
           id="call-default"
           title={['View call recordings', 'after they finish.']}
           description="After calls finish, you can go back and watch the recording, review the transcript, or get a summary of what was said. Call recordings are shareable across your team."
-          details={callsGuides['call-default']}
         >
           <div class="feature-page-visual">
             <CallTeamMemoryDemo />

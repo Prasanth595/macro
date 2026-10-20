@@ -16,7 +16,6 @@ import {
 } from '../components/product/ProductGraphics';
 import { ProductHero, ProductPage } from '../components/product/ProductPage';
 import { WorkspaceDesktopDemo } from '../components/WorkspaceDesktopDemo';
-import { documentsGuides } from '../content/feature-guides/documents';
 import { documentComparisons } from '../core/feature-comparisons';
 
 const documentsFaq = [
@@ -99,7 +98,6 @@ export function RouteDocuments() {
           id="document-agents"
           title={['Edit docs with your', 'agent in real time.']}
           description="Ask your agent to update a doc and watch it update in real time. You and your team can continue editing the document while the agent writes."
-          details={documentsGuides['document-agents']}
         >
           <DemoInteractionBoundary class="feature-page-visual">
             <DocumentAgentDemo />
@@ -109,7 +107,6 @@ export function RouteDocuments() {
           id="document-links"
           title={['Tag emails, files,', 'and chats in your docs.']}
           description="Link to the work you’re writing about and open it beside your document. Read the original email, task, or conversation while you write."
-          details={documentsGuides['document-links']}
         >
           <DemoInteractionBoundary class="feature-page-visual docs-wide-demo">
             <DocumentMentionsDemo />
@@ -119,7 +116,6 @@ export function RouteDocuments() {
           id="document-organization"
           title={['Organize docs', 'with folders and tags.']}
           description="Keep documents in folders and use tags to find them across projects. A brief can stay in its home folder while appearing beside related emails and tasks under the tags your team uses."
-          details={documentsGuides['document-organization']}
         >
           <DemoInteractionBoundary class="feature-page-visual">
             <DocumentOrganizationDemo />

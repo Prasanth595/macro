@@ -15,7 +15,6 @@ import {
 } from '../components/reviews/GithubWorkflow';
 import { ReviewInboxDemo } from '../components/reviews/ReviewStories';
 import { WorkspaceDesktopDemo } from '../components/WorkspaceDesktopDemo';
-import { githubGuides } from '../content/feature-guides/github';
 
 const githubFaq = [
   {
@@ -108,7 +107,6 @@ export function RouteGithub() {
           id="pr-links"
           title={['Review pull requests', 'without leaving chat.']}
           description="Share a GitHub pull request in chat and open it from the conversation. Read the discussion and inspect the code changes while the linked PR’s status stays up to date."
-          details={githubGuides['pr-links']}
         >
           <div class="feature-page-visual">
             <GithubConversationDemo />
@@ -118,7 +116,6 @@ export function RouteGithub() {
           id="pr-tasks"
           title={['Link pull requests', 'to tasks.']}
           description="Keep implementation and task tracking connected. Link a pull request to its task, then let opening, merging, or closing the PR update the task’s status."
-          details={githubGuides['pr-tasks']}
         >
           <div class="feature-page-visual">
             <GithubTaskDemo />
@@ -128,7 +125,6 @@ export function RouteGithub() {
           id="coding-agents"
           title={['Turn bug reports and', 'feature requests into PRs.']}
           description="Ask your coding agent to fix a bug as it comes up in your team conversations. It’ll see what was said and understand your request, then put up a PR."
-          details={githubGuides['coding-agents']}
         >
           <div class="feature-page-visual">
             <GithubConversationDemo agent />
@@ -138,7 +134,6 @@ export function RouteGithub() {
           id="review-inbox"
           title={['See review requests', 'in one inbox.']}
           description="Find GitHub mentions, comments, and requested reviews alongside the rest of your work."
-          details={githubGuides['review-inbox']}
         >
           <div class="feature-page-visual">
             <ReviewInboxDemo />

@@ -18,7 +18,6 @@ import {
 } from '../components/product/ProductGraphics';
 import { ProductHero, ProductPage } from '../components/product/ProductPage';
 import { WorkspaceDesktopDemo } from '../components/WorkspaceDesktopDemo';
-import { agentsGuides } from '../content/feature-guides/agents';
 import './agents-page.css';
 
 const agentsFaq = [
@@ -112,7 +111,6 @@ export function RouteAgents() {
         id="agent-sources"
         title={['Give your agent the full', 'context of your team’s work.']}
         description="Macro gives your agent access to your team’s calendar, conversations, and files, so it can use the full context of your work to help you get more done."
-        details={agentsGuides['agent-sources']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <AgentMeetingStory />
@@ -122,7 +120,6 @@ export function RouteAgents() {
         id="agent-actions"
         title={['Work with your agent', 'across the workspace.']}
         description="Work with your agent in the chats and documents your team already uses. Add context, ask for updates, and review the result without leaving your workspace."
-        details={agentsGuides['agent-actions']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <AgentDeliverableStory />
@@ -132,7 +129,6 @@ export function RouteAgents() {
         id="agent-collaboration"
           title={['Turn conversations', 'into finished work.']}
         description="Bring design and implementation into the team conversation. Ask Macro for a mockup, give feedback together, then tag Cursor to build it using the context already in the channel."
-        details={agentsGuides['agent-collaboration']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <AgentTeamworkStory />

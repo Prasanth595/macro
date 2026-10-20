@@ -19,7 +19,6 @@ import {
 } from '../../features/marketing/components/FeaturePage';
 import { HomepageClosing } from '../../features/marketing/components/HomepageClosing';
 import { ProductBrand } from '../../features/marketing/components/product/ProductPage';
-import { emailGuides } from '../../features/marketing/content/feature-guides/email';
 import { setPageSeo } from '../utils/utilSeo';
 import '../../features/marketing/components/email/email-hero.css';
 
@@ -135,7 +134,6 @@ export function RouteEmail() {
         id="auto-tags"
         title={['Keep all your inboxes', 'organized.']}
         description="Connect your personal and work inboxes across Gmail, Outlook, and more. Organize them with tags for customers, projects, and follow-ups."
-        details={emailGuides['auto-tags']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <EmailAccountsDemo />
@@ -145,7 +143,6 @@ export function RouteEmail() {
         id="email-sharing"
         title={['Share email threads', 'with your team.']}
         description="Share email threads in a channel so your team can read the full conversation, discuss it, and keep new replies linked."
-        details={emailGuides['email-sharing']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <EmailSharingDemo />
@@ -155,7 +152,6 @@ export function RouteEmail() {
         id="keyboard-speed"
         title={['Manage your inbox', 'with keyboard shortcuts.']}
         description="Open, reply to, and archive emails with keyboard shortcuts so you can move through your inbox faster."
-        details={emailGuides['keyboard-speed']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <EmailKeyboardDemo />
@@ -165,7 +161,6 @@ export function RouteEmail() {
         id="agentic-editing"
         title={['Draft emails in your', 'voice with agents.']}
         description="Ask an agent to prepare a reply using the email thread, relevant documents, meeting transcripts, and team conversations. Review and edit the draft before sending."
-        details={emailGuides['agentic-editing']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <EmailAgenticEditingDemo />

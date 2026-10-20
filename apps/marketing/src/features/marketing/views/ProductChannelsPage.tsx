@@ -17,7 +17,6 @@ import {
 } from '../components/product/ProductGraphics';
 import { ProductHero, ProductPage } from '../components/product/ProductPage';
 import { TaskAgentsGraphic } from '../components/tasks/TasksFeatureGraphics';
-import { channelsGuides } from '../content/feature-guides/channels';
 import { chatComparisons } from '../core/feature-comparisons';
 
 export function RouteChannels() {
@@ -61,7 +60,6 @@ export function RouteChannels() {
         id="shared-work"
           title={['Open all your work', 'straight from chat.']}
         description="Share work in your team channels. Click on a document, task, email, company, person, or any file to see it beside your chat."
-        details={channelsGuides['shared-work']}
       >
         <DemoInteractionBoundary class="feature-page-visual channel-wide-demo">
           <ChannelSharedWorkDemo />
@@ -71,7 +69,6 @@ export function RouteChannels() {
         id="channel-access"
         title={['Easily share files', 'with your team.']}
         description="After sharing files in a conversation, anyone in that chat automatically gets access. Anyone added later will gain access, and anyone you remove will lose access."
-        details={channelsGuides['channel-access']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <ChannelPermissionsDemo />
@@ -81,7 +78,6 @@ export function RouteChannels() {
         id="channel-agents"
           title={['Bring your agents', 'into the conversation.']}
         description="Tag your agent to ask for help, add context, assign a task, or get something done. You can use the Macro agent or bring your own."
-        details={channelsGuides['channel-agents']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <ChannelAgentDemo />
@@ -91,7 +87,6 @@ export function RouteChannels() {
         id="catch-up"
           title={['Read and reply to', 'every thread inline.']}
         description="Read replies inline, follow the full thread, and respond without opening each conversation."
-        details={channelsGuides['catch-up']}
       >
         <span id="channel-threads" />
         <span id="chat-inbox" />

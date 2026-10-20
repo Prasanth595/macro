@@ -24,7 +24,6 @@ import {
   ProductPage,
 } from '../../features/marketing/components/product/ProductPage';
 import { WorkspaceDesktopDemo } from '../../features/marketing/components/WorkspaceDesktopDemo';
-import { crmGuides } from '../../features/marketing/content/feature-guides/crm';
 import { setPageSeo } from '../utils/utilSeo';
 import '../../features/marketing/components/crm/crm-page.css';
 import '../../features/marketing/components/homepage-pipeline-demo.css';
@@ -134,7 +133,6 @@ export function RouteCrm() {
         id="crm-from-email"
         title={['Keep your CRM', 'up to date with agents.']}
         description="Your agent can read customer emails, calls, and chats, then update stages, owners, and next steps in your CRM."
-        details={crmGuides['crm-from-email']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <CrmCaptureDemo />
@@ -144,7 +142,6 @@ export function RouteCrm() {
         id="crm-enrichment"
         title={['Automatically add and', 'enrich new contacts.']}
         description="When you email someone new, Macro creates the contact and company from their domain. Public company details fill in the record, so you have a starting point before the first meeting."
-        details={crmGuides['crm-enrichment']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <CrmEnrichmentDemo />
@@ -154,7 +151,6 @@ export function RouteCrm() {
         id="crm-context"
         title={['Connect calls, emails, and', 'tasks to each customer.']}
         description="Open a company to see the people, emails, calls, files, and tasks behind the relationship. Keep notes on the record so your team understands what happened and what comes next."
-        details={crmGuides['crm-context']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
           <CrmRecordDemo />
@@ -164,7 +160,6 @@ export function RouteCrm() {
         id="crm-agents"
         title={['Draft follow-ups and plan', 'next steps with your agent.']}
         description="Your agent can read the full customer relationship across emails, calls, chats, files, tasks, and GitHub pull requests. Use that context to draft better follow-up emails and move deals forward."
-        details={crmGuides['crm-agents']}
       >
         <DemoInteractionBoundary class="feature-page-visual crm-agent-scene">
           <DeferredDemo
