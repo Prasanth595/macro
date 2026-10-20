@@ -117,7 +117,7 @@
    shared, so every size scales the same way in both themes. */
 html[data-theme-light='true'] {
   --glass-tint: white;
-  --glass-press-tint: var(--color-content-0);
+  --glass-press-tint: white;
   --glass-shade-color: var(--color-content-0);
   --glass-shadow-alpha: 0.28;
   --glass-highlight-base: 55%;

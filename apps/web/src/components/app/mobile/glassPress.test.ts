@@ -164,6 +164,57 @@ describe('mobile glass surface press', () => {
     pointer(button, 'pointerdown');
     expect(group.hasAttribute('data-glass-press')).toBe(false);
   });
+  it('follows the latest touch once per frame without reading layout on each move', () => {
+    const group = surface();
+    const button = group.querySelector('button')!;
+    const bounds = vi.spyOn(group, 'getBoundingClientRect');
+    pointer(button, 'pointerdown');
+    bounds.mockClear();
+
+    pointer(button, 'pointermove', 80, 25);
+    pointer(button, 'pointermove', 180, 30);
+    expect(group.style.getPropertyValue('--press-x')).toBe('20px');
+    expect(bounds).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(1);
+
+    vi.advanceTimersToNextFrame();
+    expect(group.style.getPropertyValue('--press-x')).toBe('180px');
+    expect(group.style.getPropertyValue('--press-y')).toBe('30px');
+    expect(bounds).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(group.children).toHaveLength(2);
+  });
+  it('tracks local coordinates as a round surface expands', () => {
+    const group = surface(46, 46);
+    const button = group.querySelector('button')!;
+    pointer(button, 'pointerdown', 23, 23);
+    group.getBoundingClientRect = () => new DOMRect(-6.44, -6.44, 58.88, 58.88);
+    pointer(button, 'pointermove', 35, 30);
+    vi.advanceTimersToNextFrame();
+    expect(parseFloat(group.style.getPropertyValue('--press-x'))).toBeCloseTo(
+      32.375
+    );
+    expect(parseFloat(group.style.getPropertyValue('--press-y'))).toBeCloseTo(
+      28.46875
+    );
+  });
+  it.each(['pointerup', 'pointercancel', 'outside', 'blur', 'dispose'])(
+    'cancels a queued spotlight update on %s',
+    (end) => {
+      const group = surface();
+      const button = group.querySelector('button')!;
+      pointer(button, 'pointerdown');
+      pointer(button, 'pointermove', 180);
+      if (end === 'dispose') dispose();
+      else if (end === 'blur') window.dispatchEvent(new Event('blur'));
+      else if (end === 'outside') pointer(button, 'pointermove', 400);
+      else pointer(button, end);
+      expect(vi.getTimerCount()).toBe(0);
+      vi.advanceTimersToNextFrame();
+      expect(group.hasAttribute('data-glass-press')).toBe(false);
+      expect(group.style.getPropertyValue('--press-x')).toBe('20px');
+    }
+  );
   it.each(['pointerup', 'pointercancel', 'pointermove'])(
     'releases on %s without scheduling cleanup',
     (event) => {

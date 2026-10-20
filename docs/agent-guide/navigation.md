@@ -657,7 +657,9 @@ fill and rim by up to 6px per edge, with 18% icon growth around each icon's cent
 Labels and layout stay fixed; icons remain visually aligned through release.
 Selecting or deselecting a pill updates its fill and text together, including
 during release or a rapid second tap. The fill changes with a radial spotlight
-centered on the touch, bright on dark themes and shaded on light themes.
+centered on the touch, brightening the surface in both light and dark themes.
+The spotlight follows the finger while it moves within the surface, updating
+at most once per animation frame.
 These iOS surfaces omit the native tap highlight; the spotlight supplies feedback.
 Release, cancellation, dragging outside, or losing window focus restores the
 surface. Disabled controls stay still; reduced motion keeps only the static
