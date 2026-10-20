@@ -15,13 +15,9 @@
 .crm-demo-frame .sample-thread-replies .sample-message-row:last-child { animation: crm-arrive 400ms ease-out both; }
 @keyframes crm-arrive { from { opacity: 0; transform: translateY(4px); } }
 
-/* The agent section keeps the homepage pipeline and its request. */
-.crm-agent-scene .homepage-conversation { width: 100%; margin-bottom: 40px; }
-
 @media (max-width: 699px) {
   .crm-feature-links a { font-size: 12px; }
   .crm-feature-illustration { width: 150px; height: auto; aspect-ratio: 5 / 3; }
-  .crm-agent-scene .homepage-conversation { margin-bottom: 24px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .crm-demo-pointer { display: none; }

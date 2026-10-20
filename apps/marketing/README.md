@@ -368,10 +368,19 @@ CRM passes `windowChrome={false}` to omit the simulated browser bar; the content
 uses that space so the outer frame stays the same height. Do not add CRM-specific
 hero background or sizing overrides. CRM demonstrates message-driven
 record updates using the shared company UI, company enrichment, an editable customer record, company
-mentions in documents and chat, and an agent updating the pipeline. The hero and
-agent section both use `CrmPipelineScene`: the hero has the CRM navigation,
-board/table switch, and record search; the lower scene shows the focused animated
-pipeline.
+mentions in documents and chat, and an agent preparing a follow-up. The hero
+uses `CrmPipelineScene` with CRM navigation, board/table switching, and record search.
+The final section defers `CrmFollowupDemo` until it approaches the viewport:
+it opens a company, reads its linked
+email/call/file/task tabs, follows the team chat and PR, then presents an editable
+email and concrete next steps. Use the real record tabs; do not invent Chat or PR
+tabs on the company. Linked items reuse the existing source viewers, and returning
+to the agent preserves draft edits. Company-call and task rows accept optional
+open handlers so this story can navigate locally without changing other records.
+The sample PR is merged but its production check remains open; the draft must not
+promise availability. Keep the evidence, reply, and next steps consistent in
+`crm-followup-data.ts`. Desktop uses app splits; phones show one pane at a time.
+Playback stops on interaction and shows the result immediately for reduced motion.
 `createCrmDemoWorkspace` supplies the same fictional accounts throughout the page.
 The CRM hero opts into `CrmPipelineScene`'s `hero` fixtures: New business,
 Studio partnerships, Q4 renewals, and Team expansion, plus three populated
@@ -383,6 +392,13 @@ section insets use the shared sidebar tokens. On phones, use the existing
 navigation toggle; selecting a pipeline or list closes the sidebar.
 Keep these fixtures and spacing scoped to the hero; compact landing scenes
 retain their three-stage story.
+The hero plays once after half the scene becomes visible: hold the board for
+three seconds, move Miller & Rowe from Lead to Qualified with Jacob's cursor,
+show All records for three seconds, then return to the board. On narrow screens,
+the board scrolls to reveal the destination lane. The first activation click,
+pointer input, or keyboard focus permanently stops playback and clears the cursor;
+reduced motion shows the settled board. The animation uses the shared
+`createProductWalkthrough` lifecycle and `pipeline-transfer.css`.
 `CompanyPipelineEntry` follows `crm/components/pipeline-entry-cards` and appears
 between the company header and Discussion. Pipeline edits remain separate from
 company properties. Verify board/table switching, moving a deal, editing its

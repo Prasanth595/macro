@@ -302,32 +302,30 @@ export const crmGuides = {
   ],
   'crm-agents': [
     {
-      title: 'Update after the sales sync',
-      summary: 'Turn the meeting’s decisions into specific CRM updates.',
+      title: 'Draft a customer follow-up',
+      summary:
+        'Use the customer’s conversations and linked work to prepare the next email.',
       intro:
-        'Ask an agent to turn agreed meeting decisions into CRM changes, using the saved call or team discussion.',
+        'Ask your agent to read the company record and its linked work before drafting a reply. It can connect what the customer asked for with the team’s decisions and unfinished tasks.',
       sections: [
         {
           kind: 'prompt',
           heading: 'Example prompt',
-          text: 'Read this sales sync. Update the deal owners we agreed on in the Sales pipeline and add the next steps to each company’s Discussion. List any undecided stage changes.',
+          text: 'Review this company’s emails, calls, chats, files, tasks, and linked pull requests. Draft a follow-up and list the next steps. Don’t send it.',
         },
         {
           kind: 'text',
-          heading: 'Name the destination',
+          heading: 'Check what is ready',
           paragraphs: [
-            'Specify the company or deal and its pipeline. Company properties and pipeline fields are separate. Open the updated records to check the result.',
+            'Open the sources behind the draft. A merged pull request may still need a deployment check, and an open task may block what you can promise. Review the email before sending.',
           ],
         },
       ],
       links: [
+        { label: 'Agents', href: 'https://docs.macro.com/product/agents' },
         {
-          label: 'Agents',
-          href: 'https://docs.macro.com/product/agents',
-        },
-        {
-          label: 'Pipeline tools',
-          href: 'https://docs.macro.com/AI/mcp/tools/find-pipeline-entries',
+          label: 'Customer context',
+          href: 'https://docs.macro.com/product/crm',
         },
       ],
     },

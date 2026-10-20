@@ -31,6 +31,7 @@ import {
   onMount,
   Show,
 } from 'solid-js';
+import { Dynamic } from 'solid-js/web';
 import type {
   WorkspaceComment,
   WorkspaceView,
@@ -707,7 +708,10 @@ function CompanyTeam(props: { company: SampleCompany }) {
   );
 }
 
-function CompanyTasks(props: { company: SampleCompany }) {
+function CompanyTasks(props: {
+  company: SampleCompany;
+  onOpen?: (id: string) => void;
+}) {
   const [search, setSearch] = createSignal('');
   const tasks = () =>
     (props.company.tasks ?? []).filter((task) =>
@@ -754,7 +758,12 @@ function CompanyTasks(props: { company: SampleCompany }) {
                 </div>
                 <For each={group.tasks}>
                   {(task) => (
-                    <div class="sample-record-task">
+                    <Dynamic
+                      component={props.onOpen ? 'button' : 'div'}
+                      type={props.onOpen ? 'button' : undefined}
+                      class="sample-record-task"
+                      onClick={() => props.onOpen?.(task.id)}
+                    >
                       <PropertyValueIcon
                         optionId={STATUS_IDS[task.status]}
                         class="size-4"
@@ -771,7 +780,7 @@ function CompanyTasks(props: { company: SampleCompany }) {
                         <PersonIcon person={task.owner} />
                         <span>{homepagePeople[task.owner].shortName}</span>
                       </span>
-                    </div>
+                    </Dynamic>
                   )}
                 </For>
               </>
@@ -817,6 +826,8 @@ export function CompanyRecord(props: {
   onOpenItem: (view: WorkspaceView, id: string) => void;
   pipeline?: JSX.Element;
   hideCopyLink?: boolean;
+  onOpenCall?: (id: string) => void;
+  onOpenTask?: (id: string) => void;
 }) {
   const w = props.workspace;
   const update = (patch: Partial<SampleCompany>) =>
@@ -1022,7 +1033,7 @@ export function CompanyRecord(props: {
           </RecordSection>
         </Show>
         <Show when={props.section === 'tasks'}>
-          <CompanyTasks company={props.company} />
+          <CompanyTasks company={props.company} onOpen={props.onOpenTask} />
         </Show>
         <Show when={props.section === 'calls'}>
           <RecordSection title="Calls">
@@ -1038,6 +1049,11 @@ export function CompanyRecord(props: {
                         <PhoneCall class="size-4 shrink-0 text-ink-muted" />
                       }
                       title={call.title}
+                      onOpen={
+                        props.onOpenCall
+                          ? () => props.onOpenCall?.(call.id)
+                          : undefined
+                      }
                       label={`${call.title} ${call.time}`}
                       detail={
                         <>

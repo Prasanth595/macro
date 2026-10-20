@@ -1,4 +1,5 @@
 import { type JSX, Match, Switch } from 'solid-js';
+import type { WorkspaceView } from '../../core/dummy-workspace';
 import type { DummyWorkspace } from '../../primitives/createDummyWorkspace';
 import {
   type CompanySection,
@@ -18,6 +19,9 @@ export function CrmRecordWorkspace(props: {
   initialPanelOpen?: boolean;
   pipeline?: JSX.Element;
   hideCopyLink?: boolean;
+  onOpenItem?: (view: WorkspaceView, id: string) => void;
+  onOpenCall?: (id: string) => void;
+  onOpenTask?: (id: string) => void;
   section?: CompanySection;
   onSectionChange?: (section: CompanySection) => void;
 }) {
@@ -27,6 +31,9 @@ export function CrmRecordWorkspace(props: {
       fallback={
         <WorkspaceCompanies
           workspace={w}
+          onOpenItem={props.onOpenItem}
+          onOpenCall={props.onOpenCall}
+          onOpenTask={props.onOpenTask}
           hideCopyLink={props.hideCopyLink}
           initialPanelOpen={props.initialPanelOpen}
           pipeline={() => props.pipeline}

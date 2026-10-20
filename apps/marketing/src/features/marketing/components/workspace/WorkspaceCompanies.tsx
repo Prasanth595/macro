@@ -33,6 +33,8 @@ const byRecency = (a: SampleCompany, b: SampleCompany) =>
 export function WorkspaceCompanies(props: {
   workspace: DummyWorkspace;
   hideCopyLink?: boolean;
+  onOpenCall?: (id: string) => void;
+  onOpenTask?: (id: string) => void;
   pipeline?: (company: SampleCompany) => JSX.Element;
   /** The floating details panel is closed by default, as in the app. */
   initialPanelOpen?: boolean;
@@ -209,6 +211,8 @@ export function WorkspaceCompanies(props: {
         <CompanyRecord
           workspace={w}
           company={company()}
+          onOpenCall={props.onOpenCall}
+          onOpenTask={props.onOpenTask}
           hideCopyLink={props.hideCopyLink}
           pipeline={props.pipeline?.(company())}
           section={props.section ?? localSection()}

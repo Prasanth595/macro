@@ -505,7 +505,10 @@ export function CallRecordBody(props: {
                       src={homepagePeople[person].photo}
                       alt=""
                     />
-                    <span class="max-w-48 truncate">{callEmail(person)}</span>
+                    <span class="max-w-48 truncate">
+                      {props.call.participantEmails?.[person] ??
+                        callEmail(person)}
+                    </span>
                   </span>
                 )}
               </For>

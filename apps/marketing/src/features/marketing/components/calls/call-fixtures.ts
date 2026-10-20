@@ -24,6 +24,8 @@ export type SampleCall = {
   /** Duration in seconds. */
   duration: number;
   people: CallPerson[];
+  /** Optional addresses for page-owned sample participants. */
+  participantEmails?: Partial<Record<CallPerson, string>>;
   summary: string;
   segments: CallSegment[];
   poster: CallPosterTile[];

@@ -2,7 +2,6 @@ import { lazy } from 'solid-js';
 import { CrmCaptureDemo } from '../../features/marketing/components/crm/CrmCaptureDemo';
 import { CrmComparison } from '../../features/marketing/components/crm/CrmComparison';
 import { CrmEnrichmentDemo } from '../../features/marketing/components/crm/CrmEnrichmentDemo';
-import { CrmFollowupDemo } from '../../features/marketing/components/crm/CrmFollowupDemo';
 import {
   AgentIllustration,
   CaptureIllustration,
@@ -33,6 +32,12 @@ import '../../features/marketing/components/homepage-pipeline-demo.css';
 const loadPipeline = () =>
   import('../../features/marketing/components/homepage/CrmPipelineScene');
 const PipelineDemo = lazy(loadPipeline);
+const loadFollowup = async () => ({
+  default: (
+    await import('../../features/marketing/components/crm/CrmFollowupDemo')
+  ).CrmFollowupDemo,
+});
+const FollowupDemo = lazy(loadFollowup);
 
 const faqItems = [
   {
@@ -147,7 +152,11 @@ export function RouteCrm() {
       </FeaturePageSection>
       <FeaturePageSection
         id="crm-context"
-        title={['Automatically connect', 'calls, emails, and tasks', 'to each customer.']}
+        title={[
+          'Automatically connect',
+          'calls, emails, and tasks',
+          'to each customer.',
+        ]}
         description="Open a company to see the people, emails, calls, files, and tasks behind the relationship. Keep notes on the customer record so the next person can understand what’s happened and what comes next."
         details={crmGuides['crm-context']}
       >
@@ -162,7 +171,12 @@ export function RouteCrm() {
         details={crmGuides['crm-agents']}
       >
         <DemoInteractionBoundary class="feature-page-visual crm-agent-scene">
-          <CrmFollowupDemo />
+          <DeferredDemo
+            preload={loadFollowup}
+            fallback={<DemoPlaceholder label="Customer follow-up" />}
+          >
+            <FollowupDemo />
+          </DeferredDemo>
         </DemoInteractionBoundary>
       </FeaturePageSection>
       <FeaturePageFaq
