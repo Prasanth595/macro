@@ -30,9 +30,11 @@ read their code, and follow that pattern rather than inventing a new one.
   so give it a tap path that opens a sheet, as `UserCardTrigger` does.
 - Keep `@ui` Button's touch sizing (no `noTouchResize` without cause); rows
   are 44px on touch (`touch:min-h-[44px]`).
-- Long-press goes through the `touchHandler` directive. A touch drag scrolls:
-  selecting or dragging starts only after a long press, and horizontal
-  swipes ignore the left edge (iOS back swipe).
+- Long-press goes through the `touchHandler` directive. On scrollable rows,
+  selecting or dragging starts only after a long press; dedicated reorder
+  handles instead drag after a small movement with no hold delay and reserve
+  scrolling for the rest of the row. Horizontal swipes ignore the left edge
+  (iOS back swipe).
 - Primary nav fires `hapticImpact('light')` on pointer down and acts on
   click, so a held or cancelled touch does nothing. `glass` and `island`
   controls and channel inputs get iOS-app-only press animation from

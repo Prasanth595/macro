@@ -1,49 +1,59 @@
-import { touchHandler } from '@core/directive/touchHandler';
+import { hapticImpact } from '@core/mobile/haptics';
 import { useDragDropContext } from '@thisbeyond/solid-dnd';
 import { onCleanup, onMount } from 'solid-js';
 
-/** Long-press handles start sorting; moving before activation remains a scroll. */
+/** Dedicated handles drag after a small movement; the rest of each row scrolls. */
 export function createDockTouchSensor(onCancel: () => void) {
   const context = useDragDropContext();
   if (!context) throw new Error('Dock touch sensor requires DragDropProvider');
   const [state, actions] = context;
   const id = 'dock-touch';
-  let touchId: number | undefined;
-  let cancelPending: (() => void) | undefined;
-  let disposed = false;
+  let gesture:
+    | {
+        element: HTMLElement;
+        draggableId: string;
+        touchId: number;
+        x: number;
+        y: number;
+      }
+    | undefined;
   const active = () => state.active.sensorId === id;
 
   const finish = (cancelled: boolean) => {
+    gesture?.element.removeAttribute('data-touch-pressed');
+    gesture = undefined;
     if (!active()) return;
     if (cancelled) onCancel();
     if (state.active.draggable) actions.dragEnd();
     actions.sensorEnd();
-    touchId = undefined;
   };
-  const cancel = () => {
-    cancelPending?.();
-    cancelPending = undefined;
-    finish(true);
-  };
+  const cancel = () => finish(true);
   const move = (event: TouchEvent) => {
-    if (!active()) return;
+    if (!gesture) return;
     if (event.touches.length !== 1) return cancel();
     const touch = Array.from(event.touches).find(
-      (touch) => touch.identifier === touchId
+      (touch) => touch.identifier === gesture?.touchId
     );
     if (!touch) return cancel();
+    // Reserve handle gestures for dragging, including movement below threshold.
     event.preventDefault();
+    if (!active()) {
+      if (Math.hypot(touch.clientX - gesture.x, touch.clientY - gesture.y) < 8)
+        return;
+      if (state.active.sensor) return cancel();
+      actions.sensorStart(id, { x: gesture.x, y: gesture.y });
+      actions.dragStart(gesture.draggableId);
+      hapticImpact('light');
+    }
     actions.sensorMove({ x: touch.clientX, y: touch.clientY });
   };
   const end = (event: TouchEvent) => {
-    cancelPending?.();
-    cancelPending = undefined;
-    if (!active()) return;
+    if (!gesture) return;
     event.preventDefault();
     finish(false);
   };
   const cancelOnEscape = (event: KeyboardEvent) => {
-    if (event.key !== 'Escape' || !active()) return;
+    if (event.key !== 'Escape' || !gesture) return;
     event.preventDefault();
     event.stopImmediatePropagation();
     cancel();
@@ -67,7 +77,6 @@ export function createDockTouchSensor(onCancel: () => void) {
     window.addEventListener('blur', cancel);
   });
   onCleanup(() => {
-    disposed = true;
     cancel();
     actions.removeSensor(id);
     document.removeEventListener('touchmove', move, true);
@@ -79,22 +88,24 @@ export function createDockTouchSensor(onCancel: () => void) {
   });
 
   return (element: HTMLElement, draggableId: string) => {
-    const cancelTouch = touchHandler(element, () => ({
-      delay: 300,
-      stopTouchStartPropagation: true,
-      onTouchStart: () => {
-        cancelPending = cancelTouch;
-      },
-      onCancel: () => {
-        if (cancelPending === cancelTouch) cancelPending = undefined;
-      },
-      onLongPress: (event) => {
-        if (disposed || !element.isConnected || state.active.sensor) return;
-        const touch = event.touches[0];
-        touchId = touch.identifier;
-        actions.sensorStart(id, { x: touch.clientX, y: touch.clientY });
-        actions.dragStart(draggableId);
-      },
-    }));
+    const begin = (event: TouchEvent) => {
+      if (event.touches.length !== 1 || state.active.sensor) return;
+      event.stopPropagation();
+      event.preventDefault();
+      const touch = event.touches[0];
+      gesture = {
+        element,
+        draggableId,
+        touchId: touch.identifier,
+        x: touch.clientX,
+        y: touch.clientY,
+      };
+      element.setAttribute('data-touch-pressed', '');
+    };
+    element.addEventListener('touchstart', begin, { passive: false });
+    onCleanup(() => {
+      if (gesture?.element === element) cancel();
+      element.removeEventListener('touchstart', begin);
+    });
   };
 }

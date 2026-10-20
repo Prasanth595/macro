@@ -1,4 +1,3 @@
-import { longPressActivated } from '@core/directive/touchHandler';
 import { hapticImpact } from '@core/mobile/haptics';
 import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
 import { createSignal } from 'solid-js';
@@ -79,8 +78,9 @@ function mount() {
 }
 const touch = (y: number) => ({ identifier: 1, clientX: 320, clientY: y });
 
-it('lets movement before the long press scroll without reordering', () => {
-  const { handle, onMove } = mount();
+it('lets touches outside the handle scroll without reordering', () => {
+  const { onMove } = mount();
+  const handle = screen.getByText('Tasks');
   fireEvent.touchStart(handle, { touches: [touch(248)] });
   expect(fireEvent.touchMove(handle, { touches: [touch(200)] })).toBe(true);
   vi.advanceTimersByTime(350);
@@ -88,14 +88,14 @@ it('lets movement before the long press scroll without reordering', () => {
   expect(onMove).not.toHaveBeenCalled();
 });
 
-it('drags a long-pressed item across the menu/dock boundary', () => {
+it('drags immediately across the menu/dock boundary without a hold', () => {
   const { handle, onMove, views } = mount();
   fireEvent.touchStart(handle, { touches: [touch(248)] });
-  vi.advanceTimersByTime(310);
   expect(fireEvent.touchMove(handle, { touches: [touch(128)] })).toBe(false);
   fireEvent.touchEnd(handle, { touches: [], changedTouches: [touch(128)] });
   expect(onMove).toHaveBeenCalledExactlyOnceWith(2, 0);
   expect(views()[0].id).toBe('tasks');
+  expect(hapticImpact).toHaveBeenCalledExactlyOnceWith('light');
   expect(screen.getByRole('status').textContent).toContain('in dock');
 });
 
@@ -104,7 +104,6 @@ it.each(['touchcancel', 'escape', 'blur', 'multitouch'])(
   (reason) => {
     const { handle, onMove } = mount();
     fireEvent.touchStart(handle, { touches: [touch(248)] });
-    vi.advanceTimersByTime(310);
     fireEvent.touchMove(handle, { touches: [touch(128)] });
     if (reason === 'touchcancel') fireEvent.touchCancel(handle);
     if (reason === 'escape') fireEvent.keyDown(document, { key: 'Escape' });
@@ -131,30 +130,40 @@ it('supports mouse dragging and cancels it with Escape', () => {
   expect(onMove).toHaveBeenCalledExactlyOnceWith(2, 0);
 });
 
-it('cleans up a pending long press when the drawer unmounts', () => {
+it('cleans up a pending handle touch when the drawer unmounts', () => {
   const { handle, onMove } = mount();
   fireEvent.touchStart(handle, { touches: [touch(248)] });
   cleanup();
   vi.advanceTimersByTime(500);
   expect(onMove).not.toHaveBeenCalled();
-  expect(longPressActivated()).toBe(false);
+  expect(hapticImpact).not.toHaveBeenCalled();
 });
 
-it.each(['blur', 'multitouch'])(
-  'does not activate a pending hold after %s',
+it.each(['touchcancel', 'escape', 'blur', 'multitouch'])(
+  'does not activate a pending drag after %s',
   (reason) => {
     const { handle, onMove } = mount();
     fireEvent.touchStart(handle, { touches: [touch(248)] });
+    if (reason === 'touchcancel') fireEvent.touchCancel(handle);
+    if (reason === 'escape') fireEvent.keyDown(document, { key: 'Escape' });
     if (reason === 'blur') fireEvent.blur(window);
-    else
+    if (reason === 'multitouch')
       fireEvent.touchStart(document, {
         touches: [touch(248), { ...touch(150), identifier: 2 }],
       });
     vi.advanceTimersByTime(350);
     expect(hapticImpact).not.toHaveBeenCalled();
-    expect(longPressActivated()).toBe(false);
     expect(fireEvent.touchMove(handle, { touches: [touch(128)] })).toBe(true);
     fireEvent.touchEnd(handle, { touches: [], changedTouches: [touch(128)] });
     expect(onMove).not.toHaveBeenCalled();
   }
 );
+
+it('keeps tap and small finger movements from reordering or firing haptics', () => {
+  const { handle, onMove } = mount();
+  fireEvent.touchStart(handle, { touches: [touch(248)] });
+  fireEvent.touchMove(handle, { touches: [touch(250)] });
+  fireEvent.touchEnd(handle, { touches: [], changedTouches: [touch(250)] });
+  expect(onMove).not.toHaveBeenCalled();
+  expect(hapticImpact).not.toHaveBeenCalled();
+});

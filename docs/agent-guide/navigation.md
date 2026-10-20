@@ -553,10 +553,11 @@ in its own island at the right edge and opens the persistent Search… input and
 entity category pills (see [Search](search.md)). Once every view fits, the
 navigation island stops growing.
 
-Open **More views → Customize dock** to change the order. Hold a row's handle,
-then drag it across the **In dock** / **In More** boundary. The counts use the
-same live measurement as the dock and update on resize or rotation. Moving
-before the hold scrolls normally; a held drag scrolls at the list's edges.
+Open **More views → Customize dock** to change the order. Drag a row's handle immediately,
+without holding first, and move it across the **In dock** / **In More** boundary. The counts use the
+same live measurement as the dock and update on resize or rotation. Swiping
+elsewhere on a row scrolls normally; dragging a handle scrolls at the list's
+edges. A tap or small finger movement leaves the order unchanged.
 Keyboard users can focus a handle and press Up/Down; Escape during a drag
 cancels it. Changes save immediately per user on this device and survive reload.
 Search and More stay fixed. Settings and Customize dock stay in More, followed

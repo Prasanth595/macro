@@ -46,8 +46,8 @@ function DockOrderRow(props: {
         variant="ghost"
         size="icon-lg"
         aria-label={`Reorder ${props.view.label}`}
-        aria-description={`Position ${props.index + 1} of ${props.count}. Hold and drag, or use the up and down arrow keys.`}
-        class="flex size-14 shrink-0 cursor-grab touch-pan-y select-none items-center justify-center rounded-2xl text-ink-muted active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-accent [-webkit-touch-callout:none]"
+        aria-description={`Position ${props.index + 1} of ${props.count}. Drag, or use the up and down arrow keys.`}
+        class="flex size-14 shrink-0 cursor-grab touch-none data-[touch-pressed]:bg-ink/10 select-none items-center justify-center rounded-2xl text-ink-muted active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-accent [-webkit-touch-callout:none]"
         onPointerDown={(event) => event.stopPropagation()}
         onContextMenu={(event) => event.preventDefault()}
         onKeyDown={(event) => {
@@ -172,7 +172,7 @@ export function CustomizeDock(props: {
         </MobileDrawer.Close>
       </div>
       <MobileDrawer.Description class="px-6 pb-4 text-sm text-ink-muted">
-        Hold a handle and drag to reorder. {props.visibleCount} app{' '}
+        Drag a handle to reorder. {props.visibleCount} app{' '}
         {props.visibleCount === 1 ? 'fits' : 'buttons fit'} in your dock at this
         size. Search and More stay fixed. Changes save automatically.
       </MobileDrawer.Description>
