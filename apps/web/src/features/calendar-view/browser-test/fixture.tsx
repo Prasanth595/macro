@@ -286,6 +286,7 @@ function Fixture() {
                   anchor={grid()?.draftElement()}
                   surface={composer.surface()}
                   onMoveToSidebar={composer.moveToSidebar}
+                  onMoveToPopover={composer.moveToPopover}
                   registerBeforeReplace={composer.registerBeforeReplace}
                   registerPreview={composer.registerPreview}
                   onClose={composer.close}
@@ -306,6 +307,7 @@ function FixtureEditor(props: {
   anchor?: HTMLElement;
   surface: CalendarEditorPresentation;
   onMoveToSidebar: () => void;
+  onMoveToPopover: () => void;
   registerBeforeReplace: ReturnType<
     typeof createCalendarEditor
   >['registerBeforeReplace'];

@@ -147,7 +147,9 @@ async function verifyDateRange(page, monthCount) {
   assert.ok(summaryGap <= 9, 'Keep the summary close to the calendar');
   await picker.getByRole('button', { name: /^Choose month and year,/ }).last().click();
   const monthPicker = page.getByRole('dialog', { name: 'Choose month and year', exact: true });
+  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-label')), initialMonths === 2 ? 'November 2030' : 'October 2030', 'Opening the chooser must focus its current month');
   await monthPicker.getByRole('button', { name: 'Choose year, currently 2030' }).click();
+  await monthPicker.getByRole('button', { name: 'Next years', exact: true }).click();
   await monthPicker.getByRole('button', { name: '2032', exact: true }).click();
   await monthPicker.getByRole('button', { name: 'November 2032', exact: true }).focus();
   await page.keyboard.press('ArrowRight');
@@ -160,6 +162,7 @@ async function verifyDateRange(page, monthCount) {
   assert.deepEqual(await state(), before, 'Month and year navigation must not change event dates');
   await picker.getByRole('button', { name: /^Choose month and year,/ }).first().click();
   await monthPicker.getByRole('button', { name: 'Choose year, currently 2032' }).click();
+  await monthPicker.getByRole('button', { name: 'Previous years', exact: true }).click();
   await monthPicker.getByRole('button', { name: '2030', exact: true }).click();
   await monthPicker.getByRole('button', { name: 'October 2030', exact: true }).click();
   await monthPicker.waitFor({ state: 'detached' });
@@ -179,8 +182,22 @@ async function verifyDateRange(page, monthCount) {
     const panels = await picker.locator('table').evaluateAll((tables) => tables.map((table) => ({ x: table.getBoundingClientRect().x, y: table.getBoundingClientRect().y })));
     assert.ok(Math.abs(panels[0].y - panels[1].y) < 1 && panels[1].x > panels[0].x, 'The sidebar must not force month panels into a vertical stack');
   }
-  const times = await Promise.all([picker.getByLabel('Start time', { exact: true }).boundingBox(), picker.getByLabel('End time', { exact: true }).boundingBox()]);
-  assert.ok(times[0] && times[1] && Math.abs(times[0].y - times[1].y) < 1, 'Start and end time controls must be side by side');
+  const geometry = await picker.evaluate((element) => {
+    const tables = Array.from(element.querySelectorAll('table'), (table) => table.getBoundingClientRect());
+    return {
+      width: element.getBoundingClientRect().width,
+      calendarRight: Math.max(...tables.map((table) => table.right)),
+      calendarBottom: Math.max(...tables.map((table) => table.bottom)),
+      start: element.querySelector('input[id^="composer-start-time-"]').getBoundingClientRect().toJSON(),
+      end: element.querySelector('input[id^="composer-end-time-"]').getBoundingClientRect().toJSON(),
+    };
+  });
+  if (geometry.width >= 514) {
+    assert.ok(geometry.start.x >= geometry.calendarRight && geometry.end.x >= geometry.calendarRight, 'Time controls must sit to the right of the calendars');
+    assert.ok(Math.abs(geometry.start.x - geometry.end.x) < 1, 'Time controls must share a right-side column');
+  } else {
+    assert.ok(geometry.start.y >= geometry.calendarBottom && Math.abs(geometry.start.y - geometry.end.y) < 1, 'Narrow pickers keep time controls side by side below the calendars');
+  }
   const selected = await state();
   assert.equal(selected.start, `2030-10-30${before.start.slice(10)}`);
   assert.equal(selected.end, `2030-11-02${before.end.slice(10)}`);
@@ -375,9 +392,10 @@ async function verifyEventKinds(page) {
   await kinds.getByText('Event', { exact: true }).click();
 }
 
-async function verifyPendingSave(page) {
+async function verifyPendingSave(page, sidebar = false) {
   await openFixture(page, '?pending-save');
   await page.getByRole('button', { name: 'Select 10 AM', exact: true }).click();
+  if (sidebar) await page.getByRole('button', { name: 'Move to sidebar', exact: true }).click();
   await page.getByLabel('Title', { exact: true }).fill('Pending fixture event');
   const save = page.locator('form').getByRole('button', { name: 'Create event', exact: true });
   const before = await save.boundingBox();
@@ -394,6 +412,8 @@ async function verifyPendingSave(page) {
   }
   const move = page.getByRole('button', { name: 'Move to sidebar', exact: true });
   if (await move.count()) assert.equal(await move.isDisabled(), true);
+  const popover = page.getByRole('button', { name: 'Move to popover', exact: true });
+  if (await popover.count()) assert.equal(await popover.isDisabled(), true);
 }
 
 async function verifyDesktop(options, name) {
@@ -489,6 +509,15 @@ async function verifyDesktop(options, name) {
     assert.match(await page.getByRole('button', { name: 'Guests', exact: true }).innerText(), /Ada Lovelace/);
     assert.match(await page.getByRole('textbox', { name: 'Description', exact: true }).innerText(), /Keep this description/);
     assert.equal(await page.getByRole('textbox', { name: 'Location', exact: true }).inputValue(), 'Design studio');
+    await page.getByRole('button', { name: 'Move to popover', exact: true }).click();
+    await verifyPopoverGeometry(page);
+    assert.equal(await title.inputValue(), 'Calendar draft stays here');
+    assert.equal(await page.getByLabel('Draft date range', { exact: true }).innerText(), draftRange);
+    assert.match(await page.getByRole('button', { name: 'Guests', exact: true }).innerText(), /Ada Lovelace/);
+    assert.match(await page.getByRole('textbox', { name: 'Description', exact: true }).innerText(), /Keep this description/);
+    assert.equal(await page.getByRole('textbox', { name: 'Location', exact: true }).inputValue(), 'Design studio');
+    await page.getByRole('button', { name: 'Move to sidebar', exact: true }).click();
+    await verifySidebarGeometry(page);
     await start.click();
     await page.keyboard.press('Escape');
     await page.getByRole('button', { name: /Edit custom rule/ }).click();
@@ -536,6 +565,9 @@ async function verifyDesktop(options, name) {
     await page.getByRole('button', { name: 'Move to sidebar', exact: true }).click();
     await verifySidebarGeometry(page);
     assert.equal(await page.getByRole('radio', { name: 'This event', exact: true }).isChecked(), true, 'Moving the editor must preserve save scope');
+    await page.getByRole('button', { name: 'Move to popover', exact: true }).click();
+    await verifyPopoverGeometry(page);
+    assert.equal(await page.getByRole('radio', { name: 'This event', exact: true }).isChecked(), true, 'Returning to the popover must preserve save scope');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await title.waitFor({ state: 'detached' });
     const submitted = JSON.parse(await page.getByLabel('Saved event', { exact: true }).innerText());
@@ -558,7 +590,13 @@ async function verifyDesktop(options, name) {
     assert.match(repeated.values.recurrenceLines.join(';'), /FREQ=DAILY/);
     await verifyPendingSave(page);
     assert.deepEqual(errors, []);
-    results.push(`${name}: connected range, event-type pills, persistent popover, sidebar transfer, recurrence, dismissal, and scoped save passed`);
+    const pendingSidebar = await context.newPage();
+    try {
+      await verifyPendingSave(pendingSidebar, true);
+    } finally {
+      await pendingSidebar.close();
+    }
+    results.push(`${name}: right-side times, focused month chooser, round-trip sidebar transfer, pending guards, recurrence, dismissal, and scoped save passed`);
   } finally {
     await context.close();
   }

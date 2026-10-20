@@ -105,9 +105,13 @@ calendar boundary, follows the visible draft/event, and retains its last anchor
 when the grid page is recycled. Move to sidebar transfers the same draft and
 controller into the inset, rounded right sidebar, using
 the event-details glass background. Explicit New → Event requests open that sidebar
-directly. Both desktop surfaces leave the calendar interactive. Create and edit place
-the event type directly under the title. Creation uses selectable Event and Out of office
-pills with their corresponding icons. Existing events keep their provider type as plain
+directly. Both desktop surfaces leave the calendar interactive.
+Use **Move to popover** in the sidebar header to return to the anchored editor.
+Both transfer actions retain the draft, selected range, guests, recurrence, and save
+scope; neither action dismisses or recreates the draft. Transfers are disabled
+while a save is pending.
+Create and edit place the event type directly under the title. Creation uses
+selectable Event and Out of office pills with their corresponding icons. Existing events keep their provider type as plain
 read-only content.
 The selected calendar's color swatch sits beside the title, aligned with the property icons. Keep an 8px
 icon-to-value gap for the title and property rows on every screen size. Calendar
@@ -139,9 +143,14 @@ The date picker portals globally outside the editor/sidebar at depth 4. Same-day
 ranges show one month and the start/end times; multi-day ranges show two connected
 months on desktop/tablet. Phones always show one navigable month. Month panels
 remain side by side when there is room in the window, regardless of sidebar width.
+On wide screens, start/end times and All day sit in a column to the right of the
+calendars. Phones and narrow windows keep both time inputs side by side below.
 Adjacent-month dates remain visible and muted. Each month heading opens a month/year
 chooser with a month grid, year-grid drill-down, paging, and This month. Navigating
 these controls changes only the displayed months, never the selected event dates.
+The chooser opens with the current month focused. Arrow keys work immediately,
+including after reopening. Year navigation is limited to 1000 through 9999; linked
+panels stay inside those four-digit boundaries without changing the event range.
 The Selected range label is small secondary text with compact spacing below the
 calendar, without introductory “choose a start day” instructions.
 The primary Create event
@@ -186,14 +195,19 @@ selection to confirm the popover flips left. In a short calendar pane (including
 dates, and both time selectors remain reachable within the window. The picker
 scrolls internally when necessary. Check one month for a same-day range and two
 for a multi-day desktop range, including expanding across a month boundary.
-Verify both months and both time inputs remain side by side from the sidebar
-when the window is wide enough. Check the range summary after each day click.
+Verify both months remain side by side and the time inputs sit to their right
+when the window is wide enough, including from the sidebar. On phones and narrow
+windows, check that time inputs stay side by side below the calendars.
+Check the range summary after each day click.
 Resize a non-touch window to verify constrained month panels stack without overflow.
 Check visible adjacent-month dates and the compact, secondary Selected range label.
 Use either month's heading to select a year and month; confirm the panels remain
 consecutive and the event dates do not change. Test arrow-key navigation and Enter
 in the month/year grid. Escape must dismiss only that chooser, leaving the date
 picker and event editor open.
+Move from popover to sidebar and back with a dirty draft; check title, description,
+guests, dates, recurrence, and edit scope. Both directions must retain the draft
+without prompting for discard, and both transfer controls must disable during save.
 Select a range across the month boundary and check that both months highlight the
 covered days. Confirm selecting only its first day leaves the prior event range
 unchanged. On a phone, navigate between months to select the same connected range.

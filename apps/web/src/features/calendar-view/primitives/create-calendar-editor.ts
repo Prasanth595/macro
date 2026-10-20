@@ -105,6 +105,9 @@ export function createCalendarEditor() {
     moveToSidebar: () => {
       if (draft()) setSurface('sidebar');
     },
+    moveToPopover: () => {
+      if (draft()) setSurface('popover');
+    },
     open,
     close,
     replace,

@@ -69,6 +69,7 @@ function CalendarEditorLoading(props: {
       surface={composer.surface()}
       anchor={composer.previewAnchor()}
       onMoveToSidebar={composer.moveToSidebar}
+      onMoveToPopover={composer.moveToPopover}
       pending={false}
       onClose={composer.close}
     >
@@ -165,6 +166,7 @@ function CalendarEditorContent(props: {
       surface={composer.surface()}
       anchor={composer.previewAnchor()}
       onMoveToSidebar={composer.moveToSidebar}
+      onMoveToPopover={composer.moveToPopover}
     >
       <EventForm
         controller={controller}

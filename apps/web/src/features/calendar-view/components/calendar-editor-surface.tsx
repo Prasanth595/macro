@@ -21,6 +21,7 @@ export function CalendarEditorSurface(props: {
   pending: boolean;
   onClose: () => void;
   onMoveToSidebar: () => void;
+  onMoveToPopover: () => void;
   children: JSX.Element;
 }) {
   const label = () => (props.draft.event ? 'Edit event' : 'New event');
@@ -43,6 +44,18 @@ export function CalendarEditorSurface(props: {
               onClick={props.onMoveToSidebar}
             >
               <SidebarIcon class="size-4" />
+            </Button>
+          </Show>
+          <Show when={props.surface === 'sidebar'}>
+            <Button
+              type="button"
+              label="Move to popover"
+              variant="ghost"
+              size="icon-sm"
+              disabled={props.pending}
+              onClick={props.onMoveToPopover}
+            >
+              <SidebarIcon class="size-4 rotate-180" />
             </Button>
           </Show>
           <Button

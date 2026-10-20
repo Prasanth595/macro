@@ -89,6 +89,43 @@ describe('calendar composer draft', () => {
     composer.open();
     expect(composer.surface()).toBe('popover');
   });
+  it('returns the same sidebar draft to the popover without firing lifecycle callbacks', () => {
+    const composer = createCalendarEditor();
+    const onClose = vi.fn();
+    const onCalendarChange = vi.fn();
+    const guard = vi.fn(async () => true);
+    const draft = { onClose, onCalendarChange };
+    composer.registerBeforeReplace(guard);
+    composer.open(draft, 'sidebar');
+    const preview = {
+      title: 'Draft event',
+      time: {
+        kind: 'allDay' as const,
+        startDate: '2030-10-21',
+        endDate: '2030-10-22',
+      },
+    };
+    composer.registerPreview(() => preview);
+    composer.moveToPopover();
+    expect(composer.surface()).toBe('popover');
+    expect(composer.draft()).toBe(draft);
+    expect(composer.preview()).toBe(preview);
+    expect(onClose).not.toHaveBeenCalled();
+    expect(onCalendarChange).not.toHaveBeenCalled();
+    expect(guard).not.toHaveBeenCalled();
+    composer.moveToSidebar();
+    composer.moveToPopover();
+    expect(composer.draft()).toBe(draft);
+    expect(composer.surface()).toBe('popover');
+    expect(onClose).not.toHaveBeenCalled();
+    composer.close();
+    composer.moveToSidebar();
+    composer.moveToPopover();
+    expect(composer.draft()).toBeUndefined();
+    expect(composer.surface()).toBe('popover');
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
   it('closes a draft once and opens a fresh draft afterward', () => {
     createRoot((dispose) => {
       const composer = createCalendarEditor();
