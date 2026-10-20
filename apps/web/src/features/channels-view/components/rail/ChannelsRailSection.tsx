@@ -97,9 +97,11 @@ function SectionScrollArea(props: {
 /**
  * How an open section claims height in its flex column.
  *
- * - `half`: natural height, capped at half the column and shrinkable. Two
- *   `half` siblings split the column; a third sibling is starved to zero
- *   once both hit the cap, so keep `half` sections in a column of their own.
+ * - `half`: natural height, capped at half the column (minus the shared
+ *   section gap) and shrinkable. Two `half` siblings must fit exactly:
+ *   `2 * ((100% - gap) / 2) + gap = 100%`. A looser cap overflows and the
+ *   flex parent shrinks the other section when one expands — the DM-list
+ *   re-layout. Keep `half` sections in a column of their own.
  * - `fill`: grows into whatever the column has left.
  * - `content`: natural height, never shrunk below it, capped at a third of
  *   the column so a long list still leaves room for its siblings.
@@ -120,14 +122,12 @@ function CollapsibleSectionRoot(props: {
       <section
         ref={sectionRef}
         class={cn(
-          'group/sidebar-section flex min-h-0 flex-col',
+          'group/sidebar-section flex min-h-0 flex-col gap-(--sidebar-section-content-gap)',
           !props.open && 'shrink-0',
-          !props.open && 'gap-0',
-          props.open && 'gap-(--sidebar-section-content-gap)',
           props.open && sizing() === 'fill' && 'flex-1',
           props.open &&
             sizing() === 'half' &&
-            'shrink max-h-[calc(50%_-_0.375rem)]',
+            'shrink max-h-[calc((100%-var(--sidebar-section-gap))/2)]',
           props.open && sizing() === 'content' && 'shrink-0 max-h-1/3',
           props.class
         )}
