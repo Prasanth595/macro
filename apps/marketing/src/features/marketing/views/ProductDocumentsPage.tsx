@@ -67,7 +67,7 @@ export function RouteDocuments() {
       <div class="docs-page">
         <ProductHero
           product="Docs"
-          title={['Fast shared docs for your', 'team and agents.']}
+          title={['Fast collaborative docs for your', 'team and agents.']}
           description={[
           'Link emails, chats, tasks, and files to your documents.',
           ]}
@@ -78,7 +78,7 @@ export function RouteDocuments() {
           view="documents"
           label="Explore Macro Docs"
         >
-          <DocumentProjectDemo />
+          <DocumentProjectDemo teamEditing />
         </WorkspaceDesktopDemo>
         <nav
           class="feature-page-jump-links docs-jump-links"
