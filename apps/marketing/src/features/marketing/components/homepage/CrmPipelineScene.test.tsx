@@ -6,12 +6,15 @@ import {
   within,
 } from '@solidjs/testing-library';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { DemoInteractionBoundary } from '../DemoInteractionBoundary';
 import HomepagePipelineDemo from '../HomepagePipelineDemo';
 import CrmPipelineScene from './CrmPipelineScene';
 
 let revealCompact: (() => void) | undefined;
+let heroVisibility: ((ratio: number) => void) | undefined;
 beforeEach(() => {
   revealCompact = undefined;
+  heroVisibility = undefined;
   vi.stubGlobal('matchMedia', () => ({
     matches: false,
     addEventListener() {},
@@ -30,6 +33,17 @@ beforeEach(() => {
     class {
       constructor(private callback: IntersectionObserverCallback) {}
       observe(target: HTMLElement) {
+        if (target.dataset.hero === 'true')
+          heroVisibility = (ratio) =>
+            this.callback(
+              [
+                {
+                  isIntersecting: ratio > 0,
+                  intersectionRatio: ratio,
+                } as IntersectionObserverEntry,
+              ],
+              this as unknown as IntersectionObserver
+            );
         if (target.dataset.compact === 'true')
           revealCompact = () =>
             this.callback(
@@ -55,6 +69,92 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+it('plays the hero once when visible, updates the deal, and returns from table to board', () => {
+  vi.useFakeTimers();
+  const view = render(() => <CrmPipelineScene hero />);
+  heroVisibility?.(0.2);
+  vi.advanceTimersByTime(15000);
+  expect(
+    within(view.getByRole('region', { name: 'Lead deals' })).getByRole(
+      'button',
+      { name: 'Miller & Rowe' }
+    )
+  ).toBeTruthy();
+  heroVisibility?.(1);
+  vi.advanceTimersByTime(4500);
+  const qualified = view.getByRole('region', { name: 'Qualified deals' });
+  expect(
+    within(qualified).getByRole('button', { name: 'Miller & Rowe' })
+  ).toBeTruthy();
+  expect(within(qualified).getByText('4')).toBeTruthy();
+  expect(
+    within(view.getByRole('region', { name: 'Lead deals' })).getByText('3')
+  ).toBeTruthy();
+  vi.advanceTimersByTime(2800);
+  expect(view.getByRole('table', { name: 'New business' })).toBeTruthy();
+  expect(
+    view.getByRole('button', { name: 'Stage for Miller & Rowe' }).textContent
+  ).toContain('Qualified');
+  vi.advanceTimersByTime(3600);
+  expect(view.getByRole('region', { name: 'New business board' })).toBeTruthy();
+  expect(view.queryByRole('table', { name: 'New business' })).toBeNull();
+  heroVisibility?.(0);
+  heroVisibility?.(1);
+  vi.advanceTimersByTime(30000);
+  expect(view.getByRole('region', { name: 'New business board' })).toBeTruthy();
+  expect(view.container.querySelector('.demo-cursor')).toBeNull();
+});
+
+it('stops the hero drag on the first activation click and preserves later choices', () => {
+  vi.useFakeTimers();
+  const view = render(() => (
+    <DemoInteractionBoundary label="CRM hero">
+      <CrmPipelineScene hero />
+    </DemoInteractionBoundary>
+  ));
+  heroVisibility?.(1);
+  vi.advanceTimersByTime(3200);
+  expect(view.container.querySelector('.demo-cursor')?.textContent).toContain(
+    'Jacob'
+  );
+  fireEvent.click(view.getByRole('button', { name: /Interact with CRM hero/ }));
+  expect(view.container.querySelector('.demo-cursor')).toBeNull();
+  fireEvent.click(view.getByRole('button', { name: 'Q4 renewals Team' }));
+  vi.advanceTimersByTime(30000);
+  expect(view.getByRole('region', { name: 'Q4 renewals board' })).toBeTruthy();
+});
+
+it('stops autoplay when the visitor enters a hero control with the keyboard', () => {
+  vi.useFakeTimers();
+  const view = render(() => <CrmPipelineScene hero />);
+  heroVisibility?.(1);
+  vi.advanceTimersByTime(4500);
+  fireEvent.focusIn(view.getByRole('searchbox', { name: 'Search pipeline' }));
+  vi.advanceTimersByTime(30000);
+  expect(view.getByRole('region', { name: 'New business board' })).toBeTruthy();
+  expect(view.queryByRole('table', { name: 'New business' })).toBeNull();
+});
+
+it('shows the settled hero without animation for reduced motion', () => {
+  vi.useFakeTimers();
+  vi.stubGlobal('matchMedia', () => ({
+    matches: true,
+    addEventListener() {},
+    removeEventListener() {},
+  }));
+  const view = render(() => <CrmPipelineScene hero />);
+  heroVisibility?.(1);
+  vi.advanceTimersByTime(30000);
+  expect(
+    within(view.getByRole('region', { name: 'Qualified deals' })).getByRole(
+      'button',
+      { name: 'Miller & Rowe' }
+    )
+  ).toBeTruthy();
+  expect(view.container.querySelector('.demo-cursor')).toBeNull();
+  expect(view.queryByRole('table', { name: 'New business' })).toBeNull();
+});
+
 it('switches hero pipelines and keeps each deal’s edits independent', async () => {
   const view = render(() => <CrmPipelineScene hero />);
   fireEvent.click(view.getByRole('button', { name: 'All records' }));
@@ -77,9 +177,7 @@ it('switches hero pipelines and keeps each deal’s edits independent', async ()
       }) as HTMLInputElement
     ).value
   ).toBe('36000');
-  fireEvent.click(
-    view.getByRole('button', { name: 'Parlor Studio' })
-  );
+  fireEvent.click(view.getByRole('button', { name: 'Parlor Studio' }));
   expect(
     view.getByRole('article', { name: 'Studio partnerships entry' })
   ).toBeTruthy();

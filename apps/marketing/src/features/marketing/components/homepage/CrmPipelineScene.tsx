@@ -7,7 +7,7 @@ import Sidebar from '@phosphor/sidebar-simple.svg';
 import Table from '@phosphor/table.svg';
 import Users from '@phosphor/users.svg';
 import { Button, Dropdown } from '@ui';
-import { createSignal, For, Show } from 'solid-js';
+import { createSignal, For, onCleanup, onMount, Show } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import type { WorkspaceView } from '../../core/dummy-workspace';
 import {
@@ -21,6 +21,7 @@ import { CompanyPipelineEntry } from '../crm/CompanyPipelineEntry';
 import { CrmHeroSidebar } from '../crm/CrmHeroSidebar';
 import { crmHeroLists, crmHeroPipelines } from '../crm/crm-hero-data';
 import { DemoCursor } from '../DemoCursor';
+import { DEMO_INTERACTION_EVENT } from '../DemoInteractionBoundary';
 import { ViewSidebar } from '../DemoViewSidebar';
 import { ViewShell } from '../DemoWorkspaceChrome';
 import { DocumentShareSheet } from '../documents/DocumentShareSheet';
@@ -33,6 +34,7 @@ import {
 import { WorkspaceDocuments } from '../workspace/WorkspaceDocuments';
 import { WorkspaceEmail } from '../workspace/WorkspaceEmail';
 import './homepage-scenes.css';
+import '../crm/pipeline-transfer.css';
 
 type Deal = {
   pipelineId?: string;
@@ -48,6 +50,11 @@ export default function CrmPipelineScene(
   props: { compact?: boolean; hero?: boolean } = {}
 ) {
   let scene!: HTMLDivElement;
+  let collectionScroll!: HTMLDivElement;
+  const [viewPointer, setViewPointer] = createSignal<{
+    x: number;
+    y: number;
+  }>();
   const compactStages: DealStage[] = ['Demo', 'Negotiation', 'Customer'];
   const compactIds = [
     'meadow',
@@ -134,7 +141,7 @@ export default function CrmPipelineScene(
     const from = card.getBoundingClientRect();
     const to = lane.getBoundingClientRect();
     const first = lane.querySelector('article')?.getBoundingClientRect();
-    const deal = deals.find((entry) => entry.companyId === id);
+    const deal = deals.find((entry) => matchesDeal(entry, id));
     setTransfer({
       id,
       name: w.data.companies.find((entry) => entry.id === id)?.name ?? '',
@@ -146,6 +153,24 @@ export default function CrmPipelineScene(
       dx: (first?.left ?? to.left + 9) - from.left,
       dy: (first?.top ?? to.top + 54) - from.top,
     });
+  };
+  const showViewPointer = (view: 'table' | 'board') => {
+    const target = scene.querySelector<HTMLElement>(
+      `[data-crm-view="${view}"]`
+    );
+    if (!target) return;
+    const root = scene.getBoundingClientRect();
+    const bounds = target.getBoundingClientRect();
+    setViewPointer({
+      x: bounds.left - root.left + bounds.width * 0.6,
+      y: bounds.top - root.top + bounds.height * 0.7,
+    });
+  };
+  const previewView = (showBoard: boolean) => {
+    setViewPointer(undefined);
+    setBoard(showBoard);
+    collectionScroll.scrollLeft = 0;
+    collectionScroll.scrollTop = 0;
   };
   const walkthrough = props.compact
     ? createProductWalkthrough({
@@ -179,11 +204,62 @@ export default function CrmPipelineScene(
           if (step === 7) w.open('crm');
         },
       })
-    : undefined;
+    : props.hero
+      ? createProductWalkthrough({
+          root: () => scene,
+          steps: 6,
+          visibilityThreshold: 0.5,
+          reset: () => {},
+          delay: (step) => [0, 3000, 1500, 2200, 600, 3000, 600][step],
+          reduced: () => {
+            move('northstar', 'Qualified');
+            setTransfer(undefined);
+            setViewPointer(undefined);
+            setBoard(true);
+          },
+          advance: (step) => {
+            if (step === 1) startTransfer('northstar', 'Qualified');
+            if (step === 2) {
+              move('northstar', 'Qualified');
+              setTransfer(undefined);
+              const lane = scene.querySelector<HTMLElement>(
+                '[aria-label="Qualified deals"]'
+              );
+              if (lane) {
+                const viewport = collectionScroll.getBoundingClientRect();
+                const bounds = lane.getBoundingClientRect();
+                if (bounds.right > viewport.right) {
+                  collectionScroll.scrollTo?.({
+                    left:
+                      collectionScroll.scrollLeft +
+                      bounds.left -
+                      viewport.left -
+                      16,
+                    behavior: 'smooth',
+                  });
+                }
+              }
+            }
+            if (step === 3) showViewPointer('table');
+            if (step === 4) previewView(false);
+            if (step === 5) showViewPointer('board');
+            if (step === 6) previewView(true);
+          },
+        })
+      : undefined;
   const takeOver = () => {
     walkthrough?.pause();
     setTransfer(undefined);
+    setViewPointer(undefined);
   };
+  onMount(() => {
+    if (!props.hero) return;
+    const boundary = scene.closest('.demo-interaction-boundary');
+    boundary?.addEventListener(DEMO_INTERACTION_EVENT, takeOver);
+    onCleanup(() =>
+      boundary?.removeEventListener(DEMO_INTERACTION_EVENT, takeOver)
+    );
+  });
   const company = (id: string) =>
     w.data.companies.find((item) => item.id === id)!;
   const shownDeals = () =>
@@ -336,6 +412,8 @@ export default function CrmPipelineScene(
       data-sidebar-open={sidebarOpen()}
       onPointerDown={takeOver}
       onKeyDown={takeOver}
+      onClick={props.hero ? takeOver : undefined}
+      onFocusIn={props.hero ? takeOver : undefined}
     >
       <Show when={!props.compact}>
         <aside class="homepage-crm-sidebar">
@@ -514,6 +592,7 @@ export default function CrmPipelineScene(
                       variant="ghost"
                       size="md"
                       aria-pressed={!board()}
+                      data-crm-view="table"
                       onClick={() => setBoard(false)}
                     >
                       All records
@@ -522,6 +601,7 @@ export default function CrmPipelineScene(
                       variant="ghost"
                       size="md"
                       aria-pressed={board()}
+                      data-crm-view="board"
                       onClick={() => setBoard(true)}
                     >
                       By stage
@@ -538,7 +618,7 @@ export default function CrmPipelineScene(
                 </div>
               </Show>
             </Show>
-            <div class="dummy-scroll">
+            <div ref={collectionScroll} class="dummy-scroll">
               <Show
                 when={tab() === 'pipeline'}
                 fallback={
@@ -850,8 +930,18 @@ export default function CrmPipelineScene(
                 </span>
               </Show>
             </div>
-            <DemoCursor label="Claude" />
+            <DemoCursor label={props.hero ? 'Jacob' : 'Claude'} />
           </div>
+        )}
+      </Show>
+      <Show when={viewPointer()}>
+        {(pointer) => (
+          <DemoCursor
+            label="Jacob"
+            class="crm-hero-pointer"
+            clicking
+            style={{ left: `${pointer().x}px`, top: `${pointer().y}px` }}
+          />
         )}
       </Show>
       <DocumentShareSheet
