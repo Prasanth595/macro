@@ -1,6 +1,5 @@
 import { analytics } from '@app/lib/analytics';
 import { useChannelTab } from '@channel/Channel/ChannelTabContext';
-import { UserIcon } from '@core/component/UserIcon';
 import {
   useChannel,
   useChannelName,
@@ -12,7 +11,8 @@ import PhoneIcon from '@phosphor/phone-call.svg';
 import { useActiveCallQuery } from '@queries/call/call';
 import { ChannelTypeEnum } from '@service-storage/client';
 import { confirmDialog } from '@ui';
-import { For, getOwner, Show } from 'solid-js';
+import { createMemo, getOwner } from 'solid-js';
+import { CallParticipantAvatars } from './CallParticipantAvatars';
 import { getCallJoinTab, getCallLeaveTab } from './call-tabs';
 import { useCall } from './use-call';
 
@@ -31,6 +31,15 @@ export function useStartChannelCall(channelId: () => string) {
   const isCallInProgress = () => !!activeCallQuery.data;
   const channel = useChannel(channelId());
   const userId = useUserId();
+  const participantIds = createMemo(() => {
+    const currentUser = userId();
+    return [
+      ...(currentUser ? [currentUser] : []),
+      ...(channel()?.participants ?? [])
+        .filter((participant) => participant.user_id !== currentUser)
+        .map((participant) => participant.user_id),
+    ];
+  });
   const channelName = useChannelName(channelId());
   const channelType = useChannelType(channelId());
   const isDm = () => channelType() === ChannelTypeEnum.DirectMessage;
@@ -85,36 +94,7 @@ export function useStartChannelCall(channelId: () => string) {
           title: confirmTitle(),
           body: confirmBody(),
           tone: 'success' as const,
-          mobileHero: (
-            <>
-              <Show when={userId()}>
-                {(id) => (
-                  <UserIcon
-                    id={id()}
-                    size="lg"
-                    class="size-14"
-                    suppressClick
-                    showTooltip={false}
-                  />
-                )}
-              </Show>
-              <For
-                each={channel()
-                  ?.participants.filter((p) => p.user_id !== userId())
-                  .slice(0, 3)}
-              >
-                {(participant) => (
-                  <UserIcon
-                    id={participant.user_id}
-                    size="lg"
-                    class="size-14"
-                    suppressClick
-                    showTooltip={false}
-                  />
-                )}
-              </For>
-            </>
-          ),
+          mobileHero: <CallParticipantAvatars ids={participantIds()} />,
           confirmLabel: (
             <>
               <PhoneIcon class="size-5" />

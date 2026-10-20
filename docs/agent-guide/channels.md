@@ -268,6 +268,9 @@ then `Ask Macro` (inserts an `@Macro` mention) and, in a channel, `Start a call`
 (`Join call` while one is live). On phones, starting a new call opens a
 confirmation sheet with centered participant avatars, notification copy, and a
 full-width green **Start call** button, without a divider or close/cancel buttons.
+Show up to four avatars including yourself. With more than four participants,
+show three unobscured avatars and overlay **+N** on the fourth; N includes everyone
+after the first three (five participants shows **+2**).
 Drag the handle, tap the backdrop, or press Escape to dismiss without starting a
 call. Only confirming notifies participants; joining a live call skips the sheet.
 Check both DMs and channels, including long names, in light and dark themes.
