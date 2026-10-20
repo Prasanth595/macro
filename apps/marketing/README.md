@@ -16,7 +16,7 @@ uses weight 360, and the Tasks founder heading uses 445.
 Slab display copy uses warm near-black (`#1d1c1a`) in the cream palette.
 
 Public calls to action use the shared `site-nav-start` treatment: warm white,
-soft pill corners, a fine border, and a 2px arrow shift on hover. `Talk to us` is a
+soft pill corners, a fine border, and a 2px arrow shift on hover. `Book a demo` is a
 soft grey secondary action; the header's `Open app` has a slightly stronger grey
 fill, a fine border, and no arrow. Its fill fades with the header label during
 the footer transition. As it lands in the footer, the same link reveals the

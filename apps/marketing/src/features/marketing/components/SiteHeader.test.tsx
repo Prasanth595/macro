@@ -110,7 +110,7 @@ it('keeps narrow-screen keyboard navigation inside the open menu', () => {
   expect(screen.queryByRole('navigation')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
   const last = within(screen.getByRole('navigation')).getByRole('link', {
-    name: 'Talk to us',
+    name: 'Book a demo',
   });
   home.focus();
   fireEvent.keyDown(home, { key: 'Tab', shiftKey: true });

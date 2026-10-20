@@ -13,7 +13,7 @@ const EXPLORE_PAGES = [
   { href: '/', label: 'Home' },
   { href: '/pricing', label: 'Pricing' },
   { href: '/partners', label: 'Partners' },
-  { href: DEMO_BOOKING_URL, label: 'Talk to us' },
+  { href: DEMO_BOOKING_URL, label: 'Book a demo' },
 ];
 
 function NavigationGroup(props: {
@@ -199,7 +199,7 @@ export function SiteHeader(props: { hideOpenApp?: boolean }) {
           target="_blank"
           rel="noreferrer"
         >
-          Talk to us
+          Book a demo
         </a>
         <Show when={!props.hideOpenApp}>
           <a
