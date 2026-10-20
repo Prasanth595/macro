@@ -39,6 +39,11 @@ the local ACP process (Claude Code, Codex, ...), and drives native
 - Add/change a native herdr control (command, model picker): `src/herdr/controls/`
   → `README.md` (native controls section) → `src/herdr/acp_agent/`.
 
+Channel/document trigger prompts retain their source message ID through
+`TriggerWork` and send it as `ControlRequest.action_id`. Preserve this correlation
+for initial mentions, existing-session follow-ups, and conflicted-create retries;
+external chat replies depend on it. Direct session controls still mint IDs.
+
 ## Checks
 
 - `cargo test -p coding_agent_worker` (`SQLX_OFFLINE` unset).
