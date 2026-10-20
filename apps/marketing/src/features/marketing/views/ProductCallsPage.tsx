@@ -82,7 +82,8 @@ export function RouteCalls() {
           product="Calls"
           title={['Call from anywhere in Macro', 'with every call recorded.']}
           description={[
-          'Macro records and transcribes your calls so your agent can handle what comes next.',
+          'Macro records and transcribes your calls',
+          'so your agent can handle what comes next.',
           ]}
         />
         <CallHeroDemo />
