@@ -100,6 +100,13 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Mount the floating mobile AI composer only on the Agents view; other views keep their New action or their own reply/comment composer.
 - Keep native booking exit navigation in the route shell, outside page loading boundaries, and use the router so the native hash route stays intact.
 - All API/network calls live in service-clients.
+- Task-composer predictions use Jev's existing `/decisions` API; preserve manual
+  selections (including clears), draft prediction ownership, and stale-result
+  guards in `features/block-md/{primitives,queries}/task-predictions.ts`.
+  Match project names as task topics, and verify short-task, unrelated-task, and
+  explicit-exclusion cases against Jev when changing the project question.
+  Flash the existing pill background with the theme accent in `TaskPredictionHighlight`;
+  preserve its shape, border, text, and focus, and respect reduced motion.
 - Keep desktop Gmail and Outlook inbox consent in the system browser with a
   `macro:///inbox-link-callback` return; webview origins are not desktop callbacks.
 - Draft autosaves preserve active email thread messages; evict inactive legacy
