@@ -238,6 +238,11 @@ The default Macro Dark theme uses a neutral `#0E0E0E` outer background and
 `#121212` inset content panels. The app rail follows the outer background;
 text and accent colors retain their existing palette.
 
+Macro Light uses `#F5F5F5` outside `#FCFCFC` content panels, white controls,
+`#E4E4E4` frame borders, and `#EDEDED` button borders. Its controls use
+`#2E2E2E` ink. Macro Light and Macro Dark share the same muted blue accent
+(`oklch(0.7 0.12 250deg)`); light mode does not switch the accent to orange.
+
 ### Theme mentions
 
 Agent replies can include clickable theme mentions that let users apply a theme
