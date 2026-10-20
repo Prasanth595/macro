@@ -1133,7 +1133,9 @@ switching options, keyboard recipient selection, external email chips,
 cancellation, and focus restoration before sending invites.
 
 On desktop, click the channel avatar/name to expand **Channel details** on the
-right. The full-height column sits beside both the conversation and its header,
+right. The name uses the standard outlined button surface and a right-facing
+chevron in both open and closed states. The full-height column sits beside both
+the conversation and its header,
 so opening it moves the title and all header actions left. This holds in narrow
 desktop splits too; the panel does not overlay the conversation. Its top has the
 channel avatar, name, and participant count. The panel starts 480px wide. Drag

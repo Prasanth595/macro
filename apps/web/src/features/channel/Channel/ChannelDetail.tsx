@@ -35,9 +35,9 @@ import {
 } from '@core/context/channels';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { createMethodRegistration } from '@core/orchestrator';
-import CaretUpIcon from '@phosphor/caret-up.svg';
+import CaretRightIcon from '@phosphor/caret-right.svg';
 import { useChannelParticipantsQuery } from '@queries/channel/channel-participants';
-import { Button, ButtonGroup, cn } from '@ui';
+import { Button, ButtonGroup } from '@ui';
 import {
   type Accessor,
   children,
@@ -137,9 +137,9 @@ export function ChannelDetailTitle(props: ChannelDetailHeaderProps) {
       {(panel) => (
         <Button
           ref={panel().triggerRef}
-          variant="ghost"
+          variant="outline"
           size="md"
-          class="min-w-0 gap-2 px-2 aria-expanded:bg-control"
+          class="min-w-0 gap-2 px-2"
           aria-label={
             panel().isOpen() ? 'Hide channel details' : 'Show channel details'
           }
@@ -151,9 +151,7 @@ export function ChannelDetailTitle(props: ChannelDetailHeaderProps) {
           onClick={() => panel().toggle()}
         >
           {title()}
-          <CaretUpIcon
-            class={cn('size-3 shrink-0', panel().isOpen() && 'rotate-180')}
-          />
+          <CaretRightIcon class="size-3 shrink-0" />
         </Button>
       )}
     </Show>
