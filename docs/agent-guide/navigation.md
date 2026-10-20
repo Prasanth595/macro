@@ -557,7 +557,8 @@ Open **More views → Customize dock** to change the order. Drag a row's handle 
 without holding first, and move it across the **In dock** / **In More** boundary. The counts use the
 same live measurement as the dock and update on resize or rotation. Swiping
 elsewhere on a row scrolls normally; dragging a handle scrolls at the list's
-edges. A tap or small finger movement leaves the order unchanged.
+edges. Neighboring rows slide into their new positions during a drag, with
+reduced motion respected. A tap or small finger movement leaves the order unchanged.
 Keyboard users can focus a handle and press Up/Down; Escape during a drag
 cancels it. Changes save immediately per user on this device and survive reload.
 Search and More stay fixed. Settings and Customize dock stay in More, followed

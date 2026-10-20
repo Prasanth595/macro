@@ -8,6 +8,7 @@ import {
   DragOverlay,
   maybeTransformStyle,
   SortableProvider,
+  useDragDropContext,
 } from '@thisbeyond/solid-dnd';
 import { Button, cn } from '@ui';
 import { createSignal, For, onMount, Show } from 'solid-js';
@@ -24,6 +25,7 @@ function DockOrderRow(props: {
   onMove: (from: number, to: number) => void;
 }) {
   const sortable = createSortable(props.view.id);
+  const [dragState] = useDragDropContext() ?? [];
   return (
     <div
       ref={sortable.ref}
@@ -31,6 +33,9 @@ function DockOrderRow(props: {
       data-dock-order-item={props.view.id}
       class={cn(
         'flex min-h-14 items-center gap-3 rounded-2xl bg-ink/5 pl-4 text-sm',
+        !!dragState?.active.draggable &&
+          !sortable.isActiveDraggable &&
+          'transition-transform duration-200 ease-out motion-reduce:transition-none',
         sortable.isActiveDraggable && 'opacity-30'
       )}
     >
