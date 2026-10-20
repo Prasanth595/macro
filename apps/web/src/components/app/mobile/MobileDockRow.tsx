@@ -87,7 +87,6 @@ function MoreViewsDrawer(props: {
                     aria-label="Settings"
                     class={settingsOpen() ? 'text-accent' : undefined}
                     onClick={() => {
-                      hapticImpact('light');
                       toggleSettings();
                     }}
                   >
@@ -121,7 +120,6 @@ function MoreViewsDrawer(props: {
                           props.isActive(view.id) ? 'page' : undefined
                         }
                         onClick={() => {
-                          hapticImpact('light');
                           props.onNavigate(view.id);
                         }}
                       >
@@ -142,7 +140,6 @@ function MoreViewsDrawer(props: {
                   <MobileDrawer.Close
                     aria-label="Views"
                     class="flex h-9 shrink-0 items-center px-3 text-sm font-medium text-ink-muted"
-                    onClick={() => hapticImpact('light')}
                   >
                     Views
                   </MobileDrawer.Close>
@@ -275,8 +272,8 @@ type MobileDockRowProps = {
 /**
  * The bottom-most chrome row. By default it is the navigation dock (see
  * MobileNavigationDockRow); pressing its Search button opens a search session,
- * which swaps in the search bar and category pills in the accessory slot
- * above (see MobileViewsRow). Pressing the
+ * which swaps in the search bar; category pills sit at the top of the
+ * results (see MobileViewsRow). Pressing the
  * input's X ends the session and restores the navigation dock.
  */
 export function MobileDockRow(props: MobileDockRowProps) {

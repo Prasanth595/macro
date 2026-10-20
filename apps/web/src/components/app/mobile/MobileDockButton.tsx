@@ -1,4 +1,3 @@
-import { hapticImpact } from '@core/mobile/haptics';
 import { UnreadIndicator } from '@entity/components/UnreadIndicator';
 import { cn } from '@ui';
 import {
@@ -40,7 +39,6 @@ export function MobileDockButton(props: MobileDockButtonProps) {
       aria-label={local.ariaLabel}
       aria-description={local.unread ? 'Unread items' : undefined}
       data-unread={local.unread ? '' : undefined}
-      onPointerDown={() => hapticImpact('light')}
       class={cn(
         'relative flex size-(--mobile-chrome-button-size) shrink-0 items-center justify-center rounded-full',
         local.active && 'text-accent',

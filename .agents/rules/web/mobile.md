@@ -36,8 +36,9 @@ read their code, and follow that pattern rather than inventing a new one.
   handles instead drag after a small movement with no hold delay and reserve
   scrolling for the rest of the row. Horizontal swipes ignore the left edge
   (iOS back swipe).
-- Primary nav fires `hapticImpact('light')` on pointer down and acts on
-  click, so a held or cancelled touch does nothing. `glass` and `island`
+- Keep navigation, filter pills, and create-menu taps silent; keep haptics for
+  long press and use `hapticImpact('light')` for valid message/AI sends. Navigation
+  acts on click so held or cancelled touches do nothing. `glass` and `island`
   controls and channel inputs get iOS-app-only press animation from
   `installGlassPress`; reuse it and keep Android and web free of the effect.
 

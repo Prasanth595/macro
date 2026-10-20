@@ -576,8 +576,8 @@ Reviews and Scheduling can be moved into the dock when enabled. Scheduling
 opens `/app/scheduling`, highlights while active, and uses header islands for its
 section and Personal/team owner drawers; it does not add a search-scope pill.
 
-Primary dock navigation buttons, including Search, give haptic feedback on
-pointer down and activate on click/release. Holding a button only shows its
+Dock navigation, Search, filter pills, and create-menu taps do not trigger
+haptics. Buttons activate on click/release. Holding a button only shows its
 pressed state; cancelling the touch does not navigate. More views also opens on
 release so holding its trigger cannot drag or dismiss the opening sheet. Mouse,
 keyboard, and assistive activation use the normal click behavior.
