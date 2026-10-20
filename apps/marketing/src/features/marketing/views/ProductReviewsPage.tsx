@@ -72,7 +72,7 @@ export function RouteGithub() {
       <div class="github-page">
         <ProductHero
           product="for GitHub"
-          title={['Open pull requests', 'right in Macro.']}
+          title={['Review code without', 'leaving Macro.']}
           description={[
             'Read the discussion, inspect code changes,',
             'and keep linked tasks up to date.',
