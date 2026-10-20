@@ -25,3 +25,41 @@
  .crm-followup-agent .agent-turn { padding-inline:12px; }
  .crm-followup-result .homepage-email-demo { --homepage-email-height:480px; }
 }
+
+/* Keep the compact email preview on two aligned lines inside the source pane. */
+.crm-followup-source-body [aria-label="Company emails"] .sample-record-row {
+  align-items: start;
+  padding-block: 10px;
+}
+.crm-followup-source-body [aria-label="Company emails"] .sample-record-row-indicator {
+  height: 20px;
+}
+.crm-followup-source-body [aria-label="Company emails"] .sample-record-row-content {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 3px 8px;
+}
+.crm-followup-source-body [aria-label="Company emails"] .sample-record-row-content > svg {
+  align-self: center;
+}
+.crm-followup-source-body [aria-label="Company emails"] .sample-record-row-title {
+  max-width: none;
+  line-height: 20px;
+}
+.crm-followup-source-body [aria-label="Company emails"] .sample-record-row-detail {
+  grid-column: 2;
+  padding-left: 0;
+  gap: 8px;
+  line-height: 18px;
+}
+.crm-followup-source-body [aria-label="Company emails"] .sample-record-row-detail > .text-ink {
+  flex-shrink: 0;
+  max-width: 60%;
+}
+.crm-followup-source-body [aria-label="Company emails"] .sample-record-row-snippet {
+  display: block;
+  min-width: 0;
+}
+.crm-followup-source-body [aria-label="Company emails"] .sample-record-row-time {
+  line-height: 20px;
+}

@@ -415,7 +415,10 @@ it opens a company, reads its linked
 email/call/file/task tabs, follows the team chat and PR, then presents an editable
 email and concrete next steps. Use the real record tabs; do not invent Chat or PR
 tabs on the company. Linked items reuse the existing source viewers, and returning
-to the agent preserves draft edits. Company-call and task rows accept optional
+to the agent preserves draft edits. In the compact email source row, align the
+sender, envelope, unread dot, and time on the first line; keep the subject and
+truncated snippet together beneath it at desktop and phone widths.
+Company-call and task rows accept optional
 open handlers so this story can navigate locally without changing other records.
 The sample PR is merged but its production check remains open; the draft must not
 promise availability. Keep the evidence, reply, and next steps consistent in
