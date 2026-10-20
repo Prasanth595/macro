@@ -144,7 +144,7 @@ export function RouteEmail() {
       <FeaturePageSection
         id="email-sharing"
         title={['Share email threads', 'with your team.']}
-        description="Bring a customer conversation into your team’s channel without forwarding a copy. Share the full email thread, discuss it together, and keep new replies available in the same place."
+        description="Share email threads in a channel so your team can read the full conversation, discuss it, and keep new replies linked."
         details={emailGuides['email-sharing']}
       >
         <DemoInteractionBoundary class="feature-page-visual">
