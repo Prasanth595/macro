@@ -51,6 +51,7 @@ export class Channel extends PropertiedEntity<ChannelDetail> {
       ),
     );
   }
+
   /** Set an uploaded profile picture, or clear it. */
   async setPicture(picture?: ChannelPicture): Promise<void> {
     await this.mutate((c) =>
@@ -69,6 +70,7 @@ export class Channel extends PropertiedEntity<ChannelDetail> {
       id,
     );
   }
+
   /** A mixed message and activity timeline page. */
   timelinePage(selection?: TimelineOptions<Message>) {
     return timeline(

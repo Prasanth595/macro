@@ -8,6 +8,7 @@ import { MacroNotFoundError, unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { MacroEntity } from '../entity';
 import { User } from '../users/user';
+
 /** Access requests and direct grants scoped to a shareable entity. */
 export class EntityAccess {
   constructor(
@@ -15,9 +16,11 @@ export class EntityAccess {
     private readonly entityType: ShareEntityType,
     private readonly entity: { readonly id: string },
   ) {}
+
   private get path() {
     return { entity_type: this.entityType, entity_id: this.entity.id };
   }
+
   /** A page of access requests, including the caller's own request and review rights. */
   async state(offset?: number) {
     const state = unwrap(
@@ -41,6 +44,7 @@ export class EntityAccess {
       ),
     };
   }
+
   /** Request access, optionally naming the revision of an earlier request. */
   async submit(
     requestedLevel: AccessLevel,
@@ -57,6 +61,7 @@ export class EntityAccess {
       ),
     );
   }
+
   /** Cancel the caller's own request at its observed revision. */
   async cancel(revision: number): Promise<void> {
     unwrap(
@@ -66,6 +71,7 @@ export class EntityAccess {
       }),
     );
   }
+
   /** Direct grants expressed as user handles. */
   async direct() {
     return unwrap(
@@ -75,6 +81,7 @@ export class EntityAccess {
       accessLevel: g.accessLevel,
     }));
   }
+
   /** Grant direct access, or remove it by omitting the access level. */
   async grant(user: User, accessLevel?: AccessLevel): Promise<void> {
     unwrap(
@@ -84,6 +91,7 @@ export class EntityAccess {
       }),
     );
   }
+
   /** Remove one user's direct grant. */
   async remove(user: User): Promise<void> {
     unwrap(
@@ -92,6 +100,7 @@ export class EntityAccess {
       }),
     );
   }
+
   /** Resolve a request belonging to this entity at an observed revision. */
   async resolve(
     request: AccessRequest,
@@ -106,27 +115,35 @@ export class EntityAccess {
       }),
     );
   }
-  /** Serialize the entity reference without credentials. */ toJSON() {
+
+  /** Serialize the entity reference without credentials. */
+  toJSON() {
     return this.path;
   }
 }
+
 /** One access request; resolutions preserve optimistic concurrency. */
 export class AccessRequest extends MacroEntity<RequestRecord> {
   private resolvedRecord?: RequestRecord;
+
   private constructor(
     client: MacroClient,
-    /** Entity access surface owning the request. */ readonly access: EntityAccess,
+    /** Entity access surface owning the request. */
+    readonly access: EntityAccess,
     record: RequestRecord,
   ) {
     super(client, record.id, record);
   }
-  /** Seed a request from a state or submission response. */ static from(
+
+  /** Seed a request from a state or submission response. */
+  static from(
     client: MacroClient,
     access: EntityAccess,
     record: RequestRecord,
   ): AccessRequest {
     return new AccessRequest(client, access, record);
   }
+
   protected async fetch(): Promise<RequestRecord> {
     if (this.resolvedRecord) return this.resolvedRecord;
     let offset: number | undefined;
@@ -140,14 +157,21 @@ export class AccessRequest extends MacroEntity<RequestRecord> {
     } while (offset !== undefined);
     throw new MacroNotFoundError(`Access request ${this.id} is unavailable`);
   }
-  /** Request revision. */ readonly revision = this.field('revision');
-  /** Current request state. */ readonly status = this.field('status');
-  /** Requested access. */ readonly requestedLevel =
-    this.field('requestedLevel');
-  /** Requesting user. */ readonly requester = this.mappedField(
-    'requesterId',
-    (id) => User.byId(this.client, id),
+
+  /** Request revision. */
+  readonly revision = this.field('revision');
+
+  /** Current request state. */
+  readonly status = this.field('status');
+
+  /** Requested access. */
+  readonly requestedLevel = this.field('requestedLevel');
+
+  /** Requesting user. */
+  readonly requester = this.mappedField('requesterId', (id) =>
+    User.byId(this.client, id),
   );
+
   /** Approve with an access level, or decline by omitting it. */
   async resolve(grantedLevel?: AccessLevel): Promise<void> {
     this.resolvedRecord = await this.access.resolve(this, {

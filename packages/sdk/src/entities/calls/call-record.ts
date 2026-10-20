@@ -25,6 +25,7 @@ export class CallRecord extends FavoritableEntity<CallRecordDetail> {
   messageThreadById(id: string): MessageThread {
     return MessageThread.byId(this.client, { type: 'call', entity: this }, id);
   }
+
   /** A mixed message and activity timeline page. */
   timelinePage(selection?: TimelineOptions<CallMessage>) {
     return timeline(
@@ -47,6 +48,7 @@ export class CallRecord extends FavoritableEntity<CallRecordDetail> {
       ),
     );
   }
+
   /** Update custom speaker assignments in the transcript. */
   async editTranscript(
     assignments: EditCallTranscriptRequest['assignments'],
@@ -58,6 +60,7 @@ export class CallRecord extends FavoritableEntity<CallRecordDetail> {
       }),
     );
   }
+
   /** Toggle the server's share-with-team setting and return its new value. */
   async toggleTeamShare(): Promise<boolean> {
     return this.mutate((c) =>

@@ -17,6 +17,7 @@ import {
 } from '../sharing/permissions';
 import { Team } from '../teams/team';
 import { User } from '../users/user';
+
 /** A CRM pipeline with its own sharing boundary and backing table. */
 export class CrmPipeline extends MacroEntity<AccessiblePipeline> {
   private readonly tableDetail = new Lazy(async () =>
@@ -25,64 +26,77 @@ export class CrmPipeline extends MacroEntity<AccessiblePipeline> {
     ),
   );
 
-  /** Construct a lazy pipeline handle. */ static byId(
-    client: MacroClient,
-    id: string,
-  ): CrmPipeline {
+  /** Construct a lazy pipeline handle. */
+  static byId(client: MacroClient, id: string): CrmPipeline {
     return new CrmPipeline(client, id);
   }
-  /** Seed from a server record. */ static from(
-    client: MacroClient,
-    record: AccessiblePipeline,
-  ): CrmPipeline {
+
+  /** Seed from a server record. */
+  static from(client: MacroClient, record: AccessiblePipeline): CrmPipeline {
     return new CrmPipeline(client, record.id, record);
   }
+
   protected async fetch(): Promise<AccessiblePipeline> {
     return unwrap(
       await this.client.storage.getCrmPipeline({ path: { id: this.id } }),
     );
   }
-  /** Display name. */ readonly name = this.field('name');
-  /** CRM record type. */ readonly recordType = this.field('recordType');
-  /** Current caller's access level. */ readonly accessLevel =
-    this.field('grant');
-  /** Sharing scope. */ readonly sharing = this.field('sharing');
-  /** Owner. */ readonly owner = this.mappedField('userId', (id) =>
+
+  /** Display name. */
+  readonly name = this.field('name');
+
+  /** CRM record type. */
+  readonly recordType = this.field('recordType');
+
+  /** Current caller's access level. */
+  readonly accessLevel = this.field('grant');
+
+  /** Sharing scope. */
+  readonly sharing = this.field('sharing');
+
+  /** Owner. */
+  readonly owner = this.mappedField('userId', (id) =>
     User.byId(this.client, id),
   );
-  /** Owning team. */ readonly team = this.mappedField('teamId', (id) =>
+
+  /** Owning team. */
+  readonly team = this.mappedField('teamId', (id) =>
     Team.byId(this.client, id),
   );
-  /** Rename this pipeline. */ async rename(name: string): Promise<void> {
+
+  /** Rename this pipeline. */
+  async rename(name: string): Promise<void> {
     await this.mutate((c) =>
       c.storage.renameCrmPipeline({ path: { id: this.id }, body: { name } }),
     );
   }
-  /** Change its sharing scope. */ async setSharing(
-    sharing: CreatePipeline['sharing'],
-  ): Promise<void> {
+
+  /** Change its sharing scope. */
+  async setSharing(sharing: CreatePipeline['sharing']): Promise<void> {
     if (sharing === undefined) throw new Error('Sharing is required');
     await this.mutate((c) =>
       c.storage.shareCrmPipeline({ path: { id: this.id }, body: { sharing } }),
     );
   }
-  /** Trash or restore the pipeline. */ async setTrashed(
-    trashed: boolean,
-  ): Promise<void> {
+
+  /** Trash or restore the pipeline. */
+  async setTrashed(trashed: boolean): Promise<void> {
     await this.mutate((c) =>
       c.storage.trashCrmPipeline({ path: { id: this.id }, body: { trashed } }),
     );
   }
-  /** Read sharing grants. */ async sharePermissions() {
+
+  /** Read sharing grants. */
+  async sharePermissions() {
     return unwrap(
       await this.client.storage.getCrmPipelinePermissions({
         path: { id: this.id },
       }),
     );
   }
-  /** Update sharing grants. */ async updateSharePermissions(
-    options: SharePermissionOptions,
-  ) {
+
+  /** Update sharing grants. */
+  async updateSharePermissions(options: SharePermissionOptions) {
     return this.mutate((c) =>
       c.storage.updateCrmPipelinePermissions({
         path: { id: this.id },
@@ -90,14 +104,17 @@ export class CrmPipeline extends MacroEntity<AccessiblePipeline> {
       }),
     );
   }
+
   /** Read the backing table through the pipeline's authorization boundary. */
   async table(): Promise<PipelineTable> {
     return PipelineTable.from(this.client, this, await this.tableRecord());
   }
+
   /** @internal Cached table snapshot shared by all pipeline table handles. */
   tableRecord(): Promise<TableDetail> {
     return this.tableDetail.get();
   }
+
   /** Rows in pipeline order, automatically paginated. */
   rows(): AsyncGenerator<PipelineRow> {
     return paginate(async (after) => {
@@ -113,6 +130,7 @@ export class CrmPipeline extends MacroEntity<AccessiblePipeline> {
       };
     });
   }
+
   /** Query pipeline rows, optionally restricting the query to typed row handles. */
   queryRows(
     options: { query?: StorageRowsQuery['query']; rows?: PipelineRow[] } = {},
@@ -136,6 +154,7 @@ export class CrmPipeline extends MacroEntity<AccessiblePipeline> {
       };
     });
   }
+
   /** Apply an atomic generated database operation batch through this pipeline.
    * As with Database.applyOps, batch-local UUIDs may name resources minted earlier in the batch. */
   async applyOps(
@@ -159,105 +178,139 @@ export class CrmPipeline extends MacroEntity<AccessiblePipeline> {
     return result;
   }
 }
+
 /** Backing table of a CRM pipeline. */
 export class PipelineTable extends MacroEntity<TableDetail> {
-  /** Serialize identity within its pipeline. */ override toJSON() {
+  /** Serialize identity within its pipeline. */
+  override toJSON() {
     return { ...super.toJSON(), pipelineId: this.pipeline.id };
   }
+
   private constructor(
     client: MacroClient,
-    /** Parent pipeline. */ readonly pipeline: CrmPipeline,
+    /** Parent pipeline. */
+    readonly pipeline: CrmPipeline,
     record: TableDetail,
   ) {
     super(client, record.table.id, record);
   }
-  /** Seed a table from a pipeline table response. */ static from(
+
+  /** Seed a table from a pipeline table response. */
+  static from(
     client: MacroClient,
     pipeline: CrmPipeline,
     record: TableDetail,
   ): PipelineTable {
     return new PipelineTable(client, pipeline, record);
   }
+
   protected fetch(): Promise<TableDetail> {
     return this.pipeline.tableRecord();
   }
-  /** Columns in this table. */ async columns(): Promise<PipelineColumn[]> {
+
+  /** Columns in this table. */
+  async columns(): Promise<PipelineColumn[]> {
     return (await this.pipeline.tableRecord()).columns.map((c) =>
       PipelineColumn.from(this.client, this, c),
     );
   }
-  /** Table version for optimistic operation batches. */ async version(): Promise<number> {
+
+  /** Table version for optimistic operation batches. */
+  async version(): Promise<number> {
     return (await this.pipeline.tableRecord()).table.version;
   }
-  /** A scoped row handle. */ rowById(id: string): PipelineRow {
+
+  /** A scoped row handle. */
+  rowById(id: string): PipelineRow {
     return PipelineRow.byId(this.client, this.pipeline, id);
   }
-  /** Rows from the authorized pipeline surface. */ rows(): AsyncGenerator<PipelineRow> {
+
+  /** Rows from the authorized pipeline surface. */
+  rows(): AsyncGenerator<PipelineRow> {
     return this.pipeline.rows();
   }
 }
+
 /** One pipeline row. */
 export class PipelineRow extends MacroEntity<StorageRow> {
-  /** Serialize identity within its pipeline. */ override toJSON() {
+  /** Serialize identity within its pipeline. */
+  override toJSON() {
     return { ...super.toJSON(), pipelineId: this.pipeline.id };
   }
+
   private constructor(
     client: MacroClient,
-    /** Parent pipeline. */ readonly pipeline: CrmPipeline,
+    /** Parent pipeline. */
+    readonly pipeline: CrmPipeline,
     id: string,
     record?: StorageRow,
   ) {
     super(client, id, record);
   }
-  /** Construct a scoped row handle. */ static byId(
+
+  /** Construct a scoped row handle. */
+  static byId(
     client: MacroClient,
     pipeline: CrmPipeline,
     id: string,
   ): PipelineRow {
     return new PipelineRow(client, pipeline, id);
   }
-  /** Seed a listed row. */ static from(
+
+  /** Seed a listed row. */
+  static from(
     client: MacroClient,
     pipeline: CrmPipeline,
     record: StorageRow,
   ): PipelineRow {
     return new PipelineRow(client, pipeline, record.rowId, record);
   }
+
   protected async fetch(): Promise<StorageRow> {
     for await (const row of this.pipeline.queryRows({ rows: [this] }))
       if (row.id === this.id) return row.detail.get();
     throw new MacroNotFoundError(`Pipeline row ${this.id} is unavailable`);
   }
-  /** Values keyed by property definition. */ readonly cells =
-    this.field('cells');
-  /** Reload this row after an operation batch. */ async refresh(): Promise<void> {
+
+  /** Values keyed by property definition. */
+  readonly cells = this.field('cells');
+
+  /** Reload this row after an operation batch. */
+  async refresh(): Promise<void> {
     this.detail.clear();
     await this.detail.get();
   }
 }
+
 /** A column belonging to a pipeline table. */
 export class PipelineColumn extends MacroEntity<ColumnDetail> {
-  /** Serialize identity within its pipeline. */ override toJSON() {
+  /** Serialize identity within its pipeline. */
+  override toJSON() {
     return {
       ...super.toJSON(),
       pipelineId: this.table.pipeline.id,
       tableId: this.table.id,
     };
   }
+
   private constructor(
     client: MacroClient,
-    /** Parent table. */ readonly table: PipelineTable,
+    /** Parent table. */
+    readonly table: PipelineTable,
     record: ColumnDetail,
   ) {
     super(client, record.column.id, record);
   }
-  /** Seed a column handle. */ static from(
+
+  /** Seed a column handle. */
+  static from(
     client: MacroClient,
     table: PipelineTable,
     record: ColumnDetail,
   ): PipelineColumn {
     return new PipelineColumn(client, table, record);
   }
+
   protected async fetch(): Promise<ColumnDetail> {
     const record = (await this.table.pipeline.tableRecord()).columns.find(
       (c) => c.column.id === this.id,
@@ -266,10 +319,14 @@ export class PipelineColumn extends MacroEntity<ColumnDetail> {
       throw new MacroNotFoundError(`Pipeline column ${this.id} is unavailable`);
     return record;
   }
-  /** Whether the caller can write this column. */ async writable(): Promise<boolean> {
+
+  /** Whether the caller can write this column. */
+  async writable(): Promise<boolean> {
     return (await this.fetch()).writable;
   }
-  /** Current column label. */ async name(): Promise<string> {
+
+  /** Current column label. */
+  async name(): Promise<string> {
     return (
       (await this.fetch()).column.display_name ??
       (await this.fetch()).definition.definition.display_name

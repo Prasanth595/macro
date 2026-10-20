@@ -8,26 +8,26 @@ import { CallRecord } from '../calls/call-record';
 import { Channel } from '../channels/channel';
 import { MacroEntity } from '../entity';
 import type { User } from '../users/user';
+
 /** A meeting's schedule and invitation link. */
 export class Meeting extends MacroEntity<MeetingRecord> {
   private lookupToken?: string;
+
   private constructor(client: MacroClient, id: string, record?: MeetingRecord) {
     super(client, id, record);
     this.lookupToken = record?.shareToken;
   }
 
-  /** Construct a lazy meeting handle. */ static byId(
-    client: MacroClient,
-    id: string,
-  ): Meeting {
+  /** Construct a lazy meeting handle. */
+  static byId(client: MacroClient, id: string): Meeting {
     return new Meeting(client, id);
   }
-  /** Seed a meeting from a server response. */ static from(
-    client: MacroClient,
-    record: MeetingRecord,
-  ): Meeting {
+
+  /** Seed a meeting from a server response. */
+  static from(client: MacroClient, record: MeetingRecord): Meeting {
     return new Meeting(client, record.id, record);
   }
+
   protected async fetch(): Promise<MeetingRecord> {
     if (this.lookupToken)
       return unwrap(
@@ -44,38 +44,51 @@ export class Meeting extends MacroEntity<MeetingRecord> {
     this.lookupToken = record.shareToken;
     return record;
   }
-  /** Display title. */ readonly title = this.field('title');
-  /** Scheduled start. */ readonly scheduledStart =
-    this.field('scheduledStart');
-  /** Scheduled end. */ readonly scheduledEnd = this.field('scheduledEnd');
-  /** Associated channel. */ readonly channel = this.mappedField(
-    'channelId',
-    (id) => (id ? Channel.byId(this.client, id) : undefined),
+
+  /** Display title. */
+  readonly title = this.field('title');
+
+  /** Scheduled start. */
+  readonly scheduledStart = this.field('scheduledStart');
+
+  /** Scheduled end. */
+  readonly scheduledEnd = this.field('scheduledEnd');
+
+  /** Associated channel. */
+  readonly channel = this.mappedField('channelId', (id) =>
+    id ? Channel.byId(this.client, id) : undefined,
   );
-  /** Associated call record. */ readonly call = this.mappedField(
-    'callId',
-    (id) => (id ? CallRecord.byId(this.client, id) : undefined),
+
+  /** Associated call record. */
+  readonly call = this.mappedField('callId', (id) =>
+    id ? CallRecord.byId(this.client, id) : undefined,
   );
-  /** Update schedule or title. */ async update(
-    options: UpdateMeetingRequest,
-  ): Promise<void> {
+
+  /** Update schedule or title. */
+  async update(options: UpdateMeetingRequest): Promise<void> {
     await this.mutate((c) =>
       c.storage.meetingUpdate({ path: { meeting_id: this.id }, body: options }),
     );
   }
-  /** Cancel this meeting. */ async cancel(): Promise<void> {
+
+  /** Cancel this meeting. */
+  async cancel(): Promise<void> {
     await this.mutate((c) =>
       c.storage.meetingCancel({ path: { meeting_id: this.id } }),
     );
   }
-  /** Whether the caller can send invitations. */ async invitePermissions() {
+
+  /** Whether the caller can send invitations. */
+  async invitePermissions() {
     return unwrap(
       await this.client.storage.meetingInvitePermissions({
         path: { token: (await this.detail.get()).shareToken },
       }),
     );
   }
-  /** Invite an email address. */ async invite(email: string): Promise<void> {
+
+  /** Invite an email address. */
+  async invite(email: string): Promise<void> {
     unwrap(
       await this.client.storage.meetingInvite({
         path: { token: (await this.detail.get()).shareToken },
@@ -83,7 +96,9 @@ export class Meeting extends MacroEntity<MeetingRecord> {
       }),
     );
   }
-  /** Invite Macro users. */ async inviteUsers(users: User[]): Promise<void> {
+
+  /** Invite Macro users. */
+  async inviteUsers(users: User[]): Promise<void> {
     unwrap(
       await this.client.storage.meetingInviteUsers({
         path: { token: (await this.detail.get()).shareToken },
@@ -91,7 +106,9 @@ export class Meeting extends MacroEntity<MeetingRecord> {
       }),
     );
   }
-  /** Shareable meeting link. */ async webUrl(): Promise<string> {
+
+  /** Shareable meeting link. */
+  async webUrl(): Promise<string> {
     return `${this.client.webAppUrl}/app/meet/join/${encodeURIComponent((await this.detail.get()).shareToken)}`;
   }
 }

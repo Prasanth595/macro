@@ -81,16 +81,18 @@ export class AgentSession extends MacroEntity<AgentSessionResponse> {
   toolApprovalById(id: string): ToolApproval {
     return ToolApproval.byId(this.client, this, id);
   }
-  /** Sharing configuration. */ async sharePermissions() {
+
+  /** Sharing configuration. */
+  async sharePermissions() {
     return unwrap(
       await this.client.agentHarness.getAgentSessionPermissions({
         path: { session_id: this.id },
       }),
     );
   }
-  /** Replace sharing grants. */ async updateSharePermissions(
-    options: SharePermissionOptions,
-  ) {
+
+  /** Replace sharing grants. */
+  async updateSharePermissions(options: SharePermissionOptions) {
     return this.mutate((c) =>
       c.agentHarness.updateAgentSessionPermissions({
         path: { session_id: this.id },

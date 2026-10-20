@@ -29,7 +29,9 @@ import { type LocalPortmap, resolveLocalPortmap } from '../local-portmap';
 import { observeSdk } from './activity';
 
 const USER_API_KEY_HEADER = 'x-macro-user-api-key';
+
 const USER_API_KEY_PREFIX = 'mak_';
+
 const BOT_TOKEN_PREFIX = 'mbot_';
 
 type CredentialHeader = readonly [name: string, value: string];
@@ -98,29 +100,49 @@ export async function requestAuthHeaders(
 
 export class MacroClient {
   readonly scheduledAction: ScheduledActionSdk;
+
   readonly unfurl: UnfurlSdk;
+
   readonly agentHarness: AgentHarnessSdk;
+
   readonly auth: AuthSdk;
+
   readonly calendar: CalendarSdk;
+
   readonly cognition: CognitionSdk;
+
   readonly contacts: ContactsSdk;
+
   readonly email: EmailSdk;
+
   readonly notification: NotificationSdk;
+
   readonly properties: PropertiesSdk;
+
   readonly search: SearchSdk;
+
   readonly storage: StorageSdk;
+
   readonly webAppUrl: string;
+
   readonly wsVerify?: string;
+
   readonly events: MacroEvents;
+
   /** Resolved authentication config (distinct from `auth`, the auth-service SDK). */
   readonly authConfig: MacroAuth;
+
   /** Resolved service base urls: env defaults, then the local-stack portmap,
    * then `opts.hosts` overrides. */
   readonly hosts: Record<ServiceName, string>;
+
   /** The local stack's generated port map; only set when env is `local`. */
   readonly localPortmap?: LocalPortmap;
+
   private readonly requestedAs?: string;
+
   private selfBotRecord?: Promise<Bot>;
+
   private selfPrincipal?: Promise<string>;
 
   constructor(opts: MacroOpts) {

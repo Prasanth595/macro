@@ -18,6 +18,7 @@ import type { Project } from './projects/project';
 import type { Routine } from './routines/routine';
 import type { Team } from './teams/team';
 import type { User } from './users/user';
+
 /** Typed entity references accepted by cross-resource APIs. */
 export type EntityReference =
   | { type: 'user'; entity: User }

@@ -74,16 +74,21 @@ export class CalendarNamespace {
       contributesToAvailability: record.contributesToAvailability,
     }));
   }
-  /** Current sharing preference for the team calendar. */ async teamSharing(): Promise<TeamCalendarSharing> {
+
+  /** Current sharing preference for the team calendar. */
+  async teamSharing(): Promise<TeamCalendarSharing> {
     return unwrap(await this.client.calendar.getTeamSharing()).sharing;
   }
-  /** Replace the team calendar sharing preference. */ async setTeamSharing(
+
+  /** Replace the team calendar sharing preference. */
+  async setTeamSharing(
     sharing: TeamCalendarSharing,
   ): Promise<TeamCalendarSharing> {
     return unwrap(
       await this.client.calendar.setTeamSharing({ body: { sharing } }),
     ).sharing;
   }
+
   /** Calendar occurrences in a viewport, automatically paginated. */
   occurrences(options: Omit<ListOccurrencesData['query'], 'cursor'>) {
     return paginate(async (cursor) => {
@@ -101,6 +106,7 @@ export class CalendarNamespace {
       };
     });
   }
+
   /** A page of team availability, including its roster and continuation cursor. */
   async teamPage(options: NonNullable<ListTeamCalendarData['query']>) {
     const page = unwrap(
@@ -119,6 +125,7 @@ export class CalendarNamespace {
       nextCursor: page.nextCursor ?? undefined,
     };
   }
+
   /** Teammates' out-of-office occurrences in a bounded viewport. Check hasMore for truncation. */
   async teamOutOfOffice(
     options: NonNullable<ListTeamOutOfOfficeData['query']>,

@@ -8,6 +8,7 @@ import { Channel } from '../channels/channel';
 import { MacroEntity } from '../entity';
 import { Harness } from '../harnesses/harness';
 import type { Team } from '../teams/team';
+
 /** Agent creation and replacement settings. */
 export type AgentOptions = Omit<
   CreateAgentRequest,
@@ -20,25 +21,36 @@ export type AgentOptions = Omit<
   | 'default_model'
   | 'is_coding'
 > & {
-  /** Channels the agent can access. */ channels?: Channel[];
-  /** Owning team. */ team?: Team;
-  /** Host running the agent. */ host?: Harness;
-  /** Whether tool permissions are automatically accepted. */ autoAcceptPermissions?: boolean;
-  /** Avatar URL. */ avatarUrl?: string;
-  /** Channel visibility policy. */ channelScope: CreateAgentRequest['channel_scope'];
-  /** Default model. */ defaultModel: string;
-  /** Whether this is a coding agent. */ isCoding: boolean;
+  /** Channels the agent can access. */
+  channels?: Channel[];
+  /** Owning team. */
+  team?: Team;
+  /** Host running the agent. */
+  host?: Harness;
+  /** Whether tool permissions are automatically accepted. */
+  autoAcceptPermissions?: boolean;
+  /** Avatar URL. */
+  avatarUrl?: string;
+  /** Channel visibility policy. */
+  channelScope: CreateAgentRequest['channel_scope'];
+  /** Default model. */
+  defaultModel: string;
+  /** Whether this is a coding agent. */
+  isCoding: boolean;
 };
+
 /** A configurable agent backed by a bot identity. */
 export class Agent extends MacroEntity<AgentRecord> {
   /** Construct a lazy agent handle. */
   static byId(client: MacroClient, id: string): Agent {
     return new Agent(client, id);
   }
+
   /** Seed from a listed or created agent. */
   static from(client: MacroClient, record: AgentRecord): Agent {
     return new Agent(client, record.bot.id, record);
   }
+
   protected async fetch(): Promise<AgentRecord> {
     const record = unwrap(await this.client.storage.listAgents()).find(
       (a) => a.bot.id === this.id,
@@ -47,20 +59,26 @@ export class Agent extends MacroEntity<AgentRecord> {
       throw new MacroNotFoundError(`Agent ${this.id} is unavailable`);
     return record;
   }
+
   /** Display name. */
   readonly name = this.mappedField('bot', (bot) => bot.name);
+
   /** Agent instructions. */
   readonly instructions = this.field('instructions');
+
   /** Default model. */
   readonly defaultModel = this.field('default_model');
+
   /** Visible channels. */
   readonly channels = this.mappedField('channel_ids', (ids) =>
     ids.map((id) => Channel.byId(this.client, id)),
   );
+
   /** Host running this agent. */
   readonly host = this.mappedField('harness_id', (id) =>
     id ? Harness.byId(this.client, id) : undefined,
   );
+
   /** Replace agent settings. */
   async update(options: AgentOptions): Promise<void> {
     await this.mutate((c) =>
@@ -71,6 +89,7 @@ export class Agent extends MacroEntity<AgentRecord> {
     );
   }
 }
+
 /** Convert entity references into the generated agent request. */
 export function agentBody(options: AgentOptions): CreateAgentRequest {
   const {

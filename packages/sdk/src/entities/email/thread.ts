@@ -55,6 +55,7 @@ export class EmailThread extends PropertiedEntity<ThreadDetail> {
       }),
     );
   }
+
   /** Set or remove a follow-up using a persisted operation id and revision. */
   async setFollowup(command: EmailFollowupCommand) {
     return unwrap(
@@ -64,6 +65,7 @@ export class EmailThread extends PropertiedEntity<ThreadDetail> {
       }),
     );
   }
+
   /** Calendar invitations resolved from this thread's messages. */
   async calendarInvitations() {
     return unwrap(
@@ -72,6 +74,7 @@ export class EmailThread extends PropertiedEntity<ThreadDetail> {
       }),
     );
   }
+
   /** Change project membership or share permissions for this thread. */
   async update(options: {
     project?: Project | null;

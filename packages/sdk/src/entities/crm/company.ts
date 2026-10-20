@@ -31,6 +31,7 @@ export class Company extends PropertiedEntity<CompanyDetail> {
       id,
     );
   }
+
   /** A mixed message and activity timeline page. */
   timelinePage(selection?: TimelineOptions<CrmComment>) {
     return timeline(

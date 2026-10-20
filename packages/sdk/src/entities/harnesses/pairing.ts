@@ -7,21 +7,26 @@ import type { MacroClient } from '../../utils/client';
 import { MacroEntity } from '../entity';
 import type { Team } from '../teams/team';
 import { Harness } from './harness';
+
 /** A short lived host pairing, addressed by its displayed code. */
 export class HarnessPairing extends MacroEntity<PairingDetails> {
-  /** Construct a lazy pairing from a pairing code. */ static byId(
-    client: MacroClient,
-    code: string,
-  ): HarnessPairing {
+  /** Construct a lazy pairing from a pairing code. */
+  static byId(client: MacroClient, code: string): HarnessPairing {
     return new HarnessPairing(client, code);
   }
+
   protected async fetch(): Promise<PairingDetails> {
     return unwrap(
       await this.client.storage.getHarnessPairing({ path: { code: this.id } }),
     );
   }
-  /** Requested name. */ readonly name = this.field('requested_name');
-  /** Expiration time. */ readonly expiresAt = this.field('expires_at');
+
+  /** Requested name. */
+  readonly name = this.field('requested_name');
+
+  /** Expiration time. */
+  readonly expiresAt = this.field('expires_at');
+
   /** Approve this pairing. */
   async approve(options?: {
     name?: string;
@@ -41,18 +46,20 @@ export class HarnessPairing extends MacroEntity<PairingDetails> {
     );
   }
 }
+
 /** Device side pairing identity. Keep the device secret outside the handle. */
 export class DevicePairing {
   private constructor(
     private readonly client: MacroClient,
-    /** Pairing identifier. */ readonly id: string,
+    /** Pairing identifier. */
+    readonly id: string,
   ) {}
-  /** Construct the device side handle. */ static byId(
-    client: MacroClient,
-    id: string,
-  ): DevicePairing {
+
+  /** Construct the device side handle. */
+  static byId(client: MacroClient, id: string): DevicePairing {
     return new DevicePairing(client, id);
   }
+
   /** Attempt to claim an approved pairing. Pending claims return undefined. */
   async claim(
     deviceSecret: string,
@@ -70,7 +77,9 @@ export class DevicePairing {
         }
       : undefined;
   }
-  /** Serialize identity only. */ toJSON() {
+
+  /** Serialize identity only. */
+  toJSON() {
     return { id: this.id };
   }
 }

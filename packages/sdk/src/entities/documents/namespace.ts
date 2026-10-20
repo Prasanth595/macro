@@ -32,6 +32,7 @@ export class DocumentNamespace {
       throw new Error('Invalid team task document response');
     return Document.byId(this.client, result.data.documentMetadata.documentId);
   }
+
   /** Validate a permissions token, returning its document and optional user handles. */
   async validatePermissionsToken(token: string) {
     const result = unwrap(
@@ -47,6 +48,7 @@ export class DocumentNamespace {
       issuer: result.iss,
     };
   }
+
   /** Reserve a binary document and return upload instructions. Upload content before saving. */
   async createUpload(options: {
     name: string;

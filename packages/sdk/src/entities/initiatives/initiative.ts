@@ -12,14 +12,21 @@ import {
 } from '../sharing/permissions';
 import { Task } from '../tasks/task';
 import { User } from '../users/user';
+
 /** Initiative creation settings. */
 export interface InitiativeOptions {
-  /** Initiative name. */ name: string;
-  /** Collaborative description. */ description?: string;
-  /** Members assigned to this initiative. */ members?: User[];
-  /** Initial properties. */ propertyValues?: CreateInitiativeRequest['propertyValues'];
-  /** Whether the current team can access it. */ shareWithTeam?: boolean;
+  /** Initiative name. */
+  name: string;
+  /** Collaborative description. */
+  description?: string;
+  /** Members assigned to this initiative. */
+  members?: User[];
+  /** Initial properties. */
+  propertyValues?: CreateInitiativeRequest['propertyValues'];
+  /** Whether the current team can access it. */
+  shareWithTeam?: boolean;
 }
+
 /** A group of tasks and members working toward an outcome. */
 export class Initiative extends MacroEntity<InitiativeDetail> {
   /** Access requests and direct user grants. */
@@ -29,10 +36,12 @@ export class Initiative extends MacroEntity<InitiativeDetail> {
   static byId(client: MacroClient, id: string): Initiative {
     return new Initiative(client, id);
   }
+
   /** Seed from an initiative detail response. */
   static from(client: MacroClient, record: InitiativeDetail): Initiative {
     return new Initiative(client, record.id, record);
   }
+
   protected async fetch(): Promise<InitiativeDetail> {
     return unwrap(
       await this.client.storage.getInitiative({
@@ -40,22 +49,31 @@ export class Initiative extends MacroEntity<InitiativeDetail> {
       }),
     );
   }
-  /** Display name. */ readonly name = this.field('name');
-  /** Owner. */ readonly owner = this.mappedField('ownerId', (id) =>
+
+  /** Display name. */
+  readonly name = this.field('name');
+
+  /** Owner. */
+  readonly owner = this.mappedField('ownerId', (id) =>
     User.byId(this.client, id),
   );
-  /** Assigned members. */ readonly members = this.mappedField(
-    'memberIds',
-    (ids) => ids.map((id) => User.byId(this.client, id)),
+
+  /** Assigned members. */
+  readonly members = this.mappedField('memberIds', (ids) =>
+    ids.map((id) => User.byId(this.client, id)),
   );
-  /** Tasks in this initiative. */ readonly tasks = this.mappedField(
-    'taskIds',
-    (ids) => ids.map((id) => Task.byId(this.client, id)),
+
+  /** Tasks in this initiative. */
+  readonly tasks = this.mappedField('taskIds', (ids) =>
+    ids.map((id) => Task.byId(this.client, id)),
   );
-  /** Current user's access. */ readonly accessLevel =
-    this.field('userAccessLevel');
-  /** Sharing configuration. */ readonly sharePermissions =
-    this.field('sharePermission');
+
+  /** Current user's access. */
+  readonly accessLevel = this.field('userAccessLevel');
+
+  /** Sharing configuration. */
+  readonly sharePermissions = this.field('sharePermission');
+
   /** Update the name, membership or sharing configuration. */
   async update(options: {
     name?: string;
@@ -75,6 +93,7 @@ export class Initiative extends MacroEntity<InitiativeDetail> {
       }),
     );
   }
+
   /** Delete this initiative. */
   async delete(): Promise<void> {
     await this.mutate((c) =>

@@ -4,6 +4,7 @@ import type {
   UpdateSharePermissionRequestV2,
 } from '../../../generated/storage/types.gen';
 import type { Channel } from '../channels/channel';
+
 /** Sharing updates reference channels by handle. Null clears the corresponding grant collection. */
 export type SharePermissionOptions = Omit<
   UpdateSharePermissionRequestV2,
@@ -18,6 +19,7 @@ export type SharePermissionOptions = Omit<
       }[]
     | null;
 };
+
 /** Convert sharing options into the generated backend contract. */
 export function sharePermissionBody(
   options: SharePermissionOptions,

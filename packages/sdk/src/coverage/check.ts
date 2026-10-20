@@ -39,6 +39,7 @@ function camel(service: string): string {
 // step 2 input: all hand-written source as one big string (minus this folder,
 // so the skip list itself doesn't count as a call site)
 let src = '';
+
 for await (const path of new Bun.Glob('src/**/*.ts').scan(ROOT)) {
   if (path.startsWith('src/coverage/')) continue;
   src += await Bun.file(join(ROOT, path)).text();
@@ -84,4 +85,5 @@ for (const service of services) {
 }
 
 if (failed) process.exit(1);
+
 console.log('endpoint coverage OK');

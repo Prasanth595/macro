@@ -29,6 +29,7 @@ export class Contact extends FavoritableEntity<ContactDetail> {
       id,
     );
   }
+
   /** A mixed message and activity timeline page. */
   timelinePage(selection?: TimelineOptions<CrmComment>) {
     return timeline(

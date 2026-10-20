@@ -14,6 +14,7 @@ import { EntityAccess } from '../sharing/access';
 import { ChatGeneration, ChatMessage } from './generation';
 
 type ChatDetail = GetChatResponses[200]['chat'];
+
 type ChatHistory = GetChatHistoryHandlerResponses[200]['conversation'];
 
 /** A Macro AI chat. */

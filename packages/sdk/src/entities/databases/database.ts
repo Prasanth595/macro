@@ -131,10 +131,13 @@ export type InferColumnTypeOptions = {
 export class MacroOpRefusedError extends MacroApiError {
   /** The refused op's index in the batch. */
   readonly op: number;
+
   /** The row's index within the op, when one row is at fault. */
   readonly row: number | null;
+
   /** The column placement at fault, when one is. */
   readonly column: string | null;
+
   /** The minted id that is already taken, when that is the reason. */
   readonly taken: TakenId | null;
 
@@ -244,6 +247,7 @@ function soleResult<
 export class Database extends MacroEntity<DatabaseDetail> {
   /** Access requests and direct user grants. */
   readonly access = new EntityAccess(this.client, 'database', this);
+
   protected async fetch(): Promise<DatabaseDetail> {
     return unwrap(
       await this.client.storage.getDatabase({ path: { id: this.id } }),

@@ -87,56 +87,90 @@ export {
   wrapXml,
 } from './mentions';
 export type { RequestActivity } from './utils/activity';
-
 export class Macro<T extends MacroOpts = MacroOpts> {
   /** routines resources and operations. */
   readonly routines: RoutineNamespace;
+
   /** unfurls resources and operations. */
   readonly unfurls: UnfurlNamespace;
+
   /** agents resources and operations. */
   readonly agents: AgentNamespace;
+
   /** initiatives resources and operations. */
   readonly initiatives: InitiativeNamespace;
+
   /** apiKeys resources and operations. */
   readonly apiKeys: ApiKeyNamespace;
+
   /** harnesses resources and operations. */
   readonly harnesses: HarnessNamespace;
+
   /** meetings resources and operations. */
   readonly meetings: MeetingNamespace;
+
   /** githubPullRequests resources and operations. */
   readonly githubPullRequests: GithubPullRequestNamespace;
+
   /** entityMentions resources and operations. */
   readonly entityMentions: EntityMentionNamespace;
+
   readonly agentSessions: AgentSessionNamespace;
+
   readonly ai: AiNamespace;
+
   readonly bots: BotsNamespace;
+
   readonly calendar: CalendarNamespace;
+
   readonly calls: CallRecordNamespace;
+
   readonly channels: ChannelNamespace;
+
   readonly chats: ChatNamespace;
+
   readonly crm: CrmNamespace;
+
   readonly databases: DatabaseNamespace;
+
   readonly documents: DocumentNamespace;
+
   readonly email: EmailNamespace;
+
   readonly favorites: FavoritesNamespace;
+
   readonly foreignEntities: ForeignEntityNamespace;
+
   /** Build forms and submit answers without granting respondents database access. */
   readonly forms: FormNamespace;
+
   readonly notifications: NotificationNamespace;
+
   readonly pins: PinsNamespace;
+
   readonly projects: ProjectNamespace;
+
   readonly properties: PropertiesNamespace;
+
   readonly tasks: TaskNamespace;
+
   readonly teams: TeamNamespace;
+
   readonly users: UserNamespace;
+
   readonly webhooks: WebhooksNamespace;
+
   /** Browse workspace activity with type, task, time, tag and inbox filters. */
   readonly workspace: WorkspaceNamespace;
+
   readonly events: MacroEvents;
+
   /** Base URL of the Macro web app, used to build entity URLs. */
   readonly webAppUrl: string;
+
   /** Direct access to the underlying hey-api service clients. */
   readonly _client: MacroClient;
+
   private readonly opts: T;
 
   constructor(opts: T) {

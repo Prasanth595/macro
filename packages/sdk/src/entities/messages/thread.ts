@@ -17,22 +17,34 @@ import type { Comment } from '../documents/comment';
 import type { Document } from '../documents/document';
 import { MacroEntity } from '../entity';
 import { User } from '../users/user';
+
 /** A message handle accepted by a mixed timeline selector. */
 export type TimelineMessage = Message | Comment | CrmComment | CallMessage;
+
 /** Timeline selection with typed message references and camel case options. */
 export interface TimelineOptions<
   TMessage extends TimelineMessage = TimelineMessage,
 > {
-  /** Opaque continuation cursor from a previous page. */ cursor?: MessageTimelineQuery['cursor'];
-  /** Fetch around this message. */ around?: TMessage;
-  /** Restrict selection to these messages. */ messages?: TMessage[];
-  /** Inclusive activity lower bound. */ activityAfter?: string;
-  /** Exclusive activity upper bound. */ activityBefore?: string;
-  /** Select anchored threads. */ anchored?: boolean;
-  /** Page direction. */ direction?: MessageTimelineQuery['direction'];
-  /** Include deleted threads. */ includeDeletedThreads?: boolean;
-  /** Page size. */ limit?: number;
+  /** Opaque continuation cursor from a previous page. */
+  cursor?: MessageTimelineQuery['cursor'];
+  /** Fetch around this message. */
+  around?: TMessage;
+  /** Restrict selection to these messages. */
+  messages?: TMessage[];
+  /** Inclusive activity lower bound. */
+  activityAfter?: string;
+  /** Exclusive activity upper bound. */
+  activityBefore?: string;
+  /** Select anchored threads. */
+  anchored?: boolean;
+  /** Page direction. */
+  direction?: MessageTimelineQuery['direction'];
+  /** Include deleted threads. */
+  includeDeletedThreads?: boolean;
+  /** Page size. */
+  limit?: number;
 }
+
 /** The typed parent of a shared message thread. */
 export type MessageParent =
   | { type: 'channel'; entity: Channel }
@@ -40,6 +52,7 @@ export type MessageParent =
   | { type: 'crm_company'; entity: Company }
   | { type: 'crm_contact'; entity: Contact }
   | { type: 'call'; entity: CallRecord };
+
 /** A shared message thread with resolution and deletion operations. */
 export class MessageThread extends MacroEntity<ThreadState> {
   /** Serialize identity with its owning resource. */
@@ -53,18 +66,22 @@ export class MessageThread extends MacroEntity<ThreadState> {
 
   private constructor(
     client: MacroClient,
-    /** The entity containing this thread. */ readonly parent: MessageParent,
+    /** The entity containing this thread. */
+    readonly parent: MessageParent,
     id: string,
   ) {
     super(client, id);
   }
-  /** Construct a scoped thread handle. */ static byId(
+
+  /** Construct a scoped thread handle. */
+  static byId(
     client: MacroClient,
     parent: MessageParent,
     id: string,
   ): MessageThread {
     return new MessageThread(client, parent, id);
   }
+
   private get path() {
     return {
       parent_type: this.parent.type,
@@ -72,13 +89,16 @@ export class MessageThread extends MacroEntity<ThreadState> {
       id: this.id,
     };
   }
+
   protected async fetch(): Promise<ThreadState> {
     return unwrap(
       await this.client.storage.entityMessageGetThread({ path: this.path }),
     ).state;
   }
-  /** Whether the thread is resolved. */ readonly resolved =
-    this.field('resolved');
+
+  /** Whether the thread is resolved. */
+  readonly resolved = this.field('resolved');
+
   /** Resolve the thread or detach its annotation anchor. */
   async update(options: {
     resolved?: boolean;
@@ -94,9 +114,9 @@ export class MessageThread extends MacroEntity<ThreadState> {
       c.storage.entityMessagePatchThread({ path: this.path, body }),
     );
   }
-  /** Delete the entire thread, including replies. */ async delete(
-    nonce?: string,
-  ): Promise<void> {
+
+  /** Delete the entire thread, including replies. */
+  async delete(nonce?: string): Promise<void> {
     await this.mutate((c) =>
       c.storage.entityMessageDeleteThread({
         path: this.path,
@@ -105,6 +125,7 @@ export class MessageThread extends MacroEntity<ThreadState> {
     );
   }
 }
+
 /** A bounded mixed message/activity page with typed message handles. */
 export async function timeline<TMessage extends TimelineMessage>(
   client: MacroClient,

@@ -9,6 +9,7 @@ import { entitySearch } from '../search';
 import { EntityAccess } from '../sharing/access';
 
 type ProjectDetail = GetProjectHandlerResponses[200]['data']['projectMetadata'];
+
 type ProjectItem =
   GetProjectContentHandlerResponses[200]['data'][number]['item'];
 
@@ -22,6 +23,7 @@ export class Project extends PropertiedEntity<ProjectDetail> {
       }),
     );
   }
+
   /** Read the caller's effective access level. */
   async accessLevel() {
     return unwrap(

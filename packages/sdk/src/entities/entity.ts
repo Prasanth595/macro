@@ -118,6 +118,7 @@ export abstract class FavoritableEntity<Detail>
 {
   /** How the entity-addressed APIs (favorites) identify this entity's type. */
   abstract readonly entityType: MacroEntityType;
+
   /** Read the caller's effective permission on this entity. */
   async permission() {
     return unwrap(

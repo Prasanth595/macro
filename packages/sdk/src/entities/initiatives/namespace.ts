@@ -1,18 +1,23 @@
 import { unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { Initiative, type InitiativeOptions } from './initiative';
+
 /** Initiatives in the caller's workspace. */
 export class InitiativeNamespace {
   constructor(private readonly client: MacroClient) {}
-  /** Construct a lazy initiative handle. */ byId(id: string): Initiative {
+
+  /** Construct a lazy initiative handle. */
+  byId(id: string): Initiative {
     return Initiative.byId(this.client, id);
   }
+
   /** List accessible initiatives. */
   async list(): Promise<Initiative[]> {
     return unwrap(await this.client.storage.listInitiatives()).initiatives.map(
       (i) => Initiative.byId(this.client, i.id),
     );
   }
+
   /** Create an initiative. */
   async create(options: InitiativeOptions): Promise<Initiative> {
     return Initiative.from(

@@ -36,10 +36,12 @@ export class EmailNamespace {
       throw new Error('Draft response has no message id');
     return EmailDraft.byId(this.client, result.draft.db_id);
   }
+
   /** Construct a lazy draft handle. */
   draftById(id: string): EmailDraft {
     return EmailDraft.byId(this.client, id);
   }
+
   /** Scheduled drafts, fetched lazily in bounded pages. */
   async *scheduled(options?: {
     pageSize?: number;
@@ -62,6 +64,7 @@ export class EmailNamespace {
       if (page.messages.length < limit) return;
     }
   }
+
   /** Importance filters. */
   async filters(inbox?: Link): Promise<EmailFilter[]> {
     return unwrap(
@@ -70,6 +73,7 @@ export class EmailNamespace {
       }),
     ).filters.map((f) => EmailFilter.from(this.client, f, inbox));
   }
+
   /** Create or replace a filter matching an address or domain. */
   async upsertFilter(
     options: EmailFilterOptions,
@@ -90,10 +94,12 @@ export class EmailNamespace {
       inbox,
     );
   }
+
   /** Address book contacts grouped by the service's interaction buckets. */
   async contacts() {
     return unwrap(await this.client.email.listContacts()).contacts;
   }
+
   /** Follow-up reminders with thread handles, automatically paginated. */
   reminders(
     options?: Omit<

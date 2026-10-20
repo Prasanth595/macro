@@ -63,6 +63,7 @@ export class Document
       }),
     ).data.map((a) => DocumentAnchor.from(this.client, this, a));
   }
+
   /** Create a standalone PDF highlight. */
   async createHighlight(
     options: Omit<PdfHighlightAnchorRequest, 'uuid'>,
@@ -78,25 +79,30 @@ export class Document
       ),
     );
   }
-  /** A handle to an immutable version. */ version(
-    version: number,
-  ): DocumentVersion {
+
+  /** A handle to an immutable version. */
+  version(version: number): DocumentVersion {
     return DocumentVersion.byId(this.client, this, version);
   }
-  /** Sharing configuration. */ async sharePermissions() {
+
+  /** Sharing configuration. */
+  async sharePermissions() {
     return unwrap(
       await this.client.storage.getDocumentPermissionsV2({
         path: { document_id: this.id },
       }),
     ).documentPermissions;
   }
-  /** Mint a scoped permissions token. */ async permissionsToken(): Promise<string> {
+
+  /** Mint a scoped permissions token. */
+  async permissionsToken(): Promise<string> {
     return unwrap(
       await this.client.storage.getDocumentPermissionsToken({
         path: { document_id: this.id },
       }),
     ).token;
   }
+
   /** Prepare multipart content saving and return the service's upload instructions. */
   async prepareSave(parts: PreSaveDocumentRequest['newBom']) {
     return unwrap(
@@ -106,6 +112,7 @@ export class Document
       }),
     ).data;
   }
+
   /** Commit uploaded content. Does not retry uncertain writes. */
   async save(options: SaveDocumentRequest) {
     return (
@@ -117,7 +124,9 @@ export class Document
       )
     ).data;
   }
-  /** Commit a simple document save. */ async simpleSave() {
+
+  /** Commit a simple document save. */
+  async simpleSave() {
     return (
       await this.mutate((c) =>
         c.storage.simpleSave({ path: { document_id: this.id } }),
@@ -133,6 +142,7 @@ export class Document
       id,
     );
   }
+
   /** A mixed message and activity timeline page. */
   timelinePage(selection?: TimelineOptions<Comment>) {
     return timeline(
