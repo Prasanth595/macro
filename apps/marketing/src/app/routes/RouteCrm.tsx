@@ -2,6 +2,7 @@ import { lazy } from 'solid-js';
 import { CrmCaptureDemo } from '../../features/marketing/components/crm/CrmCaptureDemo';
 import { CrmComparison } from '../../features/marketing/components/crm/CrmComparison';
 import { CrmEnrichmentDemo } from '../../features/marketing/components/crm/CrmEnrichmentDemo';
+import { CrmFollowupDemo } from '../../features/marketing/components/crm/CrmFollowupDemo';
 import {
   AgentIllustration,
   CaptureIllustration,
@@ -19,7 +20,6 @@ import {
   FeaturePageSection,
 } from '../../features/marketing/components/FeaturePage';
 import { HomepageClosing } from '../../features/marketing/components/HomepageClosing';
-import { HomepageConversation } from '../../features/marketing/components/HomepageConversation';
 import {
   ProductHero,
   ProductPage,
@@ -162,30 +162,7 @@ export function RouteCrm() {
         details={crmGuides['crm-agents']}
       >
         <DemoInteractionBoundary class="feature-page-visual crm-agent-scene">
-          <HomepageConversation
-            messages={[
-              {
-                person: 'valentina',
-                text: (
-                  <>
-                    <span class="homepage-person-mention">@Claude</span>, update
-                    the pipeline from our sales sync. Parlor Studio asked for a
-                    proposal, and Bookend Retail signed.
-                  </>
-                ),
-              },
-            ]}
-          />
-          <div class="homepage-pipeline-demo workspace-demo">
-            <DeferredDemo
-              preload={loadPipeline}
-              fallback={
-                <DemoPlaceholder label="Agent updates the customer pipeline" />
-              }
-            >
-              <PipelineDemo compact />
-            </DeferredDemo>
-          </div>
+          <CrmFollowupDemo />
         </DemoInteractionBoundary>
       </FeaturePageSection>
       <FeaturePageFaq
