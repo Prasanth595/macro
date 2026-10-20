@@ -15,7 +15,9 @@ import { DatabaseTable } from './table';
 
 /** A version observed on a typed table handle, reusable as a write guard. */
 export interface QueryTableVersion {
+  /** Table whose version was observed. */
   table: DatabaseTable;
+  /** Opaque version to pass back as an optimistic write guard. */
   version: TableVersion;
 }
 
@@ -29,43 +31,71 @@ export interface DatabaseQueryOptions {
 
 /** Result column metadata, including a typed relation target when visible. */
 export type QueryColumn = Omit<ResultColumn, 'relatedTable'> & {
+  /** Visible target table for a relation column. */
   relatedTable?: DatabaseTable;
 };
 
 /** SQL returns dynamically shaped, discriminated cells and optional source row handles. */
 export interface QueryResultSet {
+  /** Ordered metadata corresponding to each cell in a result row. */
   columns: QueryColumn[];
+  /** Dynamic tagged cells in column order; empty cells are null. */
   rows: ResultSet['rows'];
+  /** Persisted source table when results correspond to individual rows. */
   sourceTable?: DatabaseTable;
+  /** Source row handles in result order; empty for aggregates and virtual tables. */
   rowHandles: DatabaseRow[];
 }
 
 /** What ran, with typed handles for resources written by the statement. */
 export type QueryStatement =
   | Extract<SqlStatement, { kind: 'select' }>
-  | { kind: 'schema'; database: Database; summary: string }
   | {
+      /** Schema change discriminator. */
+      kind: 'schema';
+      /** Database whose schema changed. */
+      database: Database;
+      /** Human-readable description of the schema change. */
+      summary: string;
+    }
+  | {
+      /** Row mutation discriminator. */
       kind: 'insert' | 'update' | 'delete';
+      /** Table targeted by the mutation, including zero-match writes. */
       table: DatabaseTable;
+      /** SQL name of the target table. */
       tableName: string;
     }
   | {
+      /** Column type change discriminator. */
       kind: 'alterColumnType';
+      /** Table containing the changed column. */
       table: DatabaseTable;
+      /** SQL name of the target table. */
       tableName: string;
+      /** Column whose type changed. */
       column: DatabaseColumn;
+      /** SQL name of the changed column. */
       columnName: string;
+      /** SQL type requested by the statement. */
       to: string;
     };
 
 /** The committed outcome of one statement; write calls are never automatically retried. */
 export interface DatabaseQueryResult {
+  /** Returned result set, when the statement produces one. */
   result?: QueryResultSet;
+  /** Number of changes committed by the statement. */
   changesApplied: number;
+  /** Handles for newly inserted rows, in insertion order. */
   insertedRows: DatabaseRow[];
+  /** Versions of tables after committed writes. */
   newVersions: QueryTableVersion[];
+  /** Observed table versions, reusable as guards for a later write. */
   readVersions: QueryTableVersion[];
+  /** SQL table names whose input hit the server row cap; aggregates may be partial. */
   truncatedTables: string[];
+  /** Statement classification with typed handles for its targets. */
   statement: QueryStatement;
 }
 

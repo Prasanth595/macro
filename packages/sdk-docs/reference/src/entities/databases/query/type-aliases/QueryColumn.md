@@ -6,6 +6,6 @@ Result column metadata, including a typed relation target when visible.
 
 ## Type Declaration
 
-| Name | Type |
-| ------ | ------ |
-| `relatedTable?` | [`DatabaseTable`](../../table/classes/DatabaseTable.md) |
+| Name | Type | Description |
+| ------ | ------ | ------ |
+| `relatedTable?` | [`DatabaseTable`](../../table/classes/DatabaseTable.md) | Visible target table for a relation column. |
