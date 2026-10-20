@@ -137,7 +137,7 @@ export function RouteGithub() {
         <FeaturePageSection
           id="review-inbox"
           title={['See review requests', 'in one inbox.']}
-          description="Keep GitHub review requests, comments, and mentions alongside your messages, tasks, and email. See what needs attention and open the relevant pull request from the same inbox."
+          description="Find GitHub mentions, comments, and requested reviews alongside the rest of your work."
           details={githubGuides['review-inbox']}
         >
           <div class="feature-page-visual">
