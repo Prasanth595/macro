@@ -147,6 +147,14 @@ describe('buildEntityPropertiesInput', () => {
       ).toBeUndefined();
     }
   );
+
+  it('loads nothing for an entity type a newer service added', () => {
+    const fromNewerService = JSON.parse('"AGENT_SESSION"');
+
+    expect(
+      buildEntityPropertiesInput(fromNewerService, 'entity-1')
+    ).toBeUndefined();
+  });
 });
 
 describe('mapGraphqlEntityProperties', () => {

@@ -69,7 +69,7 @@ export function buildEntityPropertiesInput(
     .with('DATABASE_ROW', () => 'DATABASE_ROW')
     // Users and CRM contacts carry no Soup properties.
     .with('USER', 'CONTACT', () => undefined)
-    .exhaustive();
+    .exhaustive(() => undefined);
   return soupEntityType && { entityType: soupEntityType, entityId };
 }
 
