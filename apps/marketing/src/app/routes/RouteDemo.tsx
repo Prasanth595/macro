@@ -42,7 +42,21 @@ export default function RouteDemo() {
       >
         <style>{properties}</style>
         <style>{`@scope (.dummy-route) { ${styles} ${workspacePalette.replaceAll(':root', ':scope')} }`}</style>
-        <Show when={params.scene === 'homepage'} fallback={<DummyWorkspace />}>
+        <Show
+          when={params.scene === 'homepage'}
+          fallback={
+            <DummyWorkspace
+              initialView={
+                typeof params.document === 'string' ? 'documents' : undefined
+              }
+              initialDocument={
+                typeof params.document === 'string'
+                  ? params.document
+                  : undefined
+              }
+            />
+          }
+        >
           <Suspense
             fallback={
               <div class="email-desktop-loading">Opening your workspace…</div>

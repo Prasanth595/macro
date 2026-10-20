@@ -23,3 +23,11 @@
  .email-agent-draft .homepage-email-label { flex-basis: 46px; }
 }
 @media (prefers-reduced-motion:reduce) { .email-agent-context, .email-agent-draft { animation: none; } }
+
+.email-agent-splits { display:flex; min-width:0; min-height:0; height:100%; }
+.email-agent-main { display:flex; flex-direction:column; flex:1; min-width:0; min-height:0; }
+.email-agent-source { display:flex; flex-direction:column; flex:0 1 46%; min-width:0; min-height:0; border-right:1px solid var(--color-edge-muted); container:sample-main / inline-size; }
+@media (max-width:899px) {
+ .email-agent-splits[data-source-open=true] .email-agent-main { display:none; }
+ .email-agent-source { flex:1; border:0; }
+}

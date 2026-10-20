@@ -10,6 +10,7 @@ import {
   onMount,
   Show,
 } from 'solid-js';
+import { createDemoComposerLayout } from '../../../primitives/createDemoComposerLayout';
 import { serializeDemoEditor } from '../../DemoMention';
 import { InputActionButton } from './ActionButton';
 import { Layout } from './ComposerLayout';
@@ -37,11 +38,12 @@ export function ChannelComposer(props: {
   const [attachments, setAttachments] = createSignal<string[]>([]);
   let filePicker: HTMLInputElement | undefined;
   let input: HTMLTextAreaElement | HTMLDivElement | undefined;
-  const resize = () => {
-    if (!input) return;
-    input.style.height = '24px';
-    input.style.height = `${Math.min(input.scrollHeight, 200)}px`;
-  };
+  const layout = createDemoComposerLayout({
+    input: () => input,
+    text: draft,
+    compact: () => props.compact,
+  });
+  const resize = layout.resize;
   onMount(() => {
     props.onReady?.({
       send: () => send(),
@@ -54,9 +56,6 @@ export function ChannelComposer(props: {
       },
     });
     onCleanup(() => props.onReady?.(undefined));
-    const observer = new ResizeObserver(resize);
-    if (input?.parentElement) observer.observe(input.parentElement);
-    onCleanup(() => observer.disconnect());
   });
   const send = () => {
     if (!draft().trim() && !attachments().length) return;
@@ -109,13 +108,7 @@ export function ChannelComposer(props: {
       </Show>
       <Layout
         data-agent-composer={props.agent || undefined}
-        oneLineInput={
-          props.compact ??
-          (!draft().includes('\n') &&
-            (input?.tagName === 'DIV'
-              ? (input.textContent?.length ?? 0)
-              : draft().length) < 70)
-        }
+        oneLineInput={layout.compact()}
       >
         <Layout.Body>
           <Layout.Editor>

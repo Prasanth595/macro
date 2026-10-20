@@ -101,7 +101,9 @@ export default function HomepageEmailCompose(
                     ? 'Macro product overview and pricing, shared after the demo.'
                     : 'The setup steps and owners for Valentina’s team.'
                 }
-                href="#email"
+                href={
+                  item.kind === 'md' ? '/demo?document=rollout' : '/documents'
+                }
               />
             ),
             mention

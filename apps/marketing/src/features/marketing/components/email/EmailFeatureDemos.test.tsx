@@ -352,3 +352,24 @@ it('keeps one operating pointer through account connection and removes it on tak
       ?.getAttribute('data-step')
   ).toBe('2');
 });
+
+it('opens the setup document from the draft without losing the visitor’s email edits', async () => {
+  reduced = true;
+  const view = render(() => <EmailAgenticEditingDemo />);
+  const body = view.getByRole('textbox', { name: 'Email body' });
+  body.textContent = 'Keep my edited email.';
+  fireEvent.input(body);
+  fireEvent.click(view.getAllByRole('link', { name: 'Setup plan' })[0]);
+  const title = await view.findByRole(
+    'textbox',
+    { name: 'Document title' },
+    { timeout: 3000 }
+  );
+  expect(title.textContent).toBe('Setup plan');
+  expect(
+    view.getByRole('textbox', { name: 'Document body' }).textContent
+  ).toContain('Connect your email inbox');
+  fireEvent.click(view.getByRole('button', { name: 'Back to draft' }));
+  expect(view.getByRole('textbox', { name: 'Email body' })).toBe(body);
+  expect(body.textContent).toBe('Keep my edited email.');
+});

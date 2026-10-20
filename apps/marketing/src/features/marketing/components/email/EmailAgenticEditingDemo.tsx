@@ -1,8 +1,9 @@
 import Sparkle from '@phosphor/sparkle.svg';
 import { UserMessageBubble } from '@ui/components/UserMessageBubble';
-import { createSignal, Show } from 'solid-js';
+import { createSignal, lazy, Show } from 'solid-js';
 import { meetingDraft } from '../../core/email-demo-story';
 import { createDemoPointer } from '../../primitives/createDemoPointer';
+import { createDummyWorkspace } from '../../primitives/createDummyWorkspace';
 import { createEmailWalkthrough } from '../../primitives/createEmailWalkthrough';
 import { demoTypingActions } from '../../primitives/demoTypingActions';
 import { DemoCursor } from '../DemoCursor';
@@ -15,6 +16,8 @@ import {
 import { EmailShell } from './frozen/EmailShell';
 import './email-feature-demos.css';
 import './email-agentic-editing.css';
+
+const EmailDemoSource = lazy(() => import('./EmailDemoSource'));
 
 const request =
   'Draft a reply to Valentina confirming Thursday at 9. Use the call notes, include the setup plan and Macro overview, and copy Julia. Leave it as a draft.';
@@ -38,6 +41,27 @@ export function EmailAgenticEditingDemo() {
   let composer: ChannelComposerHandle | undefined;
   const [phase, setPhase] = createSignal(0);
   const [prompt, setPrompt] = createSignal(request);
+  const [source, setSource] = createSignal<'setup' | 'call'>();
+  const workspace = createDummyWorkspace('documents');
+  workspace.setData('documents', [
+    {
+      id: 'email-setup',
+      title: 'Setup plan',
+      body: '## Before Thursday\n\n- Connect your email inbox.\n- Invite your teammates.\n- Choose the documents to share with your team.\n\nJulia can help with setup before the demo at 9.',
+      comments: [],
+    },
+  ]);
+  workspace.open('documents', 'email-setup');
+  let sourceTrigger: HTMLAnchorElement | undefined;
+  const openSource = (kind: 'setup' | 'call', trigger: HTMLAnchorElement) => {
+    playback.pause();
+    sourceTrigger = trigger;
+    setSource(kind);
+  };
+  const closeSource = () => {
+    setSource(undefined);
+    queueMicrotask(() => sourceTrigger?.focus({ preventScroll: true }));
+  };
   const showDraft = () => {
     setPhase(3);
     composer?.setText('');
@@ -108,91 +132,124 @@ export function EmailAgenticEditingDemo() {
       data-phase={phase()}
       onPointerDown={playback.pause}
       onFocusIn={playback.pause}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && source() && !event.defaultPrevented) {
+          event.preventDefault();
+          event.stopPropagation();
+          closeSource();
+        }
+      }}
     >
       <EmailShell label="Draft a reply from your work" showRail={false}>
-        <header class="email-feature-toolbar email-draft-title">
-          <Sparkle />
-          <span>Draft a follow-up</span>
-        </header>
-        <div ref={scroll} class="email-agent-scroll">
-          <div class="email-agent-content">
-            <Show when={phase() >= 1}>
-              <div class="email-agent-request">
-                <UserMessageBubble>{prompt()}</UserMessageBubble>
-              </div>
-            </Show>
-            <Show when={phase() >= 2}>
-              <div class="email-agent-context">
-                Thursday at 9 is confirmed in the{' '}
-                <HomepageMention
-                  kind="call"
-                  label="Demo call"
-                  description="Valentina confirmed Thursday at 9. Julia will help with setup."
-                  href="#agentic-editing"
-                />
-                . The{' '}
-                <HomepageMention
-                  kind="md"
-                  label="Setup plan"
-                  description="Connect your email, invite your teammates, and choose the documents to share. Julia can help."
-                  href="#agentic-editing"
-                />{' '}
-                covers the setup steps.
-              </div>
-            </Show>
-            <Show when={phase() >= 3}>
-              <div ref={draft} class="email-agent-draft">
-                <HomepageEmailCompose
-                  appChrome
-                  draft={meetingDraft}
-                  bodyContent={
-                    <>
-                      <p>Hi Valentina,</p>
-                      <p>Thursday at 9 works.</p>
-                      <p>
-                        Here’s the{' '}
-                        <HomepageMention
-                          kind="md"
-                          label="Setup plan"
-                          description="Connect your email, invite your teammates, and share your documents."
-                          href="#agentic-editing"
-                        />{' '}
-                        and our{' '}
-                        <HomepageMention
-                          kind="pdf"
-                          label="Macro overview.pdf"
-                          description="A short overview of Macro and how to get started."
-                          href="#agentic-editing"
-                        />
-                        .
-                      </p>
-                      <p>I’ve copied Julia, who can help with setup.</p>
-                      <p>
-                        See you Thursday,
-                        <br />
-                        Jacob
-                      </p>
-                    </>
+        <div class="email-agent-splits" data-source-open={!!source()}>
+          <Show when={source()} keyed>
+            {(kind) => (
+              <section
+                class="email-agent-source workspace-demo dummy-workspace"
+                aria-label="Linked source"
+              >
+                <EmailDemoSource
+                  source={kind}
+                  workspace={workspace}
+                  onBack={closeSource}
+                  onReady={() =>
+                    root
+                      .querySelector<HTMLElement>('.email-agent-source button')
+                      ?.focus({ preventScroll: true })
                   }
                 />
+              </section>
+            )}
+          </Show>
+          <div class="email-agent-main">
+            <header class="email-feature-toolbar email-draft-title">
+              <Sparkle />
+              <span>Draft a follow-up</span>
+            </header>
+            <div ref={scroll} class="email-agent-scroll">
+              <div class="email-agent-content">
+                <Show when={phase() >= 1}>
+                  <div class="email-agent-request">
+                    <UserMessageBubble>{prompt()}</UserMessageBubble>
+                  </div>
+                </Show>
+                <Show when={phase() >= 2}>
+                  <div class="email-agent-context">
+                    Thursday at 9 is confirmed in the{' '}
+                    <HomepageMention
+                      kind="call"
+                      label="Demo call"
+                      description="Valentina confirmed Thursday at 9. Julia will help with setup."
+                      href="/calls"
+                      onOpen={(trigger) => openSource('call', trigger)}
+                    />
+                    . The{' '}
+                    <HomepageMention
+                      kind="md"
+                      label="Setup plan"
+                      description="Connect your email, invite your teammates, and choose the documents to share. Julia can help."
+                      href="/documents"
+                      onOpen={(trigger) => openSource('setup', trigger)}
+                    />{' '}
+                    covers the setup steps.
+                  </div>
+                </Show>
+                <Show when={phase() >= 3}>
+                  <div ref={draft} class="email-agent-draft">
+                    <HomepageEmailCompose
+                      appChrome
+                      draft={meetingDraft}
+                      bodyContent={
+                        <>
+                          <p>Hi Valentina,</p>
+                          <p>Thursday at 9 works.</p>
+                          <p>
+                            Here’s the{' '}
+                            <HomepageMention
+                              kind="md"
+                              label="Setup plan"
+                              description="Connect your email, invite your teammates, and share your documents."
+                              href="/documents"
+                              onOpen={(trigger) => openSource('setup', trigger)}
+                            />{' '}
+                            and our{' '}
+                            <HomepageMention
+                              kind="pdf"
+                              label="Macro overview.pdf"
+                              description="A short overview of Macro and how to get started."
+                              href="/documents"
+                            />
+                            .
+                          </p>
+                          <p>I’ve copied Julia, who can help with setup.</p>
+                          <p>
+                            See you Thursday,
+                            <br />
+                            Jacob
+                          </p>
+                        </>
+                      }
+                    />
+                  </div>
+                </Show>
               </div>
-            </Show>
+            </div>
+            <div class="email-agent-input">
+              <ChannelComposer
+                agent
+                label="Message the email agent"
+                placeholder="Ask a follow-up..."
+                onReady={(handle) => {
+                  composer = handle;
+                }}
+                onSend={(text) => {
+                  playback.pause();
+                  setPrompt(text);
+                  showDraft();
+                }}
+              />
+            </div>
           </div>
-        </div>
-        <div class="email-agent-input">
-          <ChannelComposer
-            agent
-            label="Message the email agent"
-            placeholder="Ask a follow-up..."
-            onReady={(handle) => {
-              composer = handle;
-            }}
-            onSend={(text) => {
-              playback.pause();
-              setPrompt(text);
-              showDraft();
-            }}
-          />
         </div>
       </EmailShell>
       <Show when={pointer()}>
