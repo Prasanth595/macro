@@ -3,7 +3,10 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { WorkspaceDesktopDemo } from './WorkspaceDesktopDemo';
 
 vi.mock('./DemoInteractionBoundary', () => ({
-  DemoInteractionBoundary: (props: { children: unknown }) => props.children,
+  DemoInteractionBoundary: (props: {
+    children: unknown;
+    render?: () => unknown;
+  }) => props.render?.() ?? props.children,
 }));
 afterEach(cleanup);
 

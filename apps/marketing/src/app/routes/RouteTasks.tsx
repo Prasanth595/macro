@@ -139,36 +139,40 @@ export function RouteTasks() {
           title={['Turn requests in chat', 'into tasks.']}
           description="Turn a request in chat into a task without copying it into another tool. Give it an owner, set the priority, and keep the original conversation close by."
         >
-          <DemoInteractionBoundary class="feature-page-visual">
-            <TaskFromMessageDemo />
-          </DemoInteractionBoundary>
+          <DemoInteractionBoundary
+            class="feature-page-visual"
+            render={() => <TaskFromMessageDemo />}
+          />
         </FeaturePageSection>
         <FeaturePageSection
           id="ask-macro"
           title={['Keep your tasks', 'up to date with agents.']}
           description="Tell your agent what your team needs to get done in your team channels. The agent can create tasks, change who’s assigned, and check what tasks are still incomplete."
         >
-          <DemoInteractionBoundary class="feature-page-visual">
-            <TaskAgentChannelDemo />
-          </DemoInteractionBoundary>
+          <DemoInteractionBoundary
+            class="feature-page-visual"
+            render={() => <TaskAgentChannelDemo />}
+          />
         </FeaturePageSection>
         <FeaturePageSection
           id="from-docs-and-email"
           title={['Attach files, people,', 'and emails to your task.']}
           description="Tag emails, documents, images, and team discussion directly to your task so your team has the context it needs to complete the task."
         >
-          <DemoInteractionBoundary class="feature-page-visual">
-            <TaskContextDemo />
-          </DemoInteractionBoundary>
+          <DemoInteractionBoundary
+            class="feature-page-visual"
+            render={() => <TaskContextDemo />}
+          />
         </FeaturePageSection>
         <FeaturePageSection
           id="github"
           title={['Keep tasks in sync', 'with your code.']}
           description="Connect a task to its pull request and let the code update its status. The task moves into review when the PR opens and completes when the change merges."
         >
-          <DemoInteractionBoundary class="feature-page-visual">
-            <TaskGithubDemo />
-          </DemoInteractionBoundary>
+          <DemoInteractionBoundary
+            class="feature-page-visual"
+            render={() => <TaskGithubDemo />}
+          />
         </FeaturePageSection>
         <TasksComparison />
         <FeaturePageFaq

@@ -75,7 +75,8 @@ function Feature(props: {
   productPages?: readonly { title: string; path: ProductPagePath }[];
   titleAdornment?: JSX.Element;
   messages?: readonly HomepageMessage[];
-  children: JSX.Element;
+  children?: JSX.Element;
+  render?: () => JSX.Element;
 }) {
   const conversation = createMemo(() => props.messages);
   return (
@@ -97,13 +98,14 @@ function Feature(props: {
       <DemoInteractionBoundary
         label={props.title}
         class="homepage-feature-visual"
-      >
-        <div
-          class={`homepage-feature-graphic homepage-enter homepage-feature-${props.id}`}
-        >
-          {props.children}
-        </div>
-      </DemoInteractionBoundary>
+        render={() => (
+          <div
+            class={`homepage-feature-graphic homepage-enter homepage-feature-${props.id}`}
+          >
+            {props.render ? props.render() : props.children}
+          </div>
+        )}
+      />
       <Show when={props.productPages}>
         {(pages) => (
           <div class="homepage-feature-more-group">
@@ -209,14 +211,15 @@ export function HomepageSections() {
               ),
             },
           ]}
-        >
-          <DeferredDemo
-            preload={loadEmailCompose}
-            fallback={<DemoPlaceholder label="Email draft preview" />}
-          >
-            <HomepageEmailCompose />
-          </DeferredDemo>
-        </Feature>
+          render={() => (
+            <DeferredDemo
+              preload={loadEmailCompose}
+              fallback={<DemoPlaceholder label="Email draft preview" />}
+            >
+              <HomepageEmailCompose />
+            </DeferredDemo>
+          )}
+        />
         <Feature
           id="documents"
           productPages={[
@@ -241,34 +244,36 @@ export function HomepageSections() {
               text: 'On it. I’ve linked the launch checklist so we can track it from the doc.',
             },
           ]}
-        >
-          <figure class="homepage-doc-history" id="tasks">
-            <div id="version-control">
-              <DeferredDemo
-                preload={loadCollaborativeDoc}
-                fallback={
-                  <DemoPlaceholder label="Collaborative document, tasks, and version history preview" />
-                }
-              >
-                <HomepageCollaborativeDoc />
-              </DeferredDemo>
-            </div>
-          </figure>
-        </Feature>
+          render={() => (
+            <figure class="homepage-doc-history" id="tasks">
+              <div id="version-control">
+                <DeferredDemo
+                  preload={loadCollaborativeDoc}
+                  fallback={
+                    <DemoPlaceholder label="Collaborative document, tasks, and version history preview" />
+                  }
+                >
+                  <HomepageCollaborativeDoc />
+                </DeferredDemo>
+              </div>
+            </figure>
+          )}
+        />
         <Feature
           id="coding-agents"
           productPages={[{ title: 'Agents', path: '/agents' }]}
           title="Coding agents"
           titleAdornment={<HomepageAgentLogos />}
           description="Give agents tasks. Review the work together."
-        >
-          <DeferredDemo
-            preload={loadPullRequest}
-            fallback={<DemoPlaceholder label="Agent session preview" />}
-          >
-            <HomepagePullRequest />
-          </DeferredDemo>
-        </Feature>
+          render={() => (
+            <DeferredDemo
+              preload={loadPullRequest}
+              fallback={<DemoPlaceholder label="Agent session preview" />}
+            >
+              <HomepagePullRequest />
+            </DeferredDemo>
+          )}
+        />
         <Feature
           id="spreadsheet"
           title="Sheets and databases"
@@ -284,14 +289,15 @@ export function HomepageSections() {
               ),
             },
           ]}
-        >
-          <DeferredDemo
-            preload={loadSpreadsheet}
-            fallback={<DemoPlaceholder label="Spreadsheet preview" />}
-          >
-            <HomepageSpreadsheet />
-          </DeferredDemo>
-        </Feature>
+          render={() => (
+            <DeferredDemo
+              preload={loadSpreadsheet}
+              fallback={<DemoPlaceholder label="Spreadsheet preview" />}
+            >
+              <HomepageSpreadsheet />
+            </DeferredDemo>
+          )}
+        />
         <Feature
           id="crm"
           productPages={[{ title: 'CRM', path: '/crm' }]}
@@ -316,14 +322,15 @@ export function HomepageSections() {
               ),
             },
           ]}
-        >
-          <DeferredDemo
-            preload={loadCrm}
-            fallback={<DemoPlaceholder label="CRM pipeline preview" />}
-          >
-            <HomepageCrm />
-          </DeferredDemo>
-        </Feature>
+          render={() => (
+            <DeferredDemo
+              preload={loadCrm}
+              fallback={<DemoPlaceholder label="CRM pipeline preview" />}
+            >
+              <HomepageCrm />
+            </DeferredDemo>
+          )}
+        />
         <HomepageTestimonials />
         <HomepageBlog />
         <HomepageClosing root={() => root} />

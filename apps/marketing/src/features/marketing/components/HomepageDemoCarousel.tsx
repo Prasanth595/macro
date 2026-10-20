@@ -1,6 +1,9 @@
 import { createSignal, For, type JSX, onCleanup, onMount } from 'solid-js';
 import { HOMEPAGE_DEMO_EVENT } from '../core/homepage-demo-scenes';
-import { DEMO_INTERACTION_EVENT } from './DemoInteractionBoundary';
+import {
+  DEMO_INTERACTION_EVENT,
+  DEMO_REPLAY_EVENT,
+} from './DemoInteractionBoundary';
 
 const SLIDES = [
   {
@@ -140,6 +143,12 @@ export function HomepageDemoCarousel(props: {
   };
 
   onMount(() => {
+    const resume = () => {
+      setAutoplay(true);
+      restartAutoplay();
+    };
+    root.addEventListener(DEMO_REPLAY_EVENT, resume);
+    onCleanup(() => root.removeEventListener(DEMO_REPLAY_EVENT, resume));
     const frame = props.frame();
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
     if (motion.matches) setAutoplay(false);

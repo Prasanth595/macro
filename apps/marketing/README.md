@@ -138,9 +138,12 @@ they do not initialize calls, run checks, post GitHub comments, or merge code.
 `createProductWalkthrough` and `createEmailWalkthrough` share the same clock:
 start when the configured portion is visible, preserve the remaining step delay
 while offscreen or hidden, and show a useful static result for reduced motion.
-`observeDemoTakeover` gives the visitor permanent control on pointer/keyboard
-input or entry through any containing preview boundary. A later visibility or
-motion-preference change must never overwrite visitor edits. Page scrolling
+`observeDemoTakeover` pauses the current scene when the visitor enters or edits it.
+Preserve edits while the demo is visible or a control inside it has focus.
+`DemoInteractionBoundary` may recreate an interacted demo after 30 seconds fully
+offscreen and unfocused; returning sooner cancels the reset. Hidden tabs do not
+run that timer. Use its `render` factory so scene state, timers, and cursors are
+recreated together. Standalone `/demo` visits keep manual control. Page scrolling
 alone does not enter a demo. The default start threshold is half the frame;
 scenes targeting a composer can require that input area to be fully visible.
 Repeatable feature stories use `loop` with a 6–10 second result hold (the short
@@ -375,6 +378,18 @@ team sharing from standalone meeting access.
 Website UI utilities and the frozen dark palette are scoped to `.feature-page`,
 preserving the surrounding public-page styles.
 
+Shared `ChannelComposer` sizing follows the app's compact-width measurement,
+not a character cutoff. Measure an inert copy, update the live height only when
+it changes, and ignore height-only resize notifications. Keep textarea and rich
+mention inputs on that same sizing path.
+
+`HomepageMention` is a clickable link, without a descriptive hover popup.
+Email draft citations open the existing document and call viewers beside the
+agent (or in place on phones), keeping the draft mounted. The sample PDF link
+opens the Documents page in a new tab until a real sample PDF is supplied.
+Existing sample documents can open directly through `/demo?document=<id>`;
+the generated rollout-plan link uses the `rollout` fixture.
+
 The email page reuses `HomepageEmailCompose` and frozen presentation from
 `EmailInboxSelector`, `EmailSidebar`, `SearchBar`, entity email rows, `MessageCard`,
 the share form, and channel composer. Keep headings and descriptions unchanged
@@ -418,6 +433,9 @@ hero background or sizing overrides. CRM demonstrates message-driven
 record updates using the shared company UI, company enrichment, an editable customer record, company
 mentions in documents and chat, and an agent preparing a follow-up. The hero
 uses `CrmPipelineScene` with CRM navigation, board/table switching, and record search.
+`CrmCaptureDemo` turns the completed @Claude name into the native inline user
+mention while the rest of the request types, without a dropdown. Preserve that
+mention node until sending or resetting, and stop typing on visitor input.
 The final section defers `CrmFollowupDemo` until it approaches the viewport:
 it opens a company, reads its linked
 email/call/file/task tabs, follows the team chat and PR, then presents an editable
@@ -447,7 +465,7 @@ The hero plays once after half the scene becomes visible: hold the board for
 three seconds, move Miller & Rowe from Lead to Qualified with the operating pointer,
 show All records for three seconds, then return to the board. On narrow screens,
 the board scrolls to reveal the destination lane. The first activation click,
-pointer input, or keyboard focus permanently stops playback and clears the cursor;
+pointer input, or keyboard focus stops playback for the current visit and clears the cursor;
 reduced motion shows the settled board. The animation uses the shared
 `createProductWalkthrough` lifecycle and `pipeline-transfer.css`.
 `CompanyPipelineEntry` follows `crm/components/pipeline-entry-cards` and appears
@@ -837,7 +855,7 @@ and `calls/call-project.ts`; shared workspace data stays unchanged. The hero's
 In the call / After the call controls sit outside the product frame. The hero
 stays in the call until the visitor switches scenes or leaves. The follow-up and
 saved-record walkthroughs hold their result for nine seconds before replaying;
-visitor interaction permanently stops them. Participants are illustrative; playback is
+visitor interaction stops them until the shared offscreen reset. Participants are illustrative; playback is
 local and has no call audio or network effects.
 
 The hero shows camera-off participants and call controls, with no screen-share
@@ -912,7 +930,7 @@ mention menu cannot open a second picker or intercept Enter. Keep inline icons
 and underline offsets proportional to the editor font, as in DocumentMention.
 Hold all three completed references
 without a parked pointer, then reset all three together for the next loop.
-Visitor input stops playback permanently;
+Visitor input stops playback until the shared offscreen reset;
 reduced motion shows the result. Inline task mentions open their linked documents, emails, and conversations. PR playback updates status, never the task’s checklist. Focused task-detail
 frames grow to fit the discussion and composer above the decorative fade; verify
 no inner scrolling or horizontal clipping at desktop and phone widths. The full

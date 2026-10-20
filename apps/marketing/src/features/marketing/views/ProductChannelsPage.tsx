@@ -61,27 +61,30 @@ export function RouteChannels() {
         title={['Open all your work', 'straight from chat.']}
         description="Share work in your team channels. Click on a document, task, email, company, person, or any file to see it beside your chat."
       >
-        <DemoInteractionBoundary class="feature-page-visual channel-wide-demo">
-          <ChannelSharedWorkDemo />
-        </DemoInteractionBoundary>
+        <DemoInteractionBoundary
+          class="feature-page-visual channel-wide-demo"
+          render={() => <ChannelSharedWorkDemo />}
+        />
       </FeaturePageSection>
       <FeaturePageSection
         id="channel-access"
         title={['Easily share files', 'with your team.']}
         description="After sharing files in a conversation, anyone in that chat automatically gets access. Anyone added later will gain access, and anyone you remove will lose access."
       >
-        <DemoInteractionBoundary class="feature-page-visual">
-          <ChannelPermissionsDemo />
-        </DemoInteractionBoundary>
+        <DemoInteractionBoundary
+          class="feature-page-visual"
+          render={() => <ChannelPermissionsDemo />}
+        />
       </FeaturePageSection>
       <FeaturePageSection
         id="channel-agents"
         title={['Bring your agents', 'into the conversation.']}
         description="Tag your agent to ask for help, add context, assign a task, or get something done. You can use the Macro agent or bring your own."
       >
-        <DemoInteractionBoundary class="feature-page-visual">
-          <ChannelAgentDemo />
-        </DemoInteractionBoundary>
+        <DemoInteractionBoundary
+          class="feature-page-visual"
+          render={() => <ChannelAgentDemo />}
+        />
       </FeaturePageSection>
       <FeaturePageSection
         id="catch-up"
@@ -90,9 +93,10 @@ export function RouteChannels() {
       >
         <span id="channel-threads" />
         <span id="chat-inbox" />
-        <DemoInteractionBoundary class="feature-page-visual">
-          <ChannelThreadDemo />
-        </DemoInteractionBoundary>
+        <DemoInteractionBoundary
+          class="feature-page-visual"
+          render={() => <ChannelThreadDemo />}
+        />
       </FeaturePageSection>
       <FeatureComparisons
         title="Compare Team Chat Apps"

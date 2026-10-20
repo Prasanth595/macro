@@ -119,14 +119,15 @@ export function RouteCrm() {
         windowChrome={false}
         view="crm"
         label="Explore Macro CRM"
-      >
-        <DeferredDemo
-          preload={loadPipeline}
-          fallback={<DemoPlaceholder label="Sales pipeline" />}
-        >
-          <PipelineDemo hero />
-        </DeferredDemo>
-      </WorkspaceDesktopDemo>
+        render={() => (
+          <DeferredDemo
+            preload={loadPipeline}
+            fallback={<DemoPlaceholder label="Sales pipeline" />}
+          >
+            <PipelineDemo hero />
+          </DeferredDemo>
+        )}
+      />
       <nav
         class="feature-page-jump-links crm-feature-links"
         aria-label="On this page"
@@ -161,41 +162,47 @@ export function RouteCrm() {
         title={['Keep your CRM', 'up to date with agents.']}
         description="Your agent can read customer emails, calls, and chats, then update stages, owners, and next steps in your CRM."
       >
-        <DemoInteractionBoundary class="feature-page-visual">
-          <CrmCaptureDemo />
-        </DemoInteractionBoundary>
+        <DemoInteractionBoundary
+          class="feature-page-visual"
+          render={() => <CrmCaptureDemo />}
+        />
       </FeaturePageSection>
       <FeaturePageSection
         id="crm-enrichment"
         title={['Automatically add and', 'enrich new contacts.']}
         description="When you email someone new, Macro creates the contact and company from their domain. Public company details fill in the record, so you have a starting point before the first meeting."
       >
-        <DemoInteractionBoundary class="feature-page-visual">
-          <CrmEnrichmentDemo />
-        </DemoInteractionBoundary>
+        <DemoInteractionBoundary
+          class="feature-page-visual"
+          render={() => <CrmEnrichmentDemo />}
+        />
       </FeaturePageSection>
       <FeaturePageSection
         id="crm-context"
         title={['Connect calls, emails, and', 'tasks to each customer.']}
         description="Open a company to see the people, emails, calls, files, and tasks behind the relationship. Keep notes on the record so your team understands what happened and what comes next."
       >
-        <DemoInteractionBoundary class="feature-page-visual">
-          <CrmRecordDemo />
-        </DemoInteractionBoundary>
+        <DemoInteractionBoundary
+          class="feature-page-visual"
+          render={() => <CrmRecordDemo />}
+        />
       </FeaturePageSection>
       <FeaturePageSection
         id="crm-agents"
         title={['Draft follow-ups and plan', 'next steps with your agent.']}
         description="Your agent can read the full customer relationship across emails, calls, chats, files, tasks, and GitHub pull requests. Use that context to draft better follow-up emails and move deals forward."
       >
-        <DemoInteractionBoundary class="feature-page-visual crm-agent-scene">
-          <DeferredDemo
-            preload={loadFollowup}
-            fallback={<DemoPlaceholder label="Customer follow-up" />}
-          >
-            <FollowupDemo />
-          </DeferredDemo>
-        </DemoInteractionBoundary>
+        <DemoInteractionBoundary
+          class="feature-page-visual crm-agent-scene"
+          render={() => (
+            <DeferredDemo
+              preload={loadFollowup}
+              fallback={<DemoPlaceholder label="Customer follow-up" />}
+            >
+              <FollowupDemo />
+            </DeferredDemo>
+          )}
+        />
       </FeaturePageSection>
       <CrmComparison />
       <FeaturePageFaq

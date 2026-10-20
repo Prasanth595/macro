@@ -1,4 +1,5 @@
 import { setPageSeo } from '../../../app/utils/utilSeo';
+import { DemoInteractionBoundary } from '../components/DemoInteractionBoundary';
 import { FeaturePageFaq, FeaturePageSection } from '../components/FeaturePage';
 import { HomepageClosing } from '../components/HomepageClosing';
 import {
@@ -89,9 +90,8 @@ export function RouteGithub() {
           heroFrame
           view="home"
           label="Explore GitHub in Macro"
-        >
-          <GithubPrHero />
-        </WorkspaceDesktopDemo>
+          render={() => <GithubPrHero />}
+        />
         <nav class="feature-page-jump-links" aria-label="On this page">
           <a href="#pr-links">
             <ContextGraphic />
@@ -115,18 +115,20 @@ export function RouteGithub() {
           title={['Review pull requests', 'without leaving chat.']}
           description="Share a GitHub pull request in chat and open it from the conversation. Read the discussion and inspect the code changes while the linked PR’s status stays up to date."
         >
-          <div class="feature-page-visual">
-            <GithubConversationDemo />
-          </div>
+          <DemoInteractionBoundary
+            class="feature-page-visual"
+            render={() => <GithubConversationDemo />}
+          />
         </FeaturePageSection>
         <FeaturePageSection
           id="pr-tasks"
           title={['Link pull requests', 'to tasks.']}
           description="Keep implementation and task tracking connected. Link a pull request to its task, then let opening, merging, or closing the PR update the task’s status."
         >
-          <div class="feature-page-visual">
-            <GithubTaskDemo />
-          </div>
+          <DemoInteractionBoundary
+            class="feature-page-visual"
+            render={() => <GithubTaskDemo />}
+          />
         </FeaturePageSection>
         <FeaturePageSection
           id="coding-agents"
@@ -142,9 +144,10 @@ export function RouteGithub() {
           title={['See review requests', 'in one inbox.']}
           description="Find GitHub mentions, comments, and requested reviews alongside the rest of your work."
         >
-          <div class="feature-page-visual">
-            <ReviewInboxDemo />
-          </div>
+          <DemoInteractionBoundary
+            class="feature-page-visual"
+            render={() => <ReviewInboxDemo />}
+          />
         </FeaturePageSection>
         <FeaturePageFaq
           id="github-faq"

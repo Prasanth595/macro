@@ -6,6 +6,7 @@ import {
 } from '../components/calls/CallStories';
 import { CallsComparison } from '../components/calls/CallsComparison';
 import { CallTeamMemoryDemo } from '../components/calls/CallTeamMemoryDemo';
+import { DemoInteractionBoundary } from '../components/DemoInteractionBoundary';
 import { FeaturePageFaq, FeaturePageSection } from '../components/FeaturePage';
 import { HomepageClosing } from '../components/HomepageClosing';
 import {
@@ -105,7 +106,7 @@ export function RouteCalls() {
             'so your agent can handle what comes next.',
           ]}
         />
-        <CallHeroDemo />
+        <DemoInteractionBoundary render={() => <CallHeroDemo />} />
         <nav class="feature-page-jump-links" aria-label="On this page">
           <a href="#call-start" onClick={revisitSection}>
             <CallGraphic />
@@ -128,27 +129,30 @@ export function RouteCalls() {
           ]}
           description="You can start calls from channels, DMs, or through meeting links. People outside of Macro can join your meeting links. Create your own booking links so people can set up times with you."
         >
-          <div class="feature-page-visual">
-            <CallStartDemo />
-          </div>
+          <DemoInteractionBoundary
+            class="feature-page-visual"
+            render={() => <CallStartDemo />}
+          />
         </FeaturePageSection>
         <FeaturePageSection
           id="call-followup"
           title={['Turn what was said on', 'your calls into next steps.']}
           description="Tell your agent to turn what was said on a call into tasks, follow-up emails, and CRM updates. Your agent can read the transcript and determine who said what."
         >
-          <div class="feature-page-visual">
-            <CallFollowupDemo />
-          </div>
+          <DemoInteractionBoundary
+            class="feature-page-visual"
+            render={() => <CallFollowupDemo />}
+          />
         </FeaturePageSection>
         <FeaturePageSection
           id="call-default"
           title={['View call recordings', 'after they finish.']}
           description="After calls finish, you can go back and watch the recording, review the transcript, or get a summary of what was said. Call recordings are shareable across your team."
         >
-          <div class="feature-page-visual">
-            <CallTeamMemoryDemo />
-          </div>
+          <DemoInteractionBoundary
+            class="feature-page-visual"
+            render={() => <CallTeamMemoryDemo />}
+          />
         </FeaturePageSection>
         <CallsComparison />
         <FeaturePageFaq

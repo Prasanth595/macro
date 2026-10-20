@@ -152,36 +152,40 @@ export function RouteEmail() {
         title={['Keep all your inboxes', 'organized.']}
         description="Connect your personal and work inboxes across Gmail, Outlook, and more. Organize them with tags for customers, projects, and follow-ups."
       >
-        <DemoInteractionBoundary class="feature-page-visual">
-          <EmailAccountsDemo />
-        </DemoInteractionBoundary>
+        <DemoInteractionBoundary
+          class="feature-page-visual"
+          render={() => <EmailAccountsDemo />}
+        />
       </FeaturePageSection>
       <FeaturePageSection
         id="email-sharing"
         title={['Share email threads', 'with your team.']}
         description="Share email threads in a channel so your team can read the full conversation, discuss it, and keep new replies linked."
       >
-        <DemoInteractionBoundary class="feature-page-visual">
-          <EmailSharingDemo />
-        </DemoInteractionBoundary>
+        <DemoInteractionBoundary
+          class="feature-page-visual"
+          render={() => <EmailSharingDemo />}
+        />
       </FeaturePageSection>
       <FeaturePageSection
         id="keyboard-speed"
         title={['Manage your inbox', 'with keyboard shortcuts.']}
         description="Open, reply to, and archive emails with keyboard shortcuts so you can move through your inbox faster."
       >
-        <DemoInteractionBoundary class="feature-page-visual">
-          <EmailKeyboardDemo />
-        </DemoInteractionBoundary>
+        <DemoInteractionBoundary
+          class="feature-page-visual"
+          render={() => <EmailKeyboardDemo />}
+        />
       </FeaturePageSection>
       <FeaturePageSection
         id="agentic-editing"
         title={['Draft emails in your', 'voice with agents.']}
         description="Ask an agent to prepare a reply using the email thread, relevant documents, meeting transcripts, and team conversations. Review and edit the draft before sending."
       >
-        <DemoInteractionBoundary class="feature-page-visual">
-          <EmailAgenticEditingDemo />
-        </DemoInteractionBoundary>
+        <DemoInteractionBoundary
+          class="feature-page-visual"
+          render={() => <EmailAgenticEditingDemo />}
+        />
       </FeaturePageSection>
       <EmailComparison />
       <FeaturePageFaq

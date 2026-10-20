@@ -145,27 +145,30 @@ export function RouteAgents() {
         title={['Give your agent the full', 'context of your team’s work.']}
         description="Macro gives your agent access to your team’s calendar, conversations, and files, so it can use the full context of your work to help you get more done."
       >
-        <DemoInteractionBoundary class="feature-page-visual">
-          <AgentMeetingStory />
-        </DemoInteractionBoundary>
+        <DemoInteractionBoundary
+          class="feature-page-visual"
+          render={() => <AgentMeetingStory />}
+        />
       </FeaturePageSection>
       <FeaturePageSection
         id="agent-actions"
         title={['Work with your agent', 'across the workspace.']}
         description="Work with your agent in the chats and documents your team already uses. Add context, ask for updates, and review the result without leaving your workspace."
       >
-        <DemoInteractionBoundary class="feature-page-visual">
-          <AgentDeliverableStory />
-        </DemoInteractionBoundary>
+        <DemoInteractionBoundary
+          class="feature-page-visual"
+          render={() => <AgentDeliverableStory />}
+        />
       </FeaturePageSection>
       <FeaturePageSection
         id="agent-collaboration"
         title={['Turn conversations', 'into finished work.']}
         description="Bring design and implementation into the team conversation. Ask Macro for a mockup, give feedback together, then tag Cursor to build it using the context already in the channel."
       >
-        <DemoInteractionBoundary class="feature-page-visual">
-          <AgentTeamworkStory />
-        </DemoInteractionBoundary>
+        <DemoInteractionBoundary
+          class="feature-page-visual"
+          render={() => <AgentTeamworkStory />}
+        />
       </FeaturePageSection>
       <FeaturePageSection
         id="existing-agents"

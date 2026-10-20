@@ -34,6 +34,7 @@ export function WorkspaceDesktopDemo(props: {
   tasksShowcase?: boolean;
   chatSplits?: boolean;
   children?: JSX.Element;
+  render?: () => JSX.Element;
 }) {
   let content!: HTMLDivElement;
   const [scale, setScale] = createSignal(1);
@@ -97,37 +98,38 @@ export function WorkspaceDesktopDemo(props: {
             label={props.label}
             ref={content}
             class="email-desktop-content"
-          >
-            <div class="email-desktop-canvas">
-              <Show
-                when={props.children}
-                fallback={
-                  <DeferredDemo
-                    preload={loadWorkspace}
-                    fallback={
-                      <div class="email-desktop-loading" role="status">
-                        Opening your sample workspace…
-                      </div>
-                    }
-                  >
-                    <Workspace
-                      initialView={props.view}
-                      initialData={props.initialData}
-                      initialChannelThread={props.initialChannelThread}
-                      initialDocument={props.initialDocument}
-                      initialAgent={props.initialAgent}
-                      agentShowcase={props.agentShowcase}
-                      tasksShowcase={props.tasksShowcase}
-                      chatSplits={props.chatSplits}
-                      embedded
-                    />
-                  </DeferredDemo>
-                }
-              >
-                {props.children}
-              </Show>
-            </div>
-          </DemoInteractionBoundary>
+            render={() => (
+              <div class="email-desktop-canvas">
+                <Show
+                  when={props.render || props.children}
+                  fallback={
+                    <DeferredDemo
+                      preload={loadWorkspace}
+                      fallback={
+                        <div class="email-desktop-loading" role="status">
+                          Opening your sample workspace…
+                        </div>
+                      }
+                    >
+                      <Workspace
+                        initialView={props.view}
+                        initialData={props.initialData}
+                        initialChannelThread={props.initialChannelThread}
+                        initialDocument={props.initialDocument}
+                        initialAgent={props.initialAgent}
+                        agentShowcase={props.agentShowcase}
+                        tasksShowcase={props.tasksShowcase}
+                        chatSplits={props.chatSplits}
+                        embedded
+                      />
+                    </DeferredDemo>
+                  }
+                >
+                  {props.render ? props.render() : props.children}
+                </Show>
+              </div>
+            )}
+          />
         </div>
       </div>
     </section>

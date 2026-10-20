@@ -5,14 +5,28 @@ import {
   screen,
   waitFor,
 } from '@solidjs/testing-library';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import {
   DEMO_INTERACTION_EVENT,
   DemoInteractionBoundary,
   DemoInteractionScope,
 } from './DemoInteractionBoundary';
 
-afterEach(cleanup);
+beforeEach(() => {
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      observe() {}
+      disconnect() {}
+    }
+  );
+});
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 it('lets preview wheel gestures pass to the page and enables controls only on entry', () => {
   const wheel = vi.fn();
@@ -116,4 +130,129 @@ it('handles iframe Escape, respects inner menus, and removes frame listeners on 
   });
   page.dispatchEvent(event);
   expect(event.defaultPrevented).toBe(false);
+});
+
+it('recreates an abandoned demo after 30 seconds away, but never while focused or visible', async () => {
+  vi.useFakeTimers();
+  const observe: IntersectionObserverCallback[] = [];
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      constructor(callback: IntersectionObserverCallback) {
+        observe.push(callback);
+      }
+      observe() {}
+      disconnect() {}
+    }
+  );
+  vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+  let created = 0;
+  const Scene = () => {
+    created++;
+    return <input aria-label="Local draft" value="Original" />;
+  };
+  const view = render(() => (
+    <DemoInteractionBoundary render={() => <Scene />} />
+  ));
+  fireEvent.click(screen.getByRole('button', { name: /Interact with/ }), {
+    detail: 1,
+  });
+  vi.advanceTimersByTime(0);
+  const input = screen.getByLabelText('Local draft') as HTMLInputElement;
+  input.focus();
+  vi.advanceTimersByTime(0);
+  fireEvent.input(input, { target: { value: 'My draft' } });
+  observe[0](
+    [{ isIntersecting: false } as IntersectionObserverEntry],
+    {} as IntersectionObserver
+  );
+  await Promise.resolve();
+  vi.advanceTimersByTime(40000);
+  expect(input.value).toBe('My draft');
+  expect(created).toBe(1);
+  input.blur();
+  vi.advanceTimersByTime(0);
+  await Promise.resolve();
+  vi.advanceTimersByTime(29999);
+  expect(created).toBe(1);
+  observe[0](
+    [{ isIntersecting: true } as IntersectionObserverEntry],
+    {} as IntersectionObserver
+  );
+  vi.advanceTimersByTime(40000);
+  expect(created).toBe(1);
+  observe[0](
+    [{ isIntersecting: false } as IntersectionObserverEntry],
+    {} as IntersectionObserver
+  );
+  vi.advanceTimersByTime(25000);
+  fireEvent.pointerDown(document.body);
+  vi.advanceTimersByTime(0);
+  vi.advanceTimersByTime(5000);
+  expect(created).toBe(2);
+  expect((screen.getByLabelText('Local draft') as HTMLInputElement).value).toBe(
+    'Original'
+  );
+  expect(view.container.querySelector('[data-demo-interacted]')).toBeNull();
+  view.unmount();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+it('lets an inner source handle Escape before leaving the demo', () => {
+  const close = vi.fn((event: KeyboardEvent) => {
+    event.preventDefault();
+  });
+  render(() => (
+    <DemoInteractionBoundary>
+      <button
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') close(event);
+        }}
+      >
+        Close source
+      </button>
+    </DemoInteractionBoundary>
+  ));
+  fireEvent.click(screen.getByRole('button', { name: /Interact with/ }), {
+    detail: 1,
+  });
+  fireEvent.keyDown(screen.getByRole('button', { name: 'Close source' }), {
+    key: 'Escape',
+  });
+  expect(close).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole('button', { name: /Interact with/ })).toBeNull();
+});
+
+it('cancels pending idle work when the demo is removed', async () => {
+  vi.useFakeTimers();
+  let callback!: IntersectionObserverCallback;
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      constructor(next: IntersectionObserverCallback) {
+        callback = next;
+      }
+      observe() {}
+      disconnect() {}
+    }
+  );
+  vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+  const view = render(() => (
+    <DemoInteractionBoundary render={() => <button>Sample</button>} />
+  ));
+  fireEvent.click(screen.getByRole('button', { name: /Interact with/ }), {
+    detail: 1,
+  });
+  vi.advanceTimersByTime(0);
+  callback(
+    [{ isIntersecting: false } as IntersectionObserverEntry],
+    {} as IntersectionObserver
+  );
+  fireEvent.pointerDown(document.body);
+  view.unmount();
+  vi.advanceTimersByTime(0);
+  await Promise.resolve();
+  expect(vi.getTimerCount()).toBe(0);
 });

@@ -87,9 +87,8 @@ export function RouteDocuments() {
           heroFrame
           view="documents"
           label="Explore Macro Docs"
-        >
-          <DocumentProjectDemo teamEditing />
-        </WorkspaceDesktopDemo>
+          render={() => <DocumentProjectDemo teamEditing />}
+        />
         <nav
           class="feature-page-jump-links docs-jump-links"
           aria-label="On this page"
@@ -112,27 +111,30 @@ export function RouteDocuments() {
           title={['Edit docs with your', 'agent in real time.']}
           description="Ask your agent to update a doc and watch it update in real time. You and your team can continue editing the document while the agent writes."
         >
-          <DemoInteractionBoundary class="feature-page-visual">
-            <DocumentAgentDemo />
-          </DemoInteractionBoundary>
+          <DemoInteractionBoundary
+            class="feature-page-visual"
+            render={() => <DocumentAgentDemo />}
+          />
         </FeaturePageSection>
         <FeaturePageSection
           id="document-links"
           title={['Tag emails, files,', 'and chats in your docs.']}
           description="Link to the work you’re writing about and open it beside your document. Read the original email, task, or conversation while you write."
         >
-          <DemoInteractionBoundary class="feature-page-visual docs-wide-demo">
-            <DocumentMentionsDemo />
-          </DemoInteractionBoundary>
+          <DemoInteractionBoundary
+            class="feature-page-visual docs-wide-demo"
+            render={() => <DocumentMentionsDemo />}
+          />
         </FeaturePageSection>
         <FeaturePageSection
           id="document-organization"
           title={['Organize docs', 'with folders and tags.']}
           description="Keep documents in folders and use tags to find them across projects. A brief can stay in its home folder while appearing beside related emails and tasks under the tags your team uses."
         >
-          <DemoInteractionBoundary class="feature-page-visual">
-            <DocumentOrganizationDemo />
-          </DemoInteractionBoundary>
+          <DemoInteractionBoundary
+            class="feature-page-visual"
+            render={() => <DocumentOrganizationDemo />}
+          />
         </FeaturePageSection>
         <section
           id="documents-comparison"
