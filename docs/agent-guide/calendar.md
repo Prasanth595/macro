@@ -102,6 +102,8 @@ color swatch sits beside the title, aligned with the property icons. Calendar
 options and the selected calendar trigger show their color swatches. Description
 stays directly beneath the title. Editable description and location use the same
 full-width rounded containers and horizontal text padding as the selectors.
+Align the description placeholder and first text line with selector typography
+and vertical text position, including multiline descriptions and touch sizing.
 The remaining icon-led rows follow the details popover's order:
 date/time when visible, recurrence, meeting link, direct location input, notifications,
 calendar, then guests. Field gaps are compact: 8px on desktop and 12px on phones.
@@ -142,7 +144,9 @@ Verify a click and a multi-slot drag in Week and Month. Enter a title, descripti
 guest, location, and custom recurrence; move the popover to the sidebar and confirm
 all values survive and date controls appear. Change the selected calendar and
 confirm the menu, trigger, and title swatches match. Check description and location
-text alignment against the selectors on desktop, tablet, and phone.
+text alignment against the selectors on desktop, tablet, and phone. Check the
+actual description placeholder and first text line when empty, filled, and multiline,
+not just the outer container edges.
 Cancel a new custom rule and changes to an existing rule; confirm neither changes
 the event. Scroll the original slot away, navigate several weeks, and change
 period; confirm the draft stays open.

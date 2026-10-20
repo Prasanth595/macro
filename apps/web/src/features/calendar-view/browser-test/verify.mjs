@@ -81,6 +81,36 @@ async function verifyTextContainers(page) {
     assert.ok(Math.abs(field.textStart - fields[1].textStart) < 1, 'Text must align with selector text');
     assert.ok(field.iconOffset < 1, 'Text-field icons must align with the first control line');
   }
+  await verifyDescriptionTextAlignment(page);
+}
+
+async function verifyDescriptionTextAlignment(page) {
+  const alignment = await page.getByRole('group', { name: 'Description', exact: true }).evaluate((row) => {
+    const editor = row.querySelector('[role="textbox"]');
+    const paragraph = editor.textContent.trim()
+      ? editor.querySelector('p')
+      : row.querySelector('.pointer-events-none p');
+    const selector = document.querySelector('button[aria-label="Repeats"]');
+    const value = selector.querySelector('[id$="value"]');
+    const firstTextRect = (element) => {
+      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+      const range = document.createRange();
+      range.selectNodeContents(walker.nextNode());
+      return range.getClientRects()[0];
+    };
+    const text = firstTextRect(paragraph);
+    const selectorText = firstTextRect(value);
+    const container = row.lastElementChild.firstElementChild.getBoundingClientRect();
+    const trigger = selector.getBoundingClientRect();
+    return {
+      horizontal: Math.abs(text.x - selectorText.x),
+      vertical: Math.abs((text.y - container.y) - (selectorText.y - trigger.y)),
+      height: Math.abs(text.height - selectorText.height),
+    };
+  });
+  assert.ok(alignment.horizontal < 1, `Description text must align horizontally: ${JSON.stringify(alignment)}`);
+  assert.ok(alignment.vertical < 1, `Description text must align with selector text vertically: ${JSON.stringify(alignment)}`);
+  assert.ok(alignment.height < 1, `Description and selector text must use matching typography: ${JSON.stringify(alignment)}`);
 }
 async function verifySelectorShape(page) {
   const minimumHeight = await page.evaluate(() => matchMedia('(pointer: coarse)').matches ? 44 : 36);
@@ -185,7 +215,11 @@ async function verifyDesktop(options, name) {
     await verifyCalendarColors(page);
     await verifyTextContainers(page);
     await title.fill('Calendar draft stays here');
-    await page.getByRole('textbox', { name: 'Description', exact: true }).fill('Keep this description when moving.');
+    const description = page.getByRole('textbox', { name: 'Description', exact: true });
+    await description.fill('Keep this description when moving.');
+    await verifyDescriptionTextAlignment(page);
+    await description.fill('Keep this description when moving.\nAnother agenda item.');
+    await verifyDescriptionTextAlignment(page);
     await page.getByRole('button', { name: /Video conferencing/ }).click();
     await page.getByRole('option', { name: 'Google Meet', exact: true }).click();
     await page.getByRole('textbox', { name: 'Location', exact: true }).fill('Design studio');
@@ -324,6 +358,8 @@ async function verifyMobile() {
     await verifyCalendarColors(page);
     await verifyTextContainers(page);
     await title.fill('Phone draft');
+    await page.getByRole('textbox', { name: 'Description', exact: true }).fill('Phone agenda\nAnother agenda item.');
+    await verifyDescriptionTextAlignment(page);
     await page.getByRole('textbox', { name: 'Location', exact: true }).fill('South studio');
     await page.getByRole('button', { name: /Repeats/ }).click();
     await page.getByRole('option', { name: /Custom/ }).click();

@@ -217,7 +217,7 @@ export function EventForm(props: EventFormProps) {
     <Show
       when={fieldIsReadOnly('description')}
       fallback={
-        <div class="min-h-9 min-w-0 w-full max-h-36 overflow-y-auto rounded-xl border border-edge-muted bg-control px-2 touch:min-h-[44px] touch:py-1">
+        <div class="min-h-9 min-w-0 w-full max-h-36 overflow-y-auto rounded-xl border border-edge-muted bg-control px-2 py-2 touch:min-h-[44px] touch:py-3">
           <MarkdownTextarea
             resolveAppLink={resolveAppLink}
             type="calendar"
@@ -239,7 +239,7 @@ export function EventForm(props: EventFormProps) {
             domRef={(element) =>
               element.setAttribute('aria-label', 'Description')
             }
-            class="min-h-[34px] w-full bg-transparent px-0 text-sm leading-tight text-ink outline-none sm:text-xs"
+            class="h-auto min-h-0 w-full bg-transparent px-0 text-xs leading-normal text-ink outline-none [&>.md>:first-child]:mt-0 [&>.md>:last-child]:mb-0 [&>.pointer-events-none>p]:my-0"
           />
         </div>
       }
