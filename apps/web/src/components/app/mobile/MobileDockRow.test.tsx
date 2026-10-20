@@ -1,5 +1,4 @@
 import { SearchState } from '@app/features/command/mobile/mobileSearchState';
-import { enableCalendarScheduling } from '@core/constant/featureFlags';
 import {
   cleanup,
   fireEvent,
@@ -8,7 +7,7 @@ import {
   waitFor,
   within,
 } from '@solidjs/testing-library';
-import type { ParentProps } from 'solid-js';
+import { createSignal, type ParentProps } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MobileDockRow } from './MobileDockRow';
 import { isMobileNavViewId } from './mobile-nav-views';
@@ -21,9 +20,8 @@ const { navigate, toggleSettings, reviewsFlag, schedulingFlag, foreground } =
     schedulingFlag: { enabled: false },
     foreground: { id: 'tasks' },
   }));
-vi.mock('@app/lib/analytics/posthog', () => ({
-  useFeatureFlag: (flag: unknown) => () =>
-    flag === enableCalendarScheduling ? schedulingFlag : reviewsFlag,
+vi.mock('@core/context/user', () => ({
+  useUserId: () => () => 'dock-test-user',
 }));
 vi.mock('@core/constant/SettingsState', () => ({
   useSettingsState: () => ({ settingsOpen: () => false, toggleSettings }),
@@ -35,24 +33,48 @@ vi.mock('@core/mobile/haptics', () => ({ hapticImpact: vi.fn() }));
 vi.mock('@core/mobile/virtualKeyboard', () => ({
   virtualKeyboardVisible: () => false,
 }));
-vi.mock('@ui', () => ({
+vi.mock('@ui', async () => ({
+  Button: (await import('@ui/components/Button')).Button,
   cn: (...values: unknown[]) => values.filter(Boolean).join(' '),
   Layer: (props: ParentProps) => props.children,
 }));
+const [islandWidth, setIslandWidth] = createSignal(80);
 vi.mock('@solid-primitives/resize-observer', () => ({
-  createElementSize: () => ({ width: 80, height: 40 }),
+  createElementSize: () => ({
+    get width() {
+      return islandWidth();
+    },
+    height: 40,
+  }),
 }));
 vi.mock('./use-mobile-nav', () => ({
   useForegroundMobileView: () => () => foreground.id,
   useMobileNavNavigate: () => navigate,
 }));
 vi.mock('./mobile-dock-views', () => ({
-  useMobileDockViews: () => () => [
-    { id: 'calendar', label: 'Calendar', icon: () => <svg /> },
-    { id: 'documents', label: 'Files', icon: () => <svg /> },
-    { id: 'tasks', label: 'Tasks', icon: () => <svg /> },
-    { id: 'calls', label: 'Calls', icon: () => <svg /> },
-  ],
+  MOBILE_DOCK_VIEWS: [
+    'calendar',
+    'documents',
+    'tasks',
+    'calls',
+    'reviews',
+    'booking-links',
+  ].map((id) => ({ id })),
+  useMobileDockViews: () => {
+    const views = [
+      { id: 'calendar', label: 'Calendar', icon: () => <svg /> },
+      { id: 'documents', label: 'Files', icon: () => <svg /> },
+      { id: 'tasks', label: 'Tasks', icon: () => <svg /> },
+      { id: 'calls', label: 'Calls', icon: () => <svg /> },
+      ...(reviewsFlag.enabled
+        ? [{ id: 'reviews', label: 'Reviews', icon: () => <svg /> }]
+        : []),
+      ...(schedulingFlag.enabled
+        ? [{ id: 'booking-links', label: 'Scheduling', icon: () => <svg /> }]
+        : []),
+    ];
+    return () => views;
+  },
 }));
 
 let drawerStyles: HTMLStyleElement;
@@ -61,6 +83,8 @@ beforeEach(() => {
   reviewsFlag.enabled = false;
   schedulingFlag.enabled = false;
   foreground.id = 'tasks';
+  localStorage.clear();
+  setIslandWidth(80);
   drawerStyles = document.createElement('style');
   drawerStyles.textContent =
     '[data-corvu-drawer-content], [data-corvu-drawer-overlay] { transition-duration: 0s; animation-name: none; }';
@@ -91,7 +115,7 @@ it('mounts and focuses search during the tap before navigating once', () => {
 });
 
 describe('dock overflow drawer', () => {
-  it('keeps Settings first, reverses overflow views, and closes after navigation', async () => {
+  it('keeps Settings first, shows overflow in saved order, and closes after navigation', async () => {
     render(() => <MobileDockRow />);
     const trigger = screen.getByRole('button', { name: 'More views' });
     fireEvent.pointerDown(trigger);
@@ -101,7 +125,14 @@ describe('dock overflow drawer', () => {
     const drawer = within(screen.getByRole('dialog', { name: 'More views' }));
     expect(
       drawer.getAllByRole('button').map((button) => button.textContent)
-    ).toEqual(['Settings', 'Calls', 'Tasks', 'Files', 'Views']);
+    ).toEqual([
+      'Settings',
+      'Customize dock',
+      'Files',
+      'Tasks',
+      'Calls',
+      'Views',
+    ]);
     expect(
       drawer.getByRole('button', { name: 'Tasks' }).getAttribute('aria-current')
     ).toBe('page');
@@ -153,4 +184,51 @@ describe('dock overflow drawer', () => {
     expect(toggleSettings).toHaveBeenCalledTimes(1);
     expect(navigate).not.toHaveBeenCalled();
   });
+});
+
+it('opens customization, updates the measured boundary, and persists keyboard reorders', async () => {
+  const mounted = render(() => <MobileDockRow />);
+  fireEvent.click(screen.getByRole('button', { name: 'More views' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Customize dock' }));
+  await screen.findByRole('button', { name: 'Reorder Tasks' });
+  const drawer = within(screen.getByRole('dialog', { name: 'Customize dock' }));
+  expect(drawer.getByText('In dock · 1')).toBeTruthy();
+  expect(drawer.getByText('In More · 3')).toBeTruthy();
+  setIslandWidth(120);
+  expect(drawer.getByText('In dock · 2')).toBeTruthy();
+  expect(drawer.getByText('In More · 2')).toBeTruthy();
+  const handle = drawer.getByRole('button', { name: 'Reorder Tasks' });
+  handle.focus();
+  fireEvent.keyDown(handle, { key: 'ArrowUp' });
+  fireEvent.keyDown(handle, { key: 'ArrowUp' });
+  expect(document.activeElement).toBe(handle);
+  expect(drawer.getByRole('status').textContent).toContain(
+    'Tasks moved to position 1, in dock'
+  );
+  fireEvent.click(drawer.getByRole('button', { name: 'Done' }));
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  expect(screen.getByRole('button', { name: 'Tasks' })).toBeTruthy();
+  mounted.unmount();
+  render(() => <MobileDockRow />);
+  expect(screen.getByRole('button', { name: 'Tasks' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'More views' }));
+  expect(
+    within(screen.getByRole('dialog'))
+      .getAllByRole('button')
+      .map((button) => button.textContent)
+  ).toEqual(['Settings', 'Customize dock', 'Files', 'Calls', 'Views']);
+});
+
+it('returns from customization to More without navigating', async () => {
+  render(() => <MobileDockRow />);
+  fireEvent.click(screen.getByRole('button', { name: 'More views' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Customize dock' }));
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Back to More views' })
+  );
+  expect(screen.getByRole('dialog', { name: 'More views' })).toBeTruthy();
+  expect(navigate).not.toHaveBeenCalled();
+  expect(document.activeElement).toBe(
+    screen.getByRole('button', { name: 'Customize dock' })
+  );
 });

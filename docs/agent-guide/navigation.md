@@ -545,19 +545,27 @@ search mode, and shortcuts; Left/Right also navigates its cards outside search.
 The inline `/app/debug/create-menu-demo` keeps all three layouts for comparison
 without creating data. Mobile continues to use its create sheet.
 
-On mobile, the bottom dock fits fixed-width buttons in this order: Notifications,
-Calendar, Email, Channels, Agents, Files, Tasks, Calls, and CRM (when enabled). Calendar appears in the
-dock only when the calendar UI flag is enabled. Search has its own entity categories.
-Resizing the screen moves views between the dock
-and More views, which always includes Settings and lists the overflow views in
-reverse order. More and the separate bottom-right Search button always retain
-their space. Search opens the persistent Search… input and entity category pills (see [Search](search.md)).
-Once every view fits, the navigation island stops growing; Search stays aligned
-to the right edge.
-Scheduling is a drawer-only destination in **More views** when the
-calendar-scheduling feature flag is enabled; it does not add a search-scope pill or
-a fixed dock button. It opens `/app/scheduling`, highlights while Scheduling is
-active, and uses header islands for its section and Personal/team owner drawers.
+On mobile, the bottom dock defaults to Notifications, Calendar, Email, Channels,
+Agents, Files, Tasks, Calls, CRM, Reviews, and Scheduling. Feature-gated views
+appear only when enabled. The navigation island measures its width and fits as
+many fixed-size app buttons as possible, reserving room for More. Search stays
+in its own island at the right edge and opens the persistent Search… input and
+entity category pills (see [Search](search.md)). Once every view fits, the
+navigation island stops growing.
+
+Open **More views → Customize dock** to change the order. Hold a row's handle,
+then drag it across the **In dock** / **In More** boundary. The counts use the
+same live measurement as the dock and update on resize or rotation. Moving
+before the hold scrolls normally; a held drag scrolls at the list's edges.
+Keyboard users can focus a handle and press Up/Down; Escape during a drag
+cancels it. Changes save immediately per user on this device and survive reload.
+Search and More stay fixed. Settings and Customize dock stay in More, followed
+by overflow destinations in their saved order. **Back to More views** returns to
+the menu; **Done** closes the drawer.
+
+Reviews and Scheduling can be moved into the dock when enabled. Scheduling
+opens `/app/scheduling`, highlights while active, and uses header islands for its
+section and Personal/team owner drawers; it does not add a search-scope pill.
 
 Primary dock navigation buttons, including Search, give haptic feedback on
 pointer down and activate on click/release. Holding a button only shows its
