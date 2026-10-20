@@ -6,6 +6,7 @@ import {
   emailComparisons,
   taskComparisons,
 } from '../../core/feature-comparisons';
+import { CallsComparison } from '../calls/CallsComparison';
 import { CrmComparison } from '../crm/CrmComparison';
 import { FeatureComparisons } from './FeatureComparisons';
 
@@ -67,7 +68,7 @@ it('credits shared CRM capabilities and competitors’ dedicated reporting', () 
   for (const label of ['Macro', 'Salesforce', 'HubSpot', 'Attio']) {
     expect(within(table).getByText(label)).toBeTruthy();
   }
-  const contacts = within(table).getByText('Company and contact records');
+  const contacts = within(table).getByText('Sales pipelines and custom fields');
   let cell = contacts.nextElementSibling;
   for (let index = 0; index < 4; index++) {
     expect(cell?.querySelector('[aria-label="Yes"]')).toBeTruthy();
@@ -134,6 +135,24 @@ it('credits Notion’s task and CRM databases while explaining the setup differe
   const collaboration = view.getByText('Live document collaboration');
   expect(
     collaboration.nextElementSibling?.nextElementSibling?.querySelector(
+      '[aria-label="Yes"]'
+    )
+  ).toBeTruthy();
+});
+
+it('credits connected Granola notes without claiming native external-meeting capture', () => {
+  setViewportWidth(1440);
+  const view = render(() => <CallsComparison />);
+  const row = view.getByText('Capture notes in other meeting apps');
+  const macro = row.nextElementSibling?.querySelector('[aria-label="Partial"]');
+  expect(macro?.getAttribute('aria-description')).toContain(
+    'Granola captures the meeting'
+  );
+  expect(macro?.getAttribute('aria-description')).toContain(
+    'does not record other meeting apps itself'
+  );
+  expect(
+    row.nextElementSibling?.nextElementSibling?.nextElementSibling?.querySelector(
       '[aria-label="Yes"]'
     )
   ).toBeTruthy();

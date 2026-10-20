@@ -3,6 +3,9 @@ import { FeatureComparisons } from '../comparisons/FeatureComparisons';
 
 // Availability includes paid plans; Granola complements existing meeting apps.
 // Granola explicitly rules out audio/video playback in its feature-request docs.
+// Macro uses Granola Get Note/List Notes through its connector catalog; this
+// grants access to notes, not control of Granola’s capture UI. See
+// docs/agent-guide/settings.md and docs/agent-guide/ai-chat.md.
 const comparisons: readonly FeatureComparison[] = [
   {
     id: 'google-meet',
@@ -29,12 +32,15 @@ const comparisons: readonly FeatureComparison[] = [
       },
       {
         feature: 'Capture notes in other meeting apps',
-        macro: false,
+        macro: 'partial',
+        macroNote:
+          'Granola captures the meeting. After connecting Granola, Macro agents can read its notes and transcripts; Macro does not record other meeting apps itself.',
         competitor: false,
       },
     ],
     sources: [
       'https://docs.macro.com/product/calls',
+      'https://pipedream.com/apps/granola/integrations/slack-v2',
       'https://docs.macro.com/product/agents',
       'https://support.google.com/meet/answer/9308681',
       'https://support.google.com/meet/answer/18481437',
@@ -71,7 +77,9 @@ const comparisons: readonly FeatureComparison[] = [
       },
       {
         feature: 'Capture notes in other meeting apps',
-        macro: false,
+        macro: 'partial',
+        macroNote:
+          'Granola captures the meeting. After connecting Granola, Macro agents can read its notes and transcripts; Macro does not record other meeting apps itself.',
         competitor: true,
       },
     ],
@@ -79,6 +87,7 @@ const comparisons: readonly FeatureComparison[] = [
       'https://docs.granola.ai/help-center/feature-requests',
       'https://www.granola.ai/security',
       'https://www.granola.ai/mcp',
+      'https://pipedream.com/apps/granola/integrations/slack-v2',
       'https://www.granola.ai/integrations',
       'https://docs.granola.ai/help-center/consent-security-privacy/security-privacy-data-faqs',
       'https://docs.granola.ai/help-center/sharing/integrations/mcp',

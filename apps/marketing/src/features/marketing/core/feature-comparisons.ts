@@ -17,6 +17,9 @@ export type FeatureComparison = {
   sources: readonly string[];
 };
 
+// Superhuman's feature-specific Help Center says there is no combined inbox and
+// offers account tabs. Its general blog contradicts that wording; retain the
+// documented behavior until a live product check resolves the discrepancy.
 export const emailComparisons: readonly FeatureComparison[] = [
   {
     id: 'superhuman',
@@ -29,7 +32,7 @@ export const emailComparisons: readonly FeatureComparison[] = [
         competitor: true,
       },
       {
-        feature: 'Unified inbox across email accounts',
+        feature: 'Combined inbox across email accounts',
         macro: true,
         competitor: false,
       },
@@ -59,6 +62,8 @@ export const emailComparisons: readonly FeatureComparison[] = [
       'https://help.superhuman.com/hc/en-us/articles/46005789591693-Speed-Up-With-Shortcuts',
       'https://help.superhuman.com/hc/en-us/articles/46242137727757-Explore-Superhuman-Go-agents-and-connectors',
       'https://help.superhuman.com/hc/en-us/articles/46005777934733-Managing-Accounts',
+      'https://help.superhuman.com/hc/en-us/articles/46005722297229-Unified-Inbox-Workaround',
+      'https://blog.superhuman.com/web-email-client-guide/',
       'https://help.superhuman.com/hc/en-us/articles/46005593675917-Shared-Conversations-and-Team-Comments',
       'https://help.superhuman.com/hc/en-us/articles/46005696690317-Superhuman-Mail-MCP-Server',
     ],
@@ -76,7 +81,7 @@ export const emailComparisons: readonly FeatureComparison[] = [
           'Gmail supports navigation and action shortcuts after enabling them. Its shortcut help lists commands rather than offering a searchable action menu.',
       },
       {
-        feature: 'Unified inbox across email accounts',
+        feature: 'Combined inbox across email accounts',
         macro: true,
         competitor: 'partial',
         competitorNote:
@@ -302,23 +307,10 @@ export const crmComparisons: readonly FeatureComparison[] = [
     question: 'How does Macro compare with Salesforce?',
     competitor: 'Salesforce',
     rows: [
-      { feature: 'Company and contact records', macro: true, competitor: true },
       {
         feature: 'Sales pipelines and custom fields',
         macro: true,
         competitor: true,
-      },
-      {
-        feature: 'Email history on customer records',
-        macro: true,
-        competitor: true,
-      },
-      {
-        feature: 'Customer work across email, calls, docs, and chat',
-        macro: true,
-        competitor: 'partial',
-        competitorNote:
-          'CRM activity is linked to collaboration tools and connected apps. Macro keeps email, calls, documents, and team chat in the same workspace.',
       },
       {
         feature: 'Draft follow-ups using customer context',
@@ -331,6 +323,13 @@ export const crmComparisons: readonly FeatureComparison[] = [
         competitor: true,
         macroNote:
           'Agent-generated pipeline summaries; no dedicated sales reporting dashboard.',
+      },
+      {
+        feature: 'CRM, email, chat, docs, and calls in one app',
+        macro: true,
+        competitor: 'partial',
+        competitorNote:
+          'CRM activity is linked to collaboration tools and connected apps. Macro keeps email, calls, documents, and team chat in the same workspace.',
       },
     ],
     sources: [
@@ -346,23 +345,10 @@ export const crmComparisons: readonly FeatureComparison[] = [
     question: 'How does Macro compare with HubSpot?',
     competitor: 'HubSpot',
     rows: [
-      { feature: 'Company and contact records', macro: true, competitor: true },
       {
         feature: 'Sales pipelines and custom fields',
         macro: true,
         competitor: true,
-      },
-      {
-        feature: 'Email history on customer records',
-        macro: true,
-        competitor: true,
-      },
-      {
-        feature: 'Customer work across email, calls, docs, and chat',
-        macro: true,
-        competitor: 'partial',
-        competitorNote:
-          'CRM activity is linked to collaboration tools and connected apps. Macro keeps email, calls, documents, and team chat in the same workspace.',
       },
       {
         feature: 'Draft follow-ups using customer context',
@@ -375,6 +361,13 @@ export const crmComparisons: readonly FeatureComparison[] = [
         competitor: true,
         macroNote:
           'Agent-generated pipeline summaries; no dedicated sales reporting dashboard.',
+      },
+      {
+        feature: 'CRM, email, chat, docs, and calls in one app',
+        macro: true,
+        competitor: 'partial',
+        competitorNote:
+          'CRM activity is linked to collaboration tools and connected apps. Macro keeps email, calls, documents, and team chat in the same workspace.',
       },
     ],
     sources: [
@@ -390,23 +383,10 @@ export const crmComparisons: readonly FeatureComparison[] = [
     question: 'How does Macro compare with Attio?',
     competitor: 'Attio',
     rows: [
-      { feature: 'Company and contact records', macro: true, competitor: true },
       {
         feature: 'Sales pipelines and custom fields',
         macro: true,
         competitor: true,
-      },
-      {
-        feature: 'Email history on customer records',
-        macro: true,
-        competitor: true,
-      },
-      {
-        feature: 'Customer work across email, calls, docs, and chat',
-        macro: true,
-        competitor: 'partial',
-        competitorNote:
-          'CRM activity is linked to collaboration tools and connected apps. Macro keeps email, calls, documents, and team chat in the same workspace.',
       },
       {
         feature: 'Draft follow-ups using customer context',
@@ -419,6 +399,13 @@ export const crmComparisons: readonly FeatureComparison[] = [
         competitor: true,
         macroNote:
           'Agent-generated pipeline summaries; no dedicated sales reporting dashboard.',
+      },
+      {
+        feature: 'CRM, email, chat, docs, and calls in one app',
+        macro: true,
+        competitor: 'partial',
+        competitorNote:
+          'CRM activity is linked to collaboration tools and connected apps. Macro keeps email, calls, documents, and team chat in the same workspace.',
       },
     ],
     sources: [

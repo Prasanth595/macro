@@ -647,9 +647,12 @@ comparison data and recheck claims before changing cells.
 source URLs. `FeatureComparisons` renders one always-visible table above each FAQ, with a category heading and no subtitle or dropdown:
 Superhuman/Gmail on Email; Notion on Docs; Linear/Jira on Tasks; Slack on Chat;
 Google Meet/Granola on Calls. CRM uses the same visible layout and legend, with
-Salesforce, HubSpot, and Attio. Its shared core capabilities are all checked;
+Salesforce, HubSpot, and Attio. Omit generic records/email-history rows and end
+with the native workspace distinction;
 sales reporting is checked for those CRMs and partial for Macro’s agent summaries.
-Connected collaboration tools receive partial credit alongside Macro’s native workspace. ClickUp
+Connected collaboration tools receive partial credit alongside Macro’s native workspace.
+Credit Macro’s Granola connection for reading captured notes, not for native
+recording of other meeting apps or every feature of the connected product. ClickUp
 stays in the migration overview. Overview links scroll to the matching product
 comparison; verify both initial-load and client-side navigation hashes. Keep cells to checks, crosses, or explained partial marks and label built-in tools explicitly. Retain detailed article links when an article exists. Source URLs
 are not shown in the UI. Icon-only comparison tables are not exported as prose
