@@ -1,5 +1,6 @@
 import { cleanup, render } from '@solidjs/testing-library';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { DemoInteractionBoundary } from './DemoInteractionBoundary';
 import HomepageCrm from './HomepageCrm';
 import HomepageEmailCompose from './HomepageEmailCompose';
 
@@ -96,4 +97,25 @@ it('waits for the CRM scene before moving a company and pauses below its thresho
       .querySelector('[data-crm-company="lumen"]')!
       .getAttribute('data-crm-stage')
   ).toBe('Closed won');
+});
+
+it('stops generating email on preview activation and preserves the visitor draft', () => {
+  const view = render(() => (
+    <DemoInteractionBoundary>
+      <HomepageEmailCompose />
+    </DemoInteractionBoundary>
+  ));
+  const composer = view.container.querySelector('[data-generation]')!;
+  const body = view.getByRole('textbox', { name: 'Email body' });
+  show(composer, 1);
+  vi.advanceTimersByTime(1100);
+  view.container
+    .querySelector('.demo-interaction-boundary')!
+    .dispatchEvent(new CustomEvent('macro-demo-interaction'));
+  body.textContent = 'My follow-up draft';
+  show(composer, 0);
+  show(composer, 1);
+  vi.advanceTimersByTime(10000);
+  expect(body.textContent).toBe('My follow-up draft');
+  expect(composer.getAttribute('data-generation')).toBe('complete');
 });

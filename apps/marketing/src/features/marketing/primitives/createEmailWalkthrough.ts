@@ -1,4 +1,5 @@
 import { createSignal, onCleanup, onMount } from 'solid-js';
+import { observeDemoTakeover } from './observeDemoTakeover';
 
 /** Finite, visibility-aware playback for the isolated email feature demos. */
 export function createEmailWalkthrough(options: {
@@ -11,33 +12,66 @@ export function createEmailWalkthrough(options: {
   reduced: () => void;
   /** Milliseconds before the given step; defaults to 1400ms per step. */
   delay?: (step: number) => number;
+  /** Only opt in when reset restores the complete scene, including menus. */
+  loop?: { hold: number };
+  /** Called once when the visitor takes control, including through a boundary. */
+  onTakeover?: () => void;
 }) {
   const [playing, setPlaying] = createSignal(true);
   const [reducedMotion, setReducedMotion] = createSignal(false);
   let step = 0;
   let visible = false;
+  let takenOver = false;
+  let remaining: number | undefined;
+  let started = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const clear = () => {
+  const clear = (preserve = false) => {
+    if (preserve && timer !== undefined && remaining !== undefined)
+      remaining = Math.max(0, remaining - (performance.now() - started));
     clearTimeout(timer);
     timer = undefined;
   };
-  const pause = () => {
+  const pauseClock = () => {
     clear();
     setPlaying(false);
   };
+  const pause = () => {
+    if (takenOver) return;
+    takenOver = true;
+    pauseClock();
+    options.onTakeover?.();
+  };
   const schedule = () => {
-    clear();
-    if (!visible || !playing() || reducedMotion() || document.hidden) return;
-    timer = setTimeout(
-      () => {
-        options.advance(++step);
-        if (step >= options.steps) pause();
-        else schedule();
-      },
-      options.delay?.(step + 1) ?? 1400
-    );
+    clear(true);
+    if (
+      !visible ||
+      !playing() ||
+      reducedMotion() ||
+      document.hidden ||
+      takenOver
+    )
+      return;
+    remaining ??=
+      step >= options.steps
+        ? (options.loop?.hold ?? 5000)
+        : (options.delay?.(step + 1) ?? 1400);
+    started = performance.now();
+    timer = setTimeout(() => {
+      timer = undefined;
+      remaining = undefined;
+      if (step >= options.steps) {
+        replay();
+        return;
+      }
+      options.advance(++step);
+      if (step >= options.steps && !options.loop) pauseClock();
+      else schedule();
+    }, remaining);
   };
   const replay = () => {
+    if (takenOver) return;
+    clear();
+    remaining = undefined;
     step = 0;
     options.reset();
     if (reducedMotion()) {
@@ -48,7 +82,8 @@ export function createEmailWalkthrough(options: {
     schedule();
   };
   const toggle = () => {
-    if (playing()) pause();
+    if (takenOver) return;
+    if (playing()) pauseClock();
     else if (step >= options.steps) replay();
     else {
       setPlaying(true);
@@ -59,8 +94,8 @@ export function createEmailWalkthrough(options: {
     const media = matchMedia('(prefers-reduced-motion: reduce)');
     const sync = () => {
       setReducedMotion(media.matches);
-      if (media.matches) {
-        pause();
+      if (media.matches && !takenOver) {
+        pauseClock();
         options.reduced();
       }
     };
@@ -69,21 +104,21 @@ export function createEmailWalkthrough(options: {
       ([entry]) => {
         visible =
           entry.isIntersecting &&
-          (options.visibilityThreshold === undefined ||
-            (entry.intersectionRatio ?? 1) >= options.visibilityThreshold);
+          (entry.intersectionRatio ?? 1) >=
+            (options.visibilityThreshold ?? 0.25);
         schedule();
       },
       { threshold: options.visibilityThreshold ?? 0.25 }
     );
     observer.observe(options.root());
-    const boundary = options.root().closest('.demo-interaction-boundary');
-    boundary?.addEventListener('macro-demo-interaction', pause);
+    const root = options.root();
+    const releaseTakeover = observeDemoTakeover(root, pause);
     media.addEventListener('change', sync);
     document.addEventListener('visibilitychange', schedule);
     onCleanup(() => {
       clear();
       observer.disconnect();
-      boundary?.removeEventListener('macro-demo-interaction', pause);
+      releaseTakeover();
       media.removeEventListener('change', sync);
       document.removeEventListener('visibilitychange', schedule);
     });

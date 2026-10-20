@@ -1,4 +1,5 @@
 import { createSignal, onCleanup, onMount } from 'solid-js';
+import { observeDemoTakeover } from './observeDemoTakeover';
 
 export type EmailDemoToken = string | { kind: 'pdf' | 'md'; label: string };
 const parts: EmailDemoToken[] = [
@@ -33,6 +34,7 @@ export function createEmailDemoGeneration(
   let index = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let reduced: MediaQueryList | undefined;
+  let takenOver = false;
 
   const stop = () => {
     clearTimeout(timer);
@@ -40,7 +42,7 @@ export function createEmailDemoGeneration(
   };
   const run = () => {
     stop();
-    if (phase() === 'complete') return;
+    if (takenOver || phase() === 'complete') return;
     if (reduced?.matches) {
       append(tokens.slice(index));
       index = tokens.length;
@@ -63,6 +65,12 @@ export function createEmailDemoGeneration(
   onMount(() => {
     const root = element();
     if (!root) return;
+    const takeOver = () => {
+      takenOver = true;
+      stop();
+      setPhase('complete');
+    };
+    const releaseTakeover = observeDemoTakeover(root, takeOver);
     reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     reduced.addEventListener('change', run);
     document.addEventListener('visibilitychange', run);
@@ -80,6 +88,7 @@ export function createEmailDemoGeneration(
       observer.disconnect();
       reduced?.removeEventListener('change', run);
       document.removeEventListener('visibilitychange', run);
+      releaseTakeover();
     });
   });
   return { phase };

@@ -35,11 +35,13 @@ export function DemoInteractionBoundary(
   ]);
   const nested = useContext(InteractionScope);
   const [active, setActive] = createSignal(false);
+  const [interacted, setInteracted] = createSignal(false);
   let root!: HTMLDivElement;
   let content!: HTMLDivElement;
   let entry: HTMLButtonElement | undefined;
   const activate = () => {
     if (active()) return;
+    setInteracted(true);
     setActive(true);
     root.dispatchEvent(
       new CustomEvent(DEMO_INTERACTION_EVENT, { bubbles: true })
@@ -154,6 +156,7 @@ export function DemoInteractionBoundary(
       }}
       class={`demo-interaction-boundary ${local.class ?? ''}`}
       data-demo-active={nested || active()}
+      data-demo-interacted={interacted() || undefined}
       tabIndex={-1}
     >
       <div
