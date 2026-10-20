@@ -141,7 +141,7 @@ export function RouteTasks() {
         </FeaturePageSection>
         <FeaturePageSection
           id="ask-macro"
-          title={['Let agents', 'handle updates.']}
+          title={['Keep your tasks', 'up to date with agents.']}
           description="Tell your agent what your team needs to get done in your team channels. The agent can create tasks, change who’s assigned, and check what tasks are still incomplete."
           details={tasksGuides['ask-macro']}
         >
