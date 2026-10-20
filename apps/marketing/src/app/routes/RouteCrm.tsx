@@ -157,7 +157,7 @@ export function RouteCrm() {
       </FeaturePageSection>
       <FeaturePageSection
         id="crm-agents"
-        title={['Keep deals', 'moving']}
+        title={['Draft follow-ups and plan', 'next steps with your agent.']}
         description="After a sales call, tell your agent which deals moved and what needs updating. Agents can read customer records and change their properties, whether you use them in Macro or through a connected tool."
         details={crmGuides['crm-agents']}
       >
