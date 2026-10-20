@@ -97,11 +97,9 @@ function SectionScrollArea(props: {
 /**
  * How an open section claims height in its flex column.
  *
- * - `half`: natural height, capped at half the column (minus the shared
- *   section gap) and shrinkable. Two `half` siblings must fit exactly:
- *   `2 * ((100% - gap) / 2) + gap = 100%`. A looser cap overflows and the
- *   flex parent shrinks the other section when one expands — the DM-list
- *   re-layout. Keep `half` sections in a column of their own.
+ * - `half`: natural height, capped at half the column after reserving the
+ *   section gap. Keep two `half` sections in a column of their own so neither
+ *   shrinks when the other expands.
  * - `fill`: grows into whatever the column has left.
  * - `content`: natural height, never shrunk below it, capped at a third of
  *   the column so a long list still leaves room for its siblings.
