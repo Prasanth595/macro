@@ -65,20 +65,8 @@ export function ChannelCallsTab(props: {
   embedded?: boolean;
 }) {
   return (
-    <div
-      class={cn(
-        'relative flex min-h-0 justify-center overflow-hidden',
-        props.embedded
-          ? 'px-3 pb-3'
-          : 'h-full flex-1 p-2 touch:pb-(--mobile-content-inset-bottom)'
-      )}
-    >
-      <div
-        class={cn(
-          'macro-message-width w-full min-h-0',
-          !props.embedded && 'h-full'
-        )}
-      >
+    <div class="relative flex h-full min-h-0 flex-1 justify-center overflow-hidden p-2 touch:pb-(--mobile-content-inset-bottom)">
+      <div class="macro-message-width size-full min-h-0">
         <ListEntityMetadataQueryProvider>
           <ChannelCallsList
             channelId={props.channelId}
@@ -279,11 +267,6 @@ function ChannelCallsList(props: { channelId: string; embedded?: boolean }) {
       <div
         ref={props.embedded ? attachHotkeys : undefined}
         class="flex size-full min-h-0 min-w-0 flex-col"
-        style={
-          props.embedded && rows().length > 0
-            ? { height: `${Math.min(384, rows().length * 44 + 48)}px` }
-            : undefined
-        }
       >
         <Show
           when={
@@ -372,7 +355,9 @@ function ChannelCallsList(props: { channelId: string; embedded?: boolean }) {
                       />
                     }
                   >
-                    <p class="pb-1 text-sm text-ink-muted">{emptyTitle()}</p>
+                    <p class="px-4 py-10 text-center text-sm text-ink-muted">
+                      {emptyTitle()}
+                    </p>
                   </Show>
                 </div>
               </Match>

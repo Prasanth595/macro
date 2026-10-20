@@ -157,17 +157,8 @@ describe('channel detail navigation', () => {
       screen.getByRole('button', { name: 'Show channel details' })
     );
     expect(screen.getByText('Channel attachments')).toBeTruthy();
-    const attachments = screen.getByRole('button', { name: 'Attachments' });
-    const participants = screen.getByRole('button', { name: 'Participants' });
-    expect(attachments.getAttribute('aria-expanded')).toBe('true');
-    expect(participants.getAttribute('aria-expanded')).toBe('false');
-    fireEvent.click(participants);
+    fireEvent.click(screen.getByText('Participants', { exact: true }));
     expect(screen.getByText('Channel participants')).toBeTruthy();
-    expect(attachments.getAttribute('aria-expanded')).toBe('true');
-    expect(participants.getAttribute('aria-expanded')).toBe('true');
-    fireEvent.click(attachments);
-    expect(attachments.getAttribute('aria-expanded')).toBe('false');
-    expect(participants.getAttribute('aria-expanded')).toBe('true');
     expect(screen.getByRole('textbox', { name: 'Message draft' })).toBe(draft);
     expect(draft).toEqual(expect.objectContaining({ value: 'Unsent message' }));
 
@@ -181,16 +172,6 @@ describe('channel detail navigation', () => {
     ).toBeNull();
     fireEvent.click(title);
     expect(screen.getByText('Channel participants')).toBeTruthy();
-    expect(
-      screen
-        .getByRole('button', { name: 'Attachments' })
-        .getAttribute('aria-expanded')
-    ).toBe('false');
-    expect(
-      screen
-        .getByRole('button', { name: 'Participants' })
-        .getAttribute('aria-expanded')
-    ).toBe('true');
     fireEvent.keyDown(screen.getByLabelText('Channel details'), {
       key: 'Escape',
     });

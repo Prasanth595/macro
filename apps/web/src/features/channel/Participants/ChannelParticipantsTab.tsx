@@ -193,9 +193,9 @@ export function ChannelParticipantsTab(props: {
 
   if (props.compact && !isTouchDevice()) {
     return (
-      <div class="max-h-96 min-h-0 overflow-y-auto overscroll-contain px-3 pb-3">
+      <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
         <div class="flex flex-col gap-3">
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 pt-3">
             <div class="min-w-0 flex-1">
               <ParticipantsSearchInput
                 compact

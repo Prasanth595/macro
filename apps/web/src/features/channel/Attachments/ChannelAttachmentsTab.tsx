@@ -19,11 +19,13 @@ function CompactAttachments(props: ParentProps<{ channelId: string }>) {
   return (
     <Show
       when={!empty()}
-      fallback={<p class="pb-1 text-sm text-ink-muted">No attachments yet</p>}
+      fallback={
+        <p class="py-10 text-center text-sm text-ink-muted">
+          No attachments yet
+        </p>
+      }
     >
-      <div class="flex h-80 min-h-0 flex-col gap-2 overflow-hidden">
-        {props.children}
-      </div>
+      {props.children}
     </Show>
   );
 }
@@ -45,19 +47,14 @@ export function ChannelAttachmentsTab(props: {
   return (
     <div
       class={cn(
-        'relative min-h-0 overflow-hidden flex justify-center',
-        props.compact ? 'px-3 pb-3' : 'h-full flex-1 p-2'
+        'relative flex-1 min-h-0 h-full overflow-hidden flex justify-center',
+        props.compact ? 'px-4 pb-4' : 'p-2'
       )}
       style={
         props.compact ? { '--attachment-content-padding': '0px' } : undefined
       }
     >
-      <div
-        class={cn(
-          'macro-message-width w-full flex flex-col gap-2 overflow-hidden',
-          !props.compact && 'h-full'
-        )}
-      >
+      <div class="macro-message-width size-full flex flex-col gap-2 overflow-hidden">
         <FlatAttachmentSections.Provider value={props.compact ?? false}>
           <Show when={props.compact} fallback={sections()}>
             <CompactAttachments channelId={props.channelId}>

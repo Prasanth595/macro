@@ -11,10 +11,10 @@ export type ChannelInfoPanelState = {
   isOpen: Accessor<boolean>;
   isPresent: Accessor<boolean>;
   layoutRef: (element: HTMLDivElement) => void;
-  openSections: Accessor<ChannelInfoTab[]>;
+  activeTab: Accessor<ChannelInfoTab>;
   toggle: () => void;
   close: () => void;
-  setOpenSections: (sections: ChannelInfoTab[]) => void;
+  setActiveTab: (tab: ChannelInfoTab) => void;
   triggerRef: (element: HTMLButtonElement) => void;
 };
 

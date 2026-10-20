@@ -1141,17 +1141,14 @@ desktop splits too; the panel does not overlay the conversation. It uses the
 same 140ms size/position and fade motion as the inner navigation sidebar, with
 reduced-motion handling and smooth reversals. Its frame and contents stay
 anchored to the right edge. Closing retains its content until the animation
-finishes. Inside the column, a single rounded, outlined card fits its contents,
-with subtle dividers and a compact avatar, name, and participant count at the
-top. The panel starts 480px wide. Drag
+finishes. Its top has the
+channel avatar, name, and participant count. The panel starts 480px wide. Drag
 the divider to resize it, or focus the divider and use the arrow keys (Shift
 for larger steps). Width is remembered across closing, reopening, and channels;
-the layout keeps space for the conversation in narrower splits. Stacked
-`Attachments`, `Calls`, and `Participants` disclosures expand independently;
-opening or collapsing them keeps the conversation and any unsent message mounted.
-Attachments starts expanded. The card scrolls when its sections exceed the
-available height, and long lists have bounded scroll areas. The panel starts
-closed, remembers its expanded sections when reopened, and closes from the name,
+the layout keeps space for the conversation in narrower splits. Quiet unframed
+tabs contain `Attachments`, `Calls`, and `Participants`; switching them keeps the
+conversation and any unsent message mounted. The panel
+starts closed, keeps its selected tab when reopened, and closes from the name,
 the close button, or Escape within the panel. Closing from the panel restores
 focus to the name. Attachments use flat sections with one `No attachments yet`
 state when empty. Call history uses a quiet `No calls yet` state, without a
