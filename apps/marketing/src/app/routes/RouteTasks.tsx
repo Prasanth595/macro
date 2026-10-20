@@ -131,7 +131,7 @@ export function RouteTasks() {
         </section>
         <FeaturePageSection
           id="from-a-message"
-          title={['Turn requests', 'into tasks']}
+          title={['Turn requests', 'into tasks.']}
           description="Turn a request in chat into a task without copying it into another tool. Give it an owner, set the priority, and keep the original conversation close by."
           details={tasksGuides['from-a-message']}
         >
@@ -141,7 +141,7 @@ export function RouteTasks() {
         </FeaturePageSection>
         <FeaturePageSection
           id="ask-macro"
-          title={['Let agents', 'handle updates']}
+          title={['Let agents', 'handle updates.']}
           description="Tell your agent what your team needs to get done in your team channels. The agent can create tasks, change who’s assigned, and check what tasks are still incomplete."
           details={tasksGuides['ask-macro']}
         >
@@ -151,7 +151,7 @@ export function RouteTasks() {
         </FeaturePageSection>
         <FeaturePageSection
           id="from-docs-and-email"
-          title={['Tag files, people,', 'and emails to your task']}
+          title={['Tag files, people,', 'and emails to your task.']}
           description="Tag emails, documents, images, and team discussion directly to your task so your team has the context it needs to complete the task."
           details={tasksGuides['from-docs-and-email']}
         >
