@@ -8,12 +8,13 @@ import {
 } from '@core/constant/featureFlags';
 import BellIcon from '@phosphor/bell.svg';
 import CalendarCheckIcon from '@phosphor/calendar-check.svg';
+import ChatsCircleIcon from '@phosphor/chats-circle.svg';
 import GitPullRequestIcon from '@phosphor/git-pull-request.svg';
 import BellFillIcon from '@phosphor-fill/bell-fill.svg';
 import CalendarFillIcon from '@phosphor-fill/calendar-fill.svg';
+import ChatsCircleFillIcon from '@phosphor-fill/chats-circle-fill.svg';
 import EmailFillIcon from '@phosphor-fill/envelope-fill.svg';
 import FilesFillIcon from '@phosphor-fill/files-fill.svg';
-import ChannelFillIcon from '@phosphor-fill/hash-straight-fill.svg';
 import { createMemo } from 'solid-js';
 import type { MobileDockIcon } from './MobileDockButton';
 import type { MobileNavViewId } from './mobile-nav-views';
@@ -51,9 +52,9 @@ export const MOBILE_DOCK_VIEWS: readonly MobileDockView[] = [
   },
   {
     id: 'channels',
-    label: 'Channels',
-    icon: getIconConfig('channel').icon,
-    iconActive: ChannelFillIcon,
+    label: 'Chat',
+    icon: ChatsCircleIcon,
+    iconActive: ChatsCircleFillIcon,
   },
   { id: 'agents', label: 'Agents', icon: getIconConfig('agent').icon },
   {
