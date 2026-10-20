@@ -1,4 +1,5 @@
 import { ViewShell } from '@app/components/view-shell';
+import { createSidebarMotion } from '@app/components/view-shell/create-sidebar-motion';
 import { ChatWithAgentButton } from '@app/features/chat/ChatWithAgentButton';
 import { ChannelAttachmentsTab } from '@channel/Attachments/ChannelAttachmentsTab';
 import { useChannelBotManagement } from '@channel/Bots/use-channel-bot-management';
@@ -350,14 +351,28 @@ function ChannelDetailContent(props: ChannelDetailProps) {
   const [activeTab, setActiveTabInternal] = createSignal<ChannelTabId>(
     normalizeChannelTab(hasActiveCallHere ? 'call' : DEFAULT_CHANNEL_TAB)
   );
-  const [isInfoOpen, setIsInfoOpen] = createSignal(false);
+  const [isInfoOpen, setIsInfoOpenInternal] = createSignal(false);
+  const [infoLayout, setInfoLayout] = createSignal<HTMLDivElement>();
+  const [isInfoAnimating, setIsInfoAnimating] = createSignal(false);
+  const animateInfo = createSidebarMotion(infoLayout, {
+    asideSelector: '[data-channel-info-panel]',
+    edge: 'right',
+    onComplete: () => setIsInfoAnimating(false),
+  });
+  const setIsInfoOpen = (open: boolean) => {
+    if (isInfoOpen() === open) return;
+    setIsInfoAnimating(true);
+    animateInfo(() => setIsInfoOpenInternal(open));
+  };
   const [infoTab, setInfoTab] = createSignal<ChannelInfoTab>('attachments');
   let infoTrigger: HTMLButtonElement | undefined;
   const infoPanel: ChannelInfoPanelState = {
     id: `channel-details-${createUniqueId()}`,
     isOpen: isInfoOpen,
+    isPresent: () => isInfoOpen() || isInfoAnimating(),
+    layoutRef: setInfoLayout,
     activeTab: infoTab,
-    toggle: () => setIsInfoOpen((open) => !open),
+    toggle: () => setIsInfoOpen(!isInfoOpen()),
     close: () => {
       setIsInfoOpen(false);
       infoTrigger?.focus();

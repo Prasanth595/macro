@@ -9,6 +9,8 @@ import type { ChannelInfoTab, ChannelTabId } from './channel-tabs';
 export type ChannelInfoPanelState = {
   id: string;
   isOpen: Accessor<boolean>;
+  isPresent: Accessor<boolean>;
+  layoutRef: (element: HTMLDivElement) => void;
   activeTab: Accessor<ChannelInfoTab>;
   toggle: () => void;
   close: () => void;

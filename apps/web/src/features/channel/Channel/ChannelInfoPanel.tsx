@@ -24,23 +24,25 @@ export function ChannelInfoLayout(props: ParentProps<{ panel: JSX.Element }>) {
       fallback={<div class="flex size-full min-h-0">{props.children}</div>}
     >
       {(panel) => (
-        <Resize.Zone direction="horizontal" gutter={1}>
-          <Resize.Panel id="channel-main" index={0} minSize={320}>
-            {props.children}
-          </Resize.Panel>
-          <Resize.Panel
-            id="channel-details"
-            index={1}
-            minSize={320}
-            maxSize={960}
-            target={{ kind: 'px', px: width() }}
-            redistributionPreferredSize={width()}
-            hidden={() => !panel().isOpen()}
-            onSizeChangeEnd={setWidth}
-          >
-            {props.panel}
-          </Resize.Panel>
-        </Resize.Zone>
+        <div ref={panel().layoutRef} class="size-full min-h-0 min-w-0">
+          <Resize.Zone direction="horizontal" gutter={1}>
+            <Resize.Panel id="channel-main" index={0} minSize={320}>
+              {props.children}
+            </Resize.Panel>
+            <Resize.Panel
+              id="channel-details"
+              index={1}
+              minSize={320}
+              maxSize={960}
+              target={{ kind: 'px', px: width() }}
+              redistributionPreferredSize={width()}
+              collapsed={() => !panel().isOpen()}
+              onSizeChangeEnd={setWidth}
+            >
+              {props.panel}
+            </Resize.Panel>
+          </Resize.Zone>
+        </div>
       )}
     </Show>
   );
@@ -70,9 +72,10 @@ export function ChannelInfoPanel(
         <aside
           id={panel().id}
           aria-label="Channel details"
-          hidden={!panel().isOpen()}
-          class="size-full min-h-0 min-w-0 flex-col bg-surface"
-          classList={{ flex: panel().isOpen() }}
+          data-channel-info-panel
+          inert={!panel().isOpen()}
+          aria-hidden={!panel().isOpen()}
+          class="flex size-full min-h-0 min-w-0 flex-col bg-surface"
           onKeyDown={(event) => {
             if (event.key !== 'Escape' || event.defaultPrevented) return;
             event.preventDefault();
@@ -120,7 +123,7 @@ export function ChannelInfoPanel(
             />
           </div>
           <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <Show when={panel().isOpen()}>{props.children}</Show>
+            <Show when={panel().isPresent()}>{props.children}</Show>
           </div>
         </aside>
       )}

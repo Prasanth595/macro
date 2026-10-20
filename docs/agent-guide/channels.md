@@ -1137,7 +1137,11 @@ right. The name uses the standard outlined button surface and a right-facing
 chevron in both open and closed states. The full-height column sits beside both
 the conversation and its header,
 so opening it moves the title and all header actions left. This holds in narrow
-desktop splits too; the panel does not overlay the conversation. Its top has the
+desktop splits too; the panel does not overlay the conversation. It uses the
+same 140ms size/position and fade motion as the inner navigation sidebar, with
+reduced-motion handling and smooth reversals. Its frame and contents stay
+anchored to the right edge. Closing retains its content until the animation
+finishes. Its top has the
 channel avatar, name, and participant count. The panel starts 480px wide. Drag
 the divider to resize it, or focus the divider and use the arrow keys (Shift
 for larger steps). Width is remembered across closing, reopening, and channels;
