@@ -27,6 +27,13 @@ it('shows one table with all email competitors with a heading and no disclosure'
   ).toBeTruthy();
   expect(within(table).getByText('Superhuman Mail')).toBeTruthy();
   expect(within(table).getByText('Gmail')).toBeTruthy();
+  let accountCell = within(table).getByText(
+    'Manage multiple email accounts'
+  ).nextElementSibling;
+  for (let index = 0; index < 3; index++) {
+    expect(accountCell?.querySelector('[aria-label="Yes"]')).toBeTruthy();
+    accountCell = accountCell?.nextElementSibling ?? null;
+  }
   expect(
     within(table).getAllByText('Keyboard navigation and command menu')
   ).toHaveLength(1);

@@ -636,7 +636,9 @@ that table. Lead with concrete workflow and setup differences, retain useful
 shared capabilities and competitor strengths, and remove generic filler or
 repetitive rows. A partial mark must identify a real scope, setup, or platform difference;
 never downgrade a competitor based on an unmeasured quality or speed claim.
-For Gmail, distinguish shortcut navigation from a searchable command menu. For
+For Gmail, distinguish shortcut navigation from a searchable command menu.
+Credit all three email clients for managing multiple accounts; do not equate
+that with a single combined feed while Superhuman’s sources conflict. For
 Notion, credit task databases, sprints, and CRM templates while distinguishing
 them from dedicated task and CRM tools. Paid features
 and supported integrations count unless a row explicitly says built-in. A check

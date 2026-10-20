@@ -17,9 +17,8 @@ export type FeatureComparison = {
   sources: readonly string[];
 };
 
-// Superhuman's feature-specific Help Center says there is no combined inbox and
-// offers account tabs. Its general blog contradicts that wording; retain the
-// documented behavior until a live product check resolves the discrepancy.
+// Compare verified multi-account support, not a combined feed: Superhuman's
+// Help Center and general blog contradict each other on a unified inbox.
 export const emailComparisons: readonly FeatureComparison[] = [
   {
     id: 'superhuman',
@@ -32,9 +31,9 @@ export const emailComparisons: readonly FeatureComparison[] = [
         competitor: true,
       },
       {
-        feature: 'Combined inbox across email accounts',
+        feature: 'Manage multiple email accounts',
         macro: true,
-        competitor: false,
+        competitor: true,
       },
       {
         feature: 'Share live email threads with teammates',
@@ -81,11 +80,9 @@ export const emailComparisons: readonly FeatureComparison[] = [
           'Gmail supports navigation and action shortcuts after enabling them. Its shortcut help lists commands rather than offering a searchable action menu.',
       },
       {
-        feature: 'Combined inbox across email accounts',
+        feature: 'Manage multiple email accounts',
         macro: true,
-        competitor: 'partial',
-        competitorNote:
-          'All Inboxes combines accounts in the Gmail mobile app. On desktop, accounts use separate inboxes.',
+        competitor: true,
       },
       {
         feature: 'Share live email threads with teammates',
