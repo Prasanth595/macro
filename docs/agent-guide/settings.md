@@ -467,7 +467,8 @@ With `pipedream-mcp` enabled, Settings → Integrations displays installed tools
 the left and Discover on the right, without tabs. On narrow screens these stack
 with installed tools first. Installed tools use a compact status list; Discover
 has a search field and Add custom MCP action above featured cards and the app
-list. These controls share a height and stack on narrow screens.
+list. These pill-shaped controls share a height and stack on narrow screens.
+Installed and Discover use aligned headings above rounded cards.
 Account connections and their settings links are a separate section below. The Agents workspace opens this same Integrations
 page. Installed groups GitHub, Linear, Notion, and Slack tool grants by provider,
 lists other catalog connections alongside them, and puts custom MCP servers in

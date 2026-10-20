@@ -61,7 +61,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
   });
 
   return (
-    <div class="@container/catalog flex flex-col gap-6">
+    <div class="@container/catalog flex flex-col gap-8">
       <div class="grid grid-cols-1 gap-2 @[440px]/catalog:grid-cols-[minmax(0,1fr)_auto]">
         <label class="relative block min-w-0">
           <span class="sr-only">Search integrations</span>
@@ -76,7 +76,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
               catalog.onSearchInput(event.currentTarget.value)
             }
             placeholder="Search integrations"
-            class="h-10 w-full rounded-lg border border-edge-muted bg-panel pr-10 pl-9 text-sm text-ink outline-none placeholder:text-ink-muted focus-visible:border-edge-focus focus-visible:ring-1 focus-visible:ring-edge-focus [&::-webkit-search-cancel-button]:hidden"
+            class="h-10 w-full rounded-full border border-edge-muted bg-panel pr-10 pl-9 text-sm text-ink outline-none placeholder:text-ink-muted focus-visible:border-edge-focus focus-visible:ring-1 focus-visible:ring-edge-focus [&::-webkit-search-cancel-button]:hidden"
           />
           <Show when={catalog.searchInput()}>
             <button
@@ -93,7 +93,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
         <Button
           variant="outline"
           size="md"
-          class="h-10 rounded-lg px-4"
+          class="h-10 px-4"
           onClick={() => setAddingCustom(true)}
         >
           <PlusIcon class="size-4" /> Add custom MCP
@@ -102,10 +102,10 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
 
       <section aria-label="Featured integrations">
         <h3 class="mb-3 text-xs font-medium text-ink-muted">Featured</h3>
-        <div class="grid grid-cols-1 gap-2 @[440px]/catalog:grid-cols-2">
+        <div class="grid grid-cols-1 gap-3 @[440px]/catalog:grid-cols-2">
           <For each={featured()}>
             {(item) => (
-              <div class="@container overflow-hidden rounded-xl border border-edge-muted">
+              <div class="@container overflow-hidden rounded-2xl border border-edge-muted">
                 <button
                   type="button"
                   class="flex h-full w-full flex-col items-stretch text-left outline-none hover:bg-ink/4 focus-visible:bg-ink/6"
@@ -114,7 +114,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
                   <IntegrationRow
                     icon={providerIcon(item.id)}
                     title={item.name}
-                    class="gap-2 px-3 py-3"
+                    class="gap-3 px-4 py-4"
                     description={
                       <Tooltip label={item.note}>
                         <span class="not-touch:line-clamp-2 text-xs">
@@ -140,7 +140,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
 
       <section aria-label="All integrations">
         <h3 class="mb-3 text-xs font-medium text-ink-muted">All apps</h3>
-        <div class="overflow-hidden rounded-xl border border-edge-muted divide-y divide-edge-muted">
+        <div class="overflow-hidden rounded-2xl border border-edge-muted divide-y divide-edge-muted">
           <Show when={catalog.query.isError}>
             <div class="px-6 py-6 text-center text-sm text-ink-muted">
               Couldn't load the connector catalog.

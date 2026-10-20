@@ -143,12 +143,14 @@ function ConnectionsContent(props: IntegrationsViewProps) {
                   <div class="grid min-w-0 grid-cols-1 items-start gap-8 @[760px]/settings-page:grid-cols-[260px_minmax(0,1fr)]">
                     <section
                       aria-label="Installed integrations"
-                      class="min-w-0 rounded-xl border border-edge-muted bg-panel"
+                      class="min-w-0"
                     >
-                      <div class="border-b border-edge-muted px-4 py-3">
-                        <h2 class="text-sm font-medium text-ink">Installed</h2>
+                      <h2 class="mb-4 text-base font-medium text-ink">
+                        Installed
+                      </h2>
+                      <div class="overflow-hidden rounded-2xl border border-edge-muted bg-panel">
+                        <ConnectedView model={model()} />
                       </div>
-                      <ConnectedView model={model()} />
                     </section>
                     <section aria-label="Discover integrations" class="min-w-0">
                       <h2 class="mb-4 text-base font-medium text-ink">
