@@ -166,7 +166,7 @@ export function EventForm(props: EventFormProps) {
           aria-label="Title"
           autofocus={!isEdit() && !isMobile()}
           disabled={fieldIsDisabled('title')}
-          class="h-9 w-full border-0 rounded-none shadow-none bg-transparent px-0 text-lg font-semibold leading-snug text-ink outline-none placeholder:text-ink-placeholder sm:text-base"
+          class="h-9 w-full border-transparent rounded-none shadow-none bg-transparent px-2 text-lg font-semibold leading-snug text-ink outline-none placeholder:text-ink-placeholder sm:text-base"
         />
       }
     >
@@ -405,7 +405,7 @@ export function EventForm(props: EventFormProps) {
     <div
       role="group"
       aria-label={row.label}
-      class="group/field grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-x-4 sm:grid-cols-[1rem_minmax(0,1fr)] sm:gap-x-3"
+      class="group/field grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-x-2 sm:grid-cols-[1rem_minmax(0,1fr)]"
     >
       <div class="flex h-7 items-center justify-center group-has-[button[aria-expanded],input,[role=textbox]]/field:h-9 touch:group-has-[button[aria-expanded],input,[role=textbox]]/field:min-h-[44px]">
         <Dynamic
@@ -438,7 +438,7 @@ export function EventForm(props: EventFormProps) {
               {controls.kind()}
             </PropertyRow>
           </Show>
-          <div class="grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-x-4 sm:grid-cols-[1rem_minmax(0,1fr)] sm:gap-x-3">
+          <div class="grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-x-2 sm:grid-cols-[1rem_minmax(0,1fr)]">
             <span aria-hidden="true" class="flex items-center justify-center">
               <Show when={controller.selectedCalendarOption()}>
                 {(calendar) => (

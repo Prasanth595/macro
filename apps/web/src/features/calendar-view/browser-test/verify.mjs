@@ -24,6 +24,45 @@ async function verifyDescriptionPosition(page) {
     Boolean(element.previousElementSibling?.querySelector('[aria-label="Title"]'))
   );
   assert.equal(directlyUnderTitle, true, 'Description must sit directly below the title');
+  const alignment = await page.getByRole('group', { name: 'Description', exact: true }).evaluate((row) => {
+    const title = document.querySelector('[aria-label="Title"]');
+    const container = row.lastElementChild.firstElementChild;
+    const textStart = (element) => {
+      const style = getComputedStyle(element);
+      return element.getBoundingClientRect().x + Number.parseFloat(style.borderLeftWidth) + Number.parseFloat(style.paddingLeft);
+    };
+    return {
+      titleOffset: Math.abs(textStart(title) - textStart(container)),
+      titleGap: Number.parseFloat(getComputedStyle(title.parentElement).columnGap),
+      rowGaps: Array.from(document.querySelectorAll('form [role="group"][aria-label]'), (element) => Number.parseFloat(getComputedStyle(element).columnGap)),
+    };
+  });
+  assert.ok(alignment.titleOffset < 1, `Title text must align with field text; offset: ${alignment.titleOffset}px`);
+  assert.equal(alignment.titleGap, 8, 'Title icon-to-value gap must be compact');
+  assert.ok(alignment.rowGaps.every((gap) => gap === 8), 'Property icon-to-value gaps must be compact');
+}
+
+async function verifySidebarSurface(page) {
+  const surface = await page.locator('aside[role="dialog"]').evaluate((element) => {
+    const style = getComputedStyle(element);
+    const box = element.getBoundingClientRect();
+    const parent = element.offsetParent;
+    const boundary = parent.getBoundingClientRect();
+    const reference = document.createElement('div');
+    reference.style.backgroundColor = 'var(--color-surface-3)';
+    element.append(reference);
+    const raisedColor = getComputedStyle(reference).backgroundColor;
+    reference.remove();
+    return {
+      background: style.backgroundColor,
+      raisedColor,
+      radii: [style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomLeftRadius, style.borderBottomRightRadius].map(Number.parseFloat),
+      insets: [box.top - boundary.top - parent.clientTop, boundary.left + parent.clientLeft + parent.clientWidth - box.right, boundary.top + parent.clientTop + parent.clientHeight - box.bottom, Number.parseFloat(style.marginLeft)],
+    };
+  });
+  assert.equal(surface.background, surface.raisedColor, 'Sidebar must use a raised surface background');
+  assert.ok(surface.radii.every((radius) => radius >= 12), 'Sidebar must have rounded corners');
+  assert.ok(surface.insets.every((inset) => Math.abs(inset - 12) < 1), `Sidebar must have 12px space around every side: ${surface.insets}`);
 }
 
 async function verifyCalendarColors(page) {
@@ -255,6 +294,7 @@ async function verifyDesktop(options, name) {
 
     await page.getByRole('button', { name: 'Move to sidebar', exact: true }).click();
     assert.equal(await title.inputValue(), 'Calendar draft stays here');
+    await verifySidebarSurface(page);
     await verifyDescriptionPosition(page);
     await verifySelectorShape(page);
     await verifyTextContainers(page);
@@ -284,6 +324,7 @@ async function verifyDesktop(options, name) {
     await page.getByRole('button', { name: 'Create event', exact: true }).click();
     await title.waitFor();
     await start.waitFor();
+    await verifySidebarSurface(page);
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();
     await title.waitFor({ state: 'detached' });
 
@@ -306,6 +347,7 @@ async function verifyDesktop(options, name) {
     await page.getByRole('button', { name: 'Move to sidebar', exact: true }).click();
     assert.equal(await title.inputValue(), 'Revised design review');
     await start.waitFor();
+    await verifySidebarSurface(page);
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await title.waitFor({ state: 'detached' });
     const submitted = JSON.parse(await page.getByLabel('Saved event', { exact: true }).innerText());
@@ -329,7 +371,7 @@ async function verifyDesktop(options, name) {
     assert.match(repeated.values.recurrenceLines.join(';'), /FREQ=DAILY/);
     await verifyPendingSave(page);
     assert.deepEqual(errors, []);
-    results.push(`${name}: calendar swatches, aligned text containers, header type, rounded selectors, stable loading button, persistent surfaces, recurrence, editing, and scoped save passed`);
+    results.push(`${name}: aligned title, compact icon gaps, raised inset sidebar, calendar swatches, header type, selectors, loading button, persistent surfaces, recurrence, editing, and scoped save passed`);
   } finally {
     await context.close();
   }
@@ -391,7 +433,7 @@ async function verifyMobile() {
     assert.equal(submitted.scope, 'all');
     await verifyPendingSave(page);
     assert.deepEqual(errors, []);
-    results.push('phone: calendar swatches, aligned text containers, header type, stable loading button, full-height create/edit sheet, date controls, recurrence, and discard protection passed');
+    results.push('phone: aligned title, compact icon gaps, calendar swatches, text containers, header type, loading button, full-height create/edit sheet, date controls, recurrence, and discard protection passed');
   } finally {
     await context.close();
   }

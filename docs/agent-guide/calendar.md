@@ -94,13 +94,17 @@ new session from the same meeting link must start a separate chat thread.
 
 Desktop click/drag creation opens a non-modal popover near the selected range.
 The popover's `Move to sidebar` action keeps the same draft in a right-hand editor;
-`New → Event` opens that sidebar directly. Editing from event details opens the
+`New → Event` opens that sidebar directly. The sidebar uses a raised depth-3
+surface, 12px rounded corners, and 12px of space on every side; the calendar stays
+interactive beside it. Editing from event details opens the
 same anchored popover, not a separate split dialog. Create and edit place the
 event type in a compact selector at the top-left of the header, using the selected
 type's icon. Existing events keep their type read-only. The selected calendar's
-color swatch sits beside the title, aligned with the property icons. Calendar
+color swatch sits beside the title, aligned with the property icons. Keep an 8px
+icon-to-value gap for the title and property rows on every screen size. Calendar
 options and the selected calendar trigger show their color swatches. Description
-stays directly beneath the title. Editable description and location use the same
+stays directly beneath the title. Align editable title text with the description,
+location, and selector text. Editable description and location use the same
 full-width rounded containers and horizontal text padding as the selectors.
 Align the description placeholder and first text line with selector typography
 and vertical text position, including multiline descriptions and touch sizing.
@@ -143,10 +147,11 @@ Calendar or reloading protects unsaved changes too.
 Verify a click and a multi-slot drag in Week and Month. Enter a title, description,
 guest, location, and custom recurrence; move the popover to the sidebar and confirm
 all values survive and date controls appear. Change the selected calendar and
-confirm the menu, trigger, and title swatches match. Check description and location
-text alignment against the selectors on desktop, tablet, and phone. Check the
-actual description placeholder and first text line when empty, filled, and multiline,
-not just the outer container edges.
+confirm the menu, trigger, and title swatches match. Check title, description, and
+location text alignment and 8px icon-to-value gaps on desktop, tablet, and phone.
+Verify the sidebar's raised background, rounded corners, and surrounding space.
+Check the actual description placeholder and first text line when empty, filled,
+and multiline, not just the outer container edges.
 Cancel a new custom rule and changes to an existing rule; confirm neither changes
 the event. Scroll the original slot away, navigate several weeks, and change
 period; confirm the draft stays open.
