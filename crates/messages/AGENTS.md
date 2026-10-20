@@ -19,6 +19,9 @@ they need.
   call discussions; the call domain verifies RTC credentials and membership.
 - `src/outbound/pg_message_repo.rs` + `pg_discussion_context.rs`: Postgres
   adapters (feature `outbound`).
+- `src/domain/transfer.rs`: moving a task's whole discussion to the project
+  that replaces it (anchors are detached; threads follow their roots through
+  the cascading parent key).
 - `src/outbound/connection_gateway.rs`, `notification_sender.rs`, `broker.rs`:
   realtime/notification delivery adapters (features `outbound`/`broker`).
 
@@ -36,7 +39,7 @@ they need.
   (delivery), `initiative` (outbound), `macro_event_broker`/`macro_event_topics`
   (broker).
 - Used by: `agent_harness`, `agent_session`, `agent_trigger`, `ai_tools`, `bots`,
-  `channel_bots`, `channels`, `coding_agent_worker`, `crm`, `documents`,
+  `channel_bots`, `channels`, `coding_agent_worker`, `crm`, `documents`, `initiative_task_conversion`,
   `lexical_client`, `lexical_mention_extractor`, `macro_db_client`,
   `soup_realtime`, `webhook`.
 
