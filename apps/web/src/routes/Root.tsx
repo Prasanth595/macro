@@ -15,6 +15,7 @@ import { CallStartedNotifier } from '@channel/Call/CallStartedNotifier';
 import { CallKitSync } from '@channel/Call/use-callkit';
 import { dismissBootShell } from '@components/app/boot-shell';
 import { RootFrame } from '@components/app/Layout';
+import { useSessionWebsockets } from '@core/auth/session-websockets';
 import { ToastRegion } from '@core/component/Toast/ToastRegion';
 import { ChannelsContextProvider } from '@core/context/channels';
 import { EmailLinksContextProvider } from '@core/context/emailLinks';
@@ -52,6 +53,7 @@ import {
 } from '@theme/utils/themeUtils';
 import { detect } from 'detect-browser';
 import { createEffect, type JSX, on, onCleanup, onMount } from 'solid-js';
+import { perfMark } from '../observability/perf-marks';
 import { AppRouterView } from './app-router-view';
 
 import { useSyncLoginCookie } from './use-sync-login-cookie';
@@ -175,6 +177,7 @@ const BOOT_SHELL_MAX_WAIT_MS = 8000;
  */
 function AppRouteFrame(props: RouteSectionProps) {
   useUserInfoSideEffects();
+  useSessionWebsockets();
   onMount(() => {
     const cap = setTimeout(dismissBootShell, BOOT_SHELL_MAX_WAIT_MS);
     onCleanup(() => clearTimeout(cap));
@@ -196,6 +199,7 @@ export function Root() {
   });
 
   onMount(() => {
+    perfMark('boot.root-mounted');
     applyTheme(resolveActiveThemeId());
     ensureMinimalThemeContrast();
   });

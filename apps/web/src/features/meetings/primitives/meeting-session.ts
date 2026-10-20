@@ -16,6 +16,7 @@ type IssuedMeetingSession = {
 export function createMeetingSession(capabilities: MeetingSessionCapabilities) {
   const [joining, setJoining] = createSignal(false);
   const [joinedCallId, setJoinedCallId] = createSignal<string>();
+  const [credentials, setCredentials] = createSignal<MeetingCredentials>();
   const [error, setError] = createSignal<string>();
   const [hasLeft, setHasLeft] = createSignal(false);
   let issuedSession: IssuedMeetingSession | undefined;
@@ -122,6 +123,7 @@ export function createMeetingSession(capabilities: MeetingSessionCapabilities) {
         return;
       }
       issuedSession = issued;
+      setCredentials(issued.credentials);
       joinTrace.setAttr('call.id', issued.credentials.callId);
       const localTracks = claimLocalTracks();
       const credentials = issued.credentials;
@@ -158,6 +160,7 @@ export function createMeetingSession(capabilities: MeetingSessionCapabilities) {
       if (disposed || attempt !== generation) return;
       issuedSession = undefined;
       setError('Could not join the call. Check your connection and try again.');
+      setCredentials(undefined);
       console.error('Failed to join meeting', cause);
     } finally {
       joinTrace.end();
@@ -181,6 +184,7 @@ export function createMeetingSession(capabilities: MeetingSessionCapabilities) {
     activeAttempt = undefined;
     const session = issuedSession;
     issuedSession = undefined;
+    setCredentials(undefined);
     const cleanupLifecycle = capabilities.lifecycle.begin();
     if (!disposed) {
       setJoining(false);
@@ -218,5 +222,5 @@ export function createMeetingSession(capabilities: MeetingSessionCapabilities) {
     fireAndForget(leave(), 'meetings');
   });
 
-  return { join, leave, joining, joinedCallId, error, hasLeft };
+  return { join, leave, joining, joinedCallId, credentials, error, hasLeft };
 }

@@ -2491,7 +2491,10 @@ export const CreateForm = z.object({
   name: z.string(),
   source: z.any().superRefine((x, ctx) => {
     const schemas = [
-      z.object({ kind: z.literal('new') }),
+      z.object({
+        isHiddenInDrive: z.boolean().optional(),
+        kind: z.literal('new'),
+      }),
       z.object({
         databaseId: z.string().uuid(),
         tableId: z.string().uuid(),
@@ -3291,6 +3294,7 @@ export const MutationResult = z.object({
           confirmationMessage: z.string(),
           createdAt: z.string().datetime({ offset: true }),
           updatedAt: z.string().datetime({ offset: true }),
+          isHiddenInDrive: z.boolean(),
         }),
         layout: z.object({
           sections: z.array(
@@ -8889,6 +8893,7 @@ export const GetThread = z.object({
 
 export const GetThreadResponse = z.object({
   threadId: z.string().uuid(),
+  inbox: z.union([z.string(), z.null()]).optional(),
   isRead: z.boolean(),
   labels: z.array(z.string()),
   messages: z.array(
@@ -10077,6 +10082,7 @@ export const ListResult = z.object({
         confirmationMessage: z.string(),
         createdAt: z.string().datetime({ offset: true }),
         updatedAt: z.string().datetime({ offset: true }),
+        isHiddenInDrive: z.boolean(),
       }),
       access: z.any().superRefine((x, ctx) => {
         const schemas = [
@@ -12465,6 +12471,7 @@ export const ReadResult = z.any().superRefine((x, ctx) => {
           confirmationMessage: z.string(),
           createdAt: z.string().datetime({ offset: true }),
           updatedAt: z.string().datetime({ offset: true }),
+          isHiddenInDrive: z.boolean(),
         }),
         layout: z.object({
           sections: z.array(
@@ -13038,6 +13045,7 @@ export const ReadResult = z.any().superRefine((x, ctx) => {
           confirmationMessage: z.string(),
           createdAt: z.string().datetime({ offset: true }),
           updatedAt: z.string().datetime({ offset: true }),
+          isHiddenInDrive: z.boolean(),
         }),
         access: z.any().superRefine((x, ctx) => {
           const schemas = [
@@ -14401,6 +14409,7 @@ export const SendChannelMessageResponse = z.object({
 
 export const SendConfirmedEmail = z.object({
   subject: z.string(),
+  from: z.union([z.string(), z.null()]).optional(),
   body: z.string(),
   to: z.array(
     z.object({
@@ -14464,6 +14473,7 @@ export const SendEmailResponse = z.any().superRefine((x, ctx) => {
 
 export const SendEmail = z.object({
   subject: z.string(),
+  from: z.union([z.string(), z.null()]).optional(),
   body: z.string(),
   to: z.array(
     z.object({

@@ -23,6 +23,7 @@ import {
   type MeetingParticipantsState,
 } from '../components/meeting-participants';
 import type {
+  MeetingCredentials,
   MeetingPageState,
   MeetingSessionCapabilities,
 } from '../context/meeting-session';
@@ -55,7 +56,11 @@ export function MeetingPage(props: {
   renderInvite?: (joining: Accessor<boolean>) => JSX.Element;
   /** Login redirect for channel-linked calls, which are members-only. */
   onSignIn?: () => void;
-  renderCall: (onLeave: () => void, name: Accessor<string>) => JSX.Element;
+  renderCall: (
+    onLeave: () => void,
+    name: Accessor<string>,
+    credentials: Accessor<MeetingCredentials | undefined>
+  ) => JSX.Element;
 }) {
   const session = createMeetingSession(props.session);
   const [name, setName] = createSignal('');
@@ -198,7 +203,8 @@ export function MeetingPage(props: {
           <div class="min-h-0 flex-1">
             {props.renderCall(
               () => fireAndForget(leave(), 'meetings'),
-              displayName
+              displayName,
+              session.credentials
             )}
           </div>
         </Match>
