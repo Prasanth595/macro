@@ -137,7 +137,7 @@ export function RouteCrm() {
       </FeaturePageSection>
       <FeaturePageSection
         id="crm-enrichment"
-        title={['Know who', 'you’re meeting']}
+        title={['Turn a new email into', 'a company record.']}
         description="When you email someone new, Macro creates the contact and company from their domain. Public company details fill in the record, so you have a starting point before the first meeting."
         details={crmGuides['crm-enrichment']}
       >
