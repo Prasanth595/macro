@@ -158,7 +158,7 @@ export function RouteCrm() {
       <FeaturePageSection
         id="crm-agents"
         title={['Draft follow-ups and plan', 'next steps with your agent.']}
-        description="After a sales call, tell your agent which deals moved and what needs updating. Agents can read customer records and change their properties, whether you use them in Macro or through a connected tool."
+        description="Your agent can read the full customer relationship across emails, calls, chats, files, tasks, and GitHub pull requests. Use that context to draft better follow-up emails and move deals forward."
         details={crmGuides['crm-agents']}
       >
         <DemoInteractionBoundary class="feature-page-visual crm-agent-scene">
