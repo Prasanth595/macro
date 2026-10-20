@@ -278,6 +278,9 @@ describe('composer popovers inside a dialog', () => {
       name: 'Choose month and year, currently November 2026',
     });
     await user.click(secondMonth);
+    expect(document.activeElement?.getAttribute('aria-label')).toBe(
+      'November 2026'
+    );
     await user.click(
       screen.getByRole('button', { name: 'Choose year, currently 2026' })
     );
@@ -303,6 +306,9 @@ describe('composer popovers inside a dialog', () => {
         name: 'Choose month and year, currently November 2032',
       })
     );
+    expect(document.activeElement?.getAttribute('aria-label')).toBe(
+      'November 2032'
+    );
     await user.keyboard('{Escape}');
     expect(
       screen
@@ -316,6 +322,90 @@ describe('composer popovers inside a dialog', () => {
     ).toBeTruthy();
     expect(onRangeChange).not.toHaveBeenCalled();
   });
+
+  it.each([
+    {
+      start: '1000-10-01T09:00',
+      end: '1000-11-02T10:00',
+      heading: 'November 1000',
+      month: 'January 1000',
+      expected: ['January 1000', 'February 1000'],
+      selectedStart: '1000-01-20T09:00',
+      selectedEnd: '1000-01-21T10:00',
+    },
+    {
+      start: '9999-10-01T09:00',
+      end: '9999-11-02T10:00',
+      heading: 'October 9999',
+      month: 'December 9999',
+      expected: ['November 9999', 'December 9999'],
+      selectedStart: '9999-11-20T09:00',
+      selectedEnd: '9999-11-21T10:00',
+    },
+  ])(
+    'keeps the connected month window supported when choosing $month',
+    async ({
+      start,
+      end,
+      heading,
+      month,
+      expected,
+      selectedStart,
+      selectedEnd,
+    }) => {
+      const user = userEvent.setup();
+      const onRangeChange = vi.fn();
+      render(() => (
+        <EventDateTimeRangeFields
+          start={start}
+          end={end}
+          allDay={false}
+          onRangeChange={onRangeChange}
+          onAllDayChange={vi.fn()}
+        />
+      ));
+      await user.click(
+        screen.getByRole('button', { name: 'Edit event date and time range' })
+      );
+      await user.click(
+        screen.getByRole('button', {
+          name: `Choose month and year, currently ${heading}`,
+        })
+      );
+      if (heading.endsWith('1000')) {
+        expect(
+          screen.getByRole('button', { name: 'Previous year' })
+        ).toHaveProperty('disabled', true);
+        await user.click(
+          screen.getByRole('button', { name: 'Choose year, currently 1000' })
+        );
+        expect(
+          screen.getByRole('button', { name: 'Previous years' })
+        ).toHaveProperty('disabled', true);
+        expect(
+          screen.getByRole('grid', { name: 'Years 1000 to 1011' })
+        ).toBeTruthy();
+        expect(screen.queryByRole('button', { name: '999' })).toBeNull();
+        await user.click(screen.getByRole('button', { name: '1000' }));
+      }
+      await user.click(screen.getByRole('button', { name: month }));
+      for (const label of expected) {
+        expect(
+          screen.getByRole('button', {
+            name: `Choose month and year, currently ${label}`,
+          })
+        ).toBeTruthy();
+      }
+      expect(onRangeChange).not.toHaveBeenCalled();
+      const calendar = within(screen.getAllByRole('grid')[0]);
+      await user.click(calendar.getByRole('gridcell', { name: '20' }));
+      await user.click(calendar.getByRole('gridcell', { name: '21' }));
+      expect(onRangeChange).toHaveBeenCalledExactlyOnceWith(
+        selectedStart,
+        selectedEnd
+      );
+    }
+  );
 
   it('keeps a fully locked range as plain content', () => {
     render(() => (

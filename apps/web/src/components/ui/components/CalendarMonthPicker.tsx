@@ -2,7 +2,7 @@ import { Popover as KPopover } from '@kobalte/core/popover';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import CaretLeftIcon from '@phosphor/caret-left.svg';
 import CaretRightIcon from '@phosphor/caret-right.svg';
-import { createSignal, Index, Show } from 'solid-js';
+import { createSignal, Index, Show, untrack } from 'solid-js';
 import { Button } from './Button';
 import { Layer } from './Layer';
 
@@ -17,8 +17,13 @@ const formatMonth = new Intl.DateTimeFormat(undefined, {
   month: 'long',
   year: 'numeric',
 }).format;
-const firstYearOnPage = (year: number) => Math.floor((year - 1) / 12) * 12 + 1;
-const clampYear = (year: number) => Math.max(1, Math.min(9999, year));
+// Event dates require four-digit years; Corvu also remaps years below 100.
+export const MIN_CALENDAR_YEAR = 1000;
+export const MAX_CALENDAR_YEAR = 9999;
+const firstYearOnPage = (year: number) =>
+  MIN_CALENDAR_YEAR + Math.floor((year - MIN_CALENDAR_YEAR) / 12) * 12;
+const clampYear = (year: number) =>
+  Math.max(MIN_CALENDAR_YEAR, Math.min(MAX_CALENDAR_YEAR, year));
 const calendarMonth = (year: number, month: number) => {
   const date = new Date(0);
   date.setHours(0, 0, 0, 0);
@@ -42,7 +47,7 @@ export function CalendarMonthPicker(props: CalendarMonthPickerProps) {
   const cells: HTMLButtonElement[] = [];
   const showingYears = () => view() === 'years';
   const itemCount = () =>
-    showingYears() ? Math.min(12, 10000 - yearPage()) : 12;
+    showingYears() ? Math.min(12, MAX_CALENDAR_YEAR + 1 - yearPage()) : 12;
   const lastYear = () => yearPage() + itemCount() - 1;
   const rows = () =>
     Array.from({ length: Math.ceil(itemCount() / 3) }, (_, row) =>
@@ -84,7 +89,10 @@ export function CalendarMonthPicker(props: CalendarMonthPickerProps) {
   const navigate = (direction: -1 | 1) => {
     if (showingYears()) {
       setYearPage((page) =>
-        Math.max(1, Math.min(firstYearOnPage(9999), page + direction * 12))
+        Math.max(
+          MIN_CALENDAR_YEAR,
+          Math.min(firstYearOnPage(MAX_CALENDAR_YEAR), page + direction * 12)
+        )
       );
       setCursor((index) => Math.min(index, itemCount() - 1));
     } else {
@@ -147,6 +155,11 @@ export function CalendarMonthPicker(props: CalendarMonthPickerProps) {
         <Layer depth={4}>
           <KPopover.Content
             class="portal-scope z-action-menu w-64 max-w-[var(--kb-popper-content-available-width)] max-h-[var(--kb-popper-content-available-height)] overflow-y-auto rounded-2xl border border-edge bg-menu-glass p-4 text-ink glass menu-open-animation"
+            onOpenAutoFocus={(event) => {
+              event.preventDefault();
+              // Kobalte dispatches autofocus inside an effect; do not subscribe it to picker state.
+              untrack(() => focusCell(props.month.getMonth()));
+            }}
             onKeyDown={(event) => {
               if (event.key !== 'Escape') return;
               event.preventDefault();
@@ -162,7 +175,11 @@ export function CalendarMonthPicker(props: CalendarMonthPickerProps) {
                 size="icon-md"
                 variant="ghost"
                 aria-label={showingYears() ? 'Previous years' : 'Previous year'}
-                disabled={showingYears() ? yearPage() === 1 : year() === 1}
+                disabled={
+                  showingYears()
+                    ? yearPage() === MIN_CALENDAR_YEAR
+                    : year() === MIN_CALENDAR_YEAR
+                }
                 onClick={() => navigate(-1)}
               >
                 <CaretLeftIcon class="size-4" />
@@ -189,7 +206,9 @@ export function CalendarMonthPicker(props: CalendarMonthPickerProps) {
                 variant="ghost"
                 aria-label={showingYears() ? 'Next years' : 'Next year'}
                 disabled={
-                  showingYears() ? lastYear() === 9999 : year() === 9999
+                  showingYears()
+                    ? lastYear() === MAX_CALENDAR_YEAR
+                    : year() === MAX_CALENDAR_YEAR
                 }
                 onClick={() => navigate(1)}
               >

@@ -20,7 +20,11 @@ import {
 import { Virtualizer, type VirtualizerHandle } from 'virtua/solid';
 import { cn } from '../utils/classname';
 import { Button } from './Button';
-import { CalendarMonthPicker } from './CalendarMonthPicker';
+import {
+  CalendarMonthPicker,
+  MAX_CALENDAR_YEAR,
+  MIN_CALENDAR_YEAR,
+} from './CalendarMonthPicker';
 import { Dropdown } from './Dropdown';
 
 const formatWeekdayLong = new Intl.DateTimeFormat(undefined, {
@@ -162,7 +166,19 @@ export function RangeCalendar(props: RangeCalendarProps) {
                             selectedMonth.getMonth() - index,
                             1
                           );
-                          calendar.setMonth(firstMonth);
+                          const earliest = new Date(MIN_CALENDAR_YEAR, 0, 1);
+                          const latest = new Date(
+                            MAX_CALENDAR_YEAR,
+                            12 - calendar.numberOfMonths,
+                            1
+                          );
+                          calendar.setMonth(
+                            firstMonth < earliest
+                              ? earliest
+                              : firstMonth > latest
+                                ? latest
+                                : firstMonth
+                          );
                         }}
                       />
                     </CorvuCalendar.Label>
