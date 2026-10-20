@@ -197,6 +197,16 @@ on focus/reconnect; route existing subscriptions to billing management. Keep
 known management access through refetch failures, but hide unconfirmed trials.
 Reset rejected checkout offers before refetching eligibility.
 
+## Native commands
+
+Over-the-air bundles reach native apps older than the commands they call.
+`native-commands.json` lists every Tauri command the web code invokes, and
+`src/lib/tauri/native-commands.test.ts` fails when code calls one missing from
+that list or not registered by the app (`generate_handler!` or an in-repo
+plugin's `build.rs`). Before adding a command to the list, raise
+`min-native-build.json` to the first build with it, or handle
+`Command … not found` in the caller (see the src-tauri README).
+
 ## macOS desktop gotcha: third-party iframes
 WKWebView asks the desktop navigation plugin about iframe loads as well as page loads, and the plugin cannot tell them apart. A third-party iframe is classified as external: its load is cancelled and the page opens in the browser, leaving an empty frame in the app. List a third-party page the app frames in `EMBEDDED_DOCUMENTS` in `tauri/src-tauri/src/lib.rs`.
 
