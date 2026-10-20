@@ -10,6 +10,7 @@ import { err, ok } from 'neverthrow';
 import { createComponent, createSignal } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChannelIdentityModal } from '../views/channel-identity-editor';
+import { ChannelImageActions } from './channel-identity-fields';
 import ChannelPictureCropper from './channel-picture-cropper';
 
 const cropper = vi.hoisted(() => ({
@@ -146,6 +147,43 @@ function exportedCanvas(blob: Blob | null) {
 }
 
 describe('channel picture crop lifecycle', () => {
+  it('opens the chooser from the upload area and keeps clear separate and disabled actions inert', () => {
+    const [disabled, setDisabled] = createSignal(false);
+    const onPick = vi.fn();
+    const onClear = vi.fn();
+    render(() =>
+      createComponent(ChannelImageActions, {
+        get disabled() {
+          return disabled();
+        },
+        canClear: true,
+        onPick,
+        onClear,
+        onFilesDrop: vi.fn(),
+      })
+    );
+    const upload = screen.getByRole('button', { name: 'Upload channel image' });
+    expect(screen.queryByRole('button', { name: 'Change image' })).toBeNull();
+    const description = screen.getByText(
+      'Click to upload or drag and drop an image'
+    );
+    const requirements = screen.getByText('PNG, JPG, WebP or GIF up to 16 MB');
+    expect(upload.contains(description)).toBe(true);
+    expect(upload.contains(requirements)).toBe(true);
+    fireEvent.click(description);
+    fireEvent.click(requirements);
+    expect(onPick).toHaveBeenCalledTimes(2);
+    const clear = screen.getByRole('button', { name: 'Clear image' });
+    expect(upload.contains(clear)).toBe(false);
+    fireEvent.click(clear);
+    expect(onClear).toHaveBeenCalledOnce();
+    expect(onPick).toHaveBeenCalledTimes(2);
+    setDisabled(true);
+    fireEvent.click(upload);
+    fireEvent.click(clear);
+    expect(onPick).toHaveBeenCalledTimes(2);
+    expect(onClear).toHaveBeenCalledOnce();
+  });
   it('reports committed zoom changes from buttons, wheel transforms, and reset', async () => {
     render(() =>
       createComponent(ChannelPictureCropper, {

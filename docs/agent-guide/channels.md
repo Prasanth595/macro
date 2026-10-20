@@ -1254,18 +1254,18 @@ and image edits.
 The image-editing step puts the crop workspace on the left and a wider
 actions/details column on the right, without an outer bordered crop container.
 On narrow screens, the workspace appears above the controls. Below the image
-filename and file guidance, a dashed upload area fills the remaining column height
-and accepts one supported image file or opens the file chooser with `Change image`.
-Only a single file with a supported
-image type shows the drop cue on either upload target. Mixed or multi-file drops
-are rejected without changing the draft.
-`Clear image` sits below `Change image`, using destructive ghost and accent
-variants respectively, with medium-sized, touch-friendly buttons. The image
-filename, when available, appears above its supported file types and size. The
-`Preview image` button floats over the crop workspace or animated image with the
-same hover, keyboard-focus, and touch behavior.
+filename, a dashed upload area fills the remaining column height. Click anywhere
+inside it, or focus it and press Enter or Space, to open the file chooser. The
+supported file types and size appear inside the box below its description.
+Only a single file with a supported image type shows the drop cue on either
+upload target. Mixed or multi-file drops are rejected without changing the draft.
+`Clear image` sits below and outside the upload area as a medium-sized,
+touch-friendly destructive ghost button. The image filename, when available,
+appears above the upload area. The `Preview image` button floats over the crop
+workspace or animated image with the same hover, keyboard-focus, and touch
+behavior.
 
-`Change image` opens the file chooser. PNG, JPG, WebP, and GIF files up to
+PNG, JPG, WebP, and GIF files up to
 16 MB are supported. Selecting a still image opens its crop workspace. An empty
 image step offers the same chooser, and newly selected GIFs show an animated
 preview instead of cropping. Cropping a saved picture loads its full stored

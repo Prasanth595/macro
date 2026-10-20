@@ -27,19 +27,11 @@ export function ChannelImageActions(props: {
         <h3 class="text-sm font-medium break-all">
           {props.fileName || 'Channel image'}
         </h3>
-        <p class="mt-1 text-xs text-ink-muted">
-          PNG, JPG, WebP or GIF up to 16 MB
-        </p>
       </div>
       <div
         role="group"
         aria-label="Image upload"
-        aria-disabled={props.disabled}
-        class="flex min-h-48 flex-1 flex-col justify-center gap-3 rounded-lg border border-dashed border-edge p-4"
-        classList={{
-          'border-accent bg-accent/5': dragging() && !props.disabled,
-          'opacity-50': props.disabled,
-        }}
+        class="flex min-h-48 flex-1"
         use:fileDrop={{
           disabled: props.disabled,
           acceptedMimeTypes: CHANNEL_PICTURE_MIME_TYPES,
@@ -57,36 +49,41 @@ export function ChannelImageActions(props: {
           onDrop: props.onFilesDrop,
         }}
       >
-        <div class="flex flex-col gap-2">
-          <Button
-            variant="accent"
-            size="md"
-            fullWidth
-            disabled={props.disabled}
-            onClick={props.onPick}
-            class="px-2 touch:min-h-11"
-          >
-            <UploadIcon class="size-4" />
-            Change image
-          </Button>
-          <Button
-            variant="ghost"
-            size="md"
-            fullWidth
-            disabled={props.disabled || !props.canClear}
-            onClick={props.onClear}
-            class="px-2 text-failure not-touch:not-disabled:hover:text-failure touch:min-h-11"
-          >
-            <TrashIcon class="size-4" />
-            Clear image
-          </Button>
-        </div>
-        <p class="text-center text-xs text-ink-muted">
-          {dragging() && !props.disabled
-            ? 'Drop image here'
-            : 'or drag and drop an image'}
-        </p>
+        <Button
+          type="button"
+          variant="ghost"
+          fullWidth
+          aria-label="Upload channel image"
+          disabled={props.disabled}
+          onClick={props.onPick}
+          class="h-auto flex-1 flex-col gap-3 rounded-lg border-dashed border-edge p-4 whitespace-normal"
+          classList={{
+            'border-accent bg-accent/5': dragging() && !props.disabled,
+          }}
+        >
+          <UploadIcon class="size-6" />
+          <span class="text-sm">
+            {dragging() && !props.disabled
+              ? 'Drop image here'
+              : 'Click to upload or drag and drop an image'}
+          </span>
+          <span class="text-xs text-ink-muted">
+            PNG, JPG, WebP or GIF up to 16 MB
+          </span>
+        </Button>
       </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="md"
+        fullWidth
+        disabled={props.disabled || !props.canClear}
+        onClick={props.onClear}
+        class="px-2 text-failure not-touch:not-disabled:hover:text-failure touch:min-h-11"
+      >
+        <TrashIcon class="size-4" />
+        Clear image
+      </Button>
       <Show when={props.error}>
         <p role="alert" class="text-sm text-failure-ink">
           {props.error}
