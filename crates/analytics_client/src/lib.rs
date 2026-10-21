@@ -149,7 +149,7 @@ impl AnalyticsClient {
     /// - `distinct_id`: Unique identifier for the user (e.g., email or user ID)
     /// - `event_name`: Name of the event (e.g., "subscription_created")
     /// - `properties`: Additional event properties
-    #[tracing::instrument(skip(self, properties), err)]
+    #[tracing::instrument(skip(self, distinct_id, properties), err)]
     pub async fn track_posthog(
         &self,
         distinct_id: &str,
