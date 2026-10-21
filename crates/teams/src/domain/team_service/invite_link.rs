@@ -162,16 +162,23 @@ where
             return Err(JoinTeamByInviteLinkError::AlreadyInAnotherTeam);
         }
 
-        Ok(
-            match self
-                .join_team_directly(&team.team_id, user_id, TeamJoinMethod::InviteLink)
-                .await?
-            {
-                Some(member) => JoinTeamByInviteLinkOutcome::Joined(member),
-                None => JoinTeamByInviteLinkOutcome::AlreadyMember {
-                    team_id: team.team_id,
-                },
-            },
-        )
+        match self
+            .join_team_directly(&team.team_id, user_id, TeamJoinMethod::InviteLink)
+            .await?
+        {
+            Some(member) => Ok(JoinTeamByInviteLinkOutcome::Joined(member)),
+            // The insert found an existing membership, which a concurrent
+            // join may have created on either this team or another one.
+            None => {
+                let user_teams = self.team_repository.get_user_teams(user_id).await?;
+                if user_teams.iter().any(|t| t.id == team.team_id) {
+                    Ok(JoinTeamByInviteLinkOutcome::AlreadyMember {
+                        team_id: team.team_id,
+                    })
+                } else {
+                    Err(JoinTeamByInviteLinkError::AlreadyInAnotherTeam)
+                }
+            }
+        }
     }
 }

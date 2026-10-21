@@ -139,6 +139,9 @@ struct MockTeamRepository {
     team_ids: Vec<uuid::Uuid>,
     reject_owner: bool,
     user_teams: Vec<Team>,
+    /// What `get_user_teams` returns once `add_user_to_team` has run, to model
+    /// a membership created concurrently.
+    user_teams_after_add: Option<Vec<Team>>,
     journal: Journal,
     invite_link: Arc<Mutex<Option<TeamInviteLinkToken>>>,
     invite_link_team: Option<TeamInviteLinkTeam>,
@@ -221,6 +224,7 @@ impl MockTeamRepository {
             team_ids: Vec::new(),
             reject_owner: false,
             user_teams: Vec::new(),
+            user_teams_after_add: None,
             journal: Journal::default(),
             invite_link: Arc::new(Mutex::new(None)),
             invite_link_team: None,
@@ -669,7 +673,10 @@ impl TeamRepository for MockTeamRepository {
         &self,
         _: &MacroUserIdStr<'_>,
     ) -> impl Future<Output = Result<Vec<Team>, TeamError>> + Send {
-        let teams = self.user_teams.clone();
+        let teams = match &self.user_teams_after_add {
+            Some(teams) if *self.add_user_to_team_calls.lock().unwrap() > 0 => teams.clone(),
+            _ => self.user_teams.clone(),
+        };
         async move { Ok(teams) }
     }
 

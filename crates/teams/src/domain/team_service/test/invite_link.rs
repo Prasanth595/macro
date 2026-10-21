@@ -251,6 +251,34 @@ async fn joining_a_team_you_are_on_is_a_no_op() {
 }
 
 #[tokio::test]
+async fn a_concurrent_join_to_the_same_team_is_a_no_op() {
+    let token = TeamInviteLinkToken::generate();
+    let mut team_repository = repository_with_link(token);
+    team_repository.add_user_to_team_result = None;
+    team_repository.user_teams_after_add = Some(vec![acme(TEAM_ID)]);
+    let service = service(team_repository.clone());
+
+    assert!(matches!(
+        service.join_team_by_invite_link(&token, &joiner()).await,
+        Ok(JoinTeamByInviteLinkOutcome::AlreadyMember { team_id: TEAM_ID })
+    ));
+}
+
+#[tokio::test]
+async fn a_concurrent_join_to_another_team_is_reported_as_a_conflict() {
+    let token = TeamInviteLinkToken::generate();
+    let mut team_repository = repository_with_link(token);
+    team_repository.add_user_to_team_result = None;
+    team_repository.user_teams_after_add = Some(vec![acme(Uuid::from_u128(0x2_2000))]);
+    let service = service(team_repository.clone());
+
+    assert!(matches!(
+        service.join_team_by_invite_link(&token, &joiner()).await,
+        Err(JoinTeamByInviteLinkError::AlreadyInAnotherTeam)
+    ));
+}
+
+#[tokio::test]
 async fn users_on_another_team_cannot_join_by_link() {
     let token = TeamInviteLinkToken::generate();
     let mut team_repository = repository_with_link(token);
