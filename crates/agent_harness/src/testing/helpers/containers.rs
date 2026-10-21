@@ -243,6 +243,8 @@ impl MockContainerManager {
     pub async fn first_spawned(&self) -> AgentSessionId {
         loop {
             let waited = self.spawned_signal.notified();
+            tokio::pin!(waited);
+            waited.as_mut().enable();
             if let Some(session) = self.sessions().first().copied() {
                 return session;
             }

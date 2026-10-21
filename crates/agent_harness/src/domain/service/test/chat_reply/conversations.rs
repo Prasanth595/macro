@@ -140,6 +140,7 @@ async fn a_message_whose_conversation_was_deleted_is_acknowledged_instead_of_red
         EgressProvisionerMock::new(),
         Some(journal),
         Some(policy),
+        None,
     );
     let mut command = direct_command();
     let owner = mention_origin(&command).sender.clone();

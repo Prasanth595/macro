@@ -143,6 +143,13 @@ struct AgentHarnessInner<
     conversations: Option<Arc<dyn crate::domain::conversations::ConversationPolicy>>,
     conversation_turns: Option<Arc<dyn crate::domain::conversation_turns::ConversationTurnStore>>,
     external_replies: Option<Arc<dyn crate::domain::external_replies::ExternalReplyStore>>,
+    notification_store: Option<Arc<dyn agent_session::domain::notifications::NotificationStore>>,
+    notification_batches:
+        DashMap<AgentSessionId, agent_session::domain::notifications::NotificationBatch>,
+    notification_completions:
+        DashMap<AgentSessionId, agent_session::domain::notifications::NotificationOutcome>,
+    /// Completed notification actions on this replica, suppressing late observer callbacks.
+    notification_finished: DashSet<(AgentSessionId, AgentActionId)>,
     defaults: HarnessDefaults,
     /// Turn-occupying actions waiting for their session's running turn to
     /// end. In-memory working copy; the session store is the durable source.
@@ -363,6 +370,10 @@ where
                 conversations,
                 conversation_turns: None,
                 external_replies: None,
+                notification_store: None,
+                notification_batches: DashMap::new(),
+                notification_completions: DashMap::new(),
+                notification_finished: DashSet::new(),
                 defaults: defaults.into(),
                 queues: SessionQueues::new(),
                 hydrated: DashSet::new(),
@@ -391,6 +402,58 @@ where
             .expect("configure journal before cloning the harness")
             .conversation_turns = Some(store);
         self
+    }
+
+    /// Configure durable system-event delivery before cloning the harness.
+    pub fn with_notifications(
+        mut self,
+        store: Arc<dyn agent_session::domain::notifications::NotificationStore>,
+    ) -> Self {
+        Arc::get_mut(&mut self.inner)
+            .expect("configure outbox before cloning harness")
+            .notification_store = Some(store);
+        self
+    }
+
+    /// Reconcile durable events through the same routed worker as user prompts.
+    #[tracing::instrument(skip_all, err)]
+    pub async fn recover_notifications(&self) -> Result<()> {
+        let Some(store) = &self.inner.notification_store else {
+            return Ok(());
+        };
+        let leases: Vec<_> = self
+            .inner
+            .notification_batches
+            .iter()
+            .map(|batch| batch.lease_id)
+            .collect();
+        for lease in leases {
+            store.renew(lease).await?;
+        }
+        let mut sessions = store.pending_sessions().await?;
+        sessions.extend(
+            self.inner
+                .notification_completions
+                .iter()
+                .map(|entry| *entry.key()),
+        );
+        sessions.extend(
+            self.inner
+                .notification_batches
+                .iter()
+                .map(|entry| *entry.key()),
+        );
+        sessions.sort_by_key(AgentSessionId::as_uuid);
+        sessions.dedup();
+        for session in sessions {
+            if let Err(error) = self
+                .enqueue(session, HarnessCommand::DrainNotifications, true)
+                .await
+            {
+                tracing::warn!(?error, %session, "system event delivery will retry");
+            }
+        }
+        Ok(())
     }
 
     /// Save a conversation message before acknowledging its broker event. Returns its

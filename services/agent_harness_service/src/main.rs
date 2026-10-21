@@ -1163,6 +1163,9 @@ async fn run() -> anyhow::Result<()> {
         .with_external_replies(Arc::new(
             agent_harness::outbound::external_replies::PgExternalReplyStore::new(pool.clone()),
         ))
+        .with_notifications(Arc::new(
+            agent_session::outbound::notifications::PgNotificationStore(pool.clone()),
+        ))
         .with_conversation_turns(conversation_turns)
         .with_admission(admission.clone())
         .with_repositories(open_repositories)
@@ -1171,6 +1174,9 @@ async fn run() -> anyhow::Result<()> {
     let reviews = agent_code_mode::domain::reviews::ReviewService::new(
         Arc::new(agent_code_mode::outbound::reviews::PgReviewStore(
             pool.clone(),
+            Arc::new(agent_session::outbound::notifications::PgNotificationStore(
+                pool.clone(),
+            )),
         )),
         Arc::new(agent_code_mode::outbound::postgres::PgExecutionStore::new(
             pool.clone(),
@@ -1470,6 +1476,16 @@ async fn run() -> anyhow::Result<()> {
         entity_access.clone(),
         MacroAuthorizationState::new(Arc::new(authorization_service.clone())),
     ));
+    let notification_ingress = agent_session::inbound::notifications::notification_router(
+        agent_session::inbound::notifications::NotificationRouterState {
+            authorization: MacroAuthorizationState::new(Arc::new(authorization_service.clone())),
+            service: Arc::new(agent_session::domain::notifications::NotificationService(
+                Arc::new(agent_session::outbound::notifications::PgNotificationStore(
+                    pool.clone(),
+                )),
+            )),
+        },
+    );
     let http = tokio::spawn(async move {
         if let Err(error) = api::setup_and_serve(
             api::ApiStates::new(
@@ -1489,7 +1505,8 @@ async fn run() -> anyhow::Result<()> {
             .with_capabilities(capabilities)
             .with_pull_requests(pull_requests)
             .with_tool_approvals(tool_approval_answers)
-            .with_code_executions(code_executions),
+            .with_code_executions(code_executions)
+            .with_notifications(notification_ingress),
             http_runtime_commands_readiness,
             http_port,
             shutdown_signal(),
@@ -1530,6 +1547,30 @@ async fn run() -> anyhow::Result<()> {
         loop {
             ticker.tick().await;
             typing_harness.refresh_typing().await;
+        }
+    });
+
+    let notification_cancel = tokio_util::sync::CancellationToken::new();
+    let notification_tasks = tokio_util::task::TaskTracker::new();
+    let notification_harness = harness.clone();
+    let notification_stop = notification_cancel.clone();
+    notification_tasks.spawn(async move {
+        let mut ticker = tokio::time::interval(std::time::Duration::from_secs(2));
+        ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {
+            tokio::select! {
+                () = notification_stop.cancelled() => break,
+                _ = ticker.tick() => {
+                    tokio::select! {
+                        () = notification_stop.cancelled() => break,
+                        result = notification_harness.recover_notifications() => {
+                            if let Err(error) = result {
+                                tracing::warn!(?error, "durable session event recovery failed");
+                            }
+                        }
+                    }
+                }
+            }
         }
     });
 
@@ -1746,7 +1787,8 @@ async fn run() -> anyhow::Result<()> {
                                 | HarnessCommand::Turn(_)
                                 | HarnessCommand::ToolApproval(_)
                                 | HarnessCommand::PresentTool { .. }
-                                | HarnessCommand::SessionStopped { .. } => "agent_trigger.unexpected",
+                                | HarnessCommand::SessionStopped { .. }
+                                | HarnessCommand::DrainNotifications => "agent_trigger.unexpected",
                             };
                             tracing::Span::current().record("macro.event.type", event_type);
                             let execution_span = tracing::info_span!(
@@ -1827,6 +1869,9 @@ async fn run() -> anyhow::Result<()> {
         }
     }
 
+    notification_cancel.cancel();
+    notification_tasks.close();
+    notification_tasks.wait().await;
     http.abort();
     trigger.abort();
     egress_http.abort();

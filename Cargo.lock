@@ -423,6 +423,7 @@ dependencies = [
  "entity_registry",
  "entity_registry_db_utils",
  "futures",
+ "genai_telemetry",
  "github",
  "harness_id",
  "kafka_util",
