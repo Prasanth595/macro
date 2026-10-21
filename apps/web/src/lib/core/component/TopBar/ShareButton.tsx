@@ -1569,7 +1569,11 @@ export function ShareModal(props: ShareModalProps) {
               style={{ width: '800px' }}
             >
               {/* Card 1: Share form — gradient border */}
-              <Panel depth={2} class="rounded-xl bg-dialog">
+              <Panel
+                depth={2}
+                hideBorder
+                class="elevated-surface rounded-[24px] bg-dialog"
+              >
                 <Panel.Header class="px-4">
                   <Dialog.Title class="flex items-center gap-1.5 min-w-0 overflow-hidden whitespace-nowrap w-full text-sm font-medium">
                     <span class="shrink-0">Share:</span>
@@ -1630,7 +1634,11 @@ export function ShareModal(props: ShareModalProps) {
                   (requests.state()?.pendingCount ?? 0) > 0
                 }
               >
-                <Panel depth={2} class="rounded-xl bg-dialog">
+                <Panel
+                  depth={2}
+                  hideBorder
+                  class="elevated-surface rounded-[24px] bg-dialog"
+                >
                   <Panel.Body>
                     <PermissionRequestsView source={requests} />
                   </Panel.Body>
@@ -1644,7 +1652,11 @@ export function ShareModal(props: ShareModalProps) {
                   !!(props.owner ?? requests.state()?.owner)
                 }
               >
-                <Panel depth={2} class="rounded-xl bg-dialog">
+                <Panel
+                  depth={2}
+                  hideBorder
+                  class="elevated-surface rounded-[24px] bg-dialog"
+                >
                   <Panel.Header class="px-4">
                     <span class="text-sm font-medium">
                       <Show when={!ownerOnlyRoster()} fallback="Owner">
@@ -1807,7 +1819,11 @@ export function ShareModal(props: ShareModalProps) {
                     !isLinkSharingDisabledForItem(props.itemType))
                 }
               >
-                <Panel depth={2} class="rounded-xl bg-dialog">
+                <Panel
+                  depth={2}
+                  hideBorder
+                  class="elevated-surface rounded-[24px] bg-dialog"
+                >
                   <Panel.Body>
                     <Show
                       when={props.linkSharing}
@@ -1839,7 +1855,11 @@ export function ShareModal(props: ShareModalProps) {
                 when={teamShareOnOwnCard(props.itemType, teamShareControls())}
               >
                 {(teamShare) => (
-                  <Panel depth={2} class="rounded-xl bg-dialog">
+                  <Panel
+                    depth={2}
+                    hideBorder
+                    class="elevated-surface rounded-[24px] bg-dialog"
+                  >
                     <Panel.Body>
                       <div class="p-4 text-sm text-ink">
                         <TeamAccessSection teamShare={teamShare()} />
