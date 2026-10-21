@@ -10,7 +10,7 @@ mod test;
 use std::sync::Arc;
 
 use analytics_client::{
-    AnalyticsClient, AnalyticsClientConfig, PostHogConfig, ProductEventProperties,
+    AnalyticsClient, AnalyticsClientConfig, BackgroundSender, PostHogConfig, ProductEventProperties,
 };
 use entity_access::{domain::ports::AccessRepository, outbound::PgAccessRepository};
 use macro_env::Environment;
@@ -71,6 +71,10 @@ impl IntegrationEvent {
     }
 }
 
+/// Most integration analytics sends in flight at once; past it, events are
+/// dropped.
+const MAX_IN_FLIGHT_SENDS: usize = 16;
+
 /// Records integration changes to PostHog, or nothing when PostHog is not
 /// configured.
 #[derive(Clone)]
@@ -79,7 +83,7 @@ pub struct IntegrationAnalytics {
 }
 
 struct PostHogSink {
-    client: AnalyticsClient,
+    sender: BackgroundSender,
     teams: PgAccessRepository,
     environment: Environment,
 }
@@ -105,7 +109,7 @@ impl IntegrationAnalytics {
         });
         Self {
             sink: Some(Arc::new(PostHogSink {
-                client,
+                sender: BackgroundSender::new(client, MAX_IN_FLIGHT_SENDS),
                 teams: PgAccessRepository::new(db.clone()),
                 environment: config.environment,
             })),
@@ -120,16 +124,20 @@ impl IntegrationAnalytics {
         change: IntegrationChange,
         event: IntegrationEvent,
     ) {
-        let Some(sink) = self.sink.clone() else {
+        let Some(sink) = &self.sink else {
             return;
         };
-        tokio::spawn(async move { sink.capture(user_id, change, event).await });
+        let task_sink = sink.clone();
+        sink.sender.spawn(move |posthog| async move {
+            task_sink.capture(&posthog, user_id, change, event).await;
+        });
     }
 }
 
 impl PostHogSink {
     async fn capture(
         &self,
+        posthog: &AnalyticsClient,
         user_id: MacroUserIdStr<'static>,
         change: IntegrationChange,
         event: IntegrationEvent,
@@ -145,8 +153,7 @@ impl PostHogSink {
             .flatten()
             .map(|team| team.team_id);
         let properties = ProductEventProperties::new(event, self.environment, team_id);
-        let _ = self
-            .client
+        let _ = posthog
             .track_posthog(user_id.as_ref(), change.event_name(), &properties)
             .await
             .inspect_err(|error| {

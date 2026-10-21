@@ -9,10 +9,15 @@
 #[cfg(test)]
 mod test;
 
-use std::{sync::Arc, time::Duration};
+use std::{
+    num::NonZeroUsize,
+    sync::{Arc, Mutex},
+    time::{Duration, Instant},
+};
 
-use analytics_client::{AnalyticsClient, ProductEventProperties};
+use analytics_client::{AnalyticsClient, BackgroundSender, ProductEventProperties};
 use entity_access::{domain::ports::AccessRepository, outbound::PgAccessRepository};
+use lru::LruCache;
 use macro_env::Environment;
 use macro_user_id::user_id::MacroUserIdStr;
 use mcp_auth_proxy::inbound::middleware::McpAuthMethod;
@@ -200,6 +205,17 @@ impl<'a> EventProperties<'a> {
     }
 }
 
+/// Most MCP analytics sends in flight at once; past it, events are dropped.
+const MAX_IN_FLIGHT_SENDS: usize = 64;
+
+/// How long a user's team is reused before it is read again. Tool calls are
+/// frequent and share the tools' small database pool, while team membership
+/// rarely changes.
+const TEAM_TTL: Duration = Duration::from_secs(10 * 60);
+
+/// Users whose team is remembered at once.
+const TEAM_CACHE_CAPACITY: usize = 10_000;
+
 /// Records MCP product analytics to PostHog, or nothing when PostHog is not
 /// configured.
 #[derive(Clone)]
@@ -208,8 +224,9 @@ pub struct McpAnalytics {
 }
 
 struct PostHogSink {
-    client: AnalyticsClient,
+    sender: BackgroundSender,
     teams: PgAccessRepository,
+    team_cache: TeamCache,
     environment: Environment,
 }
 
@@ -228,8 +245,9 @@ impl McpAnalytics {
     ) -> Self {
         Self {
             sink: Some(Arc::new(PostHogSink {
-                client,
+                sender: BackgroundSender::new(client, MAX_IN_FLIGHT_SENDS),
                 teams,
+                team_cache: TeamCache::new(TEAM_CACHE_CAPACITY),
                 environment,
             })),
         }
@@ -243,20 +261,44 @@ impl McpAnalytics {
         client: McpClientSignals,
         event: McpAnalyticsEvent,
     ) {
-        let Some(sink) = self.sink.clone() else {
+        let Some(sink) = &self.sink else {
             return;
         };
-        tokio::spawn(async move { sink.capture(user_id, client, event).await });
+        let task_sink = sink.clone();
+        sink.sender.spawn(move |posthog| async move {
+            task_sink.capture(&posthog, user_id, client, event).await;
+        });
     }
 }
 
 impl PostHogSink {
     async fn capture(
         &self,
+        posthog: &AnalyticsClient,
         user_id: MacroUserIdStr<'static>,
         client: McpClientSignals,
         event: McpAnalyticsEvent,
     ) {
+        let team_id = self.team_id(&user_id).await;
+        let properties = ProductEventProperties::new(
+            EventProperties::new(&event, &client),
+            self.environment,
+            team_id,
+        );
+        let _ = posthog
+            .track_posthog(user_id.as_ref(), event.name(), &properties)
+            .await
+            .inspect_err(|error| {
+                tracing::warn!(error=?error, event = event.name(), "failed to track MCP analytics event");
+            });
+    }
+
+    /// The user's team, from the cache when it is fresh. A failed read is not
+    /// cached, so the next event tries again.
+    async fn team_id(&self, user_id: &MacroUserIdStr<'static>) -> Option<uuid::Uuid> {
+        if let Some(team_id) = self.team_cache.get(user_id, Instant::now()) {
+            return team_id;
+        }
         let team_id = self
             .teams
             .get_user_team(&user_id.0)
@@ -264,20 +306,50 @@ impl PostHogSink {
             .inspect_err(|error| {
                 tracing::warn!(error=?error, "failed to resolve team for MCP analytics");
             })
-            .ok()
-            .flatten()
+            .ok()?
             .map(|team| team.team_id);
-        let properties = ProductEventProperties::new(
-            EventProperties::new(&event, &client),
-            self.environment,
-            team_id,
-        );
-        let _ = self
-            .client
-            .track_posthog(user_id.as_ref(), event.name(), &properties)
-            .await
-            .inspect_err(|error| {
-                tracing::warn!(error=?error, event = event.name(), "failed to track MCP analytics event");
-            });
+        self.team_cache
+            .put(user_id.clone(), team_id, Instant::now());
+        team_id
+    }
+}
+
+/// Each user's team (or none), remembered for [`TEAM_TTL`].
+struct TeamCache {
+    entries: Mutex<LruCache<MacroUserIdStr<'static>, CachedTeam>>,
+}
+
+#[derive(Clone, Copy)]
+struct CachedTeam {
+    team_id: Option<uuid::Uuid>,
+    read_at: Instant,
+}
+
+impl TeamCache {
+    fn new(capacity: usize) -> Self {
+        Self {
+            entries: Mutex::new(LruCache::new(
+                NonZeroUsize::new(capacity).expect("a nonzero capacity"),
+            )),
+        }
+    }
+
+    /// The user's team as read within [`TEAM_TTL`] of `now`, or `None` when
+    /// it has to be read again.
+    fn get(&self, user_id: &MacroUserIdStr<'static>, now: Instant) -> Option<Option<uuid::Uuid>> {
+        let mut entries = self.entries.lock().expect("team cache poisoned");
+        let cached = *entries.get(user_id)?;
+        if now.saturating_duration_since(cached.read_at) < TEAM_TTL {
+            return Some(cached.team_id);
+        }
+        entries.pop(user_id);
+        None
+    }
+
+    fn put(&self, user_id: MacroUserIdStr<'static>, team_id: Option<uuid::Uuid>, read_at: Instant) {
+        self.entries
+            .lock()
+            .expect("team cache poisoned")
+            .put(user_id, CachedTeam { team_id, read_at });
     }
 }
