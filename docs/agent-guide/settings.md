@@ -186,7 +186,9 @@ settings split that shares the layout, or steps back to the previous view when
 it is the only split (Home when there is none). Leave settings by picking any
 other rail item; there is no separate back or fullscreen control.
 
-Settings pages use flat, light-gray cards with subtle row separators. Section
+Settings pages use raised composer cards with glass in dark mode, soft shadows
+in light mode, and subtle row separators. Integrations uses the same content
+width and side padding as the other settings pages. Section
 headings sit above the cards, with more space between major sections and compact
 spacing within each group. Controls share rounded shapes. Nested rows share one surface instead of adding another box or shadow.
 The compact sidebar uses the shared workspace width.
@@ -487,7 +489,9 @@ available in all channels should refresh there without reloading the channel.
 
 With `pipedream-mcp` enabled, Settings → Integrations labels the Email/GitHub
 section Core Integrations and the connector section Agent Integrations, separated
-by spacing without a divider. Installed tools use a two-column card grid (one
+by spacing without a divider. Core integrations stack in one column, with compact
+GitHub and Granola rows and inline email account details that wrap on narrow screens.
+Installed tools use a two-column card grid (one
 column on narrow screens), followed by Featured and All apps, without a Discover
 heading or a separate installed sidebar. All apps has a gray Add Custom action beside its
 heading. Search and the category picker share a row directly below that heading
@@ -540,6 +544,7 @@ Provider and custom-server More menus contain Disable, Reconnect, and Disconnect
 custom servers also offer Rename. Disabled grants show Enable. Unauthenticated
 custom servers show Connect and Remove. Disconnect/Remove require confirmation.
 Adding a custom MCP saves its name and URL; Connect on its row starts OAuth.
+The Add MCP Server dialog uses the same 24px padding above its title as on its sides.
 Enabled custom servers are offered to the owner's agent sessions (Cursor, Claude,
 Codex, macrod, in-memory) alongside connected apps, through the same session
 egress path: the sandbox sees the server under its name and a URL key, never the
