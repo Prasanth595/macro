@@ -22,6 +22,9 @@ Split dragging and composer reflow have a backend-free browser regression:
 `bunx playwright test --config src/lib/core/component/Resize/browser-test/playwright.config.ts`.
 It exercises the real resize solver, scroll container, and Lexical layout primitive.
 
+Discussion link scrolling has a backend-free browser regression:
+`bunx playwright test --config src/lib/core/messages/browser-test/playwright.config.ts`.
+
 A frontend dev server runs against the **dev** backend, so this needs no local stack, Docker, Rust build, or `sudo`:
 
 ```sh
@@ -73,6 +76,9 @@ Then trigger the interaction and read `window.__inst.log`. `'1,2,3' → '' → '
 
 ## Development Patterns
 
+- Reuse `src/components/WorkspaceTexture.tsx` for the onboarding and Create
+  detail panel grain; pass the surface accent and a unique SVG filter ID.
+
 ### Pipedream native authorization
 
 Keep native Pipedream consent in the system browser: the desktop navigation
@@ -112,6 +118,7 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Reconcile mobile full-text rows by entity ID so appending a page preserves DOM rows and scroll position; restore after responsive row measurement and disable browser scroll anchoring so layout changes cannot override the saved history offset.
 - Reserve the safe area plus the category row above mobile Search, and only the safe area above Channels; their hidden split headers must not add another blank strip.
 - Follow [mobile layout and chrome](../../.agents/rules/web/mobile.md#layout-and-chrome) for full-frame views and record tabs; verify their first controls below the navigation with a nonzero safe area on phones and tablets.
+- Keep split chrome portal targets reactive so cached views can mount before their header, and clear a retiring header's targets only while it still owns them.
 - Show only the Recent conversation feed in mobile Channels, without view tabs or a persisted mobile tab selection.
 - Mount the mobile search input before focusing it inside the dock tap; keep navigation in that handler so focus does not trigger a second navigation or lose iOS keyboard activation.
 - Preserve focused chrome editors during deferred split insertion/removal autofocus; explicit return-focus commands may still focus the pane.
@@ -124,6 +131,7 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Inline agent steps reuse the session code-execution query for live SDK operation
   names; completed step snapshots come from the shared fold of the tool receipt.
 - All API/network calls live in service-clients.
+- Bound Discussion comment readiness waits to ten seconds; recover from initial layout interruptions until the message is visible, and release the target on user input (including scrollbar pointer-down), timeout, or successful arrival.
 - Keep early DOCX opens loading while exports return processing (409); retry only
   that response, with a bounded wait. See the Word editor walkthrough in
   `docs/agent-guide/documents.md` at the repository root.
@@ -248,6 +256,12 @@ releases run Vite directly and do not call `just build-tauri` or `build-wasm`.
 Build and copy the agent-fold JavaScript glue and WASM before Vite runs, and
 check that both appear in the output. Without them, Vite leaves the worker's
 relative imports unchanged and Tauri can serve HTML for the missing module.
+
+## macOS desktop runtime: Chromium (CEF), experimental
+`tauri/desktop-cef` builds the macOS app with Chromium in its own Cargo workspace;
+the shipped builds of every platform still come from `tauri/src-tauri` on the
+system webview. See `tauri/desktop-cef/AGENTS.md` before changing Tauri
+dependencies or the app's served origin.
 
 ## macOS desktop gotcha: third-party iframes
 WKWebView asks the desktop navigation plugin about iframe loads as well as page loads, and the plugin cannot tell them apart. A third-party iframe is classified as external: its load is cancelled and the page opens in the browser, leaving an empty frame in the app. List a third-party page the app frames in `EMBEDDED_DOCUMENTS` in `tauri/src-tauri/src/lib.rs`.
