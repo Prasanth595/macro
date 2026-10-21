@@ -71,15 +71,14 @@ export function DatabaseSearch(props: {
         <Button
           ref={searchButton}
           type="button"
-          variant="ghost"
-          size="md"
-          square
+          variant="outline"
+          size="icon-md"
           label="Search"
           aria-keyshortcuts="Control+F Meta+F"
           tooltip="Search every table"
           onClick={() => props.onOpen()}
         >
-          <MagnifyingGlassIcon class="size-3.5" />
+          <MagnifyingGlassIcon />
         </Button>
       }
     >

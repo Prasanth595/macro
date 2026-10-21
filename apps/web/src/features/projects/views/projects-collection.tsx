@@ -501,12 +501,7 @@ export function ProjectsCollection(props: {
   );
   const dueDateControl = () => (
     <Dropdown>
-      <Dropdown.Trigger
-        variant="ghost"
-        size="md"
-        square
-        label="Filter due date"
-      >
+      <Dropdown.Trigger variant="ghost" size="icon-md" label="Filter due date">
         <CalendarIcon />
       </Dropdown.Trigger>
       <Dropdown.Content>

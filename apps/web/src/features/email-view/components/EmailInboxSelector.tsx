@@ -403,12 +403,11 @@ export function EmailInboxMenu(props: { class?: string }) {
       <Dropdown placement="bottom-end">
         <Dropdown.Trigger
           variant="ghost"
-          size="sm"
-          square
+          size="icon-md"
           depth={2}
           aria-label={`Inbox: ${selection.label()}`}
           tooltip={selection.label()}
-          class={cn('size-8 shrink-0', props.class)}
+          class={cn('shrink-0', props.class)}
         >
           <Show
             when={selection.selectedOption()}

@@ -1,6 +1,6 @@
 import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import CheckIcon from '@phosphor/check.svg';
-import FunnelIcon from '@phosphor/funnel.svg';
+import FunnelIcon from '@phosphor/funnel-simple.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import SortAscendingIcon from '@phosphor/sort-ascending.svg';
 import StackIcon from '@phosphor/stack.svg';

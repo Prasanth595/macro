@@ -308,7 +308,7 @@ export function Header(props: {
         >
           <div class="relative flex min-w-0 flex-1 items-center gap-2">
             {props.leading}
-            <h1 class="min-w-0 truncate text-[clamp(1rem,calc(0.75rem+1cqw),1.5rem)] font-semibold leading-tight tracking-[-0.03em] text-ink transition-opacity duration-150 motion-reduce:transition-none">
+            <h1 class="min-w-0 truncate px-1 text-sm font-semibold text-ink">
               {dateTitle()}
             </h1>
           </div>

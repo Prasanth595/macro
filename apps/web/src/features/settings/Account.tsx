@@ -503,7 +503,12 @@ export function Account() {
           label="Log out"
           description="Sign out of Macro on this device."
         >
-          <Button variant="outline" depth={3} onClick={() => logout()}>
+          <Button
+            variant="outline"
+            size="sm"
+            depth={3}
+            onClick={() => logout()}
+          >
             <SignOutIcon class="size-4" />
             Log out
           </Button>

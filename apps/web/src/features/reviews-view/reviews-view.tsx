@@ -346,17 +346,21 @@ function ReviewsRoot() {
         when={isTouchDevice()}
         fallback={
           <ListHeader
-            title={<ViewBreadcrumbs.Outlet aria-label="Review location" />}
+            title={
+              <div class="flex min-w-0 items-center gap-3">
+                <ViewBreadcrumbs.Outlet aria-label="Review location" />
+                <Show when={statusToggle()}>
+                  {(status) => (
+                    <ReviewsStatusTabs
+                      value={status().value}
+                      onChange={status().onChange}
+                      class="shrink-0"
+                    />
+                  )}
+                </Show>
+              </div>
+            }
           >
-            <Show when={statusToggle()}>
-              {(status) => (
-                <ReviewsStatusTabs
-                  value={status().value}
-                  onChange={status().onChange}
-                  class="shrink-0"
-                />
-              )}
-            </Show>
             <ReviewsControls
               {...controls()}
               layout={reviewsLayout()}

@@ -1,6 +1,6 @@
 import { defineDoc } from '@app/features/ui-gallery/types';
 import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
-import FilterIcon from '@phosphor/funnel.svg';
+import FilterIcon from '@phosphor/funnel-simple.svg';
 import ListIcon from '@phosphor/list-bullets.svg';
 import SearchIcon from '@phosphor/magnifying-glass.svg';
 import PlusIcon from '@phosphor/plus.svg';
