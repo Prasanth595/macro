@@ -151,7 +151,7 @@ function ReadOnlyEventComposerGuestsPill(props: EventComposerGuestsPillProps) {
       </Popover.Trigger>
       <EventComposerPopoverPortal>
         <Layer depth={3}>
-          <Popover.Content class="z-action-menu w-72 max-w-[calc(100vw-1rem)] rounded-xl border border-edge bg-menu-glass p-1.5 text-sm glass menu-open-animation">
+          <Popover.Content class="menu-surface z-action-menu w-72 max-w-[calc(100vw-1rem)] p-1.5 text-sm menu-open-animation">
             <Popover.Title class="sr-only">Event guests</Popover.Title>
             <Show
               when={props.selected.length > 0}
@@ -339,7 +339,7 @@ export function EventComposerLocationPill(
       <EventComposerPopoverPortal>
         <Layer depth={3}>
           <Popover.Content
-            class="z-action-menu w-72 max-w-[calc(100vw-1rem)] rounded-xl border border-edge bg-menu-glass p-2 glass menu-open-animation"
+            class="menu-surface z-action-menu w-72 max-w-[calc(100vw-1rem)] p-2 menu-open-animation"
             onOpenAutoFocus={(event) => {
               event.preventDefault();
               queueMicrotask(() => input?.focus());
@@ -849,7 +849,7 @@ export function EventComposerDeclineMessagePill(
       <EventComposerPopoverPortal>
         <Layer depth={3}>
           <Popover.Content
-            class="z-action-menu w-72 max-w-[calc(100vw-1rem)] rounded-xl border border-edge bg-menu-glass p-2 glass menu-open-animation"
+            class="menu-surface z-action-menu w-72 max-w-[calc(100vw-1rem)] p-2 menu-open-animation"
             onOpenAutoFocus={(event) => {
               event.preventDefault();
               queueMicrotask(() => input?.focus());

@@ -378,7 +378,7 @@ function InterfaceThemeSelect(props: {
           // Render as a plain div (not Surface) so the edge is a faint ink
           // hairline like the settings cards, rather than the heavier b4 border.
           as="div"
-          class="w-60 overflow-hidden border border-ink/[0.05] bg-surface shadow-menu"
+          class="w-60 overflow-hidden"
           onMouseLeave={clearThemePreview}
           onOpenAutoFocus={(e: Event) => {
             // Focus the filter input instead of the first item.

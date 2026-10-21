@@ -785,7 +785,7 @@ function CalendarSearchControl(props: {
           >
             <div
               class={cn(
-                'max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl glass bg-menu-glass text-ink transition-[translate] duration-200 ease-out motion-reduce:transition-none',
+                'menu-surface max-w-[calc(100vw-2rem)] overflow-hidden transition-[translate] duration-200 ease-out motion-reduce:transition-none',
                 props.inline ? 'w-[var(--kb-popper-anchor-width)]' : 'w-80'
               )}
               classList={{

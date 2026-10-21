@@ -183,7 +183,7 @@ function LinkPill(props: {
                 onClick={(event: MouseEvent) => event.stopPropagation()}
               >
                 <Surface
-                  class="flex flex-col gap-0.5 rounded-xl p-1 glass bg-menu-glass"
+                  class="menu-surface flex flex-col gap-0.5 p-1"
                   depth={3}
                   hideBorder
                 >
