@@ -33,9 +33,9 @@ const EVENT_BROKER_DRAIN_TIMEOUT: Duration = Duration::from_secs(10);
 /// `OPENAI_DOMAIN_VERIFICATION_TOKEN` environment variable.
 async fn openai_domain_verification() -> String {
     use config::OpenaiDomainVerificationToken;
-    OpenaiDomainVerificationToken::value()
-        .unwrap_or("PLACEHOLDER_TOKEN_REPLACE_WITH_ACTUAL_OPENAI_TOKEN")
-        .to_string()
+    OpenaiDomainVerificationToken::new()
+        .and_then(|token| token.value().map(str::to_string))
+        .unwrap_or_else(|| "PLACEHOLDER_TOKEN_REPLACE_WITH_ACTUAL_OPENAI_TOKEN".to_string())
 }
 
 #[tokio::main]
