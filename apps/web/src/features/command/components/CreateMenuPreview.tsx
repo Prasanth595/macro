@@ -201,7 +201,7 @@ export function CreateMenuPreview(props: {
           class={cn(
             'relative flex shrink-0 items-center gap-4 px-5 text-xs text-ink-extra-muted',
             props.layout === 'details'
-              ? 'min-h-14 border-t border-edge-divider'
+              ? 'min-h-12 border-t border-edge-divider'
               : 'h-9'
           )}
         >

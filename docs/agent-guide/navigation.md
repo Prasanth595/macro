@@ -543,7 +543,8 @@ the shared onboarding grain. The dots and glow use the same shared block-icon
 color as the tile, rather than the workspace accent. Descriptions use two authored
 lines at desktop width, with a slightly shorter second line; narrow panels
 allow the text to wrap further. The **Create [type]** button
-sits 8px inside the bottom-right corner with a matching inset radius. It uses
+sits 8px inside the bottom-right corner as a 32px-tall pill. Its 16px
+radius plus the inset matches the modal’s 24px radius. It uses
 a white fill in dark mode, black in light mode, medium-weight text, and a bare
 Enter symbol without a keycap.
 A vertical divider separates it from the list. In direct shortcut mode, the

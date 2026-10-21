@@ -1372,7 +1372,7 @@ export const LauncherShell = (
         <CommandMenuShell.Footer
           class={cn(
             'relative touch:px-6 touch:py-4',
-            props.footerAction && 'min-h-14 gap-3 border-t border-edge-divider'
+            props.footerAction && 'min-h-12 gap-3 border-t border-edge-divider'
           )}
         >
           <style>{`
