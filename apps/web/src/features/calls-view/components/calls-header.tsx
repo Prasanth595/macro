@@ -4,7 +4,6 @@ import {
 } from '@app/components/view-shell';
 import {
   ListHeader,
-  ListHeaderGroup,
   ListHeaderSearch,
 } from '@app/components/view-shell/ListHeader';
 import { SoupActiveFiltersBar } from '@app/features/next-soup/soup-view/filters-bar/soup-active-filters-bar';
@@ -15,9 +14,9 @@ import { NewCallButton } from '@app/features/next-soup/soup-view/NewCallButton';
 import { DEFAULT_SORT_OPTIONS } from '@app/features/next-soup/soup-view/sort-options';
 import { useSoupView } from '@app/features/next-soup/soup-view/soup-view-context';
 import { VIEW_TAB_LISTS } from '@app/features/next-soup/soup-view/tab-lists';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { createSignal } from 'solid-js';
-import { callViewLabel } from '../core/call-filters';
 
 /** Title, list controls, and active filter chips above the Calls list. */
 export function CallsHeader() {
@@ -43,9 +42,7 @@ export function CallsHeader() {
     const tab = VIEW_TAB_LISTS.calls.find(
       (item) => item.value === view.activeTab()
     );
-    return !tab || tab.value === 'all'
-      ? 'Calls'
-      : `${callViewLabel(tab)} calls`;
+    return !tab || tab.value === 'all' ? 'Calls' : `${tab.label} calls`;
   };
 
   return (
@@ -57,10 +54,10 @@ export function CallsHeader() {
           </h1>
         }
       >
-        <ListHeaderGroup label="Call filters">
+        <HeaderActionGroup label="Call filters">
           <UnifiedFilterDropdown hideLabel variant="ghost" />
-        </ListHeaderGroup>
-        <ListHeaderGroup label="Call view options">
+        </HeaderActionGroup>
+        <HeaderActionGroup label="Call view options">
           <ListSortDropdown
             label="Sort calls"
             value={
@@ -78,7 +75,7 @@ export function CallsHeader() {
             onOpenChange={setSortOpen}
           />
           <SoupViewContextGroup hideLabel variant="ghost" />
-        </ListHeaderGroup>
+        </HeaderActionGroup>
         <NewCallButton />
         <ListHeaderSearch
           label="Search calls"

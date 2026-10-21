@@ -74,7 +74,8 @@ vi.mock('@queries/import', async (importOriginal) => ({
     isPending: false,
   }),
 }));
-vi.mock('@ui', () => ({
+vi.mock('@ui', async () => ({
+  ...(await vi.importActual('@ui')),
   Button: (props: JSX.ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button {...props} />
   ),

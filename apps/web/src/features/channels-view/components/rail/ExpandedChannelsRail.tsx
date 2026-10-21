@@ -20,7 +20,15 @@ import {
   createDroppable,
   useDragDropContext,
 } from '@thisbeyond/solid-dnd';
-import { cn, Dropdown, EmptyStatePanel, Hotkey, Tabs, Tooltip } from '@ui';
+import {
+  cn,
+  Dropdown,
+  EmptyStatePanel,
+  Hotkey,
+  type TabOption,
+  Tabs,
+  Tooltip,
+} from '@ui';
 import { tourTarget } from '@ui/components/Tour';
 import {
   type Accessor,
@@ -40,6 +48,7 @@ import type {
   ChannelListSort,
   ChannelsGroup,
   ChannelsSortGroup,
+  ChannelsTab,
 } from '../../types';
 import { channelMentionsUser, formatDetailedTimestamp } from '../../utils';
 import { ChannelsEmptyState } from '../ChannelsEmptyState';
@@ -83,7 +92,7 @@ import {
   useChannelRailVirtualizer,
 } from './hooks/useChannelRailState';
 
-const CHANNEL_TABS = [
+const CHANNEL_TABS: TabOption<ChannelsTab>[] = [
   { value: 'browse', label: 'All' },
   { value: 'recents', label: 'Recent' },
 ];
@@ -91,7 +100,7 @@ const SlackImportSidebar = lazyNamed(
   () => import('@app/features/slack-import/slack-import-sidebar'),
   'SlackImportSidebar'
 );
-const CHANNEL_TABS_WITH_THREADS = [
+const CHANNEL_TABS_WITH_THREADS: TabOption<ChannelsTab>[] = [
   ...CHANNEL_TABS,
   { value: 'threads', label: 'Threads' },
 ];
@@ -381,14 +390,8 @@ function ChannelOption(props: {
 
 function ExpandedHeader(props: { search: ChannelRailSearch }) {
   const rail = useChannelsRail();
-  const selectTab = (value: string) => {
-    if (
-      value === 'browse' ||
-      value === 'recents' ||
-      (value === 'threads' && rail.threadsEnabled())
-    ) {
-      rail.selectTab(value);
-    }
+  const selectTab = (value: ChannelsTab) => {
+    if (value !== 'threads' || rail.threadsEnabled()) rail.selectTab(value);
   };
 
   return (
@@ -425,9 +428,8 @@ function ExpandedHeader(props: { search: ChannelRailSearch }) {
         <ViewSidebar.Toolbar class={!isTouchDevice() ? 'px-0' : undefined}>
           <Tabs
             aria-label="Chat sidebar views"
-            variant={isTouchDevice() ? 'pill' : 'segmented'}
             fullWidth={!isTouchDevice()}
-            list={
+            options={
               rail.threadsEnabled() ? CHANNEL_TABS_WITH_THREADS : CHANNEL_TABS
             }
             value={rail.tab()}

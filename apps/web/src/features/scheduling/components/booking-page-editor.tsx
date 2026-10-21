@@ -1,6 +1,5 @@
 import { ListHeader } from '@app/components/view-shell/ListHeader';
 import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
-import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { createResizeObserver } from '@solid-primitives/resize-observer';
 import { Button, Tabs } from '@ui';
 import { createSignal, type JSX, Show } from 'solid-js';
@@ -30,15 +29,12 @@ export function BookingPageEditor(props: {
       <div class="pointer-events-auto rounded-full touch:bg-panel">
         <Tabs
           aria-label="Booking page mode"
-          variant={isTouchDevice() ? 'pill' : 'segmented'}
-          list={[
+          options={[
             { value: 'edit', label: 'Edit' },
             { value: 'preview', label: 'Preview' },
           ]}
           value={mode()}
-          onChange={(value) => {
-            if (value === 'edit' || value === 'preview') setMode(value);
-          }}
+          onChange={setMode}
         />
       </div>
       <Show when={mode() === 'edit'}>

@@ -1,11 +1,10 @@
-import { HeaderViewTabs } from '@components/app/HeaderViewTabs';
 import CheckSquareIcon from '@phosphor/check-square.svg';
 import EnvelopeIcon from '@phosphor/envelope.svg';
 import FilesIcon from '@phosphor/files.svg';
 import PhoneIcon from '@phosphor/phone.svg';
 import SquaresFourIcon from '@phosphor/squares-four.svg';
 import UsersIcon from '@phosphor/users.svg';
-import { Tooltip } from '@ui';
+import { Tabs } from '@ui';
 import type { Component, JSX } from 'solid-js';
 import {
   CRM_RECORD_SECTION_LABELS,
@@ -34,29 +33,19 @@ export function RecordTabs<S extends CrmRecordSection>(props: {
   onChange: (section: S) => void;
   compact?: boolean;
 }) {
-  const list = () =>
-    props.sections.map((section) => {
-      const label = CRM_RECORD_SECTION_LABELS[section];
-      if (!props.compact) return { value: section, label };
-      const Icon = SECTION_ICONS[section];
-      return {
-        value: section,
-        label: (
-          <Tooltip label={label}>
-            <span class="flex items-center" aria-label={label}>
-              <Icon class="size-4" />
-              <span class="sr-only">{label}</span>
-            </span>
-          </Tooltip>
-        ),
-      };
-    });
   return (
-    <HeaderViewTabs
-      items={list()}
+    <Tabs
+      aria-label="Record sections"
+      touch="inset"
+      class="shrink-0"
+      options={props.sections.map((section) => ({
+        value: section,
+        label: CRM_RECORD_SECTION_LABELS[section],
+        icon: props.compact ? SECTION_ICONS[section] : undefined,
+      }))}
+      iconOnly={props.compact}
       value={props.value}
-      onChange={(value) => props.onChange(value as S)}
-      label="Record sections"
+      onChange={props.onChange}
     />
   );
 }

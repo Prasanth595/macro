@@ -16,7 +16,6 @@ import { DebugSuspense } from '@channel/DebugSuspense';
 import { ChannelParticipantsTab } from '@channel/Participants/ChannelParticipantsTab';
 import { useGlobalBlockOrchestrator } from '@components/app/GlobalAppState';
 import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
-import { HeaderViewTabs } from '@components/app/HeaderViewTabs';
 import {
   createPriorityCollapseController,
   PriorityCollapseOverflowSensor,
@@ -37,6 +36,7 @@ import {
 import { createMethodRegistration } from '@core/orchestrator';
 import { lazyNamed } from '@core/util/lazyNamed';
 import { useChannelParticipantsQuery } from '@queries/channel/channel-participants';
+import { Tabs } from '@ui';
 import {
   type Accessor,
   children,
@@ -56,7 +56,7 @@ import {
 } from './ChannelSurface';
 import { ChannelTabProvider, useChannelTab } from './ChannelTabContext';
 import { ChannelLiveIndicators } from './ChannelTopBarLiveIndicators';
-import { toIconTabItems } from './channel-tab-icons';
+import { withChannelTabIcons } from './channel-tab-icons';
 import { type ChannelTabId, DEFAULT_CHANNEL_TAB } from './channel-tabs';
 import {
   isJoinCallRequested,
@@ -146,11 +146,14 @@ export function ChannelDetailTabs(props: {
     : () => false;
 
   return (
-    <HeaderViewTabs
-      label="Channel sections"
-      items={isCollapsed() ? toIconTabItems(tabs()) : tabs()}
+    <Tabs
+      aria-label="Channel sections"
+      touch="inset"
+      class="shrink-0"
+      options={isCollapsed() ? withChannelTabIcons(tabs()) : tabs()}
+      iconOnly={isCollapsed()}
       value={activeTab()}
-      onChange={(value) => setActiveTab(value as ChannelTabId)}
+      onChange={setActiveTab}
     />
   );
 }
@@ -178,10 +181,7 @@ export function ChannelDetailActions(props: ChannelDetailHeaderProps) {
       <DebugSuspense name="ChannelDetail.live-indicators">
         <ChannelLiveIndicators channelId={props.channelId} />
       </DebugSuspense>
-      <HeaderActionGroup
-        label="Conversation actions"
-        class="has-[[data-button]]:flex hidden"
-      >
+      <HeaderActionGroup label="Conversation actions">
         <Show
           when={ENABLE_CALLS && !channel()?.agent_dm && !call.isInThisChannel()}
         >

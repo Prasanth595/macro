@@ -361,23 +361,14 @@ export function NewChatPage(props: {
     <div ref={tourTarget(AGENTS_TOUR.modeSwitch)} class="shrink-0">
       <Tabs
         aria-label="Conversation mode"
-        list={(['chat', 'code'] as const).map((mode) => ({
-          value: mode,
-          label: () => (
-            <span class="flex items-center gap-1.5">
-              {mode === 'code' ? (
-                <CodeIcon class="size-3.5" />
-              ) : (
-                <ChatIcon class="size-3.5" />
-              )}
-              {/* Phones keep the icons; the name stays for assistive tech. */}
-              <span class="touch:sr-only">{agentsModeLabel(mode)}</span>
-            </span>
-          ),
-        }))}
+        options={[
+          { value: 'chat', label: agentsModeLabel('chat'), icon: ChatIcon },
+          { value: 'code', label: agentsModeLabel('code'), icon: CodeIcon },
+        ]}
+        // Phones keep the icons; the name stays for assistive tech.
+        iconOnly={isTouchDevice()}
         value={mode()}
-        onChange={(value) => setMode(value === 'code' ? 'code' : 'chat')}
-        labelClass="px-3 touch:px-2.5"
+        onChange={setMode}
       />
     </div>
   );

@@ -14,7 +14,7 @@ import { Tabs } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
 import { createSignal, Show } from 'solid-js';
 import { composeEmail } from '../compose-email';
-import { EMAIL_TABS } from '../constants';
+import { EMAIL_TAB_LABELS, EMAIL_TABS } from '../constants';
 import { useEmailView } from '../email-view-context';
 import { EMAIL_TOUR } from '../tour';
 import { EmailControls } from './EmailControls';
@@ -118,17 +118,13 @@ export function EmailHeader(props: EmailHeaderProps) {
             <Tabs
               ref={tourTarget(EMAIL_TOUR.signalNoise)}
               aria-label="Inbox view"
-              variant={isTouchDevice() ? 'pill' : 'segmented'}
               class="shrink-0"
-              labelClass="px-3"
-              list={EMAIL_TABS.slice(0, 2).map((tab) => ({
-                value: tab.id,
-                label: tab.label,
-              }))}
+              options={[
+                { value: 'important', label: EMAIL_TAB_LABELS.important },
+                { value: 'noise', label: EMAIL_TAB_LABELS.noise },
+              ]}
               value={state.tab}
-              onChange={(tab) => {
-                if (tab === 'important' || tab === 'noise') setTab(tab);
-              }}
+              onChange={setTab}
             />
           </Show>
         </div>

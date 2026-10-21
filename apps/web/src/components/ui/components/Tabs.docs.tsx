@@ -1,52 +1,128 @@
 import { defineDoc } from '@app/features/ui-gallery/types';
+import ChatIcon from '@phosphor/chat-text.svg';
+import PaperclipIcon from '@phosphor/paperclip.svg';
+import UsersIcon from '@phosphor/users.svg';
 import { createSignal } from 'solid-js';
 import { Tabs } from './Tabs';
 
-const options = [
-  { value: 'all', label: 'All' },
-  { value: 'recent', label: 'Recent' },
-  { value: 'threads', label: 'Threads' },
-];
-
-function TabsDemo(props: { variant: 'pill' | 'segmented' }) {
-  const [value, setValue] = createSignal('all');
-
+// #region demo:view
+function ViewDemo() {
+  const [value, setValue] = createSignal<'overview' | 'activity' | 'files'>(
+    'overview'
+  );
   return (
-    <div class="w-72">
+    <Tabs
+      aria-label="Project sections"
+      options={[
+        { value: 'overview', label: 'Overview' },
+        { value: 'activity', label: 'Activity' },
+        { value: 'files', label: 'Files' },
+      ]}
+      value={value()}
+      onChange={setValue}
+    />
+  );
+}
+// #endregion
+
+// #region demo:counts
+function CountsDemo() {
+  const [value, setValue] = createSignal<'upcoming' | 'past' | 'canceled'>(
+    'upcoming'
+  );
+  return (
+    <Tabs
+      aria-label="Booking status"
+      options={[
+        { value: 'upcoming', label: 'Upcoming', count: 12 },
+        { value: 'past', label: 'Past', count: 48 },
+        { value: 'canceled', label: 'Canceled', count: 3 },
+      ]}
+      value={value()}
+      onChange={setValue}
+    />
+  );
+}
+// #endregion
+
+// #region demo:icon-only
+function IconOnlyDemo() {
+  const [value, setValue] = createSignal<'messages' | 'files' | 'people'>(
+    'messages'
+  );
+  return (
+    <Tabs
+      aria-label="Channel sections"
+      iconOnly
+      options={[
+        { value: 'messages', label: 'Messages', icon: ChatIcon },
+        { value: 'files', label: 'Attachments', icon: PaperclipIcon },
+        { value: 'people', label: 'Participants', icon: UsersIcon },
+      ]}
+      value={value()}
+      onChange={setValue}
+    />
+  );
+}
+// #endregion
+
+// #region demo:value
+function ValueDemo() {
+  const [value, setValue] = createSignal<'team' | 'personal'>('team');
+  return (
+    <div class="w-64">
       <Tabs
-        aria-label="Conversation view"
-        list={options}
+        aria-label="Owner"
+        size="sm"
+        fullWidth
+        options={[
+          { value: 'team', label: 'Team' },
+          { value: 'personal', label: 'Personal' },
+        ]}
         value={value()}
         onChange={setValue}
-        variant={props.variant}
-        fullWidth={props.variant === 'segmented'}
       />
     </div>
   );
 }
+// #endregion
 
 export default defineDoc({
   name: 'Tabs',
   category: 'Navigation',
   description:
-    'Single-choice view navigation with either a sliding pill or a flat segmented track.',
+    'The one inline single choice: switch a view, a section, or a small set of values. Each option is its own pill; the selected one takes the pressed fill.',
   status: 'stable',
   exports: ['Tabs'],
   import: "import { Tabs } from '@ui';",
-  propTypes: ['TabsProps'],
+  propTypes: ['TabsProps', 'TabOption'],
   demos: [
     {
-      id: 'pill',
-      title: 'Pill',
-      description: 'The default borderless track with a sliding selection.',
-      render: () => <TabsDemo variant="pill" />,
+      id: 'view',
+      title: 'View tabs',
+      description:
+        'Header view tabs sit after the title, left of the controls. Unselected pills share the outline Button frame at the same height as their neighbours.',
+      render: ViewDemo,
     },
     {
-      id: 'segmented',
-      title: 'Segmented',
+      id: 'counts',
+      title: 'Counts',
+      description: 'Counts follow the label in muted figures.',
+      render: CountsDemo,
+    },
+    {
+      id: 'icon-only',
+      title: 'Icon only',
       description:
-        'A fully rounded 36px outlined track with 1px padding. Equal-width, 32px-tall selected pills use the same fill and border as the standard New button, without an extra shadow.',
-      render: () => <TabsDemo variant="segmented" />,
+        'A narrow header collapses labels to icons. Each label stays the accessible name and becomes the tooltip.',
+      render: IconOnlyDemo,
+    },
+    {
+      id: 'value',
+      title: 'Choosing a value',
+      description:
+        'In forms and dialogs, `fullWidth` gives equal-width options and `size="sm"` matches compact rows.',
+      render: ValueDemo,
     },
   ],
 });

@@ -12,7 +12,6 @@ import {
 } from '@app/routes/routes';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import type { ComposeTaskProps } from '@block-md/component/ComposeTask';
-import { HeaderViewTabs } from '@components/app/HeaderViewTabs';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import {
   useSplitDisplayName,
@@ -25,7 +24,7 @@ import { fireAndForget } from '@core/util/fireAndForget';
 import StackIcon from '@phosphor/stack.svg';
 import { SYSTEM_PROPERTY_IDS } from '@property/identifiers';
 import type { Property } from '@property/types';
-import { Button } from '@ui';
+import { Button, Tabs } from '@ui';
 import { createSignal, Match, Show, Suspense, Switch } from 'solid-js';
 import { DeleteProjectsDialog } from './components/delete-projects-dialog';
 import { ProjectMenuDropdown } from './components/project-row-menu';
@@ -257,14 +256,16 @@ function ProjectDetailHost(props: ProjectDetailProps) {
           </Show>
         }
         navigation={
-          <HeaderViewTabs
-            items={[
+          <Tabs
+            aria-label="Project sections"
+            touch="inset"
+            class="shrink-0"
+            options={[
               { value: 'overview', label: 'Overview' },
               { value: 'tasks', label: 'Tasks' },
             ]}
             value={props.route.section}
-            onChange={(value) => section(value as ProjectSection)}
-            label="Project sections"
+            onChange={section}
           />
         }
       >

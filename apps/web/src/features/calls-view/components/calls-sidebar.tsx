@@ -34,7 +34,6 @@ import {
   CALL_AUDIENCES,
   type CallAudienceId,
   type CallChannelOption,
-  callViewLabel,
   collectCallChannels,
   selectCallAudience,
 } from '../core/call-filters';
@@ -183,7 +182,7 @@ export function CallsSidebar(props: { onNavigate: () => void }) {
               <Row
                 active={activeTab() === tab.value}
                 icon={TAB_ICONS[tab.value] ?? PhoneIcon}
-                label={callViewLabel(tab)}
+                label={tab.label}
                 onClick={() => {
                   props.onNavigate();
                   applyTabPreset('calls', tab.value);

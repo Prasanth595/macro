@@ -37,7 +37,10 @@ import {
   useMaybeBlockId,
 } from '@core/block';
 import { EntityIcon } from '@core/component/EntityIcon';
-import { type TabItem, Tabs } from '@core/component/Tabs';
+import {
+  type UnderlineTabItem,
+  UnderlineTabs,
+} from '@core/component/UnderlineTabs';
 import { UserIcon } from '@core/component/UserIcon';
 import {
   ENABLE_MARKDOWN_COMMENTS,
@@ -112,7 +115,7 @@ import {
   Dropdown,
   type ManagedDialogProps,
   Panel,
-  SegmentedControl,
+  Tabs,
   Tooltip,
 } from '@ui';
 import type { Result } from 'neverthrow';
@@ -510,7 +513,8 @@ function LinkSharingControls(props: LinkSharingControlsProps) {
             </div>
           </Tooltip>
         </div>
-        <SegmentedControl
+        <Tabs
+          touch="segmented"
           aria-label="Link sharing scope"
           size="sm"
           value={scope()}
@@ -590,8 +594,8 @@ function MobileShareDrawer(props: MobileShareDrawerProps) {
     }
   };
 
-  const mobileTabs = createMemo((): TabItem[] => {
-    const tabs: TabItem[] = [{ value: 'share', label: 'Share' }];
+  const mobileTabs = createMemo((): UnderlineTabItem[] => {
+    const tabs: UnderlineTabItem[] = [{ value: 'share', label: 'Share' }];
     if ((props.recipients?.length ?? 0) > 0 || props.owner)
       tabs.push({
         value: 'people',
@@ -663,7 +667,7 @@ function MobileShareDrawer(props: MobileShareDrawerProps) {
             </Show>
           </div>
           <div class="shrink-0 h-9 border-b border-edge-muted px-3 mb-2">
-            <Tabs
+            <UnderlineTabs
               list={mobileTabs()}
               value={effectiveActiveTab()}
               onChange={setActiveTab}

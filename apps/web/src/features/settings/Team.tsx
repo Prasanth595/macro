@@ -69,7 +69,7 @@ import {
   cn,
   Dialog,
   Panel,
-  SegmentedControl,
+  Tabs,
   ToggleSwitch,
   Tooltip,
 } from '@ui';
@@ -1444,7 +1444,8 @@ function TeamManagement(props: {
                 description="The link-sharing scope newly shared items start with. None means link sharing starts off."
                 hideDescriptionOnMobile
               >
-                <SegmentedControl
+                <Tabs
+                  touch="segmented"
                   aria-label="Default link sharing scope"
                   size="sm"
                   value={defaultLinkShare()}

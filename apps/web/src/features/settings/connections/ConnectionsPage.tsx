@@ -1,4 +1,3 @@
-import { TabsInset } from '@core/component/TabsInset';
 import { toast } from '@core/component/Toast/Toast';
 import {
   clearPendingConnectApp,
@@ -6,7 +5,7 @@ import {
 } from '@core/pipedream/pendingConnect';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { connectPipedreamApp } from '@queries/pipedream-connectors';
-import { Button } from '@ui';
+import { Button, Tabs } from '@ui';
 import { createEffect, createSignal, on, Show, Suspense } from 'solid-js';
 import { SettingsPage } from '../primitives';
 import { ConnectedView } from './ConnectedView';
@@ -108,9 +107,11 @@ function ConnectionsContent(props: { onOpenMacroMcp: () => void }) {
                 description={description}
                 signpost={<MacroMcpSignpost onOpen={props.onOpenMacroMcp} />}
               >
-                <TabsInset
+                <Tabs
+                  aria-label="Connections view"
+                  touch="inset"
                   fullWidth
-                  list={[
+                  options={[
                     { value: 'connected', label: 'Connected' },
                     { value: 'discover', label: 'Discover' },
                   ]}

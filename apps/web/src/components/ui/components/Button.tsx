@@ -129,12 +129,18 @@ export function buttonClasses(options: ButtonClassOptions = {}): string {
     class: className,
   } = options;
 
+  const framed =
+    glass === true || (glass === undefined && (variant ?? 'ghost') !== 'ghost');
+
   return cn(
     buttonVariants({ variant, size }),
     glass === true && 'glass not-touch:elevated',
     glass === undefined &&
       (variant ?? 'ghost') !== 'ghost' &&
       'not-touch:elevated touch:glass',
+    // Pressed matches a selected Tabs option: the pressed fill, flat.
+    framed &&
+      'not-touch:aria-pressed:border-edge-button not-touch:aria-pressed:shadow-none',
     fullWidth && 'w-full',
     !noTouchResize && BUTTON_TOUCH_STYLES,
     square && 'aspect-square p-0',
@@ -155,9 +161,13 @@ function isIconSize(size: ButtonSize): boolean {
  * @do Use strong for outline actions with bolder type and cta for accent-filled actions.
  * @do Use the default shared surface, or glass={false} for a flat frame.
  * @do Always set `label` on icon-only buttons; it is the accessible name.
+ * @do Use `icon-*` sizes for icon-only buttons; `icon-md` beside 32px controls.
+ * @do Mark on/off toggles with `aria-pressed`; it draws the selected-tab fill.
  * @do Use `danger` only for destructive actions, paired with a confirmation.
  * @dont Do not restyle a button with utility classes when a variant already
- *   covers it.
+ *   covers it, and never resize one from a wrapper (`[&_button]:size-8`).
+ * @dont Do not use `square` for new icon buttons; it keeps the text-size glyph.
+ * @dont Do not build tabs from Buttons; use `Tabs` or `TabSelector`.
  * @dont Do not use a Button for navigation that should be a link.
  * @dont Do not put two `danger` buttons next to each other.
  */

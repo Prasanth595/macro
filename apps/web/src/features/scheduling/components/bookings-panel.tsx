@@ -1,4 +1,3 @@
-import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import Calendar from '@phosphor/calendar-blank.svg';
 import { Button, Tabs } from '@ui';
 import { For, Show } from 'solid-js';
@@ -134,31 +133,17 @@ export function BookingStatusTabs(props: {
   onTab: (tab: BookingTab) => void;
 }) {
   return (
-    <div class="flex min-w-0 items-center gap-3">
-      <div class="max-w-full overflow-x-auto pb-1">
-        <Tabs
-          aria-label="Booking status"
-          variant={isTouchDevice() ? 'pill' : 'segmented'}
-          class="w-fit"
-          labelClass="gap-2 whitespace-nowrap px-3 text-sm"
-          list={props.tabs.map((tab) => ({
-            value: tab.value,
-            label: () => (
-              <>
-                {tab.value}
-                <span class="text-xs text-ink-muted tabular-nums">
-                  {tab.count}
-                </span>
-              </>
-            ),
-          }))}
-          value={props.tab}
-          onChange={(value) => {
-            const tab = props.tabs.find((tab) => tab.value === value);
-            if (tab) props.onTab(tab.value);
-          }}
-        />
-      </div>
+    <div class="max-w-full overflow-x-auto [scrollbar-width:none]">
+      <Tabs
+        aria-label="Booking status"
+        options={props.tabs.map((tab) => ({
+          value: tab.value,
+          label: tab.value,
+          count: tab.count,
+        }))}
+        value={props.tab}
+        onChange={props.onTab}
+      />
     </div>
   );
 }
