@@ -2,7 +2,8 @@
 
 The single agent backend hosts sessions, chat/completions, workspace MCP/OAuth,
 routine scheduling, and previews. Public HTTP, session egress, preview HTTP, and
-SSH are listeners in the same process and ECS task.
+SSH are listeners in the same process. One ECS service runs two replicas in
+both dev and production, with rolling task replacement.
 
 Read [AGENTS.md](AGENTS.md) for the module map and checks, and the
 [consolidation guide](../../docs/guides/consolidate-agent-services.md) before

@@ -88,9 +88,9 @@ listener failure shuts down the process so ECS can replace the task.
 
 ## Gotchas
 
-- Deploy exactly one task without overlapping replacements: preview SSH,
-  HTTP, and tickets share one in-memory registry. A deployment interrupts
-  previews and briefly interrupts the agent backend.
+- Keep two tasks and rolling replacements in both environments. Preview
+  control, SSH, and browser requests must reach the replica holding the live
+  tunnel; never reduce harness replication to work around local preview state.
 
 
 - Two managed bots run on different runtimes: `@coder` (`HARNESS_BOT_ID`) in a

@@ -380,10 +380,10 @@ export class AgentHarnessService extends pulumi.ComponentResource {
           enable: true,
           rollback: true,
         },
-        deploymentMinimumHealthyPercent: 0,
-        deploymentMaximumPercent: 100,
-        // Preview SSH tunnels and tickets share an in-memory registry.
-        desiredCount: 1,
+        deploymentMinimumHealthyPercent: 100,
+        deploymentMaximumPercent: 200,
+        // Keep dev and production replicated, including during rolling updates.
+        desiredCount: 2,
         // ALB checks /health every 10s and fails the target after two
         // misses (~20s). HTTP does not listen until after DB, AWS config,
         // and JWT secrets, so a 0s grace period trips the circuit breaker
@@ -430,7 +430,7 @@ export class AgentHarnessService extends pulumi.ComponentResource {
               name: BASE_NAME,
               image: image.image.imageUri,
               // Daytona cleanup can make two 30-second stop attempts. Give the
-              // singleton time to release sandbox capacity before ECS kills it.
+              // draining replica time to release capacity before ECS kills it.
               stopTimeout: 120,
               // Shared by the harness and up to eight restricted Deno children.
               cpu: 4096,
@@ -549,7 +549,7 @@ export class AgentHarnessService extends pulumi.ComponentResource {
       `${BASE_NAME}-service-cpu-alarm`,
       {
         name: `${BASE_NAME}-service-cpu-${stack}`,
-        alarmDescription: `Alarm when ${BASE_NAME} CPU stays elevated (no autoscaling on this service - single replica only)`,
+        alarmDescription: `Alarm when ${BASE_NAME} CPU stays elevated across its replicas`,
         namespace: 'AWS/ECS',
         metricName: 'CPUUtilization',
         statistic: 'Average',

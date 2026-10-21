@@ -11,9 +11,10 @@ listener and `/agent-harness-egress` prefix. Preview public HTTP (8111) and SSH
 (2222) are listeners in the same process, preserving the isolated preview
 browser domain. The main API port is 8101 in ECS and 8080 inside local Compose.
 
-Deploy one task, with zero overlapping replacement tasks. Preview leases,
-SSH tunnels, and tickets share an in-memory registry. Restarting the task
-closes previews and briefly interrupts all agent API surfaces.
+Deploy two tasks in both environments, with overlapping rolling replacements.
+Preview ownership and forwarding must support multiple replicas before this
+consolidation is deployed. Live SSH tunnels remain local to their owner;
+replacing that owner can close its active previews.
 
 ## Configuration
 
@@ -94,7 +95,7 @@ maintenance window:
    domain, certificates, HTTPS/SSH load balancers, security group, and target
    groups. It now exports those resources for the harness task. Their health
    checks use the shared harness API port.
-5. Apply `agent-harness-service`. Its one task joins the preview security group
+5. Apply `agent-harness-service`. Its tasks join the preview security group
    and all five target groups: shared API, egress, preview control, preview
    HTTP, and preview SSH. The shared API target also receives cognition, MCP,
    and scheduling listener rules at the retired services' existing priorities.
