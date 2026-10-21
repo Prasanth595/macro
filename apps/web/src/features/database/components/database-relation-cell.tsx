@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Popover } from '@kobalte/core/popover';
 import ArrowRightIcon from '@phosphor/arrow-right.svg';
 import ArrowUpRightIcon from '@phosphor/arrow-up-right.svg';
@@ -114,10 +115,13 @@ export function DatabaseRelationCell(props: DatabaseRelationCellProps) {
     }
   }
   function toggle(id: string) {
-    void write(
-      selected().includes(id)
-        ? selected().filter((value) => value !== id)
-        : [...selected(), id]
+    fireAndForget(
+      write(
+        selected().includes(id)
+          ? selected().filter((value) => value !== id)
+          : [...selected(), id]
+      ),
+      'database'
     );
   }
   async function commitAndNavigate(direction: 1 | -1) {
@@ -208,7 +212,7 @@ export function DatabaseRelationCell(props: DatabaseRelationCellProps) {
             ) {
               event.preventDefault();
               event.stopPropagation();
-              void write([]);
+              fireAndForget(write([]), 'database');
             }
           }}
         />
@@ -279,7 +283,7 @@ export function DatabaseRelationCell(props: DatabaseRelationCellProps) {
         >
           <Popover.Portal>
             <Popover.Content
-              class="z-action-menu flex w-80 max-w-[calc(100vw-1.5rem)] min-h-0 flex-col overflow-hidden rounded-lg border border-edge bg-menu text-ink shadow-menu outline-none"
+              class="menu-surface z-action-menu flex w-80 max-w-[calc(100vw-1.5rem)] min-h-0 flex-col overflow-hidden outline-none"
               style={{
                 'max-height':
                   'min(30rem, var(--kb-popper-content-available-height, calc(100dvh - 1rem)))',
@@ -349,7 +353,10 @@ export function DatabaseRelationCell(props: DatabaseRelationCellProps) {
                       }
                     } else if (event.key === 'Tab') {
                       event.preventDefault();
-                      void commitAndNavigate(event.shiftKey ? -1 : 1);
+                      fireAndForget(
+                        commitAndNavigate(event.shiftKey ? -1 : 1),
+                        'database'
+                      );
                     } else if (event.key === 'Escape') {
                       event.preventDefault();
                       close();
@@ -445,7 +452,7 @@ export function DatabaseRelationCell(props: DatabaseRelationCellProps) {
                     <Button
                       size="xs"
                       class="mt-1"
-                      onClick={() => void refresh()}
+                      onClick={() => fireAndForget(refresh(), 'database')}
                     >
                       Retry
                     </Button>
@@ -461,7 +468,10 @@ export function DatabaseRelationCell(props: DatabaseRelationCellProps) {
                 <span class="truncate">
                   {saving() ? 'Saving…' : props.source.name()}
                 </span>
-                <Button size="xs" onClick={() => void finish()}>
+                <Button
+                  size="xs"
+                  onClick={() => fireAndForget(finish(), 'database')}
+                >
                   {saveError() ? 'Retry' : 'Done'}
                 </Button>
               </div>

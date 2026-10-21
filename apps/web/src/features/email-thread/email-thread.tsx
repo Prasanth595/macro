@@ -1,6 +1,5 @@
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import { useEmail, useUserContext } from '@core/context/user';
-import { isMobile } from '@core/mobile/isMobile';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { useContacts } from '@core/user';
 import { createEffectOnEntityTypeNotification } from '@notifications';
@@ -21,6 +20,8 @@ import { convertContactInfoToEmailRecipient } from '../email-compose/core/recipi
 import { createEmailAttachmentOpener } from '../email-message/attachment-action-adapter';
 import type { CalendarInvitation } from '../email-message/core/calendar-invitation';
 import type { EmailMessage } from '../email-message/core/email-message';
+import { operationSettled } from '../email-message/core/message-operation';
+import { EmailMessageOperation } from '../email-message/email-message-operation';
 import { createEmailRenderingContext } from '../email-message/rendering-adapter';
 import { EmailSenderIcon } from '../email-message/sender-icon-adapter';
 import {
@@ -31,6 +32,8 @@ import type {
   EmailThreadContext,
   EmailThreadSource,
 } from './context/email-thread-context';
+import type { EmailThreadOrganizationStatus } from './context/email-thread-view-context';
+import { EmailThreadOperations } from './email-thread-operations';
 import { createOptimisticThreadSend } from './primitives/optimistic-send';
 import { createThreadActionAdapter } from './thread-action-adapter';
 import {
@@ -67,7 +70,6 @@ export function EmailThread(props: EmailThreadProps) {
     source,
     viewerEmail,
     viewerLoading: user.isLoading,
-    isMobile,
     isTouch: isTouchDevice,
     recipients: createMemo(() =>
       contacts().map((contact) => convertContactInfoToEmailRecipient(contact))
@@ -89,6 +91,17 @@ export function EmailThread(props: EmailThreadProps) {
     compose,
     composeHost: createEmailComposeHost(),
     rendering: {
+      renderOrganizationStatus: (status: EmailThreadOrganizationStatus) => (
+        <EmailThreadOperations
+          threadId={source.id()}
+          enabled={source.thread()?.access_level === 'owner'}
+          announceRead={status.announceRead()}
+        />
+      ),
+      renderOperation: (message: EmailMessage) =>
+        message.operation && !operationSettled(message.operation) ? (
+          <EmailMessageOperation message={message} />
+        ) : undefined,
       renderTags: () => (
         <Suspense
           fallback={

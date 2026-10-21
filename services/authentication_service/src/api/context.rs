@@ -58,7 +58,7 @@ use sqlx::PgPool;
 use tokio_util::task::TaskTracker;
 
 use crate::account_link_state::AccountLinkStateKey;
-use crate::microsoft_token_cipher::MicrosoftTokenCipher;
+use crate::domain::microsoft::MicrosoftAuth;
 use crate::service::signup_policy::SignupPolicy;
 use cursor_api_key::cipher::CursorApiKeyCipher;
 
@@ -91,6 +91,17 @@ pub(crate) type AiBillingServiceType = ai_billing::domain::BillingServiceImpl<
     ai_billing::outbound::PgBillingRepo,
     ai_billing::outbound::StripePaymentGateway,
 >;
+
+pub(crate) type SubscriptionStatusServiceType =
+    crate::service::subscription_status::SubscriptionStatusService<
+        ai_billing::outbound::RolesTeamsEntitlementSource<
+            UserRolesAndPermissionsServiceImpl<MacroDB, MacroDB>,
+            teams::outbound::team_repo::TeamRepositoryImpl,
+        >,
+        crate::outbound::subscription_plan::StripePlanGateway<
+            teams::outbound::customer_repo::CustomerRepositoryImpl,
+        >,
+    >;
 
 pub(crate) type TeamsServiceType = teams::domain::team_service::TeamServiceImpl<
     teams::outbound::team_repo::TeamRepositoryImpl,
@@ -143,15 +154,25 @@ pub(crate) type AuthorizationService = MacroAuthorizationServiceImpl<MacroAuthJw
 #[derive(Clone, FromRef)]
 pub(crate) struct ApiContext {
     pub db: PgPool,
+    pub inbox_connections:
+        Arc<email::domain::inbox_entitlement::InboxConnectionService<email::outbound::EmailPgRepo>>,
     pub github_link_service: Arc<GithubLinkServiceType>,
     pub auth_client: Arc<fusionauth::FusionAuthClient>,
-    pub microsoft_token_cipher: Option<Arc<dyn MicrosoftTokenCipher>>,
+    pub microsoft_auth: Option<Arc<dyn MicrosoftAuth>>,
     /// Encrypts users' Cursor API keys.
     pub cursor_api_key_cipher: Arc<dyn CursorApiKeyCipher>,
     /// Owner-bound Codex OAuth lifecycle and cloud target settings.
     pub codex_connection: Option<Arc<dyn codex_connection::domain::ConnectionService>>,
     pub macro_cache_client: Arc<MacroCache>,
     pub stripe_client: Arc<stripe::Client>,
+    pub subscription_status: Arc<SubscriptionStatusServiceType>,
+    pub subscription_plan: Arc<
+        crate::service::subscription_plan::PlanService<
+            crate::outbound::subscription_plan::StripePlanGateway<
+                teams::outbound::customer_repo::CustomerRepositoryImpl,
+            >,
+        >,
+    >,
     pub subscription_checkout: Arc<
         crate::service::subscription_checkout::CheckoutService<
             crate::outbound::subscription_checkout::StripeCheckoutGateway<GtmInviteServiceType>,

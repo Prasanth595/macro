@@ -7,6 +7,8 @@
  * `import_updated`; polling remains as the backstop (pushes can be missed
  * while reconnecting), tightening while anything is in flight.
  */
+
+import { fireAndForget } from '@core/util/fireAndForget';
 import { throwOnErr } from '@core/util/result';
 import { queryClient } from '@queries/client';
 import {
@@ -18,6 +20,7 @@ import {
 } from '@service-cognition/import';
 import { createConnectionWebsocketEffect } from '@service-connection/websocket';
 import {
+  queryOptions,
   type UseMutationResult,
   useMutation,
   useQuery,
@@ -57,21 +60,32 @@ function anythingInFlight(state: ImportState | undefined): boolean {
   );
 }
 
+function fetchImportStateFromServer() {
+  return throwOnErr(() => importClient.getState());
+}
+
+// Cached on the query past unmount; module scope keeps hook state out of it.
+function importStateQueryOptions(enabled: boolean) {
+  return queryOptions({
+    queryKey: KEYS.state,
+    queryFn: fetchImportStateFromServer,
+    enabled,
+    refetchInterval: (query) =>
+      anythingInFlight(query.state.data) ? 3_000 : 15_000,
+    placeholderData: PENDING_IMPORT_STATE,
+  });
+}
+
 /** The import aggregate: gather runs plus visible ledger rows. */
 export function useImportQuery(options?: { enabled?: () => boolean }) {
   createConnectionWebsocketEffect((message) => {
     if (message.type !== IMPORT_UPDATED_MESSAGE_TYPE) return;
-    void invalidateImportState();
+    fireAndForget(invalidateImportState(), 'import-state');
   });
 
-  return useQuery(() => ({
-    queryKey: KEYS.state,
-    queryFn: async () => throwOnErr(() => importClient.getState()),
-    enabled: options?.enabled ? options.enabled() : true,
-    refetchInterval: (query) =>
-      anythingInFlight(query.state.data) ? 3_000 : 15_000,
-    placeholderData: PENDING_IMPORT_STATE,
-  }));
+  return useQuery(() =>
+    importStateQueryOptions(options?.enabled ? options.enabled() : true)
+  );
 }
 
 function invalidateImportState() {
@@ -92,7 +106,7 @@ export function useRunImportMutation() {
           discard_ids: args.discardIds,
         })
       ),
-    onSuccess: () => void invalidateImportState(),
+    onSuccess: () => fireAndForget(invalidateImportState(), 'import-state'),
   }));
 }
 
@@ -105,7 +119,7 @@ export function useDiscoverMutation(): UseMutationResult<
   return useMutation(() => ({
     mutationFn: (source: ImportSource) =>
       throwOnErr(() => importClient.discover(source)),
-    onSuccess: () => void invalidateImportState(),
+    onSuccess: () => fireAndForget(invalidateImportState(), 'import-state'),
   }));
 }
 

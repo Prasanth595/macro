@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Popover } from '@kobalte/core/popover';
 import DotsIcon from '@phosphor/dots-three.svg';
 import TrashIcon from '@phosphor/trash.svg';
@@ -56,8 +57,9 @@ export function OptionEditor(props: {
       setError('Enter a number.');
       return;
     }
-    void settle(
-      props.editing.update(props.column.id, props.option.id, { label })
+    fireAndForget(
+      settle(props.editing.update(props.column.id, props.option.id, { label })),
+      'database'
     );
   };
   return (
@@ -86,7 +88,7 @@ export function OptionEditor(props: {
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
-          class="z-action-menu flex w-56 flex-col gap-2.5 rounded-lg border border-edge bg-menu p-2.5 text-xs text-ink shadow-menu outline-none"
+          class="menu-surface z-action-menu flex w-56 flex-col gap-2.5 p-2.5 text-xs outline-none"
           onClick={(event: MouseEvent) => event.stopPropagation()}
           on:keydown={(event) => {
             // Natively, so the popover or menu around it never hears this Escape.
@@ -116,10 +118,13 @@ export function OptionEditor(props: {
             size="sm"
             value={props.option.color}
             onChange={(color) =>
-              void settle(
-                props.editing.update(props.column.id, props.option.id, {
-                  color: color.color,
-                })
+              fireAndForget(
+                settle(
+                  props.editing.update(props.column.id, props.option.id, {
+                    color: color.color,
+                  })
+                ),
+                'database'
               )
             }
           />

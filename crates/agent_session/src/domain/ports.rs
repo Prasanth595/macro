@@ -1,5 +1,6 @@
 use std::pin::Pin;
 
+use super::coding_preferences::CodingPreferences;
 use super::error::{AgentSessionError, Result};
 use super::model::*;
 use super::session::StopReason;
@@ -363,6 +364,16 @@ pub trait SessionOpener: Send + Sync + 'static {
     ) -> impl Future<Output = Result<Option<AgentSessionId>>> + Send;
 }
 
+/// The turn currently allowed to initiate work, from shared durable state.
+/// Stopping, ended, archived, and deleted sessions have no active turn.
+pub trait ActiveSessionTurn: Send + Sync + 'static {
+    /// Resolve the starting, running, or blocked turn independently of replica ownership.
+    fn active_turn(
+        &self,
+        id: AgentSessionId,
+    ) -> impl Future<Output = Result<Option<agent_runtime_protocol::domain::action::AgentActionId>>> + Send;
+}
+
 /// `Send + Sync + 'static` with `Send` futures because callers drive sessions
 /// from spawned tasks - a Kafka consumer hands each message to its own task,
 /// and a repo whose futures are not `Send` cannot be used there.
@@ -511,6 +522,14 @@ pub trait AgentSessionRepo: Send + Sync + 'static {
         is_archived: bool,
     ) -> impl Future<Output = Result<()>> + Send;
 
+    /// Whether the session is an agent conversation's current one: the
+    /// session its channel's messages go to now. A session the conversation
+    /// left behind by starting fresh is not.
+    fn is_current_conversation_session(
+        &self,
+        id: AgentSessionId,
+    ) -> impl Future<Output = Result<bool>> + Send;
+
     /// Persist an automatically generated name only while the default remains
     /// and the session is not archived.
     fn set_name_if_default(
@@ -539,6 +558,21 @@ pub trait AgentSessionRepo: Send + Sync + 'static {
         &self,
         user_id: &MacroUserIdStr<'static>,
         size: SandboxSize,
+    ) -> impl Future<Output = Result<()>> + Send;
+
+    /// The user's coding preferences.
+    ///
+    /// A missing row is every preference off, not an error.
+    fn user_coding_preferences(
+        &self,
+        user_id: &MacroUserIdStr<'static>,
+    ) -> impl Future<Output = Result<CodingPreferences>> + Send;
+
+    /// Upsert the user's coding preferences, replacing every field.
+    fn set_user_coding_preferences(
+        &self,
+        user_id: &MacroUserIdStr<'static>,
+        preferences: CodingPreferences,
     ) -> impl Future<Output = Result<()>> + Send;
 
     /// Delete an agent session by id.
@@ -734,6 +768,16 @@ pub trait AgentSessionLogRepo: Send + Sync + 'static {
         agent_session_id: AgentSessionId,
     ) -> impl Future<Output = Result<Vec<StoredAgentSessionLog>>> + Send;
 
+    /// A single snapshot of durable history when the action was prompted,
+    /// or an empty snapshot when absent. Includes frames
+    /// before a successful load. Internal action recovery needs their original
+    /// request IDs, which replayed display history does not preserve.
+    fn list_action_history(
+        &self,
+        agent_session_id: AgentSessionId,
+        action: agent_runtime_protocol::domain::action::AgentActionId,
+    ) -> impl Future<Output = Result<Vec<StoredAgentSessionLog>>> + Send;
+
     /// Every user the log has attributed a frame to: whoever prompted,
     /// answered, or otherwise drove the session. Distinct, unordered; the
     /// owner appears only if they acted. Spans the whole log, resumes
@@ -813,6 +857,19 @@ pub struct Appended {
 /// and [`flush_deadline`](Self::flush_deadline) tells the owning actor when
 /// the buffer must next be forced out with [`flush`](Self::flush).
 pub trait AgentSessionLogWriter: Send + 'static {
+    /// Persist the missing frames of a stable presentation and flush before acknowledging.
+    fn present_tool(
+        &mut self,
+        id: AgentSessionId,
+        acp_id: agent_client_protocol::schema::v1::SessionId,
+        presentation: super::model::SessionToolPresentation,
+    ) -> impl Future<Output = Result<()>> + Send {
+        async move {
+            let _ = (acp_id, presentation);
+            Err(AgentSessionError::Disconnected(id))
+        }
+    }
+
     /// Persist and fold one frame into this connection's live projection.
     fn append(&mut self, log: AgentSessionLog) -> impl Future<Output = Result<Appended>> + Send {
         self.append_with_boundary(log, None)
@@ -1099,6 +1156,9 @@ pub struct ControlEvent {
     /// `None` means "no user is responsible", not "unknown" - a bot's own
     /// actions are attributed to the bot, which this field does not carry.
     pub actor: Option<MacroUserIdStr<'static>>,
+    /// Why the agent is being asked, when a runtime forwards a triggered
+    /// prompt. Users driving a session directly supply none.
+    pub context: Option<trigger_context::TriggerContext>,
 }
 
 /// What accepting a control operation did with it.
@@ -1146,6 +1206,19 @@ pub struct QueuedControl {
 /// control routes can be mounted against it without knowing what a harness is.
 #[cfg_attr(feature = "test-utils", mockall::automock)]
 pub trait AgentSessionNotificationRecipient: Send + Sync + 'static {
+    /// Persist a nonblocking tool presentation through the owning session actor.
+    fn present_tool(
+        &self,
+        id: AgentSessionId,
+        actor: MacroUserIdStr<'static>,
+        presentation: super::model::SessionToolPresentation,
+    ) -> impl Future<Output = Result<()>> + Send {
+        async move {
+            let _ = (actor, presentation);
+            Err(AgentSessionError::Disconnected(id))
+        }
+    }
+
     /// Release and delete every session owned by a user before account deletion.
     /// Internal account lifecycle only; shared sessions owned by others are untouched.
     fn delete_user_sessions(

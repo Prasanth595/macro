@@ -268,8 +268,21 @@ fn emits_in_network_service_url_overrides() {
             "http://document-storage-service:8080",
         ),
         (
+            "OVERRIDE_DOCUMENT_COGNITION_SERVICE_URL",
+            "http://document-cognition-service:8080",
+        ),
+        (
+            "OVERRIDE_NOTIFICATION_SERVICE_URL",
+            "http://notification-service:8080",
+        ),
+        (
+            "OVERRIDE_CONTACTS_SERVICE_URL",
+            "http://contacts-service:8080",
+        ),
+        ("OVERRIDE_UNFURL_SERVICE_URL", "http://unfurl-service:8080"),
+        (
             "OVERRIDE_AGENT_HARNESS_SERVICE_URL",
-            "http://agent-harness-service:8101",
+            "http://agent-harness-service:8080",
         ),
         (
             "OVERRIDE_SCHEDULED_ACTION_SERVICE_URL",
@@ -303,7 +316,7 @@ fn emits_in_network_service_url_overrides() {
 fn static_file_permalinks_go_through_the_instance_proxy() {
     let env = local_env();
     let permalink_base = env
-        .get("STATIC_FILE_SERVICE_URL")
+        .get("OVERRIDE_STATIC_FILE_PUBLIC_URL")
         .expect("static file permalink base");
     assert!(
         permalink_base.starts_with("https://localhost:"),
@@ -504,7 +517,7 @@ fn frontend_origin_tracks_how_the_app_is_served() {
             }
             assert_eq!(env["MCP_PUBLIC_URL"], format!("{origin}/cognition"));
             assert_eq!(
-                env["STATIC_FILE_SERVICE_URL"],
+                env["OVERRIDE_STATIC_FILE_PUBLIC_URL"],
                 format!("{origin}/static-file")
             );
             assert!(
