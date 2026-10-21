@@ -82,6 +82,22 @@ impl ExecutionCredentials for Credentials {
         })
     }
 }
+#[derive(Default)]
+struct Presented(Mutex<Vec<(ExecutionId, PresentedItem)>>);
+#[async_trait]
+impl ExecutionPresenter for Presented {
+    async fn present(
+        &self,
+        identity: &ExecutionIdentity,
+        item: &PresentedItem,
+    ) -> Result<(), CodeModeError> {
+        self.0
+            .lock()
+            .unwrap()
+            .push((identity.execution, item.clone()));
+        Ok(())
+    }
+}
 struct Executor;
 #[async_trait]
 impl ProgramExecutor for Executor {
@@ -112,6 +128,7 @@ fn service() -> (
             credentials.clone(),
             store.clone(),
             turns.clone(),
+            Arc::new(Presented::default()),
         ),
         credentials,
         store,
@@ -290,6 +307,7 @@ async fn optional_reviews_default_to_empty_without_accepting_malformed_results()
             Arc::new(Credentials::default()),
             store.clone(),
             Arc::new(TestTurns::default()),
+            Arc::new(Presented::default()),
         );
         let session =
             test_agent_session(AgentSessionId::new_from_uuid(macro_uuid::generate_uuid_v7()));
@@ -359,6 +377,7 @@ async fn persists_live_activity_and_marks_unfinished_requests_unknown() {
         Arc::new(Credentials::default()),
         store.clone(),
         Arc::new(TestTurns::default()),
+        Arc::new(Presented::default()),
     );
     let session = test_agent_session(AgentSessionId::new_from_uuid(macro_uuid::generate_uuid_v7()));
     let id = ExecutionId::mint();
@@ -487,6 +506,7 @@ async fn cancellation_is_not_blocked_by_a_stalled_activity_save() {
         Arc::new(Credentials::default()),
         store.clone(),
         Arc::new(TestTurns::default()),
+        Arc::new(Presented::default()),
     );
     let session = test_agent_session(AgentSessionId::new_from_uuid(macro_uuid::generate_uuid_v7()));
     let cancel = CancellationToken::new();
@@ -506,4 +526,146 @@ async fn cancellation_is_not_blocked_by_a_stalled_activity_save() {
         .unwrap()
         .unwrap();
     assert_eq!(receipt.status, ExecutionStatus::Cancelled);
+}
+
+fn running_record() -> ExecutionRecord {
+    ExecutionRecord {
+        execution_id: ExecutionId::mint(),
+        source: String::new(),
+        status: ExecutionStatus::Running,
+        result: None,
+        error: None,
+        calls: vec![],
+        activity: vec![],
+        activity_truncated: false,
+    }
+}
+
+fn markdown(id: u64, status: &str, item: serde_json::Value) -> serde_json::Value {
+    json!({"id": id, "service": "storage", "operation": "createMarkdownHandler", "status": status, "item": item})
+}
+
+const DOCUMENT: &str = "0199f3a2-1b2c-7d4e-8f90-a1b2c3d4e5f6";
+
+#[test]
+fn an_item_is_reported_once_its_operation_completes() {
+    let observe = super::super::activity::observe;
+    let item =
+        json!({"type": "document", "id": DOCUMENT, "action": "created", "title": "  Q3\n plan "});
+    let mut record = running_record();
+    assert_eq!(
+        observe(&mut record, markdown(1, "started", item.clone())),
+        None
+    );
+    assert_eq!(
+        observe(&mut record, markdown(1, "completed", item.clone())),
+        Some(PresentedItem {
+            activity: 1,
+            item: ActivityItem {
+                item_type: ActivityItemType::Document,
+                id: DOCUMENT.into(),
+                action: ActivityItemAction::Created,
+                title: Some("Q3 plan".into()),
+            },
+        })
+    );
+    // Reported again, it is the same finished activity.
+    assert_eq!(
+        observe(&mut record, markdown(1, "completed", item.clone())),
+        None
+    );
+    // A failed write changed nothing, and an operation never started is not one.
+    observe(&mut record, markdown(2, "started", json!(null)));
+    assert_eq!(
+        observe(&mut record, markdown(2, "failed", item.clone())),
+        None
+    );
+    assert_eq!(observe(&mut record, markdown(3, "completed", item)), None);
+}
+
+#[test]
+fn an_unreadable_item_still_lets_its_operation_finish() {
+    let observe = super::super::activity::observe;
+    let cases = [
+        json!({"type": "task", "id": DOCUMENT, "action": "created"}),
+        json!({"type": "document", "id": "../../etc", "action": "created"}),
+        json!({"type": "document", "id": "", "action": "created"}),
+        json!({"type": "document", "id": "a".repeat(129), "action": "created"}),
+        json!({"type": "document", "id": DOCUMENT, "action": "created", "html": "<b>"}),
+    ];
+    for item in cases {
+        let mut record = running_record();
+        observe(&mut record, markdown(1, "started", json!(null)));
+        assert_eq!(
+            observe(&mut record, markdown(1, "completed", item.clone())),
+            None,
+            "{item}"
+        );
+        assert_eq!(
+            record.activity[0].status,
+            RecordedCallStatus::Completed,
+            "{item}"
+        );
+    }
+    let mut record = running_record();
+    observe(&mut record, markdown(1, "started", json!(null)));
+    let long =
+        json!({"type": "document", "id": DOCUMENT, "action": "created", "title": "x".repeat(300)});
+    let presented = observe(&mut record, markdown(1, "completed", long)).unwrap();
+    assert_eq!(presented.item.title.unwrap().len(), 100);
+}
+
+struct ItemExecutor;
+#[async_trait]
+impl ProgramExecutor for ItemExecutor {
+    async fn execute_program(
+        &self,
+        _: ExecuteRequest,
+        _: code_execution::domain::RunEnvironment,
+        _: CancellationToken,
+    ) -> Outcome {
+        unreachable!("the service should observe progress")
+    }
+    async fn execute_program_with_progress(
+        &self,
+        _: ExecuteRequest,
+        _: code_execution::domain::RunEnvironment,
+        _: CancellationToken,
+        progress: tokio::sync::mpsc::Sender<serde_json::Value>,
+    ) -> Outcome {
+        let item =
+            json!({"type": "document", "id": DOCUMENT, "action": "created", "title": "Q3 plan"});
+        progress
+            .send(markdown(1, "started", json!(null)))
+            .await
+            .unwrap();
+        progress.send(markdown(1, "completed", item)).await.unwrap();
+        Outcome::Succeeded {
+            value: json!({"data": 42}),
+        }
+    }
+}
+
+#[tokio::test]
+async fn a_run_presents_what_it_changed_before_it_answers() {
+    let presented = Arc::new(Presented::default());
+    let service = CodeModeService::new(
+        Some(Arc::new(ItemExecutor)),
+        Arc::new(Credentials::default()),
+        Arc::new(MemoryStore::default()),
+        Arc::new(TestTurns::default()),
+        presented.clone(),
+    );
+    let session = test_agent_session(AgentSessionId::new_from_uuid(macro_uuid::generate_uuid_v7()));
+    let id = ExecutionId::mint();
+    let receipt = service
+        .execute(&session, id, request(), CancellationToken::new())
+        .await
+        .unwrap();
+    assert_eq!(receipt.status, ExecutionStatus::Succeeded);
+    let presented = presented.0.lock().unwrap();
+    assert_eq!(presented.len(), 1);
+    assert_eq!(presented[0].0, id);
+    assert_eq!(presented[0].1.activity, 1);
+    assert_eq!(presented[0].1.item.id, DOCUMENT);
 }

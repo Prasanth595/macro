@@ -177,3 +177,72 @@ pub struct ExecutionActivity {
     /// Observed request state; unfinished operations have unknown outcomes.
     pub status: RecordedCallStatus,
 }
+
+/// A workspace item a completed SDK operation created or changed, as the
+/// program's SDK reported it. Advisory like the activity it came with: the
+/// session shows it as a card, and readers open the item with their own access.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ActivityItem {
+    /// What kind of item it is.
+    #[serde(rename = "type")]
+    pub item_type: ActivityItemType,
+    /// The item's id.
+    pub id: String,
+    /// What the operation did to it.
+    pub action: ActivityItemAction,
+    /// The item's name, when the operation carried one.
+    #[serde(default)]
+    pub title: Option<String>,
+}
+
+/// The kinds of item the SDK reports; named as the agent fold reads them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ActivityItemType {
+    /// A document, including a task, a snippet or a skill.
+    Document,
+    /// An email thread.
+    EmailThread,
+    /// A calendar event.
+    CalendarEvent,
+    /// A project folder.
+    Project,
+    /// A channel.
+    Channel,
+    /// A form.
+    Form,
+    /// An initiative.
+    Initiative,
+}
+
+/// What an operation did to its item; named as the agent fold reads them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ActivityItemAction {
+    /// Made it.
+    Created,
+    /// Changed its content.
+    Edited,
+    /// Sent it, or sent a message to it.
+    Sent,
+    /// Changed its settings or properties.
+    Updated,
+    /// Moved it into or out of a project.
+    Moved,
+    /// Renamed it.
+    Renamed,
+    /// Commented on it.
+    Commented,
+    /// Deleted or canceled it.
+    Deleted,
+}
+
+/// An item a run changed, for the session to show while the run goes on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PresentedItem {
+    /// The activity that changed it, unique within its execution.
+    pub activity: u64,
+    /// The item and what was done to it.
+    pub item: ActivityItem,
+}

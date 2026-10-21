@@ -86,6 +86,7 @@ pub fn sdk_hosts() -> anyhow::Result<BTreeMap<String, String>> {
     .collect())
 }
 
+pub mod items;
 pub mod reviews;
 
 async fn approve_run(
