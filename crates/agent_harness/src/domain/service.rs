@@ -144,6 +144,8 @@ struct AgentHarnessInner<
     conversation_turns: Option<Arc<dyn crate::domain::conversation_turns::ConversationTurnStore>>,
     external_replies: Option<Arc<dyn crate::domain::external_replies::ExternalReplyStore>>,
     notification_store: Option<Arc<dyn agent_session::domain::notifications::NotificationStore>>,
+    /// Discovery advances past busy or unreachable sessions and wraps each cycle.
+    notification_cursor: tokio::sync::Mutex<Option<AgentSessionId>>,
     notification_batches:
         DashMap<AgentSessionId, agent_session::domain::notifications::NotificationBatch>,
     notification_completions:
@@ -371,6 +373,7 @@ where
                 conversation_turns: None,
                 external_replies: None,
                 notification_store: None,
+                notification_cursor: tokio::sync::Mutex::new(None),
                 notification_batches: DashMap::new(),
                 notification_completions: DashMap::new(),
                 notification_finished: DashSet::new(),
@@ -430,7 +433,13 @@ where
         for lease in leases {
             store.renew(lease).await?;
         }
-        let mut sessions = store.pending_sessions().await?;
+        let mut cursor = self.inner.notification_cursor.lock().await;
+        let mut sessions = store.pending_sessions(*cursor).await?;
+        if sessions.is_empty() && cursor.is_some() {
+            sessions = store.pending_sessions(None).await?;
+        }
+        *cursor = sessions.last().copied();
+        drop(cursor);
         sessions.extend(
             self.inner
                 .notification_completions

@@ -28,7 +28,9 @@ Active batches also reconcile durable terminal responses periodically, covering 
 completion committed during observer takeover; lease renewal alone is insufficient.
 Failed delivery retains it for retry after the lease expires. The stable action
 id prevents a retry from repeating an accepted action. Every worker is tracked
-and cancellable. Producer trace context travels with the row and links delivery.
+and cancellable. Discovery advances a 100-session keyset cursor even when those
+sessions cannot accept delivery, wrapping at the end so newer sessions are not
+starved by busy or unreachable peers. Producer trace context travels with the row and links delivery.
 
 Independent services enqueue through `POST /agent-sessions/internal/notifications`
 with internal credentials. The endpoint returns 202 after the idempotent insert;

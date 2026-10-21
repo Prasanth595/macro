@@ -61,6 +61,8 @@ push notifications planned in `domain/notifications.rs`. The serialized session
 worker drains waking batches after a turn; quiet batches join a real prompt.
 Recovery reconciles the original action before rebinding/retrying, preserves
 prompter authority, and waits for a running invocation instead of re-prompting.
+Advance the bounded discovery cursor even when a session is busy or unreachable;
+wrap after its final page so those sessions cannot starve later ones.
 Reconcile active leases against terminal log evidence too: an observer can miss a
 completion during takeover. Previously bound quiet attempts reconcile before new
 wakes; interrupted quiet batches return to the next real prompt.

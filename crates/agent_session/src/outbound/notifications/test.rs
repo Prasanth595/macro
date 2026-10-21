@@ -20,7 +20,7 @@ async fn outbox_is_transactional_deduplicated_and_cascades(pool: PgPool) {
     let mut transaction = pool.begin().await.unwrap();
     store.produce(&mut *transaction, &pending).await.unwrap();
     transaction.rollback().await.unwrap();
-    assert!(store.pending_sessions().await.unwrap().is_empty());
+    assert!(store.pending_sessions(None).await.unwrap().is_empty());
     store.enqueue(pending.clone()).await.unwrap();
     store.enqueue(pending).await.unwrap();
     let batch = store.claim(session, false).await.unwrap().unwrap();
@@ -70,7 +70,7 @@ async fn quiet_events_coalesce_and_expired_leases_keep_their_action_identity(poo
             .await
             .unwrap();
     }
-    assert!(store.pending_sessions().await.unwrap().is_empty());
+    assert!(store.pending_sessions(None).await.unwrap().is_empty());
     assert!(store.claim(session, false).await.unwrap().is_none());
     let first = store.claim(session, true).await.unwrap().unwrap();
     assert_eq!(first.notifications.len(), 2);
@@ -170,7 +170,7 @@ async fn legacy_review_writes_during_rollout_enter_the_typed_outbox_once(pool: P
     .await
     .unwrap();
     let store = PgNotificationStore(pool.clone());
-    assert!(store.pending_sessions().await.unwrap().is_empty());
+    assert!(store.pending_sessions(None).await.unwrap().is_empty());
     record["items"][0]["status"] = serde_json::json!("completed");
     for _ in 0..2 {
         sqlx::query!(
@@ -294,4 +294,40 @@ async fn prior_actions_reconcile_before_fresh_inputs_and_interrupted_quiet_event
     let next_prompt = store.claim(session, true).await.unwrap().unwrap();
     assert_eq!(next_prompt.notifications[0].id, quiet.notifications[0].id);
     assert_ne!(next_prompt.action_id, quiet.action_id);
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn discovery_pages_advance_while_previous_sessions_remain_eligible(pool: PgPool) {
+    sqlx::query!("INSERT INTO agent_session (id, owner_id, bot_id, model, harness, workspace) SELECT lpad(to_hex(n),32,'0')::uuid,'macro|owner@example.com','00000000-0000-0000-0000-00000000a9e7','test','macrod','/workspace' FROM generate_series(1,101) n").execute(&pool).await.unwrap();
+    let store = PgNotificationStore(pool.clone());
+    let mut transaction = pool.begin().await.unwrap();
+    for value in 1..=101 {
+        let pending = PendingNotification::new(ProduceNotification {
+            session_id: AgentSessionId::new_from_uuid(Uuid::from_u128(value)),
+            subject_id: "connection".into(),
+            event: NotificationEvent::AppConnected {
+                app: "Calendar".into(),
+            },
+            dedupe_key: None,
+            wake: true,
+        })
+        .unwrap();
+        store.produce(&mut *transaction, &pending).await.unwrap();
+    }
+    transaction.commit().await.unwrap();
+    let first = store.pending_sessions(None).await.unwrap();
+    assert_eq!(first.len(), 100);
+    let last = store.pending_sessions(first.last().copied()).await.unwrap();
+    assert_eq!(
+        last,
+        vec![AgentSessionId::new_from_uuid(Uuid::from_u128(101))]
+    );
+    assert!(
+        store
+            .pending_sessions(last.last().copied())
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(store.pending_sessions(None).await.unwrap(), first);
 }

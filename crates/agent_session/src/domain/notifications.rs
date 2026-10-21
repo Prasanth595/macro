@@ -114,8 +114,12 @@ pub enum NotificationOutcome {
 
 /// Object-safe outbox used by the serialized harness worker.
 pub trait NotificationStore: Send + Sync + 'static {
-    /// Sessions with waking events or prior attempts to reconcile, bounded per tick.
-    fn pending_sessions(&self) -> NotificationFuture<'_, Vec<AgentSessionId>>;
+    /// Up to 100 sessions with waking events or prior attempts, ordered after
+    /// this cursor. Callers advance even when delivery fails and wrap at the end.
+    fn pending_sessions(
+        &self,
+        after: Option<AgentSessionId>,
+    ) -> NotificationFuture<'_, Vec<AgentSessionId>>;
     /// Claim up to 100 events, reconciling prior attempts before fresh inputs.
     /// Unclaimed quiet events wait for a real prompt; an active lease blocks
     /// later batches for the session. Claims strip matching legacy background

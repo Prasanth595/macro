@@ -42,10 +42,14 @@ impl NotificationStore for PgNotificationStore {
             Ok(())
         })
     }
-    fn pending_sessions(&self) -> NotificationFuture<'_, Vec<AgentSessionId>> {
+    fn pending_sessions(
+        &self,
+        after: Option<AgentSessionId>,
+    ) -> NotificationFuture<'_, Vec<AgentSessionId>> {
         Box::pin(async move {
             Ok(sqlx::query_scalar!(
-                "SELECT DISTINCT n.session_id FROM agent_session_notification n JOIN agent_session s ON s.id = n.session_id WHERE n.delivered_at IS NULL AND (n.wake OR n.action_id IS NOT NULL) AND (n.lease_until IS NULL OR n.lease_until < now()) AND NOT s.is_archived ORDER BY n.session_id LIMIT 100"
+                "SELECT DISTINCT n.session_id FROM agent_session_notification n JOIN agent_session s ON s.id = n.session_id WHERE n.delivered_at IS NULL AND (n.wake OR n.action_id IS NOT NULL) AND (n.lease_until IS NULL OR n.lease_until < now()) AND NOT s.is_archived AND ($1::uuid IS NULL OR n.session_id > $1) ORDER BY n.session_id LIMIT 100",
+                after.map(|id| id.as_uuid()),
             ).fetch_all(&self.0).await.map_err(storage)?.into_iter().map(AgentSessionId::new_from_uuid).collect())
         })
     }

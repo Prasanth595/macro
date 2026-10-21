@@ -16,24 +16,32 @@ struct Outbox {
     session: Mutex<Option<AgentSessionId>>,
 }
 impl NotificationStore for Outbox {
-    fn pending_sessions(&self) -> NotificationFuture<'_, Vec<AgentSessionId>> {
-        Box::pin(async {
-            if self.expired.load(Ordering::SeqCst) {
-                return Ok(self.session.lock().unwrap().iter().copied().collect());
-            }
-            Ok(self
-                .pending
-                .lock()
-                .unwrap()
-                .iter()
-                .filter(|row| row.wake)
-                .map(|row| row.session_id)
-                .collect())
+    fn pending_sessions(
+        &self,
+        after: Option<AgentSessionId>,
+    ) -> NotificationFuture<'_, Vec<AgentSessionId>> {
+        Box::pin(async move {
+            let mut sessions: Vec<_> = if self.expired.load(Ordering::SeqCst) {
+                self.session.lock().unwrap().iter().copied().collect()
+            } else {
+                self.pending
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .filter(|row| row.wake)
+                    .map(|row| row.session_id)
+                    .collect()
+            };
+            sessions.sort_by_key(AgentSessionId::as_uuid);
+            sessions.dedup();
+            sessions.retain(|id| after.is_none_or(|cursor| id.as_uuid() > cursor.as_uuid()));
+            sessions.truncate(100);
+            Ok(sessions)
         })
     }
     fn claim(
         &self,
-        _: AgentSessionId,
+        session: AgentSessionId,
         real_prompt: bool,
     ) -> NotificationFuture<'_, Option<NotificationBatch>> {
         Box::pin(async move {
@@ -51,9 +59,13 @@ impl NotificationStore for Outbox {
             if pending.is_empty() || (!real_prompt && !pending.iter().any(|row| row.wake)) {
                 return Ok(None);
             }
-            let (selected, waiting): (Vec<_>, Vec<_>) =
-                pending.drain(..).partition(|row| real_prompt || row.wake);
+            let (selected, waiting): (Vec<_>, Vec<_>) = pending
+                .drain(..)
+                .partition(|row| row.session_id == session && (real_prompt || row.wake));
             *pending = waiting;
+            if selected.is_empty() {
+                return Ok(None);
+            }
             let batch = NotificationBatch {
                 lease_id: macro_uuid::generate_uuid_v7(),
                 action_id: AgentActionId::mint(),
@@ -156,6 +168,40 @@ async fn event(outbox: &Outbox, session: AgentSessionId, subject: &str, wake: bo
         )
         .await
         .unwrap();
+}
+
+#[tokio::test]
+async fn discovery_moves_past_a_full_page_of_unreachable_sessions() {
+    let outbox = Arc::new(Outbox::default());
+    let ((service, _, containers, _, _), mut turns) = harness_with_outbox(outbox.clone());
+    let id = AgentSessionId::new();
+    let container = live_session(&service, &containers, id).await;
+    turns.settled(id).await;
+    for value in 1..=100 {
+        event(
+            &outbox,
+            AgentSessionId::new_from_uuid(Uuid::from_u128(value)),
+            "waiting",
+            true,
+        )
+        .await;
+    }
+    event(&outbox, id, "reachable", true).await;
+    service.recover_notifications().await.unwrap();
+    assert_eq!(prompts(&container.agent()).len(), 1);
+    assert_eq!(outbox.pending.lock().unwrap().len(), 101);
+    service.recover_notifications().await.unwrap();
+    container.agent().wait_for_requests(4).await;
+    assert_eq!(prompts(&container.agent()).len(), 2);
+    assert_eq!(outbox.pending.lock().unwrap().len(), 100);
+    container.agent().completes_prompt().await;
+    turns.settled(id).await;
+    event(&outbox, id, "after wrap", true).await;
+    service.recover_notifications().await.unwrap();
+    assert_eq!(prompts(&container.agent()).len(), 2);
+    service.recover_notifications().await.unwrap();
+    container.agent().wait_for_requests(5).await;
+    assert_eq!(prompts(&container.agent()).len(), 3);
 }
 
 #[tokio::test]
