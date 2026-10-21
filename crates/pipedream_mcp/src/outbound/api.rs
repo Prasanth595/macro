@@ -329,6 +329,7 @@ impl ConnectorDirectory for PipedreamClient {
             // Apps without an auth flow have nothing to connect.
             .filter(|app| app.auth_type.as_deref() != Some("none"))
             .map(|app| CatalogEntry {
+                categories: app.categories,
                 app_slug: app.name_slug,
                 display_name: app.name,
                 description: app.description.filter(|d| !d.is_empty()),
@@ -496,6 +497,7 @@ fn connectable_catalog_entry(requested_slug: &str, app: AppResponse) -> Option<C
         return None;
     }
     Some(CatalogEntry {
+        categories: app.categories,
         app_slug: app.name_slug,
         display_name: app.name,
         description: app
@@ -568,4 +570,6 @@ struct AppResponse {
     auth_type: Option<String>,
     #[serde(default)]
     img_src: String,
+    #[serde(default)]
+    categories: Vec<String>,
 }
