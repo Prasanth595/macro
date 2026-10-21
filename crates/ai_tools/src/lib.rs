@@ -56,7 +56,7 @@ use self_knowledge::SelfKnowledge;
 use skills::inbound::toolset::skill_toolset;
 use soup::inbound::toolset::{ListEntities, SoupToolContext};
 use std::sync::Arc;
-use subagent::{Subagent, SubagentContext};
+use subagent::Subagent;
 use teams::inbound::toolset::team_toolset;
 
 #[cfg(any(test, feature = "test-support"))]
@@ -150,9 +150,8 @@ impl ToolSchemaGenerator for ToolSetWithPrompt {
     }
 }
 
-/// Toolset available to subagents — everything except email and the Subagent
-/// tool itself (subagents cannot create subagents).
-pub(crate) fn subagent_toolset() -> AiToolSet {
+/// Shared tools extended with each host's communication and session capabilities.
+pub(crate) fn base_toolset() -> AiToolSet {
     AsyncToolCollection::new()
         .add_toolset(search_toolset())
         .add_tool::<SelfKnowledge, ToolServiceContext>()
@@ -246,7 +245,7 @@ pub const EAGER_TOOLS: &[&str] = &[
     "SelfKnowledge",
     "SendChannelMessage",
     "ShareWithChannel",
-    "Subagent",
+    "StartAgentSession",
     "TextEditorCodeExecution",
     "WebFetch",
     "WebSearch",
@@ -271,7 +270,7 @@ pub fn code_mode_tools() -> Arc<AiToolSet> {
 }
 
 fn tools_for_inner(host: AiHost, code_mode_direct: bool) -> ToolSetWithPrompt {
-    let toolset = subagent_toolset()
+    let toolset = base_toolset()
         .add_subtoolset::<ToolBookingManagementToolContext>(booking_management_toolset())
         .add_subtoolset::<ToolNotificationToolContext>(notification_toolset())
         .add_subtoolset::<ToolItemNotificationPreferenceToolContext>(
@@ -293,8 +292,7 @@ fn tools_for_inner(host: AiHost, code_mode_direct: bool) -> ToolSetWithPrompt {
     };
     let toolset = toolset
         .add_subtoolset::<ToolImportToolContext>(import_toolset())
-        .add_subtoolset::<ToolCodingAgentToolContext>(coding_agent_toolset())
-        .add_tool::<Subagent, SubagentContext>();
+        .add_subtoolset::<ToolCodingAgentToolContext>(coding_agent_toolset());
     let toolset = match host {
         AiHost::Chat | AiHost::AgentSession | AiHost::ChannelBot => toolset
             .add_tool::<SearchTools, ToolServiceContext>()
@@ -392,6 +390,22 @@ pub fn all_tool_frontend_schemas() -> FrontendSchemas {
         >())
         .merge(&read::read_thread())
         .merge(&frontend_compat::LegacyConversationSchemas)
+        .merge(&ai_toolset::schema::PhantomTool::<
+            Subagent,
+            subagent::SubagentResponse,
+        >::new("Subagent"))
+        .merge(&ai_toolset::schema::PhantomTool::<
+            agent_session::inbound::toolset::DispatchCodingAgent,
+            agent_session::domain::coding_agents::DispatchedCodingAgent,
+        >::new("DispatchCodingAgent"))
+        .merge(&ai_toolset::schema::PhantomTool::<
+            agent_session::inbound::toolset::ListCodingAgents,
+            agent_session::inbound::toolset::ListCodingAgentsResponse,
+        >::new("ListCodingAgents"))
+        .merge(&ai_toolset::schema::PhantomTool::<
+            agent_session::inbound::toolset::CreateAgentSession,
+            agent_session::domain::coding_agents::DispatchedCodingAgent,
+        >::new("CreateAgentSession"))
         .build()
 }
 
