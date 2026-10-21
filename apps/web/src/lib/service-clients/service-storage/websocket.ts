@@ -1,3 +1,4 @@
+import { waitForSession } from '@core/auth/session';
 import { SERVER_HOSTS } from '@core/constant/servers';
 import {
   ConstantBackoff,
@@ -21,9 +22,16 @@ const HEARTBEAT_INTERVAL = 300000;
  */
 const HEARTBEAT_TIMEOUT = 5000;
 
+// The socket authenticates with the session cookie; a visitor would only
+// collect handshake failures through every retry.
+async function resolveWsUrl() {
+  await waitForSession();
+  return SERVER_HOSTS['websocket-service'];
+}
+
 export const storageSessionTelemetry = createSessionWebsocketTelemetry(
   'storage',
-  () => SERVER_HOSTS['websocket-service']
+  resolveWsUrl
 );
 
 const ws = new WebsocketBuilder(storageSessionTelemetry.resolveUrl)

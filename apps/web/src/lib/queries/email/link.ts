@@ -5,6 +5,7 @@ import { Telemetry } from '@macro-inc/observability';
 import { invalidateUserInfo } from '@queries/auth/user-info';
 import { invalidateCalendarViews } from '@queries/calendar/sync';
 import { queryClient } from '@queries/client';
+import { requiresSession } from '@queries/session-gate';
 import { invalidateAllSoup } from '@queries/soup/normalized-cache';
 import { emailClient } from '@service-email/client';
 import type { ListLinksResponse } from '@service-email/generated/schemas';
@@ -58,6 +59,7 @@ export function useEmailLinksQuery(enabled: Accessor<boolean> = queryEnabled) {
     enabled: authenticated() === true && enabled(),
     staleTime: LINK_STALE_TIME,
     refetchOnWindowFocus: 'always',
+    meta: requiresSession,
   }));
 }
 

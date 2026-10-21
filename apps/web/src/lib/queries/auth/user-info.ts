@@ -10,6 +10,7 @@ import { authServiceClient } from '@service-auth/client';
 import { queryOptions, useQuery } from '@tanstack/solid-query';
 import { resetTeamCalendarSession } from '../calendar/team-cache';
 import { queryClient, queryPersistence } from '../client';
+import { establishesSession } from '../session-gate';
 import { resetGraphqlSoupDoneSession } from '../soup/graphql/done-session';
 import { authKeys } from './keys';
 import { hasCachedUserIdentity } from './user-info-cache';
@@ -47,6 +48,7 @@ function userInfoQueryOptions(enabled: boolean) {
     // and a paused auth check renders as "unauthenticated" at the base path.
     networkMode: 'always',
     enabled,
+    meta: establishesSession,
   });
 }
 

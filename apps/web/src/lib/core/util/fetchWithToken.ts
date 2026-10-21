@@ -1,4 +1,5 @@
 import { perfMark } from '@app/observability/perf-marks';
+import { publishRefreshOutcome } from '@core/auth/refresh-outcome';
 import { ENABLE_BEARER_TOKEN_AUTH } from '@core/constant/featureFlags';
 import { SERVER_HOSTS } from '@core/constant/servers';
 import { Telemetry } from '@macro-inc/observability';
@@ -145,10 +146,13 @@ export async function fetchToken(): Promise<TokenResult> {
           ) {
             refreshUnavailable = failure;
             refreshUnavailableAt = Date.now();
+            publishRefreshOutcome('rejected');
           }
           return failure;
         }
 
+        if (generation === refreshGeneration)
+          publishRefreshOutcome('refreshed');
         return ok(undefined);
       } finally {
         if (generation === refreshGeneration) {
@@ -251,4 +255,5 @@ export function unsetTokenPromise() {
   refreshGeneration++;
   tokenPromise = null;
   refreshUnavailable = null;
+  publishRefreshOutcome('reset');
 }
