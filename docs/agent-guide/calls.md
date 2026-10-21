@@ -244,10 +244,12 @@ joining a standalone call never makes its content available to the wider team.
 
 Android channel calls use a native call activity rather than browser media.
 After joining, the themed drawer shows a large participant tile and a horizontally
-scrolling participant strip; tap a strip tile to make it primary. Speaker toggles
+scrolling participant strip without the transcription agent; tap a strip tile to make it primary. Speaker toggles
 speaker mode (hold it for headset/Bluetooth routing), Mute and Video control capture, and **Leave** ends the call.
 The local primary video tile exposes Switch camera. Swipe the drawer handle down,
-tap outside the drawer, or use Back to enter PiP on supported devices; **Open call
+tap outside the drawer, or use Back to enter PiP on supported devices. PiP shows you
+and the active speaker; tapping it shows Android's menu with Mute, **Leave** and
+expand, which reopens the drawer. **Open call
 controls** in the web call controls restores the native surface. Leaving the channel does
 not end the call. Incoming calls expose Answer/Decline in the **Calls** notification
 channel, including while locked/backgrounded. PiP is a native, device-dependent

@@ -855,6 +855,8 @@ receive its fallback alert.
 Call pushes are data-only, high priority, have a 60-second TTL, and include a recipient-specific
 LiveKit token and HTTPS ring-status URL. The receiver checks the registered
 account and message age. Tokens are kept in memory and never logged or persisted.
+A dropped call push logs its reason under the `MacroCall` logcat tag (another
+account, invalid payload, stale, recently ended, or another call active).
 While ringing, the native coordinator polls the existing ring-status endpoint;
 answering rechecks it before connecting. Answered-elsewhere, cancelled, expired,
 and invalid-token rings are dismissed. Transient verification failures allow a
@@ -864,7 +866,11 @@ The **Calls** notification channel presents Answer/Decline and an ongoing End
 call action. Telecom handles headset/system actions and coordinates interruptions.
 Android's full-screen-intent setting controls whether a locked phone opens the
 call activity automatically; when unavailable, the call notification remains the
-entry point. Test both permission states. Microphone access is required to join;
+entry point. Android 14+ revokes it by default for Play installs unless the Play
+Console's full-screen intent declaration names calling as core functionality;
+check with `adb shell appops get <package> USE_FULL_SCREEN_INTENT`. The call
+notification is public, so the lock screen shows the call and its actions. Test
+both permission states. Microphone access is required to join;
 camera access is requested when enabling video, and Bluetooth access when selecting
 that route on Android 12 or newer. A denied permission does not silently enable
 capture.
@@ -872,10 +878,15 @@ capture.
 The native call activity presents a themed drawer at approximately 92% of the
 safe screen height, above navigation bars/cutouts. A large participant tile sits
 above a horizontally scrolling participant strip; tapping a strip tile selects
-it as primary. Speaker, Mute and Video form a compact control row, with Leave
-in the header and camera switching on the primary local video tile. Hold Speaker
-to select headset/Bluetooth routing. Back,
+it as primary. Agent participants such as the transcriber are hidden. Speaker,
+Mute and Video form a labelled control row of Phosphor icons, with Leave in the
+header and camera switching on the primary local video tile. Hold Speaker to
+select headset/Bluetooth routing. Back,
 tapping the scrim, or swiping the handle down enters PiP on supported devices.
+As on iOS, PiP shows you on the left and the active speaker on the right; its
+system menu offers Mute and Leave, and its expand button reopens the drawer.
+Android has one system PiP for in-app and backgrounded use; a tap shows the
+system menu rather than reopening the drawer.
 Without PiP support, dismissal returns to Macro while retaining audio. Audio continues in the
 foreground service while backgrounded. Camera capture stops when the call activity
 is backgrounded outside PiP. PiP uses native renderers and requires device support.
