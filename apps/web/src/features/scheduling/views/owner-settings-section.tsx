@@ -27,6 +27,9 @@ export function OwnerSettingsSection(props: {
   onSearchChange?: (value: string) => void;
   dateRange?: JSX.Element;
   scheduleTopBarOwned?: boolean;
+  bookingsTitle?: JSX.Element;
+  pageTitle?: JSX.Element;
+  registerSearchFocus?: (focus: () => void) => void;
 }) {
   const capabilities = useScheduling();
   const owner = props.owner;
@@ -63,6 +66,23 @@ export function OwnerSettingsSection(props: {
     });
     return copied;
   }
+  const pageShare = () => (
+    <CopyButton
+      variant="outline"
+      size="md"
+      label="Copy link"
+      tooltip={
+        source.profile()?.revision
+          ? undefined
+          : 'Save your booking page before sharing'
+      }
+      disabled={!source.profile()?.revision}
+      onClick={copyPageLink}
+    >
+      <Copy aria-hidden="true" class="size-4" />
+      Copy link
+    </CopyButton>
+  );
   return (
     <Show when={source.profile()}>
       {(p) => (
@@ -271,24 +291,14 @@ export function OwnerSettingsSection(props: {
               role="group"
               aria-label={`${scope().name} ${props.kind === 'page' ? 'booking page' : props.kind}`}
             >
-              <div class="mb-4 flex shrink-0 flex-wrap items-center justify-end gap-3">
-                <CopyButton
-                  variant="outline"
-                  size="md"
-                  label="Copy link"
-                  tooltip={
-                    p().revision
-                      ? undefined
-                      : 'Save your booking page before sharing'
-                  }
-                  disabled={!p().revision}
-                  onClick={copyPageLink}
-                >
-                  <Copy aria-hidden="true" class="size-4" />
-                  Copy link
-                </CopyButton>
-              </div>
+              <Show when={!props.pageTitle}>
+                <div class="mb-4 flex shrink-0 flex-wrap items-center justify-end gap-3">
+                  {pageShare()}
+                </div>
+              </Show>
               <BookingPageEditor
+                headerTitle={props.pageTitle}
+                shareAction={props.pageTitle ? pageShare() : undefined}
                 profile={{
                   id: p().id,
                   name: profileDraft()?.name ?? p().name,
@@ -324,6 +334,8 @@ export function OwnerSettingsSection(props: {
               aria-label={`${scope().name} ${props.kind === 'page' ? 'booking page' : props.kind}`}
             >
               <BookingsView
+                headerTitle={props.bookingsTitle}
+                registerSearchFocus={props.registerSearchFocus}
                 search={props.search}
                 onSearchChange={props.onSearchChange}
                 dateRange={props.dateRange}

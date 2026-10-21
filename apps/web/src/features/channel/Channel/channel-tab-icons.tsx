@@ -37,6 +37,9 @@ export function toIconTabItems(
           title={typeof tab.label === 'string' ? tab.label : undefined}
         >
           <Icon class={iconClass} />
+          <span class="sr-only">
+            {typeof tab.label === 'string' ? tab.label : undefined}
+          </span>
         </span>
       ),
     };

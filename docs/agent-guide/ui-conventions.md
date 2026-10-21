@@ -16,15 +16,23 @@ Reviews. Native project detail navigation also clears the safe area, with its
 content directly below it. Content nested below an in-flow header must not add
 the same inset again. See the [mobile layout rule](../../.agents/rules/web/mobile.md#layout-and-chrome).
 
-Low-emphasis right-aligned split-header actions (including Calendar's touch/preview
-New event and Channel's idle Call and Ask Macro) are borderless with a rounded-xl
-background on hover. Emphasized variants retain their treatment, including an
-active call's green ink and outline frame. Channel, company, contact, and project
-content tabs use inset controls in the top bar. Button sizes do not change variant colors or framing; individual
-framed controls default to the shared elevated surface on desktop and glass on
-touch. Use `glass={false}` for an explicitly flat frame.
-Embedded and low-emphasis actions use `ghost`; inline calendar-invitation text
-actions remove the transparent border to keep their text alignment.
+Use one desktop header row: title or breadcrumbs on the left; semantic control
+islands on the right. Collection headers use `ListHeader`: filters, view options,
+New, then expandable Search. Related detail actions share a `HeaderActionGroup`;
+keep sharing, item navigation, and detail/view toggles in separate groups. Use
+`HeaderViewTabs` for channel, CRM record, and project sections. Groups use the
+canonical elevated surface, fully rounded ends, 32px controls, and 8px gaps.
+View tabs keep a 32px selected pill inside a slightly larger rounded track.
+A group owns its frame; its child buttons stay flat and do not get extra borders
+or shadows. Nested shared actions reuse the containing group rather than adding
+another frame. Keep tooltips on icon-only controls and collapse labels as a pane
+narrows. Preserve specialized editor toolbars and touch layouts.
+
+On touch devices, low-emphasis header actions remain borderless with their
+existing hover and pressed states. Emphasized variants retain their treatment,
+including an active call's green ink. Button size does not change variant colors
+or framing. Use `glass={false}` for an explicitly flat frame. Inline
+calendar-invitation text actions remove the transparent border to keep alignment.
 
 ## Canonical desktop surfaces
 

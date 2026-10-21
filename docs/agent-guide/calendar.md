@@ -563,7 +563,7 @@ updates only the selected owner, and failed saves retain edits for retry. There
 is no separate Booking settings shortcut or Settings → Booking links page.
 Public booking URLs remain unchanged. Calendar connections and integration
 shortcuts continue to open Settings → Calendar.
-Booking status filters use the same segmented control as the CRM sidebar.
+On desktop, Bookings puts its title, filter island, status tabs, and expandable Search in one top row. Booking-page Edit/Preview tabs and Save/Revert actions use the same rounded control surfaces. Touch layouts retain their existing controls.
 In Availability, the topbar reads **Availability** and shows the selected owner.
 The same desktop header row contains **New** (**New schedule**) and an expandable
 **Search schedules** icon (name or time zone); on touch devices, New moves into

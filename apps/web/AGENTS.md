@@ -111,7 +111,7 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
   workflow and mobile controls. Use `ListHeader` for the single-row Email, Drive,
   and Tasks headers: title, filters, view options, New, expandable Search. Put sidebar search in
   `ViewSidebar.Header` so its icon precedes collapse and its field opens above New.
-- Keep desktop control groups flat or raised with outline borders; never use recessed/inset backgrounds.
+- Keep desktop headers on the shared `ListHeader` / `HeaderActionGroup` pattern: 32px semantic islands with 8px gaps, fully rounded elevated frames, New then expandable Search; preserve touch layouts. See [UI conventions](../../docs/agent-guide/ui-conventions.md#top-bars). Never use recessed/inset backgrounds.
 - Passive PR mentions must not retry initial GitHub status failures on remount; preserve confirmed status through refetch errors and keep pending data reads out of their parent Suspense boundary.
 - Keep native booking exit navigation in the route shell, outside page loading boundaries, and use the router so the native hash route stays intact.
 - Diagnose native full reloads with `native_webview_started` and native launch/termination/update counters; termination coverage is iOS/macOS only, and a pageview alone also includes SPA navigation. See `tauri/src-tauri/README.md`.

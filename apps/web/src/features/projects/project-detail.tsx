@@ -12,12 +12,12 @@ import {
 } from '@app/routes/routes';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import type { ComposeTaskProps } from '@block-md/component/ComposeTask';
+import { HeaderViewTabs } from '@components/app/HeaderViewTabs';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import {
   useSplitDisplayName,
   useSplitPanelOrThrow,
 } from '@components/app/split-layout/layoutUtils';
-import { TabsInset } from '@core/component/TabsInset';
 import { toast } from '@core/component/Toast/Toast';
 import { ShareTrigger } from '@core/component/TopBar/ShareButton';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
@@ -257,15 +257,14 @@ function ProjectDetailHost(props: ProjectDetailProps) {
           </Show>
         }
         navigation={
-          <TabsInset
-            list={[
+          <HeaderViewTabs
+            items={[
               { value: 'overview', label: 'Overview' },
               { value: 'tasks', label: 'Tasks' },
             ]}
             value={props.route.section}
             onChange={(value) => section(value as ProjectSection)}
-            aria-label="Project sections"
-            class="shrink-0 whitespace-nowrap"
+            label="Project sections"
           />
         }
       >

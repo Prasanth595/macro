@@ -1,3 +1,4 @@
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import SquareSplitHorizontalIcon from '@phosphor/square-split-horizontal.svg';
 import { Button } from '@ui';
 
@@ -9,13 +10,12 @@ export function ChangesToggleButton(props: {
   return (
     <Button
       variant={props.open ? 'accent' : 'ghost'}
-      size="sm"
+      size={isTouchDevice() ? 'sm' : 'md'}
       label="Changes"
       aria-pressed={props.open}
       tooltip={props.open ? 'Hide the changes pane' : 'Show the changes pane'}
-      // Sits beside the `h-7` pull request chip; the `sm` frame is 4px shorter.
-      // Preserve pressed semantics without stacking a foreground overlay on the tint.
-      class="h-7 gap-1.5 aria-pressed:[--color-active:transparent] @max-[28rem]/split-header:w-7 @max-[28rem]/split-header:gap-0 @max-[28rem]/split-header:px-0"
+      // Preserve the pressed tint without stacking a second overlay.
+      class="touch:h-7 gap-1.5 aria-pressed:[--color-active:transparent] not-touch:@max-[28rem]/split-header:w-8 touch:@max-[28rem]/split-header:w-7 @max-[28rem]/split-header:gap-0 @max-[28rem]/split-header:px-0"
       onClick={() => props.onToggle()}
     >
       <SquareSplitHorizontalIcon class="size-3.5" />

@@ -1,3 +1,4 @@
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import Calendar from '@phosphor/calendar-blank.svg';
 import { Button, Tabs } from '@ui';
 import { For, Show } from 'solid-js';
@@ -6,6 +7,7 @@ import type { Booking, SchedulingMember } from '../core/types';
 import { BookingCard } from './booking-card';
 
 export function BookingsPanel(props: {
+  hideTabs?: boolean;
   groups: BookingDateGroup[];
   tabs: { value: BookingTab; count: number }[];
   tab: BookingTab;
@@ -32,31 +34,13 @@ export function BookingsPanel(props: {
   const filtered = () => !!props.search.trim() || props.eventId !== 'all';
   return (
     <div class="@container/bookings flex min-w-0 flex-col gap-5">
-      <div class="flex min-w-0 items-center gap-3">
-        <div class="max-w-full overflow-x-auto pb-1">
-          <Tabs
-            aria-label="Booking status"
-            class="w-fit"
-            labelClass="gap-2 whitespace-nowrap px-3 text-sm"
-            list={props.tabs.map((tab) => ({
-              value: tab.value,
-              label: () => (
-                <>
-                  {tab.value}
-                  <span class="text-xs text-ink-muted tabular-nums">
-                    {tab.count}
-                  </span>
-                </>
-              ),
-            }))}
-            value={props.tab}
-            onChange={(value) => {
-              const tab = props.tabs.find((tab) => tab.value === value);
-              if (tab) props.onTab(tab.value);
-            }}
-          />
-        </div>
-      </div>
+      <Show when={!props.hideTabs}>
+        <BookingStatusTabs
+          tabs={props.tabs}
+          tab={props.tab}
+          onTab={props.onTab}
+        />
+      </Show>
       <Show when={props.tab === 'Needs attention'}>
         <p class="text-sm text-ink-muted">
           These bookings are awaiting calendar synchronization or need help.
@@ -140,6 +124,41 @@ export function BookingsPanel(props: {
           shown in {props.timeZone.replaceAll('_', ' ')}
         </p>
       </Show>
+    </div>
+  );
+}
+
+export function BookingStatusTabs(props: {
+  tabs: { value: BookingTab; count: number }[];
+  tab: BookingTab;
+  onTab: (tab: BookingTab) => void;
+}) {
+  return (
+    <div class="flex min-w-0 items-center gap-3">
+      <div class="max-w-full overflow-x-auto pb-1">
+        <Tabs
+          aria-label="Booking status"
+          variant={isTouchDevice() ? 'pill' : 'segmented'}
+          class="w-fit"
+          labelClass="gap-2 whitespace-nowrap px-3 text-sm"
+          list={props.tabs.map((tab) => ({
+            value: tab.value,
+            label: () => (
+              <>
+                {tab.value}
+                <span class="text-xs text-ink-muted tabular-nums">
+                  {tab.count}
+                </span>
+              </>
+            ),
+          }))}
+          value={props.tab}
+          onChange={(value) => {
+            const tab = props.tabs.find((tab) => tab.value === value);
+            if (tab) props.onTab(tab.value);
+          }}
+        />
+      </div>
     </div>
   );
 }

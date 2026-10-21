@@ -1,8 +1,10 @@
 import { ViewBreadcrumbs, ViewShell } from '@app/components/view-shell';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { InlineTitleEditor } from '@core/component/InlineTitleEditor';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { Tabs } from '@kobalte/core/tabs';
 import ClockIcon from '@phosphor/clock.svg';
-import { cn, EntityComposer, Layer } from '@ui';
+import { Button, cn, EntityComposer, Layer } from '@ui';
 import { For, type JSX, Show } from 'solid-js';
 import type { ScheduleDraft } from '../core/draft';
 
@@ -55,7 +57,9 @@ export function RoutineEditor(props: {
               <ClockIcon class="size-3 shrink-0" />
               <span class="truncate">{props.draft.name}</span>
             </ViewBreadcrumbs.Button>
-            <div class="shrink-0">{props.actions}</div>
+            <Show when={isTouchDevice()}>
+              <div class="shrink-0">{props.actions}</div>
+            </Show>
           </div>
         )}
       </ViewBreadcrumbs.Item>
@@ -75,31 +79,66 @@ export function RoutineEditor(props: {
             class="min-w-0 @max-[600px]/routine:flex-1"
           />
           <div class="shrink-0 @max-[600px]/routine:order-last @max-[600px]/routine:w-full">
-            <Layer depth={0}>
-              <Tabs.List
-                aria-label="Routine details"
-                class="inline-flex shrink-0 items-center rounded-full border border-edge-muted bg-surface p-0.5"
-              >
-                <For
-                  each={[
-                    { value: 'settings', label: 'Overview' },
-                    { value: 'history', label: 'Run History' },
-                  ]}
-                >
-                  {(tab) => (
-                    <Layer depth={2}>
+            <Show
+              when={!isTouchDevice()}
+              fallback={
+                <Layer depth={0}>
+                  <Tabs.List
+                    aria-label="Routine details"
+                    class="inline-flex shrink-0 items-center rounded-full border border-edge-muted bg-surface p-0.5"
+                  >
+                    <For
+                      each={[
+                        { value: 'settings', label: 'Overview' },
+                        { value: 'history', label: 'Run History' },
+                      ]}
+                    >
+                      {(tab) => (
+                        <Layer depth={2}>
+                          <Tabs.Trigger
+                            value={tab.value}
+                            class="rounded-full px-3 py-1 text-xs font-medium text-ink-extra-muted outline-none hover:text-ink focus-visible:ring-2 focus-visible:ring-edge-focus data-selected:bg-surface data-selected:text-ink data-selected:ring data-selected:ring-inset data-selected:ring-edge-muted"
+                          >
+                            {tab.label}
+                          </Tabs.Trigger>
+                        </Layer>
+                      )}
+                    </For>
+                  </Tabs.List>
+                </Layer>
+              }
+            >
+              <Tabs.List aria-label="Routine details">
+                <HeaderActionGroup label="Routine view">
+                  <For
+                    each={[
+                      { value: 'settings', label: 'Overview' },
+                      { value: 'history', label: 'Run History' },
+                    ]}
+                  >
+                    {(tab) => (
                       <Tabs.Trigger
+                        as={Button}
                         value={tab.value}
-                        class="rounded-full px-3 py-1 text-xs font-medium text-ink-extra-muted outline-none hover:text-ink focus-visible:ring-2 focus-visible:ring-edge-focus data-selected:bg-surface data-selected:text-ink data-selected:ring data-selected:ring-inset data-selected:ring-edge-muted"
+                        variant="ghost"
+                        size="md"
+                        class="data-selected:bg-active data-selected:text-ink"
                       >
                         {tab.label}
                       </Tabs.Trigger>
-                    </Layer>
-                  )}
-                </For>
+                    )}
+                  </For>
+                </HeaderActionGroup>
               </Tabs.List>
-            </Layer>
+            </Show>
           </div>
+          <Show when={!isTouchDevice() && props.actions}>
+            <div class="ml-auto shrink-0">
+              <HeaderActionGroup label="Routine actions">
+                {props.actions}
+              </HeaderActionGroup>
+            </div>
+          </Show>
         </ViewShell.TopBar>
         <Tabs.Content
           value="settings"

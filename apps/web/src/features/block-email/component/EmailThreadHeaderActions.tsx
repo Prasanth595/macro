@@ -1,8 +1,8 @@
 import type { EmailThreadListNavigation } from '@app/features/email-thread/context/email-thread-context';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { SidePanel } from '@components/app/side-panel';
 import { ListNavigationButtons } from '@components/app/split-layout/components/SplitHeader';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
-import { ButtonGroup } from '@ui';
 import { type ComponentProps, type JSX, Show } from 'solid-js';
 import { EmailThreadControls } from './EmailThreadControls';
 
@@ -12,14 +12,14 @@ export function EmailThreadControlGroups(props: {
 }) {
   return (
     <div class="flex items-center gap-2 touch:hidden">
-      <ButtonGroup variant="outline" size="icon-md">
+      <HeaderActionGroup label="Email actions">
         <EmailThreadControls {...props.controls} />
-      </ButtonGroup>
+      </HeaderActionGroup>
       <Show when={props.navigation}>
         {(navigation) => (
-          <ButtonGroup variant="outline" size="icon-md">
+          <HeaderActionGroup label="Item navigation">
             <ListNavigationButtons navigation={navigation()} class="gap-0" />
-          </ButtonGroup>
+          </HeaderActionGroup>
         )}
       </Show>
     </div>
@@ -38,23 +38,21 @@ export function EmailThreadHeaderActions(props: {
         when={!isTouchDevice()}
         fallback={<SidePanel.HeaderActionsOutlet />}
       >
-        <ButtonGroup
-          variant="outline"
-          size="icon-md"
+        <HeaderActionGroup
+          label="Actions"
           class="has-[[data-side-panel-header-actions]:empty]:hidden [&_[data-header-action]]:size-8 [&_[data-header-action]]:p-0 [&_[data-header-action-label]]:hidden"
         >
           <SidePanel.HeaderActionsOutlet />
-        </ButtonGroup>
+        </HeaderActionGroup>
       </Show>
       <Show when={props.share}>
         <Show when={!isTouchDevice()} fallback={props.share}>
-          <ButtonGroup
-            variant="outline"
-            size="icon-md"
+          <HeaderActionGroup
+            label="Sharing"
             class="[&_[data-header-action]]:w-auto! [&_[data-header-action]]:px-3! [&_[data-header-action-label]]:inline!"
           >
             {props.share}
-          </ButtonGroup>
+          </HeaderActionGroup>
         </Show>
       </Show>
       <SidePanel.Toggle />

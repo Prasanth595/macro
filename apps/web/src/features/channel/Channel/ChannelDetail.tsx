@@ -15,6 +15,8 @@ import { ChannelTopIcon } from '@channel/components/ChannelTopIcon';
 import { DebugSuspense } from '@channel/DebugSuspense';
 import { ChannelParticipantsTab } from '@channel/Participants/ChannelParticipantsTab';
 import { useGlobalBlockOrchestrator } from '@components/app/GlobalAppState';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
+import { HeaderViewTabs } from '@components/app/HeaderViewTabs';
 import {
   createPriorityCollapseController,
   PriorityCollapseOverflowSensor,
@@ -25,7 +27,6 @@ import {
   useSplitPanelOrThrow,
 } from '@components/app/split-layout/layoutUtils';
 import type { PriorityCollapser } from '@components/app/split-layout/utils/createPriorityCollapser';
-import { TabsInset } from '@core/component/TabsInset';
 import { ENABLE_CALLS } from '@core/constant/featureFlags';
 import {
   useChannel,
@@ -145,9 +146,9 @@ export function ChannelDetailTabs(props: {
     : () => false;
 
   return (
-    <TabsInset
-      class="shrink-0"
-      list={isCollapsed() ? toIconTabItems(tabs()) : tabs()}
+    <HeaderViewTabs
+      label="Channel sections"
+      items={isCollapsed() ? toIconTabItems(tabs()) : tabs()}
       value={activeTab()}
       onChange={(value) => setActiveTab(value as ChannelTabId)}
     />
@@ -173,10 +174,29 @@ export function ChannelDetailActions(props: ChannelDetailHeaderProps) {
   };
 
   return (
-    <div class="header-actions ml-auto flex shrink-0 items-center gap-1">
+    <div class="header-actions ml-auto flex shrink-0 items-center gap-2 touch:gap-1">
       <DebugSuspense name="ChannelDetail.live-indicators">
         <ChannelLiveIndicators channelId={props.channelId} />
       </DebugSuspense>
+      <HeaderActionGroup
+        label="Conversation actions"
+        class="has-[[data-button]]:flex hidden"
+      >
+        <Show
+          when={ENABLE_CALLS && !channel()?.agent_dm && !call.isInThisChannel()}
+        >
+          <DebugSuspense name="ChannelDetail.call-button">
+            <ChannelCallButton channelId={props.channelId} />
+          </DebugSuspense>
+        </Show>
+        <Show when={askMacroEntity()}>
+          {(entity) => (
+            <DebugSuspense name="ChannelDetail.ask-macro">
+              <ChatWithAgentButton entity={entity()} label="Ask Macro" />
+            </DebugSuspense>
+          )}
+        </Show>
+      </HeaderActionGroup>
       <DebugSuspense name="ChannelDetail.invite">
         <ChannelInviteButton
           channelId={props.channelId}
@@ -184,20 +204,6 @@ export function ChannelDetailActions(props: ChannelDetailHeaderProps) {
           channelType={channelType()}
         />
       </DebugSuspense>
-      <Show
-        when={ENABLE_CALLS && !channel()?.agent_dm && !call.isInThisChannel()}
-      >
-        <DebugSuspense name="ChannelDetail.call-button">
-          <ChannelCallButton channelId={props.channelId} />
-        </DebugSuspense>
-      </Show>
-      <Show when={askMacroEntity()}>
-        {(entity) => (
-          <DebugSuspense name="ChannelDetail.ask-macro">
-            <ChatWithAgentButton entity={entity()} label="Ask Macro" />
-          </DebugSuspense>
-        )}
-      </Show>
     </div>
   );
 }

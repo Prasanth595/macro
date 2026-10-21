@@ -1,10 +1,11 @@
-import { TabsInset } from '@core/component/TabsInset';
+import { HeaderViewTabs } from '@components/app/HeaderViewTabs';
 import CheckSquareIcon from '@phosphor/check-square.svg';
 import EnvelopeIcon from '@phosphor/envelope.svg';
 import FilesIcon from '@phosphor/files.svg';
 import PhoneIcon from '@phosphor/phone.svg';
 import SquaresFourIcon from '@phosphor/squares-four.svg';
 import UsersIcon from '@phosphor/users.svg';
+import { Tooltip } from '@ui';
 import type { Component, JSX } from 'solid-js';
 import {
   CRM_RECORD_SECTION_LABELS,
@@ -41,19 +42,21 @@ export function RecordTabs<S extends CrmRecordSection>(props: {
       return {
         value: section,
         label: (
-          <span class="flex items-center" title={label}>
-            <Icon class="size-4" />
-          </span>
+          <Tooltip label={label}>
+            <span class="flex items-center" aria-label={label}>
+              <Icon class="size-4" />
+              <span class="sr-only">{label}</span>
+            </span>
+          </Tooltip>
         ),
       };
     });
   return (
-    <TabsInset
-      list={list()}
+    <HeaderViewTabs
+      items={list()}
       value={props.value}
       onChange={(value) => props.onChange(value as S)}
-      aria-label="Record sections"
-      class="shrink-0 whitespace-nowrap"
+      label="Record sections"
     />
   );
 }

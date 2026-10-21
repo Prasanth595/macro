@@ -105,7 +105,7 @@ export function Header(props: {
     })
   );
   const isCompactHeader = () => !breakpoints.fullHeader();
-  const searchOverlaysTitle = () => !breakpoints.inlineSearch();
+  const searchOverlaysControls = () => !breakpoints.inlineSearch();
   const today = createLocalToday();
   const [searchExpanded, setSearchExpandedInternal] = createSignal(false);
   const [searchPopupReady, setSearchPopupReady] = createSignal(false);
@@ -308,24 +308,63 @@ export function Header(props: {
         >
           <div class="relative flex min-w-0 flex-1 items-center gap-2">
             {props.leading}
-            <h1
-              class="min-w-0 truncate text-[clamp(1rem,calc(0.75rem+1cqw),1.5rem)] font-semibold leading-tight tracking-[-0.03em] text-ink transition-opacity duration-150 motion-reduce:transition-none"
-              classList={{
-                'opacity-0': searchOverlaysTitle() && searchExpanded(),
-              }}
-            >
+            <h1 class="min-w-0 truncate text-[clamp(1rem,calc(0.75rem+1cqw),1.5rem)] font-semibold leading-tight tracking-[-0.03em] text-ink transition-opacity duration-150 motion-reduce:transition-none">
               {dateTitle()}
             </h1>
+          </div>
+          <div
+            class={cn(
+              'relative flex shrink-0 items-center justify-end gap-2',
+              isCompactHeader() && 'basis-full'
+            )}
+            data-calendar-period-controls=""
+            ref={tourTarget(CALENDAR_TOUR.period)}
+            onClick={() => setSearchExpanded(false)}
+          >
+            <div
+              class="flex items-center gap-2"
+              classList={{
+                invisible: searchOverlaysControls() && searchExpanded(),
+                'pointer-events-none':
+                  searchOverlaysControls() && searchExpanded(),
+              }}
+            >
+              <Show when={showBookingLinks()}>
+                <CalendarSchedulingActions compact />
+              </Show>
+              <div
+                role="group"
+                aria-label="Calendar navigation"
+                class="flex shrink-0"
+              >
+                <ButtonGroup variant="outline" size="icon-md">
+                  {todayButton(!breakpoints.labeledToday(), true)}
+                  {previous(true)}
+                  {next(true)}
+                </ButtonGroup>
+              </div>
+              <div
+                role="group"
+                aria-label="Calendar view"
+                class="flex shrink-0"
+              >
+                <ButtonGroup variant="outline" size="icon-md">
+                  <PeriodSelector isNarrow={isNarrow()} compact />
+                </ButtonGroup>
+              </div>
+              {headerCreateMenu()}
+            </div>
             <div
               onTransitionEnd={handleSearchTransitionEnd}
+              onClick={(event) => event.stopPropagation()}
               class={cn(
-                'ml-auto h-8 shrink-0',
-                searchOverlaysTitle()
+                'h-8 shrink-0',
+                searchOverlaysControls()
                   ? 'w-8'
                   : 'transition-[width] duration-200 ease-out motion-reduce:transition-none'
               )}
               style={
-                searchOverlaysTitle()
+                searchOverlaysControls()
                   ? undefined
                   : {
                       width: searchExpanded()
@@ -338,11 +377,11 @@ export function Header(props: {
                 onTransitionEnd={handleSearchTransitionEnd}
                 class={cn(
                   'h-8',
-                  searchOverlaysTitle() &&
+                  searchOverlaysControls() &&
                     'absolute right-0 top-0 transition-[width] duration-200 ease-out motion-reduce:transition-none'
                 )}
                 style={
-                  searchOverlaysTitle()
+                  searchOverlaysControls()
                     ? {
                         width: searchExpanded() ? 'min(100%, 28rem)' : '2rem',
                       }
@@ -351,7 +390,7 @@ export function Header(props: {
               >
                 <CalendarSearch
                   inline
-                  compact={searchOverlaysTitle()}
+                  compact={searchOverlaysControls()}
                   expanded={searchExpanded()}
                   popupReady={searchPopupReady()}
                   onExpand={() => setSearchExpanded(true)}
@@ -359,36 +398,6 @@ export function Header(props: {
                 />
               </div>
             </div>
-          </div>
-          <div
-            class={cn(
-              'flex shrink-0 items-center justify-end gap-2',
-              isCompactHeader() && 'basis-full'
-            )}
-            data-calendar-period-controls=""
-            ref={tourTarget(CALENDAR_TOUR.period)}
-            onClick={() => setSearchExpanded(false)}
-          >
-            <Show when={showBookingLinks()}>
-              <CalendarSchedulingActions compact />
-            </Show>
-            <div
-              role="group"
-              aria-label="Calendar navigation"
-              class="flex shrink-0"
-            >
-              <ButtonGroup variant="outline" size="icon-md">
-                {todayButton(!breakpoints.labeledToday(), true)}
-                {previous(true)}
-                {next(true)}
-              </ButtonGroup>
-            </div>
-            <div role="group" aria-label="Calendar view" class="flex shrink-0">
-              <ButtonGroup variant="outline" size="icon-md">
-                <PeriodSelector isNarrow={isNarrow()} compact />
-              </ButtonGroup>
-            </div>
-            {headerCreateMenu()}
           </div>
         </ViewShell.TopBar>
       </Match>
