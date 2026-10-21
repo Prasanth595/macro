@@ -21,6 +21,9 @@ use models_email::email::service::link::Link;
     tag = "Sync",
     path = "/email/sync",
     operation_id = "disable_sync",
+    params(
+        ("X-Email-Link-Id" = Option<uuid::Uuid>, Header, description = "Inbox link ID to act on instead of the caller's primary inbox; may name a delegated inbox."),
+    ),
     responses(
             (status = 204, body=EmptyResponse),
             (status = 400, body=ErrorResponse),

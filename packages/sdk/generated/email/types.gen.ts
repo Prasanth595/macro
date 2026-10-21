@@ -2845,6 +2845,12 @@ export type MailboxSettingsOperationsResponse = MailboxSettingsOperationsRespons
 
 export type DisableSyncData = {
     body?: never;
+    headers?: {
+        /**
+         * Inbox link ID to act on instead of the caller's primary inbox; may name a delegated inbox.
+         */
+        'X-Email-Link-Id'?: string | null;
+    };
     path?: never;
     query?: never;
     url: '/email/sync';
