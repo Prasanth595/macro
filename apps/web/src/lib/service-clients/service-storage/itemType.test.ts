@@ -58,6 +58,7 @@ describe('stringToItemType', () => {
     'project',
     'channel',
     'crm_company',
+    'crm_contact',
     'crm_pipeline',
     'initiative',
   ])('parses %s as itself', (raw) => {
@@ -71,7 +72,7 @@ describe('stringToItemType', () => {
     }
   );
 
-  test.each(['crm_contact', 'channel_message', 'bogus'])(
+  test.each(['channel_message', 'bogus'])(
     'rejects %s',
     (raw) => {
       expect(stringToItemType(raw)).toBeUndefined();
