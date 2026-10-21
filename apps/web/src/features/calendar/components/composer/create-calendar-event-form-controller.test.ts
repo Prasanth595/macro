@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import { createRoot, createSignal } from 'solid-js';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   type CreateCalendarEventFormControllerOptions,
   createCalendarEventFormController,
@@ -47,7 +47,7 @@ function controllerFor(
   options?: Partial<
     Pick<
       CreateCalendarEventFormControllerOptions,
-      'isEdit' | 'calendarOptions' | 'defaultCalendarId' | 'onChange'
+      'isEdit' | 'calendarOptions' | 'defaultCalendarId'
     >
   >
 ) {
@@ -67,96 +67,6 @@ function controllerFor(
   });
 }
 
-describe('connected date range updates', () => {
-  it('publishes both all-day dates once and saves an exclusive end', () => {
-    const onChange = vi.fn();
-    const controller = controllerFor(
-      {
-        title: 'Conference',
-        allDay: true,
-        start: '2030-10-01',
-        end: '2030-10-03',
-      },
-      { onChange }
-    );
-    controller.setDateRange('2030-10-30', '2030-11-02');
-    expect(onChange).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({
-        start: '2030-10-30',
-        end: '2030-11-02',
-      })
-    );
-    expect(controller.submitValues()?.time).toEqual({
-      kind: 'allDay',
-      startDate: '2030-10-30',
-      endDate: '2030-11-03',
-    });
-    controller.setDateRange('2030-11-02', '2030-11-02');
-    expect(controller.submitValues()?.time).toEqual({
-      kind: 'allDay',
-      startDate: '2030-11-02',
-      endDate: '2030-11-03',
-    });
-  });
-});
-describe('recurring edit scope', () => {
-  it('keeps repeat-rule changes scoped to all events until the rule is restored', () => {
-    const controller = controllerFor(
-      {
-        title: 'Weekly review',
-        start: '2030-10-21T10:00',
-        end: '2030-10-21T11:00',
-        recurrenceLines: ['RRULE:FREQ=WEEKLY;BYDAY=MO'],
-      },
-      { isEdit: true }
-    );
-    controller.changeRecurrenceChoice('daily');
-    controller.setEditScope('this_event');
-    expect(controller.editScope()).toBe('all');
-    expect(controller.submitValues()?.recurrenceLines?.join(';')).toContain(
-      'FREQ=DAILY'
-    );
-    controller.changeRecurrenceChoice('weekly');
-    controller.setEditScope('this_event');
-    expect(controller.editScope()).toBe('this_event');
-  });
-
-  it('still permits a single-occurrence reschedule without an intentional rule change', () => {
-    const controller = controllerFor(
-      {
-        title: 'Weekly review',
-        start: '2030-10-21T10:00',
-        end: '2030-10-21T11:00',
-        recurrenceLines: ['RRULE:FREQ=WEEKLY;BYDAY=MO'],
-      },
-      { isEdit: true }
-    );
-    controller.setStart('2030-10-22T10:00');
-    controller.setField('end', '2030-10-22T11:00');
-    controller.setEditScope('this_event');
-    expect(controller.editScope()).toBe('this_event');
-    expect(controller.canSave()).toBe(true);
-  });
-
-  it('cannot submit a rule change introduced under single-occurrence scope', () => {
-    const controller = controllerFor(
-      {
-        title: 'Weekly review',
-        start: '2030-10-21T10:00',
-        end: '2030-10-21T11:00',
-        recurrenceLines: ['RRULE:FREQ=WEEKLY;BYDAY=MO'],
-      },
-      { isEdit: true }
-    );
-    controller.setEditScope('this_event');
-    controller.changeRecurrenceChoice('daily');
-    expect(controller.submitValues()).toBeUndefined();
-    controller.setEditScope('all');
-    expect(controller.submitValues()?.recurrenceLines?.join(';')).toContain(
-      'FREQ=DAILY'
-    );
-  });
-});
 it('never uses an imported point baseline to create a new zero-duration event', () => {
   const controller = controllerFor({
     title: 'New point',

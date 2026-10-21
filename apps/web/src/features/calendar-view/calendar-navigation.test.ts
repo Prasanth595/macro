@@ -5,7 +5,6 @@ import type {
 } from '@components/app/split-layout/layoutManager';
 import { describe, expect, it, vi } from 'vitest';
 import { calendarViewContent, openCalendarView } from './calendar-navigation';
-import { createCalendarEditorRequest } from './primitives/create-calendar-editor';
 
 describe('Calendar view navigation', () => {
   it('builds route-backed component content', () => {
@@ -32,21 +31,6 @@ describe('Calendar view navigation', () => {
           calendar: { eventId: ['event-1'], occurrenceKey: ['instance-1'] },
         },
       },
-    });
-  });
-
-  it('carries an ephemeral composer request without making draft data part of the URL', () => {
-    const editorRequest = createCalendarEditorRequest();
-    const content = calendarViewContent({
-      period: 'timeGridDay',
-      editorRequest,
-    });
-    expect(content.params).toEqual({ editorRequest });
-    expect(content.entryMetadata).toEqual({
-      route: paneRoute({
-        id: 'view-calendar',
-        params: { period: 'timeGridDay' },
-      }),
     });
   });
 

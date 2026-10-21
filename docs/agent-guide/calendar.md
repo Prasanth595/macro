@@ -273,23 +273,6 @@ date without editing the rule still allows `This event`. Do not save test events
 to shared dev data. Call-link retry behavior remains
 owned by the shared event editor.
 
-The isolated fixture mounts the real grid, split-router leave guard, create/edit
-hosts, form, and controller with isolated sample event, calendar, and contact data.
-With Vite running, exercise desktop, tablet,
-and phone interactions without signing in or writing dev data:
-
-```sh
-\cd apps/web
-CALENDAR_PREVIEW_URL=https://localhost:3000 node src/features/calendar-view/browser-test/verify.mjs
-```
-
-Set `CALENDAR_BROWSER_CDP=http://localhost:9222` to use an existing Chromium, or
-`CALENDAR_BROWSER_EXECUTABLE=/path/to/chromium` to launch an installed browser.
-The fixture uses disabled query defaults and local sample data. Avoid broad request
-interception, which disables Chromium's cache during the large Vite module load.
-Add `?pending-save` to the fixture URL to hold a submitted draft in its loading state.
-Pass `--grid-only` to check selection replacement without the form-layout suite.
-
 On phones, event details use inset round action buttons and a transparent RSVP
 footer. Answering a recurring invitation opens a rounded glass sheet: choose
 `This event` or `All events`, then `Save response`. Cancel or Close returns to
