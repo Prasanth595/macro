@@ -539,7 +539,9 @@ starts with Document. Hover or keyboard navigation updates the right detail pane
 click a row or press Enter to start that creation flow. List icons are monochrome:
 muted normally and full ink on the selected row. The detail panel centers
 its accent-colored icon tile, description, and **Good for** examples over
-the shared onboarding grain and accent glow. The **Create [type]** button
+the shared onboarding grain and accent glow. Descriptions use two authored
+lines at desktop width, with a slightly shorter second line; narrow panels
+allow the text to wrap further. The **Create [type]** button
 sits in the bottom lip, centered beneath the detail panel.
 A vertical divider separates it from the list. In direct shortcut mode, the
 shortcut sequence (such as **C then T** for Task) appears below the centered

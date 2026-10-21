@@ -163,7 +163,7 @@ export function LauncherDetails(props: {
                   <h2 class="text-xl font-semibold tracking-[-0.025em] text-ink">
                     {item().label}
                   </h2>
-                  <p class="mt-2 max-w-[23rem] text-center text-[13px] leading-relaxed text-ink-muted">
+                  <p class="mt-2 max-w-[26rem] whitespace-pre-line text-center text-[13px] leading-relaxed text-ink-muted">
                     {createMenuDetails(item())?.details ??
                       createMenuTagline(item())}
                   </p>
