@@ -5,13 +5,14 @@ import { fireAndForget } from '@core/util/fireAndForget';
 import { usePropertyUserDisplay } from '@property/hooks/usePropertyUserDisplay';
 import type { Accessor } from 'solid-js';
 import { toTaskBoardGrouping } from './core/task-board';
+import { taskDueDatePredicate } from './core/task-due-date';
 import { createTaskBoardQueries } from './queries/task-board-queries';
 import { useTasksView } from './tasks-view-context';
 import { TaskBoardView } from './views/task-board-view';
 
 /** Connects the task view to query adapters and app navigation. */
 export function TasksBoard(props: { ref?: (element: HTMLDivElement) => void }) {
-  const { state, source, openTask, projectsEnabled } = useTasksView();
+  const { state, source, openTask, projectsEnabled, calendar } = useTasksView();
   const panel = useSplitPanelOrThrow();
   const queries = createTaskBoardQueries({
     rows: source.boardRows ?? source.items,
@@ -21,6 +22,8 @@ export function TasksBoard(props: { ref?: (element: HTMLDivElement) => void }) {
     projectsEnabled,
     facets: () => state.facets,
     sort: () => state.sort,
+    calendar,
+    dueDate: () => taskDueDatePredicate(state.dueDate, calendar()),
   });
   const data = {
     ...queries,

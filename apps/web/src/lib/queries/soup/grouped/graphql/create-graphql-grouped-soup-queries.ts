@@ -388,6 +388,11 @@ export function createGraphqlGroupedSoupQueries(
       };
 
       createComputed(on(cachedMail, () => disposeContinuation()));
+      // A cursor belongs to one frozen input, even when the bin key is unchanged.
+      const initialInputKey = createMemo(() =>
+        JSON.stringify(getConfig().initialInput)
+      );
+      createComputed(on(initialInputKey, disposeContinuation, { defer: true }));
       onCleanup(disposeContinuation);
 
       return {

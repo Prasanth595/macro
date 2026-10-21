@@ -16,6 +16,7 @@ import { useTaskFilters } from '../filters/use-task-filters';
 import { useTasksView } from '../tasks-view-context';
 import { TASKS_TOUR } from '../tour';
 import { TasksFilterDrawer } from './TasksFilterDrawer';
+import { TaskDueDateRangeDialog } from './task-due-date-range-dialog';
 
 export function TasksControls() {
   return (
@@ -57,7 +58,7 @@ function DesktopTasksControls() {
     sort: {
       description: 'Sort tasks',
       run: () => {
-        if (!sortTrigger) return false;
+        if (!sortTrigger || state.search.trim()) return false;
 
         setOpenMenu('sort');
         return true;
@@ -66,7 +67,7 @@ function DesktopTasksControls() {
   });
 
   const primarySort = () => state.sort[0]?.id ?? 'updated_at';
-  const isBoardSearch = () => state.layout === 'board' && !!state.search.trim();
+  const isSearching = () => !!state.search.trim();
 
   const groupOptions = () => {
     if (state.layout !== 'board') {
@@ -79,59 +80,66 @@ function DesktopTasksControls() {
   };
 
   return (
-    <div class="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-2 @max-[720px]/view-shell:gap-1">
-      <ViewLayoutDropdown
-        label="Task layout"
-        value={state.layout}
-        layouts={
-          ganttEnabled() ? ['list', 'board', 'gantt'] : ['list', 'board']
-        }
-        onChange={(layout) => setState('layout', layout)}
-      />
-      <Show
-        when={!isBoardSearch()}
-        fallback={
-          <span
-            class="text-xs text-ink-muted"
-            title="Search results are ranked by relevance. Clear search to sort the board."
-          >
-            Relevance
-          </span>
-        }
-      >
-        <ListSortDropdown
-          label="Sort tasks"
-          value={primarySort()}
-          options={TASK_SORT_OPTIONS}
-          open={openMenu() === 'sort'}
-          onChange={setPrimarySort}
-          onOpenChange={handleMenuOpenChange('sort')}
-          triggerRef={(element) => (sortTrigger = element)}
+    <>
+      <div class="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-2 @max-[720px]/view-shell:gap-1">
+        <ViewLayoutDropdown
+          label="Task layout"
+          value={state.layout}
+          layouts={
+            ganttEnabled() ? ['list', 'board', 'gantt'] : ['list', 'board']
+          }
+          onChange={(layout) => setState('layout', layout)}
         />
-      </Show>
-      <ListGroupDropdown
-        label="Group by"
-        value={state.groupBy}
-        options={groupOptions()}
-        onChange={(groupBy) => setState('groupBy', groupBy)}
-      />
-      <div class="relative shrink-0" ref={tourTarget(TASKS_TOUR.filter)}>
-        <ListFilterDropdown
-          label="Filter tasks"
-          groups={filters.groups()}
-          open={openMenu() === 'filters'}
-          onOpenChange={handleMenuOpenChange('filters')}
-          triggerRef={(element) => (filterTrigger = element)}
-          isSelected={filters.isSelected}
-          onSelectionChange={filters.setSelected}
-          onClear={filters.clear}
-          aiFilter={{
-            placeholder: 'Filter with AI…',
-            onSubmit: filters.applyDescription,
-          }}
+        <Show
+          when={!isSearching()}
+          fallback={
+            <span
+              class="text-xs text-ink-muted"
+              title="Search keeps its existing result ordering. Clear search to sort tasks."
+            >
+              Search order
+            </span>
+          }
+        >
+          <ListSortDropdown
+            label="Sort tasks"
+            value={primarySort()}
+            options={TASK_SORT_OPTIONS}
+            open={openMenu() === 'sort'}
+            onChange={setPrimarySort}
+            onOpenChange={handleMenuOpenChange('sort')}
+            triggerRef={(element) => (sortTrigger = element)}
+          />
+        </Show>
+        <ListGroupDropdown
+          label="Group by"
+          value={state.groupBy}
+          options={groupOptions()}
+          onChange={(groupBy) => setState('groupBy', groupBy)}
         />
-        <ListFilterCountBadge count={filters.activeCount()} />
+        <div class="relative shrink-0" ref={tourTarget(TASKS_TOUR.filter)}>
+          <ListFilterDropdown
+            label="Filter tasks"
+            groups={filters.groups()}
+            open={openMenu() === 'filters'}
+            onOpenChange={handleMenuOpenChange('filters')}
+            triggerRef={(element) => (filterTrigger = element)}
+            isSelected={filters.isSelected}
+            onSelectionChange={filters.setSelected}
+            onClear={filters.clear}
+            aiFilter={{
+              placeholder: 'Filter with AI…',
+              onSubmit: filters.applyDescription,
+            }}
+          />
+          <ListFilterCountBadge count={filters.activeCount()} />
+        </div>
       </div>
-    </div>
+      <TaskDueDateRangeDialog
+        value={filters.customRange()}
+        onChange={filters.setCustomRange}
+        onApply={filters.applyCustomRange}
+      />
+    </>
   );
 }

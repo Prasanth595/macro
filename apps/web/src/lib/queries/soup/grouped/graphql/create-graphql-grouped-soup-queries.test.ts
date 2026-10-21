@@ -6,7 +6,7 @@ import {
   type OperationContext,
   type OperationResult,
 } from '@urql/core';
-import { createMemo, createRoot } from 'solid-js';
+import { type Accessor, createMemo, createRoot, createSignal } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeSubject, onEnd, pipe } from 'wonka';
 
@@ -63,7 +63,7 @@ import {
   groupedSoupInputKey,
   groupedSoupLogicalViewKey,
 } from '@queries/soup/grouped/graphql-operation-registry';
-import type { GroupMeta } from '@queries/soup/grouped/types';
+import type { GroupByField, GroupMeta } from '@queries/soup/grouped/types';
 import type { GroupSoupQueryVariables } from '@service-storage/graphql/generated/graphql';
 import { createGraphqlGroupedSoupQueries } from './create-graphql-grouped-soup-queries';
 
@@ -171,7 +171,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-function setup() {
+function setup(options: { groupByField?: Accessor<GroupByField> } = {}) {
   const fake = makeFakeClient();
   getGraphqlSoupClientMock.mockReturnValue(fake.client);
 
@@ -196,10 +196,12 @@ function setup() {
 
     grouped = createGraphqlGroupedSoupQueries({
       initialPage,
-      groupByField: () => ({
-        type: 'property',
-        propertyDefinitionId: 'status-definition',
-      }),
+      groupByField:
+        options.groupByField ??
+        (() => ({
+          type: 'property',
+          propertyDefinitionId: 'status-definition',
+        })),
       soupParams: () => ({ limit: 2, sort_method: 'updated_at' }),
       soupBody: () => ({}),
       enabled: () => true,
@@ -461,4 +463,38 @@ describe('createGraphqlGroupedSoupQueries', () => {
     expect(fake.executions).toHaveLength(2);
     expect(fake.executions[0]?.unsubscribed).toBe(false);
   });
+});
+
+it('discards a loaded cursor when frozen deadline boundaries change with the same bin keys', async () => {
+  const [field, setField] = createSignal<GroupByField>({
+    type: 'deadline',
+    boundaries: {
+      today: '2026-10-21T00:00:00Z',
+      tomorrow: '2026-10-22T00:00:00Z',
+      day_two: '2026-10-23T00:00:00Z',
+      day_eight: '2026-10-29T00:00:00Z',
+    },
+  });
+  const { fake, grouped } = setup({ groupByField: field });
+  fake.executions[0].next(
+    page([group('a', ['a-1'], 'old-cursor')], [item('a-1')])
+  );
+  const a = grouped.map().get('a')!;
+  const load = a.fetchNextPage();
+  fake.executions[1].next(
+    page([group('a', ['a-2'], 'next-old-cursor')], [item('a-2')])
+  );
+  await load;
+  expect(entityIds(a)).toEqual(['a-1', 'a-2']);
+  setField({
+    type: 'deadline',
+    boundaries: {
+      today: '2026-10-22T00:00:00Z',
+      tomorrow: '2026-10-23T00:00:00Z',
+      day_two: '2026-10-24T00:00:00Z',
+      day_eight: '2026-10-30T00:00:00Z',
+    },
+  });
+  expect(fake.executions[1].unsubscribed).toBe(true);
+  expect(entityIds(a)).toEqual(['a-1']);
 });
