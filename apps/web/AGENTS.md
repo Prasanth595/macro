@@ -209,6 +209,11 @@ older work. Older native builds and pushes retain authenticated notification
 lookup. The local bridge and native release requirement are documented in
 [`docs/ios-releases.md`](docs/ios-releases.md).
 
+Bound the pre-router bridge handoff to 1.5 seconds and release the native cover
+on failure or timeout without consuming the pending tap. Late responses must
+use normal account-checked navigation, never reset the mounted router's hash.
+`notification.launch` records whether startup continued ready, failed, or timed out.
+
 Generate APNs validators with `scripts/generate-api-schema.ts`; its compact
 `generated/push.ts` entry avoids importing every notification-service schema
 on the startup path. Carry known channel root IDs in push navigation (a null
