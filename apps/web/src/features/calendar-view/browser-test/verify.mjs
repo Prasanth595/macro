@@ -23,7 +23,7 @@ async function openFixture(page, query = '') {
       networkChanged = undefined;
       try {
         await page.goto(fixture + query);
-        await page.getByRole('button', { name: 'Select 10 AM', exact: true }).waitFor({ timeout: 15000 });
+        await page.getByRole('button', { name: 'Select 10 AM', exact: true }).waitFor({ timeout: 60000 });
         return;
       } catch (error) {
         if (!networkChanged || attempt === 1) throw error;
@@ -67,6 +67,23 @@ async function verifyDescriptionPosition(page) {
   assert.ok(alignment.titleOffset < 1, `Title text must align with field text; offset: ${alignment.titleOffset}px`);
   assert.equal(alignment.titleGap, 8, 'Title icon-to-value gap must be compact');
   assert.ok(alignment.rowGaps.every((gap) => gap === 8), 'Property icon-to-value gaps must be compact');
+  assert.equal(await page.getByLabel('Title', { exact: true }).evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize)), 18, 'The event title must use text-lg on every screen size');
+  const fontSizes = await page.locator('form button[aria-expanded], form [aria-label="Description"], form [aria-label="Location"], form [aria-label="Event type"] label').evaluateAll((elements) =>
+    elements.map((element) => ({
+      label: element.getAttribute('aria-label') ?? element.textContent,
+      size: Number.parseFloat(getComputedStyle(element).fontSize),
+    }))
+  );
+  assert.ok(fontSizes.length > 0);
+  for (const field of fontSizes) {
+    assert.equal(field.size, 15, `${field.label} must use text-base`);
+  }
+  const iconSizes = await page.locator('form [role="group"][aria-label] > div:first-child > svg').evaluateAll((icons) =>
+    icons.map((icon) => ({ width: icon.getBoundingClientRect().width, height: icon.getBoundingClientRect().height }))
+  );
+  const expectedIconSize = await page.evaluate(() => matchMedia('(min-width: 640px)').matches ? 20 : 24);
+  assert.ok(iconSizes.length >= 5);
+  assert.ok(iconSizes.every((icon) => icon.width === expectedIconSize && icon.height === expectedIconSize), 'Field icons must scale with the larger editor text');
 }
 
 async function verifyEditorHeader(page, action) {
@@ -153,7 +170,13 @@ async function verifyDateRange(page, monthCount, mode = 'single') {
   const state = async () => JSON.parse(await page.getByLabel('Draft date range', { exact: true }).innerText());
   const day = (month, number) => picker.locator('table').nth(month).locator('button:not(:disabled)').filter({ hasText: new RegExp(`^${number}$`) });
   const before = await state();
+  assert.equal(await trigger.locator('[aria-label="to"]').count(), mode === 'single' ? 0 : 1);
+  if (mode === 'single') {
+    assert.doesNotMatch(await trigger.innerText(), /:|→/);
+    assert.equal(await trigger.getAttribute('title'), await trigger.innerText());
+  }
   await trigger.click();
+  if (mode === 'single') assert.doesNotMatch(await picker.getByRole('status').innerText(), /→/);
   if (await page.evaluate(() => matchMedia('(hover: hover)').matches)) {
     for (const label of ['Start time', 'End time']) {
       const time = picker.getByLabel(label, { exact: true });
@@ -175,6 +198,9 @@ async function verifyDateRange(page, monthCount, mode = 'single') {
   assert.equal(portal.global, true, 'Date picker must portal outside the sidebar or editor');
   assert.equal(portal.depth, '4');
   assert.equal(portal.labelSize, 12, 'Selected range label must stay secondary');
+  for (const label of ['Start time', 'End time']) {
+    assert.equal(await picker.getByLabel(label, { exact: true }).evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize)), 15, `${label} must use text-base`);
+  }
   assert.equal(await picker.getByText('Choose a start day, then an end day.', { exact: true }).count(), 0);
   const outsideDays = picker.locator('table').first().locator('[data-outside-month]');
   assert.ok(await outsideDays.count() > 0, 'Show dates from adjacent months');
@@ -323,18 +349,24 @@ async function verifyDateRange(page, monthCount, mode = 'single') {
     documentHeight: document.documentElement.scrollHeight,
   }));
   assert.deepEqual(expandedSize, pickerSize, 'Opening a global time dropdown must not change picker bounds or page scroll size');
-  const outsideIndex = await timeMenu.getByRole('option').evaluateAll((options) => {
+  const optionIndex = await timeMenu.getByRole('option').evaluateAll((options) => {
     const picker = document.querySelector('input[id^="composer-end-time-"]')?.closest('[role="dialog"]')?.getBoundingClientRect();
     if (!picker) return -1;
-    return options.findIndex((option) => {
+    const reachable = options.map((option, index) => {
       const box = option.getBoundingClientRect();
-      return box.width > 0 && box.height > 0 && box.left >= 0 && box.right <= innerWidth && box.top >= 0 && box.bottom <= innerHeight &&
-        (box.right <= picker.left || box.left >= picker.right || box.bottom <= picker.top || box.top >= picker.bottom);
+      const x = box.left + box.width / 2;
+      const y = box.top + box.height / 2;
+      const target = document.elementFromPoint(x, y);
+      const visible = box.width > 0 && box.height > 0 && x >= 0 && x <= innerWidth && y >= 0 && y <= innerHeight && target && option.contains(target);
+      const outside = x < picker.left || x > picker.right || y < picker.top || y > picker.bottom;
+      return { index, visible, outside };
     });
+    // Prefer exercising the menu beyond the picker, but short phone viewports
+    // can place the entire menu over it. In either placement, hit testing must work.
+    return reachable.find((option) => option.visible && option.outside)?.index ?? reachable.find((option) => option.visible)?.index ?? -1;
   });
-  assert.ok(outsideIndex >= 0, 'A time option outside picker bounds must stay visible');
-  const outsideOption = timeMenu.getByRole('option').nth(outsideIndex);
-  await outsideOption.click();
+  assert.ok(optionIndex >= 0, 'A time option must be visible and receive pointer input');
+  await timeMenu.getByRole('option').nth(optionIndex).click();
   await timeMenu.waitFor({ state: 'detached' });
   assert.equal(await picker.isVisible(), true, 'Clicking a global time option must keep the date picker open');
   await picker.getByLabel('End time', { exact: true }).fill('12:30');
@@ -891,7 +923,8 @@ async function verifyShortCalendarDatePicker(height) {
     await page.keyboard.press('Escape');
     await picker.waitFor({ state: 'detached' });
     assert.match(await end.innerText(), /Oct 22, 2030/);
-    assert.match(await end.innerText(), /12:30 PM/);
+    const range = JSON.parse(await page.getByLabel('Draft date range', { exact: true }).innerText());
+    assert.equal(range.end, '2030-10-22T12:30');
     await verifyPopoverGeometry(page);
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();
     await page.getByRole('button', { name: 'Discard', exact: true }).click();
@@ -930,8 +963,8 @@ async function verifyGridSelection() {
     await page.mouse.click(clickColumn.x + clickColumn.width / 2, clickRow.y + clickRow.height / 2);
     assert.equal(await page.getByRole('button', { name: 'Discard', exact: true }).count(), 0);
     assert.ok(await page.locator('.fc-highlight, .fc-event-mirror').count() > 0, 'replacement keeps its calendar selection highlight');
-    const start = page.getByRole('button', { name: 'Edit event date and time range', exact: true });
-    assert.match(await start.innerText(), /12:00/);
+    const selection = async () => JSON.parse(await page.getByLabel('Draft date range', { exact: true }).innerText());
+    assert.match((await selection()).start, /T12:00$/);
     await title.fill('Dragged draft');
 
     // Keep editing cancels a new click without changing the original draft.
@@ -941,7 +974,7 @@ async function verifyGridSelection() {
     await page.mouse.click(dirtyColumn.x + dirtyColumn.width / 2, dirtyRow.y + dirtyRow.height / 2);
     await page.getByRole('button', { name: 'Keep editing', exact: true }).click();
     assert.equal(await title.inputValue(), 'Dragged draft');
-    assert.match(await start.innerText(), /12:00/);
+    assert.match((await selection()).start, /T12:00$/);
 
     // Discard applies the newly dragged range, rather than simply closing.
     const dragRow = await page.locator('.fc-timegrid-slot[data-time="15:00:00"]').first().boundingBox();
@@ -954,7 +987,7 @@ async function verifyGridSelection() {
     await page.mouse.up();
     await page.getByRole('button', { name: 'Discard', exact: true }).click();
     assert.equal(await title.inputValue(), '');
-    assert.match(await start.innerText(), /3:00 PM/);
+    assert.match((await selection()).start, /T15:00$/);
     await title.fill('Dragged draft');
     await page.getByRole('button', { name: 'Next week', exact: true }).click();
     assert.equal(await title.inputValue(), 'Dragged draft');

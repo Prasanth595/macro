@@ -73,6 +73,10 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
     };
   const rangeDayLabel = (date: Date | null, fallback: string) =>
     date ? dateLabelFormatter.format(date) : fallback;
+  const rangeLabel = () =>
+    singleDay()
+      ? rangeDayLabel(startDate() ?? null, 'Date')
+      : `${label(props.start, 'Start date')} → ${label(props.end, 'End date')}`;
   const changeOpen = (next: boolean) => {
     if (next) setMonth(startDate() ?? new Date());
     setSelection(undefined);
@@ -134,7 +138,7 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
       fallback={
         <span
           aria-label="Event date and time range"
-          class="select-text text-xs text-ink-muted"
+          class="select-text text-base text-ink-muted"
         >
           {label(props.start, 'Start date')} → {label(props.end, 'End date')}
           {props.allDay ? ' · All day' : ''}
@@ -157,24 +161,33 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
           aria-label="Edit event date and time range"
           aria-invalid={props.invalid || undefined}
           aria-describedby={props.describedBy}
-          title={`${label(props.start, 'Start date')} → ${label(props.end, 'End date')}`}
+          title={rangeLabel()}
           class={cn(
-            'group inline-flex h-9 w-full min-w-0 max-w-full items-center gap-1.5 rounded-xl border border-edge-muted bg-control px-2 py-2 text-left text-xs leading-tight text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:bg-active focus-visible:text-ink focus-visible:outline-none focus-visible:ring-0 data-expanded:bg-hover data-expanded:text-ink sm:w-fit touch:min-h-[44px]',
+            'group inline-flex h-9 w-full min-w-0 max-w-full items-center gap-1.5 rounded-xl border border-edge-muted bg-control px-2 py-2 text-left text-base leading-tight text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:bg-active focus-visible:text-ink focus-visible:outline-none focus-visible:ring-0 data-expanded:bg-hover data-expanded:text-ink sm:w-fit touch:min-h-[44px]',
             props.invalid &&
               'border-failure text-failure hover:text-failure focus-visible:text-failure data-expanded:text-failure'
           )}
         >
-          <span class="min-w-0 flex-1 truncate">
-            {label(props.start, 'Start date')}
-          </span>
-          <ArrowRightIcon
-            aria-label="to"
-            class="size-3.5 shrink-0 text-ink-extra-muted"
-          />
-          <span class="min-w-0 flex-1 truncate">
-            {label(props.end, 'End date')}
-          </span>
-          <CaretDownIcon class="size-3 shrink-0 text-ink-extra-muted" />
+          <Show
+            when={singleDay()}
+            fallback={
+              <>
+                <span class="min-w-0 flex-1 truncate">
+                  {label(props.start, 'Start date')}
+                </span>
+                <ArrowRightIcon
+                  aria-label="to"
+                  class="size-4 shrink-0 text-ink-extra-muted"
+                />
+                <span class="min-w-0 flex-1 truncate">
+                  {label(props.end, 'End date')}
+                </span>
+              </>
+            }
+          >
+            <span class="min-w-0 flex-1 truncate">{rangeLabel()}</span>
+          </Show>
+          <CaretDownIcon class="size-4 shrink-0 text-ink-extra-muted" />
         </Popover.Trigger>
         <Popover.Portal>
           <Layer depth={4}>
@@ -218,9 +231,14 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
                         {rangeDayLabel(
                           currentRange().from,
                           'Select a start date'
-                        )}{' '}
-                        →{' '}
-                        {rangeDayLabel(currentRange().to, 'Select an end date')}
+                        )}
+                        <Show when={!singleDay()}>
+                          {' → '}
+                          {rangeDayLabel(
+                            currentRange().to,
+                            'Select an end date'
+                          )}
+                        </Show>
                       </p>
                     </div>
                   </div>
@@ -229,7 +247,7 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
                       <Show
                         when={!props.startReadOnly}
                         fallback={
-                          <div class="text-xs text-ink-muted">
+                          <div class="text-base text-ink-muted">
                             <span class="block text-xxs font-medium">
                               Start
                             </span>
@@ -261,7 +279,7 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
                       <Show
                         when={!props.endReadOnly}
                         fallback={
-                          <div class="text-xs text-ink-muted">
+                          <div class="text-base text-ink-muted">
                             <span class="block text-xxs font-medium">End</span>
                             <span
                               aria-label="End date and time"
@@ -289,7 +307,7 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
                       <Show
                         when={!props.allDayReadOnly}
                         fallback={
-                          <span class="select-text text-xs text-ink-muted">
+                          <span class="select-text text-base text-ink-muted">
                             {props.allDay ? 'All day' : 'Timed event'}
                           </span>
                         }
@@ -304,7 +322,7 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
                           }}
                           size="sm"
                           label="All day"
-                          labelClass="whitespace-nowrap text-xs text-ink-muted"
+                          labelClass="whitespace-nowrap text-base text-ink-muted"
                         />
                       </Show>
                     </div>

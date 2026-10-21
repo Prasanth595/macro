@@ -191,9 +191,15 @@ describe('composer popovers inside a dialog', () => {
           onAllDayChange={vi.fn()}
         />
       ));
-      await user.click(
-        screen.getByRole('button', { name: 'Edit event date and time range' })
-      );
+      const trigger = screen.getByRole('button', {
+        name: 'Edit event date and time range',
+      });
+      expect(trigger.textContent).toBe('Oct 6, 2026');
+      expect(trigger.title).toBe('Oct 6, 2026');
+      await user.click(trigger);
+      expect(screen.getByRole('status').textContent).not.toContain('→');
+      expect(screen.getByLabelText('Start time')).toBeTruthy();
+      expect(screen.getByLabelText('End time')).toBeTruthy();
       await user.click(
         within(screen.getByRole('grid')).getByRole('gridcell', { name: '20' })
       );
@@ -202,6 +208,7 @@ describe('composer popovers inside a dialog', () => {
         allDay ? '2026-10-20' : '2026-10-20T10:00'
       );
       expect(screen.queryByText('Select an end date')).toBeNull();
+      expect(trigger.textContent).toBe('Oct 20, 2026');
       await user.keyboard('{ArrowRight}{Enter}');
       expect(onRangeChange).toHaveBeenLastCalledWith(
         allDay ? '2026-10-21' : '2026-10-21T09:00',
@@ -240,6 +247,7 @@ describe('composer popovers inside a dialog', () => {
       name: 'Edit event date and time range',
     });
     await user.click(trigger);
+    expect(trigger.title).toContain('→');
     expect(screen.getAllByRole('grid')).toHaveLength(2);
     await user.click(
       within(screen.getAllByRole('grid')[0]).getByRole('gridcell', {
@@ -276,9 +284,10 @@ describe('composer popovers inside a dialog', () => {
         />
       );
     });
-    await user.click(
-      screen.getByRole('button', { name: 'Edit event date and time range' })
-    );
+    const trigger = screen.getByRole('button', {
+      name: 'Edit event date and time range',
+    });
+    await user.click(trigger);
     expect(screen.getAllByRole('grid')).toHaveLength(2);
     expect(screen.getByText('October 2026')).toBeTruthy();
     expect(screen.getByText('November 2026')).toBeTruthy();
@@ -286,6 +295,8 @@ describe('composer popovers inside a dialog', () => {
     await user.click(firstMonth.getByRole('gridcell', { name: '21' }));
     await user.click(firstMonth.getByRole('gridcell', { name: '21' }));
     expect(screen.getAllByRole('grid')).toHaveLength(1);
+    expect(trigger.textContent).toBe('Oct 21, 2026');
+    expect(screen.getByRole('status').textContent).not.toContain('→');
     await user.click(
       within(screen.getByRole('grid')).getByRole('gridcell', { name: '23' })
     );

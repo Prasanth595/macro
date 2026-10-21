@@ -112,7 +112,13 @@ which is up to 480px wide and fits within the calendar pane. Both desktop surfac
 leave the calendar interactive.
 Use the left-aligned presentation button in the editor header to switch surfaces:
 **Move to sidebar** shows a right-panel icon; **Move to popover** shows overlapping
-windows. The close button stays on the right.
+windows. The close button stays on the right. Editor field values use `text-base`
+(15px at the default root size), and the title uses `text-lg` (18px), on both
+desktop and mobile. Row icons are 20px on desktop and 24px on mobile;
+date-picker captions and helper text stay smaller. For a
+same-day event, the editable trigger and selection summary show the date once,
+without a from/to arrow; the picker keeps separate Start time and End time
+controls. Multi-day events keep both dates and the range arrow.
 Both transfer actions retain the draft, selected range, guests, recurrence, and save
 scope; neither action dismisses or recreates the draft. Transfers are disabled
 while a save is pending.
@@ -256,6 +262,8 @@ Delay editor loading and repeat before its fields appear. Verify Keep editing
 stays in Calendar without changing the draft, while Discard allows navigation.
 Exercise the popover and sidebar separately through the actual app sidebar, not
 only direct router calls, including a destination already open in another pane.
+Verify this in the authenticated app; isolated fixture and mocked-data tests do
+not establish that the live app's sidebar path is protected.
 Repeat from `New → Event` and on a phone. Open each nested
 menu or dialog and press Escape: dismiss the top layer first, not the editor.
 Edit an existing recurring event and check both recurring scopes. Intentional
