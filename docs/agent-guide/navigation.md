@@ -536,14 +536,15 @@ Categories appear in this order: **Docs** (Document, Snippet), **Organization**
 any uncategorized entries). Only available entries and nonempty categories appear.
 Recent items also remain in their categories. With no history, the list starts
 with categories. Hover or keyboard navigation updates the right detail panel;
-click a row or press Enter to start that creation flow. The detail panel is
-top-aligned, shares the list background, and is separated by a vertical divider.
-The shortcut below the description shows the sequence, such as **C then T** for
-Task, while direct shortcut mode is active.
-Its lower-right **Create [type]** button starts the selected creation flow and
-shows the Enter shortcut. Holding Shift adds an **In new split** indicator and
-changes the button shortcut to Shift+Enter; clicking while holding Shift uses
-the same new-split behavior where supported.
+click a row or press Enter to start that creation flow. Icons are monochrome:
+muted in the list, full ink on the selected row and in the detail panel's
+neutral tile. The detail panel is top-aligned, shares the list background, and
+is separated by a vertical divider. It shows the description and a **Good for**
+row of example uses. Its bottom row shows the shortcut sequence on the left,
+such as **C then T** for Task, while direct shortcut mode is active, and the
+**Create [type]** button with the Enter shortcut on the right. Holding Shift
+relabels the button **Create in new split** with Shift+Enter; clicking while
+holding Shift uses the same new-split behavior where supported.
 
 The **Search mode** toggle (or **/**) switches between direct entity shortcuts
 shown beside each choice and the standard create search input. Search mode is

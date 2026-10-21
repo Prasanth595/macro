@@ -988,8 +988,6 @@ type LauncherMenuItemProps = {
 };
 
 export const LauncherMenuItem = (props: LauncherMenuItemProps) => {
-  const selectedIconColor = () =>
-    getIconConfig(props.creatableBlock.blockName).foreground;
   const launcherHint = () => props.creatableBlock.launcherHint;
 
   return (
@@ -997,7 +995,7 @@ export const LauncherMenuItem = (props: LauncherMenuItemProps) => {
       <div
         class={cn(
           'size-4 shrink-0 text-ink-extra-muted transition-colors',
-          props.selected && selectedIconColor()
+          props.selected && 'text-ink'
         )}
       >
         <Dynamic component={props.creatableBlock.icon} />
@@ -1378,41 +1376,41 @@ export const LauncherShell = (
                 animation: shift-ripple 0.35s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
               }
             `}</style>
-          <span class="flex items-center gap-1">
-            <div class="flex gap-1">
-              <div class="flex w-7 justify-center border border-ink/12 text-xxs rounded-md items-center px-1.5 py-px font-normal">
-                <Hotkey
-                  shortcut={searchMode() ? 'arrowup' : navUpHotkey.hotkey()}
-                  class="space-x-1"
-                />
-              </div>
-              <div class="flex w-7 justify-center border border-ink/12 text-xxs rounded-md items-center px-1.5 py-px font-normal">
-                <Hotkey
-                  shortcut={searchMode() ? 'arrowdown' : navDownHotkey.hotkey()}
-                  class="space-x-1"
-                />
-              </div>
-            </div>
+          <span class="flex items-center gap-1.5">
+            <span class="flex gap-0.5">
+              <Hotkey
+                shortcut={searchMode() ? 'arrowup' : navUpHotkey.hotkey()}
+                theme="subtle"
+                class="min-w-5 justify-center border-ink/12"
+              />
+              <Hotkey
+                shortcut={searchMode() ? 'arrowdown' : navDownHotkey.hotkey()}
+                theme="subtle"
+                class="min-w-5 justify-center border-ink/12"
+              />
+            </span>
             Navigate
           </span>
-          <span class="flex items-center gap-1">
-            <div class="flex w-7 justify-center border border-ink/12 text-xxs rounded-md items-center px-1.5 py-px font-normal">
-              <Hotkey shortcut={confirmHotkey.hotkey()} />
-            </div>
+          <span class="flex items-center gap-1.5">
+            <Hotkey
+              shortcut={confirmHotkey.hotkey()}
+              theme="subtle"
+              class="min-w-5 justify-center border-ink/12"
+            />
             Create
           </span>
-          <span class="hidden touch:hidden md:flex items-center gap-1">
+          <span class="hidden touch:hidden md:flex items-center gap-1.5">
             Hold
             <span class="relative inline-flex place-items-center">
               <span
                 ref={shiftRippleRef}
-                class="shift-ripple absolute inset-0 rounded-sm border border-accent pointer-events-none opacity-0"
+                class="shift-ripple absolute inset-0 rounded-sm border border-ink/40 pointer-events-none opacity-0"
               />
               <span
                 class={cn(
-                  'border text-xxs px-1.5 py-px rounded-md transition-colors duration-150',
+                  'min-w-5 border text-xxs px-1.5 py-px rounded-sm text-center transition-colors duration-150',
                   shiftHeld()
-                    ? 'border-accent text-accent bg-accent/10'
+                    ? 'border-ink/30 bg-ink/10 text-ink'
                     : 'border-ink/12'
                 )}
               >

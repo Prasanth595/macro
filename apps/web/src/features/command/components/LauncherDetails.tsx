@@ -1,4 +1,3 @@
-import { getIconConfig } from '@core/component/EntityIcon';
 import { Button, cn, Hotkey } from '@ui';
 import { createEffect, For, on, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
@@ -70,7 +69,7 @@ export function LauncherDetails(props: {
           <For each={props.sections}>
             {(section, sectionIndex) => (
               <div role="group" aria-label={section.group.label} class="mb-1.5">
-                <div class="px-2.5 pt-2 pb-1 text-[10px] font-medium tracking-wide text-ink-extra-muted uppercase">
+                <div class="px-2.5 pt-2.5 pb-1 text-[10px] font-medium tracking-[0.08em] text-ink-extra-muted/80 uppercase">
                   {section.group.label}
                 </div>
                 <For each={section.items}>
@@ -91,9 +90,9 @@ export function LauncherDetails(props: {
                         aria-selected={props.selectedIndex === index()}
                         tabindex={-1}
                         class={cn(
-                          'flex h-9 w-full scroll-m-2 items-center gap-2.5 rounded-md px-2.5 text-left outline-none focus-visible:outline-2 focus-visible:outline-accent',
+                          'flex h-8 w-full scroll-m-2 items-center gap-2.5 rounded-lg px-2.5 text-left outline-none transition-colors duration-100 focus-visible:outline-2 focus-visible:outline-accent motion-reduce:transition-none',
                           props.selectedIndex === index()
-                            ? 'bg-ink/6 text-ink'
+                            ? 'bg-ink/[0.07] text-ink'
                             : 'text-ink-muted'
                         )}
                         onPointerMove={(event) => {
@@ -105,14 +104,16 @@ export function LauncherDetails(props: {
                       >
                         <span
                           class={cn(
-                            'size-4 shrink-0 [&_svg]:size-4',
-                            getIconConfig(item.blockName).foreground
+                            'size-4 shrink-0 transition-colors duration-100 motion-reduce:transition-none [&_svg]:size-4',
+                            props.selectedIndex === index()
+                              ? 'text-ink'
+                              : 'text-ink-extra-muted'
                           )}
                         >
                           <Dynamic component={item.icon} />
                         </span>
                         <span
-                          class="min-w-0 flex-1 truncate text-sm font-medium"
+                          class="min-w-0 flex-1 truncate text-[13px] font-medium"
                           title={item.label}
                         >
                           {item.label}
@@ -145,56 +146,66 @@ export function LauncherDetails(props: {
             {(item) => (
               <section
                 aria-label={`${item().label} details`}
-                class="flex min-h-full flex-col p-6"
+                class="flex min-h-full flex-col px-7 pt-7 pb-5"
               >
-                <div
-                  class={cn(
-                    'mb-5 flex size-18 shrink-0 items-center justify-center rounded-2xl shadow-[0_0_20px_0] shadow-current/[0.06]',
-                    getIconConfig(item().blockName).background,
-                    getIconConfig(item().blockName).foreground
-                  )}
-                >
-                  <div class="size-9 [&_svg]:size-full">
+                <div class="mb-5 flex size-14 shrink-0 items-center justify-center rounded-2xl border border-ink/8 bg-linear-145 from-ink/[0.09] to-ink/[0.02] text-ink shadow-[inset_0_1px_0_0_rgb(255_255_255/0.06),0_2px_8px_-2px_rgb(0_0_0/0.25)]">
+                  <div class="size-7 [&_svg]:size-full">
                     <Dynamic component={item().icon} />
                   </div>
                 </div>
-                <h2 class="text-xl font-semibold">{item().label}</h2>
-                <p class="mt-1 text-left text-sm leading-relaxed text-ink-muted">
+                <h2 class="text-lg font-semibold tracking-[-0.01em] text-ink">
+                  {item().label}
+                </h2>
+                <p class="mt-1.5 max-w-[28rem] text-left text-[13px] leading-relaxed text-ink-muted">
                   {createMenuDetails(item())?.details ??
                     createMenuTagline(item())}
                 </p>
-                <div
-                  class={cn(
-                    'mt-3 flex items-center gap-1.5 text-xs text-ink-muted',
-                    !props.showHotkeys && 'invisible'
+                <Show when={createMenuDetails(item())?.examples}>
+                  {(examples) => (
+                    <div class="mt-5">
+                      <div class="text-[10px] font-medium tracking-[0.08em] text-ink-extra-muted/80 uppercase">
+                        Good for
+                      </div>
+                      <ul class="mt-2 flex flex-wrap gap-1.5">
+                        <For each={examples()}>
+                          {(example) => (
+                            <li class="rounded-full border border-ink/10 px-2.5 py-0.5 text-xs text-ink-muted">
+                              {example}
+                            </li>
+                          )}
+                        </For>
+                      </ul>
+                    </div>
                   )}
-                >
-                  Shortcut
-                  <Hotkey shortcut="c" theme="subtle" class="border-ink/12" />
-                  then
-                  <Hotkey
-                    token={item().hotkeyToken}
-                    shortcut={shortcut(item())}
-                    theme="subtle"
-                    class="border-ink/12"
-                  />
-                </div>
-                <div class="mt-auto flex shrink-0 flex-col items-end gap-2 pt-6">
-                  <span
-                    class={cn(
-                      'text-xs text-ink-muted',
-                      !props.shiftHeld && 'invisible'
-                    )}
-                  >
-                    In new split
-                  </span>
+                </Show>
+                <div class="mt-auto flex shrink-0 items-center gap-3 pt-6">
+                  <Show when={props.showHotkeys}>
+                    <div class="flex items-center gap-1.5 text-xs text-ink-extra-muted">
+                      Shortcut
+                      <Hotkey
+                        shortcut="c"
+                        theme="subtle"
+                        class="border-ink/12"
+                      />
+                      then
+                      <Hotkey
+                        token={item().hotkeyToken}
+                        shortcut={shortcut(item())}
+                        theme="subtle"
+                        class="border-ink/12"
+                      />
+                    </div>
+                  </Show>
                   <Button
-                    size="lg"
+                    size="md"
                     variant="strong"
+                    class="ml-auto"
                     aria-label={`Create ${item().label}${props.shiftHeld ? ' in new split' : ''}`}
                     onClick={() => props.onChoose(item())}
                   >
-                    Create {item().label}
+                    {props.shiftHeld
+                      ? 'Create in new split'
+                      : `Create ${item().label}`}
                     <Hotkey
                       shortcut={props.shiftHeld ? 'shift+enter' : 'enter'}
                       theme="current"
