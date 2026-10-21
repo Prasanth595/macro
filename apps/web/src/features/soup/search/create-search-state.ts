@@ -67,10 +67,12 @@ function searchResultCountBucket(count: number): string {
 /**
  * Reports one `search_performed` per settled service query. Results landing
  * for a newer query replace the pending report, so typing reports only the
- * query the user stopped on; leaving the surface reports it at once.
+ * query the user stopped on; leaving the surface reports it at once. Once
+ * service search turns off (the box is cleared), the same query counts again.
  */
 function trackSettledSearches(
   surface: Accessor<string>,
+  searching: Accessor<boolean>,
   landed: Accessor<
     { query: string; matchType: SoupSearchMatchType; count: number } | undefined
   >
@@ -85,6 +87,10 @@ function trackSettledSearches(
     pending = undefined;
   };
   createEffect(() => {
+    if (!searching()) {
+      lastQuery = undefined;
+      return;
+    }
     const search = landed();
     if (!search || search.query === lastQuery) return;
     lastQuery = search.query;
@@ -173,10 +179,9 @@ export function createSearchState(options: CreateSearchStateOptions) {
     return searchQuery.data ?? [];
   });
 
-  trackSettledSearches(options.surface, () => {
+  trackSettledSearches(options.surface, queryEnabled, () => {
     const query = serviceText();
     if (
-      !queryEnabled() ||
       !searchQuery.isSuccess ||
       searchQuery.isPlaceholderData ||
       searchQuery.isFetching

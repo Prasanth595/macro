@@ -95,3 +95,33 @@ it('reports a pending search when the surface closes', () => {
     resultCount: '0',
   });
 });
+
+it('counts the same query again after the box is cleared', () => {
+  const [text, setText] = createSignal('');
+  const dispose = createRoot((dispose) => {
+    createSearchState({
+      surface: () => 'search',
+      text,
+      disableLocalSearch: () => true,
+      buildRequest: ({ query, matchType }) => ({
+        params: {},
+        body: { query, match_type: matchType },
+      }),
+    });
+    return dispose;
+  });
+
+  setText('invoice');
+  vi.advanceTimersByTime(300);
+  land(3);
+  vi.advanceTimersByTime(1500);
+  setText('');
+  vi.advanceTimersByTime(300);
+  setText('invoice');
+  vi.advanceTimersByTime(300);
+  land(3);
+  vi.advanceTimersByTime(1500);
+  dispose();
+
+  expect(track).toHaveBeenCalledTimes(2);
+});
