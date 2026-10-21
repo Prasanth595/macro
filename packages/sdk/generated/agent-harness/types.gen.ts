@@ -44,6 +44,20 @@ export type AgentAction = (AgentPromptAction & {
 export type AgentActionId = string;
 
 /**
+ * The agent approved a review on its owner's word in chat.
+ */
+export type AgentApproval = {
+    /**
+     * Milliseconds since epoch.
+     */
+    at: number;
+    /**
+     * The owner who prompted the turn the agent approved it in.
+     */
+    requestedBy: MacroUserIdStr;
+};
+
+/**
  * Type-specific state for one agent session setting.
  */
 export type AgentConfigKindDto = {
@@ -1309,6 +1323,8 @@ export type LogFrameDto = {
     direction: LogDirectionDto;
 };
 
+export type MacroUserIdStr = string;
+
 /**
  * The entity whose permissions and lifecycle govern a message.
  */
@@ -1685,6 +1701,7 @@ export type ReviewKind = 'email' | 'calendar' | 'import';
  * Full UI record, fetched outside the model context.
  */
 export type ReviewRecord = {
+    approvedByAgent?: null | AgentApproval;
     executionId?: null | ExecutionId;
     /**
      * Review identity.

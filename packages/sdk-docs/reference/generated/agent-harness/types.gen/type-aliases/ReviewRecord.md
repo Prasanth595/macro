@@ -1,6 +1,6 @@
 # Type Alias: ReviewRecord
 
-> **ReviewRecord** = \{ `executionId?`: `null` \| [`ExecutionId`](ExecutionId.md); `id`: [`ReviewId`](ReviewId.md); `items`: [`ReviewItem`](ReviewItem.md)[]; `kind`: [`ReviewKind`](ReviewKind.md); `notificationAttemptAt?`: `number` \| `null`; `notificationId?`: `string` \| `null`; `presentedAt?`: `number` \| `null`; `revision`: `number`; `sessionId`: `string`; `settledAt?`: `number` \| `null`; `title`: `string`; `updatedAt`: `number`; \}
+> **ReviewRecord** = \{ `approvedByAgent?`: `null` \| [`AgentApproval`](AgentApproval.md); `executionId?`: `null` \| [`ExecutionId`](ExecutionId.md); `id`: [`ReviewId`](ReviewId.md); `items`: [`ReviewItem`](ReviewItem.md)[]; `kind`: [`ReviewKind`](ReviewKind.md); `notificationAttemptAt?`: `number` \| `null`; `notificationId?`: `string` \| `null`; `presentedAt?`: `number` \| `null`; `revision`: `number`; `sessionId`: `string`; `settledAt?`: `number` \| `null`; `title`: `string`; `updatedAt`: `number`; \}
 
 Full UI record, fetched outside the model context.
 
@@ -8,6 +8,7 @@ Full UI record, fetched outside the model context.
 
 | Property | Type | Description |
 | ------ | ------ | ------ |
+| <a id="property-approvedbyagent"></a> `approvedByAgent?` | `null` \| [`AgentApproval`](AgentApproval.md) | - |
 | <a id="property-executionid"></a> `executionId?` | `null` \| [`ExecutionId`](ExecutionId.md) | - |
 | <a id="property-id"></a> `id` | [`ReviewId`](ReviewId.md) | Review identity. |
 | <a id="property-items"></a> `items` | [`ReviewItem`](ReviewItem.md)[] | Drafts and per-item outcomes. |

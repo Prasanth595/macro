@@ -44,6 +44,12 @@ they link to that copy and are not counted as copies.
    */
   databases: number;
   /**
+   * Plan objects the decision model has not answered for yet, while
+planning is still `running`.
+   * @minimum 0
+   */
+  deciding?: number;
+  /**
    * Pages written as documents.
    * @minimum 0
    */
@@ -64,6 +70,9 @@ they link to that copy and are not counted as copies.
    * @minimum 0
    */
   imported: number;
+  /** Whether the user is on a team. Without one, everything the import
+writes stays visible only to them. */
+  onTeam?: boolean;
   /**
    * Pages in the plan.
    * @minimum 0

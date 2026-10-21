@@ -1,6 +1,6 @@
 # Type Alias: NotionImportReport
 
-> **NotionImportReport** = \{ `alreadyImportedBy?`: [`NotionImporter`](NotionImporter.md)[]; `alreadyInMacro?`: `number`; `copy`: `number`; `databaseRows`: `number`; `databases`: `number`; `dataSources`: `number`; `documents`: `number`; `error?`: `string` \| `null`; `failures?`: [`NotionReportItem`](NotionReportItem.md)[]; `hand`: `number`; `handItems?`: [`NotionReportItem`](NotionReportItem.md)[]; `imported`: `number`; `pages`: `number`; `reviewId?`: `string` \| `null`; `scanned?`: `null` \| [`ScanCounts`](ScanCounts.md); `sharedWithTeam?`: `number`; `skip`: `number`; `status?`: `null` \| [`RunStatus`](RunStatus.md); `taskRows`: `number`; `tasks`: `number`; `waiting`: `number`; `waitingOnTeammates?`: `number`; `writing`: `number`; \}
+> **NotionImportReport** = \{ `alreadyImportedBy?`: [`NotionImporter`](NotionImporter.md)[]; `alreadyInMacro?`: `number`; `copy`: `number`; `databaseRows`: `number`; `databases`: `number`; `dataSources`: `number`; `deciding?`: `number`; `documents`: `number`; `error?`: `string` \| `null`; `failures?`: [`NotionReportItem`](NotionReportItem.md)[]; `hand`: `number`; `handItems?`: [`NotionReportItem`](NotionReportItem.md)[]; `imported`: `number`; `onTeam?`: `boolean`; `pages`: `number`; `reviewId?`: `string` \| `null`; `scanned?`: `null` \| [`ScanCounts`](ScanCounts.md); `sharedWithTeam?`: `number`; `skip`: `number`; `status?`: `null` \| [`RunStatus`](RunStatus.md); `taskRows`: `number`; `tasks`: `number`; `waiting`: `number`; `waitingOnTeammates?`: `number`; `writing`: `number`; \}
 
 Where a Notion workspace import stands.
 
@@ -14,12 +14,14 @@ Where a Notion workspace import stands.
 | <a id="property-databaserows"></a> `databaseRows` | `number` | Rows those databases hold, every one counted while planning. |
 | <a id="property-databases"></a> `databases` | `number` | Data sources written as databases. |
 | <a id="property-datasources"></a> `dataSources` | `number` | Data sources (database tables) in the plan. |
+| <a id="property-deciding"></a> `deciding?` | `number` | Plan objects the decision model has not answered for yet, while planning is still `running`. |
 | <a id="property-documents"></a> `documents` | `number` | Pages written as documents. |
 | <a id="property-error"></a> `error?` | `string` \| `null` | Why the run failed, when it did. |
 | <a id="property-failures"></a> `failures?` | [`NotionReportItem`](NotionReportItem.md)[] | Objects that failed to import, with the failure. |
 | <a id="property-hand"></a> `hand` | `number` | Objects that need handling by hand. |
 | <a id="property-handitems"></a> `handItems?` | [`NotionReportItem`](NotionReportItem.md)[] | Objects that need handling by hand, with reasons. |
 | <a id="property-imported"></a> `imported` | `number` | Plan objects already imported. |
+| <a id="property-onteam"></a> `onTeam?` | `boolean` | Whether the user is on a team. Without one, everything the import writes stays visible only to them. |
 | <a id="property-pages"></a> `pages` | `number` | Pages in the plan. |
 | <a id="property-reviewid"></a> `reviewId?` | `string` \| `null` | The review the plan is tied to, once presented. |
 | <a id="property-scanned"></a> `scanned?` | `null` \| [`ScanCounts`](ScanCounts.md) | - |

@@ -815,6 +815,11 @@ export type ImportRun = {
      * Discovery failure detail, when the run failed.
      */
     error?: string | null;
+    /**
+     * The review presenting the run's plan, once one does. A Notion plan is
+     * presented while it is still `running`; rows staged after that take it.
+     */
+    review_id?: string | null;
     scanned?: null | ScanCounts;
     /**
      * The source this run discovered from.
@@ -1051,6 +1056,11 @@ export type NotionImportReport = {
      */
     databases: number;
     /**
+     * Plan objects the decision model has not answered for yet, while
+     * planning is still `running`.
+     */
+    deciding?: number;
+    /**
      * Pages written as documents.
      */
     documents: number;
@@ -1074,6 +1084,11 @@ export type NotionImportReport = {
      * Plan objects already imported.
      */
     imported: number;
+    /**
+     * Whether the user is on a team. Without one, everything the import
+     * writes stays visible only to them.
+     */
+    onTeam?: boolean;
     /**
      * Pages in the plan.
      */
@@ -1134,10 +1149,7 @@ export type NotionImporter = {
  */
 export type NotionPlanItem = {
     alreadyImported?: null | NotionAlreadyImported;
-    /**
-     * What the import does with it.
-     */
-    decision: NotionDecision;
+    decision?: null | NotionDecision;
     /**
      * Titles of the pages above it, outermost first.
      */
@@ -1151,8 +1163,11 @@ export type NotionPlanItem = {
      */
     rows?: number | null;
     /**
-     * Whether the user may change `shared`: false for databases, which
-     * cannot be shared with a team, and for users without a team.
+     * For a data source: the titles of a few of its rows.
+     */
+    sampleTitles?: Array<string>;
+    /**
+     * Whether the user may change `shared`: false for users without a team.
      */
     shareable?: boolean;
     /**

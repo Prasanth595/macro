@@ -10469,7 +10469,7 @@ export interface ToolAddedOptions {
   labels: string[];
 }
 /**
- * Import the user's Notion workspace (or part of it) into Macro: pages become documents in folders mirroring Notion's page tree, databases become Macro databases with their rows and relations, and task-tracker databases become Macro tasks. Before `plan`, ask the user who should see what is imported, in one short question with three options: shared with their team, only them (personal), or let AI decide per page; do not guess, and pass their answer as `sharing`. `plan` reads the workspace through the user's Notion connection, decides per page and database what to do (and, with `sharing` "ai", who sees it), links anything a teammate already imported and shared, and stages a plan without writing anything; then present the plan to the user with PresentReview (kind "import", drafts [{"source":"notion"}]). Approving that review writes the plan; never import plan items with other tools. `status` reports progress; `cancel` stops planning or importing. Use this for anything bigger than a single page instead of ImportNotionPage.
+ * Import the user's Notion workspace (or part of it) into Macro: pages become documents in folders mirroring Notion's page tree, databases become Macro databases with their rows and relations, and task-tracker databases become Macro tasks. `plan` reads the workspace through the user's Notion connection, decides per page and database what to do (and, with `sharing` "ai", who sees it), links anything a teammate already imported and shared, and stages a plan without writing anything. Who sees the import: unless the user already said, call `plan` without `sharing` first. A user who is not on a team gets a personal import straight away; tell them so and do not offer team sharing. For a user on a team it answers that `sharing` is required: then ask them in one short question with three options (shared with their team, only them, or let AI decide per page), do not guess, and plan again with their answer. `plan` answers within seconds while planning goes on in the background: present the plan right away with PresentReview (kind "import", drafts [{"source":"notion"}]). The review fills in as Notion is read and each object is decided, and the user approves it there once it is ready; do not wait for planning or check `status` in a loop. Approving that review writes the plan; never import plan items with other tools. End your message after presenting it by asking "Should I kick it off?"; if the user says yes, approve it yourself with ApproveReview (the reviewId PresentReview returned). `status` reports progress; `cancel` stops planning or importing. Use this for anything bigger than a single page instead of ImportNotionPage.
  */
 export interface ImportFromNotion {
   action: NotionImportAction;
@@ -10480,10 +10480,10 @@ export interface ImportFromNotion {
    */
   roots?: string[];
   /**
-   * For `plan`, required: who sees what the import writes, as the user
-   * answered when asked: `team` shares everything with their team,
-   * `personal` keeps everything visible only to them, `ai` lets the
-   * decision model choose per page. Databases always stay with the user.
+   * For `plan`: who sees what the import writes, as the user answered
+   * when asked: `team` shares everything with their team, `personal`
+   * keeps everything visible only to them, `ai` lets the decision model
+   * choose per page. Leave it out for a user who is not on a team.
    */
   sharing?: NotionSharing | null;
 }
@@ -10523,6 +10523,16 @@ export interface NotionImportReport {
    * Data sources (database tables) in the plan.
    */
   dataSources: number;
+  /**
+   * Plan objects the decision model has not answered for yet, while
+   * planning is still `running`.
+   */
+  deciding?: number;
+  /**
+   * Whether the user is on a team. Without one, everything the import
+   * writes stays visible only to them.
+   */
+  onTeam?: boolean;
   /**
    * Objects to copy as they are.
    */

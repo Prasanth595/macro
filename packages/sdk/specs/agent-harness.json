@@ -2955,6 +2955,22 @@
         "format": "uuid",
         "description": "Identifies one accepted [`AgentAction`] end to end: returned by the\ncontrol endpoint, written as the JSON-RPC request id on the action's wire\nframe, and read back off that frame as `request_id` on the folded message\nit derives.\n\nA v7 uuid, so ids sort by mint time. Minted by the server at accept time,\nor by a client that speculated the action and named it in the control\nrequest - either way the server is the only writer of runtime-bound\nframes, so a uuid-shaped request id remains the whole ownership test. The\nmachine's own handshake request ids (`agent_session:{session}:{n}`) are\nnot uuids and stay `None`."
       },
+      "AgentApproval": {
+        "type": "object",
+        "description": "The agent approved a review on its owner's word in chat.",
+        "required": ["requestedBy", "at"],
+        "properties": {
+          "at": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Milliseconds since epoch."
+          },
+          "requestedBy": {
+            "$ref": "#/components/schemas/MacroUserIdStr",
+            "description": "The owner who prompted the turn the agent approved it in."
+          }
+        }
+      },
       "AgentConfigKindDto": {
         "oneOf": [
           {
@@ -4514,6 +4530,9 @@
           }
         }
       },
+      "MacroUserIdStr": {
+        "type": "string"
+      },
       "MessageParent": {
         "oneOf": [
           {
@@ -5043,6 +5062,17 @@
           "items"
         ],
         "properties": {
+          "approvedByAgent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AgentApproval",
+                "description": "Set when the session's agent approved the review because its owner\nsaid so in chat, instead of the owner approving it on the card."
+              }
+            ]
+          },
           "executionId": {
             "oneOf": [
               {

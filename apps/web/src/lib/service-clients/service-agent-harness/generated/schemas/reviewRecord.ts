@@ -8,6 +8,7 @@
 import type { ReviewId } from './reviewId';
 import type { ReviewItem } from './reviewItem';
 import type { ReviewKind } from './reviewKind';
+import type { ReviewRecordApprovedByAgent } from './reviewRecordApprovedByAgent';
 import type { ReviewRecordExecutionId } from './reviewRecordExecutionId';
 import type { ReviewRecordNotificationAttemptAt } from './reviewRecordNotificationAttemptAt';
 import type { ReviewRecordNotificationId } from './reviewRecordNotificationId';
@@ -18,6 +19,7 @@ import type { ReviewRecordSettledAt } from './reviewRecordSettledAt';
  * Full UI record, fetched outside the model context.
  */
 export interface ReviewRecord {
+  approvedByAgent?: ReviewRecordApprovedByAgent;
   executionId?: ReviewRecordExecutionId;
   /** Review identity. */
   id: ReviewId;

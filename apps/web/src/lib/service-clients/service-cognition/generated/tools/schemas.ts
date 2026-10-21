@@ -9019,6 +9019,8 @@ export const ImportFromNotionResponse = z.object({
       .optional(),
     pages: z.number().int().gte(0),
     dataSources: z.number().int().gte(0),
+    deciding: z.number().int().gte(0).optional(),
+    onTeam: z.boolean().optional(),
     copy: z.number().int().gte(0),
     tasks: z.number().int().gte(0),
     skip: z.number().int().gte(0),

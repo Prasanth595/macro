@@ -4604,6 +4604,7 @@
       "crates/properties",
       "crates/rate_limit",
       "crates/remote_env_var",
+      "crates/share_permission_db_utils",
       "crates/system_properties",
       "crates/workspace-hack"
     ],
@@ -4668,6 +4669,7 @@
       "crates/properties",
       "crates/rate_limit",
       "crates/remote_env_var",
+      "crates/share_permission_db_utils",
       "crates/system_properties",
       "crates/workspace-hack"
     ],
