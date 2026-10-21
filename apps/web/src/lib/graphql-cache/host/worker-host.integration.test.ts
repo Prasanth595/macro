@@ -406,7 +406,7 @@ describe('worker CacheHost coordinator integration', () => {
       scope: 'integration-scope',
       requestTimeoutMs: 1_000,
       onInitializationError,
-      telemetry: { record },
+      telemetry: { record, flush: vi.fn() },
     });
     const clientId = host.clientId;
     await host.readQuery({ opKey: 7, query: 'query Seven { seven }' });
