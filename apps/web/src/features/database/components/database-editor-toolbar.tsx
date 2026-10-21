@@ -41,9 +41,7 @@ export function DatabaseEditorToolbar(props: {
     >
       <div class="flex items-center gap-2 px-4 py-1.5 @max-[520px]/view-toolbar:flex-wrap">
         <div class="flex min-w-0 flex-1 items-center gap-0.5 @max-[520px]/view-toolbar:basis-full">
-          <HeaderActionGroup label="Table views" class="min-w-0 max-w-full">
-            {props.selection}
-          </HeaderActionGroup>
+          {props.selection}
         </div>
         <div class="flex shrink-0 items-center gap-2 @max-[520px]/view-toolbar:w-full @max-[520px]/view-toolbar:flex-wrap @max-[520px]/view-toolbar:justify-end">
           <Show when={props.canChangeView !== false}>
@@ -54,11 +52,10 @@ export function DatabaseEditorToolbar(props: {
                     <Dropdown.Trigger
                       label="Group board by"
                       tooltip="Group by"
-                      size="md"
-                      square
+                      size="icon-md"
                       variant="ghost"
                     >
-                      <StackIcon class="size-3.5" />
+                      <StackIcon />
                     </Dropdown.Trigger>
                     <Dropdown.Content class="min-w-48">
                       <Dropdown.Group>
@@ -99,7 +96,7 @@ export function DatabaseEditorToolbar(props: {
                 label="Filter"
                 compact
                 count={filterConditionCount(props.view.query.filter)}
-                icon={<FunnelIcon class="size-3.5" />}
+                icon={<FunnelIcon />}
               >
                 <FilterPanel
                   columns={props.columns}
@@ -115,7 +112,7 @@ export function DatabaseEditorToolbar(props: {
                 label="Sort"
                 compact
                 count={sort().length}
-                icon={<SortAscendingIcon class="size-3.5" />}
+                icon={<SortAscendingIcon />}
               >
                 <SortPanel
                   columns={props.columns}
