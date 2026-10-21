@@ -166,13 +166,11 @@ function PipelineEntryCard(props: {
         </Key>
       </div>
       <Show when={hidden() > 0}>
-        {/* An expanded card can be taller than the view; its control stays pinned in sight. */}
+        {/* An expanded card can be taller than the view; its control stays pinned in sight.
+            Sticky offsets start inside the record scroller's 3rem bottom padding, so reach past it. */}
         <footer
           class="rounded-b-xl border-t border-edge-muted bg-panel px-4 py-1.5"
-          classList={{
-            'sticky bottom-0 touch:bottom-[var(--mobile-content-inset-bottom,0px)]':
-              expanded(),
-          }}
+          classList={{ 'sticky -bottom-12': expanded() }}
         >
           <Button
             variant="ghost"
