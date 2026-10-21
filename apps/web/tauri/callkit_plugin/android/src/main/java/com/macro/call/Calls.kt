@@ -60,6 +60,8 @@ internal object Calls {
     private var telecomMuted = false
     private var telecomFocusLost = false
     private var desiredAudioType: String? = null
+    private var remoteAudioSilenced = false
+    private var publishedIdentities: String? = null
     private val audioMutex = Mutex()
     private val videoMutex = Mutex()
     var recipient: String? = null
@@ -80,7 +82,7 @@ internal object Calls {
         )
         return handle
     }
-    fun watch(name: String, channel: Channel) { watchers[name] = channel }
+    fun watch(name: String, channel: Channel) { watchers[name] = channel; publishedIdentities = null }
     fun unwatch() { watchers.clear() }
     fun emit(name: String, payload: JSObject) { watchers[name]?.send(payload) }
     fun snapshot(): JSObject? = offer?.takeIf { accepted }?.let {
@@ -96,9 +98,13 @@ internal object Calls {
     }
     private fun interrupted(): Boolean = held || focusLost || telecomFocusLost
     private fun syncRemoteAudio() {
+        // setVolume blocks on LiveKit's RTC thread; only touch tracks while silencing or restoring.
+        val silence = interrupted()
+        if (!silence && !remoteAudioSilenced) return
+        remoteAudioSilenced = silence
         room?.remoteParticipants?.values?.forEach { participant ->
             participant.trackPublications.values.forEach { publication ->
-                (publication.track as? RemoteAudioTrack)?.setVolume(if (interrupted()) 0.0 else 1.0)
+                (publication.track as? RemoteAudioTrack)?.setVolume(if (silence) 0.0 else 1.0)
             }
         }
     }
@@ -107,7 +113,12 @@ internal object Calls {
         val payload = snapshot() ?: JSObject()
         payload.put("state", if (accepted) state else "disconnected")
         emit("connection", payload)
-        emit("participants", JSObject().apply { put("identities", identities()) })
+        // JS re-sends every display name when identities arrive; repeating unchanged ones floods the bridge.
+        val identities = identities()
+        if (identities.toString() != publishedIdentities) {
+            publishedIdentities = identities.toString()
+            emit("participants", JSObject().apply { put("identities", identities) })
+        }
         changed?.invoke()
     }
     fun prepareJoin(ctx: Context, channelId: String): String {
@@ -388,7 +399,7 @@ internal object Calls {
         session?.cancel(); session = null
         val media = room; room = null
         val telecomConnection = connection; connection = null
-        offer = null; pendingAnswered = null; state = "disconnected"; title = null; recipient = null; displayNames.clear(); error = null; muted = false; video = false; held = false; answering = false; accepted = false; focusLost = false; telecomMuted = false; telecomFocusLost = false; desiredAudioType = null; audioRoute = null; overlay = "hidden"
+        offer = null; pendingAnswered = null; state = "disconnected"; title = null; recipient = null; displayNames.clear(); error = null; muted = false; video = false; held = false; answering = false; accepted = false; focusLost = false; telecomMuted = false; telecomFocusLost = false; desiredAudioType = null; remoteAudioSilenced = false; audioRoute = null; overlay = "hidden"
         // Native/SDK callbacks may fail or reenter; no resource owns the cleared session.
         // Release each resource independently so one failure cannot leave a phantom call.
         runCatching { media?.disconnect() }

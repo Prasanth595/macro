@@ -141,8 +141,12 @@ class CallPlugin(private val activity: Activity) : Plugin(activity) {
     @Command fun setParticipantDisplayName(invoke: Invoke) {
         val args = invoke.parseArgs(NameArgs::class.java)
         val name = args.displayName?.trim()?.takeIf { it.isNotEmpty() }
-        if (name == null) Calls.displayNames.remove(args.identity) else Calls.displayNames[args.identity] = name
-        Calls.publish(); invoke.resolve()
+        // Names only change native UI. Publishing would re-emit identities, which makes JS resend every name.
+        if (Calls.displayNames[args.identity] != name) {
+            if (name == null) Calls.displayNames.remove(args.identity) else Calls.displayNames[args.identity] = name
+            Calls.changed?.invoke()
+        }
+        invoke.resolve()
     }
     @Command fun getVoipToken(invoke: Invoke) { invoke.resolve(JSObject().apply { put("token", org.json.JSONObject.NULL) }) }
     override fun onDestroy(activity: AppCompatActivity) { finishPreparePermission(); Calls.abortPendingJoin(activity); Calls.unwatch() }
