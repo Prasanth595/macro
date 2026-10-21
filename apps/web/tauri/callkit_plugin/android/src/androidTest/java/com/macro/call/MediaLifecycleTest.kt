@@ -208,6 +208,7 @@ class MediaLifecycleTest {
             awaitCondition("PiP transition did not resize the activity") { root.width < expandedWidth }
             // Mode callbacks precede completion of Android's pinned-task animation.
             Thread.sleep(1_000)
+            screenshot("call-pip.png")
             instrumentation.runOnMainSync {
                 context.startActivity(Intent(context, CallActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }

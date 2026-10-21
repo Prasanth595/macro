@@ -3,8 +3,11 @@ package com.macro.call
 import android.Manifest
 import android.app.Activity
 import android.app.PictureInPictureParams
+import android.app.RemoteAction
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
+import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.Bundle
 import android.telecom.CallAudioState
@@ -16,6 +19,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.graphics.ColorUtils
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.MotionEvent
@@ -24,6 +28,7 @@ import io.livekit.android.renderer.SurfaceViewRenderer
 import io.livekit.android.room.track.Track
 import io.livekit.android.room.track.VideoTrack
 import kotlinx.coroutines.launch
+import livekit.org.webrtc.RendererCommon
 
 /** Native media UI also owns PiP: navigating/reloading the WebView never owns the room. */
 class CallActivity : Activity() {
@@ -31,6 +36,7 @@ class CallActivity : Activity() {
     private var backCallback: android.window.OnBackInvokedCallback? = null
     private var pipRequested = false
     private var primaryId: String? = null
+    private var speakerId: String? = null
     private var swipeY = 0f
     private var stripScroll = 0
     private var participantStrip: HorizontalScrollView? = null
@@ -53,7 +59,8 @@ class CallActivity : Activity() {
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
         layout = FrameLayout(this)
         layout.addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
-            if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) { rendered = null; render() }
+            // Views added during a layout pass stay unmeasured until another pass, which never comes after PiP shrinks the window.
+            if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) layout.post { rendered = null; render() }
         }
         ViewCompat.setOnApplyWindowInsetsListener(layout) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
@@ -120,28 +127,31 @@ class CallActivity : Activity() {
         setPadding(dp(16), 0, dp(16), 0); minimumHeight = dp(48)
         isClickable = true; isFocusable = true; setOnClickListener { action() }
     }
-    private fun icon(kind: String, name: String, active: Boolean = false, off: Boolean = false, action: () -> Unit) = ImageButton(this).apply {
-        setImageDrawable(CallControlIcon(kind, theme!!.text, off)); scaleType = ImageView.ScaleType.CENTER_INSIDE
-        setPadding(dp(14), dp(14), dp(14), dp(14)); background = background(if (active) theme!!.edgeMuted else theme!!.drawer, 12, theme!!.edge)
+    private fun icon(drawable: Int, kind: String, name: String, active: Boolean = false, action: () -> Unit) = ImageButton(this).apply {
+        setImageResource(drawable); imageTintList = ColorStateList.valueOf(theme!!.text); scaleType = ImageView.ScaleType.CENTER
+        background = background(if (active) theme!!.edgeMuted else theme!!.drawer, 12, theme!!.edge)
         tag = "call-control-$kind"
         contentDescription = name; isSelected = active; setOnClickListener { action() }
     }
+    // Same rule as the iOS call UI, so fallback identities don't render as "M" for "macro|...".
+    private fun initials(name: String) = name.split(' ', '@', '.', '|').filter { it.isNotBlank() && !it.equals("macro", true) }
+        .take(2).joinToString("") { it.take(1).uppercase() }.ifEmpty { "?" }
     private fun detach() { renderers.forEach { (track, renderer) -> track.removeRenderer(renderer); renderer.release() }; renderers.clear() }
+    private fun video(track: VideoTrack, mirror: Boolean) = SurfaceViewRenderer(this).also { renderer ->
+        renderer.setZOrderMediaOverlay(true)
+        renderer.setMirror(mirror)
+        Calls.room?.initVideoRenderer(renderer); track.addRenderer(renderer)
+        renderers.add(track to renderer)
+    }
     private fun tile(participant: ParticipantTile?, large: Boolean): FrameLayout = FrameLayout(this).apply {
         background = background(theme!!.tile, 16); clipToOutline = true
         tag = if (large) "call-primary" else "call-participant"
         val name = participant?.name ?: "Waiting for others"
         contentDescription = name
         participant?.track?.let { track ->
-            val renderer = SurfaceViewRenderer(this@CallActivity)
-            renderer.setZOrderMediaOverlay(true)
-            renderer.setMirror(participant.local)
-            Calls.room?.initVideoRenderer(renderer); track.addRenderer(renderer)
-            renderers.add(track to renderer)
-            addView(renderer, FrameLayout.LayoutParams(-1, -1))
+            addView(video(track, participant.local), FrameLayout.LayoutParams(-1, -1))
         } ?: run {
-            val initials = participant?.name?.split(' ')?.filter { it.isNotBlank() }?.take(2)?.joinToString("") { it.take(1).uppercase() } ?: ""
-            val avatar = label(initials, if (large) 32f else 18f).apply {
+            val avatar = label(participant?.name?.let(::initials).orEmpty(), if (large) 32f else 18f).apply {
                 gravity = Gravity.CENTER; background = background(theme!!.edgeMuted, 100)
             }
             val size = dp(if (large) 88 else 40)
@@ -152,8 +162,37 @@ class CallActivity : Activity() {
             background = background(theme!!.edgeMuted, 8)
         }, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.START).apply { bottomMargin = dp(10); leftMargin = dp(10); rightMargin = dp(10) })
         if (participant != null && !large) setOnClickListener { primaryId = participant.id; stripScroll = participantStrip?.scrollX ?: 0; rendered = null; render() }
-        if (participant?.local == true && Calls.video && large) addView(icon("switch", "Switch camera") { Calls.switchCamera() },
+        if (participant?.local == true && Calls.video && large) addView(icon(R.drawable.macro_call_camera_rotate, "switch", "Switch camera") { Calls.switchCamera() },
             FrameLayout.LayoutParams(dp(48), dp(48), Gravity.TOP or Gravity.END).apply { topMargin = dp(8); rightMargin = dp(8) })
+    }
+    // The iOS PiP tile: fixed dark colors, video or initials over the name.
+    private fun pipTile(title: String, track: VideoTrack?, mirror: Boolean) = FrameLayout(this).apply {
+        setBackgroundColor(PIP_BACKGROUND)
+        if (track != null) {
+            addView(video(track, mirror).apply { setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FILL) }, FrameLayout.LayoutParams(-1, -1))
+            return@apply
+        }
+        val placeholder = LinearLayout(this@CallActivity).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+        placeholder.addView(TextView(this@CallActivity).apply {
+            text = initials(title); textSize = 20f; typeface = Typeface.DEFAULT_BOLD; setTextColor(Color.WHITE); gravity = Gravity.CENTER
+            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.rgb(46, 46, 46)) }
+        }, LinearLayout.LayoutParams(dp(44), dp(44)))
+        placeholder.addView(TextView(this@CallActivity).apply {
+            text = title; textSize = 10f; setTextColor(Color.argb(224, 255, 255, 255)); gravity = Gravity.CENTER
+            maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END
+        }, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(5) })
+        addView(placeholder, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER).apply { leftMargin = dp(8); rightMargin = dp(8) })
+    }
+    // System PiP shows these instead of the call service's media-session transport controls.
+    private fun pipParams(): PictureInPictureParams {
+        val id = Calls.offer?.callId.orEmpty()
+        val mute = if (Calls.muted) "Unmute" else "Mute"
+        val actions = listOf(
+            RemoteAction(Icon.createWithResource(this, if (Calls.muted) R.drawable.macro_call_microphone_slash else R.drawable.macro_call_microphone),
+                mute, mute, CallService.action(this, "mute", id)),
+            RemoteAction(Icon.createWithResource(this, R.drawable.macro_call_phone_disconnect), "Leave", "Leave call", CallService.action(this, "end", id)),
+        )
+        return PictureInPictureParams.Builder().setAspectRatio(Rational(32, 15)).setActions(actions).build()
     }
     private fun render() {
         val call = Calls.offer ?: run { finish(); return }
@@ -167,24 +206,36 @@ class CallActivity : Activity() {
             val publication = participant.getTrackPublication(Track.Source.CAMERA)
             return publication?.takeUnless { it.muted }?.track as? VideoTrack
         }
+        fun id(participant: io.livekit.android.room.participant.Participant) = participant.identity?.value ?: participant.sid.value
         val remote = media?.let { Calls.remoteHumans(it) }?.map { participant ->
-            val id = participant.identity?.value ?: participant.sid.value
+            val id = id(participant)
             ParticipantTile(id, Calls.displayNames[id] ?: participant.name?.takeIf { it.isNotBlank() } ?: id.substringAfter('|'), video(participant))
         }.orEmpty()
         val local = media?.localParticipant?.let { ParticipantTile(it.identity?.value ?: "local", "You", if (Calls.video) video(it) else null, true) }
         val participants = remote + listOfNotNull(local)
         val primary = participants.firstOrNull { it.id == primaryId } ?: remote.firstOrNull()
         primaryId = primary?.id
+        // PiP follows the active speaker and keeps the last one through pauses.
+        speakerId = media?.activeSpeakers?.map(::id)?.firstOrNull { id -> remote.any { it.id == id } }
+            ?: speakerId?.takeIf { id -> remote.any { it.id == id } }
+        val speaker = remote.firstOrNull { it.id == speakerId } ?: primary?.takeUnless { it.local } ?: remote.firstOrNull()
+        val pipState = if (isInPictureInPictureMode) listOf(speaker, local?.let { Calls.displayNames[it.id] }) else null
         val nextRender = listOf(call.callId, Calls.title, Calls.state, Calls.error, Calls.muted, Calls.video, Calls.audioRoute,
-            isInPictureInPictureMode, participants, primaryId, theme, layout.width, layout.height, layout.paddingBottom)
+            pipState, participants, primaryId, theme, layout.width, layout.height, layout.paddingBottom)
         if (rendered == nextRender) return
         rendered = nextRender
+        if (media != null) setPictureInPictureParams(pipParams())
         stripScroll = participantStrip?.scrollX ?: stripScroll
         participantStrip = null
         detach(); layout.removeAllViews()
-        layout.setBackgroundColor(if (isInPictureInPictureMode) theme!!.tile else theme!!.scrim)
+        layout.setBackgroundColor(if (isInPictureInPictureMode) PIP_BACKGROUND else theme!!.scrim)
         if (isInPictureInPictureMode) {
-            layout.addView(tile(primary ?: local, true), FrameLayout.LayoutParams(-1, -1))
+            // Matches iOS: you on the left, the active speaker on the right.
+            val pip = LinearLayout(this).apply { tag = "call-pip" }
+            pip.addView(pipTile(local?.let { Calls.displayNames[it.id] } ?: "You", local?.track, true), LinearLayout.LayoutParams(0, -1, 1f))
+            pip.addView(View(this).apply { setBackgroundColor(Color.argb(46, 255, 255, 255)) }, LinearLayout.LayoutParams(dp(1), -1))
+            pip.addView(pipTile(speaker?.name ?: "No one else is here", speaker?.track, false), LinearLayout.LayoutParams(0, -1, 1f))
+            layout.addView(pip, FrameLayout.LayoutParams(-1, -1))
             return
         }
         layout.setOnClickListener { dismissDrawer() }
@@ -230,20 +281,22 @@ class CallActivity : Activity() {
         }, LinearLayout.LayoutParams(dp(160), dp(52)))
         else {
             fun control(button: ImageButton, name: String) {
-                val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER }
+                val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
                 column.addView(button, LinearLayout.LayoutParams(dp(56), dp(52)))
-                column.addView(label(name, 11f, theme!!.muted).apply { gravity = Gravity.START or Gravity.CENTER_VERTICAL }, LinearLayout.LayoutParams(dp(56), dp(24)))
+                column.addView(label(name, 12f).apply { gravity = Gravity.CENTER }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
                 controls.addView(column, LinearLayout.LayoutParams(dp(88), -2))
             }
-            val speaker = icon("speaker", "Speaker mode", Calls.audioRoute == "Speakerphone") {
+            val speaker = icon(R.drawable.macro_call_speaker_high, "speaker", "Speaker mode", Calls.audioRoute == "Speakerphone") {
                 Calls.route(if (Calls.audioRoute == "Speakerphone") CallAudioState.ROUTE_EARPIECE else CallAudioState.ROUTE_SPEAKER)
             }
             speaker.setOnLongClickListener { audioRoutes(); true }
             control(speaker, "Speaker")
-            control(icon("mic", if (Calls.muted) "Unmute" else "Mute", Calls.muted, Calls.muted) {
+            control(icon(if (Calls.muted) R.drawable.macro_call_microphone_slash else R.drawable.macro_call_microphone,
+                "mic", if (Calls.muted) "Unmute" else "Mute", Calls.muted) {
                 Calls.scope.launch { runCatching { Calls.microphone(Calls.muted) }.onSuccess { Calls.error = null; render() }.onFailure { Calls.error = "Could not change microphone"; render() } }
             }, if (Calls.muted) "Unmute" else "Mute")
-            control(icon("video", if (Calls.video) "Video off" else "Video on", Calls.video, !Calls.video) {
+            control(icon(if (Calls.video) R.drawable.macro_call_video_camera else R.drawable.macro_call_video_camera_slash,
+                "video", if (Calls.video) "Video off" else "Video on", Calls.video) {
                 val cameraRoom = media ?: return@icon
                 val enabled = !Calls.video
                 permission(Manifest.permission.CAMERA) { Calls.scope.launch { runCatching { Calls.camera(this@CallActivity, enabled, expectedRoom = cameraRoom) }.onSuccess { Calls.error = null; render() }.onFailure { Calls.error = "Could not change camera"; render() } } }
@@ -270,7 +323,7 @@ class CallActivity : Activity() {
     private fun pip(): Boolean {
         if (Calls.room == null || !packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) return false
         pipRequested = true
-        return runCatching { enterPictureInPictureMode(PictureInPictureParams.Builder().setAspectRatio(Rational(16, 9)).build()) }
+        return runCatching { enterPictureInPictureMode(pipParams()) }
             .getOrDefault(false).also { if (!it) pipRequested = false }
     }
     override fun onUserLeaveHint() { pip() }
@@ -298,5 +351,8 @@ class CallActivity : Activity() {
         stopCameraIfOwned()
         if (Calls.changed === callback) Calls.changed = null
         detach(); super.onDestroy()
+    }
+    private companion object {
+        val PIP_BACKGROUND = Color.rgb(15, 15, 15)
     }
 }
