@@ -50,9 +50,7 @@ vi.mock('../../settings/connections/use-connections-model', () => ({
   }),
 }));
 vi.mock('../../settings/connections/integrations-view', () => ({
-  IntegrationsView: (props: {
-    initialProvider?: string;
-  }) => (
+  IntegrationsView: (props: { initialProvider?: string }) => (
     <p>
       {props.initialProvider
         ? `Settings for ${props.initialProvider}`
