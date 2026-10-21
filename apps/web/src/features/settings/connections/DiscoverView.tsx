@@ -5,7 +5,6 @@ import {
   createPipedreamCatalogSearch,
 } from '@core/pipedream/catalog';
 import { fireAndForget } from '@core/util/fireAndForget';
-import CaretRightIcon from '@phosphor/caret-right.svg';
 import CheckIcon from '@phosphor/check.svg';
 import MagnifyingGlassIcon from '@phosphor/magnifying-glass.svg';
 import PlusIcon from '@phosphor/plus.svg';
@@ -14,7 +13,6 @@ import XIcon from '@phosphor/x.svg';
 import type { PipedreamCatalogEntryResponse } from '@service-cognition/client';
 import { Button, Tooltip } from '@ui';
 import { createMemo, createSignal, For, Show } from 'solid-js';
-import { ConnectAction } from '../integration-ui';
 import { IntegrationRow } from '../primitives';
 import { AddCustomMcpDialog } from './add-custom-mcp-dialog';
 import type { ConnectionsModel } from './model';
@@ -119,7 +117,9 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
                     <Show when={alreadyHave().has(item.id)}>
                       <AddedMark />
                     </Show>
-                    <CaretRightIcon class="size-4 text-ink-extra-muted" />
+                    <Show when={!alreadyHave().has(item.id)}>
+                      <AddMark />
+                    </Show>
                   </IntegrationRow>
                 </button>
               </div>
@@ -133,9 +133,9 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
 
       <section aria-label="All integrations">
         <h3 class="mb-3 text-sm font-medium text-ink-muted">All apps</h3>
-        <div class="overflow-hidden rounded-2xl border border-edge-muted divide-y divide-edge-muted">
+        <div class="grid grid-cols-1 gap-3 @[440px]/catalog:grid-cols-2">
           <Show when={catalog.query.isError}>
-            <div class="px-6 py-6 text-center text-sm text-ink-muted">
+            <div class="col-span-full px-6 py-6 text-center text-sm text-ink-muted">
               Couldn't load the connector catalog.
               <Button
                 variant="outline"
@@ -164,13 +164,13 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
                 catalog.search().trim()
               }
             >
-              <p class="px-6 py-6 text-sm text-ink-muted">
+              <p class="col-span-full px-6 py-6 text-sm text-ink-muted">
                 No Connections match that search.
               </p>
             </Show>
             <Show when={catalog.query.isFetching}>
               <div
-                class="flex justify-center px-6 py-6"
+                class="col-span-full flex justify-center px-6 py-6"
                 role="status"
                 aria-label="Loading"
               >
@@ -184,7 +184,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
                 catalog.query.hasNextPage
               }
             >
-              <div class="px-4 py-3 text-center">
+              <div class="col-span-full px-4 py-3 text-center">
                 <Button
                   variant="outline"
                   size="sm"
@@ -210,6 +210,19 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
         onAdded={view.showOverview}
       />
     </div>
+  );
+}
+
+function AddMark(props: { loading?: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      class="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink/4 text-ink-muted"
+    >
+      <Show when={props.loading} fallback={<PlusIcon class="size-4" />}>
+        <SpinnerIcon class="size-4 animate-spin" />
+      </Show>
+    </span>
   );
 }
 
@@ -259,28 +272,27 @@ function CatalogRow(props: {
         </Tooltip>
       }
     >
-      <Show
-        when={props.added}
-        fallback={<ConnectAction label="Connect" loading={busy()} />}
-      >
+      <Show when={props.added} fallback={<AddMark loading={busy()} />}>
         <AddedMark />
       </Show>
     </IntegrationRow>
   );
 
   return (
-    <Show when={!props.added} fallback={row()}>
-      <button
-        type="button"
-        class="w-full text-left outline-none hover:bg-ink/4 focus-visible:bg-ink/6"
-        aria-label={busy() ? `Connecting ${name()}` : `Connect ${name()}`}
-        aria-describedby={descriptionId}
-        aria-busy={busy()}
-        disabled={busy()}
-        onClick={() => fireAndForget(connect(), 'connections-settings')}
-      >
-        {row()}
-      </button>
-    </Show>
+    <div class="@container overflow-hidden rounded-2xl border border-edge-muted">
+      <Show when={!props.added} fallback={row()}>
+        <button
+          type="button"
+          class="h-full w-full text-left outline-none hover:bg-ink/4 focus-visible:bg-ink/6"
+          aria-label={busy() ? `Connecting ${name()}` : `Connect ${name()}`}
+          aria-describedby={descriptionId}
+          aria-busy={busy()}
+          disabled={busy()}
+          onClick={() => fireAndForget(connect(), 'connections-settings')}
+        >
+          {row()}
+        </button>
+      </Show>
+    </div>
   );
 }

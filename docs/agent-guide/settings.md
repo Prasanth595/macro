@@ -463,16 +463,17 @@ the picture after reopening settings and after a page reload, then type `@` and
 the agent's name in a channel to check its mention-menu picture. Team agents
 available in all channels should refresh there without reloading the channel.
 
-With `pipedream-mcp` enabled, Settings → Integrations displays installed tools on
-the left and Discover on the right, without tabs. On narrow screens these stack
-with installed tools first. Installed tools use a compact status list; Discover
+With `pipedream-mcp` enabled, Settings → Integrations displays installed tools above
+Discover, without tabs or a separate installed sidebar. Installed tools use a compact status list; Discover
 has a search field and Add custom MCP action above featured cards and the app
 list. These pill-shaped controls share a height and stack on narrow screens.
-Installed and Discover use aligned headings above rounded cards.
+Installed and Discover use headings above rounded cards.
 A “Use Macro in Claude Code or another AI app” prompt at the top links to
 connection setup. Email and GitHub cards appear next, without a separate section heading;
 their settings links sit below the cards, above Installed and Discover.
-Featured cards show app names without descriptions, and catalog descriptions
+Featured and catalog cards use two columns on wide screens and one on narrow
+screens, with a plus action for available apps. Featured cards show app names
+without descriptions, and catalog descriptions
 and connection status use readable body-sized text. The Agents workspace opens this same Integrations
 page. Installed groups GitHub, Linear, Notion, and Slack tool grants by provider,
 lists other catalog connections alongside them, and puts custom MCP servers in
@@ -508,7 +509,7 @@ owner's custom servers.
 An agent reply's `Connect <app>` chip still starts that app's connection flow.
 Cursor stays in Agents → Runtimes with its API key and default model controls; it is not
 featured or offered in the Connections catalog. Personal Gmail and GitHub account
-links appear above the installed-and-discover columns on Settings → Integrations. The native-only integrations section remains
+links appear above Installed and Discover on Settings → Integrations. The native-only integrations section remains
 available when `pipedream-mcp` is disabled.
 Open Settings with the rail's gear button or `Ctrl+;`; leave it by picking any other rail item.
 

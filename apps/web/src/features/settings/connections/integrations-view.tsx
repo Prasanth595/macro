@@ -137,10 +137,10 @@ function ConnectionsContent(props: IntegrationsViewProps) {
                     <p class="text-sm text-ink-muted">Loading Connections…</p>
                   }
                 >
-                  <div class="grid min-w-0 grid-cols-1 items-start gap-8 @[760px]/settings-page:grid-cols-[260px_minmax(0,1fr)]">
+                  <div class="flex min-w-0 flex-col gap-8">
                     <section
                       aria-label="Installed integrations"
-                      class="min-w-0"
+                      class="min-w-0 w-full"
                     >
                       <h2 class="mb-4 text-base font-medium text-ink">
                         Installed
@@ -149,7 +149,10 @@ function ConnectionsContent(props: IntegrationsViewProps) {
                         <ConnectedView model={model()} />
                       </div>
                     </section>
-                    <section aria-label="Discover integrations" class="min-w-0">
+                    <section
+                      aria-label="Discover integrations"
+                      class="min-w-0 w-full"
+                    >
                       <h2 class="mb-4 text-base font-medium text-ink">
                         Discover
                       </h2>
