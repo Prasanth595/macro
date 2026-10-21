@@ -30,6 +30,10 @@ maybe_env_vars! {
     pub struct PosthogApiKey;
     /// PostHog ingestion origin. Falls back to the US origin when unset.
     pub struct PosthogHost;
+    /// OpenAI domain verification token for ChatGPT Apps Directory submission.
+    /// Served at /.well-known/openai-apps-challenge. Optional; uses placeholder
+    /// when unset.
+    pub struct OpenaiDomainVerificationToken;
 }
 
 /// Hosts trusted to receive an MCP authorization code when
