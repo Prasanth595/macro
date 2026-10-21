@@ -123,6 +123,29 @@ fn plain_text_description_keeps_its_line_breaks() {
 }
 
 #[test]
+fn stored_line_breaks_cannot_start_a_new_property() {
+    let mut event = export(EventTime::Timed {
+        starts_at: Utc.with_ymd_and_hms(2026, 9, 24, 23, 30, 0).unwrap(),
+        ends_at: Utc.with_ymd_and_hms(2026, 9, 25, 0, 0, 0).unwrap(),
+        time_zone: None,
+    });
+    event.recurrence_lines = vec!["RRULE:FREQ=DAILY\r\nATTACH:https://example.com/x".to_string()];
+    event.organizer_name = Some("Ada\nBEGIN:VALARM".to_string());
+    event.organizer_email =
+        Some("organizer@example.com\r\nATTENDEE:mailto:x@example.com".to_string());
+
+    let lines = unfolded(&render_event_ics(&event));
+
+    assert!(
+        lines.iter().all(|line| !line.starts_with("ATTACH")
+            && !line.starts_with("BEGIN:VALARM")
+            && !line.starts_with("ATTENDEE")),
+        "{lines:?}"
+    );
+    assert!(lines.contains(&"RRULE:FREQ=DAILYATTACH:https://example.com/x".to_string()));
+}
+
+#[test]
 fn long_lines_fold_at_75_octets_without_splitting_characters() {
     let mut event = export(all_day());
     event.title = "é".repeat(80);

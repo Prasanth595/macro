@@ -189,10 +189,15 @@ fn plain_text(description: &str) -> Option<String> {
 }
 
 /// Append one content line, folded at 75 octets without splitting a UTF-8
-/// character, terminated by CRLF.
+/// character, terminated by CRLF. Control characters other than tab are
+/// dropped: recurrence and organizer values are written unescaped, and a
+/// stored line break would otherwise start a forged property.
 fn fold_line(line: &str, document: &mut String) {
     let mut octets = 0;
-    for character in line.chars() {
+    for character in line
+        .chars()
+        .filter(|character| !character.is_control() || *character == '\t')
+    {
         let width = character.len_utf8();
         if octets + width > MAX_LINE_OCTETS {
             document.push_str("\r\n ");
