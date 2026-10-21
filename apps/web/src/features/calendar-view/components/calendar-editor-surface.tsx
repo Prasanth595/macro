@@ -4,7 +4,8 @@ import { useHotkeyDOMScope } from '@core/hotkey/hotkeys';
 import { isMobile } from '@core/mobile/isMobile';
 import { Dialog as KobalteDialog } from '@kobalte/core/dialog';
 import { Popover } from '@kobalte/core/popover';
-import SidebarIcon from '@phosphor/sidebar-simple.svg';
+import PopoverIcon from '@phosphor/browsers.svg';
+import SidebarIcon from '@phosphor/sidebar.svg';
 import CloseIcon from '@phosphor/x.svg';
 import { Button, Layer } from '@ui';
 import { type JSX, Show } from 'solid-js';
@@ -32,7 +33,7 @@ export function CalendarEditorSurface(props: {
         <div
           ref={attachHotkeys}
           data-event-editor-header
-          class="flex shrink-0 items-center justify-end gap-1 px-3 pb-1 pt-2"
+          class="flex shrink-0 items-center justify-between gap-1 px-3 pb-1 pt-2"
         >
           <Show when={props.surface === 'popover'}>
             <Button
@@ -43,7 +44,7 @@ export function CalendarEditorSurface(props: {
               disabled={props.pending}
               onClick={props.onMoveToSidebar}
             >
-              <SidebarIcon class="size-4" />
+              <SidebarIcon aria-hidden="true" class="size-4 rotate-180" />
             </Button>
           </Show>
           <Show when={props.surface === 'sidebar'}>
@@ -55,7 +56,7 @@ export function CalendarEditorSurface(props: {
               disabled={props.pending}
               onClick={props.onMoveToPopover}
             >
-              <SidebarIcon class="size-4 rotate-180" />
+              <PopoverIcon aria-hidden="true" class="size-4" />
             </Button>
           </Show>
           <Button

@@ -69,6 +69,19 @@ async function verifyDescriptionPosition(page) {
   assert.ok(alignment.rowGaps.every((gap) => gap === 8), 'Property icon-to-value gaps must be compact');
 }
 
+async function verifyEditorHeader(page, action) {
+  const header = page.locator('[data-event-editor-header]');
+  const move = header.getByRole('button', { name: action, exact: true });
+  const close = header.getByRole('button', { name: 'Close event editor', exact: true });
+  const headerBox = await header.boundingBox();
+  const moveBox = await move.boundingBox();
+  const closeBox = await close.boundingBox();
+  assert.ok(headerBox && moveBox && closeBox);
+  assert.ok(Math.abs(moveBox.x - headerBox.x - 12) < 1, 'The presentation toggle must sit at the left of the editor header');
+  assert.ok(Math.abs(headerBox.x + headerBox.width - closeBox.x - closeBox.width - 12) < 1, 'Close must stay at the right of the editor header');
+  assert.equal(await move.locator('svg').isVisible(), true);
+}
+
 async function verifyPopoverGeometry(page) {
   const geometry = await page.getByRole('dialog', { name: /^(New|Edit) event$/ }).evaluate((element) => new Promise((resolve) => {
     const measure = () => {
@@ -94,6 +107,7 @@ async function verifyPopoverGeometry(page) {
   }));
   assert.equal(geometry.contained, true, `Editor must fit the calendar: ${JSON.stringify(geometry)}`);
   assert.ok(!geometry.mustBeAdjacent || geometry.adjacent, `Editor must sit beside the event or slot: ${JSON.stringify(geometry)}`);
+  await verifyEditorHeader(page, 'Move to sidebar');
 }
 
 async function verifySidebarGeometry(page) {
@@ -115,6 +129,7 @@ async function verifySidebarGeometry(page) {
     assert.ok(Math.abs(geometry[edge] - 12) < 1, `Sidebar must retain 12px insets: ${JSON.stringify(geometry)}`);
   }
   assert.equal(geometry.radius, 12);
+  await verifyEditorHeader(page, 'Move to popover');
 }
 async function verifyMonthControlFocus(control) {
   await control.page().keyboard.press('Tab');
