@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 use agent_client_protocol::schema::v1::{
     CancelNotification, ClientRequest, ContentBlock, CreateElicitationResponse,
-    ElicitationAcceptAction, ElicitationAction, ElicitationContentValue as AcpContentValue,
+    ElicitationAcceptAction, ElicitationAction, ElicitationContentValue as AcpContentValue, Meta,
     PromptRequest, RequestId, RequestPermissionOutcome, RequestPermissionResponse, ResourceLink,
     SelectedPermissionOutcome, SessionId, SetSessionConfigOptionRequest,
 };
@@ -22,6 +22,11 @@ mod test;
 
 /// ACP session config option used to select the agent's model.
 pub const MODEL_CONFIG_ID: &str = "model";
+
+/// The `_meta` key on a `session/prompt` whose `true` value says the reply is
+/// posted into the channel or document thread the prompt came from, not
+/// read in the session view.
+pub const REPLIES_IN_DISCUSSION_META_KEY: &str = "macro.com/repliesInDiscussion";
 
 /// Identifies one accepted [`AgentAction`] end to end: returned by the
 /// control endpoint, written as the JSON-RPC request id on the action's wire
@@ -188,12 +193,22 @@ pub struct AgentPromptAction {
     /// Raw user text used for a visible session name when `prompt` is enriched.
     #[serde(skip)]
     name_source: Option<String>,
+    /// Whether the reply is posted into the discussion the prompt came from.
+    /// Set when the prompt is composed, just before it goes on the wire.
+    #[serde(skip)]
+    replies_in_discussion: bool,
 }
 
 impl AgentPromptAction {
     /// Keep the un-enriched user text for visible session naming.
     pub fn set_name_source(&mut self, source: impl Into<String>) {
         self.name_source = Some(source.into());
+    }
+
+    /// Mark the reply as posted into the channel or document thread the
+    /// prompt came from.
+    pub fn set_replies_in_discussion(&mut self, replies_in_discussion: bool) {
+        self.replies_in_discussion = replies_in_discussion;
     }
 
     /// Text suitable for deriving a visible session name.
@@ -469,6 +484,7 @@ impl AgentAction {
             attachments,
             private_context: None,
             name_source: None,
+            replies_in_discussion: false,
         })
     }
 
@@ -588,7 +604,15 @@ impl AgentAction {
                             .map(PromptAttachment::to_content_block),
                     )
                     .collect();
-                let payload = PromptRequest::new(session_id.clone(), blocks);
+                let mut payload = PromptRequest::new(session_id.clone(), blocks);
+                if action.replies_in_discussion {
+                    let mut meta = Meta::new();
+                    meta.insert(
+                        REPLIES_IN_DISCUSSION_META_KEY.to_owned(),
+                        serde_json::Value::Bool(true),
+                    );
+                    payload = payload.meta(meta);
+                }
                 let params = serde_json::to_value(&payload)
                     .map_err(|error| ActionError::Acp(error.to_string()))?;
                 let frame =

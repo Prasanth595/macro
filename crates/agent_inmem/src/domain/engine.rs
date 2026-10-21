@@ -63,6 +63,10 @@ pub struct TurnRequest {
     /// The full conversation, oldest first, ending with the prompt being
     /// answered.
     pub messages: Vec<ChatMessage>,
+    /// Whether the reply is posted into the channel or document thread the
+    /// prompt came from. Such a reply gets no opening line from a fast model
+    /// and is told how to answer in a discussion.
+    pub replies_in_discussion: bool,
     /// Tools of the MCP servers the session was handed, composed next to the
     /// native Macro tools. `None` when the session has none.
     pub mcp_tools: Option<RemoteMcpToolSet>,

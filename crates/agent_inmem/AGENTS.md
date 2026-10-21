@@ -53,6 +53,11 @@ milliseconds instead of waiting on container provisioning.
   `models::resolve`.
 - Keep session-aware `NameSearch`, `ContentSearch`, and `ListEntities` native in
   code mode; legacy `ReadChat` must not appear in either runtime tool catalog.
+- A `session/prompt` whose `_meta` sets `macro.com/repliesInDiscussion`
+  (the harness sets it for prompts from a channel or document thread) gets no
+  opening line from the fast opener model, and its system prompt adds
+  `prompt::discussion_reply` (share offers, Macro calls). The `agent.opener`
+  span records `outcome` (`off` there) and `ended_turn`.
 - Replay tool calls using `_meta.macro.toolName`; ACP titles may be human-readable
   MCP labels, so only use the title for older frames without tool-name metadata.
 

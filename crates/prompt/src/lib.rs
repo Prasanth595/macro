@@ -15,6 +15,7 @@ pub mod connected_toolsets;
 pub mod crm_pipelines;
 pub mod databases;
 pub mod deferred_tools;
+pub mod discussion_reply;
 pub mod do_not;
 pub mod document_content_links;
 pub mod email;

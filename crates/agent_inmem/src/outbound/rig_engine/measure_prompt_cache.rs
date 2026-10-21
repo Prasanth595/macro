@@ -99,6 +99,7 @@ async fn turn(
         &native.prompt,
         agent_session::domain::model::AgentSessionId::new(),
         Some(&identity),
+        false,
         Some(instructions),
         None,
     );

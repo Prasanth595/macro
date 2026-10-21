@@ -406,6 +406,7 @@ async fn drive_turn(
         identity,
         instructions,
         messages,
+        replies_in_discussion,
         mcp_tools,
         cancel,
         user_input,
@@ -432,6 +433,10 @@ async fn drive_turn(
     // reads no memory, offers the model no tools, and is read, not shown, so
     // no opening line races it.
     let summarizing = purpose == crate::domain::engine::TurnPurpose::Summary;
+    // A reply posted into a channel or document thread is read as a whole
+    // message, not watched as it streams, and a line that ends the turn
+    // there reads as a promise nobody keeps. No opening line races it.
+    let opens = !summarizing && !replies_in_discussion;
 
     // Started before anything else so its line is out before the turn's
     // model has a first token.
@@ -444,21 +449,24 @@ async fn drive_turn(
     // line was the whole reply), `opening` (the line opened the turn's
     // reply), `silent` (no line fit this follow-up), `turn_first` (the
     // turn's model spoke first), `no_verdict` (the
-    // fast model failed or answered without one) or `timeout`.
+    // fast model failed or answered without one), `timeout`, or `off` (the
+    // reply goes to a discussion, which gets no line).
     let opener_span = if summarizing {
         tracing::Span::none()
     } else {
         tracing::info_span!(
             "agent.opener",
+            agent.session.id = %session_id,
             agent.opener.model = opener::MODEL,
-            agent.opener.outcome = tracing::field::Empty,
+            agent.opener.outcome = if opens { None } else { Some("off") },
             agent.opener.verdict_ms = tracing::field::Empty,
             agent.opener.line_chars = tracing::field::Empty,
+            agent.opener.ended_turn = tracing::field::Empty,
             agent.opener.turn_first_part_ms = tracing::field::Empty,
         )
     };
     // A closed receiver has no verdict, and the turn's own stream follows.
-    let mut opening_line = if summarizing {
+    let mut opening_line = if !opens {
         mpsc::channel(1).1
     } else {
         opener_span.in_scope(|| {
@@ -509,6 +517,7 @@ async fn drive_turn(
             &tools_prompt,
             session_id,
             identity.as_ref(),
+            replies_in_discussion,
             instructions.as_deref(),
             user_memory.as_deref(),
         );
@@ -672,15 +681,24 @@ async fn drive_turn(
                     // Only a whole line stands alone: one that stalled or
                     // came out empty leaves the reply to this model.
                     if complete && finished && line_chars > 0 {
+                        opener_span.record("agent.opener.ended_turn", true);
+                        tracing::info!(
+                            parent: &opener_span,
+                            agent.session.id = %session_id,
+                            line_chars,
+                            "the opening line was the whole reply; stopped the turn's model"
+                        );
                         loop_cancel.cancel();
                         return Ok(());
                     }
+                    opener_span.record("agent.opener.ended_turn", false);
                     separate = line_chars > 0;
                 }
             }
-            Race::Opening(Ok(None)) => {
+            Race::Opening(Ok(None)) if opens => {
                 opener_span.record("agent.opener.outcome", "no_verdict");
             }
+            Race::Opening(Ok(None)) => {}
             Race::Opening(Err(_)) => {
                 opener_span.record("agent.opener.outcome", "timeout");
             }
@@ -726,8 +744,9 @@ fn elapsed_ms(since: tokio::time::Instant) -> u64 {
 /// The turn's system prompt: the agent's identity, the agent-session
 /// preamble, the note that an opening line is already out (see [`opener`]),
 /// the static Macro prompt (how to use the product: mentions,
-/// tools, terminology), then the session's own instructions when there are
-/// any, which session this is, and the owner's memory when there is any.
+/// tools, terminology), then how to answer in a discussion when the reply is
+/// posted into one, the session's own instructions when there are any,
+/// which session this is, and the owner's memory when there is any.
 ///
 /// Identity comes first so a named agent (even one with no instructions)
 /// knows who it is before reading anything else. The static Macro prompt
@@ -743,6 +762,7 @@ fn system_prompt(
     tools_prompt: &impl std::fmt::Display,
     session_id: agent_session::domain::model::AgentSessionId,
     identity: Option<&AgentIdentity>,
+    replies_in_discussion: bool,
     instructions: Option<&str>,
     user_memory: Option<&str>,
 ) -> SystemPrompt {
@@ -760,6 +780,10 @@ fn system_prompt(
     shared.push('\n');
     shared.push_str(&tools_prompt.to_string());
     let mut rest = String::new();
+    if replies_in_discussion {
+        rest.push('\n');
+        rest.push_str(&prompt::discussion_reply::PROMPT.to_string());
+    }
     // Blank instructions are "none" stated clumsily. A delimited section with
     // nothing in it is worse than no section: the model has to decide what an
     // empty instruction means.
