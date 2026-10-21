@@ -253,7 +253,7 @@ Switch app-sidebar tabs with both an untouched new draft and an edited draft.
 Delay editor loading and repeat before its fields appear. Verify Keep editing
 stays in Calendar without changing the draft, while Discard allows navigation.
 Exercise the popover and sidebar separately through the actual app sidebar, not
-only direct router calls.
+only direct router calls, including a destination already open in another pane.
 Repeat from `New → Event` and on a phone. Open each nested
 menu or dialog and press Escape: dismiss the top layer first, not the editor.
 Edit an existing recurring event and check both recurring scopes. Intentional

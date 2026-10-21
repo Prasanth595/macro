@@ -62,7 +62,7 @@ vi.mock('@service-connection/websocket', () => ({
   createConnectionWebsocketEffect: vi.fn(),
 }));
 
-function setup(presentation: 'popover' | 'sidebar') {
+function setup(presentation: 'popover' | 'sidebar', homeAlreadyOpen = false) {
   function Editor() {
     useCalendarEditor().open({}, presentation);
     return createComponent(CalendarEventComposer, { boundary: document.body });
@@ -80,7 +80,9 @@ function setup(presentation: 'popover' | 'sidebar') {
     ...homeSplitRoute,
     component: () => document.createTextNode('Home'),
   };
-  const history = createMemoryHistory('/calendar/week');
+  const history = createMemoryHistory(
+    homeAlreadyOpen ? '/calendar/week/~/home' : '/calendar/week'
+  );
   const router = createSplitRouter({
     history,
     routes: {
@@ -112,6 +114,9 @@ function setup(presentation: 'popover' | 'sidebar') {
       toLocation: (content) => resolveContentLocation(router.routes, content),
       toContent: splitContentFromLocation,
     });
+    const calendarSplit = manager.splits()[0];
+    if (!calendarSplit) throw new Error('Expected a calendar split');
+    manager.activateSplit(calendarSplit.id);
     onCleanup(() => router.dispose());
     return createComponent(SplitRouter.Root, {
       router,
@@ -129,7 +134,11 @@ function setup(presentation: 'popover' | 'sidebar') {
     });
     await router.settled();
   };
-  return { history, navigate };
+  return {
+    history,
+    navigate,
+    activeSplit: () => manager.activeSplit()?.content().id,
+  };
 }
 
 afterEach(() => {
@@ -140,6 +149,17 @@ afterEach(() => {
 describe.each(['popover', 'sidebar'] as const)(
   '%s loading navigation protection',
   (presentation) => {
+    it('still asks before navigating to a destination open in another pane', async () => {
+      const { history, navigate, activeSplit } = setup(presentation, true);
+      confirmDiscard.mockResolvedValueOnce(false);
+
+      await navigate();
+
+      expect(confirmDiscard).toHaveBeenCalledOnce();
+      expect(history.read().path).toBe('/calendar/week/~/home');
+      expect(activeSplit()).toBe('calendar');
+      expect(screen.getByRole('status').textContent).toBe('Loading event…');
+    });
     it('keeps the loading draft until sidebar navigation is confirmed', async () => {
       const { history, navigate } = setup(presentation);
       expect(screen.getByRole('status').textContent).toBe('Loading event…');
