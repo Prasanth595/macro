@@ -45,6 +45,11 @@ sessions: agent-session trigger events in, sandboxed coding agent sessions
 - The harness hands running Notion imports over on shutdown (`ai_tools::ImportJobs::hand_over`), as every host that builds the import service does.
 - An approved import review settles when its Notion write ends: the import service calls `POST /internal/agent-reviews/{id}/settled` (internal key, acting as the owner), and `code_mode/reviews.rs` continues the session on the final report as private context, once per review.
 
+The composition root wires `PgExternalReplyStore` into the harness and recovers
+unfinished external chat replies alongside conversation recovery every ten seconds.
+Both the backend and macrod's source-message action IDs are required for replies
+from newly triggered external chat turns to finish in their channel threads.
+
 ## Checks
 
 - `cargo test -p agent_harness_service` (`SQLX_OFFLINE` unset).

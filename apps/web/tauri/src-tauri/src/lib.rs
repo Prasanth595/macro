@@ -33,6 +33,8 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use url::Url;
 
+#[cfg(desktop)]
+mod desktop;
 mod desktop_update;
 mod device;
 mod diagnostics;
@@ -182,6 +184,23 @@ pub fn run() {
         .with_embedded_documents(EMBEDDED_DOCUMENTS)
         .expect("Embedded documents must be valid urls");
     let mut builder = tauri::Builder::default();
+
+    #[cfg(any(target_os = "ios", target_os = "macos"))]
+    {
+        builder = builder.on_web_content_process_terminate(|webview| {
+            tracing::warn!(webview = %webview.label(), "WebContent process terminated; reloading");
+            if let Some(state) = webview.try_state::<diagnostics::Diagnostics>() {
+                let _ = state.record_web_content_termination().inspect_err(|error| {
+                    tracing::warn!(%error, "Failed to record WebContent termination");
+                });
+            }
+            // Preserve Tauri's default recovery, but retain the cause in the
+            // native process so the replacement document can report it.
+            let _ = webview.reload().inspect_err(|error| {
+                tracing::error!(%error, "Failed to reload terminated WebContent process");
+            });
+        });
+    }
 
     #[cfg(desktop)]
     {
@@ -371,6 +390,18 @@ pub fn run() {
             read_shared_file_text,
             flush_launch_deep_link,
             staged_upload::upload_staged_file_to_presigned_url,
+            #[cfg(desktop)]
+            desktop::macrod::macrod_support,
+            #[cfg(desktop)]
+            desktop::macrod::macrod_detect_agents,
+            #[cfg(desktop)]
+            desktop::macrod::macrod_inspect,
+            #[cfg(desktop)]
+            desktop::macrod::macrod_start,
+            #[cfg(desktop)]
+            desktop::macrod::macrod_stop,
+            #[cfg(desktop)]
+            desktop::macrod::macrod_status,
         ])
         .setup(move |app| {
             #[cfg(desktop)]
@@ -395,6 +426,11 @@ pub fn run() {
 
             app.chain(attach_deep_link_handler);
             cleanup_stale_staged_files(&app.handle());
+            #[cfg(desktop)]
+            {
+                app.manage(desktop::macrod::MacrodState::default());
+                desktop::macrod::autostart(&app.handle());
+            }
 
             Ok(())
         })
@@ -463,6 +499,12 @@ pub fn run() {
             desktop_update::on_exit_requested(app_handle, api)
         }
         RunEvent::Exit => {
+            #[cfg(desktop)]
+            if let Some(state) = app_handle.try_state::<desktop::macrod::MacrodState>() {
+                // The daemon also exits on its own when its stdin pipe
+                // closes with this process; the kill is the fast path.
+                desktop::macrod::kill_now(&state);
+            }
             if let Some(state) = app_handle.try_state::<graphql_cache_plugin::CacheState>() {
                 state
                     .shutdown()

@@ -77,6 +77,7 @@
           && !(lib.hasPrefix "apps/web/dist/" rel)
           && !(lib.hasPrefix "apps/web/tauri/target/" rel)
           && !(lib.hasPrefix "apps/web/src/lib/graphql-cache/wasm/" rel)
+          && !(lib.hasPrefix "apps/web/src/lib/core/agent-fold/wasm/" rel)
           && !(lib.hasPrefix "packages/lexical-core/node_modules/" rel)
           && !(lib.hasPrefix "services/lexical-service/node_modules/" rel)
           && !(lib.hasPrefix "packages/loro-mirror/node_modules/" rel)
@@ -87,7 +88,8 @@
           && rel != "apps/web/node_modules"
           && rel != "apps/web/dist"
           && rel != "apps/web/tauri/target"
-          && rel != "apps/web/src/lib/graphql-cache/wasm";
+          && rel != "apps/web/src/lib/graphql-cache/wasm"
+          && rel != "apps/web/src/lib/core/agent-fold/wasm";
       };
 
       rootCargoVendorDir = craneLib.vendorCargoDeps {
@@ -131,6 +133,85 @@
         src = jsRoot;
       };
 
+      agentFoldWasmPackage = craneLib.mkCargoDerivation {
+        pname = "macro-agent-fold-wasm";
+        version = appVersion;
+        src = jsSrc;
+        cargoArtifacts = null;
+        cargoVendorDir = rootCargoVendorDir;
+        nativeBuildInputs = [
+          pkgs.binaryen
+          pkgs.wasm-bindgen-cli_0_2_126
+          pkgs.wasm-pack
+        ];
+        doCheck = false;
+        preBuild = cacheWasmPackage.preBuild;
+        buildPhaseCargoCommand = ''
+          wasm-pack build crates/folds/agent_fold \
+            --target web \
+            --release \
+            --mode no-install \
+            --out-dir "$PWD/apps/web/src/lib/core/agent-fold/wasm" \
+            -- --no-default-features
+        '';
+        installPhaseCommand = ''
+          mkdir -p $out
+          cp -a apps/web/src/lib/core/agent-fold/wasm/. $out/
+        '';
+        doInstallCargoArtifacts = false;
+      };
+
+      # The macrod agent daemon, bundled with the desktop app as a Tauri
+      # sidecar so "run agents on this computer" needs no separate download.
+      # Built from the root workspace (not the nested Tauri one), natively for
+      # the bundle's platform; the standalone release tarballs keep their own
+      # musl/darwin pipeline in build_agent_daemon_on_tag.yml.
+      macrodBinary = craneLib.mkCargoDerivation {
+        pname = "macrod";
+        version = appVersion;
+        src = jsSrc;
+        cargoArtifacts = null;
+        cargoVendorDir = rootCargoVendorDir;
+        nativeBuildInputs = [
+          # aws-lc-sys (rustls' crypto provider) and bundled librdkafka build
+          # their C sources with cmake; see the matching notes on `libraries`
+          # in cloud-storage.nix.
+          pkgs.cmake
+          pkgs.git
+          pkgs.perl
+          pkgs.pkg-config
+        ];
+        buildInputs = [
+          pkgs.openssl
+          pkgs.openssl.dev
+          # librdkafka 2.12's bundled cmake-build needs curl headers even with
+          # WITH_CURL=0 (headers only; nothing links against libcurl).
+          pkgs.curl.dev
+          pkgs.libclang
+          pkgs.xz.out
+        ]
+        ++ lib.optionals pkgs.stdenv.isDarwin [ pkgs.libiconv ];
+        LIBCLANG_PATH = "${pkgs.libclang.lib}/lib";
+        OPENSSL_NO_VENDOR = "1";
+        doCheck = false;
+        SQLX_OFFLINE = "true";
+        buildPhaseCargoCommand = ''
+          cargo build --release --package coding_agent_worker --bin macrod
+        '';
+        installPhaseCommand = ''
+          install -Dm0755 target/release/macrod "$out/bin/macrod"
+        '';
+        doInstallCargoArtifacts = false;
+      };
+
+      # Tauri sidecar sources carry the target triple in the file name; the
+      # bundler strips it when placing the binary next to the app executable.
+      rustHostTriple = pkgs.stdenv.hostPlatform.rust.rustcTarget;
+      installMacrodSidecar = ''
+        install -Dm0755 ${macrodBinary}/bin/macrod \
+          "src-tauri/binaries/macrod-${rustHostTriple}"
+      '';
+
       frontend = pkgs.stdenvNoCC.mkDerivation {
         pname = "macro-tauri-frontend";
         version = appVersion;
@@ -150,41 +231,54 @@
         VITE_OTEL_ENV = otelEnv;
 
         buildPhase = ''
-            runHook preBuild
+          runHook preBuild
 
-            cp -a ${nodeModules}/. .
+          cp -a ${nodeModules}/. .
 
-            # Vite bundles TypeScript config files to a temporary sibling before
-            # loading them. The application config now lives at the app root,
-            # so make that directory writable inside the Nix build sandbox.
-            chmod u+w apps/web
+          # Vite bundles TypeScript config files to a temporary sibling before
+          # loading them. The application config now lives at the app root,
+          # so make that directory writable inside the Nix build sandbox.
+          chmod u+w apps/web
 
-            substituteInPlace apps/web/vite.base.ts \
-              --replace-fail \
-                "          // NIX_TAURI_ALIAS" \
-                '          { find: /^@tauri-apps\/api/, replacement: resolve(__dirname, "../../node_modules/@tauri-apps/api") },'
+          substituteInPlace apps/web/vite.base.ts \
+            --replace-fail \
+              "          // NIX_TAURI_ALIAS" \
+              '          { find: /^@tauri-apps\/api/, replacement: resolve(__dirname, "../../node_modules/@tauri-apps/api") },'
 
-            printf production > apps/web/tauri/src-tauri/.macro-tauri-env
-            mkdir -p apps/web/src/lib/graphql-cache/wasm
-            cp -a ${cacheWasmPackage}/. apps/web/src/lib/graphql-cache/wasm/
-            (
-              cd apps/web
-              MODE=production NODE_ENV=production bun ../../node_modules/vite/bin/vite.js build -c vite.config.ts
-              printf '${appVersion}+${gitRev}\n' > dist/semver.txt
-              BUNDLE_BUILD_NUMBER=${toString desktopRelease.bundleBuild} MIN_NATIVE_BUILD=0 bun scripts/write-bundle-manifest.mjs
-            )
+          printf production > apps/web/tauri/src-tauri/.macro-tauri-env
+          mkdir -p apps/web/src/lib/graphql-cache/wasm
+          cp -a ${cacheWasmPackage}/. apps/web/src/lib/graphql-cache/wasm/
+          mkdir -p apps/web/src/lib/core/agent-fold/wasm
+          cp -a ${agentFoldWasmPackage}/. apps/web/src/lib/core/agent-fold/wasm/
+          (
+            cd apps/web
+            MODE=production NODE_ENV=production bun ../../node_modules/vite/bin/vite.js build -c vite.config.ts
+            printf '${appVersion}+${gitRev}\n' > dist/semver.txt
+            BUNDLE_BUILD_NUMBER=${toString desktopRelease.bundleBuild} MIN_NATIVE_BUILD=0 bun scripts/write-bundle-manifest.mjs
+          )
 
-            # A supplied key that never reaches the bundle means PostHog — and
-            # every feature flag behind it — is silently off in the shipped app.
-            # Fail the build instead, the way the signed DMG fails on a missing
-            # signing identity.
-            if [ -n "''${VITE_POSTHOG_API_KEY:-}" ] \
-              && ! grep -rqF -- "$VITE_POSTHOG_API_KEY" apps/web/dist; then
-              echo "VITE_POSTHOG_API_KEY was set but Vite did not inline it into apps/web/dist" >&2
-              exit 1
-            fi
+          # A supplied key that never reaches the bundle means PostHog — and
+          # every feature flag behind it — is silently off in the shipped app.
+          # Fail the build instead, the way the signed DMG fails on a missing
+          # signing identity.
+          if [ -n "''${VITE_POSTHOG_API_KEY:-}" ] \
+            && ! grep -rqF -- "$VITE_POSTHOG_API_KEY" apps/web/dist; then
+            echo "VITE_POSTHOG_API_KEY was set but Vite did not inline it into apps/web/dist" >&2
+            exit 1
+          fi
 
-            runHook postBuild
+          runHook postBuild
+        '';
+
+        # Vite leaves new URL() imports unchanged when their generated source
+        # files are absent. Reject that otherwise-successful but broken bundle.
+        doCheck = true;
+        checkPhase = ''
+          runHook preCheck
+          for asset in apps/web/dist/assets/agent_fold-*.js apps/web/dist/assets/agent_fold_bg-*.wasm; do
+            test -s "$asset" || { echo "Missing agent fold bundle asset: $asset" >&2; exit 1; }
+          done
+          runHook postCheck
         '';
 
         installPhase = ''
@@ -638,6 +732,7 @@
           active = true;
           targets = [ "appimage" ];
           useLocalToolsDir = true;
+          externalBin = [ "binaries/macrod" ];
           linux.appimage.bundleMediaFramework = true;
           linux.appimage.files = {
             "/usr/bin/xdg-mime" = "${tauriXdgUtils}/bin/xdg-mime";
@@ -726,6 +821,7 @@
             bundle = {
               active = true;
               targets = [ "app" ];
+              externalBin = [ "binaries/macrod" ];
             };
           }
           (
@@ -749,6 +845,7 @@
             fi
             export PATH="$PATH:/usr/bin:/bin:/usr/sbin:/sbin"
             ${tauriDesktopPreBuild}
+            ${installMacrodSidecar}
           '';
           buildPhaseCargoCommand = ''
             cargo tauri build --bundles app \
@@ -853,6 +950,15 @@
                 done < <(find "$app/Contents/Frameworks" -type f -print0)
               fi
 
+              # Helper executables (the macrod sidecar) must be signed
+              # individually for notarization; the --deep pass below re-seals
+              # the bundle on top of them.
+              while IFS= read -r -d "" file; do
+                if otool -hv "$file" >/dev/null 2>&1; then
+                  codesign "''${sign_args[@]}" "$file"
+                fi
+              done < <(find "$app/Contents/MacOS" -type f -print0)
+
               codesign "''${sign_args[@]}" --deep "$app"
               codesign --verify --deep --strict --verbose=2 "$app"
             }
@@ -956,6 +1062,7 @@
           preBuild = ''
             test -e ${tauriAppImagePackagingTests}
             ${tauriDesktopPreBuild}
+            ${installMacrodSidecar}
 
             runtime_library_path="$(while IFS= read -r store_path; do
               if [ -d "$store_path/lib" ]; then
@@ -1014,6 +1121,7 @@
 
       packages = {
         js-node-modules = nodeModules;
+        macrod = macrodBinary;
       }
       // lib.optionalAttrs isLinux {
         tauri-frontend = frontend;

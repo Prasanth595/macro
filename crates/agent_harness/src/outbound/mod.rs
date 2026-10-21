@@ -11,6 +11,7 @@ pub mod conversation_turns;
 pub mod cursor;
 pub mod daytona;
 pub mod egress;
+pub mod external_replies;
 pub mod forward;
 pub mod github_branches;
 pub mod github_repositories;

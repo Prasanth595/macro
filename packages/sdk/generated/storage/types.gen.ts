@@ -1946,6 +1946,11 @@ export type CallFilters = {
 };
 
 /**
+ * Supported call and transcript providers. Add variants as integrations grow.
+ */
+export type CallProvider = 'macro' | 'granola';
+
+/**
  * Full record of a call, unifying rows from `calls` (active) and
  * `call_records` (archived) into a single response shape.
  */
@@ -2012,15 +2017,16 @@ export type CallRecord = {
      */
     recordingUrl?: string | null;
     /**
-     * The RTC room name.
+     * The RTC room name. `None` for imported calls, which never had a room.
      */
-    roomName: string;
+    roomName?: string | null;
     /**
      * Whether the call is shared with the creator's team. While the call is
      * live this is the pending toggle applied at archive; afterwards it
      * mirrors `team_share_access_level`.
      */
     shareWithTeam: boolean;
+    source?: null | CallRecordSource;
     /**
      * When the call started (created_at for active, started_at for archived).
      */
@@ -2127,6 +2133,20 @@ export type CallRecordPreviewData = {
      * When the call started (created_at for active, started_at for archived).
      */
     startedAt: string;
+};
+
+/**
+ * Where an imported call came from.
+ */
+export type CallRecordSource = {
+    /**
+     * Link to the call in the provider's app, if it has one.
+     */
+    externalUrl?: string | null;
+    /**
+     * Provider that supplied the call.
+     */
+    provider: CallProvider;
 };
 
 /**
@@ -19504,6 +19524,10 @@ export type ExportDocumentData = {
 export type ExportDocumentErrors = {
     401: GenericErrorResponse;
     404: GenericErrorResponse;
+    /**
+     * DOCX upload is still processing; retry the export.
+     */
+    409: ErrorResponse;
     500: GenericErrorResponse;
 };
 

@@ -255,6 +255,10 @@ toolbar, consistent at narrow and wide composer widths.
 The new-message compose screen and channel message/reply inputs use the same
 attachment and send controls on mobile and desktop, with no format toggle.
 iOS uses the native media attachment picker.
+In the iOS app, both collapsed and expanded channel inputs use the shared
+[glass press spotlight](navigation.md#mobile-glass-feedback). Tap the editor and its
+enabled actions to check the highlight; the caret, draft, keyboard, and action
+timing should remain unchanged. Flat embedded inputs keep their host's surface.
 Short top-level drafts place attachment, message text, and send on one row on
 both mobile and desktop. Text that wraps onto a second line, explicit line
 breaks, non-paragraph blocks (lists, blockquotes, headings, etc.), and attachments
@@ -270,7 +274,15 @@ opens a menu on desktop and a bottom drawer on mobile: `Mention` (opens the `@` 
 picker; the iOS media picker on iOS), then under `Create` the same actions as
 `/task`, `/poll`, `/form` and `/document` (poll and form only with forms on),
 then `Ask Macro` (inserts an `@Macro` mention) and, in a channel, `Start a call`
-(`Join call` while one is live).
+(`Join call` while one is live). On phones, starting a new call opens a
+confirmation sheet with centered participant avatars, notification copy, and a
+full-width green **Start call** button, without a divider or close/cancel buttons.
+Show up to four avatars including yourself. With more than four participants,
+show three unobscured avatars and overlay **+N** on the fourth; N includes everyone
+after the first three (five participants shows **+2**).
+Drag the handle, tap the backdrop, or press Escape to dismiss without starting a
+call. Only confirming notifies participants; joining a live call skips the sheet.
+Check both DMs and channels, including long names, in light and dark themes.
 Input action and formatting buttons show the app tooltip without a second
 native browser tooltip.
 On desktop, select draft text to open the floating formatting toolbar. Its
@@ -286,6 +298,12 @@ should remain usable in both layouts. Existing message and reply edit inputs sho
 only the send control, with no format or discard button; Escape cancels the edit.
 The iOS share sheet keeps its editor above the attachment and formatting controls.
 Check this arrangement at both phone and tablet widths.
+
+With a wrapping draft present, repeatedly narrow and widen the desktop split
+and window, then scroll the message history. The composer should settle into
+the matching layout without `ResizeObserver loop completed with undelivered
+notifications` errors. Resize-triggered wrapping measurements run in the next
+animation frame; draft edits still measure before their first paint.
 
 On Android, tap `@` on the software keyboard in an empty channel composer or
 after a space: the mentions menu should open above the keyboard. Type a name to
@@ -314,6 +332,11 @@ avatars and status; previews refresh periodically while the browser tab is activ
 to update titles and access.
 
 Placeholder `Type @ to share with #<name>`. Click it, `type_text`, press Enter to send.
+On touch devices, Send activates on release, not when pressed down. Holding or
+cancelling a press does not send; releasing outside the button keeps the draft.
+The composer keeps keyboard focus when sending. New local messages lift into place
+with a gentle settle on touch devices; history stays still and Reduce Motion
+disables the entrance animation.
 The message renders immediately with avatar, email, timestamp. Composer extras: `Attach
 files` and the `Send message` button. Replies also include a close-reply control.
 
@@ -941,6 +964,9 @@ On touch layouts, Channels shows only the Recent conversation feed, with channel
 and DM message previews. There are no view tabs or reserved tab-header space;
 older saved tab selections and mobile-tab links cannot change the list. It loads
 more as the list approaches the end and supports pull to refresh.
+Rows use the same touch highlight as Home and Email: taps retain feedback while
+opening, holds stay highlighted for the action menu, and scrolling or cancelling
+a touch clears the press highlight.
 The mobile dock Search button opens the independent Search route. Its Channels
 and People categories search cached channel names and people directly; the
 conversation list does not constrain results. Full-text search is explicit,
@@ -1183,6 +1209,14 @@ Shorter queries: `Keep typing to search`.
 Leaving from the channel's call controls switches to `Messages` immediately.
 Disconnect and server cleanup continue after that switch; slow or failed RTC
 teardown must not leave the channel showing the join screen.
+
+In a live call, controls stay centered beneath the participant area when chat
+opens beside it. Microphone, camera, and background controls each have an icon
+button on the left and a settings caret on the right, separated by a divider.
+The icon toggles the feature; hover previews settings and the caret pins them.
+Check both chat states and narrow layouts, including Escape and keyboard focus
+in settings. Camera-off tiles use a subtle gradient from the profile picture's
+average color; missing or unreadable pictures keep the neutral panel background.
 
 `Participants` tab keeps people and bots within the available page height, with
 separate scrolling lists and fixed search/invite controls. Team access appears
