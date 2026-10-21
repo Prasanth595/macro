@@ -1,5 +1,6 @@
 import { ENABLE_EMAIL } from '@core/constant/featureFlags';
 import { useSettingsState } from '@core/constant/SettingsState';
+import { useSettingsTabAvailable } from '@core/constant/settingsTabsConfig';
 import { usePipedreamMcpFlag } from '@core/pipedream/flag';
 import { createSignal, Show, Suspense } from 'solid-js';
 import { IntegrationsView } from './connections/integrations-view';
@@ -13,6 +14,7 @@ import { SettingsPage } from './primitives';
 /** Personal accounts and agent tools share one Integrations settings page. */
 export function IntegrationsPage() {
   const pipedreamMcp = usePipedreamMcpFlag();
+  const isTabAvailable = useSettingsTabAvailable();
   const { openSettings } = useSettingsState();
   const [showLocalAgents, setShowLocalAgents] = createSignal(false);
   return (
@@ -28,11 +30,15 @@ export function IntegrationsPage() {
       }
     >
       <Show
-        when={showLocalAgents()}
+        when={showLocalAgents() && isTabAvailable('Harness')}
         fallback={
           <IntegrationsView
             onOpenMacroMcp={() => openSettings('Agent')}
-            onOpenLocalAgents={() => setShowLocalAgents(true)}
+            onOpenLocalAgents={
+              isTabAvailable('Harness')
+                ? () => setShowLocalAgents(true)
+                : undefined
+            }
           >
             <AccountConnections />
           </IntegrationsView>

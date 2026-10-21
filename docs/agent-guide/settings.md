@@ -488,7 +488,8 @@ Two thin, stacked setup rows appear at the top. “Use Macro in your favorite AI
 harness with the official Macro MCP” opens connection setup; “Stream sessions
 from your local AI harness to Macro” opens Runtimes within Integrations to connect
 a local machine. Its Back button returns to Integrations; opening Runtimes from
-Agents keeps the return to Agents.
+Agents keeps the return to Agents. The local-harness setup row follows the
+Runtimes availability gate and is hidden when that tab is unavailable.
 Email, GitHub, and Granola cards appear next under Core Integrations;
 they use two columns and share a height on wide screens, stacking on narrow screens. A small gear on the Email card opens Email settings;
 Calendar settings remain available from the settings sidebar.

@@ -4,6 +4,7 @@ import {
   type ComposerAddMenuGroup,
 } from '@channel/Input/ComposerAddMenu';
 import { useSettingsState } from '@core/constant/SettingsState';
+import { useSettingsTabAvailable } from '@core/constant/settingsTabsConfig';
 import { isMobile } from '@core/mobile/isMobile';
 import { PipedreamConnectorIcon } from '@core/pipedream/ConnectorIcon';
 import BooksIcon from '@phosphor/books.svg';
@@ -42,6 +43,7 @@ export function AgentComposerAddMenu(props: {
 }) {
   const connections = useConnectionsModel();
   const settings = useSettingsState();
+  const isTabAvailable = useSettingsTabAvailable();
   const [drawerOpen, setDrawerOpen] = createSignal(false);
   const [target, setTarget] = createSignal<Target>();
   const openTarget = (next: Target) => {
@@ -209,10 +211,14 @@ export function AgentComposerAddMenu(props: {
                         ? selected.provider
                         : undefined
                     }
-                    onOpenLocalAgents={() => {
-                      setTarget(undefined);
-                      settings.openSettings('Harness');
-                    }}
+                    onOpenLocalAgents={
+                      isTabAvailable('Harness')
+                        ? () => {
+                            setTarget(undefined);
+                            settings.openSettings('Harness');
+                          }
+                        : undefined
+                    }
                     onOpenMacroMcp={() => {
                       setTarget(undefined);
                       settings.openSettings('Agent');

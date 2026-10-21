@@ -219,6 +219,16 @@ describe('Slack channel import handoff', () => {
 });
 
 describe('unified Integrations page', () => {
+  it('hides local harness setup when no allowed entry point is supplied', () => {
+    render(() => <IntegrationsView onOpenMacroMcp={() => {}} />);
+    expect(
+      screen.queryByRole('button', { name: 'Set up local agents' })
+    ).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Set up Macro in AI apps' })
+    ).toBeTruthy();
+  });
+
   it('opens the matching setup flow for each callout', () => {
     const onOpenMacroMcp = vi.fn();
     const onOpenLocalAgents = vi.fn();

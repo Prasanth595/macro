@@ -29,7 +29,7 @@ import {
 
 function IntegrationSetupCallouts(props: {
   onOpenMacroMcp: () => void;
-  onOpenLocalAgents: () => void;
+  onOpenLocalAgents?: () => void;
 }) {
   return (
     <div class="flex flex-col gap-2">
@@ -46,26 +46,28 @@ function IntegrationSetupCallouts(props: {
           Set up
         </Button>
       </div>
-      <div class="flex items-center justify-between gap-4 rounded-2xl border border-edge-muted bg-ink/4 px-4 py-2">
-        <p class="text-base font-medium text-ink">
-          Stream sessions from your local AI harness to Macro
-        </p>
-        <Button
-          variant="ghost"
-          size="md"
-          aria-label="Set up local agents"
-          onClick={props.onOpenLocalAgents}
-        >
-          Set up
-        </Button>
-      </div>
+      <Show when={props.onOpenLocalAgents}>
+        <div class="flex items-center justify-between gap-4 rounded-2xl border border-edge-muted bg-ink/4 px-4 py-2">
+          <p class="text-base font-medium text-ink">
+            Stream sessions from your local AI harness to Macro
+          </p>
+          <Button
+            variant="ghost"
+            size="md"
+            aria-label="Set up local agents"
+            onClick={props.onOpenLocalAgents}
+          >
+            Set up
+          </Button>
+        </div>
+      </Show>
     </div>
   );
 }
 
 type IntegrationsViewProps = ParentProps<{
   onOpenMacroMcp: () => void;
-  onOpenLocalAgents: () => void;
+  onOpenLocalAgents?: () => void;
   initialProvider?: ProviderId;
 }>;
 

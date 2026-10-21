@@ -26,6 +26,9 @@ const state = vi.hoisted(() => ({
   failed: false,
   retry: vi.fn(),
 }));
+vi.mock('@core/constant/settingsTabsConfig', () => ({
+  useSettingsTabAvailable: () => () => true,
+}));
 vi.mock('@core/mobile/isMobile', () => ({ isMobile: () => state.mobile }));
 vi.mock('@core/constant/SettingsState', () => ({
   useSettingsState: () => ({ openSettings: vi.fn() }),
