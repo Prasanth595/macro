@@ -126,6 +126,12 @@ export async function createTaskWithProperties(
     revalidateSoup?: boolean;
     shareWithTeam?: boolean;
     onMutate?: () => void;
+    /** The create response arrived, before history/project follow-up work. */
+    onCreated?: (
+      task: NonNullable<
+        Awaited<ReturnType<typeof createTaskWithInitialSnapshot>>
+      >
+    ) => void;
   }
 ) {
   options?.onMutate?.();
@@ -154,6 +160,8 @@ export async function createTaskWithProperties(
     toast.failure('Failed to create Task');
     return null;
   }
+
+  options?.onCreated?.(createdTask);
 
   // createTaskWithInitialSnapshot already revalidates Soup; just update history.
   upsertToHistory({
