@@ -169,11 +169,18 @@ internal object Calls {
     }
     fun receive(ctx: Context, data: Map<String, String>, sentTime: Long) {
         if (android.os.Build.VERSION.SDK_INT < 26) return
-        if (data["recipientId"] != ctx.getSharedPreferences("macro_push", Context.MODE_PRIVATE).getString("recipient", null)) return
-        val next = runCatching { CallOffer.parse(data["payload"] ?: return, sentTime) }.getOrNull() ?: return
-        if (!CallOffer.fresh(sentTime, System.currentTimeMillis())) return
-        if (ctx.getSharedPreferences("macro_calls", Context.MODE_PRIVATE).getLong(next.callId, 0) > System.currentTimeMillis() - 120_000) return
-        if (offer != null) return
+        val next = runCatching { CallOffer.parse(data["payload"].orEmpty(), sentTime) }.getOrNull()
+        val now = System.currentTimeMillis()
+        // Log only the reason: payloads carry LiveKit credentials.
+        val ignored = when {
+            data["recipientId"] != ctx.getSharedPreferences("macro_push", Context.MODE_PRIVATE).getString("recipient", null) -> "another account"
+            next == null -> "invalid payload"
+            !CallOffer.fresh(sentTime, now) -> "stale, sent ${now - sentTime}ms ago"
+            ctx.getSharedPreferences("macro_calls", Context.MODE_PRIVATE).getLong(next.callId, 0) > now - 120_000 -> "call recently ended"
+            offer != null -> "another call is ringing or active"
+            else -> null
+        }
+        if (ignored != null || next == null) { android.util.Log.i("MacroCall", "Ignored call push: $ignored"); return }
         recipient = ctx.getSharedPreferences("macro_push", Context.MODE_PRIVATE).getString("recipient", null)
         title = next.title
         offer = next; state = "ringing"; accepted = false
@@ -193,7 +200,10 @@ internal object Calls {
                     delay(1000)
                 }
             }
-        } catch (_: Exception) { end(ctx, next.callId) }
+        } catch (error: Exception) {
+            android.util.Log.w("MacroCall", "Incoming call failed: ${error.javaClass.simpleName}")
+            end(ctx, next.callId)
+        }
     }
     private suspend fun ringStatus(next: CallOffer): String? = withContext(Dispatchers.IO) {
         runCatching {
@@ -238,7 +248,11 @@ internal object Calls {
     }
     fun showIncoming(ctx: Context) {
         try { CallService.start(ctx); publish() }
-        catch (_: Exception) { end(ctx) }
+        catch (error: Exception) {
+            // Background starts can be denied, e.g. when FCM delivered the push without high priority.
+            android.util.Log.w("MacroCall", "Incoming call UI failed: ${error.javaClass.simpleName}")
+            end(ctx)
+        }
     }
     fun answer(ctx: Context, id: String, verify: suspend (CallOffer) -> String? = ::ringStatus) {
         val next = offer ?: return
