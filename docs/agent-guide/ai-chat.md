@@ -429,7 +429,7 @@ the shimmer.
   Unavailable paired agents stay visible with a reason.
   If Macro is unavailable, its catalog stays visible but
   model choices are disabled in every list. Model discovery uses the
-  selected runtime, including Claude Cloud. Every coding agent shows repository
+  selected runtime. Every coding agent shows repository
   controls; chat agents hide those controls but keep the mode bar. Repository/branch overrides are currently applied
   only to Cursor sessions by the create-session API.
   The most recently used supported,
@@ -543,8 +543,7 @@ the shimmer.
   **Add agent**, the setup strips, and Edit replace the list with full pages,
   not dialogs; Back/Cancel returns to the list. Use **Create → Agent** to open a new composer.
   The agent editor has Profile, Instructions, **Where it runs** (In Macro, In
-  Cursor, In your harness; In Claude Code too with the `claude-cloud` flag once
-  Claude lists models) and **Who can use it** (Private / Team). The selected
+  Cursor, In your harness) and **Who can use it** (Private / Team). The selected
   place opens its Model picker inside its card; In your harness adds a Harness
   picker beside it. An unconnected Cursor or unpaired harness is disabled with
   **Connect** / **Set up**, which open the setup guide in place and return to the
@@ -1848,7 +1847,7 @@ picker. New and resumed sessions replace an inaccessible saved model with Gemini
 A direct request to select a paid model is rejected, and each prompt rechecks
 permissions before inference, including after a plan downgrade. Permission
 lookup failures prevent inference. Paid users retain the full supported catalog.
-Cursor, Claude Cloud, and paired external runtimes keep their own model rules.
+Cursor and paired external runtimes keep their own model rules.
 
 To verify, start a Macro conversation as a free user with a previously saved
 paid-model preference: the composer should show Gemini and send that model.

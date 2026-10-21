@@ -37,9 +37,6 @@ New Cursor agents receive this MCP server at creation. Existing Cursor agents
 keep their original tool configuration and need a new session. Codex CLI and
 Claude CLI can use it through an ACP runtime such as macrod. Hosted Codex Cloud
 currently rejects MCP servers in its provider adapter and is not supported.
-Claude Cloud receives MCP tools but restricted environments must separately
-permit outbound SSH to the configured preview host; that provider networking
-path is not verified by this change.
 
 The preview domain **must be separate from macro.com** because Macro's browser
 cookies cover its subdomains. The gateway rejects Macro's domain, validates
