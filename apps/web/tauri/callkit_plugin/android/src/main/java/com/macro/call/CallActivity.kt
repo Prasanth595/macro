@@ -167,7 +167,7 @@ class CallActivity : Activity() {
             val publication = participant.getTrackPublication(Track.Source.CAMERA)
             return publication?.takeUnless { it.muted }?.track as? VideoTrack
         }
-        val remote = media?.remoteParticipants?.values?.map { participant ->
+        val remote = media?.let { Calls.remoteHumans(it) }?.map { participant ->
             val id = participant.identity?.value ?: participant.sid.value
             ParticipantTile(id, Calls.displayNames[id] ?: participant.name?.takeIf { it.isNotBlank() } ?: id.substringAfter('|'), video(participant))
         }.orEmpty()

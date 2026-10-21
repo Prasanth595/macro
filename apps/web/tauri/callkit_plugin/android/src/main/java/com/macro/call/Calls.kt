@@ -18,6 +18,8 @@ import io.livekit.android.LiveKit
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.collect
 import io.livekit.android.room.Room
+import io.livekit.android.room.participant.Participant
+import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.RemoteAudioTrack
 import io.livekit.android.room.track.Track
@@ -85,6 +87,9 @@ internal object Calls {
     }
     fun watch(name: String, channel: Channel) { watchers[name] = channel; publishedIdentities = null }
     fun unwatch() { watchers.clear() }
+    // Agents such as the transcriber join the room but are not call participants.
+    fun remoteHumans(media: Room): List<RemoteParticipant> =
+        media.remoteParticipants.values.filter { it.kind != Participant.Kind.AGENT }
     // Release builds obfuscate audioswitch class names, so match device types.
     private fun audioType(device: AudioDevice?): String? = when (device) {
         is AudioDevice.BluetoothHeadset -> "BluetoothHeadset"
@@ -103,7 +108,7 @@ internal object Calls {
     }
     private fun identities(): JSONArray = JSONArray().apply {
         room?.localParticipant?.identity?.value?.let { put(it) }
-        room?.remoteParticipants?.values?.forEach { it.identity?.value?.let { id -> put(id) } }
+        room?.let { remoteHumans(it).forEach { participant -> participant.identity?.value?.let { id -> put(id) } } }
     }
     private fun interrupted(): Boolean = held || focusLost || telecomFocusLost
     private fun syncRemoteAudio() {

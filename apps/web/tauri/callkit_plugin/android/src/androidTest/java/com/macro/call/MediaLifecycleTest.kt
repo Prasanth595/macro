@@ -24,11 +24,11 @@ class MediaLifecycleTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context = instrumentation.targetContext
 
-    private fun token(identity: String = "android-emulator-test"): String {
+    private fun token(identity: String = "android-emulator-test", kind: String? = null): String {
         fun encode(bytes: ByteArray) = Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
         val header = encode("{\"alg\":\"HS256\",\"typ\":\"JWT\"}".toByteArray())
         val payload = encode(JSONObject().apply {
-            put("iss", "devkey"); put("sub", identity)
+            put("iss", "devkey"); put("sub", identity); kind?.let { put("kind", it) }
             put("exp", System.currentTimeMillis() / 1000 + 300)
             put("video", JSONObject().apply { put("roomJoin", true); put("room", "android-call-test"); put("canPublish", true); put("canSubscribe", true) })
         }.toString().toByteArray())
@@ -65,6 +65,7 @@ class MediaLifecycleTest {
         Calls.drawerTheme = lightTheme
         val observer = LiveKit.create(context)
         val extraObservers = List(3) { LiveKit.create(context) }
+        val agent = LiveKit.create(context)
         val monitor = instrumentation.addMonitor(CallActivity::class.java.name, null, false)
         try {
             instrumentation.runOnMainSync {
@@ -78,8 +79,9 @@ class MediaLifecycleTest {
             awaitCondition("Remote participant did not join") { Calls.room?.remoteParticipants?.isNotEmpty() == true }
             instrumentation.runOnMainSync {
                 extraObservers.forEachIndexed { index, extra -> Calls.scope.launch { extra.connect(url, token("tile-observer-$index")) } }
+                Calls.scope.launch { agent.connect(url, token("agent-transcriber", "agent")) }
             }
-            awaitCondition("Participant strip test peers did not join") { Calls.room?.remoteParticipants?.size == 4 }
+            awaitCondition("Participant strip test peers did not join") { Calls.room?.remoteParticipants?.size == 5 }
             val root = activity!!.findViewById<android.view.ViewGroup>(android.R.id.content).getChildAt(0) as android.widget.FrameLayout
             fun assertDrawer(expectedTheme: CallTheme) {
                 val drawer = root.findViewWithTag<android.widget.LinearLayout>("call-drawer")
@@ -93,6 +95,10 @@ class MediaLifecycleTest {
                 assertTrue("Controls must stay above Android navigation insets",
                     position[1] + controls.height <= rootPosition[1] + root.height - root.paddingBottom)
                 assertEquals(3, (controls as android.view.ViewGroup).childCount)
+                val agentViews = arrayListOf<android.view.View>()
+                root.findViewsWithText(agentViews, "agent-transcriber", android.view.View.FIND_VIEWS_WITH_CONTENT_DESCRIPTION)
+                assertTrue("Agents such as the transcriber must not appear as call participants", agentViews.isEmpty())
+                assertFalse(Calls.snapshot()!!.getJSONArray("participantIdentities").toString().contains("agent-transcriber"))
                 assertTrue(root.findViewWithTag<android.view.View>("call-primary").height > root.findViewWithTag<android.view.View>("call-participant-strip").height)
             }
             instrumentation.waitForIdleSync()
@@ -230,6 +236,7 @@ class MediaLifecycleTest {
             instrumentation.removeMonitor(monitor)
             instrumentation.runOnMainSync {
                 extraObservers.forEach { it.disconnect(); it.release() }
+                agent.disconnect(); agent.release()
                 observer.disconnect(); observer.release(); Calls.end(context, offer.callId)
                 Calls.drawerTheme = previousTheme
             }
