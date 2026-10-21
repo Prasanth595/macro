@@ -255,3 +255,36 @@ async fn a_guest_who_may_modify_still_replaces_the_list() {
 
     assert_eq!(calls.lock().unwrap().as_slice(), ["update:master-id"]);
 }
+
+#[tokio::test]
+async fn an_occurrence_with_its_own_guest_list_is_judged_by_that_list() {
+    let provider = FakeProvider::new(FakeProviderBehavior::Echo);
+    let invited = provider.invited_guests.clone();
+    let mut repo = guest_repo(GuestPolicy::default());
+    // The series still lists Bo, but this occurrence dropped him.
+    repo.stored_attendees
+        .push(echo_attendee("bo@example.com", false));
+    repo.occurrence_override_attendees = Some(meeting_attendees());
+
+    service(repo, provider, FakeTokens::ok())
+        .update_event(
+            "macro|user",
+            Uuid::now_v7(),
+            None,
+            CalendarEventPatch {
+                attendees: Some(vec![guest(ORGANIZER), guest("bo@example.com")]),
+                ..CalendarEventPatch::default()
+            },
+            CalendarUpdateScope::ThisEvent {
+                recurrence_id: "2026-08-06T14:00:00+00:00".to_string(),
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        invited.lock().unwrap().as_slice(),
+        [vec![guest("bo@example.com")]],
+        "re-inviting Bo to this occurrence is an addition, not a no-op"
+    );
+}

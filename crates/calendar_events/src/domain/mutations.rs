@@ -329,8 +329,8 @@ where
         self.require_provider_writes(target.token_identity.provider)?;
         validate_conference(target.token_identity.provider, patch.conference)?;
         if let Some(mut attendees) = patch.attendees.take() {
-            // The series attendees are the baseline; an occurrence-scoped patch
-            // overlays that occurrence's overrides on top, so a retained guest's
+            // The stored list is the baseline — an occurrence's own list when
+            // an occurrence-scoped patch addresses one — so a retained guest's
             // per-instance RSVP wins over their series status.
             let stored = self.stored_attendees(event_id, &scope).await?;
             if invite::copy_capabilities(&target, &stored).remove_guests {
