@@ -66,6 +66,12 @@ accepted update, failed-load recovery, user recovery, or logout. It saves a
 one-shot session-storage marker and asks native to record the request before
 reloading, waiting at most 250ms for user-requested reloads. Automatic idle
 reloads keep their synchronous timing and send native evidence best effort.
+An individual diagnostic IPC timeout stops waiting for that event; three
+cumulative timeouts disable further writes for the document. Timed-out requests
+remain charged against the 32-request budget because the native invocation may
+still be pending.
+A native command rejection disables writes immediately. Logout cleanup can
+bypass the budget, with the same 250ms wait limit.
 The next native startup reports
 `requested_reload_*`; stale markers older than 30 minutes are discarded. Native
 bundle reload dispatches have their own `native_bundle_reload_last_id` and

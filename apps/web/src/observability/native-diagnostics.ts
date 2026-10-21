@@ -11,9 +11,12 @@ let supported: boolean | undefined;
 let capable = false;
 let retired = false;
 const LEASE = 'macro-native-diagnostic-document';
+const MAX_PENDING_DIAGNOSTICS = 32;
+const MAX_DIAGNOSTIC_TIMEOUTS = 3;
 let previousFrontend: string | undefined;
 const pending: FrontendEvent[] = [];
 let inFlight = 0;
+let timeouts = 0;
 
 export function nativeDiagnosticsRetired(): boolean {
   return retired;
@@ -34,25 +37,32 @@ export async function sendNativeDiagnostic(
   )
     return;
   if (supported === undefined) {
-    if (pending.length < 32) pending.push(event);
+    if (pending.length < MAX_PENDING_DIAGNOSTICS) pending.push(event);
     return;
   }
   const clearing = event.kind === 'account_cleared' && capable;
-  if ((!supported || inFlight >= 32) && !clearing) return;
+  // A timed-out invoke may still be pending in the bridge. Keep it charged
+  // against the document's budget even after the caller stops waiting.
+  if (
+    (!supported || inFlight + timeouts >= MAX_PENDING_DIAGNOSTICS) &&
+    !clearing
+  )
+    return;
   inFlight++;
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     await Promise.race([
       invoke('record_frontend_diagnostic', { frontendInstanceId, event }),
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(
-          () => reject(new Error('Diagnostic IPC timed out')),
-          250
-        );
+      new Promise<void>((resolve) => {
+        timer = setTimeout(() => {
+          timeouts++;
+          if (timeouts >= MAX_DIAGNOSTIC_TIMEOUTS) supported = false;
+          resolve();
+        }, 250);
       }),
     ]);
   } catch {
-    // Disable for this document. Missing diagnostics must not create an error loop.
+    // A rejected native command disables diagnostics immediately for this document.
     supported = false;
   } finally {
     clearTimeout(timer);

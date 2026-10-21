@@ -38,16 +38,19 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-it('does not send unsupported commands to an older binary', async () => {
-  const diagnostics = await import('./native-diagnostics');
-  diagnostics.recordNativeDiagnostic({ kind: 'visibility', visible: true });
-  dispose = diagnostics.startNativeDiagnostics(undefined);
-  await diagnostics.sendNativeDiagnostic({
-    kind: 'visibility',
-    visible: false,
-  });
-  expect(invoke).not.toHaveBeenCalled();
-});
+it.each([undefined, { ...snapshot, recentEvents: undefined }])(
+  'does not send unsupported commands without the new native capability',
+  async (olderSnapshot) => {
+    const diagnostics = await import('./native-diagnostics');
+    diagnostics.recordNativeDiagnostic({ kind: 'visibility', visible: true });
+    dispose = diagnostics.startNativeDiagnostics(olderSnapshot);
+    await diagnostics.sendNativeDiagnostic({
+      kind: 'visibility',
+      visible: false,
+    });
+    expect(invoke).not.toHaveBeenCalled();
+  }
+);
 
 it('bounds a hung bridge and keeps reload and logout usable', async () => {
   const diagnostics = await import('./native-diagnostics');
@@ -62,16 +65,71 @@ it('bounds a hung bridge and keeps reload and logout usable', async () => {
   });
   await vi.advanceTimersByTimeAsync(250);
   await write;
-  await diagnostics.sendNativeDiagnostic({
+  const reload = diagnostics.sendNativeDiagnostic({
     kind: 'reload_requested',
     reload_id: crypto.randomUUID(),
     reason: 'user_recovery',
   });
+  await vi.advanceTimersByTimeAsync(250);
+  await reload;
   const clearing = diagnostics.clearNativeDiagnostics();
   expect(sessionStorage.getItem('macro-native-diagnostic-document')).toBeNull();
   await vi.advanceTimersByTimeAsync(250);
   await clearing;
-  expect(invoke).toHaveBeenCalledTimes(2);
+  expect(invoke).toHaveBeenCalledTimes(3);
+  expect(invoke).toHaveBeenNthCalledWith(
+    2,
+    'record_frontend_diagnostic',
+    expect.objectContaining({
+      event: expect.objectContaining({ kind: 'reload_requested' }),
+    })
+  );
+});
+
+it('bounds cumulative timeouts even when successful writes occur between them', async () => {
+  const diagnostics = await import('./native-diagnostics');
+  dispose = diagnostics.startNativeDiagnostics(snapshot);
+  dispose();
+  await vi.advanceTimersByTimeAsync(0);
+  vi.mocked(invoke).mockClear();
+  for (let index = 0; index < 3; index++) {
+    vi.mocked(invoke).mockImplementationOnce(() => new Promise(() => {}));
+    const write = diagnostics.sendNativeDiagnostic({
+      kind: 'visibility',
+      visible: true,
+    });
+    await vi.advanceTimersByTimeAsync(250);
+    await write;
+    await diagnostics.sendNativeDiagnostic({
+      kind: 'connectivity',
+      online: true,
+    });
+  }
+  // Three hung invocations, with a successful write after each except the last.
+  expect(invoke).toHaveBeenCalledTimes(5);
+  await diagnostics.sendNativeDiagnostic({
+    kind: 'visibility',
+    visible: false,
+  });
+  expect(invoke).toHaveBeenCalledTimes(5);
+  await diagnostics.clearNativeDiagnostics();
+  expect(invoke).toHaveBeenCalledTimes(6);
+});
+
+it('disables diagnostics immediately when native rejects an invocation', async () => {
+  const diagnostics = await import('./native-diagnostics');
+  dispose = diagnostics.startNativeDiagnostics(snapshot);
+  await vi.advanceTimersByTimeAsync(0);
+  vi.mocked(invoke).mockClear().mockRejectedValue(new Error('bridge gone'));
+  await diagnostics.sendNativeDiagnostic({
+    kind: 'visibility',
+    visible: false,
+  });
+  await diagnostics.sendNativeDiagnostic({
+    kind: 'connectivity',
+    online: false,
+  });
+  expect(invoke).toHaveBeenCalledOnce();
 });
 
 it('clears native history before retiring callbacks from the signed-out document', async () => {
