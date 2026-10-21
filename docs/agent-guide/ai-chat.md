@@ -298,12 +298,11 @@ the shimmer.
   (`enable-chat-v3-agents`), the workspace uses one sidebar for Chat and Code.
   **Agents** in the sidebar opens the same roster as the composer’s
   **Create agent** action. **Connections** manages MCP integrations (including
-  app authentication and disconnection); this section has moved out of Settings.
+  app authentication and disconnection), also available under Settings → Integrations.
   Home’s **Connect your tools** and agent replies’ **Connect app** chips open this
-  Connections page. Personal Gmail/GitHub account links remain under Settings →
-  Integrations.
+  Integrations page. It shows installed tools above the app catalog, with personal Gmail/GitHub account links in a separate section above.
 
-  To recreate Slack channels, open **Settings → Connections → Slack → Import
+  To recreate Slack channels, open **Settings → Integrations → Slack → Import
   channels** (or **Connections → Slack** from the Agents workspace). The card
   appears only for a connected, enabled Pipedream Slack account. Click **Find
   channels** (or **Refresh** on subsequent visits), then wait for discovery and
@@ -1096,14 +1095,17 @@ list, create, and update projects (initiatives in the API) and move tasks in or 
 render `displayResults` views). Requests go to `POST /cognition/stream/chat/message`; results
 stream over the app's websocket, not the HTTP response.
 
-When explicitly asked, the agent uses `CommentOnDocument` to reply with `threadId`,
-start an inline markdown comment with `quote`, or start a Discussion comment with
-neither. `threadId` and `quote` cannot be combined; `occurrence` only applies with
-`quote`. Thread ids come from the comments returned by `ReadContent`. A reply row reads
-**Replied to a comment on** (or **Commented on** for a new Discussion comment) followed
-by the document, and expands to the posted text; a resolve row reads **Resolved** or
-**Reopened a comment on** the document. Asked to comment on part of a markdown
-document, the agent starts an inline comment on the quoted passage: the row reads
+When explicitly asked, the agent uses `Comment` to start a Discussion comment on an
+item, addressed by `entityType` and `entityId` (a `document`, which includes tasks and
+PDFs, an `initiative`, which is a Tasks project, a `crm_company` or a `crm_contact`),
+or to reply with `threadId` alone: a thread id is enough to find its item. It reads any
+item's threads with `ReadDiscussion`, and edits, deletes and resolves comments by their
+ids with `EditComment`, `DeleteComment` and `ResolveComment`. For a document,
+`ReadContent` returns the same threads with the content. A reply row reads **Replied to
+a comment on** (or **Commented on** for a new Discussion comment) followed by the item,
+and expands to the posted text; a resolve row reads **Resolved** or **Reopened a comment
+on** the item. Asked to comment on part of a markdown document, the agent uses
+`CommentOnText` with `quote` (`occurrence` picks a repeated passage): the row reads
 **Commented on text in** the document and expands to the quoted text and the comment,
 and the passage is highlighted in the document with the comment floating beside it.
 A passage that is missing, spans blocks, or repeats with no occurrence chosen is
@@ -1380,9 +1382,12 @@ Details lists Status, Agent, Model, and dates for every session; the Runtime
 row appears only for coding runtimes, never for in-memory chat agents.
 `References` is the same section documents show: one row per channel message that
 `@`-mentioned or shared the session (sender, channel chip, time, and a two-line
-message excerpt) and per document that mentions it (author and document chip).
-Click a row to open that message or document in a split. The section is hidden
-until at least one reference exists, and only lists channels you belong to.
+message excerpt), per comment on a document, project, CRM record, or call that
+mentions it (sender, parent chip, time, excerpt), and per document that mentions
+it (author and document chip). Click a row to open that message, comment, or
+document in a split; a comment row opens its parent at the comment. The section
+is hidden until at least one reference exists, lists channels you belong to, and
+lists comments only on parents you can view.
 New conversation pages have no disabled session action buttons. Older chats
 also have one header row, and empty chats show a simple conversation prompt
 instead of the standalone recent-sessions and tips surface.

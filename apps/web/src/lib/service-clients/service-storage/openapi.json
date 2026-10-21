@@ -19536,6 +19536,57 @@
           }
         }
       },
+      "ApiAttachmentCommentReference": {
+        "type": "object",
+        "description": "A reference to an attachment entity from a comment on a non-channel entity.",
+        "required": [
+          "parent_entity_type",
+          "parent_entity_id",
+          "message_id",
+          "sender_id",
+          "message_content",
+          "message_created_at",
+          "attachment_created_at"
+        ],
+        "properties": {
+          "attachment_created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the mention or attachment row was created."
+          },
+          "message_content": {
+            "type": "string",
+            "description": "Full message content (might be used for preview/snippet)."
+          },
+          "message_created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the message itself was created."
+          },
+          "message_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Message that contains the reference."
+          },
+          "parent_entity_id": {
+            "type": "string",
+            "description": "Id of the entity the comment belongs to."
+          },
+          "parent_entity_type": {
+            "type": "string",
+            "description": "Stored type of the entity the comment belongs to\n(`document`, `initiative`, `crm_company`, `crm_contact`, or `call`)."
+          },
+          "sender_id": {
+            "type": "string",
+            "description": "Sender of the message."
+          },
+          "thread_id": {
+            "type": ["string", "null"],
+            "format": "uuid",
+            "description": "If the message belongs to a thread this is the parent id."
+          }
+        }
+      },
       "ApiAttachmentEntityReference": {
         "oneOf": [
           {
@@ -19556,6 +19607,25 @@
               }
             ],
             "description": "Referenced from a channel message."
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApiAttachmentCommentReference",
+                "description": "Referenced from a comment on a document, initiative, CRM record, or call."
+              },
+              {
+                "type": "object",
+                "required": ["reference_type"],
+                "properties": {
+                  "reference_type": {
+                    "type": "string",
+                    "enum": ["comment"]
+                  }
+                }
+              }
+            ],
+            "description": "Referenced from a comment on a document, initiative, CRM record, or call."
           },
           {
             "allOf": [
@@ -20953,6 +21023,10 @@
             "$ref": "#/components/schemas/EventType",
             "description": "Provider event type. Skipped when it is the regular type so\nprojections stored before event types were modeled still compare\nequal."
           },
+          "guestPolicy": {
+            "$ref": "#/components/schemas/GuestPolicy",
+            "description": "What the organizer lets guests do. Skipped when it is Google's\ndefault so projections stored before the policy was modeled still\ncompare equal."
+          },
           "icalUid": {
             "type": "string",
             "description": "RFC 5545 UID used to reconcile provider and email sources."
@@ -21026,6 +21100,10 @@
             "type": "string",
             "format": "date-time",
             "description": "Entity update time."
+          },
+          "viewerCan": {
+            "$ref": "#/components/schemas/ViewerCapabilities",
+            "description": "What the viewing requester may do with the event. Resolved only on\nthe read path, alongside each attendee's `is_self`, so stored\nprojections omit it."
           },
           "visibility": {
             "$ref": "#/components/schemas/EventVisibility",
@@ -31036,6 +31114,25 @@
           "displayName": {
             "type": "string",
             "description": "Guest's name, displayed to everyone in the room."
+          }
+        }
+      },
+      "GuestPolicy": {
+        "type": "object",
+        "description": "The switches an organizer sets on an event to bound what its guests may\ndo. Google omits a switch from the payload while it holds its default.",
+        "required": ["canModify", "canInviteOthers", "canSeeOtherGuests"],
+        "properties": {
+          "canInviteOthers": {
+            "type": "boolean",
+            "description": "Whether guests may invite others."
+          },
+          "canModify": {
+            "type": "boolean",
+            "description": "Whether guests may change the event, including its guest list."
+          },
+          "canSeeOtherGuests": {
+            "type": "boolean",
+            "description": "Whether guests may see the guest list."
           }
         }
       },
@@ -42370,6 +42467,39 @@
           }
         ],
         "description": "What happened to a view."
+      },
+      "ViewerCapabilities": {
+        "type": "object",
+        "description": "What the viewing requester may do with an event.",
+        "required": [
+          "editDetails",
+          "inviteGuests",
+          "removeGuests",
+          "setGuestPolicy",
+          "rsvp"
+        ],
+        "properties": {
+          "editDetails": {
+            "type": "boolean",
+            "description": "Change the event's details (title, time, description, conference)."
+          },
+          "inviteGuests": {
+            "type": "boolean",
+            "description": "Add guests."
+          },
+          "removeGuests": {
+            "type": "boolean",
+            "description": "Remove guests."
+          },
+          "rsvp": {
+            "type": "boolean",
+            "description": "Answer the invitation."
+          },
+          "setGuestPolicy": {
+            "type": "boolean",
+            "description": "Change the event's guest policy."
+          }
+        }
       },
       "ViewsResponse": {
         "type": "object",

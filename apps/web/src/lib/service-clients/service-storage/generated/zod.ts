@@ -1013,6 +1013,24 @@ export const listOccurrencesResponse = zod
                 .describe(
                   "Google's event type: ordinary meetings versus the status-style entries\n(working location, out of office, focus time, birthdays) Google renders\nand notifies differently. Immutable at the provider after creation."
                 ),
+              guestPolicy: zod
+                .object({
+                  canInviteOthers: zod
+                    .boolean()
+                    .describe('Whether guests may invite others.'),
+                  canModify: zod
+                    .boolean()
+                    .describe(
+                      'Whether guests may change the event, including its guest list.'
+                    ),
+                  canSeeOtherGuests: zod
+                    .boolean()
+                    .describe('Whether guests may see the guest list.'),
+                })
+                .optional()
+                .describe(
+                  'The switches an organizer sets on an event to bound what its guests may\ndo. Google omits a switch from the payload while it holds its default.'
+                ),
               icalUid: zod
                 .string()
                 .describe(
@@ -1225,6 +1243,22 @@ export const listOccurrencesResponse = zod
                 .enum(['opaque', 'transparent'])
                 .describe('Whether an event blocks availability.'),
               updatedAt: zod.iso.datetime({}).describe('Entity update time.'),
+              viewerCan: zod
+                .object({
+                  editDetails: zod
+                    .boolean()
+                    .describe(
+                      "Change the event's details (title, time, description, conference)."
+                    ),
+                  inviteGuests: zod.boolean().describe('Add guests.'),
+                  removeGuests: zod.boolean().describe('Remove guests.'),
+                  rsvp: zod.boolean().describe('Answer the invitation.'),
+                  setGuestPolicy: zod
+                    .boolean()
+                    .describe("Change the event's guest policy."),
+                })
+                .optional()
+                .describe('What the viewing requester may do with an event.'),
               visibility: zod
                 .enum(['default', 'public', 'private', 'confidential'])
                 .describe('Visibility of event details.'),
@@ -3383,6 +3417,49 @@ export const getAttachmentReferencesResponse = zod
                 })
               )
               .describe('Referenced from a channel message.'),
+            zod
+              .object({
+                attachment_created_at: zod.iso
+                  .datetime({})
+                  .describe('When the mention or attachment row was created.'),
+                message_content: zod
+                  .string()
+                  .describe(
+                    'Full message content (might be used for preview\/snippet).'
+                  ),
+                message_created_at: zod.iso
+                  .datetime({})
+                  .describe('When the message itself was created.'),
+                message_id: zod
+                  .uuid()
+                  .describe('Message that contains the reference.'),
+                parent_entity_id: zod
+                  .string()
+                  .describe('Id of the entity the comment belongs to.'),
+                parent_entity_type: zod
+                  .string()
+                  .describe(
+                    'Stored type of the entity the comment belongs to\n(`document`, `initiative`, `crm_company`, `crm_contact`, or `call`).'
+                  ),
+                sender_id: zod.string().describe('Sender of the message.'),
+                thread_id: zod
+                  .uuid()
+                  .nullish()
+                  .describe(
+                    'If the message belongs to a thread this is the parent id.'
+                  ),
+              })
+              .describe(
+                'A reference to an attachment entity from a comment on a non-channel entity.'
+              )
+              .and(
+                zod.object({
+                  reference_type: zod.enum(['comment']),
+                })
+              )
+              .describe(
+                'Referenced from a comment on a document, initiative, CRM record, or call.'
+              ),
             zod
               .object({
                 created_at: zod.iso
