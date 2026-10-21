@@ -197,7 +197,8 @@ agent-client-protocol = { git = "https://github.com/agentclientprotocol/rust-sdk
   "unstable_elicitation",
 ] }
 arboard = { version = "3.6.1", default-features = false, features = ["wayland-data-control"] }
-askama = "0.14"
+# Templates use built-in defaults; omit the unused config parser and basic-toml.
+askama = { version = "0.14", default-features = false, features = ["derive", "std", "urlencode"] }
 async-graphql = "7.2.1"
 async-lock = "3"
 async-openai = { version = "0.36.1", features = [
@@ -457,8 +458,17 @@ serde_urlencoded = "0.7.1"
 strum_macros = "0.27.1"
 unicode-segmentation = "1.9.0"
 url = "2.5.0"
-zip = "=2.4.2"
-ammonia = "4.1.7"
+zip = { version = "9.0.5", default-features = false, features = [
+  "aes-crypto",
+  "bzip2",
+  "deflate",
+  "deflate64",
+  "lzma",
+  "time",
+  "xz",
+  "zstd",
+] }
+ammonia = "4.1.8"
 html-escape = "0.2"
 subtle = "2.6.1"
 

@@ -7,6 +7,8 @@
  * `import_updated`; polling remains as the backstop (pushes can be missed
  * while reconnecting), tightening while anything is in flight.
  */
+
+import { fireAndForget } from '@core/util/fireAndForget';
 import { throwOnErr } from '@core/util/result';
 import { queryClient } from '@queries/client';
 import {
@@ -76,7 +78,7 @@ function importStateQueryOptions() {
 export function useImportQuery() {
   createConnectionWebsocketEffect((message) => {
     if (message.type !== IMPORT_UPDATED_MESSAGE_TYPE) return;
-    void invalidateImportState();
+    fireAndForget(invalidateImportState(), 'import-state');
   });
 
   return useQuery(() => importStateQueryOptions());
@@ -102,7 +104,7 @@ export function useRunImportMutation() {
           discard_ids: args.discardIds,
         })
       ),
-    onSuccess: () => void invalidateImportState(),
+    onSuccess: () => fireAndForget(invalidateImportState(), 'import-state'),
   }));
 }
 
@@ -115,7 +117,7 @@ export function useDiscoverMutation(): UseMutationResult<
   return useMutation(() => ({
     mutationFn: (source: ImportSource) =>
       throwOnErr(() => importClient.discover(source)),
-    onSuccess: () => void invalidateImportState(),
+    onSuccess: () => fireAndForget(invalidateImportState(), 'import-state'),
   }));
 }
 

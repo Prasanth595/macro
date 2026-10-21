@@ -42,6 +42,10 @@ type ToolParserMap = {
     call: types.ContentSearch;
     response: types.SearchToolResponse;
   };
+  CreateAgentSession: {
+    call: types.CreateAgentSession;
+    response: types.DispatchedCodingAgent;
+  };
   CreateBookingLink: {
     call: types.CreateBookingLink;
     response: types.BookingLinkResult;
@@ -298,6 +302,10 @@ type ToolParserMap = {
     response: types.ListTeamMembersResponse;
   };
   LoadTools: { call: types.LoadTools; response: types.LoadToolsResponse };
+  ManageAgentSession: {
+    call: types.ManageAgentSession;
+    response: types.SessionActionResult;
+  };
   ManageBotChannelAccess: {
     call: types.ManageBotChannelAccess;
     response: types.ManageBotChannelAccessResponse;
@@ -339,6 +347,14 @@ type ToolParserMap = {
   ReadActivity: {
     call: types.ReadActivity;
     response: types.ReadActivityResponse;
+  };
+  ReadAgentSession: {
+    call: types.ReadAgentSession;
+    response: types.SessionConversation;
+  };
+  ReadAgentSessionSharing: {
+    call: types.ReadAgentSessionSharing;
+    response: types.SessionSharingResponse;
   };
   ReadBookingSettings: {
     call: types.ReadBookingSettings;
@@ -466,6 +482,10 @@ type ToolParserMap = {
     call: types.TextEditorCodeExecution;
     response: types.TextEditorCodeExecutionResponse;
   };
+  UpdateAgentSessionSharing: {
+    call: types.UpdateAgentSessionSharing;
+    response: types.SessionSharingResponse;
+  };
   UpdateBookingSettings: {
     call: types.UpdateBookingSettings;
     response: types.BookingSettingsResult;
@@ -537,6 +557,10 @@ const toolParserMap = {
   ContentSearch: {
     call: schemas.ContentSearch,
     response: schemas.SearchToolResponse,
+  },
+  CreateAgentSession: {
+    call: schemas.CreateAgentSession,
+    response: schemas.DispatchedCodingAgent,
   },
   CreateBookingLink: {
     call: schemas.CreateBookingLink,
@@ -821,6 +845,10 @@ const toolParserMap = {
     response: schemas.ListTeamMembersResponse,
   },
   LoadTools: { call: schemas.LoadTools, response: schemas.LoadToolsResponse },
+  ManageAgentSession: {
+    call: schemas.ManageAgentSession,
+    response: schemas.SessionActionResult,
+  },
   ManageBotChannelAccess: {
     call: schemas.ManageBotChannelAccess,
     response: schemas.ManageBotChannelAccessResponse,
@@ -868,6 +896,14 @@ const toolParserMap = {
   ReadActivity: {
     call: schemas.ReadActivity,
     response: schemas.ReadActivityResponse,
+  },
+  ReadAgentSession: {
+    call: schemas.ReadAgentSession,
+    response: schemas.SessionConversation,
+  },
+  ReadAgentSessionSharing: {
+    call: schemas.ReadAgentSessionSharing,
+    response: schemas.SessionSharingResponse,
   },
   ReadBookingSettings: {
     call: schemas.ReadBookingSettings,
@@ -1016,6 +1052,10 @@ const toolParserMap = {
     call: schemas.TextEditorCodeExecution,
     response: schemas.TextEditorCodeExecutionResponse,
   },
+  UpdateAgentSessionSharing: {
+    call: schemas.UpdateAgentSessionSharing,
+    response: schemas.SessionSharingResponse,
+  },
   UpdateBookingSettings: {
     call: schemas.UpdateBookingSettings,
     response: schemas.BookingSettingsResult,
@@ -1098,6 +1138,10 @@ type ToolDataMap = {
   ContentSearch: {
     call: types.ContentSearch;
     response: types.SearchToolResponse;
+  };
+  CreateAgentSession: {
+    call: types.CreateAgentSession;
+    response: types.DispatchedCodingAgent;
   };
   CreateBookingLink: {
     call: types.CreateBookingLink;
@@ -1355,6 +1399,10 @@ type ToolDataMap = {
     response: types.ListTeamMembersResponse;
   };
   LoadTools: { call: types.LoadTools; response: types.LoadToolsResponse };
+  ManageAgentSession: {
+    call: types.ManageAgentSession;
+    response: types.SessionActionResult;
+  };
   ManageBotChannelAccess: {
     call: types.ManageBotChannelAccess;
     response: types.ManageBotChannelAccessResponse;
@@ -1396,6 +1444,14 @@ type ToolDataMap = {
   ReadActivity: {
     call: types.ReadActivity;
     response: types.ReadActivityResponse;
+  };
+  ReadAgentSession: {
+    call: types.ReadAgentSession;
+    response: types.SessionConversation;
+  };
+  ReadAgentSessionSharing: {
+    call: types.ReadAgentSessionSharing;
+    response: types.SessionSharingResponse;
   };
   ReadBookingSettings: {
     call: types.ReadBookingSettings;
@@ -1522,6 +1578,10 @@ type ToolDataMap = {
   TextEditorCodeExecution: {
     call: types.TextEditorCodeExecution;
     response: types.TextEditorCodeExecutionResponse;
+  };
+  UpdateAgentSessionSharing: {
+    call: types.UpdateAgentSessionSharing;
+    response: types.SessionSharingResponse;
   };
   UpdateBookingSettings: {
     call: types.UpdateBookingSettings;

@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { Show, Suspense } from 'solid-js';
 import { match } from 'ts-pattern';
 import { useReview, useReviewActions } from '../queries/reviews';
@@ -26,7 +27,7 @@ export function PersistedReview(props: {
           <button
             type="button"
             class="underline"
-            onClick={() => void query.refetch()}
+            onClick={() => fireAndForget(query.refetch(), 'agent-reviews')}
           >
             Retry
           </button>
