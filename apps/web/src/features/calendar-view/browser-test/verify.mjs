@@ -132,15 +132,15 @@ async function verifyMonthControlFocus(control) {
   assert.notEqual(style.background, 'rgba(0, 0, 0, 0)', `Keyboard focus must retain background feedback: ${await control.getAttribute('aria-label')}`);
 }
 
-async function verifyDateRange(page, monthCount) {
+async function verifyDateRange(page, monthCount, mode = 'single') {
   const trigger = page.getByRole('button', { name: 'Edit event date and time range', exact: true });
   const picker = page.getByRole('dialog', { name: 'Event date and time', exact: true });
   const state = async () => JSON.parse(await page.getByLabel('Draft date range', { exact: true }).innerText());
   const day = (month, number) => picker.locator('table').nth(month).locator('button:not(:disabled)').filter({ hasText: new RegExp(`^${number}$`) });
   const before = await state();
   await trigger.click();
-  const initialMonths = before.start.slice(0, 10) === before.end.slice(0, 10) ? 1 : monthCount;
-  assert.equal(await picker.locator('table').count(), initialMonths, 'A same-day range shows one calendar');
+  const initialMonths = mode === 'single' ? 1 : monthCount;
+  assert.equal(await picker.locator('table').count(), initialMonths, 'Same-day events show one month; multi-day events show connected months');
   const portal = await picker.evaluate((element) => ({
     global: !element.closest('[aria-label="New event"], [aria-label="Edit event"], [data-corvu-drawer-content]'),
     depth: element.closest('[data-depth]')?.getAttribute('data-depth'),
@@ -208,15 +208,25 @@ async function verifyDateRange(page, monthCount) {
   await verifyMonthControlFocus(picker.getByRole('button', { name: 'Go to next month', exact: true }));
   assert.deepEqual(await state(), before);
   await day(0, 30).click();
-  assert.deepEqual(await state(), before, 'A partial range must not change the event dates');
-  assert.match(await picker.getByRole('status').innerText(), /Oct 30, 2030/);
-  assert.match(await picker.getByRole('status').innerText(), /Select an end date/);
-  if (initialMonths === 1) await picker.getByRole('button', { name: 'Go to next month', exact: true }).click();
-  await day(initialMonths - 1, 2).click();
-  assert.equal(await picker.locator('table').count(), monthCount, 'Multiple days use connected months on desktop');
-  if (monthCount === 2 && page.viewportSize().width >= 640) {
-    const panels = await picker.locator('table').evaluateAll((tables) => tables.map((table) => ({ x: table.getBoundingClientRect().x, y: table.getBoundingClientRect().y })));
-    assert.ok(Math.abs(panels[0].y - panels[1].y) < 1 && panels[1].x > panels[0].x, 'The sidebar must not force month panels into a vertical stack');
+  if (mode === 'single') {
+    assert.deepEqual(await state(), { start: `2030-10-30${before.start.slice(10)}`, end: `2030-10-30${before.end.slice(10)}`, allDay: false }, 'Every single-day click publishes both dates and preserves both times');
+    assert.doesNotMatch(await picker.getByRole('status').innerText(), /Select an end date/);
+    await day(0, 31).click();
+    assert.deepEqual(await state(), { start: `2030-10-31${before.start.slice(10)}`, end: `2030-10-31${before.end.slice(10)}`, allDay: false }, 'A second single-day click must move both endpoints');
+    await picker.getByRole('button', { name: 'Go to next month', exact: true }).click();
+    await day(0, 2).click();
+    assert.equal(await picker.locator('table').count(), 1, 'Single-day selection stays in one-month mode');
+  } else {
+    assert.deepEqual(await state(), before, 'A partial multi-day range must not change the event dates');
+    assert.match(await picker.getByRole('status').innerText(), /Oct 30, 2030/);
+    assert.match(await picker.getByRole('status').innerText(), /Select an end date/);
+    if (initialMonths === 1) await picker.getByRole('button', { name: 'Go to next month', exact: true }).click();
+    await day(initialMonths - 1, 2).click();
+    assert.equal(await picker.locator('table').count(), monthCount, 'Multiple days use connected months on desktop');
+    if (monthCount === 2 && page.viewportSize().width >= 640) {
+      const panels = await picker.locator('table').evaluateAll((tables) => tables.map((table) => ({ x: table.getBoundingClientRect().x, y: table.getBoundingClientRect().y })));
+      assert.ok(Math.abs(panels[0].y - panels[1].y) < 1 && panels[1].x > panels[0].x, 'The sidebar must not force month panels into a vertical stack');
+    }
   }
   const geometry = await picker.evaluate((element) => {
     const tables = Array.from(element.querySelectorAll('table'), (table) => table.getBoundingClientRect());
@@ -235,13 +245,14 @@ async function verifyDateRange(page, monthCount) {
     assert.ok(geometry.start.y >= geometry.calendarBottom && Math.abs(geometry.start.y - geometry.end.y) < 1, 'Narrow pickers keep time controls side by side below the calendars');
   }
   const selected = await state();
-  assert.equal(selected.start, `2030-10-30${before.start.slice(10)}`);
+  const selectedDate = mode === 'single' ? '2030-11-02' : '2030-10-30';
+  assert.equal(selected.start, `${selectedDate}${before.start.slice(10)}`);
   assert.equal(selected.end, `2030-11-02${before.end.slice(10)}`);
   const summary = await picker.getByRole('status').innerText();
-  assert.match(summary, /Oct 30, 2030/);
+  assert.match(summary, mode === 'single' ? /Nov 2, 2030/ : /Oct 30, 2030/);
   assert.match(summary, /Nov 2, 2030/);
-  assert.ok(await picker.locator('[data-in-range]').count() >= 2, 'The connected range must stay highlighted across months');
-  if (monthCount === 2) {
+  assert.ok(await picker.locator('[data-in-range]').count() >= (mode === 'single' ? 1 : 2), 'Selected days must stay highlighted');
+  if (mode === 'multi' && monthCount === 2) {
     for (const table of await picker.locator('table').all()) {
       assert.ok(await table.locator('[data-in-range]').count() > 0, 'Both months must highlight the same selected range');
     }
@@ -253,29 +264,92 @@ async function verifyDateRange(page, monthCount) {
   assert.equal(await page.evaluate(() => document.activeElement.textContent.trim()), '1', 'Keyboard navigation must cross the month boundary');
   assert.deepEqual(await state(), selected, 'Keyboard navigation must not change the selected range');
   await picker.getByLabel('Start time', { exact: true }).fill('10:15');
-  await picker.getByLabel('End time', { exact: true }).fill('12:30');
-  assert.deepEqual(await state(), { start: '2030-10-30T10:15', end: '2030-11-02T12:30', allDay: false });
-  await page.getByRole('dialog', { name: 'Choose start time', exact: true }).waitFor({ state: 'detached' });
-  await page.getByRole('dialog', { name: 'Choose end time', exact: true }).getByRole('listbox').waitFor();
+  await page.getByRole('dialog', { name: 'Choose start time', exact: true }).waitFor();
   await page.keyboard.press('Escape');
-  await page.getByRole('listbox').waitFor({ state: 'detached' });
-  assert.equal(await picker.isVisible(), true, 'Dismissing the time list must keep the range picker open');
+  await page.getByRole('dialog', { name: 'Choose start time', exact: true }).waitFor({ state: 'detached' });
+  assert.equal(await picker.isVisible(), true, 'Escape from the start time list must keep the date picker open');
+  const pickerSize = await picker.evaluate((element) => ({
+    box: element.getBoundingClientRect().toJSON(),
+    scrollWidth: element.scrollWidth,
+    scrollHeight: element.scrollHeight,
+    contentWidth: element.querySelector('.overflow-y-auto').scrollWidth,
+    contentHeight: element.querySelector('.overflow-y-auto').scrollHeight,
+    documentWidth: document.documentElement.scrollWidth,
+    documentHeight: document.documentElement.scrollHeight,
+  }));
+  await picker.getByLabel('End time', { exact: true }).fill('12:30');
+  assert.deepEqual(await state(), { start: `${selectedDate}T10:15`, end: '2030-11-02T12:30', allDay: false });
+  const timeMenu = page.getByRole('dialog', { name: 'Choose end time', exact: true });
+  await timeMenu.getByRole('listbox').waitFor();
+  assert.equal(await timeMenu.evaluate((element) => document.querySelector('input[id^="composer-end-time-"]')?.closest('[role="dialog"]')?.contains(element) === false && element.closest('[data-depth]')?.getAttribute('data-depth') === '4'), true, 'Time dropdown must portal globally at depth 4');
+  const expandedSize = await picker.evaluate((element) => ({
+    box: element.getBoundingClientRect().toJSON(),
+    scrollWidth: element.scrollWidth,
+    scrollHeight: element.scrollHeight,
+    contentWidth: element.querySelector('.overflow-y-auto').scrollWidth,
+    contentHeight: element.querySelector('.overflow-y-auto').scrollHeight,
+    documentWidth: document.documentElement.scrollWidth,
+    documentHeight: document.documentElement.scrollHeight,
+  }));
+  assert.deepEqual(expandedSize, pickerSize, 'Opening a global time dropdown must not change picker bounds or page scroll size');
+  const outsideIndex = await timeMenu.getByRole('option').evaluateAll((options) => {
+    const picker = document.querySelector('input[id^="composer-end-time-"]')?.closest('[role="dialog"]')?.getBoundingClientRect();
+    if (!picker) return -1;
+    return options.findIndex((option) => {
+      const box = option.getBoundingClientRect();
+      return box.width > 0 && box.height > 0 && box.left >= 0 && box.right <= innerWidth && box.top >= 0 && box.bottom <= innerHeight &&
+        (box.right <= picker.left || box.left >= picker.right || box.bottom <= picker.top || box.top >= picker.bottom);
+    });
+  });
+  assert.ok(outsideIndex >= 0, 'A time option outside picker bounds must stay visible');
+  const outsideOption = timeMenu.getByRole('option').nth(outsideIndex);
+  await outsideOption.click();
+  await timeMenu.waitFor({ state: 'detached' });
+  assert.equal(await picker.isVisible(), true, 'Clicking a global time option must keep the date picker open');
+  await picker.getByLabel('End time', { exact: true }).fill('12:30');
+  await timeMenu.waitFor();
+  await page.keyboard.press('Escape');
+  await timeMenu.waitFor({ state: 'detached' });
+  assert.equal(await picker.isVisible(), true, 'Escape must dismiss only the time dropdown');
+  assert.deepEqual(await state(), { start: `${selectedDate}T10:15`, end: '2030-11-02T12:30', allDay: false });
   await page.screenshot({ path: `/tmp/calendar-range-picker-${page.viewportSize().width}.png` });
   assert.equal(await page.getByRole('button', { name: 'Discard', exact: true }).count(), 0);
   await page.keyboard.press('Escape');
   await picker.waitFor({ state: 'detached' });
   assert.equal(await page.getByLabel('Title', { exact: true }).isVisible(), true);
   assert.equal(await page.getByRole('button', { name: 'Discard', exact: true }).count(), 0, 'Dismissing the range picker must keep the editor open');
-  assert.match(await trigger.innerText(), /Oct 30, 2030/);
+  assert.match(await trigger.innerText(), mode === 'single' ? /Nov 2, 2030/ : /Oct 30, 2030/);
   assert.match(await trigger.innerText(), /Nov 2, 2030/);
   await trigger.click();
   await picker.getByText('All day', { exact: true }).click();
-  assert.deepEqual(await state(), { start: '2030-10-30', end: '2030-11-02', allDay: true });
+  assert.deepEqual(await state(), { start: selectedDate, end: '2030-11-02', allDay: true });
   assert.equal(await picker.getByLabel('Start time', { exact: true }).isDisabled(), true);
   assert.equal(await picker.getByLabel('End time', { exact: true }).isDisabled(), true);
   await picker.getByText('All day', { exact: true }).click();
   await page.keyboard.press('Escape');
   await picker.waitFor({ state: 'detached' });
+}
+
+async function verifyLockedEndpoints(page) {
+  for (const [query, locked, moving] of [
+    ['lock-start', 'start', 'end'],
+    ['lock-end', 'end', 'start'],
+  ]) {
+    await openFixture(page, `?${query}`);
+    await page.getByRole('button', { name: 'Edit example event', exact: true }).click();
+    const state = async () => JSON.parse(await page.getByLabel('Draft date range', { exact: true }).innerText());
+    const before = await state();
+    await page.getByRole('button', { name: 'Edit event date and time range', exact: true }).click();
+    const picker = page.getByRole('dialog', { name: 'Event date and time', exact: true });
+    assert.equal(await picker.getByLabel(`${locked === 'start' ? 'Start' : 'End'} time`, { exact: true }).count(), 0);
+    const selectedDay = moving === 'start' ? 20 : 23;
+    await picker.locator('table').first().locator('button:not(:disabled)').filter({ hasText: new RegExp(`^${selectedDay}$`) }).click();
+    const after = await state();
+    assert.equal(after[locked], before[locked], `Locked ${locked} endpoint must not move`);
+    assert.equal(after[moving], `2030-10-${selectedDay}${before[moving].slice(10)}`, `Unlocked ${moving} endpoint must keep its time`);
+    assert.ok(after.start < after.end, 'The locked-endpoint edit must retain a valid time range');
+    assert.equal(await picker.isVisible(), true);
+  }
 }
 
 async function verifyCalendarColors(page) {
@@ -579,6 +653,12 @@ async function verifyDesktop(options, name) {
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();
     await title.waitFor({ state: 'detached' });
 
+    await page.getByRole('button', { name: 'Edit multi-day event', exact: true }).click();
+    await title.waitFor();
+    await verifyDateRange(page, 2, 'multi');
+    await page.getByRole('button', { name: 'Close event editor', exact: true }).click();
+    await page.getByRole('button', { name: 'Discard', exact: true }).click();
+    await title.waitFor({ state: 'detached' });
     await page.getByRole('button', { name: 'Edit example event', exact: true }).click();
     await title.waitFor();
     assert.equal(await title.inputValue(), 'Weekly design review');
@@ -692,6 +772,12 @@ async function verifyMobile() {
     const submitted = JSON.parse(await page.getByLabel('Saved event', { exact: true }).innerText());
     assert.equal(submitted.values.location, 'Phone studio');
     assert.equal(submitted.scope, 'all');
+    await page.getByRole('button', { name: 'Edit multi-day event', exact: true }).click();
+    await title.waitFor();
+    await verifyDateRange(page, 1, 'multi');
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await page.getByRole('button', { name: 'Discard', exact: true }).click();
+    await title.waitFor({ state: 'detached' });
     await verifyPendingSave(page);
     assert.deepEqual(errors, []);
     results.push('phone: one-month connected range, start/end times, All day, keyboard navigation, full-height create/edit sheet, recurrence, and discard protection passed');
@@ -706,7 +792,7 @@ async function verifyNarrowDatePicker() {
     const page = await context.newPage();
     page.setDefaultTimeout(60000);
     await openFixture(page);
-    await page.getByRole('button', { name: 'Select 10 AM', exact: true }).click();
+    await page.getByRole('button', { name: 'Edit multi-day event', exact: true }).click();
     await page.getByRole('button', { name: 'Edit event date and time range', exact: true }).click();
     const picker = page.getByRole('dialog', { name: 'Event date and time', exact: true });
     await picker.locator('table').first().locator('button').filter({ hasText: /^20$/ }).click();
@@ -723,6 +809,10 @@ async function verifyNarrowDatePicker() {
     await page.screenshot({ path: '/tmp/calendar-range-picker-stacked.png' });
     await page.keyboard.press('Escape');
     await picker.waitFor({ state: 'detached' });
+    await verifyDateRange(page, 2, 'multi');
+    await page.getByRole('button', { name: 'Close event editor', exact: true }).click();
+    await page.getByRole('button', { name: 'Discard', exact: true }).click();
+    await page.getByRole('button', { name: 'Select 10 AM', exact: true }).click();
     await verifyDateRange(page, 2);
     results.push('narrow desktop: stacked connected months, live summary, selection, and time controls passed');
   } finally {
@@ -869,6 +959,15 @@ try {
   } else {
     await verifyGridSelection();
     if (!process.argv.includes('--grid-only')) {
+      const lockedContext = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 1440, height: 1000 } });
+      try {
+        const lockedPage = await lockedContext.newPage();
+        lockedPage.setDefaultTimeout(60000);
+        await verifyLockedEndpoints(lockedPage);
+        results.push('locked endpoints: only the unlocked date moves, preserving both times');
+      } finally {
+        await lockedContext.close();
+      }
       await verifyDesktop({ viewport: { width: 1440, height: 1000 } }, 'desktop');
       await verifyDesktop({ viewport: { width: 1024, height: 900 }, hasTouch: true }, 'tablet');
       await verifyShortCalendarDatePicker(550);

@@ -82,6 +82,13 @@ const exampleEvent: CalendarEvent = {
   },
   visibleCalendars: [],
 };
+const multiDayEvent: CalendarEvent = {
+  ...exampleEvent,
+  id: 'fixture-multi-day-occurrence',
+  eventId: 'fixture-multi-day-event',
+  title: 'Multi-day review',
+  end: '2030-10-23T11:00:00',
+};
 function FixtureRouter() {
   const calendar = defineRoute({
     id: 'calendar',
@@ -174,6 +181,17 @@ function Fixture() {
     });
   };
 
+  const openMultiDay = () => {
+    grid()?.api()?.gotoDate(new Date(multiDayEvent.start));
+    const element = grid()?.eventElements.get(multiDayEvent.id);
+    composer.open({
+      event: multiDayEvent,
+      anchor: element
+        ? { element, rect: element.getBoundingClientRect() }
+        : undefined,
+    });
+  };
+
   return (
     <div class="flex h-dvh flex-col bg-page p-4 text-ink">
       <ImperativeDialogHost />
@@ -228,12 +246,18 @@ function Fixture() {
               Select another timeslot
             </Button>
             <Button onClick={openExample}>Edit example event</Button>
+            <Button onClick={openMultiDay}>Edit multi-day event</Button>
           </div>
           <div class="min-h-0 flex-1">
             <CalendarGrid
               initialDate={new Date('2030-10-21T10:00:00')}
-              events={[exampleEvent]}
-              eventsById={new Map([[exampleEvent.id, exampleEvent]])}
+              events={[exampleEvent, multiDayEvent]}
+              eventsById={
+                new Map([
+                  [exampleEvent.id, exampleEvent],
+                  [multiDayEvent.id, multiDayEvent],
+                ])
+              }
               draft={draftPreview()}
               settings={{
                 initialView: 'timeGridWeek',
@@ -397,6 +421,12 @@ function FixtureEditor(props: {
                 guests: true,
                 conference: true,
                 reminders: true,
+                ...(new URLSearchParams(location.search).has('lock-start') && {
+                  start: true,
+                }),
+                ...(new URLSearchParams(location.search).has('lock-end') && {
+                  end: true,
+                }),
               }
             : undefined
         }
