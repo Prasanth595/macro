@@ -1,4 +1,5 @@
 import { WorkspaceTexture } from '@app/components/WorkspaceTexture';
+import { ENTITY_ICON_CONFIGS } from '@core/component/EntityIcon';
 import { cn, Hotkey } from '@ui';
 import { createEffect, createUniqueId, For, on, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
@@ -134,6 +135,7 @@ export function LauncherDetails(props: {
         <div
           class={cn(
             'relative isolate min-w-0 flex-1 overflow-hidden',
+            ENTITY_ICON_CONFIGS[selected()?.blockName ?? 'default'].foreground,
             props.detailsLeft
               ? 'border-r border-edge-divider'
               : 'border-l border-edge-divider'
@@ -144,10 +146,10 @@ export function LauncherDetails(props: {
             class="pointer-events-none absolute inset-0 -z-10"
             style={{
               background:
-                'radial-gradient(ellipse at center, color-mix(in srgb, var(--color-accent) 14%, transparent), transparent 72%)',
+                'radial-gradient(ellipse at center, color-mix(in srgb, currentColor 14%, transparent), transparent 72%)',
             }}
           />
-          <WorkspaceTexture accent="var(--color-accent)" filterId={textureId} />
+          <WorkspaceTexture accent="currentColor" filterId={textureId} />
           <div class="relative h-full overflow-y-auto">
             <Show when={selected()}>
               {(item) => (
@@ -155,7 +157,7 @@ export function LauncherDetails(props: {
                   aria-label={`${item().label} details`}
                   class="flex min-h-full flex-col items-center justify-center px-5 py-6 text-center sm:px-7"
                 >
-                  <div class="mb-6 flex size-18 shrink-0 items-center justify-center rounded-[22px] border border-ink/10 bg-linear-145 from-ink/[0.09] to-ink/[0.02] text-accent shadow-[inset_0_1px_0_0_rgb(255_255_255/0.06),0_2px_8px_-2px_rgb(0_0_0/0.25)]">
+                  <div class="mb-6 flex size-18 shrink-0 items-center justify-center rounded-[22px] border border-ink/10 bg-linear-145 from-ink/[0.09] to-ink/[0.02] shadow-[inset_0_1px_0_0_rgb(255_255_255/0.06),0_2px_8px_-2px_rgb(0_0_0/0.25)]">
                     <div class="size-8 [&_svg]:size-full">
                       <Dynamic component={item().icon} />
                     </div>
