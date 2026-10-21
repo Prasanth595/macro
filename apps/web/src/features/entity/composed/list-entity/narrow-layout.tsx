@@ -54,14 +54,26 @@ export function NarrowLayout(props: LayoutProps) {
         class="ph-no-capture flex items-center gap-2 truncate font-semibold"
       >
         <div class="size-4 shrink-0">
-          <Entity.Icon entity={props.entity} streamState={props.streamState} />
+          <Show
+            when={props.icon}
+            fallback={
+              <Entity.Icon
+                entity={props.entity}
+                streamState={props.streamState}
+              />
+            }
+          >
+            {props.icon}
+          </Show>
         </div>
+        {props.titleLeading}
         <Show
           when={isChannelMessageEntity(props.entity) && props.entity}
           fallback={<Entity.Title entity={props.entity} />}
         >
           {(entity) => <ChannelMessageSingleLine entity={entity()} />}
         </Show>
+        {props.titleTrailing}
         <Show when={isEmailEntity(props.entity) && props.entity}>
           {(entity) => <EmailInboxChip entity={entity()} class="ml-auto" />}
         </Show>

@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { throwOnErr } from '@core/util/result';
 import { queryClient } from '@queries/client';
 import { type MutationCallbacks, withCallbacks } from '@queries/utils';
@@ -15,7 +16,7 @@ import type { CalendarEventSourceContent } from '@service-storage/generated/sche
 import type { CalendarOccurrenceItem } from '@service-storage/generated/schemas/calendarOccurrenceItem';
 import type { EventTime } from '@service-storage/generated/schemas/eventTime';
 import { useMutation } from '@tanstack/solid-query';
-import { graphqlCalendarHost } from './graphql/flag';
+import { answeringGraphqlCalendarHost } from './graphql/flag';
 import {
   committedEvent,
   executeGraphqlCreate,
@@ -256,7 +257,7 @@ export function useRsvpCalendarEventMutation(callbacks?: RsvpCallbacks) {
   return useMutation(() => ({
     mutationKey: RSVP_MUTATION_KEY,
     mutationFn: async (args: RsvpCalendarEventArgs) => {
-      const host = graphqlCalendarHost();
+      const host = answeringGraphqlCalendarHost();
       if (host) return committedEvent(await executeGraphqlRsvp(host, args));
       return await throwOnErr(() =>
         emailClient.rsvpCalendarEvent(args.eventId, {
@@ -328,7 +329,7 @@ export function useRsvpCalendarEventMutation(callbacks?: RsvpCallbacks) {
           if (queryClient.isMutating({ mutationKey: RSVP_MUTATION_KEY }) > 1) {
             return;
           }
-          void invalidateCalendarInvitations();
+          fireAndForget(invalidateCalendarInvitations(), 'calendar-mutations');
           invalidateCalendarEventPreviews(args.eventId);
           return invalidateCalendarOccurrences();
         },
@@ -437,7 +438,7 @@ type DeleteCallbacks = MutationCallbacks<
 export function useDeleteCalendarEventMutation(callbacks?: DeleteCallbacks) {
   return useMutation(() => ({
     mutationFn: async (args: DeleteCalendarEventArgs) => {
-      const host = graphqlCalendarHost();
+      const host = answeringGraphqlCalendarHost();
       if (host) {
         await executeGraphqlDelete(host, args);
         return;
@@ -461,7 +462,7 @@ export function useDeleteCalendarEventMutation(callbacks?: DeleteCallbacks) {
           patchOccurrenceCaches((items) => applyDeletion(items, args)),
         onError: (_error, _args, context) => context?.rollback(),
         onSettled: (_data, _error, args) => {
-          void invalidateCalendarInvitations();
+          fireAndForget(invalidateCalendarInvitations(), 'calendar-mutations');
           invalidateCalendarEventPreviews(args.eventId);
           return invalidateCalendarOccurrences();
         },
@@ -566,7 +567,7 @@ function applyEventPatch(
 export function useUpdateCalendarEventMutation(callbacks?: UpdateCallbacks) {
   return useMutation(() => ({
     mutationFn: async (args: UpdateCalendarEventArgs) => {
-      const host = graphqlCalendarHost();
+      const host = answeringGraphqlCalendarHost();
       if (host) return committedEvent(await executeGraphqlUpdate(host, args));
       return await throwOnErr(() =>
         emailClient.updateCalendarEvent(args.eventId, {
@@ -598,7 +599,7 @@ export function useUpdateCalendarEventMutation(callbacks?: UpdateCallbacks) {
         },
         onError: (_error, _args, context) => context?.rollback(),
         onSettled: (_data, _error, args) => {
-          void invalidateCalendarInvitations();
+          fireAndForget(invalidateCalendarInvitations(), 'calendar-mutations');
           invalidateCalendarEventPreviews(args.eventId);
           return invalidateCalendarOccurrences();
         },
@@ -625,7 +626,7 @@ type CreateCallbacks = MutationCallbacks<
 export function useCreateCalendarEventMutation(callbacks?: CreateCallbacks) {
   return useMutation(() => ({
     mutationFn: async (args: CreateCalendarEventRequest) => {
-      if (graphqlCalendarHost())
+      if (answeringGraphqlCalendarHost())
         return (await executeGraphqlCreate(args)).event;
       return await throwOnErr(() => emailClient.createCalendarEvent(args));
     },

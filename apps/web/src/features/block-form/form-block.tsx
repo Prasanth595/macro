@@ -7,6 +7,7 @@
  */
 
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
+import { HeaderActionButton } from '@components/app/HeaderActionButton';
 import { ResponsivePermissionsBadge } from '@components/app/ResponsiveBlockToolbar';
 import { HeaderIsland } from '@components/app/split-layout/components/HeaderIsland';
 import {
@@ -25,8 +26,8 @@ import { BlockLiveIndicators } from '@core/component/LiveIndicators';
 import { ShareTrigger } from '@core/component/TopBar/ShareButton';
 import { useShareModal } from '@core/component/TopBar/shareModal';
 import { enableForms } from '@core/constant/featureFlags';
-import { useSettingsState } from '@core/constant/SettingsState';
 import { isMobile } from '@core/mobile/isMobile';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { openExternalUrl } from '@core/util/url';
 import { useCopyLink } from '@core/util/useCopyLink';
 import { getWebOrigin } from '@core/util/webOrigin';
@@ -45,8 +46,16 @@ import { createFormShareInput } from './form-global-sharing';
 import { reservePreviewTab } from './form-preview-tab';
 import { createPreview } from './primitives/create-preview';
 import { FormCardView } from './views/form-card-view';
-import { FormPageView } from './views/form-page-view';
+import { type FormHeaderProps, FormPageView } from './views/form-page-view';
 import { RespondView } from './views/respond-view';
+
+function FormHeader(props: FormHeaderProps) {
+  return (
+    <SplitHeaderLeft>
+      <div class="ml-2 min-w-0 max-w-xl shrink">{props.tabs}</div>
+    </SplitHeaderLeft>
+  );
+}
 
 function FormBlockContent(props: {
   respondOnly: boolean;
@@ -54,13 +63,13 @@ function FormBlockContent(props: {
 }) {
   const formId = useBlockId();
   const { replaceOrInsertSplit, insertSplit } = useSplitLayout();
-  const settings = useSettingsState();
   const panel = useSplitPanelOrThrow();
   const context = createAppFormContext({
     openRelated: (destination) =>
       replaceOrInsertSplit({ type: 'database', id: destination.databaseId }),
     openChannel: (channelId) => insertSplit({ type: 'channel', id: channelId }),
-    openCalendarSettings: () => settings.openSettingsInSplit('Booking links'),
+    openCalendarSettings: () =>
+      insertSplit({ type: 'component', id: 'booking-links' }),
   });
   const source = context.createFormSource(
     () => formId,
@@ -81,7 +90,8 @@ function FormBlockContent(props: {
   const link = () => respondLink(`${getWebOrigin()}/app/`, formId);
   // Sharing a form hands out its respond link; editors copy theirs apart.
   const copyEntityLink = useCopyLink();
-  const copyRespondLink = () => void copyEntityLink(link());
+  const copyRespondLink = () =>
+    fireAndForget(copyEntityLink(link()), 'form-share');
   const shareInput = createFormShareInput({
     formId: () => formId,
     detail: source.detail,
@@ -124,10 +134,11 @@ function FormBlockContent(props: {
     <Show
       when={published()}
       fallback={
-        <Button variant="cta" size="sm" onClick={openShare}>
-          <PaperPlaneTilt class="size-3.5" />
-          Publish
-        </Button>
+        <HeaderActionButton
+          label="Publish"
+          icon={<PaperPlaneTilt />}
+          onClick={openShare}
+        />
       }
     >
       <Button variant="outline" size="sm" onClick={openRespond}>
@@ -165,7 +176,7 @@ function FormBlockContent(props: {
                 variant="ghost"
                 size="sm"
                 disabled={preview.opening()}
-                onClick={() => void preview.open()}
+                onClick={() => fireAndForget(preview.open(), 'form-preview')}
               >
                 <Eye class="size-3.5" />
                 Preview
@@ -186,6 +197,7 @@ function FormBlockContent(props: {
         when={props.respondOnly}
         fallback={
           <FormPageView
+            header={FormHeader}
             source={source}
             tab={tab()}
             respondLink={link()}
@@ -223,12 +235,12 @@ function FormBlockContent(props: {
 function FormCardContent() {
   const formId = useBlockId();
   const { insertSplit } = useSplitLayout();
-  const settings = useSettingsState();
   const context = createAppFormContext({
     openRelated: (destination) =>
       insertSplit({ type: 'database', id: destination.databaseId }),
     openChannel: (channelId) => insertSplit({ type: 'channel', id: channelId }),
-    openCalendarSettings: () => settings.openSettingsInSplit('Booking links'),
+    openCalendarSettings: () =>
+      insertSplit({ type: 'component', id: 'booking-links' }),
   });
   const source = context.createFormSource(() => formId);
   const open = () => {

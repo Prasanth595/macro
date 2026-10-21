@@ -45,8 +45,9 @@ use macro_authorization::{
     MacroAuthorizationState, PgUserApiKeyAuthorizationRepo, PgUserApiKeyAuthorizer,
 };
 use macro_service_urls::{
-    AuthServiceUrl, CalendarServiceUrl, ConnectionGatewayUrl, DocumentStorageServiceUrl,
-    EmailServiceUrl, LexicalServiceUrl, StaticFileServiceUrl, SyncServiceUrl,
+    AppServiceUrl, AuthServiceUrl, CalendarServiceUrl, ConnectionGatewayUrl,
+    DocumentStorageServiceUrl, EmailServiceUrl, LexicalServiceUrl, StaticFileServiceUrl,
+    SyncServiceUrl,
 };
 use notification::domain::service::{
     NotificationReaderService, PlatformArnConfig, SqsNotificationIngress,
@@ -256,15 +257,19 @@ pub async fn run() -> anyhow::Result<()> {
         ForeignEntityServiceImpl::new(PgForeignEntityRepo::new(db.clone())),
         PgGithubPullRequestRepo::new(db.clone()),
     );
-    let soup_service = Arc::new(soup::domain::service::SoupImpl::new(
-        soup::outbound::pg_soup_repo::PgSoupRepo::new(ReadOnlyPool(db.clone())),
-        frecency_service,
-        ReadonlyEmailPreviewAdapter(email_service),
-        channels_service,
-        CallRecordQueryServiceImpl::new(PgCallRepo::new(db.clone())),
-        crm::domain::service::NoOpCrmService,
-        github_pull_request_service,
-    ));
+    let favorites_service = ai_tools::build_favorites_service(db.clone());
+    let soup_service = Arc::new(
+        soup::domain::service::SoupImpl::new(
+            soup::outbound::pg_soup_repo::PgSoupRepo::new(ReadOnlyPool(db.clone())),
+            frecency_service,
+            ReadonlyEmailPreviewAdapter(email_service),
+            channels_service,
+            CallRecordQueryServiceImpl::new(PgCallRepo::new(db.clone())),
+            crm::domain::service::NoOpCrmService,
+            github_pull_request_service,
+        )
+        .with_favorites(favorites_service.clone()),
+    );
 
     tracing::info!("initialized soup service");
 
@@ -438,6 +443,14 @@ pub async fn run() -> anyhow::Result<()> {
             db.clone(),
         ))),
         lexical_client.clone(),
+    )
+    .with_attachment_sender(
+        ai_tools::email_attachments::build_email_attachment_sender(
+            user_email_service.clone(),
+            EmailPgRepo::new(db.clone()),
+            document_tool_context.service.clone(),
+        )
+        .await,
     );
 
     tracing::info!("initialized email tool context");
@@ -529,6 +542,21 @@ pub async fn run() -> anyhow::Result<()> {
     // ENABLE_AI_USAGE_BILLING.
     let recorder = ai_usage::with_tracking(recorder, ai_usage::pg_tracking(db.clone()));
 
+    let decision_classifier = config
+        .typesafe_api_key
+        .value()
+        .map(jev::outbound::TypesafeJev::new)
+        .transpose()
+        .context("failed to configure the decision classifier")?
+        .map(|provider| jev::domain::JevClassifier::new(provider, recorder.clone()));
+    let decisions = Arc::new(jev::domain::decisions::DecisionServiceImpl::new(
+        decision_classifier,
+        admission.clone(),
+    ));
+    let tool_free_completions = Arc::new(
+        crate::service::structured_completion::ToolFreeCompletionService::new(recorder.clone()),
+    );
+
     // The import pipeline: staged/imported external items, gather jobs over
     // the user's connectors, and the Haiku import job. Built before the tool
     // service context so the chat toolset gets a wired import context.
@@ -536,6 +564,7 @@ pub async fn run() -> anyhow::Result<()> {
         config.mcp_credentials_key_secret_name.as_ref(),
     )
     .context("invalid MCP credentials encryption key")?;
+    let granola_signing_key = *mcp_encryption_key.as_bytes();
     let mcp_server_repo =
         mcp_client::outbound::pg_server_repo::PgServerRepo::new(db.clone(), mcp_encryption_key);
 
@@ -616,6 +645,30 @@ pub async fn run() -> anyhow::Result<()> {
     };
     let pipedream_repo =
         pipedream_mcp::outbound::pg_connection_repo::PgConnectionRepo::new(db.clone());
+    let granola_sync: Option<Arc<dyn granola_sync::domain::service::SyncService>> =
+        pipedream_client.as_ref().map(|client| {
+            Arc::new(granola_sync::domain::service::Service {
+                repo: granola_sync::outbound::pg_repo::PgSyncRepository::new(
+                    db.clone(),
+                    &granola_signing_key,
+                ),
+                granola: granola_sync::outbound::api::GranolaApi(client.clone()),
+                accounts: granola_sync::outbound::accounts::ConnectedAccounts(
+                    pipedream_repo.clone(),
+                ),
+                verifier: granola_sync::outbound::signature::StandardWebhooks,
+                calls: Arc::new(call::domain::imports::CallImportServiceImpl(
+                    call::outbound::pg_imported_call_repo::PgImportedCallRepository::new(
+                        db.clone(),
+                    ),
+                    macro_event_broker.clone(),
+                )),
+                public_url: config.mcp_public_url.clone(),
+            }) as Arc<dyn granola_sync::domain::service::SyncService>
+        });
+    let granola_worker = granola_sync
+        .as_ref()
+        .map(|service| tokio::spawn(granola_sync::inbound::run_worker(service.clone())));
 
     // The one sanctioned meeting point of the two MCP stacks: agents load
     // tools through this selector, which prefers a user's Pipedream
@@ -666,7 +719,6 @@ pub async fn run() -> anyhow::Result<()> {
         macro_event_broker.clone(),
         entity_access_service.clone(),
         document_tool_context.service.clone(),
-        chat_tool_context.service.clone(),
         user_email_service.clone(),
     );
 
@@ -693,8 +745,41 @@ pub async fn run() -> anyhow::Result<()> {
         soup_service.clone(),
         db.clone(),
     );
+    let crm_tool_context = ai_tools::build_crm_tool_context(db.clone());
+    let pipeline_tool_context = ai_tools::build_pipeline_tool_context(
+        db.clone(),
+        &databases_tool_context,
+        &crm_tool_context,
+    );
+    let crm_transfer_tool_context = ai_tools::build_crm_transfer_tool_context(
+        &pipeline_tool_context,
+        &crm_tool_context,
+        &document_tool_context,
+    );
+
+    let calendar_tool_context = ai_tools::build_calendar_tool_context(
+        db.clone(),
+        CalendarServiceUrl::new()?,
+        internal_api_key.clone(),
+        call_tool_context.service.clone(),
+        AppServiceUrl::new()?,
+    );
+    let forms_tool_context = ai_tools::build_forms_tool_context(
+        db.clone(),
+        &document_tool_context,
+        &databases_tool_context,
+        &calendar_tool_context,
+        Some(channels_connection_gateway.as_ref().clone()),
+        ai_tools::MaybeToolEventBroker::Real(macro_event_broker.clone()),
+        ai_tools::FormsToolConfig {
+            app_origin: macro_service_urls::AppServiceUrl::new()?.to_string(),
+            editing_worker_url: config.ai_editing_worker_url.clone(),
+        },
+    );
 
     let tool_service_context = ai_tools::ToolServiceContext {
+        cognition_tool_context: ai_tools::build_cognition_tool_context()?,
+        connector_tool_context: ai_tools::build_connector_tool_context(db.clone(), None),
         search_service_client: search_service_client.clone(),
         email_service_client: email_service_client_external.clone(),
         soup_service: soup_service.clone(),
@@ -713,23 +798,34 @@ pub async fn run() -> anyhow::Result<()> {
         properties_tool_context: properties_tool_context.clone(),
         email_tool_context: email_tool_context.clone(),
         call_tool_context: call_tool_context.clone(),
+        booking_management_tool_context: ai_tools::build_booking_management_tool_context(
+            CalendarServiceUrl::new()?,
+            internal_api_key.clone(),
+            config.environment,
+        ),
         booking_link_tool_context: ai_tools::build_booking_link_tool_context(
             db.clone(),
             config.environment,
         ),
-        calendar_tool_context: ai_tools::build_calendar_tool_context(
+        calendar_tool_context,
+        team_calendar_tool_context: ai_tools::build_team_calendar_tool_context(
             db.clone(),
-            CalendarServiceUrl::new()?,
-            internal_api_key.clone(),
+            macro_env_var::maybe_read_env("CALENDAR_TEAM_SHARING_ENABLED")
+                .and_then(|value| value.parse::<bool>().ok())
+                .unwrap_or(false),
         ),
         notification_tool_context: notification_tool_context.clone(),
+        item_notification_preference_tool_context:
+            ai_tools::build_item_notification_preference_tool_context(db.clone()),
         databases_tool_context,
+        forms_tool_context,
         databases_sql_tool_context,
         import_tool_context: import::inbound::toolset::ImportToolContext::wired(
             import_service.clone(),
         ),
         chat_tool_context,
         channel_tool_context,
+        channel_media_upload_tool_context: ai_tools::build_channel_media_upload_tool_context()?,
         bot_tool_context: ai_tools::build_bot_tool_context(
             db.clone(),
             ai_tools::MaybeToolEventBroker::Real(macro_event_broker.clone()),
@@ -737,14 +833,24 @@ pub async fn run() -> anyhow::Result<()> {
             DocumentStorageServiceUrl::new()?.to_string(),
             pipedream_client.clone(),
         ),
+        read_agent_session_context: ai_tools::build_read_agent_session_context(
+            db.clone(),
+            entity_access_service.clone(),
+        ),
         coding_agent_tool_context: ai_tools::build_coding_agent_tool_context(
             macro_service_urls::AgentHarnessServiceUrl::new()?,
             internal_api_key.clone(),
         )?,
         project_tool_context,
+        favorites_tool_context: ai_tools::build_favorites_tool_context(
+            favorites_service,
+            entity_access_service.clone(),
+        ),
         initiative_tool_context,
         team_tool_context: ai_tools::build_team_tool_context(db.clone()),
-        crm_tool_context: ai_tools::build_crm_tool_context(db.clone()),
+        crm_tool_context,
+        pipeline_tool_context,
+        crm_transfer_tool_context,
         skill_tool_context: ai_tools::build_skill_tool_context(
             search_service_client.clone(),
             soup_service.clone(),
@@ -912,6 +1018,8 @@ pub async fn run() -> anyhow::Result<()> {
         user_permissions_service,
         non_user_owners,
         ai_admission: tool_service_context.admission.clone(),
+        decisions,
+        tool_free_completions,
         ai_billing,
         internal_api_key: config.internal_api_key.clone(),
         config: Arc::new(config),
@@ -938,6 +1046,7 @@ pub async fn run() -> anyhow::Result<()> {
         ),
         mcp_state,
         pipedream_state,
+        granola_sync,
         mcp_selector,
         import_service,
         onboarding_service,
@@ -947,6 +1056,10 @@ pub async fn run() -> anyhow::Result<()> {
     .context("failed to setup and serve api");
 
     ai_projection_worker_task.abort();
+    if let Some(worker) = granola_worker {
+        worker.abort();
+        let _ = worker.await;
+    }
     match ai_projection_worker_task.await {
         Err(error) if error.is_cancelled() => {
             tracing::info!("ai projection worker stopped");
