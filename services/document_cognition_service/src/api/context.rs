@@ -47,8 +47,7 @@ pub type DcsUserPermissionsService =
     >;
 
 /// The AI billing gate: reads plan allowances, credits, and overage state.
-/// DCS never charges anyone (the payment gateway is a no-op); settlement is
-/// requested from the authentication service.
+/// DCS never charges anyone.
 pub type DcsAiBillingService = ai_billing::domain::BillingServiceImpl<
     ai_billing::outbound::RolesTeamsEntitlementSource<
         DcsUserPermissionsService,
@@ -56,7 +55,7 @@ pub type DcsAiBillingService = ai_billing::domain::BillingServiceImpl<
     >,
     ai_billing::outbound::PgUsageReader,
     ai_billing::outbound::PgBillingRepo,
-    ai_billing::outbound::NoOpPaymentGateway,
+    ai_billing::outbound::HttpPaymentGateway,
 >;
 
 /// Type alias for the chat model entitlement extractor wired to DCS services.
@@ -154,6 +153,10 @@ pub struct ApiContext {
     pub ai_billing: Arc<DcsAiBillingService>,
     /// Shared admission for new AI operations, after authorization.
     pub ai_admission: Arc<dyn ai_billing::AiAdmissionService>,
+    /// General named decisions, with admission and metering in the Jev domain.
+    pub decisions: Arc<dyn jev::domain::decisions::DecisionService>,
+    /// Bounded, one-call completions without discovery or an agent loop.
+    pub tool_free_completions: Arc<dyn crate::service::structured_completion::ToolFreeCompletion>,
     pub config: Arc<Config>,
     pub internal_api_key: InternalApiKey,
     pub notification_ingress_service: Arc<NotificationIngressType>,
@@ -177,6 +180,7 @@ pub struct ApiContext {
     pub ai_stream_registry: AiStreamRegistry,
     pub mcp_state: DcsMcpRouterState,
     pub pipedream_state: DcsPipedreamRouterState,
+    pub granola_sync: Option<Arc<dyn granola_sync::domain::service::SyncService>>,
     /// Selects which MCP stack (Pipedream vs native) serves a user's tools.
     pub mcp_selector: Arc<ai_tools::ToolMcpSelector>,
     pub import_service: Arc<DcsImportService>,

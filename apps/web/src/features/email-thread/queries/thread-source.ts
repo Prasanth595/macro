@@ -1,4 +1,6 @@
 import { invalidateInvitationScheduling } from '@queries/calendar/invitations';
+import { createLocalDraftSource } from '@queries/email/local-draft-source';
+import { localDraftMessage } from '@queries/email/local-drafts';
 import type { ThreadQueryData, ThreadQueryResult } from '@queries/email/thread';
 import type { ApiThread } from '@service-email/generated/schemas';
 import { type Accessor, createEffect, createMemo, on } from 'solid-js';
@@ -10,6 +12,8 @@ export function toEmailThread(thread: ApiThread): EmailThread {
   return {
     access_level: thread.access_level,
     db_id: thread.db_id,
+    created_at: thread.created_at,
+    updated_at: thread.updated_at,
     inbox_visible: thread.inbox_visible,
     is_read: thread.is_read,
     latest_inbound_message_ts: thread.latest_inbound_message_ts,
@@ -29,6 +33,9 @@ export function toEmailThread(thread: ApiThread): EmailThread {
         file_name: attachment.file_name,
         id: attachment.id,
         s3_key: attachment.s3_key,
+        upload_pending: attachment.upload_pending,
+        content_id: attachment.content_id,
+        is_inline: attachment.is_inline,
         size: attachment.size,
       })),
       attachments_forwarded: message.attachments_forwarded.map(
@@ -64,6 +71,15 @@ export function toEmailThread(thread: ApiThread): EmailThread {
         : message.from,
       internal_date_ts: message.internal_date_ts,
       is_draft: message.is_draft,
+      operation: message.operation_status
+        ? {
+            state: message.operation_status.state,
+            revision: message.operation_status.revision,
+            remoteVersion: message.operation_status.remote_version,
+            issue: message.operation_status.issue,
+          }
+        : undefined,
+      is_read: message.is_read,
       labels: message.labels.map((label) => ({
         name: label.name,
         provider_label_id: label.provider_label_id,
@@ -120,7 +136,66 @@ export function createEmailThreadSource(
       };
     }
   );
-  const thread = () => snapshot().thread;
+  const local = createLocalDraftSource(() => query.transport === 'graphql');
+  const discoveringDrafts = () =>
+    query.transport === 'graphql' && !local.ready();
+  const thread = () => {
+    const base = snapshot().thread;
+    if (query.transport !== 'graphql') return base;
+    // Establish the recovered draft before a reply editor can latch its seed.
+    if (discoveringDrafts()) return undefined;
+    const requested = threadId();
+    const copies = local
+      .drafts()
+      .filter(
+        (draft) =>
+          [draft.threadId, draft.serverThreadId].includes(requested) ||
+          (base && [draft.threadId, draft.serverThreadId].includes(base.db_id))
+      );
+    const edits = copies.filter(
+      (draft) =>
+        draft.status !== 'synced' &&
+        !(
+          draft.status === 'deleting' &&
+          draft.queuedAttemptId &&
+          draft.queuedAttemptId === draft.latestAttemptId
+        )
+    );
+    const messages = edits.map(localDraftMessage);
+    if (!base) {
+      const draft = edits.find((draft) => !draft.content.replying_to_id);
+      if (!draft) return undefined;
+      return {
+        access_level: 'owner' as const,
+        db_id: draft.serverThreadId ?? draft.threadId ?? requested,
+        inbox_visible: true,
+        is_read: true,
+        link_id: draft.inboxId ?? '',
+        messages,
+      };
+    }
+    const ids = new Set(
+      copies
+        .filter((draft) => draft.status !== 'synced')
+        .flatMap((draft) => [draft.draftId, draft.serverDraftId])
+    );
+    return copies.length
+      ? {
+          ...base,
+          messages: [
+            ...base.messages.filter(
+              (message) => !message.is_draft || !ids.has(message.db_id)
+            ),
+            ...messages.filter(
+              (message) =>
+                !base.messages.some(
+                  (saved) => saved.db_id === message.db_id && !saved.is_draft
+                )
+            ),
+          ],
+        }
+      : base;
+  };
   // Memo equality prevents ordinary email refreshes from revalidating calendar state.
   const scheduling = createMemo(
     () => {
@@ -152,8 +227,11 @@ export function createEmailThreadSource(
   return {
     id: () => thread()?.db_id ?? query.resolvedThreadId ?? threadId(),
     thread,
-    isError: () => query.isError,
-    isLoading: () => query.isLoading,
+    isError: () =>
+      query.isError && (query.transport !== 'graphql' || !thread()),
+    isLoading: () =>
+      discoveringDrafts() ||
+      (query.isLoading && (query.transport !== 'graphql' || !thread())),
     isFetching: () => query.isFetching,
     isFetchingOlder: () => query.isFetchingNextPage,
     hasMore: () => query.hasNextPage,

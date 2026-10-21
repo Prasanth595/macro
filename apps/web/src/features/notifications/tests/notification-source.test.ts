@@ -460,6 +460,38 @@ describe('createNotificationSource', () => {
     }
   );
 
+  it('can release a failed reversal to authoritative state without clearing newer intent', () => {
+    mocks.graphqlEnabled = true;
+    const row: UnifiedNotification = {
+      ...notification('partial-reversal', 'document', 'task'),
+      state: 'seen',
+    };
+    mocks.notificationsQuery = {
+      data: [row],
+      transport: 'graphql',
+      isFetching: false,
+    };
+    const { source, dispose } = createRoot((dispose) => ({
+      source: createNotificationSource({} as ConnectionGatewayWebsocket),
+      dispose,
+    }));
+    try {
+      setDoneOverride([row.id], true);
+      const inverse = setDoneOverride([row.id], false);
+      inverse.release();
+      expect(source.notifications()[0].state).toBe('seen'); // not the prior done override
+
+      const older = setDoneOverride([row.id], true);
+      setDoneOverride([row.id], false);
+      row.state = 'done';
+      older.release();
+      expect(source.notifications()[0].state).toBe('seen'); // newer local Undo still owns the id
+    } finally {
+      setDoneOverride([row.id], undefined);
+      dispose();
+    }
+  });
+
   it('undo reopens a GraphQL-attached notification whose cached server state is already done', () => {
     mocks.graphqlEnabled = true;
     mocks.graphqlCacheEnabled = true;
@@ -751,6 +783,7 @@ describe('createNotificationSource', () => {
         isFetching: false,
       };
       let runs = 0;
+      let first: Promise<unknown> | undefined;
       const { source, dispose } = createRoot((dispose) => {
         const source = createNotificationSource(
           {} as ConnectionGatewayWebsocket
@@ -759,9 +792,10 @@ describe('createNotificationSource', () => {
           runs += 1;
           // Bound a regression so an accidental subscription cannot loop the test.
           if (runs > 1) return;
-          void (operation === 'seen'
-            ? source.bulkMarkAsRead([row])
-            : source.bulkMarkAsDone([row]));
+          first =
+            operation === 'seen'
+              ? source.bulkMarkAsRead([row])
+              : source.bulkMarkAsDone([row]);
         });
         return { source, dispose };
       });
@@ -770,6 +804,7 @@ describe('createNotificationSource', () => {
         await (operation === 'seen'
           ? source.bulkMarkAsRead([row])
           : source.bulkMarkAsDone([row]));
+        await first;
         await Promise.resolve();
         expect(runs).toBe(1);
       } finally {

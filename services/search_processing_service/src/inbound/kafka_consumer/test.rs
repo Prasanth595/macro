@@ -167,7 +167,8 @@ fn archived_event() -> CallTopicEvent {
         started_at: Utc::now(),
         ended_at: Utc::now(),
         duration_ms: Some(1_000),
-        participant_count: 2,
+        participant_count: 1,
+        participants: vec![user_id()],
         has_recording: true,
         archive_reason: CallArchiveReason::LastParticipantLeft,
     })
@@ -929,6 +930,7 @@ fn document_event_cases() -> Vec<(DocumentTopicEvent, DocumentEventDescription)>
         ),
         (
             DocumentTopicEvent::Deleted(DocumentDeletedMetadata {
+                sub_type: None,
                 document_id: DOCUMENT_ID.to_string(),
                 actor_user_id: Some(user.clone()),
                 actor: None,

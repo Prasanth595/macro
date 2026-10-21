@@ -1,4 +1,5 @@
 import type { HotkeyToken } from '@core/hotkey/tokens';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import type { Placement } from '@floating-ui/dom';
 import { Tooltip as KobalteTooltip } from '@kobalte/core/tooltip';
 import type { ParentProps } from 'solid-js';
@@ -22,6 +23,8 @@ type TooltipProps = ParentProps<{
   /** Allows non-interactive tooltip targets, such as disabled actions, to receive keyboard focus. */
   tabIndex?: number;
   disabled?: boolean;
+  /** Override visibility, for example while a nested control has keyboard focus. */
+  open?: boolean;
 }>;
 
 export type TooltipClassOptions = {
@@ -45,6 +48,7 @@ export function tooltipClasses(options: TooltipClassOptions = {}): string {
 export function Tooltip(props: TooltipProps) {
   const [triggerRef, setTriggerRef] = createSignal<HTMLElement>();
   const [open, setOpen] = createSignal(false);
+  const isOpen = () => props.open ?? open();
 
   if (import.meta.env.MODE === 'test') {
     return <>{props.children}</>;
@@ -106,12 +110,15 @@ export function Tooltip(props: TooltipProps) {
   );
 
   onCleanup(() => setOpen(false));
+  const enabled = () =>
+    !isTouchDevice() && !props.disabled && tooltipsEnabled();
+  const visible = () => isOpen() && enabled();
 
   return (
     <KobalteTooltip
-      open={open()}
+      open={visible()}
       onOpenChange={(isOpen) => {
-        setOpen(isOpen);
+        setOpen(isOpen && enabled());
       }}
       placement={props.placement ?? 'bottom'}
       ignoreSafeArea={true}
@@ -121,7 +128,7 @@ export function Tooltip(props: TooltipProps) {
       closeDelay={0}
       flip={true}
       gutter={4}
-      disabled={props.disabled || !tooltipsEnabled()}
+      disabled={!enabled()}
     >
       <KobalteTooltip.Trigger
         ref={(ref) => {
@@ -133,7 +140,7 @@ export function Tooltip(props: TooltipProps) {
       >
         {props.children}
       </KobalteTooltip.Trigger>
-      <Show when={open()}>
+      <Show when={visible()}>
         <KobalteTooltip.Portal>
           <KobalteTooltip.Content class="z-tool-tip max-w-[calc(100vw-32px)]">
             <Surface class={tooltipClasses()} depth={3}>

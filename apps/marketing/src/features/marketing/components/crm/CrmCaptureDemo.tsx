@@ -1,183 +1,133 @@
-import ArrowLeft from '@phosphor/arrow-left.svg';
-import Cursor from '@phosphor/cursor.svg';
-import { Button } from '@ui';
-import { createSignal, onCleanup, onMount, Show } from 'solid-js';
-import { createDummyWorkspace } from '../../primitives/createDummyWorkspace';
-import { createEmailWalkthrough } from '../../primitives/createEmailWalkthrough';
-import { HomepageConversation } from '../HomepageConversation';
-import { WorkspaceEmail } from '../workspace/WorkspaceEmail';
-import '../email/email-demos.css';
-import { WorkspaceCompanies } from '../workspace/WorkspaceCompanies';
-import '../workspace/dummy-workspace.css';
+import { createSignal } from 'solid-js';
+import { createStore } from 'solid-js/store';
+import { demoMentions } from '../../core/demo-mentions';
+import type { WorkspaceComment } from '../../core/dummy-workspace';
+import type { SampleCompany } from '../../core/workspace-fixtures';
+import { createCrmDemoWorkspace } from '../../primitives/createCrmDemoWorkspace';
+import { createProductWalkthrough } from '../../primitives/createProductWalkthrough';
+import { demoTypingActions } from '../../primitives/demoTypingActions';
+import type { ChannelComposerHandle } from '../email/frozen/ChannelComposer';
+import { ProductDemo } from '../product/ProductPage';
+import { CompanyPipelineEntry } from './CompanyPipelineEntry';
+import { CrmRecordWorkspace } from './CrmRecordWorkspace';
 
-const description =
-  'Demo on Thursday. Alex is leading the rollout for The Meadow.';
+const request: WorkspaceComment = {
+  id: 'capture-request',
+  person: 'jacob',
+  body: '@[Claude](demo-mention:claude) just got off a call with Ava. They want a demo Thursday at 9 for the studio team. Move Parlor Studio to Demo, make me the owner, and note that Alex is running the rollout on their side.',
+  time: '9:51 AM',
+};
+const reply: WorkspaceComment = {
+  id: 'capture-reply',
+  person: 'claude',
+  body: 'Done. Parlor Studio is in Demo and you’re the owner. From the call: demo Thursday at 9 with the studio team, and Alex (alex@parlorstudio.example) is running the rollout on their side.',
+  time: '9:52 AM',
+  replyTo: 'capture-request',
+};
 
-/** The shared /demo company UI, with a local message-driven walkthrough. */
+/** Type and send a request, then show the agent's reply and property updates. */
 export function CrmCaptureDemo() {
-  let root!: HTMLDivElement;
-  let record!: HTMLDivElement;
-  const workspace = createDummyWorkspace('crm');
-  workspace.open('crm', 'meadow');
-  workspace.setData('companies', (company) => company.id === 'meadow', {
-    stage: 'Lead',
-    owner: '',
-    description: '',
-    revenue: '',
-    comments: [],
-  });
-  const [step, setStep] = createSignal(0);
-  const [pointer, setPointer] = createSignal<{ x: number; y: number }>();
-  const target = () =>
-    step() < 3
-      ? 'Deal stage'
-      : step() < 4
-        ? 'Company owner'
-        : 'Company description';
-  function positionPointer() {
-    const field = record?.querySelector<HTMLElement>(
-      `[aria-label="${target()}"]`
-    );
-    if (
-      !playback.playing() ||
-      !field ||
-      !field.getClientRects().length ||
-      step() === 0 ||
-      step() >= 7
-    ) {
-      setPointer(undefined);
-      return;
-    }
-    const bounds = field.getBoundingClientRect();
-    const frame = record.getBoundingClientRect();
-    setPointer({
-      x: bounds.left - frame.left + Math.min(bounds.width - 12, 110),
-      y: bounds.top - frame.top + bounds.height / 2,
+  let frame!: HTMLDivElement;
+  let composer: ChannelComposerHandle | undefined;
+  const w = createCrmDemoWorkspace();
+  const meadow = (patch: Partial<SampleCompany>) =>
+    w.setData('companies', (company) => company.id === 'meadow', patch);
+  meadow({ comments: [] });
+  const [deal, setDeal] = createStore<
+    Pick<SampleCompany, 'stage' | 'owner' | 'revenue'>
+  >({ stage: 'Lead', owner: '', revenue: '18000' });
+  w.open('crm', 'meadow');
+  const [phase, setPhase] = createSignal(0);
+  const claude = demoMentions.find((item) => item.id === 'claude');
+  const typing = demoTypingActions(
+    request.body.replace('@[Claude](demo-mention:claude)', '@Claude'),
+    (text) => composer?.setText(text, claude),
+    1200
+  );
+  const sent = typing.length + 1;
+  const acknowledgment: WorkspaceComment = {
+    id: 'capture-working',
+    person: 'claude',
+    body: 'I’ll update the stage, owner, and rollout notes.',
+    time: '9:51 AM',
+    replyTo: request.id,
+  };
+  const scrollTo = (selector: string) => {
+    queueMicrotask(() => {
+      const scroll = frame.querySelector<HTMLElement>('.sample-company-scroll');
+      const target = frame.querySelector<HTMLElement>(selector);
+      if (scroll && target)
+        scroll.scrollTop +=
+          target.getBoundingClientRect().top -
+          scroll.getBoundingClientRect().top -
+          16;
     });
-  }
-  function advance(next: number) {
-    setStep(next);
-    const patch =
-      next === 2
-        ? { stage: 'Demo' as const }
-        : next === 3
-          ? { owner: 'jacob' as const }
-          : next >= 4
-            ? {
-                description: description.slice(
-                  0,
-                  next === 4 ? 17 : next === 5 ? 43 : description.length
-                ),
-              }
-            : {};
-    workspace.setData('companies', (company) => company.id === 'meadow', patch);
-    positionPointer();
-  }
-  const playback = createEmailWalkthrough({
-    root: () => root,
-    steps: 7,
-    advance,
-    reset: () => setStep(0),
-    reduced: () => {
-      workspace.setData('companies', (company) => company.id === 'meadow', {
-        stage: 'Demo',
-        owner: 'jacob',
-        description,
-      });
-      setStep(7);
+  };
+  const finish = () => {
+    composer?.setText('');
+    setDeal({ stage: 'Demo', owner: 'jacob' });
+    meadow({ comments: [request, acknowledgment, reply] });
+    setPhase(sent + 4);
+  };
+  const playback = createProductWalkthrough({
+    root: () => frame,
+    steps: sent + 4,
+    loop: { hold: 8000 },
+    reset: () => {
+      composer?.setText('');
+      setDeal({ stage: 'Lead', owner: '', revenue: '18000' });
+      meadow({ comments: [] });
+      setPhase(0);
+      const scroll = frame.querySelector('.sample-company-scroll');
+      if (scroll) scroll.scrollTop = 0;
+    },
+    reduced: finish,
+    delay: (step) =>
+      step < sent ? typing[step - 1].delay : step === sent ? 900 : 1400,
+    advance: (step) => {
+      setPhase(step);
+      if (step < sent) {
+        typing[step - 1].run();
+        if (step === 1) scrollTo('[data-discussion-composer]');
+      } else if (step === sent) {
+        // Use the same send path as the visitor, then attach the scripted thread ID.
+        composer?.send();
+        meadow({ comments: [request] });
+        scrollTo('[data-thread-id="capture-request"]');
+      } else if (step === sent + 1) {
+        meadow({ comments: [request, acknowledgment] });
+      } else if (step === sent + 2) {
+        setDeal({ stage: 'Demo' });
+        scrollTo('.sample-pipeline-entries');
+      } else if (step === sent + 3) {
+        setDeal({ owner: 'jacob' });
+      } else {
+        finish();
+        scrollTo('[data-thread-id="capture-request"]');
+      }
     },
   });
-  const takeOver = () => {
-    playback.pause();
-    setPointer(undefined);
-  };
-  onMount(() => {
-    const observer = new ResizeObserver(positionPointer);
-    observer.observe(record);
-    onCleanup(() => observer.disconnect());
-  });
+  const pause = () => playback.pause();
+  const action = () =>
+    phase() === sent + 2 ? 'stage' : phase() === sent + 3 ? 'owner' : undefined;
   return (
-    <div
-      ref={root}
-      class="crm-capture-demo"
-      role="group"
-      aria-label="Claude updates a customer record from a message"
-    >
-      <HomepageConversation
-        messages={[
-          {
-            person: 'jacob',
-            text: 'Just spoke to Dana at The Meadow. They’re ready for a demo on Thursday. Assign the company to me and note that Alex is leading the rollout.',
-          },
-          {
-            person: 'claude',
-            text:
-              step() >= 7
-                ? 'Updated The Meadow: demo stage, assigned to you, and Alex’s role saved in the company notes.'
-                : 'I’ll update the stage, owner, and notes on The Meadow.',
-          },
-        ]}
-      />
-      <div
-        ref={record}
-        class="crm-capture-record crm-record-demo glass-input"
-        data-step={step()}
-        onPointerDown={takeOver}
-        onFocusIn={takeOver}
+    <div ref={frame} class="crm-demo-frame" onFocusIn={pause}>
+      <ProductDemo
+        label="Claude updates Parlor Studio from a comment in its Discussion"
+        onInteract={pause}
+        action={action()}
+        height={600}
+        mobileHeight={700}
       >
-        <div
-          class="dummy-workspace workspace-demo portal-scope"
-          data-theme="dark"
-          data-embedded="true"
-        >
-          <div class="dummy-main">
-            <Show
-              when={workspace.view() === 'crm'}
-              fallback={
-                <>
-                  <div class="px-3 pt-2">
-                    <Button
-                      variant="plain"
-                      size="sm"
-                      onClick={() => workspace.open('crm', 'meadow')}
-                    >
-                      <ArrowLeft />
-                      Back to customer record
-                    </Button>
-                  </div>
-                  <WorkspaceEmail
-                    workspace={workspace}
-                    tab="all"
-                    account="all"
-                  />
-                </>
-              }
-            >
-              <WorkspaceCompanies
-                workspace={workspace}
-                initialPanelOpen={
-                  typeof window !== 'undefined' &&
-                  window.matchMedia('(min-width: 700px)').matches
-                }
-              />
-            </Show>
-          </div>
-        </div>
-        <Show when={pointer()}>
-          {(position) => (
-            <div
-              class="crm-capture-pointer"
-              aria-hidden="true"
-              style={{
-                transform: `translate(${position().x}px, ${position().y}px)`,
-              }}
-            >
-              <Cursor />
-              <span>Claude</span>
-            </div>
-          )}
-        </Show>
-      </div>
+        <CrmRecordWorkspace
+          richComposer
+          workspace={w}
+          onComposerReady={(handle) => {
+            composer = handle;
+          }}
+          pipeline={<CompanyPipelineEntry value={deal} onChange={setDeal} />}
+        />
+      </ProductDemo>
     </div>
   );
 }

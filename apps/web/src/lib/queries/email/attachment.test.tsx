@@ -11,6 +11,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 }));
 
 const addDraftAttachmentMock = vi.hoisted(() => vi.fn());
+const completeDraftAttachmentMock = vi.hoisted(() => vi.fn());
 const removeDraftAttachmentMock = vi.hoisted(() => vi.fn());
 const uploadToPresignedUrlMock = vi.hoisted(() => vi.fn());
 const toastFailureMock = vi.hoisted(() => vi.fn());
@@ -20,6 +21,7 @@ const contentHashMock = vi.hoisted(() => vi.fn(async () => 'a'.repeat(64)));
 vi.mock('@service-email/client', () => ({
   emailClient: {
     addDraftAttachment: addDraftAttachmentMock,
+    completeDraftAttachment: completeDraftAttachmentMock,
     removeDraftAttachment: removeDraftAttachmentMock,
   },
 }));
@@ -59,6 +61,7 @@ beforeEach(() => {
     })
   );
   removeDraftAttachmentMock.mockResolvedValue(ok(undefined));
+  completeDraftAttachmentMock.mockResolvedValue(ok(undefined));
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -82,6 +85,44 @@ describe('useUploadDraftAttachmentsMutation', () => {
     upload.resolve(ok(undefined));
     await pending;
     expect(toastFailureMock).not.toHaveBeenCalled();
+  });
+
+  it('cleans up a created record when its durable receipt cannot be written', async () => {
+    const attachment = file();
+    const clear = vi.fn();
+    const mutation = mountEmailMutation(useUploadDraftAttachmentsMutation);
+    await expect(
+      mutation.mutateAsync({
+        draftID: 'draft-1',
+        attachments: [attachment],
+        onAttachmentAdded: async () => {
+          throw new Error('Disk full');
+        },
+        onAttachmentUploadFailed: clear,
+      })
+    ).rejects.toThrow('Upload failed');
+    expect(uploadToPresignedUrlMock).not.toHaveBeenCalled();
+    expect(removeDraftAttachmentMock).toHaveBeenCalledWith(
+      { draftID: 'draft-1', attachmentID: 'att-1' },
+      undefined
+    );
+    expect(clear).toHaveBeenCalledWith(attachment);
+  });
+
+  it('retains a successful upload when recording its receipt fails', async () => {
+    uploadToPresignedUrlMock.mockResolvedValue(ok(undefined));
+    const mutation = mountEmailMutation(useUploadDraftAttachmentsMutation);
+    await expect(
+      mutation.mutateAsync({
+        draftID: 'draft-1',
+        attachments: [file()],
+        onAttachmentUploaded: async () => {
+          throw new Error('Disk full');
+        },
+      })
+    ).rejects.toThrow('Disk full');
+    expect(uploadToPresignedUrlMock).toHaveBeenCalledOnce();
+    expect(removeDraftAttachmentMock).not.toHaveBeenCalled();
   });
 
   it('keeps the id when the record removal fails after a failed upload', async () => {
@@ -175,6 +216,7 @@ describe('useUploadDraftAttachmentsMutation', () => {
       {
         draftID: 'draft-1',
         attachment: {
+          upload_id: expect.any(String),
           file_name: 'photo.png',
           size: 1024,
           sha: 'ab'.repeat(32),
@@ -227,7 +269,12 @@ describe('useUploadDraftAttachmentsMutation', () => {
       expect(addDraftAttachmentMock).toHaveBeenCalledWith(
         {
           draftID: 'draft-1',
-          attachment: { file_name: 'photo.png', size: 3, sha: 'a'.repeat(64) },
+          attachment: {
+            upload_id: expect.any(String),
+            file_name: 'photo.png',
+            size: 3,
+            sha: 'a'.repeat(64),
+          },
         },
         undefined
       );

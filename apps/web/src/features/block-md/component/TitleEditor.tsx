@@ -7,6 +7,7 @@ import {
   singleLinePlugin,
   tagsPlugin,
 } from '@core/component/LexicalMarkdown/plugins/';
+import { $selectDocumentStart } from '@core/component/LexicalMarkdown/plugins/block-decorator-navigation';
 import { createMenuOperations } from '@core/component/LexicalMarkdown/shared/inlineMenu';
 import {
   $getCaretRect,
@@ -16,6 +17,7 @@ import {
   trimWhitespace,
 } from '@core/component/LexicalMarkdown/utils';
 import { blockNameToDefaultFile } from '@core/constant/allBlocks';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { createRenameDssEntityMutation } from '@entity';
 import { mergeRegister } from '@lexical/utils';
 import { useDocTags } from '@property/tags';
@@ -94,11 +96,9 @@ function titleNavigationPlugin(
           if (!isRectFlushWith(caret, rect, 'bottom', 5)) return false;
 
           event?.preventDefault();
-          documentEditor.update(() => {
-            const root = $getRoot();
-            const firstChild = root.getFirstChild();
-            firstChild?.selectStart();
-          });
+          // A node selection places no DOM caret, so focus the body first.
+          documentEditor.getRootElement()?.focus({ preventScroll: true });
+          documentEditor.update($selectDocumentStart);
           return true;
         },
         COMMAND_PRIORITY_NORMAL
@@ -118,11 +118,9 @@ function titleNavigationPlugin(
             return false;
 
           event?.preventDefault();
-          documentEditor.update(() => {
-            const root = $getRoot();
-            const firstChild = root.getFirstChild();
-            firstChild?.selectStart();
-          });
+          // A node selection places no DOM caret, so focus the body first.
+          documentEditor.getRootElement()?.focus({ preventScroll: true });
+          documentEditor.update($selectDocumentStart);
           return true;
         },
         COMMAND_PRIORITY_NORMAL
@@ -228,7 +226,10 @@ export function TitleEditor(props: { autoFocusOnMount?: boolean } = {}) {
         insertTags: false,
         onCreateTag: (tag) => {
           if (!canEdit()) return;
-          void documentTags.applyTag(tag.scope, tag.optionId);
+          fireAndForget(
+            documentTags.applyTag(tag.scope, tag.optionId),
+            'document-tags'
+          );
         },
       })
     )

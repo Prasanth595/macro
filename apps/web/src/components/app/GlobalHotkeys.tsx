@@ -15,10 +15,6 @@ import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { useSubscribeToKeypress } from '@app/signal/hotkeyRoot';
 import { globalSplitManager } from '@app/signal/splitLayout';
 import { useHandleFileUpload } from '@app/util/handleFileUpload';
-import {
-  automationComposerOpen,
-  setAutomationComposerOpen,
-} from '@block-automation/component';
 import { useLogout } from '@core/auth/logout';
 import { useOpenInstructionsMd } from '@core/component/AI/util/instructions';
 import { toast } from '@core/component/Toast/Toast';
@@ -31,11 +27,13 @@ import { registerHotkey } from '@core/hotkey/hotkeys';
 import { setActiveScope } from '@core/hotkey/state';
 import { TOKENS } from '@core/hotkey/tokens';
 import type { ValidHotkey } from '@core/hotkey/types';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   handleFolderSelect,
   openFilePicker,
   openFolderPicker,
 } from '@core/util/upload';
+import { Telemetry } from '@macro-inc/observability';
 import IconGear from '@phosphor/gear.svg';
 import Plus from '@phosphor/plus.svg';
 import LogoutIcon from '@phosphor/sign-out.svg';
@@ -148,10 +146,6 @@ export default function GlobalShortcuts() {
     const willOpen = !CommandState.isOpen();
 
     if (willOpen) {
-      if (automationComposerOpen()) {
-        setAutomationComposerOpen(false, false);
-      }
-
       analytics.track('command_menu_open', { from: 'global_hotkey' });
     }
 
@@ -164,10 +158,6 @@ export default function GlobalShortcuts() {
     scopeId: 'global',
     description: 'Create',
     keyDownHandler: () => {
-      if (automationComposerOpen()) {
-        return true;
-      }
-
       const willOpen = !createMenuOpen();
 
       if (willOpen) {
@@ -355,7 +345,10 @@ export default function GlobalShortcuts() {
     description: 'Logout',
     icon: LogoutIcon,
     keyDownHandler: () => {
-      logout();
+      logout().catch((error) => {
+        Telemetry.error(error, { surface: 'logout' });
+        toast.failure('Failed to sign out');
+      });
       return true;
     },
     runWithInputFocused: true,
@@ -587,7 +580,10 @@ export default function GlobalShortcuts() {
     keyDownHandler: (e) => {
       if (!undoCtx.canUndo()) return false;
       e?.preventDefault();
-      undoCtx.undo({ onError: () => toast.failure('Failed to undo') });
+      fireAndForget(
+        undoCtx.undo({ onError: () => toast.failure('Failed to undo') }),
+        'global-hotkeys'
+      );
       return true;
     },
     condition: () => undoCtx.canUndo(),
@@ -601,7 +597,10 @@ export default function GlobalShortcuts() {
     keyDownHandler: (e) => {
       if (!undoCtx.canRedo()) return false;
       e?.preventDefault();
-      undoCtx.redo({ onError: () => toast.failure('Failed to redo') });
+      fireAndForget(
+        undoCtx.redo({ onError: () => toast.failure('Failed to redo') }),
+        'global-hotkeys'
+      );
       return true;
     },
     condition: () => undoCtx.canRedo(),

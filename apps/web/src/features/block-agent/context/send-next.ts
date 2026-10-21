@@ -6,11 +6,23 @@
  */
 
 import type { IssueResult } from '@core/agent-session/AgentSession';
+import { fireAndForget } from '@core/util/fireAndForget';
 import type { TurnState } from '@service-agent-fold/generated/types';
 import type {
   AgentAction,
   QueuedActionDto,
 } from '@service-agent-harness/generated/schemas';
+
+/** The action a queued entry will run as, when the composer can show it sent. */
+export function actionForQueuedEntry(
+  entry: QueuedActionDto
+): AgentAction | undefined {
+  if (entry.kind === 'prompt' && entry.prompt != null) {
+    return { type: 'prompt', prompt: entry.prompt };
+  }
+  if (entry.kind === 'compact') return { type: 'compact' };
+  return undefined;
+}
 
 export function createSendNext(session: {
   /**
@@ -35,15 +47,13 @@ export function createSendNext(session: {
     if (session.currentTurn() === 'starting') return;
     const head = session.entries()[0];
     if (!head) return;
-    const action: AgentAction | undefined =
-      head.kind === 'prompt' && head.prompt != null
-        ? { type: 'prompt', prompt: head.prompt }
-        : head.kind === 'compact'
-          ? { type: 'compact' }
-          : undefined;
-    void session.issue({ type: 'stop' })?.then((result) => {
-      if (result.isErr()) session.retract(head.actionId);
-    });
+    const action = actionForQueuedEntry(head);
+    fireAndForget(
+      session.issue({ type: 'stop' })?.then((result) => {
+        if (result.isErr()) session.retract(head.actionId);
+      }),
+      'agent-queue'
+    );
     if (action) session.expect(head.actionId, action);
   };
 }

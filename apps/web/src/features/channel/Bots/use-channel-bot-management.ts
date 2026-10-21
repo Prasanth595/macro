@@ -9,6 +9,7 @@ import { botManagement } from '@core/constant/featureFlags';
 import { useSettingsState } from '@core/constant/SettingsState';
 import { useChannelType } from '@core/context/channels';
 import { createHotkeyGroup, registerHotkey } from '@core/hotkey/hotkeys';
+import { fireAndForget } from '@core/util/fireAndForget';
 import CopyIcon from '@phosphor/copy.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import RobotIcon from '@phosphor/robot.svg';
@@ -65,7 +66,7 @@ export function useChannelBotManagement(
     scopeId: options.hotkeyScopeId,
     description: 'Create bot for channel',
     icon: PlusIcon,
-    keywords: ['webhook', 'automation', 'agent'],
+    keywords: ['webhook', 'routine', 'agent'],
     displayPriority: 9,
     condition: canManageBots,
     keyDownHandler: () => {
@@ -95,7 +96,7 @@ export function useChannelBotManagement(
     displayPriority: 8,
     condition: enabled,
     keyDownHandler: () => {
-      void copyWebhookUrl();
+      fireAndForget(copyWebhookUrl(), 'channel-bots');
       return true;
     },
   }).withGroup(commandGroup);

@@ -1,6 +1,7 @@
 import { EntityIcon } from '@core/component/EntityIcon';
 import { UserIcon } from '@core/component/UserIcon';
 import type { ChannelEntity } from '@entity';
+import CalendarBlankIcon from '@phosphor/calendar-blank.svg';
 import ClockIcon from '@phosphor/clock.svg';
 import EmailIcon from '@phosphor/envelope.svg';
 import UsersIcon from '@phosphor/users.svg';
@@ -41,9 +42,17 @@ export function MentionsMenuItem(props: {
         name: name || email,
         detail: name && name !== email ? email : undefined,
       }))
+      .with({ kind: 'entity', data: { type: 'crm_contact' } }, ({ data }) => ({
+        name: data.name || data.email,
+        detail: data.name && data.name !== data.email ? data.email : undefined,
+      }))
       .with({ kind: 'agentSession' }, ({ data }) => ({
         name: data.name || 'Agent session',
         detail: data.bot?.name ? `@${data.bot.name}` : undefined,
+      }))
+      .with({ kind: 'bookingLink' }, ({ data }) => ({
+        name: data.title,
+        detail: `${data.durationMinutes} min · ${data.owner}`,
       }))
       .otherwise(() => ({ name: name(), detail: undefined }));
 
@@ -66,6 +75,9 @@ export function MentionsMenuItem(props: {
 
       case 'date':
         return <ClockIcon class="size-4 text-ink-muted" />;
+
+      case 'bookingLink':
+        return <CalendarBlankIcon class="size-4 text-accent" />;
 
       case 'entity':
         if (props.item.bucket === 'email') {

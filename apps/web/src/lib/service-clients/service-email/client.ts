@@ -7,16 +7,23 @@ import type { ObjectLike, ResultError } from '@core/util/result';
 import type { SafeFetchInit } from '@core/util/safeFetch';
 import type {
   CalendarEvent,
+  CalendarEventProviderUrl,
+  CalendarReplacementView,
   CreateCalendarEventRequest,
   ListCalendarsResponse,
+  PrepareCalendarReplacementRequest,
   RsvpCalendarEventRequest,
   UpdateCalendarEventRequest,
 } from '@service-calendar/generated/schemas';
+import type { AvailabilityCalendarBody } from '@service-calendar/generated/schemas/availabilityCalendarBody';
+import type { AvailabilityCalendarsResponse } from '@service-calendar/generated/schemas/availabilityCalendarsResponse';
 import { CalendarMutationErrorCode } from '@service-calendar/generated/schemas/calendarMutationErrorCode';
+import type { TeamCalendarSharingBody } from '@service-calendar/generated/schemas/teamCalendarSharingBody';
 import type { Result } from 'neverthrow';
 import type {
   AddDraftAttachmentRequest,
   AddDraftAttachmentResponse,
+  ApiMessageOperation,
   ApiPaginatedThreadCursor,
   CreateDraftRequest,
   CreateDraftResponse,
@@ -29,12 +36,18 @@ import type {
   ListEmailFiltersResponse,
   ListLabelsResponse,
   ListLinksResponse,
+  MailboxSettingsOperation,
+  ParsedMessage,
   PatchSettingsRequest,
   PatchSettingsResponse,
+  ResolveMessageOperationRequest,
   ResyncResponse,
   SendMessageRequest,
   SendMessageResponse,
   SharedInboxConflictResponse,
+  TransferDraftRequest,
+  TransferDraftResponse,
+  TransferRecoveryResponse,
   UpdateLabelBatchRequest,
   UpdateLabelBatchResponse,
   UpdateThreadLabelRequest,
@@ -125,6 +138,7 @@ export const ALREADY_INITIALIZED_CODE = 'ALREADY_INITIALIZED' as const;
 export const NO_GMAIL_GRANT_CODE = 'NO_GMAIL_GRANT' as const;
 
 type InitErrorCode =
+  | 'PAYMENT_REQUIRED'
   | typeof SHARED_INBOX_CONFLICT_CODE
   | typeof ALREADY_INITIALIZED_CODE
   | typeof NO_GMAIL_GRANT_CODE;
@@ -139,6 +153,18 @@ export const SIGNATURE_IMAGES_UNRESOLVED_CODE =
   'SIGNATURE_IMAGES_UNRESOLVED' as const;
 
 export const emailClient = {
+  settingsOperations: (linkId: string) =>
+    emailFetch<MailboxSettingsOperation[]>(
+      `${emailHost}/email/settings/operations`,
+      { headers: emailLinkHeaders(linkId) }
+    ),
+
+  async threadOperations(threadId: string) {
+    return emailFetch<import('./generated/schemas').MailboxOperation[]>(
+      `/email/threads/${threadId}/operations`
+    );
+  },
+
   async getCalendarInvitations(threadId: string) {
     return emailFetch<Record<string, InvitationResolution>>(
       `/email/threads/${threadId}/calendar-invitations`
@@ -157,6 +183,12 @@ export const emailClient = {
       // the shared-inbox conflict fields and 400 a machine-readable code; other
       // statuses fall back to the same HTTP_ERROR shape callers already branch on.
       errorResponseHandler: async (response) => {
+        if (response.status === 402)
+          return {
+            code: 'PAYMENT_REQUIRED',
+            message:
+              'A professional subscription is required to add another inbox',
+          };
         if (response.status === 409) {
           const body = (await response
             .json()
@@ -204,6 +236,13 @@ export const emailClient = {
       )
     ).map((result) => result);
   },
+  async getMessage(args: { message_id: string }) {
+    return (
+      await emailFetch<ParsedMessage>(`/email/messages/${args.message_id}`, {
+        method: 'GET',
+      })
+    ).map((result) => result);
+  },
   async getUserLabels() {
     return (
       await emailFetch<ListLabelsResponse>(`/email/labels`, {
@@ -245,6 +284,31 @@ export const emailClient = {
         body: JSON.stringify({ value, label_id, message_ids }),
       })
     ).map((result) => result);
+  },
+  async messageOperation(messageId: string) {
+    return emailFetch<{ operation?: ApiMessageOperation | null }>(
+      `/email/drafts/${messageId}/operation`,
+      { method: 'GET' }
+    );
+  },
+  async resolveMessageOperation(
+    messageId: string,
+    input: ResolveMessageOperationRequest
+  ) {
+    return emailFetch(`/email/drafts/${messageId}/resolve`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+  async updateThreadState(args: {
+    thread_id: string;
+    field: 'read' | 'starred' | 'trashed' | 'junk';
+    value: boolean;
+  }) {
+    return emailFetch(`/email/threads/${args.thread_id}/state`, {
+      method: 'PATCH',
+      body: JSON.stringify({ field: args.field, value: args.value }),
+    });
   },
   async updateThreadLabel(
     args: { thread_id: string } & UpdateThreadLabelRequest
@@ -487,6 +551,19 @@ export const emailClient = {
       })
     ).map((result) => result);
   },
+  async recoverDraftTransfer(id: string) {
+    return emailFetch<TransferRecoveryResponse>(
+      `/email/draft-transfers/${id}/recover`,
+      { method: 'POST' }
+    );
+  },
+  async transferDraft(id: string, body: TransferDraftRequest, linkId: string) {
+    return emailFetch<TransferDraftResponse>(`/email/drafts/${id}/transfer`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+      headers: emailLinkHeaders(linkId),
+    });
+  },
   async deleteDraft(args: { id: string }, linkId?: string) {
     const { id } = args;
     return (
@@ -513,6 +590,15 @@ export const emailClient = {
         }
       )
     ).map((result) => result);
+  },
+  async completeDraftAttachment(
+    args: { draftID: string; attachmentID: string },
+    linkId?: string
+  ) {
+    return emailFetch<EmptyResponse>(
+      `/email/drafts/${args.draftID}/attachments/${args.attachmentID}/complete`,
+      { method: 'POST', headers: emailLinkHeaders(linkId) }
+    );
   },
   async removeDraftAttachment(
     args: { draftID: string; attachmentID: string },
@@ -613,10 +699,96 @@ export const emailClient = {
       headers: emailLinkHeaders(linkId),
     });
   },
+  async prepareCalendarReplacement(
+    eventId: string,
+    args: PrepareCalendarReplacementRequest
+  ) {
+    return fetchWithToken<CalendarReplacementView, CalendarMutationErrorCode>(
+      `${calendarHost}/events/${eventId}/replacement`,
+      {
+        method: 'POST',
+        body: JSON.stringify(args),
+        errorResponseHandler: calendarMutationErrorHandler,
+      }
+    );
+  },
+  async confirmCalendarReplacement(operationId: string) {
+    return fetchWithToken<CalendarReplacementView, CalendarMutationErrorCode>(
+      `${calendarHost}/replacements/${operationId}/confirm`,
+      {
+        method: 'POST',
+        errorResponseHandler: calendarMutationErrorHandler,
+      }
+    );
+  },
+  async calendarReplacementStatus(operationId: string) {
+    return fetchWithToken<CalendarReplacementView, CalendarMutationErrorCode>(
+      `${calendarHost}/replacements/${operationId}`,
+      {
+        method: 'GET',
+        errorResponseHandler: calendarMutationErrorHandler,
+      }
+    );
+  },
+  async discardCalendarReplacement(operationId: string) {
+    return fetchWithToken<EmptyResponse, CalendarMutationErrorCode>(
+      `${calendarHost}/replacements/${operationId}`,
+      {
+        method: 'DELETE',
+        errorResponseHandler: calendarMutationErrorHandler,
+      }
+    );
+  },
+  async calendarEventProviderUrl(
+    eventId: string,
+    options: { calendarId?: string; recurrenceId?: string }
+  ) {
+    const params = new URLSearchParams();
+    if (options.calendarId) params.set('calendarId', options.calendarId);
+    if (options.recurrenceId) params.set('recurrenceId', options.recurrenceId);
+    return fetchWithToken<CalendarEventProviderUrl, CalendarMutationErrorCode>(
+      `${calendarHost}/events/${eventId}/provider-url?${params}`,
+      {
+        method: 'GET',
+        errorResponseHandler: calendarMutationErrorHandler,
+      }
+    );
+  },
   async listCalendars() {
     return fetchWithToken<ListCalendarsResponse>(`${calendarHost}/calendars`, {
       method: 'GET',
     });
+  },
+
+  async getTeamCalendarSharing(signal?: AbortSignal) {
+    return fetchWithToken<TeamCalendarSharingBody>(
+      `${calendarHost}/team-sharing`,
+      { method: 'GET', signal }
+    );
+  },
+
+  async setTeamCalendarSharing(body: TeamCalendarSharingBody) {
+    return fetchWithToken<TeamCalendarSharingBody>(
+      `${calendarHost}/team-sharing`,
+      { method: 'PUT', body: JSON.stringify(body) }
+    );
+  },
+
+  async getAvailabilityCalendars(signal?: AbortSignal) {
+    return fetchWithToken<AvailabilityCalendarsResponse>(
+      `${calendarHost}/availability-calendars`,
+      { method: 'GET', signal }
+    );
+  },
+
+  async setAvailabilityCalendar(
+    calendarId: string,
+    body: AvailabilityCalendarBody
+  ) {
+    return fetchWithToken<EmptyResponse>(
+      `${calendarHost}/availability-calendars/${encodeURIComponent(calendarId)}`,
+      { method: 'PUT', body: JSON.stringify(body) }
+    );
   },
   async createCalendarEvent(args: CreateCalendarEventRequest) {
     return fetchWithToken<CalendarEvent, CalendarMutationErrorCode>(
@@ -674,5 +846,29 @@ export const emailClient = {
         errorResponseHandler: calendarMutationErrorHandler,
       }
     );
+  },
+
+  async importGmailSignature(linkId?: string) {
+    return fetchWithToken<
+      PatchSettingsResponse,
+      'NO_SIGNATURE_FOUND' | typeof SIGNATURE_IMAGES_UNRESOLVED_CODE
+    >(`${emailHost}/email/settings/import-signature`, {
+      method: 'POST',
+      headers: emailLinkHeaders(linkId),
+      errorResponseHandler: async (response) => {
+        if (response.status === 404) {
+          return { code: 'NO_SIGNATURE_FOUND' as const, message: '' };
+        }
+        // Same 422 contract as patchSettings: Gmail images that couldn't be
+        // rehosted, so nothing was saved.
+        if (response.status === 422) {
+          return { code: SIGNATURE_IMAGES_UNRESOLVED_CODE, message: '' };
+        }
+        return {
+          code: 'HTTP_ERROR' as const,
+          message: `HTTP error! status: ${response.status}`,
+        };
+      },
+    });
   },
 };

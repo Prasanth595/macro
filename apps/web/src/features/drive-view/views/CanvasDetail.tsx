@@ -1,15 +1,14 @@
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { CanvasDocument } from '@block-canvas/component/CanvasDocument';
-import { useCanvasDocument } from '@block-canvas/context/canvas-document-context';
-import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import {
   getPermissions,
   hasPermissions,
   Permissions,
 } from '@core/component/SharePermissions';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { downloadFile } from '@filesystem/download';
 import { useSearchParams } from '@solidjs/router';
-import type { JSX } from 'solid-js';
+import type { Accessor, JSX } from 'solid-js';
 import { FileDetailLayout, FileDetailLoadGate } from '../components/FileDetail';
 import { downloadFileOperation } from '../components/file-detail-operations';
 import {
@@ -25,16 +24,19 @@ function CanvasDetailContent(props: {
   data: CanvasDocumentData;
   children?: (context: CanvasDetailContext) => JSX.Element;
   content: JSX.Element;
+  savedFile: Accessor<Blob | undefined>;
 }) {
   const analytics = useAnalytics();
-  const [savedFile] = useCanvasDocument().state.signals.currentSavedFile;
   const downloadName = documentDownloadName(
     props.data.documentMetadata,
     'Unknown Filename'
   );
   const operations = [
     downloadFileOperation(() => {
-      downloadFile(savedFile() ?? props.data.file, downloadName);
+      fireAndForget(
+        downloadFile(props.savedFile() ?? props.data.file, downloadName),
+        'drive-file-download'
+      );
       analytics.track('download', { blockType: 'canvas' });
     }),
   ];
@@ -59,7 +61,6 @@ export function CanvasDetailDocument(props: {
   data: CanvasDocumentData;
   children?: (context: CanvasDetailContext) => JSX.Element;
 }) {
-  const panel = useSplitPanelOrThrow();
   const [searchParams] = useSearchParams();
   const canEdit = () =>
     hasPermissions(
@@ -77,15 +78,14 @@ export function CanvasDetailDocument(props: {
         documentId={props.documentId}
         file={props.data.file}
         canEdit={canEdit()}
-        hotkeyScope={panel.splitHotkeyScope}
-        portalScope="split"
         locationParams={searchParams}
       >
-        {(content) => (
+        {(content, state) => (
           <CanvasDetailContent
             data={props.data}
             children={props.children}
             content={content}
+            savedFile={state.savedFile}
           />
         )}
       </CanvasDocument>

@@ -66,6 +66,7 @@ pub(crate) fn message(id: u128, thread: Option<Uuid>, body: &str) -> Message {
         sender_id: channel_sender::ChannelSender::new_from_user(user()),
         bot_profile: None,
         mentions: vec![],
+        guest_name: None,
         imported_author: None,
         triggered_by: None,
         content: body.into(),
@@ -156,6 +157,7 @@ impl Access {
         }
         Ok(match parent {
             MessageParent::Document(_)
+            | MessageParent::Call(_)
             | MessageParent::Initiative(_)
             | MessageParent::CrmCompany(_)
             | MessageParent::CrmContact(_) => (

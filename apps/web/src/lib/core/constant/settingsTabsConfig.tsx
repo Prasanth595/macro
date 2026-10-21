@@ -2,9 +2,13 @@ import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import BellIcon from '@phosphor/bell-simple.svg';
 import BugIcon from '@phosphor/bug.svg';
 import BuildingsIcon from '@phosphor/buildings.svg';
+import CalendarIcon from '@phosphor/calendar-blank.svg';
 import CpuIcon from '@phosphor/cpu.svg';
 import CreditCardIcon from '@phosphor/credit-card.svg';
+import DesktopIcon from '@phosphor/desktop.svg';
 import DeviceMobileIcon from '@phosphor/device-mobile-speaker.svg';
+import EmailIcon from '@phosphor/envelope-simple.svg';
+import GaugeIcon from '@phosphor/gauge.svg';
 import HardDrivesIcon from '@phosphor/hard-drives.svg';
 import KeyIcon from '@phosphor/key.svg';
 import KeyboardIcon from '@phosphor/keyboard.svg';
@@ -15,19 +19,23 @@ import AgentIcon from '@phosphor/sparkle.svg';
 import SwatchesIcon from '@phosphor/swatches.svg';
 import TagIcon from '@phosphor/tag-simple.svg';
 import UserIconPhosphor from '@phosphor/user.svg';
+import UsersIcon from '@phosphor/users.svg';
 import UsersThreeIcon from '@phosphor/users-three.svg';
 import { type Component, createMemo } from 'solid-js';
 import { useHasPermission } from '../context/user';
 import { isMobile } from '../mobile/isMobile';
 import { isNativeMobilePlatform } from '../mobile/isNativeMobilePlatform';
 import { isTouchDevice } from '../mobile/isTouchDevice';
+import { isPlatform } from '../util/platform';
 import {
   botManagement,
   DEV_MODE_ENV,
+  desktopApp,
   ENABLE_APP_STORE_QR_CODE,
+  ENABLE_EMAIL,
+  enableCalendarScheduling,
   enableChatV3Agents,
   enableCrm,
-  enableNotificationSettings,
 } from './featureFlags';
 import { PERMISSION_IDS } from './permissions';
 import type { SettingsTab } from './SettingsState';
@@ -44,6 +52,12 @@ export type SettingsTabItem = {
   /** Findable from search, but not a standing row in the settings nav. */
   searchOnly?: boolean;
 };
+
+/**
+ * The team group's static label. The settings nav appends the team's name
+ * (`Team · Macro`); search and tests match on this label.
+ */
+export const TEAM_SETTINGS_GROUP_LABEL = 'Team';
 
 export type SettingsTabGroup = {
   label: string;
@@ -62,37 +76,50 @@ export type SettingsTabGroup = {
  */
 export const SETTINGS_TAB_GROUPS: SettingsTabGroup[] = [
   {
-    label: 'General',
+    label: TEAM_SETTINGS_GROUP_LABEL,
     items: [
       {
-        tab: 'Account',
-        label: 'Account',
-        icon: UserIconPhosphor,
-        keywords: ['profile', 'user', 'email', 'name'],
+        tab: 'Team',
+        label: 'General',
+        icon: UsersThreeIcon,
+        keywords: ['team', 'workspace', 'organization', 'name', 'slug'],
       },
       {
-        tab: 'API Keys',
-        label: 'API Keys',
-        icon: KeyIcon,
-        keywords: ['api', 'key', 'token', 'authentication'],
+        tab: 'Team Members',
+        label: 'Members',
+        icon: UsersIcon,
+        keywords: [
+          'team',
+          'invite',
+          'people',
+          'users',
+          'teammates',
+          'roles',
+          'seats',
+        ],
       },
       {
-        tab: 'Notifications',
-        label: 'Notifications',
-        icon: BellIcon,
-        keywords: ['alerts', 'email', 'sound'],
+        tab: 'Team Connections',
+        label: 'Connections',
+        icon: PlugIcon,
+        keywords: ['team', 'slack', 'github', 'import', 'app'],
+      },
+    ],
+  },
+  {
+    label: 'Blocks',
+    items: [
+      {
+        tab: 'Email',
+        label: 'Email',
+        icon: EmailIcon,
+        keywords: ['gmail', 'inbox', 'signature', 'sync'],
       },
       {
-        tab: 'Billing',
-        label: 'Billing',
-        icon: CreditCardIcon,
-        keywords: ['payment', 'subscription', 'invoice', 'plan'],
-      },
-      {
-        tab: 'Appearance',
-        label: 'Appearance',
-        icon: SwatchesIcon,
-        keywords: ['theme', 'dark', 'light', 'color'],
+        tab: 'Calendar',
+        label: 'Calendar',
+        icon: CalendarIcon,
+        keywords: ['google', 'accounts', 'visibility', 'colors'],
       },
       {
         tab: 'Agents',
@@ -101,11 +128,57 @@ export const SETTINGS_TAB_GROUPS: SettingsTabGroup[] = [
         keywords: ['ai', 'assistant', 'bot'],
       },
       {
-        tab: 'Harness',
-        label: 'Runtimes',
-        icon: HardDrivesIcon,
-        keywords: ['cursor', 'harness', 'runtime', 'credential', 'api key'],
-        searchOnly: true,
+        tab: 'CRM',
+        label: 'CRM',
+        icon: BuildingsIcon,
+        keywords: ['contacts', 'customers', 'deals'],
+      },
+    ],
+  },
+  {
+    label: 'Personal',
+    items: [
+      {
+        tab: 'Account',
+        label: 'Account',
+        icon: UserIconPhosphor,
+        keywords: ['profile', 'user', 'email', 'name'],
+      },
+      {
+        tab: 'Appearance',
+        label: 'Appearance',
+        icon: SwatchesIcon,
+        keywords: ['theme', 'dark', 'light', 'color'],
+      },
+      {
+        tab: 'Notifications',
+        label: 'Notifications',
+        icon: BellIcon,
+        keywords: ['alerts', 'email', 'sound'],
+      },
+      {
+        tab: 'Shortcuts',
+        label: 'Keyboard shortcuts',
+        icon: KeyboardIcon,
+        keywords: ['keyboard', 'hotkey', 'keybinding'],
+      },
+      {
+        tab: 'Usage',
+        label: 'Usage',
+        icon: GaugeIcon,
+        keywords: ['ai', 'limit', 'credits', 'reload', 'usage'],
+      },
+      {
+        tab: 'Billing',
+        label: 'Billing',
+        icon: CreditCardIcon,
+        keywords: ['payment', 'subscription', 'invoice', 'plan'],
+      },
+      {
+        tab: 'Desktop App',
+        label: 'Desktop App',
+        icon: DesktopIcon,
+        keywords: ['download', 'mac', 'macos', 'linux', 'version', 'update'],
       },
       {
         tab: 'Mobile App',
@@ -113,23 +186,11 @@ export const SETTINGS_TAB_GROUPS: SettingsTabGroup[] = [
         icon: DeviceMobileIcon,
         keywords: ['phone', 'ios', 'android'],
       },
-      {
-        tab: 'Shortcuts',
-        label: 'Shortcuts',
-        icon: KeyboardIcon,
-        keywords: ['keyboard', 'hotkey', 'keybinding'],
-      },
     ],
   },
   {
     label: 'Workspace',
     items: [
-      {
-        tab: 'Team',
-        label: 'Team',
-        icon: UsersThreeIcon,
-        keywords: ['members', 'users', 'workspace'],
-      },
       {
         tab: 'Tags',
         label: 'Tags',
@@ -137,22 +198,27 @@ export const SETTINGS_TAB_GROUPS: SettingsTabGroup[] = [
         keywords: ['label', 'category'],
       },
       {
-        tab: 'CRM',
-        label: 'CRM',
-        icon: BuildingsIcon,
-        keywords: ['contacts', 'customers', 'deals'],
-      },
-      {
         tab: 'Connected',
         label: 'Integrations',
         icon: CpuIcon,
         keywords: ['integrations', 'apps', 'connections'],
       },
+    ],
+  },
+  {
+    label: 'Developer',
+    items: [
       {
         tab: 'Connections',
-        label: 'Connections',
+        label: 'Agent connections',
         icon: PlugsConnectedIcon,
         keywords: ['agent', 'tools', 'apps', 'mcp'],
+      },
+      {
+        tab: 'Harness',
+        label: 'Runtimes',
+        icon: HardDrivesIcon,
+        keywords: ['cursor', 'harness', 'runtime', 'credential', 'api key'],
       },
       {
         tab: 'Agent',
@@ -161,10 +227,16 @@ export const SETTINGS_TAB_GROUPS: SettingsTabGroup[] = [
         keywords: ['mcp', 'server', 'protocol'],
       },
       {
+        tab: 'API Keys',
+        label: 'API Keys',
+        icon: KeyIcon,
+        keywords: ['api', 'key', 'token', 'authentication'],
+      },
+      {
         tab: 'Bots',
         label: 'Bots',
         icon: BotIcon,
-        keywords: ['automation', 'bot'],
+        keywords: ['routine', 'bot'],
       },
     ],
   },
@@ -184,6 +256,7 @@ const SETTINGS_TAB_SLUGS: Record<SettingsTab, string> = {
   Account: 'account',
   'API Keys': 'api-keys',
   Notifications: 'notifications',
+  Usage: 'usage',
   Billing: 'billing',
   Subscription: 'subscription',
   Organization: 'organization',
@@ -193,11 +266,15 @@ const SETTINGS_TAB_SLUGS: Record<SettingsTab, string> = {
   Inbox: 'inbox',
   Shortcuts: 'shortcuts',
   'Mobile App': 'mobile-app',
+  'Desktop App': 'desktop-app',
   Agent: 'mcp-server',
   Agents: 'agents',
   Harness: 'runtimes',
   Bots: 'bots',
   Team: 'team',
+  'Team Members': 'team-members',
+  'Team Connections': 'team-connections',
+  Calendar: 'calendar',
   Tags: 'tags',
   CRM: 'crm',
   Connected: 'connections',
@@ -234,25 +311,32 @@ export const settingsSlugToTab = (
  * surface a tab the panel won't render.
  */
 export const useSettingsTabAvailable = () => {
+  const calendarSchedulingFlag = useFeatureFlag(enableCalendarScheduling);
   const botManagementFlag = useFeatureFlag(botManagement);
   const chatV3AgentsFlag = useFeatureFlag(enableChatV3Agents);
   const crmFlag = useFeatureFlag(enableCrm);
-  const notificationSettingsFlag = useFeatureFlag(enableNotificationSettings);
+  const desktopAppFlag = useFeatureFlag(desktopApp);
   const hasAdminPanel = useHasPermission(PERMISSION_IDS.WRITE_ADMIN_PANEL);
 
   return (tab: SettingsTab): boolean => {
     switch (tab) {
       case 'Appearance':
       case 'Account':
+      case 'Notifications':
+      case 'Usage':
       case 'Billing':
         return true;
+      case 'Email':
+        return ENABLE_EMAIL;
+      case 'Calendar':
+        return calendarSchedulingFlag().enabled;
       // Issuing and copying a key is desk work, and the mobile sheet has no
       // good place for a one-time secret.
       case 'API Keys':
         return !isMobile();
-      case 'Notifications':
-        return notificationSettingsFlag().enabled;
       case 'Team':
+      case 'Team Members':
+      case 'Team Connections':
       case 'Tags':
         return true;
       // CRM is still rolling out (Macro-internal only); keep the settings tab
@@ -267,6 +351,11 @@ export const useSettingsTabAvailable = () => {
         return !isTouchDevice();
       case 'Mobile App':
         return ENABLE_APP_STORE_QR_CODE && !isNativeMobilePlatform();
+      case 'Desktop App':
+        return (
+          isPlatform('desktop') ||
+          (isPlatform('web') && desktopAppFlag().enabled)
+        );
       case 'Agent':
         return !isNativeMobilePlatform();
       // Configurable agents are still rolling out; keep both tabs behind the

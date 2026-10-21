@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   createLoroManager,
   type LoroManager,
@@ -37,6 +38,7 @@ import {
   type MarkdownDocumentState,
 } from '../context/markdown-document-state';
 import { HistoryProvider } from '../history/HistoryContext';
+import { HistoryWorkspace } from '../history/HistoryWorkspace';
 import { resumeDocumentSpan, stampLoroSnapshotState } from '../observability';
 import type { MarkdownDocumentKind, MarkdownDocumentSource } from '../types';
 import { MarkdownNameProvider } from './MarkdownNameProvider';
@@ -110,7 +112,10 @@ function startSnapshotIngest(
       })
     : ingest();
 
-  void recordSnapshotResult(parentSpan, source, operation);
+  fireAndForget(
+    recordSnapshotResult(parentSpan, source, operation),
+    'markdown-editor'
+  );
 }
 
 async function ingestLocalSnapshot(
@@ -217,7 +222,7 @@ export function MarkdownDocument(props: ParentProps<MarkdownDocumentProps>) {
           tabIndex={-1}
         >
           <HistoryProvider documentId={() => props.documentId}>
-            {props.children}
+            <HistoryWorkspace>{props.children}</HistoryWorkspace>
           </HistoryProvider>
         </div>
       </MarkdownNameProvider>

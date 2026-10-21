@@ -5,9 +5,13 @@
 
 /// Authenticated ACP capability discovery.
 pub mod capability_discovery;
+/// Authenticated agent conversation metadata and controls.
+pub mod conversations;
 pub mod kafka;
 /// Authenticated model discovery.
 pub mod model_load;
 /// Authenticated repository and branch listing.
 pub mod repositories;
 pub mod runtime_gateway;
+/// Answering tool calls held for the session owner's approval.
+pub mod tool_approvals;

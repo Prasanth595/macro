@@ -2,6 +2,7 @@ import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { toast } from '@core/component/Toast/Toast';
 import { useEmail, useIsAuthenticated } from '@core/context/user';
 import { idToDisplayName } from '@core/user/util';
+import { fireAndForget } from '@core/util/fireAndForget';
 import LogoIcon from '@icon/macro-logo.svg';
 import CopyIcon from '@phosphor/copy.svg';
 import LinkIcon from '@phosphor/link.svg';
@@ -63,7 +64,7 @@ export function InviteLinksPortal() {
             <h1 class="text-xl font-semibold tracking-tight">Invite links</h1>
             <p class="text-sm text-ink-muted">
               Personal signup links for prospects. Each one is good for 48 hours
-              and gives the recipient their first month of Premium free.
+              and gives the recipient their first month of Pro free.
             </p>
           </div>
         </header>
@@ -231,7 +232,7 @@ function CreateLinkForm(props: { onCreated: (link: GtmInviteLink) => void }) {
       setFirstName('');
       setRecipientEmail('');
       setNote('');
-      void copyLink(link, { silent: true });
+      fireAndForget(copyLink(link, { silent: true }), 'gtm-invite');
       toast.success(`Link for ${link.firstName} created and copied`);
     },
   });

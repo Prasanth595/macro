@@ -13,7 +13,9 @@ import {
 } from '@queries/call/meetings';
 import type { CalendarUpdateScope } from '@service-email/client';
 import { type Accessor, createMemo, createSignal } from 'solid-js';
+import { match } from 'ts-pattern';
 import {
+  buildEventTime,
   calendarEventToEditorInitialValues,
   type EventEditorDisabledFields,
   type EventEditorSubmitValues,
@@ -23,6 +25,7 @@ import {
   DEFAULT_CALENDAR_SOURCE,
   reminderCalendarIdOf,
 } from '../types';
+import { isTimedPointEvent } from '../utils/calendar-date';
 import {
   calendarDisplayLabel,
   spansMultipleInboxes,
@@ -49,6 +52,31 @@ const EDIT_DISABLED_FIELDS = {
  */
 function editsPrimaryCopy(event: CalendarEvent) {
   return reminderCalendarIdOf(event) === event.calendarId;
+}
+
+function hasTimeChanged(
+  event: CalendarEvent,
+  time: EventEditorSubmitValues['time']
+) {
+  // Compare at the editor's precision, which omits seconds. An unchanged
+  // occurrence must not replace the series start or its provider time zone.
+  const initialValues = calendarEventToEditorInitialValues(event);
+  const initial =
+    buildEventTime(initialValues) ?? initialValues.importedPointTime;
+  return match([initial, time])
+    .with(
+      [{ kind: 'timed' }, { kind: 'timed' }],
+      ([before, after]) =>
+        new Date(before.startsAt).getTime() !==
+          new Date(after.startsAt).getTime() ||
+        new Date(before.endsAt).getTime() !== new Date(after.endsAt).getTime()
+    )
+    .with(
+      [{ kind: 'allDay' }, { kind: 'allDay' }],
+      ([before, after]) =>
+        before.startDate !== after.startDate || before.endDate !== after.endDate
+    )
+    .otherwise(() => true);
 }
 
 interface UseEventEditorProps {
@@ -84,7 +112,7 @@ export function useEventEditor(props: UseEventEditorProps) {
     const event = props.event();
     if (event) {
       const calendarId = event.calendarId ?? event.calendar.id;
-      const calendars = calendarsQuery.data ?? [];
+      const calendars = calendarsQuery.isSuccess ? calendarsQuery.data : [];
       const calendar = calendars.find(
         (candidate) => candidate.id === calendarId
       );
@@ -94,6 +122,8 @@ export function useEventEditor(props: UseEventEditorProps) {
       return [
         {
           id: calendarId,
+          provider: calendar?.provider ?? event.calendar.provider,
+          capabilities: calendar?.capabilities ?? event.calendar.capabilities,
           label: event.calendar.name || 'Calendar',
           color: event.calendar.color,
           defaultReminders: reminderCalendar?.defaultReminders,
@@ -104,6 +134,8 @@ export function useEventEditor(props: UseEventEditorProps) {
 
     return writableCalendars().map((calendar) => ({
       id: calendar.id,
+      provider: calendar.provider,
+      capabilities: calendar.capabilities,
       label: calendarDisplayLabel(calendar, spansInboxes()),
       color: calendar.color ?? DEFAULT_CALENDAR_SOURCE.color,
       defaultReminders: calendar.defaultReminders,
@@ -118,11 +150,7 @@ export function useEventEditor(props: UseEventEditorProps) {
   const createMeeting = useCreateMeetingMutation();
   const [pending, setPending] = createSignal(false);
   const [saveError, setSaveError] = createSignal<string>();
-  // If adding the link fails, retry the same saved event and meeting.
-  const [createdEvent, setCreatedEvent] = createSignal<{
-    id: string;
-    calendarId?: string;
-  }>();
+  // If attaching the link to an existing event fails, retry the same meeting.
   const [createdMeeting, setCreatedMeeting] = createSignal<{
     url: string;
     shareToken: string;
@@ -159,11 +187,14 @@ export function useEventEditor(props: UseEventEditorProps) {
   ) => {
     const meeting = await fetchMeeting(shareToken);
     if (!props.macroCallsEnabled()) return;
+    const event = props.event();
+    const preservesPoint =
+      event && isTimedPointEvent(event) && !hasTimeChanged(event, values.time);
     await updateMeeting.mutateAsync({
       meetingId: meeting.id,
       ...(values.time.kind === 'allDay' ? { clearSchedule: true } : {}),
       title: values.title,
-      ...meetingSchedule(values),
+      ...(preservesPoint ? {} : meetingSchedule(values)),
     });
   };
 
@@ -188,6 +219,17 @@ export function useEventEditor(props: UseEventEditorProps) {
       (!event.isReadOnly &&
         editsPrimaryCopy(event) &&
         viewerCanEditGuests(event));
+    if (
+      needsCall() &&
+      canManageCall &&
+      !existingMeetingUrl &&
+      values.time.kind === 'timed' &&
+      Date.parse(values.time.endsAt) <= Date.parse(values.time.startsAt)
+    ) {
+      setSaveError('Give this event a duration before adding a Macro call.');
+      setPending(false);
+      return;
+    }
     // Older events can carry both a generated Macro link and provider
     // conferencing. Use the saved provider state when clearing either choice.
     const conference =
@@ -204,7 +246,9 @@ export function useEventEditor(props: UseEventEditorProps) {
 
     try {
       if (!event) {
-        const eventValues = {
+        // The server mints the call and writes its link into the event, so
+        // the one invitation attendees receive already carries it.
+        await create.mutateAsync({
           title: values.title,
           time: values.time,
           calendarId: values.calendarId,
@@ -217,54 +261,23 @@ export function useEventEditor(props: UseEventEditorProps) {
               : cleanContent.description,
           attendees: values.guestEmails.map((email) => ({ email })),
           ...(conference ? { conference } : {}),
+          ...(needsCall() ? { macroCall: true } : {}),
           ...(values.reminders ? { reminders: values.reminders } : {}),
           ...(values.outOfOffice ? { outOfOffice: values.outOfOffice } : {}),
-        };
-        let created = createdEvent();
-        if (created) {
-          await update.mutateAsync({
-            eventId: created.id,
-            calendarId: created.calendarId,
-            patch: {
-              ...eventValues,
-              location: cleanContent.location,
-              description: cleanContent.description,
-            },
-          });
-        } else {
-          const result = await create.mutateAsync(eventValues);
-          created = {
-            id: result.id,
-            calendarId: values.calendarId ?? result.calendarId ?? undefined,
-          };
-          setCreatedEvent(created);
-        }
-        calendarSaved = true;
-
-        if (needsCall()) {
-          const meetingUrl = await createScheduledMeeting(values);
-          const linkedContent = attachCalendarMacroCall(
-            cleanContent,
-            meetingUrl
-          );
-          if (needsCall())
-            await update.mutateAsync({
-              eventId: created.id,
-              calendarId: created.calendarId ?? values.calendarId,
-              patch: {
-                location: linkedContent.location,
-                description: linkedContent.description,
-              },
-            });
-        }
+        });
         props.onSaved();
         return;
       }
 
       const effectiveScope: CalendarUpdateScope = scope ?? 'all';
       const targetsOneOccurrence = effectiveScope === 'this_event';
+      const initialContent = removeCalendarMacroCall(event, existingMeetingUrl);
       const content =
-        event.eventType === 'out_of_office'
+        event.eventType === 'out_of_office' ||
+        (existingMeetingUrl &&
+          wantsMacroCall &&
+          cleanContent.location === initialContent.location &&
+          cleanContent.description === initialContent.description)
           ? {
               location: event.location ?? '',
               description: event.description ?? '',
@@ -297,10 +310,14 @@ export function useEventEditor(props: UseEventEditorProps) {
           : undefined,
         occurrenceKey: targetsOneOccurrence ? event.occurrenceKey : undefined,
         patch: {
-          title: values.title,
-          time: values.time,
-          location: content.location,
-          description: content.description,
+          ...(values.title !== event.title ? { title: values.title } : {}),
+          ...(hasTimeChanged(event, values.time) ? { time: values.time } : {}),
+          ...(content.location !== (event.location ?? '')
+            ? { location: content.location }
+            : {}),
+          ...(content.description !== (event.description ?? '')
+            ? { description: content.description }
+            : {}),
           ...(recurrenceChanged
             ? { recurrenceLines: values.recurrenceLines }
             : {}),
@@ -314,7 +331,9 @@ export function useEventEditor(props: UseEventEditorProps) {
           ...(values.outOfOffice ? { outOfOffice: values.outOfOffice } : {}),
         },
       };
-      await update.mutateAsync(updateArgs);
+      if (Object.keys(updateArgs.patch).length > 0) {
+        await update.mutateAsync(updateArgs);
+      }
       calendarSaved = true;
 
       if (needsCall() && canManageCall && !existingMeetingUrl) {
@@ -362,7 +381,7 @@ export function useEventEditor(props: UseEventEditorProps) {
   const disabledFields = createMemo<EventEditorDisabledFields | undefined>(
     () => {
       const event = props.event();
-      if (!event) return createdEvent() ? EDIT_DISABLED_FIELDS : undefined;
+      if (!event) return undefined;
       const editsOtherCopy = !editsPrimaryCopy(event);
       return {
         ...EDIT_DISABLED_FIELDS,
@@ -381,7 +400,6 @@ export function useEventEditor(props: UseEventEditorProps) {
     showRecurringEditNotice,
     pending,
     saveError,
-    eventCreated: () => createdEvent() !== undefined,
     save,
   };
 }

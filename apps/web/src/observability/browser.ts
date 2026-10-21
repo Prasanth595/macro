@@ -1,8 +1,18 @@
+import { fireAndForget } from '@core/util/fireAndForget';
+import { isIgnorableError } from '@core/util/ignorableErrors';
+import { getPlatform, isTauri } from '@core/util/platform';
 import { recordBrowserTursoCacheNavigation } from '@graphql-cache/rollout-observability';
 import { Telemetry } from '@macro-inc/observability';
 import { createWebTracingProvider } from '@macro-inc/observability/web';
 // This static import loads the zone.js Promise patch before application modules run.
 import { ZoneContextManager } from '@macro-inc/observability/zone';
+import {
+  createDesktopMemoryRecording,
+  desktopResourceAttributes,
+  readDesktopDiagnostics,
+} from './desktop';
+import { recordNativeWebviewStart } from './native-lifecycle';
+import { initializeUiOperationTelemetry } from './ui-operation';
 
 async function browserTelemetryEnabled(hasExporter: boolean): Promise<boolean> {
   const override = import.meta.env.VITE_ENABLE_BROWSER_OTEL;
@@ -44,7 +54,13 @@ async function browserTelemetryEnabled(hasExporter: boolean): Promise<boolean> {
 
 /** Initialize browser telemetry and its application-level lifecycle hooks. */
 export async function initializeBrowserObservability(): Promise<void> {
+  let browserEnabled = false;
+  const desktop = await readDesktopDiagnostics();
+  const recording = desktop?.identity.recordingId
+    ? createDesktopMemoryRecording(desktop)
+    : undefined;
   const configuredTracesUrl =
+    desktop?.identity.tracesUrl ??
     import.meta.env.VITE_OTEL_EXPORTER_URL ??
     (import.meta.hot ? 'http://localhost:8098/i/otlp/v1/traces' : undefined);
   // Local stacks use a same-origin path; exporters expect an absolute URL.
@@ -59,7 +75,20 @@ export async function initializeBrowserObservability(): Promise<void> {
     tracesUrl,
     logsUrl: tracesUrl?.replace(/\/v1\/traces\/?$/, '/v1/logs'),
     contextManager: new ZoneContextManager(),
-    enabled: () => browserTelemetryEnabled(Boolean(tracesUrl)),
+    resourceAttributes: {
+      'service.version': import.meta.env.__APP_VERSION__,
+      'app.runtime': isTauri() ? 'tauri' : 'browser',
+      'app.platform': getPlatform(),
+      ...(desktop && desktopResourceAttributes(desktop)),
+    },
+    recording: Boolean(recording),
+    spanAttributes: recording?.attributes,
+    enabled: async () => {
+      browserEnabled = recording
+        ? true
+        : await browserTelemetryEnabled(Boolean(tracesUrl));
+      return browserEnabled;
+    },
   };
 
   await Telemetry.init({
@@ -67,10 +96,29 @@ export async function initializeBrowserObservability(): Promise<void> {
     tracingProvider: (resource, getUserId) =>
       createWebTracingProvider(telemetryConfig, resource, getUserId),
   });
+  if (isTauri()) recordNativeWebviewStart(desktop);
+  if (recording && desktop) {
+    recording.accept(desktop);
+    Telemetry.info('Desktop memory recording enabled', {
+      'macro.recording.id': desktop.identity.recordingId ?? undefined,
+      'service.instance.id': desktop.identity.instanceId,
+    });
+    fireAndForget(recording.start(), 'desktop-memory-recording');
+    import.meta.hot?.dispose(() => recording.dispose());
+  }
   recordBrowserTursoCacheNavigation();
+  if (browserEnabled) {
+    const disposeUiTelemetry = initializeUiOperationTelemetry();
+    import.meta.hot?.dispose(disposeUiTelemetry);
+  }
 
-  window.addEventListener('pagehide', () => void Telemetry.flush());
+  window.addEventListener('pagehide', () =>
+    fireAndForget(Telemetry.flush(), 'telemetry-flush')
+  );
   window.addEventListener('error', (event) => {
+    if (isIgnorableError({ message: event.message, source: event.filename })) {
+      return;
+    }
     Telemetry.error(event.error ?? event.message, {
       'error.source': 'window',
     });

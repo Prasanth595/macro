@@ -1,6 +1,7 @@
 import { toast } from '@core/component/Toast/Toast';
 import { PipedreamConnectorIcon } from '@core/pipedream/ConnectorIcon';
 import { createPipedreamCatalogConnect } from '@core/pipedream/catalog';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   useDeletePipedreamConnectionMutation,
   useUpdatePipedreamConnectionMutation,
@@ -8,10 +9,12 @@ import {
 import { Button, Dialog, Panel } from '@ui';
 import { createEffect, createSignal, type JSX, on, Show } from 'solid-js';
 import { match } from 'ts-pattern';
+import { ConnectAction } from '../integration-ui';
 import {
   readMcpAuthAttempted,
   writeMcpAuthAttempted,
 } from '../mcp-auth-attempt';
+import { IntegrationRow, SettingsRow } from '../primitives';
 import {
   type ConnectionMenuItem,
   ConnectionRowActions,
@@ -20,10 +23,8 @@ import {
   type DisconnectConfirm,
   DisconnectConfirmDialog,
 } from './disconnect-confirm';
-import { ConnectAction } from './integration-ui';
 import type { Leftover } from './model';
 import { useNativeMcpActions } from './native-actions';
-import { IntegrationRow, SettingsRow } from './primitives';
 
 function leftoverDisabled(leftover: Leftover): boolean {
   return match(leftover)
@@ -202,7 +203,7 @@ export function LeftoverRow(props: { leftover: Leftover }) {
           startAuth();
         })
         .with({ kind: 'pipedream' }, () => {
-          void connectPipedream();
+          fireAndForget(connectPipedream(), 'connections-settings');
         })
         .exhaustive();
     },

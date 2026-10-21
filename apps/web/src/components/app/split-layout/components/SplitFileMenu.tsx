@@ -5,10 +5,9 @@ import {
   makeCopyLinkAction,
   makeCreateReminderAction,
   makeFavoriteAction,
-  makeMarkDoneAction,
   makeMuteAction,
-  markReminderTargetDone,
 } from '@app/features/next-soup/actions';
+import { ProjectAssignmentDialog } from '@app/features/projects/projects';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { useGlobalNotificationSource } from '@components/app/GlobalAppState';
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
@@ -22,14 +21,14 @@ import { useItemOperations } from '@core/component/FileList/useItemOperations';
 import { Permissions } from '@core/component/SharePermissions';
 import { toast } from '@core/component/Toast/Toast';
 import { resolveBlockAlias } from '@core/constant/allBlocks';
-import { enableReminders } from '@core/constant/featureFlags';
+import { enableProjects, enableReminders } from '@core/constant/featureFlags';
 import { useQuickAccess } from '@core/context/quickAccess';
-import { useUserId } from '@core/context/user';
 import { triggerFocusInput } from '@core/directive/focusInput';
 import { type HotkeyToken, TOKENS } from '@core/hotkey/tokens';
 import { getActiveCommandByToken } from '@core/hotkey/utils';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { useGetPermissions } from '@core/signal/permissions';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { buildEntityData, type EntityData } from '@entity';
 import ArrowRight from '@phosphor/arrow-right.svg';
 import BellSimple from '@phosphor/bell-simple.svg';
@@ -41,6 +40,7 @@ import Copy from '@phosphor/copy.svg';
 import DotsThree from '@phosphor/dots-three.svg';
 import Link from '@phosphor/link.svg';
 import Rename from '@phosphor/pencil-line.svg';
+import Stack from '@phosphor/stack.svg';
 import Star from '@phosphor/star.svg';
 import Tag from '@phosphor/tag.svg';
 import Trash from '@phosphor/trash-simple.svg';
@@ -352,24 +352,17 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
   const blockName = resolveBlockAlias(props.entityKind);
 
   const [open, setOpen] = createSignal(false);
+  const [assigningProject, setAssigningProject] = createSignal(false);
+  const projectsFlag = useFeatureFlag(enableProjects);
   const itemOperations = useItemOperations();
   const quickAccess = useQuickAccess();
   const favoriteAction = makeFavoriteAction();
-  const userId = useUserId();
   const notificationSource = useGlobalNotificationSource();
   const muteAction = makeMuteAction({
     notificationSource: () => notificationSource,
   });
-  const markDone = makeMarkDoneAction({
-    userId: () => userId(),
-    notificationSource: () => notificationSource,
-  });
-  // Same follow-up as the block's command menu and every soup list: the
-  // reminder brings the entity back, so it is marked done now. No soup list is
-  // behind this menu, so nothing advances.
   const createReminderAction = makeCreateReminderAction({
     onEmailSaved: props.onEmailReminderSaved,
-    onCreated: markReminderTargetDone(markDone),
   });
   const addTagAction = makeAddTagAction();
   const copyLinkAction = makeCopyLinkAction();
@@ -403,7 +396,7 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
       label: favoriteAction.isFavorited(entity) ? 'Unfavorite' : 'Favorite',
       icon: Star,
       action: () => {
-        void favoriteAction.execute([entity]);
+        fireAndForget(favoriteAction.execute([entity]), 'entity-actions');
       },
       get hotkeyToken() {
         return activeHotkeyToken(TOKENS.entity.action.favorite);
@@ -420,7 +413,7 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
       label: muted ? 'Unmute notifications' : 'Mute notifications',
       icon: muted ? BellSimple : BellSlash,
       action: () => {
-        void muteAction.execute([entity]);
+        fireAndForget(muteAction.execute([entity]), 'entity-actions');
       },
       get hotkeyToken() {
         return activeHotkeyToken(TOKENS.entity.action.mute);
@@ -435,10 +428,7 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
   // other reminder surfaces re-evaluate per interaction and don't need this.
   const remindersFlag = useFeatureFlag(enableReminders);
 
-  // Injected here rather than per-block so every block rendering this menu gets
-  // it, the way Favorite does. Entity types the reminders API cannot mint an
-  // access receipt for (channel messages/threads) return undefined and are
-  // filtered out.
+  // Offer the shared snooze command for email conversations.
   const reminderOp = (): SplitFileMenuAction | undefined => {
     if (!remindersFlag().enabled) return undefined;
     const entity = menuEntity();
@@ -489,9 +479,12 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
       icon: Link,
       action: () => {
         if (entity) {
-          void copyLinkAction.execute([entity]);
+          fireAndForget(copyLinkAction.execute([entity]), 'entity-actions');
         } else {
-          void copyLinkAction.executeByBlock(props.id, props.entityKind);
+          fireAndForget(
+            copyLinkAction.executeByBlock(props.id, props.entityKind),
+            'entity-actions'
+          );
         }
       },
       get hotkeyToken() {
@@ -505,7 +498,7 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
     label: 'Copy ID',
     icon: Copy,
     action: () => {
-      void copyEntityIdAction.executeById(props.id);
+      fireAndForget(copyEntityIdAction.executeById(props.id), 'entity-actions');
     },
     get hotkeyToken() {
       return activeHotkeyToken(TOKENS.entity.action.copyEntityId);
@@ -644,6 +637,22 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
       muteOp(),
       reminderOp(),
       addTagOp(),
+      ...(props.entityKind === 'task' &&
+      projectsFlag().enabled &&
+      (props.permissions === Permissions.OWNER ||
+        props.permissions === Permissions.CAN_EDIT)
+        ? [
+            {
+              label: 'Add to project…',
+              icon: Stack,
+              group: 'file' as const,
+              action: () => {
+                setOpen(false);
+                setAssigningProject(true);
+              },
+            },
+          ]
+        : []),
       copyLinkOp(),
       copyEntityIdOp(),
       ...mapped,
@@ -699,25 +708,33 @@ export function SplitFileMenu(props: SplitFileMenuProps) {
   onCleanup(() => ctx.setTitleFileMenuActions(undefined));
 
   return (
-    <Show
-      when={isTouchDevice()}
-      fallback={
-        <DesktopRender
+    <>
+      <Show
+        when={isTouchDevice()}
+        fallback={
+          <DesktopRender
+            open={open()}
+            onOpenChange={setOpen}
+            triggerClass={props.buttonClass}
+            groups={actionGroups()}
+          />
+        }
+      >
+        <MobileRender
           open={open()}
           onOpenChange={setOpen}
           triggerClass={props.buttonClass}
           groups={actionGroups()}
+          views={props.mobileViews}
         />
-      }
-    >
-      <MobileRender
-        open={open()}
-        onOpenChange={setOpen}
-        triggerClass={props.buttonClass}
-        groups={actionGroups()}
-        views={props.mobileViews}
-      />
-    </Show>
+      </Show>
+      <Show when={projectsFlag().enabled && assigningProject()}>
+        <ProjectAssignmentDialog
+          taskIds={[props.id]}
+          onClose={() => setAssigningProject(false)}
+        />
+      </Show>
+    </>
   );
 }
 

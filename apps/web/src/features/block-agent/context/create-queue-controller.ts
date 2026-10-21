@@ -13,6 +13,7 @@
  */
 
 import { toast } from '@core/component/Toast/Toast';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   subscribeAgentSessionQueue,
   subscribeSocketSessionStarted,
@@ -43,6 +44,12 @@ export type QueueController = {
   edit: (actionId: string, prompt: string) => Promise<void>;
   /** Remove a queued action. Same 404 semantics as `edit`. */
   remove: (actionId: string) => Promise<void>;
+  /**
+   * Run this queued action next: the server moves it to the front and
+   * cancels the turn in flight. `false` when it was not waiting anymore or
+   * the request failed.
+   */
+  steer: (actionId: string) => Promise<boolean>;
 };
 
 export function createQueueController(options: {
@@ -83,7 +90,7 @@ export function createQueueController(options: {
     on(options.sessionId, () => {
       socketAuthoritative = false;
       setQueued([]);
-      void baseline();
+      fireAndForget(baseline(), 'agent-queue');
     })
   );
 
@@ -102,7 +109,7 @@ export function createQueueController(options: {
   onCleanup(
     subscribeSocketSessionStarted(() => {
       socketAuthoritative = false;
-      baseline();
+      fireAndForget(baseline(), 'agent-queue');
     })
   );
 
@@ -148,10 +155,26 @@ export function createQueueController(options: {
     }
   };
 
+  const steer = async (actionId: string) => {
+    const sessionId = untrack(options.sessionId);
+    if (!sessionId) return false;
+    const result = await agentHarnessServiceClient
+      .steerQueued(sessionId, actionId)
+      .catch(() => undefined);
+    if (result === undefined || result.isErr()) {
+      if (result === undefined || !isDispatched(result)) {
+        toast.failure('The queued message could not be steered');
+      }
+      return false;
+    }
+    return true;
+  };
+
   return {
     entries: () =>
       queued().filter((entry) => !dispatchedIds().has(entry.actionId)),
     edit,
     remove,
+    steer,
   };
 }

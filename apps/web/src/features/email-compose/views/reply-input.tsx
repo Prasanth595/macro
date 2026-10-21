@@ -18,8 +18,18 @@ import { isIOS } from '@solid-primitives/platform';
 import { Button, cn, SendButton, Surface, Tooltip } from '@ui';
 import type { LexicalEditor } from 'lexical';
 import { $getRoot } from 'lexical';
-import { createSignal, For, onMount, Show } from 'solid-js';
+import {
+  type Accessor,
+  createResource,
+  createSignal,
+  For,
+  onMount,
+  Show,
+} from 'solid-js';
+import { MessageOperationRecovery } from '../../email-message/views/message-operation-recovery';
 import { createAttachmentViewer } from '../components/attachment-viewer';
+import { DraftBackMenu } from '../components/draft-back-menu';
+import { DraftSyncStatus } from '../components/draft-sync-status';
 import { EmailDateSelector } from '../components/email-date-selector';
 import {
   EmailScheduleBar,
@@ -30,12 +40,17 @@ import { MobileReplyToolbar } from '../components/mobile-reply-toolbar';
 import { SignaturePreview } from '../components/signature-preview';
 import type { EmailComposeContext } from '../context/compose-capabilities';
 import { getOrInitEmailFormContext } from '../context/email-form-context';
+import { decodeBase64Utf8 } from '../core/decode-base64';
+import { plainTextToHtml } from '../core/plain-text-to-html';
+import { registerCcBccHotkeys } from '../primitives/cc-bcc-hotkeys';
+import { createDraftSyncStatus } from '../primitives/draft-sync-status';
 import { registerToggleAppendedThread } from '../primitives/prepare-email-body';
 import { ReplyEnvelope } from './reply-envelope';
 
 false && fileFolderDrop;
 false && fileSelector;
 
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   createReplyComposer,
   type ReplyComposerOptions,
@@ -50,17 +65,65 @@ type ReplyInputViewProps = Omit<
   | 'notices'
   | 'accounts'
   | 'connectivity'
+  | 'editorFiles'
   | 'viewerEmail'
   | 'hasPaidAccess'
   | 'recordMention'
   | 'focusAfterReplyRequest'
 > & {
   context: EmailComposeContext;
+  onReloadDraft?: () => void;
   markdownDomRef?: (ref: HTMLDivElement) => void | HTMLDivElement;
   unframed?: boolean;
-  mobileDrawer?: { onClose: () => void };
+  mobileCompose?: {
+    portalMount: Accessor<HTMLDivElement | undefined>;
+    onClose: () => void;
+    registerClose: (handler: () => void) => void;
+  };
 };
 export function ReplyInputView(props: ReplyInputViewProps) {
+  const initialId = props.draft?.db_id;
+  const read = props.context.drafts.readDraft;
+  const [saved, { refetch }] = createResource(
+    () => read && initialId,
+    async (id) => await read!(id)
+  );
+  const restoredHtml = () => {
+    const draft = saved()?.draft;
+    if (!draft) return props.preloadedHtml;
+    if (draft.body_html_sanitized != null)
+      return decodeBase64Utf8(draft.body_html_sanitized);
+    return draft.body_text ? plainTextToHtml(draft.body_text) : '';
+  };
+  return (
+    <Show
+      when={!saved.loading}
+      fallback={<div role="status">Loading draft…</div>}
+    >
+      <Show
+        when={!saved.error}
+        fallback={
+          <div role="alert">
+            Unable to load local draft.{' '}
+            <button onClick={() => fireAndForget(refetch(), 'email-compose')}>
+              Retry
+            </button>
+          </div>
+        }
+      >
+        <LoadedReplyInputView
+          {...props}
+          draft={saved()?.draft ?? props.draft}
+          localDraft={saved()?.local}
+          localAttachments={saved()?.attachments}
+          preloadedHtml={restoredHtml()}
+        />
+      </Show>
+    </Show>
+  );
+}
+
+function LoadedReplyInputView(props: ReplyInputViewProps) {
   const composeContext = props.context;
   const ctx = props.session;
   const [isDragging, setIsDragging] = createSignal<boolean>();
@@ -70,12 +133,14 @@ export function ReplyInputView(props: ReplyInputViewProps) {
   const state = createReplyComposer(
     {
       drafts: composeContext.drafts,
+      operations: composeContext.operations,
       attachmentStorage: composeContext.attachmentStorage,
       delivery: composeContext.delivery,
       draftLifecycle: composeContext.draftLifecycle,
       notices: composeContext.notices,
       accounts: composeContext.accounts,
       connectivity: composeContext.connectivity,
+      editorFiles: composeContext.editorFiles,
       viewerEmail: composeContext.viewerEmail,
       hasPaidAccess: composeContext.hasPaidAccess,
       recordMention: composeContext.recordMention,
@@ -85,6 +150,8 @@ export function ReplyInputView(props: ReplyInputViewProps) {
       replyingTo: props.replyingTo,
       isEditingExisting: props.isEditingExisting,
       draft: props.draft,
+      localDraft: props.localDraft,
+      localAttachments: props.localAttachments,
       preloadedHtml: props.preloadedHtml,
       formSeed: props.formSeed,
       onEngaged: props.onEngaged,
@@ -97,6 +164,14 @@ export function ReplyInputView(props: ReplyInputViewProps) {
     { container: () => composeContainerRef, footer: () => bottomBarRef },
     getOrInitEmailFormContext
   );
+  const sync = createDraftSyncStatus({
+    drafts: composeContext.drafts,
+    draftId: state.savedDraftId,
+    localSaveState: state.localSaveState,
+    acknowledgeSaved: state.acknowledgeSaved,
+    retry: state.retryDraft,
+    discard: state.deleteDraftAndReset,
+  });
   const {
     form,
     activeInboxId,
@@ -138,13 +213,34 @@ export function ReplyInputView(props: ReplyInputViewProps) {
     composeContext.presentation.signaturesEnabled()
       ? state.signatureHtml()
       : undefined;
-  const isMobileDrawer = () => props.mobileDrawer !== undefined;
+  const [draftBackMenuOpen, setDraftBackMenuOpen] = createSignal(false);
+  const requestClose = () => {
+    // The full-screen dialog owns Escape; dismiss the nested draft choices first.
+    if (draftBackMenuOpen()) {
+      setDraftBackMenuOpen(false);
+      return;
+    }
+    if (collectDraft()) setDraftBackMenuOpen(true);
+    else fireAndForget(deleteDraftAndReset(), 'email-compose');
+  };
+  const saveAndClose = async () => {
+    try {
+      await state.flushLocal();
+    } catch (error) {
+      composeContext.notices.reportError(error);
+      return;
+    }
+    setDraftBackMenuOpen(false);
+    props.mobileCompose?.onClose();
+  };
+  onMount(() => props.mobileCompose?.registerClose(requestClose));
+  const isMobileCompose = () => props.mobileCompose !== undefined;
   const composePortalScope = () =>
-    isMobileDrawer() ? ('local' as const) : undefined;
+    isMobileCompose() ? ('local' as const) : undefined;
   const scrollAreaSignatureHtml = () =>
-    isMobileDrawer() ? signatureHtml() : undefined;
+    isMobileCompose() ? signatureHtml() : undefined;
   const footerSignatureHtml = () =>
-    isMobileDrawer() ? undefined : signatureHtml();
+    isMobileCompose() ? undefined : signatureHtml();
   // File sharing and editor plugin wiring belong to this view. The controller only
   // needs to know when editor content has changed and requires another save.
   const editorConfig = buildConfig('markdown')
@@ -205,7 +301,7 @@ export function ReplyInputView(props: ReplyInputViewProps) {
         scopeId: composeHotkeyScope,
         description: 'Send email',
         keyDownHandler: () => {
-          sendEmail();
+          sendEmail().catch(composeContext.notices.reportError);
           return true;
         },
         runWithInputFocused: true,
@@ -218,12 +314,32 @@ export function ReplyInputView(props: ReplyInputViewProps) {
         scopeId: composeHotkeyScope,
         description: 'Send and mark done',
         keyDownHandler: () => {
-          sendEmail(true);
+          sendEmail(true).catch(composeContext.notices.reportError);
           return true;
         },
         runWithInputFocused: true,
         hotkeyToken: TOKENS.email.sendAndMarkDone,
         displayPriority: 10,
+      });
+
+      const recipients = state.recipients;
+      registerCcBccHotkeys({
+        scopeId: composeHotkeyScope,
+        disabled: recipients.disabled,
+        cc: {
+          reveal: () => {
+            recipients.setShowExpandedRecipients(true);
+            recipients.setShowCc(true);
+          },
+          input: recipients.ccRef,
+        },
+        bcc: {
+          reveal: () => {
+            recipients.setShowExpandedRecipients(true);
+            recipients.setShowBcc(true);
+          },
+          input: recipients.bccRef,
+        },
       });
 
       registerHotkey({
@@ -252,12 +368,16 @@ export function ReplyInputView(props: ReplyInputViewProps) {
         scopeId: composeHotkeyScope,
         description: 'Close reply',
         keyDownHandler: () => {
+          if (isMobileCompose()) {
+            requestClose();
+            return true;
+          }
           const draft = collectDraft();
           const isEmpty = draft === null;
 
           if (isEmpty) {
             // Delete draft and close reply
-            deleteDraftAndReset();
+            deleteDraftAndReset().catch(() => {});
           } else {
             // Move focus back to the message
             ctx.exitToThread('selected');
@@ -289,7 +409,9 @@ export function ReplyInputView(props: ReplyInputViewProps) {
                 fileName:
                   attachment.type === 'local'
                     ? attachment.file.name
-                    : attachment.fileName,
+                    : attachment.type === 'remote' && attachment.uploadPending
+                      ? `${attachment.fileName} — upload unfinished`
+                      : attachment.fileName,
                 mimeType:
                   attachment.type === 'local'
                     ? attachment.file.type
@@ -299,7 +421,11 @@ export function ReplyInputView(props: ReplyInputViewProps) {
               }}
               removable={!editingDisabled()}
               onRemove={() => {
-                if (!editingDisabled()) handleRemoveAttachment(attachment);
+                if (!editingDisabled())
+                  fireAndForget(
+                    handleRemoveAttachment(attachment),
+                    'email-compose'
+                  );
               }}
               onClick={attachmentViewer.onClickFor(attachment)}
             />
@@ -326,13 +452,28 @@ export function ReplyInputView(props: ReplyInputViewProps) {
     </Button>
   );
 
+  const SyncStatus = () => (
+    <DraftSyncStatus
+      state={sync.state()}
+      busy={sync.busy()}
+      error={sync.error()}
+      onRetry={sync.retry}
+      onKeepEditing={sync.keepEditing}
+    />
+  );
+
   return (
     <>
       <Surface
         class={cn(
           'relative flex flex-col flex-1 max-w-full min-h-0',
-          isMobileDrawer() && 'min-h-full overflow-y-scroll overscroll-y-none',
-          props.unframed ? 'rounded-lg' : 'rounded-xl bg-menu-glass glass-input'
+          isMobileCompose() &&
+            'h-full overflow-y-auto overscroll-y-none pb-[max(16px,var(--safe-bottom,0px))]',
+          isMobileCompose()
+            ? 'rounded-none'
+            : props.unframed
+              ? 'rounded-lg'
+              : 'rounded-xl bg-menu-glass glass-input'
         )}
         style={
           props.unframed ? { 'background-color': 'transparent' } : undefined
@@ -340,14 +481,50 @@ export function ReplyInputView(props: ReplyInputViewProps) {
         hideBorder={props.unframed}
         ref={(el) => {
           composeContainerRef = el;
+          if (isMobileCompose()) setScrollContainer(el);
         }}
-        depth={2}
+        depth={isMobileCompose() ? 0 : 2}
         solid
       >
-        <Show when={isMobileDrawer()}>
+        <Show when={state.operationSource}>
+          {(source) => (
+            <MessageOperationRecovery
+              source={source()}
+              onReloadDraft={props.onReloadDraft}
+            />
+          )}
+        </Show>
+        <Show
+          when={
+            state.replyType() === 'forward' &&
+            props
+              .replyingTo()
+              ?.attachments.some((attachment) => attachment.reference_url)
+          }
+        >
+          <p class="px-3 py-2 text-sm text-ink-muted" role="status">
+            Linked cloud attachments are available in the original Outlook
+            message. Share their links from Outlook to include them in this
+            forward.{' '}
+            <a
+              href={
+                props
+                  .replyingTo()
+                  ?.attachments.find((attachment) => attachment.reference_url)
+                  ?.reference_url ?? undefined
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              class="underline"
+            >
+              Open in Outlook
+            </a>
+          </p>
+        </Show>
+        <Show when={isMobileCompose()}>
           <MobileReplyToolbar
-            discardLabel={savedDraftId() ? 'Delete draft' : 'Discard draft'}
-            onDiscard={deleteDraftAndReset}
+            status={<SyncStatus />}
+            onBack={requestClose}
             attachRef={(element) =>
               fileSelector(element, () => ({
                 multiple: true,
@@ -397,25 +574,27 @@ export function ReplyInputView(props: ReplyInputViewProps) {
             scheduleDraftSave();
           }}
           showSubject={!!props.isEditingExisting}
-          mobile={isMobileDrawer}
+          mobile={isMobileCompose}
           portalScope={composePortalScope}
           replyType={state.replyType}
           disabled={editingDisabled}
         />
         <div
           class={cn(
-            isMobileDrawer()
+            isMobileCompose()
               ? 'relative flex-1 flex flex-col'
               : 'size-full flex flex-col min-h-0',
             state.recipients.showExpandedRecipients() && 'mt-4'
           )}
         >
           <div
-            ref={setScrollContainer}
+            ref={(el) => {
+              if (!isMobileCompose()) setScrollContainer(el);
+            }}
             class={cn(
               'relative min-h-8 w-full flex flex-col placeholder:text-ink-placeholder placeholder:opacity-50 px-0 py-1',
-              isMobileDrawer()
-                ? 'max-h-none flex-1 overflow-visible px-5 pt-6 pb-4'
+              isMobileCompose()
+                ? 'max-h-none flex-1 overflow-visible px-4 pt-6 pb-4'
                 : cn(
                     'overflow-y-auto mobile:max-h-[calc(32*var(--dvh,1dvh))]',
                     composerExpanded()
@@ -479,11 +658,11 @@ export function ReplyInputView(props: ReplyInputViewProps) {
               )}
               disabled={editingDisabled()}
               placeholder={
-                isMobileDrawer()
+                isMobileCompose()
                   ? 'Use `@` to reference files'
                   : 'Reply — @mention to share or cc people'
               }
-              portalScope={isMobileDrawer() ? 'local' : 'split'}
+              portalScope={isMobileCompose() ? 'local' : 'split'}
               refFn={(el) => props.markdownDomRef?.(el)}
               onConnect={handleEditorConnect}
             />
@@ -498,7 +677,7 @@ export function ReplyInputView(props: ReplyInputViewProps) {
                 />
               </div>
             </Show>
-            <Show when={isMobileDrawer()}>
+            <Show when={isMobileCompose()}>
               <AttachmentsRow />
             </Show>
             <Show when={scrollAreaSignatureHtml()}>
@@ -571,7 +750,7 @@ export function ReplyInputView(props: ReplyInputViewProps) {
               </Tooltip>
             </div>
           </Show>
-          <Show when={!isMobileDrawer()}>
+          <Show when={!isMobileCompose()}>
             {/* Below the scroll area so quoted email content can never overlap it */}
             <AttachmentsRow class="px-4" />
             <Show when={footerSignatureHtml()}>
@@ -598,6 +777,7 @@ export function ReplyInputView(props: ReplyInputViewProps) {
               class="shrink-0 flex min-w-0 justify-end pt-1.5"
             >
               <div class="flex shrink-0 items-center gap-1">
+                <SyncStatus />
                 <Button
                   onClick={deleteDraftAndReset}
                   tooltip={savedDraftId() ? 'Delete draft' : 'Discard'}
@@ -640,7 +820,22 @@ export function ReplyInputView(props: ReplyInputViewProps) {
           </Show>
         </div>
       </Surface>
-      <Show when={!isMobileDrawer()}>
+      <Show when={isMobileCompose()}>
+        <DraftBackMenu
+          mount={props.mobileCompose?.portalMount()}
+          open={draftBackMenuOpen()}
+          onOpenChange={setDraftBackMenuOpen}
+          onSave={saveAndClose}
+          onDelete={async () => {
+            try {
+              await deleteDraftAndReset();
+            } catch {
+              setDraftBackMenuOpen(false);
+            }
+          }}
+        />
+      </Show>
+      <Show when={!isMobileCompose()}>
         {/* The desktop reply sits in its message card; the bar spans the card's
           padding so it reads as the card's footer, like the standalone
           composer's drawer. */}

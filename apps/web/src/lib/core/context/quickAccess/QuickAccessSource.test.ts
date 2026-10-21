@@ -1,4 +1,8 @@
-import type { CrmCompanyEntity, CrmContactEntity } from '@entity';
+import type {
+  CrmCompanyEntity,
+  CrmContactEntity,
+  InitiativeEntity,
+} from '@entity';
 import type {
   CacheChangeListener,
   CacheChangeOptions,
@@ -12,6 +16,7 @@ import { INITIAL_CACHE_REVISION } from '@graphql-cache/index';
 import type { HydrationSearchChanges } from '@graphql-cache/protocol';
 import type { CachedGraphqlChannel } from '@queries/channel/graphql';
 import type { HistoryItem } from '@queries/history/types';
+import type { ListedDatabase } from '@service-storage/generated/schemas/listedDatabase';
 import { render } from '@solidjs/testing-library';
 import {
   QueryClient,
@@ -21,9 +26,11 @@ import {
 } from '@tanstack/solid-query';
 import {
   createComponent,
+  createMemo,
   createRenderEffect,
   createRoot,
   createSignal,
+  untrack,
 } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useQuickAccess } from './context';
@@ -52,7 +59,10 @@ const mocks = vi.hoisted(() => ({
   readRecordsByKeys: vi.fn(),
   companies: [] as CrmCompanyEntity[],
   crmContacts: [] as CrmContactEntity[],
+  initiatives: [] as InitiativeEntity[],
+  databases: [] as ListedDatabase[],
   crmEnabled: (): boolean => true,
+  graphqlEnabled: (): boolean => true,
   cacheEnabled: true,
   queries: {} as Partial<
     Record<
@@ -61,12 +71,25 @@ const mocks = vi.hoisted(() => ({
     >
   >,
 }));
+vi.mock('@core/context/user', () => ({
+  useIsAuthenticated: () => () => true,
+  useUserId: () => () => 'viewer',
+}));
+
 vi.mock('@core/constant/featureFlags', () => ({
   enableCrm: {},
+  enableDatabases: {},
+  enableForms: {},
+  enableGraphqlSoup: { key: 'enable-graphql-soup' },
   isFeatureEnabled: () => mocks.crmEnabled(),
 }));
 vi.mock('@app/lib/analytics/posthog', () => ({
-  useFeatureFlag: () => () => ({ enabled: mocks.crmEnabled() }),
+  useFeatureFlag: (flag: { key?: string }) => () => ({
+    enabled:
+      flag.key === 'enable-graphql-soup'
+        ? mocks.graphqlEnabled()
+        : mocks.crmEnabled(),
+  }),
 }));
 vi.mock('@core/constant/allBlocks', () => ({
   itemToSafeName: (item: { name: string }) => item.name,
@@ -131,6 +154,12 @@ vi.mock('@queries/history/graphql', () => ({
 vi.mock('@queries/soup/quick-access-agent-sessions', () => ({
   useQuickAccessAgentSessionsQuery: () => ({ query: {}, sessions: () => [] }),
 }));
+vi.mock('@queries/soup/quick-access-initiatives', () => ({
+  useQuickAccessInitiativesQuery: () => ({
+    query: { refetch: vi.fn() },
+    initiatives: () => mocks.initiatives,
+  }),
+}));
 vi.mock('@app/features/crm/crm-search', async () => ({
   ...(await import('@app/features/crm/queries/graphql')),
   useQuickAccessCrmCompaniesQuery: () => ({
@@ -138,7 +167,8 @@ vi.mock('@app/features/crm/crm-search', async () => ({
     companies: () => mocks.companies,
   }),
 }));
-vi.mock('@app/features/crm/record-adapter', () => ({
+vi.mock('@app/features/crm/record-adapter', async () => ({
+  ...(await import('@app/features/crm/queries/graphql')),
   useQuickAccessCrmContactsQuery: () => ({
     query: { refetch: vi.fn() },
     contacts: () => mocks.crmContacts,
@@ -157,16 +187,25 @@ vi.mock('@queries/soup/recently-viewed', () => ({
 vi.mock('@queries/storage/instructions-md', () => ({
   useInstructionsMdIdQuery: () => ({ data: undefined }),
 }));
+vi.mock('@queries/storage/databases', () => ({
+  useDatabasesQuery: () => ({ data: mocks.databases, isSuccess: true }),
+}));
+vi.mock('@queries/storage/forms', () => ({
+  useFormsQuery: () => ({ data: [], isSuccess: true }),
+}));
 vi.mock('@service-storage/util/filename', () => ({
   formatDocumentName: (name: string) => name,
 }));
 vi.mock('@service-storage/graphql-soup', () => ({
-  getGraphqlSoupCacheHost: () => ({
-    search: mocks.search,
-    onCacheChanged: mocks.onCacheChanged,
-    readRecordsByKeys: mocks.readRecordsByKeys,
-    disabled: !mocks.cacheEnabled,
-  }),
+  getGraphqlSoupCacheHost: () =>
+    untrack(mocks.graphqlEnabled)
+      ? {
+          search: mocks.search,
+          onCacheChanged: mocks.onCacheChanged,
+          readRecordsByKeys: mocks.readRecordsByKeys,
+          disabled: !mocks.cacheEnabled,
+        }
+      : undefined,
 }));
 
 let dispose: (() => void) | undefined;
@@ -207,7 +246,10 @@ beforeEach(() => {
   mocks.projectedChannels = [];
   mocks.companies = [];
   mocks.crmContacts = [];
+  mocks.initiatives = [];
+  mocks.databases = [];
   mocks.crmEnabled = () => true;
+  mocks.graphqlEnabled = () => true;
   mocks.cacheEnabled = true;
   mocks.queries = {};
   mocks.readRecordsByKeys.mockReset().mockResolvedValue({
@@ -368,6 +410,75 @@ function renderRetainedList(
 }
 
 describe('Quick Access source integration', () => {
+  it('starts cached email search when the GraphQL flag arrives after mounting', async () => {
+    const [enabled, setEnabled] = createSignal(false);
+    mocks.graphqlEnabled = enabled;
+    mocks.search.mockResolvedValue({
+      documents: [
+        {
+          profile: 'quick-access-v1',
+          recordKey: 'GraphqlSoupEmailThread:thread-1',
+          bucket: 'email',
+          searchText: 'weekly update | teo | teo@example.com',
+          timestampMs: 1,
+          sourceHash: 'email-hash',
+        },
+      ],
+      nextCursor: null,
+    });
+    mocks.readRecordsByKeys.mockResolvedValue({
+      revision: INITIAL_CACHE_REVISION,
+      records: [
+        {
+          recordKey: 'GraphqlSoupEmailThread:thread-1',
+          record: {
+            __typename: 'GraphqlSoupEmailThread',
+            id: 'thread-1',
+            name: 'Weekly update',
+            ownerId: 'owner',
+            createdAt: '2026-01-01T00:00:00Z',
+            updatedAt: '2026-01-01T00:00:00Z',
+            viewedAt: null,
+            senderName: 'Teo',
+            senderEmail: 'teo@example.com',
+            linkId: 'inbox',
+            isRead: true,
+            isDraft: false,
+            isImportant: false,
+            inboxVisible: true,
+          },
+        },
+      ],
+    });
+    const { source, list } = setup((source) => ({
+      source,
+      // The shared mobile/desktop entity source owns lists in a memo.
+      list: createMemo(() =>
+        source.useList({
+          buckets: ['email'],
+          searchTerm: () => 'teo',
+        })
+      ),
+    }));
+    expect(source.usesSearchProjection()).toBe(false);
+    expect(list().items()).toEqual([]);
+    expect(mocks.search).not.toHaveBeenCalled();
+
+    setEnabled(true);
+    await vi.waitFor(() => {
+      expect(source.usesSearchProjection()).toBe(true);
+      expect(
+        list()
+          .items()
+          .map((item) => item.id)
+      ).toEqual(['thread-1']);
+    });
+
+    setEnabled(false);
+    expect(source.usesSearchProjection()).toBe(false);
+    expect(list().items()).toEqual([]);
+  });
+
   it('keeps cached document order and fuzzy matches stable across typing and backspacing', async () => {
     const names = [
       'Seamus snip',
@@ -1058,6 +1169,50 @@ describe('Quick Access source integration', () => {
     ).toEqual(['folder', 'note', 'task']);
   });
 
+  it('lists task projects with document search hits without searching the cache for them', async () => {
+    mocks.initiatives = [
+      {
+        type: 'initiative',
+        id: 'initiative-1',
+        name: 'Roadmap',
+        ownerId: 'owner',
+        updatedAt: '2025-01-02T00:00:00.000Z',
+      },
+    ];
+    mocks.search.mockResolvedValue({
+      documents: [
+        {
+          profile: 'quick-access-v1',
+          recordKey: 'GraphqlSoupDocument:note-1',
+          bucket: 'note',
+          searchText: 'Roadmap notes',
+          timestampMs: 1,
+          sourceHash: 'hash',
+        },
+      ],
+      nextCursor: null,
+    });
+    const list = setup((source) =>
+      source.useList({
+        buckets: BUCKET_COMBINATIONS.documents,
+        searchTerm: () => 'roadmap',
+      })
+    );
+    await vi.waitFor(() =>
+      expect(list.items().map((item) => item.id)).toEqual(
+        expect.arrayContaining(['note-1', 'initiative-1'])
+      )
+    );
+    expect(
+      list.items().find((item) => item.id === 'initiative-1')
+    ).toMatchObject({ bucket: 'initiative', data: { type: 'initiative' } });
+    expect(mocks.search).toHaveBeenCalledWith(
+      expect.objectContaining({
+        buckets: expect.not.arrayContaining(['initiative']),
+      })
+    );
+  });
+
   it('ignores email hydration and refreshes only the affected open list and source', async () => {
     const lists = setup((source) => ({
       notes: source.useList({ buckets: ['note'] }),
@@ -1221,14 +1376,17 @@ describe('CRM contacts', () => {
     expect(people.items()).toEqual([]);
   });
 
-  it('searches contacts locally, by name or email', () => {
+  it('searches contacts locally and in the normalized cache, by name or email', async () => {
     mocks.crmContacts = [contact];
     const list = setup((source) =>
       source.useList({ buckets: ['crm_contact'], searchTerm: () => 'wile@' })
     );
     expect(list.items().map((item) => item.id)).toEqual(['contact-1']);
-    // Contacts aren't cache records, so the cache is never searched for them.
-    expect(mocks.search).not.toHaveBeenCalled();
+    await vi.waitFor(() =>
+      expect(mocks.search).toHaveBeenCalledWith(
+        expect.objectContaining({ buckets: ['crm_contact'], query: 'wile@' })
+      )
+    );
   });
 
   it('leaves contacts out while the CRM is disabled', () => {
@@ -1236,5 +1394,35 @@ describe('CRM contacts', () => {
     mocks.crmContacts = [contact];
     const list = setup((source) => source.useList('crm_contact'));
     expect(list.items()).toEqual([]);
+  });
+});
+
+describe('database command discovery', () => {
+  it('merges Book Organizer into command search without any Soup history or cache hits', async () => {
+    mocks.databases = [
+      {
+        database: {
+          id: 'book-organizer',
+          name: 'Book Organizer',
+          owner_id: 'me',
+          created_at: '2026-09-01T00:00:00Z',
+          trashed_at: null,
+        },
+        grant: 'owner',
+        tables: [],
+      },
+    ];
+    const list = setup((source) =>
+      source.useList({
+        buckets: ['note', 'document', 'database'],
+        searchTerm: () => 'Book Organizer',
+      })
+    );
+    await vi.waitFor(() => expect(list.items()).toHaveLength(1));
+    expect(list.items()[0]).toMatchObject({
+      bucket: 'database',
+      data: { type: 'database', name: 'Book Organizer' },
+    });
+    expect(mocks.history).toEqual([]);
   });
 });

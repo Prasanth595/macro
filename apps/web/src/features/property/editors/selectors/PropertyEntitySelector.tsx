@@ -48,7 +48,7 @@ type EntityInputProps = {
   selectedOptions: () => Set<string>;
   setSelectedOptions: (
     options: Set<string>,
-    entityInfo?: { id: string; entity_type: string }[]
+    entityInfo?: { id: string; entity_type: EntityType }[]
   ) => void;
   onClose?: () => void;
   pinnedOptions?: PinnedOption[];
@@ -234,13 +234,11 @@ export function PropertyEntitySelector(props: EntityInputProps) {
         converted.push(userToEntity(augmentedUser));
       } else {
         const entity = quickAccessItemToEntity(item);
-        // Filter by specific entity type if needed
-        if (specificEntityType) {
-          const entityType = getEntityType(entity);
-          if (entityType === specificEntityType) {
-            converted.push(entity);
-          }
-        } else {
+        const entityType = getEntityType(entity);
+        if (
+          entityType &&
+          (!specificEntityType || entityType === specificEntityType)
+        ) {
           converted.push(entity);
         }
       }
@@ -282,7 +280,10 @@ export function PropertyEntitySelector(props: EntityInputProps) {
 
   const filteredEntities = createMemo(() => {
     const term = searchTerm();
-    const allEntities = entities();
+    const excludedIds = props.config.excludedIds?.();
+    const allEntities = entities().filter(
+      (entity) => !excludedIds?.has(entity.id)
+    );
     const userId = currentUserId();
 
     // List is unvirtualized — revisit if these caps grow significantly.
@@ -313,6 +314,7 @@ export function PropertyEntitySelector(props: EntityInputProps) {
     if (needsEmailSearch() && term) {
       const localIds = new Set(localResults.map((e) => e.id));
       const serverResults = serverEmails()
+        .filter((entity) => !excludedIds?.has(entity.id))
         .filter((e) => !localIds.has(e.id))
         .filter(excludeFilter);
       return [...localResults, ...serverResults].slice(0, MAX_SEARCH_RESULTS);
@@ -344,6 +346,8 @@ export function PropertyEntitySelector(props: EntityInputProps) {
     index === selectedEntityCountAtOpen();
 
   const toggleEntity = (entity: CombinedEntity) => {
+    const entityType = getEntityType(entity);
+    if (!entityType) return;
     const newSelected = new Set(props.selectedOptions());
     const isCurrentlySelected = newSelected.has(entity.id);
 
@@ -361,7 +365,7 @@ export function PropertyEntitySelector(props: EntityInputProps) {
     props.setSelectedOptions(newSelected, [
       {
         id: entity.id,
-        entity_type: getEntityType(entity),
+        entity_type: entityType,
       },
     ]);
 

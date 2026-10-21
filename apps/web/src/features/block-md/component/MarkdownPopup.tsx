@@ -50,10 +50,11 @@ import {
   setNativeEditMenuSuppressed,
 } from '@core/mobile/nativeEditMenu';
 import { debouncedDependent } from '@core/util/debounce';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { getScrollParentElement } from '@core/util/scrollParent';
 import type { NodeIdMappings } from '@macro-inc/lexical-core';
 import { $getId } from '@macro-inc/lexical-core/plugins/nodeIdPlugin';
-import ArrowUp from '@phosphor/arrow-up.svg';
+import { Telemetry } from '@macro-inc/observability';
 import ChatTeardrop from '@phosphor/chat-teardrop.svg';
 import GridIcon from '@phosphor/grid-four.svg';
 import CheckIcon from '@phosphor-icons/core/bold/check-bold.svg?component-solid';
@@ -61,14 +62,8 @@ import SparkleIcon from '@phosphor-icons/core/bold/sparkle-bold.svg?component-so
 import LoadingIcon from '@phosphor-icons/core/bold/spinner-gap-bold.svg?component-solid';
 import CheckSquareIcon from '@phosphor-icons/core/regular/check-square.svg?component-solid';
 import LinkIcon from '@phosphor-icons/core/regular/link.svg?component-solid';
-import {
-  cancelAiEdit,
-  hasActiveAiEdit,
-  requestAiEdit,
-  toastAiEditResult,
-} from '@service-ai-editing/client';
 import { makeResizeObserver } from '@solid-primitives/resize-observer';
-import { Button, Toolbar } from '@ui';
+import { Button, SendButton, Toolbar } from '@ui';
 import {
   $getSelection,
   $isRangeSelection,
@@ -89,6 +84,11 @@ import {
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import { useMarkdownDocument } from '../context/markdown-document-context';
+import {
+  cancelAiEdit,
+  hasActiveAiEdit,
+  requestAiEditWithToast,
+} from '../queries/ai-edit';
 import { FormatTools } from './FormatTools';
 import { TouchSelectionToolbar } from './TouchSelectionToolbar';
 
@@ -314,15 +314,10 @@ export function MarkdownPopup(props: {
     <Show
       when={hasActiveAiEdit(blockId)}
       fallback={
-        <Button
-          size="icon-sm"
-          variant="strong"
-          tooltip="Send"
+        <SendButton
           disabled={!aiEditInput().trim()}
           onClick={handleAiEditSubmit}
-        >
-          <ArrowUp class="size-4" />
-        </Button>
+        />
       }
     >
       <Button
@@ -351,17 +346,21 @@ export function MarkdownPopup(props: {
     setAiEditRunning(true);
     // Fast mode: one model edits the whole document directly, no supervisor.
     // Apply ops locally so the edit lands in this client's undo stack.
-    requestAiEdit({
-      documentId: blockId,
-      prompt: `Request: ${instruction}\nUser is selecting nodes ${nodeIds.join(' ')}. Proceed with requested edit`,
-      mode: 'fast',
-      onOps: (ops) => applyAiOps(editor, props.lexicalMapping, ops),
-    })
-      .then(toastAiEditResult)
-      .finally(() => {
-        setAiEditLocation(null);
-        setAiEditRunning(false);
-      });
+    fireAndForget(
+      requestAiEditWithToast(
+        {
+          documentId: blockId,
+          prompt: `Request: ${instruction}\nUser is selecting nodes ${nodeIds.join(' ')}. Proceed with requested edit`,
+          mode: 'fast',
+          onOps: (ops) => applyAiOps(editor, props.lexicalMapping, ops),
+        },
+        () => {
+          setAiEditLocation(null);
+          setAiEditRunning(false);
+        }
+      ),
+      'markdown-ai-edit'
+    );
     setAiEditInput('');
     setAiEditDrawerOpen(false);
     setPopupVisible(false);
@@ -416,7 +415,13 @@ export function MarkdownPopup(props: {
   const handleShare = async () => {
     const location = editor.read(() => $getLocationUrl('md', blockId));
     if (!location) return;
-    await navigator.clipboard.writeText(location);
+    try {
+      await navigator.clipboard.writeText(location);
+    } catch (error) {
+      Telemetry.error(error, { surface: 'markdown-editor' });
+      toast.failure('Could not copy link');
+      return;
+    }
     // Desktop gets the inline check-icon flip; on touch the toolbar is
     // small and easily dismissed, so confirm with a toast as well.
     if (isTouchDevice()) toast.success('Link copied to clipboard');
@@ -601,7 +606,7 @@ export function MarkdownPopup(props: {
             <Toolbar.Button
               size="icon-sm"
               depth={3}
-              onClick={() => void handleShare()}
+              onClick={() => fireAndForget(handleShare(), 'markdown-editor')}
               tooltip="Copy link to snippet"
               label="Copy link to snippet"
             >
@@ -731,9 +736,9 @@ export function MarkdownPopup(props: {
             onConvertToTasks={handleConvertToTasks}
             onConvertListToTable={handleConvertListToTable}
             onOpenComment={handleShowComment}
-            onShare={() => void handleShare()}
+            onShare={() => fireAndForget(handleShare(), 'markdown-editor')}
             onInsertComment={handleInsertComment}
-            onPaste={() => void handlePaste()}
+            onPaste={() => fireAndForget(handlePaste(), 'markdown-editor')}
             onEditWithAi={handleOpenAiEditDrawer}
           />
         </GeneralizedPopup>

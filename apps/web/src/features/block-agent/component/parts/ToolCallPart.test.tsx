@@ -3,11 +3,43 @@
  */
 
 import type { MessagePart } from '@service-agent-fold/generated/types';
+import type { ExecutionRecord } from '@service-agent-harness/generated/schemas';
 import { render } from '@solidjs/testing-library';
 import { createSignal, type JSX } from 'solid-js';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ToolCallContext } from './shared';
 import { ToolCallPart } from './ToolCallPart';
+
+const codeQuery = vi.hoisted(() => ({
+  record: undefined as ExecutionRecord | undefined,
+  read: vi.fn(),
+}));
+vi.mock('@queries/agent-session/code-execution', () => ({
+  useAgentCodeExecutionQuery: (
+    session: () => string,
+    execution: () => string | undefined
+  ) => {
+    codeQuery.read(session(), execution());
+    return {
+      isSuccess: true,
+      isPending: false,
+      isError: false,
+      get data() {
+        return codeQuery.record;
+      },
+    };
+  },
+}));
+
+vi.mock('../../views/PresentedReviewPart', () => ({
+  PresentedReviewPart: (props: { sessionId: string; reviewId: string }) => (
+    <div
+      data-testid="persisted-review"
+      data-session={props.sessionId}
+      data-review={props.reviewId}
+    />
+  ),
+}));
 
 // Rich renderers own their result controls; this test verifies dispatch and
 // context without mounting their split-layout and query dependencies.
@@ -122,6 +154,7 @@ const context = (inFlight: boolean): ToolCallContext => ({
   messageId: 'session:0:agent',
   partIndex: 0,
   inFlight,
+  followedBy: () => false,
 });
 
 function toolUse(
@@ -152,6 +185,7 @@ describe('ToolCallPart routing', () => {
           },
           { name: 'Bash' }
         )}
+        context={context(false)}
       />
     ));
     expect(rendered.getByTestId('title').textContent).toBe('Bash');
@@ -177,6 +211,7 @@ describe('ToolCallPart routing', () => {
           }),
           name: { kind: 'mcp', server: 'deepwiki', tool: 'ask' },
         }}
+        context={context(false)}
       />
     ));
     expect(rendered.getByTestId('title').textContent).toBe('ask');
@@ -197,6 +232,7 @@ describe('ToolCallPart routing', () => {
           }),
           name: { kind: 'mcp', server: 'macro', tool: 'ReadContent' },
         }}
+        context={context(false)}
       />
     ));
     expect(rendered.getByTestId('macro-tool').textContent).toBe('ReadContent');
@@ -220,6 +256,7 @@ describe('ToolCallPart routing', () => {
           ),
           name: { kind: 'mcp', server: 'ops', tool: 'deploy' },
         }}
+        context={context(false)}
       />
     ));
     expect(rendered.getByTestId('tool-card').dataset.muted).toBe('true');
@@ -243,6 +280,7 @@ describe('ToolCallPart routing', () => {
           }),
           name: { kind: 'mcp', server: 'external', tool: 'ReadContent' },
         }}
+        context={context(false)}
       />
     ));
     expect(rendered.queryByTestId('macro-tool')).toBeNull();
@@ -265,6 +303,7 @@ describe('ToolCallPart routing', () => {
           }),
           name: { kind: 'mcp', server: 'macro', tool: 'ReadContent' },
         }}
+        context={context(false)}
       />
     ));
     expect(rendered.queryByTestId('macro-tool')).toBeNull();
@@ -285,7 +324,9 @@ describe('ToolCallPart routing', () => {
       name: { kind: 'mcp', server: 'macro', tool: 'ReadContent' },
     });
     const [part, setPart] = createSignal(call('First result'));
-    const rendered = render(() => <ToolCallPart part={part()} />);
+    const rendered = render(() => (
+      <ToolCallPart part={part()} context={context(false)} />
+    ));
     const result = rendered.getByTestId('macro-tool');
     setPart(call('Updated result'));
     expect(rendered.getByTestId('macro-tool')).toBe(result);
@@ -309,6 +350,7 @@ describe('ToolCallPart routing', () => {
             },
           ],
         })}
+        context={context(false)}
       />
     ));
     expect(rendered.getByTestId('subtitle').textContent).toBe('src/a.rs');
@@ -318,7 +360,10 @@ describe('ToolCallPart routing', () => {
 
   it('summarizes multi-path reads and lists the paths in the body', () => {
     const rendered = render(() => (
-      <ToolCallPart part={toolUse({ kind: 'read', paths: ['a.rs', 'b.rs'] })} />
+      <ToolCallPart
+        part={toolUse({ kind: 'read', paths: ['a.rs', 'b.rs'] })}
+        context={context(false)}
+      />
     ));
     expect(rendered.getByTestId('subtitle').textContent).toBe('2 files');
     expect(rendered.getByTestId('path-list').textContent).toBe('a.rs,b.rs');
@@ -335,6 +380,7 @@ describe('ToolCallPart routing', () => {
           result: null,
           error: null,
         })}
+        context={context(false)}
       />
     ));
     expect(rendered.getByTestId('tool-card').dataset.expandable).toBe('false');
@@ -343,7 +389,10 @@ describe('ToolCallPart routing', () => {
 
   it('routes fetch and think to the plain output card', () => {
     const rendered = render(() => (
-      <ToolCallPart part={toolUse({ kind: 'fetch', output: 'page body' })} />
+      <ToolCallPart
+        part={toolUse({ kind: 'fetch', output: 'page body' })}
+        context={context(false)}
+      />
     ));
     expect(rendered.getByTestId('output').textContent).toBe('page body');
     expect(rendered.queryByTestId('exchange')).toBeNull();
@@ -411,6 +460,7 @@ describe('ToolCallPart Macro tools', () => {
             error: null,
           },
         })}
+        context={context(false)}
       />
     ));
     const richTool = rendered.getByTestId('macro-tool');
@@ -435,6 +485,7 @@ describe('ToolCallPart Macro tools', () => {
           },
           { name: 'BrandNewTool' }
         )}
+        context={context(false)}
       />
     ));
     expect(rendered.getByTestId('title').textContent).toBe('BrandNewTool');
@@ -454,6 +505,7 @@ describe('ToolCallPart Macro tools', () => {
             error: null,
           },
         })}
+        context={context(false)}
       />
     ));
     expect(rendered.getByTestId('tool-card').dataset.muted).toBe('false');
@@ -472,6 +524,7 @@ describe('ToolCallPart Macro tools', () => {
             error: null,
           },
         })}
+        context={context(false)}
       />
     ));
     expect(rendered.getByTestId('tool-card')).not.toBeNull();
@@ -489,6 +542,7 @@ describe('ToolCallPart Macro tools', () => {
           },
           { name: 'ListEntities', status: 'failed' }
         )}
+        context={context(false)}
       />
     ));
     expect(rendered.getByTestId('tool-card').dataset.muted).toBe('true');
@@ -516,7 +570,10 @@ describe('ToolCallPart user tools', () => {
 
   it('renders a pending email draft read-only on its own card, never through the chat', () => {
     const rendered = render(() => (
-      <ToolCallPart part={email({ kind: 'pending' })} />
+      <ToolCallPart
+        part={email({ kind: 'pending' })}
+        context={context(false)}
+      />
     ));
     expect(rendered.getByTestId('title').textContent).toBe('SendEmail');
     expect(rendered.getByTestId('subtitle').textContent).toBe('Q3 plan');
@@ -566,7 +623,9 @@ describe('ToolCallPart user tools', () => {
       [{ kind: 'completed', result: { id: 'evt' } }, 'Done', undefined],
     ];
     for (const [outcome, label, thread] of cases) {
-      const rendered = render(() => <ToolCallPart part={email(outcome)} />);
+      const rendered = render(() => (
+        <ToolCallPart part={email(outcome)} context={context(false)} />
+      ));
       const trailing = rendered.getByTestId('trailing');
       expect(trailing.textContent).toContain(label);
       const link = rendered.queryByTestId('item-preview');
@@ -593,6 +652,7 @@ describe('ToolCallPart user tools', () => {
           },
           { name: 'SendEmail' }
         )}
+        context={context(false)}
       />
     ));
     expect(rendered.queryByTestId('text-part')).toBeNull();
@@ -626,6 +686,7 @@ describe('ToolCallPart user tools', () => {
           },
           { name: 'CreateCalendarEvent' }
         )}
+        context={context(false)}
       />
     ));
     expect(rendered.getByTestId('title').textContent).toBe(
@@ -643,7 +704,10 @@ describe('ToolCallPart user tools', () => {
 
   it('keeps a failed user tool on a faded card with the error as body', () => {
     const rendered = render(() => (
-      <ToolCallPart part={email({ kind: 'failed', message: 'no inbox' })} />
+      <ToolCallPart
+        part={email({ kind: 'failed', message: 'no inbox' })}
+        context={context(false)}
+      />
     ));
     expect(rendered.getByTestId('tool-card').dataset.muted).toBe('true');
     expect(rendered.getByTestId('body').textContent).toBe('no inbox');
@@ -661,6 +725,7 @@ describe('ToolCallPart user tools', () => {
           },
           { name: 'SendEmail' }
         )}
+        context={context(false)}
       />
     ));
     expect(rendered.getByTestId('trailing').textContent).toBe('Answered');
@@ -679,6 +744,7 @@ describe('ToolCallPart user tools', () => {
           },
           { name: 'SendEmail' }
         )}
+        context={context(false)}
       />
     ));
     expect(rendered.getByTestId('trailing').textContent).toBe('Failed');
@@ -703,7 +769,9 @@ describe('ToolCallPart inline results', () => {
         kind === 'mcp'
           ? { kind, server: 'external', tool: 'DisplayResults' }
           : { kind, name: 'DisplayResults' };
-      const rendered = render(() => <ToolCallPart part={part} />);
+      const rendered = render(() => (
+        <ToolCallPart part={part} context={context(false)} />
+      ));
       expect(rendered.queryByTestId('dashboard-view')).toBeNull();
       expect(rendered.getByTestId('tool-card').dataset.expandable).toBe(
         'false'
@@ -779,6 +847,7 @@ describe('ToolCallPart inline results', () => {
           { kind: 'macro', input: null, output: null, error: null },
           { name: 'DisplayResults' }
         )}
+        context={context(false)}
       />
     ));
     expect(rendered.getByTestId('dashboard-view').dataset.pending).toBe(
@@ -827,7 +896,9 @@ describe('ToolCallPart subagents', () => {
     );
 
   it('titles the card with the description and nests the children', () => {
-    const rendered = render(() => <ToolCallPart part={subagent()} />);
+    const rendered = render(() => (
+      <ToolCallPart part={subagent()} context={context(false)} />
+    ));
     const titles = rendered.getAllByTestId('title').map((el) => el.textContent);
     expect(titles).toEqual(['Add 5+5 with Python', 'Bash']);
     expect(rendered.getAllByTestId('subtitle')[0]?.textContent).toBe(
@@ -838,7 +909,9 @@ describe('ToolCallPart subagents', () => {
   });
 
   it('summarizes the result in the trailing slot', () => {
-    const rendered = render(() => <ToolCallPart part={subagent()} />);
+    const rendered = render(() => (
+      <ToolCallPart part={subagent()} context={context(false)} />
+    ));
     expect(rendered.getAllByTestId('trailing')[0]?.textContent).toBe(
       '1 tool · 3.5s'
     );
@@ -846,7 +919,9 @@ describe('ToolCallPart subagents', () => {
 
   it('preserves a nested tool body while the subagent streams updated children', () => {
     const [part, setPart] = createSignal(subagent({ result: null }));
-    const rendered = render(() => <ToolCallPart part={part()} />);
+    const rendered = render(() => (
+      <ToolCallPart part={part()} context={context(false)} />
+    ));
     const terminal = rendered.getByTestId('terminal');
     setPart(
       subagent({
@@ -882,6 +957,7 @@ describe('ToolCallPart subagents', () => {
           children: [],
           result: null,
         })}
+        context={context(false)}
       />
     ));
     expect(rendered.getByTestId('title').textContent).toBe(
@@ -925,6 +1001,7 @@ describe('ToolCallPart subagents', () => {
           messageId: 'session:0:agent',
           partIndex: 0,
           inFlight: true,
+          followedBy: () => false,
         }}
       />
     ));
@@ -952,6 +1029,7 @@ describe('ToolCallPart subagents', () => {
             stats: null,
           },
         })}
+        context={context(false)}
       />
     ));
     expect(rendered.getByTestId('tool-card').dataset.muted).toBe('true');
@@ -983,11 +1061,6 @@ describe('ToolCallPart settling', () => {
     expect(rendered.getByTestId('tool-card').dataset.status).toBe('completed');
     expect(rendered.getByTestId('tool-card').dataset.muted).toBe('false');
     expect(rendered.getByTestId('trailing').textContent).toBe('Stopped');
-  });
-
-  it('settles a call with no turn to place it in', () => {
-    const rendered = render(() => <ToolCallPart part={running()} />);
-    expect(rendered.getByTestId('tool-card').dataset.status).toBe('completed');
   });
 
   it('settles a subagent and its nested children with the turn', () => {
@@ -1035,6 +1108,7 @@ describe('ToolCallPart failed treatment', () => {
           { kind: 'terminal', command: 'x', output: null, exitCode: 1 },
           { status: 'failed' }
         )}
+        context={context(false)}
       />
     ));
     expect(rendered.getByTestId('tool-card').dataset.muted).toBe('true');
@@ -1051,6 +1125,7 @@ describe('ToolCallPart failed treatment', () => {
           },
           { status: 'failed' }
         )}
+        context={context(false)}
       />
     ));
     expect(rendered.getByTestId('trailing').textContent).toBe('Failed');
@@ -1096,6 +1171,7 @@ describe('ToolCallPart result summaries', () => {
             { kind: 'macro', input, output, error: null },
             { name }
           )}
+          context={context(false)}
         />
       ));
       expect(rendered.getByTestId('trailing').textContent).toBe('Failed');
@@ -1142,6 +1218,7 @@ describe('ToolCallPart result summaries', () => {
           output: '',
           exitCode: 1,
         })}
+        context={context(false)}
       />
     ));
     expect(rendered.getByTestId('trailing').textContent).toBe(
@@ -1155,6 +1232,7 @@ describe('ToolCallPart result summaries', () => {
     const rendered = render(() => (
       <ToolCallPart
         part={toolUse({ kind: 'read', paths: ['docs/launch.md'] })}
+        context={context(false)}
       />
     ));
     expect(rendered.getByTestId('trailing').textContent).toBe('1 file');
@@ -1198,6 +1276,7 @@ describe('ToolCallPart result summaries', () => {
             },
             { name: 'ListSkills' }
           )}
+          context={context(false)}
         />
       ));
       expect(rendered.queryByTestId('macro-tool')).toBeNull();
@@ -1219,6 +1298,7 @@ describe('ToolCallPart result summaries', () => {
           },
           { name: 'SearchSkills' }
         )}
+        context={context(false)}
       />
     ));
     expect(rendered.getByTestId('trailing').textContent).toBe('');
@@ -1269,7 +1349,9 @@ describe('generated image dispatch', () => {
                 error: null,
               },
       };
-      const view = render(() => <ToolCallPart part={part} />);
+      const view = render(() => (
+        <ToolCallPart part={part} context={context(false)} />
+      ));
       const image = view.getByTestId('macro-tool');
       expect(image.textContent).toBe('GenerateImage');
       expect(image.dataset.grouped).toBe('false');
@@ -1278,4 +1360,294 @@ describe('generated image dispatch', () => {
       expect(view.queryByTestId('tool-card')).toBeNull();
     }
   );
+});
+
+describe('coding agent dispatch', () => {
+  it.each(['native', 'mcp'] as const)(
+    'uses the session result renderer for %s calls outside group chrome',
+    (kind) => {
+      const input = {
+        agent_id: '0195d721-1730-7cda-a72e-855bec53411f',
+        prompt: 'Fix the editor layout',
+      };
+      const output = {
+        agent_session_id: '0195d721-1730-7cda-a72e-855bec53411e',
+        agent_id: input.agent_id,
+        agent_name: 'Frontend coder',
+      };
+      const part: ToolUsePart = {
+        kind: 'tool_use',
+        id: 'dispatch-call',
+        status: 'completed',
+        name:
+          kind === 'native'
+            ? { kind, name: 'DispatchCodingAgent' }
+            : { kind, server: 'macro', tool: 'DispatchCodingAgent' },
+        detail:
+          kind === 'native'
+            ? { kind: 'macro', input, output, error: null }
+            : {
+                kind: 'other',
+                acpKind: 'other',
+                input,
+                output: null,
+                result: output,
+                error: null,
+              },
+      };
+      const view = render(() => (
+        <ToolCallPart part={part} context={context(false)} />
+      ));
+      const dispatched = view.getByTestId('macro-tool');
+      expect(dispatched.textContent).toBe('DispatchCodingAgent');
+      expect(dispatched.dataset.grouped).toBe('false');
+      expect(JSON.parse(dispatched.dataset.response ?? '')).toEqual(output);
+      expect(view.queryByTestId('tool-card')).toBeNull();
+    }
+  );
+});
+
+describe('code execution results', () => {
+  const executionId = '019a0000-0000-7000-8000-000000000001';
+  const codePart = (server: string): ToolUsePart => ({
+    kind: 'tool_use',
+    id: 'execute-1',
+    status: 'completed',
+    name: { kind: 'mcp', server, tool: 'ExecuteCode' },
+    detail: {
+      kind: 'other',
+      acpKind: 'other',
+      input: { execution_id: executionId, source: 'return { count: 1 };' },
+      result: {
+        executionId,
+        status: 'failed',
+        result: { count: 1 },
+        error: null,
+      },
+      output: null,
+      error: null,
+    },
+  });
+
+  beforeEach(() => {
+    codeQuery.read.mockClear();
+    codeQuery.record = {
+      executionId,
+      source: 'return { count: 1 };',
+      activity: [],
+      activityTruncated: false,
+      status: 'failed',
+      result: null,
+      error: 'Later step failed',
+      calls: [
+        {
+          id: 'call-1',
+          name: 'ReadContent',
+          input: { documentId: '4a4886d8-9f4b-4f7e-a5a3-3f5c8b6c0e46' },
+          output: { content: { text: 'saved contents' }, comments: [] },
+          error: null,
+          status: 'completed',
+          outputOmitted: false,
+        },
+        {
+          id: 'call-2',
+          name: 'DisplayResults',
+          input: { view: { widgets: [] } },
+          output: { message: 'done' },
+          error: null,
+          status: 'completed',
+          outputOmitted: false,
+        },
+        {
+          id: 'call-3',
+          name: 'CreateDocument',
+          input: {},
+          output: null,
+          error: null,
+          status: 'unknown',
+          outputOmitted: false,
+        },
+      ],
+    };
+  });
+
+  it('hides source and shows observed parallel operation counts', () => {
+    codeQuery.record = {
+      ...codeQuery.record!,
+      activity: [
+        { id: 1, label: 'Classify content', status: 'completed' },
+        { id: 2, label: 'Classify content', status: 'running' },
+        { id: 3, label: 'Read documents', status: 'failed' },
+      ],
+      activityTruncated: true,
+    };
+    const rendered = render(() => (
+      <ToolCallPart
+        part={codePart('macro_internal')}
+        context={context(false)}
+      />
+    ));
+    expect(rendered.container.textContent).not.toContain(
+      'return { count: 1 };'
+    );
+    const rows = rendered.getAllByTestId('tool-card');
+    const classification = rows.find((row) =>
+      row.textContent?.includes('Classify content')
+    );
+    expect(classification?.textContent).toContain(
+      '1 completed · 1 outcome unknown'
+    );
+    expect(classification?.dataset.status).toBe('completed');
+    const read = rows.find((row) =>
+      row.textContent?.includes('Read documents')
+    );
+    expect(read?.textContent).toContain('1 failed');
+    expect(read?.dataset.status).toBe('failed');
+    expect(rendered.container.textContent).not.toContain('API calls');
+    expect(rendered.container.textContent).toContain('first 128 requests');
+  });
+
+  it('shows active SDK operations as tool rows without an extra wrapper', () => {
+    codeQuery.record = {
+      ...codeQuery.record!,
+      status: 'running',
+      error: null,
+      calls: [],
+      activity: [{ id: 1, label: 'Browse workspace', status: 'running' }],
+    };
+    const part = codePart('macro_internal');
+    part.status = 'running';
+    const rendered = render(() => (
+      <ToolCallPart part={part} context={context(true)} />
+    ));
+    const rows = rendered.getAllByTestId('tool-card');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].textContent).toContain('Browse workspace');
+    expect(rows[0].textContent).toContain('1 running');
+    expect(rows[0].dataset.status).toBe('running');
+    expect(rendered.container.textContent).not.toContain('Workspace activity');
+  });
+
+  it('loads trusted records and keeps custom components after a script failure', () => {
+    const part = codePart('macro_internal');
+    const rendered = render(() => (
+      <ToolCallPart part={part} context={context(false)} />
+    ));
+    expect(codeQuery.read).toHaveBeenCalledWith('session', executionId);
+    expect(rendered.getAllByTestId('tool-card')[0].dataset.status).toBe(
+      'failed'
+    );
+    expect(rendered.getAllByTestId('tool-card')[0].textContent).toContain(
+      'Failed'
+    );
+    expect(rendered.getByTestId('dashboard-view')).toBeDefined();
+    expect(rendered.container.textContent).toContain('Outcome unknown');
+    expect(rendered.getByTestId('macro-tool').textContent).toBe('ReadContent');
+    expect(
+      JSON.parse(rendered.getByTestId('macro-tool').dataset.response ?? '')
+    ).toEqual({ content: { text: 'saved contents' }, comments: [] });
+  });
+
+  it('recovers completed inner results after Stop drops the final receipt', () => {
+    const part = codePart('macro_internal');
+    part.status = 'failed';
+    if (part.detail.kind === 'other') {
+      part.detail.result = null;
+      part.detail.output = null;
+    }
+    const rendered = render(() => (
+      <ToolCallPart part={part} context={context(false)} />
+    ));
+    expect(codeQuery.read).toHaveBeenCalledWith('session', executionId);
+    expect(rendered.getByTestId('macro-tool').textContent).toBe('ReadContent');
+  });
+
+  it('explains unavailable results when an execution ID belongs to another program', () => {
+    codeQuery.record = {
+      ...codeQuery.record!,
+      source: 'return "other program";',
+    };
+    const rendered = render(() => (
+      <ToolCallPart
+        part={codePart('macro_internal')}
+        context={context(false)}
+      />
+    ));
+    expect(rendered.queryByTestId('macro-tool')).toBeNull();
+    expect(rendered.queryByTestId('dashboard-view')).toBeNull();
+    expect(rendered.getByRole('status').textContent).toContain(
+      'Tool results are unavailable.'
+    );
+  });
+
+  it('loads server-accepted UUIDs with reserved variant bits', () => {
+    const id = '35e6f7a8-b9c0-4d1e-2f3a-4b5c6d7e8f90';
+    const part = codePart('macro_internal');
+    if (part.detail.kind === 'other') {
+      part.detail.input = { execution_id: id, source: 'return { count: 1 };' };
+      part.detail.result = null;
+    }
+    codeQuery.record = { ...codeQuery.record!, executionId: id };
+    const rendered = render(() => (
+      <ToolCallPart part={part} context={context(false)} />
+    ));
+    expect(codeQuery.read).toHaveBeenCalledWith('session', id);
+    expect(rendered.getByTestId('macro-tool').textContent).toBe('ReadContent');
+    expect(rendered.getAllByTestId('tool-card')[0].textContent).toContain(
+      'Failed'
+    );
+  });
+
+  it('does not let an external MCP server select the code-mode record view', () => {
+    codeQuery.read.mockClear();
+    const rendered = render(() => (
+      <ToolCallPart part={codePart('external')} context={context(false)} />
+    ));
+    expect(codeQuery.read).not.toHaveBeenCalled();
+    expect(rendered.queryByTestId('dashboard-view')).toBeNull();
+    expect(rendered.getByTestId('title').textContent).toBe('ExecuteCode');
+  });
+});
+
+describe('ACP review presentations', () => {
+  const reviewId = '019a0000-0000-7000-8000-000000000005';
+  const part = (
+    server = 'macro_internal',
+    callId = `review_${reviewId}`
+  ): ToolUsePart => ({
+    kind: 'tool_use',
+    id: callId,
+    status: 'completed',
+    name: { kind: 'mcp', server, tool: 'PresentReview' },
+    detail: {
+      kind: 'other',
+      acpKind: 'other',
+      input: { reviewId, kind: 'email', title: 'Drafts' },
+      output: null,
+      result: { reviewId, message: 'Presented to the user' },
+      error: null,
+    },
+  });
+  it('renders saved reviews immediately while the surrounding agent continues', () => {
+    const ctx = context(true);
+    const view = render(() => <ToolCallPart part={part()} context={ctx} />);
+    const card = view.getByTestId('persisted-review');
+    expect(card.dataset.session).toBe(ctx.sessionId);
+    expect(card.dataset.review).toBe(reviewId);
+  });
+  it('does not duplicate the card for the ordinary tool invocation', () => {
+    const view = render(() => (
+      <ToolCallPart
+        part={part('macro_internal', 'ordinary-call')}
+        context={context(false)}
+      />
+    ));
+    expect(view.queryByTestId('persisted-review')).toBeNull();
+  });
+  it('does not accept a presentation from another MCP server', () => {
+    const view = render(() => (
+      <ToolCallPart part={part('external')} context={context(false)} />
+    ));
+    expect(view.queryByTestId('persisted-review')).toBeNull();
+  });
 });

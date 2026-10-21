@@ -67,6 +67,76 @@ describe('active GraphQL Soup queries', () => {
     expect(getActiveGraphqlSoupRevalidations()).toEqual([descriptor]);
   });
 
+  it('excludes targeted detail readers from generic Soup refreshes', async () => {
+    const list = vi.fn(async () => {});
+    const detail = vi.fn(async () => {
+      throw new Error('must not refresh');
+    });
+    register({ isEnabled: () => true, refresh: list });
+    register({
+      isEnabled: () => true,
+      refresh: detail,
+      target: () => ({ kind: 'email-archive', threadId: 'thread-1' }),
+    });
+    await refreshActiveGraphqlSoupQueries({ throwOnError: true });
+    expect(list).toHaveBeenCalledOnce();
+    expect(detail).not.toHaveBeenCalled();
+  });
+
+  it('refreshes only a matching detail target, while preserving list refreshes', async () => {
+    const list = vi.fn(async () => {});
+    const first = vi.fn(async () => {});
+    const second = vi.fn(async () => {});
+    let firstId = 'first';
+    register({ isEnabled: () => true, refresh: list });
+    register({
+      isEnabled: () => true,
+      refresh: first,
+      target: () => ({ kind: 'email-archive', threadId: firstId }),
+    });
+    register({
+      isEnabled: () => true,
+      refresh: second,
+      target: () => ({ kind: 'email-archive', threadId: 'second' }),
+    });
+    await refreshActiveGraphqlSoupQueries({
+      throwOnError: true,
+      target: { kind: 'email-archive', threadId: 'first' },
+    });
+    expect(list).toHaveBeenCalledOnce();
+    expect(first).toHaveBeenCalledOnce();
+    expect(second).not.toHaveBeenCalled();
+    firstId = 'moved';
+    await refreshActiveGraphqlSoupQueries({
+      throwOnError: true,
+      target: { kind: 'email-archive', threadId: 'first' },
+    });
+    expect(first).toHaveBeenCalledOnce();
+    expect(list).toHaveBeenCalledTimes(2);
+  });
+
+  it('coalesces refreshes requested while one is in flight into one follow-up', async () => {
+    const settle: Array<() => void> = [];
+    const refresh = vi.fn(
+      () => new Promise<void>((resolve) => settle.push(resolve))
+    );
+    register({ isEnabled: () => true, refresh });
+    const first = refreshActiveGraphqlSoupQueries();
+    const second = refreshActiveGraphqlSoupQueries();
+    const third = refreshActiveGraphqlSoupQueries();
+    expect(refresh).toHaveBeenCalledOnce();
+    settle[0]!();
+    await first;
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledTimes(2));
+    settle[1]!();
+    await Promise.all([second, third]);
+    expect(refresh).toHaveBeenCalledTimes(2);
+    const fourth = refreshActiveGraphqlSoupQueries();
+    expect(refresh).toHaveBeenCalledTimes(3);
+    settle[2]!();
+    await fourth;
+  });
+
   it('strict revalidation fails until every enabled reader succeeds', async () => {
     const consoleError = vi
       .spyOn(console, 'error')
@@ -201,5 +271,25 @@ describe('active GraphQL Soup queries', () => {
     unregisterFailure();
     unregisterSuccess();
     consoleError.mockRestore();
+  });
+  it('limits a scoped refresh to readers whose filter body matches', async () => {
+    const scoped = vi.fn(async () => {});
+    const other = vi.fn(async () => {});
+    const unbodied = vi.fn(async () => {});
+    register({
+      isEnabled: () => true,
+      refresh: scoped,
+      body: () => ({ crma: { company: 'c' } }),
+    });
+    register({ isEnabled: () => true, refresh: other, body: () => ({}) });
+    register({ isEnabled: () => true, refresh: unbodied });
+
+    await refreshActiveGraphqlSoupQueries({
+      where: (body) =>
+        typeof body === 'object' && body !== null && 'crma' in body,
+    });
+    expect(scoped).toHaveBeenCalledOnce();
+    expect(other).not.toHaveBeenCalled();
+    expect(unbodied).not.toHaveBeenCalled();
   });
 });

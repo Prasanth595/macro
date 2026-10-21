@@ -1,5 +1,7 @@
 import { match } from 'ts-pattern';
 import type { MessageParent } from '../../../generated/storage/types.gen';
+import { CallRecord } from '../../entities/calls/call-record';
+import { CallMessage } from '../../entities/calls/message';
 import { Channel } from '../../entities/channels/channel';
 import { Message } from '../../entities/channels/message';
 import { Thread } from '../../entities/channels/thread';
@@ -18,10 +20,18 @@ export type MessageEvent = Extract<
 /**
  * The entity a message event belongs to. Channel messages hydrate a `Channel`,
  * a `Message`, and the `Thread` for replies; document comments hydrate a
- * `Document` and a `Comment`. Both handles share `reply`, `edit`, `delete`,
+ * `Document` and a `Comment`. Call chat hydrates a `CallRecord` and a
+ * `CallMessage`. The message handles share `reply`, `edit`, `delete`,
  * `author`, and `content`/`text` reads.
  */
 export type MessageEventTarget =
+  | {
+      type: 'call';
+      call: CallRecord;
+      message: CallMessage;
+      /** The call id is also its canonical chat thread id. */
+      threadId: string;
+    }
   | {
       type: 'channel';
       channel: Channel;
@@ -48,6 +58,14 @@ function target(
   mentions: SimpleMention[] = [],
 ): MessageEventTarget {
   const parent = metadata.parent;
+  if (parent.type === 'call') {
+    return {
+      type: 'call',
+      call: CallRecord.byId(client, parent.id),
+      message: CallMessage.byId(client, parent.id, metadata.message_id),
+      threadId: parent.id,
+    };
+  }
   if (parent.type === 'channel') {
     return {
       type: 'channel',
@@ -105,5 +123,8 @@ export function hydrateMessageEvent(client: MacroClient, event: MessageEvent) {
       target: target(client, metadata),
       actor: userFromPrincipal(client, metadata.actor),
     }))
-    .exhaustive();
+    .exhaustive((unknown) => {
+      console.warn('macro sdk: unknown message event', unknown);
+      return undefined;
+    });
 }

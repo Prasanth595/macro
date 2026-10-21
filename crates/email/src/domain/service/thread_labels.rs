@@ -10,6 +10,7 @@ use macro_event_broker::MacroEventBroker;
 use uuid::Uuid;
 
 use super::EmailServiceImpl;
+use crate::domain::models::{UserProvider, mailbox_action::MailboxAction};
 
 /// Facts captured before a label write, used only if provider enqueue fails.
 struct ThreadLabelRollback<'a> {
@@ -28,6 +29,82 @@ where
     anyhow::Error: From<T::Err>,
     anyhow::Error: From<E::Err>,
 {
+    pub(super) async fn change_thread_mailbox_state_impl(
+        &self,
+        actor: macro_user_id::user_id::MacroUserIdStr<'static>,
+        thread_id: Uuid,
+        action: MailboxAction,
+    ) -> Result<(), EmailErr> {
+        match action {
+            MailboxAction::Read(true) => return self.mark_thread_seen_impl(actor, thread_id).await,
+            MailboxAction::Read(false) => {
+                return self.mark_thread_unread_impl(actor, thread_id).await;
+            }
+            MailboxAction::Archived(value) => {
+                return self.set_thread_archived_impl(actor, thread_id, value).await;
+            }
+            _ => (),
+        }
+        let link = self
+            .email_repo
+            .owned_link_for_thread(thread_id, actor.clone())
+            .await
+            .map_err(|e| EmailErr::RepoErr(anyhow::Error::from(e)))?
+            .ok_or(EmailErr::ThreadNotFound)?;
+        if link.provider == UserProvider::Outlook {
+            self.queue_outlook_action(&link, thread_id, actor, action)
+                .await?;
+            return Ok(());
+        }
+        let (provider_id, value) = match &action {
+            MailboxAction::Flagged(value) => (system_labels::STARRED, *value),
+            MailboxAction::Trashed(value) => (system_labels::TRASH, *value),
+            MailboxAction::Junk(value) => (system_labels::SPAM, *value),
+            MailboxAction::Category { name, present } => (name.as_str(), *present),
+            _ => unreachable!("read and archive handled above"),
+        };
+        let label = self
+            .email_repo
+            .list_labels_by_link_id(link.id)
+            .await
+            .map_err(|e| EmailErr::RepoErr(anyhow::Error::from(e)))?
+            .into_iter()
+            .find(|l| l.provider_label_id == provider_id)
+            .ok_or(EmailErr::LabelNotFound)?;
+        self.update_thread_labels_with_actor(&link, thread_id, label.id, value, Some(actor))
+            .await?;
+        Ok(())
+    }
+
+    /// The email domain selects a bounded message set; persistence commits the
+    /// accepted intent and its pending projection together.
+    pub(super) async fn queue_outlook_action(
+        &self,
+        link: &Link,
+        thread_id: Uuid,
+        actor: macro_user_id::user_id::MacroUserIdStr<'static>,
+        action: MailboxAction,
+    ) -> Result<UpdateThreadLabelsResult, EmailErr> {
+        let messages = self
+            .email_repo
+            .mailbox_action_messages(link.id, thread_id)
+            .await
+            .map_err(|e| EmailErr::RepoErr(anyhow::Error::from(e)))?;
+        if messages.is_empty() {
+            return Err(EmailErr::ThreadNotFound);
+        }
+        let targets = action.targets(&messages);
+        if !targets.is_empty() {
+            self.email_repo
+                .enqueue_mailbox_action(link.id, actor, &action, &targets)
+                .await
+                .map_err(|e| EmailErr::RepoErr(anyhow::Error::from(e)))?;
+        }
+        Ok(UpdateThreadLabelsResult {
+            successful_ids: targets.iter().map(|t| t.message_id).collect(),
+            failed_ids: vec![],
+        })
+    }
     #[tracing::instrument(err, skip(self), fields(user_id = %macro_id, %thread_id))]
     pub(crate) async fn mark_thread_seen_impl(
         &self,
@@ -54,6 +131,12 @@ where
             .upsert_thread_user_history(link.id, thread_id)
             .await
             .map_err(|e| EmailErr::RepoErr(anyhow::Error::from(e)))?;
+
+        if link.provider == UserProvider::Outlook {
+            self.queue_outlook_action(&link, thread_id, macro_id, MailboxAction::Read(true))
+                .await?;
+            return Ok(());
+        }
 
         let message_ids: Vec<Uuid> = messages.iter().map(|message| message.db_id).collect();
         let labels_by_message = self
@@ -90,13 +173,18 @@ where
     ) -> Result<(), EmailErr> {
         let link = self
             .email_repo
-            .owned_link_for_thread(thread_id, macro_id)
+            .owned_link_for_thread(thread_id, macro_id.clone())
             .await
             .map_err(|e| EmailErr::RepoErr(anyhow::Error::from(e)))?
             .ok_or(EmailErr::ThreadNotFound)?;
 
         // Resolve from the authorized thread's inbox, never the caller's primary
         // inbox: multi-inbox users have a distinct UNREAD label for each link.
+        if link.provider == UserProvider::Outlook {
+            self.queue_outlook_action(&link, thread_id, macro_id, MailboxAction::Read(false))
+                .await?;
+            return Ok(());
+        }
         let unread_label = self
             .email_repo
             .list_labels_by_link_id(link.id)
@@ -125,14 +213,19 @@ where
             .await
             .map_err(|e| EmailErr::RepoErr(anyhow::Error::from(e)))?
             .ok_or(EmailErr::ThreadNotFound)?;
-        let thread = self
-            .email_repo
-            .thread_by_id(thread_id)
-            .await
-            .map_err(|e| EmailErr::RepoErr(anyhow::Error::from(e)))?
-            .ok_or(EmailErr::ThreadNotFound)?;
-        if !archived && thread.latest_inbound_message_ts.is_none() {
-            return Err(EmailErr::ThreadHasNoInboundMessages);
+        if !archived {
+            self.ensure_thread_has_received_messages(thread_id, link.id)
+                .await?;
+        }
+        if link.provider == UserProvider::Outlook {
+            self.queue_outlook_action(
+                &link,
+                thread_id,
+                macro_id,
+                MailboxAction::Archived(archived),
+            )
+            .await?;
+            return Ok(());
         }
         let label = self
             .email_repo
@@ -147,6 +240,63 @@ where
         Ok(())
     }
 
+    /// Inbox sorting timestamps disappear after archive/provider sync. Determine
+    /// whether a thread can be restored from its messages, not current labels.
+    async fn ensure_thread_has_received_messages(
+        &self,
+        thread_id: Uuid,
+        link_id: Uuid,
+    ) -> Result<(), EmailErr> {
+        let messages = self
+            .email_repo
+            .get_thread_label_messages(thread_id, link_id)
+            .await
+            .map_err(|e| EmailErr::RepoErr(anyhow::Error::from(e)))?;
+        if messages
+            .iter()
+            .any(|message| !message.is_draft && !message.is_sent)
+        {
+            return Ok(());
+        }
+
+        // A sent message addressed back to its sender is also received mail.
+        // Drafts never establish received-message history, even if self-addressed.
+        let sent_ids: Vec<_> = messages
+            .iter()
+            .filter(|message| message.is_sent && !message.is_draft)
+            .map(|message| message.db_id)
+            .collect();
+        if sent_ids.is_empty() {
+            return Err(EmailErr::ThreadHasNoInboundMessages);
+        }
+        let (senders, recipients) = tokio::try_join!(
+            async {
+                self.email_repo
+                    .senders_by_message_ids(&sent_ids)
+                    .await
+                    .map_err(|e| EmailErr::RepoErr(anyhow::Error::from(e)))
+            },
+            async {
+                self.email_repo
+                    .recipients_by_message_ids(&sent_ids)
+                    .await
+                    .map_err(|e| EmailErr::RepoErr(anyhow::Error::from(e)))
+            },
+        )?;
+        if sent_ids.iter().any(|id| {
+            senders.get(id).is_some_and(|sender| {
+                recipients.get(id).is_some_and(|recipients| {
+                    recipients
+                        .iter()
+                        .any(|(recipient, _)| recipient.email.eq_ignore_ascii_case(&sender.email))
+                })
+            })
+        }) {
+            return Ok(());
+        }
+        Err(EmailErr::ThreadHasNoInboundMessages)
+    }
+
     #[tracing::instrument(err, skip(self), fields(user_id = %macro_id, %thread_id, %label_id, add))]
     pub(crate) async fn update_thread_labels_for_user_impl(
         &self,
@@ -157,12 +307,12 @@ where
     ) -> Result<UpdateThreadLabelsResult, EmailErr> {
         let link = self
             .email_repo
-            .owned_link_for_thread(thread_id, macro_id)
+            .owned_link_for_thread(thread_id, macro_id.clone())
             .await
             .map_err(|e| EmailErr::RepoErr(anyhow::Error::from(e)))?
             .ok_or(EmailErr::ThreadNotFound)?;
 
-        self.update_thread_labels_impl(&link, thread_id, label_id, add)
+        self.update_thread_labels_with_actor(&link, thread_id, label_id, add, Some(macro_id))
             .await
     }
 
@@ -193,6 +343,20 @@ where
             .await
             .map_err(|e| EmailErr::RepoErr(anyhow::Error::from(e)))?
             .ok_or(EmailErr::LabelNotFound)?;
+
+        if link.provider == UserProvider::Outlook {
+            return self
+                .queue_outlook_action(
+                    link,
+                    thread_id,
+                    actor.unwrap_or_else(|| link.macro_id.clone()),
+                    MailboxAction::Category {
+                        name: label.provider_label_id,
+                        present: add,
+                    },
+                )
+                .await;
+        }
 
         let messages = self
             .email_repo

@@ -42,12 +42,16 @@ import {
 } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
 import type { CalendarEvent, CalendarTimeFormat } from '../types';
-import { isSameLocalDate, parseLocalDate } from '../utils/calendar-date';
+import {
+  isSameLocalDate,
+  isTimedPointEvent,
+  parseLocalDate,
+} from '../utils/calendar-date';
 import {
   parseMacroAppLink,
   sanitizeCalendarDescription,
 } from '../utils/calendar-description';
-import { safeConferenceUrl } from '../utils/conference-link';
+import { conferenceJoinUrl, safeConferenceUrl } from '../utils/conference-link';
 import {
   type CalendarPerson,
   eventAttribution,
@@ -328,6 +332,10 @@ function formatEventSchedule(
       : `${formatShortDate.format(start)}–${formatShortDate.format(inclusiveEnd)} · All day`;
   }
 
+  if (isTimedPointEvent(event)) {
+    return `${formatDate.format(start)} · ${formatCalendarTime(start, timeFormat)} · No duration`;
+  }
+
   return isSameLocalDate(start, end)
     ? `${formatDate.format(start)} · ${formatCalendarTime(start, timeFormat)}–${formatCalendarTime(end, timeFormat)}`
     : `${formatDate.format(start)}, ${formatCalendarTime(start, timeFormat)}–${formatDate.format(end)}, ${formatCalendarTime(end, timeFormat)}`;
@@ -505,7 +513,9 @@ export function EventDetails(props: {
       ? 'Join Macro call'
       : props.event.conferenceProvider === 'google_meet'
         ? 'Join Google Meet'
-        : 'Join meeting';
+        : props.event.conferenceProvider === 'microsoft_teams'
+          ? 'Join Microsoft Teams'
+          : 'Join meeting';
   const attribution = createMemo(() => eventAttribution(props.event));
   const originalTimeZone = createMemo(() =>
     formatOriginalTimeZone(props.event, props.timeFormat)
@@ -591,7 +601,11 @@ export function EventDetails(props: {
                 variant="ghost"
                 size="sm"
                 class="h-8 min-w-0 bg-hover text-ink not-touch:not-disabled:hover:bg-active [&_svg]:size-3.5!"
-                onClick={() => openExternalUrl(url())}
+                onClick={() =>
+                  openExternalUrl(
+                    conferenceJoinUrl(url(), props.event.calendar.emailAddress)
+                  )
+                }
               >
                 {conferenceLabel()}
                 <ArrowSquareOutIcon />

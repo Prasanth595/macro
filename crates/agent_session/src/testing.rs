@@ -4,6 +4,7 @@
 //! exercise their own logic against a real [`AgentSessionRepo`] /
 //! [`AgentSessionLogRepo`] contract without a database.
 
+use crate::domain::coding_preferences::CodingPreferences;
 use crate::domain::error::{AgentSessionError, Result};
 use crate::domain::events::AgentSessionLifecycleEvent;
 use crate::domain::model::{
@@ -11,7 +12,7 @@ use crate::domain::model::{
     ClaimOutcome, CreateAgentSessionParams, DEFAULT_AGENT_SESSION_NAME, LeaseView, LogAppended,
     ManagerFence, ReplicaAddress, ReplicaId, SandboxSize, SessionBot, SessionClaim, SessionManager,
     SessionPreviewCandidate, SessionStatus, StoredAgentSessionLog, StoredQueuedAction,
-    ThreadSession,
+    ThreadSession, TurnPrompter,
 };
 use crate::domain::ports::{
     AgentSessionLifecyclePublisher, AgentSessionLogRepo, AgentSessionRealtime, AgentSessionRepo,
@@ -74,6 +75,7 @@ pub struct InMemoryAgentSessionRepo {
     turn_states: Arc<Mutex<HashMap<AgentSessionId, agent_fold::domain::model::TurnState>>>,
     working_branches: Arc<Mutex<HashMap<AgentSessionId, String>>>,
     user_sizes: Arc<Mutex<HashMap<String, SandboxSize>>>,
+    user_coding_preferences: Arc<Mutex<HashMap<String, CodingPreferences>>>,
     log_reads: Arc<AtomicUsize>,
     session_reads: Arc<AtomicUsize>,
     /// Replica heartbeats and published addresses, mirroring `harness_replica`.
@@ -83,6 +85,11 @@ pub struct InMemoryAgentSessionRepo {
     leases: Arc<Mutex<HashMap<AgentSessionId, Lease>>>,
     /// Session -> waiting actions, mirroring `agent_session_queue`.
     queues: Arc<Mutex<HashMap<AgentSessionId, Vec<StoredQueuedAction>>>>,
+    /// Session -> who prompted its turn, mirroring the `turn_*` columns.
+    turn_prompters: Arc<Mutex<HashMap<AgentSessionId, TurnPrompter>>>,
+    /// Sessions an agent conversation sends its messages to, mirroring the
+    /// current rows of `agent_conversation_sessions`.
+    conversation_sessions: Arc<Mutex<std::collections::HashSet<AgentSessionId>>>,
 }
 
 impl InMemoryAgentSessionRepo {
@@ -99,6 +106,15 @@ impl InMemoryAgentSessionRepo {
             .lock()
             .expect("in-memory session store is not poisoned")
             .insert(session.id, session);
+    }
+
+    /// Make `session` the one an agent conversation's channel sends its
+    /// messages to.
+    pub fn answer_conversation(&self, session: AgentSessionId) {
+        self.conversation_sessions
+            .lock()
+            .expect("in-memory conversation store is not poisoned")
+            .insert(session);
     }
 
     /// The activity projection last committed with this session's log.
@@ -174,6 +190,7 @@ impl AgentSessionRepo for InMemoryAgentSessionRepo {
         let session = AgentSession {
             repo_branch: params.repo_branch,
             pull_request_url: None,
+            task_id: None,
             id: params.id,
             name: DEFAULT_AGENT_SESSION_NAME.to_owned(),
             is_archived: false,
@@ -257,15 +274,17 @@ impl AgentSessionRepo for InMemoryAgentSessionRepo {
     }
 
     async fn get(&self, id: AgentSessionId) -> Result<AgentSession> {
+        self.find(id).await?.ok_or(AgentSessionError::NotFound(id))
+    }
+
+    async fn find(&self, id: AgentSessionId) -> Result<Option<AgentSession>> {
         self.session_reads.fetch_add(1, Ordering::Relaxed);
-        self.sessions
+        Ok(self
+            .sessions
             .lock()
             .expect("in-memory session store is not poisoned")
             .get(&id)
-            .cloned()
-            .ok_or_else(|| {
-                AgentSessionError::Unknown(anyhow::anyhow!("no agent session {}", id.as_uuid()))
-            })
+            .cloned())
     }
 
     async fn find_all_for_thread(&self, thread_id: Uuid) -> Result<Vec<AgentSession>> {
@@ -361,6 +380,24 @@ impl AgentSessionRepo for InMemoryAgentSessionRepo {
         Ok(())
     }
 
+    async fn set_turn_prompter(&self, id: AgentSessionId, prompter: &TurnPrompter) -> Result<()> {
+        self.get(id).await?;
+        self.turn_prompters
+            .lock()
+            .expect("turn prompters poisoned")
+            .insert(id, prompter.clone());
+        Ok(())
+    }
+
+    async fn turn_prompter(&self, id: AgentSessionId) -> Result<Option<TurnPrompter>> {
+        Ok(self
+            .turn_prompters
+            .lock()
+            .expect("turn prompters poisoned")
+            .get(&id)
+            .cloned())
+    }
+
     async fn set_repo_url(&self, id: AgentSessionId, repo_url: Option<String>) -> Result<()> {
         let mut sessions = self
             .sessions
@@ -421,6 +458,14 @@ impl AgentSessionRepo for InMemoryAgentSessionRepo {
         Ok(())
     }
 
+    async fn is_current_conversation_session(&self, id: AgentSessionId) -> Result<bool> {
+        Ok(self
+            .conversation_sessions
+            .lock()
+            .expect("in-memory conversation store is not poisoned")
+            .contains(&id))
+    }
+
     async fn set_name_if_default(&self, id: AgentSessionId, name: &str) -> Result<bool> {
         let mut sessions = self
             .sessions
@@ -469,6 +514,31 @@ impl AgentSessionRepo for InMemoryAgentSessionRepo {
             .lock()
             .expect("in-memory session store is not poisoned")
             .insert(user_id.as_ref().to_owned(), size);
+        Ok(())
+    }
+
+    async fn user_coding_preferences(
+        &self,
+        user_id: &MacroUserIdStr<'static>,
+    ) -> Result<CodingPreferences> {
+        Ok(self
+            .user_coding_preferences
+            .lock()
+            .expect("in-memory session store is not poisoned")
+            .get(user_id.as_ref())
+            .copied()
+            .unwrap_or_default())
+    }
+
+    async fn set_user_coding_preferences(
+        &self,
+        user_id: &MacroUserIdStr<'static>,
+        preferences: CodingPreferences,
+    ) -> Result<()> {
+        self.user_coding_preferences
+            .lock()
+            .expect("in-memory session store is not poisoned")
+            .insert(user_id.as_ref().to_owned(), preferences);
         Ok(())
     }
 
@@ -722,6 +792,29 @@ impl crate::domain::turn_state::SessionTurnProjectionRepo for InMemoryAgentSessi
 }
 
 impl AgentSessionLogRepo for InMemoryAgentSessionRepo {
+    async fn list_action_history(
+        &self,
+        agent_session_id: AgentSessionId,
+        action: agent_runtime_protocol::domain::action::AgentActionId,
+    ) -> Result<Vec<StoredAgentSessionLog>> {
+        let _transaction = self.log_transaction.lock().unwrap();
+        let mut rows = self
+            .logs
+            .lock()
+            .unwrap()
+            .get(&agent_session_id)
+            .cloned()
+            .unwrap_or_default();
+        if !rows
+            .iter()
+            .any(|row| crate::domain::action_history::is_prompt(&row.entry, action))
+        {
+            return Ok(Vec::new());
+        }
+        rows.sort_unstable_by_key(|row| (row.created_at, row.id));
+        Ok(rows)
+    }
+
     async fn create(&self, log: AgentSessionLog) -> Result<StoredAgentSessionLog> {
         self.create_projected(log, None, None, None).await
     }
@@ -906,6 +999,7 @@ pub fn test_agent_session(id: AgentSessionId) -> AgentSession {
     AgentSession {
         repo_branch: None,
         pull_request_url: None,
+        task_id: None,
         id,
         name: DEFAULT_AGENT_SESSION_NAME.to_owned(),
         is_archived: false,

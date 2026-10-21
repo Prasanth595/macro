@@ -1,3 +1,8 @@
+import {
+  ChatWithAgentButton,
+  ChatWithAgentIcon,
+  openChatWithAgent,
+} from '@app/features/chat/ChatWithAgentButton';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import type { BlockTool } from '@components/app/ResponsiveBlockToolbar';
 import {
@@ -7,7 +12,6 @@ import {
 import type { FileOperation } from '@components/app/split-layout/components/SplitFileMenu';
 import { SplitHeaderLeft } from '@components/app/split-layout/components/SplitHeader';
 import { BlockItemSplitLabel } from '@components/app/split-layout/components/SplitLabel';
-import { SplitToolbarRight } from '@components/app/split-layout/components/SplitToolbar';
 import { useBlockAliasedName, useBlockId } from '@core/block';
 import {
   getShareDrawerRecipientInput,
@@ -21,6 +25,7 @@ import {
   useBlockDocumentDownloadName,
   useBlockDocumentName,
 } from '@core/util/currentBlockDocumentName';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { downloadFile } from '@filesystem/download';
 import IconShared from '@icon/share.svg';
 import Download from '@phosphor/download-simple.svg';
@@ -58,7 +63,7 @@ export const TopBar: Component<{
     const content = text();
     if (!text || !name) return;
     const file = new Blob([content ?? ''], { type: 'text/plain' });
-    downloadFile(file, downloadName());
+    fireAndForget(downloadFile(file, downloadName()), 'code-top-bar');
     analytics.track('download', { blockType: 'code' });
   });
 
@@ -75,7 +80,22 @@ export const TopBar: Component<{
     { op: 'delete' },
   ];
 
+  const chatEntity = () => ({
+    type: 'document' as const,
+    id: blockId,
+    name: name() ?? '',
+    fileType: 'code',
+  });
+
   const tools: BlockTool[] = [
+    {
+      label: 'Ask Macro',
+      icon: ChatWithAgentIcon,
+      action: () => openChatWithAgent(chatEntity()),
+      buttonComponent: () => (
+        <ChatWithAgentButton entity={chatEntity()} label="Ask Macro" />
+      ),
+    },
     {
       group: 'sharing',
       label: 'Share',
@@ -90,18 +110,17 @@ export const TopBar: Component<{
     <>
       <SplitHeaderLeft>
         <BlockItemSplitLabel badges={<CodeFileTypeChip />} />
+        <Show when={props.isHtmlFile && !isMobile()}>
+          <div class="ph-no-capture mx-2 h-full min-w-0 shrink-0">
+            <CodeModeControl
+              mode={props.mode}
+              onModeChange={props.onModeChange}
+            />
+          </div>
+        </Show>
       </SplitHeaderLeft>
 
       <ResponsivePermissionsBadge />
-
-      <Show when={props.isHtmlFile && !isMobile()}>
-        <SplitToolbarRight order={-1}>
-          <CodeModeControl
-            mode={props.mode}
-            onModeChange={props.onModeChange}
-          />
-        </SplitToolbarRight>
-      </Show>
 
       <ResponsiveBlockToolbar
         tools={tools}

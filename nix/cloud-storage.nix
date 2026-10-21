@@ -53,8 +53,15 @@
       sqlxFilter = path: _type: builtins.match ".*\\.sqlx/.*\\.json$" path != null;
       pdfiumFilter = path: _type: builtins.match ".*pdfium-lib/.*\\.(so|dylib)$" path != null;
       # `.sh` is required so `include_str!` of
-      # `crates/agent_harness/container/ensure_ready.sh` survives the prune.
-      assetFilter = path: _type: builtins.match ".*\\.(md|html|txt|json|canvas|sql|sh)$" path != null;
+      # `crates/agent_harness/container/ensure_ready.sh` survives the prune;
+      # `.ttf` and `.xml` for the fonts and preset shape definitions that
+      # `crates/pptx_engine` embeds with `include_bytes!`; `.graphql` for the
+      # `static_assets/schema.graphql` that `cache-core`'s build script reads;
+      # `.jsonl` for the recorded sessions `agent_fold` tests embed; `.mjs`
+      # for the Deno bootstrap and bundled public SDK/Handlebars runtime.
+      assetFilter =
+        path: _type:
+        builtins.match ".*\\.(md|html|txt|json|jsonl|canvas|sql|sh|ttf|xml|graphql|mjs)$" path != null;
       # Rust local HTTP clients embed only the public proxy CA, never its keys.
       localCaFilter = path: _type: pkgs.lib.hasSuffix "/infra/local/certs/ca.pem" (toString path);
       binFilter = path: _type: builtins.match ".*\\.bin$" path != null;
@@ -224,7 +231,9 @@
           doCheck = false;
           doInstallCargoArtifacts = true;
           cargoExtraArgs = "--locked --all-features --workspace --lib --exclude sync_service";
-          RUSTFLAGS = "-Dwarnings" + pkgs.lib.optionalString isLinux " -C link-arg=-fuse-ld=mold";
+          # Keep RUSTFLAGS identical to cargoArtifacts: any difference changes
+          # cargo's fingerprint and recompiles every dependency in this layer.
+          # The clippy checks enforce `-D warnings`.
           RUSTDOCFLAGS = "-Dwarnings";
         }
       );
@@ -398,6 +407,11 @@
           binaries = [ "document_storage_service" ];
         }
         {
+          serviceName = "slack-import-worker";
+          packageName = "slack_import_worker";
+          binaries = [ "slack_import_worker" ];
+        }
+        {
           serviceName = "email-service";
           packageName = "email_service";
           binaries = [
@@ -526,6 +540,27 @@
         }) deployServiceBinaryDefinitions
       );
 
+      # DSS and its worker are separate Cargo packages with separate pruned
+      # source closures, but CI hands both binaries to the same Pulumi stack.
+      # Bundle only the deploy output; local-stack-binaries keeps the worker
+      # opt-in by continuing to use the unbundled deployServiceBinaryPackages.
+      documentStorageDeployBinaries =
+        let
+          cfg = builtins.fromJSON (builtins.readFile ../.github/services-config.json);
+          checkBinaries = pkgs.lib.concatMapStringsSep "\n" (binary: ''
+            test -x "$out/bin/${binary}" || {
+              echo "Missing deploy binary: ${binary}" >&2
+              exit 1
+            }
+          '') cfg.services.document-storage-service.deploy_binaries;
+        in
+        pkgs.runCommand "cloud-storage-document-storage-service-deploy-binaries" { } ''
+          mkdir -p $out/bin
+          cp ${deployServiceBinaryPackages.deploy-service-binaries-document-storage-service}/bin/* $out/bin/
+          cp ${deployServiceBinaryPackages.deploy-service-binaries-slack-import-worker}/bin/* $out/bin/
+          ${checkBinaries}
+        '';
+
       localStackBinaryPackages = pkgs.lib.listToAttrs (
         map (def: {
           name = "local-stack-binaries-${def.serviceName}";
@@ -575,8 +610,15 @@
       callRecordingPreviewFfmpegLayer =
         let
           ffmpegVersion = "7.0.2";
+          # johnvansickle.com is the upstream but has had multi-hour outages.
+          # The GitHub copies are byte-identical (the hash enforces it) and
+          # pinned to commits; fetchurl tries each URL in order.
           ffmpegArchive = pkgs.fetchurl {
-            url = "https://johnvansickle.com/ffmpeg/releases/ffmpeg-${ffmpegVersion}-amd64-static.tar.xz";
+            urls = [
+              "https://raw.githubusercontent.com/1871847400/mikufans/95396855e335ba04b6fb300a5a688a1ac753ffea/docker/backend/ffmpeg-${ffmpegVersion}-amd64-static.tar.xz"
+              "https://raw.githubusercontent.com/DAIRO-HY/DairoMusicSearch/e49a8c67aaa4ed1cd4e0d655052ee2d65c1aef8e/document/docker/ffmpeg-${ffmpegVersion}-amd64-static.tar.xz"
+              "https://johnvansickle.com/ffmpeg/releases/ffmpeg-${ffmpegVersion}-amd64-static.tar.xz"
+            ];
             hash = "sha256-q9qNd86DCRQfg6uO3wWWg0CHxSRn9rrfN2pqKkyHz2c=";
           };
         in
@@ -890,7 +932,9 @@
           cargo-nextest
           cargo-expand
           binaryen
-          wasm-bindgen-cli
+          # Match Cargo.lock so parallel wasm-pack builds do not race to
+          # install a replacement CLI into their shared cache.
+          wasm-bindgen-cli_0_2_126
           wasm-pack
           pkg-config
           bacon
@@ -928,6 +972,14 @@
     in
     {
       checks = {
+        code-execution-assets = pkgs.runCommand "cloud-storage-code-execution-assets" { } ''
+          for source in ${src} ${prunedDeploySrc "service-agent-harness-service" "agent_harness_service"}; do
+            for asset in bootstrap.mjs sdk.mjs handlebars.mjs; do
+              test -s "$source/crates/code_execution/src/outbound/deno/$asset"
+            done
+          done
+          touch $out
+        '';
         fmt = craneLib.cargoFmt {
           inherit src;
           pname = "cloud-storage";
@@ -1005,6 +1057,9 @@
       }
       // dopplerConfigBinPackages
       // deployServiceBinaryPackages
+      // {
+        deploy-service-binaries-document-storage-service = documentStorageDeployBinaries;
+      }
       // deployLambdaPackages
       // pkgs.lib.optionalAttrs isLinux {
         local-stack-binaries = localStackBinaries;

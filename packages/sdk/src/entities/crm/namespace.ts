@@ -9,9 +9,15 @@ import { unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { Company } from './company';
 import { Contact } from './contact';
+import { PipelineNamespace } from './pipelines';
 
 export class CrmNamespace {
-  constructor(private readonly client: MacroClient) {}
+  /** Pipelines, their records and sharing settings. */
+  readonly pipelines: PipelineNamespace;
+
+  constructor(private readonly client: MacroClient) {
+    this.pipelines = new PipelineNamespace(client);
+  }
 
   /** A handle to a CRM company by id. */
   companyById(id: string): Company {

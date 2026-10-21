@@ -1,4 +1,3 @@
-import { hapticImpact } from '@core/mobile/haptics';
 import DotsThreeIcon from '@phosphor/dots-three.svg';
 import { createElementSize } from '@solid-primitives/resize-observer';
 import { cn } from '@ui';
@@ -127,11 +126,7 @@ function PillButton<T extends string>(props: {
       onPointerDown={(e) => {
         e.preventDefault();
       }}
-      // Haptic on activation, not on touch-down: a pan that starts on a pill
-      // never activates it (the pan handler suppresses the click), so it must
-      // not buzz either.
       onClick={() => {
-        hapticImpact('light');
         props.onSelect();
       }}
     >
@@ -161,6 +156,7 @@ function snapInsets(content: HTMLElement) {
 function ScrollablePillTabs<T extends string>(props: PillTabsProps<T>) {
   const [stripRef, setStripRef] = createSignal<HTMLDivElement>();
   const [contentRef, setContentRef] = createSignal<HTMLDivElement>();
+  const stripSize = createElementSize(stripRef);
 
   // Horizontal panning, driven manually from the content row's pointer
   // events: the strip is pointer-events:none (so its shadow halo passes
@@ -291,10 +287,12 @@ function ScrollablePillTabs<T extends string>(props: PillTabsProps<T>) {
       () =>
         [
           props.value,
+          stripSize.width,
           props.items.map((item) => item.value).join('\u0000'),
         ] as const,
       () => {
-        queueMicrotask(() => {
+        if (!stripSize.width) return;
+        const frame = requestAnimationFrame(() => {
           const strip = stripRef();
           const active = strip?.querySelector<HTMLElement>('[data-checked]');
           if (!strip || !active) return;
@@ -309,14 +307,15 @@ function ScrollablePillTabs<T extends string>(props: PillTabsProps<T>) {
           const itemRight = itemLeft + itemRect.width;
           const viewRight = strip.scrollLeft + strip.clientWidth;
           if (itemLeft - minLeft < strip.scrollLeft) {
-            strip.scrollTo({ left: itemLeft - minLeft, behavior: 'smooth' });
+            strip.scrollTo({ left: itemLeft - minLeft, behavior: 'instant' });
           } else if (itemRight + padRight > viewRight) {
             strip.scrollTo({
               left: itemRight + padRight - strip.clientWidth,
-              behavior: 'smooth',
+              behavior: 'instant',
             });
           }
         });
+        onCleanup(() => cancelAnimationFrame(frame));
       }
     )
   );
@@ -487,7 +486,6 @@ function MenuOverflowPillTabs<T extends string>(props: PillTabsProps<T>) {
                               : undefined
                           }
                           onClick={() => {
-                            hapticImpact('light');
                             props.onChange(item.value);
                           }}
                         >
@@ -499,7 +497,6 @@ function MenuOverflowPillTabs<T extends string>(props: PillTabsProps<T>) {
                     <MobileDrawer.Close
                       aria-label="Tabs"
                       class="flex h-9 shrink-0 items-center px-3 text-sm font-medium text-ink-muted"
-                      onClick={() => hapticImpact('light')}
                     >
                       Tabs
                     </MobileDrawer.Close>

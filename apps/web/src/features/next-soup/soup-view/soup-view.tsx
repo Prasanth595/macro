@@ -44,8 +44,8 @@ import { TaskListEntity } from '@app/features/next-soup/soup-view/views/tasks/Ta
 import { ResponsiveTaskListHeader } from '@app/features/next-soup/soup-view/views/tasks/TaskListHeader';
 import { TaskGroupHeader } from '@app/features/next-soup/soup-view/views/tasks/task-group-header';
 import {
+  markCalendarNotificationSeenOnOpen,
   markChannelNotificationsSeenOnOpen,
-  markReminderSeenOnOpen,
   openEntityInNewTab,
   openEntityInSplitFromUnifiedList,
   restoreSoupFocus,
@@ -91,6 +91,7 @@ import {
   type SearchLocation,
 } from '@entity';
 import type { SoupRowFamily } from '@entity/composed/list-entity/row-geometry';
+import { Telemetry } from '@macro-inc/observability';
 import CaretDownIcon from '@phosphor/caret-down.svg';
 import ChevronRightIcon from '@phosphor/caret-right.svg';
 import CheckIcon from '@phosphor/check.svg';
@@ -119,6 +120,7 @@ import {
 import { Dynamic } from 'solid-js/web';
 import { Virtualizer, type VirtualizerHandle } from 'virtua/solid';
 import type { CacheSnapshot } from 'virtua/unstable_core';
+import { makeMarkNotDoneAction } from '../actions/make-mark-not-done-action';
 import { SOUP_TOUR } from '../tour';
 import { SearchAskAiButton } from './search-ask-ai-button';
 import { SoupEntitySelectionToolbar } from './soup-entity-selection-toolbar';
@@ -170,6 +172,10 @@ const MobileTabLoadingBar = () => (
 );
 
 const SOUP_LIST_STATE_ENTRY_KEY = 'soup.listState';
+
+const reportSoupViewError = (error: unknown) =>
+  Telemetry.error(error, { surface: 'soup-view' });
+
 /** The row components a soup view can render. */
 type SoupRowComponent =
   | typeof ListEntity
@@ -224,13 +230,20 @@ interface SoupViewProps {
   initialClientSort?: string[];
   /**
    * Client-side entities to merge into the soup results. Useful for entity
-   * types (e.g. automation) that don't come back from the soup API.
+   * types (e.g. routine) that don't come back from the soup API.
    * Visibility is controlled by the active client filter set — use a tab
    * preset whose `clientFilters` include a predicate that matches them.
    */
   additionalEntities?: Accessor<EntityData[]>;
   /** The view's tour, e.g. `<ViewTour tour={callsTour} />`. */
   tour?: JSX.Element;
+  /**
+   * Replaces the split-header title, tabs, search, and filter toolbar for
+   * views that compose their own chrome (e.g. a sidebar layout).
+   */
+  header?: JSX.Element;
+  /** Compose a detail outlet while keeping the list's state initialized. */
+  renderContent?: (list: () => JSX.Element) => JSX.Element;
 }
 
 export const SoupView = (props: SoupViewProps) => {
@@ -376,7 +389,7 @@ export const SoupView = (props: SoupViewProps) => {
       class="size-full flex flex-col @container"
       data-list-view={activeListView()}
     >
-      <Show when={true}>
+      <Show when={props.header === undefined} fallback={props.header}>
         <div class="flex flex-col w-full">
           <SplitHeaderLeft>
             <div
@@ -560,7 +573,7 @@ export const SoupView = (props: SoupViewProps) => {
       </Suspense>
     </div>
   );
-  return content();
+  return props.renderContent ? props.renderContent(content) : content();
 };
 
 interface SoupViewListProps {
@@ -806,6 +819,9 @@ const SoupViewListContent = (props: SoupViewListProps) => {
     userId,
     notificationSource: () => notificationSource,
   });
+  const _markNotDoneAction = makeMarkNotDoneAction({
+    notificationSource: () => notificationSource,
+  });
 
   const debouncedFetchMore = debounce(() => {
     if (
@@ -815,7 +831,7 @@ const SoupViewListContent = (props: SoupViewListProps) => {
     )
       return;
 
-    source.fetchNextPage();
+    source.fetchNextPage().catch(reportSoupViewError);
   }, 15);
 
   type EntityClickArgs = {
@@ -846,7 +862,7 @@ const SoupViewListContent = (props: SoupViewListProps) => {
       return;
     }
 
-    markReminderSeenOnOpen(entity, notificationSource);
+    markCalendarNotificationSeenOnOpen(entity, notificationSource);
 
     // FIXME: this never gets called because we have overrides
     if (event.metaKey || event.ctrlKey) {
@@ -1218,7 +1234,9 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                       onSwipeLeft={(entityId) => {
                         const entity = entityById().get(entityId);
                         if (!entity) return;
-                        markDoneAction.executeWithSoup([entity.original], soup);
+                        markDoneAction
+                          .executeWithSoup([entity.original], soup)
+                          .catch(reportSoupViewError);
                       }}
                       setCollapseEntity={soup.collapseEntity.set}
                     >
@@ -1350,7 +1368,9 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                                                 highlighted(),
                                             })}
                                             onClick={() => {
-                                              fetchNextGroupPage(group().key);
+                                              fetchNextGroupPage(
+                                                group().key
+                                              ).catch(reportSoupViewError);
                                             }}
                                           >
                                             <CaretDownIcon class="size-2.5" />
@@ -1412,7 +1432,7 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                                           event,
                                           location: undefined,
                                           rowIndex: row.index,
-                                        });
+                                        }).catch(reportSoupViewError);
                                       }}
                                       onProjectClick={(
                                         projectEntity,
@@ -1425,7 +1445,7 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                                           event,
                                           location: undefined,
                                           rowIndex: row.index,
-                                        });
+                                        }).catch(reportSoupViewError);
                                       }}
                                       onContentHitClick={(
                                         e: PointerEvent | MouseEvent,
@@ -1437,7 +1457,7 @@ const SoupViewListContent = (props: SoupViewListProps) => {
                                           event: e,
                                           location,
                                           rowIndex: row.index,
-                                        });
+                                        }).catch(reportSoupViewError);
                                       }}
                                       entityRowConfig={{
                                         swipeLeftColor: 'bg-success',

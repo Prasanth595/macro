@@ -5,7 +5,22 @@ import {
   settingsTabToSlug,
 } from './settingsTabsConfig';
 
-describe('settings Connections tab', () => {
+describe('settings Usage tab', () => {
+  it('routes Usage and places it directly before Billing', () => {
+    expect(settingsSlugToTab('usage')).toBe('Usage');
+    expect(settingsTabToSlug('Usage')).toBe('usage');
+    const tabs = SETTINGS_TAB_GROUPS.flatMap((group) =>
+      group.items.map((item) => item.tab)
+    );
+    expect(tabs[tabs.indexOf('Billing') - 1]).toBe('Usage');
+  });
+});
+
+describe('settings navigation', () => {
+  it('keeps calendar connections in settings and removes booking links settings', () => {
+    expect(settingsSlugToTab('calendar')).toBe('Calendar');
+    expect(settingsSlugToTab('booking-links')).toBeUndefined();
+  });
   it('routes agent-connections to the Connections tab', () => {
     expect(settingsSlugToTab('agent-connections')).toBe('Connections');
     expect(settingsTabToSlug('Connections')).toBe('agent-connections');
@@ -15,18 +30,35 @@ describe('settings Connections tab', () => {
     expect(settingsSlugToTab('connections')).toBe('Connected');
   });
 
-  it('places Connections right after Integrations in Workspace', () => {
+  it('puts team settings first, with members on their own page', () => {
+    expect(SETTINGS_TAB_GROUPS[0].label).toBe('Team');
+    expect(SETTINGS_TAB_GROUPS[0].items.map((item) => item.tab)).toEqual([
+      'Team',
+      'Team Members',
+      'Team Connections',
+    ]);
+    // Old team links keep opening the team's general page.
+    expect(settingsSlugToTab('team')).toBe('Team');
+    expect(settingsSlugToTab('team-members')).toBe('Team Members');
+    expect(settingsSlugToTab('team-connections')).toBe('Team Connections');
+  });
+
+  it('groups blocks after the team and separates account and agent integrations', () => {
+    expect(SETTINGS_TAB_GROUPS[1].label).toBe('Blocks');
+    expect(SETTINGS_TAB_GROUPS[1].items.map((item) => item.tab)).toEqual([
+      'Email',
+      'Calendar',
+      'Agents',
+      'CRM',
+    ]);
     const workspace = SETTINGS_TAB_GROUPS.find(
       (group) => group.label === 'Workspace'
     );
-    expect(workspace?.items.map((item) => item.tab)).toEqual([
-      'Team',
-      'Tags',
-      'CRM',
-      'Connected',
-      'Connections',
-      'Agent',
-      'Bots',
-    ]);
+    const developer = SETTINGS_TAB_GROUPS.find(
+      (group) => group.label === 'Developer'
+    );
+    expect(workspace?.items.map((item) => item.tab)).toContain('Connected');
+    expect(developer?.items.map((item) => item.tab)).toContain('Connections');
+    expect(developer?.items.map((item) => item.tab)).toContain('Harness');
   });
 });

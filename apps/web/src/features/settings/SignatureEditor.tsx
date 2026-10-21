@@ -2,6 +2,7 @@ import 'quill/dist/quill.snow.css';
 import './SignatureEditor.css';
 import { toast } from '@core/component/Toast/Toast';
 import { staticFileIdEndpoint } from '@core/constant/servers';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   createStaticUploadFile,
   createUploadFile,
@@ -79,6 +80,8 @@ export default function SignatureEditor(props: {
   /** Fires with the editor's current HTML on every edit; '' when emptied. */
   onInput: (html: string) => void;
   placeholder?: string;
+  label?: string;
+  disabled?: boolean;
   /** Exposes an imperative handle once mounted so commit actions (Save/Remove)
    * can set the editor content deterministically, not via the reactive value. */
   onReady?: (handle: { setContent: (html: string) => void }) => void;
@@ -173,7 +176,10 @@ export default function SignatureEditor(props: {
       const file = input.files?.[0];
       if (!file || !quill) return;
       const index = quill.getSelection(true)?.index ?? quill.getLength();
-      void uploadAndInsertImages(index, 0, [file]);
+      fireAndForget(
+        uploadAndInsertImages(index, 0, [file]),
+        'signature-editor'
+      );
     });
     input.click();
   };
@@ -195,10 +201,17 @@ export default function SignatureEditor(props: {
         uploader: {
           mimetypes: IMAGE_MIME_TYPES,
           handler: (range: { index: number; length: number }, files: File[]) =>
-            void uploadAndInsertImages(range.index, range.length, files),
+            fireAndForget(
+              uploadAndInsertImages(range.index, range.length, files),
+              'signature-editor'
+            ),
         },
       },
     });
+    quill.enable(!props.disabled);
+    quill.root.setAttribute('role', 'textbox');
+    quill.root.setAttribute('aria-multiline', 'true');
+    quill.root.setAttribute('aria-label', props.label ?? 'Email signature');
     setHtml(props.value);
     quill.on('text-change', () => props.onInput(currentHtml()));
     teardownResizer = setupImageResizer(quill);
@@ -224,6 +237,10 @@ export default function SignatureEditor(props: {
     };
     quill.root.addEventListener('paste', onPaste, true);
     onCleanup(() => quill?.root.removeEventListener('paste', onPaste, true));
+  });
+
+  createEffect(() => {
+    quill?.enable(!props.disabled);
   });
 
   // Reseed the editor when `props.value` changes. The draft store keeps

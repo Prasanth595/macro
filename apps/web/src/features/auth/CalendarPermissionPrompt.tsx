@@ -4,6 +4,7 @@ import {
 } from '@app/features/calendar/hooks/use-calendar-ui-flag';
 import { useKeyedPersistentToasts } from '@core/component/Toast/useKeyedPersistentToasts';
 import { useAddInboxFlow } from '@core/email-link';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { useEmailLinksQuery } from '@queries/email/link';
 
 /**
@@ -14,11 +15,11 @@ import { useEmailLinksQuery } from '@queries/email/link';
  * grant to the existing link, which kicks off the calendar backfill.
  *
  * Inboxes that also need a full reconnect are skipped so the two prompts don't
- * stack. Reconnecting restores the mailbox without calendar access, which
- * leaves `needs_calendar_permission` set and brings this prompt back. So are
- * inboxes whose calendar the user turned off — that reads as missing calendar
- * permission too, and nagging someone to re-enable what they just removed is
- * the one thing this prompt must never do.
+ * stack. Reconnecting restores previously enabled calendar access too; an
+ * inbox that never enabled calendar can still opt in through this prompt.
+ * Inboxes whose calendar the user turned off are also skipped — that reads as
+ * missing calendar permission too, and nagging someone to re-enable what they
+ * just removed is the one thing this prompt must never do.
  *
  * Closing the prompt sticks across reloads. Nothing is broken while calendar
  * is off, so re-asking every load is just nagging — Settings › Email keeps a
@@ -33,7 +34,7 @@ export function CalendarPermissionPrompt() {
   useKeyedPersistentToasts({
     items: () =>
       calendarUiEnabled() && promptAllowed()
-        ? (linksQuery.data?.links ?? []).filter(
+        ? (linksQuery.isSuccess ? linksQuery.data.links : []).filter(
             (link) =>
               link.needs_calendar_permission &&
               !link.needs_reauth &&
@@ -49,7 +50,7 @@ export function CalendarPermissionPrompt() {
     toast: (link, dismiss) => ({
       title: 'Enable calendar',
       content(): string {
-        return `Macro can now sync your Google Calendar. Grant calendar access for ${link.email_address} to turn it on.`;
+        return `Macro can now sync your calendar. Grant calendar access for ${link.email_address} to turn it on.`;
       },
       actions: [
         {
@@ -58,7 +59,15 @@ export function CalendarPermissionPrompt() {
             // Suppress re-prompting until the grant upgrades; on native the
             // page stays mounted while the OAuth flow runs.
             dismiss();
-            startAddInbox({ scopes: 'calendar' });
+            fireAndForget(
+              startAddInbox({
+                scopes: 'calendar',
+                provider: link.provider,
+                reconnectLinkId: link.id,
+                emailAddress: link.email_address,
+              }),
+              'add-inbox'
+            );
           },
         },
       ],

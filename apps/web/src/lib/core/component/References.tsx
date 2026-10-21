@@ -1,6 +1,5 @@
 import { navigateToChannelMessage } from '@block-channel/utils/link';
 import { useGlobalBlockOrchestrator } from '@components/app/GlobalAppState';
-import { SidePanel } from '@components/app/side-panel';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import type { BlockAlias, BlockName } from '@core/block';
 import { toast } from '@core/component/Toast/Toast';
@@ -9,6 +8,7 @@ import { getDisplayNameParts, tryMacroId } from '@core/user';
 import { compareDateDesc, type DateValue } from '@core/util/date';
 import { useSplitNavigationHandler } from '@core/util/useSplitNavigationHandler';
 import { formatRelativeTimestamp } from '@entity';
+import { Telemetry } from '@macro-inc/observability';
 import {
   isAccessiblePreviewItem,
   type PreviewItem,
@@ -87,7 +87,7 @@ function ReferenceRow(props: ReferenceRowProps) {
     <div
       role="button"
       tabIndex={0}
-      class="group/ref-row flex flex-col px-3 py-2 hover:bg-ink-muted/6 min-w-0 overflow-hidden"
+      class="group/ref-row flex min-w-0 flex-col overflow-hidden rounded-lg py-1 hover:bg-hover/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
       onMouseDown={navHandlers.onMouseDown}
       onClick={navHandlers.onClick}
       onKeyDown={(e) => {
@@ -97,9 +97,9 @@ function ReferenceRow(props: ReferenceRowProps) {
         }
       }}
     >
-      <div class="flex items-center gap-2 min-w-0 text-xs leading-5">
+      <div class="flex min-h-6 min-w-0 items-center gap-1.5 text-xs leading-5">
         <Show when={props.senderAvatar}>{props.senderAvatar}</Show>
-        <div class="min-w-0 flex flex-1 items-center gap-1.5 overflow-hidden">
+        <div class="min-w-0 flex max-w-max flex-1 items-center gap-1.5 overflow-hidden">
           <Show when={props.senderName}>
             <span class="ph-no-capture shrink-0 font-medium text-ink truncate max-w-[8rem]">
               {props.senderName}
@@ -110,7 +110,10 @@ function ReferenceRow(props: ReferenceRowProps) {
             {props.source}
           </div>
         </div>
-        <span class="shrink-0 ml-auto text-ink-extra-muted tabular-nums">
+        <span aria-hidden class="shrink-0 text-ink-extra-muted">
+          ·
+        </span>
+        <span class="shrink-0 text-ink-extra-muted tabular-nums">
           {formatRelativeTimestamp(props.timestamp)}
         </span>
       </div>
@@ -255,7 +258,7 @@ export function References(props: ReferenceProps) {
       {
         preferNewSplit: true,
       }
-    );
+    ).catch((error) => Telemetry.error(error, { surface: 'references' }));
   };
 
   const navigateToGenericReference = (
@@ -291,7 +294,7 @@ export function References(props: ReferenceProps) {
         </div>
       }
     >
-      <SidePanel.Card>
+      <div class="flex flex-col">
         <For each={sortedReferences()}>
           {(ref) => {
             if (isChannelReference(ref)) {
@@ -324,7 +327,7 @@ export function References(props: ReferenceProps) {
             );
           }}
         </For>
-      </SidePanel.Card>
+      </div>
     </Show>
   );
 }

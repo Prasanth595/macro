@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import { type Accessor, createMemo } from 'solid-js';
 import type { ActivityContext } from '../context/activity-context';
 import type { ActivityOverview } from '../core/event';
@@ -45,17 +46,32 @@ export type MyActivityState = {
  * refetch never blanks rows the user is reading.
  */
 export function createMyActivityState(
-  context: Pick<ActivityContext, 'graphql'>
+  context: Pick<ActivityContext, 'graphql' | 'entityTypeShown'>
 ): MyActivityState {
   const overviewQuery = createMyActivityOverviewQuery(context, {
     enabled: () => true,
   });
   const feedQuery = createMyActivityQuery(context, { enabled: () => true });
-  const groups = createMemo(() => groupEventsByDay(feedQuery.data ?? []));
+  const groups = createMemo(() =>
+    groupEventsByDay(
+      (feedQuery.data ?? []).filter((event) =>
+        context.entityTypeShown(event.entityType)
+      )
+    )
+  );
 
   const overview = createMemo<OverviewView>(() => {
     const data = overviewQuery.data;
-    if (data) return { t: 'ready', overview: data };
+    if (data)
+      return {
+        t: 'ready',
+        overview: {
+          ...data,
+          topEntities: data.topEntities.filter((entity) =>
+            context.entityTypeShown(entity.entityType)
+          ),
+        },
+      };
     if (overviewQuery.isError) return { t: 'error' };
     return { t: 'loading' };
   });
@@ -86,7 +102,7 @@ export function createMyActivityState(
 
   const fetchNext = () => {
     if (!feedQuery.hasNextPage || feedQuery.isFetchingNextPage) return;
-    void feedQuery.fetchNextPage();
+    fireAndForget(feedQuery.fetchNextPage(), 'activity');
   };
 
   return {

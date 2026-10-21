@@ -245,6 +245,12 @@ impl IntoResponse for DeleteTeamError {
                     message: "internal server error".into(),
                 }),
             ),
+            DeleteTeamError::OwnedEntityCleanup(_) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    message: "unable to delete the team's content; the team was not deleted".into(),
+                }),
+            ),
         }
         .into_response()
     }
@@ -256,7 +262,7 @@ impl IntoResponse for InviteUsersToTeamError {
             InviteUsersToTeamError::TooManyEmails => (
                 StatusCode::BAD_REQUEST,
                 Json(ErrorResponse {
-                    message: "too many emails".into(),
+                    message: "too many invites today; try again tomorrow".into(),
                 }),
             ),
             InviteUsersToTeamError::NonAdminInvitesDisabled => (
@@ -352,7 +358,9 @@ impl IntoResponse for SetTeamMemberPlanError {
             )
                 .into_response(),
             SetTeamMemberPlanError::TeamError(e) => e.into_response(),
-            SetTeamMemberPlanError::CustomerError(_) | SetTeamMemberPlanError::RolesError(_) => (
+            SetTeamMemberPlanError::CustomerError(_)
+            | SetTeamMemberPlanError::RolesError(_)
+            | SetTeamMemberPlanError::UsageReset(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(ErrorResponse {
                     message: "internal server error".into(),

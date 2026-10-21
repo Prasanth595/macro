@@ -1,14 +1,14 @@
 //! Orchestration for evaluating one posted message.
 
+use super::conversations::{ConversationDecision, ConversationRouting};
 use std::collections::HashSet;
+use std::sync::Arc;
 
 #[cfg(test)]
 mod test;
 
 #[cfg(feature = "admission")]
 use ai_billing::{AiAdmissionService, AiFeature, DisabledAiAdmissionService};
-#[cfg(feature = "admission")]
-use std::sync::Arc;
 
 use agent_session::domain::error::Result;
 use agent_session::domain::model::{AgentSession, AgentSessionId, ThreadSession};
@@ -175,6 +175,7 @@ pub struct AgentTriggerService<Repo, Bots, Teams, Channels, Replies, Judge, Hist
     replies: Replies,
     judge: Judge,
     history: History,
+    conversations: Option<Arc<dyn ConversationRouting>>,
     #[cfg(feature = "admission")]
     admission: Arc<dyn AiAdmissionService>,
 }
@@ -209,9 +210,17 @@ where
             replies,
             judge,
             history,
+            conversations: None,
             #[cfg(feature = "admission")]
             admission: Arc::new(DisabledAiAdmissionService),
         }
+    }
+
+    /// Route channels where an agent converses before interpreting mentions
+    /// or thread replies.
+    pub fn with_conversations(mut self, router: Arc<dyn ConversationRouting>) -> Self {
+        self.conversations = Some(router);
+        self
     }
 
     /// Configure admission for implicit classification, including image captions.
@@ -250,14 +259,18 @@ where
             if !agent.bot.has_agent {
                 return Ok(false);
             }
-            // Channel selection restricts channel placement. Discussion invocation
-            // requires ownership or team membership and is independently bounded
-            // by the invoking user's parent access at execution time.
-            if parent.is_discussion() {
-                return self.owner_allows(caller, agent.bot.owner.as_ref()).await;
-            }
-            let MessageParent::Channel(channel_id) = parent else {
-                unreachable!()
+            // Channel selection restricts channel placement. Other conversations,
+            // including call chat, require ownership or team membership and are
+            // bounded by the invoking user's parent access at execution time.
+            let channel_id = match parent {
+                MessageParent::Channel(channel_id) => channel_id,
+                MessageParent::Document(_)
+                | MessageParent::Initiative(_)
+                | MessageParent::CrmCompany(_)
+                | MessageParent::CrmContact(_)
+                | MessageParent::Call(_) => {
+                    return self.owner_allows(caller, agent.bot.owner.as_ref()).await;
+                }
             };
             return match agent.channel_scope {
                 AgentChannelScope::All => match agent.bot.owner {
@@ -292,9 +305,8 @@ where
                 MessageParent::Document(_)
                 | MessageParent::Initiative(_)
                 | MessageParent::CrmCompany(_)
-                | MessageParent::CrmContact(_) => {
-                    self.owner_allows(caller, bot.owner.as_ref()).await
-                }
+                | MessageParent::CrmContact(_)
+                | MessageParent::Call(_) => self.owner_allows(caller, bot.owner.as_ref()).await,
             },
         }
     }
@@ -341,6 +353,21 @@ where
         }
     }
 
+    /// The poster's current capability on the message's conversation, for
+    /// reading it as context. `None` when the poster is no user or may no
+    /// longer write there.
+    pub async fn invocation(
+        &self,
+        posted: &MessagePostedMetadata,
+    ) -> Result<Option<AuthorizedInvocation>> {
+        let Some(user) = posted.sender.as_user().cloned().map(CowLike::into_owned) else {
+            return Ok(None);
+        };
+        self.history
+            .authorize_invocation(&user, &posted.parent, posted.root_id())
+            .await
+    }
+
     /// Evaluates a posted message for every mentioned bot.
     #[tracing::instrument(err, skip(self, posted), fields(
         parent = ?posted.parent,
@@ -360,6 +387,13 @@ where
         else {
             return Ok(Vec::new());
         };
+        if let Some(router) = &self.conversations {
+            match router.evaluate(posted).await? {
+                ConversationDecision::NotConversation => {}
+                ConversationDecision::Unavailable => return Ok(Vec::new()),
+                ConversationDecision::Deliver(decisions) => return Ok(decisions),
+            }
+        }
         let mut mentioned = bot_mention_ids(&posted.mentions);
         mentioned.sort_by_key(ToString::to_string);
         tracing::Span::current().record(

@@ -13,6 +13,7 @@ import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { toast } from '@core/component/Toast/Toast';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { useIsKeyPressActive } from '@core/util/useIsKeyPressActive';
 import EmptyStateFolderGraphic from '@design/empty-state-folder.svg';
 import {
@@ -65,6 +66,8 @@ export function DriveList() {
 
   const timestamp = (entity: EntityData) => {
     const { location, sort } = state.value();
+    if (entity.type === 'database' || entity.type === 'form')
+      return entity.createdAt;
 
     if (location.kind === 'tab' && location.tab === 'recent')
       return entity.touchedAt;
@@ -127,7 +130,7 @@ export function DriveList() {
     const distance =
       container.scrollHeight - container.scrollTop - container.clientHeight;
 
-    if (distance < 300) void loadMore();
+    if (distance < 300) fireAndForget(loadMore(), 'drive-view');
   }
 
   const viewportSize = createElementSize(viewport);
@@ -162,7 +165,7 @@ export function DriveList() {
         if (source.error()) return;
 
         if (!event.result || list.items.count() - event.result.index <= 4) {
-          void loadMore();
+          fireAndForget(loadMore(), 'drive-view');
         }
       },
     },
@@ -263,12 +266,29 @@ export function DriveList() {
           tabIndex={0}
           class="@container/u-list relative flex size-full min-h-0 min-w-0 flex-col overflow-hidden outline-none"
         >
+          <Show when={source.databaseError()}>
+            <div
+              role="alert"
+              class="flex shrink-0 items-center gap-2 border-b border-edge-muted p-3 text-xs text-ink-muted"
+            >
+              Databases couldn’t be loaded.
+              <Button
+                variant="outline"
+                onClick={() => fireAndForget(refresh(), 'drive-view')}
+              >
+                Try again
+              </Button>
+            </div>
+          </Show>
           <ListLayoutProvider ref={grid}>
             <Switch>
               <Match when={!forceEmptyState() && showError()}>
                 <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-sm text-ink-muted">
                   <span>Files couldn’t be loaded.</span>
-                  <Button variant="outline" onClick={() => void refresh()}>
+                  <Button
+                    variant="outline"
+                    onClick={() => fireAndForget(refresh(), 'drive-view')}
+                  >
                     Try again
                   </Button>
                 </div>
@@ -299,6 +319,14 @@ export function DriveList() {
                       class="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 text-sm text-ink-muted"
                     >
                       <span>{emptyMessage()}</span>
+                      <Show when={source.error()}>
+                        <Button
+                          variant="outline"
+                          onClick={() => fireAndForget(refresh(), 'drive-view')}
+                        >
+                          Try again
+                        </Button>
+                      </Show>
                       <Show when={hasFilters()}>
                         <Button variant="outline" onClick={state.clearFilters}>
                           Clear filters
@@ -308,7 +336,9 @@ export function DriveList() {
                         <Button
                           variant="outline"
                           disabled={source.isFetching()}
-                          onClick={() => void loadMore()}
+                          onClick={() =>
+                            fireAndForget(loadMore(), 'drive-view')
+                          }
                         >
                           Search more results
                         </Button>
@@ -458,7 +488,9 @@ export function DriveList() {
                                 More files couldn’t be loaded.
                                 <Button
                                   variant="outline"
-                                  onClick={() => void loadMore()}
+                                  onClick={() =>
+                                    fireAndForget(loadMore(), 'drive-view')
+                                  }
                                 >
                                   Try again
                                 </Button>

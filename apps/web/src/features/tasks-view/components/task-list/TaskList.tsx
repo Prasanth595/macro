@@ -19,6 +19,8 @@ import {
 } from '@app/lib/signals/store-array-updaters';
 import { SwipableRowProvider } from '@components/app/mobile/SwipableRow';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
+import { HotkeyTags } from '@core/hotkey/constants';
+import { registerHotkey } from '@core/hotkey/hotkeys';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import {
   type EntityData,
@@ -61,11 +63,8 @@ import { TaskListEntity } from './TaskListEntity';
 import { TaskListHeader } from './TaskListHeader';
 import { taskGridColumnCount } from './task-grid-template';
 import './task-list.css';
-import {
-  ProjectPickerPopover,
-  ProjectPropertyCell,
-} from '@app/features/projects/project-property';
-import { useTaskProjectReferences } from '@app/features/projects/projects';
+import { ProjectAssignmentDialog } from '@app/features/projects/projects';
+import { fireAndForget } from '@core/util/fireAndForget';
 
 function ResponsiveTaskListHeader() {
   const layout = useListLayout();
@@ -105,6 +104,7 @@ export function TaskList(props: TaskListProps) {
     registerListActivationHandler,
     openTask,
     scopeKey,
+    filterByTag,
   } = useTasksView();
   const forceEmptyState = useDebugSetting(
     DEBUG_SETTING_KEYS.FORCE_EMPTY_STATES
@@ -126,11 +126,14 @@ export function TaskList(props: TaskListProps) {
       mergeHistory?: boolean;
     } = {}
   ) {
-    void openEntityInSplitFromUnifiedList(entity, {
-      splitHandle: panel.handle,
-      referredFrom: 'tasks',
-      ...options,
-    });
+    fireAndForget(
+      openEntityInSplitFromUnifiedList(entity, {
+        splitHandle: panel.handle,
+        referredFrom: 'tasks',
+        ...options,
+      }),
+      'open-entity-in-split'
+    );
   }
 
   function onActivate({
@@ -145,15 +148,18 @@ export function TaskList(props: TaskListProps) {
 
     if (item.kind === 'load-more' && item.groupId !== undefined) {
       const focusIndex = list.items.indexOf(item.id);
-      void source.loadMoreGroup(item.groupId).then(() => {
-        if (list.focus.requestedKey() !== item.id) return;
+      fireAndForget(
+        source.loadMoreGroup(item.groupId).then(() => {
+          if (list.focus.requestedKey() !== item.id) return;
 
-        list.focus.restore(item.id, {
-          fallback: 'nearest',
-          nearestIndex: focusIndex,
-          retainUnavailable: false,
-        });
-      });
+          list.focus.restore(item.id, {
+            fallback: 'nearest',
+            nearestIndex: focusIndex,
+            retainUnavailable: false,
+          });
+        }),
+        'tasks-view'
+      );
 
       return;
     }
@@ -221,16 +227,9 @@ export function TaskList(props: TaskListProps) {
   );
 
   const visibleRows = source.items;
-  const projectReferences = useTaskProjectReferences(() =>
-    visibleRows().flatMap((row) =>
-      row.kind === 'entity' ? [row.entity.id] : []
-    )
-  );
   const columnCount = () => taskGridColumnCount(projectsEnabled());
-  const [assigningProjectTasks, setAssigningProjectTasks] = createSignal<{
-    ids: string[];
-    anchor: HTMLElement;
-  }>();
+  const [assigningProjectTasks, setAssigningProjectTasks] =
+    createSignal<string[]>();
   const tasksById = createMemo(() => {
     const tasks = new Map<string, TaskEntityWithProperties>();
     for (const row of visibleRows()) {
@@ -307,7 +306,7 @@ export function TaskList(props: TaskListProps) {
           : 0;
         if (distanceFromEnd > 3) return;
 
-        void source.loadMore();
+        fireAndForget(source.loadMore(), 'tasks-view');
       },
     },
     activation: {
@@ -336,6 +335,20 @@ export function TaskList(props: TaskListProps) {
     viewContext: entityActionViewContext,
     splitHandle: panel.handle,
     condition: panel.isPanelActive,
+  });
+
+  registerHotkey({
+    scopeId: panel.splitHotkeyScope,
+    description: 'Add to project…',
+    tags: [HotkeyTags.SelectionModification],
+    condition: () =>
+      panel.isPanelActive() && projectsEnabled() && selectedTasks().length > 0,
+    keyDownHandler: () => {
+      const ids = selectedTasks().map((task) => task.id);
+      if (!projectsEnabled() || !ids.length) return false;
+      setAssigningProjectTasks(ids);
+      return true;
+    },
   });
 
   let restoredScroll = false;
@@ -385,7 +398,7 @@ export function TaskList(props: TaskListProps) {
       handle.scrollSize - handle.scrollOffset - handle.viewportSize;
     if (distance >= 300 || source.isLoadingMore()) return;
 
-    void source.loadMore();
+    fireAndForget(source.loadMore(), 'tasks-view');
   }
 
   const emptyMessage = () => {
@@ -430,7 +443,9 @@ export function TaskList(props: TaskListProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => void source.refresh()}
+                    onClick={() =>
+                      fireAndForget(source.refresh(), 'tasks-view')
+                    }
                   >
                     Try again
                   </Button>
@@ -445,7 +460,9 @@ export function TaskList(props: TaskListProps) {
                       variant="outline"
                       size="sm"
                       disabled={source.isLoadingMore()}
-                      onClick={() => void source.loadMore()}
+                      onClick={() =>
+                        fireAndForget(source.loadMore(), 'tasks-view')
+                      }
                     >
                       <Show
                         when={source.isLoadingMore()}
@@ -509,22 +526,14 @@ export function TaskList(props: TaskListProps) {
                             }}
                           >
                             <TaskListEntity
-                              projectSlot={
-                                projectsEnabled() ? (
-                                  <ProjectPropertyCell
-                                    taskId={entityRow().entity.id}
-                                    reference={projectReferences
-                                      .references()
-                                      .get(entityRow().entity.id)}
-                                  />
-                                ) : undefined
-                              }
+                              showProject={projectsEnabled()}
                               rowId={entityRow().id}
                               entity={entityRow().entity}
                               highlighted={list.focus.key() === entityRow().id}
                               checked={list.selection.isSelected(
                                 entityRow().id
                               )}
+                              onFilterByTag={filterByTag}
                               onMouseMove={() =>
                                 list.focus.set(entityRow().id, {
                                   reason: 'hover',
@@ -664,32 +673,13 @@ export function TaskList(props: TaskListProps) {
               selected={selectedTasks()}
               onClear={listInteractions.selection.clear}
               analyticsSource="tasks_view_selection_toolbar"
-            >
-              <Show when={projectsEnabled()}>
-                <Button
-                  size="sm"
-                  class="whitespace-nowrap"
-                  onClick={(event) =>
-                    setAssigningProjectTasks({
-                      ids: selectedTasks().map((task) => task.id),
-                      anchor: event.currentTarget,
-                    })
-                  }
-                >
-                  Set project
-                </Button>
-              </Show>
-            </EntitySelectionToolbar>
+            />
           </Show>
           <Show when={projectsEnabled() && assigningProjectTasks()}>
             {(assigning) => (
-              <ProjectPickerPopover
-                taskIds={assigning().ids}
-                open
-                onOpenChange={(open) => {
-                  if (!open) setAssigningProjectTasks(undefined);
-                }}
-                getAnchorRect={() => assigning().anchor.getBoundingClientRect()}
+              <ProjectAssignmentDialog
+                taskIds={assigning()}
+                onClose={() => setAssigningProjectTasks(undefined)}
               />
             )}
           </Show>

@@ -56,10 +56,20 @@ where
             action,
             actor,
             announce: _,
+            context: _,
         } = command;
 
+        if !matches!(action, AgentAction::Stop)
+            && let Some(policy) = &self.conversations
+        {
+            let session = self.sessions.get_session(session_id).await?;
+            policy
+                .authorize_prompt(session_id, session.bot_id, actor.as_ref())
+                .await?;
+        }
         if action.occupies_turn() {
             self.admit_session_id(session_id).await?;
+            self.refresh_mcp_servers(session_id).await;
         }
 
         match self
@@ -78,12 +88,16 @@ where
             }
             Err(AgentSessionError::Disconnected(_)) => {
                 let session = self.sessions.get_session(session_id).await?;
-                let permission_policy = self.permission_policy_for(session.bot_id).await;
-                if AgentKind::for_session(session.bot_id, &session.harness).is_managed() {
+                let permission_policy = self
+                    .permission_policy_for_session(session_id, session.bot_id)
+                    .await?;
+                let kind = AgentKind::for_session(session.bot_id, &session.harness);
+                if kind.is_managed() {
                     let container = self.containers.resume(session_id).await?;
                     let mcp_servers = self
                         .resumed_mcp_servers(
                             session_id,
+                            kind,
                             session.owner_user()?,
                             &session.mcp_servers,
                         )
@@ -120,13 +134,7 @@ where
                     }
                     let egress = self
                         .egress
-                        .provision(
-                            session_id,
-                            session.owner_user()?,
-                            &AgentMcpServers::Selected {
-                                servers: Vec::new(),
-                            },
-                        )
+                        .provision(session_id, session.owner_user()?, &session.mcp_servers)
                         .await?;
                     self.sessions
                         .set_egress_token_hash(session_id, &egress.session_token_hash)
@@ -155,83 +163,74 @@ where
 
     /// Compose a prompt in place. Compact and other actions are left as-is.
     ///
-    /// Message context is loaded when the prompt named an origin. The actor's
-    /// current access to that origin gates composition; a failed history read
-    /// still composes, with empty history, so a transient context outage
-    /// cannot eat the prompt. The prompt that opens a session's first turn
-    /// also carries the session's instructions, unless its runtime already
-    /// reads them as a system prompt.
+    /// A prompt that names an origin is only composed while the actor may
+    /// still write there. Why the agent was called arrives with the prompt,
+    /// read by whatever triggered it; nothing here reads the conversation. The
+    /// prompt that opens a session's first turn also carries the session's
+    /// instructions, unless its runtime already reads them as a system prompt.
     pub(super) async fn compose_action(
         &self,
         session_id: AgentSessionId,
         action: &mut AgentAction,
         actor: Option<&MacroUserIdStr<'static>>,
         announce: Option<&AnnounceOrigin>,
+        context: Option<&TriggerContext>,
         first_turn: bool,
     ) -> Result<()> {
         let AgentAction::Prompt(prompt) = action else {
             return Ok(());
         };
+        let session = self.sessions.get_session(session_id).await?;
+        // Every prompt names the owner and its sender, so the agent can tell
+        // a request from the person whose access it spends from anyone
+        // else's. A session owned by a bot or team has no person to name.
+        let people = session.owner_id.as_user().map(|owner| PromptPeople {
+            owner: owner.clone(),
+            sender: actor.cloned(),
+        });
         let raw_prompt = prompt.prompt.clone();
-        let session = if first_turn {
-            Some(self.sessions.get_session(session_id).await?)
-        } else {
-            None
-        };
-        let instructions = session
-            .as_ref()
+        let instructions = Some(&session)
             .filter(|session| {
-                AgentKind::for_session(session.bot_id, &session.harness).folds_instructions()
+                first_turn
+                    && AgentKind::for_session(session.bot_id, &session.harness).folds_instructions()
             })
             .and_then(|session| session.instructions.as_deref())
             .filter(|instructions| !instructions.trim().is_empty());
-        let context = if let Some(origin) = announce {
-            Some(self.load_prompt_context(origin, actor).await?)
-        } else {
-            None
-        };
+        let instructions = instructions
+            .into_iter()
+            .chain(prompt.private_context.as_deref())
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        if let Some(origin) = announce {
+            self.authorize_prompt_origin(origin, actor).await?;
+        }
         prompt.prompt = self
             .prompt_composer
             .compose(
                 &raw_prompt,
-                instructions,
-                announce.map(|origin| &origin.parent),
-                context.as_ref(),
+                (!instructions.is_empty()).then_some(instructions.as_str()),
+                people.as_ref(),
+                context,
             )
             .await?;
         prompt.set_name_source(raw_prompt);
         Ok(())
     }
 
-    /// Recheck the actor's access to the origin, then read the conversation
-    /// around it. Authorization is not optional: a prompt that names an origin
-    /// was posted by a user, and one who may no longer write there sends nothing.
-    pub(super) async fn load_prompt_context(
+    /// Recheck the actor's access to the origin. Authorization is not
+    /// optional: a prompt that names an origin was posted by a user, and one
+    /// who may no longer write there sends nothing.
+    pub(super) async fn authorize_prompt_origin(
         &self,
         origin: &AnnounceOrigin,
         actor: Option<&MacroUserIdStr<'static>>,
-    ) -> Result<crate::domain::model::ConversationContext> {
+    ) -> Result<()> {
         let actor = actor.ok_or_else(|| {
             HarnessError::PromptContext(rootcause::report!(
                 "message prompts require an acting user"
             ))
         })?;
-        self.prompt_context.authorize_origin(actor, origin).await?;
-        Ok(self
-            .prompt_context
-            .conversation_context(actor, origin)
-            .await
-            .inspect_err(|error| {
-                // Trigger events are admitted at-most-once. Context is useful,
-                // but a transient lookup failure must not discard the prompt.
-                tracing::warn!(
-                    error = ?error,
-                    parent = ?origin.parent,
-                    message_id = %origin.message_id,
-                    "sending agent prompt without conversation history"
-                );
-            })
-            .unwrap_or_default())
+        self.prompt_context.authorize_origin(actor, origin).await
     }
 
     /// Who, if anyone, should be told that this landed.
@@ -256,13 +255,19 @@ where
         // The announcement posts as the session's own bot, which only the
         // row remembers.
         let session = self.sessions.get_session(session_id).await?;
-        let persona = self.reply_persona(&session).await?;
+        let is_coding = if origin.reply_placement == crate::domain::model::ReplyPlacement::Thread {
+            self.reply_persona(&session).await?.is_coding
+        } else {
+            false
+        };
 
         Ok(Some(SessionAnnouncement {
+            reply_message_id: None,
+            reply_placement: origin.reply_placement,
             reuse_origin_message: origin.reuse_origin_message,
             session_id,
             bot_id: session.bot_id,
-            is_coding: persona.is_coding,
+            is_coding,
             origin_parent: origin.parent,
             origin_thread_id: origin.thread_id,
             origin_message_id: origin.message_id,
@@ -285,22 +290,108 @@ where
         &self,
         session_id: AgentSessionId,
         turn: Option<&InFlightTurn>,
-        outcome: ReplyOutcome,
+        mut outcome: ReplyOutcome,
     ) {
         let Some(turn) = turn else {
             return;
         };
-        self.resolve_announced_reply(
-            session_id,
-            turn.announcement_message_id,
-            turn.announce.as_ref(),
-            turn.actor.as_ref(),
+        let terminal = !matches!(
             outcome,
-        )
-        .await;
+            ReplyOutcome::NeedsInput { .. }
+                | ReplyOutcome::AwaitingApproval(_)
+                | ReplyOutcome::Resumed
+        );
+        if terminal && turn.announce.is_none() {
+            self.complete_external_reply(session_id, turn.action_id, turn.turn, outcome.clone())
+                .await;
+        }
+        let in_segments = turn.announce.as_ref().is_some_and(|origin| {
+            origin.reply_placement.voice_style() == crate::domain::model::VoiceStyle::Segments
+        });
+        // A reply shown in segments is shown once its turn has ended. While
+        // the turn waits on a question or an approval, it is answered live
+        // and the bot's typing says it is waiting.
+        if in_segments && !terminal {
+            return;
+        }
+        let conversation_store = self.conversation_turns.as_ref().filter(|_| {
+            turn.announce.as_ref().is_some_and(|origin| {
+                origin.reply_placement == crate::domain::model::ReplyPlacement::Timeline
+            })
+        });
+        let _reply_lease = if terminal && let Some(store) = conversation_store {
+            match store.claim_reply(turn.action_id).await {
+                Ok(Some(lease)) => Some(lease),
+                Ok(None) => return,
+                Err(error) => {
+                    tracing::error!(?error, %session_id, "could not claim conversation reply reconciliation");
+                    return;
+                }
+            }
+        } else {
+            None
+        };
+        let mut turn = turn.clone();
+        let mut saved_reply = Vec::new();
+        if terminal && let Some(store) = conversation_store {
+            match store.by_action(turn.action_id).await {
+                Ok(Some(record)) if record.reply_finalized => return,
+                Ok(Some(record)) => {
+                    // Another replica may have reserved more reply IDs since
+                    // the caller read this turn. Always use the durable flight
+                    // read under the reply lease, including after a failed post.
+                    let Some(saved_flight) = record.in_flight else {
+                        return;
+                    };
+                    turn = saved_flight;
+                    if let Some(saved) = record.outcome {
+                        outcome = saved;
+                    }
+                    saved_reply = record.reply_segments.unwrap_or_default();
+                }
+                Err(error) => {
+                    tracing::error!(?error, %session_id, "could not read the durable conversation reply state");
+                    return;
+                }
+                Ok(None) => return,
+            }
+        }
+        let resolved = if in_segments {
+            self.present_final(session_id, &turn, outcome.clone(), saved_reply)
+                .await
+        } else {
+            let segments = if turn.speaks_as_chip {
+                Vec::new()
+            } else {
+                crate::domain::presenter::turn_segments(
+                    &self.reported_segments(session_id, turn.turn),
+                )
+            };
+            self.resolve_announced_reply(
+                session_id,
+                turn.announcement_message_id,
+                turn.announce.as_ref(),
+                turn.actor.as_ref(),
+                outcome.clone(),
+                turn.turn,
+                segments,
+            )
+            .await
+        };
+        if resolved
+            && terminal
+            && let Some(store) = conversation_store
+            && let Err(error) = store.finalize_reply(turn.action_id, &outcome).await
+        {
+            tracing::error!(?error, %session_id, "failed to mark the conversation reply finalized");
+        }
     }
 
     /// Resolve an announcement even when its queued command never opened a turn.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "each argument is a separate fact about the reply; bundling them only moves the list"
+    )]
     pub(super) async fn resolve_announced_reply(
         &self,
         session_id: AgentSessionId,
@@ -308,11 +399,18 @@ where
         origin: Option<&AnnounceOrigin>,
         actor: Option<&MacroUserIdStr<'static>>,
         outcome: ReplyOutcome,
-    ) {
+        turn: agent_fold::domain::model::TurnId,
+        segments: Vec<agent_fold::domain::model::ProjectedSegment>,
+    ) -> bool {
         let (Some(message_id), Some(origin), Some(triggered_by)) = (message_id, origin, actor)
         else {
-            return;
+            return true;
         };
+        // An assignment announces a session link, not a discussion reply.
+        // Later user messages have their own origins and can still be answered.
+        if origin.reuse_origin_message {
+            return true;
+        }
         let session = match self.sessions.get_session(session_id).await {
             Ok(session) => session,
             Err(error) => {
@@ -322,19 +420,26 @@ where
                     %message_id,
                     "leaving a turn's reply unresolved: session row unavailable"
                 );
-                return;
+                return false;
             }
         };
-        let persona = match self.reply_persona(&session).await {
-            Ok(persona) => persona,
-            Err(error) => {
-                tracing::error!(
-                    error = ?error,
-                    %session_id,
-                    %message_id,
-                    "leaving a turn's reply unresolved: the session's persona is unavailable"
-                );
-                return;
+        // A timeline reply remains resolvable if its persona was deleted
+        // during the turn. The session preserves its author identity.
+        let is_coding = if origin.reply_placement == crate::domain::model::ReplyPlacement::Timeline
+        {
+            false
+        } else {
+            match self.reply_persona(&session).await {
+                Ok(persona) => persona.is_coding,
+                Err(error) => {
+                    tracing::error!(
+                        error = ?error,
+                        %session_id,
+                        %message_id,
+                        "leaving a turn's reply unresolved: the session's persona is unavailable"
+                    );
+                    return false;
+                }
             }
         };
         if let Err(error) = self
@@ -342,11 +447,13 @@ where
             .resolve(ResolvedReply {
                 session_id,
                 bot_id: session.bot_id,
-                is_coding: persona.is_coding,
+                is_coding,
                 message_id,
                 origin_parent: origin.parent.clone(),
                 triggered_by: triggered_by.clone(),
-                outcome,
+                outcome: outcome.clone(),
+                turn,
+                segments,
             })
             .await
         {
@@ -356,6 +463,9 @@ where
                 %message_id,
                 "failed to resolve a turn's reply in its thread"
             );
+            false
+        } else {
+            true
         }
     }
 }

@@ -1,12 +1,10 @@
-import {
-  projectDetailRoute,
-  tasksProjectsRoute,
-} from '@app/features/tasks-view/route';
-import { useNavigate, useSplitHistory } from '@app/lib/split-router';
+import { useNavigate, usePaneHistory } from '@app/lib/split-router';
+import { projectDetailRoute, tasksProjectsRoute } from '@app/routes/routes';
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { SplitPanel } from '@components/app/split-panel';
 import { toast } from '@core/component/Toast/Toast';
+import { fireAndForget } from '@core/util/fireAndForget';
 import ArrowSquareOutIcon from '@phosphor/arrow-square-out.svg';
 import SplitIcon from '@phosphor/square-half.svg';
 import { createEffect, onMount } from 'solid-js';
@@ -22,7 +20,7 @@ import { CreateProject } from './views/create-project';
 
 /** A split opened moments ago joins the router after it mounts; earlier navigation is dropped. */
 function useRedirectOnceRouted(redirect: () => void) {
-  const routed = useSplitHistory();
+  const routed = usePaneHistory();
   let redirected = false;
   createEffect(() => {
     if (redirected || !routed()) return;
@@ -151,7 +149,10 @@ export function CreateProjectView(props: {
             onClose={() => close()}
             onSubmit={(submission) => {
               close(true);
-              void settleProjectSubmission(submission, layout);
+              fireAndForget(
+                settleProjectSubmission(submission, layout),
+                'projects'
+              );
             }}
           />
         </SplitPanel.Body>

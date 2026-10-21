@@ -44,6 +44,7 @@ vi.mock('@service-storage/graphql-soup', () => ({
   getGraphqlSoupCacheHost: () => undefined,
   getGraphqlSoupClient: getGraphqlSoupClientMock,
   mapGraphqlGroupedSoupPage: mapGraphqlGroupedSoupPageMock,
+  mapGraphqlSoupItem: (item: unknown) => item,
 }));
 
 vi.mock('@queries/client', async () => {
@@ -103,10 +104,22 @@ function makeFakeClient(): {
     executions.push({
       variables: request.variables,
       next: (page, state) =>
-        subject.next({ operation, data: { page }, ...state } as OperationResult<
-          unknown,
-          GroupSoupQueryVariables
-        >),
+        subject.next({
+          operation,
+          data: {
+            page,
+            user: {
+              id: 'viewer',
+              groupSoup: {
+                bins: page.groups.map((group) => ({
+                  ...group,
+                  items: group.itemIds.map((id) => page.items[id]),
+                })),
+              },
+            },
+          },
+          ...state,
+        } as OperationResult<unknown, GroupSoupQueryVariables>),
       fail: (error) =>
         subject.next({ operation, error, stale: false, hasNext: false }),
       get unsubscribed() {
@@ -182,13 +195,8 @@ function setup() {
     });
 
     grouped = createGraphqlGroupedSoupQueries({
+      groupedPaging: () => parent.groupedPaging,
       initialPage,
-      groupByField: () => ({
-        type: 'property',
-        propertyDefinitionId: 'status-definition',
-      }),
-      soupParams: () => ({ limit: 2, sort_method: 'updated_at' }),
-      soupBody: () => ({}),
       enabled: () => true,
       itemFilter: () => undefined,
     });
@@ -328,7 +336,7 @@ describe('createGraphqlGroupedSoupQueries', () => {
       groupedSoupInputKey(initialInput)
     );
     let firstASettled = false;
-    void firstA.then(() => {
+    const firstASettledFlag = firstA.then(() => {
       firstASettled = true;
     });
     fake.executions[1]?.next(
@@ -344,6 +352,7 @@ describe('createGraphqlGroupedSoupQueries', () => {
       page([group('a', ['a-2'], 'a-cursor-2')], [item('a-2')])
     );
     await firstA;
+    await firstASettledFlag;
     expect(a.isFetchingNextPage()).toBe(false);
     expect(entityIds(a)).toEqual(['a-1', 'a-2']);
 
@@ -401,6 +410,7 @@ describe('createGraphqlGroupedSoupQueries', () => {
     );
     await failedFetch;
 
+    expect(a.error()?.message).toContain('continuation failed');
     expect(entityIds(a)).toEqual(['a-1']);
     expect(a.hasNextPage()).toBe(true);
     expect(a.isFetchingNextPage()).toBe(false);
@@ -414,6 +424,7 @@ describe('createGraphqlGroupedSoupQueries', () => {
     fake.executions[2]?.next(page([group('a', ['a-2'], null)], [item('a-2')]));
     await retry;
 
+    expect(a.error()).toBeNull();
     expect(entityIds(a)).toEqual(['a-1', 'a-2']);
     expect(a.hasNextPage()).toBe(false);
   });

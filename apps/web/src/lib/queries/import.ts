@@ -7,6 +7,8 @@
  * `import_updated`; polling remains as the backstop (pushes can be missed
  * while reconnecting), tightening while anything is in flight.
  */
+
+import { fireAndForget } from '@core/util/fireAndForget';
 import { throwOnErr } from '@core/util/result';
 import { queryClient } from '@queries/client';
 import {
@@ -14,23 +16,24 @@ import {
   type ImportSource,
   type ImportState,
   importClient,
+  type SlackChannelMeta,
 } from '@service-cognition/import';
 import { createConnectionWebsocketEffect } from '@service-connection/websocket';
-import { useMutation, useQuery } from '@tanstack/solid-query';
+import {
+  queryOptions,
+  type UseMutationResult,
+  useMutation,
+  useQuery,
+} from '@tanstack/solid-query';
 
 export type {
   ImportEntity,
   ImportEntityStatus,
-  ImportInitiator,
   ImportRun,
   ImportRunStatus,
   ImportSource,
   ImportState,
-  LinearIssueMeta,
-  NotionDocMeta,
-  RunImportOutcome,
   SlackChannelMeta,
-  SlackParticipant,
 } from '@service-cognition/import';
 
 const KEYS = {
@@ -57,39 +60,36 @@ function anythingInFlight(state: ImportState | undefined): boolean {
   );
 }
 
+function fetchImportStateFromServer() {
+  return throwOnErr(() => importClient.getState());
+}
+
+// Cached on the query past unmount; module scope keeps hook state out of it.
+function importStateQueryOptions(enabled: boolean) {
+  return queryOptions({
+    queryKey: KEYS.state,
+    queryFn: fetchImportStateFromServer,
+    enabled,
+    refetchInterval: (query) =>
+      anythingInFlight(query.state.data) ? 3_000 : 15_000,
+    placeholderData: PENDING_IMPORT_STATE,
+  });
+}
+
 /** The import aggregate: gather runs plus visible ledger rows. */
 export function useImportQuery(options?: { enabled?: () => boolean }) {
   createConnectionWebsocketEffect((message) => {
     if (message.type !== IMPORT_UPDATED_MESSAGE_TYPE) return;
-    void invalidateImportState();
+    fireAndForget(invalidateImportState(), 'import-state');
   });
 
-  return useQuery(() => ({
-    queryKey: KEYS.state,
-    queryFn: async () => throwOnErr(() => importClient.getState()),
-    enabled: options?.enabled ? options.enabled() : true,
-    refetchInterval: (query) =>
-      anythingInFlight(query.state.data) ? 3_000 : 15_000,
-    placeholderData: PENDING_IMPORT_STATE,
-  }));
+  return useQuery(() =>
+    importStateQueryOptions(options?.enabled ? options.enabled() : true)
+  );
 }
 
 function invalidateImportState() {
   return queryClient.invalidateQueries({ queryKey: KEYS.state });
-}
-
-/**
- * Imperatively fetch the import aggregate through the shared cache — for
- * non-component polling loops (the setup finish hold). Keeps every read on
- * the TanStack path so concurrent `useImportQuery` subscribers see the same
- * data.
- */
-export function fetchImportState(): Promise<ImportState> {
-  return queryClient.fetchQuery({
-    queryKey: KEYS.state,
-    queryFn: async () => throwOnErr(() => importClient.getState()),
-    staleTime: 0,
-  });
 }
 
 /**
@@ -106,31 +106,27 @@ export function useRunImportMutation() {
           discard_ids: args.discardIds,
         })
       ),
-    onSuccess: () => void invalidateImportState(),
+    onSuccess: () => fireAndForget(invalidateImportState(), 'import-state'),
   }));
 }
 
-/** Restart a failed gather run. */
-export function useRetryGatherMutation() {
+/** Discover candidates for manual selection. */
+export function useDiscoverMutation(): UseMutationResult<
+  void,
+  Error,
+  ImportSource
+> {
   return useMutation(() => ({
-    mutationFn: async (source: ImportSource) =>
-      throwOnErr(() => importClient.retryGather(source)),
-    onSuccess: () => void invalidateImportState(),
+    mutationFn: (source: ImportSource) =>
+      throwOnErr(() => importClient.discover(source)),
+    onSuccess: () => fireAndForget(invalidateImportState(), 'import-state'),
   }));
 }
 
-/** Dismiss one source's import section. */
-export function useDismissRunMutation() {
-  return useMutation(() => ({
-    mutationFn: async (source: ImportSource) =>
-      throwOnErr(() => importClient.dismissRun(source)),
-    onSuccess: () => void invalidateImportState(),
-  }));
-}
-
-/** A human label for a ledger row, from its per-source metadata. */
-export function entityLabel(entity: ImportEntity): string {
-  const field = entity.source === 'slack' ? 'name' : 'title';
-  const value = entity.metadata[field];
-  return typeof value === 'string' && value.length > 0 ? value : '(unnamed)';
+/** Slack channel metadata, only for Slack ledger rows. */
+export function slackChannelMeta(
+  entity: ImportEntity
+): SlackChannelMeta | null {
+  if (entity.source !== 'slack') return null;
+  return entity.metadata as SlackChannelMeta;
 }

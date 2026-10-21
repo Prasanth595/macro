@@ -5,6 +5,8 @@ import {
 } from '@block-code/component/CodeContent';
 import { CodeModeControl } from '@block-code/component/CodeModeControl';
 import { isHtmlFileType } from '@block-code/util/fileMode';
+import { SidePanel } from '@components/app/side-panel';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { downloadFile } from '@filesystem/download';
 import { Rerun } from '@solid-primitives/keyed';
 import {
@@ -45,9 +47,9 @@ function CodeDetailContent(props: {
   return (
     <div class="flex size-full min-h-0 min-w-0 flex-col overflow-hidden">
       <Show when={isHtmlFile}>
-        <div class="flex h-10 shrink-0 items-center justify-end border-edge border-b px-3">
+        <SidePanel.HeaderActions>
           <CodeModeControl mode={mode()} onModeChange={setMode} />
-        </div>
+        </SidePanel.HeaderActions>
       </Show>
       <div class="relative min-h-0 min-w-0 flex-1 overflow-hidden">
         <CodeContent
@@ -72,9 +74,12 @@ function CodeDetailSession(props: {
   const [text, setText] = createSignal(props.data.text);
   const operations = [
     downloadFileOperation(() => {
-      downloadFile(
-        new Blob([text() ?? ''], { type: 'text/plain' }),
-        documentDownloadName(props.data.documentMetadata)
+      fireAndForget(
+        downloadFile(
+          new Blob([text() ?? ''], { type: 'text/plain' }),
+          documentDownloadName(props.data.documentMetadata)
+        ),
+        'drive-file-download'
       );
       analytics.track('download', { blockType: 'code' });
     }),

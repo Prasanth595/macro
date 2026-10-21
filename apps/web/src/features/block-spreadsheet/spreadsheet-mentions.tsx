@@ -1,3 +1,5 @@
+import { CellMentionEditor } from '@app/components/cell-text-editor/CellMentionEditor';
+import type { CellTextEditorProps } from '@app/components/cell-text-editor/types';
 import {
   type MacroMentionLinkResolver,
   useMacroMentionLinkResolver,
@@ -16,12 +18,9 @@ import {
 } from '@macro-inc/spreadsheet/cell-mentions';
 import ClockIcon from '@phosphor/clock.svg';
 import { For, Suspense } from 'solid-js';
-import { CellMentionEditor } from './components/CellMentionEditor';
-import type {
-  CellTextEditorProps,
-  SpreadsheetMentions,
-} from './context/spreadsheet-mentions';
+import type { SpreadsheetMentions } from './context/spreadsheet-mentions';
 import { SpreadsheetCellLinks } from './spreadsheet-cell-links';
+import { DateMentionMenu } from './views/DateMentionMenu';
 
 export function linkMentions(
   value: string,
@@ -63,14 +62,12 @@ function fromItem(item: MentionItem): string | undefined {
       documentName: item.data.name ?? '',
       blockName: getBlockNameFromEntity(item),
     });
-  if (item.kind === 'date')
-    return encodeCellMention({
-      type: 'date',
-      date: item.data.date.toISOString(),
-      displayFormat: item.data.displayText,
-    });
 }
-/** Same chip as docs, without the picker: edit the cell to change the date. */
+/**
+ * Same chip as docs, without the picker: edit the cell to change the date.
+ * The `@` menu enters dates as date values, so chips come from older cells
+ * and AI edits.
+ */
 function CellDateChip(props: CellDateMention) {
   const date = () => new Date(props.date);
   return (
@@ -129,16 +126,21 @@ function SpreadsheetMentionEditor(props: CellTextEditorProps) {
       {...props}
       convertPaste={(text) => linkMentions(text, resolveAppLink)}
       renderMenu={(menu, anchor, pick) => (
-        <MentionsMenu
-          menu={menu}
-          anchor={anchor}
-          sources={['users', 'documents', 'channels', 'emails', 'dates']}
-          showOpenTabs={false}
-          onPick={(item) => {
-            const value = fromItem(item);
-            if (value) pick(value);
-          }}
-        />
+        <DateMentionMenu menu={menu} anchor={anchor} pick={pick}>
+          {(pickDate) => (
+            <MentionsMenu
+              menu={menu}
+              anchor={anchor}
+              sources={['users', 'documents', 'channels', 'emails', 'dates']}
+              showOpenTabs={false}
+              onPick={(item) => {
+                if (item.kind === 'date') return pickDate(item.data.date);
+                const value = fromItem(item);
+                if (value) pick(value);
+              }}
+            />
+          )}
+        </DateMentionMenu>
       )}
     />
   );

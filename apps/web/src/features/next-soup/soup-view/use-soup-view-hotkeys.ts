@@ -3,8 +3,8 @@ import { isListViewID, type ListView } from '@app/constants/list-views';
 import { CommandState } from '@app/features/command/state';
 import { VIEW_TAB_PRESETS } from '@app/features/next-soup/sidebar/soup-filter-presets';
 import {
+  markCalendarNotificationSeenOnOpen,
   markChannelNotificationsSeenOnOpen,
-  markReminderSeenOnOpen,
   openEntityInSplitFromUnifiedList,
 } from '@app/features/next-soup/utils';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
@@ -20,7 +20,9 @@ import {
   filterValidNotifications,
   isSearchEntity,
   isWithNotification,
+  type SearchLocation,
 } from '@entity';
+import { Telemetry } from '@macro-inc/observability';
 import { openSingleStackNotification } from '@notifications';
 import { type Accessor, onCleanup } from 'solid-js';
 import type { VirtualizerHandle } from 'virtua/solid';
@@ -30,6 +32,9 @@ import {
   useVisibleViewTabs,
   VIEW_TAB_LISTS,
 } from './soup-view-tabs';
+
+const reportSoupViewError = (error: unknown) =>
+  Telemetry.error(error, { surface: 'soup-view' });
 
 type UseSoupViewHotkeysOptions = {
   onOpenProject?: (id: string) => void;
@@ -150,6 +155,25 @@ export const useSoupViewHotkeys = (options: UseSoupViewHotkeysOptions) => {
     return didOpen;
   };
 
+  const openEntityFromList = async (
+    entity: EntityData,
+    openOptions: { location?: SearchLocation; openInNewSplit?: boolean }
+  ) => {
+    markCalendarNotificationSeenOnOpen(entity, notificationSource);
+    await openEntityInSplitFromUnifiedList(entity, {
+      ...openOptions,
+      splitHandle,
+      referredFrom: currentView(),
+      notificationSource,
+    });
+  };
+
+  const loadMoreInGroup = async (groupKey: string, index: number) => {
+    await fetchNextGroupPage(groupKey);
+    soup.navigate.toIndex(index);
+    virtualizerHandle()?.scrollToIndex(index, { align: 'nearest' });
+  };
+
   // enter - Open entity in split, toggle group, or load more
   registerHotkey({
     hotkey: ['enter'],
@@ -158,6 +182,13 @@ export const useSoupViewHotkeys = (options: UseSoupViewHotkeysOptions) => {
     description: 'Open',
     hide: true,
     keyDownHandler: (event) => {
+      // Native row controls own Enter. The document hotkey runs during capture,
+      // before the reminder button's propagation guards can handle the event.
+      if (
+        event?.target instanceof Element &&
+        event.target.closest('button[data-reminder-action]')
+      )
+        return false;
       const focusedRow = soup.focus.row();
       if (!focusedRow) return false;
 
@@ -169,13 +200,9 @@ export const useSoupViewHotkeys = (options: UseSoupViewHotkeysOptions) => {
 
       // If focused on a load more row, trigger load more and stay at same index
       if (focusedRow.getIsLoadMore() && focusedRow.group) {
-        const currentIndex = focusedRow.index;
-        fetchNextGroupPage(focusedRow.group.key).then(() => {
-          soup.navigate.toIndex(currentIndex);
-          virtualizerHandle()?.scrollToIndex(currentIndex, {
-            align: 'nearest',
-          });
-        });
+        loadMoreInGroup(focusedRow.group.key, focusedRow.index).catch(
+          reportSoupViewError
+        );
         return true;
       }
 
@@ -197,13 +224,7 @@ export const useSoupViewHotkeys = (options: UseSoupViewHotkeysOptions) => {
       const location =
         contentHitData?.length === 1 ? contentHitData[0]?.location : undefined;
 
-      markReminderSeenOnOpen(entity, notificationSource);
-      openEntityInSplitFromUnifiedList(entity, {
-        splitHandle,
-        location,
-        referredFrom: currentView(),
-        notificationSource,
-      });
+      openEntityFromList(entity, { location }).catch(reportSoupViewError);
       return true;
     },
     displayPriority: 4,
@@ -316,13 +337,9 @@ export const useSoupViewHotkeys = (options: UseSoupViewHotkeysOptions) => {
 
       const entity = soup.focus.item();
       if (!entity) return false;
-      markReminderSeenOnOpen(entity, notificationSource);
-      openEntityInSplitFromUnifiedList(entity, {
-        splitHandle,
-        openInNewSplit: true,
-        referredFrom: currentView(),
-        notificationSource,
-      });
+      openEntityFromList(entity, { openInNewSplit: true }).catch(
+        reportSoupViewError
+      );
       return true;
     },
     hide: true,

@@ -44,7 +44,7 @@ aws-sdk-s3 = { workspace = true }
 aws-sdk-secretsmanager = { workspace = true }
 aws-sdk-sqs = { workspace = true }
 axum = { workspace = true, features = ["tower-log", "ws"] }
-call = { path = "../../crates/call", default-features = false, features = ["ports"] }
+call = { path = "../../crates/call", default-features = false, features = ["ports", "outbound"] }
 chat = { path = "../../crates/chat", features = ["attachment"] }
 channels = { path = "../../crates/channels", features = ["outbound", "attachment"] }
 chrono = { workspace = true }
@@ -52,6 +52,11 @@ connection_gateway = { path = "../connection_gateway" }
 connection_gateway_client = { path = "../../crates/connection_gateway_client" }
 cookie = { workspace = true }
 crm = { path = "../../crates/crm" }
+# `ai_tools` for the toolset, `gateway` for the table-changed fan-out, and
+# `postgres` for the adapters behind the service.
+databases = { path = "../../crates/databases", features = ["ai_tools", "gateway", "postgres"] }
+# The SQL tools' types, to read their receipts in a structured completion.
+databases_sql = { path = "../../crates/databases_sql", features = ["ai_tools"] }
 document_storage_service_client = { path = "../../crates/document_storage_service_client" }
 documents = { path = "../../crates/documents", features = ["ai_tools", "attachment"] }
 doppleganger = { workspace = true }
@@ -63,6 +68,7 @@ entity_access_management = { path = "../../crates/entity_access_management" }
 entity_registry = { path = "../../crates/entity_registry/entity_registry" }
 entity_registry_db_utils = { path = "../../crates/entity_registry/entity_registry_db_utils" }
 foreign_entity = { path = "../../crates/foreign_entity" }
+github_pull_requests = { path = "../../crates/github_pull_requests" }
 frecency = { path = "../../crates/frecency", features = ["outbound", "postgres"] }
 futures = { workspace = true }
 http = { workspace = true }
@@ -91,9 +97,11 @@ macro_middleware = { path = "../../crates/macro_middleware", default-features = 
 macro_user_id = { path = "../../crates/macro_user_id" }
 macro_uuid = { path = "../../crates/macro_uuid" }
 import = { path = "../../crates/import" }
+jev = { path = "../../crates/jev", features = ["decisions", "outbound"] }
 mcp_client = { path = "../../crates/mcp_client" }
 mcp_select = { path = "../../crates/mcp_select" }
 pipedream_mcp = { path = "../../crates/pipedream_mcp" }
+granola_sync = { path = "../../crates/granola_sync" }
 model-error-response = { path = "../../crates/model-error-response" }
 memory = { path = "../../crates/memory" }
 onboarding = { path = "../../crates/onboarding" }
@@ -115,7 +123,6 @@ redis = { workspace = true, features = [
 ] }
 regex = { workspace = true }
 reqwest.workspace = true
-reminders = { path = "../../crates/reminders", default-features = false, features = ["ports"] }
 teams = { path = "../../crates/teams", default-features = false, features = [
   "outbound",
   "ports",
@@ -159,6 +166,7 @@ macro_service_urls = { path = "../../crates/macro_service_urls" }
 workspace-hack = { version = "0.1", path = "../../crates/workspace-hack" }
 
 [dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
 ai_tools = { path = "../../crates/ai_tools", features = ["test-support"] }
 macro_auth = { path = "../../crates/macro_auth", features = ["testing"] }
 macro_db_migrator = { path = "../../crates/macro_db_migrator" }
