@@ -2,9 +2,9 @@ package com.macro.call
 
 import android.Manifest
 import android.app.Activity
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.webkit.WebView
 import androidx.appcompat.app.AppCompatActivity
 import app.tauri.annotation.*
 import app.tauri.plugin.*
@@ -41,6 +41,12 @@ internal class ModeArgs { var mode = "hidden" }
 @TauriPlugin(permissions = [Permission(strings = [Manifest.permission.RECORD_AUDIO], alias = "microphone"), Permission(strings = [Manifest.permission.CAMERA], alias = "camera")])
 class CallPlugin(private val activity: Activity) : Plugin(activity) {
     private var preparePermissionCallId: String? = null
+    private var miniWindow: CallMiniWindow? = null
+    override fun load(webView: WebView) { miniWindow = CallMiniWindow(activity, webView) }
+    // Back in Macro, a drawer left in PiP opens again, as iOS returns to PiP's source.
+    override fun onResume(activity: AppCompatActivity) { if (CallActivity.inPictureInPicture) Calls.openDrawer(activity) }
+    // Once Macro is out of sight (PiP closed, phone locked) nothing shows the camera.
+    override fun onStop(activity: AppCompatActivity) { if (!CallActivity.isOpen) Calls.stopCamera(activity) }
     private fun finishPreparePermission() {
         preparePermissionCallId?.let { Calls.finishMicrophonePermission(it) }
         preparePermissionCallId = null
@@ -116,12 +122,8 @@ class CallPlugin(private val activity: Activity) : Plugin(activity) {
     @Command fun setVideoOverlayMode(invoke: Invoke) {
         val mode = invoke.parseArgs(ModeArgs::class.java).mode
         if (mode !in listOf("hidden", "expanded", "minimized")) { invoke.reject("Invalid call surface mode"); return }
-        Calls.overlay = mode
-        if (mode != "hidden" && Calls.offer != null) {
-            activity.startActivity(Intent(activity, CallActivity::class.java))
-            Calls.offer?.let { Calls.emit("drawer", JSObject().apply { put("channelId", it.channelId) }) }
-        }
-        Calls.publish(); invoke.resolve()
+        if (mode == "expanded") Calls.openDrawer(activity) else Calls.setOverlay(mode)
+        invoke.resolve()
     }
     @Command fun switchCamera(invoke: Invoke) { Calls.switchCamera(); invoke.resolve() }
     @Command fun setCallDrawerTheme(invoke: Invoke) {
@@ -144,10 +146,13 @@ class CallPlugin(private val activity: Activity) : Plugin(activity) {
         // Names only change native UI. Publishing would re-emit identities, which makes JS resend every name.
         if (Calls.displayNames[args.identity] != name) {
             if (name == null) Calls.displayNames.remove(args.identity) else Calls.displayNames[args.identity] = name
-            Calls.changed?.invoke()
+            Calls.refresh()
         }
         invoke.resolve()
     }
     @Command fun getVoipToken(invoke: Invoke) { invoke.resolve(JSObject().apply { put("token", org.json.JSONObject.NULL) }) }
-    override fun onDestroy(activity: AppCompatActivity) { finishPreparePermission(); Calls.abortPendingJoin(activity); Calls.unwatch() }
+    override fun onDestroy(activity: AppCompatActivity) {
+        finishPreparePermission(); Calls.abortPendingJoin(activity); Calls.unwatch()
+        miniWindow?.release(); miniWindow = null
+    }
 }

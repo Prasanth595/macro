@@ -23,6 +23,7 @@ import io.livekit.android.room.participant.RemoteParticipant
 import io.livekit.android.room.track.LocalVideoTrack
 import io.livekit.android.room.track.RemoteAudioTrack
 import io.livekit.android.room.track.Track
+import io.livekit.android.room.track.VideoTrack
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -46,9 +47,13 @@ internal object Calls {
     var video = false
         private set
     var error: String? = null
+    /** Where the call UI is, as on iOS: the drawer (expanded), the in-app thumbnail (minimized), or an edge tab (hidden). */
     var overlay = "hidden"
+        private set
     var pendingAnswered: String? = null
     var changed: (() -> Unit)? = null
+    var miniWindowChanged: (() -> Unit)? = null
+    private var spotlightId: String? = null
     private var session: Job? = null
     private var poller: Job? = null
     private var held = false
@@ -90,6 +95,40 @@ internal object Calls {
     // Agents such as the transcriber join the room but are not call participants.
     fun remoteHumans(media: Room): List<RemoteParticipant> =
         media.remoteParticipants.values.filter { it.kind != Participant.Kind.AGENT }
+    fun participantId(participant: Participant) = participant.identity?.value ?: participant.sid.value
+    fun displayName(participant: Participant): String {
+        val id = participantId(participant)
+        return displayNames[id] ?: participant.name?.takeIf { it.isNotBlank() } ?: id.substringAfter('|')
+    }
+    // Same rule as the iOS call UI, so fallback identities don't render as "M" for "macro|...".
+    fun initials(name: String) = name.split(' ', '@', '.', '|').filter { it.isNotBlank() && !it.equals("macro", true) }
+        .take(2).joinToString("") { it.take(1).uppercase() }.ifEmpty { "?" }
+    fun localName(media: Room) = displayNames[participantId(media.localParticipant)] ?: "You"
+    fun cameraTrack(participant: Participant): VideoTrack? =
+        participant.getTrackPublication(Track.Source.CAMERA)?.takeUnless { it.muted }?.track as? VideoTrack
+    /** PiP and the mini-window show the active speaker, keeping the last one through pauses. */
+    fun spotlight(media: Room): RemoteParticipant? {
+        val humans = remoteHumans(media)
+        val speaking = media.activeSpeakers.map(::participantId).firstNotNullOfOrNull { id -> humans.firstOrNull { participantId(it) == id } }
+        return (speaking ?: humans.firstOrNull { participantId(it) == spotlightId } ?: humans.firstOrNull())
+            .also { spotlightId = it?.let(::participantId) }
+    }
+    fun setOverlay(mode: String) {
+        if (overlay == mode) return
+        overlay = mode
+        publish()
+    }
+    fun openDrawer(ctx: Context) {
+        val call = offer ?: return
+        setOverlay("expanded")
+        ctx.startActivity(Intent(ctx, CallActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        emit("drawer", JSObject().apply { put("channelId", call.channelId) })
+    }
+    /** Re-renders native call surfaces without notifying JS. */
+    fun refresh() {
+        changed?.invoke()
+        miniWindowChanged?.invoke()
+    }
     // Release builds obfuscate audioswitch class names, so match device types.
     private fun audioType(device: AudioDevice?): String? = when (device) {
         is AudioDevice.BluetoothHeadset -> "BluetoothHeadset"
@@ -133,7 +172,7 @@ internal object Calls {
             publishedIdentities = identities.toString()
             emit("participants", JSObject().apply { put("identities", identities) })
         }
-        changed?.invoke()
+        refresh()
     }
     fun prepareJoin(ctx: Context, channelId: String): String {
         check(joinLease == null) { "A call join is already pending" }
@@ -332,7 +371,7 @@ internal object Calls {
                 media.connect(next.serverUrl, next.token)
                 if (room !== media) return@launch
                 media.localParticipant.setMicrophoneEnabled(!muted && !interrupted())
-                state = "connected"; connection?.setActive(); publish()
+                state = "connected"; connection?.setActive(); overlay = "expanded"; publish()
                 ctx.startActivity(Intent(ctx, CallActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             } catch (_: CancellationException) {
                 // end() already owns teardown.
@@ -369,6 +408,12 @@ internal object Calls {
         }
         media.localParticipant.setCameraEnabled(enabled)
         if (room === media) { video = enabled; CallService.start(ctx, media = true, camera = enabled); publish() }
+    }
+    /** Stops capture once no call surface (drawer, PiP or mini-window) is visible. */
+    fun stopCamera(ctx: Context) {
+        val media = room ?: return
+        if (!video) return
+        scope.launch { if (room === media) runCatching { camera(ctx, false, media) } }
     }
     fun switchCamera() { (room?.localParticipant?.getTrackPublication(Track.Source.CAMERA)?.track as? LocalVideoTrack)?.switchCamera() }
     private fun selectAudio(type: String) {
@@ -427,7 +472,7 @@ internal object Calls {
         session?.cancel(); session = null
         val media = room; room = null
         val telecomConnection = connection; connection = null
-        offer = null; pendingAnswered = null; state = "disconnected"; title = null; recipient = null; displayNames.clear(); error = null; muted = false; video = false; held = false; answering = false; accepted = false; focusLost = false; telecomMuted = false; telecomFocusLost = false; desiredAudioType = null; remoteAudioSilenced = false; audioRoute = null; overlay = "hidden"
+        offer = null; pendingAnswered = null; state = "disconnected"; title = null; recipient = null; displayNames.clear(); error = null; muted = false; video = false; held = false; answering = false; accepted = false; focusLost = false; telecomMuted = false; telecomFocusLost = false; desiredAudioType = null; remoteAudioSilenced = false; audioRoute = null; overlay = "hidden"; spotlightId = null
         // Native/SDK callbacks may fail or reenter; no resource owns the cleared session.
         // Release each resource independently so one failure cannot leave a phantom call.
         runCatching { media?.disconnect() }
