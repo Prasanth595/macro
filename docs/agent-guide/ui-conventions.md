@@ -36,6 +36,10 @@ geometry; a button group owns the frame so its child buttons remain flat.
 Compact controls use thinner, lower-opacity edges than composers and floating
 panels. Keep all desktop shadows close and faint, with only a slight top highlight.
 Define the border with subtle edge contrast instead of adding heavier shadows.
+Inside composers, dialogs, and menus, controls use `control-raised`: a lighter
+fill in dark mode and a faint neutral tint in light mode. Keep the container's
+base fill and border treatment; nested controls separate by fill rather than
+stronger outlines or shadows.
 In light mode, floating surfaces use the frame edge and a tighter, low-opacity
 contact shadow so white composers and menus separate cleanly from near-white
 content. Touch surfaces retain their existing shadows.

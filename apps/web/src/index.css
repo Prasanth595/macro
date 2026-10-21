@@ -433,6 +433,7 @@ body.tauri-ios {
   --color-page: var(--color-surface-0);
   --color-panel: var(--theme-panel, var(--color-surface-1));
   --color-control: var(--color-surface-2);
+  --color-control-raised: color-mix(in oklch, var(--color-surface-2) 95%, var(--color-content-0));
   --color-edge-frame: color-mix(in oklch, var(--color-content-0) 8%, transparent);
   --color-edge-button: color-mix(in oklch, var(--color-content-0) 5%, transparent);
   --color-edge-divider: color-mix(in oklch, var(--color-content-0) 4%, transparent);
@@ -742,6 +743,7 @@ html:not([data-touch-device='true']) {
 html[data-theme-light='true']:not([data-touch-device='true']) {
   --shadow-menu: 0 1px 2px rgb(0 0 0 / 0.03);
   --shadow-control: 0 1px 1px rgb(0 0 0 / 0.02);
+  --color-control-raised: color-mix(in oklch, var(--color-surface-2) 98%, var(--color-content-0));
 }
 
 /* Right-side header actions share a quiet, hover-only background. Touch header
@@ -957,6 +959,12 @@ html[data-theme-light='true']:not([data-touch-device='true']) {
   --glass-shadow-blur: 40px;
   --glass-shadow-spread: -8px;
   --glass-shadow-scale: 0.5;
+
+  @variant not-touch {
+    --color-control: var(--color-control-raised);
+    --color-input: var(--color-control-raised);
+    --color-input-focus: var(--color-control-raised);
+  }
 }
 
 /* Shared menu appearance: a fine beveled edge and compact shadow on desktop,
@@ -964,6 +972,12 @@ html[data-theme-light='true']:not([data-touch-device='true']) {
 @utility menu-surface {
   @apply glass relative min-h-0 rounded-xl bg-menu text-ink;
   --color-surface: var(--color-menu);
+
+  @variant not-touch {
+    --color-control: var(--color-control-raised);
+    --color-input: var(--color-control-raised);
+    --color-input-focus: var(--color-control-raised);
+  }
 }
 
 /* Shared dialog appearance; composers retain their original glass. */
