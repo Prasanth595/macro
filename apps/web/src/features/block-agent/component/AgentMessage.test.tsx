@@ -334,6 +334,7 @@ describe('Message tool grouping', () => {
         name: { kind: 'mcp', server: 'macro_internal', tool: 'PresentItem' },
         detail: {
           kind: 'other',
+          acpKind: 'other',
           output: null,
           input: { itemType: 'document', itemId: 'd', action: 'created' },
           result: null,

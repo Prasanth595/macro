@@ -322,6 +322,7 @@ describe('segmentParts', () => {
       name: { kind: 'mcp', server: 'macro_internal', tool: 'ExecuteCode' },
       detail: {
         kind: 'other',
+        acpKind: 'other',
         output: null,
         input: { execution_id: 'e', source: '' },
         result: null,
@@ -334,6 +335,7 @@ describe('segmentParts', () => {
         name: { kind: 'mcp', server, tool: 'PresentItem' },
         detail: {
           kind: 'other',
+          acpKind: 'other',
           output: null,
           input: { itemType: 'document', itemId: 'd', action: 'created' },
           result: null,
