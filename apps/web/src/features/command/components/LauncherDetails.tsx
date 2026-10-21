@@ -159,7 +159,7 @@ export function LauncherDetails(props: {
                   aria-label={`${item().label} details`}
                   class="flex min-h-full flex-col items-center justify-center px-5 py-6 text-center sm:px-7"
                 >
-                  <div class="mb-6 flex size-18 shrink-0 items-center justify-center rounded-[22px] border border-ink/10 bg-linear-145 from-ink/[0.09] to-ink/[0.02] shadow-[inset_0_1px_0_0_rgb(255_255_255/0.06),0_2px_8px_-2px_rgb(0_0_0/0.25)]">
+                  <div class="mb-6 flex size-18 shrink-0 items-center justify-center rounded-[22px] glass bg-dialog bg-linear-145 from-ink/[0.06] to-transparent">
                     <div class="size-8 [&_svg]:size-full">
                       <Dynamic component={item().icon} />
                     </div>

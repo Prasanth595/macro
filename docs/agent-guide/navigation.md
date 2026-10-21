@@ -538,7 +538,8 @@ Recent items also remain in their normal positions. With no history, the list
 starts with Document. Hover or keyboard navigation updates the right detail panel;
 click a row or press Enter to start that creation flow. List icons are monochrome:
 muted normally and full ink on the selected row. The detail panel centers
-its block-colored icon tile and description over
+its block-colored icon tile with a solid theme-aware fill and shared glass rim,
+and description over
 the shared onboarding grain. The dots and glow use the same shared block-icon
 color as the tile, rather than the workspace accent. Descriptions use two authored
 lines at desktop width, with a slightly shorter second line; narrow panels
