@@ -1,5 +1,5 @@
 ---
-description: "Controls come from one component per role, at one height per bar, with one selected state, styled only by their own props."
+description: "Controls come from one component per role, at one height per bar, with one selected state, styled only by their own props; overlays share two surfaces."
 paths:
   - "apps/web/src/**/*.tsx"
 globs: "apps/web/src/**/*.tsx"
@@ -22,6 +22,8 @@ construction. Browse them at `/app/component/ui` (Foundations → Controls).
 | Many options, or header tabs that no longer fit | `Dropdown` / `Select`, or `Tabs iconOnly` first | Scrolling or wrapping a header tab row |
 | Create, search in a collection header | `ViewCreateButton`, `ListHeaderSearch` | One-off New or search buttons |
 | Text entry, search fields | `Input`, `InputGroup`, `SearchBar`, `settings-input` | A raw `<input>` with its own border, radius, or focus color |
+| Menu, popover, floating toolbar or editor panel | `Dropdown`, `Toolbar`, or `menu-surface` on the overlay root | A hand-built fill, border, and shadow, or `bg-menu-glass` |
+| Dialog or modal card | `Dialog`, or `elevated-surface` for a custom dialog root | `bg-dialog`/`bg-surface` with its own radius and shadow |
 
 - **FE-58** Pick the component for the role from the table above, and import
   tabs only from `@ui`. Enforced by ast-grep `tsx-tabs-from-ui`, CI error; the
@@ -53,7 +55,16 @@ construction. Browse them at `/app/component/ui` (Foundations → Controls).
   build them from `Input`, `InputGroup`, or `SearchBar` (`settings-input` in
   settings rows). Filter chips use the same frame (pill, `edge-button` border,
   control fill) with `overlay-*` hovers, never raw `ink/5` tints.
+- **FE-65** Overlays share two surfaces: menus, popovers, floating toolbars, and
+  editor panels use `menu-surface`; dialogs use `Dialog` (`elevated-surface`).
+  Never give overlay content its own fill, border, or shadow. On a `Surface` or
+  `Panel`, pass `hideBorder` and keep `rounded-xl bg-surface` (core utilities
+  outrank `@utility` classes). Enforced for Kobalte `.Content` and
+  `bg-menu-glass` by ast-grep `tsx-overlay-canonical-surface`, CI error; the
+  reply composer, mobile drawer, call controls, and fullscreen media viewers
+  are the documented exceptions.
 
 Check: `just check` passes the ast-grep rules; the changed bar shows one height,
 16px icon glyphs, tabs on the left, and islands only around actions, at desktop
-width and narrowed until labels collapse.
+width and narrowed until labels collapse; a changed overlay matches the other
+menus (or dialogs) in light and dark mode.

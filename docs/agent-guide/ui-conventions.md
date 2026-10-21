@@ -64,7 +64,10 @@ same state as a pressed (`aria-pressed`) Button. There is no track and no
 separate active tint. Touch keeps each surface's existing tab treatment.
 
 Reuse `Button`, `Input`, `InputGroup`, `Tabs`, `ComposerSurface`, `menu-surface`, and
-`elevated-surface` instead of introducing one-off surface styling. Settings
+`elevated-surface` instead of introducing one-off surface styling. Every menu,
+popover, floating toolbar, and editor panel (including the Figma, PowerPoint,
+and Photoshop editors) floats on `menu-surface`; dialogs open through `Dialog`.
+Settings
 cards inherit `ComposerSurface`. Use the shared restrained bevel; do not
 add diagonal reflections, dark inset shading, broad halos, or custom shadows.
 Touch retains its existing glass treatment.
