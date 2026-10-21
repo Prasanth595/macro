@@ -76,6 +76,10 @@ function afterNavigation(
 export type SplitId = string & { readonly SplitId: unique symbol };
 type SplitKey = `${BlockName | BlockAlias | 'component'}:${string}`;
 
+// A split is its router pane under another name.
+const paneOf = (id: SplitId) => id as string as PaneId;
+export const splitOf = (pane: PaneId) => pane as string as SplitId;
+
 /**
  * Per-entry runtime state, opaque at the layout-manager level.
  * Owned by components via `useEntryState`. Survives back/forward within a
@@ -672,9 +676,6 @@ export function createSplitLayout(
    */
   const entryStateCaptors = new Map<SplitId, Map<string, () => unknown>>();
   const entryStates = new Map<string, EntryState>();
-
-  const paneOf = (id: SplitId) => id as string as PaneId;
-  const splitOf = (pane: PaneId) => pane as string as SplitId;
 
   function captureEntry(id: SplitId, entry: Entry): EntryState | undefined {
     const captors = entryStateCaptors.get(id);

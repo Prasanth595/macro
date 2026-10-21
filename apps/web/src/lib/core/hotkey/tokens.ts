@@ -113,6 +113,14 @@ export const TOKENS = {
     redo: 'global.redo',
   },
 
+  // desktop tabs
+  tabs: {
+    new: 'tabs.new',
+    close: 'tabs.close',
+    next: 'tabs.next',
+    previous: 'tabs.previous',
+  },
+
   // sidebar navigation
   sidebar: {
     goToLeader: 'sidebar.goToLeader',
