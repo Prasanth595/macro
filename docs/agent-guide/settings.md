@@ -225,8 +225,8 @@ installed on the computer. In the browser it links to the latest desktop release
 on GitHub, and only appears when the `desktop-app` PostHog flag is enabled. Native desktop always shows this section regardless of the flag;
 native mobile never shows it.
 
-The **Mobile App** page is titled **Mobile app (Alpha)** and offers a QR code
-to download **Macro Alpha** from the App Store.
+The **Mobile App** page is titled **Mobile app** and offers a QR code
+to download **Macro** from the App Store.
 
 Search checks individual setting titles and keywords, tolerates common typos,
 and shows the parent page below each control result. Selecting a result opens
@@ -565,3 +565,22 @@ and verify an upstream outage leaves the current links intact and reports an err
 The Macro link survives a failed reconnect, but replacing the FusionAuth grant
 is not atomic. A crash or failed restoration may leave it missing; retry OAuth
 to recreate it after the provider recovers.
+
+## Bots
+
+Open **Developer → Bots** to create an account for a program. The page explains
+how to add the bot to channels and use its token with the Macro SDK. **Create
+bot** keeps Profile and Channels visible. **Advanced** starts collapsed on both
+desktop and mobile and contains:
+
+- **Agent → Show in model selector**: makes the bot available when starting an
+  AI chat; connect an agent such as Codex or Hermes to handle requests. This
+  section remains gated by the agents rollout.
+- **Ownership → Mentionable**: lets teammates find and @mention the bot and
+  creates it under team ownership. With the switch off, the creator owns it.
+  Only team admins and owners can enable this option.
+
+Open an existing bot to edit its profile, channels, and tokens. Its Agent control
+also lives under a collapsed **Advanced** section. Verify that expanding and
+collapsing Advanced preserves selected options and does not submit the form.
+After creation, copy the **Bot token** before leaving; it is shown only once.
