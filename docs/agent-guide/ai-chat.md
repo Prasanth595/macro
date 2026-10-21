@@ -555,6 +555,14 @@ the shimmer.
   session starts on the first prompt, before its first reply; a startup screen
   that temporarily hides the footer is retried during the turn. The menu does not list
   installed native skills or session-switching commands such as `/resume`.
+  For a paired runtime configured as a **Chat agent**, mentioning it posts a
+  pending reply in the channel thread. Once the turn completes, that same reply
+  shows the answer (or a stopped/failed result), even if the session view was
+  never opened. Follow-up messages get their own replies. This requires a macrod
+  build that sends source message IDs as control action IDs, together with the
+  backend external-reply journal; older daemons do not supply that correlation.
+  Replies older than 24 hours whose completion callback was lost are recovered
+  hourly, plus any recovery backlog. Normal completion handling remains immediate.
   The agent form retains sharing, name, `@tag`, runtime, default model, connections,
   channels, instructions, and permission policy.
   Runtime and short model lists use styled dropdown buttons: open the field and
@@ -617,7 +625,8 @@ draft or widening the pane restores the compact layout when the text fits
 beside its controls. Leaving the AI composer collapses a long draft to
 a single-line preview in the accessory row; tapping it expands the same editor
 with the full draft intact. Screens with an available composer or reply controls show those
-instead; opening mobile search shows category pills in their place. On Agents,
+instead; opening mobile search hides those controls, puts category pills above
+the results, and keeps the query input in the dock. On Agents,
 the AI composer returns with its draft intact when higher-priority controls close.
 Other views have no floating AI fallback. Type a
 prompt, optionally choose a model or
@@ -1655,8 +1664,9 @@ must stay hidden; subsequent live messages must still appear.
   permission policy selector. The backend enforces these policies.
 
 Locally sent user messages in both AI implementations enter with a short upward
-slide and fade. History and remounted messages stay
-still; reduced-motion preferences disable the transition.
+slide and fade. On touch devices, messages lift into place with a gentle settle;
+the text reaches full opacity early and keeps its final size. History and
+remounted messages stay still; reduced-motion preferences disable the transition.
 
 On phones, the chat model control appears as a provider icon while the software
 keyboard is open. Its accessible name is `Choose model, <model name>`. It opens
