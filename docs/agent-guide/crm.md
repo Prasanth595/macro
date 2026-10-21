@@ -127,9 +127,9 @@ four fields sit side by side, label over value (two per row on a narrow card),
 and the rest wait behind `Show N more` in the card's footer. Expanded, text
 values wrap to their full length instead of truncating, the footer's
 `Show less` stays pinned to the bottom of the view while the card runs past it,
-and collapsing scrolls the card back into view. Cells edit like the pipeline table's when you can edit that
-pipeline. Inside Customers, the header's `Open <pipeline>` button opens it. The
-`Pipelines` caret header collapses and expands the cards, like the Discussion
+and collapsing scrolls the card back into view. Cells edit like the pipeline
+table's when you can edit that pipeline. Inside Customers, the header's
+`Open <pipeline>` button opens it. The `Pipelines` caret header collapses and expands the cards, like the Discussion
 header; both start expanded on each visit. The
 section is absent when the record is in no pipeline.
 Team lists the contacts with `Add contact`. Emails keeps the
