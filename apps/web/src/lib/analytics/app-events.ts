@@ -173,9 +173,9 @@ export type AppEvents = {
    */
   open_view: { viewId: string } & Record<string, unknown>;
   /**
-   * Agent sessions report create, rename (`update_entity`) and delete under
-   * `entityType: 'chat'` with `surface: 'agent'`, continuing the retired AI
-   * chat's metric.
+   * Agent sessions report create, rename (`update_entity`) and delete as
+   * `entityType: 'agent'`, the type their `open_entity` carries. The retired
+   * AI chat reported `chat`; count both for AI conversations over time.
    */
   create_entity: EntityEventPayload;
   update_entity: EntityEventPayload & {

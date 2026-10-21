@@ -214,11 +214,10 @@ export function startPendingSession(
           // writes are readable. Marked first, a refusal to that read is waited
           // out rather than reported as a session that is not ours.
           markSessionCreated(created);
-          // The retired AI chat's entity type, so chat creation stays one metric.
+          // `agent`, as BlockLoader reports the session's opens.
           analytics.track('create_entity', {
-            entityType: 'chat',
+            entityType: 'agent',
             entityId: created,
-            surface: 'agent',
             agentId: options.botId,
             submitSurface: options.submitSurface,
           });

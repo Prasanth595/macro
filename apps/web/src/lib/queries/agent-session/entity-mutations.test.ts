@@ -35,10 +35,9 @@ it('renames through the owning API and refreshes shared consumers', async () => 
   expect(mocks.soup).toHaveBeenCalledOnce();
   expect(mocks.invalidate).toHaveBeenCalledTimes(2);
   expect(mocks.track).toHaveBeenCalledExactlyOnceWith('update_entity', {
-    entityType: 'chat',
+    entityType: 'agent',
     entityId: 'session',
     property: 'name',
-    surface: 'agent',
   });
 });
 it('does not publish a failed rename', async () => {
@@ -56,8 +55,7 @@ it('deletes through the owning API, not a document deletion', async () => {
   expect(mocks.delete).toHaveBeenCalledWith('session');
   expect(mocks.soup).toHaveBeenCalledOnce();
   expect(mocks.track).toHaveBeenCalledExactlyOnceWith('delete_entity', {
-    entityType: 'chat',
+    entityType: 'agent',
     entityId: 'session',
-    surface: 'agent',
   });
 });
