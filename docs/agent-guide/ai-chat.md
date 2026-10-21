@@ -841,9 +841,13 @@ The transcript shows **Run code** while execution is in flight. Expand it to
 inspect the submitted source and final returned JSON or error. Code that creates
 a saved review immediately emits a separate completed **PresentReview** ACP call.
 Its card can appear before the program finishes and stays editable afterwards.
-Presentation means “Presented to the user,” not approved or sent. There is no
-individual live progress stream or saved response journal for arbitrary SDK HTTP
-calls. The execution journal retains source, status and final JSON/error;
+Presentation means “Presented to the user,” not approved or sent. Each SDK
+write that creates or changes a document, project, channel, form, calendar
+event, email thread or initiative emits a completed **PresentItem** call as it
+finishes, at most 32 per run. The session shows those as the items' cards under
+**Run code**, and a channel reply carries them like any other step's cards.
+Document content edits and routines are not in the SDK, so they earn no card
+from code. There is no saved response journal for arbitrary SDK HTTP calls. The execution journal retains source, status and final JSON/error;
 completed API writes are not rolled back after failure or cancellation.
 If a reused execution ID refers to different source, the card reports that tool
 results are unavailable and does not display the other program's saved results.
