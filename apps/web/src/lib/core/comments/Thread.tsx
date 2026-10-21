@@ -163,6 +163,7 @@ export function ThreadBody(props: ThreadBodyProps) {
             canWrite={context.canComment()}
             canModerate={context.isDocumentOwner()}
             monorail
+            keyboardActive={props.isActive}
             hideReplyInput={props.hideReplyInput}
             onEditingChange={context.setMessageEditing}
             targetId={targetId()}
