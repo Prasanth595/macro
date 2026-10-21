@@ -15,12 +15,13 @@ construction. Browse them at `/app/component/ui` (Foundations → Controls).
 
 | Role | Use | Never |
 | --- | --- | --- |
-| Switch a view, section, or one of a few values | `Tabs` | Buttons, a ButtonGroup, or an island acting as tabs |
+| Switch a view, section, or one of a few values (`wrap` for preset chips in forms) | `Tabs` | Buttons, a ButtonGroup, or an island acting as tabs |
 | Tabs that own panels or a dynamic collection (tables, form pages, rename, add) | `TabSelector` (`Root`, `List`, `Tab`, `Panel`, `AddMenu`) | `@kobalte/core/tabs` in a feature |
 | Related header actions (filters, view options, sharing, navigation) | `HeaderActionGroup` | A hand-built bordered row |
 | One on/off toggle, or an icon-only layout choice | `Button` with `aria-pressed` | A custom active tint |
-| Many options, or tabs that no longer fit | `Dropdown` / `Select` | Wrapping or scrolling a long tab row |
+| Many options, or header tabs that no longer fit | `Dropdown` / `Select`, or `Tabs iconOnly` first | Scrolling or wrapping a header tab row |
 | Create, search in a collection header | `ViewCreateButton`, `ListHeaderSearch` | One-off New or search buttons |
+| Text entry, search fields | `Input`, `InputGroup`, `SearchBar`, `settings-input` | A raw `<input>` with its own border, radius, or focus color |
 
 - **FE-58** Pick the component for the role from the table above, and import
   tabs only from `@ui`. Enforced by ast-grep `tsx-tabs-from-ui`, CI error; the
@@ -35,7 +36,8 @@ construction. Browse them at `/app/component/ui` (Foundations → Controls).
   options, New, Search (detail views: entity actions, sharing, navigation,
   detail toggle). Every control in the row is 32px: `Tabs` `md`, `icon-md` for
   icon-only buttons (16px glyph), `md` for labelled ones (14px glyph), 8px
-  between islands.
+  between islands. Filter, sort, group, and download live in the header, never
+  in a second toolbar row; only active filter chips sit below it.
 - **FE-61** Style controls only through their props (`variant`, `size`,
   `fullWidth`, `iconOnly`); `class` on a control is for placement (margin,
   width, order, shrink). Never resize or recolor a control from a wrapper
@@ -47,6 +49,10 @@ construction. Browse them at `/app/component/ui` (Foundations → Controls).
 - **FE-63** Components own their touch treatment. Never branch on
   `isTouchDevice()` to choose a tab component or variant; set `Tabs`' `touch`
   to the style that surface already uses on touch.
+- **FE-64** Single-line inputs are pills at the control heights, like Buttons:
+  build them from `Input`, `InputGroup`, or `SearchBar` (`settings-input` in
+  settings rows). Filter chips use the same frame (pill, `edge-button` border,
+  control fill) with `overlay-*` hovers, never raw `ink/5` tints.
 
 Check: `just check` passes the ast-grep rules; the changed bar shows one height,
 16px icon glyphs, tabs on the left, and islands only around actions, at desktop

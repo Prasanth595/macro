@@ -28,7 +28,10 @@ or shadows. Nested shared actions reuse the containing group rather than adding
 another frame, and a group with no visible actions renders nothing. Keep
 tooltips on icon-only controls and collapse labels as a pane narrows (`Tabs
 iconOnly`, then a menu). Preserve specialized editor toolbars and touch
-layouts. The [design system rule](../../.agents/rules/web/design-system.md)
+layouts. Recent, Folders, and Agents lists use the same islands (filters,
+view options, New, expandable Search) with active filter chips below; Search
+keeps its full-width field with facet chips under it. Inputs, search fields,
+and filter chips are pills on the control frame. The [design system rule](../../.agents/rules/web/design-system.md)
 lists which control to use for each role.
 
 On touch devices, low-emphasis header actions remain borderless with their
