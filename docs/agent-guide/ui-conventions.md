@@ -30,11 +30,11 @@ actions remove the transparent border to keep their text alignment.
 
 Use `not-touch:elevated` for desktop control surfaces. Buttons, button groups,
 inputs, and selected tabs share the same `shadow-elevated` treatment as
-composers, menus, settings cards, and dialogs: one quiet border, a faint top
-highlight, and a close contact shadow. Keep semantic fills and component
+composers, menus, settings cards, and dialogs: a fine outer outline, faint inner
+edge, brighter top edge, and compact shadow. Keep semantic fills and component
 geometry; a button group owns the frame so its child buttons remain flat.
-Keep the border consistent; compact controls use a gentler top highlight than
-composers and floating panels. Avoid stacked rings and broad shadows.
+Compact controls use thinner, lower-opacity edges than composers and floating
+panels. Keep all desktop shadows close and faint, with only a slight top highlight.
 In light mode, floating surfaces use the frame edge and a tighter, low-opacity
 contact shadow so white composers and menus separate cleanly from near-white
 content. Touch surfaces retain their existing shadows.
@@ -44,7 +44,7 @@ inside a transparent outlined track, without a separate active tint.
 
 Reuse `Button`, `Input`, `InputGroup`, `Tabs`, `ComposerSurface`, `menu-surface`, and
 `elevated-surface` instead of introducing one-off surface styling. Settings
-cards inherit `ComposerSurface`. Use the shared restrained elevation; do not
+cards inherit `ComposerSurface`. Use the shared restrained bevel; do not
 add diagonal reflections, dark inset shading, broad halos, or custom shadows.
 Touch retains its existing glass treatment.
 Desktop Chat/Code footer controls sit below that surface without a second
