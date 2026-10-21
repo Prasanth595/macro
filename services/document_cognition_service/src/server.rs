@@ -988,11 +988,13 @@ pub async fn run() -> anyhow::Result<()> {
     let analytics_for_mcp_removed_hook = integration_analytics.clone();
     let mcp_removed_hook: mcp_client::inbound::axum_router::McpServerRemovedHook =
         Arc::new(move |record: mcp_client::domain::models::McpServerRecord| {
-            analytics_for_mcp_removed_hook.record(
-                record.user_id,
-                IntegrationChange::Disconnected,
-                IntegrationEvent::mcp_server(&record.url),
-            );
+            if let Some(event) = IntegrationEvent::removed_mcp_server(&record) {
+                analytics_for_mcp_removed_hook.record(
+                    record.user_id,
+                    IntegrationChange::Disconnected,
+                    event,
+                );
+            }
             Box::pin(async {})
         });
     let mcp_state = mcp_client::inbound::McpRouterState::new(

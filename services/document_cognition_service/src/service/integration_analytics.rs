@@ -15,6 +15,7 @@ use analytics_client::{
 use entity_access::{domain::ports::AccessRepository, outbound::PgAccessRepository};
 use macro_env::Environment;
 use macro_user_id::user_id::MacroUserIdStr;
+use mcp_client::domain::models::McpServerRecord;
 use serde::Serialize;
 use sqlx::PgPool;
 
@@ -23,9 +24,12 @@ use crate::config::Config;
 /// Whether a connection was made or removed.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum IntegrationChange {
-    /// The user finished connecting an app.
+    /// The user finished a connect flow: OAuth for a native MCP server, or
+    /// Pipedream Connect for an app. Re-authorizing an app that is already
+    /// connected finishes another flow and is recorded again, so count
+    /// distinct (person, provider) pairs for connected apps.
     Connected,
-    /// The user removed an app.
+    /// The user removed a connected app.
     Disconnected,
 }
 
@@ -42,7 +46,8 @@ impl IntegrationChange {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct IntegrationEvent {
     /// The app: a Pipedream app slug (`linear`, `stripe`, `granola`, ...) or
-    /// the host of a native MCP server (`mcp.notion.com`).
+    /// the host of a native MCP server (`mcp.notion.com`). The same product
+    /// can appear both ways; `connection_type` tells them apart.
     provider: String,
     /// How the app is connected: `pipedream` or `mcp_server`.
     connection_type: &'static str,
@@ -55,6 +60,16 @@ impl IntegrationEvent {
             provider: app_slug.to_owned(),
             connection_type: "pipedream",
         }
+    }
+
+    /// A native MCP server the user removed, or `None` when it never
+    /// finished OAuth. A server counts as connected when OAuth completes, so
+    /// only an authenticated one counts as disconnected.
+    pub fn removed_mcp_server(record: &McpServerRecord) -> Option<Self> {
+        record
+            .credentials
+            .as_ref()
+            .map(|_| Self::mcp_server(&record.url))
     }
 
     /// A native MCP server, identified by its host only: paths and queries
