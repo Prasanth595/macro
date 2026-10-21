@@ -1,6 +1,7 @@
 import { URL_PARAMS as MD_URL_PARAMS } from '@block-md/constants';
 import { ChannelInput } from '@channel/Input';
 import { buildPostMessageSendPayload } from '@channel/Input/message-payload';
+import { CollapseLongContentProvider } from '@channel/Message/context';
 import { StaticMarkdownContext } from '@core/component/LexicalMarkdown/component/core/StaticMarkdown';
 import { createTheme } from '@core/component/LexicalMarkdown/theme';
 import { UserIcon } from '@core/component/UserIcon';
@@ -310,12 +311,15 @@ export function ThreadCard(props: {
           width: props.width ? `${props.width}px` : 'auto',
         }}
       >
-        <ThreadBody
-          comment={props.comment}
-          isActive={props.isActive}
-          theme={props.theme}
-          flatComposer
-        />
+        {/* The card is narrow, so long comments fold behind "Show more". */}
+        <CollapseLongContentProvider value={true}>
+          <ThreadBody
+            comment={props.comment}
+            isActive={props.isActive}
+            theme={props.theme}
+            flatComposer
+          />
+        </CollapseLongContentProvider>
       </div>
     </Layer>
   );
