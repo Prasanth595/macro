@@ -83,34 +83,59 @@ maintenance window:
    completed. Verify public OAuth clients accept the gateway callback URLs.
    In particular, apply the updated Slack manifest and ensure FusionAuth
    permits the public MCP gateway callback already listed in its stack.
-2. Apply the retired `mcp-server` and `agent-schedule-service` stack programs
-   to remove their ECS services and gateway listener rules. These retired
-   stacks are no longer automatic service builds; do not destroy the shared
-   gateway or database.
-3. Apply `document-cognition` (directory `document-cognition-service`) to
-   remove cognition ECS and its refresh Lambda/EventBridge rules, retaining
-   the existing projection queue and its DLQ. The harness runs the same
-   refresh sweeps at six-hour, daily, and three-day intervals.
-4. Apply `preview-gateway` to remove its ECS task while retaining the existing
-   domain, certificates, HTTPS/SSH load balancers, security group, and target
-   groups. It now exports those resources for the harness task. Their health
-   checks use the shared harness API port.
-   Preserve the control target group's default port to avoid recreating it;
-   ECS registers harness targets with an explicit port override.
-5. Apply `agent-harness-service`. Its tasks join the preview security group
-   and all five target groups: shared API, egress, preview control, preview
-   HTTP, and preview SSH. The shared API target also receives cognition, MCP,
-   and scheduling listener rules at the retired services' existing priorities.
-6. Check OAuth discovery and authentication, chat/completions, routine
+   Apply the additive preview ownership migration before starting the combined
+   process.
+2. Pause deployments for the chosen environment, cancel queued deployments,
+   and wait for running deployments to finish. Disabling future triggers does
+   not clear queued runs. In dev, every main push deploys all enabled services;
+   workflow concurrency does not
+   serialize manual Pulumi updates. An older deployment can restore retired
+   services or overwrite the combined harness. Keep deployments paused until
+   the deployed resources and merged source agree.
+3. Prepare an isolated staging checkout of this change. Temporarily omit the
+   harness's three `sharedApiRules` and their `dependsOn` entries, and omit
+   its preview control/HTTP/SSH target-group attachments. Keep the existing
+   API/egress attachments, preview security group, two replicas, and rolling
+   replacements. Preview and apply this staged harness while the old feature
+   services remain live. Explicitly wait for two healthy combined tasks:
+   `continueBeforeSteadyState` means Pulumi completion alone is insufficient.
+4. In that checkout, restore the three feature rules with their final logical
+   resource names, temporarily using verified unused priorities numerically
+   lower than the old rules. Keep preview target attachments omitted. Preview
+   and apply this routing update only after the combined tasks are healthy.
+   The new rules transfer gateway traffic to those tasks while the old rules
+   and services still exist. Verify authenticated requests through each prefix.
+5. Apply the retired `mcp-server` and `agent-schedule-service` stack programs,
+   then `document-cognition` (directory `document-cognition-service`). Remove
+   their old ECS services and rules, plus cognition's refresh Lambda/EventBridge
+   rules, retaining the projection queue and DLQ. The temporary harness rules
+   continue serving traffic. The retired MCP and scheduler stacks are no longer
+   automatic service builds; do not destroy the shared gateway or database.
+6. Apply network-only `preview-gateway`, removing its ECS task while retaining
+   the domain, certificates, HTTPS/SSH load balancers, security group, and target
+   groups. Preserve the control target group's default port to avoid replacing
+   it. Wait for the old preview service and its target registrations to drain
+   before attaching those target groups to the harness. Preview downtime is
+   expected during this handoff.
+7. Preview and apply the final source, restoring the harness rules' intended
+   priorities and attaching all three existing preview target groups. ECS
+   registers preview control targets on API port 8101 using an explicit port
+   override; health checks use that port. Verify the saved plan updates the
+   existing rules and target groups without replacing them. Wait for two
+   healthy harness tasks and all five target groups to be healthy.
+8. Check OAuth discovery and authentication, chat/completions, routine
    dispatch, and a complete preview SSH/browser handoff. Verify tracing across
-   the shared HTTP boundaries and confirm that no retired agent ECS service
-   or refresh Lambda remains.
+   the shared HTTP boundaries and confirm no retired agent ECS service or
+   refresh Lambda remains. Merge the final source and resume deployments.
 
-Retire the old listener rules before deploying the new ones: ALB priorities
-are unique. Preserve resource-only stacks rather than recreating durable
-queues or preview DNS/certificates in another stack. Switching old direct
-cognition/MCP hostnames also requires a DNS/client cutover; the supported API
-bases after consolidation are the gateway prefixes above.
+Retain the final logical rule names throughout staging so temporary priorities
+update in place. ALB priorities are unique: do not apply the final priorities
+until the old rules are removed. Preserve resource-only stacks rather than
+recreating durable queues or preview DNS/certificates in another stack.
+
+This sequence protects gateway URLs. Old direct cognition/MCP hostnames need a
+separate DNS/client cutover or explicitly prepared compatibility routing; their
+traffic does not pass through the gateway rules above.
 
 Automatic deployment of the consolidated service requires this one-time
 cutover first. Do not merge and rely on an unordered parallel deployment to
