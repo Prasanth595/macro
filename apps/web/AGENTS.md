@@ -78,6 +78,8 @@ without changing the active route. Backend registration still verifies account
 ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 
 ### General
+- Compose settings pages with `features/settings/primitives.tsx` so section headings,
+  flat neutral cards, row spacing, and control shapes stay consistent.
 - Keep personal accounts and agent tool connections together in Settings → Integrations;
   preserve `agent-connections` as an alias for existing links.
 - Label the notification permission toast **Enable Desktop Notifications** in

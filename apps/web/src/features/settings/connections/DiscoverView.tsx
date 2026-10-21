@@ -13,6 +13,7 @@ import XIcon from '@phosphor/x.svg';
 import type { PipedreamCatalogEntryResponse } from '@service-cognition/client';
 import { Button, Tooltip } from '@ui';
 import { createMemo, createSignal, For, Show } from 'solid-js';
+import { SettingsSelect } from '../components/settings-select';
 import { IntegrationRow } from '../primitives';
 import { AddCustomMcpDialog } from './add-custom-mcp-dialog';
 import { groupCatalogByCategory } from './catalog-categories';
@@ -60,6 +61,24 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
   });
 
   const categories = createMemo(() => groupCatalogByCategory(rest()));
+  const [selectedCategory, setSelectedCategory] = createSignal('all');
+  const activeCategory = () =>
+    categories().some((category) => category.name === selectedCategory())
+      ? selectedCategory()
+      : 'all';
+  const visibleCategories = createMemo(() =>
+    categories().filter(
+      (category) =>
+        activeCategory() === 'all' || category.name === activeCategory()
+    )
+  );
+  const categoryOptions = createMemo(() => [
+    { id: 'all', name: 'All categories' },
+    ...categories().map((category) => ({
+      id: category.name,
+      name: category.name,
+    })),
+  ]);
 
   return (
     <div class="@container/catalog flex flex-col gap-5">
@@ -73,9 +92,10 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
           <input
             type="search"
             value={catalog.searchInput()}
-            onInput={(event) =>
-              catalog.onSearchInput(event.currentTarget.value)
-            }
+            onInput={(event) => {
+              setSelectedCategory('all');
+              catalog.onSearchInput(event.currentTarget.value);
+            }}
             placeholder="Search integrations"
             class="h-10 w-full rounded-full border border-edge-muted bg-ink/4 pr-10 pl-9 text-sm text-ink outline-none placeholder:text-ink-muted focus-visible:border-edge-focus focus-visible:ring-1 focus-visible:ring-edge-focus [&::-webkit-search-cancel-button]:hidden"
           />
@@ -85,7 +105,10 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
               aria-label="Clear search"
               class="absolute top-1/2 right-2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-ink-muted outline-none hover:bg-ink/4 hover:text-ink focus-visible:bg-ink/6"
               onPointerDown={(event) => event.preventDefault()}
-              onClick={() => catalog.onSearchInput('')}
+              onClick={() => {
+                setSelectedCategory('all');
+                catalog.onSearchInput('');
+              }}
             >
               <XIcon class="size-4" />
             </button>
@@ -135,7 +158,17 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
       </section>
 
       <section aria-label="All integrations">
-        <h4 class="mb-3 text-sm font-medium text-ink-muted">All apps</h4>
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h4 class="text-base font-medium text-ink">All apps</h4>
+          <SettingsSelect
+            label="Filter apps by category"
+            options={categoryOptions()}
+            value={activeCategory()}
+            onChange={setSelectedCategory}
+            class="w-52 max-w-full"
+            triggerClass="settings-input h-9 w-full text-sm"
+          />
+        </div>
         <div class="grid grid-cols-1 gap-3 @[440px]/catalog:grid-cols-2">
           <Show when={catalog.query.isError}>
             <div class="col-span-full px-6 py-6 text-center text-sm text-ink-muted">
@@ -152,12 +185,20 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
             </div>
           </Show>
           <Show when={!catalog.query.isError}>
-            <For each={categories()}>
+            <For each={visibleCategories()}>
               {(category) => (
                 <section class="col-span-full" aria-label={category.name}>
-                  <h5 class="mb-3 text-sm font-medium text-ink">
-                    {category.name}
-                  </h5>
+                  <div class="mb-3 flex items-center justify-between border-b border-edge-muted pb-2">
+                    <h5 class="text-sm font-medium text-ink">
+                      {category.name}
+                    </h5>
+                    <span
+                      class="text-sm text-ink-muted"
+                      aria-label={`${category.entries.length} apps`}
+                    >
+                      {category.entries.length}
+                    </span>
+                  </div>
                   <div class="grid grid-cols-1 gap-3 @[440px]/catalog:grid-cols-2">
                     <For each={category.entries}>
                       {(entry) => (
@@ -280,7 +321,7 @@ function CatalogRow(props: {
       title={name()}
       description={
         <Tooltip label={description}>
-          <span id={descriptionId} class="not-touch:line-clamp-2 text-sm">
+          <span id={descriptionId} class="not-touch:line-clamp-1 text-sm">
             {description}
           </span>
         </Tooltip>

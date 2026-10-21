@@ -174,10 +174,10 @@ settings split that shares the layout, or steps back to the previous view when
 it is the only split (Home when there is none). Leave settings by picking any
 other rail item; there is no separate back or fullscreen control.
 
-Settings pages use the email composer’s raised surfaces on the page background.
-Section headings and controls share a white surface in light mode and the
-composer border in dark mode, with subtle row separators. The compact sidebar
-uses the shared workspace width.
+Settings pages use flat, light-gray cards with subtle row separators. Section
+headings sit above the cards, and controls share rounded shapes and compact
+spacing. Nested rows share one surface instead of adding another box or shadow.
+The compact sidebar uses the shared workspace width.
 
 When a newer version is ready, an **Update available** button (a download icon
 in a subtle accent circle that a glowing comet periodically circles) appears in
@@ -479,7 +479,9 @@ All apps groups each app under its first nonempty Pipedream category; apps witho
 category metadata appear under More apps. Categories lead with Productivity,
 Communication, Developer Tools, AI, File Storage, and CRM; remaining categories
 follow the configured work-app order, then alphabetically, with More apps last.
-Search and pagination preserve those groups.
+Search and pagination preserve those groups. Use the category picker beside
+All apps to show one group; changing the search returns to all categories. Group
+counts reflect the currently loaded results.
 Featured and catalog cards use two columns on wide screens and one on narrow
 screens, with a plus action for available apps. Featured cards show app names
 without descriptions, and catalog descriptions
