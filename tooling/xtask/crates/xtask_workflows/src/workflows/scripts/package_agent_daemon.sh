@@ -43,7 +43,8 @@ case "$TARGET" in
     # Every DLL must come from Windows itself. Git Bash's ldd resolves the
     # imports; one found outside C:\Windows (a vcruntime, a build-tool DLL)
     # will not be on a user's machine.
-    strays=$(ldd "$binary" | awk '$2 == "=>" { print $3 }' \
+    imports=$(ldd "$binary")
+    strays=$(printf '%s\n' "$imports" | awk '$2 == "=>" { print $3 }' \
       | grep -Eiv '^(/c/windows/|\?\?\?$)' || true)
     if [ -n "$strays" ]; then
       echo "daemon links DLLs that will not exist on a user's PC:" >&2
