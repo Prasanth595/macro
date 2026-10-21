@@ -153,7 +153,7 @@ function notionImportReportQueryOptions() {
 export function useNotionImportReportQuery() {
   createConnectionWebsocketEffect((message) => {
     if (message.type !== IMPORT_UPDATED_MESSAGE_TYPE) return;
-    void queryClient.invalidateQueries({
+    queryClient.invalidateQueries({
       queryKey: importKeys.notion.queryKey,
     });
   });
@@ -170,7 +170,7 @@ export function useCancelNotionImportMutation() {
     mutationFn: () => throwOnErr(() => importClient.cancelNotion()),
     onSuccess: (report: NotionImportReport) => {
       queryClient.setQueryData(importKeys.notion.queryKey, report);
-      void invalidateImportState();
+      fireAndForget(invalidateImportState(), 'import-state');
     },
   }));
 }
