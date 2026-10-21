@@ -7,6 +7,7 @@ import {
 } from '@solidjs/testing-library';
 import { createSignal, For, type JSX, type ParentProps, Show } from 'solid-js';
 import { afterEach, expect, it, vi } from 'vitest';
+import { createSettingsPage } from '../primitives/settings-page';
 import { CrmWorkspaceView } from './crm-workspace';
 
 const fixture = vi.hoisted(() => ({
@@ -149,6 +150,7 @@ vi.mock('../components/crm-sidebar', () => ({
   CrmSidebar: (props: {
     pipelines?: JSX.Element;
     onNavigate: (id: string) => void;
+    onSettings: () => void;
     onCollapse?: () => void;
   }) => (
     <nav aria-label="CRM sidebar">
@@ -164,6 +166,9 @@ vi.mock('../components/crm-sidebar', () => ({
         People
       </button>
       {props.pipelines}
+      <button type="button" onClick={props.onSettings}>
+        CRM settings
+      </button>
     </nav>
   ),
 }));
@@ -198,6 +203,7 @@ vi.mock('./record-detail', () => ({
     </div>
   ),
 }));
+vi.mock('./crm-settings', () => ({ Crm: () => <div>Stage settings</div> }));
 vi.mock('./export-companies', () => ({ CrmExport: () => null }));
 vi.mock('./import-companies', () => ({ CrmImport: () => null }));
 vi.mock('./pipeline', () => ({
@@ -296,6 +302,9 @@ function setup(
     setTab(tab);
   };
   const captureEntryState = vi.fn();
+  const settings = createSettingsPage(() =>
+    [activeTab(), ...records().map((record) => record.id)].join(' ')
+  );
   fixture.workspace = {
     activeTab,
     setActiveTab,
@@ -303,6 +312,7 @@ function setup(
       scopeId: 'crm',
       isActive: () => true,
       captureEntryState,
+      settings,
       record,
     },
     source: {},
@@ -480,4 +490,58 @@ it('shows another tab’s list in place of an open record without closing it fir
   expect(record.close).not.toHaveBeenCalled();
   expect(activeTab()).toBe('people');
   expect(screen.getByText('Record list')).toBeTruthy();
+});
+
+it('shows CRM settings in place of an open record and returns to it', () => {
+  fixture.touch = false;
+  const { record } = setup('pipeline:sales');
+  fireEvent.click(screen.getByRole('button', { name: 'Open Acme' }));
+  fireEvent.click(screen.getByRole('button', { name: 'CRM settings' }));
+  expect(screen.getByText('Stage settings')).toBeTruthy();
+  expect(screen.queryByText('Sales record company:acme')).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Close CRM settings' }));
+  expect(screen.queryByText('Stage settings')).toBeNull();
+  expect(screen.getByText('Sales record company:acme')).toBeTruthy();
+  expect(record.close).not.toHaveBeenCalled();
+});
+
+it.each([false, true])(
+  'returns to the activity feed after closing CRM settings (touch: %s)',
+  (touch) => {
+    fixture.touch = touch;
+    const { activeTab } = setup('tasks');
+    expect(screen.getByText('tasks feed')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'CRM settings' }));
+    expect(screen.getByText('Stage settings')).toBeTruthy();
+    expect(screen.queryByText('tasks feed')).toBeNull();
+    expect(screen.queryByText('Record list')).toBeNull();
+    expect(activeTab()).toBe('tasks');
+    fireEvent.click(screen.getByRole('button', { name: 'Close CRM settings' }));
+    expect(screen.getByText('tasks feed')).toBeTruthy();
+    expect(screen.queryByText('Stage settings')).toBeNull();
+    expect(screen.queryByText('Record list')).toBeNull();
+  }
+);
+it('leaves CRM settings for the list picked in the sidebar, including the current one', () => {
+  fixture.touch = false;
+  const { activeTab } = setup();
+  fireEvent.click(screen.getByRole('button', { name: 'CRM settings' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Companies' }));
+  expect(screen.queryByText('Stage settings')).toBeNull();
+  expect(screen.getByText('Record list')).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'CRM settings' }));
+  fireEvent.click(screen.getByRole('button', { name: 'People' }));
+  expect(activeTab()).toBe('people');
+  expect(screen.queryByText('Stage settings')).toBeNull();
+});
+
+it('leaves CRM settings when the route moves elsewhere, as on Back', () => {
+  fixture.touch = false;
+  const { record } = setup('pipeline:sales');
+  fireEvent.click(screen.getByRole('button', { name: 'CRM settings' }));
+  record.open([{ type: 'company', id: 'acme', name: '' }]);
+  expect(screen.queryByText('Stage settings')).toBeNull();
+  expect(screen.getByText('Sales record company:acme')).toBeTruthy();
+  record.close();
+  expect(screen.getByText('Sales table')).toBeTruthy();
 });

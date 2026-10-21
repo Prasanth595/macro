@@ -49,10 +49,7 @@ import {
 } from './navigation-adapter';
 import { PipelineDatabaseEditor, PipelineShare } from './pipeline-adapter';
 import { createCrmPipelineEntries } from './pipeline-entries-adapter';
-import {
-  createClosedStageIds,
-  createCrmPermissions,
-} from './primitives/team-config';
+import { createCrmPermissions } from './primitives/team-config';
 import { useCrmActivityQuery } from './queries/activity';
 import {
   createCompanyImporter,
@@ -306,8 +303,6 @@ export function createAppCrmContext(): CrmContext {
     createCapabilities: () =>
       createCrmPermissions(userId, useCurrentTeamQuery(), createSettings()),
     createDealStages: createAppDealStages,
-    createClosedStageIds: (stages) =>
-      createClosedStageIds(createSettings(), stages),
     createPersonalViews: () => usePersonalCrmViews(deps),
     createTeamViews: () => useTeamCrmViews(deps, userId, createSettings()),
     createLists: (teamId) => useCrmLists(deps, teamId),

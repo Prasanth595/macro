@@ -29,7 +29,7 @@ const RECORD_ICONS = {
 };
 
 export function CrmSidebar(props: {
-  /** The highlighted record type, list, or pipeline. */
+  /** The highlighted record type, list, pipeline, or `settings`. */
   active: string;
   pipelines?: JSX.Element;
   lists: { id: string; name: string; count: number }[];
@@ -198,7 +198,10 @@ export function CrmSidebar(props: {
             </ViewSidebar.Icon>
             Export
           </ViewSidebar.Item>
-          <ViewSidebar.Item onClick={props.onSettings}>
+          <ViewSidebar.Item
+            active={props.active === 'settings'}
+            onClick={props.onSettings}
+          >
             <ViewSidebar.Icon>
               <GearIcon class="size-4" />
             </ViewSidebar.Icon>
