@@ -1436,9 +1436,7 @@ export const LauncherShell = (
           </span>
           <Show when={props.footerAction}>
             {(action) => (
-              <div class="pointer-events-none absolute inset-y-0 right-0 left-[38%] flex items-center justify-center sm:left-64 [&>*]:pointer-events-auto">
-                {action()(bodyState)}
-              </div>
+              <div class="absolute right-2 bottom-2">{action()(bodyState)}</div>
             )}
           </Show>
         </CommandMenuShell.Footer>

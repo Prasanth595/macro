@@ -202,8 +202,7 @@ export function CreateMenuPreview(props: {
             'relative flex shrink-0 items-center gap-4 px-5 text-xs text-ink-extra-muted',
             props.layout === 'details'
               ? 'min-h-14 border-t border-edge-divider'
-              : 'h-9',
-            props.layout === 'details' && props.detailsLeft && 'justify-end'
+              : 'h-9'
           )}
         >
           <span>↑ ↓ Navigate</span>
@@ -212,14 +211,7 @@ export function CreateMenuPreview(props: {
           </Show>
           <Show when={props.layout === 'details' && items()[c.selectedIndex()]}>
             {(item) => (
-              <div
-                class={cn(
-                  'pointer-events-none absolute inset-y-0 flex items-center justify-center [&>*]:pointer-events-auto',
-                  props.detailsLeft
-                    ? 'left-0 right-[38%] sm:right-64'
-                    : 'right-0 left-[38%] sm:left-64'
-                )}
-              >
+              <div class="absolute right-2 bottom-2">
                 <CreateMenuAction
                   item={item()}
                   shiftHeld={pressedKeys().has('shift')}

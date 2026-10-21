@@ -542,7 +542,9 @@ its accent-colored icon tile, description, and **Good for** examples over
 the shared onboarding grain and accent glow. Descriptions use two authored
 lines at desktop width, with a slightly shorter second line; narrow panels
 allow the text to wrap further. The **Create [type]** button
-sits in the bottom lip, centered beneath the detail panel.
+sits 8px inside the bottom-right corner with a matching inset radius. It uses
+a white fill in dark mode, black in light mode, medium-weight text, and a bare
+Enter symbol without a keycap.
 A vertical divider separates it from the list. In direct shortcut mode, the
 shortcut sequence (such as **C then T** for Task) appears below the centered
 detail content. The Create button includes the Enter shortcut. Holding Shift
