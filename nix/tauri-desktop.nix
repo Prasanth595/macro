@@ -926,6 +926,8 @@
           printf production > apps/web/tauri/src-tauri/.macro-tauri-env
           install -Dm0755 ${macrodBinary}/bin/macrod \
             "apps/web/tauri/desktop-cef/binaries/macrod-${rustHostTriple}"
+          install -Dm0755 ${macrodBinary}/bin/macrod \
+            "apps/web/tauri/src-tauri/binaries/macrod-${rustHostTriple}"
           cd apps/web/tauri/desktop-cef
         '';
         buildPhaseCargoCommand = ''
