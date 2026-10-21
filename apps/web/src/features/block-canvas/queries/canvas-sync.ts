@@ -50,7 +50,9 @@ export function canvasSyncSource(
           );
         } catch (cause) {
           if (
-            ['FORBIDDEN', 'NOT_FOUND', 'INVALID'].some((code) =>
+            // The block loader also maps transient network failures to INVALID.
+            // Preserve local editing until a fresh grant or confirmed denial.
+            ['FORBIDDEN', 'NOT_FOUND', 'MISSING', 'GONE'].some((code) =>
               thrownResultErrorHasCode(cause, code)
             )
           )

@@ -2,7 +2,7 @@ import { queryClient } from '@queries/client';
 import { fetchFileDocumentOpenContext } from '@queries/storage/documentLoad/sync-document-context';
 import { createSyncServiceSource } from '@service-sync/source';
 import type { DocumentSyncAuthorization } from '@service-sync/source/authorization';
-import { ok } from 'neverthrow';
+import { err, ok } from 'neverthrow';
 import { createRoot, createSignal } from 'solid-js';
 import { afterEach, expect, it, vi } from 'vitest';
 import { canvasSyncSource } from './canvas-sync';
@@ -63,6 +63,11 @@ it('refreshes web access on reconnect and fences an old source after account cha
   expect(await authorization.getToken()).toBe('initial');
   expect(authorization.canWrite()).toBe(true);
   vi.mocked(fetchFileDocumentOpenContext).mockResolvedValue(
+    err([{ code: 'INVALID', message: 'Network unavailable' }])
+  );
+  await expect(authorization.getToken()).rejects.toThrow('Network unavailable');
+  expect(sync.canWrite()).toBe(true);
+  vi.mocked(fetchFileDocumentOpenContext).mockResolvedValue(
     ok({
       ...context,
       userAccessLevel: 'comment',
@@ -70,7 +75,7 @@ it('refreshes web access on reconnect and fences an old source after account cha
     })
   );
   expect(await authorization.getToken()).toBe('refreshed');
-  expect(queryClient.invalidateQueries).toHaveBeenCalledOnce();
+  expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(2);
   expect(authorization.canWrite()).toBe(false);
   expect(sync.canWrite()).toBe(false);
   const invalidated = vi.fn();
