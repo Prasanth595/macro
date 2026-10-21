@@ -149,6 +149,28 @@ Automatic deployment of the consolidated service requires this one-time
 cutover first. Do not merge and rely on an unordered parallel deployment to
 retire old rules while creating their replacements.
 
+## Rollback during the cutover
+
+Save the deployed source revisions, task definitions, listener rules, and an
+encrypted export of each affected Pulumi stack before applying changes.
+
+If the staged harness cannot become healthy, leave the old feature routes and
+services in place and restore the previous harness revision. If a feature route
+fails after the temporary rules take precedence, remove those temporary rules
+while the old services are still healthy; their original rules resume serving.
+Do not retire old compute until the routed checks pass.
+
+After retiring a service, move the harness rules back to verified unused
+temporary priorities if their final priorities have already been applied. Restore
+the pre-cutover stack revision and wait for healthy targets before removing the
+temporary harness rules to return traffic.
+
+For previews, first detach the three preview target groups from the harness and
+restore their saved health-check configuration, then restore the saved
+pre-cutover preview deployment. Live SSH connections that were already closed
+must reconnect. Keep automatic deployments paused throughout recovery, and resume
+only when the deployed source and the intended routing agree.
+
 ## Local verification
 
 The Compose inventory builds only `agent_harness_service` for these agent
