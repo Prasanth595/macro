@@ -1297,11 +1297,18 @@ impl<
             .await?;
         }
 
+        // Identities are `macro|<email>`: log which kind of participant this
+        // is, never who.
+        let participant_kind = match (&event.participant_identity, &event.guest_identity) {
+            (Some(_), _) => "user",
+            (None, Some(_)) => "guest",
+            (None, None) => "none",
+        };
         tracing::info!(
             event_type = %event.event,
             event_id = %event.id,
             room_name = ?event.room_name,
-            participant = ?event.participant_identity,
+            participant_kind,
             "processing call webhook event"
         );
 
