@@ -36,7 +36,8 @@ export function CrmSidebar(props: {
   onImport: () => void;
   onExport: () => void;
   onSettings: () => void;
-  onCollapse: () => void;
+  /** Omitted in the narrow menu, which already has split navigation. */
+  onCollapse?: () => void;
   search?: () => JSX.Element;
   searchLabel?: string;
 }) {
@@ -50,20 +51,24 @@ export function CrmSidebar(props: {
             search={props.search}
             searchLabel={props.searchLabel}
             collapseControl={
-              <Tooltip label="Collapse CRM sidebar">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  label="Collapse CRM sidebar"
-                  onClick={props.onCollapse}
-                >
-                  <SidebarIcon class="size-4" />
-                </Button>
-              </Tooltip>
+              <Show when={props.onCollapse}>
+                <Tooltip label="Collapse CRM sidebar">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    label="Collapse CRM sidebar"
+                    onClick={props.onCollapse}
+                  >
+                    <SidebarIcon class="size-4" />
+                  </Button>
+                </Tooltip>
+              </Show>
             }
           >
             <div class="flex min-w-0 items-center gap-1">
-              <ViewSidebar.CloseButton class="shrink-0" />
+              <Show when={props.onCollapse}>
+                <ViewSidebar.CloseButton class="shrink-0" />
+              </Show>
               <ViewSidebar.Title>Customers</ViewSidebar.Title>
             </div>
           </ViewSidebar.Header>

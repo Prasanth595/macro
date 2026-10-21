@@ -72,7 +72,8 @@
   /* Glass chrome, ported from the marketing site's hero CTA ring
      (solid-site `.home-hero-cta-bar`). The look is four things layered on a
      translucent surface: a backdrop blur, a bright inner top edge, a dark
-     inner bottom edge, and a 135deg specular rim.
+     inner bottom edge, and a diagonal specular rim. Touch surfaces use only
+     the diagonal reflections with short, dimmer opposing corners.
 
      Split in two so the size scale and the theme stay independent:
 
@@ -86,6 +87,7 @@
        inherited light-mode value, so they must never name a color or a
        strength directly — palette lives here, and only here. */
   --glass-tint: var(--color-content-1);
+  --glass-press-tint: var(--color-content-1);
   --glass-shade-color: var(--color-surface-0);
   --glass-shadow-alpha: 0.55;
   --glass-highlight-base: 6%;
@@ -93,10 +95,10 @@
   --glass-rim-strong-base: 13.5%;
   --glass-rim-soft-base: 9%;
   --glass-rim-shade-base: 0%;
-  /* Mobile chrome has a continuous rim with two diagonal reflections. */
+  --glass-rim-gap-ratio: 0;
+  /* Mobile chrome has two diagonal reflections with quiet opposing corners. */
   --island-rim-strong: 28%;
   --island-rim-soft: 12%;
-  --island-rim-faint: 4%;
 
   /* Depth-0 defaults for content rendered outside a Layer marker. */
   --layer-surface: var(--color-surface-0);
@@ -115,6 +117,7 @@
    shared, so every size scales the same way in both themes. */
 html[data-theme-light='true'] {
   --glass-tint: white;
+  --glass-press-tint: white;
   --glass-shade-color: var(--color-content-0);
   --glass-shadow-alpha: 0.28;
   --glass-highlight-base: 55%;
@@ -123,9 +126,10 @@ html[data-theme-light='true'] {
   --glass-rim-soft-base: 30%;
   /* A faint ink rim keeps white reflections legible on pale surfaces. */
   --glass-rim-shade-base: 7%;
+  /* Keep quiet corners close to the highlight instead of exposing a dark rim. */
+  --glass-rim-gap-ratio: 0.85;
   --island-rim-strong: 75%;
   --island-rim-soft: 40%;
-  --island-rim-faint: 16%;
 }
 
 html[data-platform='ios'],
@@ -746,8 +750,8 @@ html[data-theme-light='true']:not([data-touch-device='true']) {
    utility so it composes with variants — `mobile:island` — instead of
    hand-prefixing each part. */
 @utility island {
-  /* Dark mode uses glass; light mode keeps its ring and cast shadow. */
-  @apply min-h-[40px] min-w-[40px] bg-chrome text-ink dark-mode:glass light-mode:ring light-mode:ring-edge/70 light-mode:shadow-[0_4px_20px_8px_oklch(0.15_0_0/0.07)];
+  /* Both themes share the diagonal rim; light mode keeps a soft cast shadow. */
+  @apply min-h-[40px] min-w-[40px] bg-chrome text-ink glass light-mode:shadow-[0_4px_20px_8px_oklch(0.15_0_0/0.07)];
 
   --glass-blur: 18px;
   --glass-saturate: 1.5;
@@ -758,16 +762,15 @@ html[data-theme-light='true']:not([data-touch-device='true']) {
       var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
 
-  /* A quiet continuous edge, with broad reflections at the upper-left and
-     lower-right. Unlike desktop glass, the rim never disappears entirely
-     between the highlights. Glass owns the rim's geometry and mask. */
+  /* Keep a bright rim around most of the shape, with short soft gaps at the
+     top-right and bottom-left, including wide pills. Glass owns the mask. */
   --glass-rim-background: linear-gradient(
-    135deg,
+    to bottom right,
     color-mix(in oklch, var(--glass-tint) var(--island-rim-strong), transparent) 0%,
-    color-mix(in oklch, var(--glass-tint) var(--island-rim-soft), transparent) 18%,
-    color-mix(in oklch, var(--glass-tint) var(--island-rim-faint), transparent) 42%,
-    color-mix(in oklch, var(--glass-tint) var(--island-rim-faint), transparent) 58%,
-    color-mix(in oklch, var(--glass-tint) var(--island-rim-soft), transparent) 82%,
+    color-mix(in oklch, var(--glass-tint) var(--island-rim-soft), transparent) 42%,
+    color-mix(in oklch, var(--glass-tint) calc(var(--island-rim-soft) * var(--glass-rim-gap-ratio)), transparent) 49%,
+    color-mix(in oklch, var(--glass-tint) calc(var(--island-rim-soft) * var(--glass-rim-gap-ratio)), transparent) 51%,
+    color-mix(in oklch, var(--glass-tint) var(--island-rim-soft), transparent) 58%,
     color-mix(in oklch, var(--glass-tint) var(--island-rim-strong), transparent) 100%
   );
 }
@@ -782,10 +785,12 @@ html[data-theme-light='true']:not([data-touch-device='true']) {
    without owning its pseudo-element. */
 @utility glass {
   --glass-rim-background: linear-gradient(
-    135deg,
+    to bottom right,
     color-mix(in oklch, var(--glass-tint) calc(var(--glass-rim-strong-base) * var(--glass-scale)), transparent) 0%,
-    transparent 24%,
-    transparent 76%,
+    color-mix(in oklch, var(--glass-tint) calc(var(--glass-rim-soft-base) * var(--glass-scale)), transparent) 42%,
+    color-mix(in oklch, var(--glass-tint) calc(var(--glass-rim-soft-base) * var(--glass-scale) * var(--glass-rim-gap-ratio)), transparent) 49%,
+    color-mix(in oklch, var(--glass-tint) calc(var(--glass-rim-soft-base) * var(--glass-scale) * var(--glass-rim-gap-ratio)), transparent) 51%,
+    color-mix(in oklch, var(--glass-tint) calc(var(--glass-rim-soft-base) * var(--glass-scale)), transparent) 58%,
     color-mix(in oklch, var(--glass-tint) calc(var(--glass-rim-soft-base) * var(--glass-scale)), transparent) 100%
   );
   position: relative;
@@ -804,6 +809,11 @@ html[data-theme-light='true']:not([data-touch-device='true']) {
     inset 0 -1px 0 color-mix(in oklch, var(--glass-shade-color) calc(var(--glass-shade-base) * var(--glass-scale)), transparent),
     0 var(--glass-shadow-y) var(--glass-shadow-blur) var(--glass-shadow-spread)
       oklch(0 0 0 / calc(var(--glass-shadow-alpha) * var(--glass-shadow-scale, var(--glass-scale))));
+  @variant touch {
+    --glass-shadow:
+      0 var(--glass-shadow-y) var(--glass-shadow-blur) var(--glass-shadow-spread)
+        oklch(0 0 0 / calc(var(--glass-shadow-alpha) * var(--glass-shadow-scale, var(--glass-scale))));
+  }
   backdrop-filter: var(--glass-backdrop);
   box-shadow: var(--glass-shadow);
 
@@ -998,11 +1008,13 @@ html[data-theme-light='true'] :is(.glass-input, .elevated-surface) {
   initial-value: 0px;
 }
 
-/* Persistent paint layers belong to the material, including native controls.
+/* Native iOS press paint layers belong to the material, including channel inputs.
    ::before paints the live fill, shadow and tap-centered sheen; ::after keeps
    the glass rim. No child nodes, computed-style snapshots or release cleanup.
    Keep this scope in sync with glassPress.ts's surface selection. */
-html[data-touch-device='true'] :is(
+html[data-platform='ios'][data-touch-device='true'] :is(
+  [data-glass-input],
+  [data-input] [data-composer-collapsed],
   [data-mobile-dock-island],
   [data-header-island],
   [data-slot='button-group'].glass,
@@ -1031,12 +1043,12 @@ html[data-touch-device='true'] :is(
     position: absolute;
     z-index: -1;
     pointer-events: none;
-    background-color: var(--glass-fill);
+    background-color: color-mix(in oklch, var(--glass-press-tint) calc(8% * var(--press-light)), var(--glass-fill));
     background-image: radial-gradient(
       circle calc(var(--press-shimmer-size, 100px) * var(--press-spread) / 2)
       at calc(var(--press-x, 50%) + var(--press-expansion)) calc(var(--press-y, 50%) + var(--press-expansion)),
-      color-mix(in oklch, var(--glass-tint) calc(12% * var(--press-light)), transparent),
-      color-mix(in oklch, var(--glass-tint) calc(5% * var(--press-light)), transparent) 45%,
+      color-mix(in oklch, var(--glass-press-tint) calc(28% * var(--press-light)), transparent),
+      color-mix(in oklch, var(--glass-press-tint) calc(12% * var(--press-light)), transparent) 45%,
       transparent 100%
     );
     backdrop-filter: var(--glass-backdrop, none);
@@ -1069,7 +1081,7 @@ html[data-touch-device='true'] :is(
       --press-expansion: var(--press-outset);
 
       & svg {
-        scale: 1.08;
+        scale: 1.18;
       }
     }
     &[data-glass-press]::before {
@@ -1728,6 +1740,7 @@ html:not([data-touch-device="true"]) [data-message][data-targeted]:hover{
 
 /* Immediate touch feedback for mobile soup entity rows */
 [data-soup-entity].touch-highlight [data-swipe-content],
+[data-soup-entity].touch-highlight [data-channel-conversation],
 [data-soup-entity].touch-highlight .soup-list-entity {
   background-color: var(--color-hover);
   transition: none;
