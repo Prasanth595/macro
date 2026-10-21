@@ -124,6 +124,7 @@ fn paths_filter() -> Step<Use> {
                   - '!apps/web/tauri/**/desktop.*'
                   - '!apps/web/tauri/desktop-release.json'
                   - '!apps/web/tauri/.helix/**'
+                  - '!apps/web/tauri/**/*.md'
             "},
         ))
 }
