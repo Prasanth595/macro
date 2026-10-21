@@ -74,7 +74,7 @@ function CopyThemeButton(props: {
       <ClipboardIcon
         class={cn(
           props.size === 'icon-xs' ? 'size-3' : 'size-4',
-          'touch:size-3.5 mobile:size-5'
+          'touch:size-4'
         )}
       />
     </Button>
@@ -95,7 +95,7 @@ function EditThemeButton(props: { name: string; onEdit: () => void }) {
         props.onEdit();
       }}
     >
-      <PencilIcon class="size-4 touch:size-3.5 mobile:size-5" />
+      <PencilIcon class="size-4" />
     </Button>
   );
 }
