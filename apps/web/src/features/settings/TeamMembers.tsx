@@ -531,8 +531,9 @@ export function TeamMembers(props: { team: TeamSummary }) {
               }
             >
               {/* Long rosters scroll inside the card so Invite settings
-                  below stay in reach. */}
-              <SettingsCard class="max-h-112 overflow-y-auto! overscroll-contain">
+                  below stay in reach. The height cuts a row in half so the
+                  list visibly continues. */}
+              <SettingsCard class="max-h-[418px] overflow-y-auto! overscroll-contain">
                 <For each={filteredMembers()}>
                   {(member) => (
                     <MemberRow
