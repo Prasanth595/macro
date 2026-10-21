@@ -10,6 +10,7 @@ import { PosthogProvider, usePosthog } from '@app/lib/analytics/posthog';
 import { trackSignupCompletion } from '@app/lib/analytics/signupCompletion';
 import { setHotkeyRoot } from '@app/signal/hotkeyRoot';
 import { IncomingCallEvents } from '@block-call/sidebar/incoming-calls';
+import { CallAloneWatcher } from '@channel/Call/CallAloneWatcher';
 import { CallProvider } from '@channel/Call/CallContext';
 import { CallStartedNotifier } from '@channel/Call/CallStartedNotifier';
 import { CallKitSync } from '@channel/Call/use-callkit';
@@ -223,6 +224,7 @@ export function Root() {
                     <CallProvider>
                       <CallKitSync />
                       <CallStartedNotifier />
+                      <CallAloneWatcher />
                       <IncomingCallEvents />
                       <QuickAccessProvider>
                         <Title>{tabTitle()}</Title>
