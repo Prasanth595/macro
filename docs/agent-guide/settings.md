@@ -175,8 +175,8 @@ it is the only split (Home when there is none). Leave settings by picking any
 other rail item; there is no separate back or fullscreen control.
 
 Settings pages use flat, light-gray cards with subtle row separators. Section
-headings sit above the cards, and controls share rounded shapes and compact
-spacing. Nested rows share one surface instead of adding another box or shadow.
+headings sit above the cards, with more space between major sections and compact
+spacing within each group. Controls share rounded shapes. Nested rows share one surface instead of adding another box or shadow.
 The compact sidebar uses the shared workspace width.
 
 When a newer version is ready, an **Update available** button (a download icon
@@ -466,10 +466,11 @@ available in all channels should refresh there without reloading the channel.
 With `pipedream-mcp` enabled, Settings → Integrations labels the Email/GitHub
 section Core Integrations and the connector section Agent Integrations. It displays installed tools above
 Discover, without tabs or a separate installed sidebar. Installed tools use a two-column card grid (one column on narrow screens); Discover
-has a search field and Add Custom action above featured cards and the app
-list. Search and the gray Add Custom action share a height and stack on narrow screens.
+shows Featured first, then All apps with a gray Add Custom action beside its
+heading. Search and the category picker share a row directly below that heading
+and stack on narrow screens.
 Installed and Discover use headings above rounded cards. The overview uses
-compact section spacing and consistent light gray card backgrounds.
+more space between major sections and consistent light gray card backgrounds.
 Two thin, stacked setup rows appear at the top. “Use Macro in Claude Code or
 AI apps” opens connection setup; “Connect your local agents to Macro”
 opens Runtimes to connect a local machine. Email and GitHub cards appear next under Core Integrations;
@@ -479,7 +480,10 @@ All apps groups each app under its first nonempty Pipedream category; apps witho
 category metadata appear under More apps. Categories lead with Productivity,
 Communication, Developer Tools, AI, File Storage, and CRM; remaining categories
 follow the configured work-app order, then alphabetically, with More apps last.
-Search and pagination preserve those groups. Use the category picker beside
+Search sits beside the category picker directly above the Pipedream catalog;
+Featured remains visible while searching. Scrolling toward the end loads the next
+page automatically and preserves category groups. A failed next page keeps loaded
+apps visible and offers Retry. Use the category picker below
 All apps to show one group; changing the search returns to all categories. Group
 counts reflect the currently loaded results.
 Featured and catalog cards use two columns on wide screens and one on narrow

@@ -1,3 +1,4 @@
+import { useInfiniteScrollSentinel } from '@app/lib/primitives/infinite-scroll-sentinel';
 import { toast } from '@core/component/Toast/Toast';
 import { PipedreamConnectorIcon } from '@core/pipedream/ConnectorIcon';
 import {
@@ -42,14 +43,6 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
   );
   const [addingCustom, setAddingCustom] = createSignal(false);
 
-  const featured = createMemo(() => {
-    const query = catalog.searchInput().trim().toLowerCase();
-    return EMPTY_STARTERS.filter((item) => {
-      const haystack = `${item.name} ${item.note}`.toLowerCase();
-      return !query || haystack.includes(query);
-    });
-  });
-
   const rest = createMemo(() => {
     const query = catalog.search().trim().toLowerCase();
     return catalog.entries().filter((entry) => {
@@ -80,54 +73,22 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
     })),
   ]);
 
-  return (
-    <div class="@container/catalog flex flex-col gap-4">
-      <div class="grid grid-cols-1 gap-2 @[440px]/catalog:grid-cols-[minmax(0,1fr)_auto]">
-        <label class="relative block min-w-0">
-          <span class="sr-only">Search integrations</span>
-          <MagnifyingGlassIcon
-            class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted"
-            aria-hidden="true"
-          />
-          <input
-            type="search"
-            value={catalog.searchInput()}
-            onInput={(event) => {
-              setSelectedCategory('all');
-              catalog.onSearchInput(event.currentTarget.value);
-            }}
-            placeholder="Search integrations"
-            class="h-10 w-full rounded-full border border-edge-muted bg-ink/4 pr-10 pl-9 text-sm text-ink outline-none placeholder:text-ink-muted focus-visible:border-edge-focus focus-visible:ring-1 focus-visible:ring-edge-focus [&::-webkit-search-cancel-button]:hidden"
-          />
-          <Show when={catalog.searchInput()}>
-            <button
-              type="button"
-              aria-label="Clear search"
-              class="absolute top-1/2 right-2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-ink-muted outline-none hover:bg-ink/4 hover:text-ink focus-visible:bg-ink/6"
-              onPointerDown={(event) => event.preventDefault()}
-              onClick={() => {
-                setSelectedCategory('all');
-                catalog.onSearchInput('');
-              }}
-            >
-              <XIcon class="size-4" />
-            </button>
-          </Show>
-        </label>
-        <Button
-          variant="ghost"
-          size="md"
-          class="h-10 bg-ink/4 px-4"
-          onClick={() => setAddingCustom(true)}
-        >
-          <PlusIcon class="size-4" /> Add Custom
-        </Button>
-      </div>
+  const [sentinel, setSentinel] = createSignal<HTMLDivElement>();
+  const loadMore = () =>
+    fireAndForget(catalog.query.fetchNextPage(), 'connections-settings');
+  useInfiniteScrollSentinel({
+    sentinel,
+    hasNextPage: () => catalog.query.hasNextPage && !catalog.query.isError,
+    isFetchingNextPage: () => catalog.query.isFetching,
+    fetchNextPage: loadMore,
+  });
 
+  return (
+    <div class="@container/catalog flex flex-col gap-6">
       <section aria-label="Featured integrations">
         <h4 class="mb-2 text-sm font-medium text-ink-muted">Featured</h4>
         <div class="grid grid-cols-1 gap-3 @[440px]/catalog:grid-cols-2">
-          <For each={featured()}>
+          <For each={EMPTY_STARTERS}>
             {(item) => (
               <div class="@container overflow-hidden rounded-2xl border border-edge-muted bg-ink/4">
                 <button
@@ -152,25 +113,63 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
             )}
           </For>
         </div>
-        <Show when={featured().length === 0}>
-          <p class="text-sm text-ink-muted">No featured Connections match.</p>
-        </Show>
       </section>
 
       <section aria-label="All integrations">
-        <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div class="mb-3 flex items-center justify-between gap-3">
           <h4 class="text-base font-medium text-ink">All apps</h4>
+          <Button
+            variant="ghost"
+            size="md"
+            class="h-10 bg-ink/4 px-4"
+            onClick={() => setAddingCustom(true)}
+          >
+            <PlusIcon class="size-4" /> Add Custom
+          </Button>
+        </div>
+        <div class="mb-4 grid grid-cols-1 gap-2 @[440px]/catalog:grid-cols-[minmax(0,1fr)_auto]">
+          <label class="relative block min-w-0">
+            <span class="sr-only">Search apps</span>
+            <MagnifyingGlassIcon
+              class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-muted"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              value={catalog.searchInput()}
+              onInput={(event) => {
+                setSelectedCategory('all');
+                catalog.onSearchInput(event.currentTarget.value);
+              }}
+              placeholder="Search apps"
+              class="h-10 w-full rounded-full border border-edge-muted bg-ink/4 pr-10 pl-9 text-sm text-ink outline-none placeholder:text-ink-muted focus-visible:border-edge-focus focus-visible:ring-1 focus-visible:ring-edge-focus [&::-webkit-search-cancel-button]:hidden"
+            />
+            <Show when={catalog.searchInput()}>
+              <button
+                type="button"
+                aria-label="Clear search"
+                class="absolute top-1/2 right-2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-ink-muted outline-none hover:bg-ink/4 hover:text-ink focus-visible:bg-ink/6"
+                onPointerDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  setSelectedCategory('all');
+                  catalog.onSearchInput('');
+                }}
+              >
+                <XIcon class="size-4" />
+              </button>
+            </Show>
+          </label>
           <SettingsSelect
             label="Filter apps by category"
             options={categoryOptions()}
             value={activeCategory()}
             onChange={setSelectedCategory}
-            class="w-52 max-w-full"
-            triggerClass="settings-input h-9 w-full text-sm"
+            class="w-full @[440px]/catalog:w-52"
+            triggerClass="settings-input h-10 w-full text-sm"
           />
         </div>
-        <div class="grid grid-cols-1 gap-3 @[440px]/catalog:grid-cols-2">
-          <Show when={catalog.query.isError}>
+        <div class="grid grid-cols-1 gap-6">
+          <Show when={catalog.query.isError && catalog.entries().length === 0}>
             <div class="col-span-full px-6 py-6 text-center text-sm text-ink-muted">
               Couldn't load the connector catalog.
               <Button
@@ -184,7 +183,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
               </Button>
             </div>
           </Show>
-          <Show when={!catalog.query.isError}>
+          <Show when={!catalog.query.isError || catalog.entries().length > 0}>
             <For each={visibleCategories()}>
               {(category) => (
                 <section class="col-span-full" aria-label={category.name}>
@@ -232,28 +231,26 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
                 <SpinnerIcon class="size-4 animate-spin text-ink-muted" />
               </div>
             </Show>
-            <Show
-              when={
-                rest().length > 0 &&
-                !catalog.query.isFetching &&
-                catalog.query.hasNextPage
-              }
-            >
-              <div class="col-span-full px-4 py-3 text-center">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  depth={3}
-                  onClick={() =>
-                    fireAndForget(
-                      catalog.query.fetchNextPage(),
-                      'connections-settings'
-                    )
-                  }
-                >
-                  Load more
+            <Show when={catalog.query.isFetchNextPageError}>
+              <div class="col-span-full flex items-center justify-center gap-3 py-4 text-sm text-ink-muted">
+                Couldn't load more apps.
+                <Button variant="outline" size="sm" onClick={loadMore}>
+                  Retry
                 </Button>
               </div>
+            </Show>
+            <Show
+              when={
+                catalog.query.hasNextPage &&
+                !catalog.query.isFetching &&
+                !catalog.query.isError
+              }
+            >
+              <div
+                ref={setSentinel}
+                class="col-span-full h-px"
+                aria-hidden="true"
+              />
             </Show>
           </Show>
         </div>

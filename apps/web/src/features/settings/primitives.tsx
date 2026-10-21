@@ -103,7 +103,7 @@ export function SettingsPage(props: {
         <div
           class={cn(
             'flex flex-col',
-            inSheet ? 'mt-3 gap-5' : 'mt-5 gap-5',
+            inSheet ? 'mt-3 gap-6' : 'mt-6 gap-8',
             props.bodyClass
           )}
         >
