@@ -287,7 +287,7 @@ export function LeftoverRow(props: { leftover: Leftover }) {
     return match(leftover)
       .with({ kind: 'native-mcp' }, (item) => (
         <IntegrationRow
-          class="gap-2 px-3 py-3"
+          class="gap-3 px-4 py-3"
           title={item.title}
           description={
             <>
@@ -304,7 +304,7 @@ export function LeftoverRow(props: { leftover: Leftover }) {
       ))
       .with({ kind: 'pipedream' }, (item) => (
         <IntegrationRow
-          class="gap-2 px-3 py-3"
+          class="gap-3 px-4 py-3"
           icon={
             <PipedreamConnectorIcon appSlug={item.appSlug} class="size-8" />
           }

@@ -28,13 +28,13 @@ function IntegrationSetupCallouts(props: {
   onOpenLocalAgents: () => void;
 }) {
   return (
-    <div class="grid grid-cols-1 gap-3 @[760px]/settings-page:grid-cols-2">
-      <div class="flex items-center justify-between gap-4 rounded-2xl border border-edge-muted bg-ink/4 p-4">
+    <div class="flex flex-col gap-2">
+      <div class="flex items-center justify-between gap-4 rounded-2xl border border-edge-muted bg-ink/4 px-4 py-2">
         <p class="text-base font-medium text-ink">
           Use Macro in Claude Code or other AI apps
         </p>
         <Button
-          variant="outline"
+          variant="ghost"
           size="md"
           aria-label="Set up Macro in AI apps"
           onClick={props.onOpenMacroMcp}
@@ -42,12 +42,12 @@ function IntegrationSetupCallouts(props: {
           Set up
         </Button>
       </div>
-      <div class="flex items-center justify-between gap-4 rounded-2xl border border-edge-muted bg-ink/4 p-4">
+      <div class="flex items-center justify-between gap-4 rounded-2xl border border-edge-muted bg-ink/4 px-4 py-2">
         <p class="text-base font-medium text-ink">
           Connect your local agents to Macro
         </p>
         <Button
-          variant="outline"
+          variant="ghost"
           size="md"
           aria-label="Set up local agents"
           onClick={props.onOpenLocalAgents}

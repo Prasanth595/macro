@@ -71,7 +71,7 @@ when Gmail has no signature. Unsaved drafts
 survive switching settings pages. On phones, signature editing remains desktop-only;
 the replies/forwards toggle and clear action are available.
 Email accounts can also be managed from **Integrations**. Its **Email settings**
-link opens the dedicated page, and Email links to Notifications and Calendar.
+gear opens the dedicated page, and Email links to Notifications and Calendar.
 With a composer open, save a changed signature or reply-signature preference and
 verify its preview updates. Once the account refresh completes, reopen a composer
 offline and confirm it uses the saved settings.
@@ -467,14 +467,14 @@ With `pipedream-mcp` enabled, Settings → Integrations labels the Email/GitHub
 section Core Integrations and the connector section Agent Integrations. It displays installed tools above
 Discover, without tabs or a separate installed sidebar. Installed tools use a two-column card grid (one column on narrow screens); Discover
 has a search field and Add Custom action above featured cards and the app
-list. These pill-shaped controls share a height and stack on narrow screens.
+list. Search and the quiet Add Custom action share a height and stack on narrow screens.
 Installed and Discover use headings above rounded cards. The overview uses
 compact section spacing and consistent light gray card backgrounds.
-A “Use Macro in Claude Code or other AI apps” callout at the top has a
-Set up action for connection setup. Beside it, “Connect your local agents to
-Macro” opens Runtimes to connect a local machine. Email and GitHub cards appear next under Core Integrations;
-the two cards share a height and their plain-text settings links sit below,
-above Installed and Discover.
+Two thin, stacked setup rows appear at the top. “Use Macro in Claude Code or
+other AI apps” opens connection setup; “Connect your local agents to Macro”
+opens Runtimes to connect a local machine. Email and GitHub cards appear next under Core Integrations;
+the two cards share a height. A small gear on the Email card opens Email settings;
+Calendar settings remain available from the settings sidebar.
 All apps groups each app under its first nonempty Pipedream category; apps without
 category metadata appear under Other. Search and pagination preserve those groups.
 Featured and catalog cards use two columns on wide screens and one on narrow

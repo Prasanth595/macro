@@ -1,6 +1,5 @@
 import { ENABLE_EMAIL } from '@core/constant/featureFlags';
 import { useSettingsState } from '@core/constant/SettingsState';
-import { useSettingsTabAvailable } from '@core/constant/settingsTabsConfig';
 import { usePipedreamMcpFlag } from '@core/pipedream/flag';
 import { Show, Suspense } from 'solid-js';
 import { IntegrationsView } from './connections/integrations-view';
@@ -37,7 +36,6 @@ export function IntegrationsPage() {
 
 function AccountConnections() {
   const { openSettings } = useSettingsState();
-  const isAvailable = useSettingsTabAvailable();
   return (
     <section
       data-settings-target="accounts"
@@ -48,32 +46,15 @@ function AccountConnections() {
       <div class="grid grid-cols-1 items-stretch gap-4 @[760px]/settings-page:grid-cols-2">
         <Show when={ENABLE_EMAIL}>
           <Suspense>
-            <EmailCard class="h-full bg-ink/4 shadow-none light-mode:shadow-none touch:bg-ink/4" />
+            <EmailCard
+              class="h-full bg-ink/4 shadow-none light-mode:shadow-none touch:bg-ink/4"
+              onOpenSettings={() => openSettings('Email')}
+            />
           </Suspense>
         </Show>
         <Suspense>
           <GitHubCard class="h-full bg-ink/4 shadow-none light-mode:shadow-none touch:bg-ink/4" />
         </Suspense>
-      </div>
-      <div class="mt-3 flex flex-wrap items-center justify-end gap-4">
-        <Show when={ENABLE_EMAIL}>
-          <button
-            type="button"
-            class="inline-flex items-center text-sm text-ink-muted outline-none hover:text-ink hover:underline focus-visible:underline touch:min-h-[44px]"
-            onClick={() => openSettings('Email')}
-          >
-            Email settings
-          </button>
-        </Show>
-        <Show when={isAvailable('Calendar')}>
-          <button
-            type="button"
-            class="inline-flex items-center text-sm text-ink-muted outline-none hover:text-ink hover:underline focus-visible:underline touch:min-h-[44px]"
-            onClick={() => openSettings('Calendar')}
-          >
-            Calendar settings
-          </button>
-        </Show>
       </div>
     </section>
   );
