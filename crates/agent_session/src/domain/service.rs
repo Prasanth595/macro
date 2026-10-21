@@ -1263,6 +1263,13 @@ where
     let AgentAction::Prompt(prompt) = action else {
         return None;
     };
+    if prompt
+        .notifications
+        .as_ref()
+        .is_some_and(|input| input.system_turn)
+    {
+        return None;
+    }
     // Whether anyone has *spoken* here yet, rather than whether the log has
     // opened a turn: controls take turns of their own, so a session whose
     // model was set before its first prompt would otherwise never be named.
@@ -1406,6 +1413,7 @@ fn frame_telemetry(content: &Message) -> (&'static str, Option<&str>) {
         Message::ToServer(ToServerMessage::Event { event }) => ("event", Some(event.as_str())),
         Message::ToServer(_) => ("acp_to_server", None),
         Message::ToRuntime(_) => ("acp_to_runtime", None),
+        Message::Notification(_) => ("notification", None),
     }
 }
 
@@ -1542,6 +1550,7 @@ fn flushes_through(content: &Message) -> bool {
     matches!(
         content,
         Message::ToRuntime(_)
+            | Message::Notification(_)
             | Message::ToServer(ToServerMessage::Event { .. })
             | Message::ToServer(ToServerMessage::Acp(AcpMessage(
                 RawJsonRpcMessage::Response(_)
@@ -1625,6 +1634,7 @@ where
             let (direction, frame) = match &log.content {
                 Message::ToServer(message) => ("to_server", serde_json::to_string(message)),
                 Message::ToRuntime(message) => ("to_runtime", serde_json::to_string(message)),
+                Message::Notification(message) => ("notification", serde_json::to_string(message)),
             };
             tracing::trace!(
                 %session,
