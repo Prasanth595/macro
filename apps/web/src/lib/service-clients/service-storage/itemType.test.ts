@@ -72,12 +72,9 @@ describe('stringToItemType', () => {
     }
   );
 
-  test.each(['channel_message', 'bogus'])(
-    'rejects %s',
-    (raw) => {
-      expect(stringToItemType(raw)).toBeUndefined();
-    }
-  );
+  test.each(['channel_message', 'bogus'])('rejects %s', (raw) => {
+    expect(stringToItemType(raw)).toBeUndefined();
+  });
 });
 
 describe('blockNameToItemType', () => {
