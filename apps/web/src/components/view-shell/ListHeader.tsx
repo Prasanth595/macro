@@ -1,5 +1,5 @@
 import SearchIcon from '@phosphor/magnifying-glass.svg';
-import { Button, ButtonGroup, cn } from '@ui';
+import { Button, cn } from '@ui';
 import { createSignal, type JSX, onMount, Show } from 'solid-js';
 import { SearchBar } from './SearchBar';
 import { ViewShell } from './ViewShell';
@@ -15,22 +15,6 @@ export function ListHeader(props: {
         {props.children}
       </div>
     </ViewShell.TopBar>
-  );
-}
-
-export function ListHeaderGroup(props: {
-  label: string;
-  children: JSX.Element;
-}) {
-  return (
-    <ButtonGroup
-      label={props.label}
-      variant="outline"
-      size="icon-md"
-      class="shrink-0"
-    >
-      {props.children}
-    </ButtonGroup>
   );
 }
 

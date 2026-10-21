@@ -6,7 +6,6 @@ import {
 } from '@app/components/view-shell';
 import {
   ListHeader,
-  ListHeaderGroup,
   ListHeaderSearch,
 } from '@app/components/view-shell/ListHeader';
 import { VIEW_SHELL_TOUR } from '@app/components/view-shell/tour';
@@ -20,6 +19,7 @@ import { SoupViewContextSort } from '@app/features/next-soup/soup-view/filters-b
 import { UnifiedFilterDropdown } from '@app/features/next-soup/soup-view/filters-bar/unified-filter-dropdown';
 import { useFilterRefinements } from '@app/features/next-soup/soup-view/filters-bar/use-filter-refinements';
 import { usePreference } from '@app/preferences/use-preference';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { SplitPanel } from '@components/app/split-panel';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { debounce } from '@core/util/debounce';
@@ -592,38 +592,34 @@ export function CrmWorkspaceView(props: {
               }
             >
               <Show when={!peopleActive()}>
-                <ListHeaderGroup label="Company filters">
-                  <div class="[&_button]:size-8 [&_button>svg]:size-4!">
-                    <UnifiedFilterDropdown hideLabel variant="ghost" />
-                  </div>
-                </ListHeaderGroup>
-                <ListHeaderGroup label="Company view options">
-                  <div class="flex items-center [&_button]:h-8 [&_button]:min-w-8 [&_button>svg]:size-4!">
-                    <SoupViewContextSort />
-                    <SoupViewContextGroup hideLabel variant="ghost" />
-                    <CompanyDisplayMenu />
-                    <Suspense>
-                      <CompanyViewsMenu hideLabel />
-                    </Suspense>
-                    <Show when={listsEnabled() && activeList()}>
-                      {(list) => (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setEditing({
-                              id: list().id,
-                              name: list().name,
-                              companyIds: [...list().config.companyIds],
-                            })
-                          }
-                        >
-                          Edit list
-                        </Button>
-                      )}
-                    </Show>
-                  </div>
-                </ListHeaderGroup>
+                <HeaderActionGroup label="Company filters">
+                  <UnifiedFilterDropdown hideLabel variant="ghost" />
+                </HeaderActionGroup>
+                <HeaderActionGroup label="Company view options">
+                  <SoupViewContextSort />
+                  <SoupViewContextGroup hideLabel variant="ghost" />
+                  <CompanyDisplayMenu />
+                  <Suspense>
+                    <CompanyViewsMenu hideLabel />
+                  </Suspense>
+                  <Show when={listsEnabled() && activeList()}>
+                    {(list) => (
+                      <Button
+                        variant="ghost"
+                        size="md"
+                        onClick={() =>
+                          setEditing({
+                            id: list().id,
+                            name: list().name,
+                            companyIds: [...list().config.companyIds],
+                          })
+                        }
+                      >
+                        Edit list
+                      </Button>
+                    )}
+                  </Show>
+                </HeaderActionGroup>
               </Show>
               {toolbarCreateMenu()}
               <CrmHeaderSearch

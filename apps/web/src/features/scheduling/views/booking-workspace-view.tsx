@@ -1,10 +1,10 @@
 import { SearchBar, ViewShell, ViewSidebar } from '@app/components/view-shell';
 import {
   ListHeader,
-  ListHeaderGroup,
   ListHeaderSearch,
 } from '@app/components/view-shell/ListHeader';
 import { ViewCreateButton } from '@app/components/view-shell/ViewCreateButton';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { fireAndForget } from '@core/util/fireAndForget';
 import PageIcon from '@phosphor/browser.svg';
@@ -400,7 +400,7 @@ export function BookingWorkspaceView(props: {
               <>
                 <Show when={owner()?.scope().canEdit}>
                   <Show when={search.tab === 'links'}>
-                    <ListHeaderGroup label="Booking link tools">
+                    <HeaderActionGroup label="Booking link tools">
                       <Button
                         label="Create with agent"
                         variant="ghost"
@@ -416,7 +416,7 @@ export function BookingWorkspaceView(props: {
                       >
                         <SparkleIcon class="size-4" />
                       </Button>
-                    </ListHeaderGroup>
+                    </HeaderActionGroup>
                   </Show>
                   <ViewCreateButton
                     presentation="toolbar"

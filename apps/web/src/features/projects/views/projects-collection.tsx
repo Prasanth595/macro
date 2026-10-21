@@ -15,7 +15,6 @@ import {
 } from '@app/components/view-shell';
 import {
   ListHeader,
-  ListHeaderGroup,
   ListHeaderSearch,
 } from '@app/components/view-shell/ListHeader';
 import { SidebarCreateButton } from '@app/components/view-shell/SidebarCreateButton';
@@ -26,6 +25,7 @@ import {
 } from '@app/features/soup/collection/rows';
 import { TaskGroupHeader } from '@app/features/tasks-view/components/task-list/TaskGroupHeader';
 import { taskGridColumnCount } from '@app/features/tasks-view/components/task-list/task-grid-template';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { toast } from '@core/component/Toast/Toast';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { compareDateDesc } from '@core/util/date';
@@ -556,15 +556,15 @@ export function ProjectsCollection(props: {
               </h1>
             }
           >
-            <ListHeaderGroup label="Project filters">
+            <HeaderActionGroup label="Project filters">
               {filterControl()}
               {dueDateControl()}
-            </ListHeaderGroup>
-            <ListHeaderGroup label="Project view options">
+            </HeaderActionGroup>
+            <HeaderActionGroup label="Project view options">
               {layoutControl()}
               {sortControl()}
               {groupControl()}
-            </ListHeaderGroup>
+            </HeaderActionGroup>
             {props.createAction ?? (
               <ViewCreateButton
                 aria-label="New project"

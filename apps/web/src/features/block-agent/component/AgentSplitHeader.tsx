@@ -196,10 +196,7 @@ export function AgentSplitHeader(props: {
           </Show>
           <Show when={!isTouchDevice()}>
             <ChangesToggle />
-            <HeaderActionGroup
-              label="Session actions"
-              class="has-[[data-button]]:flex hidden"
-            >
+            <HeaderActionGroup label="Session actions">
               <For each={tools}>
                 {(tool) => (
                   <Show when={!tool.condition || tool.condition()}>

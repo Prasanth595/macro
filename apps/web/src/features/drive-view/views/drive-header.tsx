@@ -5,9 +5,9 @@ import {
 } from '@app/components/view-shell';
 import {
   ListHeader,
-  ListHeaderGroup,
   ListHeaderSearch,
 } from '@app/components/view-shell/ListHeader';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { Show, Suspense } from 'solid-js';
@@ -55,21 +55,21 @@ export function DriveHeader() {
           title={<DriveBreadcrumbsOutlet aria-label="Drive location" />}
         >
           <Show when={state.value().location.kind === 'tab'}>
-            <ListHeaderGroup label="File filters">
+            <HeaderActionGroup label="File filters">
               <Suspense>
                 <DriveFilterMenu />
               </Suspense>
-            </ListHeaderGroup>
+            </HeaderActionGroup>
           </Show>
           <Show when={!isRecent()}>
-            <ListHeaderGroup label="File view options">
+            <HeaderActionGroup label="File view options">
               <ListSortDropdown
                 label="Sort files"
                 value={state.value().sort}
                 onChange={state.setSort}
                 options={DRIVE_SORT_OPTIONS}
               />
-            </ListHeaderGroup>
+            </HeaderActionGroup>
           </Show>
           <DriveCreateMenu presentation="toolbar" />
           <Show when={!state.projectId()}>

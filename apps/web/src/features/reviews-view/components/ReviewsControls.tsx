@@ -6,7 +6,6 @@ import {
   MobileFilterDrawer,
   useViewControlHotkeys,
 } from '@app/components/view-shell';
-import { ListHeaderGroup } from '@app/components/view-shell/ListHeader';
 import { PrOriginIcon, PrPriorityIcon } from '@block-pr/component/PrLinks';
 import {
   PR_PRIORITY_IDS,
@@ -14,6 +13,7 @@ import {
   type PrLinkKind,
 } from '@block-pr/data/pr-links';
 import { PR_ORIGIN_LABELS, PR_ORIGIN_TOOLS } from '@block-pr/data/pr-origin';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { Accordion } from '@kobalte/core/accordion';
@@ -189,7 +189,7 @@ export function ReviewsControls(
 
   return (
     <>
-      <ListHeaderGroup label="Review filters">
+      <HeaderActionGroup label="Review filters">
         <ListFilterDropdown
           label="Filter pull requests"
           activeCount={activeCount()}
@@ -201,8 +201,8 @@ export function ReviewsControls(
           onSelectionChange={props.onFilterChange}
           onClear={props.onClearFilters}
         />
-      </ListHeaderGroup>
-      <ListHeaderGroup label="Review layout">
+      </HeaderActionGroup>
+      <HeaderActionGroup label="Review layout">
         <Button
           variant="ghost"
           size="icon-md"
@@ -221,8 +221,8 @@ export function ReviewsControls(
         >
           <BoardIcon class="size-4" />
         </Button>
-      </ListHeaderGroup>
-      <ListHeaderGroup label="Review view options">
+      </HeaderActionGroup>
+      <HeaderActionGroup label="Review view options">
         <ListSortDropdown
           label="Sort pull requests"
           value={props.sort}
@@ -232,7 +232,7 @@ export function ReviewsControls(
           onOpenChange={handleMenuOpenChange('sort')}
           triggerRef={(element) => (sortTrigger = element)}
         />
-      </ListHeaderGroup>
+      </HeaderActionGroup>
     </>
   );
 }

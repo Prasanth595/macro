@@ -77,7 +77,6 @@ vi.mock('@app/components/view-shell', () => ({
 }));
 vi.mock('@app/components/view-shell/ListHeader', () => ({
   ListHeader: (props: ParentProps) => props.children,
-  ListHeaderGroup: (props: ParentProps) => props.children,
   ListHeaderSearch: () => null,
 }));
 vi.mock('@app/components/view-shell/SidebarCreateButton', () => ({

@@ -517,7 +517,7 @@ export const SoupView = (props: SoupViewProps) => {
                             <Button
                               size="icon-md"
                               variant="outline"
-                              class="p-1 size-7 ml-2"
+                              class="ml-2"
                               onClick={() => setNarrowSearchExpanded(true)}
                               depth={2}
                             >

@@ -1,5 +1,5 @@
 import { ListFilterDropdown } from '@app/components/view-shell';
-import { ListHeaderGroup } from '@app/components/view-shell/ListHeader';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { TOKENS } from '@core/hotkey/tokens';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import ColumnsIcon from '@phosphor/columns.svg';
@@ -22,7 +22,7 @@ export function EmailControls(props: EmailControlsProps) {
   return (
     <>
       <div class="contents @max-[640px]/split-header:hidden">
-        <ListHeaderGroup label="Email filters">
+        <HeaderActionGroup label="Email filters">
           <EmailInboxMenu />
           <div class="relative shrink-0">
             <ListFilterDropdown
@@ -40,9 +40,9 @@ export function EmailControls(props: EmailControlsProps) {
               </span>
             </Show>
           </div>
-        </ListHeaderGroup>
+        </HeaderActionGroup>
       </div>
-      <ListHeaderGroup label="Email view options">
+      <HeaderActionGroup label="Email view options">
         <Show when={!isTouchDevice()}>
           <Button
             variant="ghost"
@@ -56,7 +56,7 @@ export function EmailControls(props: EmailControlsProps) {
             <ColumnsIcon class="size-4" />
           </Button>
         </Show>
-      </ListHeaderGroup>
+      </HeaderActionGroup>
     </>
   );
 }

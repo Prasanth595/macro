@@ -51,8 +51,7 @@ function SingleSelectDropdown<TId extends string>(
       <Dropdown.Trigger
         ref={props.triggerRef}
         variant="ghost"
-        size="md"
-        square
+        size="icon-md"
         class={props.class}
         label={props.label}
       >
@@ -257,8 +256,7 @@ export function ListFilterDropdown<
           <Dropdown.Trigger
             ref={props.triggerRef}
             variant="ghost"
-            size="md"
-            square={!props.activeCount}
+            size={props.activeCount ? 'md' : 'icon-md'}
             class={props.class}
             label={props.label ?? 'Filter list'}
           >

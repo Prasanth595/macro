@@ -4,7 +4,7 @@ import {
   ListSortDropdown,
   useViewControlHotkeys,
 } from '@app/components/view-shell';
-import { ListHeaderGroup } from '@app/components/view-shell/ListHeader';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { useSplitPanelOrThrow } from '@components/app/split-layout/layoutUtils';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import GanttIcon from '@phosphor/chart-bar-horizontal.svg';
@@ -83,7 +83,7 @@ function DesktopTasksControls() {
 
   return (
     <>
-      <ListHeaderGroup label="Task filters">
+      <HeaderActionGroup label="Task filters">
         <div class="shrink-0" ref={tourTarget(TASKS_TOUR.filter)}>
           <ListFilterDropdown
             label="Filter tasks"
@@ -101,8 +101,8 @@ function DesktopTasksControls() {
             }}
           />
         </div>
-      </ListHeaderGroup>
-      <ListHeaderGroup label="Task layout">
+      </HeaderActionGroup>
+      <HeaderActionGroup label="Task layout">
         <Button
           variant="ghost"
           size="icon-md"
@@ -132,8 +132,8 @@ function DesktopTasksControls() {
             <GanttIcon class="size-4" />
           </Button>
         </Show>
-      </ListHeaderGroup>
-      <ListHeaderGroup label="Task view options">
+      </HeaderActionGroup>
+      <HeaderActionGroup label="Task view options">
         <Show
           when={!isBoardSearch()}
           fallback={
@@ -161,7 +161,7 @@ function DesktopTasksControls() {
           options={groupOptions()}
           onChange={(groupBy) => setState('groupBy', groupBy)}
         />
-      </ListHeaderGroup>
+      </HeaderActionGroup>
     </>
   );
 }

@@ -121,10 +121,7 @@ export function TopBar() {
       <SplitHeaderRight>
         <div class="order-[1000] flex items-center gap-2">
           <Show when={!isTouchDevice()}>
-            <HeaderActionGroup
-              label="Folder actions"
-              class="has-[[data-button]]:flex hidden"
-            >
+            <HeaderActionGroup label="Folder actions">
               <For each={toolbarTools()}>
                 {(tool) => (
                   <Show when={!tool.condition || tool.condition()}>
