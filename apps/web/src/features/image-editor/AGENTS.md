@@ -14,13 +14,14 @@ It owns upload controls, file validation, crop/export, and lightbox interactions
 ## Boundaries
 
 - Hosts own drafts, persistence, API calls, cache updates, and modal lifetime.
-- Pass a source only for still images; GIFs render through `pictureUrl` without re-encoding.
+- Saved URLs are loaded once and inspected by GIF signature before cropping; reuse the fetched bytes and never infer format from URL suffixes.
+- Local GIFs render through `pictureUrl` without re-encoding.
 - Mount the preview dialog outside the editor step and guard parent dismissal with `preview.open()`.
 - Load the editor and preview dialog lazily; do not import channel or Settings code here.
 
 ## Checks
 
-- In `apps/web`: `bun run test src/features/channel/components/channel-picture-cropper.test.ts src/features/settings/profile-picture.test.ts`.
+- In `apps/web`: `bun run test src/features/channel/components/channel-picture-cropper.test.ts src/features/settings/profile-picture.test.ts src/features/image-editor/image-source.test.ts`.
 - In `apps/web`: `bun run check`.
 
 ## Gotchas

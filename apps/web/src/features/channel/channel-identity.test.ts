@@ -76,6 +76,7 @@ describe('channel title editing', () => {
       ]);
       action.focus();
       fireEvent.click(action);
+      await vi.dynamicImportSettled();
       const input = await screen.findByRole('textbox', {
         name: 'Channel name',
       });

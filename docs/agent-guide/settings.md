@@ -7,8 +7,8 @@
 Open **Account → Profile Picture** and click the picture (or upload icon).
 The shared image editor supports click-to-upload, single-image drag-and-drop,
 a circular crop preview, zoom/reset, and a floating lightbox preview. PNG, JPG,
-WebP, and GIF files up to 16 MB are supported. Newly selected GIFs keep their
-animation instead of being cropped.
+WebP, and GIF files up to 16 MB are supported. New and saved GIFs keep their
+animation instead of being cropped, even when the stored URL has no file extension.
 
 Changes stay local until **Save**. **Clear image** also requires Save;
 **Cancel**, Escape, and outside dismissal discard the draft. While saving,

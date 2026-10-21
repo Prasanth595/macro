@@ -1269,8 +1269,9 @@ behavior.
 
 PNG, JPG, WebP, and GIF files up to
 16 MB are supported. Selecting a still image opens its crop workspace. An empty
-image step offers the same chooser, and newly selected GIFs show an animated
-preview instead of cropping. Cropping a saved picture loads its full stored
+image step offers the same chooser. New and saved GIFs show an animated preview
+instead of cropping; stored image bytes determine the format, not the URL suffix.
+Cropping a saved picture loads its full stored
 image, not its resized preview. The uncropped source stays available for another
 edit after a failed save. Canceling a replacement leaves the saved image unchanged.
 

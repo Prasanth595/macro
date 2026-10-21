@@ -11,6 +11,7 @@ import { createComponent, createSignal } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ImageCropper from '../../image-editor/components/image-cropper';
 import { ImageUploadArea } from '../../image-editor/components/image-upload-area';
+import { loadImage } from '../../image-editor/queries/load-image';
 import { ChannelIdentityModal } from '../views/channel-identity-editor';
 
 const cropper = vi.hoisted(() => ({
@@ -131,6 +132,11 @@ vi.mock('@macro-inc/observability', () => ({
       cropper.finished();
     },
   },
+}));
+vi.mock('../../image-editor/queries/load-image', () => ({
+  loadImage: vi.fn(async (url: string) =>
+    ok({ url, blob: new Blob(['image']), animated: false })
+  ),
 }));
 vi.mock('@core/mobile/isMobile', () => ({ isMobile: () => false }));
 vi.mock('@core/component/Toast/Toast', () => ({ toast: { failure: vi.fn() } }));
@@ -783,6 +789,7 @@ describe('channel editor steps', () => {
       })
     );
     fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
+    await screen.findByRole('button', { name: 'Zoom in' });
     const save = await screen.findByRole<HTMLButtonElement>('button', {
       name: 'Save',
     });
@@ -801,6 +808,7 @@ describe('channel editor steps', () => {
       target: { value: 'New design' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
+    await screen.findByRole('button', { name: 'Zoom in' });
     fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
     await waitFor(() => expect(close).toHaveBeenCalledOnce());
     expect(saveName).toHaveBeenCalledExactlyOnceWith('New design');
@@ -829,6 +837,7 @@ describe('channel editor steps', () => {
       })
     );
     fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
+    await screen.findByRole('button', { name: 'Zoom in' });
     const save = await screen.findByRole<HTMLButtonElement>('button', {
       name: 'Save',
     });
@@ -837,8 +846,9 @@ describe('channel editor steps', () => {
     fireEvent.click(save);
     await screen.findByRole('alert');
     fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
+    await screen.findByRole('button', { name: 'Reset crop' });
     await screen.findByRole('button', { name: 'Save' });
-    expect(cropper.construct.mock.calls.at(-1)?.[0].src).toBe(
+    expect(vi.mocked(loadImage).mock.calls.at(-1)?.[0]).toBe(
       'https://files.example.com/original.png'
     );
     expect(savePicture).toHaveBeenCalledOnce();
@@ -864,6 +874,7 @@ describe('channel editor steps', () => {
       })
     );
     fireEvent.click(screen.getByRole('button', { name: 'Edit channel image' }));
+    await screen.findByRole('button', { name: 'Zoom in' });
     await screen.findByRole('button', { name: 'Save' });
     fireEvent.click(screen.getByRole('button', { name: 'Clear image' }));
     const save = screen.getByRole<HTMLButtonElement>('button', {

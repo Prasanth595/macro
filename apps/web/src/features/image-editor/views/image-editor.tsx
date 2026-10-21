@@ -2,9 +2,12 @@ import { toast } from '@core/component/Toast/Toast';
 import PictureIcon from '@phosphor/image.svg';
 import { Button } from '@ui/components/Button';
 import {
+  createEffect,
   createMemo,
+  createResource,
   createSignal,
   lazy,
+  on,
   onCleanup,
   Show,
   Suspense,
@@ -39,6 +42,54 @@ export type ImageEditorProps = {
 export function ImageEditor(props: ImageEditorProps) {
   let input!: HTMLInputElement;
   const [validationError, setValidationError] = createSignal<string>();
+  let request: AbortController | undefined;
+  const [remote] = createResource(
+    () => (typeof props.source === 'string' ? props.source : undefined),
+    async (url) => {
+      request?.abort();
+      const controller = new AbortController();
+      request = controller;
+      const { loadImage } = await import('../queries/load-image');
+      return loadImage(url, controller.signal, props.telemetryAttributes);
+    }
+  );
+  createEffect(
+    on(
+      () => props.source,
+      (source) => {
+        if (typeof source === 'string') return;
+        request?.abort();
+        request = undefined;
+      }
+    )
+  );
+  onCleanup(() => request?.abort());
+  const remoteImage = () => {
+    if (typeof props.source !== 'string' || remote.state !== 'ready')
+      return undefined;
+    const result = remote();
+    return result?.isOk() && result.value.url === props.source
+      ? result.value
+      : undefined;
+  };
+  const remoteError = () => {
+    if (typeof props.source !== 'string' || remote.state !== 'ready')
+      return undefined;
+    const result = remote();
+    return result?.isErr() ? result.error : undefined;
+  };
+  const remoteUrl = createMemo(() => {
+    const image = remoteImage();
+    if (!image) return undefined;
+    const url = URL.createObjectURL(image.blob);
+    onCleanup(() => URL.revokeObjectURL(url));
+    return url;
+  });
+  const cropSource = () => {
+    if (props.source instanceof File) return props.source;
+    return remoteImage()?.animated ? undefined : remoteUrl();
+  };
+  const loading = () => typeof props.source === 'string' && remote.loading;
   const previewUrl = createMemo(() => {
     const source = props.source;
     if (!(source instanceof File)) return source || props.pictureUrl;
@@ -69,7 +120,7 @@ export function ImageEditor(props: ImageEditorProps) {
         fileName={props.fileName}
         disabled={props.disabled}
         canClear={Boolean(props.source || props.pictureUrl)}
-        error={validationError() ?? props.error}
+        error={validationError() ?? remoteError() ?? props.error}
         onPick={() => input.click()}
         onFilesDrop={drop}
         onClear={() => {
@@ -109,7 +160,7 @@ export function ImageEditor(props: ImageEditorProps) {
         }}
       />
       <Show
-        when={props.source}
+        when={cropSource()}
         keyed
         fallback={
           <ImageEditorLayout
@@ -130,7 +181,10 @@ export function ImageEditor(props: ImageEditorProps) {
                   size="md"
                   class="touch:min-h-11"
                   disabled={
-                    props.disabled || props.saveDisabled || !props.canSave
+                    props.disabled ||
+                    loading() ||
+                    props.saveDisabled ||
+                    !props.canSave
                   }
                   onClick={() => props.onSave()}
                 >
@@ -141,28 +195,37 @@ export function ImageEditor(props: ImageEditorProps) {
           >
             <div class="group/image-editor relative flex min-h-64 flex-col items-center justify-center gap-4 rounded-xl border border-edge-muted bg-control p-6 text-center">
               <Show
-                when={props.pictureUrl}
+                when={!loading()}
                 fallback={
-                  <>
-                    <PictureIcon class="size-12 text-ink-placeholder" />
-                    <p class="text-sm text-ink-muted">
-                      Choose an image to get started.
-                    </p>
-                  </>
+                  <p class="text-sm text-ink-muted">Loading image editor…</p>
                 }
               >
-                {(url) => (
-                  <>
-                    <img
-                      src={url()}
-                      alt="Image draft"
-                      class="max-h-80 max-w-full object-contain"
-                    />
-                    <p class="text-xs text-ink-muted">
-                      Animated images are kept as uploaded.
-                    </p>
-                  </>
-                )}
+                <Show
+                  when={props.pictureUrl}
+                  fallback={
+                    <>
+                      <PictureIcon class="size-12 text-ink-placeholder" />
+                      <p class="text-sm text-ink-muted">
+                        Choose an image to get started.
+                      </p>
+                    </>
+                  }
+                >
+                  {(url) => (
+                    <>
+                      <img
+                        src={url()}
+                        alt="Image draft"
+                        class="max-h-80 max-w-full object-contain"
+                      />
+                      <Show when={!remoteError()}>
+                        <p class="text-xs text-ink-muted">
+                          Animated images are kept as uploaded.
+                        </p>
+                      </Show>
+                    </>
+                  )}
+                </Show>
               </Show>
               <Preview />
             </div>
