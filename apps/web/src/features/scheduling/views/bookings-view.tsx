@@ -129,15 +129,21 @@ export function BookingsView(props: {
           </div>
         }
       >
-        <ListHeader title={props.headerTitle}>
+        <ListHeader
+          title={
+            <div class="flex min-w-0 items-center gap-3">
+              {props.headerTitle}
+              <BookingStatusTabs
+                tabs={state.tabs()}
+                tab={state.tab()}
+                onTab={state.setTab}
+              />
+            </div>
+          }
+        >
           <HeaderActionGroup label="Booking filters">
             {filters()}
           </HeaderActionGroup>
-          <BookingStatusTabs
-            tabs={state.tabs()}
-            tab={state.tab()}
-            onTab={state.setTab}
-          />
           <ListHeaderSearch
             label="Search bookings"
             value={state.search()}
