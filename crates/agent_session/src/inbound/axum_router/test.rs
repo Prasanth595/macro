@@ -73,6 +73,21 @@ fn openapi_documents_session_admission_failures() {
     assert!(schema["components"]["schemas"]["AiAdmissionErrorBody"].is_object());
 }
 
+/// A read answers "not yours" and "not there" differently, and says so in the
+/// contract: a client that cannot tell them apart has no way to know a
+/// refusal of a session it has only just created is worth trying again.
+#[test]
+fn openapi_separates_a_missing_session_from_a_refused_one() {
+    #[derive(utoipa::OpenApi)]
+    #[openapi(paths(get_agent_session_handler))]
+    struct ApiDoc;
+
+    let schema = serde_json::to_value(<ApiDoc as utoipa::OpenApi>::openapi()).unwrap();
+    let responses = &schema["paths"]["/agent-sessions/{session_id}"]["get"]["responses"];
+    assert!(responses["401"].is_object());
+    assert!(responses["404"].is_object());
+}
+
 const BOT_TOKEN: &str = "mbot_self_test";
 const HARNESS_TOKEN: &str = "mhns_self_test";
 const OWNER: &str = "macro|owner@example.com";
@@ -85,6 +100,7 @@ struct FakeJwtValidator;
 impl JwtValidator for FakeJwtValidator {
     fn validate(&self, jwt: &str) -> Result<ValidatedIdentity, Report<MacroAuthorizationError>> {
         Ok(ValidatedIdentity {
+            agent_id: None,
             user_id: jwt.to_string(),
             fusion_user_id: "fusion-user".to_string(),
             organization_id: None,
@@ -112,6 +128,7 @@ impl BotAuthorizer for SelfBotAuthorizer {
                 let macro_user_id = MacroUserIdStr::try_from(user_id.clone())
                     .map_err(|_| Report::new(MacroAuthorizationError::ActingUserNotAuthorized))?;
                 Some(MacroUserAuthentication {
+                    agent_id: None,
                     macro_user_id,
                     user_context: model_user::UserContext {
                         user_id,
@@ -158,6 +175,7 @@ impl HarnessAuthorizer for SelfHarnessAuthorizer {
                 user_id: user_id.clone(),
             },
             acting_user: MacroUserAuthentication {
+                agent_id: None,
                 macro_user_id,
                 user_context: model_user::UserContext {
                     user_id,
@@ -194,6 +212,7 @@ impl SessionOpener for RecordingOpener {
         let session = AgentSession {
             repo_branch: None,
             pull_request_url: None,
+            task_id: None,
             id: AgentSessionId::TEST_A,
             name: crate::domain::model::DEFAULT_AGENT_SESSION_NAME.to_owned(),
             is_archived: false,
@@ -231,6 +250,7 @@ impl SessionOpener for RecordingOpener {
         let session = AgentSession {
             repo_branch: None,
             pull_request_url: None,
+            task_id: None,
             id: AgentSessionId::TEST_A,
             name: crate::domain::model::DEFAULT_AGENT_SESSION_NAME.to_owned(),
             is_archived: false,
@@ -447,6 +467,7 @@ impl ExternalSessionRequester for RecordingRequester {
         let session = AgentSession {
             repo_branch: None,
             pull_request_url: None,
+            task_id: None,
             id: request.session_id,
             name: crate::domain::model::DEFAULT_AGENT_SESSION_NAME.to_owned(),
             is_archived: false,
@@ -1309,6 +1330,7 @@ async fn an_external_open_carries_its_instructions() {
     );
 }
 
+mod coding_preferences;
 mod owned_purge;
 mod read;
 mod user_cleanup;
@@ -1347,6 +1369,7 @@ fn an_unnamed_control_request_omits_the_field() {
     let body = serde_json::to_value(ControlRequest {
         action_id: None,
         action: AgentAction::Stop,
+        context: None,
     })
     .expect("a control request serializes");
 
@@ -1438,3 +1461,5 @@ async fn macrod_rejects_an_unsupported_base_before_dispatch() {
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert!(requests.requested.lock().unwrap().is_empty());
 }
+
+mod tool_actions;

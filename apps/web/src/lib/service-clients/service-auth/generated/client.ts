@@ -21,11 +21,11 @@ import type {
   CreateInProgressLinkResponse,
   CreatePortalSessionRequest,
   CreateTeamRequest,
-  CreateUserRequest,
   CreditCheckoutRequestBody,
   CreditCheckoutResponse,
   CursorApiKeyStatus,
   CursorModelsResponse,
+  EmailConnectionProviders,
   EmptyResponse,
   EnrichGithubPullRequestsProxyRequest,
   EnrichGithubPullRequestsResponse,
@@ -38,6 +38,8 @@ import type {
   GetUserInfo,
   GetUserLinkExistsParams,
   GithubLinkStatusResponse,
+  GithubPullRequestMergeabilityRequest,
+  GithubPullRequestMergeabilityResponse,
   GmailLinkStatusResponse,
   GtmInviteLink,
   GtmInviteLinkList,
@@ -80,15 +82,19 @@ import type {
   SendInviteBody,
   SendMobileWelcomeEmailRequest,
   SendMobileWelcomeEmailResponse,
+  SetGithubPullRequestDraftRequest,
+  SetGithubPullRequestDraftResponse,
   SsoLoginParams,
   SsoRequiredResponse,
   StripeSessionResponse,
+  SubscriptionStatus,
   Team,
   TeamInvitesResponse,
   TeamMember,
   TeamWithMembers,
   ToggleAutoJoinDomainResponse,
   ToggleNonAdminInvitesResponse,
+  TrialEligibility,
   UpdateAutoReloadRequest,
   UpdateOverageRequest,
   UsageSnapshot,
@@ -101,7 +107,7 @@ import type {
 } from './schemas';
 
 /**
- * @summary Turn automatic credit reloads (and with them overage) on with the given
+ * @summary Turn automatic credit reloads on with the given
 thresholds, or off. Payer only. Enabling settles right away, so a balance
 already under the minimum reloads immediately.
  */
@@ -259,7 +265,7 @@ export const createAiCreditCheckout = async (
 };
 
 /**
- * @summary Turn overage billing on or off and set the per-period cap. Payer only.
+ * @summary Retired direct-usage opt-in. Enabling is rejected; disabling remains supported.
  */
 export type updateAiBillingOverageResponse200 = {
   data: UsageSnapshot;
@@ -1208,6 +1214,91 @@ export const verifyEmailLink = async (
 };
 
 /**
+ * @summary Converts a GitHub pull request to a draft, or marks it ready for review,
+as the authenticated user with their own GitHub grant.
+ */
+export type setGithubPullRequestDraftResponse200 = {
+  data: SetGithubPullRequestDraftResponse;
+  status: 200;
+};
+
+export type setGithubPullRequestDraftResponse401 = {
+  data: ErrorResponse;
+  status: 401;
+};
+
+export type setGithubPullRequestDraftResponse403 = {
+  data: ErrorResponse;
+  status: 403;
+};
+
+export type setGithubPullRequestDraftResponse404 = {
+  data: ErrorResponse;
+  status: 404;
+};
+
+export type setGithubPullRequestDraftResponse422 = {
+  data: ErrorResponse;
+  status: 422;
+};
+
+export type setGithubPullRequestDraftResponse428 = {
+  data: ErrorResponse;
+  status: 428;
+};
+
+export type setGithubPullRequestDraftResponse500 = {
+  data: ErrorResponse;
+  status: 500;
+};
+
+export type setGithubPullRequestDraftResponseSuccess =
+  setGithubPullRequestDraftResponse200 & {
+    headers: Headers;
+  };
+export type setGithubPullRequestDraftResponseError = (
+  | setGithubPullRequestDraftResponse401
+  | setGithubPullRequestDraftResponse403
+  | setGithubPullRequestDraftResponse404
+  | setGithubPullRequestDraftResponse422
+  | setGithubPullRequestDraftResponse428
+  | setGithubPullRequestDraftResponse500
+) & {
+  headers: Headers;
+};
+
+export type setGithubPullRequestDraftResponse =
+  | setGithubPullRequestDraftResponseSuccess
+  | setGithubPullRequestDraftResponseError;
+
+export const getSetGithubPullRequestDraftUrl = () => {
+  return `/github_pull_requests/draft`;
+};
+
+export const setGithubPullRequestDraft = async (
+  setGithubPullRequestDraftRequest: SetGithubPullRequestDraftRequest,
+  options?: RequestInit
+): Promise<setGithubPullRequestDraftResponse> => {
+  const res = await fetch(getSetGithubPullRequestDraftUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(setGithubPullRequestDraftRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: setGithubPullRequestDraftResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as setGithubPullRequestDraftResponse;
+};
+
+/**
  * @summary Enriches GitHub pull request references with live GitHub data for the authenticated user.
  */
 export type enrichGithubPullRequestsResponse200 = {
@@ -1369,6 +1460,86 @@ export const mergeGithubPullRequest = async (
     status: res.status,
     headers: res.headers,
   } as mergeGithubPullRequestResponse;
+};
+
+/**
+ * @summary Reads whether each GitHub pull request merges cleanly into its base, as
+the authenticated user sees it. Pull requests the user cannot see are
+left out.
+ */
+export type getGithubPullRequestMergeabilityResponse200 = {
+  data: GithubPullRequestMergeabilityResponse;
+  status: 200;
+};
+
+export type getGithubPullRequestMergeabilityResponse401 = {
+  data: ErrorResponse;
+  status: 401;
+};
+
+export type getGithubPullRequestMergeabilityResponse404 = {
+  data: ErrorResponse;
+  status: 404;
+};
+
+export type getGithubPullRequestMergeabilityResponse422 = {
+  data: ErrorResponse;
+  status: 422;
+};
+
+export type getGithubPullRequestMergeabilityResponse428 = {
+  data: ErrorResponse;
+  status: 428;
+};
+
+export type getGithubPullRequestMergeabilityResponse500 = {
+  data: ErrorResponse;
+  status: 500;
+};
+
+export type getGithubPullRequestMergeabilityResponseSuccess =
+  getGithubPullRequestMergeabilityResponse200 & {
+    headers: Headers;
+  };
+export type getGithubPullRequestMergeabilityResponseError = (
+  | getGithubPullRequestMergeabilityResponse401
+  | getGithubPullRequestMergeabilityResponse404
+  | getGithubPullRequestMergeabilityResponse422
+  | getGithubPullRequestMergeabilityResponse428
+  | getGithubPullRequestMergeabilityResponse500
+) & {
+  headers: Headers;
+};
+
+export type getGithubPullRequestMergeabilityResponse =
+  | getGithubPullRequestMergeabilityResponseSuccess
+  | getGithubPullRequestMergeabilityResponseError;
+
+export const getGetGithubPullRequestMergeabilityUrl = () => {
+  return `/github_pull_requests/mergeability`;
+};
+
+export const getGithubPullRequestMergeability = async (
+  githubPullRequestMergeabilityRequest: GithubPullRequestMergeabilityRequest,
+  options?: RequestInit
+): Promise<getGithubPullRequestMergeabilityResponse> => {
+  const res = await fetch(getGetGithubPullRequestMergeabilityUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(githubPullRequestMergeabilityRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getGithubPullRequestMergeabilityResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getGithubPullRequestMergeabilityResponse;
 };
 
 /**
@@ -2046,6 +2217,43 @@ export const createInProgressLink = async (
   } as createInProgressLinkResponse;
 };
 
+export type emailConnectionProvidersResponse200 = {
+  data: EmailConnectionProviders;
+  status: 200;
+};
+
+export type emailConnectionProvidersResponseSuccess =
+  emailConnectionProvidersResponse200 & {
+    headers: Headers;
+  };
+
+export type emailConnectionProvidersResponse =
+  emailConnectionProvidersResponseSuccess;
+
+export const getEmailConnectionProvidersUrl = () => {
+  return `/link/email/providers`;
+};
+
+export const emailConnectionProviders = async (
+  options?: RequestInit
+): Promise<emailConnectionProvidersResponse> => {
+  const res = await fetch(getEmailConnectionProvidersUrl(), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: emailConnectionProvidersResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as emailConnectionProvidersResponse;
+};
+
 /**
  * @summary Initiates a link for a user
  */
@@ -2426,6 +2634,11 @@ export type initOutlookLinkResponse401 = {
   status: 401;
 };
 
+export type initOutlookLinkResponse402 = {
+  data: ErrorResponse;
+  status: 402;
+};
+
 export type initOutlookLinkResponse404 = {
   data: ErrorResponse;
   status: 404;
@@ -2447,6 +2660,7 @@ export type initOutlookLinkResponseSuccess = initOutlookLinkResponse200 & {
 export type initOutlookLinkResponseError = (
   | initOutlookLinkResponse400
   | initOutlookLinkResponse401
+  | initOutlookLinkResponse402
   | initOutlookLinkResponse404
   | initOutlookLinkResponse429
   | initOutlookLinkResponse500
@@ -2913,9 +3127,9 @@ export const verifyMergeRequest = async (
 };
 
 /**
- * @summary Enrolls a mobile lead in the Loops nurture sequence, which sends the welcome
-email inviting them to register on desktop. No-ops if the address was already
-enrolled, and rejects blocked addresses.
+ * @summary Emails a mobile lead a link to continue onboarding on desktop and enrolls
+them in the Loops welcome sequence. No-ops if the address was already
+captured, and rejects blocked addresses.
  */
 export type sendMobileWelcomeEmailResponse200 = {
   data: SendMobileWelcomeEmailResponse;
@@ -4616,69 +4830,6 @@ export const getUserInvites = async (
 };
 
 /**
- * @summary Creates a new user.
- */
-export type createUserResponse200 = {
-  data: EmptyResponse;
-  status: 200;
-};
-
-export type createUserResponse400 = {
-  data: ErrorResponse;
-  status: 400;
-};
-
-export type createUserResponse403 = {
-  data: ErrorResponse;
-  status: 403;
-};
-
-export type createUserResponse500 = {
-  data: ErrorResponse;
-  status: 500;
-};
-
-export type createUserResponseSuccess = createUserResponse200 & {
-  headers: Headers;
-};
-export type createUserResponseError = (
-  | createUserResponse400
-  | createUserResponse403
-  | createUserResponse500
-) & {
-  headers: Headers;
-};
-
-export type createUserResponse =
-  | createUserResponseSuccess
-  | createUserResponseError;
-
-export const getCreateUserUrl = () => {
-  return `/user`;
-};
-
-export const createUser = async (
-  createUserRequest: CreateUserRequest,
-  options?: RequestInit
-): Promise<createUserResponse> => {
-  const res = await fetch(getCreateUserUrl(), {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(createUserRequest),
-  });
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: createUserResponse['data'] = body ? JSON.parse(body) : {};
-  return {
-    data,
-    status: res.status,
-    headers: res.headers,
-  } as createUserResponse;
-};
-
-/**
  * @summary Retrieves user names in bulk
  */
 export type getUserNamesResponse200 = {
@@ -5620,14 +5771,72 @@ export const createCheckoutSessionV2 = async (
 };
 
 /**
- * On a team billed per seat this moves only the caller's seat (team admins
-and the owner may do so; teammates' seats are managed from team
-settings). Members of a free team, and solo subscribers, get the price on
-their own subscription's seat item swapped. The proration is invoiced
-immediately either way; roles and the AI allowance follow at once on a
-team and from the `customer.subscription.updated` webhook for a personal
-subscription.
- * @summary Moves the caller's own seat between paid plans.
+ * @summary Read subscription state for the authenticated user's seat.
+ */
+export type getSubscriptionStatusResponse200 = {
+  data: SubscriptionStatus;
+  status: 200;
+};
+
+export type getSubscriptionStatusResponse401 = {
+  data: ErrorResponse;
+  status: 401;
+};
+
+export type getSubscriptionStatusResponse409 = {
+  data: ErrorResponse;
+  status: 409;
+};
+
+export type getSubscriptionStatusResponse500 = {
+  data: ErrorResponse;
+  status: 500;
+};
+
+export type getSubscriptionStatusResponseSuccess =
+  getSubscriptionStatusResponse200 & {
+    headers: Headers;
+  };
+export type getSubscriptionStatusResponseError = (
+  | getSubscriptionStatusResponse401
+  | getSubscriptionStatusResponse409
+  | getSubscriptionStatusResponse500
+) & {
+  headers: Headers;
+};
+
+export type getSubscriptionStatusResponse =
+  | getSubscriptionStatusResponseSuccess
+  | getSubscriptionStatusResponseError;
+
+export const getGetSubscriptionStatusUrl = () => {
+  return `/user/stripe/plan`;
+};
+
+export const getSubscriptionStatus = async (
+  options?: RequestInit
+): Promise<getSubscriptionStatusResponse> => {
+  const res = await fetch(getGetSubscriptionStatusUrl(), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getSubscriptionStatusResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getSubscriptionStatusResponse;
+};
+
+/**
+ * @summary Changes the caller's paid plan. Upgrades are prorated immediately;
+downgrades retain the active plan until renewal. Selecting the active plan
+cancels a pending downgrade without charging or resetting usage.
  */
 export type changePlanResponse200 = {
   data: ChangePlanResponse;
@@ -5765,6 +5974,69 @@ export const createPortalSession = async (
     status: res.status,
     headers: res.headers,
   } as createPortalSessionResponse;
+};
+
+/**
+ * @summary Read the caller's eligibility; checkout revalidates before granting a trial.
+ */
+export type getTrialEligibilityResponse200 = {
+  data: TrialEligibility;
+  status: 200;
+};
+
+export type getTrialEligibilityResponse400 = {
+  data: ErrorResponse;
+  status: 400;
+};
+
+export type getTrialEligibilityResponse401 = {
+  data: ErrorResponse;
+  status: 401;
+};
+
+export type getTrialEligibilityResponse500 = {
+  data: ErrorResponse;
+  status: 500;
+};
+
+export type getTrialEligibilityResponseSuccess =
+  getTrialEligibilityResponse200 & {
+    headers: Headers;
+  };
+export type getTrialEligibilityResponseError = (
+  | getTrialEligibilityResponse400
+  | getTrialEligibilityResponse401
+  | getTrialEligibilityResponse500
+) & {
+  headers: Headers;
+};
+
+export type getTrialEligibilityResponse =
+  | getTrialEligibilityResponseSuccess
+  | getTrialEligibilityResponseError;
+
+export const getGetTrialEligibilityUrl = () => {
+  return `/user/stripe/trial_eligibility`;
+};
+
+export const getTrialEligibility = async (
+  options?: RequestInit
+): Promise<getTrialEligibilityResponse> => {
+  const res = await fetch(getGetTrialEligibilityUrl(), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getTrialEligibilityResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getTrialEligibilityResponse;
 };
 
 /**

@@ -10,6 +10,48 @@ export type ClientOptions = {
 export type AttendeeResponseStatus = 'needs_action' | 'accepted' | 'declined' | 'tentative';
 
 /**
+ * Per-user inclusion of a source calendar in personal availability.
+ */
+export type AvailabilityCalendar = {
+    /**
+     * Visible source calendar.
+     */
+    calendarId: string;
+    /**
+     * Whether its events normally block the user's time.
+     */
+    contributesToAvailability: boolean;
+    /**
+     * Whether this is the connected account's primary calendar.
+     */
+    isPrimary: boolean;
+    /**
+     * Source name.
+     */
+    name: string;
+};
+
+/**
+ * Own-user source inclusion preference.
+ */
+export type AvailabilityCalendarBody = {
+    /**
+     * Whether this calendar contributes to personal availability.
+     */
+    contributesToAvailability: boolean;
+};
+
+/**
+ * Source calendar settings returned to their viewer.
+ */
+export type AvailabilityCalendarsResponse = {
+    /**
+     * Directly visible source calendars.
+     */
+    calendars: Array<AvailabilityCalendar>;
+};
+
+/**
  * An attendee on a calendar event.
  */
 export type CalendarAttendee = {
@@ -55,6 +97,33 @@ export type CalendarAttendeeInputBody = {
      * Whether attendance is optional.
      */
     isOptional?: boolean;
+};
+
+/**
+ * Actual provider capabilities used by calendar editors.
+ */
+export type CalendarCapabilities = {
+    /**
+     * Whether event-level automatic invitation declines are supported.
+     */
+    autoDecline: boolean;
+    conferenceProvider?: null | ConferenceProvider;
+    /**
+     * Whether arbitrary RFC 5545 recurrence properties can be written.
+     */
+    customRecurrence: boolean;
+    /**
+     * Whether email reminders are delivered by the provider or Macro.
+     */
+    emailReminders: boolean;
+    /**
+     * Whether an existing conference can be detached.
+     */
+    removeConference: boolean;
+    /**
+     * Whether an attendee can reset their RSVP to unanswered.
+     */
+    resetRsvp: boolean;
 };
 
 /**
@@ -184,6 +253,16 @@ export type CalendarEvent = {
 };
 
 /**
+ * Provider-validated external event link.
+ */
+export type CalendarEventProviderUrl = {
+    /**
+     * None when the event no longer exists at its provider.
+     */
+    url?: string | null;
+};
+
+/**
  * The content one provider copy of an event carries.
  *
  * Google keeps these fields per calendar copy: a shared calendar's copy of a
@@ -256,7 +335,63 @@ export type CalendarMutationApiError = {
 /**
  * Machine-readable failure category for calendar mutations.
  */
-export type CalendarMutationErrorCode = 'not_found' | 'occurrence_not_found' | 'read_only' | 'no_writable_calendar' | 'not_attendee' | 'invalid_input' | 'reauth_required' | 'provider_rejected' | 'retryable' | 'persist_failed';
+export type CalendarMutationErrorCode = 'not_found' | 'occurrence_not_found' | 'read_only' | 'no_writable_calendar' | 'not_attendee' | 'invalid_input' | 'reauth_required' | 'provider_rejected' | 'retryable' | 'persist_failed' | 'macro_call_failed';
+
+/**
+ * Provider selected from the persisted calendar account and email binding.
+ */
+export type CalendarProvider = 'google' | 'outlook';
+
+/**
+ * Safe preview and recovery response; never exposes the opaque provider snapshot.
+ */
+export type CalendarReplacementView = {
+    /**
+     * Guest count for cancellation and reinvitation confirmation.
+     */
+    attendeeCount: number;
+    /**
+     * Number of completed provider steps.
+     */
+    completedSteps: number;
+    event?: null | CalendarEvent;
+    /**
+     * Entire recurring series, including exceptions, is replaced.
+     */
+    isSeries: boolean;
+    /**
+     * Use this identity when confirming or checking progress.
+     */
+    operationId: string;
+    /**
+     * Original event for manual review.
+     */
+    providerUrl?: string | null;
+    /**
+     * The provider conference is removed.
+     */
+    removeConference: boolean;
+    /**
+     * New provider event, when creation was confirmed.
+     */
+    replacementUrl?: string | null;
+    /**
+     * Current durable state.
+     */
+    status: ReplacementStatus;
+    /**
+     * Frozen time.
+     */
+    time: EventTime;
+    /**
+     * Frozen title.
+     */
+    title: string;
+    /**
+     * Number of provider steps in this operation.
+     */
+    totalSteps: number;
+};
 
 /**
  * How much of a recurring series an RSVP applies to.
@@ -282,23 +417,17 @@ export type CalendarUpdateScopeParam = 'all' | 'this_event';
  * A requested change to an event's conferencing. Omitting the field leaves
  * the existing conference untouched; only these values change it.
  */
-export type ConferenceChange = 'google_meet' | 'none';
+export type ConferenceChange = 'provider_default' | 'microsoft_teams' | 'google_meet' | 'none';
 
 /**
  * The conferencing system backing an event's join URL.
  *
- * Macro generates only Google Meet conferences, so this distinguishes one it
- * created from a third party's — Zoom and friends arriving as `addOn`
- * conference data, or a legacy classic Hangout. Clients use it to label the
- * conference and to tell whether the Meet toggle reflects a Macro-managed
- * conference.
- *
- * It does not gate mutation. An explicit request replaces or detaches any
- * conference, third-party included, exactly as deleting the event would;
- * what protects a conference is that omitting the field leaves it untouched,
- * so an unrelated edit never disturbs it.
+ * Calendars can create Google Meet or Microsoft Teams according to their
+ * capabilities. Imported third-party conferences are labeled separately.
+ * Omitting a conference change preserves the current conference; explicit
+ * changes still require provider and calendar capability validation.
  */
-export type ConferenceProvider = 'google_meet' | 'other';
+export type ConferenceProvider = 'microsoft_teams' | 'google_meet' | 'other';
 
 /**
  * Request body creating a calendar event on the requester's calendar.
@@ -331,6 +460,12 @@ export type CreateCalendarEventRequest = {
      * Optional location label.
      */
     location?: string | null;
+    /**
+     * Mint a Macro call and write its join link into the description and
+     * location before creating the event, so the invitation carries it.
+     * Cannot be combined with `conference`.
+     */
+    macroCall?: boolean;
     outOfOffice?: null | OutOfOfficeProperties;
     /**
      * Raw RFC 5545 recurrence properties (`RRULE`, `RDATE`, `EXDATE`).
@@ -395,7 +530,7 @@ export type EventStatus = 'confirmed' | 'tentative' | 'cancelled';
  */
 export type EventTime = {
     /**
-     * Exclusive end instant.
+     * Exclusive end instant; equal to the start for an imported point event.
      */
     endsAt: string;
     kind: 'timed';
@@ -469,7 +604,25 @@ export type OutOfOfficeProperties = {
 };
 
 /**
- * A sync run committed changes for `link_id`; viewers should refetch.
+ * A read-only preview request. Confirmation uses the returned operation identity.
+ */
+export type PrepareCalendarReplacementRequest = {
+    /**
+     * Exact calendar copy; defaults to canonical.
+     */
+    calendarId?: string | null;
+    /**
+     * Original-start key; omitted to replace the entire series.
+     */
+    recurrenceId?: string | null;
+    /**
+     * Omit the provider conference in the replacement.
+     */
+    removeConference: boolean;
+};
+
+/**
+ * Realtime signal that a connected inbox's calendar projection changed.
  */
 export type RefreshCalendarEvent = {
     event: 'synced';
@@ -477,7 +630,22 @@ export type RefreshCalendarEvent = {
      * Connected inbox whose calendars changed.
      */
     link_id: string;
+    /**
+     * False only when the run excludes changes to teammate OOO projections.
+     */
+    team_ooo_changed: boolean;
+} | {
+    event: 'team_sharing_changed';
+    /**
+     * True for sharing changes and any possibly affected OOO projection.
+     */
+    team_ooo_changed: boolean;
 };
+
+/**
+ * User-visible workflow state.
+ */
+export type ReplacementStatus = 'needs_confirmation' | 'in_progress' | 'complete';
 
 /**
  * Request body setting the requester's RSVP on an event.
@@ -501,6 +669,21 @@ export type RsvpCalendarEventRequest = {
      */
     response: AttendeeResponseStatus;
     scope?: null | CalendarRsvpScopeParam;
+};
+
+/**
+ * What a user exposes through their team membership.
+ */
+export type TeamCalendarSharing = 'all' | 'busy_only' | 'none';
+
+/**
+ * Own-user sharing preference.
+ */
+export type TeamCalendarSharingBody = {
+    /**
+     * Busy-only is the default, including when no setting has been saved.
+     */
+    sharing: TeamCalendarSharing;
 };
 
 /**
@@ -550,6 +733,10 @@ export type UpdateCalendarEventRequest = {
  */
 export type VisibleCalendar = {
     /**
+     * Provider features available on this actual calendar.
+     */
+    capabilities: CalendarCapabilities;
+    /**
      * Provider color.
      */
     color?: string | null;
@@ -587,12 +774,44 @@ export type VisibleCalendar = {
      */
     name: string;
     /**
+     * Calendar provider, for display and reconnect routing.
+     */
+    provider: CalendarProvider;
+    /**
      * A persistent sync failure isolated to this calendar, surfaced so the
      * settings row can badge it. `None` while the calendar is syncing
      * normally or a failure has not yet crossed the persistence threshold.
      */
     syncError?: string | null;
 };
+
+export type GetAvailabilityCalendarsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/availability-calendars';
+};
+
+export type GetAvailabilityCalendarsResponses = {
+    200: AvailabilityCalendarsResponse;
+};
+
+export type GetAvailabilityCalendarsResponse = GetAvailabilityCalendarsResponses[keyof GetAvailabilityCalendarsResponses];
+
+export type SetAvailabilityCalendarData = {
+    body: AvailabilityCalendarBody;
+    path: {
+        calendar_id: string;
+    };
+    query?: never;
+    url: '/availability-calendars/{calendar_id}';
+};
+
+export type SetAvailabilityCalendarResponses = {
+    204: void;
+};
+
+export type SetAvailabilityCalendarResponse = SetAvailabilityCalendarResponses[keyof SetAvailabilityCalendarResponses];
 
 export type ListCalendarsData = {
     body?: never;
@@ -648,7 +867,7 @@ export type CreateCalendarEventErrors = {
      */
     409: CalendarMutationApiError;
     /**
-     * Transient provider failure
+     * Transient provider failure, or the Macro call could not be created
      */
     503: CalendarMutationApiError;
 };
@@ -774,6 +993,57 @@ export type UpdateCalendarEventResponses = {
 
 export type UpdateCalendarEventResponse = UpdateCalendarEventResponses[keyof UpdateCalendarEventResponses];
 
+export type CalendarEventProviderUrlData = {
+    body?: never;
+    path: {
+        event_id: string;
+    };
+    query?: {
+        /**
+         * Exact calendar copy; defaults to the canonical copy.
+         */
+        calendarId?: string | null;
+        /**
+         * Original-start key of one occurrence; omitted for the entire series.
+         */
+        recurrenceId?: string | null;
+    };
+    url: '/events/{event_id}/provider-url';
+};
+
+export type CalendarEventProviderUrlErrors = {
+    404: CalendarMutationApiError;
+};
+
+export type CalendarEventProviderUrlError = CalendarEventProviderUrlErrors[keyof CalendarEventProviderUrlErrors];
+
+export type CalendarEventProviderUrlResponses = {
+    200: CalendarEventProviderUrl;
+};
+
+export type CalendarEventProviderUrlResponse = CalendarEventProviderUrlResponses[keyof CalendarEventProviderUrlResponses];
+
+export type PrepareCalendarReplacementData = {
+    body: PrepareCalendarReplacementRequest;
+    path: {
+        event_id: string;
+    };
+    query?: never;
+    url: '/events/{event_id}/replacement';
+};
+
+export type PrepareCalendarReplacementErrors = {
+    409: CalendarMutationApiError;
+};
+
+export type PrepareCalendarReplacementError = PrepareCalendarReplacementErrors[keyof PrepareCalendarReplacementErrors];
+
+export type PrepareCalendarReplacementResponses = {
+    200: CalendarReplacementView;
+};
+
+export type PrepareCalendarReplacementResponse = PrepareCalendarReplacementResponses[keyof PrepareCalendarReplacementResponses];
+
 export type RsvpCalendarEventData = {
     body: RsvpCalendarEventRequest;
     path: {
@@ -835,3 +1105,92 @@ export type HealthHandlerResponses = {
 };
 
 export type HealthHandlerResponse = HealthHandlerResponses[keyof HealthHandlerResponses];
+
+export type DiscardCalendarReplacementData = {
+    body?: never;
+    path: {
+        operation_id: string;
+    };
+    query?: never;
+    url: '/replacements/{operation_id}';
+};
+
+export type DiscardCalendarReplacementErrors = {
+    409: CalendarMutationApiError;
+};
+
+export type DiscardCalendarReplacementError = DiscardCalendarReplacementErrors[keyof DiscardCalendarReplacementErrors];
+
+export type DiscardCalendarReplacementResponses = {
+    204: void;
+};
+
+export type DiscardCalendarReplacementResponse = DiscardCalendarReplacementResponses[keyof DiscardCalendarReplacementResponses];
+
+export type CalendarReplacementStatusData = {
+    body?: never;
+    path: {
+        operation_id: string;
+    };
+    query?: never;
+    url: '/replacements/{operation_id}';
+};
+
+export type CalendarReplacementStatusErrors = {
+    404: CalendarMutationApiError;
+};
+
+export type CalendarReplacementStatusError = CalendarReplacementStatusErrors[keyof CalendarReplacementStatusErrors];
+
+export type CalendarReplacementStatusResponses = {
+    200: CalendarReplacementView;
+};
+
+export type CalendarReplacementStatusResponse = CalendarReplacementStatusResponses[keyof CalendarReplacementStatusResponses];
+
+export type ConfirmCalendarReplacementData = {
+    body?: never;
+    path: {
+        operation_id: string;
+    };
+    query?: never;
+    url: '/replacements/{operation_id}/confirm';
+};
+
+export type ConfirmCalendarReplacementErrors = {
+    409: CalendarMutationApiError;
+};
+
+export type ConfirmCalendarReplacementError = ConfirmCalendarReplacementErrors[keyof ConfirmCalendarReplacementErrors];
+
+export type ConfirmCalendarReplacementResponses = {
+    200: CalendarReplacementView;
+};
+
+export type ConfirmCalendarReplacementResponse = ConfirmCalendarReplacementResponses[keyof ConfirmCalendarReplacementResponses];
+
+export type GetTeamSharingData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/team-sharing';
+};
+
+export type GetTeamSharingResponses = {
+    200: TeamCalendarSharingBody;
+};
+
+export type GetTeamSharingResponse = GetTeamSharingResponses[keyof GetTeamSharingResponses];
+
+export type SetTeamSharingData = {
+    body: TeamCalendarSharingBody;
+    path?: never;
+    query?: never;
+    url: '/team-sharing';
+};
+
+export type SetTeamSharingResponses = {
+    200: TeamCalendarSharingBody;
+};
+
+export type SetTeamSharingResponse = SetTeamSharingResponses[keyof SetTeamSharingResponses];

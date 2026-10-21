@@ -3,6 +3,47 @@ use super::models::{
     PipedreamConnection,
 };
 
+/// HTTP methods supported by trusted backend integrations through Connect Proxy.
+#[derive(Clone, Copy)]
+pub enum ProxyMethod {
+    /// Read a provider resource.
+    Get,
+    /// Create a provider resource, such as a webhook subscription.
+    Post,
+    /// Remove a provider resource.
+    Delete,
+}
+
+/// A provider response. Never log the body: registration can return secrets.
+pub struct ProxyResponse {
+    /// Upstream HTTP status.
+    pub status: u16,
+    /// Provider JSON body.
+    pub body: serde_json::Value,
+}
+
+/// Authenticated provider requests using credentials held by Pipedream.
+/// Callers must obtain the account from the authenticated user's connection.
+pub trait ApiProxy: Send + Sync {
+    /// Pipedream restricts targets to the connected app's allowed domains.
+    fn proxy(
+        &self,
+        connection: &PipedreamConnection,
+        method: ProxyMethod,
+        url: &str,
+        body: Option<serde_json::Value>,
+    ) -> impl Future<Output = anyhow::Result<ProxyResponse>> + Send;
+}
+
+/// Cross-user lookup for background integrations that follow a connected app.
+pub trait AppConnections: Send + Sync + 'static {
+    /// Every user's enabled connection to `app_slug`.
+    fn list_enabled_for_app(
+        &self,
+        app_slug: &str,
+    ) -> impl Future<Output = anyhow::Result<Vec<PipedreamConnection>>> + Send;
+}
+
 /// Port for persisting Pipedream-connected apps, keyed by user and app slug.
 pub trait ConnectionStore: Send + Sync + 'static {
     /// Error type for store operations.
@@ -41,6 +82,9 @@ pub trait ConnectionStore: Send + Sync + 'static {
 /// scoped to the record's user and app; Pipedream injects the account's
 /// credentials server-side, so no tokens ever pass through here.
 pub trait McpConnection: Send + Sync + 'static {
+    /// Whether this deployment has the configuration needed to connect.
+    fn is_configured(&self) -> bool;
+
     /// Connect to the MCP server serving `record`'s app for `record.user_id`.
     fn connect(
         &self,
@@ -52,6 +96,11 @@ pub trait McpConnection: Send + Sync + 'static {
 /// before Pipedream is configured degrade to empty instead of erroring at
 /// composition time.
 impl<P: McpConnection> McpConnection for Option<std::sync::Arc<P>> {
+    fn is_configured(&self) -> bool {
+        self.as_ref()
+            .is_some_and(|connection| connection.is_configured())
+    }
+
     async fn connect(&self, record: &PipedreamConnection) -> anyhow::Result<McpServer> {
         match self {
             Some(connection) => connection.connect(record).await,
@@ -110,4 +159,14 @@ pub trait ConnectorDirectory: Send + Sync + 'static {
         &self,
         app_slug: &str,
     ) -> impl Future<Output = anyhow::Result<Option<CatalogEntry>>> + Send;
+}
+
+/// Read an app's advertised capabilities without invoking any of its tools.
+pub trait ConnectorCapabilities: Send + Sync + 'static {
+    /// List tools, including for apps this user has not connected yet.
+    fn tools(
+        &self,
+        user_id: &MacroUserIdStr<'static>,
+        app_slug: &str,
+    ) -> impl Future<Output = anyhow::Result<Vec<super::service::discovery::ConnectorTool>>> + Send;
 }

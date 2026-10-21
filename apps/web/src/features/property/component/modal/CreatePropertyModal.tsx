@@ -39,6 +39,7 @@ import { useMaybePropertiesContext } from '../../context/PropertiesContext';
 import {
   getPropertyDataTypeDropdownOptions,
   PropertyDataTypeIcon,
+  parseEntityType,
   usePropertyNameFocus,
 } from '../../utils';
 import { ERROR_MESSAGES } from '../../utils/errorHandling';
@@ -325,7 +326,7 @@ export const CreatePropertyModal: Component<CreatePropertyModalProps> = (
     specificType?: EntityType | null;
   } => {
     if (value.startsWith('entity:')) {
-      const specificType = value.split(':')[1] as EntityType;
+      const specificType = parseEntityType(value.split(':')[1]) ?? null;
       return { type: 'entity', specificType };
     }
     if (value === 'entity') {
@@ -648,7 +649,7 @@ export const CreatePropertyModal: Component<CreatePropertyModalProps> = (
                 <Select.Portal>
                   <Layer depth={3}>
                     <Select.Content
-                      class="z-action-menu min-w-56 overflow-y-auto rounded-xl border border-edge bg-surface p-1.5 shadow-menu menu-open-animation"
+                      class="menu-surface z-action-menu min-w-56 overflow-y-auto p-1.5 menu-open-animation"
                       ref={(el) => {
                         const clean = addCtrlJKMenuNavigation(el, () => ({
                           wrap: true,

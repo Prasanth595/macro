@@ -4,7 +4,10 @@ export type ReviewsScope =
   | 'assigned'
   | 'involving'
   | 'review_requests';
+/** How the Reviews list lays out pull requests. */
+export type ReviewsLayout = 'list' | 'board';
 export type ReviewsSortId =
+  | 'priority'
   | 'recently_updated'
   | 'least_recently_updated'
   | 'newest'
@@ -15,14 +18,17 @@ export type ReviewsReviewFilterId =
   | 'not_reviewed_by_me'
   | 'awaiting_my_review';
 export type ReviewsStatusFilterId = 'open' | 'closed' | 'merged';
-export type ReviewsStatusTabId = 'open' | 'closed';
+export type ReviewsStatusTabId = 'open' | 'closed' | 'all';
 export type ReviewsFilterId =
   | 'status'
   | 'repository'
   | 'author'
   | 'assignee'
   | 'label'
-  | 'review';
+  | 'review'
+  | 'priority'
+  | 'linked'
+  | 'origin';
 /** Selected option ids per filter group; any option in a group matches. */
 export type ReviewsFilterSelection = Record<ReviewsFilterId, readonly string[]>;
 
@@ -33,6 +39,9 @@ export const EMPTY_REVIEWS_FILTERS: ReviewsFilterSelection = {
   assignee: [],
   label: [],
   review: [],
+  priority: [],
+  linked: [],
+  origin: [],
 };
 
 /** Default and reset state for the Reviews list. */
