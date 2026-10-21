@@ -391,7 +391,9 @@ export function BookingWorkspaceView(props: {
         <Show
           when={
             isTouchDevice() ||
-            (search.tab !== 'bookings' && search.tab !== 'page')
+            (search.tab !== 'bookings' &&
+              search.tab !== 'page' &&
+              search.tab !== 'insights')
           }
         >
           <SchedulingHeader
@@ -595,7 +597,9 @@ export function BookingWorkspaceView(props: {
         <ViewShell.Content
           class={cn('px-4', {
             'not-touch:px-0':
-              search.tab === 'bookings' || search.tab === 'page',
+              search.tab === 'bookings' ||
+              search.tab === 'page' ||
+              search.tab === 'insights',
             'flex min-h-0 flex-col overflow-hidden':
               editingSchedule() || search.tab === 'page',
             'overflow-auto pb-8': !editingSchedule() && search.tab !== 'page',
@@ -690,7 +694,22 @@ export function BookingWorkspaceView(props: {
                   />
                 </Show>
                 <Show when={search.tab === 'insights' && owner() === current}>
-                  <OwnerSettingsSection kind="insights" owner={current} />
+                  <OwnerSettingsSection
+                    kind="insights"
+                    owner={current}
+                    insightsTitle={
+                      !isTouchDevice() ? (
+                        <div class="flex items-center gap-2">
+                          <h1 class="text-sm font-semibold text-ink">
+                            Insights
+                          </h1>
+                          <div class="hidden @min-[900px]/split-header:flex">
+                            <OwnerBadge scope={current.scope()} />
+                          </div>
+                        </div>
+                      ) : undefined
+                    }
+                  />
                 </Show>
                 <Show when={search.tab === 'page' && owner() === current}>
                   <OwnerSettingsSection

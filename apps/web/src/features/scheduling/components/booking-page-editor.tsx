@@ -24,19 +24,21 @@ export function BookingPageEditor(props: {
   onRevert: () => void;
 }) {
   const [mode, setMode] = createSignal<'edit' | 'preview'>('edit');
-  const controls = () => (
+  const modeTabs = () => (
+    <div class="pointer-events-auto rounded-full touch:bg-panel">
+      <Tabs
+        aria-label="Booking page mode"
+        options={[
+          { value: 'edit', label: 'Edit' },
+          { value: 'preview', label: 'Preview' },
+        ]}
+        value={mode()}
+        onChange={setMode}
+      />
+    </div>
+  );
+  const actions = () => (
     <>
-      <div class="pointer-events-auto rounded-full touch:bg-panel">
-        <Tabs
-          aria-label="Booking page mode"
-          options={[
-            { value: 'edit', label: 'Edit' },
-            { value: 'preview', label: 'Preview' },
-          ]}
-          value={mode()}
-          onChange={setMode}
-        />
-      </div>
       <Show when={mode() === 'edit'}>
         <div class="pointer-events-auto flex items-center gap-2 touch:rounded-lg touch:bg-panel">
           <HeaderActionGroup label="Booking page changes">
@@ -53,7 +55,7 @@ export function BookingPageEditor(props: {
             </Show>
             <Button
               type="submit"
-              variant="cta"
+              variant="strong"
               aria-label={
                 props.saving ? 'Saving booking page' : 'Save booking page'
               }
@@ -96,11 +98,21 @@ export function BookingPageEditor(props: {
         when={props.headerTitle}
         fallback={
           <div class="pointer-events-none absolute inset-x-4 top-3 z-10 flex items-center justify-between gap-2">
-            {controls()}
+            {modeTabs()}
+            {actions()}
           </div>
         }
       >
-        <ListHeader title={props.headerTitle}>{controls()}</ListHeader>
+        <ListHeader
+          title={
+            <div class="flex min-w-0 items-center gap-3">
+              {props.headerTitle}
+              {modeTabs()}
+            </div>
+          }
+        >
+          {actions()}
+        </ListHeader>
       </Show>
       <Show when={props.hasChanges}>
         <span role="status" class="sr-only">

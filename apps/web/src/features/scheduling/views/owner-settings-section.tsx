@@ -29,6 +29,7 @@ export function OwnerSettingsSection(props: {
   scheduleTopBarOwned?: boolean;
   bookingsTitle?: JSX.Element;
   pageTitle?: JSX.Element;
+  insightsTitle?: JSX.Element;
   registerSearchFocus?: (focus: () => void) => void;
 }) {
   const capabilities = useScheduling();
@@ -385,6 +386,7 @@ export function OwnerSettingsSection(props: {
               <Show when={scope().id} keyed>
                 {(_scopeId) => (
                   <InsightsView
+                    headerTitle={props.insightsTitle}
                     source={source}
                     events={p().eventTypes}
                     members={capabilities.members()}
