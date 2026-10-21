@@ -56,7 +56,9 @@ default a missing field to `[]` so events published before this field existed
 still decode.
 
 `join_method` is a tagged union. An accepted invite includes its invite UUID and
-the inviter; a domain auto-join is encoded as `{"type":"domain_auto_join"}`.
+the inviter; a domain auto-join is encoded as `{"type":"domain_auto_join"}` and
+a join through the team's shareable invite link as `{"type":"invite_link"}`.
+Consumers should ignore join methods they don't recognize.
 A complete invite-accepted membership envelope has this shape:
 
 ```json
