@@ -92,9 +92,9 @@ as in any channel.
 
 What a step made, changed, or showed appears as a card under its step: a
 document, a sent email, an event, a composed view. An agent working in code
-mode gets the same cards: each item its program changed is a step of its own
-after `Execute code`, worded like the tool that does the same (`Rename
-channel`). The cards of steps folded
+mode gets the same cards: each SDK operation its program ran is a step, and a
+write that created or changed an item carries that item's card. The cards of
+steps folded
 behind `N earlier steps` show above that control, and a finished run that
 folds into `Worked for … · N steps` keeps its cards. A card's short summary
 (`3 changes`, `to Ana Ruiz`) shows only while its run is live, to a reader of

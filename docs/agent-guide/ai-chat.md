@@ -949,12 +949,13 @@ ACP call.
 Its card can appear before the program finishes and stays editable afterwards.
 Presentation means “Presented to the user,” not approved or sent. SDK operation
 activity reports request outcomes, without storing request arguments or response
-bodies. Each SDK write that creates or changes a document, project, channel,
-form, calendar event, email thread or initiative emits a completed
-**PresentItem** call as it finishes, at most 32 per run. The session shows those
-as the items' cards under **Run code**, and a channel reply carries them like
-any other step's cards. Document content edits and routines are not in the SDK,
-so they earn no card from code. The execution journal retains source, status and final JSON/error;
+bodies. An SDK write that creates or changes a document, project, channel,
+form, calendar event, email thread or initiative records that item on its
+operation, at most 32 per run. Its card, the same one the equivalent Macro tool
+earns, shows under **Run code** in the session once the run finishes, and under
+that operation's step in a channel reply as soon as the write completes.
+Document content edits and routines are not in the SDK, so they earn no card
+from code. The execution journal retains source, status and final JSON/error;
 completed API writes are not rolled back after failure or cancellation.
 If a reused execution ID refers to different source, the card reports that tool
 results are unavailable and does not display the other program's saved results.
