@@ -7,8 +7,12 @@ import {
 import type { ProviderId } from './model';
 
 /** Scope provider navigation to each mounted Integrations page. */
-export function createConnectionsViewState() {
-  const [provider, setProvider] = createSignal<ProviderId | null>(null);
+export function createConnectionsViewState(initial?: {
+  provider?: ProviderId;
+}) {
+  const [provider, setProvider] = createSignal<ProviderId | null>(
+    initial?.provider ?? null
+  );
   return {
     provider,
     showOverview: () => {

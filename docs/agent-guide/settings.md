@@ -135,8 +135,9 @@ enterprise teams retain their billing bypass.
 On a local stack started with `--no-doppler`, verify free-team creation from a
 fresh passwordless signup. It must work without Stripe credentials.
 
-Under **Team**, owners/admins can turn **Auto-join on domain** off and can restrict
-invitations to admins with **Members can invite**. These controls still apply.
+Under **Team → Members** (**Invite settings**), owners/admins can turn
+**Auto-join on domain** off and can restrict invitations to admins with
+**Members can invite**. These controls still apply.
 To verify the membership flow, use a local free team with five members: invite
 and accept a sixth member, then sign up another user on its enabled auto-join
 domain. Both should appear in the team's member list and configured auto-join
@@ -146,7 +147,7 @@ same-domain signup is not added automatically.
 ### Navigation
 
 On phones, **More views → Settings** opens an inset glass sheet over the current
-page. The main page has a profile shortcut and the same grouped Blocks, Personal, Workspace,
+page. The main page has a profile shortcut and the same grouped Team, Blocks, Personal, Workspace,
 and Developer sections as desktop, plus enabled admin settings. Search finds
 individual settings; selecting a result opens its page and reveals the section. Tap a row to open that settings
 page inside the sheet; **Back to settings** returns to the grouped list at its
@@ -213,9 +214,16 @@ seconds (pointer, or Space/Enter); releasing early cancels.
 
 Left nav (feature and platform gates still apply):
 
+- **Team · <team name>** (just **Team** without a team): General (name, slug,
+  GitHub autolink, default link sharing, Delete Team), Members (member list,
+  roles and seat plans, **Invite**, pending invites, auto-join and
+  members-can-invite), Connections (Slack import, GitHub App). Without a team
+  only General shows, with pending invitations or **Create Team**. Search
+  finds these by `invite`, `members`, `teammates`, `slack`, and similar terms;
+  results name their group, e.g. **Team · Members**.
 - **Blocks**: Email, Calendar, Agents, CRM.
 - **Personal**: Account, Appearance, Notifications, Keyboard shortcuts, Usage, Billing, Desktop App, Mobile App.
-- **Workspace**: Team, Tags, Integrations (personal Gmail/GitHub accounts and agent tools).
+- **Workspace**: Tags, Integrations (personal Gmail/GitHub accounts and agent tools).
 - **Developer**: Runtimes, MCP server, API Keys, Bots.
 
 **Desktop App** (`/app/settings/desktop-app`) is titled
@@ -225,8 +233,8 @@ installed on the computer. In the browser it links to the latest desktop release
 on GitHub, and only appears when the `desktop-app` PostHog flag is enabled. Native desktop always shows this section regardless of the flag;
 native mobile never shows it.
 
-The **Mobile App** page is titled **Mobile app (Alpha)** and offers a QR code
-to download **Macro Alpha** from the App Store.
+The **Mobile App** page is titled **Mobile app** and offers a QR code
+to download **Macro** from the App Store.
 
 Search checks individual setting titles and keywords, tolerates common typos,
 and shows the parent page below each control result. Selecting a result opens
@@ -426,15 +434,16 @@ Max stays active until renewal; **Keep Max plan** cancels a pending downgrade
 without resetting usage. Failed renewal-detail reads offer **Try again**.
 Team members who cannot manage billing see the notice without its action.
 
-`Team` (members list; on a paid team each row shows the seat's plan,
+`Team → Members` (`/app/settings/team-members`; on a paid team each row shows the seat's plan,
 and admins/owners can move a seat between Pro and Max with the `Seat plan`
 menu; Max upgrades are immediate and prorated, Pro downgrades start at renewal.
 **Keep Max** appears only for a confirmed pending downgrade and cancels it;
 failed scheduled-plan reads offer **Try again**, while teams without applicable
-scheduled plans show no retry notice). CRM (enable/disable; once enabled, a `Deal stages` section
-with `Customize stages`, inline rename, reorder by drag handle or arrow keys (up/down
-buttons on touch), delete, `Add stage`, `Reset to defaults`, and `Closed stages`
-checkboxes, editable by the role set as `edit_stages_role`)
+scheduled plans show no retry notice). CRM (a `Team CRM` switch that admins use to enable or disable it;
+once enabled, a `Stages` section for the company Stage options that new pipelines
+also start with, with `Customize`, inline rename, reorder by drag handle or arrow
+keys (up/down buttons on touch), delete, `Add stage`, and `Reset to defaults`,
+editable by the role set as `edit_stages_role`)
 
 `Agents` unifies agent definitions and runtime configuration in one page, also used by the Agents workspace. Its `Agents` section lists team and private agents. `New agent` / `Edit <name>` open full-page forms grouped
 Profile, Behavior, Runtime, Connections, Channels, Share. Connections is a radio pair:
@@ -463,6 +472,8 @@ the picture after reopening settings and after a page reload, then type `@` and
 the agent's name in a channel to check its mention-menu picture. Team agents
 available in all channels should refresh there without reloading the channel.
 
+![Integrations overview with example connections](assets/settings-integrations.png)
+
 With `pipedream-mcp` enabled, Settings → Integrations labels the Email/GitHub
 section Core Integrations and the connector section Agent Integrations, separated
 by spacing without a divider. Installed tools use a two-column card grid (one
@@ -478,7 +489,7 @@ harness with the official Macro MCP” opens connection setup; “Stream session
 from your local AI harness to Macro” opens Runtimes within Integrations to connect
 a local machine. Its Back button returns to Integrations; opening Runtimes from
 Agents keeps the return to Agents.
-Email and GitHub cards appear next under Core Integrations;
+Email, GitHub, and Granola cards appear next under Core Integrations;
 the two cards share a height. A small gear on the Email card opens Email settings;
 Calendar settings remain available from the settings sidebar.
 All apps groups each app under its first nonempty Pipedream category; apps without
@@ -556,7 +567,7 @@ New macrod sessions use the agent's saved model before sending the first prompt.
 Changing that default applies to new sessions; existing sessions keep their selected model.
 If the runtime rejects the saved model, the prompt fails instead of using a different model.
 
-The `Runtimes` section shows built-in Macro, Cursor, Claude, and Codex configuration, followed by paired macrod runtimes. Claude's card appears only with the `claude-cloud` flag, and Codex's only within the agents and Codex rollouts. The “Bring your own agent” card sits above the Agents / Runtimes navigation and is visible on both sections. It rotates Claude Code, OpenCode, OpenClaw, and Hermes; reduced motion keeps a static name. Its `New runtime` action opens the full-page pairing flow from either section: enter the code, look up the request, review the machine, name, sharing and permission consent, then Approve and Done. Back/Cancel returns to the runtime list. Destructive removal still requires confirmation. `/settings/runtimes` opens this section; legacy `/settings/harness?pair=…` links remain supported.
+The `Runtimes` section shows built-in Macro, Cursor, Claude, and Codex configuration, followed by paired macrod runtimes. Claude's card appears only with the `claude-cloud` flag, and Codex's only within the agents and Codex rollouts. On the desktop app only, a “This computer” card appears above the built-in runtimes: the bundled macrod daemon is set up from here with one click. `Set up` scans the machine for installed agents (Claude Code, Codex, OpenCode, OpenClaw), offers a workspace folder and a Full access checkbox, and `Start running agents here` configures, pairs, and starts the daemon — the pairing is approved automatically, no code is typed. While running the card shows the agent and workspace with a `Stop` action; a set-up-but-stopped runtime offers `Start`. The web app never shows this card. The “Bring your own agent” card sits above the Agents / Runtimes navigation and is visible on both sections. It rotates Claude Code, OpenCode, OpenClaw, and Hermes; reduced motion keeps a static name. Its `New runtime` action opens the full-page pairing flow from either section: enter the code, look up the request, review the machine, name, sharing and permission consent, then Approve and Done. Back/Cancel returns to the runtime list. Destructive removal still requires confirmation. `/settings/runtimes` opens this section; legacy `/settings/harness?pair=…` links remain supported.
 Connection chips in agent replies open this page, including before any account is connected. Cursor's default-model picker uses
 the same live model discovery and retains its existing save action.
 
@@ -595,3 +606,22 @@ and verify an upstream outage leaves the current links intact and reports an err
 The Macro link survives a failed reconnect, but replacing the FusionAuth grant
 is not atomic. A crash or failed restoration may leave it missing; retry OAuth
 to recreate it after the provider recovers.
+
+## Bots
+
+Open **Developer → Bots** to create an account for a program. The page explains
+how to add the bot to channels and use its token with the Macro SDK. **Create
+bot** keeps Profile and Channels visible. **Advanced** starts collapsed on both
+desktop and mobile and contains:
+
+- **Agent → Show in model selector**: makes the bot available when starting an
+  AI chat; connect an agent such as Codex or Hermes to handle requests. This
+  section remains gated by the agents rollout.
+- **Ownership → Mentionable**: lets teammates find and @mention the bot and
+  creates it under team ownership. With the switch off, the creator owns it.
+  Only team admins and owners can enable this option.
+
+Open an existing bot to edit its profile, channels, and tokens. Its Agent control
+also lives under a collapsed **Advanced** section. Verify that expanding and
+collapsing Advanced preserves selected options and does not submit the form.
+After creation, copy the **Bot token** before leaving; it is shown only once.

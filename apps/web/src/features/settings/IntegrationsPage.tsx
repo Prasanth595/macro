@@ -5,6 +5,7 @@ import { createSignal, Show, Suspense } from 'solid-js';
 import { IntegrationsView } from './connections/integrations-view';
 import { EmailCard } from './Email';
 import { GitHubCard } from './GitHub';
+import { GranolaCard } from './Granola';
 import { Harness } from './Harness';
 import { IntegrationsSection } from './Integrations';
 import { SettingsPage } from './primitives';
@@ -66,6 +67,9 @@ function AccountConnections() {
         </Show>
         <Suspense>
           <GitHubCard class="h-full bg-ink/4 shadow-none light-mode:shadow-none touch:bg-ink/4" />
+        </Suspense>
+        <Suspense>
+          <GranolaCard />
         </Suspense>
       </div>
     </section>

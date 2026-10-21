@@ -17,11 +17,15 @@ import {
 import { SettingsPage } from '../primitives';
 import { ConnectedView } from './ConnectedView';
 import { DiscoverView } from './DiscoverView';
-import { capabilitiesFor } from './model';
+import { capabilitiesFor, type ProviderId } from './model';
 import { PipedreamAiProvider } from './PipedreamAiProvider';
 import { SlackChannelImportFlow } from './slack-channel-import/SlackChannelImportFlow';
 import { useConnectionsModel } from './use-connections-model';
-import { ConnectionsViewProvider, useConnectionsView } from './view-state';
+import {
+  ConnectionsViewProvider,
+  createConnectionsViewState,
+  useConnectionsView,
+} from './view-state';
 
 function IntegrationSetupCallouts(props: {
   onOpenMacroMcp: () => void;
@@ -62,11 +66,13 @@ function IntegrationSetupCallouts(props: {
 type IntegrationsViewProps = ParentProps<{
   onOpenMacroMcp: () => void;
   onOpenLocalAgents: () => void;
+  initialProvider?: ProviderId;
 }>;
 
 export function IntegrationsView(props: IntegrationsViewProps) {
+  const view = createConnectionsViewState({ provider: props.initialProvider });
   return (
-    <ConnectionsViewProvider>
+    <ConnectionsViewProvider value={view}>
       <ConnectionsContent {...props} />
     </ConnectionsViewProvider>
   );

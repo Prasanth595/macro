@@ -12,6 +12,7 @@ vi.mock('@core/pipedream/flag', () => ({
   usePipedreamMcpFlag: () => () => true,
 }));
 vi.mock('./Email', () => ({ EmailCard: () => <div>Email</div> }));
+vi.mock('./Granola', () => ({ GranolaCard: () => <div>Granola</div> }));
 vi.mock('./GitHub', () => ({ GitHubCard: () => <div>GitHub</div> }));
 vi.mock('./Integrations', () => ({ IntegrationsSection: () => null }));
 vi.mock('./connections/integrations-view', () => ({
