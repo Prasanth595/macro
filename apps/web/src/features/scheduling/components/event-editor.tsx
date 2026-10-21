@@ -592,6 +592,7 @@ export function EventEditor(props: EventEditorProps) {
                   </div>
                   <div class="flex min-w-0 flex-col gap-3">
                     <Tabs
+                      touch="pills"
                       aria-label="Scheduling type"
                       disabled={props.saving || props.step !== 'location'}
                       options={[

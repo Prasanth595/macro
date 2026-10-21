@@ -291,6 +291,7 @@ export function CalendarInviteCard(props: {
                 }
               >
                 <Tabs
+                  touch="segmented"
                   aria-label="Your response"
                   options={RESPONSES}
                   value={
@@ -321,7 +322,7 @@ export function CalendarInviteCard(props: {
                     aria-label="Join meeting"
                     onClick={() => props.actions?.openExternal?.(conference()!)}
                   >
-                    <VideoCamera />
+                    <VideoCamera class="size-3.5 touch:size-4" />
                     Join
                   </Button>
                 </Show>
@@ -332,7 +333,7 @@ export function CalendarInviteCard(props: {
                     label="Open in calendar"
                     onClick={() => props.actions?.openCalendar?.()}
                   >
-                    <CalendarBlank />
+                    <CalendarBlank class="size-4" />
                   </Button>
                 </Show>
               </div>

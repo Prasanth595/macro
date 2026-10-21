@@ -9,6 +9,7 @@ export function AvailabilityTypePicker(props: {
 }) {
   return (
     <Tabs
+      touch="pills"
       aria-label={props.label ?? 'Availability type'}
       size="sm"
       disabled={props.disabled}

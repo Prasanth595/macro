@@ -21,10 +21,10 @@ export type TabsSize = 'sm' | 'md' | 'lg';
 
 /**
  * Desktop always renders separate pills. Touch keeps the treatment each
- * surface already had: a sliding pill, a bordered inset track, or divided
- * segments.
+ * surface already had: a sliding pill, a bordered inset track, divided
+ * segments, or the same separate pills as desktop.
  */
-export type TabsTouchStyle = 'pill' | 'inset' | 'segmented';
+export type TabsTouchStyle = 'pill' | 'inset' | 'segmented' | 'pills';
 
 export type TabsProps<T extends string> = {
   'aria-label': string;
@@ -79,7 +79,7 @@ export function Tabs<T extends string>(props: TabsProps<T>) {
       )}
     >
       <Show
-        when={isTouchDevice() && !props.wrap}
+        when={isTouchDevice() && !props.wrap && props.touch !== 'pills'}
         fallback={
           <div
             class={cn(
@@ -161,7 +161,7 @@ function PillOption<T extends string>(props: {
       class={cn(
         'relative inline-flex min-w-0 shrink-0 rounded-full border text-ink-muted transition-colors duration-120 motion-reduce:transition-none',
         // Unselected options share the outline Button frame.
-        'bg-control elevated not-data-checked:hover:overlay-hover not-data-checked:hover:text-ink',
+        'bg-control elevated not-touch:not-data-checked:hover:overlay-hover not-touch:not-data-checked:hover:text-ink',
         // The selected option takes the pressed fill, flat like a pressed Button.
         'data-checked:border-edge-button data-checked:overlay-active data-checked:text-ink data-checked:shadow-none',
         'has-focus-visible:ring-2 has-focus-visible:ring-inset has-focus-visible:ring-edge-focus',
