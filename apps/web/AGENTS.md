@@ -250,7 +250,7 @@ relative imports unchanged and Tauri can serve HTML for the missing module.
 
 ## macOS desktop runtime: Chromium (CEF)
 `tauri/desktop-cef` builds the shipped macOS app with Chromium in its own Cargo
-workspace. The macOS release DMG and pull request native check build this
+workspace. The macOS release DMG and web pull request checks build this
 workspace; iOS, Android, Linux, and Windows still build `tauri/src-tauri` on the
 system webview. See `tauri/desktop-cef/AGENTS.md` before changing Tauri
 dependencies or the app's served origin.

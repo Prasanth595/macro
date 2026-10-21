@@ -22,7 +22,6 @@ mod build_web_app;
 mod cancel_stuck_cloud_storage_deploys;
 mod cargo_deny;
 mod cargo_workspace_dependency_check;
-mod check_desktop_cef;
 mod check_generated;
 mod check_node_modules_nix;
 mod cla;
@@ -150,11 +149,6 @@ const WORKFLOWS: &[WorkflowFile] = &[
         slug: "build_desktop_on_tag",
         file_name: "build_desktop_on_tag.yml",
         render_yaml: || render_gh_workflow(build_desktop_on_tag::build_desktop_on_tag)(),
-    },
-    WorkflowFile {
-        slug: "check_desktop_cef",
-        file_name: "check_desktop_cef.yml",
-        render_yaml: || render_gh_workflow(check_desktop_cef::check_desktop_cef)(),
     },
     WorkflowFile {
         slug: "code_check_infra",

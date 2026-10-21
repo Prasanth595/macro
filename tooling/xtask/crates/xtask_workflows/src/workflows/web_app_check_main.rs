@@ -1,4 +1,4 @@
-//! `Web App Pr Checks` — frontend PR checks for the web app.
+//! `Web App Pr Checks` — frontend, mobile, and macOS desktop PR checks.
 //! Generated into `web-app-check-main.yml`.
 
 use gh_workflow::{
@@ -6,7 +6,7 @@ use gh_workflow::{
 };
 
 use crate::workflows::{
-    runners,
+    build_dmg_on_tag, runners,
     steps::{self, FluentBuilder},
     vars,
 };
@@ -56,6 +56,7 @@ pub fn web_app_check_main() -> Workflow {
         .add_job("test", test())
         .add_job("cycles", cycles())
         .add_job("build", build())
+        .add_job("macos-chromium", macos_chromium())
         .add_job(ios_native_check::JOB_ID, ios_native_check::job())
         .add_job("status-check", status_check())
 }
@@ -225,6 +226,28 @@ fn build() -> Job {
         .add_step(steps::teardown_nix())
 }
 
+fn macos_chromium() -> Job {
+    Job::default()
+        .name("Build macOS Chromium app")
+        .runs_on(vec![
+            format!("{}-with-cache", runners::Runner::MacOsArmLarge),
+            "nscloud-cache-tag-macro-desktop-macos".to_owned(),
+            "nscloud-cache-size-100gb".to_owned(),
+        ])
+        .add_env(("DESKTOP_NIX_CACHE_SIZE_GB", "100"))
+        .add_step(steps::checkout(false, false))
+        .add_step(build_dmg_on_tag::assert_arm64())
+        .add_step(steps::mount_macos_nix_cache_volume())
+        .add_step(steps::install_nix_macos())
+        .add_step(build_dmg_on_tag::configure_nix_cache())
+        .add_step(
+            Step::new("Build Chromium app with Nix")
+                .run(include_str!("scripts/build_macos_chromium_app.sh"))
+                .shell("bash"),
+        )
+        .add_step(build_dmg_on_tag::save_nix_cache())
+}
+
 /// Always-run collector used as the required status check. Its name must stay
 /// stable because branch protection can reference it. New gates join the
 /// `needs` list (and [`check_job_results`]) rather than the ruleset: the
@@ -242,6 +265,7 @@ fn status_check() -> Job {
             "test".to_string(),
             "cycles".to_string(),
             "build".to_string(),
+            "macos-chromium".to_string(),
             ios_native_check::JOB_ID.to_string(),
         ])
         .runs_on(runners::Runner::TinyNoCache.to_string())
@@ -481,6 +505,7 @@ fn check_job_results() -> Step<Run> {
         echo "test: ${{ needs.test.result }}"
         echo "cycles: ${{ needs.cycles.result }}"
         echo "build: ${{ needs.build.result }}"
+        echo "macos-chromium: ${{ needs.macos-chromium.result }}"
         echo "ios-native-check: ${{ needs.ios-native-check.result }}"
 
         # Fail if any job failed (skipped and success are both OK). The iOS
@@ -493,6 +518,7 @@ fn check_job_results() -> Step<Run> {
            [[ "${{ needs.test.result }}" == "failure" ]] || \
            [[ "${{ needs.cycles.result }}" == "failure" ]] || \
            [[ "${{ needs.build.result }}" == "failure" ]] || \
+           [[ "${{ needs.macos-chromium.result }}" != "success" ]] || \
            [[ "${{ needs.ios-native-check.result }}" == "failure" ]] || \
            [[ "${{ needs.ios-native-check.result }}" == "cancelled" ]]; then
           echo "One or more jobs failed"

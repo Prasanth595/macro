@@ -1,7 +1,8 @@
 # desktop-cef
 
-Status: shipped macOS desktop app. CI builds it on every pull request to main and
-the desktop release workflow packages it as the signed DMG.
+Status: shipped macOS desktop app. Web pull request checks build it on every
+pull request to main, and the desktop release workflow packages it as the signed
+DMG.
 
 ## What it is
 

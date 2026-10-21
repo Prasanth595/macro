@@ -28,6 +28,21 @@ fn android_native_check_is_an_unconditional_required_merge_check() {
     assert!(status.contains("needs.android-native-check.result }}\" != \"success\""));
 }
 
+#[test]
+fn macos_chromium_build_is_a_required_pr_check() {
+    let yaml = web_app_check_main().to_string().expect("workflow yaml");
+    let macos = job(&yaml, "macos-chromium", "ios-native-check");
+    assert!(macos.contains("nscloud-macos-sequoia-arm64-12x28-with-cache"));
+    assert!(macos.contains("tauri-desktop-cef-app"));
+    assert!(macos.contains("Chromium Embedded Framework.framework"));
+    let status = yaml
+        .split("\n  status-check:\n")
+        .nth(1)
+        .expect("status job");
+    assert!(status.contains("- macos-chromium"));
+    assert!(status.contains("needs.macos-chromium.result }}\" != \"success\""));
+}
+
 fn filters(yaml: &str) -> (&str, &str) {
     let filters = yaml
         .split("filters: |")
