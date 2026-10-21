@@ -112,6 +112,7 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Reconcile mobile full-text rows by entity ID so appending a page preserves DOM rows and scroll position; restore after responsive row measurement and disable browser scroll anchoring so layout changes cannot override the saved history offset.
 - Reserve the safe area plus the category row above mobile Search, and only the safe area above Channels; their hidden split headers must not add another blank strip.
 - Follow [mobile layout and chrome](../../.agents/rules/web/mobile.md#layout-and-chrome) for full-frame views and record tabs; verify their first controls below the navigation with a nonzero safe area on phones and tablets.
+- Keep split chrome portal targets reactive so cached views can mount before their header, and clear a retiring header's targets only while it still owns them.
 - Show only the Recent conversation feed in mobile Channels, without view tabs or a persisted mobile tab selection.
 - Mount the mobile search input before focusing it inside the dock tap; keep navigation in that handler so focus does not trigger a second navigation or lose iOS keyboard activation.
 - Preserve focused chrome editors during deferred split insertion/removal autofocus; explicit return-focus commands may still focus the pane.
@@ -246,6 +247,12 @@ releases run Vite directly and do not call `just build-tauri` or `build-wasm`.
 Build and copy the agent-fold JavaScript glue and WASM before Vite runs, and
 check that both appear in the output. Without them, Vite leaves the worker's
 relative imports unchanged and Tauri can serve HTML for the missing module.
+
+## macOS desktop runtime: Chromium (CEF), experimental
+`tauri/desktop-cef` builds the macOS app with Chromium in its own Cargo workspace;
+the shipped builds of every platform still come from `tauri/src-tauri` on the
+system webview. See `tauri/desktop-cef/AGENTS.md` before changing Tauri
+dependencies or the app's served origin.
 
 ## macOS desktop gotcha: third-party iframes
 WKWebView asks the desktop navigation plugin about iframe loads as well as page loads, and the plugin cannot tell them apart. A third-party iframe is classified as external: its load is cancelled and the page opens in the browser, leaving an empty frame in the app. List a third-party page the app frames in `EMBEDDED_DOCUMENTS` in `tauri/src-tauri/src/lib.rs`.
