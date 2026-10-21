@@ -9,7 +9,6 @@ import { Layer } from '@ui/components/Layer';
 import { cn } from '@ui/utils/classname';
 import { createMemo, createSignal, Show } from 'solid-js';
 import { formatLocalDate, parseLocalDate } from '../../utils/calendar-date';
-import { EventComposerPopoverPortal } from './EventComposerPopoverPortal';
 import {
   DAY_TIME_OPTIONS,
   type EventTimeOption,
@@ -102,6 +101,7 @@ export function EventTimeInput(props: EventTimeInputProps) {
       gutter={4}
       flip
       slide
+      fitViewport
     >
       {!props.hideLabel && (
         <label for={props.id} class="block text-xxs font-medium text-ink-muted">
@@ -149,10 +149,11 @@ export function EventTimeInput(props: EventTimeInputProps) {
         />
       </div>
 
-      <EventComposerPopoverPortal>
+      <Popover.Portal>
         <Layer depth={4}>
           <Popover.Content
-            class="z-action-menu max-h-64 min-w-[var(--kb-popper-anchor-width)] overflow-y-auto rounded-xl border border-edge bg-menu-glass p-1.5 glass menu-open-animation"
+            data-kb-top-layer
+            class="portal-scope z-action-menu max-h-[min(16rem,var(--kb-popper-content-available-height))] max-w-[var(--kb-popper-content-available-width)] min-w-[var(--kb-popper-anchor-width)] overflow-y-auto rounded-xl border border-edge bg-menu-glass p-1.5 glass menu-open-animation"
             style={{
               'z-index': 'calc(var(--z-index-action-menu) + 1)',
             }}
@@ -190,7 +191,7 @@ export function EventTimeInput(props: EventTimeInputProps) {
             />
           </Popover.Content>
         </Layer>
-      </EventComposerPopoverPortal>
+      </Popover.Portal>
     </Popover>
   );
 }

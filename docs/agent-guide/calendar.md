@@ -4,18 +4,20 @@
 
 Event composer dropdown triggers and date/time inputs use the theme control
 surface, so they blend with the editor instead of using the darker page fill.
-Their menus stay inside the composer's portal scope. Verify that calendar,
-recurrence, Guests, conferencing, Location, and Notifications open on the first
+Property menus stay inside the composer's portal scope; date and time pickers
+portal globally. Verify that calendar, recurrence, Guests, conferencing, Location,
+and Notifications open on the first
 click from the title field and accept changes without closing the composer.
 Open the single **from → to** date-range trigger. Its rounded glass popover contains
 connected month panels with subtle dividers, a live selection summary, start/end time
-selectors, and All day. Desktop and tablet show two consecutive months side by side,
-stacking when constrained; phones show one month at a time. Choose a start day, then
-an end day. Both months share soft range highlighting with distinct endpoints;
-an unfinished selection updates the summary but leaves the event's dates unchanged.
-Complete ranges update immediately, without an Apply step. Time selection keeps
-the date-range picker open. Escape dismisses the active time list, then the range
-picker, before the composer.
+selectors, and All day. Single-day events show one month and update both dates on
+each date click, preserving their times. For multi-day events, desktop and tablet
+show two consecutive months, stacking when constrained; phones show one month.
+Choose a start day, then an end day. An unfinished multi-day selection updates the
+summary without changing the event. Complete ranges update without an Apply step.
+Time dropdowns stay outside the picker, without clipping or changing its dimensions.
+Time selection keeps the date picker open. Escape dismisses the active time list,
+then the date picker, before the composer.
 
 The path selects the Month, Week, or Day period, and choosing another period updates
 that path. Calendar navigation defaults to Day on phones and Week on desktop; the most
@@ -139,14 +141,20 @@ available in every editor presentation; its picker contains date, time, and All 
 controls. Fully locked ranges appear as plain text; a partially locked range keeps
 the locked endpoint unchanged while allowing the other endpoint to be edited.
 All-day dates include the selected last day; saving still uses an exclusive end.
-The date picker portals globally outside the editor/sidebar at depth 4. Same-day
-ranges show one month and the start/end times; multi-day ranges show two connected
-months on desktop/tablet. Phones always show one navigable month.
+The date picker portals globally outside the editor/sidebar at depth 4. Single-day
+events select one date: each click moves both endpoints together and preserves
+their times. Multi-day events retain connected range selection. Both modes preserve
+locked endpoints. Same-day events show one month and the start/end times; multi-day
+events show two connected months on desktop/tablet. Phones always show one navigable
+month, with range selection only for multi-day events.
 Desktop month grids use compact 28px dates and tighter padding; touch dates keep
 36px targets. Month panels remain side by side when there is room in the window,
 regardless of sidebar width.
 On wide screens, start/end times and All day sit in a column to the right of the
 calendars. Phones and narrow windows keep both time inputs side by side below.
+Time dropdowns portal globally outside the picker so they cannot be clipped or
+resize it. They remain viewport-bound and independently scrollable; selecting a
+time or pressing Escape dismisses only the time dropdown.
 Adjacent-month dates remain visible and muted. Each month heading opens a month/year
 chooser with a month grid, year-grid drill-down, paging, and This month. Navigating
 these controls changes only the displayed months, never the selected event dates.
@@ -212,10 +220,14 @@ picker and event editor open.
 Move from popover to sidebar and back with a dirty draft; check title, description,
 guests, dates, recurrence, and edit scope. Both directions must retain the draft
 without prompting for discard, and both transfer controls must disable during save.
-Select a range across the month boundary and check that both months highlight the
-covered days. Confirm selecting only its first day leaves the prior event range
-unchanged. On a phone, navigate between months to select the same connected range.
-Check same-day selection, start/end times, midnight rollover, and All day saving.
+For a multi-day event, select a range across the month boundary and check that
+both months highlight the covered days. Confirm its first click leaves the prior
+range unchanged. On a phone, navigate between months to select the same range.
+For a single-day event, click different dates and confirm both endpoints move
+together on every click, including across months and with keyboard selection.
+Check start/end times, midnight rollover, and All day saving. Open each time
+dropdown and select an option beyond the date picker's bounds; verify the picker
+does not resize or scroll and Escape closes only the active time dropdown.
 Check the actual description placeholder and first text line when empty, filled,
 and multiline, not just the outer container edges.
 Cancel a new custom rule and changes to an existing rule; confirm neither changes

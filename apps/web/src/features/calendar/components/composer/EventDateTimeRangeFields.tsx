@@ -43,14 +43,15 @@ export interface EventDateTimeRangeFieldsProps {
 export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
   const fieldId = createUniqueId();
   const [open, setOpen] = createSignal(false);
-  // Corvu owns two-click selection. An unfinished range stays local to this picker.
+  // Multi-day selections stay local until both dates are chosen.
   const [selection, setSelection] = createSignal<CalendarRange>();
   const startParts = () => splitLocalDateTime(props.start);
   const endParts = () => splitLocalDateTime(props.end);
   const startDate = () => parseLocalDate(startParts().date);
   const endDate = () => parseLocalDate(endParts().date);
   const [month, setMonth] = createSignal(startDate() ?? new Date());
-  const singleMonth = () => isMobile() || startParts().date === endParts().date;
+  const singleDay = () => startParts().date === endParts().date;
+  const singleMonth = () => isMobile() || singleDay();
   const canStart = () => !props.startReadOnly && !props.startDisabled;
   const canEnd = () => !props.endReadOnly && !props.endDisabled;
   const canAllDay = () => !props.allDayReadOnly && !props.allDayDisabled;
@@ -90,28 +91,21 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
       : withLocalDate(value, formatLocalDate(date));
   const changeRange = (range: CalendarRange) => {
     if (!canStart() && !canEnd()) return;
-    if (canStart() && canEnd()) {
-      if (!range.from || !range.to) {
-        setSelection(range);
-        return;
-      }
-      if (
-        !isMobile() &&
-        singleMonth() &&
-        range.from.getTime() !== range.to.getTime()
-      ) {
-        setMonth(range.from);
-      }
-      publishRange(
-        dateValue(props.start, range.from),
-        dateValue(props.end, range.to)
-      );
+    if (singleDay() || !canStart() || !canEnd()) {
+      // Move a single-day event together, without changing locked endpoints.
+      const day = range.to ?? range.from;
+      if (!day) return;
+      publishRange(dateValue(props.start, day), dateValue(props.end, day));
       return;
     }
-    // With one locked endpoint, a day click changes only the editable endpoint.
-    const day = range.to ?? range.from;
-    if (!day) return;
-    publishRange(dateValue(props.start, day), dateValue(props.end, day));
+    if (!range.from || !range.to) {
+      setSelection(range);
+      return;
+    }
+    publishRange(
+      dateValue(props.start, range.from),
+      dateValue(props.end, range.to)
+    );
   };
   const anchor = () =>
     !props.allDay && withinEndTimeWindow(props.start, props.end)

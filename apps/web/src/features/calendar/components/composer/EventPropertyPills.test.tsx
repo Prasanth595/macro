@@ -113,9 +113,23 @@ describe('composer popovers inside a dialog', () => {
     ).toBe(false);
     const time = screen.getByLabelText('Start time');
     await user.click(time);
+    const timeDropdown = screen.getByRole('dialog', {
+      name: 'Choose start time',
+    });
+    const datePicker = screen.getByRole('dialog', {
+      name: 'Event date and time',
+    });
+    expect(datePicker.contains(timeDropdown)).toBe(false);
     await user.click(screen.getByRole('option', { name: '9:30 AM' }));
     expect((time as HTMLInputElement).value).toBe('09:30');
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByLabelText('Title')).toBeTruthy();
+    await user.click(time);
+    await user.keyboard('{Escape}');
+    expect(time.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.getByRole('dialog', { name: 'Event date and time' })).toBe(
+      datePicker
+    );
     expect(screen.getByLabelText('Title')).toBeTruthy();
   });
   it('keeps locked dates as text while the editable end remains interactive', async () => {
@@ -157,13 +171,66 @@ describe('composer popovers inside a dialog', () => {
     );
   });
 
+  it.each([false, true])(
+    'moves both endpoints on each single-day selection (allDay=%s)',
+    async (allDay) => {
+      const user = userEvent.setup();
+      const [range, setRange] = createSignal({
+        start: allDay ? '2026-10-06' : '2026-10-06T09:00',
+        end: allDay ? '2026-10-06' : '2026-10-06T10:00',
+      });
+      const onRangeChange = vi.fn((start: string, end: string) =>
+        setRange({ start, end })
+      );
+      render(() => (
+        <EventDateTimeRangeFields
+          start={range().start}
+          end={range().end}
+          allDay={allDay}
+          onRangeChange={onRangeChange}
+          onAllDayChange={vi.fn()}
+        />
+      ));
+      await user.click(
+        screen.getByRole('button', { name: 'Edit event date and time range' })
+      );
+      await user.click(
+        within(screen.getByRole('grid')).getByRole('gridcell', { name: '20' })
+      );
+      expect(onRangeChange).toHaveBeenCalledExactlyOnceWith(
+        allDay ? '2026-10-20' : '2026-10-20T09:00',
+        allDay ? '2026-10-20' : '2026-10-20T10:00'
+      );
+      expect(screen.queryByText('Select an end date')).toBeNull();
+      await user.keyboard('{ArrowRight}{Enter}');
+      expect(onRangeChange).toHaveBeenLastCalledWith(
+        allDay ? '2026-10-21' : '2026-10-21T09:00',
+        allDay ? '2026-10-21' : '2026-10-21T10:00'
+      );
+      await user.click(
+        screen.getByRole('button', { name: 'Go to next month' })
+      );
+      await user.click(
+        within(screen.getByRole('grid')).getByRole('gridcell', { name: '12' })
+      );
+      expect(onRangeChange).toHaveBeenCalledTimes(3);
+      expect(onRangeChange).toHaveBeenLastCalledWith(
+        allDay ? '2026-11-12' : '2026-11-12T09:00',
+        allDay ? '2026-11-12' : '2026-11-12T10:00'
+      );
+      expect(screen.getAllByRole('grid')).toHaveLength(1);
+      expect(
+        screen.getByRole('grid').querySelectorAll('[data-in-range]')
+      ).toHaveLength(1);
+    }
+  );
   it('selects one connected range across months without publishing a partial range', async () => {
     const user = userEvent.setup();
     const onRangeChange = vi.fn();
     render(() => (
       <EventDateTimeRangeFields
         start="2026-10-06T09:00"
-        end="2026-10-06T10:00"
+        end="2026-11-06T10:00"
         allDay={false}
         onRangeChange={onRangeChange}
         onAllDayChange={vi.fn()}
@@ -173,14 +240,17 @@ describe('composer popovers inside a dialog', () => {
       name: 'Edit event date and time range',
     });
     await user.click(trigger);
-    expect(screen.getAllByRole('grid')).toHaveLength(1);
+    expect(screen.getAllByRole('grid')).toHaveLength(2);
     await user.click(
-      within(screen.getByRole('grid')).getByRole('gridcell', { name: '20' })
+      within(screen.getAllByRole('grid')[0]).getByRole('gridcell', {
+        name: '20',
+      })
     );
     expect(onRangeChange).not.toHaveBeenCalled();
-    await user.click(screen.getByRole('button', { name: 'Go to next month' }));
     await user.click(
-      within(screen.getByRole('grid')).getByRole('gridcell', { name: '12' })
+      within(screen.getAllByRole('grid')[1]).getByRole('gridcell', {
+        name: '12',
+      })
     );
     expect(onRangeChange).toHaveBeenCalledExactlyOnceWith(
       '2026-10-20T09:00',
@@ -189,12 +259,12 @@ describe('composer popovers inside a dialog', () => {
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
   });
 
-  it('expands for multiple days and returns to one calendar for a same-day range', async () => {
+  it('returns to single-day selection when a range collapses to one date', async () => {
     const user = userEvent.setup();
     render(() => {
       const [range, setRange] = createSignal({
         start: '2026-10-06T09:00',
-        end: '2026-10-06T10:00',
+        end: '2026-11-06T10:00',
       });
       return (
         <EventDateTimeRangeFields
@@ -209,23 +279,16 @@ describe('composer popovers inside a dialog', () => {
     await user.click(
       screen.getByRole('button', { name: 'Edit event date and time range' })
     );
-    expect(screen.getAllByRole('grid')).toHaveLength(1);
-    expect(
-      screen.queryByText('Choose a start day, then an end day.')
-    ).toBeNull();
-    await user.click(
-      within(screen.getByRole('grid')).getByRole('gridcell', { name: '20' })
-    );
-    await user.click(screen.getByRole('button', { name: 'Go to next month' }));
-    await user.click(
-      within(screen.getByRole('grid')).getByRole('gridcell', { name: '22' })
-    );
     expect(screen.getAllByRole('grid')).toHaveLength(2);
     expect(screen.getByText('October 2026')).toBeTruthy();
     expect(screen.getByText('November 2026')).toBeTruthy();
     const firstMonth = within(screen.getAllByRole('grid')[0]);
     await user.click(firstMonth.getByRole('gridcell', { name: '21' }));
     await user.click(firstMonth.getByRole('gridcell', { name: '21' }));
+    expect(screen.getAllByRole('grid')).toHaveLength(1);
+    await user.click(
+      within(screen.getByRole('grid')).getByRole('gridcell', { name: '23' })
+    );
     expect(screen.getAllByRole('grid')).toHaveLength(1);
     expect(screen.getByLabelText('Start time')).toHaveProperty(
       'value',
@@ -234,7 +297,7 @@ describe('composer popovers inside a dialog', () => {
     expect(screen.getByLabelText('End time')).toHaveProperty('value', '10:00');
   });
 
-  it('shows adjacent-month dates without publishing them as a range', async () => {
+  it('keeps adjacent-month dates visible and nonselectable', async () => {
     const user = userEvent.setup();
     const onRangeChange = vi.fn();
     render(() => (
