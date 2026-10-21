@@ -24,6 +24,8 @@ word docs, Illustrator/Photoshop files).
 
 ## Scope
 
+- Copying a canvas preserves its JSON seed and, when one exists, its live sync
+  room; a failed sync lookup/copy fails and cleans up the new document.
 - Owns: document lifecycle (create/rename/purge/upgrade), content storage and
   markdown backfill, comments, AI-editing tools, and file-type domain services
   (spreadsheet, presentation, word, illustrator, photoshop).

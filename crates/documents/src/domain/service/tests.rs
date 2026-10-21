@@ -3003,6 +3003,56 @@ fn spreadsheet_test_service(
     )
 }
 
+#[tokio::test]
+async fn canvas_copy_preserves_live_content_and_legacy_canvases_still_copy() {
+    for shared in [false, true] {
+        let mut repo = make_mock_repo();
+        let mut original = make_test_metadata();
+        original.project_id = None;
+        original.file_type = Some("canvas".to_string());
+        repo.expect_get_document_metadata()
+            .returning(move |_| Box::pin(std::future::ready(Ok(original.clone()))));
+        let mut copied = make_test_metadata();
+        copied.document_id = "doc-2".to_string();
+        copied.project_id = None;
+        copied.file_type = Some("canvas".to_string());
+        repo.expect_copy_document()
+            .returning(move |_, _| Box::pin(std::future::ready(Ok(copied.clone()))));
+        repo.expect_get_owner_team()
+            .returning(|_| Box::pin(std::future::ready(Ok(None))));
+        repo.expect_get_latest_document_version_id()
+            .returning(|_| Box::pin(std::future::ready(Ok((1, true)))));
+        repo.expect_set_document_content()
+            .returning(|_, _| Box::pin(std::future::ready(Ok(()))));
+        repo.expect_get_team_task_metadata()
+            .returning(|_| Box::pin(std::future::ready(Ok(None))));
+        let mut sync = crate::domain::ports::sync::MockDocumentSyncPort::new();
+        sync.expect_exists()
+            .withf(|id| id == "doc-1")
+            .times(1)
+            .returning(move |_| Box::pin(std::future::ready(Ok(shared))));
+        sync.expect_copy_document()
+            .withf(|from, to, _| from == "doc-1" && to == "doc-2")
+            .times(usize::from(shared))
+            .returning(|_, _, _| Box::pin(std::future::ready(Ok(()))));
+        let service = spreadsheet_test_service(repo, sync);
+        let mut context = task_document_context("doc-1");
+        context.file_type = Some("canvas".to_string());
+        context.sub_type = None;
+        service
+            .copy_document(
+                authenticated_receipt("doc-1"),
+                context,
+                &CreationPrincipal::User(test_user()),
+                "copied canvas".to_string(),
+                None,
+                None,
+            )
+            .await
+            .unwrap();
+    }
+}
+
 fn spreadsheet_document() -> NewDocument {
     let mut document = new_document(FileType::Spreadsheet);
     document.sha = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_string();

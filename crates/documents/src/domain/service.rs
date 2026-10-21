@@ -1946,9 +1946,33 @@ impl<
                     &new_document_id,
                     new_metadata.document_version_id,
                 );
-                self.upload_url_service
+                let copied = self
+                    .upload_url_service
                     .copy_object(&source_key, &dest_key)
-                    .await
+                    .await;
+                if copied.is_err() || file_type != Some(FileType::Canvas) {
+                    copied
+                } else {
+                    // Canvas keeps its original JSON as a migration seed, while
+                    // edits live in sync-service. A copy needs both representations.
+                    match self
+                        .sync_service_client
+                        .exists(&original_metadata.document_id)
+                        .await
+                    {
+                        Ok(true) => {
+                            self.sync_service_client
+                                .copy_document(
+                                    &original_metadata.document_id,
+                                    &new_document_id,
+                                    sync_version_id,
+                                )
+                                .await
+                        }
+                        Ok(false) => Ok(()),
+                        Err(error) => Err(error),
+                    }
+                }
             }
         };
 
