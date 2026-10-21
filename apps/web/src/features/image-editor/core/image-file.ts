@@ -1,12 +1,12 @@
-export const CHANNEL_PICTURE_MIME_TYPES = [
+export const IMAGE_MIME_TYPES = [
   'image/jpeg',
   'image/png',
   'image/webp',
   'image/gif',
 ];
 
-export function channelPictureFileError(file: File): string | undefined {
-  if (!CHANNEL_PICTURE_MIME_TYPES.includes(file.type) || file.size === 0) {
+export function imageFileError(file: File): string | undefined {
+  if (!IMAGE_MIME_TYPES.includes(file.type) || file.size === 0) {
     return 'Choose a PNG, JPG, WebP, or GIF image';
   }
   if (file.size > 16 * 1000 * 1000) {

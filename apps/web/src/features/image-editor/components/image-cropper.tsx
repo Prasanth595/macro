@@ -14,10 +14,12 @@ import {
   onMount,
   Show,
 } from 'solid-js';
-import { ChannelImageEditorLayout } from './channel-image-editor-layout';
+import { ImageEditorLayout } from './image-editor-layout';
 
-export default function ChannelPictureCropper(props: {
-  channelId: string;
+export default function ImageCropper(props: {
+  telemetryAttributes?: Record<string, string>;
+  outputFileName?: string;
+  cancelLabel?: string;
   source: File | string;
   disabled: boolean;
   actions?: JSX.Element;
@@ -31,6 +33,7 @@ export default function ChannelPictureCropper(props: {
   let container!: HTMLDivElement;
   let cropper: Cropper | undefined;
   let disposed = false;
+  let lastExport: { frame: number[]; file: File } | undefined;
   const [ready, setReady] = createSignal(false);
   const [exporting, setExporting] = createSignal(false);
   const [error, setError] = createSignal<string>();
@@ -126,7 +129,11 @@ export default function ChannelPictureCropper(props: {
       (height - naturalHeight) / 2,
     ];
     setCropChanged(
-      matrix.some((value, index) => Math.abs(value - baseline[index]) > 1e-6)
+      // Cover fitting can round translations by a fraction of a CSS pixel.
+      matrix.some(
+        (value, index) =>
+          Math.abs(value - baseline[index]) > (index < 4 ? 1e-6 : 1e-3)
+      )
     );
     setZoomPercent(Math.round((Math.hypot(a, b) / fit) * 100));
   }
@@ -174,10 +181,30 @@ export default function ChannelPictureCropper(props: {
       props.onSave();
       return;
     }
+    const image = cropper?.getCropperImage();
+    if (!image) return;
+    const frame = [
+      ...image.$getTransform(),
+      selection.x,
+      selection.y,
+      selection.width,
+      selection.height,
+    ];
+    if (
+      lastExport &&
+      frame.every((value, index) => value === lastExport?.frame[index])
+    ) {
+      props.onSave(lastExport.file);
+      return;
+    }
     setExporting(true);
     setError(undefined);
-    await Telemetry.span('channel.picture.crop', async (span) => {
-      span.setAttr('channel.id', props.channelId);
+    await Telemetry.span('image.crop', async (span) => {
+      for (const [key, value] of Object.entries(
+        props.telemetryAttributes ?? {}
+      )) {
+        span.setAttr(key, value);
+      }
       if (props.source instanceof File) {
         span.setAttr('image.input_bytes', props.source.size);
       }
@@ -196,28 +223,26 @@ export default function ChannelPictureCropper(props: {
       if (disposed) return;
       setExporting(false);
       if (result.isErr() || !result.value) {
-        span.error('Channel picture crop failed');
+        span.error('Image crop failed');
         setError('Could not crop this image. Try again or go back.');
         return;
       }
       if (props.disabled || props.saveDisabled) return;
       span.setAttr('image.output_bytes', result.value.size);
-      props.onSave(
-        new File(
-          [result.value],
-          props.source instanceof File
-            ? `${props.source.name.replace(/\.[^.]+$/, '')}.png`
-            : 'channel-picture.png',
-          {
-            type: 'image/png',
-          }
-        )
+      const file = new File(
+        [result.value],
+        props.source instanceof File
+          ? `${props.source.name.replace(/\.[^.]+$/, '')}.png`
+          : (props.outputFileName ?? 'image.png'),
+        { type: 'image/png' }
       );
+      lastExport = { frame, file };
+      props.onSave(file);
     });
   }
 
   return (
-    <ChannelImageEditorLayout
+    <ImageEditorLayout
       sidebar={
         <>
           {props.actions}
@@ -234,9 +259,10 @@ export default function ChannelPictureCropper(props: {
             variant="ghost"
             size="md"
             class="touch:min-h-11"
+            disabled={props.disabled}
             onClick={props.onCancel}
           >
-            Back
+            {props.cancelLabel ?? 'Back'}
           </Button>
           <Button
             variant="cta"
@@ -255,7 +281,7 @@ export default function ChannelPictureCropper(props: {
       }
     >
       <div class="flex flex-col gap-4">
-        <div class="group/crop group/channel-image relative aspect-square w-full overflow-hidden rounded-lg">
+        <div class="group/crop group/image-editor relative aspect-square w-full overflow-hidden rounded-lg">
           <div
             ref={container}
             role="group"
@@ -319,6 +345,6 @@ export default function ChannelPictureCropper(props: {
           </div>
         </div>
       </div>
-    </ChannelImageEditorLayout>
+    </ImageEditorLayout>
   );
 }

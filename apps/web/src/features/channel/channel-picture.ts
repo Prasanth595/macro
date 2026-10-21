@@ -8,9 +8,9 @@ import {
 import type { Accessor } from 'solid-js';
 
 import {
-  CHANNEL_PICTURE_MIME_TYPES,
-  channelPictureFileError,
-} from './core/channel-picture';
+  IMAGE_MIME_TYPES,
+  imageFileError,
+} from '../image-editor/core/image-file';
 
 /**
  * Upload and clear channel pictures, for menus that learn their channel when
@@ -22,7 +22,7 @@ export function useChannelPictureEditor() {
 
   const save = async (channelId: string, file: File | null) => {
     if (mutation.isPending) return;
-    const validationError = file ? channelPictureFileError(file) : undefined;
+    const validationError = file ? imageFileError(file) : undefined;
     if (validationError) {
       toast.failure(validationError);
       return;
@@ -41,7 +41,7 @@ export function useChannelPictureEditor() {
     if (mutation.isPending) return;
     openFilePicker(
       {
-        acceptedMimeTypes: CHANNEL_PICTURE_MIME_TYPES,
+        acceptedMimeTypes: IMAGE_MIME_TYPES,
         acceptedFileExtensions: ['jpg', 'jpeg', 'png', 'webp', 'gif'],
       },
       async (files) => {

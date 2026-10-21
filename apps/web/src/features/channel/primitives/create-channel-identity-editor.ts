@@ -1,11 +1,11 @@
 import { type Accessor, createSignal, onCleanup } from 'solid-js';
+import { imageFileError } from '../../image-editor/core/image-file';
 import type {
   ChannelIdentityTeamControls,
   ChannelIdentityWriter,
   ChannelTeamSettings,
   ChannelTeamSettingsPatch,
 } from '../core/channel-identity';
-import { channelPictureFileError } from '../core/channel-picture';
 
 export function createChannelIdentityEditor(options: {
   name: string;
@@ -66,7 +66,7 @@ export function createChannelIdentityEditor(options: {
 
   function changePicture(file: File | null) {
     if (pending() || !options.canEdit()) return;
-    const validationError = file ? channelPictureFileError(file) : undefined;
+    const validationError = file ? imageFileError(file) : undefined;
     setError(validationError);
     if (!validationError) setPicture(file);
   }

@@ -9,9 +9,9 @@ import {
 import { err, ok } from 'neverthrow';
 import { createComponent, createSignal } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import ImageCropper from '../../image-editor/components/image-cropper';
+import { ImageUploadArea } from '../../image-editor/components/image-upload-area';
 import { ChannelIdentityModal } from '../views/channel-identity-editor';
-import { ChannelImageActions } from './channel-identity-fields';
-import ChannelPictureCropper from './channel-picture-cropper';
 
 const cropper = vi.hoisted(() => ({
   ready: vi.fn(),
@@ -45,6 +45,14 @@ vi.mock('cropperjs', () => ({
       $toCanvas: cropper.exportFullCanvas,
     };
     selection = {
+      x: 0,
+      y: 0,
+      get width() {
+        return cropper.canvasSize;
+      },
+      get height() {
+        return cropper.canvasSize;
+      },
       $toCanvas: cropper.exportCanvas,
       getBoundingClientRect: () => ({
         x: 100,
@@ -152,7 +160,7 @@ describe('channel picture crop lifecycle', () => {
     const onPick = vi.fn();
     const onClear = vi.fn();
     render(() =>
-      createComponent(ChannelImageActions, {
+      createComponent(ImageUploadArea, {
         get disabled() {
           return disabled();
         },
@@ -162,7 +170,7 @@ describe('channel picture crop lifecycle', () => {
         onFilesDrop: vi.fn(),
       })
     );
-    const upload = screen.getByRole('button', { name: 'Upload channel image' });
+    const upload = screen.getByRole('button', { name: 'Upload image' });
     expect(screen.queryByRole('button', { name: 'Change image' })).toBeNull();
     const description = screen.getByText(
       'Click to upload or drag and drop an image'
@@ -186,8 +194,8 @@ describe('channel picture crop lifecycle', () => {
   });
   it('reports committed zoom changes from buttons, wheel transforms, and reset', async () => {
     render(() =>
-      createComponent(ChannelPictureCropper, {
-        channelId: 'design',
+      createComponent(ImageCropper, {
+        outputFileName: 'channel-picture.png',
         source: new File(['image'], 'team.png', { type: 'image/png' }),
         disabled: false,
         onSave: vi.fn(),
@@ -207,11 +215,30 @@ describe('channel picture crop lifecycle', () => {
     await screen.findByText('100%');
   });
 
+  it('ignores subpixel fitting noise but saves an actual crop movement', async () => {
+    render(() =>
+      createComponent(ImageCropper, {
+        source: 'https://files.example.com/portrait.png',
+        disabled: false,
+        onSave: vi.fn(),
+        onCancel: vi.fn(),
+      })
+    );
+    const save = await screen.findByRole<HTMLButtonElement>('button', {
+      name: 'Save',
+    });
+    cropper.transform([1, 0, 0, 1, -200.00002, 0]);
+    await Promise.resolve();
+    expect(save.disabled).toBe(true);
+    cropper.transform([1, 0, 0, 1, -201, 0]);
+    await waitFor(() => expect(save.disabled).toBe(false));
+  });
+
   it('moves the crop with arrow keys and resets zoom while respecting disabled state', async () => {
     const [disabled, setDisabled] = createSignal(false);
     render(() =>
-      createComponent(ChannelPictureCropper, {
-        channelId: 'design',
+      createComponent(ImageCropper, {
+        outputFileName: 'channel-picture.png',
         source: new File(['image'], 'team.png', { type: 'image/png' }),
         get disabled() {
           return disabled();
@@ -234,6 +261,9 @@ describe('channel picture crop lifecycle', () => {
     setDisabled(true);
     fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
     expect(cropper.zoom).toHaveBeenCalledOnce();
+    expect(
+      screen.getByRole<HTMLButtonElement>('button', { name: 'Back' }).disabled
+    ).toBe(true);
   });
 
   it('loads a saved image with CORS and exports a PNG draft', async () => {
@@ -244,8 +274,8 @@ describe('channel picture crop lifecycle', () => {
     );
     const apply = vi.fn();
     render(() =>
-      createComponent(ChannelPictureCropper, {
-        channelId: 'design',
+      createComponent(ImageCropper, {
+        outputFileName: 'channel-picture.png',
         source: 'https://files.example.com/channel.png',
         disabled: false,
         onSave: apply,
@@ -265,12 +295,40 @@ describe('channel picture crop lifecycle', () => {
     expect(apply.mock.calls[0][0].name).toBe('channel-picture.png');
   });
 
+  it('reuses the exported file on retry until the crop changes', async () => {
+    cropper.exportCanvas.mockResolvedValue(
+      exportedCanvas(new Blob(['crop'], { type: 'image/png' }))
+    );
+    const onSave = vi.fn();
+    render(() =>
+      createComponent(ImageCropper, {
+        source: new File(['image'], 'portrait.png', { type: 'image/png' }),
+        disabled: false,
+        onSave,
+        onCancel: vi.fn(),
+      })
+    );
+    const save = await screen.findByRole('button', { name: 'Save' });
+    fireEvent.click(save);
+    await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
+    const original = onSave.mock.calls[0][0];
+    fireEvent.click(save);
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2));
+    expect(onSave.mock.calls[1][0]).toBe(original);
+    expect(cropper.exportCanvas).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    fireEvent.click(save);
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(3));
+    expect(onSave.mock.calls[2][0]).not.toBe(original);
+    expect(cropper.exportCanvas).toHaveBeenCalledTimes(2);
+  });
+
   it('shows a recoverable error when the image cannot be decoded', async () => {
     cropper.ready.mockRejectedValueOnce(new Error('Invalid image'));
     const cancel = vi.fn();
     render(() =>
-      createComponent(ChannelPictureCropper, {
-        channelId: 'design',
+      createComponent(ImageCropper, {
+        outputFileName: 'channel-picture.png',
         source: new File(['invalid'], 'team.png', { type: 'image/png' }),
         disabled: false,
         onSave: vi.fn(),
@@ -292,8 +350,8 @@ describe('channel picture crop lifecycle', () => {
     );
     const apply = vi.fn();
     render(() =>
-      createComponent(ChannelPictureCropper, {
-        channelId: 'design',
+      createComponent(ImageCropper, {
+        outputFileName: 'channel-picture.png',
         source: new File(['original'], 'team.photo.jpg', {
           type: 'image/jpeg',
         }),
@@ -324,8 +382,8 @@ describe('channel picture crop lifecycle', () => {
     cropper.exportCanvas.mockReturnValue(pending.promise);
     const apply = vi.fn();
     const view = render(() =>
-      createComponent(ChannelPictureCropper, {
-        channelId: 'design',
+      createComponent(ImageCropper, {
+        outputFileName: 'channel-picture.png',
         source: new File(['original'], 'team.png', { type: 'image/png' }),
         disabled: false,
         onSave: apply,
@@ -348,8 +406,8 @@ describe('channel picture crop lifecycle', () => {
     const [disabled, setDisabled] = createSignal(false);
     const apply = vi.fn();
     render(() =>
-      createComponent(ChannelPictureCropper, {
-        channelId: 'design',
+      createComponent(ImageCropper, {
+        outputFileName: 'channel-picture.png',
         source: new File(['original'], 'team.png', { type: 'image/png' }),
         get disabled() {
           return disabled();
@@ -371,8 +429,8 @@ describe('channel picture crop lifecycle', () => {
     cropper.exportCanvas.mockResolvedValue(exportedCanvas(null));
     const apply = vi.fn();
     render(() =>
-      createComponent(ChannelPictureCropper, {
-        channelId: 'design',
+      createComponent(ImageCropper, {
+        outputFileName: 'channel-picture.png',
         source: new File(['original'], 'team.png', { type: 'image/png' }),
         disabled: false,
         onSave: apply,

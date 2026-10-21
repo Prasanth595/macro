@@ -1,6 +1,6 @@
 import type { JSX } from 'solid-js';
 
-export function ChannelImageEditorLayout(props: {
+export function ImageEditorLayout(props: {
   sidebar: JSX.Element;
   children: JSX.Element;
   footer: JSX.Element;

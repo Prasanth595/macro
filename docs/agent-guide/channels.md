@@ -1251,6 +1251,8 @@ Participants team controls still apply changes immediately. If team access is
 lost while editing, discard the blocked team changes to keep and save the name
 and image edits.
 
+Channel details and Settings profile pictures use the shared circular image
+editor in `features/image-editor`; each host owns its drafts and persistence.
 The image-editing step puts the crop workspace on the left and a wider
 actions/details column on the right, without an outer bordered crop container.
 On narrow screens, the workspace appears above the controls. Below the image
