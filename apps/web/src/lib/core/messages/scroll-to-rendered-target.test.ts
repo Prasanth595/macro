@@ -153,23 +153,26 @@ describe('scrollToRenderedTarget', () => {
     expect(scrollIntoView).toHaveBeenCalledTimes(3);
   });
 
-  it('does not retry an interrupted animation after the user takes over', () => {
-    vi.stubGlobal(
-      'ResizeObserver',
-      class {
-        observe() {}
-        disconnect() {}
-      }
-    );
-    const viewport = document.body.appendChild(document.createElement('div'));
-    viewport.style.overflowY = 'auto';
-    viewport.getBoundingClientRect = () => new DOMRect(0, 0, 600, 400);
-    const target = renderTarget(viewport, 'm1');
-    target.getBoundingClientRect = () => new DOMRect(0, 2000, 600, 100);
+  it.each(['wheel', 'touchmove', 'keydown', 'pointerdown'])(
+    'does not retry an interrupted animation after %s',
+    (type) => {
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          observe() {}
+          disconnect() {}
+        }
+      );
+      const viewport = document.body.appendChild(document.createElement('div'));
+      viewport.style.overflowY = 'auto';
+      viewport.getBoundingClientRect = () => new DOMRect(0, 0, 600, 400);
+      const target = renderTarget(viewport, 'm1');
+      target.getBoundingClientRect = () => new DOMRect(0, 2000, 600, 100);
 
-    scrollToRenderedTarget(viewport, 'm1');
-    window.dispatchEvent(new WheelEvent('wheel'));
-    viewport.dispatchEvent(new Event('scrollend'));
-    expect(scrollIntoView).toHaveBeenCalledOnce();
-  });
+      scrollToRenderedTarget(viewport, 'm1');
+      window.dispatchEvent(new Event(type));
+      viewport.dispatchEvent(new Event('scrollend'));
+      expect(scrollIntoView).toHaveBeenCalledOnce();
+    }
+  );
 });

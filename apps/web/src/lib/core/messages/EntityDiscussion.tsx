@@ -22,7 +22,10 @@ import {
   EntityConversation,
   EntityConversationComposer,
 } from './EntityConversation';
-import { scrollToRenderedTarget } from './scroll-to-rendered-target';
+import {
+  scrollToRenderedTarget,
+  USER_SCROLL_EVENTS,
+} from './scroll-to-rendered-target';
 
 function MobileMessageComposer(props: {
   parent: MessageParent;
@@ -107,16 +110,22 @@ export function EntityDiscussion(props: {
         };
         if (!ready) {
           // A reader can take over even before the editor is ready to scroll.
-          const events = ['wheel', 'touchmove', 'keydown'] as const;
-          for (const type of events)
-            window.addEventListener(type, onSettled, {
+          const stopWaiting = () => {
+            clearTimeout(timer);
+            for (const type of USER_SCROLL_EVENTS)
+              window.removeEventListener(type, settleWaiting, true);
+          };
+          const settleWaiting = () => {
+            onSettled();
+            stopWaiting();
+          };
+          const timer = setTimeout(settleWaiting, 10_000);
+          for (const type of USER_SCROLL_EVENTS)
+            window.addEventListener(type, settleWaiting, {
               capture: true,
               passive: true,
             });
-          onCleanup(() => {
-            for (const type of events)
-              window.removeEventListener(type, onSettled, true);
-          });
+          onCleanup(stopWaiting);
           return;
         }
         onCleanup(

@@ -2,7 +2,12 @@ import { getScrollParentElement } from '../util/scrollParent';
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
-const USER_SCROLL_EVENTS = ['wheel', 'touchmove', 'keydown'] as const;
+export const USER_SCROLL_EVENTS = [
+  'wheel',
+  'touchmove',
+  'keydown',
+  'pointerdown',
+] as const;
 
 /**
  * Scrolls the message element under `root` whose `data-message-id` is

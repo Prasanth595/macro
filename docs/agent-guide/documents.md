@@ -2601,9 +2601,11 @@ Verify bottom Discussion links from Home too:
 `/app/home/md/<id>?s0.drive.commentId=<comment-id>`. Open a long document from
 another Home item with its caches cold. The first click should reach the comment
 even when its messages arrive before the editor or loading content interrupts
-the initial scroll. Repeat the click after scrolling away. Wheel, touch, or
-keyboard scrolling during navigation should take control immediately; later
-background refreshes must not pull the reader back.
+the initial scroll. Repeat the click after scrolling away. Wheel, touch,
+keyboard input, or dragging the scrollbar during navigation should take control
+immediately; later background refreshes must not pull the reader back. If the
+editor never becomes ready, its pending comment jump expires after ten seconds;
+subsequent recovery must not revive it without a new navigation.
 
 A document row keeps pointing at its newest comment notification until that
 notification is done, so on desktop the row opens the document at that comment.

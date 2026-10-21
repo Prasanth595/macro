@@ -24,7 +24,8 @@ vi.mock('@core/component/ParamsProvider', () => ({
   useParamNavigationCount: () => () => 0,
 }));
 vi.mock('@core/mobile/isTouchDevice', () => ({ isTouchDevice: () => false }));
-vi.mock('./scroll-to-rendered-target', () => ({
+vi.mock('./scroll-to-rendered-target', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./scroll-to-rendered-target')>()),
   scrollToRenderedTarget: mocks.scroll,
 }));
 

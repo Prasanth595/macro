@@ -216,6 +216,7 @@ describe('scrolling to a linked Discussion message', () => {
 
   afterEach(() => {
     scrollIntoView.mockReset();
+    vi.useRealTimers();
   });
 
   const navigate = (id: string) =>
@@ -266,7 +267,22 @@ describe('scrolling to a linked Discussion message', () => {
     expect(scrolledIds()).toEqual(['m2']);
   });
 
-  it.each(['wheel', 'touchmove', 'keydown'])(
+  it('expires a navigation when the editor never becomes ready', () => {
+    vi.useFakeTimers();
+    setLocationReady(false);
+    setCommentId('m2');
+    setRenderedMessageIds(['m2']);
+    setup();
+
+    vi.advanceTimersByTime(10_000);
+    setLocationReady(true);
+    expect(scrolledIds()).toEqual([]);
+
+    navigate('m2');
+    expect(scrolledIds()).toEqual(['m2']);
+  });
+
+  it.each(['wheel', 'touchmove', 'keydown', 'pointerdown'])(
     'lets %s cancel a navigation while the editor is still loading',
     async (type) => {
       setLocationReady(false);
