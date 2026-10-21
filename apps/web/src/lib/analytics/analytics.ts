@@ -405,9 +405,7 @@ const createAnalytics = () => {
     if (disabled) return;
 
     if (isPrivateCallPage()) return;
-    const pagePath = redactLinkTokens(
-      opts?.path ?? window.location.pathname
-    );
+    const pagePath = redactLinkTokens(opts?.path ?? window.location.pathname);
     const pageLocation = redactLinkTokens(
       opts?.location ?? window.location.href
     );

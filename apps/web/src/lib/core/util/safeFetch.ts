@@ -82,9 +82,7 @@ function tracedFetch(
           ? {
               name: error.name,
               message: redactLinkTokens(error.message),
-              stack: error.stack
-                ? redactLinkTokens(error.stack)
-                : undefined,
+              stack: error.stack ? redactLinkTokens(error.stack) : undefined,
             }
           : redactLinkTokens(String(error))
       );
@@ -347,9 +345,7 @@ export async function safeFetch<
         return fetchErr([
           {
             code: 'UNKNOWN_ERROR',
-            message: redactLinkTokens(
-              `An unknown error occurred: ${error}`
-            ),
+            message: redactLinkTokens(`An unknown error occurred: ${error}`),
           },
         ]);
       }
