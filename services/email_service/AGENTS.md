@@ -70,6 +70,11 @@ the gateway `/email` prefix.
 - Header addresses that Gmail accepts can fail `MacroUserIdStr::try_from_email`.
   Skip the bad address with a WARN that omits it (the parse error echoes it)
   instead of failing the step; see `pubsub::util::build_contact_connections`.
+- `GET /opens/{token}` is public and must return the same uncacheable GIF for
+  every token. Gmail sends add the pixel only to the provider copy in
+  `outbound/scheduled_delivery.rs`; Outlook adds it through the materializer
+  wrapper in the `pubsub_workers` binary. Pixels use `EmailServiceUrl`, so the
+  local Docker stack embeds an in-network host recipients cannot load.
 
 ## Related
 

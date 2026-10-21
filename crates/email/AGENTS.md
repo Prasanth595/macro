@@ -64,6 +64,11 @@ tools — hexagonal, heavily feature-gated.
   domain service, never an outbound adapter directly from another crate.
 - Sender discovery authorizes the inbox first. Gmail aliases use the sender
   provider; Outlook exposes its verified primary address without a Gmail lookup.
+- Read receipts (`domain/read_receipts.rs`) own pixel policy for every send
+  path: strip existing Macro pixels, track only HTML bodies, never block
+  delivery on a tracking failure, and count opens only for sent messages.
+  Tokens are stored per message, so a retried send or Outlook draft revision
+  rebuilds the same URL; keep it that way or the draft fingerprints drift.
 - Outlook organization commands only run in their link's current
   `sync_generation`. Anything that bumps it must rebind unfinished commands as
   `pending`, since claims skip `confirming` ones while those still block later
