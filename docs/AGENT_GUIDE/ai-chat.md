@@ -299,6 +299,10 @@ the shimmer.
   A checkmark identifies the selected model,
   including when it is the agent’s configured default; there is no separate default row.
   Disconnected Cursor offers **Connect Cursor**, opening Settings → Agents → Runtimes.
+  An agent whose paired machine is away is greyed out, carries an **Offline**
+  badge, and offers **Reconnect runtime** instead of a model submenu; the same
+  badge appears in the `@` menu, where offline agents cannot be mentioned at all
+  (clicking or pressing Enter leaves the menu open and inserts nothing).
   The built-in sandbox and paired macrod runtimes are not offered here.
 - Selecting an agent changes the heading: **What should we work on?** for chat
   agents and **What should we build?** for coding agents. The draft stays intact
@@ -385,8 +389,11 @@ the shimmer.
   use **New conversation** in the sidebar to return to the composer. The animated
   **Bring your own agent** card appears only in **Runtimes**, below the tabs and
   above the runtime lists. It links directly to runtime pairing and its setup guide.
-  The **Paired runtimes** section appears once you have a paired runtime; an empty
-  list does not repeat the pairing action from **Bring your own agent**.
+  The **Connected runtimes** section sits above the **This computer** card and
+  appears only once at least one paired machine is connected; it then lists every
+  paired machine, connected ones first, each with **Connected** or **Offline** and
+  a **Remove** action. With nothing connected, neither the heading nor the list is
+  shown, and no pairing action is repeated from **Bring your own agent**.
   On the desktop app, **Runtimes** opens with a **This computer** card that sets
   up the bundled macrod daemon in one click: **Set up** detects installed agents,
   then **Start running agents here** configures, pairs (auto-approved, no code),
@@ -396,8 +403,10 @@ the shimmer.
   dismissing it affects only this desktop
   installation and signed-in user. Runtimes is available on desktop even when
   the newer Agents view is still rolling out. Each paired computer keeps its own
-  runtime identity and appears separately under Paired runtimes. The manual
-  flow below remains for pairing other machines.
+  runtime identity and appears separately under Connected runtimes. The manual
+  flow below remains for pairing other machines. In the agent form, a runtime
+  whose machine is away is labelled **· Offline** but stays selectable: binding
+  an agent to a sleeping computer is normal.
   **New runtime** shows three steps: install macrod from the linked release,
   run `./macrod` and configure your agent in Quickstart, then enter your pairing
   code and click **Look up**. Review the request and click **Approve** to connect.

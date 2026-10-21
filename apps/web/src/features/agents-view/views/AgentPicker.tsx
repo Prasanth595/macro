@@ -1,3 +1,4 @@
+import { AgentOfflineBadge } from '@core/component/AgentOfflineBadge';
 import { ModelCatalogMenu } from '@core/component/AI/component/input/ModelCatalogPicker';
 import { ProviderIcon } from '@core/component/AI/component/ProviderIcon';
 import { modelLabel } from '@core/component/AI/constant/model-label';
@@ -251,7 +252,16 @@ function AgentPickerRow(props: {
   const identity = () => (
     <>
       <AgentIcon agent={props.agent} class="size-5 shrink-0" />
-      <span class="min-w-0 flex-1 truncate">{props.agent.name}</span>
+      <span
+        class={cn('min-w-0 flex-1 truncate', {
+          'text-ink-muted': props.agent.offline,
+        })}
+      >
+        {props.agent.name}
+      </span>
+      <Show when={props.agent.offline}>
+        <AgentOfflineBadge />
+      </Show>
       <Show when={props.agent.kind === 'coder'}>
         <CodeIcon
           class="size-3.5 shrink-0 text-ink-muted"
