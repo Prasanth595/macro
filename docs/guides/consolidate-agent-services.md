@@ -83,8 +83,12 @@ maintenance window:
    environment. Wait for the Doppler Secrets Manager sync to include the new
    keys in `APP_SECRETS_JSON`; writing Doppler is not proof that its sync has
    completed. Verify public OAuth clients accept the gateway callback URLs.
-   In particular, apply the updated Slack manifest and ensure FusionAuth
-   permits the public MCP gateway callback already listed in its stack.
+   In particular, verify the target Slack app allows the new callback while
+   retaining legacy callbacks for environments that have not moved. The
+   checked-in manifest is additive; editing it does not update Slack. A shared
+   production-connected app needs separate authorization before changing its
+   configuration. Ensure FusionAuth permits the public MCP gateway callback
+   already listed in its stack.
    Apply additive migration `20261021205701_agent_preview_replication.sql`
    before starting the combined process.
 2. Pause deployments for the chosen environment, cancel queued deployments,
