@@ -162,13 +162,13 @@ export function EventForm(props: EventFormProps) {
           aria-label="Title"
           autofocus={!isEdit() && !isMobile()}
           disabled={fieldIsDisabled('title')}
-          class="h-9 w-full border-transparent rounded-none shadow-none bg-transparent px-2 text-lg font-semibold leading-snug text-ink outline-none placeholder:text-ink-placeholder sm:text-base"
+          class="h-9 w-full border-transparent rounded-none shadow-none bg-transparent px-2 text-lg font-semibold leading-snug text-ink outline-none placeholder:text-ink-placeholder"
         />
       }
     >
       <span
         aria-label="Title"
-        class="select-text text-lg font-semibold leading-snug text-ink sm:text-base"
+        class="select-text text-lg font-semibold leading-snug text-ink"
       >
         {state().title}
       </span>
@@ -233,7 +233,7 @@ export function EventForm(props: EventFormProps) {
             domRef={(element) =>
               element.setAttribute('aria-label', 'Description')
             }
-            class="h-auto min-h-0 w-full bg-transparent px-0 text-xs leading-normal text-ink outline-none [&>.md>:first-child]:mt-0 [&>.md>:last-child]:mb-0 [&>.pointer-events-none>p]:my-0"
+            class="h-auto min-h-0 w-full bg-transparent px-0 text-base leading-tight text-ink outline-none [&>.md>:first-child]:mt-0 [&>.md>:last-child]:mb-0 [&>.pointer-events-none>p]:my-0"
           />
         </div>
       }
@@ -315,7 +315,7 @@ export function EventForm(props: EventFormProps) {
             placeholder="Add location..."
             aria-label="Location"
             disabled={fieldIsDisabled('location')}
-            class="h-9 min-w-0 w-full max-w-full rounded-xl border-edge-muted bg-control px-2 py-2 text-sm leading-tight text-ink shadow-none placeholder:text-ink-placeholder focus-visible:bg-active focus-visible:outline-none focus-visible:ring-0 sm:w-72 sm:text-xs touch:min-h-[44px]"
+            class="h-9 min-w-0 w-full max-w-full rounded-xl border-edge-muted bg-control px-2 py-2 text-base leading-tight text-ink shadow-none placeholder:text-ink-placeholder focus-visible:bg-active focus-visible:outline-none focus-visible:ring-0 sm:w-72 touch:min-h-[44px]"
           />
         }
       >
@@ -398,13 +398,13 @@ export function EventForm(props: EventFormProps) {
     <div
       role="group"
       aria-label={row.label}
-      class="group/field grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)] items-start gap-x-2 sm:grid-cols-[1rem_minmax(0,1fr)]"
+      class="group/field grid min-w-0 grid-cols-[1.5rem_minmax(0,1fr)] items-start gap-x-2 sm:grid-cols-[1.25rem_minmax(0,1fr)]"
     >
       <div class="flex h-7 items-center justify-center group-has-[button[aria-expanded],input,[role=textbox]]/field:h-9 touch:group-has-[button[aria-expanded],input,[role=textbox]]/field:min-h-[44px]">
         <Dynamic
           component={row.icon}
           aria-hidden="true"
-          class="size-5 text-ink-extra-muted sm:size-4"
+          class="size-6 shrink-0 text-ink-extra-muted sm:size-5"
         />
       </div>
       <div class="flex min-h-7 min-w-0 w-full flex-wrap items-center gap-2">
@@ -425,13 +425,13 @@ export function EventForm(props: EventFormProps) {
       }}
     >
       <div class="min-h-0 flex-1 overflow-y-auto scrollbar-hidden">
-        <div class="flex min-w-0 flex-col gap-3 p-1 text-sm text-ink-muted sm:gap-2 sm:text-xs">
-          <div class="grid min-w-0 grid-cols-[1.25rem_minmax(0,1fr)] items-center gap-x-2 gap-y-1 sm:grid-cols-[1rem_minmax(0,1fr)]">
+        <div class="flex min-w-0 flex-col gap-3 p-1 text-base text-ink-muted sm:gap-2">
+          <div class="grid min-w-0 grid-cols-[1.5rem_minmax(0,1fr)] items-center gap-x-2 gap-y-1 sm:grid-cols-[1.25rem_minmax(0,1fr)]">
             <span aria-hidden="true" class="flex items-center justify-center">
               <Show when={controller.selectedCalendarOption()}>
                 {(calendar) => (
                   <span
-                    class="size-4 rounded-sm sm:size-3"
+                    class="size-5 rounded-sm sm:size-4"
                     style={{ 'background-color': calendar().color }}
                   />
                 )}

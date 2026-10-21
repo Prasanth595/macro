@@ -43,7 +43,7 @@ import {
 } from './out-of-office';
 
 const PROPERTY_TRIGGER_CLASS =
-  'group flex h-9 w-full min-w-0 max-w-full overflow-hidden items-center justify-between gap-1.5 rounded-xl border border-edge-muted bg-control px-2 py-2 text-left text-xs leading-tight text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:bg-active focus-visible:text-ink focus-visible:outline-none focus-visible:ring-0 data-expanded:bg-hover data-expanded:text-ink sm:w-fit touch:min-h-[44px]';
+  'group flex h-9 w-full min-w-0 max-w-full overflow-hidden items-center justify-between gap-1.5 rounded-xl border border-edge-muted bg-control px-2 py-2 text-left text-base leading-tight text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:bg-active focus-visible:text-ink focus-visible:outline-none focus-visible:ring-0 data-expanded:bg-hover data-expanded:text-ink sm:w-fit touch:min-h-[44px]';
 const PROPERTY_VALUE_CLASS =
   'group-hover:text-ink group-focus-visible:text-ink group-data-expanded:text-ink';
 
@@ -189,7 +189,7 @@ function GuestsPillTrigger(props: EventComposerGuestsPillProps) {
       class={cn(PROPERTY_TRIGGER_CLASS, 'aria-disabled:opacity-50')}
     >
       <Show when={!props.hideIcon}>
-        <UsersIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
+        <UsersIcon class="size-4 shrink-0 text-ink-extra-muted" />
       </Show>
       <span
         class={cn(
@@ -318,7 +318,7 @@ export function EventComposerConferencePill(
             class={PROPERTY_TRIGGER_CLASS}
           >
             <Show when={!props.hideIcon}>
-              <VideoCameraIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
+              <VideoCameraIcon class="size-4 shrink-0 text-ink-extra-muted" />
             </Show>
             <Select.Value<EventComposerConferenceOption>>
               {(selectState) => (
@@ -448,7 +448,7 @@ export function EventComposerRemindersPill(
     >
       <Select.Trigger aria-label="Notifications" class={PROPERTY_TRIGGER_CLASS}>
         <Show when={!props.hideIcon}>
-          <BellSimpleIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
+          <BellSimpleIcon class="size-4 shrink-0 text-ink-extra-muted" />
         </Show>
         <Select.Value<EventComposerSelectOption>>
           {(selectState) => (
@@ -515,7 +515,7 @@ export function EventComposerRecurrencePill(
               class={PROPERTY_TRIGGER_CLASS}
             >
               <Show when={!props.hideIcon}>
-                <RepeatIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
+                <RepeatIcon class="size-4 shrink-0 text-ink-extra-muted" />
               </Show>
               <Select.Value<EventComposerSelectOption>>
                 {(selectState) => selectState.selectedOption().label}
@@ -600,7 +600,7 @@ export function EventComposerCalendarPill(
             class={PROPERTY_TRIGGER_CLASS}
           >
             <Show when={!props.hideIcon}>
-              <CalendarDotsIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
+              <CalendarDotsIcon class="size-4 shrink-0 text-ink-extra-muted" />
             </Show>
             <Select.Value<EventEditorCalendarOption>>
               {(selectState) => (
@@ -673,7 +673,7 @@ export function EventComposerKindPill(props: EventComposerKindPillProps) {
             {(option) => (
               <RadioGroup.Item
                 value={option.value}
-                class="min-h-7 gap-0 rounded-full border border-transparent px-2.5 py-1 text-xs text-ink-muted hover:bg-hover has-[:focus-visible]:bg-active data-checked:border-accent/20 data-checked:bg-accent/10 data-checked:text-accent data-disabled:opacity-50 touch:min-h-[44px]"
+                class="min-h-7 gap-0 rounded-full border border-transparent px-2.5 py-1 text-base text-ink-muted hover:bg-hover has-[:focus-visible]:bg-active data-checked:border-accent/20 data-checked:bg-accent/10 data-checked:text-accent data-disabled:opacity-50 touch:min-h-[44px]"
               >
                 <RadioGroup.ItemControl class="sr-only" />
                 <RadioGroup.ItemLabel class="inline-flex items-center gap-1.5">
@@ -684,7 +684,7 @@ export function EventComposerKindPill(props: EventComposerKindPillProps) {
                         : CalendarBlankIcon
                     }
                     aria-hidden="true"
-                    class="size-3.5 shrink-0"
+                    class="size-4 shrink-0"
                   />
                   {option.label}
                 </RadioGroup.ItemLabel>
@@ -705,7 +705,7 @@ export function EventComposerKindPill(props: EventComposerKindPillProps) {
               : CalendarBlankIcon
           }
           aria-hidden="true"
-          class="size-3.5 shrink-0 text-ink-extra-muted"
+          class="size-4 shrink-0 text-ink-extra-muted"
         />
         {eventKindLabel(props.eventType)}
       </span>
@@ -767,7 +767,7 @@ export function EventComposerDeclinePill(props: EventComposerDeclinePillProps) {
         class={PROPERTY_TRIGGER_CLASS}
       >
         <Show when={!props.hideIcon}>
-          <CalendarXIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
+          <CalendarXIcon class="size-4 shrink-0 text-ink-extra-muted" />
         </Show>
         <Select.Value<EventComposerDeclineOption>>
           {(selectState) => (
@@ -814,7 +814,7 @@ export function EventComposerDeclineMessagePill(
         class={PROPERTY_TRIGGER_CLASS}
       >
         <Show when={!props.hideIcon}>
-          <ChatTextIcon class="size-3.5 shrink-0 text-ink-extra-muted" />
+          <ChatTextIcon class="size-4 shrink-0 text-ink-extra-muted" />
         </Show>
         <span
           class={cn(
@@ -845,7 +845,7 @@ export function EventComposerDeclineMessagePill(
               placeholder="Add decline message..."
               aria-label="Decline message"
               disabled={props.disabled}
-              class="h-8 w-full rounded-md border border-edge-muted bg-control px-2 text-sm text-ink outline-none placeholder:text-ink-placeholder focus:border-accent"
+              class="h-8 w-full rounded-md border border-edge-muted bg-control px-2 text-base text-ink outline-none placeholder:text-ink-placeholder focus:border-accent"
             />
           </Popover.Content>
         </Layer>

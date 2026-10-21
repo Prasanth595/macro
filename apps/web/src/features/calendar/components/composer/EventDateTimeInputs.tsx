@@ -26,7 +26,7 @@ function TimeOptionItem(props: CollectionNode<EventTimeOption>) {
   return (
     <Listbox.Item
       item={props}
-      class="group flex cursor-default items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm text-ink outline-none hover:bg-hover data-selected:bg-active data-highlighted:bg-hover"
+      class="group flex cursor-default items-center justify-between gap-3 rounded-lg px-3 py-2 text-base text-ink outline-none hover:bg-hover data-selected:bg-active data-highlighted:bg-hover"
     >
       <Listbox.ItemLabel>{props.rawValue.label}</Listbox.ItemLabel>
       <div class="flex shrink-0 items-center gap-2">
@@ -121,7 +121,7 @@ export function EventTimeInput(props: EventTimeInputProps) {
           aria-invalid={props.invalid || undefined}
           aria-expanded={open()}
           aria-haspopup="listbox"
-          class="w-full appearance-none rounded-md border border-edge-muted bg-hover py-1.5 pr-7 pl-2 text-xs text-ink outline-none enabled:hover:bg-active focus:bg-active aria-expanded:bg-active focus:border-accent aria-invalid:border-failure aria-invalid:ring-2 aria-invalid:ring-failure/20 disabled:opacity-50 [&::-webkit-calendar-picker-indicator]:hidden"
+          class="w-full appearance-none rounded-md border border-edge-muted bg-hover py-1.5 pr-7 pl-2 text-base text-ink outline-none enabled:hover:bg-active focus:bg-active aria-expanded:bg-active focus:border-accent aria-invalid:border-failure aria-invalid:ring-2 aria-invalid:ring-failure/20 disabled:opacity-50 [&::-webkit-calendar-picker-indicator]:hidden"
           onFocus={() => {
             props.onFocus?.();
             setDropdownOpen(true);
@@ -145,7 +145,7 @@ export function EventTimeInput(props: EventTimeInputProps) {
         />
         <CaretDownIcon
           aria-hidden="true"
-          class="pointer-events-none absolute top-1/2 right-2 size-3 -translate-y-1/2 text-ink-extra-muted"
+          class="pointer-events-none absolute top-1/2 right-2 size-4 -translate-y-1/2 text-ink-extra-muted"
         />
       </div>
 
