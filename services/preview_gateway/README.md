@@ -135,6 +135,11 @@ public HTTP router, and pass that same service to the SSH listener. Permit
 HTTP-listener ingress from the harness task security group itself. Keep all
 harness tasks healthy and retain two replicas with rolling deployments.
 
+The preview stack exports `previewTaskSecurityGroupId` and the control, HTTP
+and SSH target group ARNs (`previewControlTargetGroupArn`,
+`previewHttpTargetGroupArn`, `previewSshTargetGroupArn`) so consolidation can
+reuse the existing network resources.
+
 Bootstrap (done 2026-09-28):
 
 - Domain: `macro-agent-gateway.com` (Route 53 zone `Z02409452IBB8642CNAGC`).

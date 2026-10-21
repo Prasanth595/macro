@@ -325,3 +325,7 @@ const service = new awsx.ecs.FargateService(
 export const previewDomain = domain;
 export const previewSshHost = sshHost;
 export const previewServiceArn = service.service.id;
+export const previewTaskSecurityGroupId = taskSg.id;
+export const previewControlTargetGroupArn = control.target_group.arn;
+export const previewHttpTargetGroupArn = httpTarget.arn;
+export const previewSshTargetGroupArn = sshTarget.arn;
