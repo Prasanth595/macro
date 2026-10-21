@@ -3,15 +3,7 @@ import XIcon from '@phosphor/x.svg';
 import { Input, type InputProps } from '@ui';
 import { Button } from '@ui/components/Button';
 import { Dropdown } from '@ui/components/Dropdown';
-import {
-  createSignal,
-  For,
-  Index,
-  type JSX,
-  Match,
-  Show,
-  Switch,
-} from 'solid-js';
+import { createSignal, For, Index, Match, Show, Switch } from 'solid-js';
 import type {
   Conjunction,
   FilterGroup,
