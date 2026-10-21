@@ -1,0 +1,110 @@
+import { readFileSync } from 'node:fs';
+import { FoldStream, initSync } from '@core/agent-fold/wasm/agent_fold';
+import type {
+  FoldedMessage,
+  SessionMetadata,
+} from '@service-agent-fold/generated/types';
+import { beforeAll, expect, it } from 'vitest';
+import { timelineNotifications } from './session-notifications';
+
+beforeAll(() => {
+  initSync({
+    module: readFileSync(
+      `${process.cwd()}/src/lib/core/agent-fold/wasm/agent_fold_bg.wasm`
+    ),
+  });
+});
+
+it('folds notification frames into timeline metadata without manufacturing user messages', () => {
+  const stream = new FoldStream('019a0000-0000-7000-8000-000000000001');
+  try {
+    stream.push([
+      {
+        kind: 'snapshot',
+        rows: [
+          {
+            id: '019a0000-0000-7000-8000-000000000002',
+            createdAt: '2026-10-21T00:00:00Z',
+            direction: 'notification',
+            content: {
+              type: 'acp',
+              jsonrpc: '2.0',
+              id: '019a0000-0000-7000-8000-000000000003',
+              method: 'session/prompt',
+              params: {
+                sessionId: 's',
+                prompt: [
+                  {
+                    type: 'text',
+                    text: '<m-notifications>trusted facts</m-notifications>',
+                  },
+                ],
+                _meta: {
+                  'macro.dev/notifications': {
+                    systemTurn: true,
+                    notifications: [
+                      {
+                        id: '019a0000-0000-7000-8000-000000000004',
+                        subjectId: 'connection',
+                        createdAt: '2026-10-21T00:00:00Z',
+                        kind: 'app.connected',
+                        payload: { app: 'Calendar' },
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+    ]);
+    const messages: FoldedMessage[] = stream.messages();
+    const metadata: SessionMetadata = stream.metadata();
+    expect(messages).toEqual([]);
+    expect(
+      timelineNotifications(messages, metadata.notifications)
+    ).toHaveLength(1);
+    stream.push([
+      {
+        kind: 'confirmed',
+        row: {
+          id: '019a0000-0000-7000-8000-000000000005',
+          createdAt: '2026-10-21T00:00:01Z',
+          direction: 'to_server',
+          content: {
+            type: 'acp',
+            jsonrpc: '2.0',
+            method: 'session/update',
+            params: {
+              sessionId: 's',
+              update: {
+                sessionUpdate: 'agent_message_chunk',
+                content: { type: 'text', text: '<noop/>' },
+              },
+            },
+          },
+        },
+      },
+      {
+        kind: 'confirmed',
+        row: {
+          id: '019a0000-0000-7000-8000-000000000006',
+          createdAt: '2026-10-21T00:00:02Z',
+          direction: 'to_server',
+          content: {
+            type: 'acp',
+            jsonrpc: '2.0',
+            id: '019a0000-0000-7000-8000-000000000003',
+            result: { stopReason: 'end_turn' },
+          },
+        },
+      },
+    ]);
+    expect(stream.messages()).toEqual([]);
+    const closed: SessionMetadata = stream.metadata();
+    expect(closed.noopTurn).toBe(0);
+  } finally {
+    stream.free();
+  }
+});
