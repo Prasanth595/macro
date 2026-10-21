@@ -106,6 +106,25 @@ describe('reminder notification navigation', () => {
     });
   });
 
+  it('counts a retried native tap once, when its navigation applies', async () => {
+    const source = {
+      notifications: () => [{ ...reminderNotification(), id: 'n-1' }],
+    } as unknown as NotificationSource;
+    const onApplied = vi.fn();
+    await openNotificationFromId('n-1', layout, source, { onApplied });
+    await openNotificationFromId('n-1', layout, source, { onApplied });
+    expect(track).not.toHaveBeenCalled();
+
+    openWithSplit.mock.calls[1][1].onApplied();
+
+    expect(track).toHaveBeenCalledExactlyOnceWith('notification_opened', {
+      source: 'native_push',
+      notificationType: 'reminder',
+      entityType: 'email_thread',
+    });
+    expect(onApplied).toHaveBeenCalledOnce();
+  });
+
   it('opens the original email thread', async () => {
     const result = await openNotification(reminderNotification(), layout);
     expect(result.isOk()).toBe(true);

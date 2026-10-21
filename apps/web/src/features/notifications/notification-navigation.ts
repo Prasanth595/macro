@@ -583,9 +583,14 @@ function getSupportedHandler(
 
 /**
  * Where a notification was opened from: the app's own lists, a browser
- * notification, or a native (iOS, Android, macOS) notification.
+ * notification, a native (iOS, Android, macOS) notification, or a home
+ * recommendation that opens through its notification.
  */
-export type NotificationOpenSource = 'in_app' | 'browser_push' | 'native_push';
+export type NotificationOpenSource =
+  | 'in_app'
+  | 'browser_push'
+  | 'native_push'
+  | 'home_recommendation';
 
 /**
  * Opens the notification given the layout manager.
@@ -603,11 +608,26 @@ export function openNotification(
   sourceHandle?: SplitHandle,
   options: { onApplied?: VoidFunction; source?: NotificationOpenSource } = {}
 ): ResultAsync<void, NotSupportedError> {
+  const reportOpened = () =>
+    analytics.track('notification_opened', {
+      source: options.source ?? 'in_app',
+      notificationType: notification.notification_metadata.tag,
+      entityType: notification.entity_type,
+    });
+  // A native tap on a cold start is retried until the layout applies it, so
+  // it counts once, when it applies.
+  const reportOnApplied =
+    options.source === 'native_push' ? options.onApplied : undefined;
   const handler = getSupportedHandler(
     notification,
     entity,
     sourceHandle,
-    options.onApplied
+    reportOnApplied
+      ? () => {
+          reportOpened();
+          reportOnApplied();
+        }
+      : options.onApplied
   );
   if (!handler) {
     return errAsync({
@@ -615,11 +635,7 @@ export function openNotification(
       notificationType: notification.notification_metadata.tag,
     });
   }
-  analytics.track('notification_opened', {
-    source: options.source ?? 'in_app',
-    notificationType: notification.notification_metadata.tag,
-    entityType: notification.entity_type,
-  });
+  if (!reportOnApplied) reportOpened();
   return ResultAsync.fromSafePromise(handler(layoutManager, newSplit));
 }
 
