@@ -21,24 +21,26 @@ New event and Channel's idle Call and Ask Macro) are borderless with a rounded-x
 background on hover. Emphasized variants retain their treatment, including an
 active call's green ink and outline frame. Channel, company, contact, and project
 content tabs use inset controls in the top bar. Button sizes do not change variant colors or framing; individual
-framed controls default to glass on touch and flat on desktop. Use `glass={true}`
-to enable glass on all devices, or `glass={false}` to disable it everywhere.
+framed controls default to the shared elevated surface on desktop and glass on
+touch. Use `glass={false}` for an explicitly flat frame.
 Embedded and low-emphasis actions use `ghost`; inline calendar-invitation text
 actions remove the transparent border to keep their text alignment.
 
 ## Canonical desktop surfaces
 
-Use the shared button-aligned treatment for desktop controls and floating
-surfaces. Controls use `bg-control` and `border-edge-button`; composers, menus,
-and dialogs use their semantic fill with a fine outer outline, a faint inner
-edge, a brighter top edge, and the compact `shadow-menu` shadow. Keep
-buttons flat and add elevation only where needed.
+Use `not-touch:elevated` for desktop control surfaces. Buttons, button groups,
+inputs, and selected tabs share the same `shadow-elevated` treatment as
+composers, menus, settings cards, and dialogs: a fine outer outline, faint inner
+edge, brighter top edge, and compact shadow. Keep semantic fills and component
+geometry; a button group owns the frame so its child buttons remain flat.
+Compact controls use thinner, lower-opacity edges than composers and floating
+panels. Keep all desktop shadows close and faint, with only a slight top highlight.
 In light mode, floating surfaces use the frame edge and a tighter, low-opacity
 contact shadow so white composers and menus separate cleanly from near-white
-content. Dark and touch surfaces keep their existing shadows.
+content. Touch surfaces retain their existing shadows.
 
-Segmented tabs use the same control fill and border for the selected pill,
-inside a transparent outlined track, without a separate active tint or shadow.
+Segmented tabs use the control fill and shared elevation for the selected pill,
+inside a transparent outlined track, without a separate active tint.
 
 Reuse `Button`, `Input`, `InputGroup`, `Tabs`, `ComposerSurface`, `menu-surface`, and
 `elevated-surface` instead of introducing one-off surface styling. Settings

@@ -33,7 +33,7 @@ export const inputVariants = createVariants(
   {
     variant: {
       outline: cn(
-        'border-edge-frame not-touch:border-edge-button bg-control',
+        'border-edge-frame bg-control not-touch:elevated',
         inputOutlineFocusClasses
       ),
       bare: 'border-transparent bg-transparent',

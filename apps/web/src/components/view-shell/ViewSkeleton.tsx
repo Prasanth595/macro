@@ -117,7 +117,7 @@ function Main(props: {
       <Show when={props.searchPlaceholder}>
         {(placeholder) => (
           <ViewShell.Header>
-            <div class="flex h-10 w-full max-w-md min-w-0 items-center gap-2 rounded-full border border-edge-button bg-control px-3 text-ink-placeholder text-sm">
+            <div class="flex h-10 w-full max-w-md min-w-0 items-center gap-2 rounded-full border border-edge-button bg-control not-touch:elevated px-3 text-ink-placeholder text-sm">
               <MagnifyingGlassIcon class="size-4 shrink-0 text-ink-extra-muted" />
               <span class="truncate">{placeholder()}</span>
             </div>

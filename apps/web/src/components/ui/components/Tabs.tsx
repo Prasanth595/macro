@@ -54,7 +54,7 @@ export const Tabs = (props: TabsProps) => {
       )}
     >
       <Show when={!segmented()}>
-        <KSegmentedControl.Indicator class="pointer-events-none absolute top-0 left-0 z-0 rounded-full border border-edge-frame bg-active transition-[transform,width,height] duration-50 motion-reduce:transition-none" />
+        <KSegmentedControl.Indicator class="pointer-events-none absolute top-0 left-0 z-0 rounded-full border border-edge-frame bg-active not-touch:elevated transition-[transform,width,height] duration-50 motion-reduce:transition-none" />
       </Show>
       <For each={local.list}>
         {(item) => (
@@ -65,7 +65,7 @@ export const Tabs = (props: TabsProps) => {
               'relative z-1 inline-flex h-full min-w-0 items-center',
               'has-focus-visible:ring-2 has-focus-visible:ring-inset has-focus-visible:ring-edge-focus data-disabled:pointer-events-none data-disabled:opacity-50',
               segmented()
-                ? 'justify-center rounded-full border border-transparent data-checked:border-edge-button data-checked:bg-control'
+                ? 'justify-center rounded-full border border-transparent touch:data-checked:border-edge-button data-checked:bg-control not-touch:data-checked:elevated'
                 : 'rounded-full',
               local.fullWidth && 'flex-1',
               local.itemClass
