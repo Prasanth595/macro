@@ -13,6 +13,7 @@ import android.telecom.*
 import androidx.core.content.ContextCompat
 import app.tauri.plugin.Channel
 import app.tauri.plugin.JSObject
+import com.twilio.audioswitch.AudioDevice
 import io.livekit.android.LiveKit
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.collect
@@ -84,6 +85,14 @@ internal object Calls {
     }
     fun watch(name: String, channel: Channel) { watchers[name] = channel; publishedIdentities = null }
     fun unwatch() { watchers.clear() }
+    // Release builds obfuscate audioswitch class names, so match device types.
+    private fun audioType(device: AudioDevice?): String? = when (device) {
+        is AudioDevice.BluetoothHeadset -> "BluetoothHeadset"
+        is AudioDevice.WiredHeadset -> "WiredHeadset"
+        is AudioDevice.Earpiece -> "Earpiece"
+        is AudioDevice.Speakerphone -> "Speakerphone"
+        null -> null
+    }
     fun emit(name: String, payload: JSObject) { watchers[name]?.send(payload) }
     fun snapshot(): JSObject? = offer?.takeIf { accepted }?.let {
         JSObject().apply {
@@ -271,10 +280,10 @@ internal object Calls {
         media.audioSwitchHandler?.registerAudioDeviceChangeListener { devices, selected ->
             scope.launch {
                 if (room !== media) return@launch
-                audioRoute = selected?.javaClass?.simpleName
+                audioRoute = audioType(selected)
                 publish()
-                if (selected?.javaClass?.simpleName != desiredAudioType) {
-                    devices.firstOrNull { it.javaClass.simpleName == desiredAudioType }?.let { media.audioSwitchHandler?.selectDevice(it) }
+                if (audioRoute != desiredAudioType) {
+                    devices.firstOrNull { audioType(it) == desiredAudioType }?.let { media.audioSwitchHandler?.selectDevice(it) }
                 }
             }
         }
@@ -346,7 +355,7 @@ internal object Calls {
     private fun selectAudio(type: String) {
         desiredAudioType = type
         val handler = room?.audioSwitchHandler ?: return
-        handler.availableAudioDevices.firstOrNull { it.javaClass.simpleName == type }?.let { handler.selectDevice(it) }
+        handler.availableAudioDevices.firstOrNull { audioType(it) == type }?.let { handler.selectDevice(it) }
     }
     fun telecomAudio(audio: CallAudioState) {
         scope.launch {
