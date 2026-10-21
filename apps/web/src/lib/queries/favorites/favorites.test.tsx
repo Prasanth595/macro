@@ -129,6 +129,9 @@ describe('favorites transport', () => {
   it('maps foreign entities to backend favorites', () => {
     expect(favoriteEntityType('foreign')).toBe('foreign_entity');
   });
+  it('maps databases to backend favorites', () => {
+    expect(favoriteEntityType('database')).toBe('database');
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
