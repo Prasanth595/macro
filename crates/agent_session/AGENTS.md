@@ -56,6 +56,16 @@ Internal action recovery uses `AgentSessionService::recorded_action`, which read
 one durable log snapshot including pre-load frames. Keep this separate from the
 effective history served to transcript readers: replayed prompts lose action IDs.
 
+`domain/notifications.rs` owns durable typed system-event production and the
+transaction-aware producer port. `outbound/notifications.rs` owns the outbox
+queries and leased batches. Quiet batches bind to the actual prompt action ID;
+notification-only turns record `PrompterKind::System` and no human authority.
+Never expose notification metadata through public session controls. Notification
+sessions read original log frames across load boundaries to retain trusted event
+provenance when runtimes echo their prompt history. Queue reads discard legacy
+private-context entries; the migration bridge preserves their review outcomes
+without restoring owner authority.
+
 ## Checks
 
 - `cargo test -p agent_session` (`SQLX_OFFLINE` unset).

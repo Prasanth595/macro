@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS(SELECT 1 FROM agent_session_notification WHERE session_id = $1 AND delivered_at IS NULL AND lease_until > now())",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "exists",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "78b8e0c0ac6a33f4584a3bf81bec3f66e1b094b12b806c4f6fe5032433281f7f"
+}

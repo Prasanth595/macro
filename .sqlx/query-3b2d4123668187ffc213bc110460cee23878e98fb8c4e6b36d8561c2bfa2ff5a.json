@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE agent_session_notification SET lease_until = now() - interval '1 second'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "3b2d4123668187ffc213bc110460cee23878e98fb8c4e6b36d8561c2bfa2ff5a"
+}

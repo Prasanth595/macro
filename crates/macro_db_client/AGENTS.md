@@ -53,6 +53,11 @@ stable across retries, and `announced` records successful pending-message posts.
 The additive migrations are compatible with older service binaries; session
 deletion cascades its rows.
 
+`agent_session_notification` is an additive leased outbox owned by
+`agent_session`. Review adapters use its transaction-aware producer port;
+notification frames have their own log direction. Session deletion cascades
+outbox rows, and migrations retain compatibility with prior table writers.
+
 ## Gotchas
 
 - Migrations deploy before service code: never drop a column/table in the
@@ -69,3 +74,7 @@ deletion cascades its rows.
 
 - Rules: `.agents/rules/rust/db.md`, `.agents/rules/rust/architecture.md` ·
   Docs: `docs/development/database.md` · Skill: `dump-schema`
+
+The agent-session notification migration backfills legacy review outcomes and
+bridges old-producer writes during rollout; keep that bridge until legacy
+review producers have retired.
