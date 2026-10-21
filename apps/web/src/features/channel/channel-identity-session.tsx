@@ -4,6 +4,7 @@ import {
   useChannelPicture,
   useChannelPictureFileName,
 } from '@queries/channel/picture';
+import type { ManagedDialogProps } from '@ui/components/ImperativeDialog';
 import type { ChannelIdentityProps } from './channel-identity';
 import {
   createChannelIdentityTeamControls,
@@ -12,9 +13,7 @@ import {
 import { ChannelIdentityModal } from './views/channel-identity-editor';
 
 export default function ChannelIdentitySession(
-  props: ChannelIdentityProps & {
-    onClose: () => void;
-  }
+  props: ChannelIdentityProps & ManagedDialogProps
 ) {
   const picture = useChannelPicture(() => props.channelId);
   const pictureFileName = useChannelPictureFileName(picture.pictureId);
@@ -49,7 +48,10 @@ export default function ChannelIdentitySession(
     },
     writer,
     teamControls,
-    onClose: props.onClose,
+    get open() {
+      return props.open;
+    },
+    onOpenChange: props.onOpenChange,
   };
 
   return <ChannelIdentityModal {...editorProps} />;

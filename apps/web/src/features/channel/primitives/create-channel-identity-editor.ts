@@ -1,6 +1,8 @@
+import { imageFileError } from '@app/components/image-editor/image-file';
 import { type Accessor, createSignal, onCleanup } from 'solid-js';
-import { imageFileError } from '../../image-editor/core/image-file';
+import { createStore } from 'solid-js/store';
 import type {
+  ChannelIdentityFormValues,
   ChannelIdentityTeamControls,
   ChannelIdentityWriter,
   ChannelTeamSettings,
@@ -14,11 +16,10 @@ export function createChannelIdentityEditor(options: {
   teamControls?: Accessor<ChannelIdentityTeamControls | undefined>;
   onClose: () => void;
 }) {
-  const [name, setName] = createSignal(options.name);
+  const [values, setValues] = createStore<ChannelIdentityFormValues>({
+    name: options.name,
+  });
   const [savedName, setSavedName] = createSignal(options.name);
-  // Undefined leaves the picture unchanged; null explicitly clears it.
-  const [picture, setPicture] = createSignal<File | null>();
-  const [teamDraft, setTeamDraft] = createSignal<ChannelTeamSettings>();
   const [savedTeam, setSavedTeam] = createSignal<ChannelTeamSettings>();
   const [pending, setPending] = createSignal(false);
   const [error, setError] = createSignal<string>();
@@ -28,7 +29,7 @@ export function createChannelIdentityEditor(options: {
   });
 
   const teamBaseline = () => savedTeam() ?? options.teamControls?.()?.settings;
-  const teamSettings = () => teamDraft() ?? teamBaseline();
+  const teamSettings = () => values.team ?? teamBaseline();
   const teamChanges = (): ChannelTeamSettingsPatch | undefined => {
     const baseline = teamBaseline();
     const next = teamSettings();
@@ -50,17 +51,19 @@ export function createChannelIdentityEditor(options: {
     );
   };
   const dirty = () =>
-    name().trim() !== savedName() || picture() !== undefined || !!teamChanges();
+    values.name.trim() !== savedName() ||
+    values.picture !== undefined ||
+    !!teamChanges();
   const canSave = () =>
     options.canEdit() &&
     !pending() &&
-    name().trim().length > 0 &&
+    values.name.trim().length > 0 &&
     dirty() &&
     canSaveTeam();
 
   function changeName(value: string) {
     if (pending() || !options.canEdit()) return;
-    setName(value);
+    setValues('name', value);
     setError(undefined);
   }
 
@@ -68,7 +71,7 @@ export function createChannelIdentityEditor(options: {
     if (pending() || !options.canEdit()) return;
     const validationError = file ? imageFileError(file) : undefined;
     setError(validationError);
-    if (!validationError) setPicture(file);
+    if (!validationError) setValues('picture', file);
   }
 
   function changeTeamChannel(enabled: boolean) {
@@ -84,7 +87,7 @@ export function createChannelIdentityEditor(options: {
     )
       return;
     if (!savedTeam()) setSavedTeam(teamBaseline());
-    setTeamDraft({
+    setValues('team', {
       isTeamChannel: enabled,
       autoJoinTeam: enabled && current.autoJoinTeam,
     });
@@ -101,13 +104,13 @@ export function createChannelIdentityEditor(options: {
     )
       return;
     if (!savedTeam()) setSavedTeam(teamBaseline());
-    setTeamDraft({ ...current, autoJoinTeam: enabled });
+    setValues('team', { ...current, autoJoinTeam: enabled });
     setError(undefined);
   }
 
   function discardTeamChanges() {
     if (pending()) return;
-    setTeamDraft(undefined);
+    setValues('team', undefined);
     setSavedTeam(undefined);
     setError(undefined);
   }
@@ -126,10 +129,11 @@ export function createChannelIdentityEditor(options: {
 
   async function save() {
     if (!canSave()) return;
-    const nextPicture = picture();
-    const nextName = name().trim();
+    const nextPicture = values.picture;
+    const nextName = values.name.trim();
     const nameChanged = nextName !== savedName();
-    const nextTeam = teamSettings();
+    const currentTeam = teamSettings();
+    const nextTeam = currentTeam ? { ...currentTeam } : undefined;
     const nextTeamChanges = teamChanges();
     const teamControls = options.teamControls?.();
     setPending(true);
@@ -145,7 +149,7 @@ export function createChannelIdentityEditor(options: {
           'Could not save the channel picture. Your changes are still here. Try again.'
         );
       }
-      if (!disposed) setPicture(undefined);
+      if (!disposed) setValues('picture', undefined);
       pictureSaved = true;
     }
 
@@ -184,7 +188,7 @@ export function createChannelIdentityEditor(options: {
       }
       if (!disposed) {
         setSavedTeam(nextTeam);
-        setTeamDraft(undefined);
+        setValues('team', undefined);
       }
     }
 
@@ -196,8 +200,7 @@ export function createChannelIdentityEditor(options: {
   }
 
   return {
-    name,
-    picture,
+    values,
     pending,
     error,
     dirty,

@@ -1224,7 +1224,9 @@ one-to-one direct messages continue to show the other person's user picture.
 
 On desktop, click the channel name in either the split topbar or an inline detail
 topbar to open the `Edit channel` dialog. Hovering or focusing the title does not
-open an editor. The dialog loads on demand. Its details step places a larger,
+open an editor. The dialog loads on demand through the imperative dialog host;
+launchers share one editor per owner, and switching channels resets its form draft.
+The fields share a context-backed form draft. Its details step places a larger,
 outlined circular picture on the left and top-aligns the channel name input on
 the right. On narrow screens, the picture appears above the name. Click the
 picture to open the image-editing step; its pencil overlay appears on hover or
@@ -1240,7 +1242,7 @@ menu. Text inputs keep their native context menu.
 
 For channel owners and admins, team controls appear below the channel name on
 desktop and mobile. Private and public channels offer `Team channel` when the
-current user belongs to a team. The switch can be turned back off before Save;
+current user belongs to a team. The checkbox can be unchecked before Save;
 saved team channels cannot be converted back from this dialog. `Team auto-join`
 appears for existing or draft team channels and adds current and future team
 members automatically. These controls share the dialog's Save and Cancel actions:
@@ -1252,7 +1254,7 @@ lost while editing, discard the blocked team changes to keep and save the name
 and image edits.
 
 Channel details and Settings profile pictures use the shared circular image
-editor in `features/image-editor`; each host owns its drafts and persistence.
+editor in `components/image-editor`; each host owns its drafts and persistence.
 The image-editing step puts the crop workspace on the left and a wider
 actions/details column on the right, without an outer bordered crop container.
 On narrow screens, the workspace appears above the controls. Below the image

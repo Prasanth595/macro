@@ -1,5 +1,15 @@
 import { Button } from '@ui/components/Button';
-import { createSignal, lazy, type ParentProps, Show, Suspense } from 'solid-js';
+import {
+  type ManagedDialogProps,
+  useImperativeDialog,
+} from '@ui/components/ImperativeDialog';
+import {
+  type Accessor,
+  lazy,
+  type ParentProps,
+  Show,
+  Suspense,
+} from 'solid-js';
 
 const ChannelIdentitySession = lazy(() => import('./channel-identity-session'));
 
@@ -10,56 +20,50 @@ export type ChannelIdentityProps = {
   disabled?: boolean;
 };
 
-type ChannelIdentityOpenProps = {
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
-};
-
-export function ChannelIdentityTitle(
-  props: ParentProps<ChannelIdentityProps & ChannelIdentityOpenProps>
-) {
-  const [localOpen, setLocalOpen] = createSignal(false);
-  const open = () => props.open ?? localOpen();
-  const setOpen = (value: boolean) => {
-    setLocalOpen(value);
-    props.onOpenChange?.(value);
-  };
-
-  return (
-    <>
-      <Show when={props.canEdit && !props.disabled} fallback={props.children}>
-        <Button
-          variant="ghost"
-          size="sm"
-          class="min-w-0 px-0"
-          label="Edit channel details"
-          onClick={() => setOpen(true)}
-        >
-          {props.children}
-        </Button>
-      </Show>
-      <ChannelIdentityDialog
-        {...props}
-        open={open()}
-        onClose={() => setOpen(false)}
-      />
-    </>
-  );
-}
-
-export function ChannelIdentityDialog(
-  props: ChannelIdentityProps & {
-    open: boolean;
-    onClose: () => void;
-  }
+function ChannelIdentityDialog(
+  props: ChannelIdentityProps & ManagedDialogProps
 ) {
   return (
     <Suspense>
-      <Show when={props.open ? props.channelId : undefined} keyed>
+      <Show when={props.channelId} keyed>
         {(channelId) => (
           <ChannelIdentitySession {...props} channelId={channelId} />
         )}
       </Show>
     </Suspense>
+  );
+}
+
+export function useChannelIdentityDialog(
+  source: Accessor<ChannelIdentityProps>
+) {
+  const dialog = useImperativeDialog(ChannelIdentityDialog);
+
+  return () => {
+    const props = source();
+    if (!props.canEdit || props.disabled || dialog.isOpen()) return;
+    dialog.open(source);
+  };
+}
+
+export function ChannelIdentityTitle(
+  props: ParentProps<{
+    canEdit: boolean;
+    disabled?: boolean;
+    onEdit: () => void;
+  }>
+) {
+  return (
+    <Show when={props.canEdit && !props.disabled} fallback={props.children}>
+      <Button
+        variant="ghost"
+        size="sm"
+        class="min-w-0 px-0"
+        label="Edit channel details"
+        onClick={props.onEdit}
+      >
+        {props.children}
+      </Button>
+    </Show>
   );
 }

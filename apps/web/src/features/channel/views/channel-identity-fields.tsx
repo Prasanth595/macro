@@ -1,53 +1,57 @@
+import { IMAGE_MIME_TYPES } from '@app/components/image-editor/image-file';
+import { ImagePreviewButton } from '@app/components/image-editor/image-preview-button';
 import { fileDrop } from '@core/directive/fileDrop';
 import PictureIcon from '@phosphor/image.svg';
 import PencilIcon from '@phosphor/pencil-simple.svg';
 import UploadIcon from '@phosphor/upload-simple.svg';
 import { Button } from '@ui/components/Button';
 import { TextField } from '@ui/components/TextField';
-import { createSignal, type JSX, Show } from 'solid-js';
-import { ImagePreviewButton } from '../../image-editor/components/image-preview-button';
-import { IMAGE_MIME_TYPES } from '../../image-editor/core/image-file';
+import { createSignal, Show } from 'solid-js';
+import { useChannelIdentityContext } from '../context/channel-identity-context';
+import { ChannelIdentityTeamFields } from './channel-identity-team-fields';
 
 false && fileDrop;
 
-export function ChannelIdentityFields(props: {
-  name: string;
-  pictureUrl?: string;
-  pictureLoading: boolean;
-  canEdit: boolean;
-  pending: boolean;
-  canSave: boolean;
-  error?: string;
-  teamControls?: JSX.Element;
-  onNameChange: (name: string) => void;
-  onEditPicture: () => void;
-  onPickPicture: () => void;
-  onFilesDrop: (files: File[]) => void;
-  onPreviewPicture: (trigger: HTMLButtonElement) => void;
-  onCancel: () => void;
-  onSave: () => void;
-}) {
+export function ChannelIdentityFields() {
+  const context = useChannelIdentityContext();
+  const { form, canEdit } = context;
+  let input!: HTMLInputElement;
   const [dragging, setDragging] = createSignal(false);
   const imageDisabled = () =>
-    !props.canEdit || props.pending || props.pictureLoading;
+    !canEdit() || form.pending() || context.pictureLoading();
   return (
     <form
       class="flex w-full flex-col gap-6 text-sm text-ink"
       aria-label="Edit channel"
       onSubmit={(event) => {
         event.preventDefault();
-        props.onSave();
+        void context.save();
       }}
     >
+      <input
+        ref={input}
+        type="file"
+        name="picture"
+        accept={IMAGE_MIME_TYPES.join(',')}
+        class="hidden"
+        aria-label="Choose channel picture"
+        disabled={imageDisabled()}
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          event.currentTarget.value = '';
+          if (file) context.selectPicture(file);
+        }}
+      />
       <div class="flex flex-col gap-4 px-6 mobile:px-4">
         <div class="flex items-start gap-8 max-sm:flex-col max-sm:items-center max-sm:gap-6">
           <div class="flex w-full min-w-0 flex-1 flex-col gap-4">
             <TextField
-              value={props.name}
-              onChange={props.onNameChange}
-              readOnly={!props.canEdit}
-              disabled={props.pending}
-              validationState={props.name.trim() ? 'valid' : 'invalid'}
+              name="name"
+              value={form.values.name}
+              onChange={form.changeName}
+              readOnly={!canEdit()}
+              disabled={form.pending()}
+              validationState={form.values.name.trim() ? 'valid' : 'invalid'}
             >
               <TextField.Label>Channel name</TextField.Label>
               <TextField.Input placeholder="Channel name" size="lg" required />
@@ -55,7 +59,7 @@ export function ChannelIdentityFields(props: {
                 A channel name is required.
               </TextField.ErrorMessage>
             </TextField>
-            {props.teamControls}
+            <ChannelIdentityTeamFields />
           </div>
           <div class="order-first flex shrink-0 flex-col items-center gap-3">
             <div
@@ -74,7 +78,7 @@ export function ChannelIdentityFields(props: {
                   );
                 },
                 onDragEnd: () => setDragging(false),
-                onDrop: props.onFilesDrop,
+                onDrop: context.dropPictures,
               }}
             >
               <Button
@@ -85,24 +89,24 @@ export function ChannelIdentityFields(props: {
                   'border-accent bg-accent/5': dragging() && !imageDisabled(),
                 }}
                 label={
-                  props.canEdit
-                    ? props.pictureUrl
+                  canEdit()
+                    ? context.pictureUrl()
                       ? 'Edit channel image'
                       : 'Upload channel image'
                     : 'Channel picture'
                 }
                 disabled={imageDisabled()}
                 onClick={() =>
-                  props.pictureUrl
-                    ? props.onEditPicture()
-                    : props.onPickPicture()
+                  context.pictureUrl()
+                    ? context.editPicture()
+                    : (() => input.click())()
                 }
               >
                 <Show
-                  when={props.pictureUrl}
+                  when={context.pictureUrl()}
                   fallback={
                     <Show
-                      when={props.canEdit}
+                      when={canEdit()}
                       fallback={
                         <PictureIcon class="size-12 text-ink-placeholder" />
                       }
@@ -122,7 +126,7 @@ export function ChannelIdentityFields(props: {
                     />
                   )}
                 </Show>
-                <Show when={props.canEdit && (props.pictureUrl || dragging())}>
+                <Show when={canEdit() && (context.pictureUrl() || dragging())}>
                   <span
                     aria-hidden="true"
                     class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-full bg-surface/60 text-ink opacity-0 transition-opacity not-touch:group-hover/channel-picture:opacity-100 group-focus-visible/channel-picture:opacity-100 touch:opacity-100"
@@ -142,28 +146,28 @@ export function ChannelIdentityFields(props: {
                   </span>
                 </Show>
               </Button>
-              <Show when={props.pictureUrl}>
+              <Show when={context.pictureUrl()}>
                 <ImagePreviewButton
-                  disabled={props.pending || props.pictureLoading}
-                  onPreview={props.onPreviewPicture}
+                  disabled={form.pending() || context.pictureLoading()}
+                  onPreview={context.previewPicture}
                 />
               </Show>
             </div>
-            <Show when={props.canEdit}>
+            <Show when={canEdit()}>
               <p class="text-center text-xs text-ink-muted">
-                {props.pictureUrl
+                {context.pictureUrl()
                   ? 'Click to edit or drop an image'
                   : 'Click to upload or drop an image'}
               </p>
             </Show>
           </div>
         </div>
-        <Show when={props.error}>
+        <Show when={form.error()}>
           <p role="alert" class="text-sm text-failure-ink">
-            {props.error}
+            {form.error()}
           </p>
         </Show>
-        <Show when={!props.canEdit}>
+        <Show when={!canEdit()}>
           <p class="text-xs text-ink-muted">
             Join this channel to edit its name and picture.
           </p>
@@ -174,21 +178,21 @@ export function ChannelIdentityFields(props: {
           type="button"
           variant="ghost"
           size="md"
-          disabled={props.pending}
-          onClick={props.onCancel}
+          disabled={form.pending()}
+          onClick={form.close}
           class="touch:min-h-11"
         >
-          {props.canEdit ? 'Cancel' : 'Close'}
+          {canEdit() ? 'Cancel' : 'Close'}
         </Button>
-        <Show when={props.canEdit}>
+        <Show when={canEdit()}>
           <Button
             type="submit"
             variant="cta"
             size="md"
-            disabled={!props.canSave || props.pictureLoading}
+            disabled={!form.canSave() || context.pictureLoading()}
             class="touch:min-h-11"
           >
-            {props.pending ? 'Saving…' : 'Save'}
+            {form.pending() ? 'Saving…' : 'Save'}
           </Button>
         </Show>
       </div>

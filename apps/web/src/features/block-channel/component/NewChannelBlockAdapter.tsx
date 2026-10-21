@@ -45,6 +45,7 @@ import {
   normalizeChannelTab,
   useChannelTabItems,
 } from '@channel/Channel/use-channel-tab-items';
+import { useChannelIdentityDialog } from '@channel/channel-identity';
 import { ChannelInviteButton } from '@channel/channel-invite-button';
 import { ChannelParticipantsTab } from '@channel/Participants/ChannelParticipantsTab';
 import { HeaderIsland } from '@components/app/split-layout/components/HeaderIsland';
@@ -124,7 +125,6 @@ function NewTop(props: { channelId: string }) {
   const channelType = useChannelType(props.channelId);
   const channel = useChannel(props.channelId);
   const userId = useUserId();
-  const [editOpen, setEditOpen] = createSignal(false);
   const participantsQuery = useChannelParticipantsQuery(() => props.channelId);
   const call = useCall(() => props.channelId);
   const activeCallQuery = useActiveCallQuery(() => props.channelId);
@@ -155,6 +155,12 @@ function NewTop(props: { channelId: string }) {
       participantsQuery.isSuccess && !!entity && canEditChannelIdentity(entity)
     );
   };
+
+  const editIdentity = useChannelIdentityDialog(() => ({
+    channelId: props.channelId,
+    name: channelName() ?? 'New Channel',
+    canEdit: canEditIdentity(),
+  }));
 
   // Seed for "Ask Macro": a new chat with this channel @mentioned, so the
   // user does not have to create an agent and mention the channel by hand.
@@ -191,8 +197,7 @@ function NewTop(props: { channelId: string }) {
         participants={participants() ?? []}
         channelName={channelName() ?? 'New Channel'}
         canEditIdentity={canEditIdentity()}
-        identityOpen={editOpen()}
-        onIdentityOpenChange={setEditOpen}
+        onEditIdentity={editIdentity}
         tabs={tabs()}
         activeTab={activeTab()}
         onTabChange={setActiveTab}
@@ -223,7 +228,7 @@ function NewTop(props: { channelId: string }) {
               group: 'file',
               label: 'Edit channel',
               icon: RenameIcon,
-              action: () => setEditOpen(true),
+              action: editIdentity,
               condition: canEditIdentity,
             },
           ]}

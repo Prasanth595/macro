@@ -1,7 +1,7 @@
 import { Lightbox } from '@core/component/Lightbox';
 import { Dialog } from '@kobalte/core/dialog';
 import { Show } from 'solid-js';
-import type { ImagePreviewController } from '../primitives/create-image-preview';
+import type { ImagePreviewController } from './create-image-preview';
 
 export default function ImagePreviewDialog(props: {
   preview: ImagePreviewController;

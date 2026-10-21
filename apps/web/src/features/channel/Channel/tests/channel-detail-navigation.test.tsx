@@ -1,11 +1,10 @@
 import { createBlockOrchestrator } from '@core/orchestrator';
 import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
 import {
-  type Accessor,
-  createComputed,
-  createSignal,
-  type JSX,
-} from 'solid-js';
+  ImperativeDialogHost,
+  type ManagedDialogProps,
+} from '@ui/components/ImperativeDialog';
+import { type Accessor, createComputed, type JSX } from 'solid-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChannelTargetRequest } from '../ChannelSurface';
 import { useChannelTab } from '../ChannelTabContext';
@@ -101,9 +100,9 @@ vi.mock('@queries/channel/channel-participants', () => ({
 }));
 vi.mock('@core/context/user', () => ({ useUserId: () => () => 'viewer' }));
 vi.mock('@channel/channel-identity-session', () => ({
-  default: (props: { onClose: () => void }) => (
+  default: (props: ManagedDialogProps) => (
     <div role="dialog" aria-label="Edit channel">
-      <button onClick={props.onClose}>Cancel</button>
+      <button onClick={() => props.onOpenChange(false)}>Cancel</button>
     </div>
   ),
 }));
@@ -148,15 +147,14 @@ afterEach(cleanup);
 describe('channel detail navigation', () => {
   it('opens one title dialog from an external Edit channel action', async () => {
     mocks.canEditIdentity = true;
-    const [open, setOpen] = createSignal(false);
     render(() => (
       <>
-        <button onClick={() => setOpen(true)}>Edit channel</button>
-        <ChannelDetailTitle
-          channelId={CHANNEL_ID}
-          identityOpen={open()}
-          onIdentityOpenChange={setOpen}
-        />
+        <ChannelDetailTitle channelId={CHANNEL_ID}>
+          {(editIdentity) => (
+            <button onClick={editIdentity}>Edit channel</button>
+          )}
+        </ChannelDetailTitle>
+        <ImperativeDialogHost />
       </>
     ));
     fireEvent.click(screen.getByRole('button', { name: 'Edit channel' }));
@@ -165,7 +163,23 @@ describe('channel detail navigation', () => {
     ).toBeTruthy();
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(open()).toBe(false);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('rejects the external edit action after the participants query denies access', () => {
+    mocks.canEditIdentity = true;
+    render(() => (
+      <>
+        <ChannelDetailTitle channelId={CHANNEL_ID}>
+          {(editIdentity) => (
+            <button onClick={editIdentity}>Edit channel</button>
+          )}
+        </ChannelDetailTitle>
+        <ImperativeDialogHost />
+      </>
+    ));
+    mocks.canEditIdentity = false;
+    fireEvent.click(screen.getByRole('button', { name: 'Edit channel' }));
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 

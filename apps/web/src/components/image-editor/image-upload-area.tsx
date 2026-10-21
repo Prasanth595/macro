@@ -3,7 +3,7 @@ import TrashIcon from '@phosphor/trash.svg';
 import UploadIcon from '@phosphor/upload-simple.svg';
 import { Button } from '@ui/components/Button';
 import { createSignal, Show } from 'solid-js';
-import { IMAGE_MIME_TYPES } from '../core/image-file';
+import { IMAGE_MIME_TYPES } from './image-file';
 
 false && fileDrop;
 

@@ -10,7 +10,10 @@ import { ChannelCallTab } from '@channel/Call/ChannelCallTab';
 import { getCallJoinTab } from '@channel/Call/call-tabs';
 import { useCall } from '@channel/Call/use-call';
 import { ChannelCallsTab } from '@channel/Calls/ChannelCallsTab';
-import { ChannelIdentityTitle } from '@channel/channel-identity';
+import {
+  ChannelIdentityTitle,
+  useChannelIdentityDialog,
+} from '@channel/channel-identity';
 import { ChannelInviteButton } from '@channel/channel-invite-button';
 import { ChannelTopIcon } from '@channel/components/ChannelTopIcon';
 import { DebugSuspense } from '@channel/DebugSuspense';
@@ -101,8 +104,7 @@ type ChannelDetailHeaderProps = {
 
 export function ChannelDetailTitle(
   props: ChannelDetailHeaderProps & {
-    identityOpen?: boolean;
-    onIdentityOpenChange?: (open: boolean) => void;
+    children?: (editIdentity: () => void) => JSX.Element;
   }
 ) {
   const channelName = useChannelName(props.channelId, props.fallbackName);
@@ -114,27 +116,32 @@ export function ChannelDetailTitle(
   const canEditIdentity = () =>
     channelType() !== 'direct_message' &&
     participants().some((participant) => participant.user_id === userId());
+  const editIdentity = useChannelIdentityDialog(() => ({
+    channelId: props.channelId,
+    name: channelName() ?? 'New Channel',
+    canEdit: canEditIdentity(),
+  }));
 
   return (
-    <div class="ph-no-capture flex min-w-0 shrink items-center gap-2">
-      <ChannelTopIcon
-        channelId={props.channelId}
-        channelType={channelType()}
-        participants={participants()}
-      />
-      <ChannelIdentityTitle
-        channelId={props.channelId}
-        name={channelName() ?? 'New Channel'}
-        canEdit={canEditIdentity()}
-        disabled={channelType() === 'direct_message'}
-        open={props.identityOpen}
-        onOpenChange={props.onIdentityOpenChange}
-      >
-        <span class="truncate text-sm font-semibold">
-          {channelName() ?? 'New Channel'}
-        </span>
-      </ChannelIdentityTitle>
-    </div>
+    <>
+      <div class="ph-no-capture flex min-w-0 shrink items-center gap-2">
+        <ChannelTopIcon
+          channelId={props.channelId}
+          channelType={channelType()}
+          participants={participants()}
+        />
+        <ChannelIdentityTitle
+          canEdit={canEditIdentity()}
+          disabled={channelType() === 'direct_message'}
+          onEdit={editIdentity}
+        >
+          <span class="truncate text-sm font-semibold">
+            {channelName() ?? 'New Channel'}
+          </span>
+        </ChannelIdentityTitle>
+      </div>
+      {props.children?.(editIdentity)}
+    </>
   );
 }
 

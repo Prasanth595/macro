@@ -1,3 +1,7 @@
+import {
+  IMAGE_MIME_TYPES,
+  imageFileError,
+} from '@app/components/image-editor/image-file';
 import { toast } from '@core/component/Toast/Toast';
 import { createStaticFile } from '@core/util/create';
 import { openFilePicker } from '@core/util/upload';
@@ -6,11 +10,6 @@ import {
   useSetChannelPictureMutation,
 } from '@queries/channel/picture';
 import type { Accessor } from 'solid-js';
-
-import {
-  IMAGE_MIME_TYPES,
-  imageFileError,
-} from '../image-editor/core/image-file';
 
 /**
  * Upload and clear channel pictures, for menus that learn their channel when

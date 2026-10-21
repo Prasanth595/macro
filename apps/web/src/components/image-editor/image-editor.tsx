@@ -12,13 +12,13 @@ import {
   Show,
   Suspense,
 } from 'solid-js';
-import { ImageEditorLayout } from '../components/image-editor-layout';
-import { ImagePreviewButton } from '../components/image-preview-button';
-import { ImageUploadArea } from '../components/image-upload-area';
-import { IMAGE_MIME_TYPES, imageFileError } from '../core/image-file';
-import type { ImagePreviewController } from '../primitives/create-image-preview';
+import type { ImagePreviewController } from './create-image-preview';
+import { ImageEditorLayout } from './image-editor-layout';
+import { IMAGE_MIME_TYPES, imageFileError } from './image-file';
+import { ImagePreviewButton } from './image-preview-button';
+import { ImageUploadArea } from './image-upload-area';
 
-const ImageCropper = lazy(() => import('../components/image-cropper'));
+const ImageCropper = lazy(() => import('./image-cropper'));
 
 export type ImageEditorProps = {
   source?: File | string;
@@ -49,7 +49,7 @@ export function ImageEditor(props: ImageEditorProps) {
       request?.abort();
       const controller = new AbortController();
       request = controller;
-      const { loadImage } = await import('../queries/load-image');
+      const { loadImage } = await import('./load-image');
       return loadImage(url, controller.signal, props.telemetryAttributes);
     }
   );

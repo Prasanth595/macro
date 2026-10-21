@@ -1,3 +1,5 @@
+import { createImagePreview } from '@app/components/image-editor/create-image-preview';
+import { ImageEditor } from '@app/components/image-editor/image-editor';
 import { Telemetry } from '@macro-inc/observability';
 import XIcon from '@phosphor/x.svg';
 import { Button } from '@ui/components/Button';
@@ -11,12 +13,10 @@ import {
   Show,
   Suspense,
 } from 'solid-js';
-import { createImagePreview } from '../../image-editor/primitives/create-image-preview';
-import { ImageEditor } from '../../image-editor/views/image-editor';
 import type { ProfilePictureWriter } from '../core/profile-picture';
 
 const ImagePreviewDialog = lazy(
-  () => import('../../image-editor/components/image-preview-dialog')
+  () => import('@app/components/image-editor/image-preview-dialog')
 );
 
 export default function ProfilePictureEditor(props: {

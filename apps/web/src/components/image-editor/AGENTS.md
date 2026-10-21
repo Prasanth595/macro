@@ -7,9 +7,9 @@ It owns upload controls, file validation, crop/export, and lightbox interactions
 
 ## Start here
 
-- `views/image-editor.tsx`: controlled editor composition.
-- `components/image-cropper.tsx`: CropperJS integration and PNG export.
-- `primitives/create-image-preview.ts`: nested lightbox dismissal and focus.
+- `image-editor.tsx`: controlled editor composition.
+- `image-cropper.tsx`: CropperJS integration and PNG export.
+- `create-image-preview.ts`: nested lightbox dismissal and focus.
 
 ## Boundaries
 
@@ -21,7 +21,8 @@ It owns upload controls, file validation, crop/export, and lightbox interactions
 
 ## Checks
 
-- In `apps/web`: `bun run test src/features/channel/components/channel-picture-cropper.test.ts src/features/settings/profile-picture.test.ts src/features/image-editor/image-source.test.ts`.
+- In `apps/web`: `bun run test src/components/ui/components/Dialog.test.tsx src/components/ui/components/ImperativeDialog.test.tsx`.
+- Exercise both hosts in desktop and phone browsers: crop/upload, GIF preview, Save/Cancel, retry, and nested lightbox dismissal.
 - In `apps/web`: `bun run check`.
 
 ## Gotchas

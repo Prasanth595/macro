@@ -1,6 +1,6 @@
+import { imageFileError } from '@app/components/image-editor/image-file';
 import { Telemetry } from '@macro-inc/observability';
 import { err, ok, type Result, ResultAsync } from 'neverthrow';
-import { imageFileError } from '../../image-editor/core/image-file';
 import type { ProfilePictureWriter } from '../core/profile-picture';
 
 export function createProfilePictureWriter(options: {

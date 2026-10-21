@@ -80,7 +80,7 @@ Then trigger the interaction and read `window.__inst.log`. `'1,2,3' → '' → '
   [choosing a reactive read](docs/graphql-normalized-cache-plan.md#choosing-a-reactive-read).
 - When adding or changing a feature flag, follow the `feature-flags` skill.
 - When adding or changing a view's feature tour, follow the `add-tour` skill.
-- Channel and profile-picture crop flows share `src/features/image-editor`; keep host drafts, APIs, and cache updates outside it. See that directory's `AGENTS.md` for lifecycle and lightbox constraints.
+- Keep reusable, feature-independent UI in `src/components` without feature-layer folders. Channel and profile-picture crop flows share `src/components/image-editor`; keep host drafts, APIs, and cache updates outside it. See that directory's `AGENTS.md` for lifecycle and lightbox constraints.
 
 ## Rules
 

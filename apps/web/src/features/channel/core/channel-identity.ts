@@ -14,6 +14,13 @@ export type ChannelTeamSettings = {
   autoJoinTeam: boolean;
 };
 
+export type ChannelIdentityFormValues = {
+  name: string;
+  /** Undefined preserves the picture; null explicitly clears it. */
+  picture?: File | null;
+  team?: ChannelTeamSettings;
+};
+
 export type ChannelTeamSettingsPatch = {
   convertToTeam: boolean;
   autoJoinTeam?: boolean;
