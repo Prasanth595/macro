@@ -1993,6 +1993,7 @@ export function ShareTrigger(props: {
         variant="ghost"
         tooltip="Copy Share Link"
         size="icon-md"
+        class="@max-[600px]/split-header:hidden"
         onClick={ShareLinkAction().action}
       >
         <Dynamic component={ShareLinkAction().icon} class="size-3.5!" />
