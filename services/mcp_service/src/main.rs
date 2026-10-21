@@ -32,8 +32,11 @@ const EVENT_BROKER_DRAIN_TIMEOUT: Duration = Duration::from_secs(10);
 /// from the OpenAI submission portal. The token should be set via the
 /// `OPENAI_DOMAIN_VERIFICATION_TOKEN` environment variable.
 async fn openai_domain_verification() -> String {
-    std::env::var("OPENAI_DOMAIN_VERIFICATION_TOKEN")
-        .unwrap_or_else(|_| "PLACEHOLDER_TOKEN_REPLACE_WITH_ACTUAL_OPENAI_TOKEN".to_string())
+    use macro_env_var::env_var;
+    env_var!("OPENAI_DOMAIN_VERIFICATION_TOKEN")
+        .value()
+        .unwrap_or("PLACEHOLDER_TOKEN_REPLACE_WITH_ACTUAL_OPENAI_TOKEN")
+        .to_string()
 }
 
 #[tokio::main]
