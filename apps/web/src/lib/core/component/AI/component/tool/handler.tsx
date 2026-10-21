@@ -14,6 +14,12 @@ import {
 } from '@service-cognition/generated/tools/tool';
 import { createMemo, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
+import {
+  createAgentSessionHandler,
+  manageAgentSessionHandler,
+  readAgentSessionSharingHandler,
+  updateAgentSessionSharingHandler,
+} from './AgentSessionActions';
 import { configureAgentHandler, listAgentsHandler } from './Agents';
 import { bashCodeExecutionHandler } from './BashCodeExecution';
 import {
@@ -68,6 +74,14 @@ import {
   listCodingAgentsHandler,
 } from './CodingAgents';
 import { decideHandler, generateObjectHandler } from './Cognition';
+import {
+  commentHandler,
+  commentOnTextHandler,
+  deleteCommentHandler,
+  editCommentHandler,
+  readDiscussionHandler,
+  resolveCommentHandler,
+} from './Comments';
 import { createDocumentHandler } from './CreateDocument';
 import { createProjectHandler } from './CreateProject';
 import { createSkillHandler } from './CreateSkill';
@@ -85,12 +99,6 @@ import {
 } from './DesignDocument';
 import { discoverConnectorsHandler } from './DiscoverConnectors';
 import { displayResultsHandler } from './DisplayResults';
-import {
-  commentOnDocumentHandler,
-  deleteDocumentCommentHandler,
-  editDocumentCommentHandler,
-  resolveDocumentCommentHandler,
-} from './DocumentComments';
 import { editDocumentHandler } from './EditDocument';
 import { editTagHandler } from './EditTag';
 import {
@@ -133,6 +141,7 @@ import {
   setEntityPropertyHandler,
 } from './Properties';
 import { readActivityHandler } from './ReadActivity';
+import { readAgentSessionHandler } from './ReadAgentSession';
 import { readCallRecordHandler } from './ReadCallRecord';
 import {
   readChannelMessageContextHandler,
@@ -293,6 +302,11 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   ReadChannelMessages: readChannelMessagesHandler,
   ReadChannelThread: readChannelThreadHandler,
   ReadChat: readChatHandler,
+  ReadAgentSession: readAgentSessionHandler,
+  CreateAgentSession: createAgentSessionHandler,
+  ManageAgentSession: manageAgentSessionHandler,
+  ReadAgentSessionSharing: readAgentSessionSharingHandler,
+  UpdateAgentSessionSharing: updateAgentSessionSharingHandler,
   ReadThread: readThreadHandler,
   ReadContent: readContentHandler,
   ReadMetadata: readMetadataHandler,
@@ -300,10 +314,12 @@ const toolHandlers: ToolHandlerMap<RenderContext> = {
   ReadSkill: readSkillHandler,
   RenameChannel: renameChannelHandler,
   RenameDocument: renameDocumentHandler,
-  CommentOnDocument: commentOnDocumentHandler,
-  ResolveDocumentComment: resolveDocumentCommentHandler,
-  EditDocumentComment: editDocumentCommentHandler,
-  DeleteDocumentComment: deleteDocumentCommentHandler,
+  ReadDiscussion: readDiscussionHandler,
+  Comment: commentHandler,
+  CommentOnText: commentOnTextHandler,
+  ResolveComment: resolveCommentHandler,
+  EditComment: editCommentHandler,
+  DeleteComment: deleteCommentHandler,
   SearchSkills: searchSkillsHandler,
   SearchTools: searchToolsHandler,
   SelfKnowledge: selfKnowledgeHandler,

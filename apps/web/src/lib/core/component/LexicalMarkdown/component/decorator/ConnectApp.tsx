@@ -18,6 +18,7 @@ import { PipedreamConnectorIcon } from '@core/pipedream/ConnectorIcon';
 import { AppConnectionContext } from '@core/pipedream/connection-context';
 import { requestConnectApp } from '@core/pipedream/pendingConnect';
 import { getDisplayName, tryMacroId } from '@core/user';
+import { fireAndForget } from '@core/util/fireAndForget';
 import type { ConnectAppDecoratorProps } from '@macro-inc/lexical-core';
 import ArrowUpRightIcon from '@phosphor/arrow-up-right.svg';
 import CheckIcon from '@phosphor/check.svg';
@@ -158,9 +159,12 @@ function ConnectPipedreamApp(props: ConnectProps) {
         const inPlace = inChat();
         if (inPlace) {
           const reply = message?.();
-          void inPlace.connect(
-            { appSlug: props.appSlug, name: props.name },
-            reply && { messageId: reply.id, postedAt: reply.created_at }
+          fireAndForget(
+            inPlace.connect(
+              { appSlug: props.appSlug, name: props.name },
+              reply && { messageId: reply.id, postedAt: reply.created_at }
+            ),
+            'connect-app'
           );
           return;
         }

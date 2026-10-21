@@ -49,7 +49,7 @@ impl CalendarInvitationRepository for PgCalendarRepository {
                   AND ((e.owner_id = $1 AND l.macro_id = $1)
                     OR EXISTS (SELECT 1 FROM macro_user_links delegation
                         WHERE delegation.primary_macro_id = $1 AND delegation.link_id = e.source_link_id))
-                  AND EXISTS (SELECT 1 FROM calendar_event_sources s JOIN calendar_accounts a ON a.id = s.account_id JOIN calendars c ON c.id = s.calendar_id WHERE s.event_id = e.id AND s.source_kind = 'google' AND NOT c.is_deleted AND a.sync_status NOT IN ('disabled', 'reauth_required'))
+                  AND EXISTS (SELECT 1 FROM calendar_event_sources s JOIN calendar_accounts a ON a.id = s.account_id JOIN calendars c ON c.id = s.calendar_id WHERE s.event_id = e.id AND s.source_kind IN ('google', 'outlook') AND NOT c.is_deleted AND a.sync_status NOT IN ('disabled', 'reauth_required'))
                 ORDER BY e.id LIMIT 16
             ) candidate
         "#, viewer, &uids, &requested_keys as &[Option<String>]).fetch_all(&self.pool).await.map_err(report)?;
@@ -74,6 +74,7 @@ impl CalendarInvitationRepository for PgCalendarRepository {
                 override.description AS override_description,
                 override.location AS override_location,
                 override.status AS override_status,
+                override.reminders AS override_reminders,
                 event.owner_id,
                 event.ical_uid,
                 event.title,
@@ -99,6 +100,9 @@ impl CalendarInvitationRepository for PgCalendarRepository {
                 event.is_read_only,
                 event.reminders_use_default,
                 event.reminder_overrides,
+                event.guests_can_modify,
+                event.guests_can_invite_others,
+                event.guests_can_see_other_guests,
                 event.created_at,
                 COALESCE(override.source_updated_at, event.updated_at) AS "updated_at!"
             FROM unnest($2::uuid[], $3::text[]) requested(event_id, occurrence_key)

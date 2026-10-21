@@ -110,6 +110,30 @@ fn colleague_joined_rate_limit_key_is_per_recipient() {
 }
 
 #[test]
+fn team_invite_rate_limit_key_is_per_invite() {
+    let to_bob = InviteToTeamMetadata {
+        team_name: "Acme".to_string(),
+        team_id: Uuid::from_u128(1),
+        team_invite_id: Uuid::from_u128(10),
+        invited_by: MacroUserIdStr::try_from_email("alice@acme.com").unwrap(),
+        role: None,
+        sender_profile_picture_url: None,
+    };
+    let to_carol = InviteToTeamMetadata {
+        team_invite_id: Uuid::from_u128(11),
+        ..to_bob.clone()
+    };
+    assert_eq!(
+        to_bob.rate_limit_key().as_bytes(),
+        to_bob.clone().rate_limit_key().as_bytes()
+    );
+    assert_ne!(
+        to_bob.rate_limit_key().as_bytes(),
+        to_carol.rate_limit_key().as_bytes()
+    );
+}
+
+#[test]
 fn colleague_joined_serde_round_trip_keeps_the_wire_shape() {
     let wire = serde_json::json!({
         "team_name": "Acme",
@@ -266,6 +290,29 @@ fn make_invite() -> InviteToMacro {
         sender_profile_picture_url: None,
         sender_name: Some("Test User".to_string()),
         sender_email: Some("sender@example.com".to_string()),
+    }
+}
+
+#[test]
+fn invitation_logos_keep_the_png_aspect_ratio() {
+    let team_invite = InviteToTeamMetadata {
+        team_name: "Acme".to_string(),
+        team_id: Uuid::nil(),
+        team_invite_id: Uuid::nil(),
+        invited_by: MacroUserIdStr::try_from_email("sender@example.com").unwrap(),
+        role: None,
+        sender_profile_picture_url: None,
+    };
+    for email in [
+        make_invite().format_email(),
+        make_channel_invite().format_email(),
+        team_invite.format_email(),
+        make_colleague_joined().format_email(),
+    ] {
+        let body = email.body.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(body.contains(
+            r#"src="https://static-file-service.macro.com/file/b911aba9-94a6-435c-aa16-8404739f13b0" width="54" height="36""#
+        ));
     }
 }
 

@@ -1,4 +1,5 @@
 import { AgentSession } from '@core/agent-session/AgentSession';
+import { fireAndForget } from '@core/util/fireAndForget';
 import type {
   FoldedMessage,
   FoldedStreamEvent,
@@ -111,7 +112,7 @@ export function createLiveSession(sessionId: Accessor<string | undefined>) {
         else setFailed(true);
       }
     };
-    void load();
+    fireAndForget(load(), 'agent-activity');
     onCleanup(() => {
       disposed = true;
       if (timer) clearTimeout(timer);

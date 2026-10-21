@@ -74,7 +74,7 @@ function generateDatabaseQuery(
               return serviceError(errors).message;
             })
             .with({ kind: 'interrupted' }, ({ reason }) => reason)
-            .exhaustive()
+            .exhaustive(() => 'The query couldn’t be generated.')
         )
       )
     )

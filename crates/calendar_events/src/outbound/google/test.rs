@@ -25,7 +25,9 @@ fn calendar_access_role_is_reflected_on_mapped_events() {
         end_date: NaiveDate::from_ymd_opt(2026, 8, 1).unwrap(),
     };
 
-    let target = GoogleCalendarTarget {
+    let target = ProviderCalendarTarget {
+        binding: None,
+        provider: crate::domain::models::CalendarProvider::Google,
         observed_access_role: Some("reader".to_owned()),
         owner_id: "macro|readonly@example.com".to_string(),
         email_link_id: Uuid::now_v7(),
@@ -38,11 +40,101 @@ fn calendar_access_role_is_reflected_on_mapped_events() {
     let upsert = map_upsert(&target, master, Vec::new(), Vec::new()).unwrap();
 
     assert!(upsert.event.is_read_only);
-    let CalendarEventSource::Google(source) = &upsert.source;
+    let source = upsert.source.details();
     assert_eq!(source.observed_access_role.as_deref(), Some("reader"));
     assert_eq!(source.account_id, target.account_id);
     assert_eq!(source.calendar_id, target.calendar_id);
     assert_eq!(source.email_link_id, target.email_link_id);
+}
+
+#[test]
+fn guest_permissions_default_when_omitted_and_raw_payload_keeps_unmapped_fields() {
+    let target = ProviderCalendarTarget {
+        binding: None,
+        provider: crate::domain::models::CalendarProvider::Google,
+        observed_access_role: Some("owner".to_owned()),
+        owner_id: "macro|guest@example.com".to_string(),
+        email_link_id: Uuid::now_v7(),
+        account_id: Uuid::now_v7(),
+        calendar_id: Uuid::now_v7(),
+        provider_calendar_id: "primary".to_string(),
+        is_read_only: false,
+        range: OccurrenceRange {
+            starts_at: DateTime::parse_from_rfc3339("2026-10-01T00:00:00Z")
+                .unwrap()
+                .with_timezone(&Utc),
+            ends_at: DateTime::parse_from_rfc3339("2026-11-01T00:00:00Z")
+                .unwrap()
+                .with_timezone(&Utc),
+            start_date: NaiveDate::from_ymd_opt(2026, 10, 1).unwrap(),
+            end_date: NaiveDate::from_ymd_opt(2026, 11, 1).unwrap(),
+        },
+    };
+    let event = |permissions: serde_json::Value| -> GoogleEvent {
+        let mut value = serde_json::json!({
+            "id": "provider-event",
+            "iCalUID": "planning@example.com",
+            "summary": "Planning",
+            "start": {"dateTime": "2026-10-22T17:00:00Z"},
+            "end": {"dateTime": "2026-10-22T18:00:00Z"},
+            "htmlLink": "https://calendar.google.com/event?eid=abc",
+            "attendeesOmitted": false
+        });
+        value
+            .as_object_mut()
+            .unwrap()
+            .extend(permissions.as_object().unwrap().clone());
+        serde_json::from_value(value).unwrap()
+    };
+
+    let defaults = map_upsert(
+        &target,
+        event(serde_json::json!({})),
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+    let locked = map_upsert(
+        &target,
+        event(serde_json::json!({
+            "guestsCanModify": true,
+            "guestsCanInviteOthers": false,
+            "guestsCanSeeOtherGuests": false
+        })),
+        Vec::new(),
+        Vec::new(),
+    )
+    .unwrap();
+
+    assert_eq!(
+        defaults.event.guest_policy,
+        GuestPolicy {
+            can_modify: false,
+            can_invite_others: true,
+            can_see_other_guests: true,
+        }
+    );
+    assert_eq!(
+        locked.event.guest_policy,
+        GuestPolicy {
+            can_modify: true,
+            can_invite_others: false,
+            can_see_other_guests: false,
+        }
+    );
+    let raw = &locked.source.details().raw_payload;
+    assert_eq!(raw["htmlLink"], "https://calendar.google.com/event?eid=abc");
+    assert_eq!(raw["attendeesOmitted"], false);
+    assert_eq!(raw["guestsCanInviteOthers"], false);
+    assert!(
+        defaults
+            .source
+            .details()
+            .raw_payload
+            .get("guestsCanInviteOthers")
+            .is_none(),
+        "an omitted switch stays omitted in the raw payload"
+    );
 }
 
 #[test]
@@ -57,7 +149,9 @@ fn event_type_is_mapped_with_an_unknown_fallback() {
         start_date: NaiveDate::from_ymd_opt(2026, 8, 1).unwrap(),
         end_date: NaiveDate::from_ymd_opt(2026, 9, 1).unwrap(),
     };
-    let target = GoogleCalendarTarget {
+    let target = ProviderCalendarTarget {
+        binding: None,
+        provider: crate::domain::models::CalendarProvider::Google,
         observed_access_role: Some("owner".to_owned()),
         owner_id: "macro|office@example.com".to_string(),
         email_link_id: Uuid::now_v7(),
@@ -122,7 +216,9 @@ fn creator_is_mapped_separately_from_the_organizer() {
         start_date: NaiveDate::from_ymd_opt(2026, 8, 1).unwrap(),
         end_date: NaiveDate::from_ymd_opt(2026, 9, 1).unwrap(),
     };
-    let target = GoogleCalendarTarget {
+    let target = ProviderCalendarTarget {
+        binding: None,
+        provider: crate::domain::models::CalendarProvider::Google,
         observed_access_role: Some("owner".to_owned()),
         owner_id: "macro|jackson@example.com".to_string(),
         email_link_id: Uuid::now_v7(),
@@ -181,7 +277,9 @@ fn malformed_recurring_instance_does_not_overstate_snapshot_coverage() {
         start_date: NaiveDate::from_ymd_opt(2026, 7, 1).unwrap(),
         end_date: NaiveDate::from_ymd_opt(2026, 8, 1).unwrap(),
     };
-    let target = GoogleCalendarTarget {
+    let target = ProviderCalendarTarget {
+        binding: None,
+        provider: crate::domain::models::CalendarProvider::Google,
         observed_access_role: Some("owner".to_owned()),
         owner_id: "macro|recurring@example.com".to_string(),
         email_link_id: Uuid::now_v7(),
@@ -283,7 +381,9 @@ fn duplicate_instances_collapse_to_one_live_occurrence() {
         start_date: NaiveDate::from_ymd_opt(2026, 7, 1).unwrap(),
         end_date: NaiveDate::from_ymd_opt(2026, 8, 1).unwrap(),
     };
-    let target = GoogleCalendarTarget {
+    let target = ProviderCalendarTarget {
+        binding: None,
+        provider: crate::domain::models::CalendarProvider::Google,
         observed_access_role: Some("owner".to_owned()),
         owner_id: "macro|recurring@example.com".to_string(),
         email_link_id: Uuid::now_v7(),
@@ -347,7 +447,9 @@ async fn malformed_master_rejects_snapshot_and_incremental_batch_until_repaired(
     let ends_at = DateTime::parse_from_rfc3339("2026-08-01T00:00:00Z")
         .unwrap()
         .with_timezone(&Utc);
-    let target = GoogleCalendarTarget {
+    let target = ProviderCalendarTarget {
+        binding: None,
+        provider: crate::domain::models::CalendarProvider::Google,
         observed_access_role: Some("owner".to_owned()),
         owner_id: "macro|quarantine@example.com".to_string(),
         email_link_id: Uuid::now_v7(),
@@ -368,7 +470,7 @@ async fn malformed_master_rejects_snapshot_and_incremental_batch_until_repaired(
     let result = client
         .apply_change_feed("unused", &target, vec![valid.clone(), malformed.clone()])
         .await;
-    assert!(matches!(result, Err(error) if error.kind() == GoogleProviderErrorKind::Transient));
+    assert!(matches!(result, Err(error) if error.kind() == CalendarProviderErrorKind::Transient));
 
     let mut repaired = malformed;
     repaired.end = valid.end.clone();
@@ -404,7 +506,7 @@ fn quota_forbidden_response_is_retryable() {
         r#"{"error":{"message":"Quota exceeded","errors":[{"reason":"userRateLimitExceeded"}]}}"#,
     );
 
-    assert_eq!(error.kind(), GoogleProviderErrorKind::Transient);
+    assert_eq!(error.kind(), CalendarProviderErrorKind::Transient);
 }
 
 #[test]
@@ -414,14 +516,14 @@ fn push_unsupported_watch_is_classified_apart_from_other_rejections() {
         StatusCode::BAD_REQUEST,
         r#"{"error":{"code":400,"message":"Push notifications are not supported by this resource.","errors":[{"domain":"global","reason":"pushNotSupportedForRequestedResource","message":"Push notifications are not supported by this resource."}]}}"#,
     );
-    assert_eq!(error.kind(), GoogleProviderErrorKind::PushUnsupported);
+    assert_eq!(error.kind(), CalendarProviderErrorKind::PushUnsupported);
 
     let other = provider_response_error(
         GoogleRequestKind::Mutation,
         StatusCode::BAD_REQUEST,
         r#"{"error":{"code":400,"message":"Invalid channel","errors":[{"reason":"invalid"}]}}"#,
     );
-    assert_eq!(other.kind(), GoogleProviderErrorKind::Permanent);
+    assert_eq!(other.kind(), CalendarProviderErrorKind::Permanent);
 }
 
 #[test]
@@ -432,7 +534,7 @@ fn insufficient_permissions_require_reauthorization() {
         r#"{"error":{"message":"Insufficient Permission","errors":[{"reason":"insufficientPermissions"}]}}"#,
     );
 
-    assert_eq!(error.kind(), GoogleProviderErrorKind::ReauthRequired);
+    assert_eq!(error.kind(), CalendarProviderErrorKind::ReauthRequired);
 }
 
 #[test]
@@ -443,7 +545,7 @@ fn expired_sync_token_requests_a_full_resync() {
         r#"{"error":{"message":"Sync token is no longer valid","errors":[{"reason":"fullSyncRequired"}]}}"#,
     );
 
-    assert_eq!(error.kind(), GoogleProviderErrorKind::SyncTokenExpired);
+    assert_eq!(error.kind(), CalendarProviderErrorKind::SyncTokenExpired);
 }
 
 #[test]
@@ -454,7 +556,7 @@ fn rejected_access_token_is_retryable_with_a_fresh_token() {
         r#"{"error":{"message":"Invalid Credentials","errors":[{"reason":"authError"}]}}"#,
     );
 
-    assert_eq!(error.kind(), GoogleProviderErrorKind::Transient);
+    assert_eq!(error.kind(), CalendarProviderErrorKind::Transient);
 }
 
 #[test]
@@ -465,7 +567,7 @@ fn unrelated_forbidden_mutation_is_permanent() {
         r#"{"error":{"message":"Forbidden","errors":[{"reason":"forbidden"}]}}"#,
     );
 
-    assert_eq!(error.kind(), GoogleProviderErrorKind::Permanent);
+    assert_eq!(error.kind(), CalendarProviderErrorKind::Permanent);
 }
 
 #[test]
@@ -478,7 +580,7 @@ fn undocumented_precondition_failure_is_retryable() {
             r#"{"error":{"message":"Precondition check failed."}}"#,
         );
 
-        assert_eq!(error.kind(), GoogleProviderErrorKind::Transient);
+        assert_eq!(error.kind(), CalendarProviderErrorKind::Transient);
     }
 }
 
@@ -489,14 +591,14 @@ fn unknown_client_errors_are_retryable_on_reads_but_permanent_on_mutations() {
         StatusCode::CONFLICT,
         r#"{"error":{"message":"Conflict"}}"#,
     );
-    assert_eq!(read.kind(), GoogleProviderErrorKind::Transient);
+    assert_eq!(read.kind(), CalendarProviderErrorKind::Transient);
 
     let mutation = provider_response_error(
         GoogleRequestKind::Mutation,
         StatusCode::CONFLICT,
         r#"{"error":{"message":"Conflict"}}"#,
     );
-    assert_eq!(mutation.kind(), GoogleProviderErrorKind::Permanent);
+    assert_eq!(mutation.kind(), CalendarProviderErrorKind::Permanent);
 }
 
 /// The calendar list has no per-calendar isolation to bound a deterministic
@@ -509,14 +611,14 @@ fn unknown_client_errors_on_the_account_read_stay_permanent() {
         StatusCode::FORBIDDEN,
         r#"{"error":{"message":"Forbidden","errors":[{"reason":"forbidden"}]}}"#,
     );
-    assert_eq!(forbidden.kind(), GoogleProviderErrorKind::Permanent);
+    assert_eq!(forbidden.kind(), CalendarProviderErrorKind::Permanent);
 
     let precondition = provider_response_error(
         GoogleRequestKind::AccountRead,
         StatusCode::PRECONDITION_FAILED,
         r#"{"error":{"message":"Precondition check failed."}}"#,
     );
-    assert_eq!(precondition.kind(), GoogleProviderErrorKind::Transient);
+    assert_eq!(precondition.kind(), CalendarProviderErrorKind::Transient);
 }
 
 #[test]
@@ -537,11 +639,11 @@ fn readback_failures_after_a_write_are_never_retryable() {
     // A retry of the outer mutation would re-apply the write (a duplicate
     // POST, re-notified guests), so a retryable readback failure is demoted.
     for kind in [
-        GoogleProviderErrorKind::Transient,
-        GoogleProviderErrorKind::SyncTokenExpired,
+        CalendarProviderErrorKind::Transient,
+        CalendarProviderErrorKind::SyncTokenExpired,
     ] {
-        let demoted = non_retryable_after_write(GoogleProviderError::new(kind, "Conflict"));
-        assert_eq!(demoted.kind(), GoogleProviderErrorKind::Permanent);
+        let demoted = non_retryable_after_write(CalendarProviderError::new(kind, "Conflict"));
+        assert_eq!(demoted.kind(), CalendarProviderErrorKind::Permanent);
         assert!(
             demoted.message().contains("Conflict"),
             "{}",
@@ -551,10 +653,10 @@ fn readback_failures_after_a_write_are_never_retryable() {
 
     // Kinds a retry would not help pass through untouched.
     for kind in [
-        GoogleProviderErrorKind::Permanent,
-        GoogleProviderErrorKind::ReauthRequired,
+        CalendarProviderErrorKind::Permanent,
+        CalendarProviderErrorKind::ReauthRequired,
     ] {
-        let kept = non_retryable_after_write(GoogleProviderError::new(kind, "kept"));
+        let kept = non_retryable_after_write(CalendarProviderError::new(kind, "kept"));
         assert_eq!(kept.kind(), kind);
         assert_eq!(kept.message(), "kept");
     }
@@ -874,7 +976,9 @@ fn exception_attendees_and_access_fields_are_carried_onto_the_override() {
         start_date: NaiveDate::from_ymd_opt(2026, 8, 1).unwrap(),
         end_date: NaiveDate::from_ymd_opt(2026, 9, 1).unwrap(),
     };
-    let target = GoogleCalendarTarget {
+    let target = ProviderCalendarTarget {
+        binding: None,
+        provider: crate::domain::models::CalendarProvider::Google,
         observed_access_role: Some("owner".to_owned()),
         owner_id: "macro|self@example.com".to_string(),
         email_link_id: Uuid::now_v7(),
@@ -1035,7 +1139,9 @@ fn reminders_round_trip_between_google_and_the_domain() {
         start_date: NaiveDate::from_ymd_opt(2026, 7, 1).unwrap(),
         end_date: NaiveDate::from_ymd_opt(2026, 8, 1).unwrap(),
     };
-    let target = GoogleCalendarTarget {
+    let target = ProviderCalendarTarget {
+        binding: None,
+        provider: crate::domain::models::CalendarProvider::Google,
         observed_access_role: Some("owner".to_owned()),
         owner_id: "macro|alarms@example.com".to_string(),
         email_link_id: Uuid::now_v7(),
@@ -1065,7 +1171,7 @@ fn reminders_round_trip_between_google_and_the_domain() {
     );
 
     // The raw payload keeps the field, so nothing is lost at ingestion.
-    let CalendarEventSource::Google(source) = &upsert.source;
+    let source = upsert.source.details();
     assert_eq!(
         source.raw_payload["reminders"]["overrides"][0]["minutes"],
         serde_json::json!(10),
@@ -1517,7 +1623,9 @@ async fn keyed_create_recovers_lost_response_and_duplicate_conflict_without_seco
             gate: UnmeteredGate,
             api_base: endpoint,
         };
-        let target = GoogleCalendarTarget {
+        let target = ProviderCalendarTarget {
+            binding: None,
+            provider: crate::domain::models::CalendarProvider::Google,
             observed_access_role: Some("owner".to_owned()),
             owner_id: "macro|test@example.test".into(),
             email_link_id: Uuid::now_v7(),

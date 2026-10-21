@@ -16,6 +16,8 @@ the gateway `/email` prefix.
   `crm_cleanup`, `worker_lifecycle`.
 - `src/backfill_outbox.rs`, `src/backfill_init_service.rs`,
   `src/backfill_completion_service.rs`: Gmail history backfill orchestration.
+- `src/crm_enrichment_worker.rs`: periodic pass that resolves pending CRM
+  company directory entries (names/logos) left by binaries without a resolver.
 - `src/bin/`: standalone binaries — `pubsub_workers` (the queue consumer
   process), plus one-off backfill/cleanup scripts.
 
@@ -46,12 +48,18 @@ the gateway `/email` prefix.
 
 ## Gotchas
 
+- Forwarded attachments use the source inbox's provider credentials; the email
+  domain rechecks the scheduled actor's access before cross-inbox downloads.
 - Macro's own digest emails are filtered out of Signal/email notifications
   (#7039) — don't reintroduce a path that notifies on our own sends.
 - Long attachment names are truncated to the DSS limit before upload (#7893);
   don't remove that truncation when touching `util/upload_attachment.rs`.
+- Scheduled Gmail sends recheck forwarded source inbox access before resolving
+  attachment bytes through the provider-aware reader.
 - Preserve the calendar domain's `team_ooo_changed` hint when forwarding a
   calendar refresh so unrelated invitation updates retain teammates' OOO rows.
+- Spawn `run_transfers` regardless of the Outlook flags. Gmail inbox moves
+  finish there; with writes off it pauses only the Outlook retire step.
 
 ## Related
 

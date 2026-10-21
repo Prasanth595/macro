@@ -37,7 +37,7 @@ use pipedream_mcp::inbound::axum_router::{
 
 use crate::api::preview::get_batch_preview::{GetBatchPreviewRequest, GetBatchPreviewResponse};
 
-use chat::domain::models::{ChatResponse, GetChatResponse, WebCitation};
+use chat::domain::models::{ChatResponse, FreeTierModel, GetChatResponse, WebCitation};
 use chat::inbound::http::router::{
     self as chat_router, CallToolRequest, CallToolResponse, CreateChatRequest,
     GetChatPermissionsResponse, PatchChatRequest, RejectToolCallRequest, UpdateToolCallRequest,
@@ -99,6 +99,8 @@ use utoipa::OpenApi;
             import_api::dismiss_run_handler,
             onboarding_api::get_state_handler,
             onboarding_api::complete_handler,
+            onboarding_api::dismissed_prompts_handler,
+            onboarding_api::dismiss_prompt_handler,
             ai_usage_api::get_usage_handler,
             ai_usage_api::set_pricing_handler,
             ai_projections::inbound::axum_router::upsert_projection::handler::<crate::api::context::DcsAiProjectionService>,
@@ -186,6 +188,7 @@ use utoipa::OpenApi;
                 StopChatStreamError,
                 StreamError,
                 ToolSet,
+                FreeTierModel,
                 StructuredCompletionRequest,
                 StructuredCompletionResponse,
                 StructuredCompletionError,
@@ -215,6 +218,7 @@ use utoipa::OpenApi;
 
                 // Onboarding
                 onboarding::domain::models::OnboardingState,
+                onboarding::domain::models::DismissedPrompts,
                 onboarding::domain::models::OnboardingRow,
                 onboarding::domain::models::OnboardingStatus,
                 onboarding::domain::models::ConnectedServer,
@@ -261,3 +265,6 @@ use utoipa::OpenApi;
         )
     )]
 pub struct ApiDoc;
+
+#[cfg(test)]
+mod test;

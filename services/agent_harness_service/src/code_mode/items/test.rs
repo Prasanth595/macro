@@ -5,10 +5,14 @@ use macro_user_id::user_id::MacroUserIdStr;
 use serde_json::json;
 
 fn identity() -> ExecutionIdentity {
+    let session = agent_session::testing::test_agent_session(AgentSessionId::new_from_uuid(
+        macro_uuid::generate_uuid_v7(),
+    ));
     ExecutionIdentity {
         execution: ExecutionId::mint(),
-        session: AgentSessionId::new_from_uuid(macro_uuid::generate_uuid_v7()),
+        session: session.id,
         owner: MacroUserIdStr::parse_from_str("macro|items@macro.local").unwrap(),
+        agent_id: session.bot_id,
         turn: macro_uuid::generate_uuid_v7(),
     }
 }

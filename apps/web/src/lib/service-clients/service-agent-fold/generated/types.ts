@@ -622,7 +622,7 @@ export type FileDiff = {
   newText: string;
 };
 
-/**  One renderable message, scoped to its agent session for the browser. */
+/**  One renderable message, scoped to its agent session for its reader. */
 export type FoldedMessage = {
   /**  Session that scopes this message id. */
   agentSessionId: string;

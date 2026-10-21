@@ -12,6 +12,7 @@ import {
 } from '@core/agent-session/session-turn';
 import { toast } from '@core/component/Toast/Toast';
 import { useUserId } from '@core/context/user';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { useAgentSessionQuery } from '@queries/agent-session/session';
 import { firstPartyBotName } from '@queries/bots/first-party-bot-name';
 import { useBotProfile } from '@queries/bots/profiles';
@@ -266,7 +267,11 @@ function AgentTypingEntry(props: {
           prose={reply() ? streamingProse(reply()!) : undefined}
           disconnected={live.failed()}
           onReconnect={live.retry}
-          onStop={canEdit() && reply() ? () => void stop() : undefined}
+          onStop={
+            canEdit() && reply()
+              ? () => fireAndForget(stop(), 'agent-activity')
+              : undefined
+          }
           stopping={stopping()}
         >
           {/* Each metadata event carries every request anew. Keyed by what

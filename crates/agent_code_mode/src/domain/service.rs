@@ -284,17 +284,17 @@ pub fn covered_by_code_sdk(name: &str, user_tool: bool) -> bool {
     !user_tool
         && matches!(
             name,
-            "NameSearch"
-                | "ListEntities"
-                | "ReadContent"
+            "ReadContent"
                 | "ReadMetadata"
                 | "RenameDocument"
                 | "MoveToProject"
                 | "MoveToTrash"
-                | "CommentOnDocument"
-                | "DeleteDocumentComment"
-                | "EditDocumentComment"
-                | "ResolveDocumentComment"
+                | "ReadDiscussion"
+                | "Comment"
+                | "CommentOnText"
+                | "DeleteComment"
+                | "EditComment"
+                | "ResolveComment"
                 | "ReadProject"
                 | "CreateProject"
                 | "SetFavorite"
@@ -316,7 +316,6 @@ pub fn covered_by_code_sdk(name: &str, user_tool: bool) -> bool {
                 | "ReadChannelThread"
                 | "RenameChannel"
                 | "ManageChannelParticipants"
-                | "ReadChat"
                 | "ReadCallRecord"
                 | "UpdateCallRecord"
                 | "DeleteCallRecord"
@@ -372,6 +371,7 @@ impl SessionCodeMode for CodeModeService {
         let identity = ExecutionIdentity {
             execution,
             session: session.id,
+            agent_id: session.bot_id,
             owner,
             turn: self
                 .0
@@ -426,6 +426,7 @@ fn receipt(record: &ExecutionRecord) -> ExecutionReceipt {
     ExecutionReceipt {
         execution_id: record.execution_id,
         status: record.status,
+        activity: record.activity.clone(),
         result: record.result.clone(),
         error: execution_error(record),
     }

@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import type { MessagePart } from '@service-agent-fold/generated/types';
 import { Show } from 'solid-js';
 import { match } from 'ts-pattern';
@@ -72,10 +73,13 @@ export function InteractionCard(props: {
         answerers={props.controller.answerers}
         disabled={locked()}
         onSelect={(optionId) =>
-          void props.controller.respond({
-            ...request,
-            answer: { kind: 'selected', optionId },
-          })
+          fireAndForget(
+            props.controller.respond({
+              ...request,
+              answer: { kind: 'selected', optionId },
+            }),
+            'agent-interactions'
+          )
         }
       />
     ))

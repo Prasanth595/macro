@@ -18,9 +18,10 @@ alwaysApply: false
 - Each top-level route picks its shell in `app-router-view.tsx`
   (`routes/shells.tsx`): `authRoute` pages and booking links render without app
   chrome, and `appRoute` renders `AppShell` — the app's providers
-  (`AppProviders`), chrome (`AppChrome` in `Layout.tsx`), and the split layout.
-  Put state only the app's views use in `AppProviders`, not `Root`; `Root` keeps
-  what every page or a call needs.
+  (`AppProviders`), layout/context owner (`SplitLayoutProvider`), chrome
+  (`AppChrome` in `Layout.tsx`), and split content. Compose these in the route
+  shell; keep `AppChrome` independent of page selection. Put state only the app's
+  views use in `AppProviders`, not `Root`; `Root` keeps what every page or call needs.
 - `index.html` paints a boot shell before any JS runs: the saved theme's
   background, the rail column, and the desktop app's content card — no app
   content. The first shell to mount dismisses it (`dismissBootShell`). Keep its
@@ -30,3 +31,7 @@ alwaysApply: false
   caches, and unregister; it must not intercept requests.
 - The build fails if any emitted file exceeds CloudFront's 10 MB compression
   limit; split it rather than raising the limit.
+- The build also fails if a chunk has no source map or a map exceeds PostHog's
+  25 MB symbolication limit. `startupChunks()` in `vite.base.ts` splits the
+  code the entry loads into `app`, `vendor`, and `api-schemas` chunks so each
+  map stays under it; it moves only modules the entry already imports.

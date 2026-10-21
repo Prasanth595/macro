@@ -47,11 +47,21 @@ queries used across Rust services.
 - After schema or query changes: `nix develop --command just prepare_db` from
   the repo root, then commit the regenerated root `.sqlx/`.
 
+`agent_external_replies` stores external runtime reply destinations and outcomes;
+its queries and recovery policy belong to `agent_harness`. Its creation time is
+stable across retries, and `announced` records successful pending-message posts.
+The additive migrations are compatible with older service binaries; session
+deletion cascades its rows.
+
 ## Gotchas
 
 - Migrations deploy before service code: never drop a column/table in the
   same PR that removes its last usage (see `docs/development/database.md`).
 - Never hand-edit `.sqlx/query-*.json` or invent a migration timestamp.
+- Keep concurrent index migrations to one statement with `-- no-transaction`;
+  build replacement indexes before dropping old constraints, and validate large
+  table checks in a later transaction. See the Outlook rollout notes in
+  `docs/design/outlook-email-support.md` for failure recovery and deployment order.
 - Quote and alias camelCase columns to Rust field names
   (`SELECT "userId" AS user_id`); don't guess spelling — check `migrations/`.
 

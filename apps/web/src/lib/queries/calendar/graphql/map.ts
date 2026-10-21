@@ -1,3 +1,4 @@
+import type { CalendarProvider } from '@service-calendar/generated/schemas/calendarProvider';
 import type { VisibleCalendar } from '@service-calendar/generated/schemas/visibleCalendar';
 import type { AttendeeResponseStatus } from '@service-storage/generated/schemas/attendeeResponseStatus';
 import type { CalendarAttendee } from '@service-storage/generated/schemas/calendarAttendee';
@@ -113,6 +114,18 @@ export function mapCalendarEvent(
     isReadOnly: event.isReadOnly,
     attendees: event.attendees.map(mapAttendee),
     reminders: mapReminders(event.reminders),
+    guestPolicy: {
+      canModify: event.guestPolicy.canModify,
+      canInviteOthers: event.guestPolicy.canInviteOthers,
+      canSeeOtherGuests: event.guestPolicy.canSeeOtherGuests,
+    },
+    viewerCan: {
+      editDetails: event.viewerCan.editDetails,
+      inviteGuests: event.viewerCan.inviteGuests,
+      removeGuests: event.viewerCan.removeGuests,
+      setGuestPolicy: event.viewerCan.setGuestPolicy,
+      rsvp: event.viewerCan.rsvp,
+    },
     createdAt: restInstant(event.createdAt),
     updatedAt: restInstant(event.updatedAt),
   };
@@ -167,6 +180,20 @@ export function mapVisibleCalendar(
     id: calendar.id,
     emailLinkId: calendar.linkId,
     emailAddress: calendar.emailAddress,
+    provider: restEnum<CalendarProvider>(calendar.provider),
+    capabilities: {
+      autoDecline: calendar.capabilities.autoDecline,
+      customRecurrence: calendar.capabilities.customRecurrence,
+      emailReminders: calendar.capabilities.emailReminders,
+      removeConference: calendar.capabilities.removeConference,
+      resetRsvp: calendar.capabilities.resetRsvp,
+      conferenceProvider:
+        calendar.capabilities.conferenceProvider === null
+          ? null
+          : restEnum<ConferenceProvider>(
+              calendar.capabilities.conferenceProvider
+            ),
+    },
     name: calendar.name,
     color: calendar.color,
     isPrimary: calendar.isPrimary,

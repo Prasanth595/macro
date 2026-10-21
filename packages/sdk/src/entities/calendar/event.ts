@@ -10,13 +10,16 @@ import type {
   EventTime,
   EventTransparency,
   EventVisibility,
+  GuestPolicy,
   OutOfOfficeProperties,
   UpdateCalendarEventRequest,
+  ViewerCapabilities,
 } from '../../../generated/calendar/types.gen';
-import { MacroError } from '../../utils';
+import { MacroError, unwrap } from '../../utils';
 import type { MacroClient } from '../../utils/client';
 import { MacroEntity } from '../entity';
 import { Calendar } from './calendar';
+import { CalendarReplacement } from './replacement';
 
 /** Fields to change on an event; omitted fields are left untouched. */
 export interface UpdateEventOptions {
@@ -38,8 +41,8 @@ export interface UpdateEventOptions {
   transparency?: EventTransparency;
   /** Replacement reminder configuration. */
   reminders?: EventReminders;
-  /** `google_meet` attaches a fresh Meet, `none` detaches; omit to leave the
-   * conference untouched. */
+  /** Provider conference change; omit to retain it. Outlook removal requires a
+   * separately confirmed replacement via prepareReplacement(). */
   conference?: ConferenceChange;
   /** Replacement out-of-office properties, applied only to an event that is
    * already out-of-office. */
@@ -78,6 +81,22 @@ export interface RsvpEventOptions {
    * Omit to answer on the canonical copy. */
   calendar?: Calendar;
 }
+
+/** Google's guest policy, which the calendar service omits while it holds. */
+const DEFAULT_GUEST_POLICY: GuestPolicy = {
+  canModify: false,
+  canInviteOthers: true,
+  canSeeOtherGuests: true,
+};
+
+/** No capability at all, which the calendar service omits. */
+const NO_VIEWER_CAPABILITIES: ViewerCapabilities = {
+  editDetails: false,
+  inviteGuests: false,
+  removeGuests: false,
+  setGuestPolicy: false,
+  rsvp: false,
+};
 
 /**
  * A Macro calendar event: a handle exposing the event's synced fields and the
@@ -139,6 +158,18 @@ export class CalendarEvent extends MacroEntity<CalendarEventRecord> {
   /** Raw RFC 5545 recurrence properties (`RRULE`, `RDATE`, `EXDATE`). */
   readonly recurrenceLines = this.field('recurrenceLines');
 
+  /** What the organizer lets guests do: modify, invite others, see the guest list. */
+  readonly guestPolicy = this.mappedField(
+    'guestPolicy',
+    (policy) => policy ?? DEFAULT_GUEST_POLICY,
+  );
+
+  /** What the connected account may do with this event under its guest policy. */
+  readonly viewerCan = this.mappedField(
+    'viewerCan',
+    (capabilities) => capabilities ?? NO_VIEWER_CAPABILITIES,
+  );
+
   /** The calendar the canonical source belongs to, when known. */
   readonly calendar = this.mappedField('calendarId', (id) =>
     id ? Calendar.byId(this.client, id) : undefined,
@@ -173,6 +204,42 @@ export class CalendarEvent extends MacroEntity<CalendarEventRecord> {
         },
       }),
     );
+  }
+
+  /** Preview an organizer replacement without cancelling or sending invitations.
+   * Review replacement.status() before explicitly calling replacement.confirm(). */
+  async prepareReplacement(options: {
+    removeConference: boolean;
+    recurrenceId?: string;
+    calendar?: Calendar;
+  }): Promise<CalendarReplacement> {
+    const preview = unwrap(
+      await this.client.calendar.prepareCalendarReplacement({
+        path: { event_id: this.id },
+        body: {
+          removeConference: options.removeConference,
+          recurrenceId: options.recurrenceId,
+          calendarId: options.calendar?.id,
+        },
+      }),
+    );
+    return new CalendarReplacement(this.client, preview.operationId);
+  }
+
+  /** Open this calendar copy in its provider for actions unavailable through its API. */
+  async providerUrl(
+    options: { recurrenceId?: string; calendar?: Calendar } = {},
+  ): Promise<string | undefined> {
+    const result = unwrap(
+      await this.client.calendar.calendarEventProviderUrl({
+        path: { event_id: this.id },
+        query: {
+          recurrenceId: options.recurrenceId,
+          calendarId: options.calendar?.id,
+        },
+      }),
+    );
+    return result.url ?? undefined;
   }
 
   /** Record the requester's RSVP and return a handle to the synced record. */

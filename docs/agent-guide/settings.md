@@ -76,6 +76,14 @@ With a composer open, save a changed signature or reply-signature preference and
 verify its preview updates. Once the account refresh completes, reopen a composer
 offline and confirm it uses the saved settings.
 
+### Notification permission prompt
+
+After onboarding, an eligible desktop app user sees **Enable Desktop
+Notifications**. Select **Enable** to request permission through the native
+notification provider; macOS uses its system permission dialog. The web prompt
+continues to say **Enable Browser Notifications** and uses browser permissions.
+Select **Hide** to dismiss the prompt.
+
 ### Notification snoozes
 
 Open **Settings → Notifications** to see **Snoozed items** and their local resume
@@ -127,8 +135,20 @@ enterprise teams retain their billing bypass.
 On a local stack started with `--no-doppler`, verify free-team creation from a
 fresh passwordless signup. It must work without Stripe credentials.
 
-Under **Team**, owners/admins can turn **Auto-join on domain** off and can restrict
-invitations to admins with **Members can invite**. These controls still apply.
+The invite dialog (**Invite** on **Team → Members**, or **Invite your team**)
+starts with the team's **Invite link**: **Create link** makes one and copies it,
+**Copy link** copies it after that. Anyone signed in who opens
+`/app/team-invite?link=<token>` sees **Join <team>** and joins as a member with
+the same billing and channel effects as an emailed invite; users already on
+another team are told to leave it first. Team admins and owners also see
+**Reset link** (the old link stops working and a new one is copied) and
+**Turn off**, each behind a confirmation. Anyone who may invite can copy the
+link or create the first one. Below it, **Invite by email** sends invitations
+as before.
+
+Under **Team → Members** (**Invite settings**), owners/admins can turn
+**Auto-join on domain** off and can restrict invitations to admins with
+**Members can invite**. These controls still apply.
 To verify the membership flow, use a local free team with five members: invite
 and accept a sixth member, then sign up another user on its enabled auto-join
 domain. Both should appear in the team's member list and configured auto-join
@@ -138,7 +158,7 @@ same-domain signup is not added automatically.
 ### Navigation
 
 On phones, **More views → Settings** opens an inset glass sheet over the current
-page. The main page has a profile shortcut and the same grouped Blocks, Personal, Workspace,
+page. The main page has a profile shortcut and the same grouped Team, Blocks, Personal, Workspace,
 and Developer sections as desktop, plus enabled admin settings. Search finds
 individual settings; selecting a result opens its page and reveals the section. Tap a row to open that settings
 page inside the sheet; **Back to settings** returns to the grouped list at its
@@ -205,20 +225,27 @@ seconds (pointer, or Space/Enter); releasing early cancels.
 
 Left nav (feature and platform gates still apply):
 
+- **Team · <team name>** (just **Team** without a team): General (name, slug,
+  GitHub autolink, default link sharing, Delete Team), Members (member list,
+  roles and seat plans, **Invite**, pending invites, auto-join and
+  members-can-invite), Connections (Slack import, GitHub App). Without a team
+  only General shows, with pending invitations or **Create Team**. Search
+  finds these by `invite`, `members`, `teammates`, `slack`, and similar terms;
+  results name their group, e.g. **Team · Members**.
 - **Blocks**: Email, Calendar, Agents, CRM.
 - **Personal**: Account, Appearance, Notifications, Keyboard shortcuts, Usage, Billing, Desktop App, Mobile App.
-- **Workspace**: Team, Tags, Integrations (personal Gmail/GitHub accounts).
+- **Workspace**: Tags, Integrations (personal Gmail/GitHub accounts).
 - **Developer**: Agent connections, Runtimes, MCP server, API Keys, Bots.
 
-**Desktop App** (`/app/settings/desktop-app`) shows a compact version and
-build-date card in the desktop app. The date is when the running app bundle was
-built, not when it was installed on the computer. In the browser it links to the
-latest desktop release on GitHub, and only appears when the `desktop-app` PostHog
-flag is enabled. Native desktop always shows this section regardless of the flag;
+**Desktop App** (`/app/settings/desktop-app`) is titled
+**Desktop App (Alpha)** and shows a compact version and build-date card in the
+desktop app. The date is when the running app bundle was built, not when it was
+installed on the computer. In the browser it links to the latest desktop release
+on GitHub, and only appears when the `desktop-app` PostHog flag is enabled. Native desktop always shows this section regardless of the flag;
 native mobile never shows it.
 
-The **Mobile App** page is titled **Mobile app (Alpha)** and offers a QR code
-to download **Macro Alpha** from the App Store.
+The **Mobile App** page is titled **Mobile app** and offers a QR code
+to download **Macro** from the App Store.
 
 Search checks individual setting titles and keywords, tolerates common typos,
 and shows the parent page below each control result. Selecting a result opens
@@ -231,7 +258,44 @@ preview** for the visual key map.
 Appearance starts with visual **System**, **Light**, and **Dark** mode choices.
 The previews use the saved themes; System follows the device and exposes both
 per-mode theme selectors. Light or Dark shows its own theme selector. Each selector
-retains theme search, editing, copying, and custom theme creation.
+retains theme search, editing, copying, custom theme creation, and importing
+themes from the clipboard.
+
+### Theme mentions
+
+Agent replies can include clickable theme mentions that let users apply a theme
+with one click. The format is:
+
+```
+<m-theme-mention>{"name":"Theme Name","data":{...theme object...}}</m-theme-mention>
+```
+
+The `data` field must be a valid ThemeV3 object with these required fields:
+- `id`: a UUID string (generate a new one for each theme)
+- `name`: the display name
+- `version`: must be `3`
+- `mode`: `"light"` or `"dark"`
+- `colorTokens`: an object with OKLCH color values for these required tokens:
+  `surface-0` through `surface-4`, `content-0` through `content-4`, `edge`,
+  `edge-muted`, `accent`, and the palette colors (`red`, `orange`, `amber`,
+  `yellow`, `lime`, `green`, `teal`, `cyan`, `blue`, `violet`, `purple`, `pink`).
+
+Example of a complete theme mention:
+```
+<m-theme-mention>{"name":"Ocean Dark","data":{"id":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","name":"Ocean Dark","version":3,"mode":"dark","colorTokens":{"surface-0":"oklch(0.15 0.02 230)","surface-1":"oklch(0.18 0.02 230)","surface-2":"oklch(0.21 0.02 230)","surface-3":"oklch(0.24 0.02 230)","surface-4":"oklch(0.27 0.02 230)","content-0":"oklch(0.95 0.01 230)","content-1":"oklch(0.85 0.01 230)","content-2":"oklch(0.70 0.01 230)","content-3":"oklch(0.55 0.01 230)","content-4":"oklch(0.40 0.01 230)","edge":"oklch(0.35 0.02 230)","edge-muted":"oklch(0.25 0.02 230)","accent":"oklch(0.65 0.15 220)","red":"oklch(0.65 0.2 25)","orange":"oklch(0.7 0.18 50)","amber":"oklch(0.75 0.16 75)","yellow":"oklch(0.85 0.15 95)","lime":"oklch(0.8 0.18 125)","green":"oklch(0.7 0.17 145)","teal":"oklch(0.7 0.12 175)","cyan":"oklch(0.75 0.12 200)","blue":"oklch(0.65 0.15 230)","violet":"oklch(0.6 0.18 280)","purple":"oklch(0.6 0.2 300)","pink":"oklch(0.7 0.18 340)"}}}</m-theme-mention>
+```
+
+When clicked, the theme is added to the user's custom themes (if not already
+present) and immediately applied, then Settings opens to Appearance. The theme
+chip renders inline with the theme's color swatches beside the name.
+
+### Importing themes
+
+**Import from clipboard** in the theme dropdown reads a theme JSON from the
+clipboard. Valid ThemeV3 (or legacy ThemeV2) JSON is imported as a custom theme
+and applied immediately. Copy a theme with the clipboard button beside any
+theme pill, then import it on another device or share it in a message for
+others to copy and import.
 
 Existing settings URLs remain valid; `connections` still opens Integrations,
 `agent-connections` opens Agent connections, and `harness` aliases Runtimes.
@@ -381,15 +445,16 @@ Max stays active until renewal; **Keep Max plan** cancels a pending downgrade
 without resetting usage. Failed renewal-detail reads offer **Try again**.
 Team members who cannot manage billing see the notice without its action.
 
-`Team` (members list; on a paid team each row shows the seat's plan,
+`Team → Members` (`/app/settings/team-members`; on a paid team each row shows the seat's plan,
 and admins/owners can move a seat between Pro and Max with the `Seat plan`
 menu; Max upgrades are immediate and prorated, Pro downgrades start at renewal.
 **Keep Max** appears only for a confirmed pending downgrade and cancels it;
 failed scheduled-plan reads offer **Try again**, while teams without applicable
-scheduled plans show no retry notice). CRM (enable/disable; once enabled, a `Deal stages` section
-with `Customize stages`, inline rename, reorder by drag handle or arrow keys (up/down
-buttons on touch), delete, `Add stage`, `Reset to defaults`, and `Closed stages`
-checkboxes, editable by the role set as `edit_stages_role`)
+scheduled plans show no retry notice). CRM (a `Team CRM` switch that admins use to enable or disable it;
+once enabled, a `Stages` section for the company Stage options that new pipelines
+also start with, with `Customize`, inline rename, reorder by drag handle or arrow
+keys (up/down buttons on touch), delete, `Add stage`, and `Reset to defaults`,
+editable by the role set as `edit_stages_role`)
 
 `Agents` unifies agent definitions and runtime configuration in one page, also used by the Agents workspace. Its `Agents` section lists team and private agents. `New agent` / `Edit <name>` open full-page forms grouped
 Profile, Behavior, Runtime, Connections, Channels, Share. Connections is a radio pair:
@@ -397,11 +462,18 @@ Profile, Behavior, Runtime, Connections, Channels, Share. Connections is a radio
 connected) or `Specific apps`, which reveals a `Search connectors` box over the whole
 Pipedream catalog (results are `option` rows; picking one adds it) and a row per picked app
 with a connected / not-connected dot for the *current viewer* plus an inline `Connect`
-that opens the Pipedream Connect flow inside the page. Unconnected picks never block
+that opens the Pipedream Connect flow inside the web page. Native apps open
+consent in the system browser; choose **Return to Macro** after authorization
+to save the connection in the waiting app. Unconnected picks never block
 saving; each teammate connects their own account. An agent session that calls a picked
 but unconnected app gets a tool result saying so, and the agent's reply renders a
 `Connect <app>` chip that opens Agents → Connections for that app. The same page
 is also available as Settings → Agent connections.
+
+Reference captures from an isolated browser fixture: [native waiting dialog](media/pipedream/native-waiting.png)
+and [browser return page](media/pipedream/browser-return.png). The fixture uses
+the real UI and iframe messaging with simulated provider consent and native IPC;
+it does not exercise a real provider account or the operating system's app launch.
 
 To change an agent's picture, open `Edit <name>`, choose an image with `Upload`,
 wait for `Uploading…` to finish, then click `Save changes`. Images up to 16 MB
@@ -474,7 +546,7 @@ New macrod sessions use the agent's saved model before sending the first prompt.
 Changing that default applies to new sessions; existing sessions keep their selected model.
 If the runtime rejects the saved model, the prompt fails instead of using a different model.
 
-The `Runtimes` section shows built-in Macro, Cursor, Claude, and Codex configuration, followed by paired macrod runtimes. Claude's card appears only with the `claude-cloud` flag, and Codex's only within the agents and Codex rollouts. The “Bring your own agent” card sits above the Agents / Runtimes navigation and is visible on both sections. It rotates Claude Code, OpenCode, OpenClaw, and Hermes; reduced motion keeps a static name. Its `New runtime` action opens the full-page pairing flow from either section: enter the code, look up the request, review the machine, name, sharing and permission consent, then Approve and Done. Back/Cancel returns to the runtime list. Destructive removal still requires confirmation. `/settings/runtimes` opens this section; legacy `/settings/harness?pair=…` links remain supported.
+The `Runtimes` section shows built-in Macro, Cursor, Claude, and Codex configuration, followed by paired macrod runtimes. Claude's card appears only with the `claude-cloud` flag, and Codex's only within the agents and Codex rollouts. On the desktop app only, a “This computer” card appears above the built-in runtimes: the bundled macrod daemon is set up from here with one click. `Set up` scans the machine for installed agents (Claude Code, Codex, OpenCode, OpenClaw), offers a workspace folder and a Full access checkbox, and `Start running agents here` configures, pairs, and starts the daemon — the pairing is approved automatically, no code is typed. While running the card shows the agent and workspace with a `Stop` action; a set-up-but-stopped runtime offers `Start`. The web app never shows this card. The “Bring your own agent” card sits above the Agents / Runtimes navigation and is visible on both sections. It rotates Claude Code, OpenCode, OpenClaw, and Hermes; reduced motion keeps a static name. Its `New runtime` action opens the full-page pairing flow from either section: enter the code, look up the request, review the machine, name, sharing and permission consent, then Approve and Done. Back/Cancel returns to the runtime list. Destructive removal still requires confirmation. `/settings/runtimes` opens this section; legacy `/settings/harness?pair=…` links remain supported.
 Connection chips in agent replies open this page, including before any account is connected. Cursor's default-model picker uses
 the same live model discovery and retains its existing save action.
 
@@ -499,3 +571,36 @@ OAuth token.
 The Codex section and its auth/config requests were exercised in Chromium with
 mocked backend responses on 2026-09-15. Provider login and a full deployed Macro
 session were not exercised by that UI check.
+
+### GitHub reconnect recovery
+
+When GitHub reports that reauthentication is required, reconnect starts OAuth
+without first deleting the current Macro link. Cancelling OAuth preserves it.
+Selecting a different GitHub account fails without changing the connection; use
+Disconnect first to switch accounts.
+A successful callback refreshes the grant; if its old FusionAuth identity was
+deleted, all Macro accounts sharing that GitHub account move to the new grant.
+Verify reconnect both as the original linker and as another sharing account,
+and verify an upstream outage leaves the current links intact and reports an error.
+The Macro link survives a failed reconnect, but replacing the FusionAuth grant
+is not atomic. A crash or failed restoration may leave it missing; retry OAuth
+to recreate it after the provider recovers.
+
+## Bots
+
+Open **Developer → Bots** to create an account for a program. The page explains
+how to add the bot to channels and use its token with the Macro SDK. **Create
+bot** keeps Profile and Channels visible. **Advanced** starts collapsed on both
+desktop and mobile and contains:
+
+- **Agent → Show in model selector**: makes the bot available when starting an
+  AI chat; connect an agent such as Codex or Hermes to handle requests. This
+  section remains gated by the agents rollout.
+- **Ownership → Mentionable**: lets teammates find and @mention the bot and
+  creates it under team ownership. With the switch off, the creator owns it.
+  Only team admins and owners can enable this option.
+
+Open an existing bot to edit its profile, channels, and tokens. Its Agent control
+also lives under a collapsed **Advanced** section. Verify that expanding and
+collapsing Advanced preserves selected options and does not submit the form.
+After creation, copy the **Bot token** before leaving; it is shown only once.

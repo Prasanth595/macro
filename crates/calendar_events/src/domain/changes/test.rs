@@ -4,8 +4,9 @@ use chrono::{TimeZone, Utc};
 
 use super::*;
 use crate::domain::models::{
-    AttendeeResponseStatus, CalendarAttendee, EventReminders, EventStatus, EventTime,
-    EventTransparency, EventType, EventVisibility,
+    AttendeeResponseStatus, CalendarAttendee, CalendarCapabilities, CalendarProvider,
+    EventReminders, EventStatus, EventTime, EventTransparency, EventType, EventVisibility,
+    GuestPolicy, ViewerCapabilities,
 };
 
 const VIEWER: &str = "macro|viewer@example.com";
@@ -158,6 +159,8 @@ fn event_change(id: Uuid, link_id: Uuid, occurrences: i64) -> CalendarEventChang
                 comment: None,
             }],
             reminders: EventReminders::default(),
+            guest_policy: GuestPolicy::default(),
+            viewer_can: ViewerCapabilities::NONE,
             created_at: starts_at,
             updated_at: starts_at,
         },
@@ -197,6 +200,8 @@ fn calendar(id: Uuid, link_id: Uuid) -> VisibleCalendar {
         is_subscription: false,
         sync_error: None,
         default_reminders: Vec::new(),
+        provider: CalendarProvider::Google,
+        capabilities: CalendarCapabilities::google(),
     }
 }
 

@@ -48,6 +48,7 @@ import {
 import { useUserId } from '@core/context/user';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import type { DateValue } from '@core/util/date';
+import { fireAndForget } from '@core/util/fireAndForget';
 import {
   extractUserMentions,
   trimEdgeUserMentions,
@@ -56,6 +57,7 @@ import {
   buildMentionMarkdownString,
   markdownToPlainText,
 } from '@macro-inc/lexical-core';
+import { Telemetry } from '@macro-inc/observability';
 import { MessageNotificationIndexContext } from '@notifications/components/MarkMessageNotifications';
 import {
   invalidateChannelsActivity,
@@ -331,7 +333,7 @@ export function Channel(props: ChannelProps) {
     threadManager.getOrCreateThreadState(threadId).setIsExpanded(true);
     // Reply data and the load-around message window can load in parallel. The
     // mounted query reuses this request and remains the owner of render state.
-    void queryClient.prefetchQuery(
+    queryClient.prefetchQuery(
       threadRepliesQueryOptions(
         { type: 'channel', id: props.channelId },
         threadId
@@ -511,7 +513,9 @@ export function Channel(props: ChannelProps) {
       });
     },
     onChat: (ctx) => {
-      openChatWithInput(`${buildChannelMessageMention(ctx.message)}\n\n`);
+      openChatWithInput(`${buildChannelMessageMention(ctx.message)}\n\n`).catch(
+        (error) => Telemetry.error(error, { surface: 'channel' })
+      );
     },
   });
 
@@ -726,7 +730,7 @@ export function Channel(props: ChannelProps) {
         <EntityLoadGate
           result={messagesLoadResult}
           loadErrorTitle="Unable to load this channel"
-          onRetry={() => void messagesQuery.refetch()}
+          onRetry={() => fireAndForget(messagesQuery.refetch(), 'channel')}
         >
           <DebugSuspense name="Channel.root">
             <deleteConfirmation.ConfirmationDialog />
@@ -1107,14 +1111,18 @@ export function Channel(props: ChannelProps) {
                                     );
                                     setChannelInputHandle(handle);
                                   }}
-                                  onChange={(snapshot) =>
-                                    void setChannelInputSnapshot(snapshot)
-                                  }
+                                  onChange={(snapshot) => {
+                                    setChannelInputSnapshot(snapshot);
+                                  }}
                                   onSend={onSend}
                                   onStartCall={
                                     ENABLE_CALLS &&
                                     !channelCall.isInThisChannel()
-                                      ? () => void channelCall.start()
+                                      ? () =>
+                                          fireAndForget(
+                                            channelCall.start(),
+                                            'channel-call'
+                                          )
                                       : undefined
                                   }
                                   callInProgress={channelCall.isCallInProgress()}

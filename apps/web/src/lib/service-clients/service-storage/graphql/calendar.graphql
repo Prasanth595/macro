@@ -76,6 +76,18 @@ fragment CalendarEventFields on GraphqlCalendarEvent {
 	reminders {
 		...CalendarReminderFields
 	}
+	guestPolicy {
+		canModify
+		canInviteOthers
+		canSeeOtherGuests
+	}
+	viewerCan {
+		editDetails
+		inviteGuests
+		removeGuests
+		setGuestPolicy
+		rsvp
+	}
 	createdAt
 	updatedAt
 }
@@ -108,6 +120,15 @@ fragment CalendarFields on GraphqlCalendar {
 	id
 	linkId
 	emailAddress
+	provider
+	capabilities {
+		autoDecline
+		conferenceProvider
+		customRecurrence
+		emailReminders
+		removeConference
+		resetRsvp
+	}
 	name
 	color
 	isPrimary
