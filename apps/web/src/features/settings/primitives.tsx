@@ -103,7 +103,7 @@ export function SettingsPage(props: {
         <div
           class={cn(
             'flex flex-col',
-            inSheet ? 'mt-3 gap-6' : 'mt-6 gap-6',
+            inSheet ? 'mt-3 gap-5' : 'mt-5 gap-5',
             props.bodyClass
           )}
         >
@@ -138,7 +138,7 @@ export function SettingsSection(props: {
       class={cn('scroll-mt-4 outline-none', props.class)}
     >
       <Show when={props.title || actions()}>
-        <div class="mb-3 flex flex-wrap items-start justify-between gap-3">
+        <div class="mb-2 flex flex-wrap items-start justify-between gap-3">
           <div class="flex min-w-0 flex-col gap-1">
             <Show when={props.title}>
               <h2 class="text-base font-medium text-ink">{props.title}</h2>
@@ -154,7 +154,7 @@ export function SettingsSection(props: {
           </Show>
         </div>
       </Show>
-      <SettingsSurface class="flex flex-col gap-3 p-4">
+      <SettingsSurface class="flex flex-col gap-2 p-4">
         {props.children}
       </SettingsSurface>
     </section>
@@ -235,7 +235,7 @@ export function SettingsRow(props: {
       }
       tabIndex={-1}
       class={cn(
-        'scroll-mt-4 outline-none flex gap-4 py-3 min-h-[60px]',
+        'scroll-mt-4 outline-none flex gap-4 py-3 min-h-[56px]',
         inSheet ? 'px-4 flex-wrap' : 'px-4',
         props.stackOnNarrow
           ? 'flex-col gap-1.5 @[460px]:flex-row @[460px]:justify-between @[460px]:gap-4'

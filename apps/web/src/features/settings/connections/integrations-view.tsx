@@ -171,7 +171,7 @@ function ConnectionsContent(props: IntegrationsViewProps) {
                 >
                   <section
                     aria-label="Agent Integrations"
-                    class="flex min-w-0 flex-col gap-5"
+                    class="flex min-w-0 flex-col gap-4"
                   >
                     <h2 class="text-lg font-medium text-ink">
                       Agent Integrations
@@ -180,7 +180,7 @@ function ConnectionsContent(props: IntegrationsViewProps) {
                       aria-label="Installed integrations"
                       class="min-w-0 w-full"
                     >
-                      <h3 class="mb-3 text-base font-medium text-ink">
+                      <h3 class="mb-2 text-base font-medium text-ink">
                         Installed
                       </h3>
                       <ConnectedView model={model()} />
@@ -189,7 +189,7 @@ function ConnectionsContent(props: IntegrationsViewProps) {
                       aria-label="Discover integrations"
                       class="min-w-0 w-full"
                     >
-                      <h3 class="mb-3 text-base font-medium text-ink">
+                      <h3 class="mb-2 text-base font-medium text-ink">
                         Discover
                       </h3>
                       <DiscoverView model={model()} />

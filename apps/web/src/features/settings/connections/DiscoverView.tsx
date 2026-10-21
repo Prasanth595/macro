@@ -81,7 +81,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
   ]);
 
   return (
-    <div class="@container/catalog flex flex-col gap-5">
+    <div class="@container/catalog flex flex-col gap-4">
       <div class="grid grid-cols-1 gap-2 @[440px]/catalog:grid-cols-[minmax(0,1fr)_auto]">
         <label class="relative block min-w-0">
           <span class="sr-only">Search integrations</span>
@@ -125,7 +125,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
       </div>
 
       <section aria-label="Featured integrations">
-        <h4 class="mb-3 text-sm font-medium text-ink-muted">Featured</h4>
+        <h4 class="mb-2 text-sm font-medium text-ink-muted">Featured</h4>
         <div class="grid grid-cols-1 gap-3 @[440px]/catalog:grid-cols-2">
           <For each={featured()}>
             {(item) => (
@@ -138,7 +138,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
                   <IntegrationRow
                     icon={providerIcon(item.id)}
                     title={item.name}
-                    class="gap-3 px-4 py-4"
+                    class="gap-3 px-4 py-3"
                   >
                     <Show when={alreadyHave().has(item.id)}>
                       <AddedMark />
@@ -158,7 +158,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
       </section>
 
       <section aria-label="All integrations">
-        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h4 class="text-base font-medium text-ink">All apps</h4>
           <SettingsSelect
             label="Filter apps by category"
@@ -188,7 +188,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
             <For each={visibleCategories()}>
               {(category) => (
                 <section class="col-span-full" aria-label={category.name}>
-                  <div class="mb-3 flex items-center justify-between border-b border-edge-muted pb-2">
+                  <div class="mb-2 flex items-center justify-between border-b border-edge-muted pb-2">
                     <h5 class="text-sm font-medium text-ink">
                       {category.name}
                     </h5>
