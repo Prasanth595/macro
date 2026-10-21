@@ -139,6 +139,17 @@ async function verifyDateRange(page, monthCount, mode = 'single') {
   const day = (month, number) => picker.locator('table').nth(month).locator('button:not(:disabled)').filter({ hasText: new RegExp(`^${number}$`) });
   const before = await state();
   await trigger.click();
+  if (await page.evaluate(() => matchMedia('(hover: hover)').matches)) {
+    for (const label of ['Start time', 'End time']) {
+      const time = picker.getByLabel(label, { exact: true });
+      await page.mouse.move(0, 0);
+      const idle = await time.evaluate((element) => getComputedStyle(element).backgroundColor);
+      assert.notEqual(idle, 'rgba(0, 0, 0, 0)', `${label} must have a filled background`);
+      await time.hover();
+      assert.notEqual(await time.evaluate((element) => getComputedStyle(element).backgroundColor), idle, `${label} must show hover feedback`);
+    }
+    await page.mouse.move(0, 0);
+  }
   const initialMonths = mode === 'single' ? 1 : monthCount;
   assert.equal(await picker.locator('table').count(), initialMonths, 'Same-day events show one month; multi-day events show connected months');
   const portal = await picker.evaluate((element) => ({
@@ -267,6 +278,11 @@ async function verifyDateRange(page, monthCount, mode = 'single') {
   await page.getByRole('dialog', { name: 'Choose start time', exact: true }).waitFor();
   await page.keyboard.press('Escape');
   await page.getByRole('dialog', { name: 'Choose start time', exact: true }).waitFor({ state: 'detached' });
+  const endTime = picker.getByLabel('End time', { exact: true });
+  await endTime.fill('12:30');
+  await page.getByRole('dialog', { name: 'Choose end time', exact: true }).waitFor();
+  await page.keyboard.press('Escape');
+  await page.getByRole('dialog', { name: 'Choose end time', exact: true }).waitFor({ state: 'detached' });
   assert.equal(await picker.isVisible(), true, 'Escape from the start time list must keep the date picker open');
   const pickerSize = await picker.evaluate((element) => ({
     box: element.getBoundingClientRect().toJSON(),
@@ -277,7 +293,7 @@ async function verifyDateRange(page, monthCount, mode = 'single') {
     documentWidth: document.documentElement.scrollWidth,
     documentHeight: document.documentElement.scrollHeight,
   }));
-  await picker.getByLabel('End time', { exact: true }).fill('12:30');
+  await endTime.click();
   assert.deepEqual(await state(), { start: `${selectedDate}T10:15`, end: '2030-11-02T12:30', allDay: false });
   const timeMenu = page.getByRole('dialog', { name: 'Choose end time', exact: true });
   await timeMenu.getByRole('listbox').waitFor();
@@ -396,6 +412,7 @@ async function verifyTextContainers(page) {
         background: style.backgroundColor,
         radius: Number.parseFloat(style.borderTopLeftRadius),
         height: box.height,
+        expectedWidth: row.getAttribute('aria-label') === 'Location' && matchMedia('(min-width: 640px)').matches ? Math.min(288, value.getBoundingClientRect().width) : value.getBoundingClientRect().width,
         iconOffset: Math.abs(icon.y + icon.height / 2 - box.y - Math.min(box.height, matchMedia('(pointer: coarse)').matches ? 44 : 36) / 2),
       };
     })
@@ -403,7 +420,7 @@ async function verifyTextContainers(page) {
   assert.equal(fields.length, 3);
   for (const field of fields.filter((field) => field.label !== 'Repeats')) {
     assert.equal(field.background, fields[1].background, 'Text fields must match selector backgrounds');
-    assert.ok(field.radius >= 12 && Math.abs(field.width - field.available) < 1, 'Text fields must use rounded full-width containers');
+    assert.ok(field.radius >= 12 && Math.abs(field.width - field.expectedWidth) < 1, 'Text fields must retain rounded, readable-width containers');
     assert.ok(Math.abs(field.textStart - fields[1].textStart) < 1, 'Text must align with selector text');
     assert.ok(field.iconOffset < 1, 'Text-field icons must align with the first control line');
   }
@@ -440,6 +457,7 @@ async function verifyDescriptionTextAlignment(page) {
 }
 async function verifySelectorShape(page) {
   const minimumHeight = await page.evaluate(() => matchMedia('(pointer: coarse)').matches ? 44 : 36);
+  const compact = await page.evaluate(() => matchMedia('(min-width: 640px)').matches);
   const selectors = await page.locator('form button[aria-expanded]').evaluateAll((elements) => elements.map((element) => {
     const column = element.closest('[role="group"][aria-label]')?.lastElementChild;
     const style = getComputedStyle(element);
@@ -459,7 +477,12 @@ async function verifySelectorShape(page) {
   for (const selector of selectors) {
     assert.ok(selector.radii.every((radius) => radius >= 12), `${selector.label} must have more rounded corners`);
     assert.ok(selector.height >= minimumHeight, `${selector.label} must meet the ${minimumHeight}px trigger height`);
-    assert.ok(Math.abs(selector.width - selector.available) < 1, `${selector.label} must fill its value column`);
+    assert.ok(selector.width <= selector.available + 1, `${selector.label} must fit inside its value column`);
+    if (!compact) {
+      assert.ok(Math.abs(selector.width - selector.available) < 1, `${selector.label} must fill its value column on phones`);
+    } else if (['Calendar', 'Guests', 'Video conferencing', 'Notifications'].includes(selector.label) && selector.available >= 240) {
+      assert.ok(selector.width < selector.available - 8, `${selector.label} must fit its content instead of stretching`);
+    }
     assert.ok(selector.iconOffset !== null && selector.iconOffset < 1, `${selector.label} row icon must be centered on its first selector; offset: ${selector.iconOffset}px`);
   }
   await page.keyboard.press('Tab');

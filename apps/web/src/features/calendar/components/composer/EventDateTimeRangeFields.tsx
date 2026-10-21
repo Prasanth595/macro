@@ -159,7 +159,7 @@ export function EventDateTimeRangeFields(props: EventDateTimeRangeFieldsProps) {
           aria-describedby={props.describedBy}
           title={`${label(props.start, 'Start date')} → ${label(props.end, 'End date')}`}
           class={cn(
-            'group inline-flex h-9 w-full min-w-0 items-center gap-1.5 rounded-xl border border-edge-muted bg-control px-2 py-2 text-left text-xs leading-tight text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:bg-active focus-visible:text-ink focus-visible:outline-none focus-visible:ring-0 data-expanded:bg-hover data-expanded:text-ink touch:min-h-[44px]',
+            'group inline-flex h-9 w-full min-w-0 max-w-full items-center gap-1.5 rounded-xl border border-edge-muted bg-control px-2 py-2 text-left text-xs leading-tight text-ink-muted outline-none hover:bg-hover hover:text-ink focus-visible:bg-active focus-visible:text-ink focus-visible:outline-none focus-visible:ring-0 data-expanded:bg-hover data-expanded:text-ink sm:w-fit touch:min-h-[44px]',
             props.invalid &&
               'border-failure text-failure hover:text-failure focus-visible:text-failure data-expanded:text-failure'
           )}

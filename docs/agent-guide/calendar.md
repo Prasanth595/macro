@@ -16,6 +16,7 @@ show two consecutive months, stacking when constrained; phones show one month.
 Choose a start day, then an end day. An unfinished multi-day selection updates the
 summary without changing the event. Complete ranges update without an Apply step.
 Time dropdowns stay outside the picker, without clipping or changing its dimensions.
+Start/end time controls use a filled background with hover and focus feedback.
 Time selection keeps the date picker open. Escape dismisses the active time list,
 then the date picker, before the composer.
 
@@ -121,7 +122,8 @@ icon-to-value gap for the title and property rows on every screen size. Calendar
 options and the selected calendar trigger show their color swatches. Description
 stays directly beneath the title and event-type pills. Align editable title text with
 the description, location, and selector text. Editable description and location use the same
-full-width rounded containers and horizontal text padding as the selectors.
+rounded containers and horizontal text padding as the selectors. Description stays
+roomy; Location is capped at 288px on desktop and fills the value column on phones.
 Align the description placeholder and first text line with selector typography
 and vertical text position, including multiline descriptions and touch sizing.
 The remaining icon-led rows follow the details popover's order:
@@ -130,13 +132,14 @@ calendar, then guests. Field gaps are compact: 8px on desktop and 12px on phones
 Center each row icon on its first selector, including touch-sized selectors and
 rows with extra controls below, rather than on the combined row height.
 Permission-locked values are plain read-only content, not control-shaped pills
-or disabled inputs. Property dropdown selectors fill the value column with
-taller triggers and 12px rounded corners. The full-width date-range trigger shows
+or disabled inputs. Property dropdown selectors fit their content on desktop,
+without overflowing the value column, and fill that column on phones. They retain
+taller triggers and 12px rounded corners. The similarly sized date-range trigger shows
 **from → to** and opens both dates and times together in the popover or phone sheet.
 Event-type pills stay compact, wrap on narrow screens, and support keyboard selection.
 Triggers omit focus outlines and rings, retaining background feedback for keyboard focus; touch
 triggers keep a 44px minimum height. The custom-repeat
-action sits below its full-width selector.
+action sits below its selector.
 The popover has no visible `New event` heading. The date-range trigger remains
 available in every editor presentation; its picker contains date, time, and All day
 controls. Fully locked ranges appear as plain text; a partially locked range keeps

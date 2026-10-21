@@ -121,7 +121,7 @@ export function EventTimeInput(props: EventTimeInputProps) {
           aria-invalid={props.invalid || undefined}
           aria-expanded={open()}
           aria-haspopup="listbox"
-          class="w-full appearance-none rounded-md border border-edge-muted bg-control py-1.5 pr-7 pl-2 text-xs text-ink outline-none focus:border-accent aria-invalid:border-failure aria-invalid:ring-2 aria-invalid:ring-failure/20 disabled:opacity-50 [&::-webkit-calendar-picker-indicator]:hidden"
+          class="w-full appearance-none rounded-md border border-edge-muted bg-hover py-1.5 pr-7 pl-2 text-xs text-ink outline-none enabled:hover:bg-active focus:bg-active aria-expanded:bg-active focus:border-accent aria-invalid:border-failure aria-invalid:ring-2 aria-invalid:ring-failure/20 disabled:opacity-50 [&::-webkit-calendar-picker-indicator]:hidden"
           onFocus={() => {
             props.onFocus?.();
             setDropdownOpen(true);

@@ -315,7 +315,7 @@ export function EventForm(props: EventFormProps) {
             placeholder="Add location..."
             aria-label="Location"
             disabled={fieldIsDisabled('location')}
-            class="h-9 min-w-0 w-full rounded-xl border-edge-muted bg-control px-2 py-2 text-sm leading-tight text-ink shadow-none placeholder:text-ink-placeholder focus-visible:bg-active focus-visible:outline-none focus-visible:ring-0 sm:text-xs touch:min-h-[44px]"
+            class="h-9 min-w-0 w-full max-w-full rounded-xl border-edge-muted bg-control px-2 py-2 text-sm leading-tight text-ink shadow-none placeholder:text-ink-placeholder focus-visible:bg-active focus-visible:outline-none focus-visible:ring-0 sm:w-72 sm:text-xs touch:min-h-[44px]"
           />
         }
       >
