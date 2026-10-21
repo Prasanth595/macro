@@ -2770,7 +2770,7 @@ export type DiscoverHandlerData = {
 
 export type DiscoverHandlerErrors = {
     /**
-     * Unknown import source
+     * Unknown import source or discovery not supported
      */
     400: unknown;
     /**
