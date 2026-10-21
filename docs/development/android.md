@@ -17,8 +17,9 @@ generates classes for the new package during the build; keep the Gradle project.
   or a compatible newer version, and confirm `bun --version` in the shell that
   will run the build. Run `bun install --frozen-lockfile` from the repository root.
   Older Bun installations can fail to resolve workspace `catalog:` dependencies.
-- Install the Rust toolchain in `rust-toolchain.toml`, `just`, `wasm-pack`, and
-  the Tauri CLI (`cargo tauri`).
+- Install the Rust toolchain in `rust-toolchain.toml`, `just`, `wasm-pack` 0.15
+  or newer (the graphics builds use custom Cargo profiles), and the Tauri CLI
+  (`cargo tauri`).
 - Install Android SDK Platform **36**, Build Tools 36, Platform Tools, and an
   Android 16 / API 36 Google Play ARM64 emulator through Android Studio.
 - Install NDK **30.0.16248370**, or set `NDK_HOME` to another intended installed NDK.
@@ -396,9 +397,24 @@ retrying. Failed or no-op attempts discard their pending edit when possible;
 commits are never automatically retried. The workflow summary reports submission,
 not confirmation that the release is already available to users.
 
-Promotion remains a separate manual action; building a GitHub release or uploading
-to internal testing never triggers production promotion. It uses the existing
-workflow identity, so no Google identity-provider changes are required.
+The fallback publishing workflow keeps upload and promotion as separate manual
+operations. The PR-based `Android Play Release` workflow promotes automatically.
+
+### Internal App Sharing
+
+Use [Internal App Sharing](https://play.google.com/console/internal-app-sharing)
+for an ad hoc test link. Build an AAB with `just android-build --apk false --aab true`,
+verify it as described under release signing, then upload it while signed in to
+the authorized developer account. Complete Google's first-use terms if prompted.
+This does not publish to a testing track or production, satisfy the production
+native gate, or update existing internal-track installations automatically.
+
+Google re-signs the artifact with a separate Internal App Sharing certificate.
+Check any certificate-bound integrations before testing; keep the upload key
+unchanged. Testers must enable Internal App Sharing in their Play Store settings
+(tap the Play Store version seven times under About). Each link allows up to
+100 downloads and expires after 60 days; version codes can be reused. See
+[Google's sharing instructions](https://support.google.com/googleplay/android-developer/answer/9844679).
 
 ## Firebase
 
