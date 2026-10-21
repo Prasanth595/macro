@@ -25,6 +25,7 @@ inbound = [
   "dep:axum",
   "dep:macro_authorization",
   "dep:models_pagination",
+  "dep:urlencoding",
   "schema",
 ]
 # The notification-service reminder notifier.
