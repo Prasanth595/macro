@@ -31,6 +31,7 @@ import {
 } from 'solid-js';
 import { Portal } from 'solid-js/web';
 import { Transition } from 'solid-transition-group';
+import { HeaderActionGroup } from '../HeaderActionGroup';
 import { MobileDrawer } from '../mobile/MobileDrawer';
 import { HeaderIsland } from '../split-layout/components/HeaderIsland';
 import { SplitHeaderRight } from '../split-layout/components/SplitHeader';
@@ -408,40 +409,42 @@ function Toggle() {
 
   return (
     <Show when={ctx.hasSections()}>
-      <Button
-        depth={2}
-        variant="ghost"
-        size="icon-md"
-        class={cn(
-          isTouchDevice() &&
-            'border-0 hover:bg-transparent! active:bg-transparent! focus-visible:bg-transparent! active:text-accent',
-          isTouchDevice() && ctx.isOpen() && 'text-accent'
-        )}
-        tooltip={
-          isTouchDevice()
-            ? ctx.isOpen()
-              ? 'Hide details'
-              : 'Show details'
-            : ctx.isOpen()
-              ? 'Hide Side Panel'
-              : 'Show Side Panel'
-        }
-        aria-haspopup={isTouchDevice() ? 'dialog' : undefined}
-        aria-expanded={ctx.isOpen()}
-        hotkey={TOKENS.block.toggleSidePanel}
-        onClick={() => ctx.toggle()}
-      >
-        <Show
-          when={isTouchDevice()}
-          fallback={
-            <SidePanelIcon
-              class={cn('rotate-180', ctx.isOpen() && 'text-accent')}
-            />
+      <HeaderActionGroup label="Details">
+        <Button
+          depth={2}
+          variant="ghost"
+          size="icon-md"
+          class={cn(
+            isTouchDevice() &&
+              'border-0 hover:bg-transparent! active:bg-transparent! focus-visible:bg-transparent! active:text-accent',
+            isTouchDevice() && ctx.isOpen() && 'text-accent'
+          )}
+          tooltip={
+            isTouchDevice()
+              ? ctx.isOpen()
+                ? 'Hide details'
+                : 'Show details'
+              : ctx.isOpen()
+                ? 'Hide Side Panel'
+                : 'Show Side Panel'
           }
+          aria-haspopup={isTouchDevice() ? 'dialog' : undefined}
+          aria-expanded={ctx.isOpen()}
+          hotkey={TOKENS.block.toggleSidePanel}
+          onClick={() => ctx.toggle()}
         >
-          <InfoIcon class={cn(ctx.isOpen() && 'text-accent')} />
-        </Show>
-      </Button>
+          <Show
+            when={isTouchDevice()}
+            fallback={
+              <SidePanelIcon
+                class={cn('rotate-180', ctx.isOpen() && 'text-accent')}
+              />
+            }
+          >
+            <InfoIcon class={cn(ctx.isOpen() && 'text-accent')} />
+          </Show>
+        </Button>
+      </HeaderActionGroup>
     </Show>
   );
 }
@@ -461,11 +464,16 @@ function HeaderActionsOutlet() {
   onCleanup(() => ctx?.setHeaderActionsMount(undefined));
   return (
     <Show when={ctx}>
-      <div
-        ref={ctx?.setHeaderActionsMount}
-        data-side-panel-header-actions
-        class="flex shrink-0 items-center gap-1 empty:hidden [&>div]:contents"
-      />
+      <HeaderActionGroup
+        label="Actions"
+        class="has-[[data-side-panel-header-actions]:empty]:hidden"
+      >
+        <div
+          ref={ctx?.setHeaderActionsMount}
+          data-side-panel-header-actions
+          class="flex shrink-0 items-center touch:gap-1 empty:hidden [&>div]:contents"
+        />
+      </HeaderActionGroup>
     </Show>
   );
 }

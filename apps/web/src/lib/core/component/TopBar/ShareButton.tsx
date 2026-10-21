@@ -20,6 +20,7 @@ import { projectRouteId } from '@app/features/projects/core/route';
 import { useAnalytics } from '@app/lib/analytics/analytics-context';
 import { useChannelParticipants } from '@channel/use-channel-participants';
 import { HeaderActionButton } from '@components/app/HeaderActionButton';
+import { HeaderActionGroup } from '@components/app/HeaderActionGroup';
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
 import { useSplitPanel } from '@components/app/split-layout/layoutUtils';
 import { useIsAuthenticated } from '@core/auth';
@@ -1958,46 +1959,48 @@ export function ShareTrigger(props: {
   });
 
   return (
-    <div ref={requests.ref} class="flex items-center gap-1">
-      <Tooltip
-        label={
-          shareStatus()?.tooltip ??
-          (blockType() === 'agent'
-            ? 'Share agent session'
-            : blockType() === 'initiative'
-              ? 'Share project'
-              : inBlock
-                ? 'This item has been shared with you.'
-                : `Share ${blockType()}`)
-        }
-      >
-        <HeaderActionButton
-          label="Share"
-          icon={
-            <ShareRequestIcon count={requests.count()}>
-              <IconShared class="size-4" />
-            </ShareRequestIcon>
+    <HeaderActionGroup label="Sharing">
+      <div ref={requests.ref} class="flex items-center touch:gap-1">
+        <Tooltip
+          label={
+            shareStatus()?.tooltip ??
+            (blockType() === 'agent'
+              ? 'Share agent session'
+              : blockType() === 'initiative'
+                ? 'Share project'
+                : inBlock
+                  ? 'This item has been shared with you.'
+                  : `Share ${blockType()}`)
           }
-          onClick={() => {
-            if (!isAuthenticated()) {
-              openLoginModal();
-            } else {
-              analytics.track('share_menu_open', { blockType: blockType() });
-              requests.open();
+        >
+          <HeaderActionButton
+            label="Share"
+            icon={
+              <ShareRequestIcon count={requests.count()}>
+                <IconShared class="size-4" />
+              </ShareRequestIcon>
             }
-          }}
-        />
-      </Tooltip>
+            onClick={() => {
+              if (!isAuthenticated()) {
+                openLoginModal();
+              } else {
+                analytics.track('share_menu_open', { blockType: blockType() });
+                requests.open();
+              }
+            }}
+          />
+        </Tooltip>
 
-      <CopyButton
-        variant="ghost"
-        tooltip="Copy Share Link"
-        size="icon-md"
-        onClick={ShareLinkAction().action}
-      >
-        <Dynamic component={ShareLinkAction().icon} class="size-3.5!" />
-      </CopyButton>
-    </div>
+        <CopyButton
+          variant="ghost"
+          tooltip="Copy Share Link"
+          size="icon-md"
+          onClick={ShareLinkAction().action}
+        >
+          <Dynamic component={ShareLinkAction().icon} class="size-3.5!" />
+        </CopyButton>
+      </div>
+    </HeaderActionGroup>
   );
 }
 

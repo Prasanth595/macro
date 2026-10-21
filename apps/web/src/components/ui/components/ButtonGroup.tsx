@@ -24,6 +24,7 @@ type ButtonGroupProps = {
   size?: ButtonSize;
   orientation?: ButtonGroupOrientation;
   class?: string;
+  label?: string;
   children?: JSX.Element;
 };
 
@@ -125,6 +126,7 @@ export const ButtonGroup = (props: ButtonGroupProps) => {
             props.class
           )}
           role="group"
+          aria-label={props.label}
         >
           {/* Clip the segments independently of the group frame. */}
           <div class="flex size-full min-w-0 items-center justify-center overflow-hidden rounded-[inherit] [flex-direction:inherit]">

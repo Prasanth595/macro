@@ -23,11 +23,14 @@ export function ListHeaderGroup(props: {
   children: JSX.Element;
 }) {
   return (
-    <div role="group" aria-label={props.label} class="shrink-0">
-      <ButtonGroup variant="outline" size="icon-md">
-        {props.children}
-      </ButtonGroup>
-    </div>
+    <ButtonGroup
+      label={props.label}
+      variant="outline"
+      size="icon-md"
+      class="shrink-0"
+    >
+      {props.children}
+    </ButtonGroup>
   );
 }
 
