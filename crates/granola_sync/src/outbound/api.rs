@@ -6,11 +6,8 @@ use crate::domain::{
 use async_trait::async_trait;
 use call::domain::{imports::ImportedCall, records::*};
 use chrono::{DateTime, Utc};
-use pipedream_mcp::domain::{
-    models::PipedreamConnection,
-    ports::ConnectedAppProxy,
-};
 use http::{HeaderMap, Method};
+use pipedream_mcp::domain::{models::PipedreamConnection, ports::ConnectedAppProxy};
 use rootcause::prelude::IntoRootcause;
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -205,10 +202,7 @@ impl<P: ConnectedAppProxy> Granola for GranolaApi<P> {
                 path.push('?');
                 path.push_str(&query);
             }
-            let Some(page) = self
-                .request(connection, Method::GET, &path, None)
-                .await?
-            else {
+            let Some(page) = self.request(connection, Method::GET, &path, None).await? else {
                 if cursor.is_some() {
                     return Err(rootcause::report!(
                         "Granola transcript disappeared during pagination"
