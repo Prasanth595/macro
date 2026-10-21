@@ -76,6 +76,31 @@ describe('long message content', () => {
     expect(screen.getByRole('button', { name: 'Show more' })).toBeTruthy();
   });
 
+  it('reveals a hidden link when focus moves into it', () => {
+    setBodyHeight(800);
+    const view = renderContent(true);
+    const preview = () => view.container.querySelector('[data-collapsed]');
+    const text = screen.getByText('A very long comment');
+    vi.spyOn(preview()!, 'getBoundingClientRect').mockReturnValue({
+      bottom: 240,
+    } as DOMRect);
+
+    // Focus above the cut leaves the preview alone.
+    vi.spyOn(text, 'getBoundingClientRect').mockReturnValue({
+      bottom: 100,
+    } as DOMRect);
+    fireEvent.focusIn(text);
+    expect(preview()).not.toBeNull();
+
+    // Focus under the cut expands so the focused link is visible.
+    vi.spyOn(text, 'getBoundingClientRect').mockReturnValue({
+      bottom: 400,
+    } as DOMRect);
+    fireEvent.focusIn(text);
+    expect(preview()).toBeNull();
+    expect(screen.getByRole('button', { name: 'Show less' })).toBeTruthy();
+  });
+
   it('leaves a short comment whole', () => {
     setBodyHeight(120);
     const view = renderContent(true);

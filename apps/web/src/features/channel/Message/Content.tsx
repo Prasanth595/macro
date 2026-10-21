@@ -2,7 +2,7 @@ import { StaticMarkdown } from '@core/component/LexicalMarkdown/component/core/S
 
 import { channelTheme } from '@core/component/LexicalMarkdown/theme';
 import { isEmojiOnly } from '@core/util/string';
-import CaretDown from '@phosphor/caret-down.svg';
+import CaretRight from '@phosphor/caret-right.svg';
 import { Button, cn } from '@ui';
 import {
   createMemo,
@@ -25,8 +25,8 @@ import { MentionedImages } from './MentionedImages';
 const COLLAPSED_MAX_HEIGHT = 240;
 // Collapse only when that hides a few lines or more, never just the last one.
 const COLLAPSE_THRESHOLD = COLLAPSED_MAX_HEIGHT + 64;
-const FADE_MASK =
-  'linear-gradient(to bottom, black calc(100% - 32px), transparent 100%)';
+const FADE_HEIGHT = 32;
+const FADE_MASK = `linear-gradient(to bottom, black calc(100% - ${FADE_HEIGHT}px), transparent 100%)`;
 
 type ContentProps = {
   class?: string;
@@ -101,6 +101,14 @@ function CollapsibleBody(props: { children: JSX.Element }) {
       <div
         data-collapsed={collapsed() ? '' : undefined}
         class={cn(collapsed() && 'overflow-hidden')}
+        // Tabbing to a link under the cut (or in the fade) reveals it
+        // instead of focusing something hidden.
+        onFocusIn={(event) => {
+          if (!collapsed() || !(event.target instanceof Element)) return;
+          const cut = event.currentTarget.getBoundingClientRect().bottom;
+          const target = event.target.getBoundingClientRect().bottom;
+          if (target > cut - FADE_HEIGHT) setExpanded(true);
+        }}
         style={
           collapsed()
             ? {
@@ -122,9 +130,10 @@ function CollapsibleBody(props: { children: JSX.Element }) {
           aria-expanded={expanded()}
           onClick={() => setExpanded((prev) => !prev)}
         >
-          <CaretDown
+          <CaretRight
+            aria-hidden="true"
             class="transition-transform"
-            classList={{ 'rotate-180': expanded() }}
+            classList={{ 'rotate-90': expanded() }}
           />
           {expanded() ? 'Show less' : 'Show more'}
         </Button>
