@@ -183,7 +183,18 @@ export function countRowWrites(ops: DatabaseOp[]) {
   };
 }
 
+/**
+ * Reports a batch's row writes as edits. A batch that creates a table or a
+ * column fills it in the same request (a type conversion copies every cell
+ * into its new column), so its row writes are a schema change, not edits.
+ */
 function trackRowEdits(databaseId: string, ops: DatabaseOp[]) {
+  const createsSchema = ops.some(
+    (op) =>
+      (op.kind === 'table' || op.kind === 'column') &&
+      op.change.kind === 'create'
+  );
+  if (createsSchema) return;
   const counts = countRowWrites(ops);
   if (counts.insertedRows + counts.updatedRows + counts.deletedRows === 0)
     return;
