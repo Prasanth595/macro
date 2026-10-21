@@ -140,7 +140,7 @@ function ConnectionsContent(props: IntegrationsViewProps) {
               <SettingsPage
                 title="Integrations"
                 contentClass="max-w-[1200px]"
-                bodyClass="mt-6 gap-8"
+                bodyClass="mt-6 gap-6"
               >
                 <IntegrationSetupCallouts
                   onOpenMacroMcp={props.onOpenMacroMcp}
@@ -171,7 +171,7 @@ function ConnectionsContent(props: IntegrationsViewProps) {
                 >
                   <section
                     aria-label="Agent Integrations"
-                    class="flex min-w-0 flex-col gap-6"
+                    class="flex min-w-0 flex-col gap-4"
                   >
                     <h2 class="text-lg font-medium text-ink">
                       Agent Integrations
