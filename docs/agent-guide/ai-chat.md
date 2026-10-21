@@ -301,7 +301,7 @@ the shimmer.
   app authentication and disconnection), also available under Settings → Integrations.
   Home’s **Connect your tools** and agent replies’ **Connect app** chips open this
   Integrations page. It shows installed tools on the left and Discover on the
-  right, with personal Gmail/GitHub account links in a separate section below.
+  right, with personal Gmail/GitHub account links in a separate section above.
 
   To recreate Slack channels, open **Settings → Integrations → Slack → Import
   channels** (or **Connections → Slack** from the Agents workspace). The card

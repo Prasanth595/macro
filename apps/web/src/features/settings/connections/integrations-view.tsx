@@ -26,13 +26,13 @@ import { ConnectionsViewProvider, useConnectionsView } from './view-state';
 function MacroMcpSignpost(props: { onOpen: () => void }) {
   return (
     <p class="text-xs text-ink-muted text-balance">
-      Looking to use Macro in another app?{' '}
+      Use Macro in Claude Code or another AI app.{' '}
       <button
         type="button"
         class="text-link outline-none hover:text-link-hover hover:underline focus-visible:underline"
         onClick={props.onOpen}
       >
-        Macro MCP
+        Set up connection
       </button>
     </p>
   );
@@ -99,6 +99,7 @@ function ConnectionsContent(props: IntegrationsViewProps) {
               onBack={view.provider() ? view.closeProvider : undefined}
               backLabel="Integrations"
             >
+              <MacroMcpSignpost onOpen={props.onOpenMacroMcp} />
               {props.children}
               <div class="flex items-center gap-3 text-sm text-ink-muted">
                 Couldn't load Connections.
@@ -118,6 +119,8 @@ function ConnectionsContent(props: IntegrationsViewProps) {
                 description={description}
                 contentClass="max-w-[1200px]"
               >
+                <MacroMcpSignpost onOpen={props.onOpenMacroMcp} />
+                {props.children}
                 <Show when={partialError()}>
                   <div
                     role="status"
@@ -159,8 +162,6 @@ function ConnectionsContent(props: IntegrationsViewProps) {
                       <DiscoverView model={model()} />
                     </section>
                   </div>
-                  {props.children}
-                  <MacroMcpSignpost onOpen={props.onOpenMacroMcp} />
                 </Show>
               </SettingsPage>
             }

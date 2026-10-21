@@ -43,7 +43,7 @@ function AccountConnections() {
     <section
       data-settings-target="accounts"
       tabIndex={-1}
-      class="border-t border-edge-muted pt-6 outline-none"
+      class="border-b border-edge-muted pb-6 outline-none"
     >
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>

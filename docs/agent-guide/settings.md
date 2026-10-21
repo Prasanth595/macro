@@ -469,7 +469,9 @@ with installed tools first. Installed tools use a compact status list; Discover
 has a search field and Add custom MCP action above featured cards and the app
 list. These pill-shaped controls share a height and stack on narrow screens.
 Installed and Discover use aligned headings above rounded cards.
-Account connections and their settings links are a separate section below. The Agents workspace opens this same Integrations
+A “Use Macro in Claude Code or another AI app” prompt at the top links to
+connection setup. Account connections and their settings links appear next,
+above Installed and Discover. The Agents workspace opens this same Integrations
 page. Installed groups GitHub, Linear, Notion, and Slack tool grants by provider,
 lists other catalog connections alongside them, and puts custom MCP servers in
 a separate section. Discover offers featured providers, a searchable catalog,
@@ -504,7 +506,7 @@ owner's custom servers.
 An agent reply's `Connect <app>` chip still starts that app's connection flow.
 Cursor stays in Agents → Runtimes with its API key and default model controls; it is not
 featured or offered in the Connections catalog. Personal Gmail and GitHub account
-links appear below the installed-and-discover columns on Settings → Integrations. The native-only integrations section remains
+links appear above the installed-and-discover columns on Settings → Integrations. The native-only integrations section remains
 available when `pipedream-mcp` is disabled.
 Open Settings with the rail's gear button or `Ctrl+;`; leave it by picking any other rail item.
 
