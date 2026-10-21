@@ -143,13 +143,15 @@ export function LauncherDetails(props: {
         >
           <div
             aria-hidden="true"
-            class="pointer-events-none absolute inset-0 -z-10"
+            class="pointer-events-none absolute inset-0 -z-10 opacity-65"
             style={{
               background:
                 'radial-gradient(ellipse at center, color-mix(in srgb, currentColor 14%, transparent), transparent 72%)',
             }}
           />
-          <WorkspaceTexture accent="currentColor" filterId={textureId} />
+          <div class="pointer-events-none absolute inset-0 opacity-65">
+            <WorkspaceTexture accent="currentColor" filterId={textureId} />
+          </div>
           <div class="relative h-full overflow-y-auto">
             <Show when={selected()}>
               {(item) => (
