@@ -59,7 +59,7 @@ pub fn build_dmg_job(ref_expr: &str) -> Job {
         ))
 }
 
-fn assert_arm64() -> Step<Run> {
+pub(super) fn assert_arm64() -> Step<Run> {
     Step::new("Assert arm64 runner")
         .run(indoc::indoc! {r#"
             set -euo pipefail
@@ -92,7 +92,7 @@ fn nix_build_dmg() -> Step<Run> {
         .add_env(("VITE_POSTHOG_API_KEY", vars::POSTHOG_API_KEY))
 }
 
-fn configure_nix_cache() -> Step<Run> {
+pub(super) fn configure_nix_cache() -> Step<Run> {
     Step::new("Configure macOS Nix binary cache")
         .run(include_str!("scripts/configure_macos_nix_cache.sh"))
         .id("nix-cache")
@@ -100,7 +100,7 @@ fn configure_nix_cache() -> Step<Run> {
         .continue_on_error(true)
 }
 
-fn save_nix_cache() -> Step<Run> {
+pub(super) fn save_nix_cache() -> Step<Run> {
     Step::new("Prune and save macOS Nix build dependencies")
         .run(include_str!("scripts/save_macos_nix_cache.sh"))
         .shell("bash")
