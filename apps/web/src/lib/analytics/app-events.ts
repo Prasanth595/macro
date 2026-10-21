@@ -199,17 +199,16 @@ export type AppEvents = {
   theme_changed: { themeId: string };
 
   /**
-   * A message sent to AI. `surface` is 'chat' for the legacy AI chat and
-   * 'agent' for an accepted agent-session prompt (AgentSession.sendPrompt),
-   * which also carries `agentSessionId`, `agentId`, `newSession`,
-   * `submitSurface` and `queued`. Events before the agent tracking have no
-   * `surface`.
+   * A message sent to AI, with `attachmentCount` files. `surface` is 'chat'
+   * for the legacy AI chat and 'agent' for an accepted agent-session prompt
+   * (AgentSession.sendPrompt), which also carries `agentSessionId`,
+   * `agentId`, `newSession`, `submitSurface` and `queued`. Events before the
+   * agent tracking have no `surface`.
    */
   ai_message_sent: Record<string, unknown>;
   /**
-   * One per file attached to an AI prompt. Agent sessions send one per file
-   * an accepted prompt carries, with `surface: 'agent'` and `agentSessionId`
-   * (AgentSession.sendPrompt); the retired AI chat sent one per upload.
+   * A file added to the legacy AI chat's input, on upload or drop. Agent
+   * sessions report attachments as `ai_message_sent.attachmentCount` instead.
    */
   ai_attachment_add: Record<string, unknown>;
   /** A paid user opened Stripe Checkout for an AI credit pack. */

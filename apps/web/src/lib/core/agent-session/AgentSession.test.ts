@@ -333,13 +333,14 @@ describe('AgentSession', () => {
           newSession: false,
           submitSurface: 'agent_session',
           queued: false,
+          attachmentCount: 0,
         },
       ],
     ]);
     live.release();
   });
 
-  it('counts each file an accepted prompt carries as an AI attachment', async () => {
+  it('reports the files an accepted prompt carries on its AI message', async () => {
     const live = AgentSession.acquire(SESSION);
     await live.load();
 
@@ -353,14 +354,10 @@ describe('AgentSession', () => {
     });
     await settle();
 
-    expect(
-      analytics.track.mock.calls.filter(
-        ([event]) => event === 'ai_attachment_add'
-      )
-    ).toEqual([
-      ['ai_attachment_add', { surface: 'agent', agentSessionId: SESSION }],
-      ['ai_attachment_add', { surface: 'agent', agentSessionId: SESSION }],
-    ]);
+    expect(analytics.track).toHaveBeenCalledExactlyOnceWith(
+      'ai_message_sent',
+      expect.objectContaining({ surface: 'agent', attachmentCount: 2 })
+    );
     live.release();
   });
 

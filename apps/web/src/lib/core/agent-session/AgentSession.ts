@@ -492,14 +492,14 @@ export class AgentSession {
   }
 
   /**
-   * Count an accepted prompt as an AI message, and each file it carries as an
-   * AI attachment, under the events the retired AI chat sent, so AI
+   * Count an accepted prompt as an AI message, with the files it carries as
+   * `attachmentCount`, as the retired AI chat reported its messages, so AI
    * engagement keeps one definition across both.
    */
   private async trackPromptSent(
     trace: PromptTrace,
     queued: boolean,
-    attachments: number
+    attachmentCount: number
   ): Promise<void> {
     const row = await this.sessionRow;
     analytics.track('ai_message_sent', {
@@ -509,12 +509,8 @@ export class AgentSession {
       newSession: trace.newSession,
       submitSurface: trace.submitSurface,
       queued,
+      attachmentCount,
     });
-    for (let index = 0; index < attachments; index++)
-      analytics.track('ai_attachment_add', {
-        surface: 'agent',
-        agentSessionId: this.id,
-      });
   }
 
   /**
