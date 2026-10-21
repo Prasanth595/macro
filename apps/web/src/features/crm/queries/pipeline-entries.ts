@@ -173,6 +173,8 @@ export function createPipelineEntriesQuery(
 export function savePipelineEntryCell(
   storage: PipelineEntriesDependencies['storage'],
   entry: PipelineEntry,
+  /** Whose record page the entry is edited from. */
+  recordType: PipelineEntryRecord['type'],
   cell: PipelineEntryCell,
   value: DatabaseCellValue,
   createOptions: boolean
@@ -186,7 +188,11 @@ export function savePipelineEntryCell(
           .applyCrmPipelineOps(entry.pipeline.id, batch)
           .mapErr(([error]) => error)
           .map((applied) => {
-            trackPipelineEntryWrites(entry.pipeline, 'record', batch.ops);
+            trackPipelineEntryWrites(
+              { id: entry.pipeline.id, recordType },
+              'record',
+              batch.ops
+            );
             return applied;
           }),
     },

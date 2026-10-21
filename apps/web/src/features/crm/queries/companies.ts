@@ -211,8 +211,11 @@ export function useCreateContactMutation(deps: CrmRecordDependencies) {
         throwOnErr(() =>
           deps.storage.createContact({ companyId, name, email })
         ),
-      onSuccess: (_data, { companyId }) => {
-        analytics.track('crm_contact_created', { companyId });
+      onSuccess: (contact, { companyId }) => {
+        analytics.track('crm_contact_created', {
+          companyId,
+          contactId: contact.id,
+        });
         return Promise.all([
           deps.client.invalidateQueries({
             queryKey: crmKeys.company(companyId).queryKey,
