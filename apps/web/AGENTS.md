@@ -110,6 +110,9 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Keep native booking exit navigation in the route shell, outside page loading boundaries, and use the router so the native hash route stays intact.
 - Diagnose native full reloads with `native_webview_started`, `native_diagnostic_recovered`, and the shared `frontend_instance_id`; use `reloadApp(reason)` for frontend reloads and keep breadcrumbs content-free. See `tauri/src-tauri/README.md`.
 - All API/network calls live in service-clients.
+- Add Google Meet account hints only to join actions using the displayed calendar's
+  connected email; keep stored and copied conference links unchanged. See the
+  [calendar walkthrough](../../docs/agent-guide/calendar.md).
 - Route explicit call exits using the server's `callEnded` result: ended calls
   open their record; ongoing channel and scheduled calls return to the channel
   and Calendar. Preserve the session ID before disconnecting.
