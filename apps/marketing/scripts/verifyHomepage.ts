@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { chromium, expect } from '@playwright/test';
 import { verifyDemo } from './verifyDemo';
+import { verifyProductPages } from './verifyProductPages';
 
 /** Verify the prerendered homepage keeps its first paint while becoming interactive. */
 export async function verifyHomepage(directory: string): Promise<void> {
@@ -37,6 +38,7 @@ export async function verifyHomepage(directory: string): Promise<void> {
         viewport,
         colorScheme,
         isMobile: viewport.width < 768,
+        hasTouch: viewport.width < 768,
         reducedMotion: 'reduce',
       });
       let releaseScripts!: () => void;
@@ -76,6 +78,12 @@ export async function verifyHomepage(directory: string): Promise<void> {
             `Homepage SSR root height is ${rootHeight}, expected viewport height ${viewport.height} (${label})`
           );
 
+        // The SSR fallback is desktop, but CSS must hide it on phones before
+        // hydration replaces it with the mobile story. Otherwise it flashes in.
+        const desktopDemo = page.locator('.homepage-embedded-demo');
+        if (viewport.width < 800) await expect(desktopDemo).toBeHidden();
+        else await expect(desktopDemo).toBeVisible();
+
         releaseScripts();
         await page.waitForLoadState('load');
         if (errors.length)
@@ -89,6 +97,10 @@ export async function verifyHomepage(directory: string): Promise<void> {
             timeout: 10000,
           }
         );
+        if (viewport.width < 800) {
+          await expect(desktopDemo).toHaveCount(0);
+          await expect(page.locator('.homepage-mobile-story')).toBeVisible();
+        } else await expect(desktopDemo).toBeVisible();
         await page.evaluate(async () => {
           await document.fonts.ready;
           await new Promise<void>((resolve) =>
@@ -116,17 +128,29 @@ export async function verifyHomepage(directory: string): Promise<void> {
           );
         await heading.dispose();
 
-        await page
-          .getByRole('button', { name: 'Open navigation', exact: true })
-          .click();
+        if (viewport.width >= 768)
+          await page
+            .getByRole('link', { name: 'Macro home', exact: true })
+            .hover();
+        else
+          await page
+            .getByRole('button', { name: 'Open navigation', exact: true })
+            .tap();
         await page
           .getByRole('navigation', { name: 'Main navigation' })
           .waitFor({ state: 'visible' });
-        await page
-          .getByRole('button', { name: 'Close navigation', exact: true })
-          .click();
+        if (viewport.width >= 768) await page.keyboard.press('Escape');
+        else
+          await page
+            .getByRole('button', { name: 'Close navigation', exact: true })
+            .tap();
         if (viewport.width >= 800) {
           await page.locator('#interactive-demo').scrollIntoViewIfNeeded();
+          await page
+            .getByRole('button', {
+              name: /^Interact with Macro sample workspace/,
+            })
+            .click();
           const workspace = page.frameLocator(
             'iframe[title="Embedded Macro sample workspace"]'
           );
@@ -151,6 +175,14 @@ export async function verifyHomepage(directory: string): Promise<void> {
         await page
           .locator('[data-email-demo-body]')
           .waitFor({ state: 'visible' });
+        const entry = page.getByRole('button', {
+          name: /^Interact with Email and chat/,
+        });
+        if (viewport.width < 768) await entry.tap();
+        else await entry.click();
+        await expect(
+          page.getByRole('textbox', { name: 'Email body', exact: true })
+        ).toBeEditable();
         if (errors.length)
           throw new Error(
             `Homepage demo failed (${label}): ${errors.join('; ')}`
@@ -163,6 +195,7 @@ export async function verifyHomepage(directory: string): Promise<void> {
         await page.close();
       }
     }
+    await verifyProductPages(browser, origin);
   } finally {
     await browser?.close();
     server.stop(true);

@@ -76,6 +76,14 @@ With a composer open, save a changed signature or reply-signature preference and
 verify its preview updates. Once the account refresh completes, reopen a composer
 offline and confirm it uses the saved settings.
 
+### Notification permission prompt
+
+After onboarding, an eligible desktop app user sees **Enable Desktop
+Notifications**. Select **Enable** to request permission through the native
+notification provider; macOS uses its system permission dialog. The web prompt
+continues to say **Enable Browser Notifications** and uses browser permissions.
+Select **Hide** to dismiss the prompt.
+
 ### Notification snoozes
 
 Open **Settings → Notifications** to see **Snoozed items** and their local resume
@@ -210,15 +218,15 @@ Left nav (feature and platform gates still apply):
 - **Workspace**: Team, Tags, Integrations (personal Gmail/GitHub accounts).
 - **Developer**: Agent connections, Runtimes, MCP server, API Keys, Bots.
 
-**Desktop App** (`/app/settings/desktop-app`) shows a compact version and
-build-date card in the desktop app. The date is when the running app bundle was
-built, not when it was installed on the computer. In the browser it links to the
-latest desktop release on GitHub, and only appears when the `desktop-app` PostHog
-flag is enabled. Native desktop always shows this section regardless of the flag;
+**Desktop App** (`/app/settings/desktop-app`) is titled
+**Desktop App (Alpha)** and shows a compact version and build-date card in the
+desktop app. The date is when the running app bundle was built, not when it was
+installed on the computer. In the browser it links to the latest desktop release
+on GitHub, and only appears when the `desktop-app` PostHog flag is enabled. Native desktop always shows this section regardless of the flag;
 native mobile never shows it.
 
-The **Mobile App** page is titled **Mobile app (Alpha)** and offers a QR code
-to download **Macro Alpha** from the App Store.
+The **Mobile App** page is titled **Mobile app** and offers a QR code
+to download **Macro** from the App Store.
 
 Search checks individual setting titles and keywords, tolerates common typos,
 and shows the parent page below each control result. Selecting a result opens
@@ -518,7 +526,7 @@ New macrod sessions use the agent's saved model before sending the first prompt.
 Changing that default applies to new sessions; existing sessions keep their selected model.
 If the runtime rejects the saved model, the prompt fails instead of using a different model.
 
-The `Runtimes` section shows built-in Macro, Cursor, Claude, and Codex configuration, followed by paired macrod runtimes. Claude's card appears only with the `claude-cloud` flag, and Codex's only within the agents and Codex rollouts. The “Bring your own agent” card sits above the Agents / Runtimes navigation and is visible on both sections. It rotates Claude Code, OpenCode, OpenClaw, and Hermes; reduced motion keeps a static name. Its `New runtime` action opens the full-page pairing flow from either section: enter the code, look up the request, review the machine, name, sharing and permission consent, then Approve and Done. Back/Cancel returns to the runtime list. Destructive removal still requires confirmation. `/settings/runtimes` opens this section; legacy `/settings/harness?pair=…` links remain supported.
+The `Runtimes` section shows built-in Macro, Cursor, Claude, and Codex configuration, followed by paired macrod runtimes. Claude's card appears only with the `claude-cloud` flag, and Codex's only within the agents and Codex rollouts. On the desktop app only, a “This computer” card appears above the built-in runtimes: the bundled macrod daemon is set up from here with one click. `Set up` scans the machine for installed agents (Claude Code, Codex, OpenCode, OpenClaw), offers a workspace folder and a Full access checkbox, and `Start running agents here` configures, pairs, and starts the daemon — the pairing is approved automatically, no code is typed. While running the card shows the agent and workspace with a `Stop` action; a set-up-but-stopped runtime offers `Start`. The web app never shows this card. The “Bring your own agent” card sits above the Agents / Runtimes navigation and is visible on both sections. It rotates Claude Code, OpenCode, OpenClaw, and Hermes; reduced motion keeps a static name. Its `New runtime` action opens the full-page pairing flow from either section: enter the code, look up the request, review the machine, name, sharing and permission consent, then Approve and Done. Back/Cancel returns to the runtime list. Destructive removal still requires confirmation. `/settings/runtimes` opens this section; legacy `/settings/harness?pair=…` links remain supported.
 Connection chips in agent replies open this page, including before any account is connected. Cursor's default-model picker uses
 the same live model discovery and retains its existing save action.
 
@@ -543,3 +551,36 @@ OAuth token.
 The Codex section and its auth/config requests were exercised in Chromium with
 mocked backend responses on 2026-09-15. Provider login and a full deployed Macro
 session were not exercised by that UI check.
+
+### GitHub reconnect recovery
+
+When GitHub reports that reauthentication is required, reconnect starts OAuth
+without first deleting the current Macro link. Cancelling OAuth preserves it.
+Selecting a different GitHub account fails without changing the connection; use
+Disconnect first to switch accounts.
+A successful callback refreshes the grant; if its old FusionAuth identity was
+deleted, all Macro accounts sharing that GitHub account move to the new grant.
+Verify reconnect both as the original linker and as another sharing account,
+and verify an upstream outage leaves the current links intact and reports an error.
+The Macro link survives a failed reconnect, but replacing the FusionAuth grant
+is not atomic. A crash or failed restoration may leave it missing; retry OAuth
+to recreate it after the provider recovers.
+
+## Bots
+
+Open **Developer → Bots** to create an account for a program. The page explains
+how to add the bot to channels and use its token with the Macro SDK. **Create
+bot** keeps Profile and Channels visible. **Advanced** starts collapsed on both
+desktop and mobile and contains:
+
+- **Agent → Show in model selector**: makes the bot available when starting an
+  AI chat; connect an agent such as Codex or Hermes to handle requests. This
+  section remains gated by the agents rollout.
+- **Ownership → Mentionable**: lets teammates find and @mention the bot and
+  creates it under team ownership. With the switch off, the creator owns it.
+  Only team admins and owners can enable this option.
+
+Open an existing bot to edit its profile, channels, and tokens. Its Agent control
+also lives under a collapsed **Advanced** section. Verify that expanding and
+collapsing Advanced preserves selected options and does not submit the form.
+After creation, copy the **Bot token** before leaving; it is shown only once.

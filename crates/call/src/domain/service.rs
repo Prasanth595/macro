@@ -2131,7 +2131,7 @@ impl<
     }
 }
 
-fn publish_call_event<B: MacroEventBroker>(event_broker: &B, event: &CallMacroEvent) {
+pub(crate) fn publish_call_event<B: MacroEventBroker>(event_broker: &B, event: &CallMacroEvent) {
     drop(event_broker.send_event(event).inspect_err(|error| {
         tracing::error!(error = ?error, "failed to schedule call lifecycle event");
     }));

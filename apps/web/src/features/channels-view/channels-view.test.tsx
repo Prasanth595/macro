@@ -40,8 +40,8 @@ vi.mock('@core/context/user', () => ({
 vi.mock('@channel/queries/prefetch-channel-target', () => ({
   prefetchChannelTarget: mocks.prefetchTarget,
 }));
-vi.mock('@app/features/agent-dms/queries/search-pool', () => ({
-  useAgentDmSearchPool: () => () => [],
+vi.mock('./queries/channel-list-search-pool', () => ({
+  useChannelListSearchPool: () => () => [],
 }));
 vi.mock('@app/features/command/mobile/mobileSearchState', () => ({
   SearchState: {

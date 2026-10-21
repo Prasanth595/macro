@@ -1,6 +1,7 @@
 import {
   finishNotificationNavigation,
   pendingNotificationNavigation,
+  pendingNotificationNavigationId,
   setPendingNotificationNavigationId,
 } from '@notifications/notification-navigation-intent';
 import { endNotificationOpen } from '@notifications/notification-open-trace';
@@ -23,6 +24,8 @@ const registration = vi.hoisted(() => ({
   clearPending: vi.fn(async () => {}),
   releaseCover: vi.fn(async () => {}),
   removeAllActive: vi.fn(async () => {}),
+  receive: undefined as ((event: PushEvent) => void) | undefined,
+  buffered: undefined as PushEvent | undefined,
 }));
 vi.mock('@core/constant/featureFlags', () => ({ ENABLE_CALLKIT: true }));
 vi.mock('@core/util/platform', () => ({
@@ -57,9 +60,9 @@ vi.mock('@solid-primitives/storage', () => ({
 vi.mock('@tauri-apps/plugin-notification', () => ({
   removeAllActive: registration.removeAllActive,
 }));
-vi.mock('@notifications', () => ({
+vi.mock('@notifications', async () => ({
   PlatformNotificationProvider: () => null,
-  triggerNotificationNavigation: vi.fn(),
+  ...(await import('@notifications/notification-navigation-intent')),
 }));
 vi.mock('./TauriProvider', () => ({
   useExpectTauri: () => ({ os: registration.os }),
@@ -74,6 +77,8 @@ vi.mock('./push-api', () => ({
     configureRecipient: registration.configureRecipient,
     watch: async (callback: (event: PushEvent) => void) => {
       registration.onEvent = callback;
+      registration.receive = callback;
+      if (registration.buffered) callback(registration.buffered);
     },
     unwatch: async () => {},
     acknowledge: registration.acknowledge,
@@ -91,13 +96,101 @@ beforeEach(() => {
   registration.logout = undefined;
   registration.onEvent = undefined;
   vi.clearAllMocks();
+  registration.receive = undefined;
+  registration.buffered = undefined;
+  registration.acknowledge.mockClear();
+  setPendingNotificationNavigationId(undefined);
   delete window.__MACRO_ANDROID_CALL_KIT__;
 });
 afterEach(() => {
   dispose?.();
+  dispose = undefined;
   setPendingNotificationNavigationId(undefined);
   endNotificationOpen('test_complete');
   delete window.__MACRO_ANDROID_CALL_KIT__;
+});
+
+describe.each(['ios', 'android'])('%s push notification navigation', (os) => {
+  beforeEach(() => {
+    registration.os = os;
+  });
+
+  it.each(['FOREGROUND_TAP', 'BACKGROUND_TAP'] as const)(
+    'opens the tapped location for %s before device registration completes',
+    (type) => {
+      createRoot((cleanup) => {
+        dispose = cleanup;
+        MaybePushNotificationRegistration({ children: null });
+      });
+      expect(registration.register).not.toHaveBeenCalled();
+      expect(registration.receive).toBeDefined();
+      registration.receive!({
+        type,
+        payload: { notificationId: 'mobile-notification' },
+        deliveryId: 'mobile-delivery',
+      });
+      expect(pendingNotificationNavigationId()).toBe('mobile-notification');
+      expect(registration.acknowledge).not.toHaveBeenCalled();
+      finishNotificationNavigation(pendingNotificationNavigation()!);
+      expect(registration.acknowledge).toHaveBeenCalledExactlyOnceWith(
+        'mobile-delivery'
+      );
+    }
+  );
+
+  it('retains a launch tap replayed when the native listener attaches', () => {
+    registration.buffered = {
+      type: 'BACKGROUND_TAP',
+      payload: { notificationId: 'cold-start-notification' },
+    };
+    createRoot((cleanup) => {
+      dispose = cleanup;
+      MaybePushNotificationRegistration({ children: null });
+    });
+    expect(pendingNotificationNavigationId()).toBe('cold-start-notification');
+    expect(registration.register).not.toHaveBeenCalled();
+  });
+
+  it.each(['FOREGROUND_DELIVERY', 'BACKGROUND_DELIVERY'] as const)(
+    'does not navigate on %s',
+    (type) => {
+      createRoot((cleanup) => {
+        dispose = cleanup;
+        MaybePushNotificationRegistration({ children: null });
+      });
+      registration.receive!({
+        type,
+        payload: { notificationId: 'received-notification' },
+      });
+      expect(pendingNotificationNavigationId()).toBeUndefined();
+    }
+  );
+
+  it.each<PushEvent['payload']>([{}, { notificationId: '' }])(
+    'ignores a tap without a destination (%j)',
+    (payload) => {
+      createRoot((cleanup) => {
+        dispose = cleanup;
+        MaybePushNotificationRegistration({ children: null });
+      });
+      registration.receive!({ type: 'BACKGROUND_TAP', payload });
+      expect(pendingNotificationNavigationId()).toBeUndefined();
+    }
+  );
+
+  it('ignores taps after the mobile registration provider is disposed', () => {
+    createRoot((cleanup) => {
+      dispose = cleanup;
+      MaybePushNotificationRegistration({ children: null });
+    });
+    dispose?.();
+    dispose = undefined;
+    registration.receive!({
+      type: 'BACKGROUND_TAP',
+      payload: { notificationId: 'stale-notification' },
+    });
+    expect(pendingNotificationNavigationId()).toBeUndefined();
+  });
 });
 
 function mountRegistration() {
