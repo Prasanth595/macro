@@ -471,8 +471,8 @@ heading. Search and the category picker share a row directly below that heading
 and stack on narrow screens.
 Installed and Discover use headings above rounded cards. The overview uses
 more space between major sections and consistent light gray card backgrounds.
-Two thin, stacked setup rows appear at the top. “Use Macro in Claude Code or
-AI apps” opens connection setup; “Connect your local agents to Macro”
+Two thin, stacked setup rows appear at the top. “Use Macro in your favorite AI
+harness” opens connection setup; “Connect your local agents to Macro”
 opens Runtimes to connect a local machine. Email and GitHub cards appear next under Core Integrations;
 the two cards share a height. A small gear on the Email card opens Email settings;
 Calendar settings remain available from the settings sidebar.
