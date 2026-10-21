@@ -127,7 +127,9 @@ afterEach(cleanup);
 
 function startImport() {
   requestConnectApp('slack', 'import-slack-channels');
-  render(() => <IntegrationsView onOpenMacroMcp={() => {}} />);
+  render(() => (
+    <IntegrationsView onOpenMacroMcp={() => {}} onOpenLocalAgents={() => {}} />
+  ));
 }
 
 function provideChannels() {
@@ -203,7 +205,12 @@ describe('Slack channel import handoff', () => {
   it('preserves ordinary external connector requests', async () => {
     mocks.connect.mockResolvedValueOnce('connected');
     requestConnectApp('linear');
-    render(() => <IntegrationsView onOpenMacroMcp={() => {}} />);
+    render(() => (
+      <IntegrationsView
+        onOpenMacroMcp={() => {}}
+        onOpenLocalAgents={() => {}}
+      />
+    ));
     await waitFor(() =>
       expect(mocks.connect).toHaveBeenCalledWith({ appSlug: 'linear' })
     );
@@ -212,9 +219,28 @@ describe('Slack channel import handoff', () => {
 });
 
 describe('unified Integrations page', () => {
+  it('opens the matching setup flow for each callout', () => {
+    const onOpenMacroMcp = vi.fn();
+    const onOpenLocalAgents = vi.fn();
+    render(() => (
+      <IntegrationsView
+        onOpenMacroMcp={onOpenMacroMcp}
+        onOpenLocalAgents={onOpenLocalAgents}
+      />
+    ));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Set up Macro in AI apps' })
+    );
+    expect(onOpenMacroMcp).toHaveBeenCalledOnce();
+    expect(onOpenLocalAgents).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Set up local agents' })
+    );
+    expect(onOpenLocalAgents).toHaveBeenCalledOnce();
+  });
   it('shows installed tools and the catalog together and restores both after provider details', () => {
     render(() => (
-      <IntegrationsView onOpenMacroMcp={() => {}}>
+      <IntegrationsView onOpenMacroMcp={() => {}} onOpenLocalAgents={() => {}}>
         <p>Personal accounts</p>
       </IntegrationsView>
     ));

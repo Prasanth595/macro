@@ -463,24 +463,27 @@ the picture after reopening settings and after a page reload, then type `@` and
 the agent's name in a channel to check its mention-menu picture. Team agents
 available in all channels should refresh there without reloading the channel.
 
-With `pipedream-mcp` enabled, Settings → Integrations displays installed tools above
-Discover, without tabs or a separate installed sidebar. Installed tools use a compact status list; Discover
-has a search field and Add custom MCP action above featured cards and the app
+With `pipedream-mcp` enabled, Settings → Integrations labels the Email/GitHub
+section Core Integrations and the connector section Agent Integrations. It displays installed tools above
+Discover, without tabs or a separate installed sidebar. Installed tools use a two-column card grid (one column on narrow screens); Discover
+has a search field and Add Custom action above featured cards and the app
 list. These pill-shaped controls share a height and stack on narrow screens.
 Installed and Discover use headings above rounded cards. The overview uses
 compact section spacing and consistent light gray card backgrounds.
-A “Use Macro in Claude Code or another AI app” prompt at the top links to
-connection setup. Email and GitHub cards appear next, without a separate section heading;
+A “Use Macro in Claude Code or other AI apps” callout at the top has a
+Set up action for connection setup. Beside it, “Connect your local agents to
+Macro” opens Runtimes to connect a local machine. Email and GitHub cards appear next under Core Integrations;
 the two cards share a height and their plain-text settings links sit below,
 above Installed and Discover.
+All apps groups each app under its first nonempty Pipedream category; apps without
+category metadata appear under Other. Search and pagination preserve those groups.
 Featured and catalog cards use two columns on wide screens and one on narrow
 screens, with a plus action for available apps. Featured cards show app names
 without descriptions, and catalog descriptions
 and connection status use readable body-sized text. The Agents workspace opens this same Integrations
 page. Installed groups GitHub, Linear, Notion, and Slack tool grants by provider,
-lists other catalog connections alongside them, and puts custom MCP servers in
-a separate section. Discover offers featured providers, a searchable catalog,
-and `Add custom MCP`. Pipedream Slack OAuth is available in production and
+lists other catalog connections alongside them, and lists custom servers in the same installed grid. Discover offers featured providers, a searchable catalog,
+and `Add Custom`. Pipedream Slack OAuth is available in production and
 development from the featured Slack provider. Connecting Slack here grants tool
 access; channel import is a separate action where the user chooses channels.
 Provider Back returns to the combined installed-and-discover overview; navigation

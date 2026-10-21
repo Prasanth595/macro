@@ -15,6 +15,7 @@ import { Button, Tooltip } from '@ui';
 import { createMemo, createSignal, For, Show } from 'solid-js';
 import { IntegrationRow } from '../primitives';
 import { AddCustomMcpDialog } from './add-custom-mcp-dialog';
+import { groupCatalogByCategory } from './catalog-categories';
 import type { ConnectionsModel } from './model';
 import {
   EMPTY_STARTERS,
@@ -58,6 +59,8 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
     });
   });
 
+  const categories = createMemo(() => groupCatalogByCategory(rest()));
+
   return (
     <div class="@container/catalog flex flex-col gap-5">
       <div class="grid grid-cols-1 gap-2 @[440px]/catalog:grid-cols-[minmax(0,1fr)_auto]">
@@ -94,12 +97,12 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
           class="h-10 px-4"
           onClick={() => setAddingCustom(true)}
         >
-          <PlusIcon class="size-4" /> Add custom MCP
+          <PlusIcon class="size-4" /> Add Custom
         </Button>
       </div>
 
       <section aria-label="Featured integrations">
-        <h3 class="mb-3 text-sm font-medium text-ink-muted">Featured</h3>
+        <h4 class="mb-3 text-sm font-medium text-ink-muted">Featured</h4>
         <div class="grid grid-cols-1 gap-3 @[440px]/catalog:grid-cols-2">
           <For each={featured()}>
             {(item) => (
@@ -132,7 +135,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
       </section>
 
       <section aria-label="All integrations">
-        <h3 class="mb-3 text-sm font-medium text-ink-muted">All apps</h3>
+        <h4 class="mb-3 text-sm font-medium text-ink-muted">All apps</h4>
         <div class="grid grid-cols-1 gap-3 @[440px]/catalog:grid-cols-2">
           <Show when={catalog.query.isError}>
             <div class="col-span-full px-6 py-6 text-center text-sm text-ink-muted">
@@ -149,12 +152,23 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
             </div>
           </Show>
           <Show when={!catalog.query.isError}>
-            <For each={rest()}>
-              {(entry) => (
-                <CatalogRow
-                  entry={entry}
-                  added={alreadyHave().has(entry.app_slug)}
-                />
+            <For each={categories()}>
+              {(category) => (
+                <section class="col-span-full" aria-label={category.name}>
+                  <h5 class="mb-3 text-sm font-medium text-ink">
+                    {category.name}
+                  </h5>
+                  <div class="grid grid-cols-1 gap-3 @[440px]/catalog:grid-cols-2">
+                    <For each={category.entries}>
+                      {(entry) => (
+                        <CatalogRow
+                          entry={entry}
+                          added={alreadyHave().has(entry.app_slug)}
+                        />
+                      )}
+                    </For>
+                  </div>
+                </section>
               )}
             </For>
             <Show
