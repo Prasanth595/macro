@@ -9,11 +9,12 @@ type NativeInputSize = number;
 /** Text-bearing Button sizes that also make sense for an input. */
 export type InputSize = Exclude<ButtonSize, `icon-${string}`>;
 
+// Single-line inputs are pills like Buttons, so their text sits further in.
 const INPUT_SIZE_VARIANTS: Record<InputSize, string> = {
-  xs: 'h-5 px-1 text-xs',
-  sm: 'h-6 px-2 text-xs',
-  md: 'h-8 px-2 text-base',
-  lg: 'h-9 px-3 text-base',
+  xs: 'h-5 px-1.5 text-xs',
+  sm: 'h-6 px-2.5 text-xs',
+  md: 'h-8 px-3 text-base',
+  lg: 'h-9 px-3.5 text-base',
   xl: 'h-12 px-4 text-base',
 };
 
@@ -24,7 +25,7 @@ export const inputOutlineFocusClasses =
 /** Canonical visual variants for standalone inputs. */
 export const inputVariants = createVariants(
   cn(
-    'w-full min-w-0 rounded-lg border text-ink caret-current outline-none transition-[background-color,border-color,box-shadow] duration-120 motion-reduce:transition-none',
+    'w-full min-w-0 rounded-full border text-ink caret-current outline-none transition-[background-color,border-color,box-shadow] duration-120 motion-reduce:transition-none',
     'file:inline-flex file:border-0 file:bg-transparent file:text-[inherit] file:font-medium file:text-ink',
     'placeholder:text-ink-placeholder',
     'aria-invalid:border-failure aria-invalid:ring-2 aria-invalid:ring-failure/20',

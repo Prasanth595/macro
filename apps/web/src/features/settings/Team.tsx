@@ -1,3 +1,4 @@
+import { SearchBar } from '@app/components/view-shell/SearchBar';
 import { SlackImport } from '@app/features/slack-import/slack-import';
 import { useFeatureFlag } from '@app/lib/analytics/posthog';
 import { toast } from '@core/component/Toast/Toast';
@@ -26,7 +27,6 @@ import CheckIcon from '@phosphor/check.svg';
 import CopyIcon from '@phosphor/copy.svg';
 import EnvelopeIcon from '@phosphor/envelope.svg';
 import LinkIcon from '@phosphor/link.svg';
-import MagnifyingGlassIcon from '@phosphor/magnifying-glass.svg';
 import PlusIcon from '@phosphor/plus.svg';
 import SpinnerIcon from '@phosphor/spinner.svg';
 import TrashIcon from '@phosphor/trash.svg';
@@ -1522,26 +1522,14 @@ function TeamManagement(props: {
           }
         >
           <Show when={showMemberSearch()}>
-            <label class="flex items-center gap-2 h-9 px-3 rounded-lg border border-edge-muted text-ink-muted focus-within:border-accent focus-within:text-ink">
-              <MagnifyingGlassIcon class="size-4 shrink-0" />
-              <input
-                type="text"
-                value={memberQuery()}
-                onInput={(e) => setMemberQuery(e.currentTarget.value)}
-                placeholder="Filter members"
-                class="flex-1 min-w-0 bg-transparent text-sm text-ink outline-none placeholder:text-ink-placeholder"
-              />
-              <Show when={memberQuery()}>
-                <button
-                  type="button"
-                  class="shrink-0 text-ink-muted hover:text-ink"
-                  aria-label="Clear filter"
-                  onClick={() => setMemberQuery('')}
-                >
-                  <XIcon class="size-4" />
-                </button>
-              </Show>
-            </label>
+            <SearchBar
+              size="sm"
+              label="Filter members"
+              placeholder="Filter members"
+              value={memberQuery()}
+              onValueChange={setMemberQuery}
+              onEscape={() => setMemberQuery('')}
+            />
           </Show>
 
           <Show
