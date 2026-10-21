@@ -1,12 +1,15 @@
 import { fireAndForget } from '@core/util/fireAndForget';
-import { throwOnErr } from '@core/util/result';
+import { thrownResultErrorHasCode, throwOnErr } from '@core/util/result';
 import { queryClient } from '@queries/client';
 import { type MutationCallbacks, withCallbacks } from '@queries/utils';
 import type { CalendarEvent as CalendarEventEntity } from '@service-calendar/generated/schemas/calendarEvent';
+import type { CalendarGuestInputBody } from '@service-calendar/generated/schemas/calendarGuestInputBody';
+import { CalendarMutationErrorCode } from '@service-calendar/generated/schemas/calendarMutationErrorCode';
 import type { CreateCalendarEventRequest } from '@service-calendar/generated/schemas/createCalendarEventRequest';
 import type { UpdateCalendarEventRequest } from '@service-calendar/generated/schemas/updateCalendarEventRequest';
 import {
   type CalendarDeletionScope,
+  type CalendarInviteScope,
   type CalendarRsvpScope,
   type CalendarUpdateScope,
   emailClient,
@@ -18,9 +21,11 @@ import type { EventTime } from '@service-storage/generated/schemas/eventTime';
 import { useMutation } from '@tanstack/solid-query';
 import { answeringGraphqlCalendarHost } from './graphql/flag';
 import {
+  CalendarMutationError,
   committedEvent,
   executeGraphqlCreate,
   executeGraphqlDelete,
+  executeGraphqlInviteGuests,
   executeGraphqlRsvp,
   executeGraphqlUpdate,
 } from './graphql/mutations';
@@ -329,6 +334,119 @@ export function useRsvpCalendarEventMutation(callbacks?: RsvpCallbacks) {
           if (queryClient.isMutating({ mutationKey: RSVP_MUTATION_KEY }) > 1) {
             return;
           }
+          fireAndForget(invalidateCalendarInvitations(), 'calendar-mutations');
+          invalidateCalendarEventPreviews(args.eventId);
+          return invalidateCalendarOccurrences();
+        },
+      },
+      callbacks
+    ),
+  }));
+}
+
+export interface InviteCalendarEventGuestsArgs {
+  eventId: string;
+  /** Calendar whose copy the invitation goes through. Omit for the canonical copy. */
+  calendarId?: string;
+  guests: CalendarGuestInputBody[];
+  /** How much of a recurring series gains the guests; defaults to all of it. */
+  scope?: CalendarInviteScope;
+  /** Original-start key of the occurrence a scoped invitation targets. */
+  recurrenceId?: string;
+  /** Cache key of the occurrence, for the optimistic update. */
+  occurrenceKey?: string;
+}
+
+/** The cached item with invited guests appended as unanswered. */
+function withInvitedGuests(
+  item: CalendarOccurrenceItem,
+  guests: readonly CalendarGuestInputBody[]
+): CalendarOccurrenceItem {
+  const present = new Set(
+    item.event.attendees.map((attendee) => attendee.email.toLowerCase())
+  );
+  const added = guests.filter(
+    (guest) => !present.has(guest.email.toLowerCase())
+  );
+  if (added.length === 0) return item;
+  return {
+    ...item,
+    event: {
+      ...item.event,
+      attendees: [
+        ...item.event.attendees,
+        ...added.map((guest) => ({
+          email: guest.email,
+          responseStatus: 'needs_action' as const,
+          isOrganizer: false,
+          isOptional: guest.optional ?? false,
+          isSelf: false,
+        })),
+      ],
+    },
+  };
+}
+
+/** Whether a write failed because the organizer does not let the viewer invite guests. */
+export function isGuestInviteRefused(error: unknown): boolean {
+  return (
+    thrownResultErrorHasCode(
+      error,
+      CalendarMutationErrorCode.guests_cannot_invite
+    ) ||
+    (error instanceof CalendarMutationError &&
+      error.code === CalendarMutationErrorCode.guests_cannot_invite)
+  );
+}
+
+type InviteCallbacks = MutationCallbacks<
+  CalendarEventEntity | undefined,
+  Error,
+  InviteCalendarEventGuestsArgs,
+  CalendarMutationContext
+>;
+
+/**
+ * Adds guests without replacing the guest list, so a guest the organizer
+ * lets invite can use it. The new guests show at once as unanswered on the
+ * occurrences the scope covers.
+ */
+export function useInviteCalendarEventGuestsMutation(
+  callbacks?: InviteCallbacks
+) {
+  return useMutation(() => ({
+    mutationFn: async (args: InviteCalendarEventGuestsArgs) => {
+      const host = answeringGraphqlCalendarHost();
+      if (host) {
+        return committedEvent(await executeGraphqlInviteGuests(host, args));
+      }
+      return await throwOnErr(() =>
+        emailClient.inviteCalendarEventGuests(args.eventId, {
+          calendarId: args.calendarId,
+          guests: args.guests,
+          scope: args.scope,
+          recurrenceId: args.recurrenceId,
+        })
+      );
+    },
+    ...withCallbacks<
+      CalendarEventEntity | undefined,
+      Error,
+      InviteCalendarEventGuestsArgs,
+      CalendarMutationContext
+    >(
+      {
+        onMutate: (args) =>
+          patchOccurrenceCaches(
+            patchEventItems(args.eventId, (item) =>
+              args.scope === 'this_event' &&
+              item.occurrence.occurrenceKey !== args.occurrenceKey
+                ? item
+                : withInvitedGuests(item, args.guests)
+            )
+          ),
+        onError: (_error, _args, context) => context?.rollback(),
+        onSettled: (_data, _error, args) => {
           fireAndForget(invalidateCalendarInvitations(), 'calendar-mutations');
           invalidateCalendarEventPreviews(args.eventId);
           return invalidateCalendarOccurrences();
