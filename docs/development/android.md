@@ -888,8 +888,9 @@ select headset/Bluetooth routing.
 As on iOS, Back, tapping the scrim, or swiping the handle down shrinks the drawer
 to a thumbnail over Macro (you on the left, the active speaker on the right).
 Tapping it reopens the drawer, dragging snaps it to a corner, and dragging it
-past a side leaves an edge tab that brings it back. On a locked phone the drawer
-goes straight to PiP instead. Leaving Macro continues the call in system PiP:
+past a side tucks it away; once someone else is in the call an edge tab brings
+it back, and **Open call controls** reopens the drawer. On a locked phone the drawer
+goes straight to PiP where the device supports it. Leaving Macro continues the call in system PiP:
 from the thumbnail, Macro's main activity enters PiP (auto-enter on Android 12+,
 which needs `android:supportsPictureInPicture` on `MainActivity`) and hides the
 WebView so it keeps its size; from the drawer, the drawer enters PiP and
@@ -933,6 +934,7 @@ record Android version, APK revision, permissions, route/accessory and results:
 | Audio | Microphone denied/revoked, earpiece/speaker, wired headset, Bluetooth connect/disconnect, cellular-call interruption |
 | Lifecycle | Wi-Fi/cellular transitions, temporary offline/reconnect, navigation, WebView reload, foreground resume, no duplicate participant |
 | Video | Camera denial, front/back switch, remote video, supported PiP, PiP dismissal, background without PiP, end and reopen; granting camera permission for an ended call must not enable video on a replacement call |
+| In-app thumbnail | Drawer to thumbnail and back, drag to each corner, edge tab, leave the app into PiP (Android 12+ and older), expand PiP to the drawer, close PiP, call ending in PiP |
 
 A local build or JVM/shared-state test does not prove this hardware matrix. Play
 installation/distribution regression belongs to release workstream 07.

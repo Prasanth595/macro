@@ -249,7 +249,7 @@ speaker mode (hold it for headset/Bluetooth routing), Mute and Video control cap
 The local primary video tile exposes Switch camera. Swipe the drawer handle down,
 tap outside the drawer, or use Back to shrink it to a thumbnail over Macro, as on
 iOS: tap it to reopen the drawer, drag it to another corner, or drag it past a side
-to leave an edge tab. Leaving the app continues the call in system PiP (you and the
+to tuck it away (an edge tab brings it back once someone else is in the call). Leaving the app continues the call in system PiP (you and the
 active speaker); tapping PiP shows Android's menu with Mute, **Leave** and expand,
 which reopens the drawer. **Open call controls** in the web call controls also
 reopens the drawer. Leaving the channel does not end the call. Incoming calls
