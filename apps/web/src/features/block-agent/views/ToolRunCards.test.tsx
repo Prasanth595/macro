@@ -120,6 +120,25 @@ it('leaves out a view: the session shows it where it ran', async () => {
   ]);
 });
 
+it("shows a code run's cards from the steps of its operations", async () => {
+  const view = render(() => (
+    <ToolRunCards
+      message={reply([
+        [
+          row('code:1'),
+          row('code:2', created('doc-1')),
+          row('codex', created('doc-2')),
+        ],
+      ])}
+      calls={['code']}
+    />
+  ));
+  const cards = await view.findAllByRole('listitem');
+  expect(cards.map((card) => card.textContent)).toEqual([
+    'item:document:doc-1@code:2',
+  ]);
+});
+
 it('shows nothing for a run that produced nothing', async () => {
   const view = render(() => (
     <ToolRunCards message={reply([[row('a'), row('b')]])} calls={['a', 'b']} />

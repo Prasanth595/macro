@@ -361,6 +361,62 @@ it('replaces a live code step with observed SDK operations and preserves uncerta
   );
 });
 
+it("shows a live code write's card under its operation's step", async () => {
+  const executionId = '019a0000-0000-7000-8000-000000000002';
+  const record: ExecutionRecord = {
+    executionId,
+    source: 'export async function main() {}',
+    status: 'running',
+    calls: [],
+    activity: [
+      {
+        id: 1,
+        label: 'Create Markdown',
+        status: 'completed',
+        item: { type: 'document', id: 'doc-9', action: 'created', title: 'Plan' },
+      },
+      { id: 2, label: 'Patch Channel', status: 'running' },
+    ],
+    activityTruncated: false,
+  };
+  code.read.mockResolvedValue(ok(record));
+  const client = new QueryClient();
+  const view = render(() => (
+    <QueryClientProvider client={client}>
+      <Activity
+        agentSessionId="session"
+        turn={2}
+        segment={1}
+        rows={[{ id: 'code-1', label: 'Execute code', status: 'running' }]}
+        sealed={false}
+      />
+    </QueryClientProvider>
+  ));
+  const message = reply([
+    { id: 'code-1', label: 'Execute code', detail: null, status: 'running' },
+  ]);
+  message.parts = [
+    { kind: 'text', text: 'Writing' },
+    {
+      kind: 'tool_use',
+      id: 'code-1',
+      name: { kind: 'mcp', server: 'macro_internal', tool: 'ExecuteCode' },
+      status: 'running',
+      detail: {
+        kind: 'other',
+        acpKind: 'other',
+        input: { execution_id: executionId, source: record.source },
+        result: null,
+        output: null,
+        error: null,
+      },
+    },
+  ];
+  setMessages([message]);
+  const cards = await view.findByRole('complementary', { name: 'Cards' });
+  expect(cards.textContent).toBe('code-1:1:document:doc-9');
+});
+
 it('updates a live row in place as the run paints, rather than redrawing it', () => {
   const view = render(() => (
     <AgentActivity

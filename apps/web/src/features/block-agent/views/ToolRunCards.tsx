@@ -13,9 +13,10 @@ const RunCards = lazy(
  * run is folded: they are what the work was for.
  *
  * The fold words each call as a step and attaches its card once the call
- * has finished, so a card appears as soon as its call does. A composed view
- * and drafts saved for review are not among them here: the session shows
- * each where its call ran.
+ * has finished, so a card appears as soon as its call does. A code run is
+ * one call the fold words as a step per SDK operation (`<call>:<n>`), each
+ * with the card of the item it changed. A composed view and drafts saved for
+ * review are not among them here: the session shows each where its call ran.
  */
 export function ToolRunCards(props: {
   message: FoldedMessage;
@@ -23,12 +24,10 @@ export function ToolRunCards(props: {
   calls: readonly string[];
 }) {
   const cards = createMemo(() => {
-    const steps = new Map(
-      props.message.segments
-        .flatMap((segment) => segment.rows)
-        .map((row) => [row.id, row])
+    const steps = props.message.segments.flatMap((segment) => segment.rows);
+    const rows = props.calls.flatMap((id) =>
+      steps.filter((row) => row.id === id || row.id.startsWith(`${id}:`))
     );
-    const rows = props.calls.flatMap((id) => steps.get(id) ?? []);
     return runCards(rows).filter(
       (card) => card.kind !== 'view' && card.kind !== 'review'
     );

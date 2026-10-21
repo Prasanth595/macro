@@ -328,25 +328,26 @@ describe('Message tool grouping', () => {
     }
   });
 
-  it('shows what a code run changed as cards alone, never as tool calls', () => {
-    const presented = (id: string) =>
-      tool(id, {
-        name: { kind: 'mcp', server: 'macro_internal', tool: 'PresentItem' },
-        detail: {
-          kind: 'other',
-          acpKind: 'other',
-          output: null,
-          input: { itemType: 'document', itemId: 'd', action: 'created' },
-          result: null,
-          error: null,
-        },
-      });
+  it('shows what a code run changed under the run, outside any group', () => {
     const view = render(() => (
       <Message
         message={message([
           tool('a'),
-          presented('item_e_1'),
-          presented('item_e_2'),
+          tool('code', {
+            name: {
+              kind: 'mcp',
+              server: 'macro_internal',
+              tool: 'ExecuteCode',
+            },
+            detail: {
+              kind: 'other',
+              acpKind: 'other',
+              output: null,
+              input: { execution_id: 'e', source: '' },
+              result: null,
+              error: null,
+            },
+          }),
           text('Done.'),
         ])}
         inFlight={false}
@@ -354,10 +355,7 @@ describe('Message tool grouping', () => {
     ));
     expect(
       view.getAllByTestId('run-cards').map((el) => el.textContent)
-    ).toEqual(['a', 'item_e_1,item_e_2']);
-    expect(view.getAllByTestId('group').map((el) => el.dataset.count)).toEqual([
-      '1',
-    ]);
+    ).toEqual(['a', 'code']);
   });
 
   it('shows the receipt of a user tool or a reviewed draft under it, outside any run', () => {

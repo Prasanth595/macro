@@ -34,7 +34,7 @@ import { isControlMessage } from '../state/control-message';
 import { isNotificationMessage } from '../state/notification-message';
 import { agentContextText, promptOrigin } from '../state/prompt-origin';
 import { thoughtIsStreaming } from '../state/thought-streaming';
-import { segmentParts } from '../state/tool-groups';
+import { isCodeExecution, segmentParts } from '../state/tool-groups';
 import {
   ActionLine,
   FailureNoticeCard,
@@ -124,8 +124,13 @@ function AgentMessagePart(props: {
               }}
             />
             {/* A user tool stands outside the runs, so its receipt - the
-                email it sent, the event it made - sits under it. */}
-            <Show when={part().detail.kind === 'user_tool'}>
+                email it sent, the event it made - sits under it. So do
+                the items a code run's writes changed. */}
+            <Show
+              when={
+                part().detail.kind === 'user_tool' || isCodeExecution(part())
+              }
+            >
               <ToolRunCards message={props.message} calls={[part().id]} />
             </Show>
           </>
@@ -376,7 +381,8 @@ export function Message(props: {
               and a group keeps its open state while it fills. */}
           <Index each={segmentParts(props.message.parts)}>
             {(segment) => (
-              <Switch
+              <Show
+                when={segment().kind === 'tools'}
                 fallback={
                   <Show when={props.message.parts[segment().start]}>
                     {(part) => (
@@ -390,26 +396,13 @@ export function Message(props: {
                   </Show>
                 }
               >
-                <Match when={segment().kind === 'tools'}>
-                  <ToolGroupPart
-                    message={props.message}
-                    start={segment().start}
-                    end={segment().end}
-                    inFlight={inFlight()}
-                  />
-                </Match>
-                {/* What a code run changed: its cards, under the run. */}
-                <Match when={segment().kind === 'cards'}>
-                  <ToolRunCards
-                    message={props.message}
-                    calls={props.message.parts
-                      .slice(segment().start, segment().end)
-                      .flatMap((part) =>
-                        part.kind === 'tool_use' ? [part.id] : []
-                      )}
-                  />
-                </Match>
-              </Switch>
+                <ToolGroupPart
+                  message={props.message}
+                  start={segment().start}
+                  end={segment().end}
+                  inFlight={inFlight()}
+                />
+              </Show>
             )}
           </Index>
           {/* The turn is open with nothing to read yet — a ripple and a label
