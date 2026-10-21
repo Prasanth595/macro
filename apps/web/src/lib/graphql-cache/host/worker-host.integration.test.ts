@@ -524,6 +524,45 @@ describe('worker CacheHost coordinator integration', () => {
     host.dispose();
   });
 
+  it('bounds coordinator restarts that prevent initialization without quarantining storage', async () => {
+    const gate = deferred();
+    hostInitGates.set(1, gate.promise);
+    requestObservers.add((entry) => {
+      if (entry.kind !== 'init' || entry.id === 0) return;
+      queueMicrotask(() => {
+        router = new CoordinatorRouter({
+          verifyTabLockHeld: async () => true,
+          watchTabLock: () => () => undefined,
+        });
+        sharedWorkers.at(-1)?.restart(router);
+      });
+    });
+    localStorage.setItem('graphql-cache:scope', 'integration-scope');
+    const fallback = Promise.withResolvers<Error>();
+    const host = createWorkerCacheHost({
+      scope: 'integration-scope',
+      onInitializationError: fallback.resolve,
+    });
+    await expect(
+      host.readQuery({ query: 'query First { first }' })
+    ).rejects.toMatchObject({
+      errorCode: 'owner-epoch-lost',
+    });
+    expect(await fallback.promise).toMatchObject({
+      errorCode: 'owner-epoch-lost',
+    });
+    expect(sharedWorkers).toHaveLength(3);
+    expect(dedicatedWorkers.every((worker) => worker.terminated)).toBe(true);
+    expect(localStorage.getItem('graphql-cache:scope')).toBe(
+      'integration-scope'
+    );
+    gate.resolve();
+    await expect(host.currentRevision()).rejects.toMatchObject({
+      errorCode: 'owner-epoch-lost',
+    });
+    host.dispose();
+  });
+
   it.each([false, true])(
     'never forwards or replays an admitted enqueue across coordinator restart (disposing: %s)',
     async (disposing) => {
