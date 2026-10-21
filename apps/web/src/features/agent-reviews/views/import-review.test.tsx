@@ -16,6 +16,10 @@ const imports = vi.hoisted(() => ({
   entities: [] as ImportEntity[],
   report: undefined as NotionImportReport | undefined,
   cancel: vi.fn(),
+  open: vi.fn(),
+}));
+vi.mock('@components/app/split-layout/layout', () => ({
+  useSplitLayout: () => ({ openWithSplit: imports.open }),
 }));
 vi.mock('@core/mobile/isMobile', () => ({ isMobile: () => false }));
 // The real icon table loads every block, which opens app connections.
@@ -45,7 +49,15 @@ function entity(
   id: string,
   parentId: string | null,
   title: string,
-  plan: { decision: string; reason?: string; rows?: number },
+  plan: {
+    decision: string;
+    reason?: string;
+    rows?: number;
+    shared?: boolean;
+    sharedReason?: string;
+    shareable?: boolean;
+    alreadyImported?: { by: string; entityId: string; entityType: string };
+  },
   overrides: Partial<ImportEntity> = {}
 ): ImportEntity {
   return {
@@ -97,6 +109,7 @@ beforeEach(() => {
   ];
   imports.report = undefined;
   imports.cancel.mockReset();
+  imports.open.mockReset();
   vi.stubGlobal('scrollTo', vi.fn());
   vi.stubGlobal(
     'ResizeObserver',
@@ -178,7 +191,12 @@ describe('import review', () => {
         action: 'edit',
         revision: 0,
         item: 'plan',
-        draft: { source: 'notion', excluded: ['roadmap'] },
+        draft: {
+          source: 'notion',
+          excluded: ['roadmap'],
+          shared: [],
+          personal: [],
+        },
       })
     );
 
@@ -226,6 +244,10 @@ describe('import review', () => {
       tasks: 1,
       skip: 1,
       hand: 1,
+      documents: 1,
+      databases: 1,
+      databaseRows: 0,
+      taskRows: 0,
       imported: 1,
       waiting: 2,
       writing: 1,
@@ -268,6 +290,10 @@ describe('import review', () => {
       tasks: 1,
       skip: 1,
       hand: 1,
+      documents: 1,
+      databases: 1,
+      databaseRows: 0,
+      taskRows: 0,
       imported: 2,
       waiting: 1,
       writing: 0,
@@ -280,5 +306,164 @@ describe('import review', () => {
       screen.getByText('Import stopped — 2 imported objects stay')
     ).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull();
+  });
+
+  it('saves who each object is shared with, down the tree', async () => {
+    imports.entities = [
+      entity('wiki', null, 'Wiki', {
+        decision: 'copy',
+        shared: true,
+        shareable: true,
+        sharedReason: 'Team handbook',
+      }),
+      entity('guide', 'wiki', 'Guide', {
+        decision: 'copy',
+        shared: true,
+        shareable: true,
+      }),
+      entity('roadmap', 'wiki', 'Roadmap', {
+        decision: 'tasks',
+        rows: 40,
+        shared: false,
+        shareable: false,
+        sharedReason: "Databases can't be shared with a team yet",
+      }),
+      entity('billing', null, 'Billing', {
+        decision: 'hand',
+        reason: 'Holds credentials',
+      }),
+    ];
+    const decide = setup();
+    expect(
+      screen.getByText('2 shared with your team · 1 only you')
+    ).toBeTruthy();
+    const plan = screen.getByRole('list', { name: 'Import plan' });
+    expect(within(plan).getByText('Only you')).toBeTruthy();
+    expect(
+      screen.queryByRole('button', { name: /Roadmap with your team/ })
+    ).toBeNull();
+
+    const wiki = screen.getByRole('button', {
+      name: 'Make Wiki only visible to you',
+    });
+    expect(wiki.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(wiki);
+    await waitFor(() =>
+      expect(decide).toHaveBeenLastCalledWith({
+        action: 'edit',
+        revision: 0,
+        item: 'plan',
+        draft: {
+          source: 'notion',
+          excluded: [],
+          shared: [],
+          personal: ['wiki', 'guide'],
+        },
+      })
+    );
+    expect(screen.getByText('3 only you')).toBeTruthy();
+    expect(
+      screen
+        .getByRole('button', { name: 'Share Guide with your team' })
+        .getAttribute('aria-pressed')
+    ).toBe('false');
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Share Guide with your team' })
+    );
+    await waitFor(() =>
+      expect(decide).toHaveBeenLastCalledWith({
+        action: 'edit',
+        revision: 1,
+        item: 'plan',
+        draft: {
+          source: 'notion',
+          excluded: [],
+          shared: [],
+          personal: ['wiki'],
+        },
+      })
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Share Wiki with your team' })
+    );
+    await waitFor(() =>
+      expect(decide).toHaveBeenLastCalledWith({
+        action: 'edit',
+        revision: 2,
+        item: 'plan',
+        draft: { source: 'notion', excluded: [], shared: [], personal: [] },
+      })
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Import 2 pages, 40 tasks' })
+    );
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      within(dialog).getByText(/2 shared with your team, 1 only you\./)
+    ).toBeTruthy();
+  });
+
+  it('lists what teammates already imported instead of importing it again', async () => {
+    imports.entities = [
+      entity('wiki', null, 'Wiki', {
+        decision: 'copy',
+        shared: true,
+        shareable: true,
+        alreadyImported: {
+          by: 'ana@acme.com',
+          entityId: 'doc-wiki',
+          entityType: 'md',
+        },
+      }),
+      entity('notes', 'wiki', 'Notes', { decision: 'copy' }),
+      entity('crm', null, 'CRM', {
+        decision: 'copy',
+        rows: 12,
+        alreadyImported: {
+          by: 'bo@acme.com',
+          entityId: 'db-crm',
+          entityType: 'database',
+        },
+      }),
+      entity('old', null, 'Old', {
+        decision: 'copy',
+        alreadyImported: {
+          by: 'ana@acme.com',
+          entityId: 'legacy',
+          entityType: 'no-such-type',
+        },
+      }),
+    ];
+    setup();
+    const plan = screen.getByRole('list', { name: 'Import plan' });
+    expect(within(plan).getByText('Notes')).toBeTruthy();
+    expect(within(plan).queryByText('Wiki')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Import 1 page' })).toBeTruthy();
+
+    const disclosure = screen.getByRole('button', {
+      name: '3 already in Macro (imported by ana@acme.com, bo@acme.com)',
+    });
+    expect(disclosure.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('link', { name: 'Wiki' })).toBeNull();
+
+    fireEvent.click(disclosure);
+    expect(disclosure.getAttribute('aria-expanded')).toBe('true');
+    const section = screen.getByRole('region', { name: 'Already in Macro' });
+    expect(within(section).getAllByText('by ana@acme.com')).toHaveLength(2);
+    expect(within(section).getByText('Old')).toBeTruthy();
+    expect(within(section).queryByRole('link', { name: 'Old' })).toBeNull();
+    expect(
+      within(section).getByRole('link', { name: 'CRM' }).getAttribute('href')
+    ).toMatch(/\/app\/database\/db-crm$/);
+    const link = within(section).getByRole('link', { name: 'Wiki' });
+    expect(link.getAttribute('href')).toMatch(/\/app\/md\/doc-wiki$/);
+    fireEvent.click(link);
+    expect(imports.open).toHaveBeenCalledWith(
+      { type: 'md', id: 'doc-wiki' },
+      expect.anything()
+    );
   });
 });

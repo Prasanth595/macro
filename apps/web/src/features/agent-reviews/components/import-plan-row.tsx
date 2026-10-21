@@ -1,6 +1,6 @@
 import { EntityIcon } from '@core/component/EntityIcon';
 import CaretDown from '@phosphor/caret-down.svg';
-import { Badge } from '@ui/components/Badge';
+import { Badge, badgeTriggerClasses } from '@ui/components/Badge';
 import { Checkbox } from '@ui/components/Checkbox';
 import { Tooltip } from '@ui/components/Tooltip';
 import { cn } from '@ui/utils/classname';
@@ -52,6 +52,64 @@ function DecisionBadge(props: {
   );
 }
 
+function SharingBadge(props: {
+  title: string;
+  shared: boolean;
+  reason: string | null;
+  /** The owner can flip it here. */
+  toggleable: boolean;
+  muted: boolean;
+  onSharedChange: (shared: boolean) => void;
+}) {
+  const label = () => (props.shared ? 'Team' : 'Only you');
+  const tone = () =>
+    cn(
+      props.shared && !props.muted ? 'text-accent' : 'text-ink-muted',
+      props.muted && 'opacity-60'
+    );
+  const badge = () => (
+    <Show
+      when={props.toggleable}
+      fallback={
+        <Badge size="xs" variant="outline" class={tone()}>
+          {label()}
+        </Badge>
+      }
+    >
+      <button
+        type="button"
+        aria-pressed={props.shared}
+        aria-label={
+          props.shared
+            ? `Make ${props.title} only visible to you`
+            : `Share ${props.title} with your team`
+        }
+        class={badgeTriggerClasses({
+          variant: 'outline',
+          size: 'xs',
+          class: cn('touch:h-8 touch:px-3', tone()),
+        })}
+        onClick={() => props.onSharedChange(!props.shared)}
+      >
+        {label()}
+      </button>
+    </Show>
+  );
+  return (
+    <Show when={props.reason} fallback={badge()}>
+      {(reason) => (
+        <Tooltip
+          label={reason()}
+          as="span"
+          tabIndex={props.toggleable ? undefined : 0}
+        >
+          {badge()}
+        </Tooltip>
+      )}
+    </Show>
+  );
+}
+
 function RowStatus(props: { node: ImportPlanNode; excluded: boolean }) {
   return (
     <Show
@@ -83,13 +141,16 @@ export function ImportPlanRow(props: {
   node: ImportPlanNode;
   collapsed: boolean;
   excluded: boolean;
-  /** Show the checkbox that leaves the object out. */
+  /** Shared with the owner's team when written. */
+  shared: boolean;
+  /** Show the checkbox that leaves the object out, and the sharing toggle. */
   choosing: boolean;
   disabled: boolean;
   /** Show how the write went instead of the plan. */
   showStatus: boolean;
   onToggleExpanded: () => void;
   onIncludedChange: (included: boolean) => void;
+  onSharedChange: (shared: boolean) => void;
 }) {
   const written = () => isWritten(props.node.decision);
   const included = () => written() && !props.excluded;
@@ -156,6 +217,16 @@ export function ImportPlanRow(props: {
         <span class="shrink-0 text-xs text-ink-muted">
           {props.node.rows} rows
         </span>
+      </Show>
+      <Show when={written()}>
+        <SharingBadge
+          title={props.node.title || 'Untitled'}
+          shared={props.shared}
+          reason={props.node.sharedReason}
+          toggleable={props.node.shareable && props.choosing && !props.disabled}
+          muted={props.excluded}
+          onSharedChange={(shared) => props.onSharedChange(shared)}
+        />
       </Show>
       <Show
         when={props.showStatus}

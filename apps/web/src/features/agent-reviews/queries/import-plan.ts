@@ -9,13 +9,20 @@ import type {
 const importDraftSchema = z.object({
   source: z.literal('notion'),
   excluded: z.array(z.string()).optional(),
+  shared: z.array(z.string()).optional(),
+  personal: z.array(z.string()).optional(),
 });
 
 /** The saved draft of an import review; `undefined` when it is not one. */
 export function decodeImportDraft(draft: unknown): ImportDraft | undefined {
   const parsed = importDraftSchema.safeParse(draft);
   if (!parsed.success) return undefined;
-  return { source: 'notion', excluded: parsed.data.excluded ?? [] };
+  return {
+    source: 'notion',
+    excluded: parsed.data.excluded ?? [],
+    shared: parsed.data.shared ?? [],
+    personal: parsed.data.personal ?? [],
+  };
 }
 
 const planMetadataSchema = z.object({
@@ -24,6 +31,16 @@ const planMetadataSchema = z.object({
     decision: z.enum(['copy', 'tasks', 'skip', 'hand']),
     reason: z.string().nullish(),
     rows: z.number().nullish(),
+    shared: z.boolean().nullish(),
+    sharedReason: z.string().nullish(),
+    shareable: z.boolean().nullish(),
+    alreadyImported: z
+      .object({
+        by: z.string(),
+        entityId: z.string(),
+        entityType: z.string(),
+      })
+      .nullish(),
   }),
 });
 
@@ -48,6 +65,10 @@ export function decodePlanEntries(
         rows: plan.rows ?? null,
         status: entity.status,
         error: entity.last_error ?? null,
+        shared: plan.shared ?? false,
+        sharedReason: plan.sharedReason ?? null,
+        shareable: plan.shareable ?? false,
+        alreadyImported: plan.alreadyImported ?? null,
       },
     ];
   });

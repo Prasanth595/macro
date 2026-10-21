@@ -51,20 +51,77 @@ describe('decodePlanEntries', () => {
         rows: 40,
         status: 'staged',
         error: 'Rate limited',
+        shared: false,
+        sharedReason: null,
+        shareable: false,
+        alreadyImported: null,
+      },
+    ]);
+  });
+
+  it('reads sharing and a teammate copy', () => {
+    expect(
+      decodePlanEntries(
+        [
+          {
+            ...row,
+            kind: 'page',
+            metadata: {
+              title: 'Wiki',
+              plan: {
+                decision: 'copy',
+                path: [],
+                shared: true,
+                sharedReason: 'Team handbook',
+                shareable: true,
+                alreadyImported: {
+                  by: 'ana@acme.com',
+                  entityId: 'doc-1',
+                  entityType: 'md',
+                },
+              },
+            },
+          },
+        ],
+        'review'
+      )
+    ).toMatchObject([
+      {
+        id: 'roadmap',
+        shared: true,
+        sharedReason: 'Team handbook',
+        shareable: true,
+        alreadyImported: {
+          by: 'ana@acme.com',
+          entityId: 'doc-1',
+          entityType: 'md',
+        },
       },
     ]);
   });
 });
 
 describe('decodeImportDraft', () => {
-  it('reads the excluded rows and rejects other drafts', () => {
+  it('reads the excluded and re-shared rows and rejects other drafts', () => {
     expect(decodeImportDraft({ source: 'notion' })).toEqual({
       source: 'notion',
       excluded: [],
+      shared: [],
+      personal: [],
     });
     expect(
-      decodeImportDraft({ source: 'notion', excluded: ['roadmap'] })
-    ).toEqual({ source: 'notion', excluded: ['roadmap'] });
+      decodeImportDraft({
+        source: 'notion',
+        excluded: ['roadmap'],
+        shared: ['wiki'],
+        personal: ['q3'],
+      })
+    ).toEqual({
+      source: 'notion',
+      excluded: ['roadmap'],
+      shared: ['wiki'],
+      personal: ['q3'],
+    });
     expect(decodeImportDraft({ subject: 'Hi' })).toBeUndefined();
   });
 });

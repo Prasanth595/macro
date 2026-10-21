@@ -1,5 +1,6 @@
 import TrayArrowDown from '@phosphor-icons/core/regular/tray-arrow-down.svg';
-import { createSignal } from 'solid-js';
+import { useNotionImportReportQuery } from '@queries/import';
+import { createSignal, Show } from 'solid-js';
 import { match } from 'ts-pattern';
 import { BaseTool } from './BaseTool';
 import { Tool } from './Tool';
@@ -85,6 +86,20 @@ export const importNotionPageHandler = createToolRenderer({
   },
 });
 
+/** What planning has found in Notion so far, while a plan call waits. */
+function NotionScanProgress() {
+  const report = useNotionImportReportQuery();
+  return (
+    <Show when={report.data?.scanned}>
+      {(scanned) => (
+        <span class="shrink-0 text-ink-muted">
+          {scanned().pages} pages, {scanned().dataSources} databases found
+        </span>
+      )}
+    </Show>
+  );
+}
+
 export const importFromNotionHandler = createToolRenderer({
   name: 'ImportFromNotion',
   render: (ctx) => {
@@ -111,6 +126,9 @@ export const importFromNotionHandler = createToolRenderer({
       >
         <div class="flex min-w-0 flex-1 items-center justify-between gap-3 overflow-hidden">
           <div class="min-w-0 flex-1 truncate">{label()}</div>
+          <Show when={ctx.tool.data.action === 'plan' && !hasResponse()}>
+            <NotionScanProgress />
+          </Show>
           <Tool.ResultToggle
             expanded={isExpanded()}
             onToggle={() => setIsExpanded((expanded) => !expanded)}

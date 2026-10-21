@@ -15,6 +15,23 @@ export type ImportPlanEntry = {
   rows: number | null;
   status: 'staged' | 'importing' | 'imported' | 'discarded';
   error: string | null;
+  /** The plan shares the written object with the owner's team. */
+  shared: boolean;
+  /** Why it is shared or kept private. */
+  sharedReason: string | null;
+  /** The owner may change `shared`. */
+  shareable: boolean;
+  /** A teammate's copy, already shared with the team, that this row links to. */
+  alreadyImported: ImportedCopy | null;
+};
+
+/** A teammate's import of the same Notion object. */
+export type ImportedCopy = {
+  /** The teammate's email. */
+  by: string;
+  entityId: string;
+  /** A Macro entity type, e.g. `md`, `project`, or `database`. */
+  entityType: string;
 };
 
 /** A plan entry placed in its tree, in depth-first order. */
@@ -64,8 +81,23 @@ export type ImportReviewPhase =
   | { kind: 'dismissed' }
   | { kind: 'unknown'; error: string | null };
 
-/** The saved draft of an import review. */
-export type ImportDraft = { source: 'notion'; excluded: string[] };
+/**
+ * The saved draft of an import review. `shared` and `personal` hold the rows
+ * the owner switched to or from team sharing, against the plan's choice.
+ */
+export type ImportDraft = {
+  source: 'notion';
+  excluded: string[];
+  shared: string[];
+  personal: string[];
+};
+
+export const EMPTY_IMPORT_DRAFT: ImportDraft = {
+  source: 'notion',
+  excluded: [],
+  shared: [],
+  personal: [],
+};
 
 /** Whether a decision writes anything, and so can be left out. */
 export function isWritten(decision: ImportPlanDecision): boolean {
@@ -73,6 +105,44 @@ export function isWritten(decision: ImportPlanDecision): boolean {
     .with('copy', 'tasks', () => true)
     .with('skip', 'hand', () => false)
     .exhaustive();
+}
+
+/** Whether an entry becomes a new Macro object when the plan is approved. */
+function isNew(entry: ImportPlanEntry): boolean {
+  return isWritten(entry.decision) && entry.alreadyImported === null;
+}
+
+/**
+ * The entries the plan tree shows: everything not already in Macro. A child
+ * of an already-imported entry moves up to its nearest ancestor still shown.
+ */
+export function planTreeEntries(entries: ImportPlanEntry[]): ImportPlanEntry[] {
+  const byId = new Map(entries.map((entry) => [entry.id, entry]));
+  const shownParent = (parentId: string | null): string | null => {
+    const seen = new Set<string>();
+    let current = parentId;
+    while (current !== null && !seen.has(current)) {
+      seen.add(current);
+      const parent = byId.get(current);
+      if (!parent || parent.alreadyImported === null) return current;
+      current = parent.parentId;
+    }
+    return null;
+  };
+  return entries
+    .filter((entry) => entry.alreadyImported === null)
+    .map((entry) => ({ ...entry, parentId: shownParent(entry.parentId) }));
+}
+
+/** Entries a teammate already imported and shared with the team. */
+export function alreadyInMacro(
+  entries: ImportPlanEntry[]
+): (ImportPlanEntry & { alreadyImported: ImportedCopy })[] {
+  return entries.flatMap((entry) =>
+    entry.alreadyImported
+      ? [{ ...entry, alreadyImported: entry.alreadyImported }]
+      : []
+  );
 }
 
 /**
@@ -169,9 +239,80 @@ export function setExcluded(
   const affected = subtree(nodes, id).filter((entry) => written.has(entry));
   const next = draft.excluded.filter((entry) => !affected.includes(entry));
   return {
-    source: 'notion',
+    ...draft,
     excluded: excluded ? [...next, ...affected] : next,
   };
+}
+
+/** Whether the object is shared with the team when it is written. */
+export function isShared(entry: ImportPlanEntry, draft: ImportDraft): boolean {
+  if (!entry.shareable) return entry.shared;
+  if (draft.shared.includes(entry.id)) return true;
+  if (draft.personal.includes(entry.id)) return false;
+  return entry.shared;
+}
+
+/**
+ * Shares an object (and the shareable written objects below it) with the
+ * team, or keeps them to the owner. Only choices that differ from the plan
+ * are recorded.
+ */
+export function setShared(
+  draft: ImportDraft,
+  nodes: ImportPlanNode[],
+  id: string,
+  shared: boolean
+): ImportDraft {
+  const changeable = new Map(
+    nodes
+      .filter((node) => node.shareable && isNew(node))
+      .map((node) => [node.id, node])
+  );
+  const affected = subtree(nodes, id).flatMap((entry) => {
+    const node = changeable.get(entry);
+    return node ? [node] : [];
+  });
+  const ids = new Set(affected.map((node) => node.id));
+  const overrides = affected.filter((node) => node.shared !== shared);
+  const added = overrides.map((node) => node.id);
+  const sharedIds = draft.shared.filter((entry) => !ids.has(entry));
+  const personalIds = draft.personal.filter((entry) => !ids.has(entry));
+  return {
+    ...draft,
+    shared: shared ? [...sharedIds, ...added] : sharedIds,
+    personal: shared ? personalIds : [...personalIds, ...added],
+  };
+}
+
+/**
+ * e.g. "12 shared with your team · 3 only you", over the objects approving
+ * the plan writes; empty when it writes nothing.
+ */
+export function sharingSummary(
+  entries: ImportPlanEntry[],
+  draft: ImportDraft
+): string {
+  let team = 0;
+  let personal = 0;
+  for (const entry of entries) {
+    if (!isNew(entry) || draft.excluded.includes(entry.id)) continue;
+    if (isShared(entry, draft)) team += 1;
+    else personal += 1;
+  }
+  return [
+    team > 0 ? `${team} shared with your team` : '',
+    personal > 0 ? `${personal} only you` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+/** e.g. "4 already in Macro (imported by ana@acme.com, bo@acme.com)". */
+export function alreadyInMacroSummary(entries: ImportPlanEntry[]): string {
+  const copies = alreadyInMacro(entries);
+  if (copies.length === 0) return '';
+  const by = [...new Set(copies.map((entry) => entry.alreadyImported.by))];
+  return `${copies.length} already in Macro (imported by ${by.join(', ')})`;
 }
 
 /** Objects the import will write once approved. */
@@ -179,9 +320,8 @@ export function importCount(
   entries: ImportPlanEntry[],
   excluded: readonly string[]
 ): number {
-  return entries.filter(
-    (entry) => isWritten(entry.decision) && !excluded.includes(entry.id)
-  ).length;
+  return entries.filter((entry) => isNew(entry) && !excluded.includes(entry.id))
+    .length;
 }
 
 /** What approving the plan writes, in real numbers: every row is counted. */
@@ -206,7 +346,7 @@ export function importVolume(
     tasks: 0,
   };
   for (const entry of entries) {
-    if (excluded.includes(entry.id)) continue;
+    if (excluded.includes(entry.id) || entry.alreadyImported) continue;
     match(entry.decision)
       .with('copy', () => {
         if (entry.kind === 'database') {

@@ -56,7 +56,20 @@ touch uses the global search overlay and creation uses the dock's New button.
 The **Folders** pill opens the folder overview and stays highlighted inside
 any folder; tapping it from inside a folder returns to the overview, and
 selecting another pill leaves the folder tree. The sidebar contains `New file or folder`, `My Files`, `Recent`,
-`Shared with me`, collapsible Favorites, and a searchable folder hierarchy. Filter
+`Shared with me`, collapsible Favorites, and a searchable folder hierarchy.
+Below `New file or folder`, a **Bring Notion to Macro** card shows on the desktop
+sidebar until the user has any Notion import run (in any status). **Import from
+Notion** opens a new agent chat beside Drive that sends "Import my Notion
+workspace into Macro." (the agent first asks whether to share the import with
+the team, keep it personal, or let AI decide per page, then plans with
+ImportFromNotion, or shows the Notion connect chip first; while the plan call
+runs, its chat row shows the pages and databases found so far, e.g. `40 pages,
+12 databases found`). The plan's review card shows a **Team** / **Only you**
+badge on every written row (the owner clicks it to flip it, and a folder flips
+what is below it; databases always stay **Only you**), a sharing summary
+line, and a collapsed **Already in Macro** section linking to copies teammates
+already imported and shared, which are not imported again. **Dismiss Notion import** hides the card for that
+user in this browser. Filter
 by tag from the **Filter** menu's Tags submenu; navigating to another tab or folder
 clears tag filters. A folder with no files matching the active tag
 shows the list's no-match state rather than `This folder is empty`.

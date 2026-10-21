@@ -1,6 +1,9 @@
 import { type Accessor, createMemo, createSignal } from 'solid-js';
 import {
+  alreadyInMacro,
+  alreadyInMacroSummary,
   buildPlanTree,
+  EMPTY_IMPORT_DRAFT,
   type ImportDraft,
   type ImportPlanEntry,
   type ImportProgress,
@@ -8,10 +11,14 @@ import {
   importReviewPhase,
   importVolume,
   initiallyCollapsed,
+  isShared,
   planCounts,
   planSummary,
+  planTreeEntries,
   progressFromEntries,
   setExcluded,
+  setShared,
+  sharingSummary,
   visiblePlanNodes,
 } from '../core/import-plan';
 import type { Review, ReviewActions } from '../core/review';
@@ -46,9 +53,13 @@ export function createImportReview(sources: ImportReviewSources) {
   // Shown until the review is reloaded; the controller saves it in order.
   const [editedDraft, setEditedDraft] = createSignal<ImportDraft>();
   const draft = (): ImportDraft =>
-    editedDraft() ??
-    decodeImportDraft(item()?.draft) ?? { source: 'notion', excluded: [] };
-  const nodes = createMemo(() => buildPlanTree(sources.entries()));
+    editedDraft() ?? decodeImportDraft(item()?.draft) ?? EMPTY_IMPORT_DRAFT;
+  const nodes = createMemo(() =>
+    buildPlanTree(planTreeEntries(sources.entries()))
+  );
+  const entriesById = createMemo(
+    () => new Map(sources.entries().map((entry) => [entry.id, entry]))
+  );
   const [collapsed, setCollapsed] = createSignal<ReadonlySet<string>>();
   const collapsedIds = () => collapsed() ?? initiallyCollapsed(nodes());
   const [stopping, setStopping] = createSignal(false);
@@ -79,6 +90,13 @@ export function createImportReview(sources: ImportReviewSources) {
     const current = item();
     if (!current || !editable()) return;
     const next = setExcluded(draft(), nodes(), id, !included);
+    setEditedDraft(next);
+    controller.edit(current.id, next);
+  }
+  function setSharedWithTeam(id: string, shared: boolean) {
+    const current = item();
+    if (!current || !editable()) return;
+    const next = setShared(draft(), nodes(), id, shared);
     setEditedDraft(next);
     controller.edit(current.id, next);
   }
@@ -123,10 +141,17 @@ export function createImportReview(sources: ImportReviewSources) {
         progress()?.counts ?? planCounts(sources.entries()),
         volume()
       ),
+    sharingSummary: () => sharingSummary(sources.entries(), draft()),
+    alreadyInMacroSummary: () => alreadyInMacroSummary(sources.entries()),
+    alreadyInMacro: () => alreadyInMacro(sources.entries()),
     nodes: () => visiblePlanNodes(nodes(), collapsedIds()),
-    hasPlan: () => sources.entries().length > 0,
+    hasPlan: () => nodes().length > 0,
     isCollapsed: (id: string) => collapsedIds().has(id),
     isExcluded: (id: string) => draft().excluded.includes(id),
+    isShared: (id: string) => {
+      const entry = entriesById().get(id);
+      return entry ? isShared(entry, draft()) : false;
+    },
     count,
     volume,
     editable,
@@ -137,6 +162,7 @@ export function createImportReview(sources: ImportReviewSources) {
     validation: () => controller.validation()?.message,
     stale: controller.stale,
     setIncluded,
+    setShared: setSharedWithTeam,
     toggleExpanded,
     approve,
     dismiss,

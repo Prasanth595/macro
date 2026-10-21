@@ -1,18 +1,31 @@
 import { describe, expect, it } from 'vitest';
 import {
+  alreadyInMacroSummary,
   buildPlanTree,
+  EMPTY_IMPORT_DRAFT,
   type ImportPlanEntry,
   type ImportProgress,
   importCount,
   importReviewPhase,
   importVolume,
   initiallyCollapsed,
+  isShared,
   planCounts,
   planSummary,
+  planTreeEntries,
   setExcluded,
+  setShared,
+  sharingSummary,
   visiblePlanNodes,
   volumeLabel,
 } from './import-plan';
+
+const unshared = {
+  shared: false,
+  sharedReason: null,
+  shareable: false,
+  alreadyImported: null,
+};
 
 const entries: ImportPlanEntry[] = [
   {
@@ -25,6 +38,7 @@ const entries: ImportPlanEntry[] = [
     rows: null,
     status: 'staged',
     error: null,
+    ...unshared,
   },
   {
     id: 'roadmap',
@@ -36,6 +50,7 @@ const entries: ImportPlanEntry[] = [
     rows: 40,
     status: 'staged',
     error: null,
+    ...unshared,
   },
   {
     id: 'q3',
@@ -47,6 +62,7 @@ const entries: ImportPlanEntry[] = [
     rows: null,
     status: 'staged',
     error: null,
+    ...unshared,
   },
   {
     id: 'scratch',
@@ -58,6 +74,7 @@ const entries: ImportPlanEntry[] = [
     rows: null,
     status: 'staged',
     error: null,
+    ...unshared,
   },
   {
     id: 'billing',
@@ -69,6 +86,7 @@ const entries: ImportPlanEntry[] = [
     rows: null,
     status: 'staged',
     error: null,
+    ...unshared,
   },
 ];
 
@@ -111,20 +129,120 @@ describe('visiblePlanNodes', () => {
 describe('setExcluded', () => {
   it('leaves out the written objects below a node and brings them back', () => {
     const nodes = buildPlanTree(entries);
-    const out = setExcluded(
-      { source: 'notion', excluded: [] },
-      nodes,
-      'wiki',
-      true
-    );
+    const out = setExcluded(EMPTY_IMPORT_DRAFT, nodes, 'wiki', true);
     expect(out).toEqual({
-      source: 'notion',
+      ...EMPTY_IMPORT_DRAFT,
       excluded: ['wiki', 'roadmap', 'q3'],
     });
     expect(importCount(entries, out.excluded)).toBe(0);
     const back = setExcluded(out, nodes, 'roadmap', false);
-    expect(back).toEqual({ source: 'notion', excluded: ['wiki'] });
+    expect(back).toEqual({ ...EMPTY_IMPORT_DRAFT, excluded: ['wiki'] });
     expect(importCount(entries, back.excluded)).toBe(2);
+  });
+});
+
+describe('setShared', () => {
+  const sharing = entries.map(
+    (entry): ImportPlanEntry =>
+      entry.kind === 'page'
+        ? { ...entry, shared: true, shareable: true }
+        : {
+            ...entry,
+            sharedReason: "Databases can't be shared with a team yet",
+          }
+  );
+
+  it('records only the choices that differ from the plan', () => {
+    const nodes = buildPlanTree(sharing);
+    const personal = setShared(EMPTY_IMPORT_DRAFT, nodes, 'wiki', false);
+    // Roadmap is not shareable and Scratch is never written.
+    expect(personal).toEqual({
+      ...EMPTY_IMPORT_DRAFT,
+      personal: ['wiki', 'q3'],
+    });
+    expect(nodes.map((node) => [node.id, isShared(node, personal)])).toEqual([
+      ['wiki', false],
+      ['roadmap', false],
+      ['q3', false],
+      ['scratch', true],
+      ['billing', true],
+    ]);
+    expect(sharingSummary(sharing, personal)).toBe('3 only you');
+    const back = setShared(personal, nodes, 'q3', true);
+    expect(back).toEqual({ ...EMPTY_IMPORT_DRAFT, personal: ['wiki'] });
+    expect(sharingSummary(sharing, back)).toBe(
+      '1 shared with your team · 2 only you'
+    );
+    expect(setShared(back, nodes, 'wiki', true)).toEqual(EMPTY_IMPORT_DRAFT);
+  });
+
+  it('switches private rows to the team and leaves out excluded rows', () => {
+    const shareable = entries.map((entry) => ({ ...entry, shareable: true }));
+    const nodes = buildPlanTree(shareable);
+    const shared = setShared(EMPTY_IMPORT_DRAFT, nodes, 'roadmap', true);
+    expect(shared).toEqual({
+      ...EMPTY_IMPORT_DRAFT,
+      shared: ['roadmap', 'q3'],
+    });
+    expect(sharingSummary(shareable, { ...shared, excluded: ['wiki'] })).toBe(
+      '2 shared with your team'
+    );
+    expect(
+      sharingSummary(shareable, {
+        ...shared,
+        excluded: ['wiki', 'roadmap', 'q3'],
+      })
+    ).toBe('');
+  });
+});
+
+describe('already in Macro', () => {
+  const copy = (by: string) => ({
+    by,
+    entityId: `doc-${by}`,
+    entityType: 'md',
+  });
+  const withCopies = entries.map(
+    (entry): ImportPlanEntry =>
+      entry.id === 'wiki'
+        ? { ...entry, alreadyImported: copy('ana@acme.com') }
+        : entry.id === 'q3'
+          ? { ...entry, alreadyImported: copy('bo@acme.com') }
+          : entry
+  );
+
+  it('leaves copies out of the tree and moves their children up', () => {
+    const nodes = buildPlanTree(planTreeEntries(withCopies));
+    expect(nodes.map((node) => [node.id, node.depth])).toEqual([
+      ['roadmap', 0],
+      ['scratch', 0],
+      ['billing', 0],
+    ]);
+    const nested = buildPlanTree(
+      planTreeEntries(
+        entries.map((entry) =>
+          entry.id === 'roadmap'
+            ? { ...entry, alreadyImported: copy('ana@acme.com') }
+            : entry
+        )
+      )
+    );
+    expect(nested.map((node) => [node.id, node.depth, node.parentId])).toEqual([
+      ['wiki', 0, null],
+      ['q3', 1, 'wiki'],
+      ['scratch', 1, 'wiki'],
+      ['billing', 0, 'gone'],
+    ]);
+  });
+
+  it('counts only new objects in the import, and Notion still shared them all', () => {
+    expect(importCount(withCopies, [])).toBe(1);
+    expect(volumeLabel(importVolume(withCopies, []))).toBe('40 tasks');
+    expect(planCounts(withCopies).pages).toBe(4);
+    expect(alreadyInMacroSummary(withCopies)).toBe(
+      '2 already in Macro (imported by ana@acme.com, bo@acme.com)'
+    );
+    expect(alreadyInMacroSummary(entries)).toBe('');
   });
 });
 
@@ -148,6 +266,7 @@ describe('importVolume', () => {
       rows: 405,
       status: 'staged',
       error: null,
+      ...unshared,
     };
     const all = [...entries, database];
     expect(importVolume(all, [])).toEqual({

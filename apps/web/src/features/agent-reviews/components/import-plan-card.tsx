@@ -1,9 +1,13 @@
+import CaretDown from '@phosphor/caret-down.svg';
 import { Button } from '@ui/components/Button';
 import { Card } from '@ui/components/Card';
 import { ConfirmDialog } from '@ui/components/ConfirmDialog';
+import { cn } from '@ui/utils/classname';
 import { createMemo, createSignal, For, type JSX, Show } from 'solid-js';
 import { match } from 'ts-pattern';
 import {
+  type ImportedCopy,
+  type ImportPlanEntry,
   type ImportPlanNode,
   type ImportProgress,
   type ImportReviewPhase,
@@ -14,6 +18,16 @@ import { ImportPlanRow } from './import-plan-row';
 
 function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? '' : 's'}`;
+}
+
+function confirmBody(sharing: string): string {
+  return [
+    'Pages become documents and databases are copied into Macro.',
+    sharing ? `${sharing.replaceAll(' · ', ', ')}.` : '',
+    'You can stop the import while it runs; anything already imported stays.',
+  ]
+    .filter(Boolean)
+    .join(' ');
 }
 
 function ProgressBar(props: { done: number; total: number }) {
@@ -113,16 +127,88 @@ function PhaseStatus(props: {
   );
 }
 
+/** Objects a teammate already imported; this import links to their copies. */
+function AlreadyInMacro(props: {
+  summary: string;
+  entries: (ImportPlanEntry & { alreadyImported: ImportedCopy })[];
+  entityHref: (copy: ImportedCopy) => string | undefined;
+  onOpenEntity: (copy: ImportedCopy, event: MouseEvent) => void;
+}) {
+  const [expanded, setExpanded] = createSignal(false);
+  return (
+    <section aria-label="Already in Macro" class="flex min-w-0 flex-col gap-1">
+      <button
+        type="button"
+        class="flex min-w-0 items-center gap-1.5 self-start rounded-sm text-left text-xs text-ink-muted touch:min-h-[44px] not-touch:hover:text-ink"
+        aria-expanded={expanded()}
+        onClick={() => setExpanded(!expanded())}
+      >
+        <CaretDown
+          class={cn(
+            'size-3 shrink-0 transition-transform',
+            !expanded() && '-rotate-90'
+          )}
+        />
+        <span class="min-w-0 wrap-break-word">{props.summary}</span>
+      </button>
+      <Show when={expanded()}>
+        <ul class="flex min-w-0 flex-col gap-0.5 pl-4.5">
+          <For each={props.entries}>
+            {(entry) => {
+              const title = () => entry.title || 'Untitled';
+              const href = () => props.entityHref(entry.alreadyImported);
+              return (
+                <li class="flex min-w-0 flex-wrap items-baseline gap-x-1.5 py-1 text-sm touch:min-h-[44px]">
+                  <Show
+                    when={href()}
+                    fallback={<span class="min-w-0 truncate">{title()}</span>}
+                  >
+                    {(link) => (
+                      <a
+                        href={link()}
+                        class="min-w-0 truncate text-ink underline decoration-edge underline-offset-2 not-touch:hover:decoration-ink"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          props.onOpenEntity(entry.alreadyImported, event);
+                        }}
+                      >
+                        {title()}
+                      </a>
+                    )}
+                  </Show>
+                  <span class="min-w-0 truncate text-xs text-ink-muted">
+                    by {entry.alreadyImported.by}
+                  </span>
+                </li>
+              );
+            }}
+          </For>
+        </ul>
+      </Show>
+    </section>
+  );
+}
+
 /** A Notion workspace import plan: trimmed and approved, then its progress. */
 export function ImportPlanCard(props: {
   title: string;
   summary: string;
+  /** e.g. "12 shared with your team · 3 only you". */
+  sharingSummary: string;
+  alreadyInMacroSummary: string;
+  /** Objects a teammate already imported, left out of the plan tree. */
+  alreadyInMacro: (ImportPlanEntry & { alreadyImported: ImportedCopy })[];
+  /** Where a teammate's copy opens; `undefined` when it cannot be linked. */
+  entityHref: (copy: ImportedCopy) => string | undefined;
+  onOpenEntity: (copy: ImportedCopy, event: MouseEvent) => void;
   phase: ImportReviewPhase;
   progress: ImportProgress | undefined;
   nodes: ImportPlanNode[];
   hasPlan: boolean;
   isCollapsed: (id: string) => boolean;
   isExcluded: (id: string) => boolean;
+  isShared: (id: string) => boolean;
   /** The viewer may trim, approve, and stop this import. */
   canAct: boolean;
   /** Trimming and approving are open. */
@@ -135,6 +221,7 @@ export function ImportPlanCard(props: {
   onReload?: () => void;
   onToggleExpanded: (id: string) => void;
   onIncludedChange: (id: string, included: boolean) => void;
+  onSharedChange: (id: string, shared: boolean) => void;
   onApprove: () => void;
   onDismiss: () => void;
   onStop: () => void;
@@ -150,6 +237,9 @@ export function ImportPlanCard(props: {
         <h3 class="text-sm font-semibold text-ink">{props.title}</h3>
         <Show when={props.summary}>
           <p class="text-xs text-ink-muted">{props.summary}</p>
+        </Show>
+        <Show when={planning() && props.sharingSummary}>
+          <p class="text-xs text-ink-muted">{props.sharingSummary}</p>
         </Show>
       </header>
       <Show when={props.alert}>
@@ -175,7 +265,11 @@ export function ImportPlanCard(props: {
       <Show
         when={props.hasPlan}
         fallback={
-          <p class="text-xs text-ink-muted">The plan has no objects to show.</p>
+          <p class="text-xs text-ink-muted">
+            {props.alreadyInMacro.length > 0
+              ? 'Everything Notion shared is already in Macro.'
+              : 'The plan has no objects to show.'}
+          </p>
         }
       >
         <ul
@@ -188,6 +282,7 @@ export function ImportPlanCard(props: {
                 node={node}
                 collapsed={props.isCollapsed(node.id)}
                 excluded={props.isExcluded(node.id)}
+                shared={props.isShared(node.id)}
                 choosing={planning() && props.canAct}
                 disabled={!props.editable}
                 showStatus={!planning() && props.phase.kind !== 'preparing'}
@@ -195,10 +290,21 @@ export function ImportPlanCard(props: {
                 onIncludedChange={(included) =>
                   props.onIncludedChange(node.id, included)
                 }
+                onSharedChange={(shared) =>
+                  props.onSharedChange(node.id, shared)
+                }
               />
             )}
           </For>
         </ul>
+      </Show>
+      <Show when={props.alreadyInMacro.length > 0}>
+        <AlreadyInMacro
+          summary={props.alreadyInMacroSummary}
+          entries={props.alreadyInMacro}
+          entityHref={props.entityHref}
+          onOpenEntity={props.onOpenEntity}
+        />
       </Show>
       <Show when={failures().length > 0}>
         <section aria-label="Failures" class="flex flex-col gap-1">
@@ -240,7 +346,7 @@ export function ImportPlanCard(props: {
           open={confirming()}
           onOpenChange={setConfirming}
           title={`Import ${volumeLabel(props.volume)}?`}
-          body="Pages become documents and databases are copied into Macro. You can stop the import while it runs; anything already imported stays."
+          body={confirmBody(props.sharingSummary)}
           confirmLabel="Import"
           onConfirm={() => {
             if (!confirming()) return;
