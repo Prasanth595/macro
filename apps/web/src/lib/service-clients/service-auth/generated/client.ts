@@ -93,6 +93,7 @@ import type {
   Team,
   TeamInviteLinkResponse,
   TeamInviteLinkTeam,
+  TeamInviteLinkTokenRequest,
   TeamInvitesResponse,
   TeamMember,
   TeamWithMembers,
@@ -4441,70 +4442,6 @@ export const deleteTeamInviteLink = async (
 };
 
 /**
- * @summary Gets the team an invite link joins, so the user can see it before joining.
- */
-export type getTeamByInviteLinkResponse200 = {
-  data: TeamInviteLinkTeam;
-  status: 200;
-};
-
-export type getTeamByInviteLinkResponse401 = {
-  data: ErrorResponse;
-  status: 401;
-};
-
-export type getTeamByInviteLinkResponse404 = {
-  data: ErrorResponse;
-  status: 404;
-};
-
-export type getTeamByInviteLinkResponse500 = {
-  data: ErrorResponse;
-  status: 500;
-};
-
-export type getTeamByInviteLinkResponseSuccess =
-  getTeamByInviteLinkResponse200 & {
-    headers: Headers;
-  };
-export type getTeamByInviteLinkResponseError = (
-  | getTeamByInviteLinkResponse401
-  | getTeamByInviteLinkResponse404
-  | getTeamByInviteLinkResponse500
-) & {
-  headers: Headers;
-};
-
-export type getTeamByInviteLinkResponse =
-  | getTeamByInviteLinkResponseSuccess
-  | getTeamByInviteLinkResponseError;
-
-export const getGetTeamByInviteLinkUrl = (token: string) => {
-  return `/team/invite-link/${token}`;
-};
-
-export const getTeamByInviteLink = async (
-  token: string,
-  options?: RequestInit
-): Promise<getTeamByInviteLinkResponse> => {
-  const res = await fetch(getGetTeamByInviteLinkUrl(token), {
-    ...options,
-    method: 'GET',
-  });
-
-  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
-
-  const data: getTeamByInviteLinkResponse['data'] = body
-    ? JSON.parse(body)
-    : {};
-  return {
-    data,
-    status: res.status,
-    headers: res.headers,
-  } as getTeamByInviteLinkResponse;
-};
-
-/**
  * @summary Joins the team an invite link belongs to.
  */
 export type joinTeamByInviteLinkResponse200 = {
@@ -4549,17 +4486,19 @@ export type joinTeamByInviteLinkResponse =
   | joinTeamByInviteLinkResponseSuccess
   | joinTeamByInviteLinkResponseError;
 
-export const getJoinTeamByInviteLinkUrl = (token: string) => {
-  return `/team/invite-link/${token}/join`;
+export const getJoinTeamByInviteLinkUrl = () => {
+  return `/team/invite-link/join`;
 };
 
 export const joinTeamByInviteLink = async (
-  token: string,
+  teamInviteLinkTokenRequest: TeamInviteLinkTokenRequest,
   options?: RequestInit
 ): Promise<joinTeamByInviteLinkResponse> => {
-  const res = await fetch(getJoinTeamByInviteLinkUrl(token), {
+  const res = await fetch(getJoinTeamByInviteLinkUrl(), {
     ...options,
     method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(teamInviteLinkTokenRequest),
   });
 
   const body = [204, 205, 304].includes(res.status) ? null : await res.text();
@@ -4572,6 +4511,72 @@ export const joinTeamByInviteLink = async (
     status: res.status,
     headers: res.headers,
   } as joinTeamByInviteLinkResponse;
+};
+
+/**
+ * @summary Gets the team an invite link joins, so the user can see it before joining.
+ */
+export type getTeamByInviteLinkResponse200 = {
+  data: TeamInviteLinkTeam;
+  status: 200;
+};
+
+export type getTeamByInviteLinkResponse401 = {
+  data: ErrorResponse;
+  status: 401;
+};
+
+export type getTeamByInviteLinkResponse404 = {
+  data: ErrorResponse;
+  status: 404;
+};
+
+export type getTeamByInviteLinkResponse500 = {
+  data: ErrorResponse;
+  status: 500;
+};
+
+export type getTeamByInviteLinkResponseSuccess =
+  getTeamByInviteLinkResponse200 & {
+    headers: Headers;
+  };
+export type getTeamByInviteLinkResponseError = (
+  | getTeamByInviteLinkResponse401
+  | getTeamByInviteLinkResponse404
+  | getTeamByInviteLinkResponse500
+) & {
+  headers: Headers;
+};
+
+export type getTeamByInviteLinkResponse =
+  | getTeamByInviteLinkResponseSuccess
+  | getTeamByInviteLinkResponseError;
+
+export const getGetTeamByInviteLinkUrl = () => {
+  return `/team/invite-link/team`;
+};
+
+export const getTeamByInviteLink = async (
+  teamInviteLinkTokenRequest: TeamInviteLinkTokenRequest,
+  options?: RequestInit
+): Promise<getTeamByInviteLinkResponse> => {
+  const res = await fetch(getGetTeamByInviteLinkUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(teamInviteLinkTokenRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getTeamByInviteLinkResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getTeamByInviteLinkResponse;
 };
 
 /**

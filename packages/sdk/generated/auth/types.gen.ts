@@ -1671,6 +1671,17 @@ export type TeamInviteLinkTeam = {
 export type TeamInviteLinkToken = string;
 
 /**
+ * Identifies an invite link. The token travels in the body, not the path, so
+ * request spans and access logs that record the path never see it.
+ */
+export type TeamInviteLinkTokenRequest = {
+    /**
+     * The invite link's token.
+     */
+    token: TeamInviteLinkToken;
+};
+
+/**
  * Response containing a list of team invites
  */
 export type TeamInvitesResponse = {
@@ -3549,42 +3560,11 @@ export type CreateTeamInviteLinkResponses = {
 
 export type CreateTeamInviteLinkResponse = CreateTeamInviteLinkResponses[keyof CreateTeamInviteLinkResponses];
 
-export type GetTeamByInviteLinkData = {
-    body?: never;
-    path: {
-        /**
-         * The invite link's token
-         */
-        token: string;
-    };
-    query?: never;
-    url: '/team/invite-link/{token}';
-};
-
-export type GetTeamByInviteLinkErrors = {
-    401: ErrorResponse;
-    404: ErrorResponse;
-    500: ErrorResponse;
-};
-
-export type GetTeamByInviteLinkError = GetTeamByInviteLinkErrors[keyof GetTeamByInviteLinkErrors];
-
-export type GetTeamByInviteLinkResponses = {
-    200: TeamInviteLinkTeam;
-};
-
-export type GetTeamByInviteLinkResponse = GetTeamByInviteLinkResponses[keyof GetTeamByInviteLinkResponses];
-
 export type JoinTeamByInviteLinkData = {
-    body?: never;
-    path: {
-        /**
-         * The invite link's token
-         */
-        token: string;
-    };
+    body: TeamInviteLinkTokenRequest;
+    path?: never;
     query?: never;
-    url: '/team/invite-link/{token}/join';
+    url: '/team/invite-link/join';
 };
 
 export type JoinTeamByInviteLinkErrors = {
@@ -3601,6 +3581,27 @@ export type JoinTeamByInviteLinkResponses = {
 };
 
 export type JoinTeamByInviteLinkResponse2 = JoinTeamByInviteLinkResponses[keyof JoinTeamByInviteLinkResponses];
+
+export type GetTeamByInviteLinkData = {
+    body: TeamInviteLinkTokenRequest;
+    path?: never;
+    query?: never;
+    url: '/team/invite-link/team';
+};
+
+export type GetTeamByInviteLinkErrors = {
+    401: ErrorResponse;
+    404: ErrorResponse;
+    500: ErrorResponse;
+};
+
+export type GetTeamByInviteLinkError = GetTeamByInviteLinkErrors[keyof GetTeamByInviteLinkErrors];
+
+export type GetTeamByInviteLinkResponses = {
+    200: TeamInviteLinkTeam;
+};
+
+export type GetTeamByInviteLinkResponse = GetTeamByInviteLinkResponses[keyof GetTeamByInviteLinkResponses];
 
 export type DeleteTeamInviteHandlerData = {
     body?: never;

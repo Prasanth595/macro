@@ -205,6 +205,7 @@ export * from './teamInviteLinkResponse';
 export * from './teamInviteLinkResponseToken';
 export * from './teamInviteLinkTeam';
 export * from './teamInviteLinkToken';
+export * from './teamInviteLinkTokenRequest';
 export * from './teamInvitesResponse';
 export * from './teamMember';
 export * from './teamPlan';

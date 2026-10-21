@@ -764,17 +764,31 @@ export class Sdk extends HeyApiClient {
     }
     
     /**
-     * Gets the team an invite link joins, so the user can see it before joining.
-     */
-    public getTeamByInviteLink<ThrowOnError extends boolean = false>(options: Options<GetTeamByInviteLinkData, ThrowOnError>): RequestResult<GetTeamByInviteLinkResponses, GetTeamByInviteLinkErrors, ThrowOnError> {
-        return (options.client ?? this.client).get<GetTeamByInviteLinkResponses, GetTeamByInviteLinkErrors, ThrowOnError>({ url: '/team/invite-link/{token}', ...options });
-    }
-    
-    /**
      * Joins the team an invite link belongs to.
      */
     public joinTeamByInviteLink<ThrowOnError extends boolean = false>(options: Options<JoinTeamByInviteLinkData, ThrowOnError>): RequestResult<JoinTeamByInviteLinkResponses, JoinTeamByInviteLinkErrors, ThrowOnError> {
-        return (options.client ?? this.client).post<JoinTeamByInviteLinkResponses, JoinTeamByInviteLinkErrors, ThrowOnError>({ url: '/team/invite-link/{token}/join', ...options });
+        return (options.client ?? this.client).post<JoinTeamByInviteLinkResponses, JoinTeamByInviteLinkErrors, ThrowOnError>({
+            url: '/team/invite-link/join',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Gets the team an invite link joins, so the user can see it before joining.
+     */
+    public getTeamByInviteLink<ThrowOnError extends boolean = false>(options: Options<GetTeamByInviteLinkData, ThrowOnError>): RequestResult<GetTeamByInviteLinkResponses, GetTeamByInviteLinkErrors, ThrowOnError> {
+        return (options.client ?? this.client).post<GetTeamByInviteLinkResponses, GetTeamByInviteLinkErrors, ThrowOnError>({
+            url: '/team/invite-link/team',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
     }
     
     /**
