@@ -22,6 +22,9 @@ Split dragging and composer reflow have a backend-free browser regression:
 `bunx playwright test --config src/lib/core/component/Resize/browser-test/playwright.config.ts`.
 It exercises the real resize solver, scroll container, and Lexical layout primitive.
 
+Discussion link scrolling has a backend-free browser regression:
+`bunx playwright test --config src/lib/core/messages/browser-test/playwright.config.ts`.
+
 A frontend dev server runs against the **dev** backend, so this needs no local stack, Docker, Rust build, or `sudo`:
 
 ```sh
@@ -73,6 +76,9 @@ Then trigger the interaction and read `window.__inst.log`. `'1,2,3' → '' → '
 
 ## Development Patterns
 
+- Reuse `src/components/WorkspaceTexture.tsx` for the onboarding and Create
+  detail panel grain; pass the surface accent and a unique SVG filter ID.
+
 ### Pipedream native authorization
 
 Keep native Pipedream consent in the system browser: the desktop navigation
@@ -85,6 +91,10 @@ without changing the active route. Backend registration still verifies account
 ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 
 ### General
+- Compose settings pages with `features/settings/primitives.tsx` so section headings,
+  flat neutral cards, row spacing, and control shapes stay consistent.
+- Keep personal accounts and agent tool connections together in Settings → Integrations;
+  preserve `agent-connections` as an alias for existing links.
 - Keep bot setup focused on the token-and-SDK workflow; Agent and Ownership
   controls live under collapsed Advanced settings. See the
   [Bots walkthrough](../../docs/agent-guide/settings.md#bots).
@@ -125,6 +135,7 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Inline agent steps reuse the session code-execution query for live SDK operation
   names; completed step snapshots come from the shared fold of the tool receipt.
 - All API/network calls live in service-clients.
+- Bound Discussion comment readiness waits to ten seconds; recover from initial layout interruptions until the message is visible, and release the target on user input (including scrollbar pointer-down), timeout, or successful arrival.
 - Keep early DOCX opens loading while exports return processing (409); retry only
   that response, with a bounded wait. See the Word editor walkthrough in
   `docs/agent-guide/documents.md` at the repository root.

@@ -298,12 +298,11 @@ the shimmer.
   (`enable-chat-v3-agents`), the workspace uses one sidebar for Chat and Code.
   **Agents** in the sidebar opens the same roster as the composer’s
   **Create agent** action. **Connections** manages MCP integrations (including
-  app authentication and disconnection); this section has moved out of Settings.
+  app authentication and disconnection), also available under Settings → Integrations.
   Home’s **Connect your tools** and agent replies’ **Connect app** chips open this
-  Connections page. Personal Gmail/GitHub account links remain under Settings →
-  Integrations.
+  Integrations page. It shows installed tools above the app catalog, with personal Gmail/GitHub account links in a separate section above.
 
-  To recreate Slack channels, open **Settings → Connections → Slack → Import
+  To recreate Slack channels, open **Settings → Integrations → Slack → Import
   channels** (or **Connections → Slack** from the Agents workspace). The card
   appears only for a connected, enabled Pipedream Slack account. Click **Find
   channels** (or **Refresh** on subsequent visits), then wait for discovery and
@@ -1383,9 +1382,12 @@ Details lists Status, Agent, Model, and dates for every session; the Runtime
 row appears only for coding runtimes, never for in-memory chat agents.
 `References` is the same section documents show: one row per channel message that
 `@`-mentioned or shared the session (sender, channel chip, time, and a two-line
-message excerpt) and per document that mentions it (author and document chip).
-Click a row to open that message or document in a split. The section is hidden
-until at least one reference exists, and only lists channels you belong to.
+message excerpt), per comment on a document, project, CRM record, or call that
+mentions it (sender, parent chip, time, excerpt), and per document that mentions
+it (author and document chip). Click a row to open that message, comment, or
+document in a split; a comment row opens its parent at the comment. The section
+is hidden until at least one reference exists, lists channels you belong to, and
+lists comments only on parents you can view.
 New conversation pages have no disabled session action buttons. Older chats
 also have one header row, and empty chats show a simple conversation prompt
 instead of the standalone recent-sessions and tips surface.
