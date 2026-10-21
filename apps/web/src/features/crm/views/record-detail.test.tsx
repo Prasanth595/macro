@@ -12,7 +12,7 @@ import {
   type ParentProps,
   Show,
 } from 'solid-js';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { CrmCommentTarget } from '../context/workspace-context';
 import type { CrmContact } from '../core/contact';
 import type { CrmRecordRef, CrmRecordSection } from '../core/record';
@@ -97,7 +97,20 @@ vi.mock('./contact-detail', () => ({
     </div>
   ),
 }));
-afterEach(cleanup);
+beforeEach(() => {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+  );
+});
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 /** Stands in for the route: each open hands the detail a new trail. */
 function renderDetail(record: CrmRecordRef, viewName: string) {
