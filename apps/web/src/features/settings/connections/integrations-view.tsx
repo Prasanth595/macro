@@ -31,7 +31,7 @@ function IntegrationSetupCallouts(props: {
     <div class="flex flex-col gap-2">
       <div class="flex items-center justify-between gap-4 rounded-2xl border border-edge-muted bg-ink/4 px-4 py-2">
         <p class="text-base font-medium text-ink">
-          Use Macro in your favorite AI harness
+          Use Macro in your favorite AI harness with the official Macro MCP
         </p>
         <Button
           variant="ghost"
@@ -44,7 +44,7 @@ function IntegrationSetupCallouts(props: {
       </div>
       <div class="flex items-center justify-between gap-4 rounded-2xl border border-edge-muted bg-ink/4 px-4 py-2">
         <p class="text-base font-medium text-ink">
-          Connect your local agents to Macro
+          Stream sessions from your local AI harness to Macro
         </p>
         <Button
           variant="ghost"

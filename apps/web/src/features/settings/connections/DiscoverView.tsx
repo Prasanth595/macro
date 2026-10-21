@@ -84,7 +84,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
   });
 
   return (
-    <div class="@container/catalog flex flex-col gap-6">
+    <div class="@container/catalog flex flex-col gap-7">
       <section aria-label="Featured integrations">
         <h4 class="mb-2 text-sm font-medium text-ink-muted">Featured</h4>
         <div class="grid grid-cols-1 gap-3 @[440px]/catalog:grid-cols-2">
@@ -127,7 +127,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
             <PlusIcon class="size-4" /> Add Custom
           </Button>
         </div>
-        <div class="mb-4 grid grid-cols-1 gap-2 @[440px]/catalog:grid-cols-[minmax(0,1fr)_auto]">
+        <div class="mb-5 grid grid-cols-1 gap-2 @[440px]/catalog:grid-cols-[minmax(0,1fr)_auto]">
           <label class="relative block min-w-0">
             <span class="sr-only">Search apps</span>
             <MagnifyingGlassIcon
@@ -165,7 +165,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
             value={activeCategory()}
             onChange={setSelectedCategory}
             class="w-full @[440px]/catalog:w-52"
-            triggerClass="settings-input h-10 w-full text-sm"
+            triggerClass="h-10 w-full border-0 bg-ink/4 px-3 text-sm text-ink hover:bg-ink/6"
           />
         </div>
         <div class="grid grid-cols-1 gap-6">

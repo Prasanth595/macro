@@ -468,12 +468,14 @@ section Core Integrations and the connector section Agent Integrations. It displ
 Discover, without tabs or a separate installed sidebar. Installed tools use a two-column card grid (one column on narrow screens); Discover
 shows Featured first, then All apps with a gray Add Custom action beside its
 heading. Search and the category picker share a row directly below that heading
-and stack on narrow screens.
+and stack on narrow screens. The category picker uses a borderless light-gray
+fill that matches the integration cards.
 Installed and Discover use headings above rounded cards. The overview uses
 more space between major sections and consistent light gray card backgrounds.
 Two thin, stacked setup rows appear at the top. “Use Macro in your favorite AI
-harness” opens connection setup; “Connect your local agents to Macro”
-opens Runtimes to connect a local machine. Email and GitHub cards appear next under Core Integrations;
+harness with the official Macro MCP” opens connection setup; “Stream sessions
+from your local AI harness to Macro” opens Runtimes to connect a local machine.
+Email and GitHub cards appear next under Core Integrations;
 the two cards share a height. A small gear on the Email card opens Email settings;
 Calendar settings remain available from the settings sidebar.
 All apps groups each app under its first nonempty Pipedream category; apps without
