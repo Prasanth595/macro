@@ -449,15 +449,15 @@ export function TeamMembers(props: { team: TeamSummary }) {
           <Show
             when={canInviteToTeam(currentUserRole(), allowNonAdminInvites())}
           >
-            {/* Sized to the page title and inverted (black on light, white
-                on dark) so inviting is the page's primary action. */}
+            {/* Inverted (black on light, white on dark) so inviting is the
+                page's primary action. */}
             <Button
               variant="cta"
               glass={false}
-              class="h-auto gap-2 bg-ink px-5 py-2 text-[26px]/tight text-surface"
+              class="bg-ink text-[15px] text-surface"
               onClick={() => setShowInviteModal(true)}
             >
-              <PlusIcon class="size-6" />
+              <PlusIcon class="size-4" />
               Invite
             </Button>
           </Show>
@@ -530,7 +530,9 @@ export function TeamMembers(props: { team: TeamSummary }) {
                 </SettingsCard>
               }
             >
-              <SettingsCard>
+              {/* Long rosters scroll inside the card so Invite settings
+                  below stay in reach. */}
+              <SettingsCard class="max-h-112 overflow-y-auto! overscroll-contain">
                 <For each={filteredMembers()}>
                   {(member) => (
                     <MemberRow
