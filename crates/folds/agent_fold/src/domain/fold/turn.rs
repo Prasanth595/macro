@@ -129,12 +129,17 @@ impl FoldState {
         let system_turn = input.as_ref().is_some_and(|input| input.system_turn);
         if let Some(input) = input {
             for notification in input.notifications {
-                if self
+                if let Some(existing) = self
                     .metadata
                     .notifications
-                    .iter()
-                    .any(|existing| existing.id == notification.id.to_string())
+                    .iter_mut()
+                    .find(|existing| existing.id == notification.id.to_string())
                 {
+                    // A recovered interrupted action keeps the event identity,
+                    // but its response belongs to the retry's turn.
+                    existing.turn = id.0;
+                    existing.action_id = prompt_id.to_string();
+                    existing.system_turn = system_turn;
                     continue;
                 }
                 let payload = serde_json::to_value(&notification.event).unwrap_or_default();

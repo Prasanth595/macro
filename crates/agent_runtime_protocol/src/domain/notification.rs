@@ -106,6 +106,7 @@ pub struct ReviewItemOutcome {
 /// Review item state, shared with notification consumers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "utoipa", schema(as = ReviewItemStatus))]
 #[serde(rename_all = "snake_case")]
 pub enum ItemStatus {
     /// Still awaiting a decision.

@@ -129,3 +129,30 @@ fn notification_turn_with_tool_activity_preserves_noop_as_text() {
     assert_eq!(messages.len(), 1);
     assert_eq!(messages[0].last_text().as_deref(), Some("<noop/>"));
 }
+
+#[test]
+fn interrupted_delivery_keeps_one_event_attached_to_the_retry_turn() {
+    use crate::domain::{fold::FoldMachineImpl, ports::FoldMachine};
+    let request = AgentAction::notification(vec![Notification {
+        id: macro_uuid::generate_uuid_v7(),
+        subject_id: "app".into(),
+        created_at: "2026-10-21T00:00:00Z".into(),
+        event: NotificationEvent::AppConnected {
+            app: "Calendar".into(),
+        },
+    }])
+    .to_runtime(&SessionId::new("s"), RequestId::Str("event".into()))
+    .unwrap();
+    let frame = AgentSessionLog {
+        agent_session_id: test_session(),
+        user_id: None,
+        content: Message::Notification(request),
+        logged_at: None,
+    };
+    let mut machine = FoldMachineImpl::new();
+    machine.push(frame.clone());
+    machine.push(frame);
+    assert_eq!(machine.metadata().notifications.len(), 1);
+    assert_eq!(machine.metadata().notifications[0].turn, 1);
+    assert!(machine.messages().is_empty());
+}
