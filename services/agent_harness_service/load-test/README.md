@@ -8,7 +8,7 @@
 {
 	"num_connections": 20,
 	"request_per_connection": 1,
-	"base_url": "document-cognition-dev.macro.com",
+	"base_url": "dev-gateway.macro.com/cognition",
 	"connection_timeout": 60, // seconds
 	"ramp_up_duration": 15, // seconds
 	"delay_between_connections": 50 //miliseconds

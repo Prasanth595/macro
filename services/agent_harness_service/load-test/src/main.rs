@@ -81,7 +81,7 @@ async fn connection(config: Arc<config::Config>) -> Result<ConnectionReport> {
     let token = Token::new().context("TOKEN must be provided")?;
 
     let req =
-        ClientRequestBuilder::new("wss://document-cognition-dev.macro.com/stream".parse::<Uri>()?)
+        ClientRequestBuilder::new(format!("wss://{}/stream", config.base_url).parse::<Uri>()?)
             .with_header("Authorization", format!("Bearer {}", token.as_ref()));
 
     let (ws_stream, _) = connect_async(req).await?;
