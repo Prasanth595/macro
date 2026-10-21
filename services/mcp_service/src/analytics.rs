@@ -81,21 +81,20 @@ impl McpClientSignals {
 pub enum ToolCallOutcome {
     /// The tool ran and returned a result.
     Success,
-    /// The arguments were missing or did not match the tool's schema.
-    InvalidArguments,
-    /// No tool has the requested name.
-    UnknownTool,
+    /// The request named no registered tool, or its arguments were missing or
+    /// did not match the tool's schema.
+    InvalidRequest,
     /// The tool ran and reported an error to the model.
     ToolError,
 }
 
 impl ToolCallOutcome {
+    /// PostHog's `$mcp_error_type` bucket. Tool errors carry no reliable
+    /// cause, so they leave the bucket unset rather than guess one.
     fn error_type(self) -> Option<&'static str> {
         match self {
-            Self::Success => None,
-            Self::InvalidArguments => Some("validation"),
-            Self::UnknownTool => Some("unknown_tool"),
-            Self::ToolError => Some("tool_error"),
+            Self::Success | Self::ToolError => None,
+            Self::InvalidRequest => Some("validation"),
         }
     }
 }

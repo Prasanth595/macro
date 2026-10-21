@@ -216,7 +216,7 @@ where
 
         let Some(arguments) = request.arguments.map(serde_json::Value::Object) else {
             return (
-                ToolCallOutcome::InvalidArguments,
+                ToolCallOutcome::InvalidRequest,
                 Err(rmcp::ErrorData::invalid_params("No params provided", None)),
             );
         };
@@ -234,13 +234,13 @@ where
             Ok(result) => result,
             Err(ai_toolset::ToolSetError::Deserialization(error)) => {
                 return (
-                    ToolCallOutcome::InvalidArguments,
+                    ToolCallOutcome::InvalidRequest,
                     Err(rmcp::ErrorData::parse_error(error.to_string(), None)),
                 );
             }
             Err(ai_toolset::ToolSetError::NotFound(message)) => {
                 return (
-                    ToolCallOutcome::UnknownTool,
+                    ToolCallOutcome::InvalidRequest,
                     Err(rmcp::ErrorData::resource_not_found(message, None)),
                 );
             }

@@ -113,11 +113,10 @@ fn successful_tool_call_records_name_timing_and_team_only() {
 }
 
 #[test]
-fn failed_tool_calls_record_an_error_type_per_failure() {
+fn failed_tool_calls_use_posthogs_error_buckets() {
     for (outcome, error_type) in [
-        (ToolCallOutcome::InvalidArguments, "validation"),
-        (ToolCallOutcome::UnknownTool, "unknown_tool"),
-        (ToolCallOutcome::ToolError, "tool_error"),
+        (ToolCallOutcome::InvalidRequest, Some("validation")),
+        (ToolCallOutcome::ToolError, None),
     ] {
         let event = McpAnalyticsEvent::ToolCall {
             tool_name: "EditDocument".to_owned(),
@@ -133,7 +132,10 @@ fn failed_tool_calls_record_an_error_type_per_failure() {
         );
 
         assert_eq!(value["$mcp_is_error"], json!(true));
-        assert_eq!(value["$mcp_error_type"], json!(error_type));
+        assert_eq!(
+            value.get("$mcp_error_type"),
+            error_type.map(|t| json!(t)).as_ref()
+        );
         assert_eq!(value["env"], json!("DEV"));
         assert!(value.get("$groups").is_none());
         assert!(value.get("team_id").is_none());
