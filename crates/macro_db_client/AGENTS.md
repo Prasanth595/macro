@@ -21,6 +21,15 @@ queries used across Rust services.
 - Not here: domain logic, authorization decisions, or caching built on top of
   these queries — those live in the owning domain crate/service that calls in.
 
+`agent_session_notification` is an additive leased outbox owned by
+`agent_session`. Review adapters use its transaction-aware producer port;
+notification frames have their own log direction. Session deletion cascades
+outbox rows, and migrations retain compatibility with prior table writers.
+
+The agent-session notification migration backfills legacy review outcomes and
+bridges old-producer writes during rollout; keep that bridge until legacy
+review producers have retired.
+
 ## Boundaries
 
 - Depends on: `entity_access_db_utils`, `entity_registry_db_utils`,
@@ -53,11 +62,6 @@ stable across retries, and `announced` records successful pending-message posts.
 The additive migrations are compatible with older service binaries; session
 deletion cascades its rows.
 
-`agent_session_notification` is an additive leased outbox owned by
-`agent_session`. Review adapters use its transaction-aware producer port;
-notification frames have their own log direction. Session deletion cascades
-outbox rows, and migrations retain compatibility with prior table writers.
-
 ## Gotchas
 
 - Migrations deploy before service code: never drop a column/table in the
@@ -74,7 +78,3 @@ outbox rows, and migrations retain compatibility with prior table writers.
 
 - Rules: `.agents/rules/rust/db.md`, `.agents/rules/rust/architecture.md` ·
   Docs: `docs/development/database.md` · Skill: `dump-schema`
-
-The agent-session notification migration backfills legacy review outcomes and
-bridges old-producer writes during rollout; keep that bridge until legacy
-review producers have retired.
