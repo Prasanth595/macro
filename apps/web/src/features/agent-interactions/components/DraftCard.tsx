@@ -11,6 +11,7 @@ import {
 } from '@app/features/block-agent/component/parts/UserToolCall';
 import { CalendarDraftComposer } from '@core/component/AI/component/tool/calendar/DraftComposer';
 import { EmailDraftComposer } from '@core/component/AI/component/tool/email/DraftComposer';
+import { fireAndForget } from '@core/util/fireAndForget';
 import Envelope from '@phosphor/envelope-simple.svg';
 import NotePencil from '@phosphor/note-pencil.svg';
 import type {
@@ -101,7 +102,7 @@ function EmailDraftCard(props: DraftProps & { email: SendEmail }) {
             size="sm"
             variant="ghost"
             disabled={!props.review.canAnswer()}
-            onClick={() => void sink.onReject()}
+            onClick={() => fireAndForget(sink.onReject(), 'agent-interactions')}
           >
             Discard
           </Button>
@@ -185,7 +186,9 @@ function ReadOnlyDraft(props: {
               variant="ghost"
               class="mr-auto"
               disabled={locked()}
-              onClick={() => void sink.onReject()}
+              onClick={() =>
+                fireAndForget(sink.onReject(), 'agent-interactions')
+              }
             >
               Discard
             </Button>
@@ -193,7 +196,9 @@ function ReadOnlyDraft(props: {
               size="sm"
               variant="cta"
               disabled={locked()}
-              onClick={() => void sink.onExecute(props.draft)}
+              onClick={() =>
+                fireAndForget(sink.onExecute(props.draft), 'agent-interactions')
+              }
             >
               {props.sendLabel}
             </Button>

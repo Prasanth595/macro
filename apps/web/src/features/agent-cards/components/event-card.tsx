@@ -2,6 +2,7 @@ import {
   type CalendarEventOpenTarget,
   openCalendarEventSplit,
 } from '@app/features/calendar-view/open-calendar-event';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { useCalendarMentionPreviewQuery } from '@queries/calendar/mention-preview';
 import { queryReadyGate } from '@queries/gate';
 import type { CalendarMentionEvent } from '@service-storage/generated/schemas/calendarMentionEvent';
@@ -139,7 +140,10 @@ export function EventCard(props: {
     const to = target();
     return to
       ? (click: MouseEvent) =>
-          void openCalendarEventSplit({ ...to, openInNewSplit: click.shiftKey })
+          fireAndForget(
+            openCalendarEventSplit({ ...to, openInNewSplit: click.shiftKey }),
+            'agent-cards'
+          )
       : undefined;
   };
 

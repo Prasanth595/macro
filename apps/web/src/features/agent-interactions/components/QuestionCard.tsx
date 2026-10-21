@@ -5,6 +5,7 @@ import {
   CardHeader,
 } from '@app/features/agent-cards/components/kit/card';
 import { Tile } from '@app/features/agent-cards/components/kit/parts';
+import { fireAndForget } from '@core/util/fireAndForget';
 import QuestionIcon from '@phosphor/question.svg';
 import type { ElicitationOption } from '@service-agent-fold/generated/types';
 import type { ElicitationAnswer } from '@service-agent-harness/generated/schemas';
@@ -65,10 +66,15 @@ export function QuestionCard(props: {
   const question = createLiveQuestion(props.request, props.draft);
   const quick = quickAnswers(props.request);
   const respond = (answer: ElicitationAnswer) => {
-    if (!props.locked) void props.onRespond(answer);
+    if (!props.locked)
+      fireAndForget(props.onRespond(answer), 'agent-interactions');
   };
   const answer = () => {
-    if (!props.locked) void answerQuestion(question, props.onRespond);
+    if (!props.locked)
+      fireAndForget(
+        answerQuestion(question, props.onRespond),
+        'agent-interactions'
+      );
   };
   return (
     <Card width="standard" data-agent-card="question">

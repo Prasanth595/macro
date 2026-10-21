@@ -1,4 +1,5 @@
 import { openCalendarEventSplit } from '@app/features/calendar-view/open-calendar-event';
+import { fireAndForget } from '@core/util/fireAndForget';
 import CalendarBlank from '@phosphor/calendar-blank.svg';
 import { useCalendarSearchPreviewsQuery } from '@queries/calendar/mention-preview';
 import { queryReadyGate } from '@queries/gate';
@@ -269,10 +270,13 @@ export function Agenda(props: {
           : undefined,
         onOpen: target
           ? (click) =>
-              void openCalendarEventSplit({
-                ...target,
-                openInNewSplit: click.shiftKey,
-              })
+              fireAndForget(
+                openCalendarEventSplit({
+                  ...target,
+                  openInNewSplit: click.shiftKey,
+                }),
+                'agent-cards'
+              )
           : undefined,
         schedule: entry.schedule,
       };

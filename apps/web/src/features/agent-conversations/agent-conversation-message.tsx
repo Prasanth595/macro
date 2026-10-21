@@ -1,5 +1,6 @@
 import { NoticeCard } from '@app/features/agent-cards/components/notice';
 import { toast } from '@core/component/Toast/Toast';
+import { fireAndForget } from '@core/util/fireAndForget';
 import type {
   AgentConversation,
   AgentConversationTurn,
@@ -64,7 +65,9 @@ export function AgentConversationMessageStatus(props: { messageId: string }) {
         <TurnStatus
           conversation={entry().conversation}
           turn={entry().turn}
-          onChanged={() => void context.refresh()}
+          onChanged={() =>
+            fireAndForget(context.refresh(), 'agent-conversations')
+          }
         />
       )}
     </Key>

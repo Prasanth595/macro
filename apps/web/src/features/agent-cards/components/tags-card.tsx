@@ -1,5 +1,6 @@
 import { useSplitLayout } from '@components/app/split-layout/layout';
 import { useSplitPanel } from '@components/app/split-layout/layoutUtils';
+import { fireAndForget } from '@core/util/fireAndForget';
 import TagIcon from '@phosphor/tag-simple.svg';
 import { navigateToTag } from '@property/tags/tagNavigation';
 import { queryReadyGate } from '@queries/gate';
@@ -142,9 +143,12 @@ export function TagsCard(props: {
             option.value.type === 'string' ? option.value.value : option.id,
           color: option.color ?? undefined,
           open: () =>
-            void navigateToTag(split.openWithSplit, target, {
-              handle: panel?.handle,
-            }),
+            fireAndForget(
+              navigateToTag(split.openWithSplit, target, {
+                handle: panel?.handle,
+              }),
+              'agent-cards'
+            ),
         });
       }
     }

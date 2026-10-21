@@ -373,7 +373,12 @@ it("shows a live code write's card under its operation's step", async () => {
         id: 1,
         label: 'Create Markdown',
         status: 'completed',
-        item: { type: 'document', id: 'doc-9', action: 'created', title: 'Plan' },
+        item: {
+          type: 'document',
+          id: 'doc-9',
+          action: 'created',
+          title: 'Plan',
+        },
       },
       { id: 2, label: 'Patch Channel', status: 'running' },
     ],

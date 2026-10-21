@@ -1,4 +1,3 @@
-import { fireAndForget } from '@core/util/fireAndForget';
 import { queryReadyGate } from '@queries/gate';
 import type { ParentProps } from 'solid-js';
 import { AgentConversationsContext } from './context';
