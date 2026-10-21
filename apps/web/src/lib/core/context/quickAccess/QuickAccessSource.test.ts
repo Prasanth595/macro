@@ -1,3 +1,4 @@
+import type { LocalDraft } from '@app/features/email-compose/core/local-draft';
 import type {
   CrmCompanyEntity,
   CrmContactEntity,
@@ -43,6 +44,14 @@ import {
   type QuickAccessContextValue,
   type QuickAccessListOptions,
 } from './types';
+
+const localDrafts = vi.hoisted(() => ({ read: (): LocalDraft[] => [] }));
+vi.mock('@queries/email/local-draft-source', async () => ({
+  createLocalDraftSource: (enabled: () => boolean) => ({
+    drafts: () => (enabled() ? localDrafts.read() : []),
+    ready: () => true,
+  }),
+}));
 
 const mocks = vi.hoisted(() => ({
   search: vi.fn<(args: SearchCacheArgs) => Promise<SearchCachePage>>(),
@@ -238,6 +247,7 @@ function page(start: number, count: number, more = false): SearchCachePage {
   };
 }
 beforeEach(() => {
+  localDrafts.read = () => [];
   vi.clearAllMocks();
   vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
   mocks.history = [];
@@ -1425,4 +1435,38 @@ describe('database command discovery', () => {
     });
     expect(mocks.history).toEqual([]);
   });
+});
+
+it('finds an unqueued first-use draft by title without a cached thread and retires it after sync', async () => {
+  const [copies, setCopies] = createSignal<LocalDraft[]>([
+    {
+      key: 'local-draft',
+      draftId: 'local-draft',
+      threadId: 'local-thread',
+      accountId: 'viewer',
+      generation: 'generation',
+      revision: 1,
+      acknowledgedRevision: 0,
+      content: { subject: 'Offline receipt' },
+      attachments: [],
+      status: 'dirty',
+      updatedAt: 1,
+    },
+  ]);
+  localDrafts.read = copies;
+  const [term, setTerm] = createSignal('receipt');
+  const { source, list, notes } = setup((source) => ({
+    source,
+    list: source.useList({ buckets: ['email'], searchTerm: term }),
+    notes: source.useList({ buckets: ['note'], searchTerm: term }),
+  }));
+  expect(list.items().map((item) => item.id)).toEqual(['local-thread']);
+  expect(source.getById('local-thread')?.data.name).toBe('Offline receipt');
+  expect(notes.items()).toEqual([]);
+  setTerm('unrelated');
+  expect(list.items()).toEqual([]);
+  setTerm('receipt');
+  setCopies([{ ...copies()[0], status: 'synced', acknowledgedRevision: 1 }]);
+  expect(list.items()).toEqual([]);
+  expect(source.getById('local-thread')).toBeUndefined();
 });
