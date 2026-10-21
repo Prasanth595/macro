@@ -868,9 +868,11 @@ Android's full-screen-intent setting controls whether a locked phone opens the
 call activity automatically; when unavailable, the call notification remains the
 entry point. Android 14+ revokes it by default for Play installs unless the Play
 Console's full-screen intent declaration names calling as core functionality;
-check with `adb shell appops get <package> USE_FULL_SCREEN_INTENT`. The call
-notification is public, so the lock screen shows the call and its actions. Test
-both permission states. Microphone access is required to join;
+check with `adb shell appops get <package> USE_FULL_SCREEN_INTENT`. Once
+notifications are on, Macro shows a toast while the setting is off; **Allow**
+opens Android's per-app setting and **Hide** stops the prompt on that device. The
+call notification is public, so the lock screen shows the call and its actions.
+Test both permission states. Microphone access is required to join;
 camera access is requested when enabling video, and Bluetooth access when selecting
 that route on Android 12 or newer. A denied permission does not silently enable
 capture.
@@ -881,16 +883,21 @@ above a horizontally scrolling participant strip; tapping a strip tile selects
 it as primary. Agent participants such as the transcriber are hidden. Speaker,
 Mute and Video form a labelled control row of Phosphor icons, with Leave in the
 header and camera switching on the primary local video tile. Hold Speaker to
-select headset/Bluetooth routing. Back,
-tapping the scrim, or swiping the handle down enters PiP on supported devices.
-As on iOS, PiP shows you on the left and the active speaker on the right; its
-system menu offers Mute and Leave, and its expand button reopens the drawer.
-Android has one system PiP for in-app and backgrounded use; a tap shows the
-system menu rather than reopening the drawer.
-Without PiP support, dismissal returns to Macro while retaining audio. Audio continues in the
-foreground service while backgrounded. Camera capture stops when the call activity
-is backgrounded outside PiP. PiP uses native renderers and requires device support.
-The web call controls can reopen the native activity after returning to Macro.
+select headset/Bluetooth routing.
+
+As on iOS, Back, tapping the scrim, or swiping the handle down shrinks the drawer
+to a thumbnail over Macro (you on the left, the active speaker on the right).
+Tapping it reopens the drawer, dragging snaps it to a corner, and dragging it
+past a side leaves an edge tab that brings it back. On a locked phone the drawer
+goes straight to PiP instead. Leaving Macro continues the call in system PiP:
+from the thumbnail, Macro's main activity enters PiP (auto-enter on Android 12+,
+which needs `android:supportsPictureInPicture` on `MainActivity`) and hides the
+WebView so it keeps its size; from the drawer, the drawer enters PiP and
+reopens when Macro returns. PiP uses the same layout as iOS, its menu offers
+Mute and Leave, and expanding it reopens the drawer. A tap on a system PiP
+always shows Android's menu first. Audio continues in the foreground service
+while backgrounded; camera capture stops once neither the drawer, the thumbnail
+nor PiP is visible. The web call controls can also reopen the drawer.
 
 After a debug build generates Tauri's Gradle includes, run the plugin unit tests
 from `tauri/src-tauri/gen/android` with
@@ -907,10 +914,11 @@ For isolated native media testing, run a local LiveKit server in `--dev` mode
 bound to `0.0.0.0`, then add
 `-Pandroid.testInstrumentationRunnerArguments.livekitUrl=ws://10.0.2.2:7880`
 to the connected-test command on the standard Android emulator. The optional
-media test uses LiveKit's development credentials, a second native participant,
+media tests use LiveKit's development credentials, a second native participant,
 and emulator microphone/camera permissions to verify video subscription, mute,
-camera start/stop, duplicate start, network interruption/reconnect, navigation/PiP
-and resource cleanup. Cleartext
+camera start/stop, duplicate start, network interruption/reconnect, navigation/PiP,
+the in-app thumbnail and its PiP handoff (`MiniWindowTest`, Android 12+), and
+resource cleanup. Cleartext
 access is enabled only in the instrumentation APK. This test does not validate
 production FCM delivery or hardware audio quality.
 

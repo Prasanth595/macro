@@ -247,11 +247,14 @@ After joining, the themed drawer shows a large participant tile and a horizontal
 scrolling participant strip without the transcription agent; tap a strip tile to make it primary. Speaker toggles
 speaker mode (hold it for headset/Bluetooth routing), Mute and Video control capture, and **Leave** ends the call.
 The local primary video tile exposes Switch camera. Swipe the drawer handle down,
-tap outside the drawer, or use Back to enter PiP on supported devices. PiP shows you
-and the active speaker; tapping it shows Android's menu with Mute, **Leave** and
-expand, which reopens the drawer. **Open call
-controls** in the web call controls restores the native surface. Leaving the channel does
-not end the call. Incoming calls expose Answer/Decline in the **Calls** notification
-channel, including while locked/backgrounded. PiP is a native, device-dependent
+tap outside the drawer, or use Back to shrink it to a thumbnail over Macro, as on
+iOS: tap it to reopen the drawer, drag it to another corner, or drag it past a side
+to leave an edge tab. Leaving the app continues the call in system PiP (you and the
+active speaker); tapping PiP shows Android's menu with Mute, **Leave** and expand,
+which reopens the drawer. **Open call controls** in the web call controls also
+reopens the drawer. Leaving the channel does not end the call. Incoming calls
+expose Answer/Decline in the **Calls** notification channel, including while
+locked/backgrounded; while Android 14+ blocks full-screen notifications, a toast
+offers **Allow** (system setting) or **Hide**. PiP is a native, device-dependent
 flow. Browser-only tests cannot validate Telecom, FCM wakeup or background media;
 follow the hardware matrix in [Android development](../development/android.md#native-calling).
