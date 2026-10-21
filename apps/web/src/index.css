@@ -97,8 +97,8 @@
   --glass-rim-shade-base: 0%;
   --glass-rim-gap-ratio: 0;
   --glass-desktop-outline: rgb(0 0 0 / 0.4);
-  --glass-desktop-inner-edge: rgb(255 255 255 / 0.06);
-  --glass-desktop-top-edge: rgb(255 255 255 / 0.1);
+  --glass-desktop-inner-edge: rgb(255 255 255 / 0.08);
+  --glass-desktop-top-edge: rgb(255 255 255 / 0.12);
   /* Mobile chrome has two diagonal reflections with quiet opposing corners. */
   --island-rim-strong: 28%;
   --island-rim-soft: 12%;
@@ -882,7 +882,7 @@ html[data-theme-light='true']:not([data-touch-device='true']) {
    Tailwind's shadow utility composes this with focus and validation rings. */
 @utility elevated {
   @apply elevation-shadow border-transparent shadow-(--shadow-elevated);
-  --elevation-scale: 0.35;
+  --elevation-scale: 0.4;
   --elevation-ambient-shadow: var(--shadow-control);
 }
 

@@ -35,6 +35,7 @@ edge, brighter top edge, and compact shadow. Keep semantic fills and component
 geometry; a button group owns the frame so its child buttons remain flat.
 Compact controls use thinner, lower-opacity edges than composers and floating
 panels. Keep all desktop shadows close and faint, with only a slight top highlight.
+Define the border with subtle edge contrast instead of adding heavier shadows.
 In light mode, floating surfaces use the frame edge and a tighter, low-opacity
 contact shadow so white composers and menus separate cleanly from near-white
 content. Touch surfaces retain their existing shadows.
