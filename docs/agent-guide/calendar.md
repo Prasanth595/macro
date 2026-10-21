@@ -194,10 +194,12 @@ On phones, creation and editing fill the same bottom sheet, retaining date/time
 controls and the shared layout. Custom recurrence uses a nested sheet.
 Close, Cancel, Escape, and mobile sheet dismissal use the shared `confirmDialog`
 before discarding a changed draft. A pending save cannot be dismissed. Split-router
-`useBeforeLeave` confirms before leaving any unsaved creation draft, including an
-untouched selected slot; existing edits prompt only when changed. Keep editing
-retains the draft and current route; Discard permits navigation. Reloading also
-protects unsaved new events. Clean timeslot replacement remains immediate.
+`useBeforeLeave` belongs to the calendar-owned composer, outside its loading and
+form branches. It confirms before leaving any unsaved creation draft, including
+an untouched selected slot while the editor is loading; existing edits prompt only
+when changed. Keep editing retains the draft and current route; Discard permits
+navigation. Reloading also protects unsaved new events. Clean timeslot replacement
+remains immediate.
 
 Verify a click and a multi-slot drag in Week and Month. Enter a title, description,
 guest, location, and custom recurrence; confirm date and time controls remain
@@ -248,8 +250,10 @@ Click or drag another empty slot: verify immediate replacement for a clean draft
 then both `Keep editing` and `Discard` for a dirty draft. Check that Discard opens
 the newly selected range. Verify explicit dismissal separately.
 Switch app-sidebar tabs with both an untouched new draft and an edited draft.
-Verify Keep editing stays in Calendar without changing the draft, while Discard
-allows navigation. Exercise the popover and sidebar separately.
+Delay editor loading and repeat before its fields appear. Verify Keep editing
+stays in Calendar without changing the draft, while Discard allows navigation.
+Exercise the popover and sidebar separately through the actual app sidebar, not
+only direct router calls.
 Repeat from `New → Event` and on a phone. Open each nested
 menu or dialog and press Escape: dismiss the top layer first, not the editor.
 Edit an existing recurring event and check both recurring scopes. Intentional

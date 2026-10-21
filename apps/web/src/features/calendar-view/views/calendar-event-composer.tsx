@@ -21,28 +21,93 @@ import { useCalendarEditor } from '../context/calendar-editor-context';
 import { createCalendarDraftDismissal } from '../primitives/create-calendar-draft-dismissal';
 import type { CalendarEditorDraft } from '../primitives/create-calendar-editor';
 
-/** The calendar owns the controller and mutation state independently of grid pages. */
+type CalendarEditorDismissalState = {
+  dirty: Accessor<boolean>;
+  pending: Accessor<boolean>;
+};
+
+type CalendarEditorProps = {
+  boundary: HTMLElement;
+  draft: CalendarEditorDraft;
+  onClose: () => void;
+  registerDismissalState: (state: CalendarEditorDismissalState) => () => void;
+};
+
+/** The calendar owns the draft's leave guard even while its form is loading. */
 export function CalendarEventComposer(props: { boundary: HTMLElement }) {
   const composer = useCalendarEditor();
+  const owner = getOwner();
+  let dismissalState: CalendarEditorDismissalState | undefined;
+  const registerDismissalState = (state: CalendarEditorDismissalState) => {
+    dismissalState = state;
+    return () => {
+      if (dismissalState === state) dismissalState = undefined;
+    };
+  };
+  const mayDismiss = createCalendarDraftDismissal({
+    dirty: () => dismissalState?.dirty() ?? false,
+    pending: () => dismissalState?.pending() ?? false,
+    confirmDiscard: () =>
+      confirmDialog(
+        {
+          title: 'Discard event changes?',
+          body: 'Your unsaved changes will be lost.',
+          confirmLabel: 'Discard',
+          cancelLabel: 'Keep editing',
+          tone: 'danger',
+        },
+        { owner }
+      ),
+  });
+  onCleanup(composer.registerBeforeReplace(mayDismiss));
+  const close = async () => {
+    if (await mayDismiss()) composer.close();
+  };
+  const requestClose = () => fireAndForget(close(), 'calendar-event-composer');
+  useBeforeLeave(() => {
+    const draft = composer.draft();
+    // A selected slot is an unsaved event, even before its form has loaded.
+    return !draft || mayDismiss(draft.event === undefined);
+  });
+  const beforeUnload = (event: BeforeUnloadEvent) => {
+    const draft = composer.draft();
+    if (
+      !draft ||
+      (draft.event && !dismissalState?.dirty() && !dismissalState?.pending())
+    ) {
+      return;
+    }
+    event.preventDefault();
+    event.returnValue = '';
+  };
+  window.addEventListener('beforeunload', beforeUnload);
+  onCleanup(() => window.removeEventListener('beforeunload', beforeUnload));
+
   return (
     <Show keyed when={composer.draft()}>
       {(draft) => (
         <Suspense
           fallback={
-            <CalendarEditorLoading boundary={props.boundary} draft={draft} />
+            <CalendarEditorLoading
+              boundary={props.boundary}
+              draft={draft}
+              onClose={requestClose}
+            />
           }
         >
-          <CalendarEditorReady boundary={props.boundary} draft={draft} />
+          <CalendarEditorReady
+            boundary={props.boundary}
+            draft={draft}
+            onClose={requestClose}
+            registerDismissalState={registerDismissalState}
+          />
         </Suspense>
       )}
     </Show>
   );
 }
 
-function CalendarEditorReady(props: {
-  boundary: HTMLElement;
-  draft: CalendarEditorDraft;
-}) {
+function CalendarEditorReady(props: CalendarEditorProps) {
   const quickCalls = useQuickCallsFlag();
   const ready = createMemo(
     (resolved) => resolved || !quickCalls().loading,
@@ -58,10 +123,9 @@ function CalendarEditorReady(props: {
   );
 }
 
-function CalendarEditorLoading(props: {
-  boundary: HTMLElement;
-  draft: CalendarEditorDraft;
-}) {
+function CalendarEditorLoading(
+  props: Pick<CalendarEditorProps, 'boundary' | 'draft' | 'onClose'>
+) {
   const composer = useCalendarEditor();
   return (
     <CalendarEditorSurface
@@ -71,7 +135,7 @@ function CalendarEditorLoading(props: {
       onMoveToSidebar={composer.moveToSidebar}
       onMoveToPopover={composer.moveToPopover}
       pending={false}
-      onClose={composer.close}
+      onClose={props.onClose}
     >
       <p role="status" class="p-4">
         Loading event…
@@ -80,13 +144,10 @@ function CalendarEditorLoading(props: {
   );
 }
 
-function CalendarEditorContent(props: {
-  boundary: HTMLElement;
-  draft: CalendarEditorDraft;
-  macroCallsEnabled: Accessor<boolean>;
-}) {
+function CalendarEditorContent(
+  props: CalendarEditorProps & { macroCallsEnabled: Accessor<boolean> }
+) {
   const composer = useCalendarEditor();
-  const owner = getOwner();
   const opener = document.activeElement;
   let saved = false;
   const editor = useEventEditor({
@@ -124,36 +185,13 @@ function CalendarEditorContent(props: {
       };
     })
   );
-  const mayDismiss = createCalendarDraftDismissal({
-    dirty: controller.isDirty,
-    pending: editor.pending,
-    confirmDiscard: () =>
-      confirmDialog(
-        {
-          title: 'Discard event changes?',
-          body: 'Your unsaved changes will be lost.',
-          confirmLabel: 'Discard',
-          cancelLabel: 'Keep editing',
-          tone: 'danger',
-        },
-        { owner }
-      ),
-  });
-  onCleanup(composer.registerBeforeReplace(mayDismiss));
-  const close = async () => {
-    if (await mayDismiss()) composer.close();
-  };
-  const requestClose = () => fireAndForget(close(), 'calendar-event-composer');
-  // A selected slot is still an unsaved event, even before the user edits it.
-  useBeforeLeave(() => mayDismiss(props.draft.event === undefined));
-  const beforeUnload = (event: BeforeUnloadEvent) => {
-    if (props.draft.event && !controller.isDirty() && !editor.pending()) return;
-    event.preventDefault();
-    event.returnValue = '';
-  };
-  window.addEventListener('beforeunload', beforeUnload);
+  onCleanup(
+    props.registerDismissalState({
+      dirty: controller.isDirty,
+      pending: editor.pending,
+    })
+  );
   onCleanup(() => {
-    window.removeEventListener('beforeunload', beforeUnload);
     if (opener instanceof HTMLElement && opener.isConnected) opener.focus();
   });
 
@@ -162,7 +200,7 @@ function CalendarEditorContent(props: {
       boundary={props.boundary}
       draft={props.draft}
       pending={editor.pending()}
-      onClose={requestClose}
+      onClose={props.onClose}
       surface={composer.surface()}
       anchor={composer.previewAnchor()}
       onMoveToSidebar={composer.moveToSidebar}
@@ -177,7 +215,7 @@ function CalendarEditorContent(props: {
         showRecurringEditNotice={editor.showRecurringEditNotice()}
         pending={editor.pending()}
         onCalendarChange={props.draft.onCalendarChange}
-        onCancel={requestClose}
+        onCancel={props.onClose}
         onSubmit={(values, scope) =>
           fireAndForget(
             Telemetry.span(
