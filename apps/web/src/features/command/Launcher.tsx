@@ -1393,11 +1393,11 @@ export const LauncherShell = (
             <span class="flex gap-0.5">
               <Hotkey
                 shortcut={searchMode() ? 'arrowup' : navUpHotkey.hotkey()}
-                class="min-w-5 justify-center"
+                class="min-w-3 justify-center"
               />
               <Hotkey
                 shortcut={searchMode() ? 'arrowdown' : navDownHotkey.hotkey()}
-                class="min-w-5 justify-center"
+                class="min-w-3 justify-center"
               />
             </span>
             Navigate
@@ -1406,7 +1406,7 @@ export const LauncherShell = (
             <span class="flex items-center gap-1.5">
               <Hotkey
                 shortcut={confirmHotkey.hotkey()}
-                class="min-w-5 justify-center"
+                class="min-w-3 justify-center"
               />
               Create
             </span>
@@ -1420,7 +1420,7 @@ export const LauncherShell = (
               />
               <span
                 class={cn(
-                  'min-w-5 text-xxs px-1.5 py-px rounded-sm text-center transition-colors duration-150',
+                  'min-w-3 text-xxs px-0.5 py-px rounded-sm text-center transition-colors duration-150',
                   shiftHeld() ? 'bg-ink/10 text-ink' : 'text-ink-extra-muted'
                 )}
               >
