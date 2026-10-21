@@ -56,6 +56,8 @@ export function EntityDiscussion(props: {
   label?: string;
   /** Override the URL target; null leaves this discussion untargeted. */
   targetId?: string | null;
+  /** Defer scrolling while the host is still laying out content above the discussion. */
+  scrollReady?: boolean;
   /**
    * On touch devices, move the composer to the floating accessory region and
    * show the conversation only once it has roots, as the editor page does.
@@ -96,11 +98,32 @@ export function EntityDiscussion(props: {
   };
   let scrolledKey: string | undefined;
   createEffect(
-    on(scrollRequest, (request) => {
-      if (!request || !container || request.key === scrolledKey) return;
-      scrolledKey = request.key;
-      onCleanup(scrollToRenderedTarget(container, request.commentId));
-    })
+    on(
+      [scrollRequest, () => props.scrollReady !== false],
+      ([request, ready]) => {
+        if (!request || !container || request.key === scrolledKey) return;
+        const onSettled = () => {
+          scrolledKey = request.key;
+        };
+        if (!ready) {
+          // A reader can take over even before the editor is ready to scroll.
+          const events = ['wheel', 'touchmove', 'keydown'] as const;
+          for (const type of events)
+            window.addEventListener(type, onSettled, {
+              capture: true,
+              passive: true,
+            });
+          onCleanup(() => {
+            for (const type of events)
+              window.removeEventListener(type, onSettled, true);
+          });
+          return;
+        }
+        onCleanup(
+          scrollToRenderedTarget(container, request.commentId, { onSettled })
+        );
+      }
+    )
   );
   return (
     <>

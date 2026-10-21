@@ -192,7 +192,8 @@ describe('EntityDiscussion target ownership', () => {
       expect(view.getByRole('article').dataset.target).toBe('workbook-reply');
       expect(mocks.scroll).toHaveBeenCalledWith(
         expect.any(HTMLElement),
-        'workbook-reply'
+        'workbook-reply',
+        { onSettled: expect.any(Function) }
       );
     }
   );

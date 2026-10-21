@@ -2597,6 +2597,14 @@ editor and comments arriving after it. Once loaded, click elsewhere in the
 document, then click the same notification again: it should revisit the comment,
 while background comment refreshes should leave the user's position alone.
 
+Verify bottom Discussion links from Home too:
+`/app/home/md/<id>?s0.drive.commentId=<comment-id>`. Open a long document from
+another Home item with its caches cold. The first click should reach the comment
+even when its messages arrive before the editor or loading content interrupts
+the initial scroll. Repeat the click after scrolling away. Wheel, touch, or
+keyboard scrolling during navigation should take control immediately; later
+background refreshes must not pull the reader back.
+
 A document row keeps pointing at its newest comment notification until that
 notification is done, so on desktop the row opens the document at that comment.
 On touch the thread is a drawer over the whole page rather than a margin card,
