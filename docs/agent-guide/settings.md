@@ -467,10 +467,12 @@ With `pipedream-mcp` enabled, Settings → Integrations displays installed tools
 Discover, without tabs or a separate installed sidebar. Installed tools use a compact status list; Discover
 has a search field and Add custom MCP action above featured cards and the app
 list. These pill-shaped controls share a height and stack on narrow screens.
-Installed and Discover use headings above rounded cards.
+Installed and Discover use headings above rounded cards. The overview uses
+compact section spacing and consistent light gray card backgrounds.
 A “Use Macro in Claude Code or another AI app” prompt at the top links to
 connection setup. Email and GitHub cards appear next, without a separate section heading;
-their settings links sit below the cards, above Installed and Discover.
+the two cards share a height and their plain-text settings links sit below,
+above Installed and Discover.
 Featured and catalog cards use two columns on wide screens and one on narrow
 screens, with a plus action for available apps. Featured cards show app names
 without descriptions, and catalog descriptions

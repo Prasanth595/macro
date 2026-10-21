@@ -59,7 +59,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
   });
 
   return (
-    <div class="@container/catalog flex flex-col gap-8">
+    <div class="@container/catalog flex flex-col gap-5">
       <div class="grid grid-cols-1 gap-2 @[440px]/catalog:grid-cols-[minmax(0,1fr)_auto]">
         <label class="relative block min-w-0">
           <span class="sr-only">Search integrations</span>
@@ -74,7 +74,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
               catalog.onSearchInput(event.currentTarget.value)
             }
             placeholder="Search integrations"
-            class="h-10 w-full rounded-full border border-edge-muted bg-panel pr-10 pl-9 text-sm text-ink outline-none placeholder:text-ink-muted focus-visible:border-edge-focus focus-visible:ring-1 focus-visible:ring-edge-focus [&::-webkit-search-cancel-button]:hidden"
+            class="h-10 w-full rounded-full border border-edge-muted bg-ink/4 pr-10 pl-9 text-sm text-ink outline-none placeholder:text-ink-muted focus-visible:border-edge-focus focus-visible:ring-1 focus-visible:ring-edge-focus [&::-webkit-search-cancel-button]:hidden"
           />
           <Show when={catalog.searchInput()}>
             <button
@@ -103,7 +103,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
         <div class="grid grid-cols-1 gap-3 @[440px]/catalog:grid-cols-2">
           <For each={featured()}>
             {(item) => (
-              <div class="@container overflow-hidden rounded-2xl border border-edge-muted">
+              <div class="@container overflow-hidden rounded-2xl border border-edge-muted bg-ink/4">
                 <button
                   type="button"
                   class="flex h-full w-full flex-col items-stretch text-left outline-none hover:bg-ink/4 focus-visible:bg-ink/6"
@@ -279,7 +279,7 @@ function CatalogRow(props: {
   );
 
   return (
-    <div class="@container overflow-hidden rounded-2xl border border-edge-muted">
+    <div class="@container overflow-hidden rounded-2xl border border-edge-muted bg-ink/4">
       <Show when={!props.added} fallback={row()}>
         <button
           type="button"

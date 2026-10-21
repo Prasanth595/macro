@@ -58,7 +58,7 @@ import { clearSignatureState } from './SignatureSection';
  * disconnect controls. All the inbox + backfill logic is unchanged; only the
  * surrounding chrome moved from a standalone panel to a shared card.
  */
-export function EmailCard() {
+export function EmailCard(props: { class?: string } = {}) {
   const email = useEmail();
   const userId = useUserId();
   const multiInboxFlag = useFeatureFlag(enableMultiInbox);
@@ -157,7 +157,7 @@ export function EmailCard() {
 
   return (
     <>
-      <SettingsCard>
+      <SettingsCard class={props.class}>
         <IntegrationRow
           icon={<EnvelopeIcon />}
           title="Email"

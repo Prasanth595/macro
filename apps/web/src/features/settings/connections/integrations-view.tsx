@@ -112,7 +112,11 @@ function ConnectionsContent(props: IntegrationsViewProps) {
             when={ready() && view.provider()}
             keyed
             fallback={
-              <SettingsPage title="Integrations" contentClass="max-w-[1200px]">
+              <SettingsPage
+                title="Integrations"
+                contentClass="max-w-[1200px]"
+                bodyClass="mt-5 gap-5"
+              >
                 <MacroMcpSignpost onOpen={props.onOpenMacroMcp} />
                 {props.children}
                 <Show when={partialError()}>
@@ -137,15 +141,15 @@ function ConnectionsContent(props: IntegrationsViewProps) {
                     <p class="text-sm text-ink-muted">Loading Connections…</p>
                   }
                 >
-                  <div class="flex min-w-0 flex-col gap-8">
+                  <div class="flex min-w-0 flex-col gap-5">
                     <section
                       aria-label="Installed integrations"
                       class="min-w-0 w-full"
                     >
-                      <h2 class="mb-4 text-base font-medium text-ink">
+                      <h2 class="mb-3 text-base font-medium text-ink">
                         Installed
                       </h2>
-                      <div class="overflow-hidden rounded-2xl border border-edge-muted bg-panel">
+                      <div class="overflow-hidden rounded-2xl border border-edge-muted bg-ink/4">
                         <ConnectedView model={model()} />
                       </div>
                     </section>
@@ -153,7 +157,7 @@ function ConnectionsContent(props: IntegrationsViewProps) {
                       aria-label="Discover integrations"
                       class="min-w-0 w-full"
                     >
-                      <h2 class="mb-4 text-base font-medium text-ink">
+                      <h2 class="mb-3 text-base font-medium text-ink">
                         Discover
                       </h2>
                       <DiscoverView model={model()} />

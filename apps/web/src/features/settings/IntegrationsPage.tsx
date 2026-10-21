@@ -2,7 +2,6 @@ import { ENABLE_EMAIL } from '@core/constant/featureFlags';
 import { useSettingsState } from '@core/constant/SettingsState';
 import { useSettingsTabAvailable } from '@core/constant/settingsTabsConfig';
 import { usePipedreamMcpFlag } from '@core/pipedream/flag';
-import { Button } from '@ui';
 import { Show, Suspense } from 'solid-js';
 import { IntegrationsView } from './connections/integrations-view';
 import { EmailCard } from './Email';
@@ -40,36 +39,36 @@ function AccountConnections() {
     <section
       data-settings-target="accounts"
       tabIndex={-1}
-      class="border-b border-edge-muted pb-6 outline-none"
+      class="border-b border-edge-muted pb-4 outline-none"
     >
-      <div class="grid grid-cols-1 items-start gap-4 @[760px]/settings-page:grid-cols-2">
+      <div class="grid grid-cols-1 items-stretch gap-4 @[760px]/settings-page:grid-cols-2">
         <Show when={ENABLE_EMAIL}>
           <Suspense>
-            <EmailCard />
+            <EmailCard class="h-full bg-ink/4 shadow-none light-mode:shadow-none" />
           </Suspense>
         </Show>
         <Suspense>
-          <GitHubCard />
+          <GitHubCard class="h-full bg-ink/4 shadow-none light-mode:shadow-none" />
         </Suspense>
       </div>
-      <div class="mt-3 flex flex-wrap items-center justify-end gap-2">
+      <div class="mt-3 flex flex-wrap items-center justify-end gap-4">
         <Show when={ENABLE_EMAIL}>
-          <Button
-            variant="ghost"
-            size="md"
+          <button
+            type="button"
+            class="inline-flex items-center text-sm text-ink-muted outline-none hover:text-ink hover:underline focus-visible:underline touch:min-h-[44px]"
             onClick={() => openSettings('Email')}
           >
             Email settings
-          </Button>
+          </button>
         </Show>
         <Show when={isAvailable('Calendar')}>
-          <Button
-            variant="ghost"
-            size="md"
+          <button
+            type="button"
+            class="inline-flex items-center text-sm text-ink-muted outline-none hover:text-ink hover:underline focus-visible:underline touch:min-h-[44px]"
             onClick={() => openSettings('Calendar')}
           >
             Calendar settings
-          </Button>
+          </button>
         </Show>
       </div>
     </section>

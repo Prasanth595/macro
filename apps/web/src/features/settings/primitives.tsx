@@ -30,6 +30,8 @@ export function SettingsPage(props: {
   title: string;
   /** Layout width and spacing for the page content. */
   contentClass?: string;
+  /** Spacing between the heading and page sections. */
+  bodyClass?: string;
   /** Inline subpages need their own heading beneath the mobile sheet chrome. */
   showTitleInSheet?: boolean;
   /** Optional one-line subtitle; accepts text or inline markup (e.g. a link). */
@@ -100,7 +102,11 @@ export function SettingsPage(props: {
           </Show>
         </header>
         <div
-          class={cn('flex flex-col', inSheet ? 'gap-6 mt-3' : 'mt-12 gap-12')}
+          class={cn(
+            'flex flex-col',
+            inSheet ? 'gap-6 mt-3' : 'mt-12 gap-12',
+            props.bodyClass
+          )}
         >
           {props.children}
         </div>

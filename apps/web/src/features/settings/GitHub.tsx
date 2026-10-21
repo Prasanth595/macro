@@ -18,7 +18,7 @@ import {
 import { IntegrationRow, SettingsCard, SettingsRow } from './primitives';
 
 /** GitHub integration as a Connected-accounts card. */
-export function GitHubCard() {
+export function GitHubCard(props: { class?: string } = {}) {
   const githubLink = useGithubLinkStatusQuery();
   const initGithubLink = useInitGithubLinkMutation();
   const deleteGithubLink = useDeleteGithubLinkMutation();
@@ -68,7 +68,7 @@ export function GitHubCard() {
   };
 
   return (
-    <SettingsCard>
+    <SettingsCard class={props.class}>
       <IntegrationRow icon={<GithubIcon />} title="GitHub" />
 
       <SettingsRow
