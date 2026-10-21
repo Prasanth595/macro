@@ -490,7 +490,7 @@ from your local AI harness to Macro” opens Runtimes within Integrations to con
 a local machine. Its Back button returns to Integrations; opening Runtimes from
 Agents keeps the return to Agents.
 Email, GitHub, and Granola cards appear next under Core Integrations;
-the two cards share a height. A small gear on the Email card opens Email settings;
+they stack in one full-width column and share a height on wide screens. A small gear on the Email card opens Email settings;
 Calendar settings remain available from the settings sidebar.
 All apps groups each app under its first nonempty Pipedream category; apps without
 category metadata appear under More apps. Categories lead with Productivity,

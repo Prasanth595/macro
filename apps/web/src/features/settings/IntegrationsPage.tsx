@@ -56,7 +56,7 @@ function AccountConnections() {
       class="pb-5 outline-none"
     >
       <h2 class="mb-2 text-lg font-medium text-ink">Core Integrations</h2>
-      <div class="grid grid-cols-1 items-stretch gap-3 @[760px]/settings-page:grid-cols-2">
+      <div class="grid grid-cols-1 items-stretch gap-3 @[760px]/settings-page:auto-rows-fr">
         <Show when={ENABLE_EMAIL}>
           <Suspense>
             <EmailCard
