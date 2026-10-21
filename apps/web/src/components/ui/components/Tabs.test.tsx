@@ -1,7 +1,12 @@
 import { cleanup, fireEvent, render, screen } from '@solidjs/testing-library';
 import { createSignal } from 'solid-js';
-import { afterEach, expect, it } from 'vitest';
-import { Tabs } from './Tabs';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { Tabs, type TabsTouchStyle } from './Tabs';
+
+const device = vi.hoisted(() => ({ touch: false }));
+vi.mock('@core/mobile/isTouchDevice', () => ({
+  isTouchDevice: () => device.touch,
+}));
 
 afterEach(cleanup);
 
@@ -72,4 +77,58 @@ it('does not select a disabled option', () => {
 
   fireEvent.click(screen.getByText('Team', { exact: true }));
   expect(value()).toBe('personal');
+});
+
+describe('on touch', () => {
+  beforeEach(() => {
+    device.touch = true;
+    // Kobalte's sliding indicator measures the selected option.
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    );
+  });
+  afterEach(() => {
+    device.touch = false;
+    vi.unstubAllGlobals();
+  });
+
+  const renderTouch = (touch: TabsTouchStyle | undefined) => {
+    const [value, setValue] = createSignal<'available' | 'unavailable'>(
+      'available'
+    );
+    render(() => (
+      <Tabs
+        aria-label="Availability type"
+        touch={touch}
+        options={[
+          { value: 'available', label: 'Available' },
+          { value: 'unavailable', label: 'Unavailable' },
+        ]}
+        value={value()}
+        onChange={setValue}
+      />
+    ));
+    fireEvent.click(screen.getByText('Unavailable', { exact: true }));
+    return {
+      value,
+      slidingPill: () => document.querySelector('[role=presentation]'),
+    };
+  };
+
+  it.each([
+    { touch: undefined, slides: true },
+    { touch: 'pills' as const, slides: false },
+  ])('selects with touch=$touch, sliding pill: $slides', (row) => {
+    const { value, slidingPill } = renderTouch(row.touch);
+    expect(value()).toBe('unavailable');
+    expect(
+      screen.getByRole('radio', { name: 'Unavailable', checked: true })
+    ).toBeTruthy();
+    expect(slidingPill() !== null).toBe(row.slides);
+  });
 });

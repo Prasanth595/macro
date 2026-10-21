@@ -54,6 +54,8 @@ export type TabsProps<T extends string> = {
  * @do Put view tabs left of the header controls, after the title.
  * @do Use `iconOnly` to collapse a narrow header; keep `label` as the name.
  * @do Use `size` to match neighbouring controls: `md` beside 32px buttons.
+ * @do Set `touch` to the look the surface had on touch: `pill` (sliding),
+ *   `inset`, `segmented`, or `pills` for separate pills like desktop.
  * @dont Do not build tabs from Buttons, a ButtonGroup, or HeaderActionGroup.
  * @dont Do not put Tabs inside a HeaderActionGroup or ButtonGroup.
  * @dont Do not use Tabs for tabs that own panels or a dynamic collection; use TabSelector.
