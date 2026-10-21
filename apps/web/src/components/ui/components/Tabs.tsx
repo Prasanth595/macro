@@ -36,6 +36,8 @@ export type TabsProps<T extends string> = {
   fullWidth?: boolean;
   /** Show only icons, with each label as a tooltip; options without an icon keep their label. */
   iconOnly?: boolean;
+  /** Let many options flow onto more lines; renders pills on touch too. */
+  wrap?: boolean;
   touch?: TabsTouchStyle;
   disabled?: boolean;
   /** Placement only (margins, width, alignment); never restyle the options. */
@@ -77,11 +79,12 @@ export function Tabs<T extends string>(props: TabsProps<T>) {
       )}
     >
       <Show
-        when={isTouchDevice()}
+        when={isTouchDevice() && !props.wrap}
         fallback={
           <div
             class={cn(
               'flex min-w-0 items-center',
+              props.wrap && 'flex-wrap',
               props.size === 'sm' ? 'gap-1' : 'gap-1.5',
               props.fullWidth && 'w-full'
             )}
@@ -177,6 +180,8 @@ function PillOption<T extends string>(props: {
           props.size === 'sm' && 'gap-1 px-2 text-xs',
           props.size === 'md' && 'gap-1.5 px-3 text-sm',
           props.size === 'lg' && 'gap-2 px-4 text-sm',
+          // Equal-width options are centred, so narrow rails keep whole labels.
+          props.fullWidth && 'px-1.5',
           square() && 'px-0'
         )}
       >
