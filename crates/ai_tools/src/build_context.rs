@@ -618,7 +618,7 @@ pub async fn build_tool_service_context_from_env(
             ))
             .with_review_follow_up(crate::build_review_follow_up(
                 macro_service_urls::AgentHarnessServiceUrl::new()?,
-                &env.internal_api_key.to_string(),
+                &env.internal_api_key,
             )?)
             .with_job_shutdown(import_jobs.shutdown, import_jobs.tracker),
         );

@@ -551,7 +551,7 @@ async fn build_tool_context(args: ToolContextBuildArgs<'_>) -> anyhow::Result<To
         ))
         .with_review_follow_up(ai_tools::build_review_follow_up(
             macro_service_urls::AgentHarnessServiceUrl::new()?,
-            &config.internal_api_key.to_string(),
+            &config.internal_api_key,
         )?)
         .with_job_shutdown(import_jobs.shutdown, import_jobs.tracker),
     );
