@@ -48,6 +48,15 @@ queued mutations should resume promptly, without waiting for the old poll or
 local retry timer; durable leases and server-retry deadlines still apply.
 Switching tabs or navigating an in-app route is not a back/forward-cache restore.
 
+Safari can also restart the SharedWorker when its creating tab closes, leaving
+another tab's port alive but its coordinator registrations gone. The surviving
+page must re-register without a reload or cache wipe. Open two tabs, close the
+first, and verify that cached reads and live updates continue in the second.
+Repeat through another handoff and while requests are pending. Interrupted
+optimistic enqueues must not be sent twice. A `graphql_cache.owner` event with
+`ownerEvent: coordinator-restarted` distinguishes this from engine replacement
+or a BFCache restore.
+
 ## Android system navigation and sharing
 
 In the Android app, Back first hides the keyboard, then dismisses the active
@@ -471,6 +480,12 @@ Widening the sidebar while its split is constrained also reduces the main
 content's soft width preference, so the next split resize keeps that choice
 instead of snapping the sidebar back to its constrained width.
 
+Split handles apply pointer movement once per animation frame and commit the
+final position on release. Check a rapid drag followed by immediate release,
+dragging at non-default zoom, and closing a split during a drag; later pointer
+movement must not keep resizing the removed split. Arrow keys still resize
+immediately, with Shift selecting the larger step.
+
 Email, Tasks, and Agents use the same sidebar rows, including favorites, tags,
 inboxes, and recent agent chats: 32px high on desktop and 44px on touch devices,
 with regular-weight labels and consistent icon spacing.
@@ -835,7 +850,23 @@ notifications. External contacts insert a link to their original CRM record;
 they do not invite or notify that email address. Assignee and other user-only
 pickers continue to list Macro users only.
 
-Cmd+K **People** and a typed **All** query also find CRM contacts, using the same
+Typed Cmd+K **People** and **All** queries find known Macro users, including
+teammates supplied by the contacts service, before their first DM and without a
+CRM record or the CRM feature. Search by name or email. Selecting a person opens
+their direct message; an existing one-to-one DM replaces the person row without
+losing name/email matches. Group DMs stay separate, and the viewer is excluded
+from person results. Empty queries keep the existing recency lists. Verify a
+teammate with no DM or CRM record in both categories, including with CRM disabled,
+then verify that loading their DM produces one row and that Files/Channels do not
+show that person.
+
+Browser examples: [desktop](media/command/teammate-desktop.png) and
+[mobile](media/command/teammate-mobile.png), using a known-user fixture with no DM
+or CRM record and an intercepted DM request. These captures used a bundle-only
+guard for the unrelated disabled grouped-Soup startup crash in
+`create-grouped-soup-live-query.ts`; unmodified app startup remains unverified.
+
+With CRM enabled, Cmd+K **People** and a typed **All** query also find CRM contacts, using the same
 accessible-team search, hidden-record exclusions, and full-email collapsing as
 mentions. Cached contacts appear at once; the server search starts about 250 ms
 after typing stops and pages 100 contacts at a time, so contacts beyond the first
