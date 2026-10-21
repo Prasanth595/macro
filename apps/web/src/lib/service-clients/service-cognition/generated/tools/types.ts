@@ -212,11 +212,7 @@ export type BookingStatus =
 /**
  * The runtimes an agent can be moved onto.
  */
-export type AgentHarnessOption =
-  | 'in-memory'
-  | 'cursor'
-  | 'claude-cloud'
-  | 'macrod';
+export type AgentHarnessOption = 'in-memory' | 'cursor' | 'macrod';
 /**
  * Where an agent can be mentioned.
  */
@@ -5682,7 +5678,7 @@ export interface AgentSummary {
    */
   instructions: string;
   /**
-   * Harness slug: `in-memory`, `cursor`, `claude-cloud`, or `macrod`.
+   * Harness slug: `in-memory`, `cursor`, or `macrod`.
    */
   harness: string;
   /**

@@ -69,7 +69,6 @@ pub struct ApiStates<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes
     gateway: RuntimeGatewayState<Auth>,
     models: AgentModelsRouterState<Models, Auth>,
     repositories: AgentRepositoriesRouterState<Auth>,
-    claude_auth: Router,
     sharing: Router,
     routine_sessions: Router,
     coding_agents: Router,
@@ -101,7 +100,6 @@ impl<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes>
             gateway,
             models,
             repositories,
-            claude_auth: Router::new(),
             sharing: Router::new(),
             routine_sessions: Router::new(),
             coding_agents: Router::new(),
@@ -129,12 +127,6 @@ impl<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes>
     /// Attach session-authorized code execution records.
     pub fn with_code_executions(mut self, router: Router) -> Self {
         self.code_executions = router;
-        self
-    }
-
-    /// Attach the optional owner-authenticated Claude demo connection routes.
-    pub fn with_claude_auth(mut self, router: Router) -> Self {
-        self.claude_auth = router;
         self
     }
 
@@ -282,7 +274,6 @@ where
         .merge(agent_coding_preferences_router(states.read))
         .merge(agent_models_router(states.models))
         .merge(agent_repositories_router(states.repositories))
-        .merge(states.claude_auth)
         .merge(states.routine_sessions)
         .merge(states.coding_agents)
         .merge(states.capabilities)
