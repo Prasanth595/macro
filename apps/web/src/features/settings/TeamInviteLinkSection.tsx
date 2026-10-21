@@ -43,7 +43,12 @@ export function TeamInviteLinkSection(props: {
   const deleteLink = useDeleteTeamInviteLinkMutation();
   const [confirming, setConfirming] = createSignal<'reset' | 'off'>();
 
-  const token = () => (linkQuery.isSuccess ? linkQuery.data.token : null);
+  // Keep the cached link through a failed refetch. When it never loaded, the
+  // link is unknown rather than missing: "Create link" would replace a link
+  // people already share, so offer a retry instead.
+  const link = () => (linkQuery.isPending ? undefined : linkQuery.data);
+  const token = () => link()?.token ?? null;
+  const unknown = () => !linkQuery.isPending && link() === undefined;
   const busy = () =>
     linkQuery.isPending || createLink.isPending || deleteLink.isPending;
 
@@ -71,22 +76,40 @@ export function TeamInviteLinkSection(props: {
         <div class="min-w-0">
           <div class="text-sm text-ink">Invite link</div>
           <div class="text-xs text-ink-muted">
-            Anyone with the link can join your team. Paste it in Slack or an
-            email.
+            <Show when={!unknown()} fallback="Couldn't load the invite link.">
+              Anyone with the link can join your team. Paste it in Slack or an
+              email.
+            </Show>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          class="shrink-0"
-          disabled={busy()}
-          onClick={handleCopyOrCreate}
+        <Show
+          when={!unknown()}
+          fallback={
+            <Button
+              variant="outline"
+              size="sm"
+              class="shrink-0"
+              onClick={() =>
+                fireAndForget(linkQuery.refetch(), 'team-invite-link')
+              }
+            >
+              Retry
+            </Button>
+          }
         >
-          <LinkIcon class="size-4" />
-          <Show when={token()} fallback="Create link">
-            Copy link
-          </Show>
-        </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            class="shrink-0"
+            disabled={busy()}
+            onClick={handleCopyOrCreate}
+          >
+            <LinkIcon class="size-4" />
+            <Show when={token()} fallback="Create link">
+              Copy link
+            </Show>
+          </Button>
+        </Show>
       </div>
       <Show when={props.canManage && token()}>
         <div class="flex items-center gap-1">

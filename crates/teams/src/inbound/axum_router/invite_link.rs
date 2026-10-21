@@ -1,6 +1,6 @@
 use axum::{
     Json,
-    extract::{Path, State},
+    extract::State,
     http::StatusCode,
     response::{IntoResponse, Response},
 };
@@ -47,11 +47,12 @@ pub struct JoinTeamByInviteLinkResponse {
     pub already_member: bool,
 }
 
-/// Path parameters for invite link endpoints.
-#[derive(serde::Deserialize)]
-pub struct TeamInviteLinkPathParam {
+/// Identifies an invite link. The token travels in the body, not the path, so
+/// request spans and access logs that record the path never see it.
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub struct TeamInviteLinkTokenRequest {
     /// The invite link's token.
-    pub token: uuid::Uuid,
+    pub token: TeamInviteLinkToken,
 }
 
 impl IntoResponse for ManageTeamInviteLinkError {
@@ -190,12 +191,10 @@ pub async fn delete_handler<
 
 /// Gets the team an invite link joins, so the user can see it before joining.
 #[utoipa::path(
-    get,
-    path = "/team/invite-link/{token}",
+    post,
+    path = "/team/invite-link/team",
     operation_id = "get_team_by_invite_link",
-    params(
-        ("token" = String, Path, description = "The invite link's token")
-    ),
+    request_body = TeamInviteLinkTokenRequest,
     responses(
         (status = 200, body = TeamInviteLinkTeam),
         (status = 401, body = ErrorResponse),
@@ -211,23 +210,18 @@ pub async fn get_team_handler<
 >(
     State(state): State<TeamRouterState<T, Eas, Auth>>,
     _authorization: MacroAuthorizationExtractor<Auth, UserOrInternal>,
-    Path(TeamInviteLinkPathParam { token }): Path<TeamInviteLinkPathParam>,
+    Json(TeamInviteLinkTokenRequest { token }): Json<TeamInviteLinkTokenRequest>,
 ) -> Result<Json<TeamInviteLinkTeam>, JoinTeamByInviteLinkError> {
-    let team = state
-        .service
-        .get_team_by_invite_link(&TeamInviteLinkToken::from_uuid(token))
-        .await?;
+    let team = state.service.get_team_by_invite_link(&token).await?;
     Ok(Json(team))
 }
 
 /// Joins the team an invite link belongs to.
 #[utoipa::path(
     post,
-    path = "/team/invite-link/{token}/join",
+    path = "/team/invite-link/join",
     operation_id = "join_team_by_invite_link",
-    params(
-        ("token" = String, Path, description = "The invite link's token")
-    ),
+    request_body = TeamInviteLinkTokenRequest,
     responses(
         (status = 200, body = JoinTeamByInviteLinkResponse),
         (status = 401, body = ErrorResponse),
@@ -244,14 +238,11 @@ pub async fn join_handler<
 >(
     State(state): State<TeamRouterState<T, Eas, Auth>>,
     authorization: MacroAuthorizationExtractor<Auth, UserOrInternal>,
-    Path(TeamInviteLinkPathParam { token }): Path<TeamInviteLinkPathParam>,
+    Json(TeamInviteLinkTokenRequest { token }): Json<TeamInviteLinkTokenRequest>,
 ) -> Result<Json<JoinTeamByInviteLinkResponse>, JoinTeamByInviteLinkError> {
     let outcome = state
         .service
-        .join_team_by_invite_link(
-            &TeamInviteLinkToken::from_uuid(token),
-            &authorization.authorization.user.macro_user_id,
-        )
+        .join_team_by_invite_link(&token, &authorization.authorization.user.macro_user_id)
         .await?;
     Ok(Json(JoinTeamByInviteLinkResponse {
         team_id: outcome.team_id(),

@@ -21,7 +21,10 @@ export function TeamInviteLinkAcceptance(props: { token: string }) {
     () => props.token,
     () => true
   );
-  const teamName = () => (teamQuery.isSuccess ? teamQuery.data.team_name : '');
+  // Keep the team on screen through a failed refetch; only a link the server
+  // says is gone is "not valid".
+  const team = () => (teamQuery.isPending ? undefined : teamQuery.data);
+  const teamName = () => team()?.team_name ?? '';
 
   const joinMutation = useJoinTeamByInviteLinkMutation({
     onSuccess: (result) => {
@@ -33,6 +36,9 @@ export function TeamInviteLinkAcceptance(props: { token: string }) {
       navigate('/', { replace: true });
     },
   });
+  const linkGone = () =>
+    thrownResultErrorHasCode(teamQuery.error, 'NOT_FOUND') ||
+    thrownResultErrorHasCode(joinMutation.error, 'NOT_FOUND');
   const joinConflict = () =>
     joinMutation.isError &&
     thrownResultErrorHasCode(joinMutation.error, 'CONFLICT');
@@ -42,12 +48,7 @@ export function TeamInviteLinkAcceptance(props: { token: string }) {
       <Match when={teamQuery.isPending}>
         <LoadingBlock />
       </Match>
-      <Match
-        when={
-          teamQuery.isError ||
-          thrownResultErrorHasCode(joinMutation.error, 'NOT_FOUND')
-        }
-      >
+      <Match when={linkGone()}>
         <Outcome
           title="Invite Link Not Valid"
           body="This invite link was reset or turned off. Ask someone on the team for a new one."
@@ -59,7 +60,13 @@ export function TeamInviteLinkAcceptance(props: { token: string }) {
           body="You can be on one team at a time. Leave your current team in Settings to join this one."
         />
       </Match>
-      <Match when={teamQuery.isSuccess}>
+      <Match when={!team()}>
+        <Outcome
+          title="Couldn't Load Invite"
+          body="Check your connection and open the link again."
+        />
+      </Match>
+      <Match when={team()}>
         <div class="flex flex-col items-center gap-6 text-center w-full">
           <div class="flex flex-col gap-2">
             <h2 class="flex items-center justify-center gap-2 text-lg font-medium text-ink">

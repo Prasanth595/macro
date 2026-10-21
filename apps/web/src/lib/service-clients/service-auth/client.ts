@@ -1325,8 +1325,12 @@ export const authServiceClient = {
   async getTeamByInviteLink(token: string) {
     return (
       await fetchWithAuth<TeamInviteLinkTeam>(
-        `${authHost}/team/invite-link/${encodeURIComponent(token)}`,
-        { method: 'GET' }
+        `${authHost}/team/invite-link/team`,
+        {
+          method: 'POST',
+          // In the body, not the path, so request telemetry never records it.
+          body: JSON.stringify({ token }),
+        }
       )
     ).map((result) => result);
   },
@@ -1339,8 +1343,8 @@ export const authServiceClient = {
   async joinTeamByInviteLink(token: string) {
     return (
       await fetchWithAuth<JoinTeamByInviteLinkResponse>(
-        `${authHost}/team/invite-link/${encodeURIComponent(token)}/join`,
-        { method: 'POST' }
+        `${authHost}/team/invite-link/join`,
+        { method: 'POST', body: JSON.stringify({ token }) }
       )
     ).map((result) => result);
   },

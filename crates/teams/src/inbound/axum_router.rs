@@ -139,11 +139,11 @@ where
                 .delete(invite_link::delete_handler::<T, Eas, Auth>),
         )
         .route(
-            "/invite-link/{token}",
-            get(invite_link::get_team_handler::<T, Eas, Auth>),
+            "/invite-link/team",
+            post(invite_link::get_team_handler::<T, Eas, Auth>),
         )
         .route(
-            "/invite-link/{token}/join",
+            "/invite-link/join",
             post(invite_link::join_handler::<T, Eas, Auth>),
         )
         .route(

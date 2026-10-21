@@ -8,6 +8,9 @@ import { TeamInviteLinkSection } from './TeamInviteLinkSection';
 
 const link = vi.hoisted(() => ({
   token: null as string | null,
+  // Undefined data with no pending load: the first fetch failed.
+  loadFailed: false,
+  refetch: vi.fn(),
   create: vi.fn(),
   remove: vi.fn(),
   copied: [] as string[],
@@ -28,10 +31,10 @@ vi.mock('@core/util/dataTransfer', () => ({
 vi.mock('@queries/team/invite-link', () => ({
   useTeamInviteLinkQuery: () => ({
     isPending: false,
-    isSuccess: true,
     get data() {
-      return { token: link.token };
+      return link.loadFailed ? undefined : { token: link.token };
     },
+    refetch: link.refetch,
   }),
   useCreateTeamInviteLinkMutation: () => ({
     isPending: false,
@@ -46,6 +49,9 @@ vi.mock('@queries/team/invite-link', () => ({
 let motionStyles: HTMLStyleElement;
 beforeEach(() => {
   link.token = null;
+  link.loadFailed = false;
+  link.refetch.mockReset();
+  link.refetch.mockResolvedValue(undefined);
   link.copied = [];
   link.create.mockReset();
   link.remove.mockReset();
@@ -84,6 +90,17 @@ describe('TeamInviteLinkSection', () => {
     );
     expect(link.create).not.toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: 'Turn off' })).toBeNull();
+  });
+
+  it('offers a retry, not a reset, when the link never loaded', () => {
+    link.loadFailed = true;
+    render(() => <TeamInviteLinkSection teamId="team-1" canManage />);
+
+    expect(screen.queryByRole('button', { name: 'Create link' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+    expect(link.refetch).toHaveBeenCalled();
+    expect(link.create).not.toHaveBeenCalled();
   });
 
   it('lets admins reset the link after confirming', async () => {

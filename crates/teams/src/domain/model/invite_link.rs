@@ -9,11 +9,18 @@ use super::{JoinTeamDirectlyError, TeamError, TeamMember};
 /// Anyone signed in who holds the token can join the team, so it is a random
 /// value rather than a time-ordered id, and an admin resetting the link
 /// replaces it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 #[cfg_attr(feature = "axum", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "axum", schema(value_type = String))]
 pub struct TeamInviteLinkToken(uuid::Uuid);
+
+/// Redacted, so a token in a logged struct or error never reaches telemetry.
+impl std::fmt::Debug for TeamInviteLinkToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("TeamInviteLinkToken(<redacted>)")
+    }
+}
 
 impl TeamInviteLinkToken {
     /// Generates a new unguessable token.

@@ -905,7 +905,6 @@ impl TeamRepository for MockTeamRepository {
         &self,
         _: &uuid::Uuid,
         token: &TeamInviteLinkToken,
-        _: &MacroUserIdStr<'_>,
     ) -> impl Future<Output = Result<(), TeamError>> + Send {
         *self.invite_link.lock().unwrap() = Some(*token);
         async { Ok(()) }

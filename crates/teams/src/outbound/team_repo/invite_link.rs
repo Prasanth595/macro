@@ -1,6 +1,5 @@
 //! Queries for a team's shareable invite link.
 
-use macro_user_id::user_id::MacroUserIdStr;
 use sqlx::PgPool;
 
 use crate::domain::model::{TeamError, TeamInviteLinkTeam, TeamInviteLinkToken};
@@ -27,20 +26,17 @@ pub(super) async fn set_team_invite_link(
     pool: &PgPool,
     team_id: &uuid::Uuid,
     token: &TeamInviteLinkToken,
-    created_by: &MacroUserIdStr<'_>,
 ) -> Result<(), TeamError> {
     sqlx::query!(
         r#"
-        INSERT INTO team_invite_link (team_id, token, created_by)
-        VALUES ($1, $2, $3)
+        INSERT INTO team_invite_link (team_id, token)
+        VALUES ($1, $2)
         ON CONFLICT (team_id) DO UPDATE
         SET token = EXCLUDED.token,
-            created_by = EXCLUDED.created_by,
             created_at = now()
         "#,
         team_id,
         token.as_uuid(),
-        created_by.as_ref(),
     )
     .execute(pool)
     .await?;

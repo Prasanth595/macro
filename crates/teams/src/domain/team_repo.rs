@@ -347,7 +347,6 @@ pub trait TeamRepository: Clone + Send + Sync + 'static {
         &self,
         team_id: &uuid::Uuid,
         token: &TeamInviteLinkToken,
-        created_by: &MacroUserIdStr<'_>,
     ) -> impl Future<Output = Result<(), TeamError>> + Send;
 
     /// Removes the team's invite link. A no-op when the team has none.

@@ -119,7 +119,7 @@ where
 
         let token = TeamInviteLinkToken::generate();
         self.team_repository
-            .set_team_invite_link(&team_id, &token, user_id)
+            .set_team_invite_link(&team_id, &token)
             .await?;
         Ok(token)
     }
