@@ -474,7 +474,9 @@ Installed and Discover use headings above rounded cards. The overview uses
 more space between major sections and consistent light gray card backgrounds.
 Two thin, stacked setup rows appear at the top. “Use Macro in your favorite AI
 harness with the official Macro MCP” opens connection setup; “Stream sessions
-from your local AI harness to Macro” opens Runtimes to connect a local machine.
+from your local AI harness to Macro” opens Runtimes within Integrations to connect
+a local machine. Its Back button returns to Integrations; opening Runtimes from
+Agents keeps the return to Agents.
 Email and GitHub cards appear next under Core Integrations;
 the two cards share a height. A small gear on the Email card opens Email settings;
 Calendar settings remain available from the settings sidebar.

@@ -1,10 +1,11 @@
 import { ENABLE_EMAIL } from '@core/constant/featureFlags';
 import { useSettingsState } from '@core/constant/SettingsState';
 import { usePipedreamMcpFlag } from '@core/pipedream/flag';
-import { Show, Suspense } from 'solid-js';
+import { createSignal, Show, Suspense } from 'solid-js';
 import { IntegrationsView } from './connections/integrations-view';
 import { EmailCard } from './Email';
 import { GitHubCard } from './GitHub';
+import { Harness } from './Harness';
 import { IntegrationsSection } from './Integrations';
 import { SettingsPage } from './primitives';
 
@@ -12,6 +13,7 @@ import { SettingsPage } from './primitives';
 export function IntegrationsPage() {
   const pipedreamMcp = usePipedreamMcpFlag();
   const { openSettings } = useSettingsState();
+  const [showLocalAgents, setShowLocalAgents] = createSignal(false);
   return (
     <Show
       when={pipedreamMcp()}
@@ -24,12 +26,22 @@ export function IntegrationsPage() {
         </SettingsPage>
       }
     >
-      <IntegrationsView
-        onOpenMacroMcp={() => openSettings('Agent')}
-        onOpenLocalAgents={() => openSettings('Harness')}
+      <Show
+        when={showLocalAgents()}
+        fallback={
+          <IntegrationsView
+            onOpenMacroMcp={() => openSettings('Agent')}
+            onOpenLocalAgents={() => setShowLocalAgents(true)}
+          >
+            <AccountConnections />
+          </IntegrationsView>
+        }
       >
-        <AccountConnections />
-      </IntegrationsView>
+        <Harness
+          onBack={() => setShowLocalAgents(false)}
+          backLabel="Integrations"
+        />
+      </Show>
     </Show>
   );
 }
