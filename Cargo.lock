@@ -600,6 +600,7 @@ dependencies = [
  "bot_id",
  "bytes",
  "chat",
+ "cognition",
  "dashmap",
  "feature_flags",
  "futures",
@@ -620,6 +621,7 @@ dependencies = [
  "rig-agent",
  "rmcp",
  "roles_and_permissions",
+ "rootcause",
  "schemars 1.2.1",
  "serde",
  "serde_json",
@@ -916,6 +918,22 @@ dependencies = [
  "tracing",
  "utoipa",
  "wiremock",
+ "workspace-hack",
+]
+
+[[package]]
+name = "ai_billing_cli"
+version = "0.1.0"
+dependencies = [
+ "ai_billing",
+ "clap",
+ "macro_env_var",
+ "macro_user_id",
+ "macro_uuid",
+ "rootcause",
+ "sqlx",
+ "tokio",
+ "tracing",
  "workspace-hack",
 ]
 
@@ -2108,6 +2126,7 @@ dependencies = [
  "secretsmanager_client",
  "serde",
  "serde_json",
+ "serde_urlencoded",
  "serde_utils",
  "ses_client",
  "sha1 0.10.6",
@@ -3817,6 +3836,7 @@ dependencies = [
  "sha2 0.10.9",
  "share_permission_db_utils",
  "sqlx",
+ "strum 0.27.2",
  "subtle",
  "thiserror 2.0.18",
  "tokio",
@@ -4472,6 +4492,7 @@ dependencies = [
  "macro_user_id",
  "macro_uuid",
  "messages",
+ "openssl-sys",
  "ratatui",
  "reqwest 0.13.4",
  "rootcause",
@@ -4496,6 +4517,7 @@ dependencies = [
  "uuid",
  "webbrowser",
  "webhook",
+ "windows-sys 0.61.2",
  "workspace-hack",
 ]
 
@@ -5234,6 +5256,7 @@ dependencies = [
  "unfurl",
  "utoipa",
  "uuid",
+ "wiremock",
  "workspace-hack",
 ]
 
@@ -6585,6 +6608,7 @@ dependencies = [
  "secretsmanager_client",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "slack_integration",
  "soup",
  "soup_realtime",
@@ -8885,6 +8909,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.9",
  "sqlx",
+ "strum 0.27.2",
  "thiserror 2.0.18",
  "tokio",
  "tower 0.5.3",
@@ -12664,6 +12689,7 @@ name = "messages"
 version = "0.1.0"
 dependencies = [
  "activity",
+ "ai_toolset",
  "async-trait",
  "axum",
  "bot_id",
@@ -12686,6 +12712,7 @@ dependencies = [
  "model_notifications",
  "model_owner",
  "models_pagination",
+ "models_permissions",
  "models_properties",
  "notification",
  "properties",
@@ -18547,6 +18574,7 @@ version = "0.1.0"
 dependencies = [
  "agent_session",
  "broadcast",
+ "call",
  "channels",
  "chat",
  "chrono",

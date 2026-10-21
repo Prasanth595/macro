@@ -33,6 +33,8 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use url::Url;
 
+#[cfg(desktop)]
+mod desktop;
 mod desktop_update;
 mod device;
 mod diagnostics;
@@ -128,6 +130,19 @@ type Type = std::sync::OnceLock<
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    run_with(tauri::Builder::default());
+}
+
+/// The runtime type behind the default `tauri::Builder`: wry everywhere, except
+/// the macOS Chromium build, whose Tauri selects the runtime at startup.
+#[cfg(not(feature = "cef"))]
+pub type AppRuntime = tauri::Wry;
+#[cfg(feature = "cef")]
+pub type AppRuntime = tauri::DynRuntime;
+
+/// Runs the app on a builder whose webview runtime is already selected.
+/// `desktop-cef` passes a Chromium builder; every other build calls [`run`].
+pub fn run_with(builder: tauri::Builder<AppRuntime>) {
     use tracing_subscriber::EnvFilter;
 
     let diagnostics = diagnostics::Diagnostics::from_launch();
@@ -181,7 +196,7 @@ pub fn run() {
         .with_app_link_hosts(APP_LINK_HOSTS)
         .with_embedded_documents(EMBEDDED_DOCUMENTS)
         .expect("Embedded documents must be valid urls");
-    let mut builder = tauri::Builder::default();
+    let mut builder = builder;
 
     #[cfg(any(target_os = "ios", target_os = "macos"))]
     {
@@ -307,7 +322,10 @@ pub fn run() {
     // Window origin differs by platform:
     // macOS/iOS/Linux: tauri://localhost
     // Windows/Android: https://tauri.localhost (or http://)
-    let window_origin = if cfg!(any(target_os = "windows", target_os = "android")) {
+    // Chromium (the `cef` feature): http://tauri.localhost
+    let window_origin = if cfg!(feature = "cef") {
+        "http://tauri.localhost"
+    } else if cfg!(any(target_os = "windows", target_os = "android")) {
         "https://tauri.localhost"
     } else {
         "tauri://localhost"
@@ -388,6 +406,18 @@ pub fn run() {
             read_shared_file_text,
             flush_launch_deep_link,
             staged_upload::upload_staged_file_to_presigned_url,
+            #[cfg(desktop)]
+            desktop::macrod::macrod_support,
+            #[cfg(desktop)]
+            desktop::macrod::macrod_detect_agents,
+            #[cfg(desktop)]
+            desktop::macrod::macrod_inspect,
+            #[cfg(desktop)]
+            desktop::macrod::macrod_start,
+            #[cfg(desktop)]
+            desktop::macrod::macrod_stop,
+            #[cfg(desktop)]
+            desktop::macrod::macrod_status,
         ])
         .setup(move |app| {
             #[cfg(desktop)]
@@ -412,6 +442,11 @@ pub fn run() {
 
             app.chain(attach_deep_link_handler);
             cleanup_stale_staged_files(&app.handle());
+            #[cfg(desktop)]
+            {
+                app.manage(desktop::macrod::MacrodState::default());
+                desktop::macrod::autostart(&app.handle());
+            }
 
             Ok(())
         })
@@ -480,6 +515,12 @@ pub fn run() {
             desktop_update::on_exit_requested(app_handle, api)
         }
         RunEvent::Exit => {
+            #[cfg(desktop)]
+            if let Some(state) = app_handle.try_state::<desktop::macrod::MacrodState>() {
+                // The daemon also exits on its own when its stdin pipe
+                // closes with this process; the kill is the fast path.
+                desktop::macrod::kill_now(&state);
+            }
             if let Some(state) = app_handle.try_state::<graphql_cache_plugin::CacheState>() {
                 state
                     .shutdown()

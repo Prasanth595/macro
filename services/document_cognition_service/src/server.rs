@@ -661,6 +661,7 @@ pub async fn run() -> anyhow::Result<()> {
                     call::outbound::pg_imported_call_repo::PgImportedCallRepository::new(
                         db.clone(),
                     ),
+                    macro_event_broker.clone(),
                 )),
                 public_url: config.mcp_public_url.clone(),
             }) as Arc<dyn granola_sync::domain::service::SyncService>
@@ -793,6 +794,7 @@ pub async fn run() -> anyhow::Result<()> {
             ai_tools::build_image_generator_from_env(),
             recorder.clone(),
         )?,
+        message_tool_context: ai_tools::build_message_tool_context(&document_tool_context),
         document_tool_context: document_tool_context.clone(),
         properties_tool_context: properties_tool_context.clone(),
         email_tool_context: email_tool_context.clone(),

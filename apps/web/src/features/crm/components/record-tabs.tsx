@@ -1,7 +1,4 @@
-import CheckSquareIcon from '@phosphor/check-square.svg';
-import EnvelopeIcon from '@phosphor/envelope.svg';
-import FilesIcon from '@phosphor/files.svg';
-import PhoneIcon from '@phosphor/phone.svg';
+import { getIconConfig } from '@core/component/EntityIcon';
 import SquaresFourIcon from '@phosphor/squares-four.svg';
 import UsersIcon from '@phosphor/users.svg';
 import { Tabs } from '@ui';
@@ -17,10 +14,10 @@ const SECTION_ICONS: Record<
 > = {
   overview: SquaresFourIcon,
   team: UsersIcon,
-  emails: EnvelopeIcon,
-  files: FilesIcon,
-  tasks: CheckSquareIcon,
-  calls: PhoneIcon,
+  emails: getIconConfig('email').icon,
+  files: getIconConfig('files').icon,
+  tasks: getIconConfig('task').icon,
+  calls: getIconConfig('call').icon,
 };
 
 /**

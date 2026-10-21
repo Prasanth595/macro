@@ -1,3 +1,4 @@
+import { CreateContextProvider } from '@app/features/command/context/create-context';
 import { useSplitRouter } from '@app/lib/split-router';
 import { setGlobalSplitManager } from '@app/signal/splitLayout';
 import { useGlobalBlockOrchestrator } from '@components/app/GlobalAppState';
@@ -11,8 +12,10 @@ import {
   createSelector,
   For,
   onCleanup,
+  type ParentProps,
   Show,
   Suspense,
+  useContext,
 } from 'solid-js';
 import { PopoverSplitRenderer } from './components/PopoverSplitRenderer';
 import { SplitPanel } from './components/SplitPanel';
@@ -27,8 +30,8 @@ import {
 import { DEFAULT_SPLIT_MIN_WIDTH } from './splitContentSizing';
 import { createSplitFocusTracker } from './splitFocusTracker';
 
-/** The app route's view: the split manager, and one panel per pane. */
-export function SplitLayout() {
+/** Own the layout and creation context above both app chrome and pane content. */
+export function SplitLayoutProvider(props: ParentProps) {
   const router = useSplitRouter();
   const blockOrchestrator = useGlobalBlockOrchestrator();
 
@@ -38,6 +41,23 @@ export function SplitLayout() {
     toContent: splitContentFromLocation,
     stacked: isNativeMobilePlatform,
   });
+  createEffect(() => setGlobalSplitManager(splitManager));
+  onCleanup(() => setGlobalSplitManager(undefined));
+
+  return (
+    <SplitLayoutContext.Provider value={{ manager: splitManager }}>
+      <CreateContextProvider focusedPaneId={splitManager.activeSplitId}>
+        {props.children}
+      </CreateContextProvider>
+    </SplitLayoutContext.Provider>
+  );
+}
+
+/** The app route's view: one panel per pane in the owning layout. */
+export function SplitLayout() {
+  const layout = useContext(SplitLayoutContext);
+  if (!layout) throw new Error('SplitLayout requires SplitLayoutProvider');
+  const splitManager = layout.manager;
   const paneStack = isNativeMobilePlatform()
     ? createMobilePaneStack(splitManager)
     : undefined;
@@ -69,11 +89,9 @@ export function SplitLayout() {
   const ids = createMemo(() => splits().map(({ id }) => id));
 
   createSplitFocusTracker({ splitManager, panelRefs, splits });
-  createEffect(() => setGlobalSplitManager(splitManager));
-  onCleanup(() => setGlobalSplitManager(undefined));
 
   return (
-    <SplitLayoutContext.Provider value={{ manager: splitManager }}>
+    <>
       <Show
         when={paneStack}
         fallback={
@@ -133,6 +151,6 @@ export function SplitLayout() {
           popover?.close();
         }}
       />
-    </SplitLayoutContext.Provider>
+    </>
   );
 }

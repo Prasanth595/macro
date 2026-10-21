@@ -68,7 +68,7 @@ Reuse `Button`, `Input`, `InputGroup`, `Tabs`, `ComposerSurface`, `menu-surface`
 popover, floating toolbar, and editor panel (including the Figma, PowerPoint,
 and Photoshop editors) floats on `menu-surface`; dialogs open through `Dialog`.
 Settings
-cards inherit `ComposerSurface`. Use the shared restrained bevel; do not
+cards use the flat `SettingsCard` surface. Use the shared restrained bevel; do not
 add diagonal reflections, dark inset shading, broad halos, or custom shadows.
 Touch retains its existing glass treatment.
 Desktop Chat/Code footer controls sit below that surface without a second

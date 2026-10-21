@@ -20,7 +20,12 @@ function MobileHomeHeader(props: ParentProps) {
 
 /** Keep mobile chrome above a full-height list so rows fade beneath it. */
 export function HomeListLayout(
-  props: ParentProps<{ tabs: JSX.Element; onNewChat: () => void }>
+  props: ParentProps<{
+    tabs: JSX.Element;
+    onNewChat: () => void;
+    /** Below the list on desktop, e.g. the setup prompt. */
+    footer?: JSX.Element;
+  }>
 ) {
   const { state, setState } = useHomeView();
   return (
@@ -54,6 +59,7 @@ export function HomeListLayout(
         <MobileHomeHeader>{props.tabs}</MobileHomeHeader>
       </Show>
       {props.children}
+      <Show when={!isTouchDevice()}>{props.footer}</Show>
       <Show when={isTouchDevice()}>
         <MobileTopEdgeFade />
       </Show>

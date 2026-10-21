@@ -2597,6 +2597,16 @@ editor and comments arriving after it. Once loaded, click elsewhere in the
 document, then click the same notification again: it should revisit the comment,
 while background comment refreshes should leave the user's position alone.
 
+Verify bottom Discussion links from Home too:
+`/app/home/md/<id>?s0.drive.commentId=<comment-id>`. Open a long document from
+another Home item with its caches cold. The first click should reach the comment
+even when its messages arrive before the editor or loading content interrupts
+the initial scroll. Repeat the click after scrolling away. Wheel, touch,
+keyboard input, or dragging the scrollbar during navigation should take control
+immediately; later background refreshes must not pull the reader back. If the
+editor never becomes ready, its pending comment jump expires after ten seconds;
+subsequent recovery must not revive it without a new navigation.
+
 A document row keeps pointing at its newest comment notification until that
 notification is done, so on desktop the row opens the document at that comment.
 On touch the thread is a drawer over the whole page rather than a margin card,
@@ -2657,7 +2667,15 @@ on phones) and never in the bottom Discussion, including after live updates or
 reloads. Links to these threads open the margin without changing the bottom
 Discussion's timeline or expanding it. Existing highlights locate threads by
 their stable mark IDs. Replies, attachments, reactions, and editing use the same
-message controls as channels.
+message controls as channels. In every floating comment card (the Markdown,
+PDF, and Word margins and expanded minimized threads), a long comment folds to
+a faded preview with **Show more**; **Show less** folds it again. Short
+comments, the phone drawer, the bottom Discussion, and channels always show the
+full text. Markdown and Word margin cards stack without overlapping: a tall or expanded card
+pushes the cards below it down (past the end of a short document if needed),
+and no card starts above the top of the document. Check this with a long
+thread active near the bottom of a short document that has another thread
+above and below it.
 Removing the last marked text moves its retained conversation to Discussion,
 where it remains after reload. Removing only part of a marked range keeps the
 conversation anchored to the remaining text. On phones, the active Markdown
@@ -2713,6 +2731,13 @@ in the DOM. Edits sync through the sync service as you type: every open copy
 updates live and shows each collaborator's caret with their name
 (`[data-docx-peer]`).
 
+- Open a newly uploaded DOCX while it is still processing. The view stays
+  loading and retries the original export once per second for up to 30 seconds,
+  then renders as soon as extraction finishes without needing a reopen. If
+  processing takes longer, it asks you to try opening it again shortly.
+  A first-open sync `/exists` 404 is expected: the editor seeds collaboration
+  from the stored upload. The export endpoint returns 409 while parts are
+  missing and never publishes an empty archive.
 - Pages are `[data-docx-page="<index>"]` elements. Click a page to place the
   caret, drag to select, double-click for a word and triple-click for a
   paragraph. On a touch screen a swipe scrolls, a tap places the caret, and
@@ -2795,7 +2820,7 @@ updates live and shows each collaborator's caret with their name
   the file on download; reply with a Macro comment.
 - Threads whose text was deleted are listed under `Comments on text that has
   changed`, above the `Discussion` composer.
-- AI `CommentOnDocument` works on DOCX by quote. The editor pins each quote to
+- AI `CommentOnText` works on DOCX by quote. The editor pins each quote to
   the first matching text the next time someone opens the file.
 - AI `EditWordDocument` can record its edits as tracked changes
   (`trackChanges`, or by default when the document tracks changes) and add
