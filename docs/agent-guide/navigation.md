@@ -549,6 +549,8 @@ sits 8px inside the bottom-right corner as a 32px-tall pill. Its 16px
 radius plus the inset matches the modal’s 24px radius. It uses
 a white fill in dark mode, black in light mode, medium-weight text, and a bare
 Enter symbol without a keycap. Footer keyboard hints are borderless.
+Visual references: [dark](media/command/create-menu-polished-dark.png) and
+[light](media/command/create-menu-polished-light.png).
 A vertical divider separates it from the list. In direct shortcut mode, the
 shortcut sequence (such as **C then T** for Task) appears below the centered
 detail content. The Create button includes the Enter shortcut. Holding Shift
