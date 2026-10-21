@@ -214,7 +214,7 @@ function EditorPopover(props: {
         <Popover.Portal mount={props.boundary}>
           <Layer depth={3}>
             <Popover.Content
-              class="portal-scope z-modal flex max-h-[var(--kb-popper-content-available-height)] w-[min(25rem,var(--kb-popper-content-available-width,25rem))] min-w-0 flex-col rounded-xl border border-edge-muted glass bg-menu-glass text-ink outline-none"
+              class="portal-scope z-modal flex max-h-[var(--kb-popper-content-available-height)] w-[min(30rem,var(--kb-popper-content-available-width,30rem))] min-w-0 flex-col rounded-xl border border-edge-muted glass bg-menu-glass text-ink outline-none"
               onOpenAutoFocus={focusEditorTitle}
               onInteractOutside={(event) => event.preventDefault()}
               onFocusOutside={(event) => event.preventDefault()}

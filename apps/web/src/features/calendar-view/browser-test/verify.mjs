@@ -649,7 +649,10 @@ async function verifyDesktop(options, name) {
     await page.getByRole('button', { name: 'Create event', exact: true }).click();
     await title.waitFor();
     await start.waitFor();
-    await verifySidebarGeometry(page);
+    await verifyPopoverGeometry(page);
+    assert.equal(await page.getByRole('button', { name: 'Move to sidebar', exact: true }).isVisible(), true);
+    const newEventWidth = await page.getByRole('dialog', { name: 'New event', exact: true }).evaluate((element) => element.getBoundingClientRect().width);
+    assert.ok(Math.abs(newEventWidth - 480) < 1, `New event popover must use the wider 480px surface: ${newEventWidth}`);
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();
     await title.waitFor({ state: 'detached' });
 

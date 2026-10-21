@@ -258,7 +258,7 @@ describe('calendar composer draft', () => {
     });
     try {
       expect(first.composer?.draft()).toBeDefined();
-      expect(first.composer?.surface()).toBe('sidebar');
+      expect(first.composer?.surface()).toBe('popover');
       first.composer?.draft()?.onCalendarChange?.('work', '#123456');
       expect(onCalendarChange).toHaveBeenCalledWith('work', '#123456');
       expect(request.consume()).toBe(false);

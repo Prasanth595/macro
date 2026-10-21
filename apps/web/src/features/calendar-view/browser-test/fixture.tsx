@@ -196,9 +196,7 @@ function Fixture() {
     <div class="flex h-dvh flex-col bg-page p-4 text-ink">
       <ImperativeDialogHost />
       <header class="flex shrink-0 gap-2 pb-4">
-        <Button onClick={() => composer.open({}, 'sidebar')}>
-          Create event
-        </Button>
+        <Button onClick={() => composer.open()}>Create event</Button>
         <Button onClick={() => navigate('/away')}>Leave calendar</Button>
         <Button
           onClick={() => {

@@ -106,8 +106,9 @@ beside the event or selected slot, with an 8px gap. It flips and slides inside t
 calendar boundary, follows the visible draft/event, and retains its last anchor
 when the grid page is recycled. Move to sidebar transfers the same draft and
 controller into the inset, rounded right sidebar, using
-the event-details glass background. Explicit New → Event requests open that sidebar
-directly. Both desktop surfaces leave the calendar interactive.
+the event-details glass background. Explicit New → Event requests open the popover,
+which is up to 480px wide and fits within the calendar pane. Both desktop surfaces
+leave the calendar interactive.
 Use **Move to popover** in the sidebar header to return to the anchored editor.
 Both transfer actions retain the draft, selected range, guests, recurrence, and save
 scope; neither action dismisses or recreates the draft. Transfers are disabled

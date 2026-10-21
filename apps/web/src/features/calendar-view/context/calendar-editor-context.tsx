@@ -21,7 +21,7 @@ export const [CalendarEditorProvider, useCalendarEditor] =
                 onCalendarChange: request.onCalendarChange,
                 onClose: request.onClose,
               },
-              'sidebar'
+              request.event ? 'sidebar' : 'popover'
             );
           }
         )
