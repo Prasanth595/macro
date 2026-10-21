@@ -146,7 +146,7 @@ function DesktopAgentPicker(props: AgentPickerProps) {
             <div
               role="group"
               aria-label="Models"
-              class="order-2 min-h-0 min-w-0 overflow-y-auto overscroll-contain px-2 pb-2 sm:border-l sm:border-edge-divider"
+              class="order-2 min-h-0 max-h-[min(24rem,var(--kb-popper-content-available-height))] min-w-0 overflow-y-auto overscroll-contain px-2 pb-2 sm:border-l sm:border-edge-divider"
             >
               <div class="px-3 pt-3 pb-1 text-xs font-medium text-ink-extra-muted">
                 Models
@@ -196,7 +196,7 @@ function DesktopAgentPicker(props: AgentPickerProps) {
           <div
             role="group"
             aria-label="Agents"
-            class="order-1 min-h-0 min-w-0 space-y-1 overflow-y-auto overscroll-contain px-2 pb-2 pt-3"
+            class="order-1 min-h-0 max-h-[min(24rem,var(--kb-popper-content-available-height))] min-w-0 space-y-1 overflow-y-auto overscroll-contain px-2 pb-2 pt-3"
             classList={{ 'sm:col-span-2': !macro() }}
           >
             <Show when={macro()}>
