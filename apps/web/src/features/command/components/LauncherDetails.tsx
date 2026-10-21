@@ -169,24 +169,6 @@ export function LauncherDetails(props: {
                     {createMenuDetails(item())?.details ??
                       createMenuTagline(item())}
                   </p>
-                  <Show when={createMenuDetails(item())?.examples}>
-                    {(examples) => (
-                      <div class="mt-6">
-                        <div class="text-[10px] font-medium tracking-[0.08em] text-ink-extra-muted/80 uppercase">
-                          Good for
-                        </div>
-                        <ul class="mt-2 flex flex-wrap justify-center gap-1.5">
-                          <For each={examples()}>
-                            {(example) => (
-                              <li class="rounded-full border border-ink/10 px-2.5 py-0.5 text-xs text-ink-muted">
-                                {example}
-                              </li>
-                            )}
-                          </For>
-                        </ul>
-                      </div>
-                    )}
-                  </Show>
                   <Show when={props.showHotkeys}>
                     <div class="mt-4 flex shrink-0 items-center gap-1.5 text-xs text-ink-extra-muted">
                       Shortcut
