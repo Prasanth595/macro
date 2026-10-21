@@ -43,6 +43,8 @@ Reuse `Button`, `Input`, `InputGroup`, `Tabs`, `ComposerSurface`, `menu-surface`
 `elevated-surface` instead of introducing one-off surface styling. Settings
 cards inherit `ComposerSurface`. Do not add specular rims, inset shading,
 broad halos, or custom shadows. Touch retains its existing glass treatment.
+Desktop Chat/Code footer controls sit below that surface without a second
+background or rim. Keeping the footer visible does not expand an empty Chat input.
 
 ## Scrolling content
 

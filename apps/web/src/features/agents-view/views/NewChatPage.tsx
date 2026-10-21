@@ -14,6 +14,7 @@ import {
 import { fastModeEnabled } from '@core/component/AI/signal/speed';
 import { useSettingsState } from '@core/constant/SettingsState';
 import { useUserId } from '@core/context/user';
+import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import { fireAndForget } from '@core/util/fireAndForget';
 import { uploadFile } from '@core/util/upload';
 import ChatIcon from '@phosphor/chat-circle.svg';
@@ -450,6 +451,7 @@ export function NewChatPage(props: {
         </div>
       }
       drawerOpen
+      drawerExpandsInput={isTouchDevice() || coding()}
       placeholder={coding() ? 'Describe what you want to build' : undefined}
       onSend={send}
       supportsImages={
