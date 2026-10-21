@@ -20,14 +20,15 @@ import {
 import type { Harness as RegisteredHarness } from '@service-storage/client';
 import { useSearchParams } from '@solidjs/router';
 import { Button, confirmDialog, Dialog, Panel } from '@ui';
-import { createSignal, For, type JSX, onMount, Show } from 'solid-js';
+import { createSignal, type JSX, onMount, Show } from 'solid-js';
 import { ClaudeConnection } from '../claude-connection/claude-connection';
 import { CodexHarness } from './codex/views/CodexHarness';
 import { AgentSettingsDescription } from './components/agent-settings-description';
 import { BringYourOwnAgent } from './components/bring-your-own-agent';
+import { ConnectedRuntimesSection } from './components/connected-runtimes-section';
 import { LocalRuntimeCard } from './components/local-runtime-card';
 import { SettingsSelect } from './components/settings-select';
-import { ConnectAction, HarnessIcon, StatusDot } from './integration-ui';
+import { HarnessIcon } from './integration-ui';
 import { SettingsCard, SettingsPage } from './primitives';
 import { RuntimePairingPage } from './RuntimePairingPage';
 
@@ -35,12 +36,6 @@ const CURSOR_KEY_PREFIX = 'crsr_';
 
 function failureMessage(error: unknown, fallback: string): string {
   return (error instanceof ThrownResultError && error.message) || fallback;
-}
-
-function lastConnectedText(harness: RegisteredHarness): string {
-  return harness.last_connected_at
-    ? `Last connected ${new Date(harness.last_connected_at).toLocaleString()}`
-    : 'Never connected';
 }
 
 /** Settings UI for choosing and configuring the available agent harnesses. */
@@ -190,6 +185,11 @@ export function Harness(
         >
           <BringYourOwnAgent onAddRuntime={() => setPairingDialog({})} />
           {props.navigation}
+          <ConnectedRuntimesSection
+            harnesses={harnessesQuery.isSuccess ? harnessesQuery.data : []}
+            error={harnessesQuery.isError}
+            onRemove={setRemovingHarness}
+          />
           <LocalRuntimeCard />
           <div>
             <h2 class="mb-3 px-6 text-sm font-semibold text-ink">
@@ -408,68 +408,6 @@ export function Harness(
               <CodexHarness />
             </SettingsCard>
           </div>
-
-          <Show
-            when={!harnessesQuery.isSuccess || harnessesQuery.data.length > 0}
-          >
-            <div>
-              <h2 class="mb-3 px-6 text-sm font-semibold text-ink">
-                Paired runtimes
-              </h2>
-              <SettingsCard>
-                <For
-                  each={harnessesQuery.isSuccess ? harnessesQuery.data : []}
-                  fallback={
-                    <div class="flex flex-col items-center py-6 text-center">
-                      <p class="text-sm text-ink">
-                        {harnessesQuery.isError
-                          ? 'Could not load runtimes.'
-                          : 'Loading runtimes…'}
-                      </p>
-                    </div>
-                  }
-                >
-                  {(harness) => (
-                    <div class="flex items-center justify-between gap-4 px-4 py-3">
-                      <div class="min-w-0 flex-1">
-                        <div class="flex min-w-0 items-center gap-2">
-                          <p class="min-w-0 flex-1 truncate text-sm text-ink">
-                            {harness.name}
-                          </p>
-                          <span class="inline-flex h-5 shrink-0 items-center whitespace-nowrap rounded-md border border-edge-muted px-2 text-xxs/none font-medium uppercase text-ink-extra-muted">
-                            {harness.owner.type === 'team' ? 'Team' : 'Private'}
-                          </span>
-                          <StatusDot
-                            state={
-                              harness.connected ? 'connected' : 'disconnected'
-                            }
-                            label={
-                              harness.connected ? 'Connected' : 'Disconnected'
-                            }
-                          />
-                        </div>
-                        <p class="mt-0.5 truncate text-xs text-ink-extra-muted">
-                          {lastConnectedText(harness)}
-                        </p>
-                      </div>
-                      <div class="shrink-0">
-                        <ConnectAction
-                          label="Remove"
-                          variant="danger"
-                          onClick={() => setRemovingHarness(harness)}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </For>
-                <Show when={harnessesQuery.isError}>
-                  <p class="px-4 py-3 text-xs text-negative">
-                    Could not load your runtimes. Try refreshing this page.
-                  </p>
-                </Show>
-              </SettingsCard>
-            </div>
-          </Show>
         </SettingsPage>
       </Show>
 

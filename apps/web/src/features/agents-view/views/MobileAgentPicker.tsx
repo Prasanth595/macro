@@ -1,4 +1,5 @@
 import { MobileDrawer } from '@components/app/mobile/MobileDrawer';
+import { AgentOfflineBadge } from '@core/component/AgentOfflineBadge';
 import { ModelIcon } from '@core/component/AI/component/ProviderIcon';
 import { modelLabel } from '@core/component/AI/constant/model-label';
 import ArrowLeft from '@phosphor/arrow-left.svg';
@@ -6,7 +7,7 @@ import CaretDown from '@phosphor/caret-down.svg';
 import CaretRight from '@phosphor/caret-right.svg';
 import Check from '@phosphor/check.svg';
 import Plus from '@phosphor/plus.svg';
-import { Button } from '@ui';
+import { Button, cn } from '@ui';
 import { createSignal, For, Show } from 'solid-js';
 import { AgentIcon } from '../components/AgentGlyph';
 import {
@@ -158,7 +159,18 @@ export function MobileAgentPicker(props: AgentPickerProps) {
                           >
                             <AgentIcon agent={agent} class="size-5 shrink-0" />
                             <span class="min-w-0 flex-1 text-left">
-                              <span class="block truncate">{agent.name}</span>
+                              <span class="flex min-w-0 items-center gap-2">
+                                <span
+                                  class={cn('min-w-0 truncate', {
+                                    'text-ink-muted': agent.offline,
+                                  })}
+                                >
+                                  {agent.name}
+                                </span>
+                                <Show when={agent.offline}>
+                                  <AgentOfflineBadge />
+                                </Show>
+                              </span>
                               <Show when={agent.unavailableReason}>
                                 <span class="block text-xs text-ink-muted">
                                   {agent.connectLabel ??

@@ -152,3 +152,31 @@ it('offers CRM companies but not CRM contacts', () => {
   expect(mocks.requestedBuckets).toContain('crm_company');
   expect(mocks.requestedBuckets).not.toContain('crm_contact');
 });
+
+it('marks an offline agent and refuses to mention it', () => {
+  Element.prototype.scrollIntoView = vi.fn();
+  const offlineAgent: IUser = {
+    id: 'bot|agent-1',
+    name: 'Dev box agent',
+    email: 'Dev box agent',
+    offline: true,
+  };
+  const menu = createMenuOperations();
+  menu.openMenu();
+  const onPick = vi.fn();
+  render(() => (
+    <MentionsMenu
+      menu={menu}
+      entities={() => []}
+      users={() => [offlineAgent]}
+      sources={['users']}
+      anchor={document.createElement('div')}
+      onPick={onPick}
+    />
+  ));
+
+  expect(screen.getByText('Offline')).toBeTruthy();
+  fireEvent.click(screen.getByTitle('Dev box agent — offline'));
+  expect(onPick).not.toHaveBeenCalled();
+  expect(menu.isOpen()).toBe(true);
+});

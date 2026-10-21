@@ -159,12 +159,15 @@ export function Agents(props: { navigation?: JSX.Element } = {}) {
       const harness = harnesses.find(
         (candidate) => candidate.id === target.harnessId
       );
+      // Offline runtimes stay selectable: binding an agent to a machine that
+      // is merely asleep is normal, and the label says what to expect.
+      const suffix = [
+        harness?.owner.type === 'team' ? 'Team' : undefined,
+        harness && !harness.connected ? 'Offline' : undefined,
+      ].filter(Boolean);
       return {
         id: target.harnessId ?? '',
-        name:
-          harness?.owner.type === 'team'
-            ? `${harness.name} · Team`
-            : (harness?.name ?? 'macrod'),
+        name: [harness?.name ?? 'macrod', ...suffix].join(' · '),
         kind: 'macrod',
         allowPermissionBypass: harness?.allow_permission_bypass ?? false,
         target,
