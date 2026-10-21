@@ -27,7 +27,7 @@ through `call::domain::imports`.
 ## Boundaries
 
 - Depends on: `call` import port, `pipedream_mcp` `ApiProxy` / `ConnectionStore` / `AppConnections`.
-- Used by: `services/document_cognition_service` (composition root, worker, webhook route).
+- Used by: `services/agent_harness_service` (composition root, worker, webhook route).
 
 ## Checks
 

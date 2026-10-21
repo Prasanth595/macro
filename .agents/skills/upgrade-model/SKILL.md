@@ -72,14 +72,14 @@ File: `crates/agent/src/model/predefined_model.rs`
 
 ### 3. Update DCS constants
 
-File: `services/document_cognition_service/src/core/model.rs`
+File: `services/agent_harness_service/src/cognition/core/model.rs`
 
 - If upgrading the **fast** slot: change the first entry in `CHAT_MODELS` and update `FALLBACK_MODEL`.
 - If upgrading the **good** slot: change the second entry in `CHAT_MODELS`.
 
 ### 4. Update DCS chat message handler
 
-File: `services/document_cognition_service/src/api/ws/chat_message/mod.rs`
+File: `services/agent_harness_service/src/cognition/api/ws/chat_message/mod.rs`
 
 Search for the old model variant being used in the model selection logic (e.g. `Model::Claude45Opus`). Update it to the new variant.
 

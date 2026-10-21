@@ -2,9 +2,11 @@
 
 ## What it is
 
-Part of the agent sessions feature — the composition root for coding-agent
-sessions: agent-session trigger events in, sandboxed coding agent sessions
-(Daytona containers or the in-process ACP runtime) out.
+The single deployed agent backend: sessions, chat/completions, public workspace
+MCP, routine scheduling, and SSH/HTTP previews all run in this process. The
+app-wide connection gateway remains a separate realtime service. Preview DNS,
+HTTPS/SSH load balancers, and the projection queue have network/resource-only
+Pulumi stacks; they do not host extra agent processes.
 
 ## Start here
 
@@ -20,6 +22,19 @@ sessions: agent-session trigger events in, sandboxed coding agent sessions
 - `src/containers.rs`: Daytona sandbox lifecycle; local Docker opt-in.
 - `src/trigger.rs`: turns channel/webhook triggers into sessions.
 - `src/internal_mcp.rs`: the internal MCP server exposed to running sessions.
+- `src/public_mcp.rs` + `src/public_mcp/`: public workspace MCP and OAuth;
+  reuses the harness tool context and retains bearer authentication.
+- `OPENAI_SUBMISSION.md` + `openai-plugin-package/`: OpenAI submission assets;
+  `src/public_mcp.rs` preserves the domain verification endpoint configured by
+  `OPENAI_DOMAIN_VERIFICATION_TOKEN`.
+- `src/cognition/`: existing chat, completions, integrations, and projection
+  workers; the library also exports their OpenAPI document.
+- `src/scheduling.rs`: routine HTTP routes and background scheduling;
+  domain/adapters live in `crates/scheduled_action`.
+- `src/preview.rs` + `src/preview/`: preview control routes, public HTTP and SSH listeners;
+  lease/ticket and authorization logic lives in `crates/agent_preview`.
+- [Consolidation guide](../../docs/guides/consolidate-agent-services.md):
+  Doppler migration, retirement order, OAuth provider cutover.
 
 ## Scope
 
@@ -57,7 +72,26 @@ from newly triggered external chat turns to finish in their channel threads.
 Code-mode credentials sign the authenticated session bot identity for SDK
 message attribution after owner approval, while retaining user authentication.
 
+## Configuration and lifecycle
+
+All feature configs read the same harness `APP_SECRETS_JSON`; the harness
+Doppler validation binary validates each config. `MCP_PUBLIC_URL` is the public
+server base (`/mcp`); `MCP_CLIENT_PUBLIC_URL` is the integrations callback base
+(`/cognition`). Keep them separate. `POSTHOG_API_KEY` and `POSTHOG_HOST` remain
+available for feature flags and future analytics; MCP emits no analytics events.
+
+The shared Postgres pool defaults to 30 connections (`DATABASE_MAX_CONNECTIONS`).
+Routine dispatch waits for the shared HTTP listener and calls its loopback
+address, avoiding an ALB/self-startup race. Shutdown stops scheduling intake and
+projection workers before draining sessions and pending publishes. Preview
+listener failure shuts down the process so ECS can replace the task.
+
 ## Gotchas
+
+- Deploy exactly one task without overlapping replacements: preview SSH,
+  HTTP, and tickets share one in-memory registry. A deployment interrupts
+  previews and briefly interrupts the agent backend.
+
 
 - Two managed bots run on different runtimes: `@coder` (`HARNESS_BOT_ID`) in a
   Daytona sandbox, `@macro-new`/`@macro` (`INMEM_BOT_ID`) on the in-process ACP

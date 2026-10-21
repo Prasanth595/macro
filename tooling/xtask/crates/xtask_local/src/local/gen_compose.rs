@@ -111,7 +111,7 @@ pub fn generate(
                 instance.port(Port::AgentHarnessEgress)
             ));
         }
-        if mode.spec().runs_local_infra && svc.compose_name == "preview_gateway" {
+        if mode.spec().runs_local_infra && svc.compose_name == EGRESS_SERVICE {
             if instance.is_default() {
                 ports.push(format!("{}:8080", instance.port(Port::PreviewControl)));
             }

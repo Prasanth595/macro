@@ -16,6 +16,7 @@ import {
   getKafkaClusterPolicy,
   getServiceUrl,
   GatewayService,
+  GATEWAY_PRIORITIES,
   ServiceUrl,
   stack,
 } from '../../packages/shared';
@@ -34,14 +35,20 @@ type Args = {
   containerEnvVars: { name: string; value: pulumi.Output<string> | string }[];
   platform: { family: string; architecture: 'amd64' | 'arm64' };
   serviceContainerPort: number;
+  configurationSecrets: pulumi.Resource[];
   /** Container port of the sandbox-facing egress proxy listener. */
   egressContainerPort: number;
+  previewSecurityGroupId: pulumi.Input<string>;
+  previewControlTargetGroupArn: pulumi.Input<string>;
+  previewHttpTargetGroupArn: pulumi.Input<string>;
+  previewSshTargetGroupArn: pulumi.Input<string>;
   healthCheckPath: string;
   ecsClusterArn: pulumi.Output<string> | string;
   cloudStorageClusterName: pulumi.Output<string> | string;
   secretKeyArns: (pulumi.Output<string> | string)[];
   /** SQS queues the service is allowed to send messages to. */
-  queueArns: (pulumi.Output<string> | string)[];
+  queueArns: pulumi.Input<string>[];
+  projectionQueueArn: pulumi.Input<string>;
   /** S3 buckets the service needs access to. */
   bucketArns: (pulumi.Output<string> | string)[];
 };
@@ -131,6 +138,15 @@ export class AgentHarnessService extends pulumi.ComponentResource {
                 'sqs:GetQueueAttributes',
               ],
               Resource: queueArns,
+              Effect: 'Allow',
+            },
+            {
+              Action: [
+                'sqs:ReceiveMessage',
+                'sqs:DeleteMessage',
+                'sqs:ChangeMessageVisibility',
+              ],
+              Resource: [args.projectionQueueArn],
               Effect: 'Allow',
             },
           ],
@@ -289,6 +305,27 @@ export class AgentHarnessService extends pulumi.ComponentResource {
     );
 
     this.targetGroup = gatewayTargetGroup.target_group;
+    const sharedApiRoutes: [GatewayService, string][] = [
+      [GatewayService.MCP_SERVER, '/mcp'],
+      [GatewayService.DOCUMENT_COGNITION_SERVICE, '/cognition'],
+      [GatewayService.AGENT_SCHEDULE_SERVICE, '/scheduled-action'],
+    ];
+    const sharedApiRules = sharedApiRoutes.map(
+      ([service, prefix]) =>
+        new aws.lb.ListenerRule(
+          `${BASE_NAME}-${service}-${stack}`,
+          {
+            listenerArn: gatewayLoadBalancer.httpsListenerArn,
+            priority: GATEWAY_PRIORITIES[service],
+            actions: [
+              { type: 'forward', targetGroupArn: this.targetGroup.arn },
+            ],
+            conditions: [{ pathPattern: { values: [prefix, `${prefix}/*`] } }],
+            tags,
+          },
+          { parent: this }
+        )
+    );
 
     // Forward the egress prefix unchanged to its own listener. Session-token
     // Authorization headers are handled by the egress router as before.
@@ -324,20 +361,17 @@ export class AgentHarnessService extends pulumi.ComponentResource {
         cluster: ecsClusterArn,
         networkConfiguration: {
           subnets: vpc.privateSubnetIds,
-          securityGroups: [serviceSg.id],
+          securityGroups: [serviceSg.id, args.previewSecurityGroupId],
         },
         continueBeforeSteadyState: DEFAULT_CONTINUE_BEFORE_STEADY_STATE,
         deploymentCircuitBreaker: {
           enable: true,
           rollback: true,
         },
-        deploymentMinimumHealthyPercent: 100,
-        deploymentMaximumPercent: 200,
-        // Every environment runs two, so dev stays prod-shaped: forwarding is
-        // dead code at one task (management() can only answer Ours or
-        // Unmanaged), and a path only dev never exercises is one whose
-        // regressions surface in prod.
-        desiredCount: 2,
+        deploymentMinimumHealthyPercent: 0,
+        deploymentMaximumPercent: 100,
+        // Preview SSH tunnels and tickets share an in-memory registry.
+        desiredCount: 1,
         // ALB checks /health every 10s and fails the target after two
         // misses (~20s). HTTP does not listen until after DB, AWS config,
         // and JWT secrets, so a 0s grace period trips the circuit breaker
@@ -346,6 +380,21 @@ export class AgentHarnessService extends pulumi.ComponentResource {
         // Both listeners use the shared gateway, with separate target groups
         // for the control API and sandbox egress proxy.
         loadBalancers: [
+          {
+            targetGroupArn: args.previewControlTargetGroupArn,
+            containerName: 'service',
+            containerPort: serviceContainerPort,
+          },
+          {
+            targetGroupArn: args.previewHttpTargetGroupArn,
+            containerName: 'service',
+            containerPort: 8111,
+          },
+          {
+            targetGroupArn: args.previewSshTargetGroupArn,
+            containerName: 'service',
+            containerPort: 2222,
+          },
           {
             targetGroupArn: gatewayTargetGroup.target_group.arn,
             containerName: 'service',
@@ -372,8 +421,8 @@ export class AgentHarnessService extends pulumi.ComponentResource {
               // singleton time to release sandbox capacity before ECS kills it.
               stopTimeout: 120,
               // Shared by the harness and up to eight restricted Deno children.
-              cpu: 2048,
-              memory: 4096,
+              cpu: 4096,
+              memory: 8192,
               environment: [
                 ...containerEnvVars,
                 { name: 'CLAUDE_OAUTH_KMS_KEY_ID', value: claudeOauthKey.arn },
@@ -396,6 +445,8 @@ export class AgentHarnessService extends pulumi.ComponentResource {
                 },
               },
               portMappings: [
+                { containerPort: 8111, hostPort: 8111, protocol: 'tcp' },
+                { containerPort: 2222, hostPort: 2222, protocol: 'tcp' },
                 {
                   appProtocol: 'http',
                   name: `${BASE_NAME}-tcp-${stack}`,
@@ -428,7 +479,9 @@ export class AgentHarnessService extends pulumi.ComponentResource {
         // with a load balancer; it is the listener rule that creates that
         // association.
         dependsOn: [
+          ...args.configurationSecrets,
           gatewayTargetGroup.listener_rule,
+          ...sharedApiRules,
           egress.listener_rule,
           claudeOauthPolicy,
         ],

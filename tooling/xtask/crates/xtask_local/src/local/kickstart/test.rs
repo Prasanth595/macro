@@ -286,15 +286,11 @@ fn kickstart_without_github_creates_no_github_idp() {
     );
 }
 
-fn authorized_redirects(
-    frontend_port: u16,
-    auth_port: u16,
-    doc_cognition_port: u16,
-) -> Vec<String> {
+fn authorized_redirects(frontend_port: u16, auth_port: u16, proxy_port: u16) -> Vec<String> {
     let doc = build(
         frontend_port,
         auth_port,
-        doc_cognition_port,
+        proxy_port,
         "function populate() {}",
         "function reconcile() {}",
         None,
@@ -317,24 +313,23 @@ fn authorized_redirects(
         .collect()
 }
 
-/// The DCS MCP-connector callback is an instance host port. Hardcoding 8085
-/// leaves a named `--port-base` stack authorizing a port nothing binds.
+/// OAuth callbacks follow the instance proxy now that the agent APIs share a process.
 #[test]
-fn dcs_oauth_redirect_follows_the_instance_port() {
-    let default = authorized_redirects(3000, 8080, 8085);
+fn agent_oauth_redirects_follow_the_instance_proxy_port() {
+    let default = authorized_redirects(3000, 8080, 8090);
     assert!(
-        default.contains(&"http://localhost:8085/oauth/redirect".to_string()),
-        "default instance keeps the historical DCS callback: {default:?}"
+        default.contains(&"https://localhost:8090/cognition/mcp/servers/auth/callback".to_string()),
+        "default instance authorizes its proxy callback: {default:?}"
     );
 
-    // `--instance macro-dev --port-base 31000` publishes DCS on 31014.
-    let named = authorized_redirects(31010, 31011, 31014);
+    // Named instances authorize their own HTTPS proxy port.
+    let named = authorized_redirects(31010, 31011, 31019);
     assert!(
-        named.contains(&"http://localhost:31014/oauth/redirect".to_string()),
-        "named instance must authorize the derived DCS port: {named:?}"
+        named.contains(&"https://localhost:31019/cognition/mcp/servers/auth/callback".to_string()),
+        "named instance must authorize its proxy callback: {named:?}"
     );
     assert!(
         !named.iter().any(|url| url.contains("localhost:8085")),
-        "named instance must not keep the default DCS callback: {named:?}"
+        "named instance must not keep the retired DCS callback: {named:?}"
     );
 }
