@@ -235,6 +235,7 @@ export * from './reviewRecordExecutionId';
 export * from './reviewRecordNotificationAttemptAt';
 export * from './reviewRecordNotificationId';
 export * from './reviewRecordPresentedAt';
+export * from './reviewRecordSettledAt';
 export * from './sandboxSize';
 export * from './sandboxSizeBody';
 export * from './sessionBot';

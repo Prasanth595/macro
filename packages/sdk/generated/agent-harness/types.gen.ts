@@ -1700,6 +1700,11 @@ export type ReviewRecord = {
      */
     sessionId: string;
     /**
+     * When the approved action's background work ended. Set once, so the
+     * session hears the final outcome once.
+     */
+    settledAt?: number | null;
+    /**
      * Stack label.
      */
     title: string;

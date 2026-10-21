@@ -5014,6 +5014,11 @@
             "format": "uuid",
             "description": "Owning session."
           },
+          "settledAt": {
+            "type": ["integer", "null"],
+            "format": "int64",
+            "description": "When the approved action's background work ended. Set once, so the\nsession hears the final outcome once."
+          },
           "title": {
             "type": "string",
             "description": "Stack label."

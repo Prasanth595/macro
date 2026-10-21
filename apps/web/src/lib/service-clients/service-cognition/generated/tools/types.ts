@@ -3590,6 +3590,38 @@ export type AvailabilityUnknownReason =
   | 'invalid_interval'
   | 'conflicting_copies';
 /**
+ * What the tool is asked to do.
+ */
+export type NotionImportAction = 'plan' | 'status' | 'cancel';
+/**
+ * Who a Notion workspace import shares what it writes with.
+ */
+export type NotionSharing = 'team' | 'personal' | 'ai';
+/**
+ * Lifecycle of a discovery run (one per user × source).
+ */
+export type RunStatus =
+  | 'running'
+  | 'ready'
+  | 'importing'
+  | 'completed'
+  | 'failed'
+  | 'dismissed';
+/**
+ * What an imported item is in its source system. Each source has its own
+ * kinds; a Notion database and a Notion page, or a Linear project and a
+ * Linear issue, are tracked and deduplicated separately.
+ */
+export type ImportKind =
+  | 'issue'
+  | 'project'
+  | 'document'
+  | 'page'
+  | 'database'
+  | 'data_source'
+  | 'row'
+  | 'channel';
+/**
  * Provider selected from the persisted calendar account and email binding.
  */
 export type CalendarProvider = 'google' | 'outlook';
@@ -10435,6 +10467,184 @@ export interface ToolAddedOptions {
    * The labels added.
    */
   labels: string[];
+}
+/**
+ * Import the user's Notion workspace (or part of it) into Macro: pages become documents in folders mirroring Notion's page tree, databases become Macro databases with their rows and relations, and task-tracker databases become Macro tasks. Before `plan`, ask the user who should see what is imported, in one short question with three options: shared with their team, only them (personal), or let AI decide per page; do not guess, and pass their answer as `sharing`. `plan` reads the workspace through the user's Notion connection, decides per page and database what to do (and, with `sharing` "ai", who sees it), links anything a teammate already imported and shared, and stages a plan without writing anything; then present the plan to the user with PresentReview (kind "import", drafts [{"source":"notion"}]). Approving that review writes the plan; never import plan items with other tools. `status` reports progress; `cancel` stops planning or importing. Use this for anything bigger than a single page instead of ImportNotionPage.
+ */
+export interface ImportFromNotion {
+  action: NotionImportAction;
+  /**
+   * For `plan`: Notion page or database URLs (or ids) to import, each
+   * with everything under it. Leave empty to plan everything the
+   * connection can see.
+   */
+  roots?: string[];
+  /**
+   * For `plan`, required: who sees what the import writes, as the user
+   * answered when asked: `team` shares everything with their team,
+   * `personal` keeps everything visible only to them, `ai` lets the
+   * decision model choose per page. Databases always stay with the user.
+   */
+  sharing?: NotionSharing | null;
+}
+/**
+ * The tool's answer.
+ */
+export interface ImportFromNotionResponse {
+  report: NotionImportReport;
+  /**
+   * What happened and what to do next.
+   */
+  message: string;
+}
+/**
+ * Where a Notion workspace import stands.
+ */
+export interface NotionImportReport {
+  /**
+   * The run's state: `running` while planning, `ready` once a plan is
+   * staged, `importing` while writing, `completed`, `failed`, or
+   * `dismissed` when cancelled. Absent before the first run.
+   */
+  status?: RunStatus | null;
+  /**
+   * Why the run failed, when it did.
+   */
+  error?: string | null;
+  /**
+   * What planning has found in Notion so far, while it is `running`.
+   */
+  scanned?: ScanCounts | null;
+  /**
+   * Pages in the plan.
+   */
+  pages: number;
+  /**
+   * Data sources (database tables) in the plan.
+   */
+  dataSources: number;
+  /**
+   * Objects to copy as they are.
+   */
+  copy: number;
+  /**
+   * Data sources whose rows become tasks.
+   */
+  tasks: number;
+  /**
+   * Objects left in Notion.
+   */
+  skip: number;
+  /**
+   * Objects that need handling by hand.
+   */
+  hand: number;
+  /**
+   * Pages written as documents.
+   */
+  documents: number;
+  /**
+   * Data sources written as databases.
+   */
+  databases: number;
+  /**
+   * Rows those databases hold, every one counted while planning.
+   */
+  databaseRows: number;
+  /**
+   * Tasks the task lists become, one per row.
+   */
+  taskRows: number;
+  /**
+   * Plan objects already imported.
+   */
+  imported: number;
+  /**
+   * Plan objects still waiting to be written.
+   */
+  waiting: number;
+  /**
+   * Plan objects being written now.
+   */
+  writing: number;
+  /**
+   * Plan objects waiting for a teammate who is writing the same object
+   * for the team; they link to the teammate's copy once it is written.
+   */
+  waitingOnTeammates?: number;
+  /**
+   * Written plan objects shared with the user's team.
+   */
+  sharedWithTeam?: number;
+  /**
+   * Plan objects a teammate already imported and shared with the team;
+   * they link to that copy and are not counted as copies.
+   */
+  alreadyInMacro?: number;
+  /**
+   * Who imported the objects already in Macro, most first.
+   */
+  alreadyImportedBy?: NotionImporter[];
+  /**
+   * The review the plan is tied to, once presented.
+   */
+  reviewId?: string | null;
+  /**
+   * Objects that need handling by hand, with reasons.
+   */
+  handItems?: NotionReportItem[];
+  /**
+   * Objects that failed to import, with the failure.
+   */
+  failures?: NotionReportItem[];
+}
+/**
+ * What a planning run has found in the source so far.
+ */
+export interface ScanCounts {
+  /**
+   * Pages found.
+   */
+  pages: number;
+  /**
+   * Data sources (database tables) found.
+   */
+  dataSources: number;
+}
+/**
+ * A teammate who already imported some of a plan's objects.
+ */
+export interface NotionImporter {
+  /**
+   * The teammate, by email.
+   */
+  by: string;
+  /**
+   * How many of the plan's objects they imported.
+   */
+  count: number;
+}
+/**
+ * One object a workspace import report calls out.
+ */
+export interface NotionReportItem {
+  /**
+   * The ledger row.
+   */
+  importId: string;
+  /**
+   * The object's title.
+   */
+  title: string;
+  kind: ImportKind;
+  /**
+   * Its Notion URL.
+   */
+  url?: string | null;
+  /**
+   * Why it is called out: the decision model's reason, or the failure.
+   */
+  reason?: string | null;
 }
 /**
  * Import one specific Notion page through Macro's canonical Notion importer. Use this when the user explicitly asks to import a page URL or id. The tool performs deduplication, fetches through the user's connected Notion MCP, normalizes the page, creates the Macro markdown document, and returns its entity id. Do not fetch and recreate the page manually with generic document tools. Notion databases and database-first pages are intentionally not imported.

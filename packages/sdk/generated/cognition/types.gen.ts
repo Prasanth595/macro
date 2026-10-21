@@ -787,6 +787,12 @@ export type ImportEntity = {
      * teammate".
      */
     user_id: string;
+    /**
+     * The teammate's row this one waits on: that teammate is writing the
+     * same object for the team, and this row links to their copy once it
+     * is imported.
+     */
+    waiting_on?: string | null;
 };
 
 /**
@@ -804,6 +810,7 @@ export type ImportRun = {
      * Discovery failure detail, when the run failed.
      */
     error?: string | null;
+    scanned?: null | ScanCounts;
     /**
      * The source this run discovered from.
      */
@@ -967,6 +974,24 @@ export type NewMessageAttachment = {
 };
 
 /**
+ * A teammate's copy of a Notion object, shared with the user's team.
+ */
+export type NotionAlreadyImported = {
+    /**
+     * The teammate who imported it, by email.
+     */
+    by: string;
+    /**
+     * The Macro entity it became.
+     */
+    entityId: string;
+    /**
+     * That entity's type (`md`, `project`).
+     */
+    entityType: string;
+};
+
+/**
  * What a workspace import does with one Notion object.
  */
 export type NotionDecision = 'copy' | 'tasks' | 'skip' | 'hand';
@@ -996,6 +1021,15 @@ export type NotionDocMeta = {
  */
 export type NotionImportReport = {
     /**
+     * Who imported the objects already in Macro, most first.
+     */
+    alreadyImportedBy?: Array<NotionImporter>;
+    /**
+     * Plan objects a teammate already imported and shared with the team;
+     * they link to that copy and are not counted as copies.
+     */
+    alreadyInMacro?: number;
+    /**
      * Objects to copy as they are.
      */
     copy: number;
@@ -1003,6 +1037,18 @@ export type NotionImportReport = {
      * Data sources (database tables) in the plan.
      */
     dataSources: number;
+    /**
+     * Rows those databases hold, every one counted while planning.
+     */
+    databaseRows: number;
+    /**
+     * Data sources written as databases.
+     */
+    databases: number;
+    /**
+     * Pages written as documents.
+     */
+    documents: number;
     /**
      * Why the run failed, when it did.
      */
@@ -1031,11 +1077,20 @@ export type NotionImportReport = {
      * The review the plan is tied to, once presented.
      */
     reviewId?: string | null;
+    scanned?: null | ScanCounts;
+    /**
+     * Written plan objects shared with the user's team.
+     */
+    sharedWithTeam?: number;
     /**
      * Objects left in Notion.
      */
     skip: number;
     status?: null | RunStatus;
+    /**
+     * Tasks the task lists become, one per row.
+     */
+    taskRows: number;
     /**
      * Data sources whose rows become tasks.
      */
@@ -1045,23 +1100,39 @@ export type NotionImportReport = {
      */
     waiting: number;
     /**
+     * Plan objects waiting for a teammate who is writing the same object
+     * for the team; they link to the teammate's copy once it is written.
+     */
+    waitingOnTeammates?: number;
+    /**
      * Plan objects being written now.
      */
     writing: number;
 };
 
 /**
+ * A teammate who already imported some of a plan's objects.
+ */
+export type NotionImporter = {
+    /**
+     * The teammate, by email.
+     */
+    by: string;
+    /**
+     * How many of the plan's objects they imported.
+     */
+    count: number;
+};
+
+/**
  * One object's place in a workspace import plan.
  */
 export type NotionPlanItem = {
+    alreadyImported?: null | NotionAlreadyImported;
     /**
      * What the import does with it.
      */
     decision: NotionDecision;
-    /**
-     * For a data source: whether it has more rows than `rows`.
-     */
-    moreRows?: boolean;
     /**
      * Titles of the pages above it, outermost first.
      */
@@ -1074,6 +1145,20 @@ export type NotionPlanItem = {
      * For a data source: rows counted while planning.
      */
     rows?: number | null;
+    /**
+     * Whether the user may change `shared`: false for databases, which
+     * cannot be shared with a team, and for users without a team.
+     */
+    shareable?: boolean;
+    /**
+     * Whether what it becomes is shared with the user's team.
+     */
+    shared?: boolean;
+    /**
+     * Why it is (or is not) shared, when the decision model chose or the
+     * import could not share it.
+     */
+    sharedReason?: string | null;
     taskFields?: null | NotionTaskFields;
 };
 
@@ -1419,6 +1504,20 @@ export type RunImportRequest = {
  * Lifecycle of a discovery run (one per user × source).
  */
 export type RunStatus = 'running' | 'ready' | 'importing' | 'completed' | 'failed' | 'dismissed';
+
+/**
+ * What a planning run has found in the source so far.
+ */
+export type ScanCounts = {
+    /**
+     * Data sources (database tables) found.
+     */
+    dataSources: number;
+    /**
+     * Pages found.
+     */
+    pages: number;
+};
 
 export type SendChatMessagePayload = JwtPayload & {
     /**

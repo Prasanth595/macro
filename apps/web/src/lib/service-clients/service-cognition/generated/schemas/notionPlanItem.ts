@@ -4,19 +4,21 @@
  * Document Cognition Service
  * OpenAPI spec version: 1.0.0
  */
+
 import type { NotionDecision } from './notionDecision';
+import type { NotionPlanItemAlreadyImported } from './notionPlanItemAlreadyImported';
 import type { NotionPlanItemReason } from './notionPlanItemReason';
 import type { NotionPlanItemRows } from './notionPlanItemRows';
+import type { NotionPlanItemSharedReason } from './notionPlanItemSharedReason';
 import type { NotionPlanItemTaskFields } from './notionPlanItemTaskFields';
 
 /**
  * One object's place in a workspace import plan.
  */
 export interface NotionPlanItem {
+  alreadyImported?: NotionPlanItemAlreadyImported;
   /** What the import does with it. */
   decision: NotionDecision;
-  /** For a data source: whether it has more rows than `rows`. */
-  moreRows?: boolean;
   /** Titles of the pages above it, outermost first. */
   path?: string[];
   /** Why, in a short sentence, when the decision model gave one. */
@@ -26,5 +28,13 @@ export interface NotionPlanItem {
    * @minimum 0
    */
   rows?: NotionPlanItemRows;
+  /** Whether the user may change `shared`: false for databases, which
+cannot be shared with a team, and for users without a team. */
+  shareable?: boolean;
+  /** Whether what it becomes is shared with the user's team. */
+  shared?: boolean;
+  /** Why it is (or is not) shared, when the decision model chose or the
+import could not share it. */
+  sharedReason?: NotionPlanItemSharedReason;
   taskFields?: NotionPlanItemTaskFields;
 }

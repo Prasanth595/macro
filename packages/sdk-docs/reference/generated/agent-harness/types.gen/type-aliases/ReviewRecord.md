@@ -1,6 +1,6 @@
 # Type Alias: ReviewRecord
 
-> **ReviewRecord** = \{ `executionId?`: `null` \| [`ExecutionId`](ExecutionId.md); `id`: [`ReviewId`](ReviewId.md); `items`: [`ReviewItem`](ReviewItem.md)[]; `kind`: [`ReviewKind`](ReviewKind.md); `notificationAttemptAt?`: `number` \| `null`; `notificationId?`: `string` \| `null`; `presentedAt?`: `number` \| `null`; `revision`: `number`; `sessionId`: `string`; `title`: `string`; `updatedAt`: `number`; \}
+> **ReviewRecord** = \{ `executionId?`: `null` \| [`ExecutionId`](ExecutionId.md); `id`: [`ReviewId`](ReviewId.md); `items`: [`ReviewItem`](ReviewItem.md)[]; `kind`: [`ReviewKind`](ReviewKind.md); `notificationAttemptAt?`: `number` \| `null`; `notificationId?`: `string` \| `null`; `presentedAt?`: `number` \| `null`; `revision`: `number`; `sessionId`: `string`; `settledAt?`: `number` \| `null`; `title`: `string`; `updatedAt`: `number`; \}
 
 Full UI record, fetched outside the model context.
 
@@ -17,5 +17,6 @@ Full UI record, fetched outside the model context.
 | <a id="property-presentedat"></a> `presentedAt?` | `number` \| `null` | Durable presentation acknowledgment, separate from user decisions. |
 | <a id="property-revision"></a> `revision` | `number` | Compare-and-swap revision for edits and submissions. |
 | <a id="property-sessionid"></a> `sessionId` | `string` | Owning session. |
+| <a id="property-settledat"></a> `settledAt?` | `number` \| `null` | When the approved action's background work ended. Set once, so the session hears the final outcome once. |
 | <a id="property-title"></a> `title` | `string` | Stack label. |
 | <a id="property-updatedat"></a> `updatedAt` | `number` | Milliseconds since epoch of the last state change. |

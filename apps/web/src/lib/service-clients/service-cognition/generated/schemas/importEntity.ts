@@ -10,6 +10,7 @@ import type { ImportEntityLastError } from './importEntityLastError';
 import type { ImportEntityParentId } from './importEntityParentId';
 import type { ImportEntityReviewId } from './importEntityReviewId';
 import type { ImportEntityTeamId } from './importEntityTeamId';
+import type { ImportEntityWaitingOn } from './importEntityWaitingOn';
 import type { ImportKind } from './importKind';
 import type { ImportSource } from './importSource';
 import type { ImportStatus } from './importStatus';
@@ -57,4 +58,8 @@ came from one. */
 are visible with their owner's id, so clients can say "created by a
 teammate". */
   user_id: string;
+  /** The teammate's row this one waits on: that teammate is writing the
+same object for the team, and this row links to their copy once it
+is imported. */
+  waiting_on?: ImportEntityWaitingOn;
 }

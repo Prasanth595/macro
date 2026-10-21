@@ -12,6 +12,7 @@ import type { ReviewRecordExecutionId } from './reviewRecordExecutionId';
 import type { ReviewRecordNotificationAttemptAt } from './reviewRecordNotificationAttemptAt';
 import type { ReviewRecordNotificationId } from './reviewRecordNotificationId';
 import type { ReviewRecordPresentedAt } from './reviewRecordPresentedAt';
+import type { ReviewRecordSettledAt } from './reviewRecordSettledAt';
 
 /**
  * Full UI record, fetched outside the model context.
@@ -35,6 +36,9 @@ A failed notification may be retried without repeating external actions. */
   revision: number;
   /** Owning session. */
   sessionId: string;
+  /** When the approved action's background work ended. Set once, so the
+session hears the final outcome once. */
+  settledAt?: ReviewRecordSettledAt;
   /** Stack label. */
   title: string;
   /** Milliseconds since epoch of the last state change. */

@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { ImportRunError } from './importRunError';
+import type { ImportRunScanned } from './importRunScanned';
 import type { ImportSource } from './importSource';
 import type { RunStatus } from './runStatus';
 
@@ -14,6 +15,7 @@ import type { RunStatus } from './runStatus';
 export interface ImportRun {
   /** Discovery failure detail, when the run failed. */
   error?: ImportRunError;
+  scanned?: ImportRunScanned;
   /** The source this run discovered from. */
   source: ImportSource;
   /** Where the run is in its lifecycle. */

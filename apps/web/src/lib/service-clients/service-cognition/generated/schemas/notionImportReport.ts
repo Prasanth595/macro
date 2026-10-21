@@ -4,8 +4,10 @@
  * Document Cognition Service
  * OpenAPI spec version: 1.0.0
  */
+import type { NotionImporter } from './notionImporter';
 import type { NotionImportReportError } from './notionImportReportError';
 import type { NotionImportReportReviewId } from './notionImportReportReviewId';
+import type { NotionImportReportScanned } from './notionImportReportScanned';
 import type { NotionImportReportStatus } from './notionImportReportStatus';
 import type { NotionReportItem } from './notionReportItem';
 
@@ -13,6 +15,14 @@ import type { NotionReportItem } from './notionReportItem';
  * Where a Notion workspace import stands.
  */
 export interface NotionImportReport {
+  /** Who imported the objects already in Macro, most first. */
+  alreadyImportedBy?: NotionImporter[];
+  /**
+   * Plan objects a teammate already imported and shared with the team;
+they link to that copy and are not counted as copies.
+   * @minimum 0
+   */
+  alreadyInMacro?: number;
   /**
    * Objects to copy as they are.
    * @minimum 0
@@ -23,6 +33,21 @@ export interface NotionImportReport {
    * @minimum 0
    */
   dataSources: number;
+  /**
+   * Rows those databases hold, every one counted while planning.
+   * @minimum 0
+   */
+  databaseRows: number;
+  /**
+   * Data sources written as databases.
+   * @minimum 0
+   */
+  databases: number;
+  /**
+   * Pages written as documents.
+   * @minimum 0
+   */
+  documents: number;
   /** Why the run failed, when it did. */
   error?: NotionImportReportError;
   /** Objects that failed to import, with the failure. */
@@ -46,12 +71,23 @@ export interface NotionImportReport {
   pages: number;
   /** The review the plan is tied to, once presented. */
   reviewId?: NotionImportReportReviewId;
+  scanned?: NotionImportReportScanned;
+  /**
+   * Written plan objects shared with the user's team.
+   * @minimum 0
+   */
+  sharedWithTeam?: number;
   /**
    * Objects left in Notion.
    * @minimum 0
    */
   skip: number;
   status?: NotionImportReportStatus;
+  /**
+   * Tasks the task lists become, one per row.
+   * @minimum 0
+   */
+  taskRows: number;
   /**
    * Data sources whose rows become tasks.
    * @minimum 0
@@ -62,6 +98,12 @@ export interface NotionImportReport {
    * @minimum 0
    */
   waiting: number;
+  /**
+   * Plan objects waiting for a teammate who is writing the same object
+for the team; they link to the teammate's copy once it is written.
+   * @minimum 0
+   */
+  waitingOnTeammates?: number;
   /**
    * Plan objects being written now.
    * @minimum 0

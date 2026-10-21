@@ -1,6 +1,6 @@
 # Type Alias: ImportEntity
 
-> **ImportEntity** = \{ `created_at`: `string`; `entity_id?`: `string` \| `null`; `entity_type?`: `string` \| `null`; `foreign_id`: `string`; `id`: `string`; `initiator`: [`Initiator`](Initiator.md); `kind`: [`ImportKind`](ImportKind.md); `last_error?`: `string` \| `null`; `metadata`: `unknown`; `parent_id?`: `string` \| `null`; `review_id?`: `string` \| `null`; `source`: [`ImportSource`](ImportSource.md); `status`: [`ImportStatus`](ImportStatus.md); `team_id?`: `string` \| `null`; `updated_at`: `string`; `user_id`: `string`; \}
+> **ImportEntity** = \{ `created_at`: `string`; `entity_id?`: `string` \| `null`; `entity_type?`: `string` \| `null`; `foreign_id`: `string`; `id`: `string`; `initiator`: [`Initiator`](Initiator.md); `kind`: [`ImportKind`](ImportKind.md); `last_error?`: `string` \| `null`; `metadata`: `unknown`; `parent_id?`: `string` \| `null`; `review_id?`: `string` \| `null`; `source`: [`ImportSource`](ImportSource.md); `status`: [`ImportStatus`](ImportStatus.md); `team_id?`: `string` \| `null`; `updated_at`: `string`; `user_id`: `string`; `waiting_on?`: `string` \| `null`; \}
 
 One row of the import ledger.
 
@@ -24,3 +24,4 @@ One row of the import ledger.
 | <a id="property-team_id"></a> `team_id?` | `string` \| `null` | The team the created entity was shared with, when it was. |
 | <a id="property-updated_at"></a> `updated_at` | `string` | When the row last changed. |
 | <a id="property-user_id"></a> `user_id` | `string` | The user who staged/imported it. Team-imported rows from teammates are visible with their owner's id, so clients can say "created by a teammate". |
+| <a id="property-waiting_on"></a> `waiting_on?` | `string` \| `null` | The teammate's row this one waits on: that teammate is writing the same object for the team, and this row links to their copy once it is imported. |

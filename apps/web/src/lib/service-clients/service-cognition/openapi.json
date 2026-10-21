@@ -3964,6 +3964,11 @@
           "user_id": {
             "type": "string",
             "description": "The user who staged/imported it. Team-imported rows from teammates\nare visible with their owner's id, so clients can say \"created by a\nteammate\"."
+          },
+          "waiting_on": {
+            "type": ["string", "null"],
+            "format": "uuid",
+            "description": "The teammate's row this one waits on: that teammate is writing the\nsame object for the team, and this row links to their copy once it\nis imported."
           }
         }
       },
@@ -3989,6 +3994,17 @@
           "error": {
             "type": ["string", "null"],
             "description": "Discovery failure detail, when the run failed."
+          },
+          "scanned": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ScanCounts",
+                "description": "What the run has found in the source so far, while it is `running`."
+              }
+            ]
           },
           "source": {
             "$ref": "#/components/schemas/ImportSource",
@@ -4210,6 +4226,25 @@
           }
         }
       },
+      "NotionAlreadyImported": {
+        "type": "object",
+        "description": "A teammate's copy of a Notion object, shared with the user's team.",
+        "required": ["by", "entityId", "entityType"],
+        "properties": {
+          "by": {
+            "type": "string",
+            "description": "The teammate who imported it, by email."
+          },
+          "entityId": {
+            "type": "string",
+            "description": "The Macro entity it became."
+          },
+          "entityType": {
+            "type": "string",
+            "description": "That entity's type (`md`, `project`)."
+          }
+        }
+      },
       "NotionDecision": {
         "type": "string",
         "description": "What a workspace import does with one Notion object.",
@@ -4255,11 +4290,28 @@
           "tasks",
           "skip",
           "hand",
+          "documents",
+          "databases",
+          "databaseRows",
+          "taskRows",
           "imported",
           "waiting",
           "writing"
         ],
         "properties": {
+          "alreadyImportedBy": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotionImporter"
+            },
+            "description": "Who imported the objects already in Macro, most first."
+          },
+          "alreadyInMacro": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Plan objects a teammate already imported and shared with the team;\nthey link to that copy and are not counted as copies.",
+            "minimum": 0
+          },
           "copy": {
             "type": "integer",
             "format": "int32",
@@ -4270,6 +4322,24 @@
             "type": "integer",
             "format": "int32",
             "description": "Data sources (database tables) in the plan.",
+            "minimum": 0
+          },
+          "databaseRows": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Rows those databases hold, every one counted while planning.",
+            "minimum": 0
+          },
+          "databases": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Data sources written as databases.",
+            "minimum": 0
+          },
+          "documents": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Pages written as documents.",
             "minimum": 0
           },
           "error": {
@@ -4313,6 +4383,23 @@
             "format": "uuid",
             "description": "The review the plan is tied to, once presented."
           },
+          "scanned": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ScanCounts",
+                "description": "What planning has found in Notion so far, while it is `running`."
+              }
+            ]
+          },
+          "sharedWithTeam": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Written plan objects shared with the user's team.",
+            "minimum": 0
+          },
           "skip": {
             "type": "integer",
             "format": "int32",
@@ -4330,6 +4417,12 @@
               }
             ]
           },
+          "taskRows": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Tasks the task lists become, one per row.",
+            "minimum": 0
+          },
           "tasks": {
             "type": "integer",
             "format": "int32",
@@ -4342,10 +4435,33 @@
             "description": "Plan objects still waiting to be written.",
             "minimum": 0
           },
+          "waitingOnTeammates": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Plan objects waiting for a teammate who is writing the same object\nfor the team; they link to the teammate's copy once it is written.",
+            "minimum": 0
+          },
           "writing": {
             "type": "integer",
             "format": "int32",
             "description": "Plan objects being written now.",
+            "minimum": 0
+          }
+        }
+      },
+      "NotionImporter": {
+        "type": "object",
+        "description": "A teammate who already imported some of a plan's objects.",
+        "required": ["by", "count"],
+        "properties": {
+          "by": {
+            "type": "string",
+            "description": "The teammate, by email."
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32",
+            "description": "How many of the plan's objects they imported.",
             "minimum": 0
           }
         }
@@ -4355,13 +4471,20 @@
         "description": "One object's place in a workspace import plan.",
         "required": ["decision"],
         "properties": {
+          "alreadyImported": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NotionAlreadyImported",
+                "description": "A teammate's copy shared with the team, which this object links to\ninstead of being imported again."
+              }
+            ]
+          },
           "decision": {
             "$ref": "#/components/schemas/NotionDecision",
             "description": "What the import does with it."
-          },
-          "moreRows": {
-            "type": "boolean",
-            "description": "For a data source: whether it has more rows than `rows`."
           },
           "path": {
             "type": "array",
@@ -4379,6 +4502,18 @@
             "format": "int32",
             "description": "For a data source: rows counted while planning.",
             "minimum": 0
+          },
+          "shareable": {
+            "type": "boolean",
+            "description": "Whether the user may change `shared`: false for databases, which\ncannot be shared with a team, and for users without a team."
+          },
+          "shared": {
+            "type": "boolean",
+            "description": "Whether what it becomes is shared with the user's team."
+          },
+          "sharedReason": {
+            "type": ["string", "null"],
+            "description": "Why it is (or is not) shared, when the decision model chose or the\nimport could not share it."
           },
           "taskFields": {
             "oneOf": [
@@ -4785,6 +4920,25 @@
           "failed",
           "dismissed"
         ]
+      },
+      "ScanCounts": {
+        "type": "object",
+        "description": "What a planning run has found in the source so far.",
+        "required": ["pages", "dataSources"],
+        "properties": {
+          "dataSources": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Data sources (database tables) found.",
+            "minimum": 0
+          },
+          "pages": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Pages found.",
+            "minimum": 0
+          }
+        }
       },
       "SendChatMessagePayload": {
         "allOf": [
