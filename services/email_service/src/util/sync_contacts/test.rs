@@ -221,7 +221,10 @@ fn address_book_connections_cover_saved_contacts_and_skip_noise() {
         .iter()
         .map(|connection| connection.second.to_string())
         .collect();
-    assert_eq!(second, vec!["macro|alice@acme.com", "macro|friend@gmail.com"]);
+    assert_eq!(
+        second,
+        vec!["macro|alice@acme.com", "macro|friend@gmail.com"]
+    );
     assert!(
         connections
             .iter()
