@@ -45,6 +45,13 @@ export class BulkUploadBucket extends pulumi.ComponentResource {
             filter: { prefix: 'slack-import/' },
             expiration: { days: 14 },
           },
+          {
+            id: 'extract-cleanup',
+            status: 'Enabled',
+            filter: { prefix: 'extract/' },
+            expiration: { days: 7 },
+            abortIncompleteMultipartUpload: { daysAfterInitiation: 1 },
+          },
         ],
         // The helper owns CORS: PUT and allowedHeaders ['*'] already permit
         // If-None-Match and x-amz-checksum-sha256 without a second CORS resource.
