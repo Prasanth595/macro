@@ -106,10 +106,17 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Preserve focused chrome editors during deferred split insertion/removal autofocus; explicit return-focus commands may still focus the pane.
 - Reconcile global focus when focused DOM subtrees are removed; iOS can omit blur events, otherwise floating creation actions stay hidden after search or editor teardown.
 - Mount the floating mobile AI composer only on the Agents view; other views keep their New action or their own reply/comment composer.
+- Keep desktop model and effort controls separate: the model selector opens the catalog and the speedometer opens the runtime's advertised slider stops; retain the mobile effort sheet.
 - Passive PR mentions must not retry initial GitHub status failures on remount; preserve confirmed status through refetch errors and keep pending data reads out of their parent Suspense boundary.
 - Keep native booking exit navigation in the route shell, outside page loading boundaries, and use the router so the native hash route stays intact.
 - Diagnose native full reloads with `native_webview_started` and native launch/termination/update counters; termination coverage is iOS/macOS only, and a pageview alone also includes SPA navigation. See `tauri/src-tauri/README.md`.
 - All API/network calls live in service-clients.
+- Keep early DOCX opens loading while exports return processing (409); retry only
+  that response, with a bounded wait. See the Word editor walkthrough in
+  `docs/agent-guide/documents.md` at the repository root.
+- Add Google Meet account hints only to join actions using the displayed calendar's
+  connected email; keep stored and copied conference links unchanged. See the
+  [calendar walkthrough](../../docs/agent-guide/calendar.md).
 - Route explicit call exits using the server's `callEnded` result: ended calls
   open their record; ongoing channel and scheduled calls return to the channel
   and Calendar. Preserve the session ID before disconnecting.
@@ -137,6 +144,15 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Preserve loaded block content on initial access confirmation when its loader
   supplies no permissions; reload only on a later confirmed permission change.
   Apply shared access in place only after a successful permissionless load.
+- Grouped Soup's `graphql/create-grouped-soup-live-query.ts` owns initial and
+  continuation pages plus their local predicate projection. Group readers only
+  delegate paging; pass the parent's live `groupedPaging` accessor from every
+  caller, including Tasks and project-task lists. Do not introduce independent
+  continuation owners. Keep server
+  membership snapshots separate from normalized field/link updates; restored
+  properties do not prove prior membership. Supply complete prior multi-value
+  memberships when adjusting counts: a row loaded in one bin may already be an
+  unloaded member of another.
 - Reactive GraphQL reads use `createLiveQuery` for a document and
   `useSoupAstItemsQuery` (backed by `createSoupLiveQuery`) for Soup lists; see
   [choosing a reactive read](docs/graphql-normalized-cache-plan.md#choosing-a-reactive-read).
