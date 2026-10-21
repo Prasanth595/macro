@@ -1,4 +1,7 @@
 import { CollapsibleSection, ViewSidebar } from '@app/components/view-shell';
+import { useFeatureFlag } from '@app/lib/analytics/posthog';
+import { getIconConfig } from '@core/component/EntityIcon';
+import { enableCrmActivity } from '@core/constant/featureFlags';
 import { isTouchDevice } from '@core/mobile/isTouchDevice';
 import BuildingsIcon from '@phosphor/buildings.svg';
 import ExportIcon from '@phosphor/download-simple.svg';
@@ -12,14 +15,21 @@ import { Button, Tooltip } from '@ui';
 import { tourTarget } from '@ui/components/Tour';
 import { createSignal, For, type JSX, Show } from 'solid-js';
 import { Dynamic } from 'solid-js/web';
-import { CRM_RECORDS } from '../core/navigation';
+import { CRM_ACTIVITY_TABS, CRM_RECORDS } from '../core/navigation';
 import { COMPANIES_TOUR } from '../tour';
 import { CrmCreateMenu } from './crm-create-menu';
 
-const RECORD_ICONS = { active: BuildingsIcon, people: UsersIcon };
+const RECORD_ICONS = {
+  active: BuildingsIcon,
+  people: UsersIcon,
+  tasks: getIconConfig('task').icon,
+  email: getIconConfig('email').icon,
+  notes: getIconConfig('md').icon,
+  calls: getIconConfig('call').icon,
+};
 
 export function CrmSidebar(props: {
-  /** The highlighted record type, list, or pipeline. */
+  /** The highlighted record type, list, pipeline, or `settings`. */
   active: string;
   pipelines?: JSX.Element;
   lists: { id: string; name: string; count: number }[];
@@ -36,8 +46,13 @@ export function CrmSidebar(props: {
   onImport: () => void;
   onExport: () => void;
   onSettings: () => void;
-  onCollapse: () => void;
+  /**
+   * Collapses the docked sidebar. The narrow navigation menu omits it, along
+   * with the split close, which stays in the split header beside the menu.
+   */
+  onCollapse?: () => void;
 }) {
+  const activityFlag = useFeatureFlag(enableCrmActivity);
   const [recordsOpen, setRecordsOpen] = createSignal(true);
   const [listsOpen, setListsOpen] = createSignal(true);
   return (
@@ -46,19 +61,23 @@ export function CrmSidebar(props: {
         <Show when={!isTouchDevice()}>
           <ViewSidebar.Header>
             <div class="flex min-w-0 items-center gap-1">
-              <ViewSidebar.CloseButton class="shrink-0" />
+              <Show when={props.onCollapse}>
+                <ViewSidebar.CloseButton class="shrink-0" />
+              </Show>
               <ViewSidebar.Title>Customers</ViewSidebar.Title>
             </div>
-            <Tooltip label="Collapse CRM sidebar">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                label="Collapse CRM sidebar"
-                onClick={props.onCollapse}
-              >
-                <SidebarIcon class="size-4" />
-              </Button>
-            </Tooltip>
+            <Show when={props.onCollapse}>
+              <Tooltip label="Collapse CRM sidebar">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  label="Collapse CRM sidebar"
+                  onClick={props.onCollapse}
+                >
+                  <SidebarIcon class="size-4" />
+                </Button>
+              </Tooltip>
+            </Show>
           </ViewSidebar.Header>
         </Show>
         <ViewSidebar.Primary ref={tourTarget(COMPANIES_TOUR.create)}>
@@ -83,7 +102,12 @@ export function CrmSidebar(props: {
               aria-label="CRM records"
               ref={tourTarget(COMPANIES_TOUR.records)}
             >
-              <For each={CRM_RECORDS}>
+              <For
+                each={[
+                  ...CRM_RECORDS,
+                  ...(activityFlag().enabled ? CRM_ACTIVITY_TABS : []),
+                ]}
+              >
                 {(record) => (
                   <ViewSidebar.Item
                     active={props.active === record.id}
@@ -174,7 +198,10 @@ export function CrmSidebar(props: {
             </ViewSidebar.Icon>
             Export
           </ViewSidebar.Item>
-          <ViewSidebar.Item onClick={props.onSettings}>
+          <ViewSidebar.Item
+            active={props.active === 'settings'}
+            onClick={props.onSettings}
+          >
             <ViewSidebar.Icon>
               <GearIcon class="size-4" />
             </ViewSidebar.Icon>

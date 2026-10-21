@@ -12,7 +12,7 @@ import {
 import { Telemetry } from '@macro-inc/observability';
 
 import { makePersisted } from '@solid-primitives/storage';
-import { err, ok } from 'neverthrow';
+import { ok } from 'neverthrow';
 import { createSignal } from 'solid-js';
 import type {
   AiPlanCatalog,
@@ -26,6 +26,7 @@ import type {
   CheckoutSessionV2Response,
   CursorApiKeyStatus,
   CursorModelsResponse,
+  EmailConnectionProviders,
   EnrichGithubPullRequestsProxyRequest,
   EnrichGithubPullRequestsResponse,
   GithubLinkStatusResponse,
@@ -313,9 +314,16 @@ const githubErrorResponseHandler: ErrorResponseHandler<GithubReauthenticationErr
   };
 
 export const authServiceClient = {
-  async emailConnectionProviders() {
-    return fetchWithAuth<{ gmail: boolean; outlook: boolean }>(
-      `${authHost}/link/email/providers`,
+  /**
+   * Which providers this deployment can connect. Pass `originalUrl` to also
+   * receive the Microsoft tenant-wide admin-consent URL that returns there.
+   */
+  async emailConnectionProviders(originalUrl?: string) {
+    const params = new URLSearchParams();
+    if (originalUrl) params.set('original_url', originalUrl);
+    const query = params.size > 0 ? `?${params}` : '';
+    return fetchWithAuth<EmailConnectionProviders>(
+      `${authHost}/link/email/providers${query}`,
       { method: 'GET' }
     );
   },
@@ -1112,11 +1120,7 @@ export const authServiceClient = {
   },
 
   async reauthenticateGithub(originalUrl?: string) {
-    const deleteResult = await authServiceClient.deleteGithubLink();
-    if (deleteResult.isErr()) {
-      return err(deleteResult.error);
-    }
-
+    // The OAuth callback refreshes the grant after verifying the GitHub account.
     return authServiceClient.initGithubLink(originalUrl);
   },
 

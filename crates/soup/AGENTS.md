@@ -50,9 +50,14 @@ rows, initiatives, ...) and get back a single unified, paginated result.
 - Change what the work feed/Signal surfaces: `src/domain/service/tests/work_feed.rs`
   → `src/outbound/pg_soup_repo/work_feed.rs`.
 
+## Tool contracts
+
+- The AI `ListEntities` adapter includes agent sessions and excludes legacy chats; public feed contracts retain historical chat support.
+
 ## Checks
 
-- `cargo test -p soup` (`SQLX_OFFLINE` unset; needs local MacroDB).
+- `cargo test -p soup --features outbound` (`SQLX_OFFLINE` unset; needs local
+  MacroDB). Without the feature the Postgres repo and its tests don't compile.
 - After schema/query changes: `nix develop --command just prepare_db` (see `justfile`).
 
 ## Gotchas
@@ -62,6 +67,11 @@ rows, initiatives, ...) and get back a single unified, paginated result.
   `expanded` path instead.
 - `candidate_gates.rs` encodes access-gate SQL shared across repo queries;
   changing it changes what every entity kind can return.
+- Queries over a known id list (`*/by_ids.rs`, hydration) check access per id
+  with `EXISTS` on `entity_access`, matching sources with
+  `= ANY(ARRAY(SELECT ...))` so they are collected once rather than semi-joined
+  per row. Building the caller's whole accessible set first scans all of
+  `entity_access`, so cost grows with the table, not the page.
 
 ## Related
 

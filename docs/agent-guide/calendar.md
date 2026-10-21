@@ -11,6 +11,14 @@ the connected calendar mailbox. Outlook out-of-office automatic replies show an
 uncertainty notice if a provider response cannot be confirmed; a reconnect must
 not resend an already attempted automatic reply.
 
+Google Meet joins from event details, the upcoming-events sidebar, and calendar
+search use the displayed occurrence's connected calendar email as `authuser` when
+that account is known. Existing parameters such as `hs` are preserved. Copied call
+links keep their original URL so they can be shared with other attendees. Verify
+desktop and mobile Join with work and personal Google accounts signed in; a work
+calendar should open Meet with the work account. Search results without loaded
+calendar account metadata and other conferencing providers keep their original URL.
+
 Event composer dropdown triggers and date/time inputs use the theme control
 surface, so they blend with the dialog instead of using the darker page fill.
 Their menus stay inside the composer's portal scope. Verify that calendar,
@@ -111,6 +119,10 @@ footer. Answering a recurring invitation opens a rounded glass sheet: choose
 `This event` or `All events`, then `Save response`. Cancel or Close returns to
 the event details without sending a response.
 
+While an event response saves, a small spinner appears beside `Going?` within
+the RSVP footer on desktop and mobile; the row and buttons stay in place.
+Failures appear below the buttons inside the padded footer and allow retrying.
+
 Calendar scheduling is on by default in dev. Production uses the PostHog flag
 `enable-calendar-scheduling` and stays off unless enabled remotely. Set
 `VITE_ENABLE_CALENDAR_SCHEDULING=false` to test the disabled state locally.
@@ -147,6 +159,11 @@ show progress; the event summary and selected time stay visible. Choose another
 time preserves attendee input. All meetings returns to the profile chooser when
 multiple events exist, but is disabled while a booking response is unresolved.
 The private confirmation shows the meeting, date, timezone, location, and guest.
+In the native iOS and Android apps, standalone booking and receipt pages keep a
+sticky **Back to Macro** button below the device's top safe-area inset. It returns to
+the app through the router without reloading, including while the page is loading
+or unavailable. Browser pages and embedded booking dialogs omit this button.
+
 Public URLs and booking behavior remain unchanged. The website can frame the
 booking page and receipt without duplicate Macro branding. A completed booking
 notifies the same-origin parent page; other sites cannot frame these routes.

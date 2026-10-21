@@ -24,11 +24,17 @@ afterEach(() => {
   onlineManager.setOnline(true);
   vi.clearAllMocks();
 });
-const operation = (state: MailboxOperation['state']): MailboxOperation => ({
+const operation = (
+  state: MailboxOperation['state'],
+  action: MailboxOperation['action'] = {
+    kind: 'category',
+    value: { name: 'Projects', present: true },
+  }
+): MailboxOperation => ({
   id: 'operation',
   updated_at: '2026-10-04T00:00:00Z',
   state,
-  action: { kind: 'category', value: { name: 'Projects', present: true } },
+  action,
 });
 it('does not announce queued category changes as applied', () => {
   render(() => <MailboxOperationsNotice operations={[operation('pending')]} />);
@@ -67,6 +73,7 @@ it.each(['fetching', 'paused', 'disabled'] as const)(
           <EmailThreadOperations
             threadId="cached-thread"
             enabled={status !== 'disabled'}
+            announceRead={false}
           />
         </Suspense>
       </QueryClientProvider>
@@ -87,3 +94,40 @@ it.each(['fetching', 'paused', 'disabled'] as const)(
     client.clear();
   }
 );
+it('does not announce the mark-as-read that opening a thread queues', () => {
+  const read = { kind: 'read', value: true } as const;
+  render(() => (
+    <MailboxOperationsNotice operations={[operation('pending', read)]} />
+  ));
+  expect(screen.queryByText(/Mark as read/)).toBeNull();
+});
+it('announces a pending mark-as-read the user asked for', () => {
+  const read = { kind: 'read', value: true } as const;
+  render(() => (
+    <MailboxOperationsNotice
+      operations={[operation('pending', read)]}
+      announceRead
+    />
+  ));
+  expect(screen.getByText(/Mark as read/).textContent).toContain(
+    'Waiting for mailbox confirmation'
+  );
+});
+it('reports a mark-as-read that the mailbox rejected', () => {
+  const read = { kind: 'read', value: true } as const;
+  render(() => (
+    <MailboxOperationsNotice operations={[operation('failed', read)]} />
+  ));
+  expect(screen.getByText(/Mark as read/).textContent).toContain(
+    'Could not apply this change'
+  );
+});
+it('still announces a pending mark-as-unread', () => {
+  const unread = { kind: 'read', value: false } as const;
+  render(() => (
+    <MailboxOperationsNotice operations={[operation('pending', unread)]} />
+  ));
+  expect(screen.getByText(/Mark as unread/).textContent).toContain(
+    'Waiting for mailbox confirmation'
+  );
+});
