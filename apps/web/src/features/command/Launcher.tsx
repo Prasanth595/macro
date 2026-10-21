@@ -1393,13 +1393,11 @@ export const LauncherShell = (
             <span class="flex gap-0.5">
               <Hotkey
                 shortcut={searchMode() ? 'arrowup' : navUpHotkey.hotkey()}
-                theme="subtle"
-                class="min-w-5 justify-center border-ink/12"
+                class="min-w-5 justify-center"
               />
               <Hotkey
                 shortcut={searchMode() ? 'arrowdown' : navDownHotkey.hotkey()}
-                theme="subtle"
-                class="min-w-5 justify-center border-ink/12"
+                class="min-w-5 justify-center"
               />
             </span>
             Navigate
@@ -1408,8 +1406,7 @@ export const LauncherShell = (
             <span class="flex items-center gap-1.5">
               <Hotkey
                 shortcut={confirmHotkey.hotkey()}
-                theme="subtle"
-                class="min-w-5 justify-center border-ink/12"
+                class="min-w-5 justify-center"
               />
               Create
             </span>
@@ -1419,14 +1416,12 @@ export const LauncherShell = (
             <span class="relative inline-flex place-items-center">
               <span
                 ref={shiftRippleRef}
-                class="shift-ripple absolute inset-0 rounded-sm border border-ink/40 pointer-events-none opacity-0"
+                class="shift-ripple absolute inset-0 rounded-sm bg-ink/10 pointer-events-none opacity-0"
               />
               <span
                 class={cn(
-                  'min-w-5 border text-xxs px-1.5 py-px rounded-sm text-center transition-colors duration-150',
-                  shiftHeld()
-                    ? 'border-ink/30 bg-ink/10 text-ink'
-                    : 'border-ink/12'
+                  'min-w-5 text-xxs px-1.5 py-px rounded-sm text-center transition-colors duration-150',
+                  shiftHeld() ? 'bg-ink/10 text-ink' : 'text-ink-extra-muted'
                 )}
               >
                 {getNormalizedKeyString({ shortcut: 'shift' })}
