@@ -17,9 +17,10 @@ export type {
  * Stored on `team_crm_settings` and served by GET/PUT `/crm/settings`
  * (document storage service). Any team member can read and can update
  * the views fields (`teamViews`, `defaultTeamViewId`); the governance
- * fields (permission thresholds) are admin/owner-gated server-side. Updates are field-wise partial: omitted fields keep their
- * current values, `null` clears the nullable ones, and `teamViews` is
- * replaced whole (last write wins).
+ * fields (permission thresholds) are admin/owner-gated server-side.
+ * Updates are field-wise partial: omitted fields keep their current
+ * values, `null` clears the nullable ones, and `teamViews` is replaced
+ * whole (last write wins).
  */
 
 import { throwOnErr } from '@core/util/result';
