@@ -301,11 +301,24 @@ hover path connected across the gap to the dropdown. Delay hover dismissal by
 350ms and cancel it on re-entry; keep navigation open while its links have focus.
 Outside clicks and Escape dismiss immediately. ArrowDown opens and focuses
 navigation from the home link. Touch and narrow layouts show a single hamburger
-button that opens navigation, without a separate caret. Escape and keyboard
+button that opens navigation, without a separate caret. It becomes an X while
+open. Mobile menus use an opaque, theme-matched surface and two-column link
+groups with 48px minimum tap targets, keeping every group easy to reach. Escape and keyboard
 wrapping return focus to that button. Home remains available inside the menu.
 
 The product entry preloads the requested lazy route and its CSS before replacing
 prerendered HTML, avoiding a header-only flash on first load.
+
+Keep 40px total mobile spacing between the Documents/Tasks links and Coding
+agents: 20px below Documents and 20px above Coding agents. Do not zero that
+boundary or double it to the full 80px section spacing.
+
+Person and agent mentions use `--marketing-mention` with a soft tint in both
+palettes, including static homepage conversations and editable demo tokens. The
+light document graphic uses that accent for resolved mentions instead of the
+neutral website control accent. Comment anchors use the product’s yellow wash
+and underline; the sample date-check comment anchors to the launch date, leaving
+the checklist heading unmarked.
 
 Feature chapters rely on their heading, description, and working demo. Do not
 reintroduce unused feature-card guides or duplicate explanatory drawers.
@@ -514,6 +527,9 @@ backing, and ISO/SOC 2/CASA badges. A continuous grainy gradient funnels into th
 GitHub mark on scroll, then drains away. Verify the flow in both scroll directions
 and after resizing. Reduced motion skips the flow
 and shows the finished GitHub treatment.
+The 800px desktop-demo breakpoint is also enforced by CSS on prerendered HTML,
+so phones never paint the desktop carousel before hydration switches layouts.
+The production smoke checks visibility before and after releasing JavaScript.
 Below 800px, the homepage keeps the original sequence: feature bubbles, the full
 open-source section, then a curved connector into the abbreviated sidebar diagram.
 The embedded demo, carousel, liquid transition, and demo launch button do not mount
@@ -1010,3 +1026,20 @@ The email-sharing result uses an inline email icon and linked subject from
 `DocMention`. Do not add a custom preview card, Live badge, sender summary,
 or reply-count footer. Opening the mention shows the complete sample thread,
 including subsequent replies.
+
+The landing-page CRM illustration has no playback footer or Pause/Replay controls;
+it still pauses offscreen and when a visitor enters the demo.
+
+The landing CRM drag hides its source card while preserving its slot. The drag
+copy and pointer sit beside the panning canvas and use viewport-space transforms;
+use a box shadow rather than a moving drop-shadow filter to avoid ghosted trails.
+
+The landing CRM artboard fixes its card, header, and row dimensions in pixels to
+match its animation coordinates before applying the viewport scale. Its shared
+card surfaces are display-only: no hover transitions or cursor transform easing.
+Pickup and drop must preserve the card’s screen-space bounds on phones too.
+
+On phones, retain the final blog-row divider and hide the adjacent closing
+footer rule. The homepage document frame is 420px tall below 700px because its
+version-history band is hidden there; avoid retaining empty desktop fade space
+between the document and its Learn more links.
