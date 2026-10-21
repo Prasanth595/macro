@@ -70,7 +70,7 @@ type PropertyEntityDisplayResult = {
  */
 export function usePropertyEntityDisplay(
   entityId: Accessor<string>,
-  entityType: Accessor<EntityType>,
+  entityType: Accessor<EntityType | undefined>,
   options?: {
     /** Custom fallback icon for unknown entity types (null to show nothing) */
     fallbackIcon?: JSX.Element | null;
@@ -105,12 +105,10 @@ export function usePropertyEntityDisplay(
       ? source.data?.id
       : undefined;
   };
-  const previewType = () => entityTypeToItemType(entityType());
-
   const previewSource = createMemo(() => {
     const eType = entityType();
-    const pType = previewType();
     if (isPreviewable(eType)) {
+      const pType = entityTypeToItemType(eType);
       return untrack(
         () =>
           useItemPreview(() => ({
@@ -166,7 +164,7 @@ export function usePropertyEntityDisplay(
         if (isAccessiblePreviewItem(item)) {
           return item.name;
         }
-        return `Unknown ${entityType().toLowerCase()}`;
+        return `Unknown ${entityType()?.toLowerCase() ?? 'entity'}`;
       })
   );
 

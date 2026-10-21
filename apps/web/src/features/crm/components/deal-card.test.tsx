@@ -18,18 +18,18 @@ describe('deal date editor', () => {
         next="Email"
         plan=""
         outcome={null}
-        onWhen={() => true}
+        onWhen={() => {}}
         onNext={() => save}
         onPlan={() => {}}
-        onOutcome={() => true}
+        onOutcome={() => {}}
         onHappened={async () => {}}
         onLast={async () => {}}
       />
     ));
 
     await userEvent.click(screen.getByRole('button', { name: /15\/10\/2026/ }));
-    const call = screen.getByRole('button', { name: 'Call', exact: true });
-    const email = screen.getByRole('button', { name: 'Email', exact: true });
+    const call = screen.getByRole('button', { name: 'Call' });
+    const email = screen.getByRole('button', { name: 'Email' });
     expect(email.className).toContain('6d4aff');
     await userEvent.click(call);
     expect(call.className).toContain('6d4aff');

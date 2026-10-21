@@ -45,6 +45,6 @@ export function useMessageParticipants(
       .with(P.union('crm_company', 'crm_contact', 'crm_deal'), () =>
         teamMembers()
       )
-      .exhaustive()
+      .exhaustive(() => [])
   );
 }

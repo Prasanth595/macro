@@ -1303,6 +1303,7 @@ export function createQuickAccessValue(): QuickAccessContextValue {
             (cacheHost() ? cachedChannelsQuery.isLoading : channelsLoading())
         ),
       isLoadingMore: () => projected?.isLoadingMore() ?? false,
+      error: () => projected?.error(),
       loadMore: async () => {
         await projected?.loadMore();
       },

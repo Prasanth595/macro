@@ -25,6 +25,7 @@ use serde_json::json;
 use uuid::Uuid;
 
 mod active_meetings;
+mod guest_chat;
 mod meeting_invites;
 mod meeting_participants;
 mod meeting_startup;
@@ -1044,7 +1045,7 @@ fn build_webhook_service(
     repo: MockCallRepository,
     rtc_client: MockCallRtcClient,
     event_broker: RecordingEventBroker,
-) -> impl CallService {
+) -> impl CallService + messages::domain::service::guest_chat::GuestCallAuthorizer {
     build_webhook_service_with_connection(repo, rtc_client, StubConnectionService, event_broker)
 }
 
@@ -1053,7 +1054,7 @@ fn build_webhook_service_with_connection<Cn: ConnectionService>(
     rtc_client: MockCallRtcClient,
     connection_service: Cn,
     event_broker: RecordingEventBroker,
-) -> impl CallService {
+) -> impl CallService + messages::domain::service::guest_chat::GuestCallAuthorizer {
     let service: BaseWebhookCallService<Cn> = CallServiceImpl::new(
         repo,
         rtc_client,
@@ -1540,7 +1541,7 @@ fn call_record_for_mutation() -> CallRecord {
     CallRecord {
         call_id: MUTATED_EVENT_CALL_ID,
         channel_id: Some(MUTATED_EVENT_CHANNEL_ID),
-        room_name: "mutation-event-room".to_string(),
+        room_name: Some("mutation-event-room".to_string()),
         created_by: "macro|creator@example.com".to_string(),
         started_at: archived_event_started_at(),
         ended_at: Some(archived_event_ended_at()),
@@ -1563,6 +1564,7 @@ fn call_record_for_mutation() -> CallRecord {
         participants: Vec::new(),
         guests: Vec::new(),
         transcript: Vec::new(),
+        source: None,
     }
 }
 
@@ -2683,7 +2685,7 @@ fn summarized_call_record(custom_name: Option<&str>) -> CallRecord {
     CallRecord {
         call_id: SUMMARIZED_EVENT_CALL_ID,
         channel_id: Some(SUMMARIZED_EVENT_CHANNEL_ID),
-        room_name: SUMMARIZED_EVENT_CHANNEL_ID.to_string(),
+        room_name: Some(SUMMARIZED_EVENT_CHANNEL_ID.to_string()),
         created_by: "macro|creator@example.com".to_string(),
         started_at: started_event_timestamp(),
         ended_at: Some(started_event_timestamp()),
@@ -2715,6 +2717,7 @@ fn summarized_call_record(custom_name: Option<&str>) -> CallRecord {
             ended_at: Some(started_event_timestamp()),
             sequence_num: 1,
         }],
+        source: None,
     }
 }
 

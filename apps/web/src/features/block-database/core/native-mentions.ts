@@ -75,5 +75,5 @@ export function databaseMentionScope(
       'INITIATIVE',
       () => ({ sources: [], documentBuckets: undefined })
     )
-    .exhaustive();
+    .exhaustive(() => ({ sources: [] }));
 }

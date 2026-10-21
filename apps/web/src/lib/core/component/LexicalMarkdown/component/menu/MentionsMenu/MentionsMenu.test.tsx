@@ -50,6 +50,7 @@ vi.mock('@core/block', () => ({
 vi.mock('@core/constant/featureFlags', () => ({
   enableCrm: {},
   isFeatureEnabled: () => mocks.crmEnabled,
+  ENABLE_BEARER_TOKEN_AUTH: false,
 }));
 vi.mock('@core/context/quickAccess', () => ({
   useQuickAccess: () => ({
@@ -96,6 +97,12 @@ vi.mock('../../../plugins', () => ({ CLOSE_INLINE_SEARCH_COMMAND: {} }));
 vi.mock('./utils/mentionHandlers', () => ({ createItemHandler: vi.fn() }));
 vi.mock('./hooks/useEmailSearchMention', () => ({
   useEmailSearchMention: vi.fn(),
+}));
+vi.mock('./hooks/useBookingLinkMention', () => ({
+  useBookingLinkMention: () => ({
+    bookingLinks: () => [],
+    isLoading: () => false,
+  }),
 }));
 vi.mock('@core/component/EntityIcon', () => ({ EntityIcon: () => null }));
 vi.mock('@core/component/UserIcon', () => ({ UserIcon: () => null }));

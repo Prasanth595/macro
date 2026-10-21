@@ -55,6 +55,7 @@ import { useMenuKeyboardNavigation } from '../useMenuKeyboardNavigation';
 import { ItemBin } from './components/ItemBin';
 import { MentionsMenuItem } from './components/MentionsMenuItem';
 import { createMentionPageLoader } from './hooks/createMentionPageLoader';
+import { useBookingLinkMention } from './hooks/useBookingLinkMention';
 import { useEmailSearchMention } from './hooks/useEmailSearchMention';
 import {
   useEntityMention,
@@ -277,6 +278,14 @@ function MentionsMenuInner(props: MentionsMenuProps) {
     );
   });
 
+  const bookingLinksEnabled = () =>
+    !hasCustomEntities() &&
+    (!props.sources || props.sources.includes('bookingLinks'));
+  const { bookingLinks } = useBookingLinkMention({
+    enabled: bookingLinksEnabled,
+    searchTerm,
+  });
+
   const openTabs = createLazyMemo(() => {
     const splitManager = globalSplitManager();
     if (!splitManager) return [];
@@ -333,6 +342,7 @@ function MentionsMenuInner(props: MentionsMenuProps) {
   const mobileAllItems = createLazyMemo((): MentionItem[] => {
     const users = sourceEnabled('users') ? mentionUsers() : [];
     const combined: MentionItem[] = [
+      ...(sourceEnabled('bookingLinks') ? bookingLinks() : []),
       ...users,
       ...(sourceEnabled('documents') ? (docs() ?? []) : []),
       ...(sourceEnabled('channels') ? (channels() ?? []) : []),
@@ -357,6 +367,7 @@ function MentionsMenuInner(props: MentionsMenuProps) {
           label: 'All',
           getData: mobileAllItems,
           getFullCount: () =>
+            (sourceEnabled('bookingLinks') ? bookingLinks().length : 0) +
             (sourceEnabled('users') ? mentionUsers().length : 0) +
             (sourceEnabled('documents') ? docsMention.totalCount() : 0) +
             (sourceEnabled('agentSessions') ? agentSessions().length : 0) +
@@ -401,6 +412,12 @@ function MentionsMenuInner(props: MentionsMenuProps) {
     }
 
     const buckets: BucketConfig[] = [
+      {
+        id: 'bookingLinks',
+        label: 'Booking Links',
+        getData: bookingLinks,
+        getFullCount: () => bookingLinks().length,
+      },
       {
         id: 'users',
         label:
