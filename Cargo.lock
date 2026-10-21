@@ -3662,6 +3662,7 @@ dependencies = [
  "call",
  "chrono",
  "chrono-tz",
+ "email_utils",
  "futures",
  "macro_authorization",
  "macro_db_migrator",
