@@ -5,14 +5,105 @@
  * OpenAPI spec version: 0.1.0
  */
 import type {
+  AvailabilityCalendarBody,
+  AvailabilityCalendarsResponse,
   CalendarEvent,
+  CalendarEventProviderUrl,
+  CalendarEventProviderUrlParams,
   CalendarMutationApiError,
+  CalendarReplacementView,
   CreateCalendarEventRequest,
   DeleteCalendarEventParams,
   ListCalendarsResponse,
+  PrepareCalendarReplacementRequest,
   RsvpCalendarEventRequest,
+  TeamCalendarSharingBody,
   UpdateCalendarEventRequest,
 } from './schemas';
+
+/**
+ * @summary List calendars and their personal-availability inclusion.
+ */
+export type getAvailabilityCalendarsResponse200 = {
+  data: AvailabilityCalendarsResponse;
+  status: 200;
+};
+
+export type getAvailabilityCalendarsResponseSuccess =
+  getAvailabilityCalendarsResponse200 & {
+    headers: Headers;
+  };
+
+export type getAvailabilityCalendarsResponse =
+  getAvailabilityCalendarsResponseSuccess;
+
+export const getGetAvailabilityCalendarsUrl = () => {
+  return `/availability-calendars`;
+};
+
+export const getAvailabilityCalendars = async (
+  options?: RequestInit
+): Promise<getAvailabilityCalendarsResponse> => {
+  const res = await fetch(getGetAvailabilityCalendarsUrl(), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getAvailabilityCalendarsResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getAvailabilityCalendarsResponse;
+};
+
+/**
+ * @summary Change which source calendars normally occupy this user's time.
+ */
+export type setAvailabilityCalendarResponse204 = {
+  data: void;
+  status: 204;
+};
+
+export type setAvailabilityCalendarResponseSuccess =
+  setAvailabilityCalendarResponse204 & {
+    headers: Headers;
+  };
+
+export type setAvailabilityCalendarResponse =
+  setAvailabilityCalendarResponseSuccess;
+
+export const getSetAvailabilityCalendarUrl = (calendarId: string) => {
+  return `/availability-calendars/${calendarId}`;
+};
+
+export const setAvailabilityCalendar = async (
+  calendarId: string,
+  availabilityCalendarBody: AvailabilityCalendarBody,
+  options?: RequestInit
+): Promise<setAvailabilityCalendarResponse> => {
+  const res = await fetch(getSetAvailabilityCalendarUrl(calendarId), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(availabilityCalendarBody),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: setAvailabilityCalendarResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as setAvailabilityCalendarResponse;
+};
 
 /**
  * @summary List the requester's visible calendars for pickers and filters.
@@ -324,6 +415,127 @@ export const updateCalendarEvent = async (
 };
 
 /**
+ * @summary Resolve an authorized event's provider link for Outlook-only actions.
+ */
+export type calendarEventProviderUrlResponse200 = {
+  data: CalendarEventProviderUrl;
+  status: 200;
+};
+
+export type calendarEventProviderUrlResponse404 = {
+  data: CalendarMutationApiError;
+  status: 404;
+};
+
+export type calendarEventProviderUrlResponseSuccess =
+  calendarEventProviderUrlResponse200 & {
+    headers: Headers;
+  };
+export type calendarEventProviderUrlResponseError =
+  calendarEventProviderUrlResponse404 & {
+    headers: Headers;
+  };
+
+export type calendarEventProviderUrlResponse =
+  | calendarEventProviderUrlResponseSuccess
+  | calendarEventProviderUrlResponseError;
+
+export const getCalendarEventProviderUrlUrl = (
+  eventId: string,
+  params?: CalendarEventProviderUrlParams
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/events/${eventId}/provider-url?${stringifiedParams}`
+    : `/events/${eventId}/provider-url`;
+};
+
+export const calendarEventProviderUrl = async (
+  eventId: string,
+  params?: CalendarEventProviderUrlParams,
+  options?: RequestInit
+): Promise<calendarEventProviderUrlResponse> => {
+  const res = await fetch(getCalendarEventProviderUrlUrl(eventId, params), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: calendarEventProviderUrlResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as calendarEventProviderUrlResponse;
+};
+
+/**
+ * @summary Read and persist an organizer-only preview, without sending invitations.
+ */
+export type prepareCalendarReplacementResponse200 = {
+  data: CalendarReplacementView;
+  status: 200;
+};
+
+export type prepareCalendarReplacementResponse409 = {
+  data: CalendarMutationApiError;
+  status: 409;
+};
+
+export type prepareCalendarReplacementResponseSuccess =
+  prepareCalendarReplacementResponse200 & {
+    headers: Headers;
+  };
+export type prepareCalendarReplacementResponseError =
+  prepareCalendarReplacementResponse409 & {
+    headers: Headers;
+  };
+
+export type prepareCalendarReplacementResponse =
+  | prepareCalendarReplacementResponseSuccess
+  | prepareCalendarReplacementResponseError;
+
+export const getPrepareCalendarReplacementUrl = (eventId: string) => {
+  return `/events/${eventId}/replacement`;
+};
+
+export const prepareCalendarReplacement = async (
+  eventId: string,
+  prepareCalendarReplacementRequest: PrepareCalendarReplacementRequest,
+  options?: RequestInit
+): Promise<prepareCalendarReplacementResponse> => {
+  const res = await fetch(getPrepareCalendarReplacementUrl(eventId), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(prepareCalendarReplacementRequest),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: prepareCalendarReplacementResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as prepareCalendarReplacementResponse;
+};
+
+/**
  * @summary Set the requester's RSVP on a calendar event and return its synced entity.
  */
 export type rsvpCalendarEventResponse200 = {
@@ -433,4 +645,232 @@ export const healthHandler = async (
     status: res.status,
     headers: res.headers,
   } as healthHandlerResponse;
+};
+
+/**
+ * @summary Read saved progress without performing a provider mutation.
+ */
+export type calendarReplacementStatusResponse200 = {
+  data: CalendarReplacementView;
+  status: 200;
+};
+
+export type calendarReplacementStatusResponse404 = {
+  data: CalendarMutationApiError;
+  status: 404;
+};
+
+export type calendarReplacementStatusResponseSuccess =
+  calendarReplacementStatusResponse200 & {
+    headers: Headers;
+  };
+export type calendarReplacementStatusResponseError =
+  calendarReplacementStatusResponse404 & {
+    headers: Headers;
+  };
+
+export type calendarReplacementStatusResponse =
+  | calendarReplacementStatusResponseSuccess
+  | calendarReplacementStatusResponseError;
+
+export const getCalendarReplacementStatusUrl = (operationId: string) => {
+  return `/replacements/${operationId}`;
+};
+
+export const calendarReplacementStatus = async (
+  operationId: string,
+  options?: RequestInit
+): Promise<calendarReplacementStatusResponse> => {
+  const res = await fetch(getCalendarReplacementStatusUrl(operationId), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: calendarReplacementStatusResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as calendarReplacementStatusResponse;
+};
+
+/**
+ * @summary Discard a preview only if no confirmation has been recorded.
+ */
+export type discardCalendarReplacementResponse204 = {
+  data: void;
+  status: 204;
+};
+
+export type discardCalendarReplacementResponse409 = {
+  data: CalendarMutationApiError;
+  status: 409;
+};
+
+export type discardCalendarReplacementResponseSuccess =
+  discardCalendarReplacementResponse204 & {
+    headers: Headers;
+  };
+export type discardCalendarReplacementResponseError =
+  discardCalendarReplacementResponse409 & {
+    headers: Headers;
+  };
+
+export type discardCalendarReplacementResponse =
+  | discardCalendarReplacementResponseSuccess
+  | discardCalendarReplacementResponseError;
+
+export const getDiscardCalendarReplacementUrl = (operationId: string) => {
+  return `/replacements/${operationId}`;
+};
+
+export const discardCalendarReplacement = async (
+  operationId: string,
+  options?: RequestInit
+): Promise<discardCalendarReplacementResponse> => {
+  const res = await fetch(getDiscardCalendarReplacementUrl(operationId), {
+    ...options,
+    method: 'DELETE',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: discardCalendarReplacementResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as discardCalendarReplacementResponse;
+};
+
+/**
+ * @summary Explicitly confirm the saved preview, or resume the same confirmed operation.
+ */
+export type confirmCalendarReplacementResponse200 = {
+  data: CalendarReplacementView;
+  status: 200;
+};
+
+export type confirmCalendarReplacementResponse409 = {
+  data: CalendarMutationApiError;
+  status: 409;
+};
+
+export type confirmCalendarReplacementResponseSuccess =
+  confirmCalendarReplacementResponse200 & {
+    headers: Headers;
+  };
+export type confirmCalendarReplacementResponseError =
+  confirmCalendarReplacementResponse409 & {
+    headers: Headers;
+  };
+
+export type confirmCalendarReplacementResponse =
+  | confirmCalendarReplacementResponseSuccess
+  | confirmCalendarReplacementResponseError;
+
+export const getConfirmCalendarReplacementUrl = (operationId: string) => {
+  return `/replacements/${operationId}/confirm`;
+};
+
+export const confirmCalendarReplacement = async (
+  operationId: string,
+  options?: RequestInit
+): Promise<confirmCalendarReplacementResponse> => {
+  const res = await fetch(getConfirmCalendarReplacementUrl(operationId), {
+    ...options,
+    method: 'POST',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: confirmCalendarReplacementResponse['data'] = body
+    ? JSON.parse(body)
+    : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as confirmCalendarReplacementResponse;
+};
+
+/**
+ * @summary Read the authenticated user's sharing choice.
+ */
+export type getTeamSharingResponse200 = {
+  data: TeamCalendarSharingBody;
+  status: 200;
+};
+
+export type getTeamSharingResponseSuccess = getTeamSharingResponse200 & {
+  headers: Headers;
+};
+
+export type getTeamSharingResponse = getTeamSharingResponseSuccess;
+
+export const getGetTeamSharingUrl = () => {
+  return `/team-sharing`;
+};
+
+export const getTeamSharing = async (
+  options?: RequestInit
+): Promise<getTeamSharingResponse> => {
+  const res = await fetch(getGetTeamSharingUrl(), {
+    ...options,
+    method: 'GET',
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getTeamSharingResponse['data'] = body ? JSON.parse(body) : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as getTeamSharingResponse;
+};
+
+/**
+ * @summary Set the authenticated user's sharing choice.
+ */
+export type setTeamSharingResponse200 = {
+  data: TeamCalendarSharingBody;
+  status: 200;
+};
+
+export type setTeamSharingResponseSuccess = setTeamSharingResponse200 & {
+  headers: Headers;
+};
+
+export type setTeamSharingResponse = setTeamSharingResponseSuccess;
+
+export const getSetTeamSharingUrl = () => {
+  return `/team-sharing`;
+};
+
+export const setTeamSharing = async (
+  teamCalendarSharingBody: TeamCalendarSharingBody,
+  options?: RequestInit
+): Promise<setTeamSharingResponse> => {
+  const res = await fetch(getSetTeamSharingUrl(), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(teamCalendarSharingBody),
+  });
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: setTeamSharingResponse['data'] = body ? JSON.parse(body) : {};
+  return {
+    data,
+    status: res.status,
+    headers: res.headers,
+  } as setTeamSharingResponse;
 };

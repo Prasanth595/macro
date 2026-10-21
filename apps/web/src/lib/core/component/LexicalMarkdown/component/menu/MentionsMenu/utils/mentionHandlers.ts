@@ -6,11 +6,13 @@ import { match } from 'ts-pattern';
 import { REMOVE_INLINE_SEARCH_COMMAND } from '../../../../plugins';
 import {
   INSERT_AGENT_SESSION_MENTION_COMMAND,
+  INSERT_BOOKING_LINK_MENTION_COMMAND,
   INSERT_DATE_MENTION_COMMAND,
   INSERT_DOCUMENT_MENTION_COMMAND,
   INSERT_GROUP_MENTION_COMMAND,
 } from '../../../../plugins/mentions';
 import type {
+  BookingLinkMentionItem,
   HandlerDependencies,
   MentionItem,
 } from '../../../../utils/mentionsUtils';
@@ -66,6 +68,33 @@ async function handleAgentSessionMention(
 }
 
 /**
+ * Insert a CRM company or contact chip and record it as a reference of the
+ * CRM record, so the record's References list includes this document. A CRM
+ * reference does not share a file, invite a user, or notify the contact.
+ */
+async function handleCrmMention(
+  item: EntityItem,
+  dependencies: HandlerDependencies
+): Promise<void> {
+  const { editor, blockId } = dependencies;
+  const entity = item.data;
+  if (entity.type !== 'crm_contact' && entity.type !== 'crm_company') return;
+  const mentionUuid =
+    blockId && tracksMentions(dependencies)
+      ? await trackMention(blockId, entity.type, entity.id)
+      : undefined;
+  editor.dispatchCommand(INSERT_DOCUMENT_MENTION_COMMAND, {
+    documentId: entity.id,
+    documentName:
+      entity.type === 'crm_contact'
+        ? entity.name || entity.email
+        : entityDisplayName(item),
+    blockName: entity.type === 'crm_contact' ? 'contact' : 'company',
+    ...(mentionUuid ? { mentionUuid } : {}),
+  });
+}
+
+/**
  * Handle entity mention (documents, channels, emails, etc.).
  */
 async function handleEntityMention(
@@ -79,14 +108,8 @@ async function handleEntityMention(
     return await handleAgentSessionMention(entity, dependencies);
   }
 
-  if (entity.type === 'crm_contact') {
-    // A CRM reference does not share a file, invite a user, or notify the contact.
-    editor.dispatchCommand(INSERT_DOCUMENT_MENTION_COMMAND, {
-      documentId: entity.id,
-      documentName: entity.name || entity.email,
-      blockName: 'contact',
-    });
-    return;
+  if (entity.type === 'crm_contact' || entity.type === 'crm_company') {
+    return await handleCrmMention(item, dependencies);
   }
 
   const blockNameForMention = getBlockNameFromEntity(item);
@@ -149,6 +172,30 @@ async function handleGroupMentionItem(
   });
 }
 
+function buildBookingUrl(profileId: string, slug: string): string {
+  const hostname = window.location.hostname;
+  const cleanHost =
+    hostname === 'localhost' ? 'dev.macro.com' : hostname.replace('www.', '');
+  return `https://${cleanHost}/app/book/${encodeURIComponent(profileId)}/${encodeURIComponent(slug)}`;
+}
+
+/**
+ * Handle booking link mention insertion.
+ */
+async function handleBookingLinkMention(
+  item: BookingLinkMentionItem,
+  dependencies: HandlerDependencies
+): Promise<void> {
+  const { editor } = dependencies;
+  const { profileId, slug, title } = item.data;
+  editor.dispatchCommand(INSERT_BOOKING_LINK_MENTION_COMMAND, {
+    profileId,
+    slug,
+    label: title,
+    url: buildBookingUrl(profileId, slug),
+  });
+}
+
 /**
  * Creates a handler for MentionItem selection.
  */
@@ -171,6 +218,8 @@ export function createItemHandler(dependencies: HandlerDependencies) {
           { id: item.id, name: item.data.name },
           dependencies
         );
+      case 'bookingLink':
+        return await handleBookingLinkMention(item, dependencies);
       case 'entity':
         return await handleEntityMention(item, dependencies);
     }

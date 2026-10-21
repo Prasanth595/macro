@@ -4,6 +4,7 @@ import {
   initializeEditorWithState,
 } from '@core/component/LexicalMarkdown/utils';
 
+import { useIsAuthenticated } from '@core/context/user';
 import { storageServiceClient } from '@service-storage/client';
 import { syncServiceClient } from '@service-sync/client';
 import { useQuery } from '@tanstack/solid-query';
@@ -50,7 +51,11 @@ function instructionsMdIdQueryOptions() {
  * Returns null if not yet created, throws otherwise.
  */
 export function useInstructionsMdIdQuery() {
-  return useQuery(() => instructionsMdIdQueryOptions());
+  const authenticated = useIsAuthenticated();
+  return useQuery(() => ({
+    ...instructionsMdIdQueryOptions(),
+    enabled: authenticated() === true,
+  }));
 }
 
 const getInstructionsMdText = async (id: string | null | undefined) => {
@@ -75,25 +80,36 @@ const getInstructionsMdText = async (id: string | null | undefined) => {
   return plaintext;
 };
 
+// Cached callbacks outlive the caller; only the resolved id enters them.
+function instructionsMdTextQueryOptions(
+  id: string | null | undefined,
+  enabled: boolean
+) {
+  return {
+    // Use a placeholder key when id is null/undefined - query is disabled anyway
+    queryKey: id
+      ? instructionsMdKeys.text(id).queryKey
+      : ['instructionsMd', 'text', null],
+    queryFn: () => getInstructionsMdText(id),
+    enabled: enabled && !!id,
+    staleTime: Infinity,
+    throwOnError: false,
+    retry: false,
+    retryOnMount: false,
+  };
+}
+
 /** useQuery hook for retrieving the instructions md document text content */
 export function useInstructionsMdTextQuery() {
+  const authenticated = useIsAuthenticated();
   const idQuery = useInstructionsMdIdQuery();
 
-  return useQuery(() => {
-    const id = idQuery.data;
-    return {
-      // Use a placeholder key when id is null/undefined - query is disabled anyway
-      queryKey: id
-        ? instructionsMdKeys.text(id).queryKey
-        : ['instructionsMd', 'text', null],
-      queryFn: () => getInstructionsMdText(id),
-      enabled: idQuery.isSuccess && !!id,
-      staleTime: Infinity,
-      throwOnError: false,
-      retry: false,
-      retryOnMount: false,
-    };
-  });
+  return useQuery(() =>
+    instructionsMdTextQueryOptions(
+      authenticated() === true && idQuery.isSuccess ? idQuery.data : undefined,
+      authenticated() === true && idQuery.isSuccess
+    )
+  );
 }
 
 /** Creates the instructions md document. Backend prevents duplicates */

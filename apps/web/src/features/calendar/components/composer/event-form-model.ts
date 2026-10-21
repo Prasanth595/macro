@@ -4,6 +4,8 @@ import {
   type WithCustomUserInput,
 } from '@core/user/combinedRecipient';
 import { TZDateMini } from '@date-fns/tz';
+import type { CalendarCapabilities } from '@service-calendar/generated/schemas/calendarCapabilities';
+import type { CalendarProvider } from '@service-calendar/generated/schemas/calendarProvider';
 import type { ConferenceChange } from '@service-calendar/generated/schemas/conferenceChange';
 import type { EventTime } from '@service-calendar/generated/schemas/eventTime';
 import type { OutOfOfficeProperties } from '@service-calendar/generated/schemas/outOfOfficeProperties';
@@ -21,7 +23,7 @@ import {
 } from 'date-fns';
 import { type Accessor, batch, createMemo, createSignal } from 'solid-js';
 import type { CalendarEvent } from '../../types';
-import { parseLocalDate } from '../../utils/calendar-date';
+import { isTimedPointEvent, parseLocalDate } from '../../utils/calendar-date';
 import {
   calendarMacroCallUrl,
   removeCalendarMacroCall,
@@ -70,6 +72,7 @@ export type EventEditorConferenceChoice =
   | 'none'
   | 'macro'
   | 'google_meet'
+  | 'microsoft_teams'
   | 'existing';
 
 /** Values used to initialize the shared event editor form. */
@@ -80,6 +83,8 @@ export interface EventEditorInitialValues {
   start: string;
   /** Inclusive end shown to the user; all-day submissions add the exclusive day. */
   end: string;
+  /** Exact provider instant, preserved only for an unchanged imported point. */
+  importedPointTime?: Extract<EventTime, { kind: 'timed' }>;
   recurrenceLines: string[];
   calendarId?: string;
   guests: string;
@@ -103,6 +108,8 @@ export interface EventEditorInitialValues {
 
 /** Calendar option displayed by the event editor. */
 export interface EventEditorCalendarOption {
+  provider?: CalendarProvider;
+  capabilities?: CalendarCapabilities;
   id: string;
   label: string;
   color: string;
@@ -211,8 +218,9 @@ function initialConferenceChoice(
 ): EventEditorConferenceChoice {
   if (calendarMacroCallUrl(event)) return 'macro';
   if (!event.conferenceUrl) return 'none';
-  return event.conferenceProvider === 'google_meet'
-    ? 'google_meet'
+  return event.conferenceProvider === 'google_meet' ||
+    event.conferenceProvider === 'microsoft_teams'
+    ? event.conferenceProvider
     : 'existing';
 }
 
@@ -264,6 +272,14 @@ export function calendarEventToEditorInitialValues(
     allDay: false,
     start: format(new Date(event.start), DATETIME_VALUE),
     end: format(new Date(event.end), DATETIME_VALUE),
+    importedPointTime: isTimedPointEvent(event)
+      ? {
+          kind: 'timed',
+          startsAt: event.start,
+          endsAt: event.end,
+          timeZone: event.timeZone ?? null,
+        }
+      : undefined,
     recurrenceLines: [...event.recurrenceLines],
     calendarId: event.calendarId ?? event.calendar.id,
     guests,
@@ -419,6 +435,7 @@ export interface CreateEventEditorStateOptions {
   initialValues: EventEditorInitialValues;
   state: Accessor<EventEditorInitialValues>;
   recurrenceTimeZone?: string;
+  isEdit?: boolean;
 }
 
 function recurrenceConfigFor(
@@ -540,6 +557,17 @@ export function createEventEditorState(options: CreateEventEditorStateOptions) {
       options.recurrenceTimeZone
     );
   };
+  const unchangedImportedPoint = () => {
+    const initial = initialValues();
+    const current = options.state();
+    return options.isEdit === true &&
+      initial.importedPointTime !== undefined &&
+      !current.allDay &&
+      current.start === initial.start &&
+      current.end === initial.end
+      ? initial.importedPointTime
+      : undefined;
+  };
   const dateRangeError = createMemo(() => {
     const current = options.state();
     if (!current.start || !current.end) return undefined;
@@ -553,9 +581,13 @@ export function createEventEditorState(options: CreateEventEditorStateOptions) {
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
       return undefined;
     }
-    return end <= start ? 'End time must be after the start time.' : undefined;
+    return end <= start && !unchangedImportedPoint()
+      ? 'End time must be after the start time.'
+      : undefined;
   });
-  const eventTime = createMemo(() => buildEventTime(options.state()));
+  const eventTime = createMemo(
+    () => buildEventTime(options.state()) ?? unchangedImportedPoint()
+  );
   const canSave = () =>
     options.state().title.trim() !== '' &&
     eventTime() !== undefined &&

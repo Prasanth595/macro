@@ -21,8 +21,8 @@ use agent_session::domain::ports::{
 use agent_session::domain::service::AgentSessionService;
 use agent_session::inbound::axum_router::{
     AgentSessionControlState, AgentSessionRouterState, CreateSessionState,
-    agent_sandbox_size_router, agent_session_control_router, agent_session_create_router,
-    agent_session_read_router,
+    agent_coding_preferences_router, agent_sandbox_size_router, agent_session_control_router,
+    agent_session_create_router, agent_session_read_router,
 };
 use anyhow::Context;
 use axum::Router;
@@ -74,8 +74,10 @@ pub struct ApiStates<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes
     routine_sessions: Router,
     coding_agents: Router,
     capabilities: Router,
+    conversations: Router,
     pull_requests: Router,
     tool_approvals: Router,
+    code_executions: Router,
     changes: AgentChangesRouterState<Changes, Access, Auth>,
 }
 
@@ -104,8 +106,10 @@ impl<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes>
             routine_sessions: Router::new(),
             coding_agents: Router::new(),
             capabilities: Router::new(),
+            conversations: Router::new(),
             pull_requests: Router::new(),
             tool_approvals: Router::new(),
+            code_executions: Router::new(),
             changes,
         }
     }
@@ -113,6 +117,18 @@ impl<T, R, Opener, Bots, Requests, Access, Auth, Models, Changes>
     /// Attach model-specific harness capability discovery routes.
     pub fn with_capabilities(mut self, router: Router) -> Self {
         self.capabilities = router;
+        self
+    }
+
+    /// Attach owner-only agent conversation routes.
+    pub fn with_conversations(mut self, router: Router) -> Self {
+        self.conversations = router;
+        self
+    }
+
+    /// Attach session-authorized code execution records.
+    pub fn with_code_executions(mut self, router: Router) -> Self {
+        self.code_executions = router;
         self
     }
 
@@ -247,22 +263,30 @@ where
     Models: AgentModelsService,
     Changes: AgentChanges,
 {
+    let tool_actions =
+        agent_session::inbound::axum_router::tool_actions::agent_session_tool_actions_router(
+            states.control.clone(),
+        );
     let agent_sessions = agent_session_read_router(states.read.clone())
         .merge(agent_session_control_router(states.control))
         .merge(agent_session_create_router(states.create))
         .merge(states.sharing)
         .merge(states.pull_requests)
         .merge(states.tool_approvals)
+        .merge(states.code_executions)
         .merge(agent_changes_router(states.changes));
     Router::new()
         .nest("/agent-sessions", agent_sessions)
-        .merge(agent_sandbox_size_router(states.read))
+        .merge(tool_actions)
+        .merge(agent_sandbox_size_router(states.read.clone()))
+        .merge(agent_coding_preferences_router(states.read))
         .merge(agent_models_router(states.models))
         .merge(agent_repositories_router(states.repositories))
         .merge(states.claude_auth)
         .merge(states.routine_sessions)
         .merge(states.coding_agents)
         .merge(states.capabilities)
+        .merge(states.conversations)
         .nest("/runtime", runtime_gateway_router(states.gateway))
 }
 

@@ -22,15 +22,15 @@ export type SettingsSearchResult = Setting & {
 const SETTINGS: Setting[] = [
   {
     tab: 'CRM',
-    title: 'Deal stages',
-    target: 'Deal stages',
-    keywords: 'pipeline reorder status closed stages sales',
+    title: 'Stages',
+    target: 'Stages',
+    keywords: 'company deal pipeline reorder rename status sales',
   },
   {
     tab: 'CRM',
-    title: 'Enable CRM',
-    target: 'General',
-    keywords: 'disable customers contacts companies team',
+    title: 'Team CRM',
+    target: 'Team CRM',
+    keywords: 'enable disable customers contacts companies team',
   },
   {
     tab: 'Shortcuts',
@@ -79,42 +79,6 @@ const SETTINGS: Setting[] = [
       'google gmail connect accounts visibility show hide color colour subcalendar',
   },
   {
-    tab: 'Booking links',
-    title: 'Booking links',
-    target: 'Booking links',
-    keywords: 'event types meeting duration scheduling public link',
-  },
-  {
-    tab: 'Booking links',
-    title: 'Availability',
-    target: 'Availability',
-    keywords: 'working hours timezone schedule time zone',
-  },
-  {
-    tab: 'Booking links',
-    title: 'Booking page',
-    target: 'Booking pages',
-    keywords: 'public profile scheduling name username',
-  },
-  {
-    tab: 'Booking links',
-    title: 'Bookings',
-    target: 'Bookings',
-    keywords: 'upcoming past cancel reschedule meetings',
-  },
-  {
-    tab: 'Booking links',
-    title: 'Scheduling teams',
-    target: 'Teams',
-    keywords: 'members collective round robin',
-  },
-  {
-    tab: 'Booking links',
-    title: 'Scheduling insights',
-    target: 'Insights',
-    keywords: 'analytics statistics',
-  },
-  {
     tab: 'Agents',
     title: 'Team agents',
     target: 'Team agents',
@@ -130,6 +94,12 @@ const SETTINGS: Setting[] = [
     tab: 'Harness',
     title: 'Agent runtimes and credentials',
     keywords: 'cursor harness runtime api key provider pairing daemon',
+  },
+  {
+    tab: 'Harness',
+    title: 'Run agents on this computer',
+    keywords:
+      'local runtime macrod this computer machine claude code codex desktop daemon',
   },
   {
     tab: 'Account',

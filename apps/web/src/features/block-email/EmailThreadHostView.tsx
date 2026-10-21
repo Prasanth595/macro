@@ -11,6 +11,7 @@ import {
 } from '@app/features/email-thread/email-thread';
 import { SidePanel } from '@components/app/side-panel';
 import { useSplitLayout } from '@components/app/split-layout/layout';
+import { fireAndForget } from '@core/util/fireAndForget';
 import { buildMentionMarkdownString } from '@macro-inc/lexical-core';
 import type { Accessor, JSX } from 'solid-js';
 import { Show } from 'solid-js';
@@ -45,10 +46,6 @@ export function EmailThreadHostView(props: EmailThreadHostViewProps) {
       type: 'component',
       id: 'task-compose',
       params: {
-        initialTitle:
-          props.title.length > 70
-            ? `${props.title.slice(0, 70)}...`
-            : props.title,
         initialContent: buildMentionMarkdownString({
           type: 'document',
           documentId: props.threadId(),
@@ -66,7 +63,7 @@ export function EmailThreadHostView(props: EmailThreadHostViewProps) {
       threadTransport={props.threadTransport}
       host={props.host}
       openCalendar={(target) => {
-        void openCalendarEventSplit(target);
+        fireAndForget(openCalendarEventSplit(target), 'email-thread');
       }}
       header={props.topBar?.({ createTask })}
       actions={<ThreadActions title={props.title} onCreateTask={createTask} />}

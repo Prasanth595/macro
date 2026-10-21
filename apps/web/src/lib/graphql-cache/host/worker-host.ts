@@ -1,10 +1,12 @@
 import type { MutationInspection } from '../protocol';
+
 /**
  * Browser CacheHost: routes cache RPC through the SharedWorker coordinator to
  * the currently elected dedicated cache engine. Unsupported browsers receive
  * a storage-free no-op host.
  */
 
+import { fireAndForget } from '@core/util/fireAndForget';
 import { deleteLegacyNormalizedCacheIdb } from '../legacy-idb-cleanup';
 import {
   ADMITTED_ENQUEUE_UNCERTAIN_ERROR_CODE,
@@ -32,6 +34,7 @@ import {
   OWNER_EPOCH_LOST_ERROR_CODE,
   OWNER_LOCK_UNAVAILABLE_ERROR_CODE,
   parseStorageGeneration,
+  type QueryUpdate,
   type ReadRecordsByKeysArgs,
   type ReadRecordsByKeysResult,
   type ReadResult,
@@ -68,6 +71,7 @@ import {
 import { CacheNavigationError } from './navigation-error';
 import { createNoopCacheHost } from './noop-host';
 import type {
+  AffectedOperationsListener,
   CacheChangeListener,
   CacheChangeOptions,
   CacheGenerationChange,
@@ -177,9 +181,10 @@ const asError = (error: unknown): Error =>
 class CacheResponseError extends Error {
   constructor(
     message: string,
-    readonly errorCode?: CacheResponseErrorCode
+    readonly errorCode?: CacheResponseErrorCode,
+    options?: ErrorOptions
   ) {
-    super(message);
+    super(message, options);
     this.name = 'CacheResponseError';
   }
 }
@@ -226,7 +231,7 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
   const registeredOpKeys = new Set<number>();
   const lostRegisteredOpKeys = new Set<number>();
   const replacementReadOpKeys = new Set<number>();
-  const affectedSubscribers = new Set<(opKeys: number[]) => void>();
+  const affectedSubscribers = new Set<AffectedOperationsListener>();
   const cacheChangeSubscribers = new Set<CacheChangeListener>();
   const hydrationSubscribers = new Set<CacheChangeListener>();
   const generationChangeSubscribers = new Set<
@@ -338,7 +343,10 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
         ),
       ];
       if (opKeys.length > 0) {
-        for (const cb of affectedSubscribers) cb(opKeys);
+        for (const cb of affectedSubscribers) {
+          if (msg.fieldChanges) cb(opKeys, msg.fieldChanges);
+          else cb(opKeys);
+        }
       }
       return;
     }
@@ -556,7 +564,10 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
     if (legacyIdbDeletionStarted) return;
     legacyIdbDeletionStarted = true;
     // Cutover cleanup must never delay cache startup or any cache RPC.
-    void deleteLegacyNormalizedCacheIdb(options.scope);
+    fireAndForget(
+      deleteLegacyNormalizedCacheIdb(options.scope),
+      'graphql-cache-host'
+    );
   }
 
   function rejectPending(error: Error, transportUncertain = false): void {
@@ -573,7 +584,8 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
         entry.reject(
           new CacheResponseError(
             `${error.message}: admitted optimistic enqueue outcome is uncertain`,
-            ADMITTED_ENQUEUE_UNCERTAIN_ERROR_CODE
+            ADMITTED_ENQUEUE_UNCERTAIN_ERROR_CODE,
+            { cause: error }
           )
         );
       } else {
@@ -592,10 +604,13 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
         try {
           // A pagehide during graceful retirement must reach the adapter so it
           // can terminate immediately without classifying navigation as loss.
-          void adapter.dispose(
-            preserveDatabase
-              ? { graceful: false, preserveDatabase: true }
-              : { graceful: false }
+          fireAndForget(
+            adapter.dispose(
+              preserveDatabase
+                ? { graceful: false, preserveDatabase: true }
+                : { graceful: false }
+            ),
+            'graphql-cache-host'
           );
         } catch {
           // The original disposal promise still owns final settlement.
@@ -668,7 +683,10 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
     rejectPending(error, uncertain);
     clearSubscribers();
     unregisterPagehide();
-    void disposeAdapter(false, preserveDatabase).then(finishTelemetry);
+    fireAndForget(
+      disposeAdapter(false, preserveDatabase).then(finishTelemetry),
+      'graphql-cache-host'
+    );
   }
 
   /**
@@ -733,13 +751,16 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
     const quarantine = storageWasUntouched
       ? Promise.resolve()
       : quarantineCacheScope(options.scope);
-    void quarantine.then(() => {
-      try {
-        reportFailure(error);
-      } catch {
-        // Failure reporting cannot reopen or invalidate completed quarantine.
-      }
-    });
+    fireAndForget(
+      quarantine.then(() => {
+        try {
+          reportFailure(error);
+        } catch {
+          // Failure reporting cannot reopen or invalidate completed quarantine.
+        }
+      }),
+      'graphql-cache-host'
+    );
   }
 
   function stopStorageHealthSampling(): void {
@@ -761,16 +782,23 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
     preserveDatabase = false
   ): void {
     if (adapterDisposalStarted) {
-      if (!graceful) void disposeAdapter(false, preserveDatabase);
+      if (!graceful)
+        fireAndForget(
+          disposeAdapter(false, preserveDatabase),
+          'graphql-cache-host'
+        );
       return;
     }
     adapterDisposalStarted = true;
-    void disposeAdapter(graceful, preserveDatabase).then(() => {
-      if (state !== 'disposing') return;
-      state = 'disposed';
-      unregisterPagehide();
-      finishTelemetry();
-    });
+    fireAndForget(
+      disposeAdapter(graceful, preserveDatabase).then(() => {
+        if (state !== 'disposing') return;
+        state = 'disposed';
+        unregisterPagehide();
+        finishTelemetry();
+      }),
+      'graphql-cache-host'
+    );
   }
 
   function finishGracefulDisposeIfDrained(): void {
@@ -810,7 +838,11 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
       disposalMode = 'abrupt';
       const quarantine = hasAdmittedEnqueue();
       clearSubscribers();
-      if (quarantine) void quarantineCacheScope(options.scope);
+      if (quarantine)
+        fireAndForget(
+          quarantineCacheScope(options.scope),
+          'graphql-cache-host'
+        );
       rejectPending(new Error('cache worker host was abruptly disposed'), true);
       startAdapterDisposal(false);
       return;
@@ -839,7 +871,8 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
 
     const quarantine = hasAdmittedEnqueue();
     disposalMode = 'abrupt';
-    if (quarantine) void quarantineCacheScope(options.scope);
+    if (quarantine)
+      fireAndForget(quarantineCacheScope(options.scope), 'graphql-cache-host');
     rejectPending(new Error('cache worker host was abruptly disposed'), true);
     startAdapterDisposal(false);
   }
@@ -896,7 +929,7 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
 
   function onPageshow(event: PageTransitionEvent): void {
     if (!event.persisted || state !== 'suspended') return;
-    void resumeAfterNavigation();
+    fireAndForget(resumeAfterNavigation(), 'graphql-cache-host');
   }
 
   function navigationError(): CacheNavigationError | undefined {
@@ -1022,9 +1055,9 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
   }
 
   function startStorageHealthSampling(): void {
-    void observeStorageHealth();
+    fireAndForget(observeStorageHealth(), 'graphql-cache-host');
     storageHealthTimer ??= setIntervalFn(() => {
-      void observeStorageHealth();
+      fireAndForget(observeStorageHealth(), 'graphql-cache-host');
     }, storageHealthIntervalMs);
   }
 
@@ -1162,6 +1195,7 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
 
   return {
     clientId,
+    liveQueries: true,
 
     async currentRevision(): Promise<CacheRevision> {
       return (await initializedRequest({
@@ -1190,6 +1224,23 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
         },
         args.opKey
       )) as ReadResult;
+    },
+
+    async watchQuery(args): Promise<QueryUpdate> {
+      trackActiveOperation(args.opKey);
+      return (await initializedRequest(
+        {
+          kind: 'read',
+          opId: opId(args.opKey),
+          query: args.query,
+          operationName: args.operationName,
+          variables: args.variables,
+          priority: args.priority,
+          entityResolvers: args.entityResolvers,
+          watch: { since: args.since },
+        },
+        args.opKey
+      )) as QueryUpdate;
     },
 
     async readRecordsByKeys(
@@ -1442,7 +1493,7 @@ export function createWorkerCacheHost(options: WorkerHostOptions): CacheHost {
       return revision;
     },
 
-    onOpsAffected(cb: (opKeys: number[]) => void): () => void {
+    onOpsAffected(cb: AffectedOperationsListener): () => void {
       affectedSubscribers.add(cb);
       return () => affectedSubscribers.delete(cb);
     },
