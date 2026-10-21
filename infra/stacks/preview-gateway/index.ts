@@ -115,9 +115,12 @@ const control = new ServiceTargetGroup(`${name}-${stack}`, {
   tags,
   listenerArn: gateway.httpsListenerArn,
   vpcId: vpc.vpcId,
-  containerPort: 8101,
+  // Keep the existing target group's immutable default port. ECS registers
+  // harness targets at port 8101, independently of this group's default.
+  containerPort: 8110,
   service: GatewayService.PREVIEW_GATEWAY,
   healthCheckPath: '/health',
+  healthCheck: { port: '8101' },
   pathPatterns: ['/preview', '/preview/*'],
   serviceSecurityGroupId: taskSg.id,
   albSecurityGroupId: gateway.albSecurityGroupId,

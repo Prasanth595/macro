@@ -95,6 +95,8 @@ maintenance window:
    domain, certificates, HTTPS/SSH load balancers, security group, and target
    groups. It now exports those resources for the harness task. Their health
    checks use the shared harness API port.
+   Preserve the control target group's default port to avoid recreating it;
+   ECS registers harness targets with an explicit port override.
 5. Apply `agent-harness-service`. Its tasks join the preview security group
    and all five target groups: shared API, egress, preview control, preview
    HTTP, and preview SSH. The shared API target also receives cognition, MCP,
