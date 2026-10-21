@@ -96,9 +96,8 @@
   --glass-rim-soft-base: 9%;
   --glass-rim-shade-base: 0%;
   --glass-rim-gap-ratio: 0;
-  --glass-desktop-outline: rgb(0 0 0 / 0.4);
-  --glass-desktop-inner-edge: rgb(255 255 255 / 0.06);
-  --glass-desktop-top-edge: rgb(255 255 255 / 0.1);
+  --glass-desktop-outline: var(--color-edge-button);
+  --glass-desktop-top-edge: rgb(255 255 255 / 0.035);
   /* Mobile chrome has two diagonal reflections with quiet opposing corners. */
   --island-rim-strong: 28%;
   --island-rim-soft: 12%;
@@ -132,8 +131,7 @@ html[data-theme-light='true'] {
   /* Keep quiet corners close to the highlight instead of exposing a dark rim. */
   --glass-rim-gap-ratio: 0.85;
   --glass-desktop-outline: var(--color-edge-frame);
-  --glass-desktop-inner-edge: rgb(255 255 255 / 0.6);
-  --glass-desktop-top-edge: rgb(255 255 255 / 0.9);
+  --glass-desktop-top-edge: rgb(255 255 255 / 0.55);
   --island-rim-strong: 75%;
   --island-rim-soft: 40%;
 }
@@ -732,11 +730,10 @@ html[data-theme-light='false'] {
   --color-composer: var(--color-surface-4);
 }
 
-/* Light floating surfaces need a close contact shadow against near-white
-   content, rather than the longer shadow used over dark backgrounds. */
+/* Desktop elevation stays close to the surface, with no broad halo. */
 html:not([data-touch-device='true']) {
-  --shadow-menu: 0 2px 6px -3px rgb(0 0 0 / 0.12), 0 1px 2px -1px rgb(0 0 0 / 0.08);
-  --shadow-control: 0 1px 2px rgb(0 0 0 / 0.06);
+  --shadow-menu: 0 1px 3px -1px rgb(0 0 0 / 0.08);
+  --shadow-control: 0 1px 2px -1px rgb(0 0 0 / 0.06);
 }
 
 html[data-theme-light='true']:not([data-touch-device='true']) {
@@ -793,8 +790,8 @@ html[data-theme-light='true']:not([data-touch-device='true']) {
    length). Shape and background come from the consumer, so this composes with
    any radius — the rim inherits it — and with variants (`mobile:glass`).
 
-   Desktop surfaces use a fine dark outline, a faint inner edge, and a brighter
-   top edge with the small ambient shadow. Touch keeps its specular treatment.
+   Desktop surfaces use a single quiet border and faint top light with a close
+   contact shadow. Touch keeps its specular treatment.
    Consumers can override the rim without owning its pseudo-element. */
 @utility glass {
   --glass-rim-background: linear-gradient(
@@ -867,13 +864,12 @@ html[data-theme-light='true']:not([data-touch-device='true']) {
   }
 }
 
-/* Resolve the shared material on its host so local scale changes affect every
-   edge together. Compact controls use a gentler edge than floating surfaces. */
+/* Keep one consistent hairline; only the top light scales with the surface.
+   Compact controls use a gentler highlight than floating surfaces. */
 @utility elevation-shadow {
   --shadow-elevated:
-    0 0 0 calc(1px * var(--elevation-scale, 1)) color-mix(in srgb, var(--glass-desktop-outline) calc(100% * var(--elevation-scale, 1)), transparent),
-    inset 0 calc(1px * var(--elevation-scale, 1)) 0 color-mix(in srgb, var(--glass-desktop-top-edge) calc(100% * var(--elevation-scale, 1)), transparent),
-    inset 0 0 0 calc(1px * var(--elevation-scale, 1)) color-mix(in srgb, var(--glass-desktop-inner-edge) calc(100% * var(--elevation-scale, 1)), transparent),
+    0 0 0 1px var(--glass-desktop-outline),
+    inset 0 1px 0 color-mix(in srgb, var(--glass-desktop-top-edge) calc(100% * var(--elevation-scale, 1)), transparent),
     var(--elevation-ambient-shadow, var(--shadow-menu));
 }
 
@@ -959,7 +955,7 @@ html[data-theme-light='true']:not([data-touch-device='true']) {
   --glass-shadow-scale: 0.5;
 }
 
-/* Shared menu appearance: a fine beveled edge and compact shadow on desktop,
+/* Shared menu appearance: a quiet border and contact shadow on desktop,
    with the existing glass treatment on touch. */
 @utility menu-surface {
   @apply glass relative min-h-0 rounded-xl bg-menu text-ink;
