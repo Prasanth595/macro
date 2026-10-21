@@ -562,8 +562,9 @@ the shimmer.
   up the bundled macrod daemon in one click: **Set up** detects installed agents,
   then **Start running agents here** configures, pairs (auto-approved, no code),
   and starts it. The manual flow below remains for pairing other machines.
-  **New runtime** shows three steps: install macrod from the linked release,
-  run `./macrod` and configure your agent in Quickstart, then enter your pairing
+  **New runtime** shows three steps: install macrod with the shown `curl … |
+  sh` (macOS, Linux) or `irm … | iex` (Windows) command, run `macrod` and
+  configure your agent in Quickstart, then enter your pairing
   code and click **Look up**. Review the request and click **Approve** to connect.
   The setup guide contains configuration and pairing screenshots in that order.
   Enter the code from your own terminal, not the example screenshot.
@@ -937,13 +938,18 @@ per harness process. Network hosts, process lifetime, output and memory are
 bounded; filesystem writes, arbitrary imports and subprocesses are denied.
 The token expires after issuance; process exit does not revoke it early.
 
-The transcript shows **Run code** while execution is in flight. Expand it to
-inspect the submitted source and final returned JSON or error. Code that creates
-a saved review immediately emits a separate completed **PresentReview** ACP call.
+Inline channel and discussion steps show the observed SDK operation names while
+code runs, using the same execution journal as the full session view. The final
+tool receipt carries those operations into the shared fold, so posted step
+snapshots retain the names and outcomes without exposing source or returned JSON.
+A code run without observed SDK requests keeps its generic execution step.
+Unfinished requests are shown as interrupted, never as confirmed successes. Code
+that creates a saved review immediately emits a separate completed **PresentReview**
+ACP call.
 Its card can appear before the program finishes and stays editable afterwards.
-Presentation means “Presented to the user,” not approved or sent. There is no
-individual live progress stream or saved response journal for arbitrary SDK HTTP
-calls. The execution journal retains source, status and final JSON/error;
+Presentation means “Presented to the user,” not approved or sent. SDK operation
+activity reports request outcomes, without storing request arguments or response
+bodies. The execution journal retains source, status and final JSON/error;
 completed API writes are not rolled back after failure or cancellation.
 If a reused execution ID refers to different source, the card reports that tool
 results are unavailable and does not display the other program's saved results.

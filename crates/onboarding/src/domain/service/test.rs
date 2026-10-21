@@ -19,6 +19,7 @@ fn active_row() -> OnboardingRow {
 struct MockRepo {
     status: OnboardingStatus,
     completions: Mutex<Vec<bool>>,
+    dismissed: Mutex<Vec<String>>,
 }
 
 impl MockRepo {
@@ -26,6 +27,7 @@ impl MockRepo {
         Self {
             status,
             completions: Mutex::new(Vec::new()),
+            dismissed: Mutex::new(Vec::new()),
         }
     }
 }
@@ -60,6 +62,22 @@ impl OnboardingRepo for MockRepo {
     }
 
     async fn delete_row(&self, _user: &MacroUserIdStr<'static>) -> Result<()> {
+        Ok(())
+    }
+
+    async fn dismissed_prompts(&self, _user: &MacroUserIdStr<'static>) -> Result<Vec<String>> {
+        Ok(self.dismissed.lock().unwrap().clone())
+    }
+
+    async fn dismiss_prompt(
+        &self,
+        _user: &MacroUserIdStr<'static>,
+        prompt: &PromptId,
+    ) -> Result<()> {
+        let mut dismissed = self.dismissed.lock().unwrap();
+        if !dismissed.iter().any(|id| id == prompt.as_ref()) {
+            dismissed.push(prompt.as_ref().to_owned());
+        }
         Ok(())
     }
 }
@@ -160,4 +178,47 @@ async fn get_state_carries_the_suggested_team_domain() {
 
     let state = service.get_state(user()).await.expect("get_state");
     assert_eq!(state.suggested_team_domain.as_deref(), Some("macro.com"));
+}
+
+#[test]
+fn prompt_ids_accept_card_slugs_and_reject_everything_else() {
+    for valid in [
+        "import:files",
+        "home-setup",
+        "pull-request-repositories",
+        "a1_b",
+    ] {
+        assert!(PromptId::parse(valid).is_some(), "{valid}");
+    }
+    for invalid in [
+        "",
+        "Import:files",
+        ":files",
+        "has space",
+        "slash/id",
+        &"a".repeat(65),
+    ] {
+        assert!(PromptId::parse(invalid).is_none(), "{invalid}");
+    }
+}
+
+#[tokio::test]
+async fn dismissed_prompts_round_trip_without_entering_onboarding() {
+    let service = OnboardingServiceImpl::new(
+        MockRepo::new(OnboardingStatus::Active),
+        Arc::new(MockStore { records: vec![] }),
+    );
+    service
+        .dismiss_prompt(user(), PromptId::parse("import:tasks").unwrap())
+        .await
+        .unwrap();
+    service
+        .dismiss_prompt(user(), PromptId::parse("import:tasks").unwrap())
+        .await
+        .unwrap();
+
+    assert_eq!(
+        service.dismissed_prompts(user()).await.unwrap().dismissed,
+        vec!["import:tasks".to_string()]
+    );
 }

@@ -1,7 +1,7 @@
 //! The onboarding orchestrator: assembles the aggregate and records when the
 //! flow finishes.
 
-use super::models::{ConnectedServer, OnboardingRow, OnboardingState};
+use super::models::{ConnectedServer, DismissedPrompts, OnboardingRow, OnboardingState, PromptId};
 use super::ports::{OnboardingError, OnboardingRepo, Result};
 use generic_email_domains::is_generic_email_domain;
 use macro_user_id::email::ReadEmailParts;
@@ -35,6 +35,20 @@ pub trait OnboardingService: Send + Sync + 'static {
         user: MacroUserIdStr<'static>,
         skipped: bool,
     ) -> impl Future<Output = Result<OnboardingRow>> + Send;
+
+    /// The sidebar prompts the user dismissed, so a dismissal holds on
+    /// every device. Never enters the user into the onboarding flow.
+    fn dismissed_prompts(
+        &self,
+        user: MacroUserIdStr<'static>,
+    ) -> impl Future<Output = Result<DismissedPrompts>> + Send;
+
+    /// Dismiss one sidebar prompt for good.
+    fn dismiss_prompt(
+        &self,
+        user: MacroUserIdStr<'static>,
+        prompt: PromptId,
+    ) -> impl Future<Output = Result<()>> + Send;
 }
 
 /// Concrete orchestrator wiring the repo and the user's MCP servers together.
@@ -98,5 +112,17 @@ where
         skipped: bool,
     ) -> Result<OnboardingRow> {
         self.repo.complete(&user, skipped).await
+    }
+
+    #[tracing::instrument(skip(self, user), err)]
+    async fn dismissed_prompts(&self, user: MacroUserIdStr<'static>) -> Result<DismissedPrompts> {
+        Ok(DismissedPrompts {
+            dismissed: self.repo.dismissed_prompts(&user).await?,
+        })
+    }
+
+    #[tracing::instrument(skip(self, user), err)]
+    async fn dismiss_prompt(&self, user: MacroUserIdStr<'static>, prompt: PromptId) -> Result<()> {
+        self.repo.dismiss_prompt(&user, &prompt).await
     }
 }

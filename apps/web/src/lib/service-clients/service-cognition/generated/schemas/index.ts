@@ -107,6 +107,7 @@ export * from './decisionResponse';
 export * from './decisionResponseProbabilities';
 export * from './deleteMcpServerParams';
 export * from './deletePipedreamMcpConnectionParams';
+export * from './dismissedPrompts';
 export * from './documentCognitionServiceApiVersion';
 export * from './documentReference';
 export * from './documentReferenceOneOf';

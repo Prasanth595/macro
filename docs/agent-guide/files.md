@@ -57,10 +57,10 @@ The **Folders** pill opens the folder overview and stays highlighted inside
 any folder; tapping it from inside a folder returns to the overview, and
 selecting another pill leaves the folder tree. The sidebar contains `New file or folder`, `My Files`, `Recent`,
 `Shared with me`, collapsible Favorites, and a searchable folder hierarchy.
-Below `New file or folder`, a **Bring Notion to Macro** card shows on the desktop
-sidebar until the user has any Notion import run (in any status). **Import from
-Notion** opens a new agent chat beside Drive that sends "Import my Notion
-workspace into Macro." (the agent plans with ImportFromNotion, or shows the
+The Drive sidebar's import card (**Import files**, see
+[setup cards](setup-cards.md#import-from-connected-apps)) lists Notion; its
+**Import** (or a successful **Connect**) opens a new agent chat beside Drive
+that sends "Import my Notion workspace into Macro." (the agent plans with ImportFromNotion, or shows the
 Notion connect chip first; a user on a team is first asked whether to share
 the import with the team, keep it personal, or let AI decide per page, and a
 user without a team gets a personal import without being asked). The plan
@@ -86,8 +86,7 @@ approves the review itself (`ApproveReview`, the card's own approve with the
 card's choices), and the card's run state adds **Started by the agent at your
 request** ("at the owner's request" for other viewers). A message from anyone
 but the owner never approves, and a plan still being made cannot be approved
-yet. **Dismiss Notion import** hides the card for that
-user in this browser. Filter
+yet. Filter
 by tag from the **Filter** menu's Tags submenu; navigating to another tab or folder
 clears tag filters. A folder with no files matching the active tag
 shows the list's no-match state rather than `This folder is empty`.
