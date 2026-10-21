@@ -13,19 +13,14 @@ where
     B: MacroEventBroker,
     N: CalendarRefreshNotifier,
 {
-    /// The stored guest list a mutation of `scope` addresses: the series
-    /// attendees, then the occurrence's own list when it carries one, so a
-    /// lookup by email lets the occurrence's entry win.
+    /// The stored guest list a mutation of `scope` addresses: the
+    /// occurrence's own list when it carries one, which Google keeps complete
+    /// for that occurrence, else the series attendees.
     pub(super) async fn stored_attendees(
         &self,
         event_id: Uuid,
         scope: &CalendarUpdateScope,
     ) -> Result<Vec<CalendarAttendee>, CalendarMutationError> {
-        let mut stored = self
-            .repository
-            .get_event_attendees(event_id)
-            .await
-            .map_err(internal)?;
         if let CalendarUpdateScope::ThisEvent { recurrence_id } = scope
             && let Some(overrides) = self
                 .repository
@@ -33,9 +28,12 @@ where
                 .await
                 .map_err(internal)?
         {
-            stored.extend(overrides);
+            return Ok(overrides);
         }
-        Ok(stored)
+        self.repository
+            .get_event_attendees(event_id)
+            .await
+            .map_err(internal)
     }
 
     pub(super) async fn add_guests(
