@@ -41,7 +41,7 @@ export function ConnectedView(props: { model: ConnectionsModel }) {
                   title={provider.name}
                   class="gap-2 px-3 py-3"
                   description={
-                    <span class="text-xs">
+                    <span class="text-sm">
                       {provider.ready} of {provider.total} active
                     </span>
                   }
@@ -60,7 +60,7 @@ export function ConnectedView(props: { model: ConnectionsModel }) {
 
       <Show when={customMcps().length > 0}>
         <div class="border-t border-edge-muted">
-          <h3 class="px-4 pt-3 pb-1 text-xs font-medium text-ink-muted">
+          <h3 class="px-4 pt-3 pb-1 text-sm font-medium text-ink-muted">
             Custom MCP servers
           </h3>
           <div class="divide-y divide-edge-muted">

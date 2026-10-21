@@ -101,7 +101,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
       </div>
 
       <section aria-label="Featured integrations">
-        <h3 class="mb-3 text-xs font-medium text-ink-muted">Featured</h3>
+        <h3 class="mb-3 text-sm font-medium text-ink-muted">Featured</h3>
         <div class="grid grid-cols-1 gap-3 @[440px]/catalog:grid-cols-2">
           <For each={featured()}>
             {(item) => (
@@ -115,13 +115,6 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
                     icon={providerIcon(item.id)}
                     title={item.name}
                     class="gap-3 px-4 py-4"
-                    description={
-                      <Tooltip label={item.note}>
-                        <span class="not-touch:line-clamp-2 text-xs">
-                          {item.note}
-                        </span>
-                      </Tooltip>
-                    }
                   >
                     <Show when={alreadyHave().has(item.id)}>
                       <AddedMark />
@@ -139,7 +132,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
       </section>
 
       <section aria-label="All integrations">
-        <h3 class="mb-3 text-xs font-medium text-ink-muted">All apps</h3>
+        <h3 class="mb-3 text-sm font-medium text-ink-muted">All apps</h3>
         <div class="overflow-hidden rounded-2xl border border-edge-muted divide-y divide-edge-muted">
           <Show when={catalog.query.isError}>
             <div class="px-6 py-6 text-center text-sm text-ink-muted">
@@ -223,7 +216,7 @@ export function DiscoverView(props: { model: ConnectionsModel }) {
 function AddedMark() {
   return (
     <span
-      class="inline-flex shrink-0 items-center gap-1 text-xs text-ink-muted"
+      class="inline-flex shrink-0 items-center gap-1 text-sm text-ink-muted"
       aria-label="Added"
     >
       <CheckIcon class="size-3.5" />
@@ -260,7 +253,7 @@ function CatalogRow(props: {
       title={name()}
       description={
         <Tooltip label={description}>
-          <span id={descriptionId} class="not-touch:line-clamp-2 text-xs">
+          <span id={descriptionId} class="not-touch:line-clamp-2 text-sm">
             {description}
           </span>
         </Tooltip>

@@ -18,10 +18,7 @@ export function IntegrationsPage() {
     <Show
       when={pipedreamMcp()}
       fallback={
-        <SettingsPage
-          title="Integrations"
-          description="Connect your accounts and tools to Macro."
-        >
+        <SettingsPage title="Integrations">
           <AccountConnections />
           <Suspense>
             <IntegrationsSection />
@@ -45,34 +42,6 @@ function AccountConnections() {
       tabIndex={-1}
       class="border-b border-edge-muted pb-6 outline-none"
     >
-      <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 class="text-base font-medium text-ink">Account connections</h2>
-          <p class="mt-1 text-sm text-ink-muted">
-            Email and repository sync for your Macro workspace.
-          </p>
-        </div>
-        <div class="flex items-center gap-2">
-          <Show when={ENABLE_EMAIL}>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => openSettings('Email')}
-            >
-              Email settings
-            </Button>
-          </Show>
-          <Show when={isAvailable('Calendar')}>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => openSettings('Calendar')}
-            >
-              Calendar settings
-            </Button>
-          </Show>
-        </div>
-      </div>
       <div class="grid grid-cols-1 items-start gap-4 @[760px]/settings-page:grid-cols-2">
         <Show when={ENABLE_EMAIL}>
           <Suspense>
@@ -82,6 +51,26 @@ function AccountConnections() {
         <Suspense>
           <GitHubCard />
         </Suspense>
+      </div>
+      <div class="mt-3 flex flex-wrap items-center justify-end gap-2">
+        <Show when={ENABLE_EMAIL}>
+          <Button
+            variant="ghost"
+            size="md"
+            onClick={() => openSettings('Email')}
+          >
+            Email settings
+          </Button>
+        </Show>
+        <Show when={isAvailable('Calendar')}>
+          <Button
+            variant="ghost"
+            size="md"
+            onClick={() => openSettings('Calendar')}
+          >
+            Calendar settings
+          </Button>
+        </Show>
       </div>
     </section>
   );

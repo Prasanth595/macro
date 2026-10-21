@@ -25,7 +25,7 @@ import { ConnectionsViewProvider, useConnectionsView } from './view-state';
 
 function MacroMcpSignpost(props: { onOpen: () => void }) {
   return (
-    <p class="text-xs text-ink-muted text-balance">
+    <p class="text-sm text-ink-muted text-balance">
       Use Macro in Claude Code or another AI app.{' '}
       <button
         type="button"
@@ -84,7 +84,6 @@ function ConnectionsContent(props: IntegrationsViewProps) {
         capability.mechanism === 'pipedream' &&
         capability.status === 'connected'
     );
-  const description = 'Connect your accounts and tools to Macro.';
 
   return (
     <Show
@@ -95,7 +94,6 @@ function ConnectionsContent(props: IntegrationsViewProps) {
           fallback={
             <SettingsPage
               title="Integrations"
-              description={description}
               onBack={view.provider() ? view.closeProvider : undefined}
               backLabel="Integrations"
             >
@@ -114,11 +112,7 @@ function ConnectionsContent(props: IntegrationsViewProps) {
             when={ready() && view.provider()}
             keyed
             fallback={
-              <SettingsPage
-                title="Integrations"
-                description={description}
-                contentClass="max-w-[1200px]"
-              >
+              <SettingsPage title="Integrations" contentClass="max-w-[1200px]">
                 <MacroMcpSignpost onOpen={props.onOpenMacroMcp} />
                 {props.children}
                 <Show when={partialError()}>

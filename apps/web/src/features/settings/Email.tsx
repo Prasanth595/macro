@@ -161,7 +161,6 @@ export function EmailCard() {
         <IntegrationRow
           icon={<EnvelopeIcon />}
           title="Email"
-          description="Read, organize, and act on your email."
           status={
             <Show when={emailActive()}>
               <StatusDot state="connected" label="Connected" />

@@ -470,8 +470,10 @@ has a search field and Add custom MCP action above featured cards and the app
 list. These pill-shaped controls share a height and stack on narrow screens.
 Installed and Discover use aligned headings above rounded cards.
 A “Use Macro in Claude Code or another AI app” prompt at the top links to
-connection setup. Account connections and their settings links appear next,
-above Installed and Discover. The Agents workspace opens this same Integrations
+connection setup. Email and GitHub cards appear next, without a separate section heading;
+their settings links sit below the cards, above Installed and Discover.
+Featured cards show app names without descriptions, and catalog descriptions
+and connection status use readable body-sized text. The Agents workspace opens this same Integrations
 page. Installed groups GitHub, Linear, Notion, and Slack tool grants by provider,
 lists other catalog connections alongside them, and puts custom MCP servers in
 a separate section. Discover offers featured providers, a searchable catalog,
