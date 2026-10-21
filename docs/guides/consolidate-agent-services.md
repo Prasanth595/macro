@@ -17,6 +17,10 @@ closes previews and briefly interrupts all agent API surfaces.
 
 ## Configuration
 
+Configure encrypted `doppler:dopplerToken` in the harness Pulumi stack for the
+chosen environment before previewing or deploying it. The preview stack's
+provider credential does not transfer automatically between stacks.
+
 Every config is loaded at startup from the harness's `APP_SECRETS_JSON`.
 The harness Doppler validation binary validates the harness, cognition,
 scheduling, and preview config structs against the same project.
