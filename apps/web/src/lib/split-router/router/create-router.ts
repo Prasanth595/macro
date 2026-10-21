@@ -9,6 +9,7 @@ import type {
 } from '../routes/types';
 import { UNCANCELLABLE } from '../utils';
 import { createClaims } from './claims';
+import { createLayout } from './layout';
 import { createLeaveGuards } from './leave-guards';
 import { createPaneList } from './pane-list';
 import { createPaneNavigation } from './pane-navigation';
@@ -88,6 +89,8 @@ export function createSplitRouter(options: SplitRouterOptions) {
     navigation: paneNavigation,
   });
 
+  const layout = createLayout({ routes, panes, url, runner });
+
   const disconnect = urlNavigation.connect();
 
   const matches = (pane: PaneId): RouteMatchInfo[] => {
@@ -150,6 +153,9 @@ export function createSplitRouter(options: SplitRouterOptions) {
     matches,
     preload,
     href: url.href,
+    layoutSnapshot: layout.snapshot,
+    restoreLayout: layout.restore,
+    layoutHref: layout.href,
     activatePane: panes.activate,
     registerGuard: guards.register,
     settled: runner.settled,
