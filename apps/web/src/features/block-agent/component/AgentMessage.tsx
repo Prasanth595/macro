@@ -376,8 +376,7 @@ export function Message(props: {
               and a group keeps its open state while it fills. */}
           <Index each={segmentParts(props.message.parts)}>
             {(segment) => (
-              <Show
-                when={segment().kind === 'tools'}
+              <Switch
                 fallback={
                   <Show when={props.message.parts[segment().start]}>
                     {(part) => (
@@ -391,13 +390,26 @@ export function Message(props: {
                   </Show>
                 }
               >
-                <ToolGroupPart
-                  message={props.message}
-                  start={segment().start}
-                  end={segment().end}
-                  inFlight={inFlight()}
-                />
-              </Show>
+                <Match when={segment().kind === 'tools'}>
+                  <ToolGroupPart
+                    message={props.message}
+                    start={segment().start}
+                    end={segment().end}
+                    inFlight={inFlight()}
+                  />
+                </Match>
+                {/* What a code run changed: its cards, under the run. */}
+                <Match when={segment().kind === 'cards'}>
+                  <ToolRunCards
+                    message={props.message}
+                    calls={props.message.parts
+                      .slice(segment().start, segment().end)
+                      .flatMap((part) =>
+                        part.kind === 'tool_use' ? [part.id] : []
+                      )}
+                  />
+                </Match>
+              </Switch>
             )}
           </Index>
           {/* The turn is open with nothing to read yet — a ripple and a label

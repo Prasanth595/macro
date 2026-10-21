@@ -315,6 +315,61 @@ describe('segmentParts', () => {
       ]);
     }
   );
+
+  describe('items a code run changed', () => {
+    const run = tool({
+      id: 'call_run',
+      name: { kind: 'mcp', server: 'macro_internal', tool: 'ExecuteCode' },
+      detail: {
+        kind: 'other',
+        output: null,
+        input: { execution_id: 'e', source: '' },
+        result: null,
+        error: null,
+      },
+    });
+    const presented = (id: string, server = 'macro_internal') =>
+      tool({
+        id,
+        name: { kind: 'mcp', server, tool: 'PresentItem' },
+        detail: {
+          kind: 'other',
+          output: null,
+          input: { itemType: 'document', itemId: 'd', action: 'created' },
+          result: null,
+          error: null,
+        },
+      });
+
+    it('shows consecutive presented items under the run as one set of cards', () => {
+      expect(
+        segmentParts([
+          run,
+          presented('item_e_1'),
+          presented('item_e_2'),
+          text(),
+        ])
+      ).toEqual([
+        { kind: 'part', start: 0, end: 1 },
+        { kind: 'cards', start: 1, end: 3 },
+        { kind: 'part', start: 3, end: 4 },
+      ]);
+    });
+
+    it('keeps presented items out of the tool runs around them', () => {
+      expect(segmentParts([tool(), presented('item_e_1'), tool()])).toEqual([
+        { kind: 'tools', start: 0, end: 1 },
+        { kind: 'cards', start: 1, end: 2 },
+        { kind: 'tools', start: 2, end: 3 },
+      ]);
+    });
+
+    it('treats a look-alike call as an ordinary tool call', () => {
+      expect(
+        segmentParts([presented('call_1'), presented('item_e_1', 'acme')])
+      ).toEqual([{ kind: 'tools', start: 0, end: 2 }]);
+    });
+  });
 });
 
 describe('rendersOwnView', () => {
