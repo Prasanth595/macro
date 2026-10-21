@@ -1411,3 +1411,117 @@ async fn editors_share_with_people_and_only_the_owner_changes_team_access(pool: 
         Err(PipelineError::NotFound)
     ));
 }
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_deal_pipeline_points_at_a_deal(pool: PgPool) {
+    let (s, _db, a, team, company) = fixture(&pool).await;
+    let deal = Uuid::now_v7();
+    sqlx::query!(
+        "INSERT INTO crm_deals (id, team_id, name) VALUES ($1, $2, 'Northwind')",
+        deal,
+        team
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query!(
+        "INSERT INTO crm_deal_companies (deal_id, company_id) VALUES ($1, $2)",
+        deal,
+        company
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let p = create(&s, team, PipelineRecordType::Deal).await;
+    let detail = s
+        .table(access(&a, p.id, EntityType::CrmPipeline, OWNER).await)
+        .await
+        .unwrap();
+    assert_eq!(
+        detail
+            .columns
+            .iter()
+            .map(|column| column.definition.definition.display_name.as_str())
+            .collect::<Vec<_>>(),
+        vec![
+            "Deal",
+            "Stage",
+            "Owner",
+            "Revenue",
+            "When",
+            "Next activity",
+            "Plan",
+            "Outcome"
+        ]
+    );
+    for column in &detail.columns {
+        let locked = ["When", "Next activity", "Plan", "Outcome"].contains(&column.name());
+        assert_eq!(
+            column
+                .column
+                .protections
+                .contains(&databases::domain::models::ColumnProtection::Rename),
+            locked,
+            "{}",
+            column.name()
+        );
+    }
+    let when = detail
+        .columns
+        .iter()
+        .find(|column| column.name() == "When")
+        .unwrap();
+    assert!(
+        sqlx::query("UPDATE database_columns SET display_name = 'Date' WHERE id = $1")
+            .bind(when.column.id.into_uuid())
+            .execute(&pool)
+            .await
+            .is_err()
+    );
+    write(&s, &a, &p, vec![insert(&p, deal)]).await.unwrap();
+    let missing = Uuid::now_v7();
+    assert!(write(&s, &a, &p, vec![insert(&p, missing)]).await.is_err());
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn two_won_writes_store_one_project(pool: PgPool) {
+    let (_s, _db, _a, team, _company) = fixture(&pool).await;
+    let deal = Uuid::now_v7();
+    sqlx::query!(
+        "INSERT INTO crm_deals (id, team_id, name) VALUES ($1, $2, 'Race')",
+        deal,
+        team
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let initiative = Uuid::now_v7();
+    let mut first = pool.begin().await.unwrap();
+    assert!(
+        crm::outbound::deals::lock_deal_for_delivery(&mut first, deal)
+            .await
+            .unwrap()
+    );
+    let mut blocked = pool.begin().await.unwrap();
+    sqlx::query("SET LOCAL lock_timeout = '300ms'")
+        .execute(&mut *blocked)
+        .await
+        .unwrap();
+    assert!(
+        crm::outbound::deals::lock_deal_for_delivery(&mut blocked, deal)
+            .await
+            .is_err(),
+        "the second won must wait on the first"
+    );
+    assert!(
+        crm::outbound::deals::store_delivery(&mut *first, deal, initiative)
+            .await
+            .unwrap()
+    );
+    first.commit().await.unwrap();
+    let stored = crm::outbound::deals::delivery_facts(&pool, deal)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(stored.delivery_initiative_id, Some(initiative));
+}

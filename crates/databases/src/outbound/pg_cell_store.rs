@@ -435,6 +435,7 @@ where
             Write::ReplaceColumn { replacement, .. } => {
                 Some((replacement.column.id, ColumnProtection::ChangeType))
             }
+            Write::RenameColumn { column_id, .. } => Some((*column_id, ColumnProtection::Rename)),
             _ => None,
         };
         if let Some((column_id, capability)) = protected_operation {

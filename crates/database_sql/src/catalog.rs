@@ -198,6 +198,8 @@ pub enum EntityKind {
     Company,
     /// CRM contacts.
     Contact,
+    /// CRM deals.
+    Deal,
     /// Call recordings.
     CallRecord,
     /// Channels.
@@ -241,6 +243,7 @@ impl TryFrom<EntityKind> for OpEntityKind {
             EntityKind::Task => OpEntityKind::Task,
             EntityKind::Company => OpEntityKind::Company,
             EntityKind::Contact => OpEntityKind::Contact,
+            EntityKind::Deal => OpEntityKind::Deal,
             EntityKind::CallRecord => OpEntityKind::CallRecord,
             EntityKind::Channel => OpEntityKind::Channel,
             EntityKind::Chat => OpEntityKind::Chat,
@@ -274,6 +277,7 @@ impl From<OpEntityKind> for EntityKind {
             OpEntityKind::Task => EntityKind::Task,
             OpEntityKind::Company => EntityKind::Company,
             OpEntityKind::Contact => EntityKind::Contact,
+            OpEntityKind::Deal => EntityKind::Deal,
             OpEntityKind::CallRecord => EntityKind::CallRecord,
             OpEntityKind::Channel => EntityKind::Channel,
             OpEntityKind::Chat => EntityKind::Chat,

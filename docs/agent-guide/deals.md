@@ -1,0 +1,11 @@
+# Deals
+
+A deal is one pursuit. It holds the stage, the amount, the date, the next action, and the outcome (`Won`, `Lost`, or `Cancelled`). Setting a date or a next action clears a closed outcome: the deal is being worked again. It does not clear any other outcome text. Setting `Won`, `Lost`, or `Cancelled` clears the date, the next action, and the plan, including when the deal is created already closed. If one save sets more than one outcome, the last one is the result: the project and the activity line follow that, not an outcome the same save replaced. The company and the person stay the account. Opening either from a deal opens that existing record.
+
+Several deals can point at one company. A deal starts when someone decides to pursue that file. A notice that has not been chosen is not a deal.
+
+A project is the delivery. Marking the deal `Won` creates one project, named for the deal, linked to that deal and to the companies and people already on it. `Lost` and `Cancelled` create nothing. Marking `Won` again does not create a second project, including when two won writes arrive together. The commercial outcome stays on the deal. The work stays on the project. Do not copy the deal's notes onto the project, or the project's tasks onto the deal.
+
+The date pill is derived from the date: a future date, today, or overdue. A closed deal shows Won, Lost, or Cancelled instead. The deal's Activity list holds the notes someone wrote, and a short line when the stage changes, when the outcome becomes Won, Lost, or Cancelled, when a closed deal is reopened, or when the owner changes. A date, a next activity, a plan, an amount, or the description does not write a line. The date editor's history shows only the notes. All Records shows that pill under the header Next date, and titles the plan column Next step. The stored names stay When and Plan. When, Next activity, Plan, and Outcome cannot be renamed. The default table leaves out Next activity and Outcome, because the pill already shows them. A saved view can still show those columns. A deal can be mentioned from a document, a comment, or the command menu. The mention searches deal names in Postgres and opens the deal's own page. Deals are not indexed in Soup.
+
+Company and contact pipelines are unchanged. On those pipelines the button titled Add deal still creates a company.

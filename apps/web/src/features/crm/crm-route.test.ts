@@ -124,11 +124,15 @@ describe('record and pipeline URLs', () => {
     });
   });
 
-  it.each([
-    `companies/deal/${companyId}`,
-    `companies/company/${companyId}/garbage`,
-  ])('does not match %s as a record', (path) => {
-    const leaf = leafOf(path);
+  it('matches a deal opened as a record', () => {
+    expect(leafOf(`companies/deal/${companyId}`)).toEqual({
+      id: crmRecordRoute.id,
+      params: { recordType: 'deal', recordId: companyId },
+    });
+  });
+
+  it('does not match an unknown record section', () => {
+    const leaf = leafOf(`companies/company/${companyId}/garbage`);
     expect(leaf?.id).not.toBe(crmRecordRoute.id);
   });
 

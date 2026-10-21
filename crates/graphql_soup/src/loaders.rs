@@ -296,6 +296,7 @@ where
                     | EntityType::AgentSession
                     | EntityType::CrmCompany
                     | EntityType::CrmContact
+                    | EntityType::CrmDeal
             )
         });
         let team = match (&self.team_reader, needs_team) {
@@ -578,6 +579,7 @@ fn entity_filter_ast(entities: &[Entity<'static>]) -> Result<EntityFilterAst, So
             | EntityType::ScheduledAction
             | EntityType::Reminder
             | EntityType::CrmPipeline
+            | EntityType::CrmDeal
             | EntityType::Database
             | EntityType::Form => {
                 return Err(rootcause::report!(

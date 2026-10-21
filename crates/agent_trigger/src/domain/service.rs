@@ -268,6 +268,7 @@ where
                 | MessageParent::Initiative(_)
                 | MessageParent::CrmCompany(_)
                 | MessageParent::CrmContact(_)
+                | MessageParent::CrmDeal(_)
                 | MessageParent::Call(_) => {
                     return self.owner_allows(caller, agent.bot.owner.as_ref()).await;
                 }
@@ -306,6 +307,7 @@ where
                 | MessageParent::Initiative(_)
                 | MessageParent::CrmCompany(_)
                 | MessageParent::CrmContact(_)
+                | MessageParent::CrmDeal(_)
                 | MessageParent::Call(_) => self.owner_allows(caller, bot.owner.as_ref()).await,
             },
         }

@@ -136,21 +136,29 @@ impl<
         // Contacts have no owner property: a contact's discussion reaches its
         // company's owner. This machine-only read selects notification
         // candidates; delivery rechecks each candidate's current access.
-        let access = properties::domain::model::ViewReceipt::dangerously_assert_internal_user(
-            &record.company_id.to_string(),
-            entity_access::domain::models::EntityType::CrmCompany,
-        );
-        let owner = match self
-            .properties
-            .get_system_property_value(&access, system_properties::SystemPropertyKey::CompanyOwner)
-            .await?
-        {
-            Some(models_properties::service::property_value::PropertyValue::EntityRef(refs)) => {
-                refs.into_iter()
+        let owner = if record.company_id.is_nil() {
+            None
+        } else {
+            let access = properties::domain::model::ViewReceipt::dangerously_assert_internal_user(
+                &record.company_id.to_string(),
+                entity_access::domain::models::EntityType::CrmCompany,
+            );
+            match self
+                .properties
+                .get_system_property_value(
+                    &access,
+                    system_properties::SystemPropertyKey::CompanyOwner,
+                )
+                .await?
+            {
+                Some(models_properties::service::property_value::PropertyValue::EntityRef(
+                    refs,
+                )) => refs
+                    .into_iter()
                     .find(|reference| reference.entity_type == models_properties::EntityType::User)
-                    .map(|reference| reference.entity_id)
+                    .map(|reference| reference.entity_id),
+                _ => None,
             }
-            _ => None,
         };
         Ok(DiscussionContext {
             name: record.name,
@@ -184,9 +192,9 @@ impl<
     ) -> Result<DiscussionContext, rootcause::Report> {
         match parent {
             MessageParent::Initiative(id) => self.initiative_context(*id, parent, root).await,
-            MessageParent::CrmCompany(_) | MessageParent::CrmContact(_) => {
-                self.crm_context(parent, root).await
-            }
+            MessageParent::CrmCompany(_)
+            | MessageParent::CrmContact(_)
+            | MessageParent::CrmDeal(_) => self.crm_context(parent, root).await,
             MessageParent::Channel(_) | MessageParent::Document(_) | MessageParent::Call(_) => {
                 self.documents.context(parent, root).await
             }
@@ -235,7 +243,9 @@ impl DiscussionContextReader for PgDiscussionContext {
                     "initiative context service is not configured"
                 ));
             }
-            MessageParent::CrmCompany(_) | MessageParent::CrmContact(_) => {
+            MessageParent::CrmCompany(_)
+            | MessageParent::CrmContact(_)
+            | MessageParent::CrmDeal(_) => {
                 return Err(rootcause::report!("crm context service is not configured"));
             }
         };

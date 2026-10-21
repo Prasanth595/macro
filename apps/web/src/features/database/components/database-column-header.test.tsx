@@ -23,6 +23,34 @@ const column: DatabaseViewColumn = {
   writable: true,
 };
 
+it('refuses to rename a column whose name is reserved', async () => {
+  const rename = vi.fn(() => okAsync(undefined));
+  render(() => (
+    <DatabaseColumnHeader
+      column={{
+        ...column,
+        name: 'When',
+        label: 'Next date',
+        protections: ['rename'],
+      }}
+      canRename
+      onRename={rename}
+      onSort={vi.fn()}
+    />
+  ));
+  const header = screen.getByRole('columnheader', { name: 'Next date' });
+  fireEvent.dblClick(header);
+  fireEvent.keyDown(header, { key: 'F2' });
+  expect(screen.queryByLabelText('Column name')).toBeNull();
+  fireEvent.keyDown(header, { key: 'Enter' });
+  const item = await screen.findByRole('menuitem', { name: 'Rename column' });
+  expect(item.getAttribute('aria-disabled')).toBe('true');
+  expect(
+    screen.getByRole('menuitem', { name: 'This column cannot be renamed' })
+  ).toBeTruthy();
+  expect(rename).not.toHaveBeenCalled();
+});
+
 it('disables protected schema actions while keeping rename and movement available', async () => {
   const remove = vi.fn(() => okAsync(undefined));
   render(() => (

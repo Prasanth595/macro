@@ -33,6 +33,7 @@ function entityNoun(target: FormEntityKind): string {
     .with('TASK', () => 'task')
     .with('COMPANY', () => 'company')
     .with('CONTACT', () => 'contact')
+    .with('DEAL', () => 'deal')
     .with('CALL_RECORD', () => 'call')
     .with('CHANNEL', () => 'channel')
     .with('CHAT', () => 'chat')

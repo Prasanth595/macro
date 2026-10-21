@@ -123,6 +123,8 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
     props.registerRename?.(undefined);
   });
   const canRename = () => !!props.canRename && !!props.onRename;
+  const renameLocked = () =>
+    props.column.protections?.includes('rename') ?? false;
   const focusHeader = () => header?.isConnected && header.focus();
   const restoreFocus = () => queueMicrotask(focusHeader);
   const columnRename = createInlineRename({
@@ -142,9 +144,9 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
   const columnName = () =>
     columnRename.pending() && !columnRename.target()
       ? columnRename.draft().trim()
-      : props.column.name;
+      : (props.column.label ?? props.column.name);
   const rename = () => {
-    if (!canRename() || pending()) return;
+    if (!canRename() || renameLocked() || pending()) return;
     setMenuOpen(false);
     columnRename.begin({ id: props.column.id, name: props.column.name });
   };
@@ -214,6 +216,7 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
             label: 'Rename column',
             icon: PencilIcon,
             group: 'edit',
+            disabled: renameLocked(),
             run: rename,
           },
         ]
@@ -383,7 +386,11 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
             fallback={
               <div
                 class="flex min-h-10 items-center gap-2 px-3 text-xs font-medium text-ink-muted"
-                title={canRename() ? 'Double-click to rename' : undefined}
+                title={
+                  canRename() && !renameLocked()
+                    ? 'Double-click to rename'
+                    : undefined
+                }
                 {...props.dragHandle}
               >
                 <PropertyIcon
@@ -431,6 +438,11 @@ export function DatabaseColumnHeader(props: DatabaseColumnHeaderProps) {
                           }
                         >
                           <Dropdown.Group>
+                            <Show when={group === 'edit' && renameLocked()}>
+                              <Dropdown.Item disabled>
+                                This column cannot be renamed
+                              </Dropdown.Item>
+                            </Show>
                             <Show
                               when={
                                 group === 'delete' &&

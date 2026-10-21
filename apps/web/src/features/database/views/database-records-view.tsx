@@ -111,6 +111,8 @@ export type DatabaseRecordsViewProps = {
   /** Whether the view is stored, so changing it changes it for everyone. */
   preparingView?: boolean;
   stored: boolean;
+  /** Stored names left out of an unsaved table. A stored view still shows them. */
+  hiddenColumnNames?: readonly string[];
   onViewChange?: (change: ViewChange) => void;
   /** Clear the view's filter. */
   onClearConstraints?: () => void;
@@ -124,6 +126,13 @@ export type DatabaseRecordsViewProps = {
   renderMentionValue?: GridCellProps['renderMentionValue'];
   /** Opens what a record's title mentions, such as a pipeline row's company, in place of editing it. */
   onOpenTitleMention?: (id: string, type: DatabaseEntityType) => void;
+  /** Whether a board card offers the record-details button. */
+  showCardDetails?: boolean;
+  /** Replaces one column's cell. Absent, the column keeps its own editor. */
+  renderColumnCell?: (
+    row: DatabaseRow,
+    column: DatabaseViewColumn
+  ) => JSX.Element | undefined;
   renderRelationCell?: (props: RelationCellProps) => JSX.Element;
   relationTables?: { id: string; name: string }[];
   columnCasts?: DatabaseColumnCastsSource;
@@ -192,6 +201,10 @@ export function DatabaseRecordsView(props: DatabaseRecordsViewProps) {
     columns,
     canEdit: () => props.canEdit,
     stored: () => props.stored,
+    hiddenNames: () =>
+      props.stored || props.view.layout.kind !== 'table'
+        ? []
+        : (props.hiddenColumnNames ?? []),
     changeView: (change) => props.onViewChange?.(change),
     get saveColumnOrder() {
       return props.onReorderColumns;
@@ -291,6 +304,10 @@ export function DatabaseRecordsView(props: DatabaseRecordsViewProps) {
   ) {
     const write = (value: DatabaseCellValue) =>
       writeValue(row(), column(), value);
+    const custom = () => {
+      const node = props.renderColumnCell?.(row(), column());
+      return node ? { node } : undefined;
+    };
     const isTitle = () => column().id === titleColumn(columns())?.id;
     const relationCell = () => {
       const render = props.renderRelationCell;
@@ -301,47 +318,54 @@ export function DatabaseRecordsView(props: DatabaseRecordsViewProps) {
     };
     return (
       <Show
-        when={relationCell()}
+        when={custom()}
         fallback={
-          <GridCell
-            {...options}
-            column={column()}
-            emptyLabel=""
-            value={rowValue(row(), column().id)}
-            canEdit={props.canEdit}
-            renderTextEditor={props.renderTextEditor}
-            renderTextValue={props.renderTextValue}
-            renderMentionPicker={props.renderMentionPicker}
-            renderMentionValue={props.renderMentionValue}
-            onOpenMention={isTitle() ? props.onOpenTitleMention : undefined}
-            onMention={(mention) =>
-              writeValue(row(), column(), mention.id, undefined, {
-                dataType: 'ENTITY',
-                entityType: mention.entityType,
+          <Show
+            when={relationCell()}
+            fallback={
+              <GridCell
+                {...options}
+                column={column()}
+                emptyLabel=""
+                value={rowValue(row(), column().id)}
+                canEdit={props.canEdit}
+                renderTextEditor={props.renderTextEditor}
+                renderTextValue={props.renderTextValue}
+                renderMentionPicker={props.renderMentionPicker}
+                renderMentionValue={props.renderMentionValue}
+                onOpenMention={isTitle() ? props.onOpenTitleMention : undefined}
+                onMention={(mention) =>
+                  writeValue(row(), column(), mention.id, undefined, {
+                    dataType: 'ENTITY',
+                    entityType: mention.entityType,
+                  })
+                }
+                onWrite={write}
+                onAddOption={(label, value) =>
+                  writeValue(row(), column(), value ?? label, label)
+                }
+              />
+            }
+          >
+            {(cell) =>
+              cell().render({
+                ...options,
+                get column() {
+                  return cell().column;
+                },
+                get value() {
+                  return rowValue(row(), column().id);
+                },
+                get canEdit() {
+                  return props.canEdit;
+                },
+                onWrite: write,
               })
             }
-            onWrite={write}
-            onAddOption={(label, value) =>
-              writeValue(row(), column(), value ?? label, label)
-            }
-          />
+          </Show>
         }
       >
-        {(cell) =>
-          cell().render({
-            ...options,
-            get column() {
-              return cell().column;
-            },
-            get value() {
-              return rowValue(row(), column().id);
-            },
-            get canEdit() {
-              return props.canEdit;
-            },
-            onWrite: write,
-          })
-        }
+        {(item) => item().node}
       </Show>
     );
   }
@@ -495,6 +519,7 @@ export function DatabaseRecordsView(props: DatabaseRecordsViewProps) {
               renderCell={renderCell}
               renderTextValue={props.renderTextValue}
               renderMentionValue={props.renderMentionValue}
+              showCardDetails={props.showCardDetails}
               rowPending={controller.rowPending}
               createPending={controller.createPending}
               createComplete={controller.createComplete}
@@ -555,7 +580,7 @@ export function DatabaseRecordsView(props: DatabaseRecordsViewProps) {
               }}
               remoteUsers={props.remoteUsers}
               highlightRowId={records.highlightedRowId()}
-              columns={columns()}
+              columns={columnLayout.visibleColumns()}
               columnOrder={columnLayout.columnOrder()}
               sort={props.view.query.sort ?? []}
               widths={columnLayout.widths()}

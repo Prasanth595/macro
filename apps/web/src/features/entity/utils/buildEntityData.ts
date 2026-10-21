@@ -195,6 +195,7 @@ export function buildEntityData(
         'pipeline',
         'company',
         'contact',
+        'deal',
         'initiative',
         (): undefined => undefined
       )

@@ -8840,7 +8840,7 @@ export const getCrmPipelineTableResponse = zod
                 protections: zod
                   .array(
                     zod
-                      .enum(['delete', 'change_type'])
+                      .enum(['delete', 'change_type', 'rename'])
                       .describe(
                         'A schema operation reserved by a feature using a column.'
                       )
@@ -10219,7 +10219,7 @@ export const getDatabaseResponse = zod
                         protections: zod
                           .array(
                             zod
-                              .enum(['delete', 'change_type'])
+                              .enum(['delete', 'change_type', 'rename'])
                               .describe(
                                 'A schema operation reserved by a feature using a column.'
                               )
@@ -14806,7 +14806,7 @@ export const inferDatabaseColumnTypeResponse = zod
             protections: zod
               .array(
                 zod
-                  .enum(['delete', 'change_type'])
+                  .enum(['delete', 'change_type', 'rename'])
                   .describe(
                     'A schema operation reserved by a feature using a column.'
                   )

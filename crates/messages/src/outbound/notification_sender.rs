@@ -32,6 +32,7 @@ impl<N: NotificationIngress> DiscussionNotifier for MessageNotificationSender<N>
             MessageParent::Initiative(_) => EntityType::Initiative,
             MessageParent::CrmCompany(_) => EntityType::CrmCompany,
             MessageParent::CrmContact(_) => EntityType::CrmContact,
+            MessageParent::CrmDeal(_) => EntityType::CrmDeal,
             MessageParent::Channel(_) | MessageParent::Call(_) => {
                 return Err(rootcause::report!(
                     "comment notification requires discussion parent"
@@ -60,7 +61,7 @@ impl<N: NotificationIngress> DiscussionNotifier for MessageNotificationSender<N>
         }
         if matches!(
             n.event.parent,
-            MessageParent::CrmCompany(_) | MessageParent::CrmContact(_)
+            MessageParent::CrmCompany(_) | MessageParent::CrmContact(_) | MessageParent::CrmDeal(_)
         ) {
             use model_notifications::{CrmDiscussionMetadata, CrmDiscussionReason};
             let reason = match n.reason {

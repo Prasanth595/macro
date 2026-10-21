@@ -32,6 +32,19 @@ pub async fn get_crm_entity_users(
             .fetch_all(pool)
             .await?
         }
+        EntityType::CrmDeal => {
+            sqlx::query_scalar!(
+                r#"
+                SELECT tu.user_id
+                FROM crm_deals d
+                JOIN team_user tu ON tu.team_id = d.team_id
+                WHERE d.id = $1
+                "#,
+                entity_id
+            )
+            .fetch_all(pool)
+            .await?
+        }
         EntityType::CrmContact => {
             sqlx::query_scalar!(
                 r#"

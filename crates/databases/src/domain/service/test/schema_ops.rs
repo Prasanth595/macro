@@ -5,6 +5,39 @@ use super::*;
 use crate::domain::models::ColumnProtection;
 
 #[tokio::test]
+async fn a_protected_name_cannot_be_renamed() {
+    let seeded = seeded().await;
+    {
+        let mut world = seeded.world.lock().unwrap();
+        let column = world
+            .columns
+            .iter_mut()
+            .find(|column| column.id == seeded.name_column.id)
+            .unwrap();
+        column.protections = vec![ColumnProtection::Rename];
+    }
+    let result = seeded
+        .service
+        .apply_ops(
+            edit(seeded.database_id),
+            viewer(OWNER),
+            OpBatch::from(vec![DatabaseOp::Column {
+                table: seeded.table_id,
+                column: seeded.name_column.id,
+                change: ColumnChange::Rename {
+                    name: "Date".into(),
+                    previous_name: Some("Name".into()),
+                },
+            }]),
+        )
+        .await;
+    assert!(
+        matches!(result, Err(DatabaseError::InvalidOp(ref refusal)) if refusal.reason.contains("protected")),
+        "{result:?}"
+    );
+}
+
+#[tokio::test]
 async fn protected_columns_refuse_deletion_and_type_changes() {
     let seeded = seeded().await;
     {

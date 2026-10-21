@@ -23,7 +23,8 @@ tools/HTTP/GraphQL surfaces over them.
 ## Scope
 
 - Owns: CRM company/contact records, pipelines, and their HTTP/AI-tool/search
-  surfaces for a team.
+  surfaces for a team. The business rule for a deal versus a project is
+  `docs/agent-guide/deals.md`.
 - Not here: the contact *graph* (who a user knows) → `crates/contacts`;
   shared database storage/positions → `crates/databases`.
 

@@ -684,7 +684,8 @@ impl AgentSessionResponse {
                 | messages::domain::models::MessageParent::Call(_)
                 | messages::domain::models::MessageParent::Initiative(_)
                 | messages::domain::models::MessageParent::CrmCompany(_)
-                | messages::domain::models::MessageParent::CrmContact(_),
+                | messages::domain::models::MessageParent::CrmContact(_)
+                | messages::domain::models::MessageParent::CrmDeal(_),
             )
             | None => None,
         };

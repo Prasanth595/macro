@@ -1021,6 +1021,8 @@ pub enum MessageParent {
     CrmCompany(Uuid),
     /// A discussion message on a CRM contact.
     CrmContact(Uuid),
+    /// A discussion message on a CRM deal.
+    CrmDeal(Uuid),
     /// A message in a call's thread.
     Call(Uuid),
 }
@@ -1036,6 +1038,7 @@ impl MessageParent {
             "initiative" => Self::Initiative(uuid()?),
             "crm_company" => Self::CrmCompany(uuid()?),
             "crm_contact" => Self::CrmContact(uuid()?),
+            "crm_deal" => Self::CrmDeal(uuid()?),
             "call" => Self::Call(uuid()?),
             _ => return None,
         })

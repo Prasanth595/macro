@@ -41,6 +41,7 @@ pub async fn delete_user_entity_access_bulk(
         | EntityType::StaticFile
         | EntityType::CrmCompany
         | EntityType::CrmContact
+        | EntityType::CrmDeal
         | EntityType::Skill
         | EntityType::ForeignEntity
         // Reminders, scheduled actions, and database rows own no

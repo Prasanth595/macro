@@ -39,6 +39,8 @@ pub enum EntityType {
     DatabaseRow,
     /// CRM contact.
     Contact,
+    /// CRM deal: one commercial opportunity, linked to companies and people.
+    Deal,
     Document,
     /// Initiative, displayed as a Project in the application.
     Initiative,

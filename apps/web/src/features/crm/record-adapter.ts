@@ -4,10 +4,11 @@ import type { EntityItem } from '@core/context/quickAccess';
 import { useQuickAccess } from '@core/context/quickAccess/context';
 import { toCrmContactItem } from '@core/context/quickAccess/crm-contacts';
 import { debouncedDependent } from '@core/util/debounce';
+import type { CrmDealEntity } from '@entity';
 import { isCrmContactEntity } from '@entity/types/entity';
 import { queryReadyGate } from '@queries/gate';
 import { storageServiceClient } from '@service-storage/client';
-import { useQueryClient } from '@tanstack/solid-query';
+import { useQuery, useQueryClient } from '@tanstack/solid-query';
 import { type Accessor, createMemo } from 'solid-js';
 import { createContactDiscovery } from './primitives/contact-discovery';
 import { useSetCompanyHiddenMutation as createHiddenMutation } from './queries/companies';
@@ -77,6 +78,67 @@ export function useCrmContactMentionSource(
     loadMore: async () => {
       await query.fetchNextPage();
     },
+  };
+}
+
+const DEAL_SEARCH_DEBOUNCE_MS = 250;
+
+function toCrmDealItem(deal: {
+  id: string;
+  name: string;
+}): EntityItem<CrmDealEntity> {
+  return {
+    kind: 'entity',
+    id: deal.id,
+    bucket: 'crm_deal',
+    searchText: deal.name,
+    sortTimestamp: 0,
+    timestamps: {},
+    data: {
+      type: 'crm_deal',
+      id: deal.id,
+      name: deal.name,
+      ownerId: '',
+    },
+  };
+}
+
+/** Deals whose name matches, from Postgres. Not indexed in Soup. */
+export function useCrmDealMentionSource(
+  search: Accessor<string>,
+  enabled: Accessor<boolean>
+) {
+  const client = useQueryClient();
+  const queryText = debouncedDependent(search, DEAL_SEARCH_DEBOUNCE_MS);
+  const active = () => enabled() && queryText().trim().length > 0;
+  const query = useQuery(
+    () => {
+      const text = queryText().trim();
+      return {
+        queryKey: ['crm', 'deal-mentions', text],
+        enabled: active(),
+        staleTime: 30_000,
+        queryFn: async () => {
+          const result = await storageServiceClient.searchDeals({
+            query: text,
+          });
+          if (result.isErr()) throw result.error;
+          return result.value.deals;
+        },
+      };
+    },
+    () => client
+  );
+  const entities = createMemo(() =>
+    queryReadyGate(query) ? query.data.map(toCrmDealItem) : []
+  );
+  return {
+    entities,
+    totalCount: () => entities().length,
+    hasMore: () => false,
+    isLoading: () => active() && query.isLoading,
+    isLoadingMore: () => false,
+    loadMore: async () => {},
   };
 }
 

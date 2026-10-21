@@ -16,6 +16,8 @@ export type DatabaseOption = {
 export type DatabaseViewColumn = {
   id: string;
   name: string;
+  /** Header text when it should differ from the stored name. */
+  label?: string;
   dataType: DataType;
   isMultiSelect: boolean;
   options: DatabaseOption[];
@@ -28,7 +30,7 @@ export type DatabaseViewColumn = {
   /** Whether a row may omit this cell. Defaults to true for legacy sources. */
   nullable?: boolean;
   /** Schema actions reserved by the feature using this column. */
-  protections?: ('delete' | 'change_type')[];
+  protections?: ('delete' | 'change_type' | 'rename')[];
   /** The column's definition is used beyond this database, so its options change everywhere. */
   sharedOutsideDatabase?: boolean;
   /** A derived column's formula: its cells are computed, and nothing writes them. */

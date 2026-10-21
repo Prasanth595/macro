@@ -189,6 +189,7 @@ const ENTITY_LABELS: Record<FormEntityKind, string> = {
   TASK: 'Task',
   COMPANY: 'Company',
   CONTACT: 'Contact',
+  DEAL: 'Deal',
   CALL_RECORD: 'Call',
   CHANNEL: 'Channel',
   CHAT: 'Chat',

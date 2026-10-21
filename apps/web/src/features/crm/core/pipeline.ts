@@ -4,7 +4,7 @@ export type Pipeline = {
   teamId: string;
   name: string;
   userId: string;
-  recordType: 'company' | 'contact';
+  recordType: 'company' | 'contact' | 'deal';
   databaseId: string;
   tableId: string;
   primaryColumnId: string;

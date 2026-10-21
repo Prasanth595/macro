@@ -33,6 +33,7 @@ fn entity_type(property_entity: &PropertyEntityType) -> Option<EntityType> {
         PropertyEntityType::Thread => Some(EntityType::EmailThread),
         PropertyEntityType::CallRecord => Some(EntityType::Call),
         PropertyEntityType::Company => Some(EntityType::CrmCompany),
+        PropertyEntityType::Deal => Some(EntityType::CrmDeal),
         PropertyEntityType::CalendarEvent
         | PropertyEntityType::Contact
         | PropertyEntityType::User

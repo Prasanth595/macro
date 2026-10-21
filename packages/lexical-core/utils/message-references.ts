@@ -19,7 +19,8 @@ export type MessageReferenceKind =
   | 'group'
   | 'automation'
   | 'crm_company'
-  | 'crm_contact';
+  | 'crm_contact'
+  | 'crm_deal';
 export type AuthoredMessageReference = {
   entityType: MessageReferenceKind;
   entityId: string;
@@ -52,7 +53,8 @@ export function messageReference(
         'group',
         'automation',
         'crm_company',
-        'crm_contact'
+        'crm_contact',
+        'crm_deal'
       ),
       (entityType) => ({ entityType, entityId: id })
     )

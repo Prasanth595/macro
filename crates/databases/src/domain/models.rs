@@ -84,6 +84,8 @@ pub enum ColumnProtection {
     Delete,
     /// The column's type and binding must remain stable.
     ChangeType,
+    /// The column's name is part of a feature. Renaming it would break that feature.
+    Rename,
 }
 
 /// A column: the placement of a property definition on a table.

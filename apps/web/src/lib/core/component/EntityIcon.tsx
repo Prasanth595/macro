@@ -43,6 +43,7 @@ import FolderUser from '@phosphor/folder-simple-user.svg';
 import GitMerge from '@phosphor/git-merge.svg';
 import GitPullRequest from '@phosphor/git-pull-request.svg';
 import GlobeIcon from '@phosphor/globe.svg';
+import Handshake from '@phosphor/handshake.svg';
 import HashStraight from '@phosphor/hash-straight.svg';
 import FileImage from '@phosphor/image.svg';
 import ListChecks from '@phosphor/list-checks.svg';
@@ -84,6 +85,7 @@ import FolderUserBold from '@phosphor-icons/core/bold/folder-simple-user-bold.sv
 import GitMergeBold from '@phosphor-icons/core/bold/git-merge-bold.svg';
 import GitPullRequestBold from '@phosphor-icons/core/bold/git-pull-request-bold.svg';
 import GlobeIconBold from '@phosphor-icons/core/bold/globe-bold.svg';
+import HandshakeBold from '@phosphor-icons/core/bold/handshake-bold.svg';
 import HashStraightBold from '@phosphor-icons/core/bold/hash-straight-bold.svg';
 import FileImageBold from '@phosphor-icons/core/bold/image-bold.svg';
 import ListChecksBold from '@phosphor-icons/core/bold/list-checks-bold.svg';
@@ -131,6 +133,7 @@ export type EntityWithValidIcon =
   | 'archive'
   | 'files'
   | 'crm_company'
+  | 'crm_deal'
   | 'html'
   | 'initiative'
   | 'reminder';
@@ -485,12 +488,26 @@ export const ENTITY_ICON_CONFIGS: Record<EntityWithValidIcon, IconConfig> = {
     background: 'bg-default/20',
     prettyName: 'Company',
   },
+  crm_deal: {
+    icon: Handshake,
+    boldIcon: HandshakeBold,
+    foreground: 'text-default',
+    background: 'bg-default/20',
+    prettyName: 'Deal',
+  },
   company: {
     icon: BuildingOffice,
     boldIcon: BuildingOfficeBold,
     foreground: 'text-default',
     background: 'bg-default/20',
     prettyName: 'Company',
+  },
+  deal: {
+    icon: Handshake,
+    boldIcon: HandshakeBold,
+    foreground: 'text-default',
+    background: 'bg-default/20',
+    prettyName: 'Deal',
   },
   pipeline: {
     icon: Table,
@@ -712,6 +729,7 @@ export function getEntityIconType(entity: EntityIconData): EntityWithValidIcon {
     })
     .with({ type: 'crm_company' }, () => 'crm_company')
     .with({ type: 'crm_contact' }, () => 'contact')
+    .with({ type: 'crm_deal' }, () => 'deal')
     .with({ type: 'database' }, () => 'database')
     .with({ type: 'form' }, () => 'form')
     .exhaustive(() => 'default');

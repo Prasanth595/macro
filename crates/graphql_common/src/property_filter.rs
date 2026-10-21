@@ -97,6 +97,8 @@ pub enum GraphqlPropertyEntityType {
     DatabaseRow,
     /// CRM contact entity.
     Contact,
+    /// CRM deal entity.
+    Deal,
     /// Document entity.
     Document,
     /// Initiative entity.
@@ -122,6 +124,7 @@ impl GraphqlPropertyEntityType {
             models_properties::EntityType::Company => Self::Company,
             models_properties::EntityType::DatabaseRow => Self::DatabaseRow,
             models_properties::EntityType::Contact => Self::Contact,
+            models_properties::EntityType::Deal => Self::Deal,
             models_properties::EntityType::Document => Self::Document,
             models_properties::EntityType::Initiative => Self::Initiative,
             models_properties::EntityType::Project => Self::Project,
@@ -141,6 +144,7 @@ impl GraphqlPropertyEntityType {
             Self::Company => models_properties::EntityType::Company,
             Self::DatabaseRow => models_properties::EntityType::DatabaseRow,
             Self::Contact => models_properties::EntityType::Contact,
+            Self::Deal => models_properties::EntityType::Deal,
             Self::Document => models_properties::EntityType::Document,
             Self::Initiative => models_properties::EntityType::Initiative,
             Self::Project => models_properties::EntityType::Project,
@@ -167,8 +171,9 @@ impl TryFrom<GraphqlPropertyEntityType> for PropertyEntityType {
             GraphqlPropertyEntityType::Thread => Self::Thread,
             GraphqlPropertyEntityType::User => Self::User,
             GraphqlPropertyEntityType::Initiative => Self::Initiative,
-            other
-            @ (GraphqlPropertyEntityType::CallRecord | GraphqlPropertyEntityType::Contact) => {
+            other @ (GraphqlPropertyEntityType::CallRecord
+            | GraphqlPropertyEntityType::Contact
+            | GraphqlPropertyEntityType::Deal) => {
                 return Err(other);
             }
         })

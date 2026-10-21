@@ -39,6 +39,8 @@ export type EntityTypeItemMap = {
   CALENDAR_EVENT: never;
   // Database rows aren't entity-reference targets in quickAccess.
   DATABASE_ROW: never;
+  // Deals are opened from a pipeline, not from quick access.
+  DEAL: never;
 };
 
 /**
@@ -59,6 +61,7 @@ function entityTypeToBuckets(entityType: EntityType): readonly Bucket[] {
     .with('CALL_RECORD', () => [] as const) // Call records aren't in quickAccess
     .with('CALENDAR_EVENT', () => [] as const) // Calendar events aren't in quickAccess
     .with('DATABASE_ROW', () => [] as const) // Database rows aren't in quickAccess
+    .with('DEAL', () => [] as const)
     .exhaustive(() => [] as const);
   return buckets;
 }
@@ -171,6 +174,7 @@ export function getEntityType(entity: CombinedEntity): EntityType | undefined {
     .with({ type: 'initiative' }, () => 'INITIATIVE')
     .with({ type: 'call' }, () => 'CALL_RECORD')
     .with({ type: 'calendar_event' }, () => 'CALENDAR_EVENT')
+    .with({ type: 'crm_deal' }, () => 'DEAL')
     .with(
       {
         type: P.union(

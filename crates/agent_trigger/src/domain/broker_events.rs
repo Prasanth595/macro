@@ -431,7 +431,8 @@ impl AgentSessionMacroEvent {
             | MessageParent::Call(_)
             | MessageParent::Initiative(_)
             | MessageParent::CrmCompany(_)
-            | MessageParent::CrmContact(_) => None,
+            | MessageParent::CrmContact(_)
+            | MessageParent::CrmDeal(_) => None,
         };
         Ok(match decision {
             TriggerDecision::ConversationMessage {

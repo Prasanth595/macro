@@ -48,9 +48,9 @@ export type PipelineImportFailure =
 export function pipelineRecordHeaders(
   recordType: Pipeline['recordType']
 ): [name: string, key: string] {
-  return recordType === 'company'
-    ? ['Company', 'Domain']
-    : ['Contact', 'Email'];
+  if (recordType === 'company') return ['Company', 'Domain'];
+  if (recordType === 'contact') return ['Contact', 'Email'];
+  return ['Deal', 'Name'];
 }
 
 const NAME_HEADERS = {
@@ -192,6 +192,8 @@ export function planPipelineImport(
   }
 ): Result<PipelineImportPlan, PipelineImportFailure> {
   const { recordType, primaryColumnId } = pipeline;
+  if (recordType === 'deal')
+    return err({ kind: 'no-record-column', recordType });
   const header = (names: string[]) =>
     csv.columns.findIndex((name) => names.includes(name.trim().toLowerCase()));
   const keyIndex = header(KEY_HEADERS[recordType]);
@@ -259,6 +261,10 @@ export function pipelineImportMessage(failure: PipelineImportFailure): string {
       { kind: 'no-record-column', recordType: 'contact' },
       () => 'Include an Email column, with addresses like jane@acme.com.'
     )
+    .with(
+      { kind: 'no-record-column', recordType: 'deal' },
+      () => 'A deal pipeline is filled by creating deals, not from a CSV.'
+    )
     .with({ kind: 'no-rows' }, () => 'No rows name a company or contact.')
     .exhaustive();
 }
@@ -274,7 +280,12 @@ export function pipelineRecordCell(
       type: 'entities',
       value: [
         {
-          entityType: pipeline.recordType === 'company' ? 'COMPANY' : 'CONTACT',
+          entityType:
+            pipeline.recordType === 'company'
+              ? 'COMPANY'
+              : pipeline.recordType === 'contact'
+                ? 'CONTACT'
+                : 'DEAL',
           entityId: id,
         },
       ],

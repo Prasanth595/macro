@@ -1,6 +1,7 @@
 import {
   fetchCrmCompanyPreviews,
   fetchCrmContactPreviews,
+  fetchCrmDealPreviews,
   fetchCrmPipelinePreviews,
 } from '@app/features/crm/preview-adapter';
 import { QUERY_FILTERS_BASE } from '@app/features/next-soup/filters/query-filters';
@@ -509,6 +510,7 @@ export async function fetchRestPreviewBatch(
     doFetch(fetchEmailPreviews, filterMapToId(items, 'email')),
     doFetch(fetchCrmCompanyPreviews, filterMapToId(items, 'crm_company')),
     doFetch(fetchCrmContactPreviews, filterMapToId(items, 'crm_contact')),
+    doFetch(fetchCrmDealPreviews, filterMapToId(items, 'crm_deal')),
     doFetch(fetchCrmPipelinePreviews, filterMapToId(items, 'crm_pipeline')),
     doFetch(fetchCalendarEventPreviews, filterMapToId(items, 'calendar_event')),
     doFetch(fetchDatabasePreviews, filterMapToId(items, 'database')),

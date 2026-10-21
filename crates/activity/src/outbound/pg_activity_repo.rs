@@ -445,6 +445,7 @@ const fn _rankable_entity_types_are_exhaustive(entity_type: EntityType) {
         | EntityType::StaticFile
         | EntityType::CrmCompany
         | EntityType::CrmContact
+        | EntityType::CrmDeal
         | EntityType::Reminder
         | EntityType::Skill
         | EntityType::AgentSession
@@ -474,6 +475,7 @@ fn rankable_entity_types() -> Vec<String> {
         EntityType::StaticFile,
         EntityType::CrmCompany,
         EntityType::CrmContact,
+        EntityType::CrmDeal,
         EntityType::Reminder,
         EntityType::Skill,
         EntityType::AgentSession,

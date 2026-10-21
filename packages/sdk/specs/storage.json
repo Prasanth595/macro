@@ -23569,7 +23569,7 @@
       "ColumnProtection": {
         "type": "string",
         "description": "A schema operation reserved by a feature using a column.",
-        "enum": ["delete", "change_type"]
+        "enum": ["delete", "change_type", "rename"]
       },
       "ColumnResult": {
         "oneOf": [

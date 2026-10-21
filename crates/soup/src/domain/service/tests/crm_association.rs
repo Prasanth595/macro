@@ -230,6 +230,40 @@ impl CrmService for FakeCrm {
     ) -> Result<CrmTeamSettings, CrmError> {
         unimplemented!("FakeCrm.update_team_settings")
     }
+
+    async fn create_deal(
+        &self,
+        _access: &CrmTeamReceipt<MemberTeamRole>,
+        _name: &str,
+        _description: &str,
+        _company_ids: &[uuid::Uuid],
+        _contact_ids: &[uuid::Uuid],
+    ) -> Result<crm::domain::deals::Deal, CrmError> {
+        unimplemented!("FakeCrm.create_deal")
+    }
+
+    async fn get_deal(
+        &self,
+        _access: &CrmTeamReceipt<MemberTeamRole>,
+        _deal_id: &uuid::Uuid,
+    ) -> Result<Option<crm::domain::deals::Deal>, CrmError> {
+        unimplemented!("FakeCrm.get_deal")
+    }
+
+    async fn list_deals(
+        &self,
+        _access: &CrmTeamReceipt<MemberTeamRole>,
+        _ids: &[uuid::Uuid],
+    ) -> Result<Vec<crm::domain::deals::Deal>, CrmError> {
+        unimplemented!("FakeCrm.list_deals")
+    }
+
+    async fn list_company_deals(
+        &self,
+        _access: &CrmCompanyReceipt<ViewAccessLevel>,
+    ) -> Result<Vec<crm::domain::deals::CompanyDeal>, CrmError> {
+        unimplemented!("FakeCrm.list_company_deals")
+    }
 }
 
 /// Reference edges keyed by target: a document mentioning the sibling

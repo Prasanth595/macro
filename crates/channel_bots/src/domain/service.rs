@@ -478,6 +478,7 @@ where
                 MessageParent::Initiative(_) => "a project discussion",
                 MessageParent::CrmCompany(_) => "a CRM company discussion",
                 MessageParent::CrmContact(_) => "a CRM contact discussion",
+                MessageParent::CrmDeal(_) => "a CRM deal discussion",
                 MessageParent::Call(_) => "a call chat",
             };
             let (intro, thread_instruction, marker) = match event.trigger {

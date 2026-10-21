@@ -172,7 +172,8 @@ impl WorkExecutor for Dispatcher {
                             | messages::domain::models::MessageParent::Call(_)
                             | messages::domain::models::MessageParent::Initiative(_)
                             | messages::domain::models::MessageParent::CrmCompany(_)
-                            | messages::domain::models::MessageParent::CrmContact(_) => None,
+                            | messages::domain::models::MessageParent::CrmContact(_)
+                            | messages::domain::models::MessageParent::CrmDeal(_) => None,
                         },
                         parent: Some(parent),
                         thread_id: Some(thread_id),

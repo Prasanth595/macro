@@ -134,6 +134,8 @@ export function signalFilter(entity: EntityData): boolean {
     case 'crm_contact':
       // CRM contacts only show in CRM views, not Inbox.
       return false;
+    case 'crm_deal':
+      return false;
     case 'routine':
       // Routines only show in the Agents > Scheduled tab, not Inbox.
       return false;

@@ -114,6 +114,7 @@ function documentMentionEntityType(blockName: string): string {
       .with('calendar', () => 'calendar_event')
       .with('company', () => 'crm_company')
       .with('contact', () => 'crm_contact')
+      .with('deal', () => 'crm_deal')
       // A task project. Not a message reference type, so it is dropped below.
       .with('initiative', () => 'initiative')
       // Dropped below for the same reason.

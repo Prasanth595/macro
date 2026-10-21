@@ -4,6 +4,7 @@
 
 mod api;
 mod config;
+mod deal_delivery;
 pub mod model;
 mod outbound;
 mod server;

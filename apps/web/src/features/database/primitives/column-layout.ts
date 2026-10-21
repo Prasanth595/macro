@@ -28,6 +28,8 @@ export function createColumnLayout(options: {
   canEdit: Accessor<boolean>;
   /** Whether the view is stored, so its own layout holds the column order. */
   stored: Accessor<boolean>;
+  /** Column names this view leaves out. A stored view ignores the list. */
+  hiddenNames?: Accessor<readonly string[]>;
   changeView: (change: ViewChange) => void;
   /** Saves the table's own column order, which All records follows. */
   saveColumnOrder?: (columnIds: string[]) => DatabaseSchemaChange;
@@ -46,10 +48,18 @@ export function createColumnLayout(options: {
     disposed = true;
   });
   const layout = () => layoutColumns(options.view().layout, options.columns());
-  const visibleColumns = () => layout().map((entry) => entry.column);
+  const shown = () => {
+    const hidden = new Set(options.hiddenNames?.() ?? []);
+    const entries = layout();
+    return hidden.size === 0
+      ? entries
+      : entries.filter((entry) => !hidden.has(entry.column.name));
+  };
+  const visibleColumns = () => shown().map((entry) => entry.column);
   const widths = () =>
-    Object.fromEntries(layout().map((entry) => [entry.column.id, entry.width]));
-  const columnOrder = () => layout().map((entry) => entry.column.id);
+    Object.fromEntries(shown().map((entry) => [entry.column.id, entry.width]));
+  const columnOrder = () => shown().map((entry) => entry.column.id);
+  const storedOrder = () => layout().map((entry) => entry.column.id);
 
   function sort(columnId: string, direction: 'asc' | 'desc' | null) {
     const query = options.view().query;
@@ -97,7 +107,7 @@ export function createColumnLayout(options: {
     targetId: string,
     edge: 'before' | 'after'
   ) {
-    const order = columnOrder();
+    const order = storedOrder();
     const nextOrder = reorderDatabaseColumns(order, columnId, targetId, edge);
     if (!nextOrder) return;
     setSchemaError('');

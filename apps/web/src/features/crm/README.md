@@ -14,7 +14,7 @@ crm/
   views/        Screens composed from context, primitives, and components
   tests/        Cross-layer CSV integration coverage
   crm.tsx       Company workspace composition
-  crm-company.tsx / crm-contact.tsx / crm-settings.tsx
+  crm-company.tsx / crm-contact.tsx / crm-deal.tsx / crm-settings.tsx
   crm-create.tsx / crm-link.tsx
   crm-actions.ts / crm-hide-action.ts / crm-action-items.ts / crm-user-action.tsx
   crm-search.ts / crm-tool-renderers.tsx

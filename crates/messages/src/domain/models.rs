@@ -51,6 +51,8 @@ pub enum MessageParent {
     CrmCompany(Uuid),
     /// A CRM contact.
     CrmContact(Uuid),
+    /// A CRM deal.
+    CrmDeal(Uuid),
     /// A video call and its persistent chat thread.
     Call(Uuid),
 }
@@ -70,6 +72,7 @@ impl MessageParent {
             "crm_contact" => Ok(Self::CrmContact(
                 entity_id.parse().map_err(|_| InvalidParent)?,
             )),
+            "crm_deal" => Ok(Self::CrmDeal(entity_id.parse().map_err(|_| InvalidParent)?)),
             "call" => Ok(Self::Call(entity_id.parse().map_err(|_| InvalidParent)?)),
             _ => Err(InvalidParent),
         }
@@ -83,6 +86,7 @@ impl MessageParent {
             Self::Initiative(_) => "initiative",
             Self::CrmCompany(_) => "crm_company",
             Self::CrmContact(_) => "crm_contact",
+            Self::CrmDeal(_) => "crm_deal",
             Self::Call(_) => "call",
         }
     }
@@ -94,7 +98,8 @@ impl MessageParent {
             | Self::Call(id)
             | Self::Initiative(id)
             | Self::CrmCompany(id)
-            | Self::CrmContact(id) => id.to_string(),
+            | Self::CrmContact(id)
+            | Self::CrmDeal(id) => id.to_string(),
             Self::Document(id) => id.0.clone(),
         }
     }
@@ -113,6 +118,7 @@ impl MessageParent {
             Self::Initiative(_) => entity_access::domain::models::EntityType::Initiative,
             Self::CrmCompany(_) => entity_access::domain::models::EntityType::CrmCompany,
             Self::CrmContact(_) => entity_access::domain::models::EntityType::CrmContact,
+            Self::CrmDeal(_) => entity_access::domain::models::EntityType::CrmDeal,
             Self::Call(_) => entity_access::domain::models::EntityType::Call,
         }
     }

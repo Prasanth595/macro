@@ -182,6 +182,11 @@ pub fn record_rows(
     let (name_headers, key_headers) = match record_type {
         PipelineRecordType::Company => (COMPANY_NAME_HEADERS, COMPANY_KEY_HEADERS),
         PipelineRecordType::Contact => (CONTACT_NAME_HEADERS, CONTACT_KEY_HEADERS),
+        PipelineRecordType::Deal => {
+            return Err(CsvError::Invalid(
+                "A deal pipeline is not filled from a company or contact CSV.".into(),
+            ));
+        }
     };
     let key_index = header_index(&table.headers, key_headers).ok_or_else(|| {
         CsvError::Invalid(match record_type {
@@ -190,6 +195,9 @@ pub fn record_rows(
             }
             PipelineRecordType::Contact => {
                 "The CSV needs an Email column, with addresses like jane@acme.com.".into()
+            }
+            PipelineRecordType::Deal => {
+                "A deal pipeline is not filled from a company or contact CSV.".into()
             }
         })
     })?;
@@ -203,6 +211,7 @@ pub fn record_rows(
         let key = match record_type {
             PipelineRecordType::Company => first_domain(&row[key_index]),
             PipelineRecordType::Contact => imported_email(&row[key_index]),
+            PipelineRecordType::Deal => None,
         };
         let Some(key) = key else {
             skipped += 1;

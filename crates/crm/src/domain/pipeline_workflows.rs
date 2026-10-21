@@ -519,9 +519,17 @@ where
 
         let mut resolved = Vec::with_capacity(additions.len());
         for addition in additions {
-            let id = match &addition.record {
-                RecordTarget::Id(id) => *id,
-                RecordTarget::Email(email) => {
+            let id = match (&addition.record, record_type) {
+                (RecordTarget::Id(id), _) => *id,
+                (RecordTarget::Email(_), PipelineRecordType::Deal) => {
+                    return Err(WorkflowError::Invalid(
+                        "A deal is chosen by its id. Create the deal, then add that id.".into(),
+                    ));
+                }
+                (
+                    RecordTarget::Email(email),
+                    PipelineRecordType::Company | PipelineRecordType::Contact,
+                ) => {
                     let team = team.as_ref().ok_or(WorkflowError::NoTeam)?;
                     let contact = self
                         .crm
@@ -532,9 +540,10 @@ where
                                 "No contact in the team's CRM has the email {email}."
                             ))
                         })?;
-                    match record_type {
-                        PipelineRecordType::Company => contact.company_id,
-                        PipelineRecordType::Contact => contact.id,
+                    if record_type == PipelineRecordType::Company {
+                        contact.company_id
+                    } else {
+                        contact.id
                     }
                 }
             };
@@ -546,6 +555,7 @@ where
                     match record_type {
                         PipelineRecordType::Company => EntityType::CrmCompany,
                         PipelineRecordType::Contact => EntityType::CrmContact,
+                        PipelineRecordType::Deal => EntityType::CrmDeal,
                     },
                 )
                 .await
@@ -561,6 +571,10 @@ where
                         PipelineRecordType::Contact => format!(
                             "{id} is not a CRM contact the user can see. Add a contact by its \
                              email address."
+                        ),
+                        PipelineRecordType::Deal => format!(
+                            "{id} is not a CRM deal the user can see. Create the deal first, \
+                             then add it by its id."
                         ),
                     }),
                     other => other.into(),

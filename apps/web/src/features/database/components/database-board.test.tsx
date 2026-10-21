@@ -646,6 +646,149 @@ describe('database board', () => {
     ).toEqual(['Name: Tidy backlog']);
   });
 
+  it('keeps the deal mention mounted when another cell changes', () => {
+    const status: DatabaseViewColumn = {
+      id: 'status',
+      name: 'Status',
+      dataType: 'SELECT_STRING',
+      isMultiSelect: false,
+      options: [{ id: 'todo', label: 'To do', color: null }],
+      writable: true,
+    };
+    const deal: DatabaseViewColumn = {
+      id: 'deal',
+      name: 'Deal',
+      dataType: 'ENTITY',
+      specificEntityType: 'DEAL',
+      isMultiSelect: false,
+      options: [],
+      writable: true,
+    };
+    let mounts = 0;
+    const [rows, setRows] = createSignal<DatabaseRow[]>([
+      {
+        rowId: 'line',
+        cells: { deal: 'deal-1', status: 'todo', next: 'Email' },
+      },
+    ]);
+    render(() => (
+      <DatabaseBoard
+        rows={rows()}
+        columns={[deal, status]}
+        board={{
+          lanes: [
+            {
+              key: { kind: 'option', id: 'todo' },
+              hidden: false,
+              cards: ['line'],
+            },
+          ],
+        }}
+        layout={{
+          kind: 'board',
+          groupBy: 'status',
+          title: 'deal',
+          lanes: [],
+          cardFields: [],
+          hideEmptyLanes: false,
+        }}
+        renderMentionValue={(id) => {
+          mounts += 1;
+          return <span data-testid="mention">{id}</span>;
+        }}
+        groupColumn={status}
+        showCardDetails={false}
+        canEdit
+        rowPending={() => false}
+        onOpen={vi.fn()}
+        onMove={vi.fn()}
+        onCreate={vi.fn(async () => true)}
+      />
+    ));
+    expect(screen.getByTestId('mention').textContent).toBe('deal-1');
+    expect(mounts).toBe(1);
+    setRows([
+      {
+        rowId: 'line',
+        cells: { deal: 'deal-1', status: 'todo', next: 'Call' },
+      },
+    ]);
+    expect(mounts).toBe(1);
+    expect(screen.getByTestId('mention').textContent).toBe('deal-1');
+    setRows([
+      {
+        rowId: 'line',
+        cells: { deal: 'deal-2', status: 'todo', next: 'Call' },
+      },
+    ]);
+    expect(mounts).toBe(2);
+    expect(screen.getByTestId('mention').textContent).toBe('deal-2');
+  });
+
+  it('does not drag a card while the pointer stays still', async () => {
+    const status: DatabaseViewColumn = {
+      id: 'status',
+      name: 'Status',
+      dataType: 'SELECT_STRING',
+      isMultiSelect: false,
+      options: [{ id: 'todo', label: 'To do', color: null }],
+      writable: true,
+    };
+    vi.useFakeTimers();
+    try {
+      render(() => (
+        <DatabaseBoard
+          rows={[
+            { rowId: 'line', cells: { title: 'Line check', status: 'todo' } },
+          ]}
+          columns={[
+            {
+              id: 'title',
+              name: 'Name',
+              dataType: 'STRING',
+              isMultiSelect: false,
+              options: [],
+              writable: true,
+            },
+            status,
+          ]}
+          board={{
+            lanes: [
+              {
+                key: { kind: 'option', id: 'todo' },
+                hidden: false,
+                cards: ['line'],
+              },
+            ],
+          }}
+          layout={{
+            kind: 'board',
+            groupBy: 'status',
+            title: 'title',
+            lanes: [],
+            cardFields: [],
+            hideEmptyLanes: false,
+          }}
+          groupColumn={status}
+          canEdit
+          rowPending={() => false}
+          onOpen={vi.fn()}
+          onMove={vi.fn()}
+          onCreate={vi.fn(async () => true)}
+        />
+      ));
+      const card = document.querySelector('[data-kanban-card]');
+      expect(card).toBeTruthy();
+      fireEvent.mouseDown(card!, { button: 0, clientX: 20, clientY: 20 });
+      await vi.advanceTimersByTimeAsync(400);
+      expect(document.querySelector('[data-kanban-preview]')).toBeNull();
+      fireEvent.mouseMove(document, { button: 0, clientX: 48, clientY: 20 });
+      expect(document.querySelector('[data-kanban-preview]')).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('creates and opens a record when the card title is not text it can type into', () => {
     const status: DatabaseViewColumn = {
       id: 'status',

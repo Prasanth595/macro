@@ -58,7 +58,12 @@ export type PipelineEditor = Component<{
   /** Compact host actions placed alongside the editor's record controls. */
   actions?: JSX.Element;
   /** Show the company or contact a row is for. */
-  onOpenRecord?(record: { type: 'company' | 'contact'; id: string }): void;
+  onOpenRecord?(record: {
+    type: 'company' | 'contact' | 'deal';
+    id: string;
+    pipelineId?: string;
+    name?: string;
+  }): void;
 }>;
 
 export type PipelineSharing = Component<{

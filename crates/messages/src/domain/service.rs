@@ -819,6 +819,7 @@ impl<R: MessageRepository, E: MessageEventPublisher> MessageService<R, E> {
                 MessageReferenceKind::Project => EntityType::Project,
                 MessageReferenceKind::CrmCompany => EntityType::CrmCompany,
                 MessageReferenceKind::CrmContact => EntityType::CrmContact,
+                MessageReferenceKind::CrmDeal => EntityType::CrmDeal,
                 _ => return Err(MessageError::Invalid("unsupported message reference")),
             };
             if !self
@@ -917,6 +918,7 @@ fn parent_from_receipt<P: RequiredPermission>(
         EntityType::Initiative => "initiative",
         EntityType::CrmCompany => "crm_company",
         EntityType::CrmContact => "crm_contact",
+        EntityType::CrmDeal => "crm_deal",
         EntityType::Call => "call",
         _ => return Err(MessageError::Forbidden),
     };

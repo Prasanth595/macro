@@ -4,6 +4,8 @@
  * document_storage_service
  * OpenAPI spec version: 0.1.0
  */
+
+import type { MessageParentCrmDeal } from './messageParentCrmDeal';
 import type { MessageParentOneOf } from './messageParentOneOf';
 import type { MessageParentOneOfFive } from './messageParentOneOfFive';
 import type { MessageParentOneOfNine } from './messageParentOneOfNine';
@@ -20,4 +22,5 @@ export type MessageParent =
   | MessageParentOneOfFive
   | MessageParentOneOfSeven
   | MessageParentOneOfNine
-  | MessageParentOneOfOneone;
+  | MessageParentOneOfOneone
+  | MessageParentCrmDeal;

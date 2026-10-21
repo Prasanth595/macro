@@ -499,9 +499,10 @@ fn soup_entity_type_from_property(entity_type: PropertyEntityType) -> Option<Ent
         PropertyEntityType::DatabaseRow => Some(EntityType::DatabaseRow),
         // Soup channels do not expose properties; users and CRM contacts are
         // not Soup items.
-        PropertyEntityType::Channel | PropertyEntityType::User | PropertyEntityType::Contact => {
-            None
-        }
+        PropertyEntityType::Channel
+        | PropertyEntityType::User
+        | PropertyEntityType::Contact
+        | PropertyEntityType::Deal => None,
     }
 }
 

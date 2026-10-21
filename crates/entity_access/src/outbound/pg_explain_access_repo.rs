@@ -224,6 +224,20 @@ impl ExplainAccessRepository for PgExplainAccessRepository {
                 .into_iter()
                 .collect())
             }
+            EntityType::CrmDeal => {
+                let deal_id = parse_uuid(entity_id, "Invalid CRM deal ID format")?;
+                Ok(
+                    queries::crm_deal_access::get_crm_deal_access(&self.pool, &deal_id, user_id)
+                        .await?
+                        .map(|access| AccessGrant::CrmTeam {
+                            team_id: access.team_id,
+                            team_role: access.team_role,
+                            access_level: access.access_level,
+                        })
+                        .into_iter()
+                        .collect(),
+                )
+            }
             EntityType::Team => {
                 let team_id = parse_uuid(entity_id, "Invalid team ID format")?;
                 Ok(queries::team_access::get_user_team(&self.pool, user_id)

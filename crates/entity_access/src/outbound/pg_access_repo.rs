@@ -604,6 +604,7 @@ impl AccessRepository for PgAccessRepository {
             | EntityType::StaticFile
             | EntityType::CrmCompany
             | EntityType::CrmContact
+            | EntityType::CrmDeal
             | EntityType::Skill
             // Reminders and scheduled actions are user-owned, never reachable
             // through a team scope.
@@ -686,6 +687,21 @@ impl AccessRepository for PgAccessRepository {
     }
 
     #[tracing::instrument(err, skip(self))]
+    async fn get_team_crm_deal_access(
+        &self,
+        deal_id: &str,
+        team_id: Uuid,
+    ) -> Result<Option<CrmEntityAccess>, AccessError> {
+        let deal_uuid = deal_id
+            .parse::<Uuid>()
+            .map_err(|_| AccessError::BadRequest("Invalid CRM deal ID format"))?;
+        Ok(
+            queries::crm_deal_access::get_team_crm_deal_access(&self.pool, &deal_uuid, &team_id)
+                .await?,
+        )
+    }
+
+    #[tracing::instrument(err, skip(self))]
     async fn get_team_crm_contact_access(
         &self,
         contact_id: &str,
@@ -765,6 +781,21 @@ impl AccessRepository for PgAccessRepository {
     }
 
     #[tracing::instrument(err, skip(self))]
+    async fn get_crm_deal_access(
+        &self,
+        deal_id: &str,
+        user_id: Option<&MacroUserId<Lowercase<'_>>>,
+    ) -> Result<Option<CrmEntityAccess>, AccessError> {
+        let deal_uuid = deal_id
+            .parse::<Uuid>()
+            .map_err(|_| AccessError::BadRequest("Invalid CRM deal ID format"))?;
+        let Some(user_id) = user_id else {
+            return Ok(None);
+        };
+        Ok(queries::crm_deal_access::get_crm_deal_access(&self.pool, &deal_uuid, user_id).await?)
+    }
+
+    #[tracing::instrument(err, skip(self))]
     async fn check_user_channel_membership(
         &self,
         user_id: Option<&MacroUserId<Lowercase<'_>>>,
@@ -800,7 +831,10 @@ impl AccessRepository for PgAccessRepository {
         entity_id: &uuid::Uuid,
         entity_type: EntityType,
     ) -> Result<Vec<MacroUserIdStr<'static>>, AccessError> {
-        if matches!(entity_type, EntityType::CrmCompany | EntityType::CrmContact) {
+        if matches!(
+            entity_type,
+            EntityType::CrmCompany | EntityType::CrmContact | EntityType::CrmDeal
+        ) {
             return queries::crm_entity_users::get_crm_entity_users(
                 &self.pool,
                 entity_id,

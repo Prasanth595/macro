@@ -26,7 +26,7 @@ pub struct CreatePipeline {
     pub name: String,
     /// What entries track.
     #[schemars(
-        description = "\"company\" for deals with organizations, \"contact\" for deals with individual people (candidates, investors, partners)."
+        description = "\"company\" for one organization, \"contact\" for one person, \"deal\" for one opportunity that can link several companies and people."
     )]
     pub tracks: ToolRecordType,
     /// Team sharing.

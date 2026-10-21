@@ -39,6 +39,8 @@ import {
 import type { BoardPositions } from '../database/views/database-board-view';
 import { DatabaseRecords } from '../database/views/database-records';
 import type { DatabaseRecordsActions } from '../database/views/database-records-view';
+import { DealMention, DealScheduleCell } from './components/deal-card';
+import { DealDialog } from './components/deal-dialog';
 import type { Pipeline } from './core/pipeline';
 import { createPipelineApi } from './queries/pipeline-data';
 import {
@@ -76,7 +78,12 @@ export function PipelineShare(props: {
 export function PipelineDatabaseEditor(props: {
   pipeline: Pipeline;
   actions?: JSX.Element;
-  onOpenRecord?(record: { type: 'company' | 'contact'; id: string }): void;
+  onOpenRecord?(record: {
+    type: 'company' | 'contact' | 'deal';
+    id: string;
+    pipelineId?: string;
+    name?: string;
+  }): void;
 }) {
   return (
     <div
@@ -108,7 +115,12 @@ const viewFailure = (failure: DatabaseOpFailure) =>
 function PipelineRecords(props: {
   pipeline: Pipeline;
   actions?: JSX.Element;
-  onOpenRecord?(record: { type: 'company' | 'contact'; id: string }): void;
+  onOpenRecord?(record: {
+    type: 'company' | 'contact' | 'deal';
+    id: string;
+    pipelineId?: string;
+    name?: string;
+  }): void;
 }) {
   const deps = { storage: storageServiceClient, client: useQueryClient() };
   const tableQuery = usePipelineTableQuery(deps, props.pipeline);
@@ -130,7 +142,12 @@ function PipelineRecords(props: {
       database_id: props.pipeline.databaseId,
     })
   );
-  const view = () => selectedView() ?? allRecords();
+  const view = () => {
+    const current = selectedView() ?? allRecords();
+    if (props.pipeline.recordType !== 'deal' || current.layout.kind !== 'board')
+      return current;
+    return { ...current, layout: { ...current.layout, cardFields: [] } };
+  };
   const changeView = (change: ViewChange) => {
     const stored = selectedView();
     if (stored) void views.update(stored, change).mapErr(viewFailure);
@@ -181,20 +198,59 @@ function PipelineRecords(props: {
             changeView({ query: { ...view().query, filter: null } })
           }
           boardPositions={boardPositions}
+          showCardDetails={props.pipeline.recordType !== 'deal'}
+          hiddenColumnNames={
+            props.pipeline.recordType === 'deal' && !selectedView()
+              ? ['Next activity', 'Outcome']
+              : undefined
+          }
+          renderColumnCell={(row, column) =>
+            props.pipeline.recordType === 'deal' && column.name === 'When' ? (
+              <DealScheduleCell
+                row={row}
+                primaryColumnId={props.pipeline.primaryColumnId}
+              />
+            ) : undefined
+          }
           onComposeRecord={setComposing}
           renderTextEditor={(editor) => <DatabaseTextEditor {...editor} />}
           renderTextValue={(value) => <DatabaseTextValue value={value} />}
           renderMentionPicker={(picker) => (
             <DatabaseMentionPicker {...picker} />
           )}
-          renderMentionValue={(id, entityType) => (
-            <DatabaseMentionValue id={id} entityType={entityType} />
-          )}
+          renderMentionValue={(id, entityType) =>
+            entityType === 'DEAL' ? (
+              <DealMention
+                id={id}
+                compact={view().layout.kind === 'table'}
+                primaryColumnId={props.pipeline.primaryColumnId}
+                onOpen={(name) =>
+                  props.onOpenRecord?.({
+                    type: 'deal',
+                    id,
+                    name,
+                    pipelineId: props.pipeline.id,
+                  })
+                }
+                onOpenCompany={(companyId) =>
+                  props.onOpenRecord?.({ type: 'company', id: companyId })
+                }
+              />
+            ) : (
+              <DatabaseMentionValue id={id} entityType={entityType} />
+            )
+          }
           onOpenTitleMention={(id, entityType) => {
             if (entityType === 'COMPANY')
               props.onOpenRecord?.({ type: 'company', id });
             else if (entityType === 'CONTACT')
               props.onOpenRecord?.({ type: 'contact', id });
+            else if (entityType === 'DEAL')
+              props.onOpenRecord?.({
+                type: 'deal',
+                id,
+                pipelineId: props.pipeline.id,
+              });
           }}
           renderToolbar={(actions) => (
             <PipelineToolbar
@@ -236,92 +292,129 @@ function PipelineToolbar(props: {
 }) {
   const database = useDatabase();
   const columns = () => database.data.rows.columns();
+  const [dealOpen, setDealOpen] = createSignal(false);
+  async function addDeal(deal: { id: string }) {
+    const stage = columns().find((column) => column.name === 'Stage');
+    const values: Record<string, string> = {
+      [props.pipeline.primaryColumnId]: deal.id,
+    };
+    const stageLabel = stage?.options[0]?.label;
+    if (stage && stageLabel) values[stage.id] = stageLabel;
+    const saved = await database.data.rows.write(
+      { kind: 'create', values },
+      database.data.table()?.version,
+      false
+    );
+    if (saved.isErr()) throw saved.error;
+  }
   // A column added with a board shows once the table is read again.
   const refreshColumns = () => {
     database.data.rows.refresh('refresh');
   };
   return (
-    <DatabaseToolbar
-      columns={columns()}
-      views={props.storedViews}
-      view={props.view}
-      selectedViewId={props.selectedViewId}
-      canEdit={props.canEdit}
-      onSelectView={props.onSelectView}
-      onChangeView={props.onChangeView}
-      onCreateView={(created) =>
-        props.views.create(props.view, created, columns()).map((view) => {
-          props.onSelectView(view.id);
-          if (
-            created.layout === 'board' &&
-            created.groupBy.kind === 'new-status'
-          )
-            refreshColumns();
-        })
-      }
-      onRenameView={(target, name) =>
-        props.views.update(target, { name }).map(() => undefined)
-      }
-      onShowViewAs={(target, shown) =>
-        match(shown)
-          .with({ kind: 'table' }, () =>
-            props.views
-              .update(target, { layout: { kind: 'table', columns: [] } })
-              .map(() => undefined)
-          )
-          .with({ kind: 'board', groupBy: { kind: 'column' } }, ({ groupBy }) =>
-            props.views
-              .update(target, {
-                layout: boardLayout(groupBy.columnId, columns()),
-              })
-              .map(() => undefined)
-          )
-          .with({ kind: 'board', groupBy: { kind: 'new-status' } }, () =>
-            props.views
-              .showAsBoardWithStatusColumn(target, columns())
-              .map(refreshColumns)
-          )
-          .exhaustive()
-      }
-      onDeleteView={(target) => {
-        if (props.selectedViewId === target.id) props.onSelectView(undefined);
-        return props.views.remove(target);
-      }}
-      actions={
-        <>
-          <Show when={props.canEdit}>
-            <Button variant="outline" onClick={() => props.onCompose({})}>
-              <PlusIcon class="size-4" />
-              {props.pipeline.recordType === 'company'
-                ? 'Add deal'
-                : 'Add contact'}
-            </Button>
-          </Show>
-          <Show when={props.canEdit && props.composing} keyed>
-            {(initialValues) => (
-              <AddPipelineRecordDialog
-                pipeline={props.pipeline}
-                columns={columns()}
-                initialValues={initialValues}
-                onCreate={props.actions.createRow}
-                onClose={() => props.onCompose(undefined)}
-                renderTextEditor={(editor) => (
-                  <DatabaseTextEditor {...editor} />
-                )}
-                renderTextValue={(value) => <DatabaseTextValue value={value} />}
-                renderMentionPicker={(picker) => (
-                  <DatabaseMentionPicker {...picker} />
-                )}
-                renderMentionValue={(id, entityType) => (
-                  <DatabaseMentionValue id={id} entityType={entityType} />
-                )}
-              />
-            )}
-          </Show>
-          {props.pipelineActions}
-        </>
-      }
-    />
+    <>
+      <DatabaseToolbar
+        columns={columns()}
+        views={props.storedViews}
+        view={props.view}
+        selectedViewId={props.selectedViewId}
+        canEdit={props.canEdit}
+        onSelectView={props.onSelectView}
+        onChangeView={props.onChangeView}
+        onCreateView={(created) =>
+          props.views.create(props.view, created, columns()).map((view) => {
+            props.onSelectView(view.id);
+            if (
+              created.layout === 'board' &&
+              created.groupBy.kind === 'new-status'
+            )
+              refreshColumns();
+          })
+        }
+        onRenameView={(target, name) =>
+          props.views.update(target, { name }).map(() => undefined)
+        }
+        onShowViewAs={(target, shown) =>
+          match(shown)
+            .with({ kind: 'table' }, () =>
+              props.views
+                .update(target, { layout: { kind: 'table', columns: [] } })
+                .map(() => undefined)
+            )
+            .with(
+              { kind: 'board', groupBy: { kind: 'column' } },
+              ({ groupBy }) =>
+                props.views
+                  .update(target, {
+                    layout: boardLayout(groupBy.columnId, columns()),
+                  })
+                  .map(() => undefined)
+            )
+            .with({ kind: 'board', groupBy: { kind: 'new-status' } }, () =>
+              props.views
+                .showAsBoardWithStatusColumn(target, columns())
+                .map(refreshColumns)
+            )
+            .exhaustive()
+        }
+        onDeleteView={(target) => {
+          if (props.selectedViewId === target.id) props.onSelectView(undefined);
+          return props.views.remove(target);
+        }}
+        actions={
+          <>
+            <Show when={props.canEdit && props.pipeline.recordType === 'deal'}>
+              <Button variant="outline" onClick={() => setDealOpen(true)}>
+                <PlusIcon class="size-4" />
+                Add deal
+              </Button>
+            </Show>
+            <Show when={props.canEdit && props.pipeline.recordType !== 'deal'}>
+              <Button variant="outline" onClick={() => props.onCompose({})}>
+                <PlusIcon class="size-4" />
+                {props.pipeline.recordType === 'company'
+                  ? 'Add deal'
+                  : 'Add contact'}
+              </Button>
+            </Show>
+            <Show
+              when={
+                props.canEdit &&
+                props.pipeline.recordType !== 'deal' &&
+                props.composing
+              }
+              keyed
+            >
+              {(initialValues) => (
+                <AddPipelineRecordDialog
+                  pipeline={props.pipeline}
+                  columns={columns()}
+                  initialValues={initialValues}
+                  onCreate={props.actions.createRow}
+                  onClose={() => props.onCompose(undefined)}
+                  renderTextEditor={(editor) => (
+                    <DatabaseTextEditor {...editor} />
+                  )}
+                  renderTextValue={(value) => (
+                    <DatabaseTextValue value={value} />
+                  )}
+                  renderMentionPicker={(picker) => (
+                    <DatabaseMentionPicker {...picker} />
+                  )}
+                  renderMentionValue={(id, entityType) => (
+                    <DatabaseMentionValue id={id} entityType={entityType} />
+                  )}
+                />
+              )}
+            </Show>
+            {props.pipelineActions}
+          </>
+        }
+      />
+      <Show when={dealOpen()}>
+        <DealDialog onClose={() => setDealOpen(false)} onCreate={addDeal} />
+      </Show>
+    </>
   );
 }
 

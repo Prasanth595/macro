@@ -120,6 +120,21 @@ pub(crate) async fn records<Crm: CrmService>(
                     );
                 }
             }
+            PipelineRecordType::Deal => {
+                let Some(team) = team else {
+                    return Ok(found);
+                };
+                for deal in crm.list_deals(team, chunk).await? {
+                    found.insert(
+                        deal.id,
+                        PipelineRecord {
+                            id: deal.id,
+                            name: Some(deal.name),
+                            detail: None,
+                        },
+                    );
+                }
+            }
         }
     }
     Ok(found)

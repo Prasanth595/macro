@@ -39,6 +39,7 @@ export function tagEntityType(
         'channel_thread',
         'crm_company',
         'crm_contact',
+        'crm_deal',
         'agent_session',
         'routine',
         'calendar_event',

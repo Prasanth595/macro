@@ -82,6 +82,7 @@ impl AssociatedEntities {
                 // another record, which the CRM sources list like any item.
                 PropertyEntityType::Company => &mut entities.crm_companies,
                 PropertyEntityType::Contact => &mut entities.crm_contacts,
+                PropertyEntityType::Deal => continue,
                 // Users are not a Soup source.
                 PropertyEntityType::User => continue,
             };
@@ -122,6 +123,8 @@ impl AssociatedEntities {
                         MessageParent::CrmContact(id) => {
                             entities.crm_contacts.insert(id);
                         }
+                        // A deal is not a Soup item. Its discussion stays on the deal.
+                        MessageParent::CrmDeal(_) => {}
                     }
                 }
             }

@@ -22,6 +22,7 @@ const UNSHARED_ROW = [
   'channel_thread',
   'crm_company',
   'crm_contact',
+  'crm_deal',
 ] as const;
 
 export function isSharedWithViewer(

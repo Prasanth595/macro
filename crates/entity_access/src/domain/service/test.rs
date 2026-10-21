@@ -57,8 +57,10 @@ struct MockRepo {
     team_foreign_entity_access: Arc<Mutex<bool>>,
     crm_company_access: Arc<Mutex<Option<AccessLevel>>>,
     crm_contact_access: Arc<Mutex<Option<AccessLevel>>>,
+    crm_deal_access: Arc<Mutex<Option<AccessLevel>>>,
     team_crm_company_access: Arc<Mutex<Option<CrmEntityAccess>>>,
     team_crm_contact_access: Arc<Mutex<Option<CrmEntityAccess>>>,
+    team_crm_deal_access: Arc<Mutex<Option<CrmEntityAccess>>>,
     channel_membership: Arc<Mutex<Vec<Uuid>>>,
     channel_role: Arc<Mutex<ChannelRoleResult>>,
     last_channel_role_request: Arc<Mutex<Option<(String, Option<i64>)>>>,
@@ -115,8 +117,10 @@ impl MockRepo {
             team_foreign_entity_access: Arc::new(Mutex::new(false)),
             crm_company_access: Arc::new(Mutex::new(None)),
             crm_contact_access: Arc::new(Mutex::new(None)),
+            crm_deal_access: Arc::new(Mutex::new(None)),
             team_crm_company_access: Arc::new(Mutex::new(None)),
             team_crm_contact_access: Arc::new(Mutex::new(None)),
+            team_crm_deal_access: Arc::new(Mutex::new(None)),
             channel_membership: Arc::new(Mutex::new(vec![])),
             channel_role: Arc::new(Mutex::new(ChannelRoleResult::NotFound)),
             last_channel_role_request: Arc::new(Mutex::new(None)),
@@ -578,6 +582,14 @@ impl AccessRepository for MockRepo {
         Ok(*self.team_crm_contact_access.lock().await)
     }
 
+    async fn get_team_crm_deal_access(
+        &self,
+        _deal_id: &str,
+        _team_id: Uuid,
+    ) -> Result<Option<CrmEntityAccess>, AccessError> {
+        Ok(*self.team_crm_deal_access.lock().await)
+    }
+
     async fn has_foreign_entity_access(
         &self,
         _foreign_entity_id: &str,
@@ -609,6 +621,20 @@ impl AccessRepository for MockRepo {
         // Owning team / role are irrelevant to these access-level tests.
         Ok(
             (*self.crm_contact_access.lock().await).map(|access_level| CrmEntityAccess {
+                access_level,
+                team_id: Uuid::nil(),
+                team_role: TeamRole::Member,
+            }),
+        )
+    }
+
+    async fn get_crm_deal_access(
+        &self,
+        _deal_id: &str,
+        _user_id: Option<&MacroUserId<Lowercase<'_>>>,
+    ) -> Result<Option<CrmEntityAccess>, AccessError> {
+        Ok(
+            (*self.crm_deal_access.lock().await).map(|access_level| CrmEntityAccess {
                 access_level,
                 team_id: Uuid::nil(),
                 team_role: TeamRole::Member,

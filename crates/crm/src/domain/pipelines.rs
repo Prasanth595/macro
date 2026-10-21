@@ -3,7 +3,11 @@
 #[cfg(test)]
 mod test;
 
-use super::{auth::CrmTeamReceipt, stages::StageDefinitionStore};
+use super::{
+    auth::CrmTeamReceipt,
+    deal_changes::{DealChangeLog, DealDelivery, won_deal_ids},
+    stages::StageDefinitionStore,
+};
 use bot_id::BotId;
 use chrono::{DateTime, Utc};
 use databases::domain::{
@@ -44,6 +48,8 @@ pub enum PipelineRecordType {
     Company,
     /// Contact memberships.
     Contact,
+    /// Deal memberships. A deal links the companies and people it involves.
+    Deal,
 }
 
 impl PipelineRecordType {
@@ -52,6 +58,7 @@ impl PipelineRecordType {
         match self {
             Self::Company => "company",
             Self::Contact => "contact",
+            Self::Deal => "deal",
         }
     }
     /// The primary reference's property type.
@@ -59,6 +66,7 @@ impl PipelineRecordType {
         match self {
             Self::Company => PropertyEntityType::Company,
             Self::Contact => PropertyEntityType::Contact,
+            Self::Deal => PropertyEntityType::Deal,
         }
     }
 }
@@ -80,7 +88,7 @@ pub enum PipelineSharing {
 pub struct CreatePipeline {
     /// Pipeline name.
     pub name: String,
-    /// Company or contact entries.
+    /// Company, contact, or deal entries.
     pub record_type: PipelineRecordType,
     /// Defaults to private.
     #[serde(default)]
@@ -362,6 +370,8 @@ pub struct PipelineServiceImpl<Repo, Databases, Access, Stages> {
     databases: Arc<Databases>,
     access: Arc<Access>,
     stages: Stages,
+    changelog: Option<Arc<dyn DealChangeLog>>,
+    delivery: Option<Arc<dyn DealDelivery>>,
 }
 
 fn storage(error: impl std::error::Error + Send + Sync + 'static) -> PipelineError {
@@ -447,7 +457,21 @@ impl<R: PipelineRepo, D, A, S> PipelineServiceImpl<R, D, A, S> {
             databases,
             access,
             stages,
+            changelog: None,
+            delivery: None,
         }
+    }
+
+    /// Record stage, date and outcome changes on the deal's discussion.
+    pub fn with_deal_log(mut self, log: Arc<dyn DealChangeLog>) -> Self {
+        self.changelog = Some(log);
+        self
+    }
+
+    /// Open a delivery project when a deal's outcome becomes Won.
+    pub fn with_delivery(mut self, delivery: Arc<dyn DealDelivery>) -> Self {
+        self.delivery = Some(delivery);
+        self
     }
 
     async fn pipeline<T: RequiredPermission>(
@@ -471,7 +495,33 @@ impl<R: PipelineRepo, D, A, S> PipelineServiceImpl<R, D, A, S> {
     }
 }
 
+/// The deal rule looks these columns up by name, so a rename would turn it off.
+fn locked_name(mut column: ProvisionedColumn) -> ProvisionedColumn {
+    column.protections.push(ColumnProtection::Rename);
+    column
+}
+
 /// Build the common CRM schema without performing I/O. Callers validate the name.
+fn select_column(name: &str, labels: Vec<String>) -> ProvisionedColumn {
+    ProvisionedColumn {
+        id: ColumnId::new(),
+        nullable: true,
+        protections: vec![],
+        name: name.into(),
+        data_type: DataType::SelectString,
+        entity_type: None,
+        options: labels
+            .into_iter()
+            .map(|label| {
+                (
+                    macro_uuid::generate_uuid_v7(),
+                    PropertyOptionValue::String(label),
+                )
+            })
+            .collect(),
+    }
+}
+
 pub(crate) fn pipeline_blueprint(
     team_id: Uuid,
     creator: MacroUserIdStr<'static>,
@@ -485,6 +535,7 @@ pub(crate) fn pipeline_blueprint(
         name: match input.record_type {
             PipelineRecordType::Company => "Company",
             PipelineRecordType::Contact => "Contact",
+            PipelineRecordType::Deal => "Deal",
         }
         .into(),
         data_type: DataType::Entity,
@@ -493,25 +544,9 @@ pub(crate) fn pipeline_blueprint(
         nullable: false,
         protections: vec![ColumnProtection::Delete, ColumnProtection::ChangeType],
     };
-    let columns = vec![
+    let mut columns = vec![
         primary,
-        ProvisionedColumn {
-            id: ColumnId::new(),
-            nullable: true,
-            protections: vec![],
-            name: "Stage".into(),
-            data_type: DataType::SelectString,
-            entity_type: None,
-            options: labels
-                .into_iter()
-                .map(|label| {
-                    (
-                        macro_uuid::generate_uuid_v7(),
-                        PropertyOptionValue::String(label),
-                    )
-                })
-                .collect(),
-        },
+        select_column("Stage", labels),
         ProvisionedColumn {
             id: ColumnId::new(),
             nullable: true,
@@ -531,6 +566,46 @@ pub(crate) fn pipeline_blueprint(
             options: vec![],
         },
     ];
+    // The pill is derived from When. Outcome closes the deal. Plan is the
+    // next thing the owner means to do. Those names stay put: the header can
+    // say Date, and the stored name remains When. Company and contact
+    // pipelines keep the original four columns.
+    if input.record_type == PipelineRecordType::Deal {
+        columns.extend([
+            locked_name(ProvisionedColumn {
+                id: ColumnId::new(),
+                nullable: true,
+                protections: vec![],
+                name: "When".into(),
+                data_type: DataType::Date,
+                entity_type: None,
+                options: vec![],
+            }),
+            locked_name(select_column(
+                "Next activity",
+                ["Call", "Email", "Meeting"]
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect(),
+            )),
+            locked_name(ProvisionedColumn {
+                id: ColumnId::new(),
+                nullable: true,
+                protections: vec![],
+                name: "Plan".into(),
+                data_type: DataType::String,
+                entity_type: None,
+                options: vec![],
+            }),
+            locked_name(select_column(
+                "Outcome",
+                ["Won", "Lost", "Cancelled"]
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect(),
+            )),
+        ]);
+    }
     PipelineBlueprint {
         id,
         team_id,
@@ -938,6 +1013,7 @@ where
                     match pipeline.record_type {
                         PipelineRecordType::Company => EntityType::CrmCompany,
                         PipelineRecordType::Contact => EntityType::CrmContact,
+                        PipelineRecordType::Deal => EntityType::CrmDeal,
                     },
                 )
                 .await?;
@@ -948,10 +1024,91 @@ where
             .await
             .map_err(storage)?
             .ok_or(PipelineError::NotFound)?;
-        Ok(self
+        let deal_table = if pipeline.record_type == PipelineRecordType::Deal {
+            self.deal_table(&pipeline, &batch).await
+        } else {
+            None
+        };
+        let batch = match &deal_table {
+            Some((columns, rows)) => {
+                super::deal_changes::schedule_follow_up(pipeline.table_id, columns, rows, batch)
+            }
+            None => batch,
+        };
+        let changes = if self.changelog.is_some() || self.delivery.is_some() {
+            match &deal_table {
+                Some((columns, rows)) => {
+                    super::deal_changes::deal_field_changes(columns, rows, &batch)
+                }
+                None => Vec::new(),
+            }
+        } else {
+            Vec::new()
+        };
+        let won = won_deal_ids(&changes);
+        let applied = self
             .databases
-            .apply_storage_ops(pipeline.database_id, viewer, batch)
-            .await?)
+            .apply_storage_ops(pipeline.database_id, viewer.clone(), batch)
+            .await?;
+        if let Some(log) = &self.changelog {
+            if !changes.is_empty() {
+                log.record(viewer.user_id.clone(), changes).await;
+            }
+        }
+        if let Some(delivery) = &self.delivery {
+            if !won.is_empty() {
+                delivery.open(viewer.user_id, won).await;
+            }
+        }
+        Ok(applied)
+    }
+}
+
+impl<R, D, A, S> PipelineServiceImpl<R, D, A, S>
+where
+    D: DatabaseStorageService,
+{
+    /// Columns and the rows this batch updates. `None` when the schema cannot
+    /// be read, so the cell write still proceeds without the schedule rule.
+    async fn deal_table(
+        &self,
+        pipeline: &Pipeline,
+        batch: &OpBatch,
+    ) -> Option<(
+        Vec<databases::domain::models::ColumnDetail>,
+        Vec<databases::domain::storage::StorageRow>,
+    )> {
+        use super::deal_changes::updated_row_ids;
+        let tables = match self.databases.storage_tables(pipeline.database_id).await {
+            Ok(tables) => tables,
+            Err(error) => {
+                tracing::warn!(%error, "deal schedule skipped; the pipeline schema was not readable");
+                return None;
+            }
+        };
+        let Some(table) = tables
+            .into_iter()
+            .find(|table| table.table.id == pipeline.table_id)
+        else {
+            return None;
+        };
+        let row_ids = updated_row_ids(batch);
+        let rows = if row_ids.is_empty() {
+            Vec::new()
+        } else {
+            match self
+                .databases
+                .storage_row_cells(pipeline.database_id, pipeline.table_id, &row_ids)
+                .await
+            {
+                Ok(rows) => rows,
+                Err(error) => {
+                    tracing::warn!(%error, "deal schedule skipped; the current cells were not readable");
+                    return None;
+                }
+            }
+        };
+        Some((table.columns, rows))
     }
 }
 
@@ -994,6 +1151,7 @@ fn primary_references(
                     let expected = match pipeline.record_type {
                         PipelineRecordType::Company => models_databases::EntityKind::Company,
                         PipelineRecordType::Contact => models_databases::EntityKind::Contact,
+                        PipelineRecordType::Deal => models_databases::EntityKind::Deal,
                     };
                     if value.entity_type != expected {
                         return Err(PipelineError::Invalid(

@@ -12,7 +12,8 @@ type MentionId = string;
 const isCrmTarget = (targetType: string | undefined) =>
   targetType === undefined ||
   targetType === 'crm_company' ||
-  targetType === 'crm_contact';
+  targetType === 'crm_contact' ||
+  targetType === 'crm_deal';
 
 export async function trackMention(
   sourceId: string,

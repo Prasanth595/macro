@@ -2682,6 +2682,58 @@ export const storageServiceClient = {
       })
     ).map((result) => result.data);
   },
+  async createDeal(body: {
+    name: string;
+    description?: string;
+    companyIds?: string[];
+    contactIds?: string[];
+  }) {
+    return await dssFetch<{
+      id: string;
+      name: string;
+      description: string;
+      companyIds: string[];
+      contactIds: string[];
+    }>('/crm/deals', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+  async searchDeals({ query, limit = 20 }: { query: string; limit?: number }) {
+    const params = new URLSearchParams({
+      query,
+      limit: String(limit),
+    });
+    return await dssFetch<{ deals: { id: string; name: string }[] }>(
+      `/crm/deals?${params}`,
+      { method: 'GET' }
+    );
+  },
+  async getDeal({ dealId }: { dealId: string }) {
+    return await dssFetch<{
+      id: string;
+      name: string;
+      description: string;
+      companyIds: string[];
+      contactIds: string[];
+      deliveryInitiativeId: string | null;
+    }>(`/crm/deals/${dealId}`, { method: 'GET' });
+  },
+  async listCompanyDeals({ companyId }: { companyId: string }) {
+    return await dssFetch<
+      {
+        id: string;
+        name: string;
+        pipelineId: string | null;
+        pipelineName: string | null;
+        stage: string | null;
+        outcome: string | null;
+        whenOn: string | null;
+        revenue: string | null;
+        deliveryInitiativeId: string | null;
+      }[]
+    >(`/crm/companies/${companyId}/deals`, { method: 'GET' });
+  },
   async createCompany(body: CreateCrmCompanyRequest) {
     return await dssFetch<CrmCompanyResponse>('/crm/companies', {
       method: 'POST',

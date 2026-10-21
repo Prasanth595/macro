@@ -78,7 +78,12 @@ async function handleCrmMention(
 ): Promise<void> {
   const { editor, blockId } = dependencies;
   const entity = item.data;
-  if (entity.type !== 'crm_contact' && entity.type !== 'crm_company') return;
+  if (
+    entity.type !== 'crm_contact' &&
+    entity.type !== 'crm_company' &&
+    entity.type !== 'crm_deal'
+  )
+    return;
   const mentionUuid =
     blockId && tracksMentions(dependencies)
       ? await trackMention(blockId, entity.type, entity.id)
@@ -88,8 +93,15 @@ async function handleCrmMention(
     documentName:
       entity.type === 'crm_contact'
         ? entity.name || entity.email
-        : entityDisplayName(item),
-    blockName: entity.type === 'crm_contact' ? 'contact' : 'company',
+        : entity.type === 'crm_deal'
+          ? entity.name || 'Deal'
+          : entityDisplayName(item),
+    blockName:
+      entity.type === 'crm_contact'
+        ? 'contact'
+        : entity.type === 'crm_deal'
+          ? 'deal'
+          : 'company',
     ...(mentionUuid ? { mentionUuid } : {}),
   });
 }
@@ -108,7 +120,11 @@ async function handleEntityMention(
     return await handleAgentSessionMention(entity, dependencies);
   }
 
-  if (entity.type === 'crm_contact' || entity.type === 'crm_company') {
+  if (
+    entity.type === 'crm_contact' ||
+    entity.type === 'crm_company' ||
+    entity.type === 'crm_deal'
+  ) {
     return await handleCrmMention(item, dependencies);
   }
 

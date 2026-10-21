@@ -40,7 +40,7 @@ export const crmPipelineParams = z.object({ pipelineId: z.string().min(1) });
 
 /** A company or contact opened inside Customers; no section is its Overview. */
 export const crmRecordParams = z.object({
-  recordType: z.enum(['company', 'contact']),
+  recordType: z.enum(['company', 'contact', 'deal']),
   recordId: z.string().min(1),
   section: z
     .enum([...new Set([...COMPANY_SECTIONS, ...CONTACT_SECTIONS])])
@@ -53,9 +53,10 @@ export type CrmRecordParams = z.infer<typeof crmRecordParams>;
 export const crmRecordTrailSchema = z
   .array(
     z.object({
-      type: z.enum(['company', 'contact']),
+      type: z.enum(['company', 'contact', 'deal']),
       id: z.string().min(1),
       name: z.string(),
+      pipelineId: z.string().min(1).optional(),
     })
   )
   .min(1);

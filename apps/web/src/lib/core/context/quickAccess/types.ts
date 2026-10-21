@@ -6,6 +6,7 @@ import type {
   ChatEntity,
   CrmCompanyEntity,
   CrmContactEntity,
+  CrmDealEntity,
   DatabaseEntity,
   DocumentEntity,
   EmailEntity,
@@ -38,6 +39,8 @@ export type Bucket =
   | 'crm_company'
   // CRM contacts, kept apart from 'person' (Macro users and email contacts).
   | 'crm_contact'
+  // Deals are found by a name search, not by the Soup feed.
+  | 'crm_deal'
   | 'agent_session'
   | 'initiative'
   | 'database'
@@ -151,6 +154,7 @@ export type BucketItemMap = {
   email: EntityItem<EmailEntity>;
   crm_company: EntityItem<CrmCompanyEntity>;
   crm_contact: EntityItem<CrmContactEntity>;
+  crm_deal: EntityItem<CrmDealEntity>;
   agent_session: EntityItem<AgentSessionEntity>;
   database: EntityItem<DatabaseEntity>;
   form: EntityItem<FormEntity>;

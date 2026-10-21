@@ -94,6 +94,10 @@ function getEntitySplitContent(data: EntityDragEvent['draggable']['data']):
         type: 'contact',
         id: entity.id,
       }))
+      .with({ type: 'crm_deal' }, (entity) => ({
+        type: 'deal',
+        id: entity.id,
+      }))
       .with(
         {
           type: P.union(

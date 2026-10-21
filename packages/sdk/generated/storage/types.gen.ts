@@ -3361,7 +3361,7 @@ export type ColumnKind = {
 /**
  * A schema operation reserved by a feature using a column.
  */
-export type ColumnProtection = 'delete' | 'change_type';
+export type ColumnProtection = 'delete' | 'change_type' | 'rename';
 
 /**
  * What happened to a column.

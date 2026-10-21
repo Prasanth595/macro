@@ -40,6 +40,7 @@ describe('extractChannelMentionsFromMarkdown', () => {
       ['routine', 'automation'],
       ['company', 'crm_company'],
       ['contact', 'crm_contact'],
+      ['deal', 'crm_deal'],
     ];
     for (const [blockName, entityType] of cases) {
       expect(

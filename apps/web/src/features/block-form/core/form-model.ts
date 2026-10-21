@@ -54,6 +54,7 @@ export type FormEntityKind =
   | 'TASK'
   | 'COMPANY'
   | 'CONTACT'
+  | 'DEAL'
   | 'CALL_RECORD'
   | 'CHANNEL'
   | 'CHAT'

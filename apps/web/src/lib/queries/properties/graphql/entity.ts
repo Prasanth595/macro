@@ -67,8 +67,8 @@ export function buildEntityPropertiesInput(
     .with('CALENDAR_EVENT', () => 'CALENDAR_EVENT')
     .with('INITIATIVE', () => 'INITIATIVE')
     .with('DATABASE_ROW', () => 'DATABASE_ROW')
-    // Users and CRM contacts carry no Soup properties.
-    .with('USER', 'CONTACT', () => undefined)
+    // Users, contacts, and deals carry no Soup properties.
+    .with('USER', 'CONTACT', 'DEAL', () => undefined)
     .exhaustive(() => undefined);
   return soupEntityType && { entityType: soupEntityType, entityId };
 }
@@ -228,6 +228,9 @@ export function toGraphqlPropertyTargetEntityType(
   }
   if (entityType === 'CONTACT') {
     throw new Error('crm contacts do not support properties');
+  }
+  if (entityType === 'DEAL') {
+    throw new Error('crm deals do not support properties');
   }
   return entityType;
 }

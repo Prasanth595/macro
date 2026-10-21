@@ -397,6 +397,7 @@ pub async fn update_entity_access_channel_share_permissions(
             | EntityType::StaticFile
             | EntityType::CrmCompany
             | EntityType::CrmContact
+            | EntityType::CrmDeal
             | EntityType::Skill
             | EntityType::ForeignEntity
             // Reminders and scheduled actions are never channel-shared: they
@@ -475,6 +476,7 @@ pub async fn update_entity_access_channel_share_permissions(
             | EntityType::StaticFile
             | EntityType::CrmCompany
             | EntityType::CrmContact
+            | EntityType::CrmDeal
             | EntityType::Skill
             | EntityType::ForeignEntity
             // Reminders and scheduled actions are never channel-shared: they

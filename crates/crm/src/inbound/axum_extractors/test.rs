@@ -424,6 +424,49 @@ impl CrmService for FakeCrmService {
     ) -> Result<crate::domain::model::CrmTeamSettings, CrmError> {
         panic!("unexpected update_team_settings call")
     }
+
+    async fn create_deal(
+        &self,
+        _access: &CrmTeamReceipt<MemberTeamRole>,
+        _name: &str,
+        _description: &str,
+        _company_ids: &[uuid::Uuid],
+        _contact_ids: &[uuid::Uuid],
+    ) -> Result<crate::domain::deals::Deal, CrmError> {
+        panic!("unexpected create_deal call")
+    }
+
+    async fn get_deal(
+        &self,
+        _access: &CrmTeamReceipt<MemberTeamRole>,
+        _deal_id: &uuid::Uuid,
+    ) -> Result<Option<crate::domain::deals::Deal>, CrmError> {
+        panic!("unexpected get_deal call")
+    }
+
+    async fn list_deals(
+        &self,
+        _access: &CrmTeamReceipt<MemberTeamRole>,
+        _ids: &[uuid::Uuid],
+    ) -> Result<Vec<crate::domain::deals::Deal>, CrmError> {
+        panic!("unexpected list_deals call")
+    }
+
+    async fn search_deals(
+        &self,
+        _access: &CrmTeamReceipt<MemberTeamRole>,
+        _query: &str,
+        _limit: u16,
+    ) -> Result<Vec<crate::domain::deals::DealMatch>, CrmError> {
+        panic!("unexpected search_deals call")
+    }
+
+    async fn list_company_deals(
+        &self,
+        _access: &CrmCompanyReceipt<ViewAccessLevel>,
+    ) -> Result<Vec<crate::domain::deals::CompanyDeal>, CrmError> {
+        panic!("unexpected list_company_deals call")
+    }
 }
 
 async fn company_handler(

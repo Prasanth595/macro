@@ -41,6 +41,7 @@ function extractRawTitle(entity: EntityData): JSX.Element {
       { type: 'crm_contact' },
       (e) => e.name || e.email || 'Unknown Contact'
     )
+    .with({ type: 'crm_deal' }, (e) => e.name || 'Deal')
     .with({ type: 'calendar_event' }, (e) => e.name || '(No title)')
     .with(
       { type: 'database' },

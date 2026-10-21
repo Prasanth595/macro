@@ -54,6 +54,8 @@ export function EntityDiscussion(props: {
   /** Where copied message links open: the entity's block and id. */
   link: { type: string; id: string };
   label?: string;
+  /** Deal activity keeps comments apart from stage, close, and owner lines. */
+  timeline?: 'deal';
   /** Override the URL target; null leaves this discussion untargeted. */
   targetId?: string | null;
   /**
@@ -113,6 +115,7 @@ export function EntityDiscussion(props: {
           targetCleared={targetCleared()}
           onClearTarget={() => setClearedKey(scrollRequest()?.key)}
           label={props.label}
+          timeline={props.timeline}
           buildLink={(message) =>
             buildSimpleEntityUrl(props.link, {
               [COMMENT_LINK_PARAM]: message.id,

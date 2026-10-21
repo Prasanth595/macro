@@ -19,6 +19,8 @@ pub enum GraphqlCrmPipelineRecordType {
     Company,
     /// Contacts.
     Contact,
+    /// Deals.
+    Deal,
 }
 
 impl From<PipelineRecordType> for GraphqlCrmPipelineRecordType {
@@ -26,6 +28,7 @@ impl From<PipelineRecordType> for GraphqlCrmPipelineRecordType {
         match record_type {
             PipelineRecordType::Company => Self::Company,
             PipelineRecordType::Contact => Self::Contact,
+            PipelineRecordType::Deal => Self::Deal,
         }
     }
 }

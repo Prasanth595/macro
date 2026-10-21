@@ -23,9 +23,10 @@ export function sameRecordScope(
 
 /** A CRM record shown inside the workspace, with its fallback label. */
 export type CrmRecordRef = {
-  type: 'company' | 'contact';
+  type: 'company' | 'contact' | 'deal';
   id: string;
   name: string;
+  pipelineId?: string;
 };
 
 /** Tabs of a CRM record, in display order per record type. */
