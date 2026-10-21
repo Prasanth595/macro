@@ -109,8 +109,9 @@ const opensearchDomain = new aws.opensearch.Domain(
     engineVersion: 'OpenSearch_3.5', // specify the desired OpenSearch version
     clusterConfig: {
       instanceType: stack === 'prod' ? 'r7g.large.search' : 'r7g.medium.search', // TODO: we may need to bump the instance type for prod.
-      // the instance count needs to be multiples of 3 for multiAzWithStandbyEnabled and 2 for !multiAzWithStandbyEnabled
-      instanceCount: stack === 'prod' ? 3 : 2, // TODO: we may want more than 3 instances for prod
+      // multiAzWithStandbyEnabled needs a multiple of 3; dev indices have no
+      // replicas, so one node stays green
+      instanceCount: stack === 'prod' ? 3 : 1, // TODO: we may want more than 3 instances for prod
       multiAzWithStandbyEnabled: stack === 'prod', // Only enable multi-az for prod
       // Enbale master nodes for prod
       dedicatedMasterCount: stack === 'prod' ? 3 : undefined,
