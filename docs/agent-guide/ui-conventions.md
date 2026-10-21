@@ -16,17 +16,20 @@ Reviews. Native project detail navigation also clears the safe area, with its
 content directly below it. Content nested below an in-flow header must not add
 the same inset again. See the [mobile layout rule](../../.agents/rules/web/mobile.md#layout-and-chrome).
 
-Use one desktop header row: title or breadcrumbs on the left; semantic control
-islands on the right. Collection headers use `ListHeader`: filters, view options,
-New, then expandable Search. Related detail actions share a `HeaderActionGroup`;
-keep sharing, item navigation, and detail/view toggles in separate groups. Use
-`HeaderViewTabs` for channel, CRM record, and project sections. Groups use the
+Use one desktop header row: title or breadcrumbs, then view tabs, on the left;
+semantic control islands on the right. Collection headers use `ListHeader`:
+filters, view options, New, then expandable Search. Related detail actions share
+a `HeaderActionGroup`; keep sharing, item navigation, and detail/view toggles in
+separate groups. View tabs (channel, CRM record, and project sections, Signal and
+Noise) are `Tabs`: separate 32px pills, never inside a group. Groups use the
 canonical elevated surface, fully rounded ends, 32px controls, and 8px gaps.
-View tabs keep a 32px selected pill inside a slightly larger rounded track.
 A group owns its frame; its child buttons stay flat and do not get extra borders
 or shadows. Nested shared actions reuse the containing group rather than adding
-another frame. Keep tooltips on icon-only controls and collapse labels as a pane
-narrows. Preserve specialized editor toolbars and touch layouts.
+another frame, and a group with no visible actions renders nothing. Keep
+tooltips on icon-only controls and collapse labels as a pane narrows (`Tabs
+iconOnly`, then a menu). Preserve specialized editor toolbars and touch
+layouts. The [design system rule](../../.agents/rules/web/design-system.md)
+lists which control to use for each role.
 
 On touch devices, low-emphasis header actions remain borderless with their
 existing hover and pressed states. Emphasized variants retain their treatment,
@@ -37,7 +40,7 @@ calendar-invitation text actions remove the transparent border to keep alignment
 ## Canonical desktop surfaces
 
 Use `not-touch:elevated` for desktop control surfaces. Buttons, button groups,
-inputs, and selected tabs share the same `shadow-elevated` treatment as
+inputs, and unselected tab pills share the same `shadow-elevated` treatment as
 composers, menus, settings cards, and dialogs: a fine outer outline, faint inner
 edge, brighter top edge, and compact shadow. Keep semantic fills and component
 geometry; a button group owns the frame so its child buttons remain flat.
@@ -52,8 +55,10 @@ In light mode, floating surfaces use the frame edge and a tighter, low-opacity
 contact shadow so white composers and menus separate cleanly from near-white
 content. Touch surfaces retain their existing shadows.
 
-Segmented tabs use the control fill and shared elevation for the selected pill,
-inside a transparent outlined track, without a separate active tint.
+Tabs are separate pills, like Linear's view tabs: unselected pills use the
+outline Button frame, and the selected pill takes the pressed fill, flat, the
+same state as a pressed (`aria-pressed`) Button. There is no track and no
+separate active tint. Touch keeps each surface's existing tab treatment.
 
 Reuse `Button`, `Input`, `InputGroup`, `Tabs`, `ComposerSurface`, `menu-surface`, and
 `elevated-surface` instead of introducing one-off surface styling. Settings
