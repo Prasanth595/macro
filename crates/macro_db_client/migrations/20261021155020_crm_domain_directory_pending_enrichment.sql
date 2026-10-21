@@ -19,7 +19,3 @@ WHERE enriched_at IS NULL
 UPDATE crm_domain_directory
 SET enriched_at = NULL
 WHERE name IS NULL AND description IS NULL AND icon_url IS NULL;
-
-CREATE INDEX crm_domain_directory_pending_idx
-    ON crm_domain_directory (enrichment_attempted_at NULLS FIRST, created_at)
-    WHERE enriched_at IS NULL;
