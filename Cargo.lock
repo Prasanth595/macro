@@ -4499,6 +4499,7 @@ dependencies = [
  "uuid",
  "webbrowser",
  "webhook",
+ "windows-sys 0.61.2",
  "workspace-hack",
 ]
 
