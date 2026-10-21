@@ -134,7 +134,7 @@ export function LauncherDetails(props: {
         </div>
         <div
           class={cn(
-            'relative isolate min-w-0 flex-1 overflow-hidden',
+            'relative isolate min-w-0 flex-1 overflow-hidden light-mode:text-ink',
             ENTITY_ICON_CONFIGS[selected()?.blockName ?? 'default'].foreground,
             props.detailsLeft
               ? 'border-r border-edge-divider'
@@ -159,7 +159,7 @@ export function LauncherDetails(props: {
                   aria-label={`${item().label} details`}
                   class="flex min-h-full flex-col items-center justify-center px-5 py-6 text-center sm:px-7"
                 >
-                  <div class="mb-6 flex size-18 shrink-0 items-center justify-center rounded-[22px] glass bg-dialog bg-linear-145 from-ink/[0.06] to-transparent light-mode:from-transparent light-mode:to-ink/[0.04] light-mode:[--glass-rim-shade-base:14%] light-mode:[--glass-shadow-y:4px] light-mode:[--glass-shadow-blur:12px] light-mode:[--glass-shadow-spread:-3px] light-mode:[--glass-shadow-scale:0.35]">
+                  <div class="mb-6 flex size-18 shrink-0 items-center justify-center rounded-[22px] dark-mode:glass bg-dialog bg-linear-145 from-ink/[0.06] to-transparent light-mode:bg-composer light-mode:bg-none light-mode:composer-shadow">
                     <div class="size-8 [&_svg]:size-full">
                       <Dynamic component={item().icon} />
                     </div>
