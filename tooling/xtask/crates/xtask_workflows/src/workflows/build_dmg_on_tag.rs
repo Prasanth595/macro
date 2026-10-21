@@ -1,5 +1,5 @@
 //! `Build macOS DMG` — reusable workflow that builds the Tauri desktop DMG via
-//! Nix. Called from [`super::build_desktop_on_tag`].
+//! Nix. The release orchestrator also uses its build job directly.
 
 use gh_workflow::{Event, Expression, Job, Run, Step, Workflow, WorkflowCall, WorkflowCallInput};
 
@@ -27,6 +27,33 @@ pub fn build_dmg() -> Workflow {
                 .secrets(build_appimage_on_tag::desktop_build_secrets()),
         ))
         .add_job("build-dmg", build_dmg_job("${{ inputs.ref }}"))
+}
+
+/// Declare every secret referenced by the reusable job in stable YAML order.
+pub fn patch(root: &mut serde_yaml::Value) -> anyhow::Result<()> {
+    let call = root
+        .get_mut("on")
+        .and_then(|on| on.get_mut("workflow_call"))
+        .and_then(serde_yaml::Value::as_mapping_mut)
+        .ok_or_else(|| anyhow::anyhow!("rendered DMG workflow has no workflow_call"))?;
+    call.insert(
+        "secrets".into(),
+        crate::workflows::yaml_fragment(indoc::indoc! {r#"
+            POSTHOG_API_KEY:
+              description: PostHog project API key inlined into the desktop bundle
+              required: true
+            MACOS_DEVELOPER_ID_CERTIFICATE_BASE64:
+              description: Developer ID certificate for signing the macOS app
+              required: true
+            MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD:
+              description: Password for the Developer ID certificate
+              required: true
+            MACOS_RELEASE_DOPPLER_TOKEN:
+              description: Doppler token for notarizing the macOS DMG
+              required: true
+        "#})?,
+    );
+    Ok(())
 }
 
 /// Build the macOS DMG job, checking out and naming artifacts from `ref_expr`.

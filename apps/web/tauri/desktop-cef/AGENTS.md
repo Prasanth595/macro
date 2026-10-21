@@ -1,8 +1,7 @@
 # desktop-cef
 
-Status: shipped macOS desktop app. Web pull request checks build it on every
-pull request to main, and the desktop release workflow packages it as the signed
-DMG.
+Status: shipped macOS desktop app. The desktop release workflow builds it,
+packages it as a signed DMG, and publishes the release.
 
 ## What it is
 
@@ -21,9 +20,8 @@ thin binary over `../src-tauri` (`app_lib::run_with`) that selects
 
 - `RUSTUP_TOOLCHAIN=1.95.0 cargo check --target aarch64-apple-darwin`
 - From the repository root on macOS, `nix build --option sandbox false
-  .#tauri-desktop-cef-app` builds the same unsigned app that the pull request
-  check verifies. Release builds use `.#tauri-desktop-dmg` and sign, notarize,
-  and publish that app.
+  .#tauri-desktop-cef-app` builds the unsigned app. Release builds use
+  `.#tauri-desktop-dmg` and sign, notarize, and publish that app.
 - Bundle: build the frontend inside `nix develop` (`just build-tauri` in
   `apps/web`), then from here run the Tauri CLI built from the `macro-cef`
   branch of `macro-inc/tauri`:
