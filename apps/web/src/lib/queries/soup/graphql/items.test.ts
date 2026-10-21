@@ -46,6 +46,7 @@ vi.mock('../../../graphql-cache/exchange/normalized-cache-exchange', () => ({
 vi.mock('@service-storage/graphql-soup', () => ({
   getGraphqlSoupClient: getGraphqlSoupClientMock,
   getGraphqlSoupCacheHost: getGraphqlSoupCacheHostMock,
+  hasGraphqlCacheHost: () => getGraphqlSoupCacheHostMock() !== undefined,
   graphqlSoupProjectionSupported: () => true,
   mapGraphqlSoupItem: mapGraphqlSoupItemMock,
 }));

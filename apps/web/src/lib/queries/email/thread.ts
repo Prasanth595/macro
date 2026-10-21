@@ -34,7 +34,7 @@ import type { Accessor } from 'solid-js';
 import { queryClient } from '../client';
 import { optimisticUpdateSoupEntity, refetchSoupEntity } from '../soup/cache';
 import {
-  getActiveGraphqlSoupRevalidations,
+  getUnmaintainedGraphqlSoupRevalidations,
   refreshActiveGraphqlSoupQueries,
 } from '../soup/graphql/active-queries';
 import { invalidateAllSoup } from '../soup/normalized-cache';
@@ -364,9 +364,7 @@ export function useMarkThreadAsSeenMutation(
         const disposition = await markGraphqlEmailThreadSeen(
           getGraphqlSoupClient(),
           params.threadId,
-          getActiveGraphqlSoupRevalidations(undefined, {
-            unmaintainedOnly: true,
-          })
+          getUnmaintainedGraphqlSoupRevalidations()
         );
         if (disposition === 'committed' && !graphqlCacheEnabled())
           await refreshActiveGraphqlSoupQueries();
@@ -425,9 +423,7 @@ export function useMarkThreadAsUnreadMutation(
         const disposition = await markGraphqlEmailThreadUnread(
           getGraphqlSoupClient(),
           params.threadId,
-          getActiveGraphqlSoupRevalidations(undefined, {
-            unmaintainedOnly: true,
-          })
+          getUnmaintainedGraphqlSoupRevalidations()
         );
         if (disposition === 'committed' && !graphqlCacheEnabled())
           await refreshActiveGraphqlSoupQueries();
