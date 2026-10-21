@@ -62,6 +62,7 @@ type BoardContextValue = {
 
 type ColumnContextValue = {
   column: Accessor<KanbanBoardColumn>;
+  isVisible: Accessor<boolean>;
   headerId: string;
   snapshot?: KanbanScrollSnapshot;
   onSnapshot(snapshot: KanbanScrollSnapshot): void;
@@ -306,7 +307,7 @@ function Columns(props: {
   const columnsById = createMemo(
     () => new Map(board.columns().map((column) => [column.id, column]))
   );
-  const virtualizer = createKanbanVirtualizer({
+  const { virtualizer, viewport: viewportMetrics } = createKanbanVirtualizer({
     direction: 'horizontal',
     keys: () => {
       const keys: (string | number)[] = board
@@ -386,6 +387,14 @@ function Columns(props: {
                     const columnId = column().id;
                     const context: ColumnContextValue = {
                       column,
+                      isVisible: () => {
+                        const { offset, size: width } = viewportMetrics();
+                        return (
+                          width > 0 &&
+                          item().start + item().size > offset &&
+                          item().start < offset + width
+                        );
+                      },
                       headerId: createUniqueId(),
                       snapshot: scrollSnapshots.get(columnId),
                       onSnapshot: (snapshot) => {
@@ -471,6 +480,8 @@ function Cards(props: {
   footer?: JSX.Element;
   /** What the cards are, for each column's accessible name. */
   itemsLabel?: string;
+  /** Supply only while more items can be requested; excludes offscreen lanes. */
+  onNearEnd?: () => void;
 }) {
   const board = useBoardContext();
   const lane = useColumnContext();
@@ -478,7 +489,7 @@ function Cards(props: {
   if (!hovered) throw new Error('KanbanBoard.Column is required');
   let viewport: HTMLDivElement | undefined;
   const rows = () => lane.column().itemIds;
-  const virtualizer = createKanbanVirtualizer({
+  const { virtualizer, viewport: viewportMetrics } = createKanbanVirtualizer({
     direction: 'vertical',
     laneId: () => lane.column().id,
     keys: rows,
@@ -492,6 +503,28 @@ function Cards(props: {
   });
   const virtualItems = createMemo(() =>
     virtualizer.getVirtualItems().map((item) => ({ ...item }))
+  );
+
+  createEffect(
+    on(
+      () =>
+        [
+          props.onNearEnd,
+          lane.isVisible(),
+          viewportMetrics().size,
+          viewportMetrics().offset,
+          virtualizer.getTotalSize(),
+        ] as const,
+      ([request, visible, height, offset, total]) => {
+        if (
+          request &&
+          visible &&
+          height > 0 &&
+          total - offset - height <= Math.max(300, height)
+        )
+          request();
+      }
+    )
   );
 
   createEffect(() => {

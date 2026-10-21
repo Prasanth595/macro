@@ -8,13 +8,19 @@ import {
   usePendingGraphqlSoupDeleteIds,
   withoutPendingSoupEntities,
 } from '../../graphql/optimistic-deletions';
-import type { SoupApiItemFilter, SoupAstItemsGroupedPage } from '../../items';
+import type {
+  SoupApiItemFilter,
+  SoupAstBody,
+  SoupAstItemsGroupedPage,
+  SoupParams,
+} from '../../items';
 import {
   isDisplayableSoupItem,
   isInstructionsMdDoc,
   mapApiSoupItemToEntity,
 } from '../../transform-utils';
-import type { GroupMeta } from '../types';
+import type { GroupByField, GroupMeta } from '../types';
+import { createGraphqlDirectoryGroupQueries } from './create-graphql-directory-group-queries';
 
 export type GroupQueryData = { entities: EntityData[] };
 
@@ -25,6 +31,11 @@ type GraphqlGroupedInitialPage = {
 };
 
 type CreateGraphqlGroupedSoupQueriesArgs = {
+  lazyGroupPagination?: Accessor<boolean>;
+  networkPaused?: Accessor<boolean>;
+  groupByField: Accessor<GroupByField | undefined>;
+  soupParams: Accessor<SoupParams>;
+  soupBody: Accessor<SoupAstBody>;
   initialPage: Accessor<GraphqlGroupedInitialPage | undefined>;
   groupedPaging?: Accessor<GroupedSoupPaging | undefined>;
   enabled: Accessor<boolean>;
@@ -32,7 +43,7 @@ type CreateGraphqlGroupedSoupQueriesArgs = {
 };
 
 /** Group readers project the parent's combined pages; they never own a second cursor chain. */
-export function createGraphqlGroupedSoupQueries(
+function createGraphqlInitialGroupQueries(
   args: CreateGraphqlGroupedSoupQueriesArgs
 ) {
   const instructions = useInstructionsMdIdQuery();
@@ -86,5 +97,31 @@ export function createGraphqlGroupedSoupQueries(
     list,
     map: createMemo(() => new Map(list().map((query) => [query.key, query]))),
     resetToInitialPage: () => paging()?.resetToInitialPage(),
+  };
+}
+
+/** Initial pages and directories have different entity and cursor ownership. */
+export function createGraphqlGroupedSoupQueries(
+  args: CreateGraphqlGroupedSoupQueriesArgs
+) {
+  const lazy = () =>
+    args.lazyGroupPagination?.() === true &&
+    args.groupByField()?.type !== 'date';
+  const initial = createGraphqlInitialGroupQueries({
+    ...args,
+    initialPage: () => (lazy() ? undefined : args.initialPage()),
+  });
+  const directory = createGraphqlDirectoryGroupQueries({
+    ...args,
+    initialPage: () => (lazy() ? args.initialPage() : undefined),
+  });
+  const active = () => (lazy() ? directory : initial);
+  return {
+    list: () => active().list(),
+    map: () => active().map(),
+    resetToInitialPage: () => {
+      initial.resetToInitialPage();
+      directory.resetToInitialPage();
+    },
   };
 }

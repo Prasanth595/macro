@@ -1,6 +1,11 @@
 import { fireAndForget } from '@core/util/fireAndForget';
 import { type Accessor, createMemo, createSignal, onCleanup } from 'solid-js';
 import type { ListDataSource } from './list-data-source';
+import {
+  listNavigationPosition,
+  listNavigationResumeIndex,
+  listNavigationStartIndex,
+} from './list-navigation-position';
 
 export type ListDetailNavigationTarget = {
   canPrevious: Accessor<boolean>;
@@ -25,20 +30,25 @@ export type ListDetailNavigation<TEntity> = ListDetailNavigationTarget & {
   open: (entity: TEntity) => void;
 };
 
-type NavigationStep<TEntity> =
-  | { kind: 'entity'; entity: TEntity }
-  | { kind: 'continuation'; load: () => Promise<unknown> };
+type NavigationStep<TEntity, TItem> =
+  | { kind: 'entity'; entity: TEntity; item: TItem }
+  | { kind: 'continuation'; load: () => Promise<unknown>; previous: TItem[] };
 
 export function useListDetailNavigation<
   TItem,
   TEntity extends { id: string },
 >(options: {
   currentId: Accessor<string>;
+  currentKey?: Accessor<string | undefined>;
+  getKey?: (item: TItem) => string;
+  identity?: Accessor<string>;
+  ready?: Accessor<boolean>;
   source: Pick<
     ListDataSource<TItem>,
     'items' | 'hasMore' | 'loadMore' | 'error'
   >;
   getEntity: (item: TItem) => TEntity | undefined;
+  onResolved?: (item: TItem) => void;
   getContinuation?: (item: TItem) => (() => Promise<unknown>) | undefined;
   open: (entity: TEntity) => void;
   onError?: (error: unknown) => void;
@@ -57,60 +67,74 @@ export function useListDetailNavigation<
       .map(options.getEntity)
       .find((entity) => entity?.id === options.currentId());
 
-  // Where the open entity sat when it was opened. Next and previous step
-  // from there even after it moves (a reply draft lifts a thread to the top
-  // of Signal) or leaves the list (a reply marks it done, another device
-  // archives it).
-  const anchor = createMemo<
-    { id: string; next: string[]; previous: string[] } | undefined
-  >((previous) => {
+  const itemKey = (item: TItem) =>
+    options.getKey?.(item) ?? options.getEntity(item)?.id ?? item;
+  const anchor = createMemo<{
+    id: string;
+    key: string | TItem;
+    identity: string | undefined;
+    position: ReturnType<typeof listNavigationPosition<string | TItem>>;
+  }>((previous) => {
+    const ready = options.ready?.() !== false;
     const id = options.currentId();
-    if (previous?.id === id) return previous;
-    const ids = options.source.items().flatMap((item) => {
-      const entity = options.getEntity(item);
-      return entity ? [entity.id] : [];
-    });
-    const index = ids.indexOf(id);
-    if (index === -1) return undefined;
+    const identity = options.identity?.();
+    const items = options.source.items();
+    const focusedOccurrence = items.find(
+      (item) =>
+        itemKey(item) === options.currentKey?.() &&
+        options.getEntity(item)?.id === id
+    );
+    const firstOccurrence = items.find(
+      (item) => options.getEntity(item)?.id === id
+    );
+    const key =
+      focusedOccurrence !== undefined
+        ? itemKey(focusedOccurrence)
+        : previous?.id === id &&
+            previous.identity === identity &&
+            previous.position
+          ? previous.key
+          : firstOccurrence !== undefined
+            ? itemKey(firstOccurrence)
+            : id;
+    if (
+      previous?.id === id &&
+      previous.key === key &&
+      previous.identity === identity &&
+      previous.position
+    )
+      return previous;
     return {
       id,
-      next: ids.slice(index + 1),
-      previous: ids.slice(0, index).reverse(),
+      key,
+      identity,
+      position: ready
+        ? listNavigationPosition(items.map(itemKey), key)
+        : undefined,
     };
   });
 
-  const startIndex = (items: readonly TItem[], direction: -1 | 1) => {
-    const indexById = new Map<string, number>();
-    items.forEach((item, index) => {
-      const entity = options.getEntity(item);
-      if (entity) indexById.set(entity.id, index);
-    });
-    const id = options.currentId();
-    const position = anchor();
-    if (position?.id !== id) {
-      const current = indexById.get(id);
-      return current === undefined ? undefined : current + direction;
-    }
-    // The entity sat just after its nearest surviving earlier neighbour, so
-    // stepping forward starts there, through any load-more row in between.
-    for (const neighbour of position.previous) {
-      const index = indexById.get(neighbour);
-      if (index !== undefined) return direction === 1 ? index + 1 : index;
-    }
-    // Otherwise the nearest surviving later neighbour took its place.
-    for (const neighbour of position.next) {
-      const index = indexById.get(neighbour);
-      if (index !== undefined) return direction === 1 ? index : index - 1;
-    }
-    // No neighbour it was opened beside remains (it was the only row loaded):
-    // step from where it is now.
-    const current = indexById.get(id);
-    return current === undefined ? undefined : current + direction;
-  };
+  const currentKey = () => anchor().key;
 
-  const target = (direction: -1 | 1): NavigationStep<TEntity> | undefined => {
+  const target = (
+    direction: -1 | 1,
+    resumeAfter?: readonly TItem[]
+  ): NavigationStep<TEntity, TItem> | undefined => {
+    if (options.ready?.() === false) return;
     const items = options.source.items();
-    const start = startIndex(items, direction);
+    const start =
+      listNavigationStartIndex(
+        items.map(itemKey),
+        currentKey(),
+        direction,
+        anchor().position
+      ) ??
+      (resumeAfter
+        ? listNavigationResumeIndex(
+            items.map(itemKey),
+            resumeAfter.map(itemKey)
+          )
+        : undefined);
     if (start === undefined) return;
 
     for (
@@ -122,31 +146,42 @@ export function useListDetailNavigation<
       if (!item) continue;
 
       const entity = options.getEntity(item);
-      // The open entity itself may have moved into the path.
-      if (entity?.id === options.currentId()) continue;
-      if (entity) return { kind: 'entity', entity };
+      // Skip only this occurrence; another group may contain the same entity.
+      if (itemKey(item) === currentKey()) continue;
+      if (entity) return { kind: 'entity', entity, item };
 
       const load =
         direction === 1 ? options.getContinuation?.(item) : undefined;
-      if (load) return { kind: 'continuation', load };
+      if (load)
+        return {
+          kind: 'continuation',
+          load,
+          previous: items.slice(0, index).reverse(),
+        };
     }
 
     if (direction === 1 && options.source.hasMore()) {
-      return { kind: 'continuation', load: options.source.loadMore };
+      return {
+        kind: 'continuation',
+        load: options.source.loadMore,
+        previous: [...items].reverse(),
+      };
     }
   };
 
   const resolve = async (
     direction: -1 | 1,
-    currentId: string
-  ): Promise<TEntity | undefined> => {
-    while (isCurrent(currentId)) {
-      const step = target(direction);
+    requestIsCurrent: () => boolean
+  ): Promise<{ entity: TEntity; item: TItem } | undefined> => {
+    let resumeAfter: TItem[] | undefined;
+    while (requestIsCurrent()) {
+      const step = target(direction, resumeAfter);
       if (!step) return;
-      if (step.kind === 'entity') return step.entity;
+      if (step.kind === 'entity') return step;
 
+      resumeAfter = step.previous;
       await step.load();
-      if (!isCurrent(currentId)) return;
+      if (!requestIsCurrent()) return;
 
       const error = options.source.error();
       if (error) throw error;
@@ -165,21 +200,35 @@ export function useListDetailNavigation<
     setNavigating(true);
     const currentId = options.currentId();
     const current = currentEntity();
+    const identity = options.identity?.();
+    const currentKey = options.currentKey?.();
+    const requestIsCurrent = () =>
+      isCurrent(currentId) &&
+      options.ready?.() !== false &&
+      identity === options.identity?.() &&
+      currentKey === options.currentKey?.();
 
     try {
-      let next = await resolve(direction, currentId);
+      let next = await resolve(direction, requestIsCurrent);
       if (
         !next &&
         navigationOptions.fallbackDirection !== undefined &&
-        isCurrent(currentId)
+        requestIsCurrent()
       ) {
-        next = await resolve(navigationOptions.fallbackDirection, currentId);
+        next = await resolve(
+          navigationOptions.fallbackDirection,
+          requestIsCurrent
+        );
       }
-      if (!isCurrent(currentId)) return;
-      if (navigationOptions.beforeOpen?.(next, current) === false) return;
-      if (next) open(next);
+      if (!requestIsCurrent()) return;
+      if (navigationOptions.beforeOpen?.(next?.entity, current) === false)
+        return;
+      if (next) {
+        options.onResolved?.(next.item);
+        open(next.entity);
+      }
     } catch (error) {
-      if (isCurrent(currentId)) options.onError?.(error);
+      if (requestIsCurrent()) options.onError?.(error);
     } finally {
       setNavigating(false);
     }

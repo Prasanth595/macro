@@ -23,7 +23,7 @@ pub use folders::{
     FoldersQuery, FoldersQueryError, FoldersQueryReader, NoOpFoldersQueryReader, resolve_folders,
 };
 pub use graphql_common::{GraphqlRequestParts, GraphqlSoupEntityType};
-pub use inputs::{GraphqlSimpleSortMethod, GroupedSoupInput, SoupInput};
+pub use inputs::{GraphqlSimpleSortMethod, GroupedSoupDirectoryInput, GroupedSoupInput, SoupInput};
 pub use loaders::{
     AgentSessionEntityLoader, EntityAccessEmailThreadReader, PrimarySoupItemLoader,
     SoupEmailThreadReader, SoupItemDataLoader, SoupItemLoader, SoupItemLoaderError,
@@ -36,12 +36,13 @@ pub use objects::{
     GraphqlReminderScheduleType, GraphqlSoupAgentSession, GraphqlSoupBin, GraphqlSoupCall,
     GraphqlSoupChannel, GraphqlSoupChannelMessage, GraphqlSoupChannelMessagePreview,
     GraphqlSoupChat, GraphqlSoupCrmCompany, GraphqlSoupCrmContact, GraphqlSoupDatabaseRow,
-    GraphqlSoupDocument, GraphqlSoupDocumentSubType, GraphqlSoupEmailThread, GraphqlSoupEntity,
-    GraphqlSoupForeignEntity, GraphqlSoupInitiative, GraphqlSoupProject, GraphqlSoupReminder,
-    GraphqlSoupReminderReference, GroupedSoup, SoupCacheProjection, SoupEntityEdges, SoupPage,
-    SoupPatch, SoupUpdated,
+    GraphqlSoupDirectoryEntry, GraphqlSoupDocument, GraphqlSoupDocumentSubType,
+    GraphqlSoupEmailThread, GraphqlSoupEntity, GraphqlSoupForeignEntity, GraphqlSoupInitiative,
+    GraphqlSoupProject, GraphqlSoupReminder, GraphqlSoupReminderReference, GroupedSoup,
+    SoupCacheProjection, SoupEntityEdges, SoupPage, SoupPatch, SoupUpdated,
 };
 pub use resolvers::{
-    SoupEmailThreadMutationOutput, resolve_grouped_soup, resolve_soup, resolve_soup_agent_session,
-    resolve_soup_email_thread, resolve_soup_entity, resolve_soup_updates,
+    SoupEmailThreadMutationOutput, resolve_grouped_soup, resolve_grouped_soup_directory,
+    resolve_soup, resolve_soup_agent_session, resolve_soup_email_thread, resolve_soup_entity,
+    resolve_soup_updates,
 };

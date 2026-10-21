@@ -884,6 +884,15 @@ where
         .await
     }
 
+    /// Discover accessible groups without loading their entity pages.
+    async fn group_soup_directory(
+        &self,
+        ctx: &Context<'_>,
+        input: graphql_soup::GroupedSoupDirectoryInput,
+    ) -> async_graphql::Result<Vec<graphql_soup::GraphqlSoupDirectoryEntry>> {
+        graphql_soup::resolve_grouped_soup_directory::<S, Auth, St>(&self.service, ctx, input).await
+    }
+
     /// Fetch one accessible Soup entity, read from the primary so an entity
     /// opened right after it is created or edited reflects that write.
     async fn soup_entity(

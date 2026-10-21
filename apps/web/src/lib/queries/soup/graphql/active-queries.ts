@@ -1,3 +1,4 @@
+import { fireAndForget } from '@core/util/fireAndForget';
 import type { QueryRevalidation } from '@graphql-cache/exchange/optimistic';
 import { type Client, createRequest } from '@urql/core';
 
@@ -27,10 +28,14 @@ let refreshGeneration = 0;
 
 async function runReaderRefresh(
   query: ActiveGraphqlSoupQuery,
-  generation: number
+  generation: number,
+  completion: PromiseWithResolvers<void>
 ): Promise<void> {
   try {
     await query.refresh();
+    completion.resolve();
+  } catch (error) {
+    completion.reject(error);
   } finally {
     if (readerRefreshes.get(query)?.generation === generation)
       readerRefreshes.delete(query);
@@ -41,14 +46,20 @@ async function runReaderRefresh(
  * shares a single follow-up that starts after it, so each caller still gets a
  * fetch issued after its write instead of a burst of chain refetches. */
 async function refreshReader(query: ActiveGraphqlSoupQuery): Promise<void> {
+  if (!activeQueries.has(query) || !query.isEnabled()) return;
   const current = readerRefreshes.get(query);
   if (current) {
     current.followUp ??= refreshAfter(current.inFlight, query);
     return current.followUp;
   }
   const generation = ++refreshGeneration;
-  const inFlight = runReaderRefresh(query, generation);
+  const completion = Promise.withResolvers<void>();
+  const inFlight = completion.promise;
   readerRefreshes.set(query, { generation, inFlight });
+  fireAndForget(
+    runReaderRefresh(query, generation, completion),
+    'soup-active-queries'
+  );
   return inFlight;
 }
 

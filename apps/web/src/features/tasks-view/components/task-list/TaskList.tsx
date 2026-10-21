@@ -5,6 +5,7 @@ import {
   toEntityActionListState,
   useEntityActionHotkeys,
 } from '@app/features/next-soup/actions';
+import { createGroupPaginationViewport } from '@app/features/next-soup/primitives/group-pagination-viewport';
 import { openEntityInSplitFromUnifiedList } from '@app/features/next-soup/utils';
 import {
   MaybeSoupEntityActionDrawerManager,
@@ -53,6 +54,7 @@ import {
   DEFAULT_TASKS_LIST_STATE,
   type TasksListStateSnapshot,
 } from '../../persistence';
+import { createTaskBoundaryNavigation } from '../../primitives/create-task-boundary-navigation';
 import type { TasksDataSourceItem } from '../../queries/use-tasks-query';
 import {
   type TasksListActivationMetadata,
@@ -111,13 +113,17 @@ export function TaskList(props: TaskListProps) {
   );
   const isGroupExpanded = (groupId: string) =>
     !state.collapsedGroupIds.includes(groupId);
-  const setGroupExpanded = (groupId: string, expanded: boolean) =>
+  const setGroupExpanded = (groupId: string, expanded: boolean) => {
+    source.orderedGroups?.retain();
     setState(
       'collapsedGroupIds',
       expanded ? removeValue(groupId) : addUnique(groupId)
     );
-  const toggleGroup = (groupId: string) =>
+  };
+  const toggleGroup = (groupId: string) => {
+    source.orderedGroups?.retain();
     setState('collapsedGroupIds', toggleValue(groupId));
+  };
 
   function openEntity(
     entity: EntityData,
@@ -147,6 +153,7 @@ export function TaskList(props: TaskListProps) {
     }
 
     if (item.kind === 'load-more' && item.groupId !== undefined) {
+      if (source.paginationReady?.() === false) return;
       const focusIndex = list.items.indexOf(item.id);
       fireAndForget(
         source.loadMoreGroup(item.groupId).then(() => {
@@ -289,14 +296,42 @@ export function TaskList(props: TaskListProps) {
     },
   });
 
+  const beforeMove = createTaskBoundaryNavigation({
+    enabled: () => source.orderedGroups?.enabled() ?? false,
+    ready: () => source.paginationReady?.() ?? true,
+    identity: () => source.orderedGroups?.identity(),
+    rows: visibleRows,
+    focus: list.focus.result,
+    focusKey: list.focus.key,
+    expanded: isGroupExpanded,
+    error: (key) => source.orderedGroups?.error(key),
+    load: source.loadMoreGroup,
+    move: (direction, extendSelection) => {
+      if (extendSelection) listInteractions.selection.extend(direction);
+      else listInteractions.navigation.move(direction);
+    },
+  });
+
   const listInteractions = useListInteractions({
     controller: list,
     scopeId: panel.splitHotkeyScope,
     scrollHandle: virtualizer,
     enabled: panel.isPanelActive,
     navigation: {
+      move: {
+        isNavigable: (row) =>
+          row.kind !== 'section-header' &&
+          (!source.orderedGroups?.enabled() || row.kind !== 'load-more'),
+      },
+      onBeforeMove: ({ direction }) => beforeMove(direction),
+      onBeforeExtendSelection: ({ direction }) => beforeMove(direction, true),
       onNavigate: (event) => {
-        if (event.kind !== 'move' || event.direction !== 1) return;
+        if (
+          event.kind !== 'move' ||
+          event.direction !== 1 ||
+          source.paginationReady?.() === false
+        )
+          return;
         if (source.isLoadingMore() || !source.hasMore()) {
           return;
         }
@@ -388,7 +423,42 @@ export function TaskList(props: TaskListProps) {
     });
   });
 
+  const groupViewport = createGroupPaginationViewport({
+    enabled: () =>
+      (source.orderedGroups?.enabled() ?? false) &&
+      (source.paginationReady?.() ?? true),
+    identity: source.orderedGroups?.identity,
+    rows: visibleRows,
+    handle: virtualizer,
+    viewport,
+    key: (row) => row.id,
+    group: (row) => (row.kind === 'section-header' ? undefined : row.groupId),
+    header: (row) => row.kind === 'group-header',
+    boundary: (row) => (row.kind === 'load-more' ? row.groupId : undefined),
+    loading: (key) =>
+      visibleRows().some(
+        (row) =>
+          row.kind === 'load-more' && row.groupId === key && row.isLoading
+      ),
+    error: (key) => source.orderedGroups?.error(key) ?? null,
+    load: (key) => {
+      fireAndForget(loadGroup(key), 'tasks-view');
+    },
+  });
+  async function loadGroup(key: string, retry = false) {
+    if (source.paginationReady?.() === false) return;
+    try {
+      await source.orderedGroups?.load(key, retry);
+    } catch {
+      /* The boundary presents the error and retry action. */
+    }
+  }
   function checkNearEnd() {
+    if (source.orderedGroups?.enabled()) {
+      groupViewport.onScroll();
+      return;
+    }
+    if (source.paginationReady?.() === false) return;
     const handle = virtualizer();
     if (!handle) return;
 
@@ -614,51 +684,88 @@ export function TaskList(props: TaskListProps) {
                           };
 
                           return (
-                            <div id={loadMore().id} role="row">
-                              <div
-                                role="gridcell"
-                                aria-colspan={columnCount()}
-                                aria-busy={loadMore().isLoading}
-                                onMouseMove={() =>
-                                  list.focus.set(loadMore().id, {
-                                    reason: 'hover',
-                                  })
-                                }
-                                onClick={activate}
-                                class={cn(
-                                  'my-1 flex min-h-9 items-center justify-center rounded',
-                                  highlighted()
-                                    ? 'mx-1 w-[calc(100%-0.5rem)] bg-active/60'
-                                    : 'mx-auto'
-                                )}
-                              >
-                                <Show
-                                  when={!loadMore().isLoading}
-                                  fallback={
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      depth={2}
-                                      class={buttonClass()}
-                                      disabled
-                                    >
-                                      <SpinnerIcon class="size-3 animate-spin" />
-                                      Loading...
-                                    </Button>
-                                  }
-                                >
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    depth={2}
-                                    class={buttonClass()}
+                            <Show
+                              when={source.orderedGroups?.enabled()}
+                              fallback={
+                                <div id={loadMore().id} role="row">
+                                  <div
+                                    role="gridcell"
+                                    aria-colspan={columnCount()}
+                                    aria-busy={loadMore().isLoading}
+                                    onMouseMove={() =>
+                                      list.focus.set(loadMore().id, {
+                                        reason: 'hover',
+                                      })
+                                    }
+                                    onClick={activate}
+                                    class={cn(
+                                      'my-1 flex min-h-9 items-center justify-center rounded',
+                                      highlighted()
+                                        ? 'mx-1 w-[calc(100%-0.5rem)] bg-active/60'
+                                        : 'mx-auto'
+                                    )}
                                   >
-                                    <CaretDownIcon class="size-2.5" />
-                                    Load More
-                                  </Button>
-                                </Show>
+                                    <Show
+                                      when={!loadMore().isLoading}
+                                      fallback={
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          depth={2}
+                                          class={buttonClass()}
+                                          disabled
+                                        >
+                                          <SpinnerIcon class="size-3 animate-spin" />
+                                          Loading...
+                                        </Button>
+                                      }
+                                    >
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        depth={2}
+                                        class={buttonClass()}
+                                      >
+                                        <CaretDownIcon class="size-2.5" />
+                                        Load More
+                                      </Button>
+                                    </Show>
+                                  </div>
+                                </div>
+                              }
+                            >
+                              <div id={loadMore().id} role="row">
+                                <div
+                                  role="gridcell"
+                                  aria-colspan={columnCount()}
+                                  aria-busy={loadMore().isLoading}
+                                  class="flex min-h-9 items-center justify-center gap-2 text-sm text-ink-muted"
+                                >
+                                  <Show
+                                    when={source.orderedGroups?.error(
+                                      loadMore().groupId!
+                                    )}
+                                    fallback={
+                                      <span role="status">Loading…</span>
+                                    }
+                                  >
+                                    <span>Couldn’t load tasks.</span>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() =>
+                                        fireAndForget(
+                                          loadGroup(loadMore().groupId!, true),
+                                          'tasks-view'
+                                        )
+                                      }
+                                    >
+                                      Retry
+                                    </Button>
+                                  </Show>
+                                </div>
                               </div>
-                            </div>
+                            </Show>
                           );
                         }}
                       </Match>

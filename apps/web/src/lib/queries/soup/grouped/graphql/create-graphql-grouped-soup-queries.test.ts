@@ -1,3 +1,7 @@
+vi.mock('@core/context/user', () => ({
+  useUserId: () => () => 'macro|test@example.com',
+}));
+
 import {
   type Client,
   CombinedError,
@@ -196,6 +200,12 @@ function setup() {
 
     grouped = createGraphqlGroupedSoupQueries({
       groupedPaging: () => parent.groupedPaging,
+      groupByField: () => ({
+        type: 'property',
+        propertyDefinitionId: 'status-definition',
+      }),
+      soupParams: () => ({ limit: 2, sort_method: 'updated_at' }),
+      soupBody: () => ({}),
       initialPage,
       enabled: () => true,
       itemFilter: () => undefined,
@@ -225,7 +235,18 @@ describe('createGraphqlGroupedSoupQueries', () => {
     expect(
       getActiveGraphqlSoupRevalidations().map((query) => query.variables)
     ).toEqual(fake.executions.map((execution) => execution.variables));
+    const continuations = fake.executions
+      .slice(1)
+      .map((execution) => execution.variables.input);
+    expect(
+      continuations.every(
+        (input) => groupedSoupLogicalViewKey(input) !== undefined
+      )
+    ).toBe(true);
     grouped.resetToInitialPage();
+    expect(continuations.map(groupedSoupLogicalViewKey)).toEqual(
+      continuations.map(() => undefined)
+    );
     expect(
       getActiveGraphqlSoupRevalidations().map((query) => query.variables)
     ).toEqual([fake.executions[0].variables]);

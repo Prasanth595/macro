@@ -158,11 +158,12 @@ ownership. Cancel, logout, and the ten-minute timeout retire pending callbacks.
 - Preserve loaded block content on initial access confirmation when its loader
   supplies no permissions; reload only on a later confirmed permission change.
   Apply shared access in place only after a successful permissionless load.
-- Grouped Soup's `graphql/create-grouped-soup-live-query.ts` owns initial and
-  continuation pages plus their local predicate projection. Group readers only
-  delegate paging; pass the parent's live `groupedPaging` accessor from every
-  caller, including Tasks and project-task lists. Do not introduce independent
-  continuation owners. Keep server
+- For nonlazy and date-grouped Soup, `graphql/create-grouped-soup-live-query.ts`
+  owns initial and continuation pages plus their local predicate projection.
+  Group readers delegate paging; pass the parent's live `groupedPaging` accessor
+  from every caller, including Tasks and project-task lists. Lazy non-date views
+  use directory metadata and independently activate each group's page reader;
+  disable the parent page owner on that path. Keep server
   membership snapshots separate from normalized field/link updates; restored
   properties do not prove prior membership. Supply complete prior multi-value
   memberships when adjusting counts: a row loaded in one bin may already be an

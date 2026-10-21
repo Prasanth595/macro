@@ -102,6 +102,7 @@ import {
   useContext,
 } from 'solid-js';
 import { unwrap } from 'solid-js/store';
+import { createOrderedGroupPagination } from '../primitives/ordered-group-pagination';
 import { applyDocumentTabScope } from './document-tab-scope';
 import { resolveInitialViewFilters } from './initial-view-filters';
 
@@ -199,6 +200,10 @@ export interface SoupViewContextValues {
   fetchNextGroupPage: (groupKey: string) => Promise<void>;
   isFetchingGroupPage: (groupKey: string) => boolean;
   hasNextGroupPage: (groupKey: string) => boolean;
+  orderedGroups: Accessor<boolean>;
+  groupNavigationIdentity: Accessor<string>;
+  groupPageError: (key: string) => Error | null;
+  loadOrderedGroup: (key: string, retry?: boolean) => Promise<void>;
 }
 
 const SoupViewContext = createContext<SoupViewContextValues>();
@@ -408,6 +413,7 @@ export const createSoupViewState = (props: SoupViewContextProviderProps) => {
   const resetToInitialPage = () => {
     itemsQuery.resetToInitialPage();
     groupQueries.resetToInitialPage();
+    orderedPagination.reset();
   };
 
   // Keep filters per list view and tab so refreshing or returning to a tab
@@ -925,8 +931,9 @@ export const createSoupViewState = (props: SoupViewContextProviderProps) => {
       const emailImportance = queryFilters.state.include.emailImportance;
       return {
         enabled: enabled() && !search.isSearching(),
+        lazyGroupPagination: true,
         showSupportedForeignEntities: showSupportedForeignEntitiesFF().enabled,
-        onBeforeGraphqlRefresh: () => groupQueries.resetToInitialPage(),
+
         meta: {
           itemFilter: createSoupViewItemFilter(itemFilterSnapshot(view)),
           insertFilter: emailImportanceInsertFilter(emailImportance),
@@ -1157,6 +1164,7 @@ export const createSoupViewState = (props: SoupViewContextProviderProps) => {
       const emailImportance = queryFilters.state.include.emailImportance;
       return {
         enabled: enabled() && !search.isSearching(),
+        lazyGroupPagination: true,
         meta: {
           itemFilter: createSoupViewItemFilter(itemFilterSnapshot(view)),
           insertFilter: emailImportanceInsertFilter(emailImportance),
@@ -1177,6 +1185,34 @@ export const createSoupViewState = (props: SoupViewContextProviderProps) => {
   const hasNextGroupPage = (groupKey: string) =>
     groupQueryFor(groupKey)?.hasNextPage() ?? false;
 
+  const orderedGroups = () =>
+    enabled() &&
+    !search.isSearching() &&
+    itemsQuery.transport === 'graphql' &&
+    !!serverGroupByField() &&
+    serverGroupByField()?.type !== 'date';
+  const orderedPagination = createOrderedGroupPagination({
+    identity: () =>
+      JSON.stringify([
+        userId(),
+        soupParams(),
+        soupBody(),
+        serverGroupByField(),
+      ]),
+    groups: () =>
+      (itemsSource().data()?.groups ?? []).map((group) => ({
+        key: group.key,
+        hasMore: () => hasNextGroupPage(group.key),
+        isLoading: () => isFetchingGroupPage(group.key),
+        error: () => {
+          const query = groupQueryFor(group.key);
+          return query && 'error' in query ? query.error() : null;
+        },
+        load: () => fetchNextGroupPage(group.key),
+      })),
+    isExpanded: soup.grouping.isExpanded,
+  });
+
   const resolveGroupLabel = (key: string): string | undefined => {
     const field = groupByField();
     const definitionId =
@@ -1195,7 +1231,10 @@ export const createSoupViewState = (props: SoupViewContextProviderProps) => {
       label: resolvedLabel,
       count: group.totalCount,
       isExpanded: () => soup.grouping.isExpanded(group.key),
-      toggle: () => soup.grouping.toggle(group.key),
+      toggle: () => {
+        if (orderedGroups()) orderedPagination.retain();
+        soup.grouping.toggle(group.key);
+      },
     };
   };
 
@@ -1283,9 +1322,8 @@ export const createSoupViewState = (props: SoupViewContextProviderProps) => {
           soup.buildRow({
             id: `header:${key}`,
             index: index++,
-            original: groupEntities[0],
             group: groupMeta,
-            isGrouped: true,
+            kind: 'group-header',
           })
         );
         for (const entity of groupEntities) {
@@ -1353,9 +1391,8 @@ export const createSoupViewState = (props: SoupViewContextProviderProps) => {
           soup.buildRow({
             id: `header:${key}`,
             index: index++,
-            original: group.entities[0],
             group: groupMeta,
-            isGrouped: true,
+            kind: 'group-header',
           })
         );
         for (const entity of group.entities) {
@@ -1400,9 +1437,8 @@ export const createSoupViewState = (props: SoupViewContextProviderProps) => {
         soup.buildRow({
           id: `header:${key}`,
           index: globalIndex++,
-          original: recovery[0],
           group,
-          isGrouped: true,
+          kind: 'group-header',
         })
       );
       for (const entity of recovery)
@@ -1416,7 +1452,11 @@ export const createSoupViewState = (props: SoupViewContextProviderProps) => {
         );
     }
 
+    const visibleKeys = orderedGroups()
+      ? new Set(orderedPagination.visible().map((group) => group.key))
+      : undefined;
     for (const apiGroup of groups) {
+      if (visibleKeys && !visibleKeys.has(apiGroup.key)) continue;
       const groupMeta = buildGroupMeta(apiGroup);
       const groupData = groupQueryFor(apiGroup.key)?.data();
       const groupEntities =
@@ -1432,15 +1472,14 @@ export const createSoupViewState = (props: SoupViewContextProviderProps) => {
           ) ?? [];
 
       const firstEntity = groupEntities[0];
-      if (!firstEntity) continue;
+      if (!firstEntity && !orderedGroups()) continue;
 
       result.push(
         soup.buildRow({
           id: `header:${apiGroup.key}`,
           index: globalIndex++,
-          original: firstEntity,
           group: groupMeta,
-          isGrouped: true,
+          kind: 'group-header',
         })
       );
 
@@ -1457,14 +1496,12 @@ export const createSoupViewState = (props: SoupViewContextProviderProps) => {
 
       if (!hasNextGroupPage(apiGroup.key)) continue;
 
-      const lastEntity = groupEntities[groupEntities.length - 1];
       result.push(
         soup.buildRow({
           id: `loadmore:${apiGroup.key}`,
           index: globalIndex++,
-          original: lastEntity,
           group: groupMeta,
-          isLoadMore: true,
+          kind: orderedGroups() ? 'group-status' : 'load-more',
         })
       );
     }
@@ -1591,6 +1628,16 @@ export const createSoupViewState = (props: SoupViewContextProviderProps) => {
     fetchNextGroupPage,
     isFetchingGroupPage,
     hasNextGroupPage,
+    orderedGroups,
+    groupNavigationIdentity: () =>
+      JSON.stringify([
+        userId(),
+        soupParams(),
+        soupBody(),
+        serverGroupByField(),
+      ]),
+    groupPageError: orderedPagination.error,
+    loadOrderedGroup: orderedPagination.load,
   };
 
   return { context, rows: builtRows };

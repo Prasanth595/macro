@@ -136,12 +136,20 @@ export function createGroupedSoupLiveQuery(
         continuation: {
           cursor,
           groupKey: key,
-          groupBy: (initial.initial ?? initial.continuation).groupBy,
+          groupBy: (
+            initial.initial ??
+            initial.continuation ??
+            initial.startGroup
+          ).groupBy,
         },
       });
       let settle = () => {};
       const settled = new Promise<void>((resolve) => {
         settle = resolve;
+      });
+      const registrations = new Map<string, () => void>();
+      onCleanup(() => {
+        for (const unregister of registrations.values()) unregister();
       });
       const continued = createUrqlInfiniteQuery<
         GroupSoupQuery,
@@ -154,7 +162,11 @@ export function createGroupedSoupLiveQuery(
         initialPageParam: cursor,
         variables: (cursor) => {
           const pageInput = continuationInput(cursor);
-          registerGroupedSoupContinuation(initial, pageInput);
+          if (!registrations.has(cursor))
+            registrations.set(
+              cursor,
+              registerGroupedSoupContinuation(initial, pageInput)
+            );
           return { input: pageInput };
         },
         enabled:

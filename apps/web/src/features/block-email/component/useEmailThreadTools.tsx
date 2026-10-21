@@ -151,7 +151,7 @@ export function useEmailThreadTools(props: EmailThreadToolsOptions) {
 
     if (props.onDeleted) {
       props.onDeleted();
-    } else if (soup && nextRow) {
+    } else if (soup && nextRow?.kind === 'entity') {
       soup.selection.clear();
       soup.focus.set(nextRow.id);
       fireAndForget(
