@@ -10,6 +10,8 @@ export type Review = {
   presentedAt?: number | null;
   notificationId?: string | null;
   notificationAttemptAt?: number | null;
+  /** Set when the agent approved it on the owner's word in chat. */
+  approvedByAgent?: { requestedBy: string; at: number } | null;
   items: ReviewItem[];
 };
 export type ReviewItem = {

@@ -154,6 +154,7 @@ where
                     user,
                     item,
                     folder,
+                    share,
                     target.people,
                     target.links,
                     progress,
@@ -262,7 +263,7 @@ where
     }
 
     /// Teammates' copies shared with the team of the planned objects, by
-    /// Notion id. Only finished copies count; databases are never shared.
+    /// Notion id. Only finished copies count.
     pub(super) async fn already_in_macro(
         &self,
         user: &MacroUserIdStr<'static>,
@@ -276,10 +277,7 @@ where
         let copies = self.repo.team_copies(user, &foreign_ids).await?;
         Ok(copies
             .into_iter()
-            .filter(|copy| {
-                copy.status == ImportStatus::Imported
-                    && copy.entity_type.as_deref() != Some(write::DATABASE_ENTITY)
-            })
+            .filter(|copy| copy.status == ImportStatus::Imported)
             .filter_map(|copy| {
                 let by = MacroUserIdStr::parse_from_str(&copy.user_id)
                     .ok()?

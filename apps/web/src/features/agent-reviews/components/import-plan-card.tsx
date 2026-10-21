@@ -1,7 +1,8 @@
 import CaretDown from '@phosphor/caret-down.svg';
+import { ActionDialogShell } from '@ui/components/ActionDialogShell';
 import { Button } from '@ui/components/Button';
 import { Card } from '@ui/components/Card';
-import { ConfirmDialog } from '@ui/components/ConfirmDialog';
+import { Dialog } from '@ui/components/Dialog';
 import { cn } from '@ui/utils/classname';
 import { createMemo, createSignal, For, type JSX, Show } from 'solid-js';
 import { match } from 'ts-pattern';
@@ -11,6 +12,7 @@ import {
   type ImportPlanNode,
   type ImportProgress,
   type ImportReviewPhase,
+  type ImportTotal,
   type ImportVolume,
   volumeLabel,
 } from '../core/import-plan';
@@ -18,16 +20,6 @@ import { ImportPlanRow } from './import-plan-row';
 
 function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? '' : 's'}`;
-}
-
-function confirmBody(sharing: string): string {
-  return [
-    'Pages become documents and databases are copied into Macro.',
-    sharing ? `${sharing.replaceAll(' · ', ', ')}.` : '',
-    'You can stop the import while it runs; anything already imported stays.',
-  ]
-    .filter(Boolean)
-    .join(' ');
 }
 
 function ProgressBar(props: { done: number; total: number }) {
@@ -74,7 +66,7 @@ function PhaseStatus(props: {
             Preparing the import plan…
           </p>
         ))
-        .with('plan', () => null)
+        .with('planning', 'plan', () => null)
         .with('starting', () => (
           <p role="status" class="text-xs text-ink-muted">
             Starting the import…
@@ -190,12 +182,15 @@ function AlreadyInMacro(props: {
   );
 }
 
-/** A Notion workspace import plan: trimmed and approved, then its progress. */
-export function ImportPlanCard(props: {
+type ImportPlanCardProps = {
   title: string;
   summary: string;
   /** e.g. "12 shared with your team · 3 only you". */
   sharingSummary: string;
+  /** What the plan holds per kind. */
+  totals: ImportTotal[];
+  /** What planning is doing, while the plan is still being made. */
+  planningStatus: string;
   alreadyInMacroSummary: string;
   /** Objects a teammate already imported, left out of the plan tree. */
   alreadyInMacro: (ImportPlanEntry & { alreadyImported: ImportedCopy })[];
@@ -207,12 +202,15 @@ export function ImportPlanCard(props: {
   nodes: ImportPlanNode[];
   hasPlan: boolean;
   isCollapsed: (id: string) => boolean;
+  isShowingRows: (id: string) => boolean;
   isExcluded: (id: string) => boolean;
   isShared: (id: string) => boolean;
   /** The viewer may trim, approve, and stop this import. */
   canAct: boolean;
   /** Trimming and approving are open. */
   editable: boolean;
+  /** The agent approved it because the owner told it to in chat. */
+  startedByAgent: boolean;
   working: boolean;
   stopping: boolean;
   count: number;
@@ -220,28 +218,66 @@ export function ImportPlanCard(props: {
   alert?: string;
   onReload?: () => void;
   onToggleExpanded: (id: string) => void;
+  onToggleRows: (id: string) => void;
   onIncludedChange: (id: string, included: boolean) => void;
   onSharedChange: (id: string, shared: boolean) => void;
   onApprove: () => void;
   onDismiss: () => void;
   onStop: () => void;
-}) {
-  const [confirming, setConfirming] = createSignal(false);
-  const planning = () => props.phase.kind === 'plan';
+};
+
+/** What the plan holds per kind, e.g. "Databases 18 (405 rows)". */
+function PlanTotals(props: { totals: ImportTotal[] }) {
+  return (
+    <Show when={props.totals.length > 0}>
+      <dl
+        aria-label="Plan totals"
+        class="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-xs"
+      >
+        <For each={props.totals}>
+          {(total) => (
+            <div class="flex items-baseline gap-1">
+              <dt class="text-ink-muted">{total.label}</dt>
+              <dd class="text-ink">{total.value}</dd>
+            </div>
+          )}
+        </For>
+      </dl>
+    </Show>
+  );
+}
+
+/**
+ * The plan and its progress. The card shows it in a short scrolling list;
+ * `full` shows the whole tree in the full review.
+ */
+function PlanContents(
+  props: ImportPlanCardProps & { full: boolean; onOpenFull?: () => void }
+) {
+  const choosing = () => props.phase.kind === 'plan';
+  const planning = () => props.phase.kind === 'planning';
   const running = () =>
     props.phase.kind === 'starting' || props.phase.kind === 'importing';
   const failures = () => props.progress?.failures ?? [];
   return (
-    <Card class="my-3 flex min-w-0 flex-col gap-3 p-3">
+    <>
       <header class="flex min-w-0 flex-col gap-0.5">
-        <h3 class="text-sm font-semibold text-ink">{props.title}</h3>
+        <Show
+          when={props.full}
+          fallback={
+            <h3 class="text-sm font-semibold text-ink">{props.title}</h3>
+          }
+        >
+          <ActionDialogShell.Title>{props.title}</ActionDialogShell.Title>
+        </Show>
         <Show when={props.summary}>
           <p class="text-xs text-ink-muted">{props.summary}</p>
         </Show>
-        <Show when={planning() && props.sharingSummary}>
+        <Show when={(choosing() || planning()) && props.sharingSummary}>
           <p class="text-xs text-ink-muted">{props.sharingSummary}</p>
         </Show>
       </header>
+      <PlanTotals totals={props.totals} />
       <Show when={props.alert}>
         <div class="flex flex-wrap items-center gap-2">
           <p role="alert" class="text-sm text-failure">
@@ -261,32 +297,57 @@ export function ImportPlanCard(props: {
           </Show>
         </div>
       </Show>
-      <PhaseStatus phase={props.phase} progress={props.progress} />
+      <Show
+        when={planning()}
+        fallback={<PhaseStatus phase={props.phase} progress={props.progress} />}
+      >
+        <p role="status" class="text-xs text-ink-muted">
+          {props.planningStatus}
+        </p>
+      </Show>
+      <Show when={props.startedByAgent}>
+        <p class="text-xs text-ink-muted">
+          {props.canAct
+            ? 'Started by the agent at your request'
+            : "Started by the agent at the owner's request"}
+        </p>
+      </Show>
       <Show
         when={props.hasPlan}
         fallback={
-          <p class="text-xs text-ink-muted">
-            {props.alreadyInMacro.length > 0
-              ? 'Everything Notion shared is already in Macro.'
-              : 'The plan has no objects to show.'}
-          </p>
+          <Show when={!planning()}>
+            <p class="text-xs text-ink-muted">
+              {props.alreadyInMacro.length > 0
+                ? 'Everything Notion shared is already in Macro.'
+                : 'The plan has no objects to show.'}
+            </p>
+          </Show>
         }
       >
         <ul
           aria-label="Import plan"
-          class="max-h-80 min-w-0 overflow-y-auto overflow-x-hidden"
+          class={cn(
+            'min-w-0 overflow-x-hidden',
+            props.full
+              ? 'min-h-0 flex-1 overflow-y-auto'
+              : 'max-h-80 overflow-y-auto'
+          )}
         >
           <For each={props.nodes}>
             {(node) => (
               <ImportPlanRow
                 node={node}
                 collapsed={props.isCollapsed(node.id)}
+                showingRows={props.isShowingRows(node.id)}
                 excluded={props.isExcluded(node.id)}
                 shared={props.isShared(node.id)}
-                choosing={planning() && props.canAct}
+                choosing={(choosing() || planning()) && props.canAct}
                 disabled={!props.editable}
-                showStatus={!planning() && props.phase.kind !== 'preparing'}
+                showStatus={
+                  !choosing() && !planning() && props.phase.kind !== 'preparing'
+                }
                 onToggleExpanded={() => props.onToggleExpanded(node.id)}
+                onToggleRows={() => props.onToggleRows(node.id)}
                 onIncludedChange={(included) =>
                   props.onIncludedChange(node.id, included)
                 }
@@ -297,6 +358,18 @@ export function ImportPlanCard(props: {
             )}
           </For>
         </ul>
+        <Show when={props.onOpenFull}>
+          {(open) => (
+            <Button
+              variant="ghost"
+              size="sm"
+              class="self-start"
+              onClick={() => open()()}
+            >
+              Open full review
+            </Button>
+          )}
+        </Show>
       </Show>
       <Show when={props.alreadyInMacro.length > 0}>
         <AlreadyInMacro
@@ -323,8 +396,12 @@ export function ImportPlanCard(props: {
           </ul>
         </section>
       </Show>
-      <Show when={props.canAct && planning()}>
+      <Show when={props.canAct && (choosing() || planning())}>
         <footer class="flex flex-wrap items-center justify-end gap-2">
+          <p class="mr-auto min-w-0 text-xs text-ink-muted">
+            You can stop the import while it runs; anything already imported
+            stays.
+          </p>
           <Button
             variant="ghost"
             size="sm"
@@ -337,23 +414,11 @@ export function ImportPlanCard(props: {
             variant="cta"
             size="sm"
             disabled={!props.editable || props.count === 0}
-            onClick={() => setConfirming(true)}
+            onClick={() => props.onApprove()}
           >
-            Import {volumeLabel(props.volume)}
+            {planning() ? 'Import' : `Import ${volumeLabel(props.volume)}`}
           </Button>
         </footer>
-        <ConfirmDialog
-          open={confirming()}
-          onOpenChange={setConfirming}
-          title={`Import ${volumeLabel(props.volume)}?`}
-          body={confirmBody(props.sharingSummary)}
-          confirmLabel="Import"
-          onConfirm={() => {
-            if (!confirming()) return;
-            setConfirming(false);
-            props.onApprove();
-          }}
-        />
       </Show>
       <Show when={props.canAct && running()}>
         <footer class="flex justify-end">
@@ -367,6 +432,33 @@ export function ImportPlanCard(props: {
           </Button>
         </footer>
       </Show>
-    </Card>
+    </>
+  );
+}
+
+/**
+ * A Notion workspace import plan: filled in while it is planned, trimmed
+ * and approved, then its progress. "Open full review" shows the whole plan
+ * in a dialog, a full-height sheet on phones.
+ */
+export function ImportPlanCard(props: ImportPlanCardProps) {
+  const [full, setFull] = createSignal(false);
+  return (
+    <>
+      <Card class="my-3 flex min-w-0 flex-col gap-3 p-3">
+        <PlanContents
+          {...props}
+          full={false}
+          onOpenFull={() => setFull(true)}
+        />
+      </Card>
+      <Dialog open={full()} onOpenChange={setFull}>
+        <ActionDialogShell class="h-[85dvh] max-h-[85dvh] mobile:h-auto mobile:max-h-none">
+          <ActionDialogShell.Body class="flex min-h-0 flex-1 flex-col gap-3 space-y-0">
+            <PlanContents {...props} full />
+          </ActionDialogShell.Body>
+        </ActionDialogShell>
+      </Dialog>
+    </>
   );
 }

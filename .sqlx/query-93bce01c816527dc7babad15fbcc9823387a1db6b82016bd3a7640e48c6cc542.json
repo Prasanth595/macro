@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT source, status::text AS \"status!\", error, updated_at,\n                   CASE WHEN status = 'running' THEN scanned_pages END AS scanned_pages,\n                   CASE WHEN status = 'running' THEN scanned_data_sources END\n                       AS scanned_data_sources\n            FROM import_run WHERE user_id = $1\n            ORDER BY source\n            ",
+  "query": "\n            SELECT source, status::text AS \"status!\", error, updated_at,\n                   CASE WHEN status = 'running' THEN scanned_pages END AS scanned_pages,\n                   CASE WHEN status = 'running' THEN scanned_data_sources END\n                       AS scanned_data_sources,\n                   review_id\n            FROM import_run WHERE user_id = $1\n            ORDER BY source\n            ",
   "describe": {
     "columns": [
       {
@@ -32,6 +32,11 @@
         "ordinal": 5,
         "name": "scanned_data_sources",
         "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "review_id",
+        "type_info": "Uuid"
       }
     ],
     "parameters": {
@@ -45,8 +50,9 @@
       true,
       false,
       null,
-      null
+      null,
+      true
     ]
   },
-  "hash": "914907e51d8ad0f71f8631038bd0e30e4108524548c0078f087968c3496565f7"
+  "hash": "93bce01c816527dc7babad15fbcc9823387a1db6b82016bd3a7640e48c6cc542"
 }

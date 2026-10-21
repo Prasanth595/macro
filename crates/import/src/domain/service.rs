@@ -267,12 +267,14 @@ pub trait NotionPageImporter: Send + Sync + 'static {
 pub trait NotionWorkspaceImporter: Send + Sync + 'static {
     /// Plan an import of `scope`, replacing any previous plan. Planning runs
     /// in the background; this waits up to `wait` for it and reports where it
-    /// got.
+    /// got. `sharing` is required of a user on a team
+    /// ([`ImportError::NotionSharingRequired`]); without a team everything
+    /// is personal.
     fn prepare_notion_import(
         &self,
         user: &MacroUserIdStr<'static>,
         scope: import_notion::domain::model::ImportScope,
-        sharing: NotionSharing,
+        sharing: Option<NotionSharing>,
         wait: Duration,
     ) -> impl Future<Output = Result<NotionImportReport>> + Send;
 

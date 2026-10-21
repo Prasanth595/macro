@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use agent::Message;
 use agent::structured_output::{DynamicSchema, dynamic_structured_completion};
-use futures::{FutureExt, StreamExt, stream};
+use futures::{FutureExt, Stream, StreamExt, stream};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -154,36 +154,34 @@ pub(super) fn default_verdict(item: &TriageItem, reason: &str) -> Verdict {
     }
 }
 
-/// Decide every item, `TRIAGE_BATCH` at a time. A batch the model fails on
-/// (or answers badly) falls back to [`default_verdict`] for its items, so
-/// planning never fails because the model did.
-pub(super) async fn decide<Admit, AdmitFuture>(
-    items: &[TriageItem],
+/// Decide every item, `TRIAGE_BATCH` at a time, yielding each batch's
+/// verdicts as it is answered so planning can stage them straight away. A
+/// batch the model fails on (or answers badly) falls back to
+/// [`default_verdict`] for its items, so planning never fails because the
+/// model did.
+pub(super) fn decide<'a, Admit, AdmitFuture>(
+    items: &'a [TriageItem],
     sharing: NotionSharing,
     admit: Admit,
-    recorder: &dyn ai_usage::UsageRecorder,
+    recorder: &'a dyn ai_usage::UsageRecorder,
     usage: ai_usage::UsageContext,
     model: agent::PredefinedModel,
-) -> HashMap<String, Verdict>
+) -> impl Stream<Item = HashMap<String, Verdict>> + Send + 'a
 where
-    Admit: Fn() -> AdmitFuture + Sync,
-    AdmitFuture: Future<Output = anyhow::Result<()>> + Send,
+    Admit: Fn() -> AdmitFuture + Send + Sync + 'a,
+    AdmitFuture: Future<Output = anyhow::Result<()>> + Send + 'a,
 {
-    let batches: Vec<Vec<TriageItem>> = items
-        .chunks(TRIAGE_BATCH)
-        .map(<[TriageItem]>::to_vec)
-        .collect();
-    let answered: Vec<HashMap<String, Verdict>> = stream::iter(batches)
-        .map(|batch| {
+    stream::iter(items.chunks(TRIAGE_BATCH))
+        .map(move |batch| {
             let admitted = admit();
             let usage = usage.clone();
             async move {
                 let outcome = match admitted.await {
-                    Ok(()) => decide_batch(&batch, sharing, recorder, usage, model).await,
+                    Ok(()) => decide_batch(batch, sharing, recorder, usage, model).await,
                     Err(error) => Err(error),
                 };
                 match outcome {
-                    Ok(verdicts) => fill_missing(&batch, verdicts),
+                    Ok(verdicts) => fill_missing(batch, verdicts),
                     Err(error) => {
                         tracing::warn!(error = ?error, items = batch.len(), "notion triage batch failed; copying its objects as they are");
                         batch
@@ -198,9 +196,6 @@ where
             .boxed()
         })
         .buffer_unordered(TRIAGE_CONCURRENCY)
-        .collect()
-        .await;
-    answered.into_iter().flatten().collect()
 }
 
 async fn decide_batch(

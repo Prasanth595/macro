@@ -21,7 +21,8 @@ use uuid::Uuid;
 use super::{BODY_CONCURRENCY, Cancel, Progress, WriteItem, folder_once};
 use crate::domain::models::{WrittenKind, WrittenObject};
 use crate::domain::ports::{
-    ImportedDocumentProperties, NewDatabase, NotionLinks, WorkspaceWriter, WrittenObjects,
+    ImportedDocumentProperties, NewDatabase, NotionLinks, SharedEntity, WorkspaceWriter,
+    WrittenObjects,
 };
 
 use super::super::values::{
@@ -82,8 +83,10 @@ pub(in super::super) struct WrittenDatabase {
 }
 
 /// Write one data source as a database: columns from its schema, every row,
-/// each row's body as a linked document, and relations left pending. What
-/// an earlier attempt wrote (per `progress`) is reused, not written again.
+/// each row's body as a linked document, and relations left pending. With
+/// `share`, the database and its row bodies' folder are shared with the
+/// team. What an earlier attempt wrote (per `progress`) is reused, not
+/// written again.
 #[expect(
     clippy::too_many_arguments,
     reason = "a database needs its source, destination, people, links and progress"
@@ -98,6 +101,7 @@ pub(in super::super) async fn write_database<
     user: &MacroUserIdStr<'static>,
     item: &WriteItem,
     folder: Uuid,
+    share: bool,
     people: &PeopleMap,
     links: &NotionLinks,
     progress: &Progress<'_, Store>,
@@ -105,6 +109,13 @@ pub(in super::super) async fn write_database<
 ) -> anyhow::Result<WrittenDatabase> {
     let source = api.data_source(&item.notion_id).await?;
     let created = database_once(writer, user, item, progress).await?;
+    // Shared before its rows are written; shared again on resume, which is
+    // harmless.
+    if share {
+        writer
+            .share_with_team(user, SharedEntity::Database(created.database_id))
+            .await?;
+    }
     let table = created.table;
     let columns: Vec<PlannedColumn> = source
         .properties
@@ -206,6 +217,7 @@ pub(in super::super) async fn write_database<
         user,
         item,
         folder,
+        share,
         &rows,
         &written,
         page_column,
@@ -459,8 +471,8 @@ fn inserted_rows(results: &[OpResult]) -> Vec<RowId> {
 }
 
 /// Rows with page content get a document in a folder beside the database,
-/// linked from the row's Page column. Bodies an earlier attempt wrote are
-/// linked without fetching them again.
+/// linked from the row's Page column, and shared with the database. Bodies
+/// an earlier attempt wrote are linked without fetching them again.
 #[expect(
     clippy::too_many_arguments,
     reason = "row bodies need the rows, their database, links and progress"
@@ -471,6 +483,7 @@ async fn write_row_bodies<Api: NotionApi, Writer: WorkspaceWriter, Store: Writte
     user: &MacroUserIdStr<'static>,
     item: &WriteItem,
     folder: Uuid,
+    share: bool,
     rows: &[NotionPage],
     written: &WrittenDatabase,
     page_column: PageColumn,
@@ -507,8 +520,8 @@ async fn write_row_bodies<Api: NotionApi, Writer: WorkspaceWriter, Store: Writte
                     return Ok(None);
                 }
                 let folder = *bodies_folder
-                    .get_or_try_init(|| {
-                        folder_once(
+                    .get_or_try_init(|| async {
+                        let bodies = folder_once(
                             writer,
                             user,
                             progress,
@@ -516,6 +529,15 @@ async fn write_row_bodies<Api: NotionApi, Writer: WorkspaceWriter, Store: Writte
                             bodies_name,
                             folder,
                         )
+                        .await?;
+                        // A shared database's row bodies are shared with it,
+                        // before any lands in the folder.
+                        if share {
+                            writer
+                                .share_with_team(user, SharedEntity::Folder(bodies))
+                                .await?;
+                        }
+                        anyhow::Ok(bodies)
                     })
                     .await?;
                 let title = if row.title.trim().is_empty() {

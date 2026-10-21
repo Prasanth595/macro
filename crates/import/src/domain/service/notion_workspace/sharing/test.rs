@@ -1,7 +1,7 @@
 use import_notion::domain::model::NotionId;
 
 use super::*;
-use crate::domain::models::NotionTaskFields;
+use crate::domain::models::{ImportKind, NotionDecision, NotionTaskFields};
 use crate::domain::service::notion_workspace::write::folder_layout;
 
 fn verdict(decision: NotionDecision, shared: Option<bool>) -> Verdict {
@@ -25,16 +25,16 @@ fn item(import: u128, parent: Option<u128>, kind: ImportKind, shared: bool) -> W
         decision: NotionDecision::Copy,
         task_fields: NotionTaskFields::default(),
         shared,
-        shareable: kind == ImportKind::Page,
+        shareable: true,
         already_imported: false,
     }
 }
 
 #[test]
-fn the_users_choice_decides_sharing_except_for_databases_and_users_without_a_team() {
+fn the_users_choice_decides_sharing_except_for_users_without_a_team() {
     let page = verdict(NotionDecision::Copy, Some(true));
     assert_eq!(
-        plan_sharing(NotionSharing::Team, ImportKind::Page, &page, true),
+        plan_sharing(NotionSharing::Team, &page, true),
         PlanSharing {
             shared: true,
             reason: None,
@@ -42,7 +42,7 @@ fn the_users_choice_decides_sharing_except_for_databases_and_users_without_a_tea
         }
     );
     assert_eq!(
-        plan_sharing(NotionSharing::Personal, ImportKind::Page, &page, true),
+        plan_sharing(NotionSharing::Personal, &page, true),
         PlanSharing {
             shared: false,
             reason: None,
@@ -50,7 +50,7 @@ fn the_users_choice_decides_sharing_except_for_databases_and_users_without_a_tea
         }
     );
     assert_eq!(
-        plan_sharing(NotionSharing::Ai, ImportKind::Page, &page, true),
+        plan_sharing(NotionSharing::Ai, &page, true),
         PlanSharing {
             shared: true,
             reason: Some("Team wiki".to_string()),
@@ -60,7 +60,6 @@ fn the_users_choice_decides_sharing_except_for_databases_and_users_without_a_tea
     assert_eq!(
         plan_sharing(
             NotionSharing::Ai,
-            ImportKind::Page,
             &verdict(NotionDecision::Copy, None),
             true
         ),
@@ -74,20 +73,6 @@ fn the_users_choice_decides_sharing_except_for_databases_and_users_without_a_tea
     assert_eq!(
         plan_sharing(
             NotionSharing::Team,
-            ImportKind::DataSource,
-            &verdict(NotionDecision::Copy, Some(true)),
-            true
-        ),
-        PlanSharing {
-            shared: false,
-            reason: Some(DATABASE.to_string()),
-            shareable: false
-        }
-    );
-    assert_eq!(
-        plan_sharing(
-            NotionSharing::Team,
-            ImportKind::DataSource,
             &verdict(NotionDecision::Tasks, None),
             true
         ),
@@ -99,7 +84,7 @@ fn the_users_choice_decides_sharing_except_for_databases_and_users_without_a_tea
         "a task list is a shareable folder of tasks"
     );
     assert_eq!(
-        plan_sharing(NotionSharing::Team, ImportKind::Page, &page, false),
+        plan_sharing(NotionSharing::Team, &page, false),
         PlanSharing {
             shared: false,
             reason: Some(NO_TEAM.to_string()),
@@ -109,11 +94,47 @@ fn the_users_choice_decides_sharing_except_for_databases_and_users_without_a_tea
 }
 
 #[test]
+fn a_database_is_shared_like_a_page() {
+    let plan = item(1, None, ImportKind::DataSource, false);
+    assert_eq!(
+        plan_sharing(
+            NotionSharing::Team,
+            &verdict(NotionDecision::Copy, None),
+            true
+        ),
+        PlanSharing {
+            shared: true,
+            reason: None,
+            shareable: true
+        }
+    );
+    assert_eq!(
+        plan_sharing(
+            NotionSharing::Ai,
+            &verdict(NotionDecision::Copy, Some(false)),
+            true
+        ),
+        PlanSharing {
+            shared: false,
+            reason: Some("Team wiki".to_string()),
+            shareable: true
+        }
+    );
+    assert_eq!(
+        sharing_changes(&[plan], &[Uuid::from_u128(1)], &[]),
+        (vec![Uuid::from_u128(1)], vec![]),
+        "the owner may share a database the plan keeps"
+    );
+}
+
+#[test]
 fn only_changes_to_shareable_rows_that_differ_from_the_plan_are_accepted() {
+    let mut personal = item(3, None, ImportKind::Page, false);
+    personal.shareable = false;
     let items = vec![
         item(1, None, ImportKind::Page, false),
         item(2, None, ImportKind::Page, true),
-        item(3, None, ImportKind::DataSource, false),
+        personal,
         item(4, None, ImportKind::Page, true),
     ];
     let (share, keep) = sharing_changes(
@@ -125,7 +146,7 @@ fn only_changes_to_shareable_rows_that_differ_from_the_plan_are_accepted() {
     assert_eq!(
         share,
         [Uuid::from_u128(1)],
-        "4 is shared already; 3 is a database"
+        "4 is shared already; 3 cannot be shared"
     );
     assert_eq!(keep, [Uuid::from_u128(2)]);
 }
@@ -134,7 +155,8 @@ fn only_changes_to_shareable_rows_that_differ_from_the_plan_are_accepted() {
 fn a_folder_is_shared_only_when_everything_written_inside_it_is() {
     // Wiki (shared) > Handbook (shared) > Onboarding (shared)
     // Projects (shared) > Notes (private)
-    // Planning (shared) > Budget (database, never shared)
+    // Planning (shared) > Budget (private database)
+    // Roadmap (shared) > Releases (shared database)
     let items = vec![
         item(1, None, ImportKind::Page, true),
         item(2, Some(1), ImportKind::Page, true),
@@ -143,13 +165,15 @@ fn a_folder_is_shared_only_when_everything_written_inside_it_is() {
         item(5, Some(4), ImportKind::Page, false),
         item(6, None, ImportKind::Page, true),
         item(7, Some(6), ImportKind::DataSource, false),
+        item(8, None, ImportKind::Page, true),
+        item(9, Some(8), ImportKind::DataSource, true),
     ];
 
     let shared = shared_folders(&items, &folder_layout(&items));
 
     assert_eq!(
         shared,
-        HashSet::from([Uuid::from_u128(1), Uuid::from_u128(2)])
+        HashSet::from([Uuid::from_u128(1), Uuid::from_u128(2), Uuid::from_u128(8)])
     );
 }
 

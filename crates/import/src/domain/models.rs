@@ -621,8 +621,10 @@ pub struct NotionTaskFields {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct NotionPlanItem {
-    /// What the import does with it.
-    pub decision: NotionDecision,
+    /// What the import does with it; absent while planning has staged the
+    /// object but the decision model has not answered for it yet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decision: Option<NotionDecision>,
     /// Why, in a short sentence, when the decision model gave one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
@@ -632,6 +634,9 @@ pub struct NotionPlanItem {
     /// For a data source: rows counted while planning.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rows: Option<u32>,
+    /// For a data source: the titles of a few of its rows.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sample_titles: Vec<String>,
     /// For a task list: which columns hold the task fields.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub task_fields: Option<NotionTaskFields>,
@@ -642,8 +647,7 @@ pub struct NotionPlanItem {
     /// import could not share it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shared_reason: Option<String>,
-    /// Whether the user may change `shared`: false for databases, which
-    /// cannot be shared with a team, and for users without a team.
+    /// Whether the user may change `shared`: false for users without a team.
     #[serde(default)]
     pub shareable: bool,
     /// A teammate's copy shared with the team, which this object links to
@@ -667,10 +671,19 @@ impl NotionPlanItem {
                 .take(MAX_PLAN_DEPTH)
                 .map(|title| truncated(title, MAX_TEXT))
                 .collect(),
+            sample_titles: self
+                .sample_titles
+                .into_iter()
+                .take(MAX_SAMPLE_TITLES)
+                .map(|title| truncated(title, MAX_TEXT))
+                .collect(),
             ..self
         }
     }
 }
+
+/// Row titles a plan item keeps for a data source.
+const MAX_SAMPLE_TITLES: usize = 5;
 
 /// Deepest ancestor path a plan item records.
 const MAX_PLAN_DEPTH: usize = 12;
@@ -853,6 +866,10 @@ pub struct ImportRun {
     /// What the run has found in the source so far, while it is `running`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scanned: Option<ScanCounts>,
+    /// The review presenting the run's plan, once one does. A Notion plan is
+    /// presented while it is still `running`; rows staged after that take it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub review_id: Option<Uuid>,
 }
 
 /// What a planning run has found in the source so far.
@@ -914,6 +931,14 @@ pub struct NotionImportReport {
     pub pages: u32,
     /// Data sources (database tables) in the plan.
     pub data_sources: u32,
+    /// Plan objects the decision model has not answered for yet, while
+    /// planning is still `running`.
+    #[serde(default)]
+    pub deciding: u32,
+    /// Whether the user is on a team. Without one, everything the import
+    /// writes stays visible only to them.
+    #[serde(default)]
+    pub on_team: bool,
     /// Objects to copy as they are.
     pub copy: u32,
     /// Data sources whose rows become tasks.

@@ -60,15 +60,33 @@ selecting another pill leaves the folder tree. The sidebar contains `New file or
 Below `New file or folder`, a **Bring Notion to Macro** card shows on the desktop
 sidebar until the user has any Notion import run (in any status). **Import from
 Notion** opens a new agent chat beside Drive that sends "Import my Notion
-workspace into Macro." (the agent first asks whether to share the import with
-the team, keep it personal, or let AI decide per page, then plans with
-ImportFromNotion, or shows the Notion connect chip first; while the plan call
-runs, its chat row shows the pages and databases found so far, e.g. `40 pages,
-12 databases found`). The plan's review card shows a **Team** / **Only you**
-badge on every written row (the owner clicks it to flip it, and a folder flips
-what is below it; databases always stay **Only you**), a sharing summary
-line, and a collapsed **Already in Macro** section linking to copies teammates
-already imported and shared, which are not imported again. **Dismiss Notion import** hides the card for that
+workspace into Macro." (the agent plans with ImportFromNotion, or shows the
+Notion connect chip first; a user on a team is first asked whether to share
+the import with the team, keep it personal, or let AI decide per page, and a
+user without a team gets a personal import without being asked). The plan
+call returns within seconds and the agent presents the review card at once:
+while planning it shows `Reading Notion: 40 pages, 12 databases`, then every
+row with a **Deciding…** badge and `Deciding what to import: 40 of 84
+decided` as the decisions fill in, with **Import** disabled until the plan is
+ready. The card shows totals (Documents, Databases with rows, Task lists with
+tasks, Skipped, Already in Macro), a **Team** / **Only you** badge on every
+written row (the owner clicks it to flip it, and a folder flips what is below
+it; databases stay **Only you**, and the card says "Databases can't be shared
+with the team yet, so they stay with you."), a sharing summary line (without
+a team: `N only you — you're not on a team, so nothing is shared`), and a
+collapsed **Already in Macro** section linking to copies teammates already
+imported and shared, which are not imported again. A database or task-list
+row's caret (**Show rows of …**) shows its row count with a few sample row
+titles and, for a task list, which Notion columns become status, priority,
+due date and assignee. **Open full review** shows the whole plan in a dialog
+(a full-height sheet on phones). **Import …** approves straight from the
+card, with no confirmation step. The agent ends that
+message with "Should I kick it off?"; when the owner answers yes in chat, it
+approves the review itself (`ApproveReview`, the card's own approve with the
+card's choices), and the card's run state adds **Started by the agent at your
+request** ("at the owner's request" for other viewers). A message from anyone
+but the owner never approves, and a plan still being made cannot be approved
+yet. **Dismiss Notion import** hides the card for that
 user in this browser. Filter
 by tag from the **Filter** menu's Tags submenu; navigating to another tab or folder
 clears tag filters. A folder with no files matching the active tag

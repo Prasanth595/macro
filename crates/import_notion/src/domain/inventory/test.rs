@@ -25,6 +25,10 @@ struct FakeWorkspace {
     /// Ids that are databases, which Notion refuses to render as markdown.
     databases_not_pages: Vec<NotionId>,
     markdown_requests: Mutex<Vec<NotionId>>,
+    /// Every search, by object type.
+    searches: Mutex<Vec<SearchObject>>,
+    /// Every data source query, by data source id.
+    queries: Mutex<Vec<NotionId>>,
 }
 
 impl NotionApi for FakeWorkspace {
@@ -33,6 +37,7 @@ impl NotionApi for FakeWorkspace {
         object: SearchObject,
         _cursor: Option<String>,
     ) -> Result<Paged<SearchHit>, NotionError> {
+        self.searches.lock().unwrap().push(object);
         let results = match object {
             SearchObject::Page => self.pages.iter().cloned().map(SearchHit::Page).collect(),
             SearchObject::DataSource => self
@@ -87,6 +92,7 @@ impl NotionApi for FakeWorkspace {
         id: &NotionId,
         cursor: Option<String>,
     ) -> Result<Paged<NotionPage>, NotionError> {
+        self.queries.lock().unwrap().push(id.clone());
         if cursor.is_some() {
             return Ok(Paged {
                 results: self.later_rows.get(id).cloned().unwrap_or_default(),
@@ -108,7 +114,7 @@ impl NotionApi for FakeWorkspace {
 }
 
 #[tokio::test]
-async fn everything_lists_documents_and_summarized_data_sources_without_rows_or_trash() {
+async fn everything_lists_documents_and_data_sources_with_rows_counted_from_search() {
     let plan = NotionPage {
         id: NotionId::parse("598337872cf94fdf8782e53db20768a5").unwrap(),
         title: "Q3 plan".into(),
@@ -180,17 +186,20 @@ async fn everything_lists_documents_and_summarized_data_sources_without_rows_or_
     .await
     .unwrap();
 
+    // Search listed the roadmap's one row, so its rows are not queried
+    // (a query would have found a second).
     assert_eq!(
         found,
         Inventory {
             pages: vec![plan],
             data_sources: vec![DataSourceSummary {
                 source: roadmap,
-                row_count: 2,
-                sample_titles: vec!["Ship onboarding".into(), "Ship billing".into()],
+                row_count: 1,
+                sample_titles: vec!["Ship onboarding".into()],
             }],
         }
     );
+    assert_eq!(*workspace.queries.lock().unwrap(), Vec::<NotionId>::new());
     assert_eq!(
         reports.into_inner().unwrap(),
         vec![
@@ -315,8 +324,8 @@ async fn roots_keep_their_descendants_through_rows_and_databases() {
         found.data_sources,
         vec![DataSourceSummary {
             source: roadmap,
-            row_count: 0,
-            sample_titles: vec![],
+            row_count: 1,
+            sample_titles: vec!["Ship onboarding".into()],
         }]
     );
 }
@@ -419,6 +428,145 @@ async fn a_database_root_missing_from_search_is_expanded_into_its_data_sources()
         .collect();
     assert_eq!(titles, vec!["Tasks", "Archive"]);
     assert_eq!(found.pages, vec![]);
+    // Search never listed them, so only a query can count their rows.
+    assert_eq!(
+        *workspace.0.queries.lock().unwrap(),
+        vec![tasks.id.clone(), archive.id.clone()]
+    );
+}
+
+#[tokio::test]
+async fn a_data_source_search_shows_no_rows_for_is_queried_page_by_page() {
+    let roadmap = NotionDataSource {
+        id: NotionId::parse("1a44be1209534631a1d67d4c2b1b4a2f").unwrap(),
+        database_id: NotionId::parse("d9824bdc84454327be8b5b47500af6ce").unwrap(),
+        title: "Roadmap".into(),
+        database_parent: NotionParent::Workspace,
+        in_trash: false,
+        properties: vec![],
+    };
+    let row = NotionPage {
+        id: NotionId::parse("ee5f0f84409a440f983aa5315961c6e4").unwrap(),
+        title: "Ship onboarding".into(),
+        url: "https://www.notion.so/ee5f0f84409a440f983aa5315961c6e4".into(),
+        parent: NotionParent::DataSource {
+            data_source: roadmap.id.clone(),
+            database: roadmap.database_id.clone(),
+        },
+        last_edited: Utc.with_ymd_and_hms(2026, 2, 2, 0, 0, 0).unwrap(),
+        created: Utc.with_ymd_and_hms(2026, 2, 1, 0, 0, 0).unwrap(),
+        in_trash: false,
+        properties: BTreeMap::new(),
+    };
+    let workspace = FakeWorkspace {
+        data_sources: vec![roadmap.clone()],
+        rows: HashMap::from([(
+            roadmap.id.clone(),
+            Paged {
+                results: vec![row.clone()],
+                next_cursor: Some("more".into()),
+            },
+        )]),
+        later_rows: HashMap::from([(
+            roadmap.id.clone(),
+            vec![NotionPage {
+                id: NotionId::parse("7d0c5bd5b4a04f3a9c7d0c5bd5b4a04f").unwrap(),
+                title: "Ship billing".into(),
+                ..row
+            }],
+        )]),
+        ..FakeWorkspace::default()
+    };
+
+    let found = inventory(&workspace, &ImportScope::Everything, &|_| {})
+        .await
+        .unwrap();
+
+    assert_eq!(
+        found.data_sources,
+        vec![DataSourceSummary {
+            source: roadmap.clone(),
+            row_count: 2,
+            sample_titles: vec!["Ship onboarding".into(), "Ship billing".into()],
+        }]
+    );
+    assert_eq!(
+        *workspace.queries.lock().unwrap(),
+        vec![roadmap.id.clone(), roadmap.id]
+    );
+}
+
+#[tokio::test]
+async fn a_workspace_whose_rows_search_lists_costs_two_searches_and_no_row_queries() {
+    // Three databases of three rows each, under one page. Counting rows by
+    // querying cost a query per data source (and per hundred rows) on top
+    // of the searches: 3 here, and 24 data sources with 3,900 rows cost at
+    // least 54 on a real workspace.
+    let home = NotionPage {
+        id: NotionId::parse("598337872cf94fdf8782e53db20768a5").unwrap(),
+        title: "Home".into(),
+        url: "https://www.notion.so/598337872cf94fdf8782e53db20768a5".into(),
+        parent: NotionParent::Workspace,
+        last_edited: Utc.with_ymd_and_hms(2026, 3, 2, 0, 0, 0).unwrap(),
+        created: Utc.with_ymd_and_hms(2026, 3, 1, 0, 0, 0).unwrap(),
+        in_trash: false,
+        properties: BTreeMap::new(),
+    };
+    let sources: Vec<NotionDataSource> = ["1", "2", "3"]
+        .into_iter()
+        .map(|digit| NotionDataSource {
+            id: NotionId::parse(&format!("{digit}a44be1209534631a1d67d4c2b1b4a2f")).unwrap(),
+            database_id: NotionId::parse(&format!("{digit}9824bdc84454327be8b5b47500af6ce"))
+                .unwrap(),
+            title: format!("Tracker {digit}"),
+            database_parent: NotionParent::Page {
+                id: home.id.clone(),
+            },
+            in_trash: false,
+            properties: vec![],
+        })
+        .collect();
+    let mut pages = vec![home.clone()];
+    for (source_index, source) in sources.iter().enumerate() {
+        for row_index in 0..3 {
+            pages.push(NotionPage {
+                id: NotionId::parse(&format!(
+                    "{source_index}{row_index}5f0f84409a440f983aa5315961c6e4"
+                ))
+                .unwrap(),
+                title: format!("Row {row_index}"),
+                parent: NotionParent::DataSource {
+                    data_source: source.id.clone(),
+                    database: source.database_id.clone(),
+                },
+                ..home.clone()
+            });
+        }
+    }
+    let workspace = FakeWorkspace {
+        pages,
+        data_sources: sources.clone(),
+        ..FakeWorkspace::default()
+    };
+
+    let found = inventory(&workspace, &ImportScope::Everything, &|_| {})
+        .await
+        .unwrap();
+
+    assert_eq!(found.pages, vec![home]);
+    assert_eq!(
+        found
+            .data_sources
+            .iter()
+            .map(|summary| (summary.source.title.as_str(), summary.row_count))
+            .collect::<Vec<_>>(),
+        vec![("Tracker 1", 3), ("Tracker 2", 3), ("Tracker 3", 3)]
+    );
+    assert_eq!(
+        *workspace.searches.lock().unwrap(),
+        vec![SearchObject::Page, SearchObject::DataSource]
+    );
+    assert_eq!(*workspace.queries.lock().unwrap(), Vec::<NotionId>::new());
 }
 
 #[tokio::test]

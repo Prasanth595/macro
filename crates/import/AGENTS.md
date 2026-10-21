@@ -19,22 +19,37 @@ Notion workspace imports go through a reviewed plan: `ImportFromNotion`
 (`plan`) reads the workspace over Notion's REST API (`import_notion`, through
 the user's Pipedream grant), asks the decision model what to do with each page
 and data source (copy, tasks, skip, or by hand), and stages the plan as ledger
-rows. The agent presents it with `PresentReview` (kind `import`); the harness
-ties the rows to the review (`review_id`) and, on approval, starts the write:
+rows. The agent presents it with `PresentReview` (kind `import`) and asks
+"Should I kick it off?"; the owner approves on the card or by saying yes, which
+has the agent call `ApproveReview`. `plan` returns after a short wait
+(`PLAN_WAIT`), usually while the run is still `running`, and the agent
+presents the review at once: the harness ties the staged rows and the
+`running` run (`import_run.review_id`) to the review, so rows staged later
+take it too. Planning stages the whole tree as soon as the inventory is read,
+each row without a `decision` yet, then writes each decision-model batch's
+verdicts onto its rows as it lands (`update_plan_rows`); the report counts
+undecided rows as `deciding`, and the write cannot start until the run is
+`ready`. A resumed plan stages the tree again, which is idempotent. On
+approval the harness starts the write:
 folders mirroring the page tree, documents, databases with rows, row bodies and
 relations, and task lists as Macro tasks. The Notion run row tracks it
 (`running` → `ready` → `importing` → `completed`/`failed`/`dismissed`).
 
 Every plan carries the user's `sharing` (`team`, `personal`, or `ai`, where
-the decision model also answers `shared` per object; the tool requires the
-agent to ask first), stored on the run so an adopted plan keeps it, and each
+the decision model also answers `shared` per object), stored on the run so an
+adopted plan keeps it. A user on a team must choose it
+(`ImportError::NotionSharingRequired` tells the agent to ask); a user without
+one plans `personal` without being asked, and the report's `onTeam` says
+which. Each
 plan item records `shared`, `sharedReason` and `shareable`
 (`notion_workspace/sharing.rs`). The owner can flip items on the review card;
 the draft's `shared`/`personal` lists are written onto the rows before the
-write starts. Databases cannot be team-shared, so they and users without a
-team stay personal. The write shares documents and task-list folders it makes
-(`WorkspaceWriter::share_with_team`) and a page's folder only when everything
-written inside it is shared, since sharing a folder shares its contents.
+write starts. Users without a team keep everything personal. The write
+shares documents, databases (with their row bodies' folder) and task-list
+folders it makes (`WorkspaceWriter::share_with_team`), and a page's folder only
+when everything written inside it is shared, since sharing a folder shares its
+contents. A teammate's shared database is linked like a page, but relations
+from this import's other databases into it are not linked.
 
 ## Start here
 
@@ -137,6 +152,11 @@ written inside it is shared, since sharing a folder shares its contents.
   `POST /internal/agent-reviews/{id}/settled` (`ai_tools::build_review_follow_up`),
   which settles the review once and continues the session on
   `import_finished_context` as private context.
+- The inventory counts each data source's rows, and takes its sample titles,
+  from the pages `/v1/search` already returned (every row is a page there);
+  only a data source search showed no rows for (a root fetched by id, or an
+  empty one) is queried. Plan rows carry the sample titles (`sampleTitles`)
+  and a task list's `taskFields` for the review card.
 - While planning, the inventory's counts go over a `watch` channel to the run
   row (`scanned_pages`/`scanned_data_sources`, at most every 2s and once at the
   end, `notion_workspace/scan.rs`); `list_runs` and the report show them only

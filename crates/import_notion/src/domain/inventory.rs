@@ -29,8 +29,10 @@ const MARKDOWN_CONCURRENCY: usize = 4;
 ///
 /// `progress` is called as the counts grow, and once more with the final,
 /// scoped counts. Roots that are not shared with the connection are skipped,
-/// as are data sources whose rows cannot be read.
-#[tracing::instrument(skip_all, err, fields(pages, data_sources))]
+/// as are data sources whose rows cannot be read. Rows are counted from the
+/// search results; a data source is queried only when search showed none
+/// of its rows.
+#[tracing::instrument(skip_all, err, fields(pages, data_sources, queried_data_sources))]
 pub async fn inventory<Api: NotionApi>(
     api: &Api,
     scope: &ImportScope,
@@ -70,6 +72,9 @@ pub async fn inventory<Api: NotionApi>(
     }
     dedupe_pages(&mut pages);
     dedupe_sources(&mut data_sources);
+    // Search lists every row as a page, so rows are counted from it; only a
+    // data source search did not show rows for is queried.
+    let searched_rows = rows_by_data_source(&pages, &data_sources);
 
     if let ImportScope::Roots { ids } = scope {
         let roots: HashSet<NotionId> = ids.iter().cloned().collect();
@@ -80,8 +85,27 @@ pub async fn inventory<Api: NotionApi>(
     }
     pages.retain(|page| !is_row(page));
 
+    tracing::Span::current().record(
+        "queried_data_sources",
+        data_sources
+            .iter()
+            .filter(|source| !searched_rows.contains_key(&source.id))
+            .count(),
+    );
     let summaries: Vec<Option<DataSourceSummary>> = stream::iter(data_sources)
-        .map(|source| summarize(api, source))
+        .map(|source| {
+            let rows = searched_rows.get(&source.id);
+            async move {
+                match rows {
+                    Some(titles) => Ok(Some(DataSourceSummary {
+                        row_count: titles.len(),
+                        sample_titles: titles.iter().take(SAMPLE_TITLES).cloned().collect(),
+                        source,
+                    })),
+                    None => summarize(api, source).await,
+                }
+            }
+        })
         .buffered(SAMPLE_CONCURRENCY)
         .try_collect()
         .await?;
@@ -224,6 +248,28 @@ fn splice(markdown: &str, id: &NotionId, block: &str) -> String {
         None if markdown.is_empty() => block.to_owned(),
         None => format!("{}\n\n{}", markdown.trim_end(), block),
     }
+}
+
+/// The titles of the rows search listed, by the data source they belong to,
+/// for each data source search listed with at least one row. A data source
+/// search did not list (a root fetched by id), or listed without rows, is
+/// left out: its rows have to be queried.
+fn rows_by_data_source(
+    pages: &[NotionPage],
+    data_sources: &[NotionDataSource],
+) -> HashMap<NotionId, Vec<String>> {
+    let searched: HashSet<&NotionId> = data_sources.iter().map(|source| &source.id).collect();
+    let mut rows: HashMap<NotionId, Vec<String>> = HashMap::new();
+    for page in pages {
+        if let NotionParent::DataSource { data_source, .. } = &page.parent
+            && searched.contains(data_source)
+        {
+            rows.entry(data_source.clone())
+                .or_default()
+                .push(page.title.clone());
+        }
+    }
+    rows
 }
 
 fn is_row(page: &NotionPage) -> bool {

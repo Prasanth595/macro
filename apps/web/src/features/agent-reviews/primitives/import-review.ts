@@ -13,7 +13,9 @@ import {
   initiallyCollapsed,
   isShared,
   planCounts,
+  planningStatus,
   planSummary,
+  planTotals,
   planTreeEntries,
   progressFromEntries,
   setExcluded,
@@ -61,6 +63,11 @@ export function createImportReview(sources: ImportReviewSources) {
     () => new Map(sources.entries().map((entry) => [entry.id, entry]))
   );
   const [collapsed, setCollapsed] = createSignal<ReadonlySet<string>>();
+  // Databases whose sample rows are showing; kept here so a refreshed plan
+  // keeps them open.
+  const [showingRows, setShowingRows] = createSignal<ReadonlySet<string>>(
+    new Set()
+  );
   const collapsedIds = () => collapsed() ?? initiallyCollapsed(nodes());
   const [stopping, setStopping] = createSignal(false);
   const [stopFailed, setStopFailed] = createSignal(false);
@@ -99,6 +106,12 @@ export function createImportReview(sources: ImportReviewSources) {
     const next = setShared(draft(), nodes(), id, shared);
     setEditedDraft(next);
     controller.edit(current.id, next);
+  }
+  function toggleRows(id: string) {
+    const next = new Set(showingRows());
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setShowingRows(next);
   }
   function toggleExpanded(id: string) {
     const next = new Set(collapsedIds());
@@ -141,12 +154,20 @@ export function createImportReview(sources: ImportReviewSources) {
         progress()?.counts ?? planCounts(sources.entries()),
         volume()
       ),
-    sharingSummary: () => sharingSummary(sources.entries(), draft()),
+    sharingSummary: () =>
+      sharingSummary(
+        sources.entries(),
+        draft(),
+        sources.report()?.onTeam ?? true
+      ),
+    totals: () => planTotals(sources.entries(), draft().excluded),
+    planningStatus: () => planningStatus(progress(), sources.entries()),
     alreadyInMacroSummary: () => alreadyInMacroSummary(sources.entries()),
     alreadyInMacro: () => alreadyInMacro(sources.entries()),
     nodes: () => visiblePlanNodes(nodes(), collapsedIds()),
     hasPlan: () => nodes().length > 0,
     isCollapsed: (id: string) => collapsedIds().has(id),
+    isShowingRows: (id: string) => showingRows().has(id),
     isExcluded: (id: string) => draft().excluded.includes(id),
     isShared: (id: string) => {
       const entry = entriesById().get(id);
@@ -164,6 +185,7 @@ export function createImportReview(sources: ImportReviewSources) {
     setIncluded,
     setShared: setSharedWithTeam,
     toggleExpanded,
+    toggleRows,
     approve,
     dismiss,
     stop,

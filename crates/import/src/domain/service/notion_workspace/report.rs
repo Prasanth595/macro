@@ -30,11 +30,16 @@ pub(in crate::domain::service) fn report(
             Some((row, meta))
         })
         .collect();
-    let review_id = planned
-        .iter()
-        .filter(|(row, _)| row.review_id.is_some())
-        .max_by_key(|(row, _)| row.updated_at)
-        .and_then(|(row, _)| row.review_id);
+    // A plan still being made is presented by the review its run records;
+    // rows left from earlier plans belong to earlier reviews.
+    let review_id = match run {
+        Some(run) if run.status == RunStatus::Running => run.review_id,
+        _ => planned
+            .iter()
+            .filter(|(row, _)| row.review_id.is_some())
+            .max_by_key(|(row, _)| row.updated_at)
+            .and_then(|(row, _)| row.review_id),
+    };
     let current: Vec<&(&ImportEntity, NotionDocMeta)> = planned
         .iter()
         .filter(|(row, _)| match review_id {
@@ -67,8 +72,12 @@ pub(in crate::domain::service) fn report(
             *importers.entry(copy.by.as_str()).or_insert(0) += 1;
             continue;
         }
+        let Some(decision) = plan.decision else {
+            report.deciding += 1;
+            continue;
+        };
         let rows = plan.rows.unwrap_or(0);
-        match (plan.decision, row.kind) {
+        match (decision, row.kind) {
             (NotionDecision::Copy, ImportKind::DataSource) => {
                 report.copy += 1;
                 report.databases += 1;
@@ -85,7 +94,7 @@ pub(in crate::domain::service) fn report(
             (NotionDecision::Skip, _) => report.skip += 1,
             (NotionDecision::Hand, _) => report.hand += 1,
         }
-        let written = matches!(plan.decision, NotionDecision::Copy | NotionDecision::Tasks);
+        let written = matches!(decision, NotionDecision::Copy | NotionDecision::Tasks);
         if written && plan.shared && row.status != ImportStatus::Discarded {
             report.shared_with_team += 1;
         }
@@ -103,11 +112,11 @@ pub(in crate::domain::service) fn report(
             }
             ImportStatus::Importing => report.writing += 1,
             ImportStatus::Staged => {
-                if plan.decision == NotionDecision::Hand {
+                if decision == NotionDecision::Hand {
                     if report.hand_items.len() < REPORT_LIST_LIMIT {
                         report.hand_items.push(reported());
                     }
-                } else if plan.decision != NotionDecision::Skip {
+                } else if decision != NotionDecision::Skip {
                     report.waiting += 1;
                 }
                 if let Some(error) = &row.last_error

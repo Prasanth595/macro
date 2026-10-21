@@ -119,12 +119,12 @@ impl PlanTree {
             .collect()
     }
 
-    /// The ledger rows for the plan, parents first: each node's verdict, its
-    /// sharing under `sharing` (`team` says whether the user has a team),
-    /// and the teammate's copy standing in for it, if any.
-    pub fn plan_rows(
+    /// The rows planning stages before the decision model answers, parents
+    /// first: every node, waiting for its decision, except those already in
+    /// Macro (keyed by Notion id), which are decided already: they link to
+    /// the teammate's copy. `team` says whether the user has a team.
+    pub fn staged_rows(
         &self,
-        verdicts: &HashMap<String, Verdict>,
         sharing: NotionSharing,
         team: bool,
         already_imported: &HashMap<String, NotionAlreadyImported>,
@@ -135,40 +135,75 @@ impl PlanTree {
             .map(|node| {
                 let key = node.id.to_string();
                 let copy = already_imported.get(&key).cloned();
-                let verdict = match (verdicts.get(&key), &copy) {
-                    (Some(verdict), _) => verdict.clone(),
-                    (None, Some(_)) => default_verdict(&triage_item(node, &key), ALREADY_IN_MACRO),
-                    (None, None) => default_verdict(
-                        &triage_item(node, &key),
-                        "The decision model gave no answer",
-                    ),
-                };
-                let placed = plan_sharing(sharing, node.kind, &verdict, team);
-                let plan = NotionPlanItem {
-                    decision: verdict.decision,
-                    reason: verdict.reason,
-                    path: self.path(&node.id, &index),
-                    rows: node
-                        .table
-                        .as_ref()
-                        .map(|table| u32::try_from(table.rows).unwrap_or(u32::MAX)),
-                    task_fields: (verdict.decision == NotionDecision::Tasks)
-                        .then_some(verdict.task_fields)
-                        .flatten(),
-                    shared: placed.shared,
-                    shared_reason: placed.reason,
-                    shareable: placed.shareable && copy.is_none(),
-                    already_imported: copy,
-                };
-                let metadata = NotionDocMeta::for_plan(node.title.clone(), node.url.clone(), plan);
-                PlanRow {
-                    kind: node.kind,
-                    foreign_id: key,
-                    parent_foreign_id: node.parent.as_ref().map(NotionId::to_string),
-                    metadata: serde_json::to_value(metadata).unwrap_or_default(),
-                }
+                let verdict = copy
+                    .as_ref()
+                    .map(|_| default_verdict(&triage_item(node, &key), ALREADY_IN_MACRO));
+                self.row(node, verdict, copy, sharing, team, &index)
             })
             .collect()
+    }
+
+    /// The rows for the nodes `verdicts` decides, with their sharing under
+    /// `sharing`, parents first.
+    pub fn decided_rows(
+        &self,
+        verdicts: &HashMap<String, Verdict>,
+        sharing: NotionSharing,
+        team: bool,
+    ) -> Vec<PlanRow> {
+        let index = self.index();
+        self.nodes
+            .iter()
+            .filter_map(|node| {
+                let verdict = verdicts.get(node.id.as_str())?.clone();
+                Some(self.row(node, Some(verdict), None, sharing, team, &index))
+            })
+            .collect()
+    }
+
+    /// One node's row: decided by `verdict`, or waiting for the decision
+    /// model without one; `copy` is the teammate's copy standing in for it.
+    fn row(
+        &self,
+        node: &Node,
+        verdict: Option<Verdict>,
+        copy: Option<NotionAlreadyImported>,
+        sharing: NotionSharing,
+        team: bool,
+        index: &HashMap<&NotionId, &Node>,
+    ) -> PlanRow {
+        let placed = verdict
+            .as_ref()
+            .map(|verdict| plan_sharing(sharing, verdict, team));
+        let plan = NotionPlanItem {
+            decision: verdict.as_ref().map(|verdict| verdict.decision),
+            reason: verdict.as_ref().and_then(|verdict| verdict.reason.clone()),
+            path: self.path(&node.id, index),
+            rows: node
+                .table
+                .as_ref()
+                .map(|table| u32::try_from(table.rows).unwrap_or(u32::MAX)),
+            sample_titles: node
+                .table
+                .as_ref()
+                .map(|table| table.sample_titles.clone())
+                .unwrap_or_default(),
+            task_fields: verdict
+                .as_ref()
+                .filter(|verdict| verdict.decision == NotionDecision::Tasks)
+                .and_then(|verdict| verdict.task_fields.clone()),
+            shared: placed.as_ref().is_some_and(|placed| placed.shared),
+            shared_reason: placed.as_ref().and_then(|placed| placed.reason.clone()),
+            shareable: placed.as_ref().is_some_and(|placed| placed.shareable) && copy.is_none(),
+            already_imported: copy,
+        };
+        let metadata = NotionDocMeta::for_plan(node.title.clone(), node.url.clone(), plan);
+        PlanRow {
+            kind: node.kind,
+            foreign_id: node.id.to_string(),
+            parent_foreign_id: node.parent.as_ref().map(NotionId::to_string),
+            metadata: serde_json::to_value(metadata).unwrap_or_default(),
+        }
     }
 
     fn index(&self) -> HashMap<&NotionId, &Node> {

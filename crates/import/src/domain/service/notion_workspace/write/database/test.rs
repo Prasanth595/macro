@@ -166,6 +166,7 @@ struct FakeWriter {
     batches: Mutex<Vec<Vec<DatabaseOp>>>,
     next_row: Mutex<u128>,
     fail_at_batch: Mutex<Option<usize>>,
+    shares: Mutex<Vec<SharedEntity>>,
 }
 
 const DATABASE: Uuid = Uuid::from_u128(500);
@@ -195,9 +196,10 @@ impl WorkspaceWriter for FakeWriter {
     async fn share_with_team(
         &self,
         _user: &MacroUserIdStr<'static>,
-        _entity: crate::domain::ports::SharedEntity,
+        entity: SharedEntity,
     ) -> anyhow::Result<()> {
-        unreachable!("databases are never shared with a team")
+        self.shares.lock().unwrap().push(entity);
+        Ok(())
     }
 
     async fn create_document(
@@ -388,6 +390,7 @@ async fn a_data_source_becomes_a_database_with_typed_columns_rows_bodies_and_pen
         &user,
         &source_item,
         folder,
+        false,
         &PeopleMap::new(),
         &links,
         &progress,
@@ -514,6 +517,10 @@ async fn a_data_source_becomes_a_database_with_typed_columns_rows_bodies_and_pen
     );
 
     assert_eq!(written.database_id, DATABASE);
+    assert!(
+        writer.shares.lock().unwrap().is_empty(),
+        "a personal database shares nothing"
+    );
     assert_eq!(written.rows.len(), 2);
     assert_eq!(written.relations.len(), 1);
     assert_eq!(written.relations[0].name, "Project");
@@ -521,6 +528,60 @@ async fn a_data_source_becomes_a_database_with_typed_columns_rows_bodies_and_pen
     assert_eq!(
         written.relations[0].links,
         [(RowId::from_uuid(Uuid::from_u128(700)), vec![id('8')])]
+    );
+}
+
+#[tokio::test]
+async fn a_shared_database_is_shared_with_its_row_bodies_folder() {
+    let notion = FakeNotion {
+        fetched: Mutex::new(0),
+        source: NotionDataSource {
+            id: id('e'),
+            database_id: id('f'),
+            title: "Bugs".to_string(),
+            database_parent: NotionParent::Workspace,
+            in_trash: false,
+            properties: Vec::new(),
+        },
+        rows: vec![
+            notion_row('1', "Login fails", vec![]),
+            notion_row('2', "Typo on pricing", vec![]),
+        ],
+        bodies: [(id('1'), "Steps to reproduce".to_string())]
+            .into_iter()
+            .collect(),
+    };
+    let writer = FakeWriter::default();
+    let source_item = source_item("Bugs");
+    let store = FakeStore::default();
+    let user = user();
+    let progress = Progress::new(&store, &user, source_item.import_id, &[]);
+
+    write_database(
+        &notion,
+        &writer,
+        &user,
+        &source_item,
+        Uuid::from_u128(42),
+        true,
+        &PeopleMap::new(),
+        &NotionLinks::default(),
+        &progress,
+        &Cancel::default(),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(
+        writer.folders.lock().unwrap().as_slice(),
+        [("Bugs pages".to_string(), Some(Uuid::from_u128(42)))]
+    );
+    assert_eq!(
+        writer.shares.lock().unwrap().as_slice(),
+        [
+            SharedEntity::Database(DATABASE),
+            SharedEntity::Folder(Uuid::from_u128(901)),
+        ]
     );
 }
 
@@ -553,6 +614,7 @@ async fn a_cancelled_import_stops_before_writing_rows() {
         &user,
         &source_item,
         Uuid::from_u128(42),
+        false,
         &PeopleMap::new(),
         &NotionLinks::default(),
         &progress,
@@ -612,6 +674,7 @@ async fn a_database_whose_rows_have_no_content_gets_no_page_column() {
         &user,
         &source_item,
         Uuid::from_u128(42),
+        false,
         &PeopleMap::new(),
         &NotionLinks::default(),
         &progress,
@@ -684,6 +747,7 @@ async fn a_database_stopped_part_way_through_its_rows_resumes_without_duplicates
         &user,
         &item,
         Uuid::from_u128(42),
+        false,
         &PeopleMap::new(),
         &NotionLinks::default(),
         &Progress::new(&store, &user, item.import_id, &[]),
@@ -702,6 +766,7 @@ async fn a_database_stopped_part_way_through_its_rows_resumes_without_duplicates
         &user,
         &item,
         Uuid::from_u128(42),
+        false,
         &PeopleMap::new(),
         &NotionLinks::default(),
         &Progress::new(&store, &user, item.import_id, &recorded),
@@ -770,6 +835,7 @@ async fn resumed_row_bodies_are_neither_read_nor_created_again() {
         &user,
         &item,
         Uuid::from_u128(42),
+        false,
         &PeopleMap::new(),
         &NotionLinks::default(),
         &Progress::new(&store, &user, item.import_id, &[]),
@@ -788,6 +854,7 @@ async fn resumed_row_bodies_are_neither_read_nor_created_again() {
         &user,
         &item,
         Uuid::from_u128(42),
+        false,
         &PeopleMap::new(),
         &NotionLinks::default(),
         &Progress::new(&store, &user, item.import_id, &recorded),

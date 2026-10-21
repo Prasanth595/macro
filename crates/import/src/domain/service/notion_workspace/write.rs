@@ -102,7 +102,8 @@ impl WriteItem {
             && !self.already_imported
     }
 
-    /// Read a staged ledger row; `None` for rows that are not plan items.
+    /// Read a staged ledger row; `None` for rows that are not plan items, or
+    /// not decided yet.
     pub fn from_entity(entity: &ImportEntity) -> Option<Self> {
         let meta: NotionDocMeta = serde_json::from_value(entity.metadata.clone()).ok()?;
         let plan = meta.plan?;
@@ -112,7 +113,7 @@ impl WriteItem {
             notion_id: NotionId::parse(&entity.foreign_id)?,
             kind: entity.kind,
             title: meta.title,
-            decision: plan.decision,
+            decision: plan.decision?,
             task_fields: plan.task_fields.unwrap_or_default(),
             shared: plan.shared,
             shareable: plan.shareable,

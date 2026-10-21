@@ -165,9 +165,14 @@ where
         &self,
         user: &MacroUserIdStr<'static>,
         scope: ImportScope,
-        sharing: NotionSharing,
+        sharing: Option<NotionSharing>,
         wait: Duration,
     ) -> Result<NotionImportReport> {
+        let sharing = match (sharing, self.repo.user_team_id(user).await?) {
+            (Some(sharing), _) => sharing,
+            (None, None) => NotionSharing::Personal,
+            (None, Some(_)) => return Err(ImportError::NotionSharingRequired),
+        };
         self.reap_stale_runs(user).await;
         self.adopt_stalled(Some(user)).await;
         if !self
@@ -221,7 +226,9 @@ where
             .repo
             .list(user, Some(ImportSource::Notion), None)
             .await?;
-        Ok(report(run.as_ref(), &rows))
+        let mut report = report(run.as_ref(), &rows);
+        report.on_team = self.repo.user_team_id(user).await?.is_some();
+        Ok(report)
     }
 
     async fn attach_notion_review(
@@ -479,10 +486,20 @@ where
         let team = self.repo.user_team_id(user).await?.is_some();
         let already_imported = self.already_in_macro(user, &tree).await?;
         tracing::Span::current().record("already_in_macro", already_imported.len());
+        // The whole tree is staged before the decision model answers, so the
+        // review shows it while each batch is decided.
+        self.repo
+            .replace_plan(
+                user,
+                ImportSource::Notion,
+                &tree.staged_rows(sharing, team, &already_imported),
+            )
+            .await?;
+        self.notify(user).await;
         // Objects already in Macro need no decision, so they cost no model call.
         let items = tree.triage_items(&already_imported);
         let usage = ai_usage::UsageContext::new(ai_usage::AiFeature::Import, user.clone());
-        let verdicts = triage::decide(
+        let batches = triage::decide(
             &items,
             sharing,
             || {
@@ -493,15 +510,64 @@ where
             self.recorder.as_ref(),
             usage,
             NOTION_IMPORT_MODEL,
-        )
-        .await;
-        if control.reason().is_some() {
-            return Ok(());
+        );
+        self.stage_verdicts(user, &tree, &items, batches, sharing, team, control)
+            .await
+    }
+
+    /// Write each batch of verdicts onto the staged plan as it arrives, then
+    /// give anything the model never answered for the default verdict, so no
+    /// row is left undecided once planning is done. Writing a verdict twice
+    /// writes the same row, so a resumed plan is safe to stage again.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the planning run's state, passed once"
+    )]
+    async fn stage_verdicts(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        tree: &plan::PlanTree,
+        items: &[triage::TriageItem],
+        batches: impl futures::Stream<Item = HashMap<String, triage::Verdict>>,
+        sharing: NotionSharing,
+        team: bool,
+        control: &JobControl,
+    ) -> Result<()> {
+        let mut batches = std::pin::pin!(batches);
+        let mut decided = std::collections::HashSet::new();
+        while let Some(verdicts) = batches.next().await {
+            if control.reason().is_some() {
+                return Ok(());
+            }
+            decided.extend(verdicts.keys().cloned());
+            self.repo
+                .update_plan_rows(
+                    user,
+                    ImportSource::Notion,
+                    &tree.decided_rows(&verdicts, sharing, team),
+                )
+                .await?;
+            self.notify(user).await;
         }
-        let rows = tree.plan_rows(&verdicts, sharing, team, &already_imported);
-        self.repo
-            .replace_plan(user, ImportSource::Notion, &rows)
-            .await?;
+        let unanswered: HashMap<String, triage::Verdict> = items
+            .iter()
+            .filter(|item| !decided.contains(&item.key))
+            .map(|item| {
+                (
+                    item.key.clone(),
+                    triage::default_verdict(item, "The decision model gave no answer"),
+                )
+            })
+            .collect();
+        if !unanswered.is_empty() {
+            self.repo
+                .update_plan_rows(
+                    user,
+                    ImportSource::Notion,
+                    &tree.decided_rows(&unanswered, sharing, team),
+                )
+                .await?;
+        }
         Ok(())
     }
 

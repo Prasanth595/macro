@@ -28,9 +28,19 @@ export function decodeImportDraft(draft: unknown): ImportDraft | undefined {
 const planMetadataSchema = z.object({
   title: z.string(),
   plan: z.object({
-    decision: z.enum(['copy', 'tasks', 'skip', 'hand']),
+    // Absent while planning has not decided the object yet.
+    decision: z.enum(['copy', 'tasks', 'skip', 'hand']).nullish(),
     reason: z.string().nullish(),
     rows: z.number().nullish(),
+    sampleTitles: z.array(z.string()).nullish(),
+    taskFields: z
+      .object({
+        status: z.string().nullish(),
+        priority: z.string().nullish(),
+        due: z.string().nullish(),
+        assignee: z.string().nullish(),
+      })
+      .nullish(),
     shared: z.boolean().nullish(),
     sharedReason: z.string().nullish(),
     shareable: z.boolean().nullish(),
@@ -60,9 +70,18 @@ export function decodePlanEntries(
         parentId: entity.parent_id ?? null,
         kind: entity.kind === 'data_source' ? 'database' : 'page',
         title: metadata.data.title,
-        decision: plan.decision,
+        decision: plan.decision ?? null,
         reason: plan.reason ?? null,
         rows: plan.rows ?? null,
+        sampleTitles: plan.sampleTitles ?? [],
+        taskFields: plan.taskFields
+          ? {
+              status: plan.taskFields.status ?? null,
+              priority: plan.taskFields.priority ?? null,
+              due: plan.taskFields.due ?? null,
+              assignee: plan.taskFields.assignee ?? null,
+            }
+          : null,
         status: entity.status,
         error: entity.last_error ?? null,
         shared: plan.shared ?? false,
@@ -81,6 +100,13 @@ export function decodeImportProgress(
     reviewId: report.reviewId ?? null,
     status: report.status ?? null,
     error: report.error ?? null,
+    scanned: report.scanned
+      ? {
+          pages: report.scanned.pages,
+          databases: report.scanned.dataSources,
+        }
+      : null,
+    onTeam: report.onTeam ?? false,
     counts: {
       pages: report.pages,
       databases: report.dataSources,
@@ -88,6 +114,7 @@ export function decodeImportProgress(
       tasks: report.tasks,
       skip: report.skip,
       hand: report.hand,
+      deciding: report.deciding ?? 0,
     },
     imported: report.imported,
     waiting: report.waiting,

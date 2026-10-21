@@ -67,6 +67,8 @@ export function ImportReview(props: {
         title={review.title()}
         summary={review.summary()}
         sharingSummary={review.sharingSummary()}
+        totals={review.totals()}
+        planningStatus={review.planningStatus()}
         alreadyInMacroSummary={review.alreadyInMacroSummary()}
         alreadyInMacro={review.alreadyInMacro()}
         entityHref={(copy) => {
@@ -88,10 +90,12 @@ export function ImportReview(props: {
         nodes={review.nodes()}
         hasPlan={review.hasPlan() || state.isPlaceholderData}
         isCollapsed={review.isCollapsed}
+        isShowingRows={review.isShowingRows}
         isExcluded={review.isExcluded}
         isShared={review.isShared}
         canAct={props.canAct}
         editable={review.editable()}
+        startedByAgent={props.review.approvedByAgent != null}
         working={review.working()}
         stopping={review.stopping()}
         count={review.count()}
@@ -103,6 +107,7 @@ export function ImportReview(props: {
             : undefined
         }
         onToggleExpanded={review.toggleExpanded}
+        onToggleRows={review.toggleRows}
         onIncludedChange={review.setIncluded}
         onSharedChange={review.setShared}
         onApprove={() => fireAndForget(review.approve(), 'agent-reviews')}

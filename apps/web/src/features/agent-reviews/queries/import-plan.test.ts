@@ -20,6 +20,7 @@ const row: ImportEntity = {
       reason: 'Rows have a status',
       path: ['Wiki'],
       rows: 40,
+      sampleTitles: ['Fix login', 'Ship billing'],
       taskFields: { status: 'Status' },
     },
   },
@@ -49,6 +50,13 @@ describe('decodePlanEntries', () => {
         decision: 'tasks',
         reason: 'Rows have a status',
         rows: 40,
+        sampleTitles: ['Fix login', 'Ship billing'],
+        taskFields: {
+          status: 'Status',
+          priority: null,
+          due: null,
+          assignee: null,
+        },
         status: 'staged',
         error: 'Rate limited',
         shared: false,
@@ -98,6 +106,25 @@ describe('decodePlanEntries', () => {
         },
       },
     ]);
+  });
+});
+
+describe('decodePlanEntries while planning', () => {
+  it('reads a row the decision model has not answered for yet', () => {
+    expect(
+      decodePlanEntries(
+        [
+          {
+            ...row,
+            metadata: {
+              title: 'Roadmap',
+              plan: { path: [], rows: 40, shared: false, shareable: false },
+            },
+          },
+        ],
+        'review'
+      )
+    ).toMatchObject([{ id: 'roadmap', decision: null, rows: 40 }]);
   });
 });
 

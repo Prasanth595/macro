@@ -33,6 +33,20 @@ impl NotionPlanRepo for PgImportRepo {
         rows: &[PlanRow],
     ) -> Result<Vec<ImportEntity>> {
         let mut transaction = self.pool.begin().await?;
+        // Locked until the plan is staged, so a review attached meanwhile
+        // waits and then ties these rows too.
+        let review_id = sqlx::query_scalar!(
+            r#"
+            SELECT review_id FROM import_run
+            WHERE user_id = $1 AND source = $2 AND status = 'running'
+            FOR UPDATE
+            "#,
+            user.as_ref(),
+            source.as_ref(),
+        )
+        .fetch_optional(&mut *transaction)
+        .await?
+        .flatten();
         sqlx::query!(
             r#"
             DELETE FROM import_entity
@@ -56,12 +70,13 @@ impl NotionPlanRepo for PgImportRepo {
                 ImportEntityDbRow,
                 r#"
                 INSERT INTO import_entity
-                    (user_id, source, kind, foreign_id, status, initiator, metadata, parent_id)
-                VALUES ($1, $2, $3, $4, 'staged', 'chat', $5, $6)
+                    (user_id, source, kind, foreign_id, status, initiator, metadata, parent_id,
+                     review_id)
+                VALUES ($1, $2, $3, $4, 'staged', 'chat', $5, $6, $7)
                 ON CONFLICT (user_id, source, foreign_id) DO UPDATE
                 SET kind = EXCLUDED.kind, metadata = EXCLUDED.metadata,
-                    parent_id = EXCLUDED.parent_id, status = 'staged', review_id = NULL,
-                    last_error = NULL, updated_at = NOW()
+                    parent_id = EXCLUDED.parent_id, status = 'staged',
+                    review_id = EXCLUDED.review_id, last_error = NULL, updated_at = NOW()
                 WHERE import_entity.status IN ('staged', 'discarded')
                 RETURNING id, user_id, team_id, source, kind, foreign_id, parent_id, review_id,
                           status, initiator, metadata, entity_id, entity_type, last_error,
@@ -73,6 +88,7 @@ impl NotionPlanRepo for PgImportRepo {
                 row.foreign_id,
                 row.metadata,
                 parent_id,
+                review_id,
             )
             .fetch_optional(&mut *transaction)
             .await?;
@@ -104,6 +120,38 @@ impl NotionPlanRepo for PgImportRepo {
         Ok(staged)
     }
 
+    #[tracing::instrument(skip(self, rows), fields(rows = rows.len()), err)]
+    async fn update_plan_rows(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        source: ImportSource,
+        rows: &[PlanRow],
+    ) -> Result<u64> {
+        if rows.is_empty() {
+            return Ok(0);
+        }
+        let foreign_ids: Vec<String> = rows.iter().map(|row| row.foreign_id.clone()).collect();
+        let metadata: Vec<serde_json::Value> =
+            rows.iter().map(|row| row.metadata.clone()).collect();
+        let result = sqlx::query!(
+            r#"
+            UPDATE import_entity AS entity
+            SET metadata = decided.metadata, updated_at = NOW()
+            FROM UNNEST($3::text[], $4::jsonb[]) AS decided(foreign_id, metadata)
+            WHERE entity.user_id = $1 AND entity.source = $2
+              AND entity.foreign_id = decided.foreign_id
+              AND entity.status = 'staged' AND entity.metadata->'plan' IS NOT NULL
+            "#,
+            user.as_ref(),
+            source.as_ref(),
+            &foreign_ids,
+            &metadata,
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(result.rows_affected())
+    }
+
     #[tracing::instrument(skip(self), err)]
     async fn attach_review(
         &self,
@@ -111,6 +159,20 @@ impl NotionPlanRepo for PgImportRepo {
         source: ImportSource,
         review_id: Uuid,
     ) -> Result<u64> {
+        let mut transaction = self.pool.begin().await?;
+        // First, so a plan being staged right now finishes before the rows
+        // are tied (it holds the run), or stages them with this review.
+        sqlx::query!(
+            r#"
+            UPDATE import_run SET review_id = $3
+            WHERE user_id = $1 AND source = $2 AND status = 'running'
+            "#,
+            user.as_ref(),
+            source.as_ref(),
+            review_id,
+        )
+        .execute(&mut *transaction)
+        .await?;
         let result = sqlx::query!(
             r#"
             UPDATE import_entity
@@ -122,8 +184,9 @@ impl NotionPlanRepo for PgImportRepo {
             source.as_ref(),
             review_id,
         )
-        .execute(&self.pool)
+        .execute(&mut *transaction)
         .await?;
+        transaction.commit().await?;
         Ok(result.rows_affected())
     }
 

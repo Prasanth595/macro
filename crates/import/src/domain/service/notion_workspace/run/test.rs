@@ -262,10 +262,11 @@ fn page(hex: char, title: &str) -> PlanRow {
 /// A page planned as a document, shared with the team or not.
 fn planned_page(hex: char, title: &str, shared: bool) -> PlanRow {
     let plan = NotionPlanItem {
-        decision: NotionDecision::Copy,
+        decision: Some(NotionDecision::Copy),
         reason: None,
         path: Vec::new(),
         rows: None,
+        sample_titles: Vec::new(),
         task_fields: None,
         shared,
         shared_reason: None,
@@ -758,4 +759,152 @@ async fn a_page_a_teammate_already_shared_is_linked_without_writing(pool: PgPool
     assert_eq!(linked.status, ImportStatus::Imported);
     assert_eq!(linked.entity_id.as_deref(), Some("doc-wiki"));
     assert_eq!(linked.team_id, None);
+}
+
+#[sqlx::test(migrator = "MACRO_DB_MIGRATIONS")]
+async fn a_plan_presented_while_planning_fills_in_batch_by_batch_and_restages_on_resume(
+    pool: PgPool,
+) {
+    use crate::domain::service::notion_workspace::plan::PlanTree;
+    use crate::domain::service::notion_workspace::triage::Verdict;
+    use import_notion::domain::model::{Inventory, NotionParent};
+
+    let owner = user("filling");
+    let service = service(
+        &pool,
+        Writer::default(),
+        tokio_util::sync::CancellationToken::new(),
+        TaskTracker::new(),
+    );
+    let repo = PgImportRepo::new(pool.clone());
+    repo.start_run(&owner, ImportSource::Notion, &[])
+        .await
+        .unwrap();
+    assert!(
+        service
+            .take_run(
+                &owner,
+                &NotionJob::Plan {
+                    scope: import_notion::domain::model::ImportScope::Everything,
+                    sharing: NotionSharing::Personal,
+                },
+            )
+            .await
+            .unwrap()
+    );
+    // The agent presents the plan before planning has staged anything.
+    let (review, _) = approved(&pool, &owner, &[]).await;
+    let report = service.notion_import_report(&owner).await.unwrap();
+    assert_eq!(report.status, Some(RunStatus::Running));
+    assert_eq!(report.review_id, Some(review));
+
+    let page = |hex: char, title: &str, parent: NotionParent| NotionPage {
+        id: page_id(hex),
+        title: title.to_string(),
+        url: page_id(hex).url(),
+        parent,
+        last_edited: chrono::Utc::now(),
+        created: chrono::Utc::now(),
+        in_trash: false,
+        properties: Default::default(),
+    };
+    let tree = PlanTree::new(&Inventory {
+        pages: vec![
+            page('a', "Engineering", NotionParent::Workspace),
+            page('b', "Spec", NotionParent::Page { id: page_id('a') }),
+        ],
+        data_sources: Vec::new(),
+    });
+    let items = tree.triage_items(&std::collections::HashMap::new());
+    let verdict = |hex: char, decision: NotionDecision| {
+        (
+            page_id(hex).to_string(),
+            Verdict {
+                key: page_id(hex).to_string(),
+                decision,
+                reason: None,
+                task_fields: None,
+                shared: None,
+                shared_reason: None,
+            },
+        )
+    };
+    let control = JobControl::new(tokio_util::sync::CancellationToken::new());
+
+    // Planning: the tree is staged undecided, then one batch at a time.
+    for attempt in ["first", "resumed"] {
+        repo.replace_plan(
+            &owner,
+            ImportSource::Notion,
+            &tree.staged_rows(
+                NotionSharing::Personal,
+                false,
+                &std::collections::HashMap::new(),
+            ),
+        )
+        .await
+        .unwrap();
+        let staged = service.notion_import_report(&owner).await.unwrap();
+        assert_eq!(staged.review_id, Some(review), "{attempt}");
+        assert_eq!((staged.pages, staged.deciding), (2, 2), "{attempt}");
+
+        let between = Mutex::new(None);
+        let batches = futures::stream::unfold(0, |batch| {
+            let service = &service;
+            let owner = &owner;
+            let between = &between;
+            async move {
+                match batch {
+                    0 => Some((
+                        [verdict('a', NotionDecision::Copy)].into_iter().collect(),
+                        1,
+                    )),
+                    1 => {
+                        // Read once the first batch is written.
+                        *between.lock().unwrap() =
+                            Some(service.notion_import_report(owner).await.unwrap());
+                        Some((
+                            [verdict('b', NotionDecision::Skip)].into_iter().collect(),
+                            2,
+                        ))
+                    }
+                    _ => None,
+                }
+            }
+        });
+        service
+            .stage_verdicts(
+                &owner,
+                &tree,
+                &items,
+                batches,
+                NotionSharing::Personal,
+                false,
+                &control,
+            )
+            .await
+            .unwrap();
+
+        let between = between.into_inner().unwrap().unwrap();
+        assert_eq!(
+            (between.deciding, between.copy, between.skip),
+            (1, 1, 0),
+            "{attempt}: the first batch shows before the second is answered"
+        );
+        let decided = service.notion_import_report(&owner).await.unwrap();
+        assert_eq!(
+            (decided.pages, decided.deciding, decided.copy, decided.skip),
+            (2, 0, 1, 1),
+            "{attempt}"
+        );
+        let rows = repo
+            .list(&owner, Some(ImportSource::Notion), None)
+            .await
+            .unwrap();
+        assert_eq!(rows.len(), 2, "{attempt}: staging again duplicates nothing");
+        assert!(
+            rows.iter().all(|row| row.review_id == Some(review)),
+            "{attempt}: rows staged after the review was presented are tied to it"
+        );
+    }
 }

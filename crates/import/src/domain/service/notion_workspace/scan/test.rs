@@ -21,6 +21,15 @@ impl NotionPlanRepo for Recorder {
         unreachable!("recording a scan never replaces the plan")
     }
 
+    async fn update_plan_rows(
+        &self,
+        _: &MacroUserIdStr<'static>,
+        _: ImportSource,
+        _: &[PlanRow],
+    ) -> Result<u64> {
+        unreachable!("recording a scan never decides plan rows")
+    }
+
     async fn attach_review(
         &self,
         _: &MacroUserIdStr<'static>,

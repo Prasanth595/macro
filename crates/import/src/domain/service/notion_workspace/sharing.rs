@@ -2,14 +2,13 @@
 //! the owner's changes to it, and which folders can be shared.
 //!
 //! Sharing a folder shares everything inside it, so a folder is shared only
-//! when everything written inside it is. Databases cannot be shared with a
-//! team, so they stay with the user, and so do the folders holding them.
+//! when everything written inside it is.
 
 use std::collections::{HashMap, HashSet};
 
 use uuid::Uuid;
 
-use crate::domain::models::{ImportKind, NotionDecision, NotionSharing};
+use crate::domain::models::NotionSharing;
 
 use super::triage::Verdict;
 use super::write::{FolderLayout, WriteItem};
@@ -19,9 +18,6 @@ mod test;
 
 /// Why a user without a team keeps everything.
 pub(super) const NO_TEAM: &str = "You're not on a team, so this stays visible only to you.";
-/// Why a database is not shared.
-pub(super) const DATABASE: &str =
-    "Databases can't be shared with a team yet, so this stays visible only to you.";
 /// Why an object is not shared when the decision model gave no answer.
 const NO_ANSWER: &str = "Kept visible only to you: the decision model gave no answer.";
 
@@ -36,18 +32,8 @@ pub(super) struct PlanSharing {
     pub shareable: bool,
 }
 
-/// Whether what an object becomes can be shared with a team at all.
-pub(super) fn can_share(kind: ImportKind, decision: NotionDecision, team: bool) -> bool {
-    team && !(kind == ImportKind::DataSource && decision == NotionDecision::Copy)
-}
-
 /// The plan's sharing for one object under the user's choice.
-pub(super) fn plan_sharing(
-    sharing: NotionSharing,
-    kind: ImportKind,
-    verdict: &Verdict,
-    team: bool,
-) -> PlanSharing {
+pub(super) fn plan_sharing(sharing: NotionSharing, verdict: &Verdict, team: bool) -> PlanSharing {
     let personal = |reason: &str| PlanSharing {
         shared: false,
         reason: Some(reason.to_string()),
@@ -55,9 +41,6 @@ pub(super) fn plan_sharing(
     };
     if !team {
         return personal(NO_TEAM);
-    }
-    if !can_share(kind, verdict.decision, team) {
-        return personal(DATABASE);
     }
     let (shared, reason) = match sharing {
         NotionSharing::Team => (true, None),
@@ -95,8 +78,8 @@ pub(super) fn sharing_changes(
 }
 
 /// The folders to share: those whose every written object, the folder's
-/// own page included, is shared. A folder holding a database (never shared)
-/// or a private page stays with the user, since sharing it would share them.
+/// own page included, is shared. A folder holding a private page or
+/// database stays with the user, since sharing it would share them.
 pub(super) fn shared_folders(items: &[WriteItem], layout: &FolderLayout) -> HashSet<Uuid> {
     let parents: HashMap<Uuid, Option<Uuid>> = items
         .iter()

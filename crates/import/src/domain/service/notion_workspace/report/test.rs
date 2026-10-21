@@ -16,10 +16,11 @@ fn row(
     last_error: Option<&str>,
 ) -> ImportEntity {
     let plan = NotionPlanItem {
-        decision,
+        decision: Some(decision),
         reason: (decision == NotionDecision::Hand).then(|| "Mixed records".to_string()),
         path: Vec::new(),
         rows: (kind == ImportKind::DataSource).then_some(10),
+        sample_titles: Vec::new(),
         task_fields: None,
         shared: false,
         shared_reason: None,
@@ -114,6 +115,7 @@ fn the_report_counts_the_current_plan_and_lists_what_needs_attention() {
         error: None,
         updated_at: Utc.with_ymd_and_hms(2026, 10, 19, 12, 0, 0).unwrap(),
         scanned: None,
+        review_id: None,
     };
 
     let report = report(Some(&run), &rows);
@@ -167,6 +169,7 @@ fn while_planning_the_report_carries_what_notion_has_shown_so_far() {
             pages: 40,
             data_sources: 12,
         }),
+        review_id: None,
     };
 
     assert_eq!(
@@ -243,4 +246,56 @@ fn objects_already_in_macro_are_counted_apart_with_who_imported_them() {
     assert_eq!(report.shared_with_team, 1);
     assert_eq!(report.waiting_on_teammates, 1);
     assert_eq!((report.writing, report.waiting), (0, 1));
+}
+
+#[test]
+fn a_plan_presented_while_it_is_decided_counts_what_is_undecided_under_the_runs_review() {
+    let earlier_review = Uuid::now_v7();
+    let review = Uuid::now_v7();
+    // Imported by an earlier plan and review.
+    let imported = row(
+        "Old notes",
+        ImportKind::Page,
+        ImportStatus::Imported,
+        NotionDecision::Copy,
+        Some(earlier_review),
+        None,
+    );
+    let decided = row(
+        "Handbook",
+        ImportKind::Page,
+        ImportStatus::Staged,
+        NotionDecision::Copy,
+        Some(review),
+        None,
+    );
+    let mut undecided = row(
+        "Roadmap",
+        ImportKind::DataSource,
+        ImportStatus::Staged,
+        NotionDecision::Copy,
+        Some(review),
+        None,
+    );
+    let mut meta: NotionDocMeta = serde_json::from_value(undecided.metadata.clone()).unwrap();
+    if let Some(plan) = meta.plan.as_mut() {
+        plan.decision = None;
+    }
+    undecided.metadata = serde_json::to_value(meta).unwrap();
+    let run = ImportRun {
+        source: ImportSource::Notion,
+        status: RunStatus::Running,
+        error: None,
+        updated_at: Utc.with_ymd_and_hms(2026, 10, 19, 12, 0, 0).unwrap(),
+        scanned: None,
+        review_id: Some(review),
+    };
+
+    let report = report(Some(&run), &[imported, decided, undecided]);
+
+    assert_eq!(report.review_id, Some(review));
+    assert_eq!((report.pages, report.data_sources), (1, 1));
+    assert_eq!(report.deciding, 1);
+    assert_eq!((report.copy, report.documents, report.databases), (1, 1, 0));
+    assert_eq!((report.imported, report.waiting), (0, 1));
 }

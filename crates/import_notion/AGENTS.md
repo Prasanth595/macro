@@ -43,6 +43,9 @@ model for the `import` crate to turn into Macro documents and databases.
 - `query_data_source` cursors are this crate's own JSON, not Notion's: past
   Notion's 10,000-row cap the query restarts from the last row's
   `created_time`, so drain with `inventory::all_rows`, which de-duplicates.
+- `inventory` counts rows and samples titles from the search results (rows are
+  pages there) and queries a data source only when search showed none of its
+  rows; the ~3 requests/second pacing makes every extra request count.
 - Decoding skips (and warns on) a single unreadable search/query item rather
   than failing the page; fixtures in `fixtures/` cover every property type.
 - Unknown property and value types map to `Unsupported` / `Empty`, never an

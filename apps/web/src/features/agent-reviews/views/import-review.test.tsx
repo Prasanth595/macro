@@ -50,9 +50,11 @@ function entity(
   parentId: string | null,
   title: string,
   plan: {
-    decision: string;
+    decision?: string;
     reason?: string;
     rows?: number;
+    sampleTitles?: string[];
+    taskFields?: { status?: string; due?: string };
     shared?: boolean;
     sharedReason?: string;
     shareable?: boolean;
@@ -125,7 +127,13 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function setup(options: { item?: Partial<ReviewItem>; canAct?: boolean } = {}) {
+function setup(
+  options: {
+    item?: Partial<ReviewItem>;
+    canAct?: boolean;
+    review?: Partial<Review>;
+  } = {}
+) {
   let record: Review = {
     id: 'review',
     sessionId: 'session',
@@ -142,6 +150,7 @@ function setup(options: { item?: Partial<ReviewItem>; canAct?: boolean } = {}) {
         ...options.item,
       },
     ],
+    ...options.review,
   };
   const decide = vi.fn(async (decision: ReviewDecision) => {
     if (decision.revision !== record.revision) throw new Error('conflict');
@@ -200,9 +209,8 @@ describe('import review', () => {
       })
     );
 
+    // The card's button approves; there is no confirmation step.
     fireEvent.click(screen.getByRole('button', { name: 'Import 1 page' }));
-    const dialog = await screen.findByRole('dialog');
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Import' }));
     await waitFor(() =>
       expect(decide).toHaveBeenLastCalledWith({
         action: 'submit',
@@ -280,6 +288,20 @@ describe('import review', () => {
     await waitFor(() => expect(imports.cancel).toHaveBeenCalledTimes(1));
   });
 
+  it("says when the agent started the import at the owner's request", () => {
+    setup({
+      item: { status: 'submitting' },
+      review: { approvedByAgent: { requestedBy: 'owner', at: 1 } },
+    });
+    expect(
+      screen.getByText('Started by the agent at your request')
+    ).toBeTruthy();
+    cleanup();
+
+    setup({ item: { status: 'submitting' } });
+    expect(screen.queryByText(/Started by the agent/)).toBeNull();
+  });
+
   it('says what stays after the run was stopped', () => {
     imports.report = {
       status: 'dismissed',
@@ -326,7 +348,7 @@ describe('import review', () => {
         rows: 40,
         shared: false,
         shareable: false,
-        sharedReason: "Databases can't be shared with a team yet",
+        sharedReason: 'Personal notes',
       }),
       entity('billing', null, 'Billing', {
         decision: 'hand',
@@ -397,12 +419,8 @@ describe('import review', () => {
       })
     );
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Import 2 pages, 40 tasks' })
-    );
-    const dialog = await screen.findByRole('dialog');
     expect(
-      within(dialog).getByText(/2 shared with your team, 1 only you\./)
+      screen.getByText('2 shared with your team · 1 only you')
     ).toBeTruthy();
   });
 
@@ -465,5 +483,130 @@ describe('import review', () => {
       { type: 'md', id: 'doc-wiki' },
       expect.anything()
     );
+  });
+
+  it('fills in while it is planned and opens for approval once ready', () => {
+    imports.entities = [];
+    const planning: NotionImportReport = {
+      status: 'running',
+      reviewId: 'review',
+      onTeam: true,
+      scanned: { pages: 40, dataSources: 12 },
+      pages: 0,
+      dataSources: 0,
+      copy: 0,
+      tasks: 0,
+      skip: 0,
+      hand: 0,
+      documents: 0,
+      databases: 0,
+      databaseRows: 0,
+      taskRows: 0,
+      imported: 0,
+      waiting: 0,
+      writing: 0,
+    };
+    imports.report = planning;
+    setup();
+    expect(
+      screen.getByText('Reading Notion: 40 pages, 12 databases')
+    ).toBeTruthy();
+    expect(
+      screen.getByRole<HTMLButtonElement>('button', { name: 'Import' }).disabled
+    ).toBe(true);
+    cleanup();
+
+    // Staged, and one of two decided.
+    imports.entities = [
+      entity('wiki', null, 'Wiki', { decision: 'copy' }),
+      entity('roadmap', 'wiki', 'Roadmap', { rows: 40 }),
+    ];
+    imports.report = { ...planning, pages: 1, dataSources: 1 };
+    setup();
+    expect(
+      screen.getByText('Deciding what to import: 1 of 2 decided')
+    ).toBeTruthy();
+    expect(screen.getByText('Deciding…')).toBeTruthy();
+    expect(
+      screen.getByRole<HTMLButtonElement>('button', { name: 'Import' }).disabled
+    ).toBe(true);
+    expect(
+      screen.getByRole<HTMLInputElement>('checkbox', { name: 'Import Wiki' })
+        .disabled
+    ).toBe(true);
+    cleanup();
+
+    imports.entities = [
+      entity('wiki', null, 'Wiki', { decision: 'copy' }),
+      entity('roadmap', 'wiki', 'Roadmap', { decision: 'skip', rows: 40 }),
+    ];
+    imports.report = { ...planning, pages: 1, dataSources: 1, status: 'ready' };
+    setup();
+    expect(screen.queryByText(/Deciding/)).toBeNull();
+    expect(
+      screen.getByRole<HTMLButtonElement>('button', { name: 'Import 1 page' })
+        .disabled
+    ).toBe(false);
+  });
+
+  it("says nothing is shared when the owner isn't on a team", () => {
+    imports.report = {
+      status: 'ready',
+      reviewId: 'review',
+      onTeam: false,
+      pages: 3,
+      dataSources: 1,
+      copy: 1,
+      tasks: 1,
+      skip: 1,
+      hand: 1,
+      documents: 1,
+      databases: 0,
+      databaseRows: 0,
+      taskRows: 40,
+      imported: 0,
+      waiting: 2,
+      writing: 0,
+    };
+    setup();
+    expect(
+      screen.getByText(
+        "2 only you — you're not on a team, so nothing is shared"
+      )
+    ).toBeTruthy();
+  });
+
+  it("shows a database's sample rows and task columns, and the whole plan", async () => {
+    imports.entities = [
+      entity('roadmap', null, 'Roadmap', {
+        decision: 'tasks',
+        rows: 2365,
+        sampleTitles: ['Fix login redirect', 'Q3 pricing page'],
+        taskFields: { status: 'Stage', due: 'Deadline' },
+      }),
+      entity('crm', null, 'CRM', {
+        decision: 'copy',
+        rows: 12,
+        sharedReason: 'Personal notes',
+      }),
+    ];
+    setup();
+    expect(screen.getByText('Task lists')).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Show rows of Roadmap' })
+    );
+    expect(
+      screen.getByText('2,365 tasks — Fix login redirect, Q3 pricing page, …')
+    ).toBeTruthy();
+    expect(
+      screen.getByText('Status from “Stage” · Due from “Deadline”')
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open full review' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      within(dialog).getByRole('list', { name: 'Import plan' })
+    ).toBeTruthy();
+    expect(within(dialog).getByText('CRM')).toBeTruthy();
   });
 });

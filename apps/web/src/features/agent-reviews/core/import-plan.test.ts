@@ -11,7 +11,9 @@ import {
   initiallyCollapsed,
   isShared,
   planCounts,
+  planningStatus,
   planSummary,
+  planTotals,
   planTreeEntries,
   setExcluded,
   setShared,
@@ -21,6 +23,8 @@ import {
 } from './import-plan';
 
 const unshared = {
+  sampleTitles: [],
+  taskFields: null,
   shared: false,
   sharedReason: null,
   shareable: false,
@@ -148,7 +152,7 @@ describe('setShared', () => {
         ? { ...entry, shared: true, shareable: true }
         : {
             ...entry,
-            sharedReason: "Databases can't be shared with a team yet",
+            sharedReason: 'Personal notes',
           }
   );
 
@@ -167,10 +171,10 @@ describe('setShared', () => {
       ['scratch', true],
       ['billing', true],
     ]);
-    expect(sharingSummary(sharing, personal)).toBe('3 only you');
+    expect(sharingSummary(sharing, personal, true)).toBe('3 only you');
     const back = setShared(personal, nodes, 'q3', true);
     expect(back).toEqual({ ...EMPTY_IMPORT_DRAFT, personal: ['wiki'] });
-    expect(sharingSummary(sharing, back)).toBe(
+    expect(sharingSummary(sharing, back, true)).toBe(
       '1 shared with your team · 2 only you'
     );
     expect(setShared(back, nodes, 'wiki', true)).toEqual(EMPTY_IMPORT_DRAFT);
@@ -184,14 +188,18 @@ describe('setShared', () => {
       ...EMPTY_IMPORT_DRAFT,
       shared: ['roadmap', 'q3'],
     });
-    expect(sharingSummary(shareable, { ...shared, excluded: ['wiki'] })).toBe(
-      '2 shared with your team'
-    );
     expect(
-      sharingSummary(shareable, {
-        ...shared,
-        excluded: ['wiki', 'roadmap', 'q3'],
-      })
+      sharingSummary(shareable, { ...shared, excluded: ['wiki'] }, true)
+    ).toBe('2 shared with your team');
+    expect(
+      sharingSummary(
+        shareable,
+        {
+          ...shared,
+          excluded: ['wiki', 'roadmap', 'q3'],
+        },
+        true
+      )
     ).toBe('');
   });
 });
@@ -289,6 +297,8 @@ describe('importReviewPhase', () => {
     reviewId: 'review',
     status: 'importing',
     error: null,
+    scanned: null,
+    onTeam: true,
     counts: planCounts(entries),
     imported: 1,
     waiting: 1,
@@ -303,6 +313,13 @@ describe('importReviewPhase', () => {
     expect(
       importReviewPhase({ presentedAt: 1 }, { status: 'pending' }, progress)
     ).toEqual({ kind: 'plan' });
+    expect(
+      importReviewPhase(
+        { presentedAt: 1 },
+        { status: 'pending' },
+        { ...progress, status: 'running' }
+      )
+    ).toEqual({ kind: 'planning' });
     expect(
       importReviewPhase({ presentedAt: 1 }, { status: 'dismissed' }, undefined)
     ).toEqual({ kind: 'dismissed' });
@@ -336,5 +353,83 @@ describe('importReviewPhase', () => {
     expect(importReviewPhase({ presentedAt: 1 }, completed, undefined)).toEqual(
       { kind: 'importing' }
     );
+  });
+});
+
+describe('planning', () => {
+  const running: ImportProgress = {
+    reviewId: 'review',
+    status: 'running',
+    error: null,
+    scanned: { pages: 40, databases: 12 },
+    onTeam: true,
+    counts: planCounts([]),
+    imported: 0,
+    waiting: 0,
+    writing: 0,
+    failures: [],
+  };
+
+  it('reads Notion until the plan is staged, then counts what is decided', () => {
+    expect(planningStatus(running, [])).toBe(
+      'Reading Notion: 40 pages, 12 databases'
+    );
+    expect(planningStatus({ ...running, scanned: null }, [])).toBe(
+      'Reading Notion…'
+    );
+    const staged = entries.map((entry, index) =>
+      index < 2 ? entry : { ...entry, decision: null }
+    );
+    expect(planningStatus(running, staged)).toBe(
+      'Deciding what to import: 2 of 5 decided'
+    );
+    expect(planCounts(staged).deciding).toBe(3);
+    expect(importVolume(staged, [])).toEqual({
+      documents: 1,
+      databases: 0,
+      rows: 0,
+      taskLists: 1,
+      tasks: 40,
+    });
+  });
+
+  it('says why nothing is shared without a team', () => {
+    expect(sharingSummary(entries, EMPTY_IMPORT_DRAFT, false)).toBe(
+      "3 only you — you're not on a team, so nothing is shared"
+    );
+  });
+});
+
+describe('planTotals', () => {
+  it('totals the plan per kind and leaves empty kinds out', () => {
+    const database: ImportPlanEntry = {
+      id: 'bugs',
+      parentId: null,
+      kind: 'database',
+      title: 'Bugs',
+      decision: 'copy',
+      reason: null,
+      rows: 405,
+      status: 'staged',
+      error: null,
+      ...unshared,
+    };
+    const copied: ImportPlanEntry = {
+      ...database,
+      id: 'crm',
+      title: 'CRM',
+      alreadyImported: {
+        by: 'ana@acme.com',
+        entityId: 'db',
+        entityType: 'database',
+      },
+    };
+    expect(planTotals([...entries, database, copied], [])).toEqual([
+      { label: 'Documents', value: '2' },
+      { label: 'Databases', value: '1 (405 rows)' },
+      { label: 'Task lists', value: '1 (40 tasks)' },
+      { label: 'Skipped', value: '1' },
+      { label: 'Already in Macro', value: '1' },
+    ]);
   });
 });

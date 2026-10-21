@@ -4,15 +4,28 @@ import type { Review, ReviewItem } from './review';
 /** What a workspace import does with one Notion object. */
 export type ImportPlanDecision = 'copy' | 'tasks' | 'skip' | 'hand';
 
+/** Which Notion columns become a task list's task fields. */
+export type ImportTaskFields = {
+  status: string | null;
+  priority: string | null;
+  due: string | null;
+  assignee: string | null;
+};
+
 /** One Notion object in an import plan. */
 export type ImportPlanEntry = {
   id: string;
   parentId: string | null;
   kind: 'page' | 'database';
   title: string;
-  decision: ImportPlanDecision;
+  /** `null` while planning has not decided it yet. */
+  decision: ImportPlanDecision | null;
   reason: string | null;
   rows: number | null;
+  /** A few of a database's row titles. */
+  sampleTitles: string[];
+  /** For a task list: the columns its task fields come from. */
+  taskFields: ImportTaskFields | null;
   status: 'staged' | 'importing' | 'imported' | 'discarded';
   error: string | null;
   /** The plan shares the written object with the owner's team. */
@@ -47,6 +60,8 @@ export type ImportPlanCounts = {
   tasks: number;
   skip: number;
   hand: number;
+  /** Not decided yet. */
+  deciding: number;
 };
 
 export type ImportReportItem = { id: string; title: string; reason: string };
@@ -63,6 +78,10 @@ export type ImportProgress = {
     | 'dismissed'
     | null;
   error: string | null;
+  /** What planning has found in Notion so far, while it reads it. */
+  scanned: { pages: number; databases: number } | null;
+  /** Without a team, everything stays with the owner. */
+  onTeam: boolean;
   counts: ImportPlanCounts;
   imported: number;
   waiting: number;
@@ -72,6 +91,7 @@ export type ImportProgress = {
 
 export type ImportReviewPhase =
   | { kind: 'preparing' }
+  | { kind: 'planning' }
   | { kind: 'plan' }
   | { kind: 'starting' }
   | { kind: 'importing' }
@@ -100,10 +120,10 @@ export const EMPTY_IMPORT_DRAFT: ImportDraft = {
 };
 
 /** Whether a decision writes anything, and so can be left out. */
-export function isWritten(decision: ImportPlanDecision): boolean {
+export function isWritten(decision: ImportPlanDecision | null): boolean {
   return match(decision)
     .with('copy', 'tasks', () => true)
-    .with('skip', 'hand', () => false)
+    .with('skip', 'hand', null, () => false)
     .exhaustive();
 }
 
@@ -286,11 +306,13 @@ export function setShared(
 
 /**
  * e.g. "12 shared with your team · 3 only you", over the objects approving
- * the plan writes; empty when it writes nothing.
+ * the plan writes; empty when it writes nothing. Without a team, says why
+ * everything stays with the owner.
  */
 export function sharingSummary(
   entries: ImportPlanEntry[],
-  draft: ImportDraft
+  draft: ImportDraft,
+  onTeam: boolean
 ): string {
   let team = 0;
   let personal = 0;
@@ -298,6 +320,11 @@ export function sharingSummary(
     if (!isNew(entry) || draft.excluded.includes(entry.id)) continue;
     if (isShared(entry, draft)) team += 1;
     else personal += 1;
+  }
+  if (!onTeam) {
+    return personal > 0
+      ? `${personal} only you — you're not on a team, so nothing is shared`
+      : '';
   }
   return [
     team > 0 ? `${team} shared with your team` : '',
@@ -360,10 +387,62 @@ export function importVolume(
         volume.taskLists += 1;
         volume.tasks += entry.rows ?? 0;
       })
-      .with('skip', 'hand', () => {})
+      .with('skip', 'hand', null, () => {})
       .exhaustive();
   }
   return volume;
+}
+
+/** One line of the plan's totals, e.g. "Databases 18 (405 rows)". */
+export type ImportTotal = { label: string; value: string };
+
+/** What the plan holds per kind, leaving out empty kinds. */
+export function planTotals(
+  entries: ImportPlanEntry[],
+  excluded: readonly string[]
+): ImportTotal[] {
+  const volume = importVolume(entries, excluded);
+  const skipped = entries.filter(
+    (entry) => entry.decision === 'skip' && entry.alreadyImported === null
+  ).length;
+  const already = alreadyInMacro(entries).length;
+  return [
+    volume.documents > 0
+      ? { label: 'Documents', value: `${volume.documents}` }
+      : null,
+    volume.databases > 0
+      ? {
+          label: 'Databases',
+          value: `${volume.databases} (${plural(volume.rows, 'row', 'rows')})`,
+        }
+      : null,
+    volume.taskLists > 0
+      ? {
+          label: 'Task lists',
+          value: `${volume.taskLists} (${plural(volume.tasks, 'task', 'tasks')})`,
+        }
+      : null,
+    skipped > 0 ? { label: 'Skipped', value: `${skipped}` } : null,
+    already > 0 ? { label: 'Already in Macro', value: `${already}` } : null,
+  ].filter((total): total is ImportTotal => total !== null);
+}
+
+/**
+ * What planning is doing: reading Notion until the plan is staged, then
+ * deciding each object, e.g. "Deciding what to import: 40 of 84 decided".
+ */
+export function planningStatus(
+  progress: ImportProgress | undefined,
+  entries: ImportPlanEntry[]
+): string {
+  if (entries.length === 0) {
+    const scanned = progress?.scanned;
+    return scanned
+      ? `Reading Notion: ${plural(scanned.pages, 'page', 'pages')}, ${plural(scanned.databases, 'database', 'databases')}`
+      : 'Reading Notion…';
+  }
+  const decided = entries.filter((entry) => entry.decision !== null).length;
+  return `Deciding what to import: ${decided} of ${entries.length} decided`;
 }
 
 /** e.g. "54 pages, 18 databases (405 rows), 33 tasks". */
@@ -386,11 +465,12 @@ export function planCounts(entries: ImportPlanEntry[]): ImportPlanCounts {
     tasks: 0,
     skip: 0,
     hand: 0,
+    deciding: 0,
   };
   for (const entry of entries) {
     if (entry.kind === 'database') counts.databases += 1;
     else counts.pages += 1;
-    counts[entry.decision] += 1;
+    counts[entry.decision ?? 'deciding'] += 1;
   }
   return counts;
 }
@@ -444,6 +524,8 @@ export function progressFromEntries(
     reviewId,
     status: null,
     error: null,
+    scanned: null,
+    onTeam: true,
     counts: planCounts(entries),
     imported: entries.filter((entry) => entry.status === 'imported').length,
     waiting: pending.length,
@@ -470,7 +552,9 @@ export function importReviewPhase(
   if (review.presentedAt == null || !item) return { kind: 'preparing' };
   return match(item.status)
     .returnType<ImportReviewPhase>()
-    .with('pending', () => ({ kind: 'plan' }))
+    .with('pending', () =>
+      progress?.status === 'running' ? { kind: 'planning' } : { kind: 'plan' }
+    )
     .with('submitting', () => ({ kind: 'starting' }))
     .with('dismissed', () => ({ kind: 'dismissed' }))
     .with('unknown', () => ({ kind: 'unknown', error: item.error ?? null }))

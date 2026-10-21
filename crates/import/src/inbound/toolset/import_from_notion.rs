@@ -18,9 +18,10 @@ use crate::domain::service::NotionWorkspaceImporter;
 #[cfg(test)]
 mod test;
 
-/// How long `plan` waits for planning before reporting that it is still
-/// running in the background.
-const PLAN_WAIT: Duration = Duration::from_secs(240);
+/// How long `plan` waits for planning before handing back a plan that is
+/// still being made: long enough for a tiny workspace to come back ready,
+/// short enough that the agent presents the review while it fills in.
+const PLAN_WAIT: Duration = Duration::from_secs(5);
 
 /// What the tool is asked to do.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, JsonSchema)]
@@ -39,7 +40,7 @@ pub enum NotionImportAction {
 #[serde(rename_all = "camelCase")]
 #[schemars(
     title = "ImportFromNotion",
-    description = "Import the user's Notion workspace (or part of it) into Macro: pages become documents in folders mirroring Notion's page tree, databases become Macro databases with their rows and relations, and task-tracker databases become Macro tasks. Before `plan`, ask the user who should see what is imported, in one short question with three options: shared with their team, only them (personal), or let AI decide per page; do not guess, and pass their answer as `sharing`. `plan` reads the workspace through the user's Notion connection, decides per page and database what to do (and, with `sharing` \"ai\", who sees it), links anything a teammate already imported and shared, and stages a plan without writing anything; then present the plan to the user with PresentReview (kind \"import\", drafts [{\"source\":\"notion\"}]). Approving that review writes the plan; never import plan items with other tools. `status` reports progress; `cancel` stops planning or importing. Use this for anything bigger than a single page instead of ImportNotionPage."
+    description = "Import the user's Notion workspace (or part of it) into Macro: pages become documents in folders mirroring Notion's page tree, databases become Macro databases with their rows and relations, and task-tracker databases become Macro tasks. `plan` reads the workspace through the user's Notion connection, decides per page and database what to do (and, with `sharing` \"ai\", who sees it), links anything a teammate already imported and shared, and stages a plan without writing anything. Who sees the import: unless the user already said, call `plan` without `sharing` first. A user who is not on a team gets a personal import straight away; tell them so and do not offer team sharing. For a user on a team it answers that `sharing` is required: then ask them in one short question with three options (shared with their team, only them, or let AI decide per page), do not guess, and plan again with their answer. `plan` answers within seconds while planning goes on in the background: present the plan right away with PresentReview (kind \"import\", drafts [{\"source\":\"notion\"}]). The review fills in as Notion is read and each object is decided, and the user approves it there once it is ready; do not wait for planning or check `status` in a loop. Approving that review writes the plan; never import plan items with other tools. End your message after presenting it by asking \"Should I kick it off?\"; if the user says yes, approve it yourself with ApproveReview (the reviewId PresentReview returned). `status` reports progress; `cancel` stops planning or importing. Use this for anything bigger than a single page instead of ImportNotionPage."
 )]
 pub struct ImportFromNotion {
     /// What to do.
@@ -49,10 +50,10 @@ pub struct ImportFromNotion {
     /// connection can see.
     #[serde(default)]
     pub roots: Vec<String>,
-    /// For `plan`, required: who sees what the import writes, as the user
-    /// answered when asked: `team` shares everything with their team,
-    /// `personal` keeps everything visible only to them, `ai` lets the
-    /// decision model choose per page. Databases always stay with the user.
+    /// For `plan`: who sees what the import writes, as the user answered
+    /// when asked: `team` shares everything with their team, `personal`
+    /// keeps everything visible only to them, `ai` lets the decision model
+    /// choose per page. Leave it out for a user who is not on a team.
     #[serde(default)]
     pub sharing: Option<NotionSharing>,
 }
@@ -86,14 +87,8 @@ impl<T: NotionWorkspaceImporter> AsyncTool<ImportToolContext<T>> for ImportFromN
         let user = request_context.user_id.clone();
         let report = match self.action {
             NotionImportAction::Plan => {
-                let sharing = self.sharing.ok_or_else(|| {
-                    tool_error(
-                        "`sharing` is required for `plan`. Ask the user whether the import should be shared with their team, kept personal, or left to AI to decide per page, then plan again with their answer.".to_string(),
-                        anyhow::anyhow!("notion import planned without sharing"),
-                    )
-                })?;
                 let scope = scope(&self.roots)?;
-                let planned = service.prepare_notion_import(&user, scope, sharing, PLAN_WAIT);
+                let planned = service.prepare_notion_import(&user, scope, self.sharing, PLAN_WAIT);
                 tokio::select! {
                     report = planned => report,
                     // Planning carries on in the background; report where it is.
@@ -107,6 +102,10 @@ impl<T: NotionWorkspaceImporter> AsyncTool<ImportToolContext<T>> for ImportFromN
             },
         }
         .map_err(|error| match error {
+            ImportError::NotionSharingRequired => tool_error(
+                "The user is on a team, so `sharing` is required for `plan`. Ask them whether the import should be shared with their team, kept to themselves, or left to AI to decide per page, then plan again with their answer.".to_string(),
+                error,
+            ),
             ImportError::NotionNotConnected => tool_error(
                 "Notion is not connected. Ask the user to connect Notion, then plan again."
                     .to_string(),
@@ -158,31 +157,41 @@ pub(super) fn message(action: NotionImportAction, report: &NotionImportReport) -
                 .join(", ")
         )
     };
+    let personal = if report.on_team {
+        ""
+    } else {
+        " The user is not on a team, so everything this import writes is visible only to them; do not offer to share it with a team."
+    };
+    let present = "PresentReview (kind \"import\", a short title such as \"Import from Notion\", drafts [{\"source\":\"notion\"}])";
     match (action, report.status) {
         (NotionImportAction::Cancel, _) => format!(
             "The Notion import is stopped. {} objects were already imported and stay in Macro.",
             report.imported
         ),
         (_, Some(RunStatus::Running)) => {
-            let found = report
-                .scanned
-                .map(|scanned| {
-                    format!(
-                        " {} pages and {} databases found so far.",
-                        scanned.pages, scanned.data_sources
-                    )
-                })
-                .unwrap_or_default();
+            let progress = planning_progress(report);
+            match report.review_id {
+                None => format!(
+                    "Planning has started and goes on in the background{progress}.{personal} Present the plan now with {present} and tell the user in a sentence that the review fills in as Notion is read and each object is decided, and that they approve it there once it is ready. Do not wait for planning or check `status` in a loop. End your message by asking \"Should I kick it off once it's ready?\". If they say yes, call ApproveReview; while the plan is still being made it refuses, so tell them it is not ready yet and that they can say so again, or approve it on the card, once it is."
+                ),
+                Some(_) => format!(
+                    "The plan is presented and still being made{progress}.{personal} The review fills in as planning goes, and the user approves it there once it is ready. Do not wait for planning or check `status` in a loop."
+                ),
+            }
+        }
+        (_, Some(RunStatus::Ready)) if report.review_id.is_none() => {
+            let choose = if report.on_team {
+                "; they can change who sees each object on the card"
+            } else {
+                ""
+            };
             format!(
-                "Still reading Notion and planning; this continues in the background.{found} Check again with action `status` in a minute."
+                "The plan is ready: {planned}.{already}{personal} Tell the user these numbers as they are, then present the plan now with {present}. Nothing is written until they approve it{choose}. End your message by asking \"Should I kick it off?\"; if they say yes, approve it with ApproveReview.{hand}"
             )
         }
-        (_, Some(RunStatus::Ready)) if report.review_id.is_none() => format!(
-            "The plan is ready: {planned}.{already} Tell the user these numbers as they are, then present the plan now with PresentReview (kind \"import\", a short title such as \"Import from Notion\", drafts [{{\"source\":\"notion\"}}]). Nothing is written until they approve it; they can change who sees each object on the card.{hand}"
-        ),
         (_, Some(RunStatus::Ready)) => {
             format!(
-                "The plan ({planned}) is presented and waiting for the user's approval.{already}{hand}"
+                "The plan ({planned}) is presented and waiting for the user's approval. If they tell you to go ahead, approve it with ApproveReview.{already}{hand}"
             )
         }
         (_, Some(RunStatus::Importing)) => format!(
@@ -211,6 +220,27 @@ pub(super) fn message(action: NotionImportAction, report: &NotionImportReport) -
     }
 }
 
+/// How far planning has got: what Notion has shown so far while it is read,
+/// then how many staged objects the decision model has answered for.
+fn planning_progress(report: &NotionImportReport) -> String {
+    let staged = report.pages + report.data_sources;
+    if staged > 0 {
+        return format!(
+            " ({} of {staged} objects decided so far)",
+            staged.saturating_sub(report.deciding)
+        );
+    }
+    report
+        .scanned
+        .map(|scanned| {
+            format!(
+                " ({} pages and {} databases found in Notion so far)",
+                scanned.pages, scanned.data_sources
+            )
+        })
+        .unwrap_or_default()
+}
+
 /// The plan in exact numbers, so the agent repeats what will really be
 /// written rather than a count of top-level objects.
 pub(super) fn planned_summary(report: &NotionImportReport) -> String {
@@ -235,14 +265,16 @@ pub(super) fn planned_summary(report: &NotionImportReport) -> String {
     } else {
         parts.join(", ")
     };
-    let shared = if report.copy + report.tasks > 0 {
+    let shared = if report.copy + report.tasks == 0 {
+        String::new()
+    } else if !report.on_team {
+        "; all of it visible only to the user".to_string()
+    } else {
         let personal = (report.copy + report.tasks).saturating_sub(report.shared_with_team);
         format!(
             "; {} of them shared with the user's team, {personal} visible only to the user",
             report.shared_with_team
         )
-    } else {
-        String::new()
     };
     format!(
         "of the {} pages and {} databases Notion shared, it imports {writes}{shared}; {} skipped, {} to handle by hand",

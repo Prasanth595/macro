@@ -46,6 +46,10 @@ pub enum ImportError {
     /// The user has not connected Notion, or turned it off.
     #[error("Notion is not connected")]
     NotionNotConnected,
+    /// The user is on a team and has not said who should see what a Notion
+    /// import writes.
+    #[error("who should see the Notion import was not chosen")]
+    NotionSharingRequired,
     /// The import is not in a state that allows this; the message says why.
     #[error("{0}")]
     NotReady(&'static str),
@@ -523,14 +527,15 @@ pub struct NewDatabase {
     pub title_column: models_databases::ColumnId,
 }
 
-/// Something a workspace import shares with the user's team. Databases
-/// cannot be shared with a team, so they are not here.
+/// Something a workspace import shares with the user's team.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SharedEntity {
     /// A folder, and everything in it.
     Folder(Uuid),
     /// A document.
     Document(Uuid),
+    /// A database, with its rows.
+    Database(Uuid),
 }
 
 /// A team member a Notion person can be matched to, by email.
@@ -649,14 +654,25 @@ pub struct PlanRow {
 pub trait NotionPlanRepo: Send + Sync + 'static {
     /// Replace `user`'s current plan for `source`: drop the staged rows of the
     /// previous plan, then stage `rows` in order (parents before children),
-    /// linking each to its parent row. Objects already importing or imported
-    /// keep their rows. Returns the rows now staged.
+    /// linking each to its parent row and to the review the `running` run
+    /// records, if one presents it already. Objects already importing or
+    /// imported keep their rows. Returns the rows now staged.
     fn replace_plan(
         &self,
         user: &MacroUserIdStr<'static>,
         source: ImportSource,
         rows: &[PlanRow],
     ) -> impl Future<Output = Result<Vec<ImportEntity>>> + Send;
+
+    /// Rewrite the metadata of the user's staged plan rows for `rows`'
+    /// objects (by `foreign_id`), as the decision model answers for them.
+    /// Rows no longer staged are left alone. Returns how many changed.
+    fn update_plan_rows(
+        &self,
+        user: &MacroUserIdStr<'static>,
+        source: ImportSource,
+        rows: &[PlanRow],
+    ) -> impl Future<Output = Result<u64>> + Send;
 
     /// Teammates' rows for the Notion objects `foreign_ids` that hold the
     /// user's team's claim (`importing` or `imported`, shared with the team).
@@ -711,8 +727,9 @@ pub trait NotionPlanRepo: Send + Sync + 'static {
         holder: Uuid,
     ) -> impl Future<Output = Result<bool>> + Send;
 
-    /// Tie the current plan's staged rows to `review_id`. Returns how many
-    /// rows it tied.
+    /// Tie the current plan to `review_id`: its staged rows, and the run
+    /// while it is still planning (`running`), so rows staged later are
+    /// tied too. Returns how many rows it tied.
     fn attach_review(
         &self,
         user: &MacroUserIdStr<'static>,

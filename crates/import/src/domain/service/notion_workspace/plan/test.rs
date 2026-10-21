@@ -101,9 +101,23 @@ fn the_tree_puts_parents_first_and_plans_every_object_under_its_page() {
     )]
     .into_iter()
     .collect();
-    let rows = tree.plan_rows(&verdicts, NotionSharing::Personal, true, &HashMap::new());
+    let staged = tree.staged_rows(NotionSharing::Personal, true, &HashMap::new());
+    assert_eq!(staged.len(), 5);
+    let waiting: Vec<Option<NotionDecision>> = staged
+        .iter()
+        .map(|row| {
+            serde_json::from_value::<NotionDocMeta>(row.metadata.clone())
+                .unwrap()
+                .plan
+                .unwrap()
+                .decision
+        })
+        .collect();
+    assert_eq!(waiting, [None, None, None, None, None]);
 
-    assert_eq!(rows.len(), 5);
+    let rows = tree.decided_rows(&verdicts, NotionSharing::Personal, true);
+
+    assert_eq!(rows.len(), 1);
     let bugs_row = rows
         .iter()
         .find(|row| row.foreign_id == id('e').to_string())
@@ -112,18 +126,15 @@ fn the_tree_puts_parents_first_and_plans_every_object_under_its_page() {
     assert_eq!(bugs_row.parent_foreign_id, Some(id('a').to_string()));
     let meta: NotionDocMeta = serde_json::from_value(bugs_row.metadata.clone()).unwrap();
     let plan = meta.plan.unwrap();
-    assert_eq!(plan.decision, NotionDecision::Tasks);
+    assert_eq!(plan.decision, Some(NotionDecision::Tasks));
     assert_eq!(plan.rows, Some(12));
+    assert_eq!(plan.sample_titles, ["Fix login"]);
+    assert_eq!(
+        plan.task_fields.and_then(|fields| fields.status).as_deref(),
+        Some("Status")
+    );
     assert_eq!(plan.path, ["Engineering"]);
     assert_eq!(meta.url.as_deref(), Some(id('f').url().as_str()));
-
-    let engineering_row = rows
-        .iter()
-        .find(|row| row.foreign_id == id('a').to_string())
-        .unwrap();
-    let meta: NotionDocMeta = serde_json::from_value(engineering_row.metadata.clone()).unwrap();
-    assert_eq!(meta.plan.unwrap().decision, NotionDecision::Copy);
-    assert_eq!(engineering_row.parent_foreign_id, None);
 }
 
 #[test]
@@ -181,10 +192,11 @@ fn objects_a_teammate_already_imported_skip_the_model_and_link_to_their_copy() {
     let verdicts: HashMap<String, Verdict> =
         [(id('a').to_string(), engineering)].into_iter().collect();
 
-    let rows = tree.plan_rows(&verdicts, NotionSharing::Ai, true, &already);
+    let staged = tree.staged_rows(NotionSharing::Ai, true, &already);
+    let decided = tree.decided_rows(&verdicts, NotionSharing::Ai, true);
 
-    let plans: Vec<NotionPlanItem> = rows
-        .iter()
+    let plans: Vec<NotionPlanItem> = [&decided[0], &staged[1]]
+        .into_iter()
         .map(|row| {
             serde_json::from_value::<NotionDocMeta>(row.metadata.clone())
                 .unwrap()
@@ -201,4 +213,9 @@ fn objects_a_teammate_already_imported_skip_the_model_and_link_to_their_copy() {
         "a teammate's copy is not the user's to share"
     );
     assert_eq!(plans[1].reason.as_deref(), Some(ALREADY_IN_MACRO));
+    assert_eq!(
+        plans[1].decision,
+        Some(NotionDecision::Copy),
+        "decided as soon as it is staged"
+    );
 }

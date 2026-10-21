@@ -52,7 +52,7 @@ impl NotionWorkspaceImporter for FakeImportService {
         &self,
         _user: &MacroUserIdStr<'static>,
         _scope: import_notion::domain::model::ImportScope,
-        _sharing: crate::domain::models::NotionSharing,
+        _sharing: Option<crate::domain::models::NotionSharing>,
         _wait: std::time::Duration,
     ) -> Result<NotionImportReport> {
         unimplemented!("routes never plan")

@@ -6,10 +6,11 @@ use crate::tool_context::ImportedContent;
 use databases::domain::models::{CreateDatabase, DatabaseDetail, DatabaseId, OpBatch, Viewer};
 use databases::domain::ports::DatabasesService as _;
 use databases::domain::receipt::database_receipt;
+use databases::domain::sharing::DatabaseSharingService as _;
 use documents::domain::models::DocumentError;
 use documents::domain::notion_markdown::{NotionMarkdown, NotionPageLink, NotionUserLink};
 use documents::domain::ports::DocumentService as _;
-use entity_access::domain::models::{EditAccessLevel, ViewAccessLevel};
+use entity_access::domain::models::{EditAccessLevel, OwnerAccessLevel, ViewAccessLevel};
 use entity_access::domain::ports::EntityAccessService as _;
 use import::domain::ports::{
     ImportedDocumentProperties, ImportedTaskProperties, NewDatabase, NotionLinks, SharedEntity,
@@ -320,6 +321,27 @@ impl import::domain::ports::WorkspaceWriter for ToolEntityCreator {
                     .await
                     .map_err(|error| {
                         anyhow::anyhow!("imported document {document} was not shared: {error:?}")
+                    })?;
+                Ok(())
+            }
+            SharedEntity::Database(database) => {
+                let receipt = self
+                    .entity_access_service
+                    .generate_entity_access_receipt::<OwnerAccessLevel>(
+                        user,
+                        None,
+                        &database.to_string(),
+                        model_entity::EntityType::Database,
+                    )
+                    .await
+                    .map_err(|error| {
+                        anyhow::anyhow!("no owner access to database {database}: {error:?}")
+                    })?;
+                self.databases_service
+                    .update_share_permissions(receipt, team_share())
+                    .await
+                    .map_err(|error| {
+                        anyhow::anyhow!("imported database {database} was not shared: {error:?}")
                     })?;
                 Ok(())
             }
