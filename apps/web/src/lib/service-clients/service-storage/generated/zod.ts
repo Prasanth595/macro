@@ -24149,10 +24149,12 @@ export const getItemsSoupQueryParams = zod.object({
       'frecency',
       'touched_by_me',
       'notified_at',
+      'due_date_earliest',
+      'due_date_latest',
     ])
     .optional()
     .describe(
-      'Sort method. Options are viewed_at, created_at, updated_at,\nviewed_updated, frecency, touched_by_me, notified_at. Defaults to\nviewed_at.'
+      'Sort method. Includes timestamp sorts, relevance sorts, and\ndue_date_earliest\/due_date_latest for tasks. Defaults to viewed_at.'
     ),
   sort_direction: zod
     .enum(['asc', 'desc'])
@@ -28711,6 +28713,29 @@ export const postItemsSoupBody = zod
       .array(
         zod
           .object({
+            date_range: zod
+              .union([
+                zod.null(),
+                zod
+                  .object({
+                    end: zod.iso
+                      .datetime({})
+                      .nullish()
+                      .describe(
+                        'Exclusive UTC upper bound, omitted for an open end.'
+                      ),
+                    start: zod.iso
+                      .datetime({})
+                      .nullish()
+                      .describe(
+                        'Inclusive UTC lower bound, omitted for an open start.'
+                      ),
+                  })
+                  .describe(
+                    'UTC timestamp interval. Lower bounds are inclusive; upper bounds are exclusive.'
+                  ),
+              ])
+              .optional(),
             entity_ids: zod
               .array(zod.string())
               .optional()
@@ -28722,6 +28747,12 @@ export const postItemsSoupBody = zod
               .nullish()
               .describe(
                 'The entity type for the property lookup (e.g., \"TASK\", \"DOCUMENT\", \"PROJECT\").\nWhen None, matches across all entity types.'
+              ),
+            has_date: zod
+              .boolean()
+              .nullish()
+              .describe(
+                'True matches non-null dates; false matches missing or cleared dates.'
               ),
             option_ids: zod
               .array(zod.string())
@@ -28787,6 +28818,8 @@ export const postItemsSoupBody = zod
                 'frecency',
                 'touched_by_me',
                 'notified_at',
+                'due_date_earliest',
+                'due_date_latest',
               ])
               .describe(
                 'Sort options accepted by non-grouped soup API endpoints.'
@@ -32904,6 +32937,8 @@ export const postItemsSoupAstBody = zod
                 'frecency',
                 'touched_by_me',
                 'notified_at',
+                'due_date_earliest',
+                'due_date_latest',
               ])
               .describe(
                 'Sort options accepted by non-grouped soup API endpoints.'
@@ -37045,6 +37080,38 @@ export const postItemsSoupAstGroupedBody = zod
                   .describe(
                     'Group by a property value (e.g., status, priority, or custom properties)'
                   ),
+                zod
+                  .object({
+                    deadline: zod
+                      .object({
+                        day_eight: zod.iso
+                          .datetime({})
+                          .describe(
+                            "UTC start of the viewer's local day eight days ahead."
+                          ),
+                        day_two: zod.iso
+                          .datetime({})
+                          .describe(
+                            "UTC start of the viewer's local day two days ahead."
+                          ),
+                        today: zod.iso
+                          .datetime({})
+                          .describe(
+                            "UTC start of the viewer's current local day."
+                          ),
+                        tomorrow: zod.iso
+                          .datetime({})
+                          .describe(
+                            "UTC start of the viewer's next local day."
+                          ),
+                      })
+                      .describe(
+                        'Frozen viewer-local day boundaries used to group task deadlines.'
+                      ),
+                  })
+                  .describe(
+                    'Group task deadlines using frozen viewer-local calendar boundaries.'
+                  ),
               ])
               .describe('API representation of group-by field.'),
             per_group_limit: zod
@@ -37063,6 +37130,8 @@ export const postItemsSoupAstGroupedBody = zod
                     'created_at',
                     'updated_at',
                     'viewed_updated',
+                    'due_date_earliest',
+                    'due_date_latest',
                   ])
                   .describe(
                     'Sort method for grouped queries (frecency not supported).'
@@ -37252,6 +37321,38 @@ export const postItemsSoupAstGroupedBody = zod
                   .describe(
                     'Group by a property value (e.g., status, priority, or custom properties)'
                   ),
+                zod
+                  .object({
+                    deadline: zod
+                      .object({
+                        day_eight: zod.iso
+                          .datetime({})
+                          .describe(
+                            "UTC start of the viewer's local day eight days ahead."
+                          ),
+                        day_two: zod.iso
+                          .datetime({})
+                          .describe(
+                            "UTC start of the viewer's local day two days ahead."
+                          ),
+                        today: zod.iso
+                          .datetime({})
+                          .describe(
+                            "UTC start of the viewer's current local day."
+                          ),
+                        tomorrow: zod.iso
+                          .datetime({})
+                          .describe(
+                            "UTC start of the viewer's next local day."
+                          ),
+                      })
+                      .describe(
+                        'Frozen viewer-local day boundaries used to group task deadlines.'
+                      ),
+                  })
+                  .describe(
+                    'Group task deadlines using frozen viewer-local calendar boundaries.'
+                  ),
               ])
               .describe('API representation of group-by field.'),
             group_key: zod.string().describe('Group key to fetch.'),
@@ -37271,6 +37372,8 @@ export const postItemsSoupAstGroupedBody = zod
                     'created_at',
                     'updated_at',
                     'viewed_updated',
+                    'due_date_earliest',
+                    'due_date_latest',
                   ])
                   .describe(
                     'Sort method for grouped queries (frecency not supported).'

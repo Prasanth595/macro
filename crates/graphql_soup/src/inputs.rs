@@ -3,10 +3,10 @@ use graphql_common::{GraphqlPropertyEntityType, parse_id};
 use graphql_soup_filter_input::GraphqlEntityFilterAst;
 use item_filters::ast::{EntityFilterAst, properties::PropertyEntityType};
 use macro_user_id::user_id::MacroUserIdStr;
-use models_grouping::{GroupByField, GroupingConfig};
-use models_pagination::{Base64Str, CursorWithValAndFilter, Query, SimpleSortMethod};
+use models_grouping::{DeadlineBoundaries, GroupByField, GroupingConfig};
+use models_pagination::{Base64Str, CursorWithValAndFilter, DueDateSort, SimpleSortMethod};
 use soup::domain::models::{
-    GroupedSortRequest, SoupQuery, SoupRequest, SoupSortDirection, SoupType,
+    GroupedSortMethod, GroupedSortQuery, SoupQuery, SoupRequest, SoupSortDirection, SoupType,
 };
 use uuid::Uuid;
 
@@ -26,8 +26,8 @@ pub struct SoupInitialInput {
     limit: Option<u16>,
     /// Whether to return expanded Soup items. Defaults to true.
     expand: Option<bool>,
-    /// Simple timestamp sort. Defaults to VIEWED_AT. Frecency is intentionally
-    /// not supported by this initial GraphQL adapter.
+    /// Timestamp or task due-date sort. Defaults to VIEWED_AT.
+    /// Frecency is not supported by this GraphQL adapter.
     sort_method: Option<GraphqlSimpleSortMethod>,
     /// Email preview view used when hydrating email Soup items.
     email_view: Option<GraphqlEmailView>,
@@ -110,7 +110,7 @@ impl GroupedSoupInput {
     pub(crate) fn into_request(
         self,
         macro_user_id: MacroUserIdStr<'static>,
-    ) -> async_graphql::Result<GroupedSortRequest<'static>> {
+    ) -> async_graphql::Result<GroupedSortQuery<'static>> {
         match self {
             Self::Initial(input) => input.into_request(macro_user_id),
             Self::Continuation(input) => input.into_request(macro_user_id),
@@ -123,7 +123,7 @@ impl GroupedSoupInitialInput {
     fn into_request(
         self,
         macro_user_id: MacroUserIdStr<'static>,
-    ) -> async_graphql::Result<GroupedSortRequest<'static>> {
+    ) -> async_graphql::Result<GroupedSortQuery<'static>> {
         let filters = self
             .filters
             .map(GraphqlEntityFilterAst::into_ast)
@@ -131,20 +131,20 @@ impl GroupedSoupInitialInput {
             .unwrap_or_default();
         let sort_method = self
             .sort_method
-            .map(GraphqlSimpleSortMethod::into_model)
-            .unwrap_or(SimpleSortMethod::ViewedUpdated);
-        let limit = self.limit.unwrap_or(20).min(500);
-
-        Ok(GroupedSortRequest {
+            .unwrap_or(GraphqlSimpleSortMethod::ViewedUpdated)
+            .into_model();
+        let limit = self.limit.unwrap_or(20).clamp(1, 500);
+        Ok(GroupedSortQuery::initial(
+            macro_user_id,
             limit,
-            cursor: Query::Sort(sort_method, filters),
-            user_id: macro_user_id,
-            grouping: GroupingConfig {
+            sort_method,
+            filters,
+            GroupingConfig {
                 field: self.group_by.into_group_by_field()?,
                 group_key: None,
                 per_group_limit: Some(u32::from(limit)),
             },
-        })
+        )?)
     }
 }
 
@@ -153,24 +153,16 @@ impl GroupedSoupContinuationInput {
     fn into_request(
         self,
         macro_user_id: MacroUserIdStr<'static>,
-    ) -> async_graphql::Result<GroupedSortRequest<'static>> {
-        let cursor = Base64Str::<
-            CursorWithValAndFilter<Uuid, SimpleSortMethod, EntityFilterAst>,
-        >::new_from_string(self.cursor)
-        .decode_json()
-        .map_err(|err| async_graphql::Error::new(format!("invalid cursor: {err}")))?;
-        let limit = u16::try_from(cursor.limit).unwrap_or(500).min(500);
-
-        Ok(GroupedSortRequest {
-            limit,
-            cursor: Query::Cursor(cursor),
-            user_id: macro_user_id,
-            grouping: GroupingConfig {
+    ) -> async_graphql::Result<GroupedSortQuery<'static>> {
+        Ok(GroupedSortQuery::continue_from(
+            macro_user_id,
+            self.cursor,
+            GroupingConfig {
                 field: self.group_by.into_group_by_field()?,
                 group_key: Some(self.group_key),
                 per_group_limit: None,
             },
-        })
+        )?)
     }
 }
 
@@ -183,13 +175,66 @@ struct GraphqlGroupByInput {
     property_definition_id: Option<ID>,
     /// Optional property entity type restriction.
     entity_type: Option<GraphqlPropertyEntityType>,
+    /// Frozen viewer-local UTC boundaries required when `field` is `DEADLINE`.
+    deadline_boundaries: Option<GraphqlDeadlineBoundaries>,
+}
+
+/// Frozen starts of the viewer's local calendar days, expressed in UTC.
+#[derive(async_graphql::InputObject, Clone)]
+struct GraphqlDeadlineBoundaries {
+    /// UTC start of the viewer's current local day.
+    today: String,
+    /// UTC start of the viewer's next local day.
+    tomorrow: String,
+    /// UTC start of the viewer's local day two days ahead.
+    day_two: String,
+    /// UTC start of the viewer's local day eight days ahead.
+    day_eight: String,
+}
+
+impl TryFrom<&GraphqlDeadlineBoundaries> for DeadlineBoundaries {
+    type Error = async_graphql::Error;
+
+    fn try_from(value: &GraphqlDeadlineBoundaries) -> Result<Self, Self::Error> {
+        Ok(Self {
+            today: value.today.parse().map_err(|error| {
+                async_graphql::Error::new(format!("invalid deadlineBoundaries.today: {error}"))
+            })?,
+            tomorrow: value.tomorrow.parse().map_err(|error| {
+                async_graphql::Error::new(format!("invalid deadlineBoundaries.tomorrow: {error}"))
+            })?,
+            day_two: value.day_two.parse().map_err(|error| {
+                async_graphql::Error::new(format!("invalid deadlineBoundaries.dayTwo: {error}"))
+            })?,
+            day_eight: value.day_eight.parse().map_err(|error| {
+                async_graphql::Error::new(format!("invalid deadlineBoundaries.dayEight: {error}"))
+            })?,
+        })
+    }
 }
 
 impl GraphqlGroupByInput {
     /// Convert this input into the grouping domain model.
     fn into_group_by_field(self) -> async_graphql::Result<GroupByField> {
+        if self.deadline_boundaries.is_some() && self.field != GraphqlGroupByField::Deadline {
+            return Err(async_graphql::Error::new(
+                "deadlineBoundaries requires DEADLINE grouping",
+            ));
+        }
         match self.field {
             GraphqlGroupByField::Date => self.without_property_options(GroupByField::Date),
+            GraphqlGroupByField::Deadline => {
+                let boundaries = self
+                    .deadline_boundaries
+                    .as_ref()
+                    .ok_or_else(|| {
+                        async_graphql::Error::new(
+                            "deadlineBoundaries is required when grouping by DEADLINE",
+                        )
+                    })?
+                    .try_into()?;
+                self.without_property_options(GroupByField::Deadline { boundaries })
+            }
             GraphqlGroupByField::EntityType => {
                 self.without_property_options(GroupByField::EntityType)
             }
@@ -240,6 +285,8 @@ impl GraphqlGroupByInput {
 enum GraphqlGroupByField {
     /// Group into date buckets.
     Date,
+    /// Group task deadlines using frozen viewer-local calendar boundaries.
+    Deadline,
     /// Group by Soup entity type.
     EntityType,
     /// Group by containing project.
@@ -274,15 +321,15 @@ impl SoupInitialInput {
             .map(GraphqlEntityFilterAst::into_ast)
             .transpose()?
             .unwrap_or_default();
-        let sort = self
+        let cursor = self
             .sort_method
-            .map(GraphqlSimpleSortMethod::into_model)
-            .unwrap_or(SimpleSortMethod::ViewedAt);
+            .unwrap_or(GraphqlSimpleSortMethod::ViewedAt)
+            .into_query(filter);
 
         Ok(SoupRequest {
             soup_type: soup_type(self.expand),
             limit: self.limit.unwrap_or(20).min(500),
-            cursor: SoupQuery::new_sort_simple(sort, filter),
+            cursor,
             sort_direction: sort_direction(self.sort_direction),
             user: macro_user_id,
             email_preview_view: email_preview_view(self.email_view)?,
@@ -298,23 +345,39 @@ impl SoupContinuationInput {
         macro_user_id: MacroUserIdStr<'static>,
         link_ids: Vec<Uuid>,
     ) -> async_graphql::Result<SoupRequest<EntityFilterAst>> {
-        let cursor = Base64Str::<
-            CursorWithValAndFilter<Uuid, SimpleSortMethod, EntityFilterAst>,
-        >::new_from_string(self.cursor)
-        .decode_json()
-        .map_err(|err| async_graphql::Error::new(format!("invalid cursor: {err}")))?;
-        let limit = u16::try_from(cursor.limit).unwrap_or(500).min(500);
+        let cursor = Base64Str::<SoupContinuationCursor>::new_from_string(self.cursor)
+            .decode_json()
+            .map_err(|err| async_graphql::Error::new(format!("invalid cursor: {err}")))?;
+        let (limit, cursor) = match cursor {
+            SoupContinuationCursor::Simple(cursor) => {
+                (cursor.limit, SoupQuery::new_cursor_simple(cursor))
+            }
+            SoupContinuationCursor::DueDate(cursor) => {
+                (cursor.limit, SoupQuery::new_cursor_due_date(cursor))
+            }
+        };
+        let limit = u16::try_from(limit).unwrap_or(500).min(500);
 
         Ok(SoupRequest {
             soup_type: soup_type(self.expand),
             limit,
-            cursor: SoupQuery::new_cursor_simple(cursor),
+            cursor,
             sort_direction: sort_direction(self.sort_direction),
             user: macro_user_id,
             email_preview_view: email_preview_view(self.email_view)?,
             link_ids,
         })
     }
+}
+
+/// Distinguishes timestamp cursors from nullable due-date cursors.
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum SoupContinuationCursor {
+    /// An existing timestamp-sorted continuation.
+    Simple(CursorWithValAndFilter<Uuid, SimpleSortMethod, EntityFilterAst>),
+    /// A task due-date continuation, including an undated last item.
+    DueDate(CursorWithValAndFilter<Uuid, DueDateSort, EntityFilterAst>),
 }
 
 /// Convert the optional GraphQL sort direction into the domain representation.
@@ -380,7 +443,7 @@ impl GraphqlEmailView {
 // Filter input types and their authoritative materialization live in
 // `graphql_soup_filter_input`, shared with the browser cache composition root.
 
-/// GraphQL representation of supported simple Soup sorts.
+/// GraphQL representation of supported timestamp and task due-date Soup sorts.
 #[derive(Enum, Copy, Clone, Eq, PartialEq)]
 pub enum GraphqlSimpleSortMethod {
     /// Sort by most recently viewed.
@@ -391,16 +454,30 @@ pub enum GraphqlSimpleSortMethod {
     UpdatedAt,
     /// Sort by viewed timestamp, falling back to updated timestamp.
     ViewedUpdated,
+    /// Earliest task due date first, with undated tasks last.
+    DueDateEarliest,
+    /// Latest task due date first, with undated tasks last.
+    DueDateLatest,
 }
 
 impl GraphqlSimpleSortMethod {
     /// Convert this GraphQL sort method into the Soup-domain model.
-    pub fn into_model(self) -> SimpleSortMethod {
+    pub fn into_model(self) -> GroupedSortMethod {
         match self {
-            Self::ViewedAt => SimpleSortMethod::ViewedAt,
-            Self::CreatedAt => SimpleSortMethod::CreatedAt,
-            Self::UpdatedAt => SimpleSortMethod::UpdatedAt,
-            Self::ViewedUpdated => SimpleSortMethod::ViewedUpdated,
+            Self::ViewedAt => GroupedSortMethod::Timestamp(SimpleSortMethod::ViewedAt),
+            Self::CreatedAt => GroupedSortMethod::Timestamp(SimpleSortMethod::CreatedAt),
+            Self::UpdatedAt => GroupedSortMethod::Timestamp(SimpleSortMethod::UpdatedAt),
+            Self::ViewedUpdated => GroupedSortMethod::Timestamp(SimpleSortMethod::ViewedUpdated),
+            Self::DueDateEarliest => GroupedSortMethod::DueDate(DueDateSort::Earliest),
+            Self::DueDateLatest => GroupedSortMethod::DueDate(DueDateSort::Latest),
+        }
+    }
+
+    /// Build the appropriate timestamp or nullable due-date initial query.
+    fn into_query<T>(self, filters: T) -> SoupQuery<T> {
+        match self.into_model() {
+            GroupedSortMethod::Timestamp(sort) => SoupQuery::new_sort_simple(sort, filters),
+            GroupedSortMethod::DueDate(sort) => SoupQuery::new_sort_due_date(sort, filters),
         }
     }
 }

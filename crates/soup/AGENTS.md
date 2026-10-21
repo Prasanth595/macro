@@ -64,6 +64,11 @@ rows, initiatives, ...) and get back a single unified, paginated result.
 - `expanded/` vs `unexpanded/` queries exist because hydrating full entities
   is expensive — don't widen `unexpanded` to return hydrated data; add a new
   `expanded` path instead.
+- Keep due-date sorting task-only: `domain/service/due_date.rs` validates
+  filters, and `outbound/pg_soup_repo/due_date.rs` selects canonical dates before pagination.
+- Freeze deadline grouping boundaries and group keys in timestamp and due-date
+  cursors through `domain/models/grouping/query.rs`; reject conflicting continuations.
+- Preserve deployed non-deadline timestamp cursor encodings.
 - `candidate_gates.rs` encodes access-gate SQL shared across repo queries;
   changing it changes what every entity kind can return.
 

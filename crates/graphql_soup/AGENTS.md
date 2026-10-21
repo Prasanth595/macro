@@ -16,3 +16,8 @@ viewer pattern), which apply to every type defined here.
   serves lists. A thread shared through a team's CRM, a project, or a share
   therefore opens through `emailThread` even though it lives in a teammate's
   inbox.
+- Deadline grouping accepts viewer-local UTC boundaries in
+  `groupBy.deadlineBoundaries` (`today`, `tomorrow`, `dayTwo`, `dayEight`);
+  retain those exact boundaries when continuing a bin instead of recomputing them.
+- Keep nullable task due-date cursors distinct from legacy timestamp cursors;
+  `GraphqlSimpleSortMethod` retains its deployed name and includes due-date sorts.

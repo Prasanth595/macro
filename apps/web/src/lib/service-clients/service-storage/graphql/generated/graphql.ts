@@ -839,6 +839,18 @@ export type GraphqlDateLiteral =
   |  { gt?: never; gte?: never; lt?: never;   /** The lte option. */
   lte: string; };
 
+/** Frozen starts of the viewer's local calendar days, expressed in UTC. */
+export type GraphqlDeadlineBoundaries = {
+  /** UTC start of the viewer's local day eight days ahead. */
+  dayEight: string;
+  /** UTC start of the viewer's local day two days ahead. */
+  dayTwo: string;
+  /** UTC start of the viewer's current local day. */
+  today: string;
+  /** UTC start of the viewer's next local day. */
+  tomorrow: string;
+};
+
 /** The two operands of a recursive `DocumentFilterExpr` binary expression. */
 export type GraphqlDocumentBinaryExpr = {
   /** Left expression. */
@@ -864,8 +876,8 @@ export type GraphqlDocumentLiteral =
   createdAt: GraphqlDateLiteral; crmAssociated?: never; emailAttachmentParticipant?: never; fileAssoc?: never; fileType?: never; id?: never; importance?: never; includeCbmAtmNc?: never; isEmailAttachment?: never; nameContains?: never; notificationState?: never; owner?: never; projectId?: never; property?: never; subType?: never; updatedAt?: never; }
   |  { createdAt?: never;   /**
    * Associated with a CRM record through its Companies or Contacts
-   * property or a reference to the record. Requires an expanded,
-   * timestamp-sorted query.
+   * property or a reference to the record. Requires an expanded query
+   * sorted by a timestamp or task due date.
    */
   crmAssociated: GraphqlCrmAssociation; emailAttachmentParticipant?: never; fileAssoc?: never; fileType?: never; id?: never; importance?: never; includeCbmAtmNc?: never; isEmailAttachment?: never; nameContains?: never; notificationState?: never; owner?: never; projectId?: never; property?: never; subType?: never; updatedAt?: never; }
   |  { createdAt?: never; crmAssociated?: never;   /** Uploaded from an email attachment sent by, or to, a matching address. */
@@ -1033,7 +1045,7 @@ export type GraphqlEntityFilterAst = {
   chatFilter?: GraphqlChatExpr | null | undefined;
   /**
    * Restrict every entity type to items associated with this CRM record.
-   * Requires an expanded, timestamp-sorted query.
+   * Requires an expanded query sorted by a timestamp or task due date.
    */
   crmAssociation?: GraphqlCrmAssociation | null | undefined;
   /** The crm company filter to apply. */
@@ -1168,9 +1180,13 @@ export type GraphqlFilterPropertiesLiteral = {
 
 /** GraphQL input value used when matching a property. */
 export type GraphqlFilterPropertyMatchValue =
-  {   /** Entity reference id to match. */
-  entityRef: string | number; selectOption?: never; }
-  |  { entityRef?: never;   /** Select option id to match. */
+  {   /** Match a DATE property in a UTC range. */
+  dateRange: GraphqlPropertyDateRange; entityRef?: never; hasDate?: never; selectOption?: never; }
+  |  { dateRange?: never;   /** Entity reference id to match. */
+  entityRef: string | number; hasDate?: never; selectOption?: never; }
+  |  { dateRange?: never; entityRef?: never;   /** Match a non-null DATE property (false matches absent, null or cleared). */
+  hasDate: boolean; selectOption?: never; }
+  |  { dateRange?: never; entityRef?: never; hasDate?: never;   /** Select option id to match. */
   selectOption: string | number; };
 
 /** The two operands of a recursive `ForeignEntityFilterExpr` binary expression. */
@@ -1323,6 +1339,8 @@ export type GraphqlGithubPullRequestState =
 export type GraphqlGroupByField =
   /** Group into date buckets. */
   | 'DATE'
+  /** Group task deadlines using frozen viewer-local calendar boundaries. */
+  | 'DEADLINE'
   /** Group by Soup entity type. */
   | 'ENTITY_TYPE'
   /** Group by containing project. */
@@ -1332,6 +1350,8 @@ export type GraphqlGroupByField =
 
 /** GraphQL representation of a field used to group Soup items. */
 export type GraphqlGroupByInput = {
+  /** Frozen viewer-local UTC boundaries required when `field` is `DEADLINE`. */
+  deadlineBoundaries?: GraphqlDeadlineBoundaries | null | undefined;
   /** Optional property entity type restriction. */
   entityType?: GraphqlPropertyEntityType | null | undefined;
   /** The kind of grouping to perform. */
@@ -1474,6 +1494,14 @@ export type GraphqlPropertyDataType =
   /** User- or team-scoped colored labels. */
   | 'TAG';
 
+/** Explicit UTC bounds for a DATE property. */
+export type GraphqlPropertyDateRange = {
+  /** Exclusive UTC end, or no upper bound. */
+  end?: string | null | undefined;
+  /** Inclusive UTC start, or no lower bound. */
+  start?: string | null | undefined;
+};
+
 /** An entity type supported by the properties domain. */
 export type GraphqlPropertyEntityType =
   /** Calendar event entity. */
@@ -1567,10 +1595,14 @@ export type GraphqlSharedEmailFilter =
   /** The only option. */
   | 'ONLY';
 
-/** GraphQL representation of supported simple Soup sorts. */
+/** GraphQL representation of supported timestamp and task due-date Soup sorts. */
 export type GraphqlSimpleSortMethod =
   /** Sort by creation timestamp. */
   | 'CREATED_AT'
+  /** Earliest task due date first, with undated tasks last. */
+  | 'DUE_DATE_EARLIEST'
+  /** Latest task due date first, with undated tasks last. */
+  | 'DUE_DATE_LATEST'
   /** Sort by update timestamp. */
   | 'UPDATED_AT'
   /** Sort by most recently viewed. */
@@ -1926,8 +1958,8 @@ export type SoupInitialInput = {
   /** Direction to order the page in. Defaults to DESC. */
   sortDirection?: GraphqlSortDirection | null | undefined;
   /**
-   * Simple timestamp sort. Defaults to VIEWED_AT. Frecency is intentionally
-   * not supported by this initial GraphQL adapter.
+   * Timestamp or task due-date sort. Defaults to VIEWED_AT.
+   * Frecency is not supported by this GraphQL adapter.
    */
   sortMethod?: GraphqlSimpleSortMethod | null | undefined;
 };
