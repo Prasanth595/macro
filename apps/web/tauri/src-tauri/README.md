@@ -72,19 +72,20 @@ bundle reload dispatches have their own `native_bundle_reload_last_id` and
 `native_bundle_reload_last_dispatch_ms`. These are evidence of intent/dispatch,
 not proof of the cause of a termination.
 
-New binaries retain 128 diagnostic events, up to 32 current channel/agent
-contexts, and a separate latest frontend heartbeat in native memory. Events
+New binaries retain 128 diagnostic events and a separate latest frontend
+heartbeat in native memory. Events
 cover native foreground/background, WebContent termination, iOS memory warnings,
-frontend visibility/connectivity, channel surface open/close, agent typing phase
-and live prose state, and connection-gateway/storage socket open/close. Channel
-and session IDs are UUIDs; the schema accepts no message text, URLs, or socket
-reason strings. Context describes mounted surfaces, not proof of keyboard focus.
-Heartbeats run every five seconds while visible and at visibility transitions,
-with ages of the last scroll/interaction; background throttling is expected.
-Heartbeats cannot evict history. Logout clears context and rejects late callbacks.
+frontend visibility/connectivity, and explicit reload requests. Keep reload
+diagnostics at document/native lifecycle boundaries; UI mount state and streamed
+text changes do not establish a reload cause and should not generate native IPC.
+The schema accepts no message text, URLs, or content identifiers.
+Heartbeats record visibility and connectivity every five seconds while visible
+and at visibility transitions; background throttling is expected. They provide
+a last-known responsive timestamp, not proof of a hang or its cause.
+Heartbeats cannot evict history. Logout clears history and rejects late callbacks.
 Recovery also requires a session-storage lease matching the previous document;
 logout deletes it before awaiting native IPC. A missing/blocked lease suppresses
-replay, so even a failed native clear cannot export the previous account's context.
+replay, so even a failed native clear cannot export the previous account's history.
 
 After replacement, `native_diagnostic_recovered` PostHog events and
 `native.diagnostic.recovered` OTel samples report the buffered evidence.

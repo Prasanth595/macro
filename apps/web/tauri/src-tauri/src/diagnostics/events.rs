@@ -18,24 +18,6 @@ pub enum ReloadReason {
     Logout,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[cfg_attr(test, derive(specta::Type))]
-#[serde(rename_all = "snake_case")]
-pub enum SocketService {
-    ConnectionGateway,
-    Storage,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[cfg_attr(test, derive(specta::Type))]
-#[serde(rename_all = "snake_case")]
-pub enum AgentPhase {
-    Thinking,
-    Writing,
-    Working,
-    Waiting,
-}
-
 /// Closed schema: never accept arbitrary text, URLs, or message content.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[cfg_attr(test, derive(specta::Type))]
@@ -47,33 +29,12 @@ pub enum FrontendEvent {
     Heartbeat {
         visible: bool,
         online: bool,
-        last_scroll_age_ms: Option<u32>,
-        last_interaction_age_ms: Option<u32>,
     },
     Visibility {
         visible: bool,
     },
     Connectivity {
         online: bool,
-    },
-    Channel {
-        channel_id: Uuid,
-        open: bool,
-    },
-    AgentActivity {
-        session_id: Uuid,
-        channel_id: Option<Uuid>,
-        phase: AgentPhase,
-        streaming: bool,
-        active: bool,
-    },
-    SocketClosed {
-        service: SocketService,
-        code: u16,
-        clean: bool,
-    },
-    SocketOpened {
-        service: SocketService,
     },
     ReloadRequested {
         reload_id: Uuid,
@@ -122,7 +83,6 @@ pub struct DiagnosticEvent {
 pub struct EventSnapshot {
     pub events: Vec<DiagnosticEvent>,
     pub current_frontend_instance_id: Option<Uuid>,
-    pub active_context: Vec<DiagnosticEvent>,
     pub heartbeat: Option<DiagnosticEvent>,
     pub dropped: u32,
     pub memory_warning_reporting: bool,
@@ -133,7 +93,6 @@ pub struct EventBuffer {
     sequence: u32,
     events: VecDeque<DiagnosticEvent>,
     heartbeat: Option<DiagnosticEvent>,
-    active_context: VecDeque<DiagnosticEvent>,
     frontend: Option<Uuid>,
     retired_frontend: Option<Uuid>,
     dropped: u32,
@@ -157,7 +116,6 @@ impl EventBuffer {
             }
             self.frontend = Some(id);
             self.heartbeat = None;
-            self.active_context.clear();
         } else if self.frontend != Some(id) {
             // A delayed IPC from the replaced document cannot overwrite its successor.
             return;
@@ -165,34 +123,11 @@ impl EventBuffer {
         if matches!(event, FrontendEvent::AccountCleared) {
             self.events.clear();
             self.heartbeat = None;
-            self.active_context.clear();
             self.retired_frontend = Some(id);
             self.dropped = 0;
         }
         let heartbeat = matches!(event, FrontendEvent::Heartbeat { .. });
         let entry = self.entry(Some(id), Event::Frontend(event), timestamp_ms);
-        let active = match &entry.event {
-            Event::Frontend(FrontendEvent::Channel { channel_id, open }) => {
-                self.active_context.retain(|entry| !matches!(&entry.event,
-                    Event::Frontend(FrontendEvent::Channel { channel_id: previous, .. }) if previous == channel_id));
-                *open
-            }
-            Event::Frontend(FrontendEvent::AgentActivity {
-                session_id, active, ..
-            }) => {
-                self.active_context.retain(|entry| !matches!(&entry.event,
-                    Event::Frontend(FrontendEvent::AgentActivity { session_id: previous, .. }) if previous == session_id));
-                *active
-            }
-            _ => false,
-        };
-        if active {
-            // Preserve current surface state even if the history wraps.
-            if self.active_context.len() == 32 {
-                self.active_context.pop_front();
-            }
-            self.active_context.push_back(entry.clone());
-        }
         if heartbeat {
             self.heartbeat = Some(entry);
         } else {
@@ -232,7 +167,6 @@ impl EventBuffer {
         EventSnapshot {
             events: self.events.iter().cloned().collect(),
             current_frontend_instance_id: self.frontend,
-            active_context: self.active_context.iter().cloned().collect(),
             heartbeat: self.heartbeat.clone(),
             dropped: self.dropped,
             memory_warning_reporting: cfg!(target_os = "ios"),

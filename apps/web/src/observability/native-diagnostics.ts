@@ -108,26 +108,12 @@ export function startNativeDiagnostics(
     return () => {};
   }
   for (const event of pending.splice(0)) recordNativeDiagnostic(event);
-  let lastScroll: number | undefined;
-  let lastInteraction: number | undefined;
-  const age = (time: number | undefined) =>
-    time === undefined
-      ? null
-      : Math.min(0xffffffff, Math.max(0, Math.round(performance.now() - time)));
   const heartbeat = () =>
     recordNativeDiagnostic({
       kind: 'heartbeat',
       visible: document.visibilityState === 'visible',
       online: navigator.onLine,
-      last_scroll_age_ms: age(lastScroll),
-      last_interaction_age_ms: age(lastInteraction),
     });
-  const scroll = () => {
-    lastScroll = performance.now();
-  };
-  const interact = () => {
-    lastInteraction = performance.now();
-  };
   const visibility = () => {
     recordNativeDiagnostic({
       kind: 'visibility',
@@ -137,9 +123,6 @@ export function startNativeDiagnostics(
   };
   const connectivity = () =>
     recordNativeDiagnostic({ kind: 'connectivity', online: navigator.onLine });
-  document.addEventListener('scroll', scroll, { capture: true, passive: true });
-  document.addEventListener('pointerdown', interact, { passive: true });
-  document.addEventListener('keydown', interact);
   document.addEventListener('visibilitychange', visibility);
   window.addEventListener('online', connectivity);
   window.addEventListener('offline', connectivity);
@@ -150,9 +133,6 @@ export function startNativeDiagnostics(
   }, 5000);
   return () => {
     clearInterval(timer);
-    document.removeEventListener('scroll', scroll, true);
-    document.removeEventListener('pointerdown', interact);
-    document.removeEventListener('keydown', interact);
     document.removeEventListener('visibilitychange', visibility);
     window.removeEventListener('online', connectivity);
     window.removeEventListener('offline', connectivity);

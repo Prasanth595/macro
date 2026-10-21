@@ -32,12 +32,12 @@ afterEach(() => {
   sessionStorage.clear();
 });
 
-it('replays a previous document with original identity/time and no duplicate context entries', () => {
-  const channel = {
+it('replays a previous document once with original identity/time in sequence order', () => {
+  const visibility = {
     sequence: 1,
     timestampMs: 100,
     frontendInstanceId: 'previous',
-    event: { kind: 'channel' as const, channel_id: 'channel', open: true },
+    event: { kind: 'visibility' as const, visible: true },
   };
   const snapshot: DesktopSnapshot = {
     identity: {
@@ -53,7 +53,7 @@ it('replays a previous document with original identity/time and no duplicate con
     recentEvents: {
       currentFrontendInstanceId: 'previous',
       events: [
-        channel,
+        visibility,
         {
           sequence: 3,
           timestampMs: 300,
@@ -61,7 +61,6 @@ it('replays a previous document with original identity/time and no duplicate con
           event: { kind: 'web_content_terminated' },
         },
       ],
-      activeContext: [channel],
       heartbeat: {
         sequence: 2,
         timestampMs: 200,
@@ -70,8 +69,6 @@ it('replays a previous document with original identity/time and no duplicate con
           kind: 'heartbeat',
           visible: true,
           online: false,
-          last_scroll_age_ms: 10,
-          last_interaction_age_ms: null,
         },
       },
       dropped: 0,
@@ -90,7 +87,6 @@ it('replays a previous document with original identity/time and no duplicate con
       native_event_id: 'host:2',
       visible: true,
       online: false,
-      last_scroll_age_ms: 10,
     }),
     200
   );

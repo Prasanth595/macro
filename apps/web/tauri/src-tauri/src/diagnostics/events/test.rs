@@ -1,43 +1,6 @@
 use super::*;
 
 #[test]
-fn active_channel_survives_history_eviction_until_closed() {
-    let mut buffer = EventBuffer::default();
-    let id = Uuid::new_v4();
-    let channel = Uuid::new_v4();
-    buffer.frontend(
-        id,
-        FrontendEvent::Started {
-            previous_instance_id: None,
-        },
-        1,
-    );
-    buffer.frontend(
-        id,
-        FrontendEvent::Channel {
-            channel_id: channel,
-            open: true,
-        },
-        2,
-    );
-    for time in 3..200 {
-        buffer.native(NativeEvent::MemoryWarning, time);
-    }
-    let snapshot = buffer.snapshot();
-    assert!(snapshot.events.iter().all(|entry| entry.timestamp_ms > 2));
-    assert_eq!(snapshot.active_context.len(), 1);
-    buffer.frontend(
-        id,
-        FrontendEvent::Channel {
-            channel_id: channel,
-            open: false,
-        },
-        200,
-    );
-    assert!(buffer.snapshot().active_context.is_empty());
-}
-
-#[test]
 fn a_delayed_start_cannot_reclaim_a_newer_document() {
     let mut buffer = EventBuffer::default();
     let old = Uuid::new_v4();
@@ -85,8 +48,6 @@ fn heartbeats_do_not_evict_events_and_history_is_bounded() {
             FrontendEvent::Heartbeat {
                 visible: true,
                 online: true,
-                last_scroll_age_ms: None,
-                last_interaction_age_ms: None,
             },
             time,
         );
@@ -120,23 +81,9 @@ fn logout_erases_identifiers_and_ignores_late_callbacks() {
         },
         1,
     );
-    buffer.frontend(
-        old,
-        FrontendEvent::Channel {
-            channel_id: Uuid::new_v4(),
-            open: true,
-        },
-        2,
-    );
+    buffer.frontend(old, FrontendEvent::Visibility { visible: true }, 2);
     buffer.frontend(old, FrontendEvent::AccountCleared, 3);
-    buffer.frontend(
-        old,
-        FrontendEvent::Channel {
-            channel_id: Uuid::new_v4(),
-            open: true,
-        },
-        4,
-    );
+    buffer.frontend(old, FrontendEvent::Visibility { visible: true }, 4);
     assert_eq!(buffer.snapshot().events.len(), 1);
     buffer.frontend(
         next,
@@ -174,8 +121,6 @@ fn native_events_and_previous_heartbeat_survive_until_next_document_reads_them()
         FrontendEvent::Heartbeat {
             visible: true,
             online: true,
-            last_scroll_age_ms: Some(20),
-            last_interaction_age_ms: None,
         },
         2,
     );

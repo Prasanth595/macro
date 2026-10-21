@@ -82,15 +82,12 @@ export function reportRecoveredEvents(
   }
   let latest = after;
   const entries = [
-    ...recent.activeContext,
     ...recent.events,
     ...(recent.heartbeat ? [recent.heartbeat] : []),
   ].sort((a, b) => a.sequence - b.sequence);
-  const seen = new Set<number>();
   for (const entry of entries) {
     if (entry.frontendInstanceId !== previousFrontend) continue;
-    if (entry.sequence <= after || seen.has(entry.sequence)) continue;
-    seen.add(entry.sequence);
+    if (entry.sequence <= after) continue;
     const attributes = {
       ...Object.fromEntries(
         Object.entries(entry.event).filter(([, value]) => value !== null)

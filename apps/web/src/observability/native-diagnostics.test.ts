@@ -19,7 +19,6 @@ const snapshot: DesktopSnapshot = {
   recentEvents: {
     events: [],
     currentFrontendInstanceId: null,
-    activeContext: [],
     heartbeat: null,
     dropped: 0,
     memoryWarningReporting: true,
@@ -75,15 +74,14 @@ it('bounds a hung bridge and keeps reload and logout usable', async () => {
   expect(invoke).toHaveBeenCalledTimes(2);
 });
 
-it('clears native context before retiring callbacks from the signed-out document', async () => {
+it('clears native history before retiring callbacks from the signed-out document', async () => {
   const diagnostics = await import('./native-diagnostics');
   dispose = diagnostics.startNativeDiagnostics(snapshot);
   await diagnostics.clearNativeDiagnostics();
   vi.mocked(invoke).mockClear();
   await diagnostics.sendNativeDiagnostic({
-    kind: 'channel',
-    channel_id: crypto.randomUUID(),
-    open: true,
+    kind: 'visibility',
+    visible: true,
   });
   await vi.advanceTimersByTimeAsync(10_000);
   expect(invoke).not.toHaveBeenCalled();

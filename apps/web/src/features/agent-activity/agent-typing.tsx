@@ -2,7 +2,6 @@ import { PersonaAvatar } from '@app/features/agent-dms/components/persona-avatar
 import { InteractionCard } from '@app/features/agent-interactions/components/InteractionCard';
 import type { AgentInteraction } from '@app/features/agent-interactions/context/interaction';
 import { createInteractionController } from '@app/features/agent-interactions/primitives/create-interaction-controller';
-import { recordNativeDiagnostic } from '@app/observability/native-diagnostics';
 import {
   isWorkingTurn,
   sessionTurn,
@@ -21,12 +20,10 @@ import type { MessageParent } from '@service-storage/messages';
 import { Key } from '@solid-primitives/keyed';
 import {
   createContext,
-  createEffect,
   createMemo,
   createSignal,
   For,
   type JSX,
-  on,
   onCleanup,
   type ParentProps,
   Show,
@@ -122,9 +119,6 @@ function AgentTypingRows(props: TypingPlace) {
         <Show when={agents().get(botUserId)}>
           {(info) => (
             <AgentTypingEntry
-              channelId={
-                props.parent.type === 'channel' ? props.parent.id : undefined
-              }
               botUserId={botUserId}
               sessionId={info().sessionId}
               phase={info().phase}
@@ -137,7 +131,6 @@ function AgentTypingRows(props: TypingPlace) {
 }
 
 function AgentTypingEntry(props: {
-  channelId?: string;
   botUserId: string;
   sessionId: string;
   phase: 'thinking' | 'writing' | 'working' | 'waiting';
@@ -165,41 +158,6 @@ function AgentTypingEntry(props: {
   const canEdit = () =>
     queryReadyGate(sessionQuery) ? sessionQuery.data?.canEdit : undefined;
   const reply = () => (live.loaded() ? openReply(live.messages()) : undefined);
-  // Emit only transitions, not one IPC per streamed text chunk.
-  const streaming = createMemo(() => {
-    const segment = reply()?.segments.at(-1);
-    return segment?.kind === 'prose' && !segment.sealed;
-  });
-  createEffect(
-    on(
-      [
-        () => props.sessionId,
-        () => props.channelId,
-        () => props.phase,
-        streaming,
-      ],
-      ([sessionId, channelId, phase, isStreaming]) => {
-        recordNativeDiagnostic({
-          kind: 'agent_activity',
-          session_id: sessionId,
-          channel_id: channelId ?? null,
-          phase,
-          streaming: isStreaming,
-          active: true,
-        });
-        onCleanup(() =>
-          recordNativeDiagnostic({
-            kind: 'agent_activity',
-            session_id: sessionId,
-            channel_id: channelId ?? null,
-            phase,
-            streaming: false,
-            active: false,
-          })
-        );
-      }
-    )
-  );
   // A held tool call is answered from the session, not here: a turn the
   // owner prompts, as every DM turn is, is never held for them.
   const pending = () =>
