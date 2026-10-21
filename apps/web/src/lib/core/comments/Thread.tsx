@@ -252,7 +252,6 @@ export function Thread(props: {
   layout: Layout;
   isActive: boolean;
   theme?: EditorThemeClasses;
-  maxHeight?: number;
   handleMouseDown?: (e: MouseEvent) => void;
 }) {
   let measureContainerRef!: HTMLDivElement;
@@ -273,7 +272,6 @@ export function Thread(props: {
       ref={measureContainerRef}
       top={props.layout.calculatedYPos}
       threadId={props.comment.threadId}
-      maxHeight={props.maxHeight}
       isActive={props.isActive}
       transition={false}
     >
