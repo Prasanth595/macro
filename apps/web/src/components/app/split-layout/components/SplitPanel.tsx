@@ -8,6 +8,7 @@ import { globalSplitManager } from '@app/signal/splitLayout';
 import { MobileTopEdgeFade } from '@components/app/mobile/MobileEdgeFade';
 import { MobilePageActionRow } from '@components/app/mobile/MobilePageActionRow';
 import { SplitPanelControllerProvider } from '@components/app/split-panel';
+import { TabDropZones } from '@components/app/tab-layout/TabDropZones';
 import { splitContainerAttribute } from '@core/dom-selectors';
 import { EVENT_MODIFIER_KEYS } from '@core/hotkey/constants';
 import { useHotkeyDOMScope } from '@core/hotkey/hotkeys';
@@ -379,6 +380,7 @@ export function SplitPanel(props: SplitPanelProps) {
                   </Show>
                 </Panel.Body>
               </Panel>
+              <TabDropZones index={props.index} />
               <Show when={isTouchDevice()}>
                 <Suspense>
                   <MobilePageActionRow />

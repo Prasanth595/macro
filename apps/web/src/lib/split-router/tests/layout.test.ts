@@ -51,9 +51,7 @@ afterEach(() => {
 
 describe('layout snapshot and restore', () => {
   it('restores a captured layout with every pane history and the URL', async () => {
-    const { router, history, paneStore, pane } = track(
-      setup('/home/~/drive')
-    );
+    const { router, history, paneStore, pane } = track(setup('/home/~/drive'));
     await router.navigatePane(pane(0), '/mail/t1');
     const captured = router.layoutSnapshot();
     expect(captured.panes.map((item) => item.pane)).toEqual([

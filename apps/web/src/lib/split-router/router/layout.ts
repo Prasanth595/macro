@@ -1,7 +1,12 @@
 import { batch, untrack } from 'solid-js';
-import { changedPanes, type ChangedPane } from '../panes/diff';
+import { type ChangedPane, changedPanes } from '../panes/diff';
 import type { PaneId } from '../panes/types';
-import { encodePanes, formatLocation } from '../routes/codec';
+import {
+  decodePanes,
+  encodePanes,
+  formatLocation,
+  parseLocation,
+} from '../routes/codec';
 import type { SplitRoutesManifest } from '../routes/manifest';
 import type { Entry } from '../routes/types';
 import type { MaybePromise } from '../utils';
@@ -119,6 +124,19 @@ export function createLayout(options: {
     return runner.startUrl(navigation, false);
   };
 
+  /** A saved layout URL as a capture: fresh single-entry histories per pane. */
+  const parse = (url: string): LayoutSnapshot => {
+    const decoded = decodePanes(routes, parseLocation(url));
+
+    return {
+      panes: decoded.panes.map(({ paneId, entry }) => ({
+        pane: paneId ?? panes.createPaneId(),
+        entries: [entry],
+        index: 0,
+      })),
+    };
+  };
+
   /** The mount-relative URL a captured layout shows, for saving or sharing. */
   const href = (layout: LayoutSnapshot): string => {
     const shown = layout.panes.map((pane) => ({
@@ -129,5 +147,5 @@ export function createLayout(options: {
     return formatLocation(encodePanes(routes, shown, untrack(url.lastKnown)));
   };
 
-  return { snapshot, restore, href };
+  return { snapshot, restore, parse, href };
 }
